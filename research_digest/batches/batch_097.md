@@ -1,0 +1,60 @@
+# Batch 097 digest
+
+## Overview
+- Dominated by CRYPTO 2012 (LNCS 7417) and PKC 2012 (LNCS 7293) proceedings papers — foundational/symmetric crypto, MPC, functional/attribute-based encryption, leakage and tamper resilience.
+- Notable ECDLP item: experimental run of Cheon's algorithm solving DLP-with-auxiliary-input on a 160-bit Barreto–Naehrig curve (1314 core days) — the only elliptic-curve attack paper in this batch.
+- Other standouts: Lenstra et al.'s "Public Keys" real-world RSA/ECDSA key sanity check, the SPDZ paper (MPC from somewhat homomorphic encryption), TinyOT-style practical 2PC, and the GCM proof flaw repair by Iwata et al.
+- Anomalies: two 1-page invited-talk abstracts (Zittrain, Brickell), one file with no extracted text (74170437), and one garbage extraction of stray digits (74170602).
+- Themes cluster tightly: hash/compression-function theory, UC/composable secure computation, differential privacy, and ABE/functional encryption — little applied or side-channel-empirical work beyond theory of leakage resilience.
+
+## Papers
+- **72930558.pdf** — Correlated Product Security From Any One-Way Function (Hemenway, Lu, Ostrovsky). Shows correlated-product-secure functions exist iff one-way functions do, plus a decisional variant separating trapdoor from non-trapdoor cases.
+- **72930576.pdf** — Relations between Constrained and Bounded Chosen Ciphertext Security for KEMs (Matsuda, Hanaoka, Matsuura). Maps separations/implications between CCCA and bounded-CCA security for key encapsulation.
+- **72930594.pdf** — Solving a Discrete Logarithm Problem with Auxiliary Input on a 160-bit Elliptic Curve (Sakemi, Hanaoka, Izu, Takenaka, Yasuda). Implements Cheon's algorithm with speedups; solves DLPwAI on a 160-bit BN curve in 1314 core days, discussing security implications.
+- **72930609.pdf** — Inferring Sequences Produced by Nonlinear Pseudorandom Number Generators Using Coppersmith's Methods (Bauer, Vergnaud, Zapalowicz). Lattice/Coppersmith attacks improving security bounds for number-theoretic PRNGs over Blackburn et al.
+- **72930627.pdf** — Extended-DDH and Lossy Trapdoor Functions (Hemenway, Ostrovsky). Builds lossy trapdoor functions from any homomorphic smooth hash proof system, giving first QR-based LTFs.
+- **72930644.pdf** — DDH-like Assumptions Based on Extension Rings (Cramer, Damgård, Kiltz, Zakarias, Zottarel). Introduces d-DDH over extension rings, an infinite hierarchy between DDH and CDH, with generic-group analysis.
+- **72930662.pdf** — Security of Blind Signatures Revisited (Schröder, Unruh). Exposes gaps in Pointcheval–Stern unforgeability and proposes honest-user unforgeability with a generic transformation.
+- **72930680.pdf** — Efficient Network Coding Signatures in the Standard Model (Catalano, Fiore, Warinschi). Two homomorphic network-coding signature schemes secure in the standard model under standard assumptions.
+- **72930697.pdf** — Improved Security for Linearly Homomorphic Signatures: A Generic Framework (Freeman). Converts Waters/Boneh-Boyen/GHR/Hohenberger-Waters signatures into linearly homomorphic ones under their native assumptions.
+- **72930715.pdf** — On the Security of Dynamic Group Signatures: Preventing Signature Hijacking (Sakai, Schuldt, Emura, Hanaoka, Ohta). Identifies ownership-hijacking attacks, defines opening soundness, and patches Groth's scheme.
+- **74170001.pdf** — An Enciphering Scheme Based on a Card Shuffle (Hoang, Morris, Rogaway). Swap-or-not shuffle gives PRF-to-PRP conversion with near-full-domain security for format-preserving encryption; analysis via Markov chain mixing.
+- **74170014.pdf** — Tweakable Blockciphers with Beyond Birthday-Bound Security (Landecker, Shrimpton, Terashima). First wide-tweak TBC with beyond-birthday security without rekeying; also settles TBC-MAC security.
+- **74170032.pdf** — Breaking and Repairing GCM Security Proofs (Iwata, Ohashi, Minematsu). Finds a flawed counter-collision lemma invalidating GCM's original proofs and supplies corrected, weaker but valid bounds.
+- **74170051.pdf** — On the Distribution of Linear Biases: Three Instructive Examples (Abdelraheem, Ågren, Beelen, Leander). Three counterexample ciphers showing standard linear-cryptanalysis assumptions can fail, urging better foundations.
+- **74170069.pdf** — Substitution-Permutation Networks, Pseudorandom Functions, and Natural Proofs (Miles, Viola). Candidate SPN-style PRFs with unconditional or exponential security against restricted attacks, bridging SPN practice and PRF theory.
+- **74170087.pdf** — The End of Crypto (Zittrain). One-page invited talk abstract reflecting on cryptology's purposes; not a research paper.
+- **74170088.pdf** — Must you know the code of f to securely compute f? (Rosulek). Characterizes which two-party tasks admit black-box (circuit-free) secure computation against semi-honest adversaries.
+- **74170106.pdf** — Adaptively Secure Multi-Party Computation with Dishonest Majority (Garg, Sahai). Shows black-box simulation forces super-constant rounds; gives constant-round protocol via non-black-box techniques.
+- **74170124.pdf** — Collusion-Preserving Computation (Alwen, Katz, Maurer, Zikas). Clean-slate definition of collusion preservation generalizing collusion-free protocols over arbitrary communication resources, with composition.
+- **74170144.pdf** — Secret Sharing Schemes for Very Dense Graphs (Beimel, Farràs, Mintz). Improved upper and lower bounds on share size for secret sharing over graphs whose complements have few edges.
+- **74170162.pdf** — Functional Encryption with Bounded Collusions via Multi-Party Computation (Gorbunov, Vaikuntanathan, Wee). Simulation-secure bounded-collusion functional encryption from PKE and low-depth PRGs via MPC techniques.
+- **74170181.pdf** — New Proof Methods for Attribute-Based Encryption (Lewko, Waters). Methodology lifting selective-security techniques to full security; yields a fully secure CP-ABE matching selective-scheme efficiency.
+- **74170199.pdf** — Dynamic Credentials and Ciphertext Delegation for ABE (Sahai, Seyalioglu, Waters). Ciphertext delegation and first fully secure revocable ABE for cloud storage with revoked-user exclusion.
+- **74170217.pdf** — Functional Encryption for Regular Languages (Waters). Keys tied to DFAs decrypt ciphertexts whose associated strings are accepted; first unbounded-language functionality, selectively secure under Expanded BDHE.
+- **74170235.pdf** — Secure Database Commitments and Universal Arguments of Quasi Knowledge (Chase, Visconti). Size-hiding database commitments with constant rounds and non-interactive proofs from CRHFs.
+- **74170253.pdf** — Succinct Arguments from Multi-Prover Interactive Proofs and their Efficiency Benefits (Bitansky, Chiesa). Efficient one-round succinct MIP of knowledge transformed into four-message succinct arguments.
+- **74170271.pdf** — On the Security of TLS-DHE in the Standard Model (Jager, Kohlar, Schäge, Schwenk). First standard-model proof for TLS-DHE via the new ACCE security model covering handshake plus record layer.
+- **74170292.pdf** — Semantic Security for the Wiretap Channel (Bellare, Tessaro, Vardy). Bridges wiretap and cryptographic privacy notions, proving mutual-information and semantic-security definitions equivalent, with explicit schemes.
+- **74170310.pdf** — Multi-Instance Security and its Application to Password-Based Cryptography (Bellare, Ristenpart, Tessaro). Formalizes multi-instance security (LORX) giving first proof-based justification of password salting.
+- **74170328.pdf** — Hash Functions Based on Three Permutations: A Generic Security Analysis (Mennink, Preneel). Classifies 2n-to-n-bit compression functions using ≤3 permutation calls; characterizes optimal collision/preimage classes.
+- **74170346.pdf** — To Hash or Not to Hash Again? (In)differentiability Results for H² and HMAC (Dodis, Ristenpart, Steinberger, Tessaro). Shows double hashing has poor indifferentiability and uncovers HMAC weak-key pairs.
+- **74170366.pdf** — New Preimage Attacks Against Reduced SHA-1 (Knellwolf, Khovratovich). Differential meet-in-the-middle preimages on SHA-1 reduced to 57 steps, improving the prior 48-step record.
+- **74170384.pdf** — Stam's Conjecture and Threshold Phenomena in Collision Resistance (Steinberger, Sun, Yang). Proves the general case of Stam's conjecture and shows an unavoidable threshold yielding exponentially many collisions.
+- **74170401.pdf** — Universal Composability from Essentially Any Trusted Setup (Rosulek). Dichotomy: nearly every 2-party setup is either useless or complete for UC security, with an almost-total characterization.
+- **74170419.pdf** — Impossibility Results for Static Input Secure Computation (Garg, Kumarasubramanian, Ostrovsky, Visconti). Concurrent secure two-party computation impossible even with pre-specified inputs for broad function classes.
+- **74170437.pdf** — No text extracted (1-page file); content could not be determined.
+- **74170455.pdf** — Black-box Constructions of Composable Protocols without Set-Up (Lin, Pass). First black-box concurrently-secure MPC in the plain model from semi-honest OT, under UC with super-polynomial helpers.
+- **74170473.pdf** — Crowd-Blending Privacy (Gehrke, Hay, Lui, Pass). Relaxes differential privacy for better utility; combined with pre-sampling it yields differential and even zero-knowledge privacy.
+- **74170491.pdf** — Differential Privacy with Imperfect Randomness (Dodis, López-Alt, Mironov, Vadhan). Differentially private mechanisms for low-sensitivity functions remain achievable with Santha–Vazirani biased randomness.
+- **74170511.pdf** — Tamper and Leakage Resilience in the Split-State Model (Liu, Lysyanskaya). Compiles any functionality to resist continual split-state leakage/tampering without device randomness, via new non-malleable codes.
+- **74170529.pdf** — Securing Circuits Against Constant-Rate Tampering (Dachman-Soled, Kalai). Information-theoretic compiler tolerating tampering of a constant fraction of wires, leaking only logarithmically many bits.
+- **74170547.pdf** — How to Compute under AC⁰ Leakage without Secure Hardware (Rothblum). Compiler protecting circuit internals against adaptive AC⁰ leakage under a new inner-product hardness assumption.
+- **74170565.pdf** — Recent Advances and Existing Research Questions in Platform Security (Brickell). One-page invited talk abstract on Intel platform crypto; not a research paper.
+- **74170566.pdf** — Group Signatures with Almost-for-free Revocation (Libert, Peters, Yung). Standard-model group signatures with scalable NNL-based revocation reducing per-member storage overheads.
+- **74170584.pdf** — Tightly Secure Signatures and Public-Key Encryption (Hofheinz, Jager). First tightly IND-CCA PKE under a standard assumption, via tightly secure structure-preserving signatures and Groth–Sahai proofs.
+- **74170602.pdf** — Garbage extraction: page contains only stray digits ("0 0 0 0 ..."); content could not be determined.
+- **74170620.pdf** — Public Keys (Lenstra, Hughes, Augier, Bos, Kleinjung, Wachter). Sanity check of web-collected RSA/ElGamal keys finds shared factors and repeated keys, showing real-world key generation is broken.
+- **74170637.pdf** — Multiparty Computation from Somewhat Homomorphic Encryption (Damgård, Pastro, Smart, Zakarias). SPDZ: active-secure MPC for n−1 corruptions with SHE-based preprocessing and near-optimal online phase.
+- **74170656.pdf** — Near-Linear Unconditionally-Secure MPC with a Dishonest Minority (Ben-Sasson, Fehr, Ostrovsky). Unconditionally secure MPC matching honest-but-curious communication complexity, settling the open complexity question.
+- **74170674.pdf** — A New Approach to Practical Active-Secure Two-Party Computation (Nielsen, Nordholt, Orlandi, Burra). OT-extension-based actively secure 2PC outperforming garbled circuits; evaluates 20,000+ gates/second.

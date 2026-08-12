@@ -1,0 +1,511 @@
+experiment:
+  id: EXP-IC-002
+  hypothesis_id: H-IC-001
+  version: 1
+  title: >-
+    Yield-charged descent control on the EXP-IC-001 multi-target crossover:
+    exact reachable-set enumeration, measured P_dec, and recomputed K* at
+    B=14, m=2 (8-36 bit toy primes)
+  status: approved
+  objective: >-
+    EXP-IC-001 charged the per-target descent as the cost of ONE Groebner
+    attempt (T_desc = median groebner_seconds x calibration), and EV-IC-001
+    records in its own boundaries block that "B=14, m=2 only; all Groebner
+    solves on trivial ideals (no decompositions)". No decomposition ever
+    occurred in the 748 runs that DEC-20260726-005 used to conclude support.
+    This experiment charges the descent by YIELD instead: it enumerates the
+    exact set S of group elements reachable as a factor-base sum under the
+    exact code path of harness/semaev.py::_find_decomposition, measures the
+    decomposition probability P_dec of an EXP-IC-001 target, recomputes
+    T_desc_charged = T_attempt / P_dec, and recomputes the crossover K*
+    against the SAME matched rho baseline and the SAME group-operation
+    calibration EXP-IC-001 used. Every other quantity is frozen and reused
+    verbatim from the committed EXP-IC-001 run records, so the yield factor
+    is the only moving quantity. The experiment decides whether the
+    DEC-20260726-005 support verdict survives its own recorded confound, or
+    whether the reported crossover is an accounting artifact of charging one
+    attempt instead of one success.
+  control_status: >-
+    This is a CONTROL on a committed support decision (DEC-20260726-005) and
+    may WEAKEN it. Under orchestration/model-policies.yaml routing rule
+    critical-result-review and AGENTS.md rule 12, the design review
+    (TASK-20260727-004) and the run reviews (TASK-20260727-007 validator,
+    TASK-20260727-008 red team) MUST be non-originating independent sessions
+    at policy review-xhigh. No agent that produced this specification or the
+    run package may interpret its result.
+  inputs:
+    source_experiment: EXP-IC-001
+    source_evidence: EV-IC-001
+    source_decision: DEC-20260726-005
+    source_analysis: experiments/EXP-IC-001/analysis.md
+    instance_generation: >-
+      harness.toycurve.generate_instance(seed, field_bits) - identical
+      deterministic call used by EXP-IC-001. No new curve is generated and no
+      instance parameter is changed.
+    bit_sizes: [8, 12, 16, 20, 24, 28, 32, 36]
+    seeds_by_bit_size:
+      8: [1, 2, 3]
+      12: [1, 2, 3]
+      16: [1, 2, 3]
+      20: [1, 2, 3]
+      24: [1, 2, 3]
+      28: [1, 2, 3]
+      32: [1, 2, 3]
+      36: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    instance_count: 34
+    factor_base_size: 14
+    decomposition_arity: 2
+    targets_per_curve: 10
+    factor_base_source: >-
+      The exact 14 x-coordinate list is READ from the committed EXP-IC-001
+      fixed-mode run record field raw.factor_base in
+      experiments/EXP-IC-001/runs/RUN-FCP-fixed-b{bits}-s{seed}-t{idx}/raw-result.json.
+      The factor base is never rebuilt. If the 10 fixed-mode runs of one
+      instance do not all carry a byte-identical factor_base list, the
+      instance is invalid (see invalidation_rules).
+    target_source: >-
+      The exact 10 target points and their scalars are READ from the same
+      run records (raw.target, raw.target_k). No target is re-derived.
+    t_attempt_source: >-
+      T_attempt per instance in group-operation equivalents is READ from the
+      committed EXP-IC-001 records: median over the 10 fixed-mode
+      metrics.groebner_seconds, multiplied by the instance calibration factor
+      total_group_operations / wall_seconds taken from the matched rho run
+      record RUN-FCP-rho-b{bits}-s{seed}-*. This reproduces EXP-IC-001's
+      T_desc_gops exactly; no solver is re-timed and no clock is re-read.
+    rho_baseline_source: >-
+      metrics.total_group_operations and timing.wall_seconds from the same
+      committed rho run records. No rho run is repeated.
+    subgroup_order_source: >-
+      parameters.prime_order_n from the committed rho run record, cross-checked
+      against harness.toycurve.generate_instance(seed, bits).n.
+  counting_derivation:
+    reachable_set_definition: >-
+      harness/semaev.py::_find_decomposition iterates i over V and v2 over
+      V[i:], lifts each x-coordinate with E.lift_x, and tests both sign
+      choices of each summand. The set of targets it can ever report as
+      decomposed is therefore
+      S = { s1 * A_i + s2 * A_j : 1 <= i <= j <= B, s1, s2 in {+1,-1} },
+      where A_i = E.lift_x(v_i) for the frozen factor base V.
+    cardinality_bound: >-
+      |S| <= 4 * (C(B,2) + B). At B = 14 this is 4 * 105 = 420 group elements,
+      independent of the field size p and of the subgroup order N.
+    correction_to_idea: >-
+      IDEA-20260727-002 states the bound as C(B,2) + B = 105 sums. That count
+      omits the two sign choices the harness actually explores. EXP-IC-002
+      uses the sign-corrected bound 4 * (C(B,2) + B) = 420 AND measures |S|
+      exactly. The corrected bound is four times LARGER, i.e. it makes P_dec
+      larger and the charged cost smaller, so the test is deliberately biased
+      AGAINST the confound claim it is testing.
+    yield_bound: >-
+      EXP-IC-001 targets lie in the prime-order subgroup <P> of order N.
+      Therefore P_dec = |S intersect <P>| / N <= |S| / N <= 420 / N, which
+      tends to zero like 1/N. The expected cost of ONE SUCCESSFUL descent is
+      T_attempt / P_dec >= T_attempt * N / 420, growing linearly in N, so the
+      correctly charged ratio T_desc_charged / sqrt(N) grows like sqrt(N)
+      instead of falling.
+    contrast_with_ev_ic_001: >-
+      EV-IC-001 reports T_desc flat at ~32,000-35,000 group-op equivalents
+      across 8-36 bits and a ratio falling 300x. A cost that does not grow
+      with field size is the documented diagnostic of measuring factor-base
+      enumeration rather than decomposition; this experiment tests that
+      diagnosis by measurement rather than assertion.
+    status: >-
+      This block is a derivation, not a measurement. It is stated before
+      execution so the run can refute it: a measured |S| above the bound, or a
+      measured target yield above the bound, falsifies it (see
+      falsification_criterion F1 and F2).
+  controls:
+    - >-
+      CTRL-A exhaustive truth control. For every instance with N <= 200000,
+      enumerate the whole subgroup <P> by iterated addition and compute
+      |S intersect <P>| by direct set intersection. It must equal the count
+      produced by the order-N membership test (N*X == O and X != O) on the
+      same S. Any disagreement invalidates the membership test and the run.
+    - >-
+      CTRL-B sampling estimator control. At every instance, draw 100000
+      subgroup elements by iterated addition from a seeded start multiple and
+      count membership in S by hash lookup. Report the hit count and the
+      one-sided 95% upper bound 3/100000 = 3e-5 when the count is zero. The
+      sampled estimate must be consistent with the exact value; the sample
+      cannot resolve P_dec below ~1e-5 and is used only to confirm that the
+      exact computation and a naive sampling estimator do not disagree.
+    - >-
+      CTRL-C scaling positive control. On the 8-bit and 12-bit instances only,
+      rebuild a factor base of size B' = min(ceil(sqrt(N)), 256) with the same
+      harness.semaev.build_factor_base call and recompute P_dec and the
+      charged cost. At that B' the reachable set covers a constant fraction of
+      the subgroup, so charged and uncharged costs must agree within a factor
+      2. This confirms that yield charging introduces no artifact of its own.
+      CTRL-C changes B ONLY inside this control arm; the frozen B=14
+      configuration of EXP-IC-001 is untouched everywhere else.
+    - >-
+      CTRL-D calibration-invariance control. Recompute every charged quantity
+      with the group_ops_per_second calibration multiplied by 10 and by 0.1.
+      The sign of the trend in T_desc_charged / sqrt(N) must not change,
+      because the yield term is pure counting and the calibration multiplies
+      charged and uncharged costs identically.
+    - >-
+      CTRL-E matched generic baselines. Report matched Pollard rho with
+      negation as the committed EXP-IC-001 total_group_operations, and matched
+      BSGS as 2*ceil(sqrt(N)) group operations with ceil(sqrt(N)) stored
+      elements, per instance, in the same group-operation unit. No baseline is
+      re-run; both are read or computed in closed form.
+    - >-
+      CTRL-F zero-cost-oracle control. Recompute K* with T_attempt set to 0 so
+      the residual index-calculus cost (S_rel + S_LA) is reported separately
+      and the yield effect is isolated from the oracle cost.
+    - >-
+      CTRL-G source-agreement control. Recompute decomposition status for the
+      exact 10 EXP-IC-001 targets of every instance with the same
+      _find_decomposition code path. The result must reproduce the
+      "0 decompositions" recorded across all 748 EXP-IC-001 runs. A
+      disagreement is a raw/summary integrity failure of the source
+      experiment, invalidates this run, and is reported as such rather than
+      interpreted.
+    - >-
+      CTRL-H determinism control. Enumerate S twice per instance, once with
+      the pair order (i,j) ascending and once descending, and assert the two
+      sets are identical. The primary computation is exact and deterministic,
+      so this replaces statistical replication for the primary metric.
+  independent_variables:
+    - prime_subgroup_order_N: >-
+        The controlling variable. EV-IC-001 established that the crossover
+        depends on N, not on field_bits; the 34 instances span N from ~1.5e3
+        to ~3.4e10.
+    - field_bits: [8, 12, 16, 20, 24, 28, 32, 36]
+    - charging_mode: [uncharged_single_attempt, yield_charged_exact, yield_charged_counting_bound]
+  metrics:
+    primary:
+      - reachable_set_size_S: >-
+          |S| measured exactly per instance by enumeration, with the derived
+          bound 4*(C(B,2)+B) = 420 reported alongside.
+      - p_dec_exact_subgroup: >-
+          |S intersect <P>| / N, computed exactly per instance. Reported as an
+          exact rational and as a float. May be exactly 0.
+      - t_desc_charged_lower_bound_gops: >-
+          T_attempt_gops * N / |S|. This is a LOWER bound on the charged
+          descent cost (it uses the most generous admissible yield |S|/N >=
+          P_dec) and is finite at every instance, so it gives a defined,
+          monotone series even when p_dec_exact_subgroup = 0.
+      - charged_ratio_lower_bound: >-
+          t_desc_charged_lower_bound_gops / sqrt(N) = T_attempt_gops *
+          sqrt(N) / |S|. The decisive trend metric, to be compared against the
+          uncharged ratio EV-IC-001 reports as falling 300x.
+      - k_star_charged: >-
+          ceil((S_rel + S_LA) / (sqrt(N) - T_desc_charged - T_verify)) when
+          the denominator is strictly positive, otherwise the literal string
+          "infinity". Computed with S_rel, S_LA and T_verify frozen at the
+          exact EXP-IC-001 values so the yield factor is the only change.
+          Computed in three variants: exact yield, counting-bound yield
+          (lower bound on cost), and the EXP-IC-001 uncharged value
+          reproduced as a control.
+    secondary:
+      - t_attempt_gops: >-
+          Reproduced EXP-IC-001 T_desc_gops per instance; must match the
+          committed value within 1%.
+      - uncharged_ratio_reproduced: T_attempt_gops / sqrt(N), reproducing EV-IC-001.
+      - p_dec_target_set_empirical: >-
+          (number of the 10 committed EXP-IC-001 targets lying in S) / 10, per
+          instance. This is the yield of the actual, non-uniform target
+          distribution the source experiment used.
+      - p_dec_sampled: CTRL-B hit count / 100000 with its one-sided upper bound.
+      - p_dec_counting_bound: |S| / N.
+      - s_rel_frozen: The exact (N/B)*T_desc_gops value EXP-IC-001 used, unchanged.
+      - s_rel_yield_recomputed: >-
+          B * T_attempt_gops / P_dec when P_dec > 0, else "infinity". Reported
+          as a SECONDARY diagnostic only; it is deliberately excluded from the
+          primary K* so that exactly one quantity moves.
+      - s_la_frozen: The EXP-IC-001 S_LA estimate, unchanged.
+      - t_verify_frozen: 2 group operations, unchanged.
+      - sqrt_n: isqrt(N), unchanged.
+      - rho_total_group_operations: Committed EXP-IC-001 value, unchanged.
+      - bsgs_group_operations: 2*ceil(sqrt(N)).
+      - bsgs_memory_elements: ceil(sqrt(N)).
+      - calibration_perturbation_trend_signs: CTRL-D trend sign at 10x and 0.1x.
+      - subgroup_uniqueness_flag: >-
+          Whether N^2 divides #E, in which case <P> is not the unique subgroup
+          of order N and the membership test is reported with that caveat.
+      - reachable_set_certificate: >-
+          Per instance, the full table of |S| points with their generating
+          (i, j, s1, s2) and the order-N membership test outcome. This is the
+          machine-checkable artifact backing any later refutation claim.
+  replication:
+    seeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    seed_usage: >-
+      Seeds 1-3 at every bit size; seeds 4-13 additionally at 36-bit, exactly
+      matching the EXP-IC-001 instance set including its 220-run extension.
+    independent_instances: 34
+    sampling_seed: 20260727
+    per_instance_sampling_seed: >-
+      int(sha256(f"{seed}:{bits}:EXP-IC-002").hexdigest(), 16) - recorded per
+      instance in raw-result.json.
+    determinism_replication: >-
+      The primary metrics are exact and deterministic; CTRL-H re-enumerates S
+      in a second order and requires set equality. Statistical replication
+      applies only to CTRL-B.
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_wall_clock_seconds: 3600
+    total_cpu_hours: 1
+    maximum_memory_gb: 8
+    maximum_runs: 4
+  stopping_rules:
+    - >-
+      Per-run wall clock 900 s. On exceeding it, record the run
+      cancelled_by_budget with the instances already completed and stop that
+      arm. A budget stop is an infrastructure outcome, never negative
+      mathematical evidence.
+    - >-
+      Total experiment wall clock 3600 s across all four arms. On exceeding
+      it, stop and record remaining planned arms as cancelled_by_budget.
+    - >-
+      If enumerating S for a single instance exceeds 60 s, stop that instance
+      and record it as an implementation defect: |S| <= 420 makes this
+      impossible under a correct implementation.
+    - >-
+      If CTRL-G disagrees with the committed EXP-IC-001 decomposition record
+      at any instance, stop immediately and return the run to the Coordinator
+      as a source-integrity failure rather than continuing.
+  invalidation_rules:
+    - Any run with dirty true in its manifest is invalid.
+    - Any run missing manifest.yaml, raw-result.json, stdout.log, stderr.log, command.txt, or environment.json is invalid.
+    - Any decomposition claim whose certificate fails independent re-verification makes the run completed_invalid.
+    - >-
+      Reproduced T_attempt_gops differing from the committed EXP-IC-001 value
+      by more than 1% at any instance invalidates that instance: the reuse
+      contract is broken and the yield factor is no longer the only change.
+    - >-
+      A factor base that is not byte-identical across the 10 fixed-mode runs
+      of an instance invalidates that instance.
+    - >-
+      A measured |S| exceeding 4*(C(B,2)+B) = 420 is an implementation defect,
+      not a result; the run is invalid and returns to the Executor.
+    - >-
+      CTRL-A disagreement between exhaustive intersection and the membership
+      test invalidates the run.
+    - >-
+      CTRL-H disagreement between the two enumeration orders invalidates the
+      run.
+    - >-
+      Fewer than 34 instances completed in the primary arm makes the primary
+      metrics incomplete; the arm is reported as partial and cannot satisfy
+      the success criterion.
+  success_criterion: >-
+    ALL FOUR of the following hold on the completed 34-instance primary arm.
+    (SC1) The measured |S| <= 420 at every instance and does not grow with N
+    (max |S| over the 8-bit instances and over the 36-bit instances differ by
+    less than 2x). (SC2) p_dec_exact_subgroup <= |S| / N at every instance,
+    and p_dec_target_set_empirical = 0 at every instance with N >= 1e9.
+    (SC3) k_star_charged = "infinity" for 4/4 of the instances that
+    DEC-20260726-005 counted as finite-K* (36-bit seeds 2, 5, 10 and 11),
+    under both the exact-yield and the counting-bound-yield variants.
+    (SC4) charged_ratio_lower_bound increases with N: Spearman correlation
+    between log N and log(charged_ratio_lower_bound) over all 34 instances is
+    >= 0.9, and the largest-N instance exceeds the smallest-N instance by at
+    least 10x. Meeting SC1-SC4 establishes, within the tested scope only,
+    that the EV-IC-001 crossover is an artifact of charging one attempt
+    instead of one success.
+  falsification_criterion: >-
+    ANY of the following falsifies this control and leaves H-IC-001 standing
+    as decided by DEC-20260726-005. (F1) Measured |S| exceeds 420 at any
+    instance under a correct implementation, i.e. the reachable set is not the
+    one the counting derivation describes. (F2) p_dec_target_set_empirical
+    exceeds 1e-2 at any instance with N >= 1e9 - the EXP-IC-001 target
+    derivation lands in the reachable set far more often than uniform counting
+    permits, the counting bound does not govern the source experiment's yield,
+    and the confound claim is wrong. F2 is a genuinely possible outcome: the
+    EXP-IC-001 targets are a deterministic stride sequence, not uniform draws,
+    and their yield is measured here for the first time. (F3) The charged
+    ratio fails to increase with N (Spearman < 0.9 or rise < 10x). (F4) Any of
+    the four headline instances retains a finite k_star_charged.
+  empirical_content_disclosure: >-
+    Stated before execution, before the TASK-20260727-003 snapshot and before any
+    observation exists. SC3 and SC4 follow arithmetically once SC1 and SC2 hold:
+    with |S| <= 420 and T_attempt ~ 3.2e4 group-operation equivalents, the charged
+    cost lower bound T_attempt * N / |S| exceeds sqrt(N) for every N >= 1, so a
+    finite charged K* is impossible and the charged ratio must grow like sqrt(N).
+    The genuinely empirical content of this experiment is therefore SC1 (is the
+    measured reachable set really bounded by the counting formula and really
+    independent of N?), SC2 (what is the measured yield, both for the uniform
+    subgroup and for the actual EXP-IC-001 target sequence?) and falsifier F2 (do
+    the deterministic targets beat the counting bound?). This disclosure exists
+    because the same conflation - a criterion that is an arithmetic consequence of
+    its own conditioning presented as a measured result - is the defect this batch
+    suspects in the EXP-IC-001 v3 criterion, and this experiment must not repeat
+    it. No result of this experiment may be reported as measurement where it is
+    arithmetic.
+  alternative_outcome: >-
+    (A1) If |S intersect <P>| = 0 at every instance, then p_dec_exact_subgroup
+    is exactly 0 and no target in the subgroup can decompose over the frozen
+    factor base at all. This is stronger than the stated claim - it means the
+    source experiment never performed a descent, only a failed attempt - and
+    must be reported as such, with the counting-bound variant supplying the
+    finite series for SC4. It is not a falsification. (A2) If CTRL-C shows
+    charged and uncharged costs differing by more than 2x at B' =
+    ceil(sqrt(N)), the charging procedure itself introduces an artifact and
+    the whole result is INCONCLUSIVE rather than positive or negative.
+  claim_tier: toy
+  claim_tier_justification: >-
+    Maximum claim tier is toy. Every instance is an 8-36 bit prime field with
+    B=14, m=2 and one solver stack. The counting derivation is
+    parameterization-specific arithmetic, not an asymptotic statement about
+    index calculus. Nothing here is evidence about index calculus in general,
+    about other (B, m) choices, or about ECDLP at cryptographic scale. A
+    confirmed result is a scope correction to one ledger claim.
+  interpretation_limits:
+    - >-
+      A confirmation closes only the (B=14, m=2) parameterization of
+      EXP-IC-001 under the stated accounting rules. It says nothing about
+      whether multi-target index-calculus amortization is possible with a
+      properly sized factor base.
+    - >-
+      k_star_charged = infinity here is a statement about a configuration that
+      cannot decompose, not a proof that multi-target amortization is
+      impossible. The controlling references for that question remain the
+      generic preprocessing frontier S*T^2 = Omega~(N) (KN-LIT-013,
+      KN-TECH-005) and the Shoup bound.
+    - >-
+      A refutation via F2 is a measurement claim about target non-uniformity
+      and requires independent replication before it is treated as structure.
+    - >-
+      This experiment re-uses committed numbers; it inherits every
+      implementation bound of EXP-IC-001 (sympy Buchberger vs Python rho on
+      macOS arm64). The yield term, however, is pure counting and is
+      implementation independent - which is why CTRL-D can show the trend sign
+      is calibration invariant.
+    - >-
+      No asymptotic-complexity claim is made or advanced by this experiment.
+      The four promotion gates for such a claim (lemma decomposition, numbered
+      heuristics with validation, concrete-cost table with honest o(1)
+      accounting, independent review plus red team) are not in scope here.
+  required_artifacts:
+    - experiments/EXP-IC-002/specification.yaml
+    - experiments/EXP-IC-002/observations.md
+    - experiments/EXP-IC-002/analysis.md
+    - harness/ic_yield.py
+    - experiments/EXP-IC-002/runs/RUN-IC-002-YIELD-EXACT-001/manifest.yaml
+    - experiments/EXP-IC-002/runs/RUN-IC-002-YIELD-EXACT-001/raw-result.json
+    - experiments/EXP-IC-002/runs/RUN-IC-002-YIELD-EXACT-001/stdout.log
+    - experiments/EXP-IC-002/runs/RUN-IC-002-YIELD-EXACT-001/stderr.log
+    - experiments/EXP-IC-002/runs/RUN-IC-002-YIELD-EXACT-001/command.txt
+    - experiments/EXP-IC-002/runs/RUN-IC-002-YIELD-EXACT-001/environment.json
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-TRUTH-001/manifest.yaml
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-TRUTH-001/raw-result.json
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-TRUTH-001/stdout.log
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-TRUTH-001/stderr.log
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-TRUTH-001/command.txt
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-TRUTH-001/environment.json
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-SCALING-001/manifest.yaml
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-SCALING-001/raw-result.json
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-SCALING-001/stdout.log
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-SCALING-001/stderr.log
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-SCALING-001/command.txt
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-SCALING-001/environment.json
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-CALIB-001/manifest.yaml
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-CALIB-001/raw-result.json
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-CALIB-001/stdout.log
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-CALIB-001/stderr.log
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-CALIB-001/command.txt
+    - experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-CALIB-001/environment.json
+  expected_run_count: >-
+    Exactly 4 runs, one per arm, each covering all instances in that arm:
+    RUN-IC-002-YIELD-EXACT-001 (primary, 34 instances, includes CTRL-E,
+    CTRL-F, CTRL-G, CTRL-H), RUN-IC-002-CTRL-TRUTH-001 (CTRL-A + CTRL-B),
+    RUN-IC-002-CTRL-SCALING-001 (CTRL-C, 8-bit and 12-bit only),
+    RUN-IC-002-CTRL-CALIB-001 (CTRL-D). A run count other than 4 with
+    terminal status is a validity failure, not a result.
+  run_ids:
+    - RUN-IC-002-YIELD-EXACT-001
+    - RUN-IC-002-CTRL-TRUTH-001
+    - RUN-IC-002-CTRL-SCALING-001
+    - RUN-IC-002-CTRL-CALIB-001
+  command_template: >-
+    python -m harness.ic_yield --exp-id EXP-IC-002 --exp-area IC-002
+    --source-exp EXP-IC-001 --arm {arm} --run-suffix {run_suffix}
+    --factor-base-size 14 --arity 2 --sampling-seed 20260727
+  implementation_note: >-
+    The Executor adds one new module harness/ic_yield.py. It must NOT modify
+    harness/semaev.py, harness/toycurve.py, harness/rho.py,
+    harness/fixed_curve_preprocessing.py, harness/runner.py or any
+    experiments/EXP-IC-001 artifact: EXP-IC-001 run records are immutable and
+    are read-only inputs here. The module reuses
+    harness.toycurve.EllipticCurve for point arithmetic and
+    harness.runner.write_run for the run package, and emits certificate kind
+    "decomposition" (auto-verified by the run wrapper) for any decomposition
+    actually found, otherwise kind "none".
+  analysis_methodology:
+    reachable_set_enumeration: >-
+      For the frozen V read from the source run record, lift every v with
+      E.lift_x, form all 4*(C(B,2)+B) signed pair sums including i=j, drop the
+      point at infinity, and deduplicate into S. Record |S| and the full
+      generating table.
+    subgroup_membership: >-
+      X is in <P> iff X != O and N*X == O, given N prime. Report whether N^2
+      divides the curve order; if it does, flag that <P> may not be the unique
+      order-N subgroup and mark the affected instance's exact P_dec as an
+      upper bound rather than an equality.
+    p_dec_exact: p_dec_exact_subgroup = |S intersect <P>| / N as an exact rational.
+    charging: >-
+      T_desc_charged_exact = T_attempt_gops / p_dec_exact_subgroup when it is
+      positive, else "infinity". T_desc_charged_lower_bound =
+      T_attempt_gops * N / |S|, always finite, always a lower bound on the
+      true charged cost.
+    k_star: >-
+      Same formula, same S_rel, same S_LA, same T_verify, same sqrt(N) as
+      EXP-IC-001 - only T_desc changes. Report all three variants side by side
+      and reproduce the EXP-IC-001 uncharged K* as an internal consistency
+      check (must match the committed analysis table within 1%).
+    trend_test: >-
+      Spearman rank correlation between log N and log(charged_ratio_lower_bound)
+      across the 34 instances, and the same statistic for the uncharged ratio
+      as the reference EV-IC-001 reported.
+    reporting: >-
+      One row per instance with bits, seed, N, sqrt(N), |S|, bound 420,
+      |S intersect <P>|, p_dec_exact, p_dec_counting_bound,
+      p_dec_target_set_empirical, p_dec_sampled with its upper bound,
+      T_attempt_gops, uncharged ratio, charged lower-bound ratio, K* uncharged,
+      K* charged exact, K* charged bound, rho ops, BSGS ops and memory. Plus
+      the four control verdicts and the two Spearman statistics.
+    separation_of_concerns: >-
+      The Executor records observation only: tables, counts, certificates and
+      control verdicts. It does not state whether DEC-20260726-005 survives.
+      Comparison, inference and limitation belong to the Coordinator analysis
+      and the independent reviews.
+  execution_authorization: >-
+    The protocol is frozen and approved as version 1. Execution is authorized
+    only after TASK-20260727-004 returns PASS in a non-originating independent
+    session. A REVISE or FAIL verdict blocks TASK-20260727-005 and requires a
+    versioned protocol_amendment before any run.
+  amendment_policy: >-
+    Any change after approval requires a protocol_amendment record under
+    experiments/EXP-IC-002/amendments/ with confirmatory_status stated. The
+    success and falsification criteria above may not be revised after any
+    outcome is observed without such a record; EXP-IC-001's v2-to-v3 criterion
+    revision is the precedent this rule exists to prevent repeating silently.
+  assigned_to: executor
+  approved_by: coordinator
+  approved_at: '2026-07-27T00:00:00-07:00'
+  prior_evidence:
+    - EV-IC-001
+    - EV-FCP-002
+    - EV-FCP-003
+  prior_decision:
+    - DEC-20260726-005
+    - DEC-20260726-004
+  source_proposal: IDEA-20260727-002
+  inference_receipt:
+    requested_policy: coordinator-ultra-code
+    resolved_model_id: not_recorded_in_this_session
+    fallback_used: true
+    equivalence_to_requested_policy_claimed: false
+    authorization_ref: >-
+      GOAL-ECDLP-001 BATCH-006 batch_opening_decision recorded in
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/dispatch_queue.json
+    note: >-
+      This specification was written under the Claude Code runtime, which
+      cannot resolve the GPT-5.6 policy aliases in
+      orchestration/model-policies.yaml. The exact resolved model identifier
+      was not captured by this session; it is recorded here as
+      not_recorded_in_this_session rather than guessed. No equivalence to
+      coordinator-ultra-code is claimed.

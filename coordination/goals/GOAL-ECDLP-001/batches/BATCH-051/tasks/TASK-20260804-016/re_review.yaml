@@ -1,0 +1,192 @@
+re_review:
+  id: RT-20260804-016
+  task_id: TASK-20260804-016
+  experiment_id: EXP-ICI-e622fd
+  amendment_id: PA-ICI-e622fd-v2-rc51
+  closes_prior_review: RT-20260804-f60dbf
+  reviewed_artifacts:
+    - experiments/EXP-ICI-e622fd/specification.yaml
+    - experiments/EXP-ICI-e622fd/amendments/PA-ICI-e622fd-v2-rc51.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-051/tasks/TASK-20260804-015/pre_exec_review.yaml
+    - ledger/hypotheses/H-ICI-063e91.yaml
+  reviewed_at: '2026-08-04'
+
+  verdict: PASS
+
+  # -----------------------------------------------------------------------
+  # BLOCK-1 RESOLUTION ASSESSMENT
+  # -----------------------------------------------------------------------
+  block1_resolved: true
+
+  block1_resolution_note: >-
+    BLOCK-1 was: prime-order curves (odd N) have no F_p-rational 2-isogenies
+    because the characteristic polynomial of Frobenius x²-tx+p ≡ x²+x+1 (mod 2)
+    is irreducible over GF(2) (t is odd), giving the Atkin condition and no
+    rational 2-torsion.
+
+    C-1 resolves this by switching to Elkies ell-isogenies. The Elkies condition
+    for an odd prime ell requires Φ_ell(j(E), Y) to have a root j(E') in F_p,
+    equivalently that x²-tx+p splits mod ell (discriminant t²-4p is a QR or 0
+    mod ell). This guarantees a Galois-stable cyclic subgroup of order ell inside
+    E[ell], which is the rational kernel of an ell-isogeny phi: E -> E' defined
+    over F_p. The ell-division polynomial factors over F_p, Vélu's formulas apply
+    with a rational kernel generator, and phi^{-1}(F') — the preimage of the
+    E'-factor-base through phi — is a well-defined non-empty subset of E(F_p).
+
+    For prime-order N and small ell (3, 5, ..., 23), ell | N is impossible (N is a
+    20-28 bit prime, ell < 24). Each ell is Elkies with probability ≈ 1/2 by
+    equidistribution of t mod ell. The probability of all eight ell in {3,...,23}
+    being Atkin is ≈ (1/2)^8 < 0.4%, so the C-4 skip fallback (> 50% skip rate)
+    will almost never activate in normal operation.
+
+    The algebraic obstruction from BLOCK-1 is eliminated by construction: the
+    Elkies condition is precisely the hypothesis that the rational isogeny exists.
+
+  # -----------------------------------------------------------------------
+  # PER-CHANGE CHECKS
+  # -----------------------------------------------------------------------
+  change_checks:
+
+    C-1_elkies_isogeny:
+      verdict: pass
+      notes: >-
+        Mathematically sound. The Elkies condition guarantees F_p-rational ell-
+        isogeny. Skip-and-redraw for no-Elkies curves is correct. The 'smallest
+        ell >= 3' rule yields ell = 3 for most curves (~50%), with occasional
+        fallback to ell = 5, 7, etc. This is deterministic given the curve and
+        requires no additional entropy.
+      gap_flagged: >-
+        H-ICI-063e91's formal statement still names '2-isogeny'. The amended
+        experiment tests variable-ell Elkies isogenies (ell >= 3). This is a
+        valid exploratory generalization, but the Reviewer notes: positive
+        results support the augmentation MECHANISM for small-ell Elkies isogenies,
+        not H-ICI-063e91 verbatim. The Coordinator should acknowledge this at
+        evidence review. No new blocking issue; the claim ceiling and
+        no_hypothesis_status_change: true are already correctly set.
+
+    C-2_factor_base_formula:
+      verdict: pass
+      notes: >-
+        'x(P) < floor(B_fraction * p)' is the correct formula and exactly matches
+        the recommended fix from NOTE-2. |F| ≈ B_fraction * N follows because
+        approximately half of x-values in [0, B_fraction*p) lift to points on E,
+        and N ≈ p for prime-order curves. The ambiguous 'p/B' formula is gone.
+
+    C-3_random_bijection:
+      verdict: pass
+      notes: >-
+        psi = [k] for random k in (Z/N)* \ {1} is a well-specified, memory-efficient
+        bijection of E(F_p) (N prime, k != 0 mod N). psi^{-1}(F) = [k^{-1}]F
+        requires O(log N) per point and no table. Expected null ratio ≈ 2 - B_fraction
+        holds because [k^{-1}] acts pseudorandomly on x-coordinates relative to the
+        threshold-defined factor base. Matches NOTE-3 recommended fix. NOTE: [k]
+        is a bijection from the (N-2)-element scalar-mult group, not all of Sym(E).
+        This is an adequate null control given that the factor base is defined by
+        x-coordinate, not group structure, but a Reviewer at evidence time should
+        confirm the empirical null ratio is close to 2 - B_fraction.
+
+    C-4_elkies_skip_rule:
+      verdict: pass_with_minor_note
+      notes: >-
+        The 50% skip threshold is well above the expected ~0.4% skip rate. Rule
+        is a defensible safety valve. Two minor ambiguities left unaddressed (not
+        blocking): (1) 'bit sizes' in the rule is presumably the prime p bit length,
+        not N; this should be confirmed in the implementation. (2) When bit sizes
+        are reduced to {16, 18, 20}, the spec does not state whether the replication
+        count or success_criterion threshold (>= 6/9 cells) is adjusted for the
+        changed parameter grid. At toy scale this is unlikely to matter, but
+        the Executor should document the adjusted grid explicitly in the run manifest.
+
+    C-5_inconclusive_outcome:
+      verdict: pass
+      notes: >-
+        The three-way partition (< 3 cells = falsification, 3-5 = inconclusive,
+        >= 6 = success) is pre-registered and removes the labeled gap from NOTE-4.
+        The falsification region (0-2/9 cells) is slightly expanded beyond the base
+        spec's 'all 9 cells' and beyond NOTE-4's implied '0/9' threshold. This is a
+        design choice and scientifically defensible: having 0, 1, or 2 of 9 cells
+        show a signal at the stated effect size is consistent with no systematic
+        effect. The key criterion (>= 6/9 for success) is unchanged.
+
+  # -----------------------------------------------------------------------
+  # REMAINING BLOCKERS
+  # -----------------------------------------------------------------------
+  remaining_blockers: []
+
+  # -----------------------------------------------------------------------
+  # NON-BLOCKING NOTES (carried from prior review; not addressed in amendment)
+  # -----------------------------------------------------------------------
+  non_blocking_notes:
+
+    - id: NBN-1
+      source: NOTE-1
+      title: Budget arithmetic still inconsistent in base spec
+      description: >-
+        The base spec still shows 300 s/run with 1 CPU-hr total and no clarifying
+        sentence. The arithmetic inconsistency (90 * 300 s = 7.5 CPU-hr >> 1 hr)
+        remains. Expected actual runtime at bits 16-28 is O(seconds) per run, so
+        this is a documentation error only. Executor should add: '300 s is a per-
+        run safety ceiling; 1 CPU-hr is the hard total cap.'
+
+    - id: NBN-2
+      source: NOTE-5
+      title: Implementation source not in required_artifacts
+      description: >-
+        required_artifacts still does not list the implementation source (e.g.,
+        experiments/EXP-ICI-e622fd/src/). The Validator will not be able to
+        independently verify the Elkies-prime selection logic, Vélu application,
+        or factor-base threshold from artifacts alone. Executor should commit source
+        and record the git SHA in the run manifest.
+
+    - id: NBN-3
+      source: new
+      title: H-ICI-063e91 states '2-isogeny'; experiment tests ell-isogeny
+      description: >-
+        The amended experiment generalizes the isogeny degree beyond 2. Evidence
+        from this experiment informs, but does not directly validate or falsify,
+        the 2-isogeny claim in H-ICI-063e91. The Coordinator should note this
+        scope distinction at evidence review and consider whether a hypothesis
+        amendment or successor hypothesis is warranted if results are positive.
+
+    - id: NBN-4
+      source: new
+      title: C-4 reduced-bit-size grid underspecified
+      description: >-
+        C-4 reduces bit sizes to {16, 18, 20} on high skip rate but does not
+        specify the adjusted success criterion grid (still >= 6/9 cells?) or
+        whether the replication count changes. Executor should document the
+        adjusted grid explicitly.
+
+  # -----------------------------------------------------------------------
+  # STANDING CHECKS (from prior review; re-verified against amendment)
+  # -----------------------------------------------------------------------
+  standing_checks:
+    falsifiability: pass
+    controls_validity: pass
+    scope_and_claim_ceiling: pass
+    budget_realism: pass
+    preregistered_prediction: pass
+    implementation_feasibility: pass  # was 'fail' in RT-20260804-f60dbf; resolved by C-1
+    factor_base_definition: pass      # was 'conditional_pass'; resolved by C-2
+    stopping_rules: pass              # was 'partial_fail'; resolved by C-1 + C-4 + C-5
+
+  # -----------------------------------------------------------------------
+  # VERDICT
+  # -----------------------------------------------------------------------
+  verdict_rationale: >-
+    The single blocking issue (BLOCK-1) is resolved. The Elkies ell-isogeny
+    construction guarantees F_p-rational isogenies from prime-order curves by
+    definition, eliminating the silent-failure failure mode identified in the
+    prior review. C-2 and C-3 correctly fix the factor-base formula and the
+    random-bijection control. C-5 adds the missing inconclusive outcome label.
+    No new mathematical or methodological blockers were identified. Four non-
+    blocking notes are carried forward for the Executor and evidence reviewer.
+    The contract is ready for approval and freeze.
+
+  approval_recommendation: true
+  freeze_authorized: true
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    independent_session: true

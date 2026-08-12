@@ -1,0 +1,681 @@
+idea:
+  id: IDEA-20260805-fbe36a
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  added: '2026-08-05'
+  title: >-
+    The occupancy moment is the whole multi-target term: re-deriving SLH-DSA's
+    FORS interleaved-target bound as 2^{-ak} * T_k(q/2^h), with the leaf-collision
+    correction computed rather than dropped, and the slack reported as a curve in
+    the signature budget q instead of a single headline number
+  class: measurement
+
+  claim: >-
+    The entire multi-target amplification of the FORS layer of SLH-DSA is carried
+    by ONE integer-valued function of the parameters and the signature budget:
+    the k-th moment of the FORS-key-pair occupancy. Writing gamma_i for the number
+    of the q issued signatures that landed on hypertree leaf i (i in [0, 2^h)),
+    the per-forgery-attempt success probability of the generic interleaved-target
+    attack is
+      p(gamma) = 2^{-h} * SUM_i PROD_{t=1..k} ( |S_{i,t}| / 2^a ),
+    where S_{i,t} is the set of FORS leaf indices already revealed in tree t at
+    hypertree leaf i. Under randomized signing the adversary cannot bias which
+    i a signature lands on, so gamma is an ordinary multinomial occupancy and
+      E[p] = 2^{-ak} * T_k(lambda),   lambda = q / 2^h,
+      T_k(lambda) = SUM_{j=1..k} S(k,j) lambda^j   (Touchard polynomial,
+                                                    S(k,j) Stirling 2nd kind),
+    exactly, before any collision correction. Three consequences, each checkable
+    with exact integer arithmetic and no cryptographic assumption:
+    (1) The multi-target AMPLIFICATION over the naive union-bound term is
+        A(lambda) = T_k(lambda)/lambda, which is exactly 1 at k = 1 and at
+        lambda -> 0, and grows to tens of bits only as lambda approaches 1. The
+        multi-target advantage is therefore not a property of the scheme; it is a
+        property of the RATIO q/2^h, and reporting it as one number is the error.
+    (2) The correction that the natural derivation drops -- |S_{i,t}| < gamma_i
+        whenever two signatures at the same hypertree leaf hit the same FORS leaf
+        -- is exactly a factor ( 2^a (1 - (1 - 2^{-a})^gamma) / gamma )^k, and it
+        always moves the attack cost UP. It is negligible for the 's' parameter
+        sets and is NOT negligible for the 'f' sets, whose small a makes the
+        birthday effect inside a bin bite.
+    (3) Therefore the honest deliverable for GOAL-SLHDSA-001's first completion
+        criterion is a SLACK CURVE over q with the constants tracked, plus a
+        statement of which of the three comparators (union-bound term, exact
+        moment, corrected moment) the FIPS 205 parameter selection actually used.
+    NOTHING HERE IS AN ATTACK. If it survives it makes SLH-DSA look the same or
+    slightly stronger, which is one of the two outcomes the goal record names.
+
+  object_first_candidate:
+    tracked_object: >-
+      The OCCUPANCY VECTOR gamma = (gamma_0, ..., gamma_{2^h - 1}) of FORS key
+      pairs across q issued signatures, followed through the computation: chosen
+      message set -> randomizer R = PRF(SK.prf, opt_rand, M) -> digest
+      H_msg(R, PK, M) -> (idx_tree, idx_leaf) -> occupancy gamma -> revealed leaf
+      sets S_{i,t} -> per-attempt forgery probability p(gamma) -> generic attack
+      cost 1/p. The single scalar that survives to the end is the power sum
+      SUM_i gamma_i^k (corrected: SUM_i m(gamma_i)^k).
+    established_families_off_limits: >-
+      Declared off-limits as the PRIMARY lens for this proposal, so that the
+      candidate cannot regress into a variant of a known attack wearing new
+      notation:
+      (a) generic hash cryptanalysis of SHA-2/SHAKE (preimage, second preimage,
+          collision, length extension, differential/rebound) -- the goal's own
+          scope says the assumption is the least interesting object here;
+      (b) fault injection, Rowhammer, memory corruption, and every other attack
+          on the STATELESS CONSTRUCTION rather than on the bound. RQ-SLHDSA-001
+          and GOAL-SLHDSA-001 both require these to be a strictly separate claim
+          class and this proposal does not touch them;
+      (c) side channels, timing, power, and implementation-level key extraction;
+      (d) WOTS+ chain cryptanalysis and hypertree structural attacks -- a
+          different layer with a different bound;
+      (e) algebraic and lattice devices generally: they are blocked here by
+          construction, and pretending otherwise would be the "new notation for
+          an old family" failure the inventor protocol names.
+      What is NOT off-limits, deliberately: combinatorics of balls-in-bins and
+      the arithmetic of the bound itself. This proposal audits a MEASUREMENT, not
+      a scheme, and the measurement lens is the one the off-limits rule exists to
+      protect rather than forbid.
+    newness_score: >-
+      The occupancy formulation is certainly not new to the designers -- the FORS
+      parameter sets look chosen against something very close to it (see
+      derivation_status below), and the SPHINCS+ framework's own multi-target
+      notions (KN-LIT-7077, KN-LIT-4938, both bulk-seeded and UNVERIFIED here)
+      exist precisely to handle it. What is new to THIS corpus, and what the
+      record supplies, is: the amplification stated as a closed form in lambda
+      with Stirling numbers rather than as a quoted bit count; the leaf-collision
+      correction computed instead of absorbed; the slack presented as a curve in
+      q rather than a point; and the three comparators named so a reviewer can
+      see which one a headline figure is quoting.
+    testability_score: >-
+      Very high and essentially free. Every number in this proposal is an exact
+      integer or a convergent Poisson sum computable in pure Python with no
+      third-party library. The environment was checked for this task: python
+      3.11.15, numpy 2.4.6 PRESENT, sympy ABSENT (this resolves, for this
+      container, the environment disagreement recorded in the session angle brief
+      section 5.3 item 1 -- numpy is present here). Nothing in the design needs
+      numpy or sympy.
+    survival_score: >-
+      The object survives the entire computation because p(gamma) is a function
+      of the revealed-leaf sets and of nothing else. Its weakness is the mirror
+      one: it may be so canonical that the audit finds the published derivation
+      already does exactly this, in which case the deliverable shrinks to a
+      confirmed re-derivation with tracked constants -- which is still what the
+      goal asked for first, and which is recorded as the likeliest outcome.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The full transcript of q signatures -- messages, randomizers, digests,
+      WOTS+ chains, authentication paths, revealed FORS preimages -- projected
+      onto the single integer SUM_i PROD_t |S_{i,t}| (equivalently, onto the
+      multiset {gamma_i} plus the within-bin leaf collisions).
+    what_is_discarded: >-
+      Everything except how many signatures landed on each hypertree leaf and,
+      within each such group, how many DISTINCT FORS leaf indices were touched
+      per tree. All message content, all hash values, all authentication paths,
+      the identity of the leaves, and the order of the queries are discarded.
+    why_genuinely_lossy: >-
+      Massively lossy: the fibre over a given occupancy vector contains
+      essentially the whole transcript space. This is not a change of
+      coordinates.
+    why_compatible_with_the_operations: >-
+      The retained part propagates deterministically to the quantity the attack
+      is costed by. p(gamma) is EXACTLY determined by the sets S_{i,t}, and the
+      sets' sizes are exactly determined by gamma together with the within-bin
+      collision pattern. Nothing outside the projection enters the attack's
+      success probability, because a forgery succeeds iff the trial digest's k
+      indices all lie in already-revealed sets at the trial's hypertree leaf.
+    is_it_only_a_change_of_coordinates: >-
+      NO -- checked, and the check is stated so a reviewer can attack it. The
+      canonical failure (Delta, Pi) = (x XOR y, x*y) in characteristic 2 loses
+      nothing because the unordered pair is recoverable as the roots of
+      t^2 + Delta t + Pi. Here the map is provably non-injective: two transcripts
+      with different messages, different digests and different revealed
+      preimages give the same gamma whenever the same multiset of hypertree
+      leaves is hit. Recovery of the transcript from gamma is impossible on
+      cardinality grounds alone.
+    which_failure_was_checked_for: >-
+      BOTH, and both are reported.
+      (i) Lossless-recoding failure: refuted above on cardinality grounds.
+      (ii) MIRROR failure -- a projection so lossy that it is CONSTANT across
+      instances, giving zero comparator spread (the failure mode that
+      KN-TECH-1a5b7e names mechanically and that IDEA-20260805-e805b6 found in
+      the determinant ideal). CHECKED AND NOT PRESENT, and the check is
+      quantitative rather than assertive: SUM_i gamma_i^k is a heavy-tailed
+      random variable in k, so its realizations have genuine spread. Its
+      coefficient of variation is a pre-registered measurement of this experiment
+      (see predictions), and it is the diagnostic that distinguishes a live
+      statistic from a constant of the apparatus. If the measured spread is zero,
+      the projection has failed the mirror test and the proposal must be
+      withdrawn rather than defended.
+
+  mechanism: >-
+    DERIVED HERE. Every structural fact about SLH-DSA below is labelled
+    RECALLED-UNVERIFIED and is a CANDIDATE TO CHECK against FIPS 205 primary
+    text, never an authority; Stage 0 of the paired experiment exists to replace
+    each with a quotation or to record that it could not be obtained. The
+    mathematics that follows the structural facts is derived in this record and
+    is independent of who is right about the constants.
+
+    STEP 1 -- THE STRUCTURE (RECALLED-UNVERIFIED). SLH-DSA signs by computing
+    R = PRF_msg(SK.prf, opt_rand, M), then
+    (md, idx_tree, idx_leaf) = H_msg(R, PK.seed, PK.root, M). The pair
+    (idx_tree, idx_leaf) selects one of 2^h bottom-layer hypertree leaves, each
+    carrying one FORS key pair. md is split into k chunks of a bits, giving
+    indices (j_1, ..., j_k) in [0, 2^a)^k. Signing reveals, for that FORS key
+    pair, the secret leaf j_t of tree t for every t in 1..k, together with
+    authentication paths. Parameter sets, RECALLED-UNVERIFIED, as (h, d, a, k):
+      SLH-DSA-128s (63, 7, 12, 14)   SLH-DSA-128f (66, 22, 6, 33)
+      SLH-DSA-192s (63, 7, 14, 17)   SLH-DSA-192f (66, 22, 8, 33)
+      SLH-DSA-256s (64, 8, 14, 22)   SLH-DSA-256f (68, 17, 9, 35)
+    with n = 16/24/32 bytes and lg_w = 4 throughout, and a maximum signature
+    budget of q = 2^64 per key pair.
+
+    STEP 2 -- THE ATTACK, AND WHY IT IS THE ONLY ONE THIS RECORD COSTS. An
+    adversary holding q signatures knows, for each hypertree leaf i it has seen,
+    the revealed FORS leaves S_{i,t} subset [0, 2^a) for each tree t. To forge on
+    a fresh message it draws trial pairs (R', M'), computes the digest, and wins
+    iff the digest's hypertree leaf is some i it has seen AND j'_t is in S_{i,t}
+    for all t; the hypertree authentication path above i is already public from
+    the observed signature, so no further work is needed. Hence, exactly,
+      p(gamma, S) = 2^{-h} SUM_i PROD_{t=1..k} ( |S_{i,t}| / 2^a )
+    and the generic attack cost is 1/p digest evaluations. (Costing the memory
+    and data this requires is deliberately NOT done here; that is
+    IDEA-20260805-88ecef, and keeping the two apart is the point.)
+
+    STEP 3 -- THE DISTRIBUTION OF gamma. Because R is a PRF output under a key
+    the adversary does not hold, and M is committed before R exists, the
+    adversary has no way to steer which i a signature lands on: the map from the
+    q chosen messages to the occupancy is, for it, a uniform multinomial draw of
+    q balls into B = 2^h bins. THIS IS THE LOAD-BEARING STRUCTURAL CLAIM AND IT
+    IS EXACTLY WHERE AN ADVERSARY-CONTROL ERROR WOULD LIVE; auditing it is
+    IDEA-20260805-705614, and this proposal's numbers are conditional on it.
+    With lambda = q/B and the standard Poissonization,
+      E[ SUM_i gamma_i^k ] = B * E[X^k],  X ~ Poisson(lambda),
+      E[X^k] = T_k(lambda) = SUM_{j=0..k} S(k,j) lambda^j,  S(k,0) = 0 for k >= 1.
+    Combining with the 2^{-h} = 1/B weight, the B cancels EXACTLY and
+      E[p] = 2^{-ak} T_k(lambda).
+    The cancellation is why h does not appear in the answer except through
+    lambda, and it is the first thing a reviewer should check.
+
+    STEP 4 -- THE AMPLIFICATION FUNCTION AND ITS TWO FORCED VALUES.
+    Define A(lambda) = T_k(lambda)/lambda, the factor by which the multi-target
+    setting beats the naive single-target/union-bound term q * 2^{-h-ak}.
+      FORCED VALUE F1: A(lambda) = 1 IDENTICALLY when k = 1, for every lambda,
+      because T_1(lambda) = lambda. A single FORS tree admits no multi-target
+      amplification at all. This is a positive control that can fail: an
+      implementation that reports anything other than exactly 1 at k = 1 is
+      broken and no negative may be reported from it.
+      FORCED VALUE F2: A(lambda) -> 1 as lambda -> 0, monotonically increasing in
+      lambda, with A(1) = B_k/1 = the k-th BELL NUMBER. This is an exact integer
+      per parameter set and is the cheapest possible instrument check.
+    A(lambda) is therefore not a constant of the scheme: it is a function of the
+    deployment's signature budget, and any single quoted multi-target figure
+    silently fixes lambda.
+
+    STEP 5 -- THE CORRECTION THAT THE DERIVATION ABOVE DROPS. |S_{i,t}| = gamma_i
+    only when the gamma_i signatures at leaf i chose gamma_i DISTINCT FORS leaves
+    in tree t. In general the gamma_i draws are uniform on [0, 2^a) and
+      E[ |S_{i,t}| ] = m(gamma_i) := 2^a ( 1 - (1 - 2^{-a})^{gamma_i} ).
+    Given gamma_i the k trees are independent, so E[ PROD_t |S_{i,t}| | gamma_i ]
+    is (m(gamma_i))^k up to the (positive, second-order) covariance of |S| with
+    itself, and the corrected expectation is
+      E[p]_corr = 2^{-ak} * E_{X ~ Poisson(lambda)} [ m(X)^k ].
+    Because m(g) <= g always, the correction can only DECREASE p and therefore
+    only INCREASE the attack cost. Its size is governed by k * gamma/2^a at the
+    gamma that dominates the sum, which is why it is invisible for large a and
+    material for small a. THAT ASYMMETRY IS A PREDICTION, NOT A HOPE, AND IT
+    SPLITS THE PARAMETER SETS INTO TWO GROUPS BEFORE ANY RUN.
+
+    STEP 6 -- WHAT THE SLACK ACTUALLY IS. "Slack" is only defined against a named
+    comparator, and this record names three and refuses to collapse them:
+      C1 UNION-BOUND TERM     cost_1(q) = 2^{ak} / lambda
+      C2 EXACT MOMENT         cost_2(q) = 2^{ak} / T_k(lambda)
+      C3 CORRECTED MOMENT     cost_3(q) = 2^{ak} / E[m(X)^k]
+    with C1 >= C3 >= C2 forced by the derivation (C3 >= C2 because m(g) <= g;
+    C1 <= C2 reversed because T_k(lambda) >= lambda). The slack the goal asks for
+    is the pair (log2 cost_3 - log2 cost_2, log2 cost_2 - log2 cost_1) reported
+    over a grid of q, together with the fourth comparator C0 -- the formula the
+    FIPS 205 / SPHINCS+ parameter selection ACTUALLY used, which this record does
+    not know and Stage 0 must read.
+
+  derivation_status_and_provenance:
+    what_was_computed_here: >-
+      PROPOSAL-COMPUTED, OUTSIDE THE HARNESS, ON THIS MACHINE, 2026-08-05, in
+      pure-Python exact integer arithmetic (Stirling recurrence, Fraction
+      lambda) for C1/C2 and in log-space float for C3. These numbers are stated
+      as PRE-REGISTERED FORCED VALUES for the paired experiment to reproduce
+      independently; they are NOT evidence, no run record exists, and a
+      reviewer must treat any of them that the in-harness recomputation
+      contradicts as a defect in THIS record.
+    numbers_pre_registered: >-
+      Using the RECALLED-UNVERIFIED parameter sets above, at the maximum
+      permitted q = 2^64, the C2 (exact moment, uncorrected) generic FORS
+      interleaved-target cost in log2 is:
+        128s 133.729   128f 128.405   192s 193.898
+        192f 194.405   256s 255.999   256f 255.599
+      and the C3 - C2 leaf-collision correction, in bits, is:
+        128s +0.020   128f +2.960   192s +0.007
+        192f +0.760   256s +0.009   256f +0.315.
+      Bell numbers B_k entering F2: B_14 = 190899322, B_17 = 82864869804,
+      B_22 = 4506715738447323, B_33 = 1629595892846007606764728147,
+      B_35 = 281600203019560266563340426570.
+    why_this_matters_and_how_it_could_still_be_wrong: >-
+      All six C2 values land at or just above their nominal security category
+      (+0.4 to +5.7 bits, none below). Six independent parameter sets agreeing
+      with their design targets to within a few bits is a strong indication that
+      the derivation reproduces the quantity the parameters were chosen against
+      -- which is the inventor-protocol section 8 audit-1 baseline reproduction,
+      passed BEFORE any experiment. IT IS NOT PROOF OF ANYTHING. The agreement
+      is equally consistent with the recalled parameters being remembered
+      alongside the recalled security levels from the same source, which is a
+      correlated-memory confounder and is listed as such under confounders. Only
+      Stage 0's primary-text read can separate those two explanations, and until
+      it runs, the agreement is a hypothesis about the derivation, not a result.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_searched:
+      - knowledge/literature (grep for sphincs, SLH-DSA, FORS, WOTS)
+      - ledger/proposals, ledger/hypotheses, ledger/evidence, experiments/
+    findings:
+      - >-
+        Ten corpus files mention SPHINCS/SLH-DSA/FORS/WOTS. The substantive ones
+        are KN-LIT-7077 (SPHINCS+ framework), KN-LIT-6178 (Huelsing-Kudinov,
+        recovering the tight proof), KN-LIT-4938 (Huelsing-Rijneveld-Song,
+        mitigating multi-target attacks), KN-LIT-6770 (SPHINCS), KN-LIT-6265
+        (constant-sum WOTS), KN-LIT-2576 (ARMed SPHINCS). EVERY ONE carries the
+        2026-07-24 bulk-seed profile: year null, venue null, all four
+        identifiers null, and citation_verified: read on a body that only
+        paraphrases an abstract. KN-LIT-2576's "Relevance to this program"
+        section is about MOV/Frey-Ruck and GLV/GLS -- pasted onto a SPHINCS
+        implementation paper. These entries are POINTERS TO PAPERS, not readings
+        of them, and this record cites none of them as an authority.
+      - >-
+        The only prior proposal on RQ-SLHDSA-001 is IDEA-20260801-009, which
+        proposes a slack RATIO at toy parameter sets computed by enumeration.
+        This record is not a variant of it: it computes the bound in CLOSED FORM
+        at the real FIPS 205 parameters with no toy scaling and no enumeration,
+        it names the amplification function rather than a single ratio, and it
+        reports slack as a curve in q. Toy parameter sets are unnecessary here
+        precisely because the quantity is combinatorial, not cryptographic.
+      - >-
+        No hypothesis, experiment, evidence record or run exists in area SLHDSA.
+    conclusion: >-
+      Novelty UNVERIFIED and stated at the strength the screen supports. Per the
+      session angle brief T-H, this corpus's novelty screens must be discounted:
+      7,420 of 7,809 literature entries carry the bulk-seed caveat and 0 backing
+      artifacts are present. What this screen supports is "this corpus does not
+      record the closed form"; it does not support "the literature does not".
+      The designers almost certainly know it.
+
+  assumptions:
+    - >-
+      A1. The recalled parameter sets and the recalled signing structure are
+      correct. Stage 0 replaces this with quotation or records failure. If a
+      single (h, a, k) triple is wrong, every number in this record moves and
+      the record must be superseded, not patched.
+    - >-
+      A2. The adversary cannot bias the occupancy gamma. Load-bearing, audited
+      separately by IDEA-20260805-705614, and false in the nearby object that
+      idea constructs. Every number here is conditional on A2.
+    - >-
+      A3. The k FORS trees' index chunks are independent uniform a-bit values.
+      This is a modelling of H_msg as a random oracle at the digest-splitting
+      step and is the only place a hash assumption enters.
+    - >-
+      A4. Poissonization is exact for the moment (it is: E[SUM_i gamma_i^k]
+      under the multinomial equals B*E[X^k] up to an O(1/B) correction that is
+      bounded in the experiment rather than waved away).
+
+  heuristic_assumptions:
+    - id: HEUR-SLHDSA-OCC-1
+      formal_statement: >-
+        FOR ALL adversaries A making at most q signing queries to an SLH-DSA
+        instance with randomized message randomizer, the induced distribution of
+        the occupancy vector gamma over the 2^h FORS key pairs is EXACTLY the
+        uniform multinomial Mult(q; 2^{-h}, ..., 2^{-h}), independent of A's
+        message choices.
+      rigorous_support: >-
+        Conditional, not rigorous. It follows if PRF_msg and H_msg are modelled
+        as random oracles keyed independently of A's view, which is the standard
+        idealization and is the same idealization the published bound uses. It
+        is NOT a theorem about SHA-2 or SHAKE and is not presented as one. A
+        deterministic-index variant violates it outright; see the nearby-object
+        control.
+      random_model_justification: >-
+        The randomizer is a keyed PRF output on a key A does not hold, and A
+        commits to M before R exists; so A's only control is over q itself.
+      validation_plan: >-
+        Read FIPS 205's signing algorithm and confirm that no adversary-supplied
+        input reaches idx_tree/idx_leaf except through the PRF. This is a
+        reading task, not a computation, and it is Stage 0 gate G0-B.
+      falsification_condition: >-
+        Any input path by which an adversary influences (idx_tree, idx_leaf)
+        without knowing SK.prf. If such a path exists, the worst-case occupancy
+        becomes reachable, SUM gamma_i^k rises toward q^k, and the entire
+        analysis in this record is void and must be withdrawn.
+    - id: HEUR-SLHDSA-OCC-2
+      formal_statement: >-
+        E[ PROD_{t=1..k} |S_{i,t}| | gamma_i = g ] = m(g)^k with
+        m(g) = 2^a (1 - (1 - 2^{-a})^g), i.e. the k per-tree distinct-count
+        random variables are independent given g.
+      rigorous_support: >-
+        Independence given g is exact under A3, because the k index chunks of a
+        digest are disjoint bit ranges and each signature's chunks are drawn
+        independently across trees. What is NOT exact is the treatment of the k
+        counts as independent ACROSS the different signatures at the same bin --
+        they are, given g, since each signature contributes one index per tree
+        independently. The residual is the deviation of E[|S|^k] from
+        (E[|S|])^k WITHIN a tree, which is zero here because each tree appears
+        to the first power. Stated so a reviewer can check the exponent
+        bookkeeping rather than take it on trust.
+      random_model_justification: Same random-oracle idealization as A3.
+      validation_plan: >-
+        Direct Monte-Carlo at toy (B, q, a, k) against the closed form, with the
+        agreement required rather than hoped for; it is a theorem under A3, so a
+        mismatch indicts the simulator, not the formula.
+      falsification_condition: >-
+        Monte-Carlo estimate of E[PROD_t |S_t|] differing from m(g)^k by more
+        than 4 standard errors at any tested cell.
+
+  predictions:
+    - metric: >-
+        P1 -- amplification at k = 1, computed for every lambda on the grid:
+        A(lambda) = T_1(lambda)/lambda
+      direction: different
+      minimum_effect: >-
+        EXACTLY 1, for every lambda, with no tolerance. Derived before any run
+        from T_1(lambda) = lambda. This is a control that CAN fail: any
+        implementation error in the Stirling recurrence, the Poissonization, or
+        the log-space arithmetic breaks it.
+    - metric: >-
+        P2 -- amplification at lambda = 1: A(1) = T_k(1) = the k-th Bell number
+      direction: different
+      minimum_effect: >-
+        EXACTLY B_k as an integer: B_14 = 190899322, B_17 = 82864869804,
+        B_22 = 4506715738447323, B_33 = 1629595892846007606764728147,
+        B_35 = 281600203019560266563340426570. Pre-registered here. An exact
+        integer match is far harder to hit by accident than a numeric fit.
+    - metric: >-
+        P3 -- C2 generic FORS interleaved-target attack cost at q = 2^64, log2,
+        for the six FIPS 205 sets
+      direction: different
+      minimum_effect: >-
+        Within 0.01 bits of 133.729 / 128.405 / 193.898 / 194.405 / 255.999 /
+        255.599 respectively, CONDITIONAL ON the recalled (h, a, k) triples
+        surviving Stage 0. If Stage 0 changes a triple, this prediction is
+        VOID rather than failed, and the record says so in advance so that a
+        parameter correction cannot be mistaken for a model failure.
+    - metric: >-
+        P4 -- leaf-collision correction C3 - C2 in bits at q = 2^64, and its
+        SPLIT between the 's' and 'f' families
+      direction: higher
+      minimum_effect: >-
+        Strictly positive at every parameter set (forced: m(g) <= g). Below 0.05
+        bits for all three 's' sets and above 0.25 bits for all three 'f' sets,
+        with 128f the largest at approximately +2.96 bits. THE SPLIT IS THE
+        PREDICTION: a correction that fails to separate the two families would
+        mean it is tracking something other than a (the FORS tree height), and
+        the mechanism is wrong.
+    - metric: >-
+        P5 -- monotone decay of the amplification as the parameter meant to
+        destroy it decreases: A(lambda) evaluated at
+        lambda in {2^-40, 2^-30, 2^-20, 2^-10, 2^-4, 2^-1, 1, 2}
+      direction: lower
+      minimum_effect: >-
+        Strictly increasing in lambda, and A -> 1 from above as lambda -> 0, with
+        |A - 1| < 10^{-6} at lambda = 2^-40 for every parameter set. THIS IS THE
+        ARTIFACT TELL, stated in the inventor-protocol form: the quantity that is
+        supposed to be destroyed by shrinking the signature budget must actually
+        decay. An amplification that stays large as lambda -> 0 is a bug in the
+        instrument, not a multi-target effect, and no negative result may be
+        reported from a run in which P5 fails.
+    - metric: >-
+        P6 -- coefficient of variation of SUM_i gamma_i^k over independent
+        occupancy draws at a toy cell (B = 2^12, q = 2^12, k as per set)
+      direction: higher
+      minimum_effect: >-
+        Strictly greater than 0.05. This is the MIRROR-FAILURE check for the
+        lossy projection: a comparator with zero spread is a constant of the
+        apparatus and the tracked object is worthless. Pre-registered so that a
+        zero reading kills the proposal rather than being explained away.
+    - metric: >-
+        P7 -- the fourth comparator C0: which of C1, C2, C3, or none of them the
+        FIPS 205 / SPHINCS+ parameter-selection formula matches, read from
+        primary text
+      direction: different
+      minimum_effect: >-
+        A verbatim quotation with a section or equation number, or an explicit
+        record that the text could not be obtained. NO INFERENCE FROM THE
+        NUMERICAL AGREEMENT IS PERMITTED: the six-way agreement noted above is
+        suggestive and is NOT a reading of the text.
+
+  minimal_test:
+    design: >-
+      Five stages, ordered cheapest-first, each able to terminate the line. Full
+      contract: experiments/EXP-SLHDSA-9cbad4/specification.yaml.
+      STAGE 0 (reading, zero compute, TERMINAL): obtain FIPS 205 and the SPHINCS+
+      framework text; quote the six parameter sets, the signing algorithm's index
+      derivation, and the interleaved-target bound with its occupancy handling.
+      If the recalled parameters are wrong, STOP and supersede this record.
+      STAGE 1 (exact integers, seconds, TERMINAL): Stirling table, T_k(lambda) as
+      an exact rational, C1/C2 over a q grid, controls P1 and P2.
+      STAGE 2 (log-space Poisson sum, seconds): C3 and the correction split P4.
+      STAGE 3 (Monte-Carlo, minutes): toy-cell occupancy simulation validating
+      HEUR-SLHDSA-OCC-2 and measuring P6.
+      STAGE 4 (write-up): the slack curve with all four comparators and the
+      scope statement.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value derived pre-run, CAN FAIL):
+        k = 1 with every other parameter unchanged. A single FORS tree is the
+        same computation with the multi-target structure removed, and its forced
+        amplification is EXACTLY 1 at every lambda. If the pipeline reports
+        anything else, it is measuring its own arithmetic.
+      - >-
+        SECOND NULL (lambda -> 0): the same six parameter sets at q = 2^20, where
+        lambda ranges from 2^-43 to 2^-48 and the amplification must be 1 to
+        within 10^-6. Two independent ways of switching the effect off; a
+        mechanism that survives one and not the other localises the error.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: the
+        lambda = 1 cell, where the forced amplification is the exact integer Bell
+        number B_k. If the instrument does not return B_k exactly at k = 14, 17,
+        22, 33, 35, IT IS BROKEN AND NO NEGATIVE RESULT MAY BE REPORTED FROM ANY
+        STAGE.
+      - >-
+        GRADED CONTROL, 8 interior points, monotonicity reported:
+        lambda in {2^-40, 2^-30, 2^-20, 2^-10, 2^-4, 2^-1, 1, 2}. Report A(lambda)
+        at each and the sign of every consecutive difference. A non-monotone
+        sequence localises the failure to a specific lambda decade instead of
+        leaving "it did not work".
+      - >-
+        SECOND GRADED CONTROL on the correction: a in {6, 8, 9, 12, 14} at fixed
+        k, reporting the correction size. It must decay monotonically in a. This
+        is what separates "the correction tracks the FORS tree height" from "the
+        correction is a numerical artifact of the log-space sum".
+      - >-
+        INDEPENDENT-IMPLEMENTATION CONTROL: T_k(lambda) computed twice, once by
+        the Stirling recurrence over exact Fractions and once by the Poisson
+        moment recurrence m_{j+1} = lambda * SUM_i C(j,i) m_i. Exact equality
+        required; these are different algorithms for the same integer.
+      - >-
+        ARCHIVE CHECK (zero compute): list every prior measurement of this
+        observable in the corpus. NOT AVAILABLE -- area SLHDSA has no evidence
+        and no runs. Recorded as unavailable rather than claimed as passed.
+      - >-
+        ORDERING CONTROL: the null and positive-control arms are computed,
+        hashed and committed BEFORE any C0 comparison is looked at, so that the
+        decision rule cannot be tuned to the primary text.
+    required_metrics:
+      - verbatim quoted parameter table with document section, or a recorded failure to obtain it
+      - A(lambda) on the graded grid, per parameter set, with consecutive-difference signs
+      - C1, C2, C3 in log2 over the q grid, per parameter set
+      - the correction C3 - C2 in bits, per parameter set, with the s/f split
+      - Bell-number control values as exact integers
+      - Monte-Carlo estimate and standard error for E[PROD_t |S_t|] at toy cells
+      - coefficient of variation of SUM_i gamma_i^k at the toy cell
+
+  falsification_conditions:
+    - >-
+      The k = 1 null returns an amplification other than exactly 1. The pipeline
+      is wrong; nothing may be reported.
+    - >-
+      A(lambda) does not decay to 1 as lambda -> 0. The amplification is an
+      artifact of the computation rather than of the multi-target structure, and
+      this is the canonical artifact tell.
+    - >-
+      The lambda = 1 control does not return the exact Bell number. Instrument
+      broken; no negative result admissible.
+    - >-
+      Stage 0 finds that H_msg's index derivation admits adversary influence.
+      HEUR-SLHDSA-OCC-1 is refuted, the multinomial model is wrong, and every
+      number in this record is void.
+    - >-
+      Stage 0 finds a parameter triple different from the recalled one. P3 is
+      VOID (not failed); the record is superseded with the corrected numbers.
+    - >-
+      The correction C3 - C2 comes out negative anywhere. It is forced positive
+      by m(g) <= g, so a negative value is an implementation defect and halts
+      the stage.
+    - >-
+      The coefficient of variation of the tracked statistic is zero. The
+      projection has hit the mirror failure and the proposal is withdrawn.
+
+  confounders:
+    - >-
+      CORRELATED MEMORY. The observation that the six computed costs land at
+      their nominal categories is weakened by the possibility that the recalled
+      parameters and the recalled security levels come from the same remembered
+      source, so agreement is partly self-fulfilling. Only a primary-text read
+      breaks this, and no weight may be placed on the agreement until it does.
+    - >-
+      SECOND-HAND CORPUS. Every SPHINCS-related entry in this corpus is
+      bulk-seeded with null identifiers and an unverified body. None is cited as
+      an authority here and none may be used to close Stage 0.
+    - >-
+      COMPARATOR SUBSTITUTION. "Slack" is undefined without a named comparator.
+      A reader who compares C3 against C1 and calls the difference slack will
+      get a number tens of bits larger than one who compares C3 against C2.
+      Reporting all four is the mitigation and it is mandatory.
+    - >-
+      SCOPE CREEP INTO THE OTHER LAYERS. This is the FORS layer only. WOTS+ and
+      the hypertree have their own bounds and are not costed here; a total
+      SLH-DSA security figure is a MINIMUM over layers and this record supplies
+      exactly one of the terms.
+    - >-
+      THE DIRECTION OF THE ERROR IS SAFE-LOOKING. Every correction found here
+      makes the scheme look stronger. That is a comfortable result to produce
+      and therefore one to distrust; the falsification conditions above are
+      written so a comfortable outcome still has to survive controls that can
+      fail.
+
+  interpretation_limits:
+    - >-
+      NO ATTACK IS PROPOSED, CLAIMED, OR IMPLIED. The generic interleaved-target
+      attack costed here is the known one; this record computes its cost, it
+      does not improve it.
+    - >-
+      This is a statement about ONE LAYER (FORS) under ONE IDEALIZATION (H_msg
+      and PRF_msg as random oracles). It says nothing about SHA-2 or SHAKE, and
+      nothing about the hypertree or WOTS+ layers.
+    - >-
+      NOTHING HERE BEARS ON FAULT, ROWHAMMER, OR MEMORY-CORRUPTION RESULTS
+      AGAINST SLH-DSA. RQ-SLHDSA-001 requires that claim class to be strictly
+      separate and this record does not touch it, does not cite it, and must
+      never be quoted in the same sentence as it.
+    - >-
+      The computation is EXACT arithmetic on a combinatorial model, not a
+      toy-scale extrapolation. That is a strength for the model and it is not a
+      licence to raise the claim tier: what is verified is a derivation, and the
+      derivation's inputs are the parameter constants, whose verification is
+      Stage 0 and is the tier-limiting step.
+    - >-
+      A finding that the margin is comfortable IS the deliverable the goal names
+      first. It must not be dressed up as a weakness, and equally it must not be
+      used to assert that SLH-DSA is secure -- it asserts only that this
+      particular attack against this particular layer costs what is computed.
+
+  target_complexity:
+    time_exponent: >-
+      n/a as an improvement -- NO EXPONENT IS MOVED AND THIS RECORD SAYS SO
+      PLAINLY. The quantity computed is the exponent of the known generic
+      interleaved-target attack, 2^{ak}/T_k(q/2^h) digest evaluations, and the
+      audit's effect on it is at most a few bits and in the defender's favour.
+      Stated against docs/target-result-profile.md's exponent-first bias: this
+      proposal is deliberately not an exponent proposal. It is worth running
+      because GOAL-SLHDSA-001's first completion criterion is a MEASUREMENT with
+      tracked constants, because the measurement is nearly free, and because the
+      corpus currently has zero verified constants for this scheme.
+    memory_exponent: >-
+      Not charged here by design; see IDEA-20260805-88ecef, which exists so that
+      this record cannot quietly report a time-only cost as a cost.
+    best_known: >-
+      The generic interleaved-target-subset-resilience attack as described in
+      the SPHINCS+ framework (KN-LIT-7077, NOT READ -- relayed corpus stub).
+      This record computes its cost; it does not claim to better it.
+    hidden_overhead: >-
+      One H_msg evaluation per trial plus one table lookup; the lookup is the
+      overhead that IDEA-20260805-88ecef charges and this record does not.
+    tradeoff_note: >-
+      The whole result is a trade curve in q. Reporting a point is the failure
+      mode this record exists to name.
+
+  dominated_by: >-
+    n/a (no result claimed; no attack, no algorithm, no Pareto point). Rows
+    checked before writing n/a, as required: (i) TIME -- the generic attack cost
+    is the incumbent and is not improved; (ii) MEMORY -- not charged here and
+    explicitly delegated; (iii) DATA/QUERIES -- the q axis is the independent
+    variable of the deliverable, not a cost this record beats; (iv) the corpus's
+    own frontier for this question -- IDEA-20260801-009 is the only prior entry
+    on RQ-SLHDSA-001 and it has no runs, no hypothesis and no experiment, so
+    there is no incumbent measurement to dominate; (v) external literature --
+    NOT CHECKED beyond the corpus grep and one live-web-free session, and that
+    gap is recorded rather than papered over. Absence of a search result is not
+    evidence that no prior derivation exists; the designers' own parameter
+    selection is almost certainly built on a close relative of this formula.
+  sota_delta: >-
+    Quantitatively, and in the honest direction: this proposal changes no attack
+    cost. Its measurable delta is (a) the leaf-collision correction, predicted at
+    +0.007 to +2.96 bits depending on parameter set, always in the defender's
+    favour, and (b) the difference between the union-bound comparator and the
+    exact moment, predicted at 0 bits at q = 2^20 rising to 33.3 bits (128s) and
+    71.6 bits (128f) at q = 2^64 -- i.e. the "multi-target advantage" is worth
+    zero at realistic signature budgets and tens of bits only at the maximum
+    permitted one. No exponent moves. sota_delta on every attack axis is zero.
+
+  estimated_cost:
+    implementation: low
+    compute: very low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.75 that the closed form and both corrections survive Stage 0 to Stage 3
+    intact and produce the slack curve the goal asks for. It is not higher
+    because the whole record is conditional on RECALLED parameters and on a
+    RECALLED description of the signing algorithm, and one wrong triple voids
+    the numbers; because HEUR-SLHDSA-OCC-1 is an idealization that a reading of
+    FIPS 205 could complicate; and because the six-way agreement with nominal
+    security levels may be a correlated-memory artifact rather than a baseline
+    reproduction. It is not lower because every step after the parameters is
+    exact combinatorics with no cryptographic assumption beyond the random-oracle
+    splitting of the digest, because the controls are forced values rather than
+    fits, and because the two failure modes that would matter most (k = 1
+    amplification != 1, non-decaying A as lambda -> 0) are checkable in seconds.
+    Separately: 0.15 that the audit finds a material discrepancy against the
+    parameter-selection formula once Stage 0 reads it -- most likely at 128f,
+    whose predicted uncorrected margin over its nominal category is 0.4 bits.
+
+  source_refs:
+    - ledger/goals/GOAL-SLHDSA-001.yaml
+    - ledger/questions/RQ-SLHDSA-001.yaml
+    - ledger/proposals/IDEA-20260801-009.yaml
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - docs/claims-and-verification.md
+    - knowledge/open-problems/KN-OPEN-014.md
+  source_refs_note: >-
+    KN-LIT-7077, KN-LIT-6178, KN-LIT-4938, KN-LIT-6770, KN-LIT-6265 and
+    KN-LIT-2576 are deliberately NOT listed as source_refs. They were located by
+    the novelty screen and inspected; all six are 2026-07-24 bulk-seeded stubs
+    with null identifiers and unverified bodies. Listing them would imply a
+    reading that did not happen.

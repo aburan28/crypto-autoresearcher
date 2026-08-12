@@ -12,3 +12,221 @@ build/
 
 # large binary run checkpoints (kept on disk, not in git)
 *.pkl
+
+# api_direct runtime checkpoints (resumable state, not research evidence)
+.agent-state/
+
+# Regenerable solver chunk state — block-Wiedemann/M4RI carries.
+# NOT run receipts: the mirror-log.json in each experiment indexes every
+# carry by filename -> git blob -> payload sha256, and the instrument
+# regenerates them from the recorded seed + system_hash.
+# *.raw was the single missing rule: 32 untracked carry_*.raw files exceed
+# GitHub's 100 MB limit (largest 238,912,804 B) and nothing was stopping
+# them from being staged.
+*.raw
+carry_*.raw
+carry_*.pkl
+
+# Compiled extensions built from the .pyx/.sage sources kept in-tree
+*.so
+*.dylib
+
+# Scratch/precursor trees that hold no run record.
+# NOTE: deliberately NOT ignoring experiments/**/work/ wholesale — 41 tracked
+# state.json/result.json receipts live under work/ and must stay stageable.
+experiments/**/smoke_work/
+experiments/**/runtime/sage/
+
+# Eval results are regenerated per run; baselines under
+# evals/baselines/ ARE committed.
+evals/results/
+
+# local credentials (copy from .env.example)
+.env
+
+
+# Compiled producer binaries under coordination/. Excluded from snapshot
+# archives on purpose: they are rebuildable from the declared source (cnt.c,
+# sq_null.c, probe.c, all archived), they are not reproducible across machines,
+# and an archive that declares them would fail verification whenever a rebuild
+# changed a byte. The SOURCE is the artifact; the binary is not.
+coordination/goals/*/batches/*/tasks/*/cnt
+coordination/goals/*/batches/*/tasks/*/sq_null
+coordination/goals/*/batches/*/tasks/*/probe
+coordination/goals/*/batches/*/tasks/*/mini
+coordination/goals/*/batches/*/tasks/*/mini2
+coordination/goals/*/batches/*/tasks/*/count5
+coordination/goals/*/batches/*/tasks/*/pin
+
+# In-flight producer working directory for GOAL-ECDLP-001 BATCH-028.
+# REMOVED BY THE SNAPSHOT ARCHIVE TASK-20260802-d34ac4, IN A COMMIT THAT PRECEDES IT.
+# Rationale, learned the hard way in GOAL-AES-003 and recorded as CORR-20260802-009:
+# a dispatcher-verified archive must INTRODUCE every path it declares. Producer
+# artifacts swept into an earlier commit by `git add -A` can never afterwards be
+# bound by the archive that is supposed to bind them, and BATCH-001's ledger archive
+# is permanently "published but not official" for exactly that reason.
+
+# The frozen EXP-SMTH-4403c4 contract is a DECLARED ARTIFACT of TASK-20260802-80f5e9
+# and must be INTRODUCED by the snapshot archive TASK-20260802-d34ac4, same rule as the
+# producer tree above. Its freeze is enforced by sha256 in freeze_receipt.json and
+# re-checked by the executing task, not by being committed early.
+
+# The two BATCH-028 reviewer directories, until the ledger archive TASK-20260802-268ec9
+# introduces them. NARROW BY DESIGN: the producer tree above is already committed by the
+# snapshot archive, so only these two paths are held back.
+# Committing a reviewer report early is the exact defect that left GOAL-AES-003 BATCH-001's
+# ledger archive permanently "published but not official" (CORR-20260802-009): an archive can
+# only bind content it INTRODUCES, and a report swept in by an earlier commit can never
+# afterwards be bound by the archive meant to bind it.
+
+# BATCH-029 in-flight producer tree, until the snapshot archive TASK-20260802-8c84fe
+# introduces it. Same rule as BATCH-028: a dispatcher-verified archive can only bind
+# content it INTRODUCES, so an artifact swept into an earlier commit can never afterwards
+# be bound by the archive meant to bind it. The archive removes this entry when it stages.
+# experiments/EXP-SMTH-e932e8/ is deliberately NOT listed here yet -- the contract does not
+# exist until the freeze task writes it, and it gets the same treatment then.
+coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-4500d4/collide
+coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-447db8/sq_slot
+
+# The two AES BATCH-003 reviewer directories, until the ledger archive
+# TASK-20260802-4072e6 introduces them. Committing a reviewer report early is the
+# exact defect that left GOAL-AES-003 BATCH-001's ledger archive permanently
+# published-but-not-official (CORR-20260802-009), and that I repeated an hour ago
+# with ECDLP BATCH-029's approval record. An archive can only bind content it
+# INTRODUCES.
+
+# experiments/EXP-SMTH-4403c4/ ignore REMOVED: PR #144 landed the frozen
+# contract + measurement package; run manifests must be trackable for
+# validate_ledger (EV-DS-84d006 cites RUN-SMTH-4403c4-*).
+
+# AutoLab executor staging area (orchestration/executors/autolab.py). Anchored
+# at the repository root, so experiments/<EXP>/runs/ — the immutable run
+# records validate_ledger and check_run_immutability enforce — stay tracked.
+# These are pre-ledger execution outputs, not run records: an AutoLab result
+# enters the ledger by being converted into a RUN-* record under experiments/,
+# never by being swept in from here. CORR-20260802-009 is the standing lesson:
+# an artifact caught by an earlier `git add -A` can never afterwards be bound
+# by the archive that is supposed to bind it.
+/runs/
+
+# ---------------------------------------------------------------------------
+# GENERATED ARTIFACTS — never committed.
+#
+# Each of these is derived, byte-for-byte, from files that ARE committed. While
+# they were tracked they sat in the top five conflict paths of the repository:
+# every branch that added a knowledge entry rewrote the whole of INDEX.md, and
+# every branch that touched a queue rewrote its whole plan. Two agents doing
+# unrelated work therefore conflicted on files that carry no information of
+# their own.
+#
+# Rebuild locally with:
+#   python3 tools/build_knowledge_index.py
+#   python3 tools/research_dispatch.py <queue> --output <dir>/dispatch_plan.json \
+#                                              --report <dir>/dispatch_plan.md
+# CI regenerates both and fails if the corpus or a queue does not build.
+#
+# MIGRATION NOTE for open branches: main DELETES these paths, so a branch that
+# still modifies them will hit a delete/modify conflict on its next merge. That
+# is a one-time mechanical conflict whose only correct resolution is `git rm`,
+# and tools/sync_open_branches.py resolves it automatically for exactly these
+# paths. It is deliberately preferred over the recurring content conflict it
+# replaces.
+knowledge/INDEX.md
+coordination/goals/*/batches/*/dispatch_plan.json
+coordination/goals/*/batches/*/dispatch_plan.md
+coordination/goals/*/batches/*/plan/dispatch_plan.json
+coordination/goals/*/batches/*/plan/dispatch_plan.md
+
+# Reconciliation-campaign dispatch plans. Same generated artifact as the four
+# entries above and rebuilt the same way; the existing globs only cover
+# coordination/goals/, so a RECON campaign's plan was landing untracked.
+# Listed by exact path, never as a directory: a directory ignore silently
+# swallows artifacts that do not exist yet, which is CORR-20260803-ba2eb7,
+# and this campaign's audit output must stay visible so its Coordinator
+# archive can INTRODUCE it (CORR-20260802-009).
+coordination/reconciliation/*/dispatch_plan.json
+coordination/reconciliation/*/dispatch_plan.md
+
+coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-6ba122/nib
+coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-6ba122/mini_b1
+coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-367b1b/sq_slot
+coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-367b1b/yoyo_sbox
+coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-367b1b/yoyo_sbox_v2
+
+coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-48a239/rc7_aesni_vec
+coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-48a239/yoyo_sbox_v2
+
+coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/yoyo_sbox_v2
+coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/yoyo_sbox_v3
+coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/src/yoyo_sbox_v4
+
+# NEVER IGNORE A TASK DIRECTORY. Ignore individual build products by path.
+# Six directory-form entries were added here by be3a56c8 to keep a snapshot
+# commit pure, and were never lifted. Reviewer reports written into those
+# directories AFTERWARDS were therefore invisible to `git status`, and two
+# independent BATCH-005 reviews (109 KB) survived only in an ephemeral
+# container filesystem until CORR-20260803-ba2eb7 caught it. A directory
+# ignore silently swallows artifacts that do not exist yet; a path ignore
+# cannot. See CORR-20260803-ba2eb7.
+
+# Stray root-level outputs from a failed nohup launch; see BATCH-005 note.
+val_r6_M0.json
+val_r6_M0.err
+coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/rc8probe
+coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/rc8probe_native
+
+# Derived retrieval index (kb/). Object storage and the records in this
+# repository are the source of truth; the staged corpus, the manifests, and
+# the query log are all rebuildable with `make -C kb slice`.
+kb/.kb-corpus/
+kb/.kb-queries.jsonl
+kb/.kb-index/
+kb/.env
+
+# `uv run` writes this when it builds the MCP server's environment. Not
+# committed: it is one file every worktree rewrites, which is the conflict
+# shape this repository removes elsewhere, and the reproducibility it would
+# buy is not where this component's reproducibility lives -- the dense
+# embedder is deterministic by construction and the evaluation corpus is
+# frozen by manifest, so a resolver difference cannot move a measured result.
+kb/uv.lock
+
+# ---------------------------------------------------------------------------
+# Historical note from PR cursor/executors-test-harness-74d3 (PR #144):
+# BATCH-031/032 producer ignore rules were temporarily present so snapshot
+# archives TASK-20260803-44e08d / TASK-20260803-0b2a19 could INTRODUCE their
+# declared paths (CORR-20260802-009). Those ignore rules were removed on the
+# PR branch before the snapshots landed. Main keeps ownership of the
+# BATCH-031/032 directory numbers (isogeny-transfer / other lanes); the PR's
+# SMTH gate artifacts coexist under the same directories with distinct TASK-*
+# paths. See CORR for this merge.
+
+# Historical note from PR #154 (cursor/batch033-ledger-1aff03-74d3):
+# BATCH-033 producer ignore rules were temporarily present so snapshot archive
+# TASK-20260803-ab40af could INTRODUCE its declared paths (CORR-20260802-009).
+# Those ignore rules were removed on the PR branch before the snapshot landed.
+# Main keeps ownership of the BATCH-033 directory number (ordinary-acquisition
+# lane); the PR's SMTH-c83476 artifacts coexist under the same directory with
+# distinct TASK-* paths and *.PR154-SMTH-c83476.* sibling queues/capsules.
+# See CORR-20260804-1e9769.
+
+coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_baseline
+coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_pfx
+coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_ideal
+
+coordination/goals/GOAL-AES-003/batches/BATCH-012/tasks/TASK-20260805-080b62/src/rc8probe_ideal
+coordination/goals/GOAL-AES-003/batches/BATCH-012/tasks/TASK-20260805-080b62/src/rc8probe_ideal_old
+
+coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/src/rc8probe_feistel
+
+# Local OpenCode runtime lock/session state (pid, hostname, claim tokens).
+# Ephemeral per-machine process-coordination state, not a research artifact;
+# a `git add -A` in a dispatch worktree swept it into a commit once and it
+# nearly reached main. See CORR-20260809 merge-contamination note.
+.opencode/goals/state.json.lock
+.opencode/goals/state.json.sessions/
+
+# Sibling git worktrees accidentally captured as gitlinks by the same
+# `git add -A`. These point at commits local to other worktrees on this
+# machine and are meaningless (and potentially dangling) anywhere else.
+.worktrees/

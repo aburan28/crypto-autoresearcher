@@ -1,0 +1,142 @@
+control_protocol:
+  id: CTRL-RT025-SPARSE-P-SUCCESS
+  status: executable
+  experiment_id: EXP-DS-001
+  hypothesis_id: H-DS-001
+  goal_id: GOAL-ECDLP-001
+  sub_goal_id: SG-ECDLP-001
+  batch_id: BATCH-029
+  protocol_amendment_id: PA-DS-001-v2-ctrl-sparse-p-success
+  extends_note: >-
+    Sparse-yield / total-expected-cost control. Does not edit prior control
+    blobs. Reuses charged-units / yield accounting from EXP-DS-001 v2 driver.
+    Builds on CI-IDENTITY honesty (EV-DS-009): when reporting CIs of R metrics,
+    CI must remain of the cost-identity quantity.
+  parent_contract: experiments/EXP-DS-001/specification.v2.yaml
+  parent_contract_sha256: 898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a
+  parent_approval_snapshot: 65f3c82babae49a9acea64cfa2650d4f3d45cf72
+  parent_approval_decision: DEC-20260731-003
+  discharges:
+  - RT047-B4
+  - RT079-B6
+  - RT101-B6
+  - RT118-B6
+  sources:
+  - RT-20260731-047
+  - RT-20260731-079
+  - RT-20260731-101
+  - RT-20260731-118
+  - DEC-20260731-031
+  - EV-DS-009
+  - EV-DS-003
+  claim_tier: toy
+  confirmatory_status: exploratory_control
+  claim_ceiling: >-
+    Toy-tier sparse p̂ / total-expected-cost control only. NOT CLAIMABLE:
+    crypto-scale ECDLP improvement; asymptotic support; S1_met; structure_gate;
+    GOAL completion; any change to H-IC-001 / H-STR-002; dominated_by null vs
+    Pollard-rho / BSGS. Promotion gates remain OPEN.
+  purpose: >-
+    Scientifically attack RT047-B4 / RT118-B6 by remeasuring at parameters where
+    unplanted p_success (p̂) clearly decays, charging total expected cost =
+    per-attempt × 1/p̂ for split and naive arms, and testing whether any
+    R_per_attempt < 0.5 survives as R_total_expected < 0.5. Forbid reading
+    saturated p̂≈1.0 as crypto yield. Allow honest sparse_p_success_fail.
+  method:
+    definitions:
+      p_hat: >-
+        Unplanted empirical success fraction (usable relations / attempts) at
+        the reported cell; must be computed on the same attempt budget declared
+        in the run.
+      p_hat_decay_observed: >-
+        True iff p̂ is strictly below a declared decay threshold (default 0.5)
+        OR strictly below the saturated EV-DS-003 reference p̂=1.0 by a
+        pre-registered margin (default absolute drop ≥ 0.5), on at least one
+        ladder cell with larger bits and/or stricter B than the saturated
+        reference cell.
+      R_per_attempt: >-
+        Yield-charged / cost-identity per-attempt ratio R = cost_split /
+        cost_naive (same cost_identity_R definition as CTRL-RT025-CI-IDENTITY /
+        specification.v2), NOT silently omitting 1/p̂.
+      total_expected_cost_split: per_attempt_cost_split / p_hat (p_hat>0)
+      total_expected_cost_naive: per_attempt_cost_naive / p_hat (p_hat>0)
+      R_total_expected: >-
+        total_expected_cost_split / total_expected_cost_naive (equals
+        R_per_attempt when the same p̂ applies to both arms; still must be
+        reported explicitly).
+      sparse_p_success_pass: >-
+        p_hat_decay_observed true AND required fields present AND
+        R_per_attempt and R_total_expected reported AND (if any CI of R is
+        claimed) CI is of cost_identity_R per EV-DS-009 discipline.
+      sparse_p_success_fail: >-
+        Honest negative when p̂ does not decay on the declared ladder, or
+        required fields missing, or total-expected bookkeeping omitted while
+        claiming a win — not infrastructure failure; not reject_scoped / lane death.
+    forbid:
+    - reading p_hat≈1.0 as crypto-scale unplanted yield
+    - claiming R win without reporting R_total_expected
+    - dominated_by null vs Pollard-rho / BSGS from this control alone
+    - S1_met
+    - support
+    - asymptotic_promotion
+    - structure_gate_passed
+    - laundering RUN-DS-001-ctrl-theater / EXP-IT-001 / BATCH-028 IT
+    - status abandoned_before_archive
+    required_report_fields:
+    - cell_record
+    - bits
+    - B
+    - m
+    - seed
+    - attempts
+    - n_usable
+    - p_hat
+    - p_hat_decay_observed
+    - p_hat_decay_threshold
+    - R_per_attempt
+    - R_total_expected
+    - total_expected_cost_split
+    - total_expected_cost_naive
+    - per_attempt_cost_split
+    - per_attempt_cost_naive
+    - cost_identity_definition_ref
+    - sparse_p_success_pass
+    - sparse_p_success_fail
+    - raw_costs_ref
+    - ladder_cells
+    pass_condition: >-
+      sparse_p_success_pass true IFF required fields present, p_hat_decay_observed
+      true on the declared ladder, and R_per_attempt / R_total_expected /
+      total_expected_* fields are present and mutually consistent.
+      Otherwise set sparse_p_success_fail=true and sparse_p_success_pass=false —
+      honest negative on sparse-yield stress (compatible with RT047-B4
+      saturated-toy observation), NOT infrastructure failure and NOT lane death.
+    falsifies_if: >-
+      Sparse win / crypto-yield claimed while p_hat_decay_observed false; OR
+      R_total_expected omitted while claiming advantage; OR required fields
+      missing; OR unauthorized theater/EXP-IT WIP reused; OR control status is
+      not executable.
+  scope:
+    reference_saturated_cell:
+      bits: 20
+      B: 64
+      m: 4
+      seed: 101
+      note: >-
+        EV-DS-003 / CI-IDENTITY primary cell where p̂≈1.0 saturated; baseline
+        for decay comparison (may be re-measured or cited from prior authorized
+        runs with explicit hash binding — do not fabricate).
+    primary_ladder:
+      description: >-
+        At least one harder unplanted cell intended to drive p̂ decay, plus the
+        reference cell (remeasure or bound citation). Suggested first harder
+        cell: bits=24 B=64 m=4 (or bits=20 B=32 if 24-bit unavailable under
+        budget). Exact cells recorded in run ladder_cells.
+      max_cells: 4
+      cell_wall_seconds_hint: 7200
+    matrix: No full 54-cell re-run. Ladder ≤4 cells.
+    does_not_supersede: EV-DS-002 / EV-DS-003 / EV-DS-004 / EV-DS-006 / EV-DS-007 / EV-DS-008 / EV-DS-009
+  required_artifacts:
+  - experiments/EXP-DS-001/results/ctrl_sparse_p_success/summary.json
+  - experiments/EXP-DS-001/results/ctrl_sparse_p_success/sparse_p_success_report.json
+  - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-sparse-p-success/

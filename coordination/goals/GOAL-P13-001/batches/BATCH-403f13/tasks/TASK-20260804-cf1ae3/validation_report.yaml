@@ -1,0 +1,120 @@
+validation_report:
+  task_id: TASK-20260804-cf1ae3
+  producer_task_id: TASK-20260804-241b87
+  snapshot_commit: b7b3240b4266b85af1e0810831a66aa6e3300535
+  verdict: accept_with_qualifications
+  summary: >-
+    All artifact hashes verified; NC2d pooled arithmetic, FC-4 non-firing, jackknife
+    containment, and no-trend check confirmed by independent computation; NC2b all 10
+    slope checks pass at 0.0926 bits (tolerance 0.75 bits); bibliographic scope
+    appropriate; run is admissible with two minor qualifications noted below.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >-
+      Single available backend; running under OpenCode with model inherit.
+      review-adversarial policy requires xhigh reasoning; served by
+      claude-sonnet-4-6 under INFAMEND-20260802-P13-002.
+    independent_session: true
+    model_verified: false
+
+  checks:
+    - id: CHK-1
+      name: Hash check — 4 task artifacts + 4 experiment artifacts
+      result: PASS
+      detail: >-
+        Independently recomputed SHA-256 for nc2d_results.json, nc2b_results.json,
+        bib_results.json, run_log.txt, raw-result.json (NC2d), nc2d_cpscale.py,
+        raw-result.json (NC2b), nc2b_slope.py, stdout.log (both experiments).
+        All match recorded values in receipt.json exactly.
+        Snapshot b7b3240b4 commits all 21 declared artifacts (confirmed via git show --name-only).
+
+    - id: CHK-2
+      name: NC2d arithmetic — pooled alpha, gap, FC-4, jackknife, regressor, trend
+      result: PASS
+      detail: >-
+        pooled alpha_primary: mean([1.1055,1.1318,1.1407,1.1504]) = 1.1321 (raw: 1.1320907) ✓
+        pooled alpha_null: mean([1.0784,1.0938,1.0512,1.0626]) = 1.0715 (raw: 1.0715207) ✓
+        gap = 0.0606 (raw: 0.0605699) < threshold 0.15 → FC-4 DID NOT FIRE ✓
+        jackknife leave-one-out bounds: [1.1259982, 1.1409560] (reported [1.1260, 1.1410]) ✓
+        contained_in_band [0.85, 1.15]: 1.1409560 ≤ 1.15 → True ✓ (see qualification Q-1)
+        FC-2 disjoint test: CI overlaps [0.85,1.15] → FC-2 DID NOT FIRE ✓
+        Regressor: frozen spec § estimator states "OLS of log2(median per_entry) on
+        log2(log2 p)"; run log line 2 confirms "Regressor is log2(log2 p)"; conflict
+        with handoff (which said log2(p)) is explicitly recorded in receipt.json and
+        raw-result.json; frozen spec governs per DEC-20260802-48c72c ✓
+        no-trend b = 0.0206 (raw: 0.020580) via OLS of alpha_hat(ell) vs log2(ell);
+        |b| = 0.0206 ≤ 0.10 → PASS ✓
+
+    - id: CHK-3
+      name: NC2b arithmetic — worst recovery error, 10-check gate, gamma_null anomaly
+      result: PASS_WITH_NOTE
+      detail: >-
+        All 10 W-MID checks (5 field sizes × 2 s values) independently verified from
+        nc2b_results.json: worst error = 0.0926 bits at log2p_768 (both s=0.4 and s=0.8).
+        0.0926 ≤ 0.75 bits tolerance → gate PASS ✓
+        gamma_null_refit = −0.003547 vs decision-record nominal −0.013241:
+        difference = 0.009694; anomaly is explained — NC2b spec uses EXP-PEC-49c773
+        C-NULL (47-ell series, n=43 in W-MID), while the DEC-20260802-48c72c
+        expected value was fitted on the 21-ell nc2b series (ell 11..101).
+        Gate uses the refit value from the correct 47-ell input, so the gate result
+        is valid. Anomaly is properly annotated in raw-result.json and nc2b_results.json ✓
+        non_claim preserved: "PASS validates the INSTRUMENT only; cannot be cited as
+        validation of L1" ✓
+
+    - id: CHK-4
+      name: Bibliographic — 3 sources found, constant k scope
+      result: PASS
+      detail: >-
+        All 3 sources confirmed found: Sutherland 2013 (arXiv:1202.3985),
+        Santos-Costello-Shi 2022 (DOI 10.1007/978-3-031-15982-4_10),
+        Adj et al. 2018/319 (IACR ePrint 2018/313).
+        Constant k not stated in any abstract: expected outcome. Sutherland 2013 addresses
+        evaluation algorithms for Φ_ell(j(E),Y); Santos-Costello-Shi addresses
+        Delfs-Galbraith acceleration; Adj et al. address cost of isogenies in SIDH context.
+        None of these is the primary locus for the ~1/2 Elkies-prime counting fraction,
+        which derives from SEA theory (Elkies 1990, Atkin, Schoof). Absence in abstracts
+        is the expected outcome for this bibliographic scope ✓
+
+    - id: CHK-5
+      name: Scope — no finding stated, no hypothesis status change
+      result: PASS
+      detail: >-
+        receipt.json: states_a_finding = false ✓
+        nc2d_results.json: states_a_finding = false ✓
+        nc2b_results.json: states_a_finding = false ✓
+        No hypothesis status change claimed in any artifact ✓
+        Non-claims in frozen spec (EXP-P13-NC2d § non_claims) preserved in
+        execution: no artifact lifts the prior FC-4 firing from EXP-PEC-49c773,
+        and no artifact claims crypto-scale evidence ✓
+        NC-3/NC-6 correctly characterized as failed_infrastructure per AGENTS.md
+        rule 5 (TASK-20260804-6519fa infra_failure_receipt.yaml) — not used
+        as evidence ✓
+
+  qualifications:
+    - id: Q-1
+      severity: informational
+      description: >-
+        The jackknife interval [1.1260, 1.1410] is labelled "95% CI" in the handoff
+        summary. It is actually the [min, max] of the four leave-one-out estimates,
+        as defined explicitly in the frozen spec (§ jackknife: "report the min and
+        max of the four leave-one-out estimates"). The frozen spec does not use the
+        label "95% CI"; only the handoff summary does. The interval bounds are
+        arithmetically correct (raw: [1.1259982, 1.1409560]), contained_in_band is
+        correct, and the FC-2 evaluation is correct. No correction to the run record
+        is required; future handoffs should use "leave-one-out range" rather than
+        "95% CI" to avoid ambiguity.
+    - id: Q-2
+      severity: informational
+      description: >-
+        TASK-20260804-6519fa (NC-3/NC-6 executor) is untracked in git and not
+        included in snapshot b7b3240b4. This is outside the scope of TASK-20260804-241b87
+        (which this report validates), but the Coordinator should ensure a separate
+        snapshot covers TASK-20260804-6519fa before any review that depends on it.
+        The infra_failure_receipt.yaml is present in the working tree and correctly
+        characterises the failure, but it lacks archival durability until committed.
+
+  admissible: true
+  validated_at: '2026-08-05'
+  validated_by: TASK-20260804-cf1ae3

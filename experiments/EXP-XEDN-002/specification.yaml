@@ -1,0 +1,206 @@
+experiment:
+  id: EXP-XEDN-002
+  hypothesis_id: H-XEDN-001
+  version: 1
+  title: >-
+    Exact function-field xedni section census: closed-form lift probability,
+    exhaustive small-p verification, and exact multi-section histogram for the
+    frozen EXP-XEDN-001 surface family
+  status: approved
+  objective: >-
+    Settle the EXP-XEDN-001 phase-2 gate (alpha < 1/2 promotion versus
+    alpha >= 1/2 closure) for the frozen function-field family by exact counting.
+    The phase-2 design as contracted is a rare-event Monte Carlo estimate of a
+    per-slot rate near p^-3, which is about 1e-6 at p=101 and about 2e-9 at
+    p=809: it cannot produce a nonzero count at the larger contracted sizes
+    within the 40-run, 14400-second budget, so it cannot produce the fitted
+    exponent that the gate requires. This experiment replaces sampling over
+    surfaces with enumeration over sections, which is a bijective reindexing of
+    the same incidence set and therefore answers the same question exactly.
+  supersedes: >-
+    The phase-2 sampling requirement of experiments/EXP-XEDN-001/contract.md
+    (">=3 toy sizes, exhaustive section enumeration on >=200 random surfaces per
+    size"). The EXP-XEDN-001 smoke results, controls, and harness remain valid
+    inputs and are not restated or modified. The infeasibility of the original
+    design is recorded as a methodology observation, not as evidence about the
+    mathematics (AGENTS.md rule 5).
+  inputs:
+    frozen_family: >-
+      Surfaces S_b : y^2 = x^3 + b(t) over F_p(t) with a(t) = 0 and b in F_p[t]
+      of degree exactly 6 (nonzero leading coefficient). Slot coordinate: monic
+      quadratic x(t) = t^2 + x1 t + x0. Section: y in F_p[t] with
+      y(t)^2 = x(t)^3 + b(t); the frozen harness predicate excludes y = 0.
+    frozen_predicate: >-
+      experiments/EXP-XEDN-001/xedni_sections.py is_square_poly, reused verbatim
+      as an imported reference oracle. It must not be edited; any behavioural
+      deviation from an independent reference implementation is an invalidation
+      finding, not a silent fix.
+    smoke_baseline: experiments/EXP-XEDN-001/smoke_results.json (p=101; 0 sections in 5760 random slots; planted control recovered; 0 square hits in 200000 random sextics)
+    literature_anchors: [KN-LIT-020, KN-LIT-021]
+  arms:
+    A_closed_form: >-
+      Derive the exact number of hit slots N_hit(p) = #{(b, x) : deg b = 6,
+      x monic quadratic, x^3 + b is a nonzero square in F_p[t]} by the section
+      fibering bijection, and the exact slot total N_slots(p). Report
+      P_lift(p) = N_hit / N_slots in exact rational form and as a float, plus the
+      exact finite-size exponent alpha_eff between consecutive contracted sizes
+      and the limiting alpha. The derivation must be written out, not asserted.
+    B_exhaustive_control: >-
+      Verify arm A by exhaustive enumeration over the FULL slot space at
+      p in {5, 7, 11, 13} using the frozen predicate: iterate every b of degree
+      exactly 6 and every monic quadratic x, count hits, and require exact
+      equality with the closed form at every p. Any mismatch invalidates arm A
+      and must be reported as such rather than reconciled by adjusting the
+      formula after the fact.
+    C_section_histogram: >-
+      Compute the exact distribution of the number of degree-(2,3) sections per
+      surface over the whole family at p in {5, 7, 11} (and 13 if it fits in the
+      memory cap), by fibering over (x, y) pairs and binning by the induced b.
+      Report the exact counts of surfaces with at least s sections for
+      s = 1..9, the induced exponents, and the comparison with the multi-section
+      requirement s >= 9 implied by the Shioda-Tate rank bound r <= 8 for a
+      rational elliptic surface.
+    D_scoped_codimension_lemma: >-
+      State and prove, with explicit hypotheses, the scoped counting lemma that
+      generalizes arm A: for this surface family and section shape the
+      section-existence condition has integer codimension c in the surface
+      parameter space, P_lift = Theta(p^-c), and therefore alpha < 1/2 forces
+      c = 0, which holds only when the section parameters are at least as many as
+      the surface parameters. Identify explicitly which xedni-relevant
+      configurations fall in the c = 0 regime and why prescribing a target
+      specialization removes them. Mark clearly every step that is a parameter
+      count rather than a geometric theorem, and record the open cases the lemma
+      does NOT cover.
+  controls:
+    - >-
+      Frozen-predicate control: an independent square-detection implementation
+      (distinct algorithm, e.g. explicit square-root extraction of the sextic or
+      full factorization) must agree with is_square_poly on every enumerated slot
+      at p in {5, 7} and on at least 10^5 random sextics at p = 101.
+    - >-
+      Planted-section control: the EXP-XEDN-001 planted surface (b = y*^2 - x*^3
+      with x* = t^2 + 5t + 3, y* = t^3 + 2t^2 + 4t + 7) must be recovered by the
+      exact enumerator at p = 101, reproducing the smoke result.
+    - >-
+      Smoke-consistency control: the closed form must predict the expected number
+      of hits in the 5760 slots the p=101 smoke examined; the observed 0 must lie
+      inside a stated Poisson interval of that prediction. A predicted expectation
+      far above 1 would contradict the smoke and invalidate the arm.
+    - >-
+      Iso-triviality control: report how many counted surfaces are iso-trivial
+      (b constant is excluded by deg b = 6, so the count must be reported as
+      exactly zero for this family, with the reasoning stated) so the contract
+      constraint is explicitly discharged rather than assumed.
+    - >-
+      Degenerate-section control: report separately the slots whose only section
+      is the excluded y = 0 case, so the effect of the frozen predicate's
+      exclusion on P_lift is visible and quantified.
+  independent_variables:
+    - p (field size)
+    - s (required number of independent sections, 1..9)
+  metrics:
+    primary:
+      - exact P_lift(p) for p in {5, 7, 11, 13, 101, 211, 431, 809}
+      - exact finite-size alpha_eff between consecutive p, and the limiting alpha
+      - gate verdict against alpha < 1/2 versus alpha >= 1/2
+    secondary:
+      - exhaustive-versus-closed-form agreement at p in {5, 7, 11, 13}
+      - exact P[at least s sections] for s = 1..9 at each histogram size
+      - fraction of hit slots attributable to the excluded y = 0 section
+      - runtime and memory per arm
+  replication:
+    seeds: [20260718, 20260724]
+    independent_instances: ">=4 exhaustive sizes for arm B; arms A and D are deterministic and seed-free"
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 2
+    maximum_memory_gb: 4
+    maximum_runs: 6
+  stopping_rules:
+    - >-
+      Arms A, B, and D run to completion regardless of intermediate outcome. Arm
+      C stops at the largest p that fits the memory cap; the largest completed p
+      is reported together with the sizes that were skipped and why.
+    - >-
+      No post-hoc family or predicate change. If the closed form disagrees with
+      exhaustive enumeration, the run terminates with an invalidation finding.
+  invalidation_rules:
+    - >-
+      Any disagreement between arm A and arm B invalidates arm A for the affected
+      p and blocks the gate verdict.
+    - >-
+      Any disagreement between the frozen predicate and the independent reference
+      implementation invalidates the affected counts.
+    - >-
+      A crash or memory-cap breach is failed_infrastructure, not a mathematical
+      result (AGENTS.md rule 5).
+    - >-
+      Reporting a fitted exponent from arm A as if it were a sampled measurement,
+      or reporting arm D as an unconditional theorem, invalidates the report.
+  success_criterion: >-
+    Exact P_lift values at at least three contracted sizes give alpha < 1/2 with
+    an uncertainty interval excluding the classical prediction alpha = 3 fitted
+    at the same sizes, and arm C shows P[at least 9 sections] at or above p^-1:
+    the function-field lift survives as a candidate relation source and a
+    larger-size confirmation arm is triggered.
+  falsification_criterion: >-
+    Exact P_lift gives alpha >= 1/2 (in particular the codimension-3 value
+    alpha = 3), or arm C shows P[at least 9 sections] decaying faster than p^-1:
+    scoped rejection of H-XEDN-001 and closure of the function-field xedni census
+    for this family, with the exact values archived. The closure covers this
+    surface family, these section degrees, and this predicate only.
+  required_artifacts:
+    - runs/<run-id>/manifest.yaml (command, commit, dirty-tree, env, seeds, params, inference block)
+    - runs/<run-id>/command.txt
+    - runs/<run-id>/environment.json
+    - runs/<run-id>/stdout.log
+    - runs/<run-id>/stderr.log
+    - runs/<run-id>/raw-result.json
+    - implementation files under experiments/EXP-XEDN-002/implementation/
+    - derivation.md (arm A derivation and arm D scoped lemma with explicit hypotheses and open cases)
+    - analysis.md (gate verdict against the frozen criteria, with claim boundaries)
+    - execution-report.yaml (per-arm terminal state, control verdicts, budget usage)
+  assigned_to: executor
+  approved_by: coordinator   # TASK-20260724-226, GOAL-ICLIFT-001 BATCH-001
+
+handoff:
+  id: TASK-20260724-229
+  from: coordinator
+  to: executor
+  objective: >-
+    Execute the frozen EXP-XEDN-002 exact census and emit immutable run records
+    and a derivation, without interpreting the result as a research-state change.
+  uncertainty_reduced: >-
+    The exact value of the function-field xedni lift probability and of the
+    multi-section probability, replacing an unmeasurable sampling design.
+  inputs:
+    - experiments/EXP-XEDN-002/specification.yaml
+    - experiments/EXP-XEDN-001/xedni_sections.py
+    - experiments/EXP-XEDN-001/smoke_results.json
+    - experiments/EXP-XEDN-001/contract.md
+    - ledger/hypotheses/H-XEDN-001.yaml
+  constraints:
+    - Do not modify anything under experiments/EXP-XEDN-001; import or copy the predicate read-only.
+    - Do not change hypothesis or experiment status; observations only.
+    - Toy scale only; no crypto-scale or attack claim of any kind.
+    - Report the exhaustive-versus-closed-form comparison before any gate statement.
+    - Stay inside write_scope experiments/EXP-XEDN-002.
+  deliverables:
+    - All required_artifacts under experiments/EXP-XEDN-002
+    - execution-report.yaml with per-arm terminal states and control verdicts
+  artifact_paths: []
+  archived_by: TASK-20260724-231
+  inference:
+    policy: executor-terra
+    fallback_allowed: true
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 5400
+    memory_gb: 4
+    maximum_runs: 6
+  completion_gate:
+    - Arms A, B, and D have terminal states; arm C reports its largest completed size.
+    - Closed form and exhaustive enumeration agree exactly at every completed size, or the disagreement is reported as an invalidation.
+    - Every control has an explicit pass/fail/invalid verdict.
+    - The gate verdict is stated against the frozen criteria with its claim boundary.
+  return_format: execution_report

@@ -1,0 +1,373 @@
+# Numbered heuristics for TASK-20260803-648a0b (BATCH-010, GOAL-MLKEM-003)
+#
+# Every modelling choice made in memory_charged_derivation.py appears here with
+# a statement, a justification, a falsifier, and this batch's validation status.
+# An unnumbered assumption in that script would be a defect; if a reviewer finds
+# one, it is a defect in this file, not a licence to ignore it.
+#
+# VALIDATION VOCABULARY
+#   validated_this_batch  - a control in results.json["controls"] checks it and
+#                           passed; the check is named.
+#   checked_against_source- read out of a pinned/archived artefact rather than
+#                           assumed, but not independently re-derived here.
+#   unvalidated           - adopted as a modelling convention; nothing in this
+#                           batch tests it.
+#   unsourced             - no primary or archived source was located for it in
+#                           this batch; this batch's own construction.
+#
+# DIRECTION COLUMN
+#   Every heuristic records which way an error in it would move c*. This is the
+#   sensitivity the reader needs in order to discount the conclusion correctly.
+
+task_id: TASK-20260803-648a0b
+batch: BATCH-010
+goal_id: GOAL-MLKEM-003
+generated_utc: '2026-08-03T01:35:09Z'
+scope_note: >-
+  Everything below concerns primal_bdd under RC.MATZOV as served by
+  lattice-estimator 3e48ef421ec256afddb3e7d2249a77eab6e9ba12 through the
+  Sage-free harness. Arora-Groebner is unavailable in that harness, so no
+  heuristic here supports a "best attack overall" statement. All quantities are
+  cost-model ESTIMATES, never measurements.
+
+heuristics:
+
+  - id: H1
+    title: The frozen baseline is EV-MLKEM-015's free-memory cost, unchanged.
+    statement: >-
+      log2(rop) for primal_bdd/RC.MATZOV is 140.1994731076207 / 200.9587149140538
+      / 270.7236234535225 for Kyber-512/768/1024, and the NIST classical cutoffs
+      to compare against are 143 / 207 / 272 bits, giving free-memory undercuts
+      of 2.800527 / 6.041285 / 1.276377 bits. This batch recomputes but does not
+      revise these.
+    justification: >-
+      Recomputed here from the pinned estimator and compared bit-for-bit with
+      RUN-MLKEM-015-001 (computed under real Sage 10.9, archived before this
+      harness existed). The known-answer control reproduces the two Sage
+      reference values at delta 0.00e+00.
+    falsified_by: >-
+      Any recomputation at the same pin that differs from these values, or a
+      demonstration that the archived RUN-MLKEM-015-001 values were produced at
+      a different pin or with different scheme parameters.
+    validation_status: validated_this_batch
+    validated_by: [CTRL-0_known_answer_control, CTRL-2_baseline_matches_EV_MLKEM_015]
+    direction_if_wrong: >-
+      c* is directly proportional to the undercut, so an error of x bits in the
+      baseline moves c* by x / log2(M) (about x/88, x/132, x/181 respectively).
+
+  - id: H2
+    title: The cost model's sieve dimensions are read from the pinned source, not assumed.
+    statement: >-
+      Under RC.MATZOV, primal_bdd's total gate count is exactly the sum of two
+      terms, each of which contains sieving in a specific dimension:
+      (i) a progressive-BKZ term costed as MATZOV(beta, d), whose sieves run in
+      dimension beta - d4f(beta); and
+      (ii) one final SVP/BDD call costed as MATZOV(eta+1, eta+1) plus a Babai
+      lift, whose sieve runs in dimension (eta+1) - d4f(eta+1).
+      Neither raw beta nor raw eta is the sieve dimension.
+    justification: >-
+      Read from lattice-estimator 3e48ef4:
+      estimator/lwe_primal.py:465 `bkz_cost = costf(red_cost_model, beta, d)`;
+      :482 `eta = svp_dim if params._homogeneous else svp_dim - 1`;
+      :488 `svp_cost = costf(red_cost_model, svp_dim, svp_dim)`;
+      :490 `svp_cost["rop"] += PrimalHybrid.babai_cost(d - eta)["rop"]`;
+      estimator/reduction.py:800 (class Kyber, inherited by GJ21 -> MATZOV)
+      `beta_ = beta - self.d4f(beta)` and :808 the gate count is
+      C * 2^(a*beta_ + b). Reproduced numerically: this batch recomputes red and
+      svp from those two calls and matches the estimator's own fields exactly
+      (red + svp - rop == 0.0 in floating point, and both terms agree to < 1e-9
+      in log2).
+    falsified_by: >-
+      A recomputation of red or svp from MATZOV(beta,d) / MATZOV(eta+1,eta+1)
+      that fails to reproduce the estimator's fields; or a change in the
+      estimator at another commit that routes the final call through a different
+      dimension.
+    validation_status: validated_this_batch
+    validated_by: [CTRL-1_cost_decomposition]
+    direction_if_wrong: >-
+      Using raw eta instead of eta - d4f(eta) would OVERSTATE log2(M) by about
+      0.2075 * d4f(eta+1) = 7.9 / 10.6 / 13.4 bits and so understate c* by a few
+      percent. Using beta instead of eta+1 would understate log2(M) by 6.7 / 6.9
+      / 6.9 bits (Z_q units) and overstate c* correspondingly. Neither error
+      changes the order of magnitude of c*.
+
+  - id: H3
+    title: Peak sieve memory is the memory of the single largest sieve, not their sum.
+    statement: >-
+      The attack's memory requirement is max over its sieve calls, because the
+      calls are sequential and each database can be released before the next is
+      built. For all three parameter sets eta + 1 > beta, so the final BDD/SVP
+      call is the peak.
+    justification: >-
+      The cost model itself runs the calls sequentially (BKZ preprocessing, then
+      one SVP call). No step in the estimator holds two sieve databases at once.
+    falsified_by: >-
+      A concrete implementation of the modelled attack that must retain the BKZ
+      sieve database while the final SVP call runs, which would raise M_peak by
+      at most 1 bit (log2(2^a + 2^b) <= max + 1) and so lower c* slightly.
+    validation_status: unvalidated
+    validated_by: []
+    direction_if_wrong: >-
+      At most 1 bit of extra memory, i.e. c* lower by about 1%. Reported anyway
+      through Model B, which charges each term by its own sieve's memory and
+      gives a slightly LARGER c* (0.032771 / 0.047012 / 0.007200).
+
+  - id: H4
+    title: Sieve database size is 2^(0.2075 * n) vectors in sieve dimension n.
+    statement: >-
+      A list-decoding (BDGL16-family) sieve in dimension n stores
+      N = 2^(0.2075 * n) lattice vectors.
+    justification: >-
+      SOURCED THREE WAYS, none of them an assumption made here.
+      (a) In-instrument: the pinned lattice-estimator writes exactly
+          `floor(2 ** (0.2075 * beta_))` for the number of vectors a sieve in
+          dimension beta_ produces -- estimator/reduction.py:415, :854, :936 at
+          commit 3e48ef4. This is the same instrument whose gate counts are
+          being charged, so the exponent and the gate count come from one source.
+      (b) Closed form: 0.2075 is the rounded value of log2(sqrt(4/3)) =
+          0.20751874963942182, the Gaussian-heuristic count of lattice points
+          within radius sqrt(4/3)*gh(n). Checked in this batch: |difference| =
+          1.875e-05.
+      (c) Corpus literature: KN-LIT-104 (Micciancio-Voulgaris, SODA 2010;
+          citation_verified: read) -- Gauss Sieve space is provably proportional
+          to the kissing constant tau_n, with 2^((0.2075+o(1))n) < tau_n;
+          KN-LIT-6625 (angular-LSH sieve, space 2^(0.2075n+o(n)));
+          KN-LIT-6765 (triple sieve, memory 2^(0.2075n+o(n)));
+          KN-LIT-081 (0.2075187n list exponent, citation_verified: full_text);
+          KN-TECH-044 and KN-OPEN-017 both treat 2^(0.2075n) as the structural
+          sieve-memory floor.
+      NOTE ON WHAT IS AND IS NOT SOURCED: the BDGL16 paper itself was NOT
+      retrieved during this batch. What is sourced is the exponent as used by
+      the pinned instrument, its closed form, and its status as the
+      kissing-number floor in this repository's corpus. The primary BDGL16
+      statement is relayed, not read here.
+    falsified_by: >-
+      A sieve variant that solves the same SVP instances with asymptotically
+      less memory than the kissing-number floor at the same gate count -- which
+      would contradict KN-LIT-104's structural argument -- or evidence that the
+      AGPS20 gate counts underlying RC.MATZOV correspond to a database of a
+      different size than the estimator's own 0.2075 literal.
+    validation_status: checked_against_source
+    validated_by: [CTRL-3_sieve_exponent_closed_form]
+    direction_if_wrong: >-
+      c* scales as 1/log2(M). Halving the memory exponent would roughly double
+      c*, to about 0.06 / 0.09 / 0.014 -- still far below 1/3.
+
+  - id: H5
+    title: Memory unit is elements of Z_q, with an explicit conversion chain.
+    statement: >-
+      M is reported in three units with the conversion shown:
+        M_vectors = 2^(0.2075 * n)
+        M_zq      = n * M_vectors                    [HEADLINE UNIT]
+        M_bits    = ceil(log2 q) * n * M_vectors     (q = 3329, ceil = 12 bits)
+      For Kyber-512 that is 2^79.905 vectors = 2^88.494 Z_q elements = 2^92.079
+      bits.
+    justification: >-
+      The Z_q-element unit is the pinned instrument's own sieve-memory
+      convention: estimator/lwe_dual.py:172 does
+      `cost["mem"] += sieve_dim * N` and :204 documents `mem` as "memory
+      requirement in integers mod q". Using the instrument's unit keeps the
+      numerator (its gate count) and the denominator (its memory count) in one
+      convention. The estimator additionally notes that this is an upper bound
+      because short vectors have small coefficients.
+    falsified_by: >-
+      A representation argument showing sieve vectors need materially fewer than
+      n log2(q) bits (which would lower log2 M and raise c*), or an
+      implementation that must store auxiliary per-vector data (bucket indices,
+      NN filter structures) that raises it.
+    validation_status: validated_this_batch
+    validated_by: [CTRL-4_unit_consistency]
+    direction_if_wrong: >-
+      MEASURED HERE AS SMALL. Across the three units c* moves only from 0.035048
+      to 0.030414 (Kyber-512), 0.049336 to 0.044670 (768), 0.007454 to 0.006918
+      (1024) -- about 15%, not orders of magnitude. The conclusion does not turn
+      on the unit choice. This is the sensitivity the handoff warned about, and
+      it is bounded.
+
+  - id: H6
+    title: c = 0 is the published convention and is a SOURCED convention, not a neutral default.
+    statement: >-
+      The free-memory point c = 0 is the convention in which the NIST category
+      cutoffs, the MATZOV gate counts, and the lattice-estimator rop figures are
+      all stated. EV-MLKEM-015's undercut is a c = 0 statement.
+    justification: >-
+      The NIST classical cutoffs 143 / 207 / 272 are gate counts with no memory
+      term; KN-LIT-7617 and KN-LIT-110 both quote them as such and state their
+      own attack costs in the same units. KN-OPEN-017 records that the
+      2^(0.292b) figure inside core-SVP "charges nothing for memory or its
+      access pattern".
+    falsified_by: >-
+      A NIST or MATZOV statement showing the cutoffs already contain an implicit
+      memory charge.
+    validation_status: checked_against_source
+    validated_by: []
+    direction_if_wrong: n/a - this is the baseline convention, not a free parameter.
+
+  - id: H7
+    title: The charge family is T * M^c, with c = 1/3 SOURCED and c = 1/2 UNSOURCED.
+    statement: >-
+      Charged cost is modelled as (gate count) * M^c. Within that family:
+        c = 1/3  three-dimensional wiring / Wiener full cost   -- SOURCED
+        c = 1/2  two-dimensional planar layout                 -- UNSOURCED
+        c = 1    hardware quantity x time                      -- PARTIAL
+        c = 1/6  probe point only                              -- UNSOURCED
+    justification: >-
+      c = 1/3: KN-LIT-094 (Wiener, "The Full Cost of Cryptanalytic Attacks",
+      J. Cryptology 17(2):105-124, 2004; corpus entry citation_verified: read;
+      technique abstract KN-TECH-035) answers the cost of wiring many processors
+      to a large memory in three dimensions and derives BSGS full cost
+      n^(2/3+o(1)) from n^(1/2+o(1)) processor steps. That is exactly
+      T * M^(1/3) evaluated at T = M = n^(1/2): (n^(1/2)) * (n^(1/2))^(1/3) =
+      n^(2/3). KN-OPEN-017 poses precisely this charge for sieving and records
+      that no source in the corpus has computed it.
+      c = 1/2: THIS BATCH'S OWN CONSTRUCTION. It is the same wiring argument
+      specialised to a planar layout, where M cells have diameter ~M^(1/2). No
+      primary source for the 2D case was located in this repository's corpus and
+      none was retrieved during this batch.
+      c = 1: the literal definition of full cost in KN-LIT-094 ("the quantity of
+      hardware multiplied by the time it is occupied") with hardware ~ memory.
+      Wiener does not assert this is the right charge for every algorithm --
+      his n^(2/3) result comes from the optimised M^(1/3) access charge -- so it
+      is reported as the family's upper end, not as a Wiener result.
+    falsified_by: >-
+      A cost model in which memory access is not a power law in M (e.g. a
+      hierarchical memory whose effective charge is polylogarithmic), which
+      would put the whole family outside its domain of validity.
+    validation_status: unsourced (c=1/2, c=1/6); checked_against_source (c=1/3, c=1)
+    validated_by: []
+    direction_if_wrong: >-
+      DOES NOT AFFECT c*. c* is defined by where the family crosses the cutoff,
+      not by which member is correct. The named conventions only establish that
+      c* sits far below every one of them: c* is 10.5x / 7.3x / 47.3x smaller
+      than 1/3 for Kyber-512/768/1024.
+
+  - id: H8
+    title: The NIST cutoff is not itself re-charged for memory.
+    statement: >-
+      When the attack is charged M^c, the cutoffs 143 / 207 / 272 are held fixed.
+    justification: >-
+      The cutoffs are calibrated to exhaustive key search on AES, whose
+      per-processor storage is O(1); a memory charge applied to the reference
+      attack multiplies it by M_ref^c = 1^c = 1. Holding the cutoff fixed is
+      therefore the consistent choice within this family, not an asymmetry
+      introduced for convenience. This is exactly the KN-LIT-094 observation
+      that low-memory attacks keep their advantage under full cost.
+    falsified_by: >-
+      A demonstration that the reference computation behind the NIST cutoffs
+      itself requires memory exponential in the security parameter, in which
+      case both sides move and c* rises.
+    validation_status: unvalidated
+    validated_by: [CTRL-5_null_object_zero_memory]
+    direction_if_wrong: >-
+      Raises c*. The null-object control confirms the machinery does what is
+      claimed: with log2 M = 0 the margin does not move for any c and no finite
+      c erases the undercut, so the penalty is coming from the memory figure and
+      not from the pipeline.
+
+  - id: H9
+    title: Every gate in the MATZOV count is charged as one memory access.
+    statement: >-
+      The headline c* charges M^c to the whole gate count. If instead only a
+      fraction f of gates touch the sieve database, the charged cost is
+      f * T * M^c and c* becomes (margin + log2(1/f)) / log2(M).
+    justification: >-
+      The AGPS20/MATZOV gate count prices the inner loop of a list-decoding
+      sieve, which is dominated by traffic into and out of the database. No
+      decomposition of that gate count into access and non-access gates was
+      available in this batch.
+    falsified_by: >-
+      A decomposition of the AGPS20 / MATZOV circuit showing that database
+      accesses are a fraction f << 1 of the gates.
+    validation_status: unvalidated
+    validated_by: []
+    direction_if_wrong: >-
+      RAISES c*, and this is the single most optimistic assumption in the
+      direction of the reported conclusion. Computed sensitivity (Z_q units):
+        f = 1     : c* = 0.031646 / 0.045886 / 0.007055
+        f = 2^-10 : c* = 0.144648 / 0.121841 / 0.062326
+        f = 2^-20 : c* = 0.257650 / 0.197796 / 0.117598
+        f = 2^-30 : c* = 0.370652 / 0.273751 / 0.172869
+      Even at f = 2^-20 -- one memory access per million gates -- c* stays below
+      the sourced 3D exponent 1/3 for all three sets. Only at f near 2^-30 does
+      Kyber-512's c* cross 1/3.
+
+  - id: H10
+    title: The attack is held fixed; no memory-aware re-optimisation is performed.
+    statement: >-
+      c* is computed for the beta / eta / d that the estimator selected while
+      MINIMISING A FREE-MEMORY GATE COUNT. A memory-charged attacker would
+      re-optimise, and would not choose these parameters.
+    justification: >-
+      Re-optimising under a memory charge requires a cost model for lower-memory
+      sieve variants (tuple sieving, sieving with reduced database, enumeration
+      hybrids) that lattice-estimator's RC.MATZOV does not provide, and it is
+      outside this task's write scope and budget.
+    falsified_by: >-
+      A memory-charged re-optimisation that finds parameters whose charged cost
+      is materially below (rop * M^c) at these parameters -- which is expected
+      to exist and is the main reason the charged costs at c = 1/3 and c = 1/2
+      reported here must be read as UPPER BOUNDS on a memory-aware attacker's
+      cost, not as that attacker's cost.
+    validation_status: unvalidated
+    validated_by: []
+    direction_if_wrong: >-
+      Two-sided but asymmetric. c* itself is unaffected -- it is a property of
+      the published free-memory operating point, which is the point EV-MLKEM-015
+      reports. What is affected is the charged cost at c = 1/3 and c = 1/2: a
+      re-optimising attacker pays less than the -26.7 / -37.8 / -59.0 bits
+      tabulated. This is why this batch reports a family and refuses to name any
+      single c as "the" answer.
+
+  - id: H11
+    title: The NIST cutoffs are taken from archived program records, not re-derived.
+    statement: >-
+      143 / 207 / 272 bits are used as the Category 1 / 3 / 5 classical gate
+      cutoffs.
+    justification: >-
+      Recorded in RUN-MLKEM-015-001/raw-result.json ("nist_cutoffs"), and quoted
+      as "the NIST classical requirements (143 / 207 / 272 bits)" by KN-LIT-7617
+      (Carrier et al., citation_verified: read) and by KN-LIT-110 (MATZOV 2022).
+      EV-MLKEM-015 records that no FIPS-203 or NIST call text was readable under
+      this program's network policy; that boundary is inherited unchanged.
+    falsified_by: >-
+      The NIST call for proposals or FIPS 203 stating different classical gate
+      cutoffs, or stating them under a cost convention that already includes
+      memory.
+    validation_status: checked_against_source
+    validated_by: []
+    direction_if_wrong: >-
+      c* moves by (cutoff error) / log2(M). A one-bit error in the cutoff moves
+      c* by 0.011 / 0.008 / 0.006 -- comparable to Kyber-1024's entire c*, which
+      is the honest reason not to read Kyber-1024's 0.00705 as precise to three
+      figures.
+
+  - id: H12
+    title: Scope is primal_bdd under RC.MATZOV; no best-attack claim is made.
+    statement: >-
+      Every number here concerns one attack under one cost model. Arora-Groebner
+      is unavailable in this harness (PowerSeriesRing is a raising stub), and the
+      known-answer control covers only primal_bdd/RC.MATZOV.
+    justification: >-
+      tools/sage_free_estimator/README.md, "Scope and limits"; the control's own
+      closing line prints the same restriction.
+    falsified_by: n/a - this is a scope statement, not a claim.
+    validation_status: validated_this_batch
+    validated_by: [CTRL-0_known_answer_control]
+    direction_if_wrong: >-
+      If a cheaper attack exists at these parameters, the free-memory undercut is
+      larger and c* rises proportionally. Nothing here bounds that possibility.
+
+what_this_batch_did_not_validate:
+  - H3 (peak = max over sequential sieves) - argued, not tested.
+  - H7's c = 1/2 and c = 1/6 - unsourced; this batch's own construction.
+  - H8 (cutoff unchanged under charging) - argued from AES key search having
+    O(1) storage; the reference computation was not examined.
+  - H9 (all gates charged as accesses) - unvalidated and the most optimistic
+    assumption in the direction of the conclusion; sensitivity tabulated.
+  - H10 (no memory-aware re-optimisation) - the charged costs at c = 1/3 and
+    c = 1/2 are therefore upper bounds on a re-optimising attacker.
+  - H11 (NIST cutoffs) - inherited from archived records; primary NIST text was
+    not readable, exactly as EV-MLKEM-015 recorded.
+  - The BDGL16 primary source for the 0.2075 exponent was not retrieved in this
+    batch; the exponent is sourced from the pinned instrument, its closed form,
+    and corpus entries KN-LIT-104 / 6625 / 6765 / 081.

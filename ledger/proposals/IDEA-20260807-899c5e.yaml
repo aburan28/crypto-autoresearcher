@@ -1,0 +1,530 @@
+idea:
+  id: IDEA-20260807-899c5e
+  question_id: RQ-INSTR-f8faa0
+  added: '2026-08-07'
+  title: >-
+    THE SOLVING-DEGREE METER CARD: sympy reports the maximum total degree of the
+    REDUCED Groebner basis, which is a property of the OUTPUT and is neither an
+    upper nor a lower bound on the degree the computation reached; the deliverable
+    is a frozen written statement of exactly which claims that proxy can and cannot
+    support, backed by a definition-faithful Macaulay-rank meter for the solving
+    degree and the first-fall degree on the same frozen fixtures
+  class: measurement
+
+  claim: >-
+    (A) WHAT THE HARNESS MEASURES AND WHAT ITS OWN NOTE SAYS. harness/semaev.py's
+    module docstring states: "sympy uses a Buchberger/F5-style routine, not an
+    optimized F4, and does not expose the true degree of regularity reached during
+    computation. We therefore report *observable* proxies -- the size and maximum
+    total degree of the reduced Groebner basis, and wall time -- and label them as
+    implementation-bound proxies, never as the theoretical degree of regularity."
+    That note is honest and is more than most programs write. IT IS ALSO NOT
+    SUFFICIENT, because it does not say WHICH DIRECTION the proxy errs in, and a
+    proxy with an unknown error direction cannot support a comparative claim.
+
+    (B) THE PRECISE DEFECT, AND IT IS NOT A MATTER OF PRECISION.
+    measure_s3_decomposition computes G = sympy.groebner(system, x1, x2,
+    modulus=p, order="grevlex") and then takes max over g in G.exprs of
+    sympy.Poly(g, x1, x2, modulus=p).total_degree(). Four separate quantities are
+    in play and only the first is measured:
+      Q1  max total degree of the polynomials in the REDUCED Groebner basis;
+      Q2  the SOLVING DEGREE: the maximum degree of any polynomial appearing during
+          the computation, in the sense of Lazard's degree-by-degree linear algebra;
+      Q3  the FIRST-FALL DEGREE: the least degree at which a non-trivial degree fall
+          occurs, i.e. the least D at which the Macaulay matrix in degree D has rank
+          below the generic (Koszul-only) prediction;
+      Q4  the DEGREE OF REGULARITY in the Bardet-Faugere-Salvy sense, defined
+          through the Hilbert series of the homogenised ideal under a
+          semi-regularity assumption.
+    Q1 <= Q2 always, but Q1 can be far below Q2: a zero-dimensional grevlex basis
+    can be low-degree while the computation passed through much higher degrees. So
+    Q1 is a LOWER bound on Q2 and carries no upper information whatsoever. It is
+    also not monotone in the way cost is: adding a variable can raise Q2 and cost
+    while lowering Q1. KN-TECH-004 and KN-TECH-011 both name Q2 and Q3 as the cost
+    drivers, and KN-TECH-075 records, for the closest external analogue, that
+    "solving degree is not the same as degree of regularity, and structured systems
+    routinely violate the semi-regularity assumptions under which the latter is
+    computed". The campaign is currently instrumented on Q1 and reasoning about Q2.
+
+    (C) WHY THIS IS AN L14 QUESTION AND NOT A SOLVER QUESTION. The lane's rule is
+    that an instrument that cannot detect a planted signal cannot support a negative
+    and one that fires on a matched null cannot support a positive. For Q1 both
+    failures are constructible in principle: two systems with identical Q1 and
+    materially different Q2 (a planted-signal miss), and a change of monomial order
+    that moves Q1 with the ideal and the cost fixed (a matched-null fire, since the
+    reduced basis depends on the order while the ideal does not). Constructing both
+    at toy scale is cheap and is the core of the experiment.
+
+    (D) THE DELIVERABLE IS THE STATEMENT, NOT THE NUMBER. The primary artifact is a
+    frozen METER CARD -- one page, snapshot-committed, cited by every lane record
+    that reports a degree -- with, for each of Q1 through Q4:
+      the exact definition;
+      the exact code path that produces it, by file and function;
+      what it is a bound on, in which direction, with the argument;
+      the claims it CAN support, with the required qualifiers verbatim;
+      the claims it CANNOT support, listed explicitly;
+      the measured relationship to the definition-faithful quantity on a frozen
+        fixture set, with the observed spread;
+      the failure modes under which it silently misleads.
+    A meter card that says "this proxy cannot compare two curves' Groebner cost"
+    is a complete and useful deliverable. It is cheaper than any experiment it
+    would prevent.
+
+    (E) THE BACKING MEASUREMENT, SO THE CARD IS NOT OPINION. Q2 and Q3 are
+    computable exactly at toy scale by linear algebra with no solver at all. For a
+    degree bound D, build the Macaulay matrix M_D whose rows are the products of
+    each system generator by every monomial of complementary degree up to D, over
+    F_p. Then:
+      Q3 (first fall) is the least D at which rank(M_D) is below the count predicted
+        by the generic Koszul syzygy bookkeeping -- a rank comparison, nothing more;
+      Q2 (solving degree, in the Lazard sense for the chosen order) is the least D
+        at which row reduction of M_D yields a Groebner basis of the ideal for that
+        order, checkable by verifying that the leading terms of the reduced rows
+        generate the same initial ideal as sympy's answer.
+    Both are exact, deterministic, order-explicit and independent of any solver's
+    strategy. The cost is a rank computation of size binomial(n + D, D), which is
+    the honest ceiling on how far this can go.
+
+    (F) WHAT THIS IS NOT. It is not a claim about cryptographic-scale solving
+    degree. It is not an improvement to any solver. It does not resolve KN-OPEN-002
+    (the growth of solving degree for prime-field summation-polynomial systems); it
+    supplies the meter that question needs and states what the current meter cannot
+    answer.
+
+  resource_label: 'audit: consumes no resource'
+  admissibility: admissible
+  admissibility_argument: >-
+    An instrument audit consuming no non-generic resource. It instruments the R1/R2
+    functionals of lanes L1, L4 and L11, all of which propose to compare Groebner
+    behaviour across curves or models. No oracle is defined, so neither
+    KN-FIND-b7e091 nor H-ENDO-001 applies; there is nothing here for a generic-group
+    simulator to simulate.
+
+  discriminated_from:
+    - >-
+      IDEA-20260806-e4f96e, which computes the POLYNOMIAL CALCULUS refutation degree
+      of the decomposition system as a solver-independent LOWER bound over all
+      Groebner-order solvers, on UNSATISFIABLE instances. This record computes the
+      SOLVING DEGREE and FIRST-FALL DEGREE of the actual system for the actual
+      order, on both satisfiable and unsatisfiable instances, in order to calibrate
+      an existing meter. Shared machinery (Macaulay rank), opposite purpose: e4f96e
+      wants a bound no solver can beat, this wants a faithful reading of what the
+      program's solver actually does. If both run, e4f96e's PC degree must never
+      exceed this record's measured Q2 on the same instance, and that inequality is
+      a mutual consistency check both records owe.
+    - >-
+      KN-TECH-004 and KN-TECH-011, which DEFINE Q2, Q3, Q4 and record that cost is
+      driven by them. Neither says what harness/semaev.py actually measures nor in
+      which direction it errs. This record supplies that and is an addition to them,
+      not a correction of them.
+    - >-
+      KN-OPEN-002, which asks how Q2 and Q3 grow over prime fields. This record does
+      not answer it; it makes the question measurable with a meter whose error
+      direction is known.
+    - >-
+      harness/semaev.py's existing honesty note, which is retained verbatim in the
+      meter card and extended with the direction of the error and the list of
+      claims the proxy cannot support.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE GAP Q2 - Q1: the difference between the solving degree actually reached
+      and the maximum degree surviving in the reduced basis, as a function of the
+      instance, the arity m, the field size and the monomial order.
+    lossiness: >-
+      GENUINELY LOSSY. It forgets the ideal, the basis, the order's full effect and
+      every polynomial, retaining one non-negative integer. What it discards is
+      discarded compatibly with the campaign's operations: transporting an instance
+      to an isogenous curve or re-modelling it changes both Q1 and Q2, and the gap
+      is what survives as the meter's bias. A gap that is constant across the class
+      makes Q1 a valid comparator within the class even though it is invalid in
+      absolute terms -- which is exactly the kind of scoped licence a meter card
+      exists to grant.
+    propagation: >-
+      Deterministic given (system, order, field). Monotone under adding generators
+      in neither direction in general, which is itself part of the card. Does NOT
+      propagate across monomial orders, which is why the card must name the order
+      alongside every number.
+    survival_score: >-
+      Survives change of curve, of factor base and of arity. Dies at a change of
+      monomial order and at a change of solver implementation, and the card says so
+      instead of letting a reader assume otherwise.
+
+  mechanism: >-
+    STEP 1 -- FROZEN FIXTURE SET. Choose F instances spanning small arity and field
+    size where the Macaulay computation is certainly feasible: m = 2 (S_3) at
+    p in {101, 1009, 4001}, factor base sizes 4, 8, 16, with one decomposable and
+    one non-decomposable target each. Record the exact systems by sha256 so a number
+    is checkable without re-execution.
+
+    STEP 2 -- MEASURE Q1 AS THE HARNESS DOES. Run measure_s3_decomposition
+    unchanged and record groebner_basis_max_degree, groebner_basis_size,
+    groebner_seconds, is_trivial_ideal.
+
+    STEP 3 -- MEASURE Q2 AND Q3 BY MACAULAY RANK. For D = 1, 2, ... build M_D over
+    F_p, compute its rank, and record the whole rank profile rather than only the
+    threshold. Read Q3 off as the first D where the rank falls below the generic
+    prediction; read Q2 off as the least D at which the reduced rows' leading terms
+    generate the same initial ideal as sympy's grevlex answer. Validate the
+    implementation FIRST on textbook systems with known behaviour, before any
+    Semaev system is touched.
+
+    STEP 4 -- THE TWO INSTRUMENT CONTROLS, IN BOTH DIRECTIONS.
+      PLANTED-SIGNAL DIRECTION: construct a pair of systems with equal Q1 and
+        materially different Q2. The natural construction is to append to a system a
+        generator that is already in the ideal but of high degree: the reduced basis
+        is unchanged, so Q1 is unchanged, while the computation must handle the new
+        generator, so Q2 and cost rise. If Q1 does not move and Q2 does, the miss is
+        demonstrated, not argued.
+      MATCHED-NULL DIRECTION: hold the ideal and the cost model fixed and change
+        only the monomial order (grevlex, lex, and a weighted order). If Q1 moves
+        while the ideal does not, Q1 is shown to be an artifact of the presentation
+        at a magnitude that must then be quoted next to every reported Q1.
+
+    STEP 5 -- WRITE THE CARD, AND MAKE IT BINDING. Draft the meter card from the
+    measurements; propose it to the Coordinator for promotion into knowledge/ as a
+    technique record. Every lane record reporting a degree cites it. Any claim of
+    the form "curve A has higher solving degree than curve B" that rests on Q1 must
+    quote the measured Q2 - Q1 spread from the card in the same sentence, or it is
+    an overclaim.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      Commands run 2026-08-07: rg -i "degree of regularity|solving degree|
+      implementation-bound prox" over knowledge/ (16 files matched); full reads of
+      knowledge/techniques/KN-TECH-004.md, KN-TECH-011.md, KN-TECH-075.md and
+      knowledge/open-problems/KN-OPEN-002.md; full read of harness/semaev.py; read
+      of ledger/proposals/IDEA-20260806-e4f96e.yaml.
+    results: >-
+      KN-TECH-004 records the sympy caveat ("absolute timings are
+      implementation-bound and must not be presented as crypto-scale; only trends
+      vs. parameters are interpreted") and KN-TECH-011 records that Q2 is the cost
+      driver. KN-TECH-075 records the solving-degree-is-not-degree-of-regularity
+      caveat for the arithmetization-oriented literature. NO record in this
+      repository states that the measured quantity is the reduced-basis maximum
+      degree rather than the degree reached, states the direction of that error, or
+      lists the claims the proxy cannot support. "Macaulay" appears in the DREG/BKK
+      lanes and in IDEA-20260806-e4f96e; no record uses it to calibrate the sympy
+      proxy.
+    verdict: adaptation
+  novelty_status_note: >-
+    ADAPTATION. Q1 through Q4 and the Macaulay-rank route to Q2 and Q3 are textbook;
+    nothing about them is claimed as new. What is new to this program is the
+    calibration of its own committed meter and the frozen statement of that meter's
+    licence. No external novelty is claimed and none is needed.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING, in both directions.
+    NULL 1 -- MATCHED RANDOM SYSTEM: a random polynomial system matched to the
+    Semaev system on number of variables, total degree, per-variable degree and
+    support size. If Q1, Q2 and Q3 agree with the Semaev system within 1, then at
+    this scale the degrees are functions of shape and no Semaev-specific or
+    curve-specific statement may be made from them.
+    NULL 2 -- ORDER PERMUTATION: the same ideal presented under three monomial
+    orders. Any Q1 difference between two curves that is smaller than the Q1
+    difference between two orders of the SAME curve is not a curve effect.
+    NULL 3 -- SATISFIABLE CONTROL: an instance whose target does decompose. The
+    first-fall meter must behave differently there, and a meter that returns the
+    same profile for satisfiable and unsatisfiable instances is not measuring the
+    obstruction.
+    DECAY PARAMETER: the factor-base size B, which controls the degree of the
+    membership polynomials f_V and hence the system's size. Q2 must GROW with B --
+    that is the whole content of the cost model. A measured Q1 that does NOT grow
+    with B while wall time does is the canonical artifact tell of
+    docs/inventor-protocol.md section 3 and would establish, empirically and at
+    once, that Q1 is not tracking cost.
+
+  assumptions:
+    - >-
+      Q1 <= Q2 for any Groebner computation that returns a reduced basis, since
+      every basis element is a polynomial the computation held. Elementary and used
+      only as a direction, not as a bound.
+    - >-
+      Q2 in the Lazard sense is well-defined once the monomial order is fixed.
+      Stated with the order always named; the card refuses to report an unordered
+      Q2.
+    - >-
+      Q4 (degree of regularity) is well-defined only under semi-regularity, which
+      Semaev systems are structured enough to violate. This record therefore does
+      NOT measure Q4 and says so; see IDEA-20260807-f6137c for the closure argument
+      on why a Q4 meter should not be built at all.
+    - >-
+      Toy scale only: the Macaulay matrix has binomial(n + D, D) columns, so the
+      grid is bounded by memory and every reported number is toy-tier.
+    - >-
+      sympy 1.14.0 as recorded in RUN-ICINV-p4001-a's environment block. A version
+      change invalidates the card's measured Q2 - Q1 spread, which is why the card
+      carries the version and the commit.
+
+  proof_search_map:
+    bottleneck: >-
+      The rank computation on M_D over F_p, of size binomial(n + D, D). It fixes the
+      largest (m, B, p) the card can be written for, and the card must state that
+      ceiling rather than extrapolate past it.
+    baseline_embedding:
+      parameter_slice: >-
+        m = 2 (S_3), p = 1009, B = 8, one non-decomposable target -- the smallest
+        fixture on which sympy's grevlex basis is non-trivial.
+      reproduction_check: >-
+        The Macaulay route at D = Q2 must reproduce sympy's initial ideal exactly
+        (same leading terms, same count). Exact symbolic comparison, not a plot that
+        looks similar. A mismatch means the two meters are not measuring the same
+        object and the card cannot be written.
+    observation_collision:
+      observable: >-
+        The integer Q1.
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED. Step 4's planted-signal construction is
+        exactly a search for two ground-truth-distinct systems with the same Q1, one
+        on each side of the conclusion "this system is more expensive". A found
+        collision is a direct falsifier of Q1's identifiability as a cost comparator
+        and is the card's central entry.
+    quantifier_order: >-
+      Intended: FOR ALL fixtures F and FOR ALL declared orders sigma, THERE EXIST
+      integers Q1(F,sigma) <= Q2(F,sigma) such that the reduced basis degree is
+      Q1 and the computation's degree is Q2. The dangerous reading, NOT claimed:
+      THERE EXISTS a single conversion Q2 = Q1 + c valid FOR ALL F -- which would
+      let the campaign compare curves through Q1 alone. Whether such a c exists on
+      the fixture set is measured, not assumed, and the card reports the spread
+      rather than a constant.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "On these fixtures, in this order, with sympy 1.14.0 at this commit, the
+        reduced-basis maximum degree understates the solving degree by between X and
+        Y." It can never certify a statement about F4, about another order, about
+        another sympy version, or about any instance outside the fixture grid.
+      nearby_object_control: >-
+        The matched random system of NULL 1. A meter that cannot distinguish a
+        Semaev system from a shape-matched random system has not identified any
+        summation-polynomial structure and its readings are shape readings.
+    proof_obligations:
+      - claim: Q1 <= Q2 for a reduced basis.
+        responsibility: correctness
+      - claim: The Macaulay-rank Q2 reproduces sympy's initial ideal at D = Q2.
+        responsibility: baseline
+      - claim: The first-fall detector fires on a known-degenerate textbook system.
+        responsibility: correctness
+      - claim: The satisfiable control behaves differently from the unsatisfiable.
+        responsibility: soundness
+      - claim: Every reported degree names its order, version and commit.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        Q2 - Q1 over the frozen fixture set, at fixed order
+      direction: higher
+      minimum_effect: >-
+        Strictly positive on at least half the fixtures, with a spread of at least 1
+        across fixtures. A gap that is constant across fixtures would LICENSE Q1 as
+        a within-fixture-family comparator and is the good outcome for the campaign;
+        a varying gap forbids it. Both are recorded; the card is written either way.
+    - metric: >-
+        Q1 under grevlex versus lex versus a weighted order, same ideal
+      direction: different
+      minimum_effect: >-
+        A difference of at least 1. If Q1 moves by as much between orders as it does
+        between curves, no cross-curve Q1 comparison may be reported without the
+        order held fixed and the between-order spread quoted.
+    - metric: >-
+        Q1 and Q2 as functions of factor-base size B
+      direction: higher
+      minimum_effect: >-
+        Q2 must increase with B. If Q1 is flat in B while wall time grows by more
+        than a factor of 4 across the B grid, Q1 is demonstrated not to track cost
+        and the card must forbid its use as a cost proxy outright.
+    - metric: >-
+        Q1, Q2, Q3 for the Semaev system versus the shape-matched random system
+      direction: different
+      minimum_effect: >-
+        A gap of at least 2 is required before any Semaev-specific claim. Predicted
+        outcome is NO gap, recorded here in advance so a match is a confirmed
+        control and not a disappointment.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, hard gate): write down Q1 through Q4 and the code path
+      for each; confirm by reading harness/semaev.py lines 120-133 that the measured
+      quantity is the reduced-basis maximum total degree. If the code turns out to
+      measure something else, the whole record is superseded rather than amended.
+      STAGE 1 (hours): implement the Macaulay-rank meter; validate on textbook
+      systems before any Semaev instance.
+      STAGE 2 (HARD GATE, minutes): the satisfiable control and the baseline
+      embedding at p = 1009, B = 8.
+      STAGE 3 (hours): the fixture grid, all four quantities, three orders.
+      STAGE 4 (minutes): the planted-signal construction (append a redundant
+      high-degree generator) and the matched-random null.
+      STAGE 5 (zero compute): write the meter card.
+      THE CHEAPEST VALID DISCRIMINATOR IS STAGE 4's planted-signal construction: it
+      needs no new mathematics, produces a pair of systems by appending one
+      polynomial, and settles in minutes whether Q1 can miss a real cost difference.
+    controls:
+      - matched random system on variables, degrees and support
+      - three monomial orders on the same ideal
+      - satisfiable instance, which must behave differently
+      - textbook systems of known behaviour, before any Semaev number is produced
+      - sympy version and git commit recorded with every cell
+    required_metrics:
+      - Q1, Q2, Q3 per (fixture, order), with the full Macaulay rank profile
+      - groebner_seconds and groebner_basis_size from the unchanged harness path
+      - Macaulay matrix dimensions and peak memory per cell
+      - the planted pair's (Q1, Q2, wall time) before and after appending
+      - matched-random null values on the identical pipeline
+
+  falsification_conditions:
+    - >-
+      The Macaulay meter does not reproduce sympy's initial ideal at D = Q2 on the
+      baseline slice. The two meters are incomparable and no card can be written
+      from them; the line halts.
+    - >-
+      Textbook validation instances give the wrong known behaviour. Implementation
+      failure; nothing is reported.
+    - >-
+      The satisfiable control produces the same profile as the unsatisfiable one.
+      The first-fall meter is not measuring the obstruction and is withdrawn.
+    - >-
+      Q2 - Q1 is exactly zero on every fixture. Then Q1 IS the solving degree on
+      this family and the whole premise of this record is falsified -- a clean
+      negative, and a very useful one, because it would license the campaign's
+      existing meter outright.
+    - >-
+      Macaulay matrices exceed the memory budget before any degree resolves. That is
+      an INFRASTRUCTURE outcome under AGENTS.md rule 5, is recorded as such, and is
+      not evidence about degrees.
+
+  confounders:
+    - >-
+      ORDER SENSITIVITY. Q1 and Q2 are both order-dependent. Every number names its
+      order or it is meaningless.
+    - >-
+      FIELD-EQUATION CONVENTION. Whether x^p - x is an axiom or built into the
+      ambient ring changes the degrees materially. Frozen before Stage 3 and
+      reported with every number.
+    - >-
+      SMALL-p ARTIFACTS. At p = 101 the field equations are cheap and can dominate;
+      the prime ladder must span enough range to show whether the degrees depend on
+      p at all.
+    - >-
+      sympy's INTERNAL STRATEGY. Buchberger with a pair-selection heuristic is not
+      F4 and not F5. Nothing measured here transfers to F4/F5 behaviour, and the card
+      must say that in its "cannot support" list.
+    - >-
+      THE FACTOR-BASE MEMBERSHIP POLYNOMIAL. f_V is a product of B linear factors,
+      so its degree is B; the system's degrees are therefore dominated by B rather
+      than by anything about the curve. This is the single largest confound for any
+      cross-curve degree comparison and the card must lead with it.
+
+  interpretation_limits:
+    - >-
+      Toy tier, one solver, one library version, one commit. The card's numbers
+      expire when any of those changes, and the card carries them for that reason.
+    - >-
+      A meter card licences and forbids CLAIMS. It produces no evidence about ECDLP
+      hardness, no attack, and no exponent.
+    - >-
+      Nothing here resolves KN-OPEN-002; it makes the question askable with a meter
+      whose bias direction is known.
+    - >-
+      Nothing here bears on H-STR-002 in either direction: no relation matrix, no
+      displacement rank, no phi-invariant factor base.
+
+  reachability_gate: >-
+    NOT APPLICABLE, and stated rather than omitted. No movement between curves is
+    proposed. Fixtures are single curves; the comparison is across systems and
+    orders on the same curve. T5 is untouched. Should the meter later be used to
+    compare curves within an isogeny class, T5 becomes binding on the attack reading
+    of that comparison, and this record does not license skipping it.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED OR MOVED. Instrument cost: one Groebner call per
+      fixture (already paid by the harness) plus rank computations of size
+      binomial(n + D, D) per (fixture, D).
+    memory_exponent: >-
+      The rank step dominates: binomial(n + D, D) columns over F_p. Peak memory is
+      measured per cell and is the binding constraint on the grid.
+    best_known: >-
+      Attack frontier unchanged: parallel rho at 0.886*sqrt(N) time and O(1) memory
+      (KN-TECH-001, KN-TECH-006), automorphism-discounted rho on CM curves
+      (KN-TECH-018), BSGS at sqrt(N) time and memory. For the DEGREE METER the
+      incumbents are KN-TECH-004's and KN-TECH-011's definitions as implemented by
+      harness/semaev.py's reduced-basis maximum degree.
+    hidden_overhead: >-
+      Everything here hides inside "in this monomial order, with this field-equation
+      convention, at this library version". Those three qualifiers are not
+      technicalities; a change to any of them can move the reported integers, and
+      the card is written precisely to keep them attached.
+    tradeoff_note: >-
+      Not applicable; no algorithm is produced. The Macaulay meter's own
+      time-memory behaviour is recorded for feasibility bookkeeping only.
+
+  dominated_by: >-
+    AS AN ATTACK: mounts none; dominated on every axis by every row of the
+    prime-field frontier -- parallel rho at 0.886*sqrt(N) time and O(1) memory
+    (KN-TECH-001, KN-TECH-006), the automorphism-discounted variant on CM curves
+    (KN-TECH-018), BSGS at sqrt(N) time and sqrt(N) memory. Checked across time,
+    memory and data/queries; no axis contested.
+    AS A DEGREE METER: the incumbent is harness/semaev.py's
+    groebner_basis_max_degree. This proposal dominates it on FIDELITY (a
+    definition-faithful Q2 and Q3, with the order named) and on HONESTY (a written
+    licence). It is dominated by the incumbent on COST -- the incumbent is free once
+    the Groebner call is made, the Macaulay route is a separate rank computation --
+    and on REACH, since the incumbent runs wherever sympy runs and the Macaulay
+    route stops at binomial(n + D, D).
+    AS A SOLVER-INDEPENDENT BOUND: dominated by IDEA-20260806-e4f96e's polynomial
+    calculus refutation degree, which quantifies over all Groebner-order solvers
+    where this quantifies over none. That record is strictly stronger on statement
+    strength and strictly weaker on applicability, since it needs an unsatisfiable
+    instance.
+  sota_delta: >-
+    Zero speedup against any attack baseline; no exponent moves. Instrument delta,
+    quantitatively: replaces one number of unknown bias with three of known
+    definition (Q1, Q2, Q3) plus the full Macaulay rank profile; supplies a measured
+    Q2 - Q1 spread over F fixtures and 3 orders, which is the exact quantity every
+    cross-curve degree comparison in lanes L1, L4 and L11 currently omits; and
+    produces a frozen written licence naming, per claim class, what the existing
+    meter may and may not be used for. Feasible only at m = 2 and small B; that
+    ceiling is stated in the card rather than hidden.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.9 that the Macaulay meter validates on textbook systems and reproduces
+    sympy's initial ideal at the baseline slice. 0.7 that Q2 - Q1 is strictly
+    positive and varying on the fixture grid, which is the outcome that forbids
+    cross-curve Q1 comparison. 0.3 that Q2 - Q1 is constant, which would licence the
+    current meter and is the outcome most useful to the campaign's schedule. The
+    priority is medium and not high only because no lane currently in flight reports
+    a Groebner degree -- RUN-ICINV-p4001-a's battery is exact enumeration -- so this
+    binds when L4 or L11 come online, and it should be done before then rather than
+    after.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json; all
+    126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-INSTR-f8faa0
+    - GOAL-ENDO-001
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - harness/semaev.py
+    - harness/toycurve.py
+    - KN-TECH-004
+    - KN-TECH-011
+    - KN-TECH-075
+    - KN-OPEN-002
+    - KN-TECH-006
+    - KN-TECH-018
+    - RUN-ICINV-p4001-a
+    - IDEA-20260806-e4f96e
+    - IDEA-20260807-f6137c

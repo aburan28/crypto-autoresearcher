@@ -1,0 +1,132 @@
+validation_report:
+  task_id: TASK-20260804-b1a981
+  producer_task_id: TASK-20260804-ff2c2b
+  snapshot_commit: 4d5defb29cbdc012dfe9180827b7f397f6bde135
+  verdict: accept_with_qualifications
+  summary: >
+    All 6 artifacts match their snapshot-receipt hashes; all reported metrics recompute
+    exactly from raw data; outlier seeds reproduce batch-3 T_N values to floating-point
+    identity; wrong-secret T_N values are plausible and consistent with the null
+    distribution; two minor discrepancies are recorded as qualifications.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >
+      Policy review-adversarial requires xhigh reasoning; executing model is
+      amazon-bedrock/us.anthropic.claude-sonnet-4-6 (claude-sonnet-4-6 via Bedrock).
+      Fallback recorded per AGENTS.md model policy.
+    independent_session: true
+    model_verified: false
+
+  checks:
+
+    - id: CHK-1
+      name: hash_check
+      status: pass
+      detail: >
+        All 6 files in TASK-20260804-ff2c2b/ match their SHA-256 values in
+        snapshot_receipt.json (TASK-20260804-752e83) exactly.
+        Computed:
+          null_control_results.json  = 30c7fac8a0da5eb8effcbc25f2cfbd972c8ff4dbec807a94f76e8170dd620859
+          null_variance_test.py      = 0651291e5c2e7ca410c20d34a2aab6e38ca37be0f460942e366cd7fce2c40df9
+          outlier_rerun_results.json = 579df627ddb8dd4b8135c31614102c1e486f6cc6eccd94487486ca5e86e0c26d
+          rebuild_transcript.txt     = a16a8477d1e9c78a107b43607e8b709278b62ca7c955875aceb6322dc37af888
+          receipt.json               = c8a71ba2e4660f825fd06832e26b006339edf89827305380602c11f561beb91f
+          report.md                  = 0983553bff6057c2bba4d48b31e425f987fb5f0ca59839093fa4490538a3b4c6
+        All match receipt exactly. Commit 4d5defb2 is reachable from HEAD and
+        has parent 87ac359c as declared.
+
+    - id: CHK-2
+      name: null_variance_arithmetic
+      status: pass
+      detail: >
+        Recomputed from 50 TN_null values in null_control_results.json
+        (null_single_score_var = 0.44634149614282836, null_N_run0 = 17919).
+          empirical_var (ddof=1) = 12262.225820492231  [reported: 12262.225820492231]
+          null_predicted_var     = 7997.993269383342   [reported: 7997.993269383342]
+          variance_ratio_null    = 1.5331628081549598  [reported: 1.5331628081549598]
+          chi2_stat              = 75.12497759959302   [reported: 75.12497759959302]
+          chi2_df                = 49                  [reported: 49]
+          p_value (right-tail)   = 0.009589452474647   [reported: 0.00958945247464682]
+          95% CI lower           = 1.069814803909017   [reported: 1.069814803909017]
+          95% CI upper           = 2.3807693387011173  [reported: 2.3807693387011173]
+        All values match to full floating-point precision.
+
+    - id: CHK-3
+      name: outlier_seed_reproducibility
+      status: pass
+      detail: >
+        Cross-checked batch-3 reference values from
+        BATCH-68471b/tasks/TASK-20260804-52cc2b/variance_results.json (primary source):
+          seed 2941775225 -> T_N = 7789.567405817314
+          seed 26883012   -> T_N = 7791.775311646041
+          seed 2418421570 -> T_N = 7789.812131511126
+          seed 1873347320 -> T_N = 7420.548667265
+        All four match the batch3_reference values embedded in outlier_rerun_results.json
+        and the re-run T_N_correct values exactly (delta = 0.0 in all cases).
+        The QEMU linux/amd64 environment is confirmed numerically deterministic.
+
+    - id: CHK-4
+      name: wrong_secret_TN_plausibility
+      status: pass_with_note
+      detail: >
+        Wrong-secret T_N values [4167.083, 4433.895, 4238.163, 4178.842] for the
+        four outlier seeds are assessed against the null distribution from Test A
+        (n=50, mean=4175.508, std=110.735).
+        Z-scores vs null mean: [-0.08, +2.33, +0.57, +0.03].
+        Seed 26883012 (z=+2.33) is high but within plausible sampling range for n=4.
+        All T_N_wrong << T_N_correct (ratio 1.76-1.87 in all cases), confirming
+        the outlier seeds' elevated T_N values are specific to correct-secret scoring.
+        Per-vector cosine for wrong secret: ~0.233 vs ~0.435 for correct secret.
+        Values are plausible and consistent with the null distribution.
+        QUALIFICATION Q-1: The interpretation_note in outlier_rerun_results.json
+        states "expected near batch-3 T_N mean (~7551) if wrong-secret scores are
+        unstructured". This is inverted: if wrong-secret scores are unstructured,
+        T_N_wrong should be near the NULL mean (~4175), not the correct-secret mean
+        (~7551). The OBSERVED data (T_N_wrong ~4200) correctly falls near the null
+        mean and is consistent with expected behavior. The note is a misstatement
+        in the descriptive metadata only; the data itself is correct.
+
+    - id: CHK-5
+      name: scope_check
+      status: pass
+      detail: >
+        states_a_finding = false in null_control_results.json, outlier_rerun_results.json,
+        and receipt.json. compared_against_matzov_nf = false in all three.
+        No substantive MATZOV or Nf comparisons found in any artifact.
+        report.md explicitly states "No finding is stated" in both test sections.
+        QUALIFICATION Q-2: receipt.json field mean_TN_null = 4163.0 (rounded integer)
+        differs from the computed mean = 4175.508184065492 in null_control_results.json.
+        The report.md marks this as "~4163", signalling an estimate. The difference
+        is 12.5 and does not affect any of the reported test statistics (variance_ratio,
+        chi2, p-value, CI), all of which use empirical_var / null_predicted_var and
+        are correctly computed. Minor discrepancy; raw data file is authoritative.
+
+  qualifications:
+    - id: Q-1
+      severity: minor
+      artifact: outlier_rerun_results.json
+      field: interpretation_note
+      finding: >
+        The note "expected near batch-3 T_N mean (~7551) if wrong-secret scores are
+        unstructured" inverts the correct expectation. Unstructured wrong-secret scores
+        should produce T_N near the NULL mean (~4175), not the correct-secret mean.
+        Observed T_N_wrong ~4200 is consistent with the null distribution, which is
+        the correct behavior. Data is correct; description is erroneous.
+      impact: does_not_affect_metrics
+
+    - id: Q-2
+      severity: minor
+      artifact: receipt.json
+      field: mean_TN_null
+      finding: >
+        Rounded value 4163.0 in receipt.json differs from computed mean 4175.508
+        in null_control_results.json (delta = 12.5). Report correctly labels it
+        approximate (~4163). All test statistics use empirical_var, not mean, and
+        are unaffected.
+      impact: does_not_affect_metrics
+
+  admissible: true
+  validated_at: '2026-08-04'
+  validated_by: TASK-20260804-b1a981

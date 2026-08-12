@@ -1,0 +1,374 @@
+hypothesis:
+  id: H-FIND-52472d
+  question_id: RQ-FIND-001
+  status: proposed
+  added: '2026-08-05'
+  source_idea_id: IDEA-20260805-de2945
+
+  statement: >-
+    SCOPE: the eleven evidence records named in
+    docs/knowledge-assessment-20260724.md section 1.1, the eleven knowledge
+    entries KN-FIND-017..027 that cite them, the 60 run manifests those
+    evidence records cite, and tools/validate_ledger.py at the commit at which
+    the audit executes. CLAIM TIER: not applicable -- this hypothesis makes no
+    mathematical claim about the ECDLP, moves no exponent, and asserts nothing
+    about any curve, field or algorithm. NO ATTACK, NO EXPONENT, NO SCALE
+    TRANSFER.
+    The claim is a statement about a verification chain and it is decidable.
+    GOAL-FIND-001's completion criterion contains the clause "with claim
+    boundaries no stronger than cited EV/DEC scope". Formalised on the total
+    order TIER_ORDER = {toy: 0, medium: 1, crypto: 2}, that clause is the chain
+    inequality t(KN-FIND_i) <= t(EV_i) <= t(RUN_i) for i = 1..11. THE
+    HYPOTHESIS IS THAT NO INSTRUMENT IN THIS REPOSITORY EVALUATES ANY INSTANCE
+    OF THAT INEQUALITY FOR ANY i, AND THAT THE REASON AT THE THIRD LINK IS A
+    KEY-PATH MISMATCH RATHER THAN AN ABSENCE OF DATA. Concretely and as three
+    separately falsifiable sub-claims:
+    (S1) LINK 1 IS UNTYPED. Zero of KN-FIND-017..027 carries a claim_tier
+    field; the boundary exists only as prose, and no tool parses it.
+    (S2) LINK 2 IS UNTYPED FOR TEN OF ELEVEN. EV-BKK-001, EV-BKKMV-001,
+    EV-BKKMV-002, EV-EQJ-001, EV-FB-001, EV-NCP-001, EV-REP-002, EV-SIG-002,
+    EV-SIG-003 and EV-SIG-004 carry no claim_tier key; EV-SIG-005 carries
+    'toy'. Since validate_ledger.py evaluates TIER_ORDER.get(claim_tier) and
+    proceeds only when the result is not None, the ceiling is skipped for ten.
+    (S3) LINK 3 IS BLIND BY PATH, NOT BY ABSENCE. All 60 cited run manifests
+    record their parameters at run.parameters, while the validator caches
+    (run.inputs or {}).get('parameters'); the lookup returns {},
+    tier_of_run returns None, run_tiers is empty, and the ceiling is skipped
+    for a second, independent reason. The parameters that would pin the tier
+    ARE PRESENT: RUN-BKK-001-a records p = [101, 431, 1009], and under
+    tier_of_run's own largest-cell rule this forces field_bits =
+    ceil(log2 1009) = 10 and tier 'toy'.
+    THE CONSTRUCTIVE CONSEQUENCE, which is what makes this a hypothesis rather
+    than a bug report: because the data are present and only mislocated, a
+    DERIVED TIER CERTIFICATE can be reconstructed for every run whose owning
+    specification lets the prime key be quoted, without editing any immutable
+    record, and the chain inequality can then be evaluated for the first time.
+    The hypothesis predicts that when it is, all eleven boundaries hold -- that
+    is, the criterion is SUBSTANTIVELY MET AND PROCEDURALLY UNCHECKED. That
+    prediction can fail: any reconstructed ceiling above 'toy', or any
+    KN-FIND prose asserting a scope above its chain's ceiling, falsifies it and
+    means a committed promotion overstates its evidence.
+    WHAT THIS HYPOTHESIS DOES NOT SAY: it does not say any promoted claim is
+    wrong, it does not say the goal's criterion is unmet, and it does not
+    propose any status change. It says the criterion has never been checked,
+    and it supplies the check.
+
+  mechanism: >-
+    DERIVED IN-REPO FROM FILES AND CODE READ ON 2026-08-05. Every line number
+    below is from that read of a LIVE file under concurrent edit and is a
+    CANDIDATE TO RE-LOCATE, never an authority; stage 0 of the paired
+    experiment re-reads at the executing commit and records its sha.
+
+    THE ORDER AND ITS COMPOSITION LAW. TIER_ORDER = {toy: 0, medium: 1,
+    crypto: 2} (validate_ledger.py ~line 191) is a three-element total order.
+    tier_of_run (~412-447) maps a run's parameters to an element of it by
+    taking bits = max over the recorded field_bits cells and returning 0 for
+    bits <= 32, 1 for bits <= 96, and 2 otherwise; its own docstring states the
+    largest-cell semantics ("the tier is governed by the largest cell") and
+    that an absent, empty or non-numeric value yields None, "tier unknown, so
+    no ceiling is enforced from this run". The ceiling check (~501-507) is
+      declared = TIER_ORDER.get(body.get("claim_tier"))
+      run_tiers = [tier_of_run(ctx.run_params.get(r, {})) for r in run_ids]
+      run_tiers = [t for t in run_tiers if t is not None]
+      if declared is not None and run_tiers and declared > max(run_tiers): err
+    Three guards therefore stand between a record and enforcement, and each
+    fails open: an unrecognised or absent claim_tier makes `declared` None; an
+    empty run_ids makes run_tiers empty; and every run yielding None makes
+    run_tiers empty for a different reason. FAILING OPEN IS THE STRUCTURAL
+    POINT. A checker that fails open is indistinguishable, from the outside,
+    from a checker that ran and passed, and nothing in the validator's output
+    records which happened. That is why a goal can complete a criterion of the
+    form "no stronger than cited scope" with the criterion never evaluated, and
+    why no one noticed.
+
+    WHY max IS THE RIGHT COMPOSITION AND WHY THE CHAIN IS WELL-POSED. The
+    entitlement of a record is bounded by the entitlement of what it cites, and
+    over a total order the bound of a set is its maximum. max is associative
+    and monotone, so the bound composes along a chain of arbitrary length
+    without reference to the discarded content of any record -- which is
+    precisely what licenses stating the criterion as t(F) <= t(E) <= t(R)
+    rather than as a re-reading of the underlying mathematics. This is derived,
+    not assumed, and it is the reason the audit is decidable at all.
+
+    LINK 1, MEASURED. knowledge/ entries are Markdown with YAML front matter
+    carrying id, type, title, tags, confidence, internal_refs, proof_status,
+    proof_refs, added, superseded_by. There is no claim_tier. Measured this
+    session: 4 of 48 files in knowledge/findings/ contain a claim_tier line
+    (KN-FIND-001, -006, -007, -008); 0 of KN-FIND-017..027 do. The boundary
+    lives in the "## Scoped claim" prose -- KN-FIND-017: "Toy p<=1009, m in
+    {3,4,5}: target-sectioned Semaev systems are Newton box-saturated
+    (MV=multigraded Bezout); no support-aware BKK solve-cost advantage in
+    tested scope" (read verbatim). Prose is not a comparand for a total order,
+    and grep over tools/*.py and .github/workflows/*.yml for
+    field_bits|claim_tier|TIER_ORDER returns validate_ledger.py plus
+    build_duplicate_run_ids.py, port_autolab_experiments.py and
+    test_run_supersession.py, none of which implements a ceiling.
+
+    LINK 2, MEASURED. The eleven records are the frozen root-level legacy
+    layout (ledger/EV-BKK-001.yaml and siblings), written before claim_tier was
+    a field. They carry strength: replicated and a long validity_reason. Ten
+    have no claim_tier key at all; EV-SIG-005 has 'toy'. For context and NOT as
+    part of the claim: across the 232 records under ledger/evidence/, 153 carry
+    an in-vocabulary tier and 79 do not, the off-vocabulary strings including
+    'theory' (the most common), 'measurement_toy_scale',
+    'laboratory_implementation_conformance', 'toy_scale', 'toy_measurement',
+    'control', 'theoretical', 'estimate', 'design_only', 'concrete_cost',
+    'theoretical_with_computational_support', 'toy_or_derivation_only' and
+    'literature_survey'.
+
+    LINK 3, MEASURED, AND THIS IS THE PART THAT IS NEW. At ~line 409 the
+    validator caches per run record
+      ctx.run_params[rec_id] = (body.get("inputs") or {}).get("parameters") or {}
+    RUN-BKK-001-a's manifest (experiments/EXP-BKK-001/runs/RUN-BKK-001-a/
+    manifest.yaml, READ) has no inputs key; its parameters sit directly under
+    run: as
+      parameters: {p: [101, 431, 1009], m: [3, 4], seeds: [...],
+                   targets: [main, wit], fb_sizes: {...}, inv_weight: 10}
+    so the cache stores {} and tier_of_run returns None. Over the section 1.1
+    set: 60 cited run ids, 0 unresolvable (every manifest exists on disk), 60
+    with an empty dict at the inputs path. Corpus-wide over
+    experiments/**/manifest.y*ml: 103 manifests carry a non-empty
+    run.parameters and no run.inputs.parameters; 1317 carry a non-empty
+    run.inputs.parameters and no run.parameters; 0 carry both; 149 carry
+    neither. field_bits appears under the inputs path 1157 times and under the
+    top-level path once. THE TWO LAYOUTS BEING DISJOINT IS WHAT MAKES A
+    SINGLE-PATH READER SILENTLY BLIND rather than merely incomplete: there is
+    no manifest in which the fallback would have been redundant, so no test
+    exercising one layout would ever have revealed the other.
+
+    THE FORCED VALUE. ceil(log2 1009) = 10 because 2^9 = 512 < 1009 <= 1024 =
+    2^10. Ten is <= 32, so tier 0 = toy. The reconstructed ceiling for the
+    EV-BKK-001 chain is therefore exactly 'toy' and KN-FIND-017's "Toy p<=1009"
+    sits AT it, not above it. This single number is derived before any
+    execution and is the cheapest falsifier in the package: if the
+    reconstruction procedure returns anything else for that chain, the
+    procedure is wrong.
+
+    WHAT IS NOT DERIVED AND IS THE WEAKEST LINK. That field_bits, as
+    tier_of_run's authors intended it, is the bit length of the largest prime.
+    The docstring's language ("what size of instance the run actually reached")
+    is consistent with it, but no experiment specification was quoted this
+    session to confirm the convention. The reconstruction is therefore
+    restricted to runs whose owning specification lets the meaning of the key
+    be quoted, and every run where it cannot is reported as UNDERIVABLE rather
+    than derived anyway. A reconstruction that silently guessed the semantics
+    of `n`, `cells` or `n_list` would be manufacturing evidence.
+
+    TWO REPAIRS EXIST AND THIS HYPOTHESIS DELIBERATELY CHOOSES NEITHER. (a) a
+    fallback in tier_of_run to run.parameters, roughly two lines, governing 103
+    manifests at once; (b) derivation of field_bits from a prime key when
+    field_bits is absent, larger blast radius and a modelling decision. Both
+    are Coordinator decisions with consequences for every future record, and
+    proposing one would exceed this hypothesis's authority.
+
+  assumptions:
+  - >-
+    The line numbers, control flow and thresholds recorded above are those of
+    tools/validate_ledger.py at the executing commit. The file is live and
+    under concurrent edit by many worktrees. If a fallback has already landed,
+    S3 is false, the audit reports that, and the hypothesis is refuted at a
+    cost of minutes -- which is the correct and cheapest outcome.
+  - >-
+    "No stronger than cited EV/DEC scope" is intended to include the
+    instance-size dimension. If the criterion's authors meant only qualitative
+    direction, the chain inequality formalises a different property and the
+    audit's finding is about that different property. DEC-20260725-024 and
+    EV-FIND-003 are read in stage 0 to fix the intended reading BEFORE any
+    measurement is interpreted, and if they fix it otherwise the hypothesis is
+    rescoped rather than defended.
+  - >-
+    field_bits = ceil(log2(max prime)) is the convention tier_of_run intends.
+    Restricted, per the mechanism, to runs where a specification quote is
+    available.
+  - >-
+    All figures in this record are SESSION-COMPUTED outside the harness by
+    single-pass scripts written in one sitting and not peer reviewed. They are
+    not evidence. Reproducing them in-harness with the glob published is stage
+    1 of the paired experiment, and any divergence is reported as an erratum
+    against this record rather than silently corrected.
+
+  proof_search_map:
+    bottleneck: >-
+      The single conditional at validate_ledger.py ~line 505,
+      `if declared is not None and run_tiers and declared > max(run_tiers)`.
+      Every scope guarantee this program makes about tier discipline passes
+      through it, and it is the only such guard in the repository. If it never
+      evaluates for a class of records, then for that class the program's
+      claim-tier discipline is documentation rather than enforcement. Repairing
+      or condemning this one conditional is upstream of GOAL-FIND-001's closure
+      and of every future record in every goal, and consumes none of their
+      budgets.
+    baseline_embedding:
+      parameter_slice: >-
+        A synthetic chain in which every link is well-formed: a knowledge entry
+        declaring claim_tier 'toy', an evidence record declaring 'toy', and
+        four run manifests carrying field_bits 10 at run.inputs.parameters.
+        This is the slice where the intended behaviour is fully exercised and
+        the criterion is genuinely checkable.
+      reproduction_check: >-
+        Run the committed validator over that synthetic set and confirm it
+        evaluates the ceiling (no error, because 0 <= 0) and that flipping the
+        knowledge and evidence tiers to 'crypto' produces exactly one error
+        with the message "claim_tier 'crypto' exceeds what its runs' parameters
+        allow". IF THE BASELINE DOES NOT REPRODUCE, the reading of the code is
+        wrong and NO conclusion about the section 1.1 set may be drawn. This is
+        the audit's positive control and it runs before anything else.
+    observation_collision:
+      observable: >-
+        The validator's output: the set of error lines it emits for a record
+        set.
+      distinct_preimage_search: >-
+        THE COLLISION IS THE WHOLE FINDING AND IT IS EXHIBITED, NOT SEARCHED
+        FOR. Two record sets with the same observable: (i) a chain whose
+        claim_tier is 'toy' over runs of field_bits 10 -- checked and passing;
+        (ii) a chain whose claim_tier is 'crypto' over runs of field_bits 10
+        whose parameters sit at run.parameters -- unchecked and silent. Both
+        emit zero ceiling errors. A reader of the validator's output cannot
+        distinguish "verified" from "not evaluated", so the observable does not
+        identify the property it is taken to certify. The differential arm of
+        the experiment exhibits exactly this pair with the parameter dict held
+        BIT-IDENTICAL between the arms, so the only varying quantity is the key
+        path. FORCED: one error in the inputs-path arm, zero in the top-level
+        arm. If both arms give the same count, the collision does not exist and
+        S3 is refuted.
+    constructive_transforms:
+    - transform: observable_fiber
+      proposed_object: >-
+        Hold the observable (zero ceiling errors) fixed and enumerate the
+        preimage: the set of record configurations that produce silence. It has
+        four disjoint members -- (1) genuinely compliant, (2) claim_tier absent
+        or off-vocabulary, (3) run_ids empty, (4) every cited run yielding None
+        from tier_of_run. A THIRD-STATE OUTPUT that distinguishes them is the
+        constructive object: an "evaluated / not evaluated / violated"
+        trichotomy in place of the current "error / silence" dichotomy.
+      predicted_gain: >-
+        No mathematical gain and none is claimed. The gain is that a silence
+        becomes readable, which is the difference between a criterion that is
+        met and a criterion that is unfalsifiable. Immediate scope: the 11
+        chains of this goal; standing scope: the 103 legacy-layout manifests
+        and the 149 parameterless ones, plus every future record.
+    - transform: derived_certificate
+      proposed_object: >-
+        A tier-certificate register: for each of the 60 runs, the recorded
+        parameter key quoted from the owning specification, the derived
+        field_bits, the derived tier, and the derivation rule -- filed as a NEW
+        record superseding nothing and editing nothing.
+      predicted_gain: >-
+        Makes the chain inequality evaluable for the first time. Coverage
+        delta: 0 of 11 chains evaluable before, up to 11 after, with every
+        shortfall named as UNDERIVABLE rather than absorbed.
+    quantifier_order: >-
+      THE AUDIT IS EXACTLY A QUANTIFIER-ORDER ATTACK AND THE SWAP IS THE
+      DEFECT. The criterion as committed reads: FOR ALL i in the section 1.1
+      set, the claim boundary of KN-FIND_i is no stronger than the scope of the
+      evidence it cites. What the repository actually establishes is: FOR ALL i,
+      the validator emitted no ceiling error for record i. These are the same
+      sentence only if the validator's silence entails the inequality -- i.e.
+      only if THERE EXISTS, for each i, an evaluation that ran and returned
+      true. The hypothesis is that no such evaluation exists for any i, so the
+      universal statement is supported by a universal statement about a
+      procedure that never executed. Note the trap being hunted, stated as the
+      protocol asks: a WITNESS (the run that pins the tier) that is allowed to
+      be absent cannot support a conclusion whose form requires it to be
+      present for every i. The distinction is not pedantic here: it is the
+      difference between eleven checked boundaries and eleven unchecked ones,
+      and the goal's closure rests on which it is.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The audit can certify, at most: that at the executing commit, for the
+        eleven named chains, the committed validator does not evaluate the
+        claim-tier ceiling; that the mechanism at link 3 is a key-path mismatch
+        demonstrated differentially; and that a derived certificate
+        reconstructed under a quoted convention places each chain's ceiling at
+        a stated tier. It CANNOT certify that the promoted claim boundaries are
+        correct in substance -- prose adjudication is a two-reader judgement
+        with a reported disagreement count, not a proof. It CANNOT certify
+        anything about goals outside this one. It CANNOT certify that no other
+        instrument anywhere validates the criterion; it can only report the
+        grep it ran and the paths it walked. Writing it up as "the program's
+        tier discipline is broken" would exceed all three limits and would be
+        the premature-closure failure mode in its overclaiming direction.
+      nearby_object_control: >-
+        The nearby object on which the desired conclusion IS known to hold is
+        the 1157 manifests that DO carry field_bits at run.inputs.parameters,
+        together with the 153 evidence records carrying an in-vocabulary tier.
+        There, the ceiling genuinely evaluates. The audit MUST demonstrate that
+        it can tell the two populations apart: run the same chain traversal
+        over a sample of well-formed chains and confirm it reports
+        enforceable_ceiling = True. A traversal that reports "unenforceable"
+        everywhere has not identified the load-bearing feature -- it has a bug
+        -- and no count from it may be reported. This arm is required, not
+        optional.
+    proof_obligations:
+    - claim: >-
+        TIER_ORDER.get on an absent claim_tier yields None and the ceiling
+        conditional short-circuits.
+      responsibility: correctness
+    - claim: >-
+        ctx.run_params is populated from run.inputs.parameters and from no
+        other path.
+      responsibility: correctness
+    - claim: >-
+        All 60 section 1.1 run manifests place parameters at run.parameters and
+        none at run.inputs.parameters.
+      responsibility: baseline
+    - claim: >-
+        ceil(log2 1009) = 10 and 10 <= 32, so tier_of_run would return 0.
+      responsibility: correctness
+    - claim: >-
+        The chain traversal reports enforceable_ceiling = True on well-formed
+        chains (nearby-object control).
+      responsibility: feasibility
+    - claim: >-
+        The audit closes nothing about substance, only about evaluation.
+      responsibility: scope
+
+  falsifiable_predictions:
+  - >-
+    n_chains_with_enforceable_ceiling over the eleven = EXACTLY 0. Any value
+    >= 1 refutes the hypothesis as stated.
+  - >-
+    The differential arm returns exactly 1 ceiling error with parameters at
+    run.inputs.parameters and exactly 0 with the identical dict at
+    run.parameters. Equal counts in the two arms refute S3.
+  - >-
+    n_runs_invisible_to_tier_of_run over the 60 = EXACTLY 60.
+  - >-
+    The graded sweep over field_bits {10, 32, 33, 64, 96, 97, 256} at declared
+    tier 'medium' fires on exactly the first two cells, breakpoint between 32
+    and 33; at declared 'crypto' it fires on the first five, breakpoint between
+    96 and 97; both sequences monotone non-increasing. Any other breakpoint or
+    any non-monotonicity refutes the threshold reading.
+  - >-
+    The reconstructed ceiling for the EV-BKK-001 chain is 'toy'. Any other
+    value means the reconstruction is wrong.
+  - >-
+    n_promoted_boundaries_above_ceiling = 0 across the eleven. A value >= 1
+    means a committed KN-FIND entry overstates its evidence and the goal's
+    completion criterion is NOT met -- the outcome that would matter most and
+    the one the hypothesis predicts against.
+  - >-
+    The nearby-object control reports enforceable_ceiling = True on a sample of
+    well-formed chains. Failure here voids every other number.
+
+  scope_limits:
+  - >-
+    No mathematical claim about the ECDLP, elliptic curves, index calculus or
+    any algorithm is made, implied or supported. This record must never be
+    cited as ECDLP evidence.
+  - >-
+    No exponent moves. Stated plainly rather than dressed up.
+  - >-
+    Governs the eleven named chains at the executing commit. The corpus-wide
+    census is context and licenses no claim about any other goal's records.
+  - >-
+    A finding that the chain is unevaluated is NOT a finding that any promoted
+    boundary is wrong; the hypothesis predicts they are all correct.
+  - >-
+    No status change to GOAL-FIND-001, DEC-20260725-024, EV-FIND-003 or any
+    KN-FIND entry is proposed or implied. AGENTS.md rule 1 reserves that to the
+    Coordinator. Recorded for the Coordinator's convenience and not as a status
+    claim: CLAUDE.md states the three-model closure quorum -- the sole blocker
+    named in this goal's next_action -- is SUSPENDED, with
+    GOAL_CLOSURE_QUORUM_REQUIRED = False, so the pause's stated reason may
+    already be stale independently of anything measured here.

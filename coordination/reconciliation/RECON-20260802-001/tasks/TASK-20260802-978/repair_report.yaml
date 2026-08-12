@@ -1,0 +1,185 @@
+schema: crypto.autoresearch.executor_repair_report.v1
+task_id: TASK-20260802-978
+reconciliation_id: RECON-20260802-001
+role: executor
+objective: >-
+  Implement only R-976-001 so every failed Codex runtime probe receipt persists
+  timestamp_order_valid false after its final recorded_at is assigned or preserved.
+
+frozen_protocol:
+  source: coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-976/repair_protocol.yaml
+  snapshot_commit: 89684c80174283fd4ac1885e0c9b6a6d57f0abaf
+  dispatch_bind_commit: d67c11c0747e813f7d56fa61b30085ca8f0d2831
+  execution_base_commit: d67c11c0747e813f7d56fa61b30085ca8f0d2831
+  snapshot_is_ancestor_of_execution_base: true
+  protocol_unchanged_between_snapshot_and_execution_base: true
+  handoff: ledger/handoffs/TASK-20260802-978.yaml
+
+requirement_traceability:
+  - id: R-976-001
+    finding: F-974-001
+    implementation: >-
+      The common _ProbeFailure receipt-persistence path sets
+      verification.timestamp_order_valid to false immediately after it assigns
+      a missing recorded_at or preserves the completed success-path recorded_at.
+      Therefore no preliminary metadata cross-check can leave an affirmative
+      timestamp assertion in a persisted failed receipt; the only code path
+      that persists true remains the fully completed successful path.
+    fixtures:
+      - >-
+        A pre-binding model mismatch with a backward failure-handler clock
+        persists recorded_at 2026-08-02T12:00:01Z, has
+        timestamp_order_valid false, and invokes no bindings runner.
+      - >-
+        A nonzero runtime-bindings result with a backward failure-handler clock
+        persists recorded_at 2026-08-02T12:00:01Z and has
+        timestamp_order_valid false.
+      - >-
+        Existing backward-final-success and reversed-binding fixtures remain
+        failed with timestamp_order_valid false; the happy path continues to
+        be verified with its exact final recorded_at.
+
+implementation_observations:
+  - >-
+    Changed only orchestration/adapter/codex_runtime.py and
+    tests/test_codex_runtime_probe.py before writing this report.
+  - >-
+    The repair is located in the shared failed-receipt persistence handler,
+    after final recorded_at assignment or preservation and before privacy
+    checking and exclusive receipt creation.
+  - >-
+    Receipt schema, failure codes, runtime-binding gate, query locality,
+    privacy, immutable exclusive-write behavior, path containment, and
+    session-only scope were not changed.
+  - >-
+    No live Codex command, real Codex state, network endpoint, binding or
+    control-plane edit, research-state action, staging, or commit occurred.
+
+fixture_coverage:
+  fake_runtime_only: true
+  live_codex_probe_run: false
+  real_codex_state_inspected: false
+  network_used: false
+  research_runs_executed: 0
+  focused_fixture_tests_passed: 52
+  combined_adapter_and_probe_tests_passed: 106
+
+commands:
+  - argv: [pytest, --collect-only, -q, tests/test_codex_runtime_probe.py]
+    exit_code: 2
+    stdout: ''
+    stderr: >-
+      ModuleNotFoundError: No module named 'orchestration'; no tests collected.
+    note: >-
+      The standalone pytest entrypoint used a different interpreter context.
+      No artifact was changed; subsequent fixture checks used python3 -m pytest.
+  - argv: [python3, -m, pytest, -q, tests/test_codex_runtime_probe.py]
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: '52 passed in 10.23s'
+    stderr: ''
+  - argv: [python3, -m, pytest, -q, tests/test_inference_adapter.py, tests/test_codex_runtime_probe.py]
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: '106 passed in 10.14s'
+    stderr: ''
+  - argv: [python3, tools/check_runtime_bindings.py]
+    exit_code: 0
+    stdout: 'OK: 5 roles consistent with every runtime binding'
+    stderr: ''
+  - argv: [python3, tools/validate_ledger.py]
+    exit_code: 0
+    stdout: >-
+      OK: validated 2460 records, no new violations; 2248 grandfathered legacy
+      errors were suppressed, 103 frozen root-level ledger records and 11
+      legacy manifests were indexed, and 289 legacy schema issues remain
+      read-only.
+    stderr: ''
+  - argv: [python3, tools/check_merge_hygiene.py]
+    exit_code: 0
+    stdout: 'PASS: no conflict markers, no unparseable records'
+    stderr: >-
+      The command emitted six pre-existing baseline-maintenance notes for
+      records that now parse; it reported no failure.
+  - argv: [git, diff, --check]
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+  - argv: [git, merge-base, --is-ancestor, 89684c80174283fd4ac1885e0c9b6a6d57f0abaf, HEAD]
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+  - argv: [git, diff, --quiet, 89684c80174283fd4ac1885e0c9b6a6d57f0abaf, --, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-976/repair_protocol.yaml]
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+
+artifact_hashes:
+  orchestration/adapter/codex_runtime.py: de7b41d641d885232caa4845d3017177a46a11c2c037dfd73fe3411c4b95fe8d
+  tests/test_codex_runtime_probe.py: 280ec616261cee0ad53b2d392d2806b312a9c4809dd285b45ba27c9373044d2e
+
+protocol_deviations: []
+anomalies:
+  - >-
+    The initial standalone pytest collection used an interpreter context that
+    could not import orchestration. This was a test-invocation infrastructure
+    issue only; python3 -m pytest completed the frozen fixture checks.
+limitations:
+  - >-
+    This is static and fixture-only execution. It does not establish behavior
+    against an authorized newly-created live Codex session or real Codex state.
+  - >-
+    This report records implementation observations, not acceptance,
+    validation, research-status, or snapshot-archive decisions. Independent
+    validation remains required by the frozen protocol.
+
+artifact_paths:
+  - orchestration/adapter/codex_runtime.py
+  - tests/test_codex_runtime_probe.py
+  - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-978/repair_report.yaml
+
+execution_report:
+  experiment_id: null
+  implementation_commit: null
+  implementation_base_commit: d67c11c0747e813f7d56fa61b30085ca8f0d2831
+  protocol_deviations: []
+  runs:
+    completed: []
+    invalid: []
+    failed: []
+  observations:
+    - Fixture-only focused suite: 52 tests passed.
+    - Combined inference-adapter and focused probe suites: 106 tests passed.
+    - Runtime bindings static check: 5 roles consistent with every runtime binding.
+    - Ledger and merge-hygiene static checks reported no new violations/errors.
+  anomalies:
+    - >-
+      The standalone pytest entrypoint could not import orchestration; the
+      subsequent python3 -m pytest fixture invocations passed.
+  artifact_paths:
+    - orchestration/adapter/codex_runtime.py
+    - tests/test_codex_runtime_probe.py
+    - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-978/repair_report.yaml
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+
+inference_provenance:
+  requested_policy: executor-implementation
+  requested_reasoning_effort: medium
+  policy_default_reasoning_effort: medium
+  exact_resolved_model_id: null
+  model_verified: false
+  fallback_allowed: true
+  fallback_used: null
+  degraded_allowed: false
+  degraded_requirements: []
+  independent_session_required: false
+  note: >-
+    No exact probe-verified runtime model identifier was available to this
+    Executor session; none is inferred from configuration or fixture results.
+
+state_changes: []
+approval_verdict: not_within_executor_authority
+archived_by: TASK-20260802-979

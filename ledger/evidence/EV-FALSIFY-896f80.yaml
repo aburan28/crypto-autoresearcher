@@ -1,0 +1,161 @@
+evidence:
+  id: EV-FALSIFY-896f80
+  hypothesis_id: null
+  hypothesis_id_note: >-
+    A harness-integrity finding about identifier allocation. It bears on no
+    mathematical hypothesis and must never be cited for or against one, the same
+    boundary KN-FIND-030 draws for itself. Filed under RQ-FALSIFY-a2c501.
+  question_id: RQ-FALSIFY-a2c501
+  experiment_ids: [EXP-FALSIFY-d770c1]
+  run_ids: []
+  run_ids_note: >-
+    No run record. Every number below is either a count over committed files or a
+    closed-form probability; both are recomputed in seconds from the commands
+    quoted in the observations.
+  findings_under_test: [KN-FIND-030]
+  type: analytical
+  direction: supports
+  direction_note: >-
+    SUPPORTS KN-FIND-030, whose account of the two collisions is accurate and
+    whose recommended fix works. What it contradicts is the wording of the fix as
+    written into AGENTS.md rule 14 and CLAUDE.md, which overstates it. The
+    allocator's own docstring states it correctly.
+  strength: strong
+  claim_tier: not_applicable
+  claim_tier_note: Non-mathematical; the claim tiers grade cryptographic assertions.
+  proof_status: certificate
+  proof_status_basis: >-
+    A counted property of committed files plus an elementary birthday
+    computation, both decidable and exhaustive rather than sampled.
+  proof_refs:
+    - tools/allocate_id.py
+    - knowledge/findings/KN-FIND-030.md
+  recorded_at: '2026-08-08'
+
+  observations:
+    - id: O-1
+      text: >-
+        RULE 2 SATISFIED FIRST. check_currency.py flags six corrections naming
+        KN-FIND-030. None targets it: CORR-20260731-007, CORR-20260802-655085,
+        CORR-20260802-d8ba0e, CORR-20260803-202715, CORR-20260803-f459b3 and
+        CORR-20260806-d86487 all carry a different record_id and merely cite it
+        as the finding documenting the collision problem. KN-FIND-030 is current.
+    - id: O-2
+      text: >-
+        THE FINDING IS ACCURATE AND ITS FIX WORKS. KN-FIND-030 reports that
+        directory-scan allocation collided twice in seven days, the second time
+        on twelve records at once. Both correction records it names exist. The
+        replacement -- random 6-hex tokens minted by tools/allocate_id.py without
+        scanning state -- is now in force, and CLAUDE.md's convention has been
+        inverted accordingly from "find the next free number" to "do not grep for
+        the next free number".
+    - id: O-3
+      text: >-
+        THE GOVERNING DOCUMENTS OVERSTATE THE FIX. AGENTS.md rule 14 states "A
+        random token scans no state and so CANNOT CONVERGE", and CLAUDE.md
+        repeats it verbatim. That is a universal negative about a randomised
+        algorithm and it is false: random tokens converge with birthday
+        probability. The allocator's own docstring says it correctly -- "Two
+        worktrees collide only by drawing the same value out of 16**6" -- so the
+        code is honest and the contract documents are not.
+    - id: O-4
+      text: >-
+        THE ACTUAL MARGIN, WHICH NOTHING IN THE CORPUS RECORDS. The namespace is
+        16^6 = 16,777,216 per family, where a family is the prefix plus any date
+        segment. Counting distinct random tokens over ledger/, experiments/,
+        knowledge/, coordination/ and docs/: 1,275 in use, largest family
+        TASK-20260806- at 181. Probability that one new token collides inside the
+        worst current family: 1.08e-05. Birthday probability of at least one
+        collision WITHIN a single family as it grows: 2.93% at N=1,000, 52.5% at
+        N=5,000, essentially certain at N=20,000.
+    - id: O-5
+      text: >-
+        WHICH FAMILIES ACTUALLY CARRY THE RISK. Dated families
+        (TASK-YYYYMMDD-, IDEA-YYYYMMDD-, DEC-YYYYMMDD-) reset daily and stay
+        small, so they are safe indefinitely. The undated ones do not reset and
+        accumulate forever: KN-LIT-, KN-TECH-, KN-FIND-, KN-OPEN-, BATCH-, and
+        the per-area EXP-/EV-/H-/RQ- families. KN-LIT- already holds 171 random
+        tokens beside a literature corpus of 7,832 files, most still on the
+        legacy three-digit form. If that corpus is migrated or continues to grow
+        on random tokens, KN-LIT- is the family that reaches the birthday regime
+        first. No monitor watches for this.
+    - id: O-6
+      text: >-
+        THE MITIGATION WORKS WHERE IT CAN, AND ONLY THERE. Controls, both passed:
+        `--check` on an occupied identifier (EV-FALSIFY-2a5e46) returns
+        "REFUSE: taken"; on a free one it returns "OK: free across the union".
+        100 successive `--next` draws produced 0 occupied tokens, consistent with
+        a density of 1e-05. So mint-then-check catches a collision against
+        COMMITTED state, within one worktree. It cannot catch two worktrees
+        minting the same token concurrently, because each checks against state
+        that does not contain the other's unpushed mint -- and that is exactly
+        the scenario rule 14 declares impossible. The residual is small
+        (~1/16^6 per concurrent pair) but it is not zero, and "small" and
+        "cannot" are different claims.
+    - id: O-7
+      text: >-
+        INCIDENTALLY, from the same audit: `allocate_id.py --audit` reports 10
+        malformed identifiers already in the tree across 11,440 scanned record
+        files, e.g. EV-R6-001 and H-FB3-001, whose area codes contain digits
+        against a letters-only pattern. Not caused by the random-token scheme and
+        not investigated here; recorded so it is not rediscovered as new.
+
+  interpretation: >-
+    KN-FIND-030 is right about the problem and right about the remedy. The defect
+    is in how the remedy was written into the two documents that bind every
+    agent: they promise impossibility where the code promises a small
+    probability. The consequence is not an imminent failure -- at 1,275 tokens
+    the margin is ample -- but a claim nobody can act on, because "cannot
+    converge" gives no threshold at which to start worrying, and the families
+    that will reach that threshold are identifiable today.
+
+  what_this_does_not_establish: >-
+    No collision has occurred under the random-token scheme, and none is
+    predicted soon; this is a statement about the safety margin and how it is
+    described, not a report of harm. It does not audit whether every agent
+    actually runs `--check` before use, which is the more likely practical
+    failure and was not measured. It says nothing about the legacy three-digit
+    identifiers, which are immutable and out of scope, and nothing about any
+    mathematical claim anywhere in the corpus.
+
+  dominated_by: not_applicable_methodological
+  sota_delta:
+    time_exponent: not_applicable
+    note: No algorithmic claim.
+
+  proposed_correction: >-
+    Replace "cannot converge" in AGENTS.md rule 14 and in CLAUDE.md's
+    concurrency section with the allocator's own formulation plus the number:
+    two worktrees collide only by drawing the same value out of 16^6, a
+    probability of about 1e-05 per allocation at current density, caught by
+    `--check` against committed state but NOT across concurrent unpushed mints.
+    Optionally add a monitor that reports any undated family passing ~1,000
+    distinct tokens, the point at which the within-family birthday probability
+    reaches 3%. Documents are not immutable records, so these are edits rather
+    than supersessions, but they change a binding contract and are the
+    Coordinator's to make.
+
+  knowledge_promotion: not_warranted
+  knowledge_promotion_reason: >-
+    KN-FIND-030 already carries the substance. This is a wording correction to a
+    contract document plus the quantification that document omits; promoting it
+    as a separate finding would duplicate KN-FIND-030 and overstate a margin
+    computation as a research result.
+
+  scope_limits: >-
+    Committed tree at this branch head. Token counting over ledger/, experiments/,
+    knowledge/, coordination/, docs/ for .yaml/.yml/.md/.json only, so tokens
+    appearing solely in other file types are uncounted and 1,275 is a floor.
+    Birthday figures assume uniform independent draws, which matches
+    random.SystemRandom over a 16-symbol alphabet.
+
+  independent_review_required: false
+  independent_review_note: >-
+    Contradicts no research claim and asserts no mathematics. Every figure is
+    re-derivable in seconds from the quoted commands.
+
+  authority_note: >-
+    Evidence only. No document edited, no hypothesis status changed, no finding
+    superseded; the AGENTS.md and CLAUDE.md wording changes in
+    proposed_correction are the Coordinator's to make or decline
+    (AGENTS.md rule 1).

@@ -1,0 +1,143 @@
+{
+  "schema_note": "Structured artifact for TASK-20260805-080b62 (BATCH-012, GOAL-AES-003). This entire file is valid JSON; it was parsed end-to-end with python3 json.load() before this task was reported complete (see validation.parsed_ok below).",
+  "inference": {
+    "policy": "executor-implementation",
+    "requested_policy": "executor-implementation",
+    "actual_resolved_model": "claude-sonnet-5",
+    "fallback_used": true,
+    "fallback_reason": "Subagent frontmatter under this Claude Code harness resolves to a Claude model regardless of the requested policy alias; see CLAUDE.md 'Model policy note'.",
+    "model_verified": false,
+    "standing_basis_declared_by_task_card": "0137a051eb5828789eb267fa83c8278086578d4c",
+    "actual_git_head_at_task_start": "c0bb012ac4b236bbdabd30567060e3d2e547f13a",
+    "note": "The declared standing basis in the task card did not match this session's actual git rev-parse HEAD at task start. Both are recorded verbatim, not reconciled. The working tree during this task's own writes had no dirty tracked files; a concurrent process (observed later, not caused by this task) advanced HEAD to b6d21625a9a2bc2f182d117b19d1a5b0310d6f54 (a BATCH-012 batch-open commit) partway through this task's execution window. This task's write_scope was never touched by that commit."
+  },
+  "budget_stamps_ref": "budget_stamps.jsonl",
+  "preregistration_ref": "PREREGISTRATION.md",
+  "step1_load_factor_change": {
+    "file_changed": "src/rc8probe_ideal.c (perm128_init only)",
+    "diff_ref": "src/diff_step4_loadfactor.patch",
+    "change_description": "idx_cap computation multiplier changed from 2 to 1: next_pow2_u64(max_pairs * 2 + 16) -> next_pow2_u64(max_pairs * 1 + 16). No other line changed.",
+    "source_provenance": {
+      "original_unmodified_copy": "src/rc8probe_ideal_old.c (byte-identical to BATCH-011's TASK-20260805-8fa4c6/src/rc8probe_ideal.c, md5 063b29c9335a23463d1762a73ca0dbe6, confirmed by md5sum comparison at copy time)",
+      "modified_copy": "src/rc8probe_ideal.c (md5 50c22f903054f8e239ae719255b5ef8e)"
+    },
+    "build_commands": [
+      "gcc -O3 -pthread -o rc8probe_ideal_old rc8probe_ideal_old.c",
+      "gcc -O3 -pthread -o rc8probe_ideal rc8probe_ideal.c"
+    ],
+    "build_result": "both compiled cleanly, no warnings or errors in captured stderr"
+  },
+  "step2_memory_arithmetic_independent_recompute": {
+    "formula": "dom+rng (fixed, unaffected by load factor) = max_pairs * 16 bytes * 2 arrays; idx tables = next_pow2(max_pairs*mult+16) * 4 bytes * 2 arrays; max_pairs = trials * 4",
+    "table_GB": [
+      {"log2N": 24, "max_pairs": 67108864,  "dom_plus_rng_GB": 2.147483648, "idx_old_mult2_GB": 2.147483648, "idx_new_mult1_GB": 1.073741824, "total_old_GB": 4.294967296, "total_new_GB": 3.221225472},
+      {"log2N": 25, "max_pairs": 134217728, "dom_plus_rng_GB": 4.294967296, "idx_old_mult2_GB": 4.294967296, "idx_new_mult1_GB": 2.147483648, "total_old_GB": 8.589934592, "total_new_GB": 6.442450944},
+      {"log2N": 26, "max_pairs": 268435456, "dom_plus_rng_GB": 8.589934592, "idx_old_mult2_GB": 8.589934592, "idx_new_mult1_GB": 4.294967296, "total_old_GB": 17.179869184, "total_new_GB": 12.884901888}
+    ],
+    "matches_task_card_arithmetic": true,
+    "conclusion": "2^25 fits within 8 GB under the new load factor (6.442 GB estimate). 2^26 does NOT fit under any load-factor tuning: dom+rng alone (8.590 GB) already exceeds 8 GB before any index-table byte, since dom/rng are unaffected by the multiplier change."
+  },
+  "step3_equivalence_check": {
+    "rationale": "This change alters an internal hash-table sizing constant only, not a code path. Equivalence is proportionate to that: re-run the same comparison-B-shaped arms (BATCH-011's 2^24 cmpB parameters) under the OLD (unmodified) and NEW (this task's edit) binaries and diff outputs field-for-field.",
+    "arms_tested": [
+      {
+        "arm": "live-cipher control (perm128 not exercised by this path; run to confirm the two binaries are otherwise byte-identical)",
+        "command_old": "./rc8probe_ideal_old arm RC-B-CMPB-LIVE-R5 rand:717001702 5 1 1 24 717002 202 1",
+        "command_new": "./rc8probe_ideal arm RC-B-CMPB-LIVE-R5 rand:717001702 5 1 1 24 717002 202 1",
+        "output_old": "runs/eq_live_old.json",
+        "output_new": "runs/eq_live_new.json",
+        "diff_result": "IDENTICAL (byte-for-byte, confirmed via `diff`)"
+      },
+      {
+        "arm": "ideal-permutation (the arm that actually exercises perm128_init/perm128_forward/perm128_inverse -- the arm where a load-factor-induced correctness defect, if one existed, would show up)",
+        "command_old": "./rc8probe_ideal_old armideal RC-B-CMPB-IDEAL-R5 1 1 24 717002 202",
+        "command_new": "./rc8probe_ideal armideal RC-B-CMPB-IDEAL-R5 1 1 24 717002 202",
+        "output_old": "runs/eq_ideal_old.json",
+        "output_new": "runs/eq_ideal_new.json",
+        "diff_result": "IDENTICAL (byte-for-byte, confirmed via `diff`)"
+      }
+    ],
+    "verdict": "EQUIVALENCE HOLDS. The realised permutation's behavior (W_ge1_nontrivial, whist, oracle_queries_total, perm_pairs_realised, and every other field) is identical between the old (load factor ~0.5) and new (load factor ~1.0) hash-table sizing. This is the expected result for a correct open-addressed hash table (exact-compare collision resolution, as implemented in perm128_probe): the load factor changes only performance/memory, not which pair a given key maps to, provided the number of realised pairs never exceeds cap_pairs and the probe sequence is deterministic given the same insertion order -- both true here. No defect found; this task proceeded to the 2^25 measurement runs.",
+    "not_stopped": true
+  },
+  "step4_peak_rss_measurement": {
+    "method": "/usr/bin/time -v is NOT installed in this environment (verified: `which /usr/bin/time` and `command -v time` found only the bash builtin, no binary at /usr/bin/time). Substituted with src/rss_monitor.py, which launches the target command as a subprocess and polls /proc/<pid>/status for the VmHWM field (kernel-tracked peak resident set size, monotonically non-decreasing, the same underlying kernel value /usr/bin/time -v itself reads) at 50ms intervals until the process exits, reporting the maximum sampled value. This is a measurement of the same kernel-maintained quantity, not an allocation-arithmetic estimate.",
+    "deviation_from_task_card": "The task card names /usr/bin/time -v as the primary option with /proc/self/status VmHWM as an explicit alternative ('e.g. /usr/bin/time -v or a cgroup memory.max_usage_in_bytes read' / 'or read /proc/self/status VmHWM during the run' per BATCH-012's dispatch objective). Used the named alternative because the primary tool is absent from this environment; recorded here as a protocol deviation rather than silently substituted.",
+    "ideal_permutation_arm_2p25": {
+      "peak_vmhwm_kb": 6293060,
+      "peak_vmhwm_gb": 6.29306,
+      "poll_samples": 3070,
+      "wall_seconds": 154.9448299407959,
+      "estimate_from_step2_GB": 6.442450944,
+      "measured_vs_estimated": "Measured peak (6.293 GB) is slightly BELOW the allocation-arithmetic estimate (6.442 GB), consistent with the estimate being an upper bound on committed/touched memory (malloc'd index-table pages that are all zero-filled via memset -- which does touch them -- but dom/rng pair arrays are only touched up to perm_pairs_realised entries, and at full exposure here perm_pairs_realised == perm_pairs_capacity == max_pairs so dom/rng should be fully touched too; the ~2.3% gap is attributed to allocator/page-accounting overhead not captured by the raw malloc-size arithmetic, not to a memory-safety issue)."
+    },
+    "raw_rss_files": [
+      "runs/cmpB_ideal_2p25.rss.json",
+      "runs/cmpB_live_2p25.rss.json"
+    ]
+  },
+  "step5_expected_count_context": {
+    "stated_before_measuring": true,
+    "preregistration_ref": "PREREGISTRATION.md, section 'Preregistered expected-count context'",
+    "expected_event_count_at_2p25": 0.4375,
+    "derivation": "14 hits / 2^30 trials (BATCH-009's measured rate, EV-AES-e4c091) * (2^25 / 2^30) = 14/32 = 0.4375",
+    "statement": "A 0-1 observed hit at 2^25 in either arm is the ANTICIPATED outcome under this expected-count arithmetic and does NOT by itself constitute evidence for or against BATCH-009's cipher-substitution finding. This is stated here again, immediately before the observed results below, exactly as preregistered, so the null result that follows cannot be read as more informative than the power analysis supports."
+  },
+  "step6_comparison_B_at_2p25_observed": {
+    "geometry": "amask=1, smask=1, r=5 (rounds), matching BATCH-011's cmpB arm geometry exactly; only log2N changed from 24 to 25",
+    "live_cipher_arm": {
+      "command": "./rc8probe_ideal arm RC-B-CMPB-LIVE-R5-2p25 rand:717001702 5 1 1 25 717002 202 1",
+      "output_ref": "runs/cmpB_live_2p25.json",
+      "rss_ref": "runs/cmpB_live_2p25.rss.json",
+      "trials": 33554432,
+      "nontrivial_trials": 33554432,
+      "W_ge1_nontrivial": 0,
+      "whist": [33554432, 0, 0, 0, 0],
+      "null_expectation_analytic": 0.03125,
+      "peak_vmhwm_gb": 0.001716,
+      "wall_seconds": 14.720580577850342
+    },
+    "ideal_permutation_arm": {
+      "command": "./rc8probe_ideal armideal RC-B-CMPB-IDEAL-R5-2p25 1 1 25 717002 202",
+      "output_ref": "runs/cmpB_ideal_2p25.json",
+      "rss_ref": "runs/cmpB_ideal_2p25.rss.json",
+      "trials": 33554432,
+      "nontrivial_trials": 33554432,
+      "W_ge1_nontrivial": 0,
+      "whist": [33554432, 0, 0, 0, 0],
+      "oracle_queries_total": 134217728,
+      "perm_pairs_realised": 134217728,
+      "perm_pairs_capacity": 134217728,
+      "null_expectation_analytic": 0.03125,
+      "peak_vmhwm_gb": 6.29306,
+      "wall_seconds": 154.9448299407959
+    },
+    "observed_counts": {"live": 0, "ideal": 0},
+    "read_in_light_of_step5": "Both arms read 0 hits, which is the anticipated outcome given expected count ~0.44 (a Poisson-like process with mean 0.44 has P(0 hits) ~= e^-0.44 ~= 0.64, so 0-0 is the single most likely joint outcome even if the live arm carries the full excess BATCH-009 reports and the ideal arm carries none). Per rule stated in step5 and the task card: this does NOT constitute evidence for or against BATCH-009's finding. Unlike BATCH-011's 2^24 run, this 0-0 result is NOT attributable to a memory ceiling capping exposure below what was needed -- 2^25 was reached in full, at measured peak RSS well within budget -- so this null result's cause is now cleanly attributed to statistical power alone, not to an infrastructure limit. That is the one thing this run adds over BATCH-011's: the SAME null outcome, but with the memory-ceiling confound removed."
+  },
+  "step7_comparison_B_resolution_status": {
+    "resolved": false,
+    "why_not": "Comparison B remains uninformative at 2^25, exactly as preregistered: expected event count (~0.44) is far below what is needed to distinguish a live-arm excess from an ideal-arm null at conventional confidence. Both arms independently reading 0 is consistent with (a) BATCH-009's full reported effect being present in the live arm and absent in the ideal arm, (b) no effect being present in either arm, and everything in between -- the data at this exposure cannot discriminate among these.",
+    "ceiling_of_this_lever": "2^26 is NOT reachable within the 8 GB budget under any further load-factor tuning of perm128's index tables, because the dom/rng pair-storage arrays (32 bytes per realised pair total, fixed regardless of index load factor) alone cost 8.590 GB at 2^26 -- exceeding the entire 8 GB budget before a single index-table byte is counted (see step2_memory_arithmetic_independent_recompute). The cheap lever (index-table load factor) is exhausted: it moved the reachable exposure from 2^24 to 2^25 (one more bit, i.e. 2x), and cannot move it further without changing the underlying data structure.",
+    "structurally_different_implementation_needed": {
+      "requirement": "An ideal-permutation oracle implementation with O(1) memory per query rather than O(realised pairs). The current perm128 construction stores every realised (domain, range) pair explicitly (dom[], rng[] arrays) so that repeated queries on the same input are answered consistently -- this is what makes it a genuine lazily-sampled random permutation rather than an independently-resampled random function, and it is also exactly the design choice that makes memory scale linearly with query count.",
+      "candidate_direction_named_without_endorsement": "A keyed pseudorandom permutation construction that is provably indistinguishable from a uniform random permutation up to the query bound needed here (e.g. a small-domain Feistel or Thorp-shuffle-style construction with enough rounds for the birthday bound at this query count), evaluated by direct computation per query instead of by table lookup -- O(1) memory per query, cost paid in extra compute per query (a constant number of round-function evaluations) instead of in memory. This is named as the shape of what would be needed, not selected, sized, or committed to as a next task by this executor role -- that judgement belongs to the Idea Generator / Coordinator.",
+      "rough_cost_sense": "Purely qualitative, not a commitment: building and validating a Feistel-based (or similar) O(1)-memory ideal-permutation oracle, including its own permutation-correctness/uniformity self-check (mirroring this instrument's existing 'permcheck' mode), is a genuine new-instrument engineering task comparable in scope to BATCH-011's original rc8probe_ideal.c build (which itself took a multi-step patch sequence: prefix instrumentation, then the ideal-permutation extension) -- NOT a one-line constant change like this task. It would need its own round-count/security-margin justification (how many Feistel rounds are enough for indistinguishability at 2^26+ queries) before being trusted as a null-object control, which is itself a small research question, not a given.",
+      "what_it_would_settle": "With O(1) memory per query, exposure is bounded by wall-clock, not memory -- unlocking 2^26, 2^27, or higher, at expected event counts (14/2^30 * exposure) that could reach several to dozens of hits, high enough to plausibly distinguish a live-arm excess from an ideal-arm null at the same exposure, which is what comparison B has needed since BATCH-011 opened it and never gotten."
+    }
+  },
+  "what_was_not_reached": [
+    {"item": "2^26 or higher exposure for comparison B.", "would_have_settled": "Nothing under the current perm128 construction -- named and computed in step2/step7 as categorically unreachable in 8 GB regardless of remaining budget, not merely unreached for lack of time."},
+    {"item": "A structurally-different O(1)-memory ideal-permutation implementation.", "would_have_settled": "Whether comparison B can be made decisive at all within this program's memory budgets; named in step7 as the real next step, out of this task's scope (a one-line-change task, per the task card)."},
+    {"item": "Repeating the equivalence check at 2^25 itself (only 2^24 was used, per the task card's own suggested proportionate-equivalence approach).", "would_have_settled": "Nothing additional expected: perm128's correctness does not depend on trial count, only on the deterministic hash-table logic already checked identical at 2^24 across the full range of realised-pair counts up to cap_pairs; the 2^25 runs' internal consistency (perm_pairs_realised == perm_pairs_capacity, whist summing to trials) was checked in step6 output instead as an in-run correctness signal."}
+  ],
+  "certificate": {
+    "kind": "none",
+    "reason": "This is a pure measurement/comparison task (event counts and peak RSS); no discrete-log solve or factor-base relation is claimed anywhere in this task."
+  },
+  "toy_tier_scope_note": "All runs in this task operate on rc8probe_ideal.c's 128-bit-block, 5-round, toy reduced-round construction with a randomly generated (non-AES) S-box, per BATCH-009/BATCH-011's established scope. Nothing here is a statement about full-round or deployed AES, and no comparison to published cryptanalysis is made in either direction.",
+  "validation": {
+    "parsed_ok": true,
+    "parse_method": "python3 -c \"import json; json.load(open(path))\" run against this exact file path after writing, before task completion was reported"
+  }
+}

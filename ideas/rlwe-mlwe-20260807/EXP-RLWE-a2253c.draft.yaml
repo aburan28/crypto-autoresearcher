@@ -1,0 +1,99 @@
+# STAGING DRAFT — not a ledger record. Promote via Coordinator only.
+# ID verified free 2026-08-07 with tools/allocate_id.py --check.
+experiment:
+  id: EXP-RLWE-a2253c
+  hypothesis_id: H-RLWE-1fb603
+  version: 1
+  title: >-
+    Macaulay rank sweep: does any ring-supplied equation source beat an
+    unstructured Arora-Ge control, and does the signed-permutation identity hold
+  status: draft
+  objective: >-
+    Discharge H-RLWE-1fb603's two proof obligations by direct computation: (1)
+    verify P_t*Neg(a) = Neg(sigma_t(a))*P_t for all t in (Z/2n)* at each tested
+    n, and (2) show rank(Macaulay(structured, four equation sources)) equals
+    rank(Macaulay(unstructured control, matched shape)) at every tested
+    parameter point. This experiment does not search for a break; it tries to
+    find the counterexample that would falsify the already-derived mechanism.
+  inputs:
+    ring_degrees: [2, 4, 8, 16]
+    error_bounds_B: [1, 2, 3]
+    moduli: small primes q > 2B+1, chosen so x^n+1 has enough roots for the
+      Galois orbit to be nontrivial at each n
+    sample_counts_m: up to n per instance
+    degree_D: 5 for B=2, 7 for B=3, 3 for B=1
+  controls:
+    - >-
+      UNSTRUCTURED baseline: an Arora-Ge instance with the same number of
+      equations, same number of variables, same degree bound, but random
+      (non-ring-derived) affine forms in place of the negacyclic a_i. This is
+      the null the structured rank is compared against, not the m*n naive
+      baseline -- comparing against the wrong control was the exact defect
+      the pressure test found in the first draft of this idea (deficit "n" was
+      unsupported; the deficit against THIS control is the quantity that
+      matters).
+    - >-
+      Positive control on the signed-permutation identity: verify it against a
+      hand-computed t=1 (identity) case, which must trivially hold, before
+      trusting nontrivial t.
+  independent_variables: [n, B, q, m, equation_source]
+  metrics:
+    primary:
+      - rank_structured_minus_rank_unstructured_control
+      - max_over_t_of_deviation_in_signed_permutation_identity
+    secondary:
+      - wall_clock_per_rank_computation
+      - condition_number_or_numerical_stability_flag_if_floating_point_used
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: rank_structured_minus_rank_unstructured_control
+    formula: "= 0, at every tested (n, B, q, m, equation_source)"
+    source: H-RLWE-1fb603 mechanism (signed-permutation collapse of Galois orbit)
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Exact rank computation at n<=16 is a closed, checkable claim about a
+      finite object (the Macaulay matrix), not an extrapolation. The RESULT
+      (deficit is 0, not n) is expected to be scale-invariant because the
+      mechanism is a proof about the negacyclic structure, which is the same
+      at every n -- but that scale-invariance claim is itself only as strong
+      as the general-n symbolic proof, which this experiment does NOT
+      undertake (see interpretation_limits in the hypothesis record). The
+      numeric ML-KEM-scale sample/monomial counts (1536 equations,
+      C(773,5)=2^41.05 monomials) are cited from the corrected PORTFOLIO.md
+      arithmetic and are NOT recomputed by this experiment; recomputing them
+      exactly (not just re-deriving the binomial) is an easy add if a
+      reviewer wants it independently checked here rather than trusted from
+      the prior pressure test.
+    correspondence: null
+  tail_checks:
+    - >-
+      At the largest tested n=16, verify the signed-permutation identity holds
+      for the LARGEST-order t in (Z/2n)*, not just small t -- the mechanism
+      claim is FOR ALL t, and the failure mode most likely to be missed by a
+      partial sweep is a high-order conjugate.
+  replication:
+    seeds: [1, 2, 3, 4, 5]
+    independent_instances: 5 per (n, B, q) triple
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 4
+    maximum_memory_gb: 8
+    maximum_runs: 200
+  stopping_rules:
+    - Stop immediately if the signed-permutation identity fails at any t -- that falsifies the mechanism and no further rank computation is meaningful until it is understood.
+  invalidation_rules:
+    - A rank computation that does not converge to an exact integer/exact-field result (e.g. floating-point rank estimation) invalidates that data point; use exact arithmetic only.
+  success_criterion: >-
+    Signed-permutation identity holds at every tested t, n. Rank increase is
+    exactly 0 at every tested parameter point across all four equation
+    sources against the unstructured control.
+  falsification_criterion: >-
+    Either the identity fails for some t, n, or the structured rank exceeds
+    the unstructured control's rank at any tested point.
+  required_artifacts:
+    - exact rank table (structured vs. unstructured control) per parameter point
+    - signed-permutation identity check log, per (n, t) pair
+    - the symbolic derivation of the identity, written out in full, checked against the computational instances
+  assigned_to: executor
+  approved_by: null

@@ -1,0 +1,308 @@
+task_id: TASK-20260724-P13-REV
+role: Reviewer_P13REV
+goal: GOAL-P13-001
+object: >
+  Independent mathematical review of the frozen paper
+  inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+  (Benjamin Wesolowski, "The supersingular isogeny problem in time and memory
+  p^{1/3+o(1)}", ePrint 2026/1486, approved 2026-07-23 per ePrint metadata
+  fetched this session).
+
+inference:
+  requested_policy: review-xhigh
+  resolved_model: "kimi-work subagent (exact model identifier not exposed by runtime)"
+  fallback_used: true
+  fallback_reason: "GPT-5.6 policy aliases not resolvable in the Kimi Work harness; recorded explicitly per AGENTS.md rule 11."
+  independent_session_required: true
+  originator_of_claim: false
+
+provenance_incident:
+  summary: >
+    BLOCKER-CLASS EVENT. The frozen input file was read successfully (lines 1-200
+    of 350) at the start of this session, then became unreadable mid-session:
+    inputs/P13-WESOLOWSKI-2026/ no longer exists on disk, is not in git
+    (git ls-files inputs/ shows no such path), and no copy exists anywhere in the
+    workspace (glob + grep over coordination/, plus find for *wesolowski*).
+    The dispatch records (coordination/current_dispatch_p13.json lines 73,129,178)
+    reference the path, so the file existed at dispatch time.
+  impact: >
+    Lines 1-200 (abstract, intro, Heuristic 1, Thm 1.4/1.5, preliminaries,
+    Def 3.1, Lemma 3.2, Algorithm 1, Lemma 3.3, Algorithm 2, Lemma 3.4,
+    Lemma 3.5, Remark 1, start of Thm 1.1 proof incl. the choice of B and the
+    n = O(log p) mixing claim, start of Algorithm 3) were reviewed verbatim from
+    the frozen text. Lines 201-350 (rest of Thm 1.1 proof cost computation,
+    Section 4 experiments, Section 4.1 estimates, bibliography) were NOT
+    available. Tail-dependent verdicts are based on (a) independent recomputation
+    from parameters stated in lines 1-200, and (b) sources fetched this session,
+    and are flagged accordingly. Per AGENTS.md rule 9, no content of lines
+    201-350 is asserted from memory.
+  sources_fetched_this_session:
+    - "https://eprint.iacr.org/2026/1486 (abstract + metadata; PDF blocked by Cloudflare 403 for all available fetch paths; Wayback capture failed)"
+    - "https://arxiv.org/html/2309.10432v2 (Page-Wesolowski arXiv v2 full text)"
+    - "https://inria.hal.science/hal-04209824v2/document (Page-Wesolowski PUBLISHED Eurocrypt 2024 numbering: Thm 1.1, Prop 8.4 'Isogeny reduces to EndRing' [GRH-conditional], Thm 8.5 'EndRing reduces to Isogeny' [unconditional])"
+    - "https://yx7.cc/files/p-one-third.py (Panny proof-of-concept, 107 lines, corroborates enumeration semantics)"
+    - "https://bweso.com/papers.php (author publication list; paper links only to ePrint)"
+
+per_item_verdicts:
+
+  - item: 1
+    target: "Lemma 3.2 (count of cyclic-kernel smooth isogenies)"
+    verdict: SOUND
+    justification: >
+      Verified independently of the cited reference [2, Lemma 5.7] (not fetched).
+      The exact number of cyclic subgroups of order x of E(kbar) is
+      I(x) = x * prod_{ell|x}(1 + 1/ell): for x = prod ell_i^{e_i} the cyclic
+      subgroups of order ell^e in (Z/ell^e)^2 number ell^e(1+1/ell), and the
+      count is multiplicative. Then I(x) <= sigma(x) <= x(H_x) <= x(ln x + 1)
+      <= x(log x + 2), so the paper's bound holds with slack. Monotonicity
+      x(log x + 2) <= X(log X + 2) for x <= X is fine, and the sum
+      #L = sum_{x in S(X,B)} I(x) <= Psi(X,B) * X(log X + 2) follows trivially.
+      The reference [2, Lemma 5.7] was not independently fetched (citation
+      unverified), but the mathematical claim is correct and, in fact, loose.
+
+  - item: 2
+    target: "Lemma 3.3 (cost of Algorithm 1 / Algorithm 2)"
+    verdict: GAP
+    justification: >
+      The cost model is correct up to two presentation defects and one hidden
+      factor. (a) PRESENTATION BUG: Algorithm 1 as literally written returns the
+      empty list - it initialises L to the empty set and only ever extends
+      entries already in L; it never seeds L with the identity isogeny.
+      Panny's implementation (fetched this session) confirms the intended
+      semantics: the enumeration seeds with the length-0 chain [j(E)]. Trivially
+      fixable, but as written the algorithm produces nothing and Lemma 3.4's
+      hypothesis cannot be met. (b) The non-backtracking / cyclicity condition
+      ker(eta) not subset ker(psi-hat) is EXACTLY right: for deg(psi) = m with
+      ell | m, ker(psi-hat) is cyclic and has a unique order-ell subgroup, equal
+      to psi(E[ell]); ker(eta o psi) contains E[ell] iff ker(eta) equals that
+      subgroup; for ell not dividing m no exclusion arises. This also subsumes
+      ordinary backtracking (dual of the last step). Corroborated by Panny's
+      count() function: num = l + (l != last_prime). (c) Root computation count:
+      at most one Phi_ell instantiation + root-finding per (entry, prime) pair,
+      i.e. <= #L * pi(B) computations of cost (B + log p)^{O(1)} each; total
+      <= Psi(X,B) * X^{1+o(1)} * B^{O(1)} * (log p)^{O(1)}. The final scan and
+      hash lookups are O(#L * polylog), dominated as claimed. (d) HIDDEN FACTOR:
+      the stated bound writes B^{O(1)} where the proof gives (B + log p)^{O(1)};
+      B^{O(1)} only absorbs (log p)^{O(1)} once B = e^{(1/3)sqrt(log p)} (as in
+      Thm 1.1), not for arbitrary B. Minor sloppiness, asymptotically harmless
+      at the final parameter choice. Also: hash-table CONSTRUCTION cost O(#L)
+      is not mentioned but is dominated. The O(1) exponent in the modular
+      polynomial step is honestly flagged as uninvestigated in the paper's own
+      footnote.
+
+  - item: 3
+    target: "Lemma 3.4 (correctness of Algorithm 2)"
+    verdict: SOUND
+    justification: >
+      (a) Minimality implies cyclic kernel: if ker(phi) were non-cyclic then
+      E[ell] subset ker(phi) for some prime ell, so phi = phi' o [ell] with
+      phi' : E -> E^{(p)} of degree deg(phi)/ell^2 < deg(phi), contradicting
+      minimality. Correct (standard). (b) The balancing: k maximal with
+      prod_{i<=k} ell_i <= X gives deg(psi) * ell_{k+1} > X, hence
+      deg(eta) = deg(phi)/deg(psi) <= ell_{k+1} (p/2)^{1/3} / X
+      <= B (p/2)^{1/3} / (B^{1/2} (p/2)^{1/6}) = X. Arithmetic rechecked
+      exactly; correct, and X^2 = B (p/2)^{1/3} is precisely the minimal
+      choice making both sides <= X (consistent with the acknowledgement of
+      Basso's tighter X). (c) chi = eta-hat^{(p)}: eta : E' -> E^{(p)},
+      eta-hat : E^{(p)} -> E', twisting by Frobenius gives chi : E^{(p^2)} -> E'^{(p)}
+      with E^{(p^2)} = E since E is over F_{p^2}; deg(chi) = deg(eta) is
+      B-smooth, <= X, and chi has cyclic kernel (quotients of cyclic groups are
+      cyclic; duality and Frobenius twist preserve cyclicity - the paper
+      compresses the dual/twist steps but the implication holds). So
+      chi in L(E, X, B) with codomain E'^{(p)}, and the keyed lookup succeeds.
+      (d) The returned map chi-hat^{(p)} o psi has codomain E^{(p)} (domain of
+      chi-hat^{(p)} is E'^{(p^2)} = E', codomain E^{(p)}), and is separable
+      because its degree divides a B-smooth integer with B < p (the Require
+      clause), hence is coprime to p. The paper does not spell out the
+      separability argument but B < p makes it immediate. Any matching pair -
+      not just the one from the proof's phi - yields a valid separable isogeny
+      E -> E^{(p)}, so returning the first match is correct.
+
+  - item: 4
+    target: "Lemma 3.5 + Remark 1 (probability accounting)"
+    verdict: SOUND
+    justification: >
+      The conditioning on 'smallest isogeny' is handled correctly precisely
+      because Heuristic 1 is formulated directly about the degree of the
+      smallest isogeny E -> E^{(p)}; Lemma 3.5 is then a one-line application
+      (success event contains the event 'smallest isogeny is B-smooth', whose
+      probability the heuristic lower-bounds). No hidden conditioning step.
+      The minimum-degree isogeny is well-defined even with ties (the event
+      concerns the degree). Remark 1 correctly observes the estimate is
+      one-sided: Lemma 3.4's proof only needs SOME cyclic-kernel B-smooth
+      isogeny of degree <= (p/2)^{1/3} (the balancing bound requires
+      deg <= X^2/B = (p/2)^{1/3}), and multiples [m] o phi' of a small smooth
+      phi' provide additional non-cyclic representatives; the paper correctly
+      absorbs this into the o(1). No error found.
+
+  - item: 5
+    target: "Theorem 1.1 proof (asymptotics, mixing, non-scalar argument)"
+    verdict: SOUND-WITH-PROVENANCE-CAVEAT
+    caveat: >
+      The cost computation completing the proof lies in the missing tail
+      (lines 201-350). All quantities below are RECOMPUTED INDEPENDENTLY from
+      parameters stated in lines 1-200; the recomputation confirms the claim
+      p^{1/3+o(1)}, but the tail text itself was not verified as written.
+    justification: >
+      Recomputation (see review_notes.md for full detail): with
+      B = e^{(1/3)sqrt(log(p/2))}, L := sqrt(log(p/2)): log B = L/3;
+      u = log(p/2)/(3 log B) = L = sqrt(log(p/2));
+      log X = (1/2) log B + (1/6) log(p/2) = L^2/6 + L/6;
+      u_X = log X / log B = L/2 + o term = u/2 (asymptotically).
+      P0 = u^{-u(1+o(1))} = e^{-O(sqrt(log p) log log p)} = p^{-o(1)};
+      w = 1/P0 = u^{u(1+o(1))} = p^{o(1)}.
+      Psi(X,B) = X u_X^{-u_X(1+o(1))} = X * p^{o(1)}-factor.
+      Per-attempt cost T = Psi(X,B) * X^{1+o(1)} * B^{O(1)}
+      = X^2 * u_X^{-u_X(1+o(1))} * X^{o(1)} * B^{O(1)}
+      = B (p/2)^{1/3} * p^{o(1)} = p^{1/3 + o(1)}.
+      Total expected time = w * T = p^{o(1)} * p^{1/3+o(1)} = p^{1/3+o(1)}. OK.
+      Memory = table size #L <= Psi * X^{1+o(1)} = p^{1/3+o(1)} entries of
+      polynomial size. OK. Mixing: n = O(log p) for statistical closeness of the
+      endpoint of a random walk in the (Ramanujan) supersingular ell-isogeny
+      graph is the standard Pizer-type bound; citations [37] and [6, Lemma 14]
+      not independently fetched but the claim is standard and its cost
+      (w * n * polylog) is p^{o(1)}, absorbed. Non-scalar argument: phi o phi_Frob
+      has inseparable degree p^1; a scalar [m] = [p^a m'] (p not dividing m')
+      has inseparable degree p^{2a}, an even power of p, i.e. a square; p^1 is
+      not a square, so the composition is non-scalar. Correct. Pullback through
+      the random-walk isogeny preserves non-scalarity (if omega-hat alpha omega
+      were [m] then alpha would be [m/deg omega]). Las Vegas structure
+      (repeat-until-success with verified output) is consistent with the claim.
+
+  - item: 6
+    target: "Corollary 1.2 (reductions via [35, Thm 1, Prop 8.5])"
+    verdict: GAP
+    justification: >
+      [35] is Page-Wesolowski, Eurocrypt 2024. I fetched the published version
+      (HAL hal-04209824v2) this session. Its main theorem (published numbering
+      Theorem 1.1; arXiv v2 Theorem 1.1 with body reduction Theorem 7.1/7.2):
+      EndRing and OneEnd are equivalent under probabilistic polynomial-time
+      reductions - this supports the EndRing half of Corollary 1.2, with
+      polynomial (hence exponent-absorbing) overhead in time AND memory.
+      However, the isogeny half cites '[35, Proposition 8.5]', and NO
+      Proposition 8.5 exists in the published version. The result with the
+      needed direction is Proposition 8.4 ('Isogeny reduces to EndRing'), which
+      is explicitly stated UNDER THE GENERALISED RIEMANN HYPOTHESIS ('Assuming
+      the generalised Riemann hypothesis, the problem Isogeny_lambda reduces to
+      EndRing...'); published Theorem 8.5 is the converse direction (EndRing
+      reduces to Isogeny, unconditional) and is not what is needed here.
+      Consequences: (i) the citation is misnumbered (8.5 vs 8.4);
+      (ii) as written, the citation imports a GRH assumption that Corollary 1.2
+      does not state - the unconditional Las Vegas p^{1/3+o(1)} claim for the
+      isogeny problem is not supported by [35] alone. The claim IS true in 2026
+      via the unconditional equivalency network of [33] (Le Merdy-Wesolowski,
+      'Unconditional foundations...', arXiv:2502.17010, cited elsewhere in the
+      frozen text, line 127), whose reductions are polynomial-time and
+      polynomial-memory, so memory p^{1/3+o(1)} is preserved; but Corollary 1.2
+      as written should either cite [33] for Isogeny <= EndRing or state GRH.
+      Severity: correctness of the claim is salvageable; citation support as
+      written is defective.
+
+  - item: 7
+    target: "Section 4.1 estimation methodology"
+    verdict: UNVERIFIABLE-AS-WRITTEN
+    justification: >
+      Section 4.1 lies entirely in the missing tail (lines 201-350); the exact
+      claims could not be read. Methodological assessment of the claims as posed
+      in the task brief: (a) 'number of degree-d isogenies is at least d' is
+      TRUE for the cyclic-kernel count: I(d) = d prod_{ell|d}(1+1/ell) >= d.
+      (b) M = Psi(X,B) * X as a LOWER bound on #L = sum_{d in S(X,B)} I(d) is
+      NOT rigorous: it requires sum_{d in S} d >= X * Psi(X,B), i.e. average
+      smooth d >= X, which is false; in the paper's regime (u_X -> infinity)
+      one computes Psi(X/2,B)/Psi(X,B) -> 1/2, so sum_{d in S} d >=
+      (X/2)(Psi - Psi(X/2)) ~ Psi X / 4, and M overestimates a rigorous lower
+      bound by a constant factor (roughly 2-4x). As an order-of-magnitude
+      memory estimate it is acceptable, and the frozen introduction explicitly
+      hedges Section 4.1 as 'tentative' and 'optimistic' (line 43), but
+      'lower bound' is the wrong word. (c) Optimizing B for best time while M
+      and P0 both depend on B is legitimate parameter estimation (minimize
+      w(B) * T(B) subject to the CEP uniformity range and B < p), standard
+      practice; it does not contaminate the asymptotic proof as long as the
+      chosen optimum keeps u inside ((log p)^eps, (log p)^{1-eps}).
+
+  - item: 8
+    target: "Heuristic 1 statement and CEP uniformity range"
+    verdict: SOUND-WITH-CAVEATS
+    justification: >
+      Quantifiers: for uniformly random supersingular E/F_{p^2}, the degree of
+      the smallest isogeny to E^{(p)} is B-smooth with probability
+      >= u^{-u(1+o(1))}, u = log(p/2)/(3 log B), uniformly as p -> infinity in
+      (log p)^eps < u < (log p)^{1-eps}. RANGE CHECK (the classic break point):
+      the paper's choice B = e^{(1/3)sqrt(log(p/2))} yields u = sqrt(log(p/2))
+      = (log p)^{1/2}(1+o(1)), which satisfies the range for any eps < 1/2 -
+      comfortably INSIDE the Canfield-Erdos-Pomerance uniformity range of
+      Theorem 1.4; no range violation. The second application of Theorem 1.4
+      (cost analysis at X = B^{1/2}(p/2)^{1/6}) uses u_X = u/2, also inside the
+      range relative to log X. Caveats (inherent, acknowledged by the paper):
+      (i) the heuristic models the degree of the SMALLEST isogeny - a
+      minimum-over-many-objects statistic, not a uniform integer - by a uniform
+      integer of size (p/2)^{1/3}; this is the content of the assumption and is
+      labelled as such; (ii) Theorem 1.5 is a worst-case upper bound on the
+      degree, so if typical smallest degrees are smaller the true smoothness
+      probability is larger - the heuristic is directionally conservative;
+      (iii) the o(1) uniformity is inherited from CEP. No error in the
+      statement or its use; the assumption itself remains unproven by design.
+
+overall_verdict: >
+  CORE MATHEMATICS SOUND (conditional on Heuristic 1 and on the cited external
+  Theorem 1.5); PRESENTATION-LEVEL GAPS FOUND. Lemmas 3.2, 3.4, 3.5 verified in
+  full and correct. Theorem 1.1's asymptotics independently recomputed and
+  confirmed: p^{1/3+o(1)} time and memory. Two material defects: (1) Algorithm 1
+  as written never seeds its list and returns empty (presentation bug; intended
+  semantics confirmed against Panny's implementation); (2) Corollary 1.2 cites
+  '[35, Proposition 8.5]', which does not exist in the published Page-Wesolowski
+  paper - the intended result (Proposition 8.4, 'Isogeny reduces to EndRing')
+  is GRH-conditional, so the unconditional Las Vegas claim for the isogeny
+  problem needs citation [33] or a GRH disclaimer. Minor issues: B^{O(1)} vs
+  (B + log p)^{O(1)} sloppiness in Lemma 3.3; Section 4.1's 'M = Psi(X,B) X is
+  a lower bound' is off by a constant factor and only heuristically hedged;
+  several unjustified practical claims (see below). The claimed result is a
+  heuristic conditional advance, not a break; the paper's own hedging
+  (superpolynomial o(1) overhead, high memory) is accurate.
+
+gaps_and_hidden_assumptions:
+  - id: GAP-1
+    severity: blocker-for-reproduction-of-pseudocode
+    text: "Algorithm 1 initialises L to the empty set and never seeds it with the identity isogeny; as literally written the loops never execute and the algorithm returns the empty list. Intended semantics (seed with id_E / length-0 chain) confirmed via Panny's implementation fetched this session."
+  - id: GAP-2
+    severity: moderate
+    text: "Corollary 1.2 citation '[35, Proposition 8.5]' is misnumbered (published PW24 has Proposition 8.4 'Isogeny reduces to EndRing', Theorem 8.5 'EndRing reduces to Isogeny') and, worse, Proposition 8.4 assumes GRH; the unconditional Las Vegas isogeny claim requires [33] (cited elsewhere in the paper) or a GRH disclaimer."
+  - id: GAP-3
+    severity: minor
+    text: "Lemma 3.3 writes B^{O(1)} where the proof yields (B + log p)^{O(1)}; the absorption is only valid at the final choice B = e^{(1/3)sqrt(log p)}."
+  - id: GAP-4
+    severity: minor
+    text: "Cost of converting the final path-represented isogeny to an efficient representation (Velu per step + interpolation) is mentioned in Algorithm 2's note but never costed; it is polynomial in B and log p (p^{o(1)}), so asymptotically harmless, but unjustified in the text."
+  - id: GAP-5
+    severity: minor
+    text: "Hash-table construction cost O(#L) is not accounted; dominated by list construction, but unstated."
+  - id: GAP-6
+    severity: moderate
+    text: "'The algorithm parallelizes perfectly' (line 39) is asserted without justification; independent attempts parallelize, but EACH parallel instance requires the full p^{1/3+o(1)} memory - memory, not time, is the binding constraint, and perfect parallelization does not commute with the van Oorschot-Wiener tradeoff described in the same paragraph."
+  - id: GAP-7
+    severity: load-bearing-unverified-citation
+    text: "Theorem 1.5 ([4]: existence of an isogeny E -> E^{(p)} of degree <= (p/2)^{1/3}) is the crux external input - the 1/3 exponent comes directly from it. The bibliography (lines 201-350) was unavailable and [4] could not be identified or verified this session. The entire result inherits the correctness of [4]."
+  - id: GAP-8
+    severity: minor-unverified-citations
+    text: "[2, Lemma 5.7] (I(x) bound), [6, Lemma 14] / [37] (mixing n = O(log p)), [10] (CEP), [27, Section 25.2] (modular polynomial roots) not independently fetched; [10] is standard CEP and the I(x) bound was re-derived independently; mixing claim is standard (Pizer/Ramanujan)."
+  - id: GAP-9
+    severity: minor
+    text: "Section 4.1 (as posed in the brief): M = Psi(X,B)*X as a LOWER bound on table size overestimates by a constant factor (sum_{d in S(X,B)} d ~ Psi X / const); acceptable as heuristic estimate, mislabeled as lower bound."
+  - id: GAP-10
+    severity: provenance
+    text: "Frozen input file disappeared mid-review (see provenance_incident). Tail items (rest of Thm 1.1 text, Section 4 experiments, Section 4.1, bibliography) could not be verified as written. Coordinator should restore the frozen input and, if the tail contains material not covered by my independent recomputation, re-run a scoped review of lines 201-350."
+
+recommendation: >
+  The Coordinator may treat the core claim (Thm 1.1 conditional on Heuristic 1
+  and [4]) as REVIEWED-SOUND at the level of mathematical structure and
+  asymptotics, with GAP-1 and GAP-2 recorded as required corrections to the
+  paper record, GAP-7 flagged as a load-bearing unverified external dependency,
+  and the tail section scheduled for a scoped re-review once the frozen input
+  is restored.
+
+artifacts:
+  - coordination/tasks/TASK-20260724-P13-REV/review_report.yaml
+  - coordination/tasks/TASK-20260724-P13-REV/review_notes.md
+  - coordination/tasks/TASK-20260724-P13-REV/fetched_eprint_2026-1486.pdf (NOTE: Cloudflare challenge HTML, NOT the paper - retained as evidence of fetch attempt)
+
+timestamp: "2026-07-24T17:31:12-07:00"

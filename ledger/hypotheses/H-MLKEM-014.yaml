@@ -1,0 +1,124 @@
+hypothesis:
+  id: H-MLKEM-014
+  question_id: RQ-MLKEM-003
+  goal_id: GOAL-MLKEM-003
+  proposal_id: IDEA-20260731-001
+  title: >-
+    Under pinned MATZOV costing, Kyber dual_hybrid does not beat primal_bdd,
+    and published dual headlines undercut the estimator
+  statement: >-
+    For Kyber-512/768/1024 as modeled by lattice-estimator schemes.Kyber*,
+    under the pinned RC.MATZOV reduction-cost model: (1) dual_hybrid with
+    fft=True does not achieve a lower log2(rop) than primal_bdd on any of the
+    three sets; (2) the Carrier (KN-LIT-7617) and MATZOV-2022 (KN-LIT-110)
+    claimed dual attack costs are at least 4 bits below that dual_hybrid+fft
+    estimate on at least two of the three sets; (3) primal_bdd under MATZOV
+    nonetheless has log2(rop) strictly below the NIST classical cutoffs
+    143/207/272 on all three sets; and (4) primal_usvp under RC.ADPS16
+    reproduces the pq-crystals Kyber.py classical core-SVP column within
+    1.5 bits on every set. Observation of dual beating primal_bdd under
+    MATZOV, or of published dual claims matching the estimator within 2 bits
+    on all sets, or of primal_bdd meeting/exceeding NIST on any set, or of
+    ADPS16/Kyber.py disagreement beyond 1.5 bits, falsifies the corresponding
+    conjunct.
+  mechanism: >-
+    Dual-attack headlines after 2021 combined algorithmic changes with sieve
+    re-costing. Ducas–Pulles (KN-LIT-111) contested independence heuristics;
+    Carrier et al. (KN-LIT-7617) claim a coding-theoretic repair that again
+    puts Kyber below NIST cutoffs. A matched, named-cost-model recompute with
+    the public MATZOV dual in lattice-estimator separates three questions:
+    whether dual beats primal under that instrument, whether published dual
+    numbers match the instrument, and whether the MATZOV gate-count revision
+    alone already pressures NIST cutoffs via the primal. The official
+    ADPS16/core-SVP script is the control that the estimator is wired to the
+    same Kyber parameters as the submission.
+  assumptions:
+    - Primary Kyber parameters are those of KN-LIT-7618.
+    - NIST classical cutoffs in this comparison are 143/207/272.
+    - Carrier abstract shortfalls 3.5/11.9/12.3 bits are the claimed dual costs.
+    - MATZOV-2022 Table 1 dual costs are 137.5/193.5/257.8.
+    - lattice-estimator commit 3e48ef421ec256afddb3e7d2249a77eab6e9ba12 is the instrument.
+    - Module-LWE→LWE modeling follows schemes.Kyber* (k·256 dimensional LWE).
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        For the Kyber LWE parameters used here, the lattice-estimator cost
+        formulas for primal_bdd and dual_hybrid under RC.MATZOV are monotone
+        in the intended security ordering: lower reported log2(rop) means a
+        cheaper attack in that named model, and cross-attack comparisons
+        within one red_cost_model are meaningful.
+      random_model_justification: >-
+        This is a modeling convention of the estimator, not a randomness
+        heuristic about lattices; it is listed so that any later change of
+        cost-model semantics is an explicit supersession rather than a silent
+        reinterpretation of EV-MLKEM-015.
+      supporting_results:
+        - lattice-estimator documentation and RC.MATZOV docstring citing MATZOV22
+        - KN-TECH-040 cost-model-as-claim discipline
+      validation_experiment_ids: [EXP-MLKEM-015]
+      falsification_condition: >-
+        Documented estimator semantics show that dual_hybrid and primal_bdd
+        log2(rop) under the same RC.MATZOV object are not commensurate.
+  structural_ingredients:
+    - description: MATZOV dual hybrid / FFT distinguisher as implemented in estimator.lwe_dual
+      citation: KN-LIT-110; lattice-estimator lwe_dual.matzov
+      role: dual_attack_instrument
+    - description: MATZOV sieve gate-count revision
+      citation: KN-LIT-110; estimator.reduction.MATZOV
+      role: cost_model
+    - description: Kyber Round-3 parameters and official security-estimates scripts
+      citation: KN-LIT-7618; pq-crystals/security-estimates
+      role: baseline_control
+    - description: Carrier coding-theoretic dual claim (comparison target, not reimplemented)
+      citation: KN-LIT-7617
+      role: published_claim_target
+  reduction_chain:
+    core_problem: concrete LWE cost estimation for Kyber parameters
+    corollaries:
+      - problem: ML-KEM / FIPS 203 category margin under named cost models
+        reduction_ref: KN-LIT-7618 parameter correspondence; not a security proof
+        asymptotics_preserved: null
+  predictions:
+    - metric: dual_fft_MATZOV_minus_primal_bdd_MATZOV
+      direction: higher
+      minimum_effect: "≥ 0 on all three Kyber sets"
+    - metric: carrier_claimed_minus_dual_fft_MATZOV
+      direction: lower
+      minimum_effect: "≤ -4 bits on ≥2 sets"
+    - metric: NIST_minus_primal_bdd_MATZOV
+      direction: higher
+      minimum_effect: "> 0 on all three sets"
+    - metric: abs_ADPS16_primal_minus_Kyber_py
+      direction: lower
+      minimum_effect: "≤ 1.5 bits on all three sets"
+  test_boundary:
+    instances: [Kyber512, Kyber768, Kyber1024]
+    parameters:
+      q: 3329
+      modeling: schemes.Kyber* LWE
+      cost_models: [RC.MATZOV, RC.ADPS16, RC.GJ21]
+    implementation: experiments/EXP-MLKEM-015
+    budget:
+      wall_clock_seconds: 1200
+      maximum_runs: 3
+  falsification_conditions:
+    - dual_hybrid+fft < primal_bdd under MATZOV on any Kyber set by ≥0.5 bits
+    - Carrier dual claims within 2 bits of dual_hybrid+fft on all three sets
+    - primal_bdd_MATZOV ≥ NIST cutoff on any set
+    - "|ADPS16 primal − Kyber.py classical| > 1.5 on any set"
+  interpretation_limits:
+    - Estimates are not breaks; no key-recovery certificate applies.
+    - >-
+      Does not validate or refute Carrier polar-decoding heuristics — only the
+      numerical gap to the public MATZOV dual instrument.
+    - >-
+      Toy/medium claim_tier: concrete-cost table under named models, not
+      crypto-scale cryptanalysis.
+  status: analyzed
+  proposed_by: coordinator
+  approved_by: coordinator
+  approved_at: '2026-07-31'
+  analyzed_at: '2026-07-31'
+  evidence_ids: [EV-MLKEM-015]
+  decision_ids: [DEC-20260731-007]

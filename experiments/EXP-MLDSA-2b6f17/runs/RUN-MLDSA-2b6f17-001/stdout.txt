@@ -1,0 +1,162 @@
+EXP-MLDSA-2b6f17 RUN-MLDSA-2b6f17-001
+Corpus Analysis: Jendral Nonce-Erasure Coverage Gap
+Executor: TASK-20260805-9aed15 (BATCH-214d98, GOAL-MLDSA-001)
+Model: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+Policy: executor-implementation
+Timestamp: 2026-08-05
+Canonical corrections applied: Jendral year=2024, success_prob=0.582 (DEC-20260805-0d59ff)
+
+=== STEP 1: KN-LIT-056 Hedged Mode Security Claim ===
+
+Attempted access: https://tches.iacr.org/index.php/TCHES/article/view/839
+Status: Abstract obtained from TCHES page (DC.Description meta tag). Full text not obtained.
+
+Abstract text (from TCHES page):
+  "In this paper, we present the lattice-based signature scheme Dilithium, which is a
+  component of the CRYSTALS (Cryptographic Suite for Algebraic Lattices) suite that was
+  submitted to NIST's call for post-quantum cryptographic standards. The design of the
+  scheme avoids all uses of discrete Gaussian sampling and is easily implementable in
+  constant-time. For the same security levels, our scheme has a public key that is 2.5X
+  smaller than the previously most efficient lattice-based schemes that did not use
+  Gaussians, while having essentially the same signature size. In addition to the new
+  design, we significantly improve the running time of the main component of many
+  lattice-based constructions – the number theoretic transform. Our AVX2-based
+  implementation results in a speed-up of roughly a factor of 2 over the previously best
+  algorithms that appear in the literature."
+
+Hedged mode mentioned in abstract: NO
+Hedged-mode security claim type: INDETERMINATE FROM AVAILABLE ABSTRACT
+  — The hedged signing mode and its security claim are in the paper body.
+  — Cannot determine from abstract whether hedged-mode security is a formal theorem
+    with reduction or an informal design argument.
+
+=== STEP 2: KN-LIT-3907 Signing Mode Coverage ===
+
+Attempted access: downloads/140850158.pdf — NOT FOUND ON DISK
+Attempted ePrint 2023/916 — WRONG PAPER (payment channels)
+Result: ACCESS BLOCKED
+
+From KN-LIT-3907 entry (abstract/key claims only):
+  Title: "Fixing and Mechanizing the Security Proof of Fiat-Shamir with Aborts and Dilithium"
+  Key claims: CMA-to-NMA proof gap fixed in ROM and QROM; mechanized ROM proof for
+  CMA-security of Dilithium.
+
+Assessment from abstract:
+  - KN-LIT-3907 is a CMA security proof for Dilithium.
+  - Whether it covers deterministic vs. hedged mode: NOT STATED in abstract.
+  - Whether nonce-erasure adversaries are in scope: NOT STATED in abstract.
+  - Standard CMA games use fault-free signing oracles; physical fault adversaries
+    (voltage glitching) are typically outside mathematical CMA models.
+
+STATUS: access_blocked; signing mode coverage: indeterminate from abstract alone
+CTRL-1 check: indeterminate (cannot confirm deterministic mode is in scope from abstract)
+NOTE: Indeterminate ≠ failing CTRL-1. Abstract does not EXCLUDE deterministic mode.
+
+=== STEP 3: KN-LIT-8ce0b5 Seed-Derivation Coverage ===
+
+Accessed: https://eprint.iacr.org/2026/1188 (HTTP 200)
+Abstract (see EXP-MLDSA-a8d531 stdout.txt for full abstract text)
+Stated scope: "twiddle-perturbation faults on the forward NTT"
+Seed derivation (rho' = H(xi || M || rnd)) mentioned: NO
+
+Assessment:
+  The hedged ML-DSA seed derivation computes rho' = H(xi || M || rnd) using a hash
+  function (e.g., SHAKE-256). This is a hash computation. The NTT in ML-DSA operates on
+  polynomials (commitment, masking, etc.) — NOT on the seed derivation step. The seed
+  derivation is NTT-independent.
+  Jendral attack faults the seed derivation step. This is a hash computation step.
+  KN-LIT-8ce0b5's scope is NTT twiddle faults.
+  RESULT: outside_scope_by_omission
+
+=== STEP 4: KN-LIT-4f3b80 Attack Mechanism ===
+
+Accessed: https://eprint.iacr.org/2024/238 (HTTP 200)
+Canonical year: 2024; Canonical success probability: 0.582 (per DEC-20260805-0d59ff)
+
+Abstract text:
+  "CRYSTALS-Dilithium is a post-quantum secure digital signature algorithm currently
+  being standardised by NIST. As a result, devices making use of CRYSTALS-Dilithium will
+  soon become generally available and be deployed in various environments. It is thus
+  important to assess the resistance of CRYSTALS-Dilithum implementations to physical
+  attacks.
+
+  In this paper, we present an attack on a CRYSTALS-Dilithium implementation in hedged
+  mode in ARM Cortex-M4 using fault injection. Voltage glitching is performed to skip
+  computation of a seed during the generation of the signature. We identified settings
+  that consistently skip the desired function without crashing the device. After the
+  successful fault injection, the resulting signature allows for the extraction of the
+  secret key vector. Our attack succeeds with probability 0.582 in a single trace.
+
+  We also propose countermeasures against the presented attack."
+
+Key observations:
+  - Attack targets: HEDGED MODE specifically (not deterministic mode)
+  - Fault mechanism: voltage glitch skips computation of a seed (rnd in rho' = H(xi||M||rnd))
+  - Effect: resulting faulty signature exposes y (commitment masking vector),
+    enabling z - y = c * s_1 extraction of s_1
+  - Implementation: ARM Cortex-M4 (implementation-level, not scheme-level proof gap)
+  - Success probability: 0.582 (canonical per DEC-20260805-0d59ff; hardware fault rate)
+
+=== STEP 5: PLACEMENT ===
+
+Jendral nonce-erasure vs KN-LIT-056:
+  Verdict: INDETERMINATE FROM AVAILABLE ABSTRACT
+  Reason: Hedged-mode security claim type (formal/informal) requires reading the paper
+  body. Abstract does not address hedged mode.
+
+Jendral nonce-erasure vs KN-LIT-3907:
+  Verdict: ACCESS_BLOCKED; abstract-level indicator: likely_outside_scope
+  Reason: KN-LIT-3907 is a CMA proof. Physical fault injection (voltage glitch) on
+  hedged-mode seed computation is typically outside mathematical CMA adversary models.
+  But hedged-mode coverage and nonce-erasure coverage cannot be confirmed from abstract.
+
+Jendral nonce-erasure vs KN-LIT-8ce0b5:
+  Verdict: OUTSIDE_SCOPE_BY_OMISSION
+  Reason: KN-LIT-8ce0b5 covers NTT twiddle faults. Seed derivation rho' = H(xi||M||rnd)
+  is a hash computation, not NTT arithmetic. Outside scope by omission (confirmed from
+  abstract-level analysis).
+
+=== CTRL-1: DETERMINISTIC MODE CONTROL ===
+
+Check: Is deterministic mode inside KN-LIT-3907's scope?
+Result: INDETERMINATE (access blocked; abstract does not confirm or deny)
+Status: INDETERMINATE, not failed.
+Note: Abstract says "CMA-security of Dilithium" — Dilithium's primary signing mode
+is deterministic; it is reasonable to expect deterministic mode to be covered, but
+this cannot be stated as confirmed.
+
+=== CTRL-2: CORPUS COMPLETENESS CAVEAT ===
+
+This gap assessment is scoped to KN-LIT-3907, KN-LIT-056, and KN-LIT-8ce0b5. Does not
+claim to survey all published formal proofs of hedged ML-DSA signing security.
+
+=== CTRL-3: SCHEME VS IMPLEMENTATION BOUNDARY ===
+
+The Jendral attack's 0.582 success rate is a hardware fault injection success rate on
+Cortex-M4. This is implementation-level (depends on physical device, glitch parameters,
+PCB, power supply). The formal proof coverage question (whether the scheme is provably
+secure against nonce-erasure adversaries) is a separate scheme-level question. A scheme
+could have a formal proof against nonce-erasure adversaries while still being
+implementable insecurely on specific hardware.
+
+=== SUMMARY ===
+
+Coverage status for Jendral nonce-erasure:
+  vs KN-LIT-056: INDETERMINATE FROM AVAILABLE ABSTRACT
+  vs KN-LIT-3907: ACCESS_BLOCKED (abstract-level: likely outside scope)
+  vs KN-LIT-8ce0b5: OUTSIDE_SCOPE_BY_OMISSION (confirmed from abstract)
+
+Overall: indeterminate — no source confirms formal coverage; KN-LIT-8ce0b5 is
+confirmed out of scope for a specific reason; KN-LIT-056 and KN-LIT-3907 require
+full text access for definitive placement.
+
+Preregistered prediction:
+  KN-LIT-056: informal design argument (UNVERIFIABLE from abstract)
+  KN-LIT-3907: NOT explicitly covered (UNVERIFIABLE from abstract)
+  KN-LIT-8ce0b5: NOT covered → CONFIRMED (outside_scope_by_omission)
+
+Protocol deviations:
+  - ePrint 2023/916 for KN-LIT-3907 is wrong paper (specification error)
+  - KN-LIT-056 full text not obtained; hedged-mode security claim type indeterminate
+
+states_a_finding: false

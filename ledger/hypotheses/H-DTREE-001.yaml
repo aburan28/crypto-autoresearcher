@@ -1,0 +1,291 @@
+hypothesis:
+  id: H-DTREE-001
+  question_id: RQ-ECDLP-002
+  source_proposal: IDEA-20260726-005
+  statement: >-
+    For toy prime-field curves at 16, 20, and 24 bits with standard factor
+    base B = ceil(sqrt(N)) and arity m = 3, two claims are decided with
+    measured quantities only. C1 (heuristic validation): the decomposition
+    probability P_dec(m, B') for a uniform random target over a base of
+    size B' has log-slope gamma = d log P_dec / d log B' measured by exact
+    enumeration on 8-12 bit curves in the non-saturated regime; under the
+    generic heuristic HEUR-001 (P_dec ~ (B'/N)^(m-1)) gamma = m-1 = 2,
+    while birthday counting (P_dec ~ 1 - exp(-C(B',m)/N)) gives gamma ~ m =
+    3 in the small-lambda regime — the fit separates the two by
+    construction. C2 (cost claim): a depth-2 descent tree — decompose
+    Q + [t]P over an enlarged medium base F_med of size B_med in
+    {2B, 4B, 8B, 16B} with arity m' in {2, 3}, then decompose each of the
+    m' medium-base elements over F with arity m = 3 — achieves per-target
+    cost C_2 = C_solve(m')/P(m', B_med) + m'*C_solve(m)/P(m, B) strictly
+    below 0.8 * C_1, where C_1 = C_solve(m)/P(m, B) is the single-level
+    descent cost measured on the same instances and targets with the same
+    solver and accounting. If C_2 >= C_1 for every tested configuration at
+    every size, the multi-level route is closed at toy scale; if some
+    configuration wins, the generic-heuristic control (C_2 predicted from
+    HEUR-001) decides whether the advantage is generic-equivalent or a
+    non-generic signal.
+  mechanism: >-
+    Standard prime-field index calculus (KN-TECH-003) decomposes each
+    target directly over F by solving S_{m+1} = 0, at expected cost
+    C_1 = C_solve(m)/P(m, B) where C_solve grows with the Semaev degree
+    2^(m-2) and P is the decomposition probability. The depth-2 tree (the
+    ECDLP analogue of the NFS descent tree and of large-prime variants in
+    extension-field index calculus, KN-LIT-022, KN-LIT-023) inserts a
+    medium base F_med: the first-stage decomposition over F_med is more
+    probable (B_med > B) and, for m' = 2, much cheaper per solve (S_3,
+    degree 2, versus S_4, degree 4), but it converts one hard problem into
+    m' second-stage problems over F, each costing the same
+    C_solve(m)/P(m, B) as a fresh target unless restricting the second-
+    stage target's x-coordinate to the known medium-base set makes the
+    solve measurably cheaper — an empirical effect this experiment measures
+    directly rather than assumes. The medium base is target-independent and
+    its log table is built from the factor-base log table in preprocessing
+    (charged separately, control CTRL-MEDBASE-LOGS); the per-target formula
+    charges the second stage per target as the proposal's minimal test
+    specifies, so a positive C2 outcome requires the first-stage saving to
+    overcome m' second stages — a genuinely two-sided test in which the
+    negative outcome is arithmetically likely and the positive outcome,
+    while narrow, is logically open via the structured-second-stage effect.
+    The slope measurement C1 is independent of the cost claim and decides
+    whether decomposition probability grows fast enough in B' for any
+    enlarged-base variant to have headroom above the generic heuristic.
+  assumptions:
+    - >-
+      P_dec(m, B') and P(m', B_med) are measurable: exactly by enumeration
+      of all C(B', m) tuple sums at 8-12 bits (zero sampling error), and by
+      sampling with Wilson intervals at 16-24 bits; solver timeouts count
+      as failures at full cap cost in the cost accounting (failed-descent
+      control), never dropped.
+    - >-
+      C_solve(k) is measured per arity k on the actual systems (S_3 for
+      k = 2, S_4 for k = 3); whether it depends on the base size B' through
+      the indicator polynomials is measured, not assumed (confounder of the
+      proposal).
+    - >-
+      The medium base is target-independent and the medium-base log table
+      is computable from the factor-base log table by additional
+      decompositions in preprocessing; its construction cost is charged to
+      preprocessing (measured at the smallest B_med, extrapolated by the
+      measured per-element cost with the extrapolation flagged).
+    - >-
+      The multi-level descent does not change the generic lower bound:
+      S*T^2 = Omega~(N) (KN-LIT-013) still applies; the question is whether
+      the descent stage admits a non-generic advantage, not whether the
+      generic bound is beaten.
+    - >-
+      This is a composition of known techniques (Semaev decomposition plus
+      NFS-style descent tree), not a new mechanism; novelty is the
+      prime-field application and the explicit depth-cost tradeoff
+      measurement.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        For a prime-field curve subgroup of order N, factor-base size B',
+        and arity m, with a uniformly random target R in the subgroup
+        (R = a*P + b*Q, a, b uniform independent mod N), the decomposition
+        probability P_dec(m, B') = P(R is a sum of m distinct factor-base
+        elements) satisfies P_dec(m, B') = Theta((B'/N)^(m-1)) in the
+        non-saturated regime (P_dec <= 0.5); at toy scale the tested form
+        is the log-slope statement d log P_dec / d log B' = m - 1,
+        evaluated at m = 3 on 8-12 bit curves by exact enumeration.
+      random_model_justification: >-
+        The (B'/N)^(m-1) form is the standard heuristic carried by
+        point-decomposition index calculus (KN-TECH-003): m-1 of the m
+        summands are treated as free x-coordinates that must each land in
+        the base (probability B'/N each) while the m-th closes the sum. It
+        is imported from the extension-field regime where the factor base
+        is a positive-density structured set; whether the same exponent
+        governs a prime-field x-coordinate base of vanishing density
+        B'/p is exactly what the pre-registered slope check measures.
+        Birthday counting over the C(B', m) tuple sums predicts the
+        competing slope m, so the measurement discriminates.
+      supporting_results:
+        - >-
+          KN-TECH-003: point-decomposition index calculus and its
+          regime-dependent decomposition-probability heuristics (established
+          technique; prime-field regime explicitly open, KN-OPEN-001).
+        - >-
+          KN-LIT-022 (Joux--Vitse): large-prime / decomposition-probability
+          analysis for elliptic curves over small-degree extension fields —
+          the regime where the (B'/N)^(m-1) form is at home.
+      validation_experiment_ids: [EXP-DTREE-001]
+      falsification_condition: >-
+        The exact-enumeration log-slope fit at m = 3 (8-12 bits,
+        non-saturated cells, at least 6 fitted cells) has a 95% confidence
+        interval excluding m - 1 = 2 — in particular if the interval
+        contains m = 3 (birthday counting), the exponent of HEUR-001 is
+        refuted at toy scale and the competing model is recorded.
+  structural_ingredients:
+    - description: >-
+        Point-decomposition index calculus with summation-polynomial
+        decomposition tests; verifiable relation certificates.
+      citation: KN-TECH-003
+      role: supplies the single-level descent being benchmarked
+    - description: >-
+        Large-prime / covering variants of extension-field index calculus —
+        the established analogue of enlarging the decomposition base.
+      citation: KN-LIT-022
+      role: prior-art template for the depth-2 construction
+    - description: >-
+        First-fall-degree and summation-polynomial solving analysis for
+        binary/extension fields; bounds what Groebner-based descent stages
+        can cost.
+      citation: KN-LIT-023
+      role: cost-model context for C_solve(k) scaling with arity
+  predictions:
+    - metric: decomposition_probability_scaling_exponent
+      direction: different
+      minimum_effect: >-
+        Exact-enumeration log-slope gamma of P_dec(m = 3, B') versus B' on
+        8-12 bit curves, fitted over at least 6 non-saturated cells
+        (P_dec <= 0.5, C(B', 3) >= 50): HEUR-001 predicts gamma = 2, the
+        birthday model predicts gamma ~ 3; the 95% CI decides which (if
+        either) contains the truth. This is the pre-registered check of the
+        (B'/N)^(m-1) heuristic at toy scale.
+    - metric: depth2_descent_cost_vs_single_level
+      direction: lower
+      minimum_effect: >-
+        C_2 < 0.8 * C_1 for at least one (B_med, m', m) configuration at
+        the largest tested size, with the bootstrap 95% CI on C_2/C_1
+        entirely below 1.0 and every input (P, C_solve, failures) measured
+        on the same instances. If C_2 >= C_1 for all configurations at all
+        sizes, the depth-2 tree offers no advantage; the 0.8 threshold
+        keeps the decision out of the noise band.
+    - metric: optimal_B_med_vs_B
+      direction: different
+      minimum_effect: >-
+        The B_med minimizing measured C_2 is strictly greater than B for at
+        least one tested size (otherwise depth-2 degenerates to
+        single-level and the medium base provides no benefit).
+  test_boundary:
+    instances:
+      - >-
+        3 toy prime-field curves at 16, 20, 24 bits (seeds {1, 2, 3}
+        mapped one-to-one to sizes), harness/toycurve.py generate_instance;
+        50 shared descent targets per curve, reused by the single-level
+        control, every depth-2 configuration, and the rho baseline.
+      - >-
+        3 tiny curves at 8, 10, 12 bits (seed 1) for the exact-enumeration
+        slope measurement.
+    parameters:
+      factor_base_size: B = ceil(sqrt(N))
+      decomposition_arity: m = 3 (second stage), m' in {2, 3} (first stage)
+      medium_base_grid: B_med in {2B, 4B, 8B, 16B}
+      enumeration_slope_cells: >-
+        all B' >= 8 with C(B', 3) >= 50 and lambda = C(B', 3)/N <= 0.7
+        (non-saturated), grid frozen in RUN-DTREE-001 from exact lambda
+      per_solve_cap_seconds: 20
+      min_validity_prefix: >-
+        at least 10 measured targets in at least 2 depth-2 configurations
+        per size, else that size is resource_exhaustion (recorded, not
+        evidence)
+    implementation: >-
+      harness/toycurve.py, harness/semaev.py (s3/s4 systems and Groebner
+      measurement; implementation-bound proxies per its honesty note),
+      harness/rho.py (matched baseline), harness/runner.py. New glue
+      confined to experiments/EXP-DTREE-001/.
+    budget:
+      wall_clock_seconds_per_run: 1800
+      total_wall_clock_seconds: 12300
+      total_cpu_hours: 3.5
+      maximum_memory_gb: 4
+      maximum_runs: 12
+  falsification_conditions:
+    - >-
+      C2 falsified (route closed at toy scale): C_2 >= C_1 for every
+      tested (B_med, m', m) configuration at every size with measured
+      prefix meeting the validity minimum; or the optimal B_med = B at
+      every size; or the medium-base log-table construction cost exceeds
+      any descent saving in the fully charged comparison.
+    - >-
+      HEUR-001 refuted: the exact-enumeration slope CI excludes m - 1 = 2
+      (the (B'/N)^(m-1) heuristic fails at toy scale — including the case
+      gamma ~ m, i.e., the medium base is LESS effective than the proposal
+      assumed relative to birthday counting, recorded as the competing
+      model's confirmation).
+    - >-
+      Generic-equivalence: measured C_2 matches the HEUR-001-predicted C_2
+      within the pre-registered tolerance on every winning configuration —
+      any depth-2 advantage is then generic-equivalent, not a non-generic
+      signal, and is reported as such.
+    - >-
+      Instrument failure: enumeration arithmetic disagreement on any audit
+      cell (recomputed independently) invalidates the slope measurement;
+      recorded as an integrity failure, not a scientific outcome.
+  interpretation_limits:
+    - >-
+      Toy scale only (16-24 bits for costs, 8-12 bits for the exact slope).
+      A depth-2 advantage or a measured slope at these sizes proves nothing
+      asymptotically; finite-size effects dominate the probability law near
+      saturation, and Groebner costs are implementation-bound (sympy).
+    - >-
+      The slope fit uses at least 6 non-saturated exact cells; with few
+      size points the fit is a toy-scale statement about the exponent, not
+      an asymptotic estimate (confounder of the proposal, recorded).
+    - >-
+      A negative C2 result closes only the tested configurations (B_med
+      grid, m' in {2, 3}, m = 3, B = ceil(sqrt(N)), this solver and caps);
+      other arities, deeper trees, or the preprocessing-amortized log-table
+      variant are separate questions (rule 6), though the measured
+      per-element medium-log cost is reported to inform them.
+    - >-
+      A positive C2 result is a descent-stage measurement, not a
+      breakthrough: it changes no fundamental IC cost structure, and any
+      promotion requires the fully charged comparison (preprocessing plus
+      medium-base logs plus K descents) and independent review.
+  status: inconclusive
+  status_history:
+    - status: approved
+      decision_id: null
+      decided_at: '2026-07-27'
+      note: >-
+        No decision record was ever filed for the original proposed ->
+        approved transition. specification.yaml's own approved_by/
+        approved_at fields are internally consistent and source_proposal
+        IDEA-20260726-005 was independently verified to exist, but no file
+        under ledger/decisions/ cites H-DTREE-001 or EXP-DTREE-001 from
+        before 2026-08-07. This gap was independently discovered and judged
+        non-blocking (unattested, not misattested) in DEC-20260807-5adc24,
+        which minted the missing handoff TASK-20260807-e91a4c rather than
+        pausing the experiment. Recorded here as disclosure, not as a
+        fabricated decision_id, per AGENTS.md rule 9.
+    - status: inconclusive
+      decision_id: DEC-20260809-91d4c7
+      decided_at: '2026-08-09'
+      evidence_ids: [EV-DTREE-b47c19, EV-DTREE-2e8f6a]
+      reason: >-
+        C1 (HEUR-001's exponent): design_infeasible -- the frozen tiny-curve
+        seed (seed 1, 8/10/12 bits) never populates the non-saturated slope
+        grid (0 of 18 tested (curve, B') cells qualify, independently
+        reconfirmed by exact hand recomputation of every lambda value), so
+        no slope, CI, or comparison to gamma=2 or gamma=3 was ever computed.
+        Per AGENTS.md rule 5 this is an instance-generation design defect,
+        not evidence for or against HEUR-001; HEUR-001 remains exactly as
+        untested as before this experiment ran. C2 (depth-2 cost): mixed,
+        and capped below the falsification threshold as literally,
+        validity-qualified-ly written -- the one validity-prefix-qualified
+        size (16-bit) gives an undefined-vs-undefined non-comparison (C1 and
+        C2 both collapse to the identical exact-zero underlying
+        measurement, so there is no finite C1 baseline for C2 to be "worse
+        than"); the one size with a clean, uniformly unfavorable, finite
+        signal (20-bit: 6/8 configurations defined, every one exceeding C1,
+        5/6 bootstrap 95% CIs entirely above 1, lowest lower bound 1.15)
+        explicitly fails the pre-registered validity prefix and is
+        "resource_exhaustion (recorded, not evidence)" under the frozen
+        protocol's own stopping rule, written before any data existed. All
+        three disjuncts of the falsification condition were checked against
+        their exact wording (not a paraphrase) and none is satisfied at a
+        validity-qualified size. No configuration anywhere meets the success
+        criterion (24-bit, the size it names, has no defined C2 at all).
+        Full reasoning in DEC-20260809-91d4c7, EV-DTREE-b47c19, and
+        EV-DTREE-2e8f6a. Neither claim reaches supported, weakened, or
+        rejected; both remain genuinely open pending a protocol amendment
+        (C1: tiny-curve seed policy, via experiments/EXP-DTREE-001/
+        amendments/ or a successor experiment) or a larger-budget,
+        confound-aware re-run (C2: 20-bit/24-bit need either more
+        cumulative Groebner-time budget, a subgroup-restricted factor base
+        to control for the disclosed whole-curve/cofactor confound, or
+        both).
+  proposed_by: coordinator

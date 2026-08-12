@@ -1,0 +1,186 @@
+experiment:
+  id: EXP-AES-966fb3
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-AES-9512e6
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    Review-required contract: the amortization-inversion locus, a
+    working-set sweep of the counted-op-to-measured-second conversion factor
+    kappa(W) for two candidate-filtering implementations
+
+  objective: >-
+    If separately approved, frozen and authorized: build two implementations
+    (X direct, Y fold-then-reuse) of one identical candidate-filtering
+    subproblem, output-check them identical, sweep working-set footprint W
+    across ~22 geometrically spaced points from 4 KB to 8 GB, and measure
+    whether kappa(W) = rho_time(W)/rho_ops(W) inverts sign within the 15 GB
+    envelope, is monotone non-increasing, and spans at least a factor of 4.
+    This contract is an instrument design and a pre-execution declaration.
+    No run has happened.
+
+  what_this_is_not:
+    - Not an attack on AES, not a key recovery, not a certificate of any kind.
+    - Not a claim about full-round or deployed AES under any outcome.
+    - Not a comparison to any published cryptanalysis cost figure.
+    - Not an approval, freezing, execution authorization, run, observation, or evidence.
+
+  claim_ceiling:
+    tier: medium
+    exact_scope_a_run_could_support: >-
+      MEDIUM ONLY, and only as a claim about THIS MACHINE. A completed run
+      could support, at most: (1) whether a working-set point W* exists at
+      which rho_ops(W*) > 1.5 while rho_time(W*) < 1.0; (2) the monotonicity
+      and span of kappa(W) across the sweep; (3) that the effect is unchanged
+      when the AES S-box is replaced by the identity map. NOTHING ELSE. No
+      cryptanalytic claim, no statement about AES's security at any round
+      count.
+
+  inputs:
+    subproblem: "one frozen candidate-filtering subproblem, identical between X and Y, output equality checked (candidate-set equality, as compare6 already does)"
+    implementations:
+      X: "direct table-read implementation"
+      Y: "fold-then-reuse (partial-sum-shaped) reorganised implementation"
+    working_set_sweep_bytes: "~22 geometrically spaced points, 4 KB to 8 GB, varying histogram/table width only"
+    repeats_per_point: 5
+    sibling_control: "AES S-box replaced by the identity map, full sweep repeated"
+    seeds:
+      master_seed: 966fb3001
+      domain: "EXP-AES-966fb3/v1"
+      seed_derivation_rule: >-
+        ASCII bytes of domain || "|" || label || "|" || decimal(W_index) ||
+        "|" || decimal(repeat), hashed SHA-256, digest interpreted big-endian
+        and reduced by rejection sampling. Labels are exactly one of
+        {"X","Y","X-identity","Y-identity"}.
+
+  arms_and_controls:
+    treatment: "rho_ops(W) and rho_time(W) for X vs Y at every sweep point"
+    known_answer_gate_degenerate: "at W <= 24 KB (L1-resident), kappa(W) in [0.9, 1.1] required, or the timer/counter/compiler is broken"
+    known_answer_gate_scheduler: "X=Y (same binary, different argv label), kappa = 1.00 +/- 0.03 at every W, catches a scheduler/thermal artifact"
+    sibling_control: "AES S-box replaced by identity map; the memory-hierarchy effect must be unchanged, or the measurement is picking up something other than access pattern"
+    comparability_policy: "No number here may be compared with any published cost figure; the sweep is entirely self-referential to X and Y on this machine."
+
+  stages_cheapest_first:
+    - id: stage-1-implementation-and-equality-check
+      cost: "~1 hour authoring, zero AES compute"
+      content: "Implement X and Y, verify candidate-set output equality at 3 fixed W points."
+      can_terminate_run: true
+      termination_rule: "Any output mismatch ends the contract here; nothing about timing may be measured until outputs agree."
+    - id: stage-2-degenerate-gates
+      cost: "seconds"
+      content: "L1-resident gate and X=Y scheduler gate."
+      can_terminate_run: true
+      termination_rule: "Either gate failing halts the package; no other W point may be read."
+    - id: stage-3-full-sweep
+      cost: "~3.5 hours single core (charged, not a saving: 4-core scaling is unmeasured and shared L3 would confound the sweep)"
+      content: "22 W points x 5 repeats x 2 arms (plus the identity-map sibling control, doubling the sweep)."
+      can_terminate_run: false
+      termination_rule: "Budget or memory ceiling halts the sweep at the point reached; partial coverage is reported, never estimated."
+
+  metrics:
+    primary:
+      - "rho_ops(W): counted table-reads, X/Y, per W point."
+      - "rho_time(W): measured seconds, X/Y, per W point, median and IQR of 5 repeats."
+      - "kappa(W) = rho_time(W)/rho_ops(W)."
+    secondary:
+      - "peak RSS per W point (getrusage)."
+      - "sibling-control kappa(W) with identity-map S-box."
+
+  heuristic_under_test: HEUR-AES-9512e6-1
+
+  preregistered_prediction:
+    quantity: "existence of W* <= 2^33 bytes with rho_ops(W*) > 1.5 and rho_time(W*) < 1.0; kappa(W) monotonicity and span."
+    formula: >-
+      kappa(W) monotone non-increasing across W in [2^12, 2^33] bytes,
+      spanning at least a factor of 4; kappa(W*) < 1/1.5 for some W* <= 2^33.
+    source: "Derived in H-AES-9512e6 mechanism section from the memory-hierarchy access-pattern argument. No external source cited."
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      A claim about this machine's cost-conversion behavior at a measured
+      working-set range up to 8 GB, inside the 15 GB envelope. Not a claim
+      about AES; zero cipher queries beyond the frozen fold input.
+    correspondence: null
+
+  tail_checks:
+    - "L1-resident degenerate gate (W <= 24 KB): kappa in [0.9, 1.1]."
+    - "X=Y scheduler gate: kappa = 1.00 +/- 0.03 at every W."
+    - "Sibling-control (identity-map S-box) sweep must reproduce the same kappa(W) shape as the AES-S-box sweep."
+
+  replication:
+    seeds: [966fb3001, 966fb3002, 966fb3003, 966fb3004, 966fb3005]
+    independent_instances: 5
+    interpretation: "5 repeats per W point, median and IQR reported; any seed-to-seed variation in rho_ops (a deterministic tally) is an implementation defect, not noise."
+
+  budget:
+    wall_clock_seconds_per_run: 12600
+    total_cpu_hours: 3.5
+    maximum_memory_gb: 8
+    maximum_runs: 1
+    maximum_workers: 1
+    single_core_charged_not_saved: true
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, and authorized under a GOAL-AES-003 batch.
+    - Stop before any timing number is read if the output-equality check at stage 1 fails.
+    - Stop the whole package if either degenerate gate (L1-resident or X=Y) fails.
+    - Stop at the first budget, memory, or wall-clock ceiling and record what was covered rather than truncating silently.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any change to the W sweep, the counting convention, or the decision rule after any number has been observed.
+    - Multi-core execution of the sweep (confounds the memory-hierarchy measurement; single core is charged, not saved).
+    - Comparison of any measured value against a published cost figure.
+
+  success_criterion: >-
+    This contract has no current success outcome because it is not authorized
+    for execution. IF a separately approved, frozen successor is executed,
+    its only positive disposition is: output equality confirmed at stage 1;
+    both degenerate gates pass; kappa(W) is reported at every sweep point
+    with median and IQR; the sibling control reproduces the same shape as
+    the AES-S-box sweep. EITHER a W* is found with rho_ops(W*) > 1.5 and
+    rho_time(W*) < 1.0 (the inversion is established) OR kappa(W) stays in
+    [0.75, 1.33] at every point (the scalar conversion is faithful across
+    the envelope) -- BOTH are positive, informative dispositions; neither is
+    a failure. NEITHER OUTCOME ESTABLISHES ANY CRYPTANALYTIC CLAIM.
+
+  falsification_criterion: >-
+    HEUR-AES-9512e6-1 is falsified by: kappa(W) in [0.75, 1.33] at every one
+    of the 22 sweep points, with IQR small enough to resolve a 25% deviation
+    -- the scalar conversion CM-3(a)-style assumes is faithful across this
+    entire envelope, and the closure IS the deliverable (a measured licence
+    to convert counted operations to seconds with one constant at reduced-
+    round scale). Conversely a single point with rho_ops > 1.5 and
+    rho_time < 1.0 establishes the inversion.
+
+  outcomes:
+    no_execution_authorization: "The only current disposition: a review_required draft. No run, no observation, no evidence."
+    future_complete_readout: "Only after separate approval, freezing, authorization and valid execution under a GOAL-AES-003 batch; medium-tier, machine-specific result only."
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, or missing dependency is INFRASTRUCTURE SIGNAL and is
+      NEVER negative mathematical evidence against H-AES-9512e6 (AGENTS.md
+      rule 5).
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification with a freeze receipt binding its SHA-256.
+    - Raw per-W-point records: (W, arm, repeat, rho_ops, rho_time_seconds, peak_rss_bytes), one JSON object per line.
+    - The output-equality check log, the L1-resident gate log, the X=Y scheduler gate log.
+    - Manifest, environment, exact argv, stdout, stderr, timestamps, THP and turbo state recorded (a confounder if unrecorded).
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the two implementations are a faithful direct-vs-reorganised pair before any compute is authorized.
+    - Independent review confirms the degenerate gates can actually fail.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+    - A GOAL-AES-003 batch exists to host the dispatch, and max_concurrent constraints across all three active AES goals are honored (batch waits rather than runs degraded).
+
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is
+    not approved and only the Coordinator may approve it (AGENTS.md rule 1).

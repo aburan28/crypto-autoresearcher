@@ -1,0 +1,462 @@
+red_team_report:
+  task_id: TASK-20260804-83d874
+  producer_task_id: TASK-20260804-241b87
+  snapshot_commit: b7b3240b4266b85af1e0810831a66aa6e3300535
+  verdict: pass_with_constraints
+  summary: >-
+    FC-4 non-firing at ell ∈ {47,101,151,211} is supported by real modular
+    polynomial computations on real supersingular primes, but five qualifications
+    constrain the scope: toy-scale primes only (p ≤ 2^40), a systematic
+    gap-vs-ell trend that goes untested beyond ell=211, Heuristic 1 completely
+    untested due to NC-3/NC-6 infrastructure failure, margin-row constant k
+    unverified from paper bodies, and alpha=1.13 deviating systematically from the
+    theoretical prediction of 1.0 in a way that has not been extrapolated to
+    cryptographic scale.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >-
+      Single available backend; running under OpenCode with model inherit.
+      review-adversarial policy requires xhigh reasoning; served by
+      claude-sonnet-4-6 under INFAMEND-20260802-P13-002.
+    independent_session: true
+    model_verified: false
+    model_verified_reason: >-
+      Model identifier is from configuration, not probe-verified.
+      Probe not available in this runtime.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # OBJ-1: Were Phi_ell evaluations real or simulated?
+  # ─────────────────────────────────────────────────────────────────────────────
+  obj_1_phi_evaluation:
+    question: >-
+      Did the executor actually measure Phi_ell evaluation cost at real
+      supersingular primes with real polynomial arithmetic, or were costs
+      simulated/synthetic?
+    finding: real_computations_at_toy_scale
+    supporting_evidence:
+      - >-
+        C-PHI-VERIFY PASS: all four Phi_ell files (ell ∈ {47,101,151,211})
+        SHA-256 verified against committed hashes from RUN-PEC-49c773-a.
+        Files fetched from canonical MIT URL (https://math.mit.edu/~drew/modpolys/
+        jfiles/phi_j_*.txt) and bit-for-bit identical to originals used in the
+        prior run. No simulation, no synthetic polynomial.
+      - >-
+        C-BASE-1 PASS for p1 (1048571) and p2 (1073741783): Miller-Rabin
+        primality (first 20 prime bases), p ≡ 3 (mod 4), j(E_0)=1728,
+        and (p+1)P = ∞ for three independently chosen random points P.
+        These are genuine supersingular primes. C-BASE-2 confirms Phi_ell
+        (ell ∈ {2,47,101,151,211}) parses and reduces mod p correctly.
+      - >-
+        nc2d_cpscale.py calls PE.parse_modpoly, PE.reduce_modpoly, PE.measure_primary,
+        PE.measure_null — real polynomial-GCD and poly_powmod operations via the
+        committed per_entry_cost.py instrument (SHA-256 match confirmed). The
+        39 s wall-clock time for 32 primary + 32 null samples is consistent with
+        actual computation, not a lookup table.
+      - >-
+        mults_rootfind values (e.g., 503812–505516 for ell=47 at p1) are
+        consistent with the expected O(ell * log p) poly_powmod loop count at
+        p ≈ 2^20, confirming the measurement reflects the actual algorithm.
+    caveat: >-
+      The primes are p1=2^20, p2=2^30, p3=2^40. These are toy/medium scale.
+      AGENTS.md rule 7 applies. The specification's own non-claim confirms:
+      "Measurement is at p ~ 2^40 with Phi_ell reduced mod that prime;
+      AGENTS.md rule 7 applies." The FC-4 non-firing verdict is real but
+      scoped to this prime range only.
+    context_prompt_assessment: >-
+      The context prompt's suspicion that "the executor used a simulated/synthetic
+      C-PSCALE" is CONTRADICTED by the artifacts. No simulation was used.
+      The concern was legitimate to raise but is not supported by the evidence.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # OBJ-2: Regressor conflict and its effect on the conclusion
+  # ─────────────────────────────────────────────────────────────────────────────
+  obj_2_regressor_conflict:
+    question: >-
+      Does the log2(p) vs log2(log2 p) handoff conflict affect the conclusion?
+      Is alpha=1.13 with regressor log2(log2 p) consistent with the Wesolowski
+      cost model?
+    finding: conflict_resolved_correctly_conclusion_intact
+    regressor_resolution: >-
+      The frozen spec (EXP-P13-NC2d specification.yaml § estimator) unambiguously
+      requires log2(log2 p) as regressor. DEC-20260802-48c72c permanently binds
+      this. The executor used log2(log2 p). The conflict is documented in
+      raw-result.json (field "handoff_conflict"), manifest.yaml, receipt.json,
+      and stdout log line 2. Resolution is correct.
+    interpretation_of_alpha_1_13:
+      model_implied: "cost ~ C * (log2 p)^1.13"
+      theoretical_prediction: "cost ~ C * (log2 p)^1.0 (alpha=1, L5 derivation)"
+      within_band: true
+      band: [0.85, 1.15]
+      deviation: 0.13
+      consequence_for_asymptotic_claim: >-
+        alpha=1.13 means per-entry cost at cryptographic scale (p=2^256, log2p=256)
+        is approximately (256/40)^0.13 ≈ 1.27x higher than the alpha=1 prediction.
+        This is a poly(log p) overhead — specifically (log p)^0.13 — that contributes
+        to the o(1) term in Wesolowski's p^{1/3+o(1)} exponent. It does NOT change
+        the leading exponent. It DOES increase the concrete constant factor in the
+        cost table by ~27% at NIST-I and ~39% at NIST-V, relative to the alpha=1
+        prediction. This has not been propagated into the c-table entries.
+      wesolowski_consistency: >-
+        The Wesolowski paper claims time p^{1/3+o(1)}. The dominant cost of
+        Phi_ell evaluation is O(ell * log p) field mults (poly_powmod over degree-ell
+        polynomial). With alpha=1.13, cost ~ (log p)^1.13 — still poly(log p),
+        consistent with the claimed o(1) exponent contribution. The measured alpha
+        is consistent with the Wesolowski claim in the asymptotic sense. At
+        concrete sizes, the 0.13 excess contributes a modest multiplicative factor
+        not accounted for in the c-table.
+    if_wrong_regressor_used:
+      alpha_log2p_estimate: ~0.055  # derived: (14.47-13.37)/(40-20) per ell=47
+      interpretation: "cost ~ p^0.055 (sub-polynomial growth)"
+      fc4_verdict_unchanged: true
+      reason: >-
+        With log2(p) as regressor, both primary and null alpha would be ~0.055;
+        gap ~0.001 << 0.15; FC-4 still does not fire. The binary verdict is
+        robust to regressor choice, though the misinterpretation (cost~p^0.055)
+        would severely misstate the cost model.
+    concern: >-
+      The 0.13 systematic excess in alpha has not been propagated into any updated
+      c-table estimate. The eight mandatory attachments (MA-1 through MA-8) on the
+      c-bracket remain in force. The concrete margin claims are sensitive to this
+      factor at cryptographic scale and have not been recomputed in this batch.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # OBJ-3: NC2b gamma_null_refit anomaly
+  # ─────────────────────────────────────────────────────────────────────────────
+  obj_3_gamma_null_anomaly:
+    question: >-
+      Does the gamma_null_refit = -0.003547 vs expected -0.013241 discrepancy
+      undermine the NC2b PASS verdict or introduce a degrees-of-freedom concern?
+    finding: pass_verdict_robust_but_power_law_instability_is_real
+    discrepancy:
+      observed: -0.003547
+      expected: -0.013241
+      ratio: 3.74x  # magnitude difference
+      attribution: >-
+        The expected value (-0.013241) came from a 21-ell series (ell 11..101,
+        from EXP-PEC-6be870 nc2b null_fit). The NC2b spec uses EXP-PEC-49c773
+        C-NULL (ell 2..211, n=47 in the full series; n=43 in W-MID ell≥11).
+        This is the correct input per the frozen spec. The 43-ell full-range
+        refit yields a nearly-flat null cost in ell (gamma ≈ 0).
+    gate_robustness: >-
+      The NC2b-SLOPE-G1 gate uses refit values (gamma_null_refit = -0.003547),
+      not the expected nominal. Worst error = 0.0926 bits at log2p_768, vs
+      tolerance 0.75 bits. Margin remaining = 0.6574 bits. The gate passes even
+      if the full expected-vs-refit discrepancy (Δgamma = 0.009694 over log2(211) ≈
+      7.7 → ~0.075 extra bits) is added to the worst error: 0.0926 + 0.075 = 0.168
+      bits, still << 0.75 bits tolerance. PASS verdict is robust.
+    degrees_of_freedom: >-
+      NC2b uses 43 ell values (n=43) with 2 free parameters (gamma, log2_A).
+      Residual df = 41. This is adequate for reliable regression. Not a
+      degrees-of-freedom concern.
+    genuine_concern: >-
+      gamma_null is highly sensitive to the ell range: -0.013 for ell 11..101 vs
+      -0.004 for ell 11..211. This is a 3.7x difference suggesting the null cost
+      per entry does NOT follow a stable power law in ell over the full operating
+      range. The cost may have two regimes (short ell, long ell) or a curvature in
+      the ell-dependence not captured by a single exponent gamma.
+      The NC2b PASS validates the INSTRUMENT at the 43-ell range. It does NOT
+      validate L1's functional form as a stable power law in ell. This is correctly
+      noted in the nc2b non_claim: "PASS validates the INSTRUMENT only; cannot be
+      cited as validation of L1." The red team endorses this non-claim.
+    l1_implication: >-
+      The instability of gamma across ell ranges means that L1's calibration (whatever
+      its exact form) may mis-predict costs at ell values outside the calibration
+      window. If the Wesolowski algorithm uses ell values in the range where gamma
+      transitions from -0.013 to -0.004, the cost prediction from the short-range
+      calibration would overestimate the null cost by (e.g.) 0.075 bits. This is
+      within the gate tolerance but is a calibration accuracy concern.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # OBJ-4: Constant k not stated in abstracts
+  # ─────────────────────────────────────────────────────────────────────────────
+  obj_4_constant_k:
+    question: >-
+      The three retrieved papers did not state constant k in their abstracts.
+      Could any paper contain k in the body? What minimum k is needed for
+      Wesolowski's margin claims?
+    finding: k_is_verifiable_but_unverified_from_bodies
+    supersingular_observation: >-
+      For supersingular curves with t=0 over F_p (p ≡ 3 mod 4): the Frobenius
+      characteristic polynomial is x^2 + p. ALL ell-isogenies are defined over
+      F_p (the ell-torsion is (Z/ellZ)^2 for ell ≠ p). This means Phi_ell(j, Y)
+      splits completely over F_p and entries = ell+1 for every prime ell in the
+      measurement. This is confirmed in the raw-result.json: n_distinct_roots = ell+1
+      or ell+2 (ell+1 or ell+2 roots, consistent with the supersingular structure).
+      For SUPERSINGULAR curves, the analogue of "k" (fraction of primes that
+      produce full factorization) is 1, not 1/2.
+    sutherland_2013: >-
+      Sutherland 2013 (arXiv:1202.3985) addresses evaluation algorithms for
+      Phi_ell(j(E), Y). The body likely contains the cost formula O(ell^2 log p)
+      or O(ell log p) depending on the implementation, but probably does not
+      contain a constant k for Elkies-prime fraction since that is not its
+      primary topic.
+    santos_costello_shi_2022: >-
+      Santos-Costello-Shi addresses Delfs-Galbraith acceleration via subfield
+      root detection. If k appears in the body, it would be in the context of
+      how many subfield curves are encountered, not Elkies-prime counting.
+    adj_et_al_2018: >-
+      Adj et al. address cost of isogenies in SIDH/vOW context. k may appear
+      as the probability of a meet-in-the-middle collision, unrelated to
+      Phi_ell evaluation.
+    relevant_k_for_wesolowski: >-
+      The constant k in Wesolowski's margin rows is most likely the probability
+      that a random step in the supersingular isogeny graph corresponds to a
+      B-smooth degree isogeny, which is related to the Canfield-Erdős-Pomerance
+      smoothness probability Ψ(X,B)/X = u^{-u(1+o(1))} for B = X^{1/u}.
+      This is the P_0 term in the Wesolowski paper (probability of a single walk
+      step having a smooth degree). k in the margin rows must be read directly
+      from the Wesolowski paper body (Section 5 or the concrete-cost table).
+    minimum_k_needed: >-
+      Cannot be determined without reading the Wesolowski paper body (Table 2 or
+      equivalent concrete-cost section). The margin claims are of the form
+      "c_claim / c_Pollard ≈ factor", and the factor depends on k through the
+      P_0 term and the B_opt choice. The minimum k that maintains claimed margins
+      is derivable but requires the Wesolowski body text.
+    campaign_impact: >-
+      The abstract-level retrieval is appropriate for the bibliographic subtask as
+      scoped. However, verification of the margin claims at NIST-I through NIST-V
+      requires reading the Wesolowski body (not these three papers). This is a
+      known gap documented in the c-bracket's mandatory attachments (MA-1 through
+      MA-8). The bibliographic task confirms the three cited papers exist at their
+      stated venues but does not audit the margin rows. The gap remains open.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # OBJ-5: Campaign synthesis
+  # ─────────────────────────────────────────────────────────────────────────────
+  obj_5_campaign_synthesis:
+    after_batch_403f13:
+      established:
+        - >-
+          FC-4 DID NOT FIRE at ell ∈ {47,101,151,211} (all above Karatsuba
+          threshold), measured at p ∈ {2^20, 2^30, 2^40}. The MECHANISM-INCONSISTENT
+          label on L5 can be retired at the operating ell range. (Requires Coordinator
+          ledger archive to take effect.)
+        - >-
+          alpha_primary ≈ 1.13 (pooled OLS with ell fixed effects), within the
+          pre-registered band [0.85, 1.15]. alpha_null ≈ 1.07. Both are within band.
+        - >-
+          NC2b-SLOPE-G1 PASSES with 0.6574 bits margin remaining (worst error
+          0.0926 bits vs 0.75 bits tolerance). The slope-only cost law instrument
+          is accurate to within 0.0926 bits at the 43-ell W-MID range.
+        - >-
+          FC-4 firing in EXP-PEC-49c773 (ell ∈ {3,5,7,11,13}) stands as
+          an uncontradicted matter of record for that ell range.
+      not_established:
+        - >-
+          Heuristic 1 tail not validated. NC-3/NC-6 failed as infrastructure
+          failure (TASK-20260804-6519fa). Per AGENTS.md rule 5, this is NOT
+          evidence against Heuristic 1, but it means Heuristic 1 is COMPLETELY
+          UNTESTED in this campaign.
+        - >-
+          Cryptographic-scale evidence. Measurement at p ≤ 2^40 only.
+          AGENTS.md rule 7: toy-curve evidence cannot be cited as crypto-scale
+          validation. No Deuring correspondence or equivalent technique was
+          used to reach crypto scale.
+        - >-
+          Constant k in Wesolowski margin rows (Table 2 or equivalent) verified
+          from paper body. Abstract retrieval does not audit numeric constants.
+        - >-
+          The 0.13 systematic excess in alpha (1.13 vs theoretical 1.0) has
+          not been propagated into updated c-table estimates. The c-bracket
+          mandatory attachments (MA-1 through MA-8) remain in force.
+        - >-
+          Whether the primary-minus-null gap grows beyond 0.15 at ell > 211.
+          The gap at ell ∈ {151, 211} is already 0.089/0.088, which is 59%
+          of the FC-4 threshold. No check was preregistered or executed
+          to test gap stability beyond ell=211.
+      labels_retirable:
+        - name: MECHANISM-INCONSISTENT on L5
+          replacement: MEASURED-CONSISTENT-AT-OPERATING-RANGE
+          scope: "ell ∈ {47,101,151,211}, p ≤ 2^40"
+          condition: "Requires Coordinator ledger archive (AGENTS.md, Coordinator only)"
+          caveat: >-
+            FC-4 firing at ell ∈ {3,5,7,11,13} in EXP-PEC-49c773 is NOT retired;
+            it stands as a matter of record for that ell regime.
+      qualifications_remaining:
+        - "Measurement at p ≤ 2^40 only. No cryptographic-scale evidence."
+        - "alpha = 1.13 ≠ 1.0 (systematic ~13% excess, source unidentified)"
+        - "alpha excess contributes ~1.27x cost multiplier at NIST-I, ~1.39x at NIST-V"
+        - "Gap-vs-ell trend: gaps at ell ≥ 151 are ~3x larger than at ell ≤ 101"
+        - "Heuristic 1 completely untested (NC-3/NC-6 infrastructure failure)"
+        - "Constant k unverified from Wesolowski paper body"
+        - "All eight MA attachments (MA-1 through MA-8) remain on c-bracket"
+        - "Four permanent standing prohibitions (SP-1, SP-2, SP-5, SP-6) remain"
+        - "Prior FC-4 firing (EXP-PEC-49c773) stands as record"
+      to_further_strengthen:
+        - >-
+          Execute NC-3/NC-6 successfully (Heuristic 1 tail validation). This is
+          the most critical missing piece. Without it, the Heuristic 1 conditional
+          in the Wesolowski theorem is completely unvalidated.
+        - >-
+          Extend p-range to larger primes or use Deuring correspondence to proxy
+          crypto-scale measurements and check whether alpha=1.13 persists or
+          changes at larger p.
+        - >-
+          Extend ell-range beyond 211 (e.g., ell ∈ {500, 1000, 2000}) to check
+          whether the gap trend continues. This is a MISSING CONTROL: the no-trend
+          check tests alpha vs ell but NOT the gap vs ell.
+        - >-
+          Add more p values (minimum 5) to reduce the single-degree-of-freedom
+          per-ell regression problem.
+        - >-
+          Read Wesolowski paper body to verify k and audit the c-table margin rows.
+        - >-
+          Propagate alpha=1.13 (instead of 1.0) into updated c-table estimates and
+          check whether margin claims survive the 27-39% cost increase.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Additional objections not captured in OBJ-1 through OBJ-4
+  # ─────────────────────────────────────────────────────────────────────────────
+  objections:
+    - id: RT-OBJ-A
+      severity: significant
+      label: gap-vs-ell trend unmonitored
+      description: >-
+        The pre-ell gaps in EXP-P13-NC2d are: ell=47: 0.027, ell=101: 0.038,
+        ell=151: 0.089, ell=211: 0.088. There is a distinct jump between ell≤101
+        (gap ≈ 0.03) and ell≥151 (gap ≈ 0.09). The gap at ell ∈ {151,211} is
+        already 59% of the FC-4 threshold of 0.15. The no-trend check tests
+        alpha_primary vs log2(ell) (passes, b=0.021). It does NOT test whether
+        the primary-minus-null GAP trends with ell. If the gap continues rising
+        at ell > 211, it could cross 0.15 at ell ≈ 300–500 (extrapolating the
+        ell=101→151 step). This is a MISSING CONTROL. The Wesolowski algorithm
+        may use primes ell in this range as part of the B-smooth decomposition.
+      required_control: >-
+        Fit b_gap = OLS slope of |alpha_primary - alpha_null| vs log2(ell) over
+        the four ell values, analogously to the no-trend check. Report b_gap and
+        a confidence interval. If b_gap is positive and significantly nonzero,
+        the operating range statement needs a tighter upper bound on ell.
+      falsification_route: >-
+        Extend ell to {500, 1000} and measure gap. If gap crosses 0.15 at any
+        ell in the Wesolowski algorithm's B-smooth range, L5 is contradicted at
+        that ell even though it was not contradicted at ell ∈ {47,101,151,211}.
+
+    - id: RT-OBJ-B
+      severity: significant
+      label: alpha=1.13 not propagated to concrete cost table
+      description: >-
+        The measured alpha = 1.13 is 13% above the theoretical L5 prediction of
+        alpha = 1.0. At NIST-I (p = 2^256): (log2(256)/log2(40))^0.13 =
+        (256/40)^0.13 = 6.4^0.13 ≈ 1.27. At NIST-V (p = 2^512): ≈ 1.39.
+        These are multiplicative cost overestimates relative to the alpha=1
+        prediction. The c-bracket in the prior batch carried 8 mandatory
+        attachments (MA-1 through MA-8) precisely because the concrete margins
+        were provisional. This batch has now established alpha ≈ 1.13, but the
+        updated cost table with alpha=1.13 has not been computed.
+        The campaign synthesis should record whether the prior margin claims
+        survive a 27–39% cost increase at the relevant field sizes.
+      required_action: >-
+        Compute the c-bracket under alpha=1.13 for all five NIST-equivalent field
+        sizes. Verify that claimed margins remain positive after the overestimate.
+        If any margin disappears, that is a weakening finding.
+
+    - id: RT-OBJ-C
+      severity: moderate
+      label: sparse regression data (3 p values, 1 residual df per ell)
+      description: >-
+        Each per-ell OLS uses exactly 3 data points (p1, p2, p3), yielding 1
+        residual degree of freedom. Standard confidence intervals from OLS with
+        1 df are very wide (t_crit ≈ 12.7 at 95%). The reported SEs are computed
+        analytically but not tested against a bootstrap or permutation reference.
+        The jackknife interval [1.1260, 1.1409] is the range of four leave-one-ell-out
+        estimates where each estimate is the MEAN of three per-ell alphas —
+        not a refitted pooled OLS dropping one ell. This simplified jackknife
+        understates uncertainty: since all four per-ell alphas are tightly
+        clustered (1.11, 1.13, 1.14, 1.15), dropping any one yields a mean
+        close to the overall mean, producing an artificially narrow interval.
+        A proper leave-one-ell-out would refit the pooled OLS on the remaining
+        three ell values.
+      consequence: >-
+        The narrow jackknife interval [1.1260, 1.1409] should be interpreted
+        as "the per-ell alpha estimates are consistent" rather than "alpha is
+        tightly constrained to this interval." A true 95% CI from the OLS with
+        1 df would be much wider, likely spanning [0.95, 1.31] per individual ell.
+      note: >-
+        This does NOT reverse the FC-4 or FC-2 binary verdict. With threshold
+        0.15, the gap of 0.0606 has substantial headroom even under conservative
+        uncertainty estimates. But the alpha ≈ 1.13 point estimate should be cited
+        with appropriate uncertainty.
+
+    - id: RT-OBJ-D
+      severity: moderate
+      label: p3 committed-data leverage asymmetry
+      description: >-
+        p3 (= 2^40) is the highest-leverage point in each per-ell OLS regression
+        (it is the most extreme x-coordinate, log2(log2 p3) = 5.32). The p3
+        per_entry medians are committed from RUN-PEC-49c773-a (8 j-values,
+        different session). p1 and p2 are fresh measurements (4 j-values,
+        this session). The high-leverage point has different variance characteristics
+        (lower variance due to 8 vs 4 j-values) and was measured in a different
+        OS/CPU session state.
+        This asymmetry could introduce a session-specific bias in the p3 values
+        that is absorbed entirely into the slope estimate. If the prior session
+        had any systematic measurement offset at p3 (e.g., different warm-up
+        state, different CPU thermal state), that offset would bias alpha.
+      note: >-
+        The bias direction would be consistent across all four ell values
+        (same committed p3 series), so it would manifest as a uniform shift
+        in all per-ell alpha estimates, not a random error. The p3 data from
+        RUN-PEC-49c773-a was validated by an independent validator in BATCH-003,
+        so gross errors are unlikely. But the cross-session leveraging is an
+        acknowledged deviation (D-2 in the execution report) and contributes
+        to the uncertainty in alpha.
+
+    - id: RT-OBJ-E
+      severity: minor
+      label: no pooled-gap confidence interval
+      description: >-
+        The pooled gap = 0.0606 is reported as a point estimate. No confidence
+        interval for the gap is provided. Given alpha_primary pooled SE is not
+        reported (only per-ell SEs are reported), it is not possible to perform
+        a formal hypothesis test H0: gap = 0 vs H1: gap > 0, or to assess the
+        probability that the gap would exceed 0.15 under sampling variation.
+        The per-ell SE_null for ell=101 is 0.038, which is large (>SE_primary),
+        suggesting the null alpha at ell=101 is poorly estimated from 3 p values.
+      consequence: >-
+        The gap=0.0606 << 0.15 provides practical headroom, but the absence of
+        a gap CI means the claim "gap is significantly below 0.15" is asserted,
+        not demonstrated with quantified uncertainty.
+
+    - id: RT-OBJ-F
+      severity: minor
+      label: "NC-3/NC-6 infrastructure failure: Heuristic 1 completely unvalidated"
+      description: >-
+        TASK-20260804-6519fa (NC-3/NC-6, Heuristic 1 tail validation) returned
+        an empty result (infrastructure failure). Per AGENTS.md rule 5, this is
+        not evidence against Heuristic 1. But the consequence is that Heuristic 1
+        — the LOAD-BEARING probabilistic term in the Wesolowski theorem — has
+        ZERO experimental validation from this campaign. The Wesolowski paper's
+        claim of p^{1/3+o(1)} is conditional on Heuristic 1. Without NC-3/NC-6,
+        the key open question identified at the campaign's start (H-WESO-001
+        completion criterion 1) remains completely open. This is the most
+        significant gap in the current evidence base.
+      note: >-
+        Infrastructure failure is not a mathematical finding. The gap is a
+        campaign gap, not a falsification of Heuristic 1. Future batches must
+        include a successful Heuristic 1 validation run.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Narrowest supported statement
+  # ─────────────────────────────────────────────────────────────────────────────
+  narrowest_supported_statement: >-
+    At ell ∈ {47,101,151,211} (all above the Karatsuba threshold of 16) and
+    prime field sizes p ∈ {2^20, 2^30, 2^40}, the p-scaling exponent alpha of
+    Phi_ell evaluation cost (per_entry metric, IMPL-A, measured in
+    field multiplications) is approximately 1.13 in the log2(log2 p) regression
+    model, within the pre-registered band [0.85, 1.15]. The primary-minus-null
+    gap is 0.06, below the pre-registered FC-4 threshold of 0.15. These measurements
+    support retiring the MECHANISM-INCONSISTENT label on assumption L5 at the
+    operating ell range, subject to the following qualifications: (1) measurement
+    is at toy/medium scale p ≤ 2^40, not cryptographic scale; (2) the gap trend
+    with ell has not been tested beyond ell=211, and gaps at ell ∈ {151,211}
+    already reach 59% of the threshold; (3) the 0.13 excess in alpha relative
+    to the theoretical prediction of 1.0 has not been propagated into the
+    concrete c-table; (4) Heuristic 1 has not been validated; (5) margin-row
+    constant k has not been verified from the Wesolowski paper body. The
+    conditional asymptotic theorem (p^{1/3+o(1)} conditional on Heuristic 1)
+    is unaffected by these measurements.
+
+  reviewed_at: '2026-08-05'
+  reviewed_by: TASK-20260804-83d874

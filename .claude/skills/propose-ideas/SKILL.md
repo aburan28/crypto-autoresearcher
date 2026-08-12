@@ -18,6 +18,9 @@ step 2).
    read it from `ledger/questions/`. If no research question record exists
    yet, create one first from the template in `templates/research-records.md`
    and save it as `ledger/questions/RQ-<AREA>-<NNN>.yaml` (next free number).
+   Before generating, merge `origin/main` into the working branch (merge,
+   never rebase) so ideation runs against current ledger state — see
+   "Branch and PR hygiene" below.
 2. Gather context for the prompt: the research question record, relevant
    entries from `knowledge/` (grep by area tags), existing hypotheses in
    `ledger/hypotheses/`, and existing proposals in `ledger/proposals/` so
@@ -26,18 +29,42 @@ step 2).
    research question, the context found above, how many ideas are wanted
    (default 3–5), and any user constraints. Remind it that every idea record
    must be schema-complete and novelty-checked against `knowledge/` before
-   any novelty label stronger than `unverified`.
+   any novelty label stronger than `unverified`. The handoff must also direct
+   it to the exemplar search heuristics in `agents/idea-generator.md` and the
+   target profile in `docs/target-result-profile.md`: exponent-first ambition,
+   hunting external structural ingredients, meet-in-the-middle decompositions,
+   distribution heuristics plus re-randomization, and reduction-network
+   cascades — and require the `heuristic_assumptions` and `target_complexity`
+   fields on every idea.
 4. Verify each returned idea against the schema in
    `agents/idea-generator.md`: claim, mechanism, predictions with metrics,
-   minimal test, controls, falsification conditions, cost. Send incomplete
+   minimal test, controls, falsification conditions, named heuristic
+   assumptions each with an experimental validation route, target time and
+   memory exponents versus the best known, and cost. Send incomplete
    ideas back to the subagent for completion — do not repair them yourself.
 5. Save each complete idea as `ledger/proposals/IDEA-YYYYMMDD-NNN.yaml`.
    The Coordinator then runs an isolated snapshot archive task that commits
    the exact research-question, proposal, and any literature-note paths before
    treating the ideas as filed. The task must pass the dispatcher's post-commit
    verification.
-6. Report to the user: one-line summary per idea (ID, class, claim,
+6. Push the branch and open or refresh a PR against `main` naming the new
+   `RQ-*`/`IDEA-*` records (see "Branch and PR hygiene"). A filed idea that
+   exists only in a local commit is not a proposal the program can use.
+7. Report to the user: one-line summary per idea (ID, class, claim,
    novelty status, cost) plus the generator's recommended first test.
+
+## Branch and PR hygiene
+
+Ideation generates shared research records, so every run of this skill also
+pulls in `main` and surfaces the new proposals as a PR:
+
+- **Before generating:** `git fetch origin && git merge origin/main` — merge,
+  never rebase. If the merge conflicts, stop and report; never resolve a
+  conflict by editing a record (corrections supersede, per AGENTS.md rule 4).
+  Re-run `tools/validate_ledger.py` after the merge.
+- **After the snapshot archive:** `git push -u origin <branch>` then
+  `gh pr create --base main --head <branch> --title "ideas: <summary>" --body "<RQ-*/IDEA-* IDs>"`
+  (or `gh pr edit <number>` when a PR for the branch already exists).
 
 ## Rules
 
@@ -45,3 +72,6 @@ step 2).
   anything here — that is `/design-experiment` under Coordinator authority.
 - Never overwrite an existing proposal file.
 - Do not let an uncommitted proposal become a candidate for `/design-experiment`.
+- Do not strip or soften `heuristic_assumptions` or `target_complexity` when
+  filing ideas: a conditional claim must stay conditional, with its validation
+  route and exponents intact.

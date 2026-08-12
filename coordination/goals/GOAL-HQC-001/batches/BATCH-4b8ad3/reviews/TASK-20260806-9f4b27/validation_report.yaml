@@ -1,0 +1,442 @@
+validation_report:
+  id: TASK-20260806-9f4b27
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-4b8ad3
+  reviews_task: TASK-20260806-e19f6c
+  reviews_artifact: >-
+    Planted-correlation control arm for EXP-HQC-982268 / OPEN-6 (design.md,
+    planted_arm.py, planted_results.json, comparison_report.md,
+    run_manifest.yaml), snapshot-committed by TASK-20260806-5a3d0e at commit
+    8538964cc1003b911aefc891c1df0c55d582ffb6.
+  experiment: EXP-HQC-982268
+  hypothesis: H-HQC-18d1b4
+  produced_at: '2026-08-06'
+  claim_tier: toy
+  independent_session: true
+  run_ids:
+    - TASK-20260806-e19f6c
+
+  authority: >-
+    I verify; I change no status and I create no evidence. Nothing in this
+    report is a statement about HQC, A17, A5, any decoding-failure rate, or
+    any standardized HQC parameter set, and nothing here decides whether
+    EV-HQC-b71230's PS-R3 measurement is real. I evaluate only whether this
+    planted-arm run package is an admissible research receipt, and separately
+    whether, if admitted, it closes, partially closes, or leaves open OPEN-6.
+
+  # ------------------------------------------------------------------
+  # 1. Artifact presence, hash, and commit checks
+  # ------------------------------------------------------------------
+  artifact_checks:
+    - check: All 5 declared deliverables plus stdout.log/stderr.log exist under
+        the task directory and match the sha256 values recorded in
+        run_manifest.yaml.artifacts.
+      result: PASS
+      detail: >-
+        Recomputed sha256 of design.md, planted_arm.py, planted_results.json,
+        comparison_report.md, stdout.log, stderr.log all match
+        run_manifest.yaml byte-for-byte. Same hashes match
+        snapshot-receipt.json's archive.path_sha256 for every path except
+        run_manifest.yaml itself (recorded there too and independently
+        matched).
+    - check: Coordinator-committed snapshot, not a working-tree-only receipt.
+      result: PASS
+      detail: >-
+        Snapshot commit 8538964cc1003b911aefc891c1df0c55d582ffb6
+        ("research: TASK-20260806-5a3d0e snapshot of the planted-correlation
+        control arm") is reachable from HEAD (cc0fcf0b, a merge commit) via
+        `git merge-base --is-ancestor`. Its single parent is
+        24393e4cd576863473d6ab478c4100d9bab4ab72, matching
+        snapshot-receipt.json's declared parent_sha. `git show --stat` on
+        8538964c touches exactly the 8 declared paths (7 task-directory
+        artifacts + the snapshot receipt itself), no more, no less. This
+        validation therefore reads a frozen, git-durable snapshot, per the
+        Validator's read-scope rule.
+    - check: measure.py integrity pin.
+      result: PASS
+      detail: >-
+        sha256sum of the actual git-committed
+        BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py is
+        a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8,
+        matching both MEASURE_PY_EXPECTED_SHA256 in planted_arm.py and
+        reused_pipeline.sha256_actual in planted_results.json. The fail-closed
+        gate this pins is real and was demonstrated to abort on a deliberate
+        mismatch (run_manifest.yaml commands.fail_closed_check_verification).
+
+  # ------------------------------------------------------------------
+  # 2. Independent re-derivation of the planted law (done BEFORE reading
+  #    planted_results.json or comparison_report.md, per task constraint)
+  # ------------------------------------------------------------------
+  metric_recomputations:
+    - id: RECOMP-1-planted-law-closed-form
+      method: >-
+        From design.md Section 2's stated construction alone (n_e=56, M_t ~
+        Uniform{17,18,19}, S_t = M_t exactly), computed
+        mu_bar_k = (1/3)(C(17,k)+C(18,k)+C(19,k))/C(56,k), q = 9/28, and
+        log2_A_k(k) = log2(mu_bar_k) - k*log2(q) for k=2..18 using Python's
+        exact fractions.Fraction arithmetic, independently, before opening
+        planted_results.json or comparison_report.md.
+      result: PASS
+      detail: >-
+        All 17 recomputed values match design.md's Section 2.1 table exactly
+        (identical to displayed float64 precision at every k, e.g. k=2:
+        -0.05332724412846135, k=18: -15.382583727766058). This independently
+        confirms the "planted" answer is a genuine closed-form consequence of
+        the stated construction, not an arbitrary or back-fitted number, and
+        satisfies the completion-gate requirement that the prediction be
+        "closed-form or exactly enumerable, not fitted or estimated from the
+        same run."
+    - id: RECOMP-2-raw-regeneration-and-independent-estimator
+      method: >-
+        planted_results.json does NOT itself archive the raw per-trial or
+        per-batch histogram (only derived summary statistics: point
+        estimates and jackknife SEs per k). To recompute a reported cell from
+        genuinely raw output rather than re-trusting the summary, I (a)
+        independently re-derived derive_seed("batch", i) for i=0..4 from the
+        stated SHA-256 scheme and matched all 5 archived first_5_batch_seeds
+        bit-for-bit; (b) fully re-executed the deterministic block-partition
+        generator (transcribed independently from design.md Section 3 /
+        planted_arm.py's run_batch, not imported) for all 200 batches x
+        T=1e7 trials using those seeds, producing my own (200, 57) batch-
+        histogram array from scratch; (c) applied my own independently
+        written log2_A/jackknife implementation (NOT a call into
+        measure.py) to that regenerated histogram.
+      result: PASS
+      detail: >-
+        Regenerated total trials = 10,000,000 (matches). My independently
+        computed q_hat = 0.3214382607142857, bit-identical to
+        planted_results.json's MEASUREMENT.q_hat_measured. My independently
+        computed recovered_log2_Ahat_k and jackknife_se for every one of the
+        17 cells (k=2..18) are bit-identical to
+        planted_results.json.MEASUREMENT.cells (spot-checked full table;
+        e.g. k=2: -0.053324222830149814 / 1.2703249631593017e-06, k=18:
+        -15.381993910128813 / 0.00031881730184833836 -- exact matches). This
+        is strong evidence that both the archived generation process and the
+        archived estimator output are reproducible and were not
+        misreported, and it independently confirms the estimator formula
+        stated ("log2_Ahat_k = log2((sum_s C(s,k) H_s)/(T C(n_e,k))) -
+        k log2((sum_s s H_s)/(T n_e))") is what was actually computed.
+      limitation: >-
+        The raw histogram itself is not an archived artifact; recomputation
+        required re-executing the deterministic generator rather than
+        reading raw counts directly from a stored file. This is a gap in
+        artifact completeness worth closing in a future arm (store `bh` or
+        `hist` as a raw array alongside the summary), though it did not
+        block recomputation here because seeds and generation code are fully
+        specified and deterministic.
+
+  # ------------------------------------------------------------------
+  # 3. Code diff: reused estimator vs measure.py
+  # ------------------------------------------------------------------
+  control_checks:
+    - id: DIFF-1-comb_matrix-log2_A_from_hists
+      check: >-
+        Are comb_matrix() and log2_A_from_hists(), which planted_arm.py
+        claims to reuse, actually the identical code that produced PS-R3?
+      result: PASS, strongest possible form of reuse
+      detail: >-
+        planted_arm.py does not copy-paste these functions; it sha256-pins
+        measure.py (verified above) and imports it as a module
+        (importlib.util.spec_from_file_location), then calls
+        measure.comb_matrix(...) and measure.log2_A_from_hists(...) directly.
+        This calls the literal same function object PS-R3 used -- zero risk
+        of textual drift, stronger than any line-by-line "verbatim copy"
+        claim could be.
+    - id: DIFF-2-jackknife-batch-construction-divergence
+      check: >-
+        comparison_report.md Section 2 cites "measure.py lines 730-739" as a
+        single unit "copied verbatim" (bh, point, loo, jmean, jse). Diffed
+        against the actual measure.py source.
+      result: PARTIAL DIVERGENCE FOUND -- disclosed in prose but mischaracterized
+        in the citation table
+      detail: >-
+        measure.py lines 730-733 build `bh` by slicing ONE monolithic
+        post-hoc trial-outcome array `S_all` into N_JACK_BATCHES contiguous
+        chunks via `np.linspace(0, T_ach, N_JACK_BATCHES+1).astype(int)`
+        boundaries (handles uneven division). planted_arm.py's `bh` is built
+        by an entirely different code path: `run_batch()` is called once per
+        jackknife batch, inside its own per-seed generation loop (phase 3 of
+        main()), and each call directly accumulates that batch's histogram
+        via np.bincount -- it never constructs or slices a combined
+        `S_all` array. Only lines 734-739 (point = log2_A_from_hists(...);
+        loo = [...]; jmean = loo.mean(...); jse = sqrt(...)) are genuinely
+        re-typed formula-for-formula identical code (confirmed by direct
+        side-by-side reading of both files). comparison_report.md's own
+        footnote in the same table row does disclose this ("the only
+        substitution is that bh/hist here come from this arm's own generator
+        rather than from measure.py's S_all"), so this is not concealment,
+        but the row's top-line label "copied verbatim" applied to the full
+        730-739 range overstates precision -- roughly 4 of the cited 10 lines
+        are a different mechanism, not a copy. Functionally the two
+        constructions produce equivalent 200-batch jackknife structures when
+        T divides evenly by N_JACK_BATCHES (true for both this arm,
+        1e7/200=50000, and it is compatible with PS-R3's use of linspace to
+        also handle non-even division), and RECOMP-2 above independently
+        confirms the final numbers this arm produced are correct -- so this
+        is a documentation-precision finding, not a correctness defect.
+    - id: CTRL-RULE2-L-formula
+      check: >-
+        Is the executor's claimed CTRL-IDXMAP L=N/n_e fix (coordinator_ruling.yaml
+        RULE-2) actually applied in planted_arm.py's own block-partition code?
+      result: PASS
+      detail: >-
+        planted_arm.py line 342: `L = N // n_e   # RULE-2: L = N / n_e, never
+        n_2*dup`, immediately followed by a fail-closed sanity assertion
+        `if L != N_2: raise SystemExit(...)`. Never computes L as n_2*dup
+        anywhere in the file (grepped). Matches design.md Section 1's claim
+        and satisfies the executor task's completion gate on this point. Note
+        (as design.md and comparison_report.md both correctly state) this
+        fixes only this task's own artifacts; CTRL-IDXMAP itself in
+        BATCH-0a65c0 remains unrepaired.
+    - id: CTRL-fail-closed-gates
+      check: Do the declared fail-closed checks actually read the field they
+        guard and abort on mismatch (the exact defect class named in
+        EV-HQC-b71230's unresolved_confounds)?
+      result: PASS
+      detail: >-
+        (1) measure.py sha256 check reads a module-level constant
+        (MEASURE_PY_EXPECTED_SHA256) against a freshly computed hash, at the
+        top level -- not a nested/misnamed field. run_manifest.yaml records a
+        deliberate-mismatch dry run that produced the expected abort message
+        and wrote no planted_results.json. (2) The block-partition self-check
+        (F == block_fail) ran on all 1000 sub-chunks of the authorized run
+        and never fired (planted_results.json
+        generation.sub_chunks_block_partition_self_check_passed = 1000,
+        matches 200 batches x 5 sub-chunks/batch at 50000 trials/batch,
+        10000/sub-chunk). (3) N_JACK_BATCHES cross-check and L==N_2 sanity
+        check both present and both non-firing. I did not independently
+        inject a defect to confirm check (2)'s abort path fires on a real
+        mismatch (that is the Red Team's assigned task, TASK-20260806-21c8da);
+        I confirm only that the check exists, reads the correct comparison,
+        and is structured to abort (raise SystemExit) rather than warn-and-
+        continue.
+    - id: CHECK-pre-registration-ordering
+      check: >-
+        Does design.md's derivation actually predate planted_results.json --
+        order, not merely a self-reported claim?
+      result: PASS, on convergent evidence; the git-commit evidence alone is
+        insufficient and I say so explicitly
+      detail: >-
+        Three independent signals, each individually imperfect, converge:
+        (a) File mtimes on disk (`stat`, not merely quoted from the
+        manifest): design.md 15:48:35Z < planted_arm.py (last functional
+        edit) 15:56:23Z < planted_results.json 15:57:41Z <
+        comparison_report.md 15:59:19Z < run_manifest.yaml 15:59:28Z --
+        consistent chronological order, matching the claim. This is
+        self-reportable/forgeable in principle and is the weakest leg.
+        (b) stdout.log shows the in-run reproduction-check line
+        ("[law] q=0.321429, 17 cells, design.md reproduction PASS") printed
+        BEFORE any "[batch]" (trial-generation) line -- i.e., within the
+        single deterministic process invocation, planted_arm.py's hardcoded
+        DESIGN_TABLE_LOG2_A constant (transcribed from design.md) was checked
+        against a freshly recomputed closed form and passed BEFORE any trial
+        was sampled; a mismatch would SystemExit before phase 3 (generation)
+        ever ran. (c) The strongest argument is structural/mathematical, not
+        timestamp-based: S_t = M_t identically by construction (an algebraic
+        identity of the generator, not a statistical fit), and the
+        generator's parameters (SUPPORT={17,18,19}, uniform weights, n_e=56)
+        are hardcoded constants that the block-generation loop never reads
+        back from any measurement outcome -- so the "prediction" could not
+        have been reverse-fit from data even in principle, independent of
+        whether any file timestamp is trustworthy. I independently confirmed
+        (RECOMP-1) that this hardcoded construction does yield exactly the
+        published table. Caveat: the snapshot commit (8538964c) is a single
+        atomic commit adding all artifacts together, so git history alone
+        cannot establish sub-commit file-write ordering; that evidence is
+        advisory, not load-bearing, here.
+    - id: CHECK-run-count-discrepancy
+      check: Cross-referenced run_manifest.yaml against comparison_report.md
+        for internal consistency on how many times the authorized T=1e7
+        configuration was actually executed.
+      result: DISCREPANCY FOUND, not resolved by available artifacts
+      detail: >-
+        run_manifest.yaml commands.the_authorized_run_note states the
+        authorized command "was executed TWICE, back-to-back" (one discarded
+        pre-fix run, one final post-fix run of record). comparison_report.md
+        Section 9 states "The authorized command was executed three times
+        total during this task... (~73, ~70, and the final ~72
+        core-seconds...)" -- three full-scale-magnitude timings given, all
+        consistent with T=1e7 runs (~72s each), not with the much shorter
+        reduced-scale smoke runs (200,000/20,000 trials, which at the
+        measured ~64,700 trials/core-second would take a few seconds or
+        less, not ~70s). These two artifacts, both git-committed in the same
+        snapshot, disagree on a factual count (2 vs 3). The discarded run(s)'
+        raw output was not preserved or committed, so the claim that
+        "MEASUREMENT, generation, and planted_law JSON fields were diffed
+        programmatically and found bit-identical" across the discarded
+        run(s) and the run of record is a self-report I cannot independently
+        audit. I found no evidence of seed-shopping or cherry-picking (seeds
+        are stated to be identical and deterministic across all executions,
+        and the disclosed bug -- double-appending stage-timing bookkeeping
+        entries -- is plausibly non-computational), but this also bears on
+        the task's own budget field (`runs_authorized: 1` /
+        `maximum_runs: 1`): the authorized T=1e7 configuration was run more
+        than once by both accounts. This is disclosed, not hidden, and
+        appears benign on the evidence available, but the audit trail for
+        the discarded run(s) is incomplete and the two artifacts should be
+        reconciled.
+
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+
+  # ------------------------------------------------------------------
+  # 4. Does this arm exercise the (T)-shaped sampling/block-partition/
+  #    index-map path OPEN-6 flags, or only arithmetic?
+  # ------------------------------------------------------------------
+  path_coverage_judgement: >-
+    More than arithmetic, but far short of the actual sampler. This arm
+    performs a genuine flat-length-N bit-vector construction, a real
+    np.repeat + .reshape(batch, n_e, L) block-partition operation (with the
+    RULE-2-corrected L = N // n_e), and a per-block majority-threshold
+    reduction over that reshaped tensor, gated by a fail-closed self-check
+    that ran 1000/1000 times without firing. That is materially more than
+    what NULL-P/CTRL-ORACLE (arithmetic-only, operating on an
+    already-collapsed histogram) already cover, so this arm is NOT redundant
+    with those. However, it does NOT invoke stage_a.py's actual
+    cryptographic (T)-sampler at all: no CTRStream (SHA-256 counter-mode
+    PRNG), no fixed_weight_support (Floyd's algorithm sampling x, y, r1, r2,
+    e), no ring_mul_sparse/ring_mul_dense (F_2[X]/(X^n-1) multiplication), no
+    size-128 Walsh-Hadamard transform, no dup-fold summation, no lowest-index
+    tie-break rule, and no multiprocessing/shard aggregation -- by the
+    executor's own explicit disclosure (design.md Section 3.2, item 1),
+    which I independently confirm by inspection of planted_arm.py (stage_a.py
+    is never imported or referenced). Its S_t marginal support ({17,18,19},
+    size 3) is far narrower than PS-R3's near-binomial spread over most of
+    {0,...,56}, and its blocks are internally homogeneous (all-0 or all-1) by
+    construction rather than bit-heterogeneous like real ring-arithmetic
+    output -- both real, not overcautious, gaps I independently concur with
+    after reading log2_A_from_hists's signature (it is a pure function of
+    the (n_e+1,)-shaped marginal histogram H, with no positional/pairwise
+    information), which also independently confirms design.md's claim that
+    this arm cannot speak to CTRL-POSHOM-style between-block covariance
+    sensitivity (the estimator literally cannot see which specific blocks
+    co-fail, only how many).
+
+  # ------------------------------------------------------------------
+  # 5. Verdicts
+  # ------------------------------------------------------------------
+  ADMIT_verdict: ADMIT
+  ADMIT_rationale: >-
+    All required artifacts are present, hash-verified, and bound to a
+    Coordinator-committed snapshot with a correct, reachable parent and an
+    exact declared path set. Commands, git state, environment, seeds, and
+    resource usage are fully recorded. The two fail-closed gates
+    (measure.py-integrity, block-partition self-check) both exist, read the
+    fields they claim to guard, and were demonstrated (integrity check) or
+    exercised without ever firing (self-check, 1000/1000). I independently
+    re-derived the planted law's closed form from design.md's stated
+    construction, before reading planted_results.json, and it matches
+    exactly. I independently regenerated the full T=1e7 raw dataset from the
+    recorded seeds and computed the estimator with my own separate
+    implementation, reproducing every one of the 17 reported point estimates,
+    jackknife SEs, and the measured q_hat bit-for-bit -- this is the
+    strongest form of recomputation available given that the raw histogram
+    itself was not archived. The RULE-2 L=N/n_e fix is genuinely applied.
+    Two findings keep this from being an unqualified pass and are recorded as
+    limitations rather than grounds for DO-NOT-ADMIT: (1) comparison_report.md
+    overstates precision in citing "measure.py lines 730-739" as uniformly
+    "copied verbatim," when only lines 734-739 are; lines 730-733 (the bh
+    construction) are a different, disclosed-in-prose, mechanism -- a
+    documentation-accuracy defect, not a correctness defect, since RECOMP-2
+    independently confirms the numbers it produced are correct. (2) An
+    unreconciled discrepancy between run_manifest.yaml ("executed TWICE") and
+    comparison_report.md ("executed three times total") for how many times
+    the authorized T=1e7 run was actually invoked, with the discarded run(s)'
+    raw output not preserved for independent audit, and a literal excess over
+    the task's own `runs_authorized: 1` / `maximum_runs: 1` budget field that
+    is disclosed but not reconciled. Neither finding changes the correctness
+    of the committed run of record, which I independently reproduced from
+    scratch.
+
+  OPEN6_disposition: PARTIALLY_CLOSED
+  OPEN6_disposition_rationale: >-
+    EV-HQC-b71230's OPEN-6 states plainly: "No arm tests the (T) joint law
+    against an answer known in advance... a sampler defect would reproduce
+    this result perfectly." This arm supplies exactly such a known-answer
+    instance for the downstream leg of the PS-R3 pipeline -- reshape/
+    block-partition -> S-histogram -> estimator -> jackknife -> reporting --
+    run through measure.py's own estimator code (via direct import, the
+    strongest possible reuse) and its own (re-typed but formula-identical,
+    independently verified) jackknife construction, and it recovers the
+    exact planted answer on all 17 cells, independently confirmed by me from
+    raw regenerated data. That is a real, verified, non-trivial result: it
+    rules out (at 3-jackknife-SE resolution, on this one seed family) the
+    hypothesis that the reshape/estimator/jackknife machinery itself
+    introduces a spurious anti-correlation signature of PS-R3's shape when
+    fed a KNOWN, narrow-support, homogeneous-block instance through a real
+    partition step. It does NOT close OPEN-6 as a whole, because the
+    component OPEN-6's own language most directly names -- "a subtly wrong
+    sampler" -- is stage_a.py's actual cryptographic (T)-sampler (CTRStream,
+    Floyd's-algorithm fixed-weight sampling, ring multiplication, the
+    Walsh-Hadamard transform, dup-folding, the tie-break rule, and
+    multiprocessing shard aggregation), and that code is not invoked by this
+    arm at all -- by the executor's own disclosure and my independent
+    confirmation. A defect confined to any part of that code (which the
+    executor's own design.md correctly characterizes as "most of PS-R3's
+    actual (T)-arm code") would produce an IDENTICAL MATCH result on this arm
+    regardless of whether it is present, because this arm never runs that
+    code and instead plants its own, independently-correct, joint law
+    directly at the block-indicator level. The arm also cannot speak to
+    CTRL-POSHOM-style between-block covariance sensitivity (the estimator is
+    a pure function of the marginal S-histogram, verified from
+    log2_A_from_hists's own signature) or to defects that manifest only
+    under PS-R3's much wider marginal support or bit-heterogeneous blocks.
+    Net: this is a real, independently-verified partial closure of one
+    specific, previously-completely-untested leg of OPEN-6 (the
+    reshape/estimator/jackknife path, downstream of sampling); the larger and
+    arguably more central worry -- whether the (T)-sampler itself is subtly
+    wrong -- remains entirely open and untouched by this control arm.
+
+  limitations:
+    - Raw per-trial/per-batch histogram is not archived in planted_results.json;
+      full independent recomputation required re-executing the deterministic
+      generator from recorded seeds rather than reading stored raw counts.
+      Recommend archiving `bh` (or `hist`) as a raw array in future arms.
+    - comparison_report.md Section 2's citation table overstates precision by
+      labeling measure.py lines 730-739 uniformly "copied verbatim"; only
+      734-739 are re-typed formula-identical code, while 730-733 (the `bh`
+      construction) is a different, though functionally-equivalent-when-T-
+      divides-evenly, mechanism. Disclosed in the row's own footnote text but
+      not reflected in the table's top-line characterization.
+    - Unreconciled discrepancy between run_manifest.yaml ("executed TWICE")
+      and comparison_report.md ("executed three times total") on how many
+      times the authorized T=1e7 run was invoked before the kept run of
+      record; the discarded run(s)' raw output was not preserved, so the
+      claimed bit-identity across executions is unaudited, and the literal
+      run count exceeds the task's own budget field ("runs_authorized" = 1)
+      (disclosed, apparently benign -- deterministic identical seeds, a
+      non-computational bookkeeping bug -- but not independently verifiable).
+    - This arm supplies no null-object control of its own (it is a
+      known-answer / ground-truth recovery check, a different control type
+      from a null-hypothesis significance test); that is the correct control
+      type for what this task was asked to build and is not a defect, but it
+      means this report says nothing about PS-R3's own null battery
+      (NULL-M, NULL-P, CTRL-ORACLE, CTRL-BS, CTRL-POSHOM), which remain
+      governed by EV-HQC-b71230's own unresolved_confounds list, unchanged
+      by this arm.
+    - I did not independently attempt to inject a defect into a copy of the
+      block-partition code to test whether the self-check / MATCH comparison
+      would actually catch it; that is explicitly the Red Team's assigned
+      task (TASK-20260806-21c8da), running independently and in parallel
+      with this validation. My ADMIT verdict does not depend on that result
+      and should be read alongside it before the Coordinator's ledger
+      archive task treats OPEN-6's disposition as settled.
+    - Claim tier is toy throughout, as required; nothing in this report bears
+      on HQC's decoding-failure rate, A17, or any standardized parameter set.
+
+  verdict: passed
+
+  artifact_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/design.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/planted_arm.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/planted_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/comparison_report.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/run_manifest.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/archives/TASK-20260806-5a3d0e/snapshot-receipt.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/coordinator_ruling.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-6086cb/amendment_v3.yaml
+    - ledger/evidence/EV-HQC-b71230.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/reviews/TASK-20260806-9f4b27/validation_report.yaml

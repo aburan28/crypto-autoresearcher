@@ -28,7 +28,10 @@ Produce a read-only snapshot of the program. Make no state changes.
    - run directories missing required artifacts;
    - decisions whose `next_actions` have no follow-up handoff;
    - theory, experiment, task-report, knowledge, or ledger paths that remain
-     uncommitted or lack a verified Coordinator archive receipt.
+     uncommitted or lack a verified Coordinator archive receipt;
+   - the working branch behind `origin/main` (un-merged-upstream) or with no
+     open PR against `main` — flag it so the next generation step can merge
+     `main` and open/refresh the PR before producing new records.
 4. Report: a short table per ledger area, experiments in flight with run
    tallies, the latest decision per active hypothesis, integrity flags, and
    the concrete next action the lifecycle implies (e.g. "EXP-ISO-002 is

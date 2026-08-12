@@ -1,0 +1,344 @@
+experiment:
+  id: EXP-MLKEM-007
+  hypothesis_id: H-MLKEM-007
+  goal_id: GOAL-MLKEM-001
+  version: 1
+  title: >-
+    Toy negacyclic isometry-orbit scoring with covariance-aware GLS fusion
+    versus single-orbit and ablation baselines
+  status: approved
+  frozen: true
+  approved_by: coordinator
+  approved_at: '2026-07-27'
+  claim_tier: toy
+  objective: >-
+    Decide, at toy ML-KEM-like parameters only, whether reusing one
+    short-vector pool across a selected negacyclic isometry orbit and
+    fusing the orbit scores with covariance-aware GLS weights recovers
+    planted secret components with materially fewer short vectors than the
+    unfused single-orbit baseline — and whether any such gain survives
+    naive-averaging ablation, random signed-permutation controls, and
+    complete charged-work accounting. The experiment implements only the
+    scoring layer; it runs no standardized-parameter estimator, no BKZ at
+    scale, and no LaMS p-adic stack, and it does not discharge
+    DEC-20260722-003's derivation prerequisite.
+
+  source_refs:
+    proposal: ledger/proposals/IDEA-20260722-001.yaml
+    candidate_report: coordination/goals/GOAL-MLKEM-001/batches/BATCH-001/tasks/TASK-20260722-201/candidate_report.yaml
+    review_evidence: EV-MLKEM-001
+    review_decision: DEC-20260722-003
+    snapshot_receipt: coordination/goals/GOAL-MLKEM-001/batches/BATCH-001/archives/TASK-20260722-202/snapshot-receipt.json
+    comparator_note: >-
+      ePrint 2026/279 isometric comparator and Ducas--Pulles dependence
+      correction are cited as recorded in the candidate report novelty
+      screen; their corrected gain figures follow EV-MLKEM-001.
+
+  inputs:
+    arithmetic:
+      q: 3329
+      ring: Z_q[X]/(X^n+1), n in {32, 64}
+      negacyclic_multiplication: >-
+        (a*b)_ell = sum_{i=0}^ell a_i*b_{ell-i}
+        - sum_{i=ell+1}^{n-1} a_i*b_{n+ell-i}.
+      cbd_law: >-
+        P[CBD_eta=x] = binom(2*eta, eta+x) / 2^(2*eta) for x in
+        [-eta, eta], eta=3, represented by exact integer weights.
+      module_rank_k: 2
+    instance_generation:
+      seeds_per_n: 30
+      split: >-
+        Seeds 1..15 training, 16..30 held-out, fixed before any covariance
+        estimation or orbit-subset selection. Held-out seeds are never
+        touched by weight fitting, subset selection, or threshold tuning.
+      planted_secret: one per instance, iid CBD eta=3 coordinates, archived by hash.
+    short_vector_pool:
+      construction: >-
+        Frozen toy pool construction documented in implementation.md:
+        exact enumeration/short-sieve at toy dimension, one pool per
+        instance, reused across all selected orbit elements. Pool size and
+        quality parameters are pinned before the first run and charged in
+        full.
+      reuse_rule: Reuse within one target instance only; no cross-instance preprocessing credit.
+    orbit_and_scoring:
+      orbit_definition: >-
+        Multiplication by X^j for j in the selected subset of
+        {0, ..., n-1}; subset size at most 32, selected on training
+        instances by covariance effective rank under the frozen selection
+        rule, then frozen for held-out evaluation.
+      scoring_task: >-
+        Frozen single-layer layered-dual scoring task at layer prime p=3:
+        guess-and-score of one planted secret component layer against dual
+        vectors from the pool, with modulus-switched residuals defined in
+        implementation.md. One layer only.
+      fusion_rules:
+        unfused_single_orbit: scores from the single orbit representative j=0 only (baseline).
+        unweighted_mean: naive averaging over the selected orbit (ablation baseline).
+        gls_covariance_aware: GLS weights from the training-estimated orbit-score covariance.
+        random_signed_permutation: size-matched random signed permutations fixed before seeing each secret.
+      exactness_check: >-
+        Direct scalar score evaluation must equal batched negacyclic
+        convolution output exactly on every exact small-instance check
+        before any timing or counting comparison.
+    charged_work_model:
+      includes: [integer_operations, transform_count_and_precision, bytes_read_and_written, peak_resident_memory, vector_generation_work, score_work, covariance_estimation, orbit_subset_search, candidate_verification]
+      excludes: [BKZ_at_scale, standardized_estimator_runs, quantum_or_QRAM_models, oracle_or_trace_costs]
+
+  controls:
+    - id: CTRL-KNOWN-ANSWER
+      method: >-
+        The unfused single-orbit baseline is run against each planted
+        secret at the frozen reference vector count.
+      pass_condition: >-
+        The baseline recovers the planted secret component layer at the
+        reference vector count on training instances, demonstrating the
+        instrument can detect the signal the fused pipeline must amplify.
+    - id: CTRL-COVARIANCE-MODEL
+      method: >-
+        For every selected orbit element X^j, compare the empirical
+        coefficient law of X^j*s and X^j*e against the exact
+        centered-binomial eta=3 weights by chi-square and first/second
+        moment checks at the frozen tolerance.
+      pass_condition: Every orbit element preserves the CBD law within sampling tolerance.
+    - id: CTRL-FUSION-ABLATION
+      method: >-
+        Naive unweighted averaging fusion is measured with identical
+        vectors, thresholds, and instances.
+      pass_condition: >-
+        The ablation is always measured, so the covariance-aware term is
+        required to beat something, not nothing.
+    - id: CTRL-RANDOM-SIGNED-PERMUTATION
+      method: >-
+        Size-matched random signed permutations, fixed before seeing each
+        secret, are scored and fused identically.
+      pass_condition: Control is measured and reported beside the true orbit on every instance set.
+    - id: CTRL-SHUFFLED-ORBIT-LABELS
+      method: Orbit labels are independently shuffled between scores and candidate coordinates as a negative control.
+      pass_condition: Shuffled fusion shows no held-out gain; any gain invalidates the pipeline.
+    - id: CTRL-EXACT-EQUALITY
+      method: Batched convolution versus direct scalar evaluation on exact small instances.
+      pass_condition: Exact agreement on every check before any comparative measurement.
+    - id: CTRL-SEED-DISCIPLINE
+      method: Training/held-out split enforced by the harness; subset selection and covariance fit touch training seeds only.
+      pass_condition: No held-out seed is read by any fitting step; attested in run manifests.
+
+  independent_variables:
+    - ring_dimension_n: [32, 64]
+    - fusion_rule: [unfused_single_orbit, unweighted_mean, gls_covariance_aware, random_signed_permutation]
+    - instance_seed: 30 frozen seeds per n (15 training / 15 held-out)
+    - orbit_subset: selected on training seeds under the frozen rule, size <= 32
+
+  metrics:
+    primary:
+      - id: orbit_score_effective_rank
+        definition: r_eff = (tr Sigma)^2 / tr(Sigma^2) of the orbit-score covariance, estimated on training instances and re-measured on held-out instances.
+        decision_use: Gate at n=32 (>= 2.0) and threshold at n=64 (>= 4.0 for at least one subset of size <= 32).
+      - id: short_vector_count_for_50_percent_layer_success
+        definition: Short vectors required for 50 percent layer success at matched held-out false-positive rate, per fusion rule.
+        decision_use: Fused/unfused ratio; thresholds 2x at n=32 (gate) and 4x at n=64.
+      - id: held_out_false_positive_rate_gls_vs_unweighted
+        definition: Held-out wrong-candidate false-positive rate of GLS fusion divided by naive unweighted averaging at the same vectors and threshold.
+        decision_use: GLS must be at least 2x lower.
+      - id: total_charged_score_work_ratio
+        definition: Frozen integer-operation plus memory-traffic accounting of the fused pipeline divided by the unfused baseline for the same task, including covariance estimation and subset search.
+        decision_use: Must be below 1 for materiality.
+      - id: true_orbit_vs_random_signed_permutation_gain
+        definition: Projected total-cost gain under the frozen toy cost model of the true orbit minus that of the random signed-permutation control, in bits.
+        decision_use: Must be at least 1.0 bit; otherwise generic batching.
+    secondary:
+      - correct_and_wrong_score_quantiles
+      - covariance_train_holdout_deviation
+      - chi_square_and_moment_statistics_per_orbit_element
+      - exact_equality_check_count_and_failures
+      - integer_operation_count
+      - transform_count_and_precision
+      - bytes_read_and_written
+      - peak_resident_memory_bytes
+      - candidate_verification_count
+      - success_probability_with_binomial_confidence_interval
+      - per_stage_wall_clock_seconds
+
+  replication:
+    seeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    seed_policy: >-
+      Deterministic; 30 frozen seeds per ring size, split 15 training /
+      15 held-out before any fitting; all derivation paths recorded in the
+      run manifests.
+    independent_instances: 30
+    planned_runs:
+      - id: RUN-MLKEM-025
+        purpose: >-
+          Implement and attest controls: exact CBD sampler, per-orbit
+          covariance-model checks, scalar-versus-batched exact equality,
+          known-answer baseline at n=32.
+      - id: RUN-MLKEM-026
+        purpose: >-
+          n=32 gate: covariance estimation on training seeds, effective
+          rank, held-out vector-count ratios, GLS versus ablation versus
+          permutation controls, total charged work; apply frozen gate
+          decision.
+      - id: RUN-MLKEM-027
+        purpose: >-
+          n=64 full toy test, executed only if the n=32 gate passes;
+          otherwise recorded cancelled_by_budget with gate_stop reason.
+      - id: RUN-MLKEM-028
+        purpose: Analysis, charged-work accounting, outcome classification under frozen precedence, packaging.
+    expected_run_count: 4
+    gate_rule: >-
+      If the n=32 gate fails, RUN-MLKEM-027 is not executed and is recorded
+      with terminal status cancelled_by_budget and reason gate_stop; every
+      planned run still reaches a terminal status.
+
+  outcome_classification:
+    precedence:
+      - invalid_implementation_or_instrumentation
+      - covariance_control_failed
+      - known_answer_baseline_failed
+      - correlated_reindexing
+      - fusion_no_advantage
+      - generic_batching
+      - non_bottleneck_local_gain
+      - structural_information_gain_candidate
+    invalid_implementation_or_instrumentation: >-
+      Scalar and batched scores disagree on an exact check, seed discipline
+      is violated, a required artifact is missing, or a control cannot be
+      attested. Infrastructure only.
+    covariance_control_failed: >-
+      A per-orbit coefficient law deviates from the exact CBD eta=3 law
+      beyond the frozen chi-square/moment tolerance.
+    known_answer_baseline_failed: >-
+      The unfused baseline fails to recover the planted secret at the
+      reference vector count. Instrument inadequacy.
+    correlated_reindexing: >-
+      Held-out r_eff < 2.0 at n=32, or r_eff < 4.0 at n=64 for every
+      selected subset of size at most 32.
+    fusion_no_advantage: >-
+      GLS fusion is not at least 2x better than naive unweighted averaging
+      in held-out false-positive rate.
+    generic_batching: >-
+      Random signed permutations reproduce the true-orbit gain within 1.0
+      projected bit.
+    non_bottleneck_local_gain: >-
+      Vector-count gains exist but total_charged_score_work_ratio >= 1.
+    structural_information_gain_candidate: >-
+      All controls pass, every threshold is met, and the true orbit beats
+      the permutation control. Justifies derivation/estimator follow-up
+      only; no standardized conclusion.
+
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_wall_clock_seconds: 6000
+    total_cpu_hours: 2.0
+    maximum_memory_gb: 4
+    maximum_runs: 4
+    maximum_processes: 4
+    network_operations: none
+    deployed_system_queries: 0
+    stages:
+      - id: implementation_and_controls
+        wall_clock_seconds: 1500
+        stop_rule: >-
+          If any control cannot be attested, classify
+          invalid_implementation_or_instrumentation or the appropriate
+          control-failed class; do not proceed to comparative measurement.
+      - id: n32_gate
+        wall_clock_seconds: 1800
+        stop_rule: >-
+          Stop and reject (correlated_reindexing) if held-out r_eff < 2.0,
+          if batched and scalar scores disagree, or if fused measured work
+          is not lower than the unfused baseline.
+      - id: n64_full
+        wall_clock_seconds: 1800
+        stop_rule: Executed only on gate pass; stop at the frozen seed and subset caps.
+      - id: analysis_and_packaging
+        wall_clock_seconds: 900
+        stop_rule: Stop without interpretation if any required artifact is incomplete.
+
+  stopping_rules:
+    - Stop and reject after the n=32 gate if held-out effective rank is below 2.0, if exact equality fails, or if measured fused work is not lower than the unfused baseline.
+    - Stop after the four planned runs; no exploratory fifth run.
+    - Stop before any standardized-parameter estimator run, any ML-KEM-512/768/1024 solve attempt, and any BKZ or sieving beyond the frozen toy pool construction.
+    - Stop before any claim beyond the toy boundary; a passing result licenses a derivation/estimator proposal only.
+    - Stop at 6000 total wall-clock seconds, 2.0 CPU-hours, or 4 GB resident memory; exhaustion is resource_exhaustion, an infrastructure outcome with zero evidence value.
+
+  invalidation_rules:
+    - Any run lacks its exact command (exact argv), commit and dirty state, environment, dependency versions, timestamps, resource use, stdout, stderr, raw result, summary, or inference metadata.
+    - Expected run count is not exactly four, or a planned run has no terminal status (cancelled_by_budget with gate_stop counts as terminal).
+    - Batched and scalar orbit scores disagree on any exact small-instance check.
+    - Covariance estimation, orbit-subset selection, or threshold tuning touched a held-out seed.
+    - Any secret or error distribution other than the exact CBD eta=3 law was used.
+    - Vector-count comparisons are made at mismatched held-out false-positive rates.
+    - The unfused, unweighted-ablation, or random signed-permutation baselines are missing or differ in vectors, thresholds, or instances.
+    - Total charged work omits covariance estimation, orbit-subset search, transform precision, memory traffic, or candidate verification.
+    - A toy result is described as a standardized-ML-KEM improvement, an attack, or an estimator-level conclusion.
+    - A crash, timeout, or resource exhaustion is interpreted as evidence for or against H-MLKEM-007.
+
+  success_criterion: >-
+    All four runs reach terminal status; known-answer, covariance-model,
+    ablation, permutation, shuffled-label, exact-equality, and
+    seed-discipline controls pass; the n=32 gate passes (held-out r_eff
+    >= 2.0, exact equality, fused work lower); at n=64 the fused pipeline
+    uses at least 4x fewer short vectors than the unfused baseline at
+    matched held-out false-positive rate with r_eff >= 4.0 for at least
+    one selected subset of size at most 32, GLS beats naive averaging by at
+    least 2x in held-out false-positive rate, total_charged_score_work_ratio
+    < 1, and the true orbit exceeds the random signed-permutation control
+    by at least 1.0 projected bit; and the outcome is uniquely classified
+    as structural_information_gain_candidate under frozen precedence.
+    H-MLKEM-007 is then supported within the toy boundary only, licensing a
+    derivation and estimator study and nothing more.
+  falsification_criterion: >-
+    H-MLKEM-007 is falsified at toy scale under any of
+    correlated_reindexing, fusion_no_advantage, generic_batching,
+    non_bottleneck_local_gain, or covariance_control_failed, or when
+    HEUR-001's falsification condition triggers. Instrument or
+    infrastructure failure (known_answer_baseline_failed,
+    invalid_implementation_or_instrumentation, resource exhaustion)
+    falsifies nothing.
+
+  required_artifacts:
+    - experiments/EXP-MLKEM-007/implementation.md
+    - experiments/EXP-MLKEM-007/implementation/mlwe_sampler.py
+    - experiments/EXP-MLKEM-007/implementation/orbit_scoring.py
+    - experiments/EXP-MLKEM-007/implementation/covariance_fusion.py
+    - experiments/EXP-MLKEM-007/implementation/controls.py
+    - experiments/EXP-MLKEM-007/implementation/run_experiment.py
+    - experiments/EXP-MLKEM-007/analysis/covariance_report.json
+    - experiments/EXP-MLKEM-007/analysis/gate_decision.json
+    - experiments/EXP-MLKEM-007/analysis/cost_accounting.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-025/manifest.yaml
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-025/command.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-025/environment.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-025/raw.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-025/summary.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-025/stdout.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-025/stderr.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-026/manifest.yaml
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-026/command.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-026/environment.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-026/raw.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-026/summary.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-026/stdout.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-026/stderr.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-027/manifest.yaml
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-027/command.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-027/environment.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-027/raw.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-027/summary.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-027/stdout.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-027/stderr.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-028/manifest.yaml
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-028/command.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-028/environment.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-028/raw.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-028/summary.json
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-028/stdout.txt
+    - experiments/EXP-MLKEM-007/runs/RUN-MLKEM-028/stderr.txt
+    - experiments/EXP-MLKEM-007/execution-report.yaml
+
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: null
+    fallback_used: false
+    authorization_ref: null

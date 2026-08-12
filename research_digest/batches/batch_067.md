@@ -1,0 +1,60 @@
+# Batch 067 digest
+
+## Overview
+- Dominated by 2005-era Springer LNCS proceedings: the 34940xxx filenames match EUROCRYPT 2005 (LNCS 3494) and the 35570xxx filenames match FSE 2005 (LNCS 3557); a few stray files (34.pdf, 35.pdf, 348.pdf, 33860420.pdf) are CHES/CT-RSA-era papers.
+- Two strong thematic clusters: symmetric cryptanalysis (Wang et al. MD4/MD5 breaks, SHA-0/SHA-1 collisions, RC4 biases, second-preimage attacks, T-functions, stream-cipher designs) and theoretical/public-key crypto (commitments, oblivious transfer, UC security, HIBE, traitor tracing, VRFs, biometric authentication).
+- ECC-adjacent content is present but secondary: bilinear-map constructions (VRF, HIBE, traitor tracing) and two hardware ECC papers (8051 co-design, FPGA Koblitz-curve multiplication); lattice/Coppersmith work (L² algorithm, Blömer-May toolkit, RSA partial key exposure) rounds it out.
+- 16 of 50 files are garbled extractions (hex-glyph CID-encoded text or mojibake with no recoverable title/abstract); 34940235.pdf and 35570124.pdf also begin with readable title/author fragments but the body is garbled.
+- Notable landmark papers: Wang-Yu "How to Break MD5", Boneh-Boyen-Goh constant-ciphertext HIBE, Bernstein's Poly1305-AES, Kelsey-Schneier second preimages, Nguyen-Stehlé L² algorithm.
+
+## Papers
+- **33860420.pdf** — A Verifiable Random Function With Short Proofs and Keys (Yevgeniy Dodis, Aleksandr Yampolskiy). Direct bilinear-group VRF avoiding Goldreich-Levin, with constant-size proofs/keys based on a decisional bilinear Diffie-Hellman inversion assumption.
+- **34.pdf** — Hardware/Software Co-Design of Elliptic Curve Cryptography on an 8051 Microcontroller (Koschuch, Lechner, Weitzer, Großschädl, Szekely, Tillich, Wolkerstorfer). Minimalist hardware accelerator with DMA enabling GF(2^191) scalar multiplication in 118 ms at 12 MHz on an 8051.
+- **348.pdf** — Garbled extraction: entire text is hex CID-encoded glyph codes; title/content not recoverable.
+- **34940001.pdf** — Cryptanalysis of the Hash Functions MD4 and RIPEMD (Xiaoyun Wang, Xuejia Lai, Dengguo Feng, Hui Chen, Xiuyuan Yu). Practical MD4 collisions (~2^8 operations) and chosen-message preimage; extends to RIPEMD collisions at ~2^18 work.
+- **34940019.pdf** — How to Break MD5 and Other Hash Functions (Xiaoyun Wang, Hongbo Yu). Landmark modular-differential attack finding MD5 collisions in 15 minutes to an hour; also applies to MD4, RIPEMD, HAVAL.
+- **34940036.pdf** — Collisions of SHA-0 and Reduced SHA-1 (Eli Biham, Ra Chen, Antoine Joux, Patrick Carribault, Christophe Lemuet, William Jalby). Multi-block near-collision technique yielding 4-block SHA-0 collisions at 2^51 and collisions of SHA-1 reduced to 40 rounds.
+- **34940058.pdf** — Reducing Complexity Assumptions for Statistically-Hiding Commitment (Haitner, Horvitz, Katz, Koo, Morselli, Shaltiel). Builds statistically-hiding commitments from approximable-preimage-size (or regular) one-way functions, weakening the prior one-way-permutation assumption.
+- **34940078.pdf** — Smooth Projective Hashing and Two-Message Oblivious Transfer (Yael Tauman Kalai). Framework generalizing Naor-Pinkas/Aiello et al. two-message OT via modified smooth projective hashing, with new schemes from N'th-residuosity and quadratic residuosity + ERH.
+- **34940096.pdf** — On Robust Combiners for Oblivious Transfer and Other Primitives (Harnik, Kilian, Naor, Reingold, Rosen). Studies which primitives admit robust combiners; gives combiners for key agreement and proves no transparent black-box combiner exists for OT.
+- **34940113.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940127.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940149.pdf** — Secure Remote Authentication Using Biometric Data (Boyen, Dodis, Katz, Ostrovsky, Smith). Two efficient techniques for mutual authentication/authenticated key exchange from noisy biometric data over insecure channels, with one scheme proven in the standard model.
+- **34940166.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940183.pdf** — 3-Move Undeniable Signature Scheme (Kaoru Kurosawa, Swee-Huay Heng). First 3-move confirmation/disavowal protocols for Chaum's undeniable signatures secure against active and concurrent attacks, separating zero-knowledgeness from non-transferability.
+- **34940200.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940217.pdf** — Floating-Point LLL Revisited (Phong Q. Nguyen, Damien Stehlé). Introduces L², the first provable polynomial-time floating-point LLL variant, outputting LLL-reduced bases in O(d^4 n(d+log B) log B).
+- **34940235.pdf** — Garbled extraction: readable title/author fragments ("...Bangalore...", odd encoding) but abstract body is mojibake; content not recoverable.
+- **34940252.pdf** — A Tool Kit for Finding Small Roots of Bivariate Polynomials over the Integers (Johannes Blömer, Alexander May). Flexible reformulation of Coppersmith's method with combinatorial bound maximization, unifying univariate modular and bivariate integer root-finding.
+- **34940269.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940286.pdf** — Approximate Quantum Error-Correcting Codes and Secret Sharing Schemes (Crépeau, Gottesman, Smith). Approximate QECCs correcting up to floor((n-1)/2) errors with near-perfect fidelity, breaking the n/4 exact bound; doubles as error-tolerant quantum secret sharing.
+- **34940303.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940322.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940341.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940356.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940373.pdf** — Partial Key Exposure Attacks on RSA up to Full Size Exponents (Ernst, Jochemsz, May, de Weger). Lattice-based factoring of RSA given known MSBs or LSBs of the private exponent; first such attacks working up to full-size exponents.
+- **34940389.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940406.pdf** — Universally Composable Password-Based Key Exchange (Canetti, Halevi, Katz, Lindell, MacKenzie). Defines and realizes UC-secure password-based key exchange in the CRS model under standard assumptions; proves impossibility in the plain model.
+- **34940423.pdf** — Mercurial Commitments with Applications to Zero-Knowledge Sets (Chase, Healy, Lysyanskaya, Malkin, Reyzin). Commitments with non-binding "soft" decommitments that recast Micali-Rabin-Kilian zero-knowledge sets and yield new constructions from various assumptions.
+- **34940440.pdf** — Hierarchical Identity Based Encryption with Constant Size Ciphertext (Dan Boneh, Xavier Boyen, Eu-Jin Goh). HIBE with 3-group-element ciphertexts and 2-pairing decryption at any depth; selective-ID secure in the standard model, with forward-secure and broadcast applications.
+- **34940457.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940474.pdf** — Second Preimages on n-bit Hash Functions for Much Less than 2^n Work (John Kelsey, Bruce Schneier). Expandable-message second-preimage attack on Merkle-Damgård hashes (e.g., RIPEMD-160 second preimage in ~2^106 work) plus cheaper multicollisions.
+- **34940491.pdf** — Predicting and Distinguishing Attacks on RC4 Keystream Generator (Itsik Mantin). Digraph biases distinguishing RC4/RC4A keystreams from random at ~2^26 bytes, and patterns enabling bit/byte prediction with high advantage.
+- **34940508.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **34940527.pdf** — On the Impossibility of Highly-Efficient Blockcipher-Based Hash Functions (Black, Cochran, Shrimpton). Proves in the ideal-cipher model that no provably secure iterated blockcipher-based hash can use one keyed call per message block, breaking TCH instantiations.
+- **34940544.pdf** — Public Traceability in Traitor Tracing Schemes (Chabanne, Phan, Pointcheval). Bilinear-map traitor tracing with asymptotically optimal ciphertext rate and delegatable public tracing; also breaks a prior scheme via anonymous pirate decoder.
+- **34940561.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **35.pdf** — FPGA Implementation of Point Multiplication on Koblitz Curves Using Kleinian Integers (Dimitrov, Järvinen, Jacobson, Chan, Huang). Multiple-base expansions yielding the first provably sublinear point multiplication on Koblitz curves, with FPGA implementation.
+- **35570001.pdf** — A New MAC Construction Alred and a Specific Instance Alpha-MAC (Joan Daemen, Vincent Rijmen). Block-cipher-based MAC design method; AES instantiation ~2.5x faster than CBC-MAC at comparable security.
+- **35570019.pdf** — New Applications of T-functions in Block Ciphers and Hash Functions (Alexander Klimov, Adi Shamir). Uses T-function theory to build MDS mappings for block-cipher diffusion layers and self-synchronizing hash functions.
+- **35570033.pdf** — The Poly1305-AES message-authentication code (Daniel J. Bernstein). Fast one-time authenticator with security gap at most ~2^-106; under 3.1 cycles/byte on Athlon, parallelizable, patent-free.
+- **35570051.pdf** — Narrow T-functions (Magnus Daum). Defines T-function narrowness and solution-graph equation solving; shows low-narrowness T-functions are weak and should be avoided in designs.
+- **35570069.pdf** — A New Class of Single Cycle T-functions (Jin Hong, Dong Hoon Lee, Yongjin Yeom, Daewan Han). New family of maximal-period (single-cycle) T-functions as LFSR substitutes, with a hardware-oriented stream cipher proposal.
+- **35570084.pdf** — F-FCSR: design of a new class of stream ciphers (François Arnault, Thierry P. Berger). Filtered feedback-with-carry shift register stream ciphers in four variants, combining proved period and nonlinearity with a masking linear filter.
+- **35570097.pdf** — Cryptographically Significant Boolean Functions: Construction and Analysis in terms of Algebraic Immunity (Dalai, Gupta, Maitra). First construction of n-variable Boolean functions achieving maximum algebraic immunity ceil(n/2), resisting algebraic attacks.
+- **35570110.pdf** — The ANF of the Composition of Addition and Multiplication mod 2^n with a Boolean Function (An Braeken, Igor Semaev). Compact ANF formulas for f(x+a) and f(x*a) mod 2^n, applied to algebraic attacks on the summation generator and Bluetooth E0.
+- **35570124.pdf** — Garbled extraction: mojibake/CID-encoded text; title and content not recoverable.
+- **35570143.pdf** — Small Scale Variants of the AES (C. Cid, S. Murphy, M.J.B. Robshaw). Defines scaled-down AES variants preserving its design features as a testbed for algebraic cryptanalysis, with preliminary equation-solving results.
+- **35570161.pdf** — Unbiased Random Sequences from Quasigroup String Transformations (Markovski, Gligoroski, Kocarev). Quasigroup-based technique turning biased stationary sources into unbiased random sequences and improving PRNG statistical properties.
+- **35570179.pdf** — A New Distinguisher for Clock Controlled Stream Ciphers (Håkan Englund, Thomas Johansson). Distinguisher for irregularly clocked filter generators; first attack on LILI-II, distinguishing with ~2^103 keystream bits.
+- **35570195.pdf** — Analysis of the Bit-Search Generator and sequence compression techniques (Gouget, Sibert, Berbain, Courtois, Debraize, Mitchell). Proposes MBSG/ABSG variants of the bit-search generator and compares their security under a range of cryptanalytic techniques.

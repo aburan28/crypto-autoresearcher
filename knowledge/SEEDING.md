@@ -26,7 +26,9 @@ Each entry carries two independent honesty axes. Do not collapse them.
 - **`citation_verified`** — about the *bibliographic reference itself*,
   independent of whether you believe the content:
   - `web` — author, title, venue, year confirmed against a primary index
-    (IACR ePrint, publisher DOI, DBLP, arXiv) during this entry's creation.
+    (IACR ePrint, publisher DOI, DBLP, arXiv, or an open preprint repository
+    listed at https://doapr.coar-repositories.org/statuses/open/) during this
+    entry's creation.
   - `read` — you fetched the actual paper (PDF/abstract) and the claims in
     this entry reflect its real content, not a search snippet.
   - `false` — reference recalled from memory; **must be verified before any

@@ -1,0 +1,183 @@
+experiment_amendment:
+  id: EXP-FB3-001-AMD-001
+  experiment_id: EXP-FB3-001
+  amends_version: 1
+  status: approved
+  approved_by: coordinator   # TASK-20260724-226, GOAL-ICLIFT-001 BATCH-001
+  approved_at: '2026-07-24T11:20:00-07:00'
+  rationale: >-
+    EXP-FB3-001 was approved by DEC-20260717-002 and never executed. Its frozen
+    protocol names an external implementation ("ecdlp-autolab H016 harness",
+    "h022_greedy_base.py sketch") that is not present in this repository, and it
+    measures yield by sampling ">=300 random targets R per cell". This amendment
+    changes NOTHING about the pre-registered cell list, the Holm family, the
+    growth arm, or the success and falsification criteria. It fixes the
+    implementation basis and strictly strengthens the measurement: the yield of a
+    factor base can be counted EXACTLY over the entire target space, so the
+    sampled estimate is replaced by an exact count, and a pre-registered analytic
+    arm is added so the empirical result is interpreted against an exact baseline
+    rather than a heuristic one. Amendments are additive records; the frozen
+    specification.yaml is not modified (AGENTS.md rule 4).
+  changes:
+    - id: AMD-1-implementation-basis
+      kind: implementation
+      change: >-
+        The external H016 harness is unavailable, so the executor re-implements
+        the H016 counting convention recorded verbatim in
+        inputs/h100_session/h016_base_yield.json ("conventions": triples
+        i <= j <= k with P1 + P2 + P3 = R; logs known by construction; membership
+        via log -> index map; matched random base = B distinct uniform logs in
+        [0, N)). Port fidelity is a control, not an assumption: the
+        re-implementation must reproduce the recorded H016 and H017 cell
+        statistics for the recorded curve parameters to within their stated
+        sampling error, and the comparison must be reported.
+      status_effect: none
+    - id: AMD-2-exact-yield
+      kind: measurement strengthening
+      change: >-
+        Replace "yield estimated on >= 300 random targets per cell" with the
+        EXACT decomposition count for EVERY target in the group. Because all
+        factor-base discrete logs are known by construction in this measurement
+        (H016 convention), the per-target multiset decomposition counts for the
+        whole group are the coefficients of a cyclic convolution in Z_N and can
+        be computed in O(N log N) by FFT with exact integer recovery, or in
+        O(B^2 + N) by direct sumset bucketing. The sampled mean, its bootstrap
+        CI, and the sampling error therefore disappear from the primary metric:
+        the primary yield statistics become exact per cell. Bootstrap CIs are
+        retained across the replicate axis (curves and seeds), which is the only
+        remaining source of randomness in the primary metric.
+      status_effect: strengthens the pre-registered metric; no criterion is relaxed
+    - id: AMD-3-analytic-arm
+      kind: added pre-registered arm
+      change: >-
+        Add a pre-registered analytic arm, committed BEFORE execution, so that it
+        cannot be a post-hoc explanation. The arm states and proves the
+        elementary conservation identity for the frozen counting convention:
+        for any factor base D of B distinct group elements in a group of order N,
+        the sum over all targets r of the number of size-m multisets from D
+        summing to r equals binomial(B + m - 1, m) exactly, since every multiset
+        sums to exactly one target. Consequences to be tested against the
+        measured cells: (i) the exact MEAN per-target yield equals
+        binomial(B + m - 1, m) / N for every base of size B, independently of its
+        geometry, so any nonzero mean-yield ratio between a structured base and a
+        matched random base of the same size can only come from size mismatch,
+        from sampling error, or from a bug; (ii) the pre-registered growth slope
+        of the mean-yield ratio versus log N is therefore identically zero;
+        (iii) the only geometry-sensitive quantities are the DISTRIBUTION of the
+        counts across targets and hence coverage, which satisfies
+        coverage <= min(1, mean) with equality iff no target has two
+        decompositions, so additive structure in D, which creates repeated
+        sums, can only lower coverage at matched size; (iv) for typed
+        decompositions with sub-base sizes B1 + B2 + B3 = B the total is
+        B1 * B2 * B3 <= (B/3)^3 = B^3/27, strictly below the untyped
+        binomial(B + 2, 3) ~ B^3/6, so typing is a fixed penalty of about 4.5x
+        rather than a lever. Each consequence must be reported as CONFIRMED,
+        CONTRADICTED, or UNTESTED against the measured cells, and any
+        contradiction is treated as an implementation-integrity finding first.
+      status_effect: adds an exact baseline; the frozen success and falsification criteria are unchanged
+    - id: AMD-4-geometry-definitions
+      kind: pre-registration of operational definitions
+      change: >-
+        The frozen specification names six geometries in prose. To prevent
+        post-hoc selection, the operational definitions below are frozen now,
+        before execution. A geometry that cannot reach the matched size B on a
+        curve is recorded as infeasible for that cell, per the frozen
+        invalidation rules.
+      status_effect: none
+    - id: AMD-5-coverage-as-secondary
+      kind: metric clarification
+      change: >-
+        The frozen secondary metric "coverable-target fraction per geometry (the
+        H017 starvation diagnostic)" is computed exactly over the whole group and
+        is reported alongside its matched-random permutation band. Because
+        consequence (iii) of AMD-3 predicts a one-sided effect, coverage is
+        reported with the direction of any deviation stated explicitly; a
+        coverage DEFICIT is not a success under the frozen criterion.
+      status_effect: none
+  frozen_definitions:
+    group_and_curves: >-
+      For each size N in {2^14, 2^16, 2^18} and each curve index 1..4, generate a
+      prime p near the target size and short Weierstrass coefficients a, b from a
+      recorded seed; compute the exact group order via the character sum
+      #E(F_p) = p + 1 + sum_x legendre(x^3 + a x + b, p); accept the curve only
+      if the order is prime and within the size window; take G as any point of
+      that order; build the exact discrete-log table by enumerating multiples of
+      G. All randomness comes from recorded seeds.
+    matched_size: >-
+      B = ceil((6 N)^(1/3)), so that the exact mean per-target multiset yield is
+      close to 1 and coverage is far from both 0 and 1, giving the coverage
+      statistic full dynamic range. Every untyped geometry and its matched random
+      control use exactly this B; typed geometries use sub-base sizes summing to
+      B.
+    m: 3
+    geometries:
+      high_bit_interval: >-
+        H018. Points whose x-coordinate lies in the top window
+        [p - W, p) with W chosen minimal such that at least B distinct points are
+        available; take the B smallest such x in that window, one point per x.
+        (The complementary low-bit interval family is the already-killed H016-era
+        pattern; this is the opposite-endianness arm the hypothesis names.)
+      small_height: >-
+        H019. There is no canonical height on E(F_p), so the frozen operational
+        definition is the natural prime-field analogue used in lifting work:
+        the height of x in [0, p) is h(x) = min over representations
+        x = u * v^-1 mod p of max(|u|, |v|), computed from the continued-fraction
+        convergents of x / p. The base is the B points whose x has smallest h(x),
+        ties broken by smaller x. This is the rational-reconstruction height, and
+        it is exactly the quantity the lifting angle of this campaign measures,
+        so the arm doubles as a cross-link between the two routes.
+      mixed_two_base: >-
+        H020. Two typed sub-bases of sizes ceil(B/2) and floor(B/2): the first is
+        an x-interval base (smallest x with a point), the second is the
+        small-multiples base x(jG) for j = 1, 2, ... deduplicated by x. Typed
+        decompositions require one point from the first sub-base and two from the
+        second, and the reverse; both typings are counted and reported.
+      coset_union: >-
+        H021. Choose the largest divisor d of p - 1 with d <= B, let H be the
+        subgroup of order d in F_p^*, and take the union of cosets g^i * H for
+        i = 0, 1, 2, ... (g a fixed primitive root), keeping only x values that
+        are x-coordinates of points, until B points are collected.
+      greedy_optimized: >-
+        H022. Candidate pool: 4B points drawn from the recorded seed. Split the
+        target space into a training half and a held-out half by a recorded
+        deterministic rule. Greedily add, one at a time, the pool point that
+        maximizes the number of newly covered TRAINING targets, using exact
+        incremental sumset membership; stop at B points. Report yield and
+        coverage on the HELD-OUT half only. Any use of held-out targets during
+        selection invalidates this arm (frozen stopping rule).
+      asymmetric_sizing: >-
+        H004. Three typed sub-bases with sizes B1 >= B2 >= B3, B1 + B2 + B3 = B,
+        chosen from the recorded ladder of splits; typed decomposition takes one
+        point from each sub-base. Report the per-size decomposition-probability
+        fit across the ladder.
+    prior_cells: >-
+      H016 (QR base) and H017 (small multiples) are NOT re-run as pre-registered
+      cells; their recorded statistics from inputs/h100_session/h016_base_yield.json
+      enter the Holm family accounting as already-run cells. Exact recomputations
+      of those two geometries MAY be reported, but only in a clearly separated
+      replication section outside the pre-registered family.
+    permutation_null: >-
+      >= 100 matched random bases per (curve, N, seed) and per typing pattern,
+      each counted exactly. One null set is shared by all untyped cells at the
+      same (curve, N, seed, B), which is legitimate because the null depends only
+      on the base size, and it is recorded as shared.
+    holm_family: >-
+      One family of 8 cells per size (6 new geometries + 2 prior cells), with
+      Holm-Bonferroni correction applied across the full family as frozen.
+  honesty_notes:
+    - >-
+      Discrete logs of factor-base points are known BY CONSTRUCTION in this
+      measurement, exactly as in the frozen H016 convention. They are used only
+      to count decompositions; no cost, speedup, or attack claim may be derived
+      from their availability, and no result here is a step of an attack.
+    - >-
+      This experiment measures decomposition yield and coverage only. It does not
+      measure the cost of FINDING a decomposition (the point-decomposition
+      solve), which is where the index-calculus cost actually sits. A null result
+      here closes the yield channel of the F3 family, not the solving channel.
+    - >-
+      Exact counting removes sampling error, not model error. The convention
+      (multisets of three factor-base points, no signs, targets uniform over the
+      whole group) is inherited from H016 for family comparability; a secondary
+      exploratory arm reports the symmetric convention D union -D so that the
+      convention dependence of the conservation identity is visible.

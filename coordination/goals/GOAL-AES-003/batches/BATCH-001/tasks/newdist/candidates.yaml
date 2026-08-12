@@ -1,0 +1,437 @@
+session:
+  role: 'idea-generator'
+  date: '2026-08-02'
+  question: 'RQ-AES-003'
+  scope: 'reduced-round AES-128, single key, rounds 2-6, toy claim tier'
+  status: 'scratchpad proposal only. Not a ledger record. No hypothesis status changed. Zero compute run this session.'
+  id_note: 'ids are CAND-ND-n and deliberately NOT IDEA-YYYYMMDD-NNN, so no ledger id is consumed by a scratchpad file.'
+  yaml_verification:
+    parser_run: false
+    reason: 'no Bash or code-execution tool exists in this subagent session, so no parser could be invoked. Stated, not claimed. Mitigation: every scalar is single-quoted, no scalar contains an apostrophe, a newline, or a block indicator. No block scalars, anchors, aliases, tabs, or flow collections. This is why the file looks verbose.'
+  literature: 'no primary source is reachable. No citation appears in this file. Every recalled fact is tagged unverified-from-memory with a recall confidence and is used neither to promote nor to dismiss.'
+
+excluded_by_directive:
+  - 'adaptive two-directional yoyo word-exchange object (yoyo5, yoyo6)'
+  - '4-round integral / delta-set balance and the certified 5-round key recovery built on it'
+  - 'mixed-space pair-count residue mod 8 (gate-rr78)'
+  - 'GOAL-AES-002 lane: influence support, O-3 amortization ceiling, algebraic lane, TMTO'
+
+conventions:
+  cipher: 'pinned campaign convention E = ARK_r . SR . SB . [ARK_i . MC . SR . SB]_{i=r-1..1} . ARK_0. Final round drops MixColumns.'
+  layout: 'state column-major, state[row t][col c] = byte[4c+t]. SR(x)[t][c] = x[t][(c+t) mod 4].'
+  spaces: 'D_0 = diagonal space, bytes {0,5,10,15}. C_j = column j. CW[j] = inverse-SR diagonal = {4*((j-t) mod 4)+t, t=0..3}, so CW[0] = {0,13,10,7}. CW[j] is exactly the SR image of column j.'
+  delta: 'Delta_i denotes the state difference after i FULL rounds.'
+
+derivations:
+  note: 'algebraic statements derived in-session from AES structure. NOT measurements. Each is exhaustively checkable on this machine in seconds and each gate re-checks the ones it depends on before believing anything.'
+  D1: 'ShiftRows carries D_0 onto C_0, so a plaintext DIFFERENCE in D_0 gives a round-1 difference supported inside column 0. This needs only the difference to lie in D_0, NOT that the text set be a full coset. Every statement below therefore survives restriction to an arbitrary SUBSET of a diagonal coset, which is what makes the gates cheap, and it is exactly why the gate-rr78 A5 sub-coset defect does not apply here: A5 concerns the image subspace of the text set, these statements concern differences.'
+  D2: 'every entry of AES MixColumns is nonzero, so MC of a weight-1 column vector has weight exactly 4 and lies on the GF(2^8) line spanned by the corresponding column of MC.'
+  D3: 'if Delta_0 is in D_0 and nonzero then Delta_1 is supported in column 0 with weight w at least 1, and Delta_2 has exactly w FULLY active columns: SubBytes preserves support, ShiftRows sends the w active bytes of column 0 into w distinct columns one byte each, and D2 fills each such column.'
+  D4: 'column j of Delta_3 is zero iff the four bytes of Delta_2 at positions (t, (j+t) mod 4), t=0..3, are all zero. Those four positions lie in four DISTINCT columns of Delta_2. By D3 at least one column of Delta_2 is fully active, so at least one of the four is nonzero. Hence NO column of Delta_3 is zero.'
+  D5: 'the r-round ciphertext difference is zero on CW[j] iff column j of the difference entering the final SubBytes is zero, since SubBytes is bytewise bijective (it preserves the zero set of a difference exactly) and ShiftRows carries column j onto CW[j]. At r = 4 that difference is Delta_3, so by D4 the event is IMPOSSIBLE for every pair whose plaintext difference lies in D_0.'
+  D6: 'the same statistic at r = 3 is equivalent to column j of Delta_2 being zero, which holds whenever w < 4, i.e. very often; at r = 2 it is equivalent to column j of Delta_1 being zero, which holds for every j nonzero and every pair. So the statistic SATURATES at r = 2, is in large EXCESS at r = 3, is EXACTLY ZERO at r = 4, and is generic at r = 5. That four-point ladder is the instrument and it carries its own positive controls.'
+  D7: 'set form. Let y be the four bytes of the round-1 column-0 state. Column c of the round-2 state depends on exactly ONE byte of y, since ShiftRows puts one nonconstant byte into each column and MC acts within a column. Hence the round-2 image of a diagonal coset is a PRODUCT SET of four 256-element column sets, and this product structure SURVIVES SubBytes and MixColumns (both columnwise) and dies only at ShiftRows. So the CW[j] projection of the r = 3 ciphertext takes at most 256 distinct values over ANY subset of a diagonal coset, and at r = 4 it is injective by D5.'
+  D8: 'let sigma(state) be the XOR of the four columns. Then sigma . SR = sigma, sigma . MC = MC . sigma, and sigma(x + k) = sigma(x) + sigma(k). Only SubBytes breaks sigma. For AES-128 round keys, sigma(RK_i) = W_{4i-3} + W_{4i-1} = RK_{i-1}[1] + RK_{i-1}[3], by expanding the three linear recurrences inside one round key. A cross-round key-schedule constraint on a 32-bit projection that three of the four AES layers commute with.'
+  D9: 'if two ciphertexts differ by a shift nabla in the CW[0] space then after undoing the final round the difference is supported in column 0, and after undoing one more full round it is supported in D_0. Two rounds only: undoing a third round applies MC-inverse to a D_0-supported difference, which has one byte per column and therefore fills every column. The ciphertext-side shift buys exactly two deterministic rounds, symmetrically with the plaintext side.'
+  D10: 'at r = 2, with plaintext difference in D_0 and ciphertext shift nabla in CW[0] space, both P3+P1 and P4+P2 lie in D_0 by D9, hence P3+P4 = (P3+P1)+(P1+P2)+(P2+P4) lies in D_0. An exact positive control for the quartet instrument.'
+  D11: 'named obstruction for the single-key key-schedule lane. For a FIXED key the cipher is one permutation and AddRoundKey is a translation. The key schedule constrains the map key to round-key-tuple, and a fixed-key distinguisher cannot query that map. Any single-key statistic is invariant under replacing the schedule by any other round-key tuple realising the same permutation. The lane is not empty, but what it can test is a property whose probability under the real schedule differs from its probability under independent round keys, measured ACROSS KEYS, which upgrades to a PRP distinguisher only through the two-step chain in CAND-ND-4.'
+
+candidates:
+
+  - id: 'CAND-ND-1'
+    rank: 1
+    title: 'projection-multiplicity ladder: fibre spectrum of an inverse-SR-diagonal ciphertext projection over a diagonal-difference structure'
+    class: 'measurement'
+    family: 'truncated / impossible differential, deterministic set-level readout'
+    tracked_object: 'the MULTISET of fibre sizes of the 32-bit map x to CW[j](E_K^r(x)), restricted to a text set whose pairwise differences lie in D_0. The thing followed is a set partition (which texts share a 4-byte projection bucket), not a difference, not a support pattern, not a degree, not an integral sum.'
+    why_not_an_excluded_shape: 'not the integral: the integral tracks one XOR aggregate over a full 2^32 delta-set, this tracks the whole collision partition and is decisive on 2^20 texts. Not degree-bounded: the r = 4 statement is a support and branch-number statement (D4) with no algebraic-degree ingredient. Not the yoyo: no decryption oracle, no adaptivity, no word exchange, one direction. Not the mod-8 residue: an exact fibre spectrum with a saturating positive control, not a residue class of a pair count, and D1 shows the A5 sub-coset defect that broke gate-rr78 cannot apply.'
+    claim: 'for every pair of plaintexts whose difference lies in D_0 and every j, 4-round AES-128 gives ciphertexts differing somewhere on CW[j]. Equivalently x to CW[j](E_K^4(x)) is INJECTIVE on any set whose pairwise differences lie in D_0. The same statistic saturates at r = 2 (for j nonzero every pair collides), is in large excess at r = 3 (at most 256 distinct values over the whole structure), and is at the random value at r = 5.'
+    mechanism: 'D1 to D6.'
+    novelty_status: 'unverified'
+    novelty_note: 'that a 4-round truncated or impossible differential of roughly this shape is classical is unverified-from-memory, recall confidence MEDIUM-HIGH, used neither to promote nor to dismiss. Not load-bearing: D1 to D6 are derived here and re-checkable in seconds and the gate decides depth by measurement.'
+    lossy_projection_test:
+      verdict: 'PASSES'
+      argument: '128 bits of ciphertext to 32 bits of projection, then N projected values to a partition. Maximally lossy: no ciphertext is recoverable from the partition. The discard is compatible with the operations: AddRoundKey is a translation and acts trivially on the collision relation, ShiftRows carries column j exactly onto CW[j], SubBytes enters only as a bytewise bijection preserving the zero set of a difference, MixColumns enters only through having no zero entry. Nothing retained depends on a value, only on a support, which is why it propagates deterministically for three layers.'
+    predicted_depth:
+      deterministic_depth: 4
+      dies_at: 5
+      stopping_mechanism: 'at r = 5 the event requires four specified bytes of Delta_3 to vanish. Each column of Delta_3 is MC of a FULL-weight vector, and branch number 5 permits a full-weight input to give an output of weight 1, so individual bytes of Delta_3 do vanish. The D4 obstruction expires exactly one round later. This is a prediction, not a result.'
+    deterministic_statistic:
+      exists: true
+      statement: 'collision count on CW[j] is EXACTLY 0 at r = 4 for every j, key and structure. No detection floor, no sigma, no sample-size argument.'
+      power: 'at N = 2^20 from a diagonal coset there are about 2^39 pairs, so a random permutation gives about 2^7 = 128 collisions per j and about 512 over four j. Observing exactly 0 against a Poisson mean of 128 has null probability exp(-128) = 2^-184.7 per (j, key, trial) before Bonferroni. The r = 3 arm reads about 2^31 collisions against the same 2^7 null, a ratio of about 2^24.'
+      contrast_with_the_withdrawn_closure: 'deliberately the opposite shape to the influence-density statistic that read 0.4995 against 0.4996. The r = 2 and r = 3 arms are saturating positive controls in the same code path, so a statistic with no power cannot masquerade as a closure: if r = 2 does not saturate and r = 3 does not show a 2^24 excess, the instrument is void and nothing about r = 4, 5, 6 may be reported.'
+    minimal_test:
+      design: 'draw a key and a base plaintext. Build N = 2^20 texts varying the four bytes of D_0 over a pseudorandom injective sub-family of the 2^32 diagonal coset (any subset works, by D1). For r in 2,3,4,5,6,10: encrypt all N, extract CW[j] as a uint32 for each j, sort, and report the number of distinct values, the full fibre-size histogram, and the collision count computed twice, once as sum over buckets of C(m,2) and once as (sum of m squared minus N)/2, requiring agreement. Repeat over at least 8 independent keys and base points.'
+      controls:
+        - 'PRP control at identical data complexity, same N, same j, same code path. This is the meaningful null: the campaign has measured that component nulls do not discriminate for structural properties.'
+        - 'r = 10 decay control, which must read as the PRP arm. A reading flat across r including r = 10 is the artifact tell and voids the arm.'
+        - 'sibling null isolating the named property: replace D_0 by a NON-diagonal 4-byte set of equal size, for example the column {0,1,2,3}. The r = 4 zero must NOT survive, because the derivation uses D1 and D1 is false for a column.'
+        - 'second sibling null: keep D_0 but project onto a 4-byte set that is not an inverse-SR diagonal. The r = 4 zero must NOT survive, because D5 uses the exact SR image.'
+        - 'independent-round-key arm, same wiring, same code path, to separate AES from AES-shaped.'
+        - 'structure-destroying arm: N uniformly random plaintexts.'
+      required_metrics: ['distinct_projection_values', 'fibre_size_histogram', 'collision_count_two_ways', 'poisson_tail_per_arm', 'bonferroni_factor', 'wall_clock', 'peak_rss']
+    gate_cost:
+      encryptions: 'about 2^24 across all arms and round counts'
+      wall_clock_estimate: 'well under one second of AES work per key at the campaign-measured 7.5e7 AES per second per core. The 2^20-element uint32 sort dominates.'
+      memory: 'under 100 MB'
+      solver_needed: false
+      runs_on_this_machine: true
+      solver_substitute: 'none needed. This IS the runnable substitute for a MILP or division-property search: it decides survival by direct measurement at 2^20 texts instead of predicting it.'
+    predicted_resolution: 'deterministic arm has no resolution floor; reported as the exact null tail exp(-128) = 2^-184.7 per (j, key) at N = 2^20, or exp(-2^31) at the full 2^32 coset. The r = 5 statistical arm has relative resolution 4/sqrt(mean) = 2^-3.5 at N = 2^20 and is labelled UNDERPOWERED on the same line as any number it reports. CAND-ND-2 is the properly powered r = 5 arm.'
+    trials_needed: '8 keys x 6 round counts x 4 values of j x 6 arms = 1152 measurements, all inside about one second of AES work'
+    falsification_conditions:
+      - 'any nonzero collision count on CW[j] at r = 4 in the AES arm falsifies D1 to D6 outright and the candidate is withdrawn, not repaired'
+      - 'failure of the r = 2 saturation control or the r = 3 excess control voids the instrument and forbids reporting r = 4, 5, 6'
+      - 'if either sibling null also reads exactly zero at r = 4, the attribution to the diagonal and inverse-SR-diagonal structure is withdrawn'
+      - 'a zero reading at r = 10 is the artifact tell and voids every arm'
+    confounders:
+      - 'a wrong CW[j] index convention silently produces a false null or a false zero. Getting CW wrong once already produced a false null in this campaign; the r = 2 saturation control is the specific guard.'
+      - 'final-MixColumns convention: D5 assumes the final round drops MixColumns. With final MixColumns the statement is about a mixed space and must be re-derived, not assumed.'
+      - 'duplicate draws inflate the collision count and must be counted and excluded explicitly.'
+    interpretation_limits:
+      - 'toy tier, scoped to the tested rounds, keys, structures, seeds and harness. Not a statement about full-round or deployed AES.'
+      - 'if it reproduces, it does NOT beat REF-C on depth: it matches the measured 4-round integral depth. Its claim is on DATA at equal depth.'
+    target_complexity:
+      metric: 'data and time for a deterministic r = 4 distinguisher'
+      this_candidate: '2^20 chosen plaintexts, 2^20 time, under 100 MB, chosen-plaintext only'
+      best_known_here: 'REF-C full-diagonal integral, 2^32 chosen plaintexts, 2^32 time, same depth r = 4'
+      claimed_delta: '12 bits of data and 12 bits of time at equal depth against REF-C, with a strictly stronger set-level deterministic readout. N = 2^17 still gives a Poisson mean of 2 per j, so the weak-reading floor is about 2^17.'
+      hidden_overhead: 'an N log N sort of uint32 values, which is the actual dominant cost, not the encryptions'
+      tradeoff_note: 'trivially parallel over keys and over j. Memory 4N bytes; no time-memory tradeoff worth stating at this size.'
+    dominated_by: 'unresolvable in this environment: no primary source reachable; every recalled frontier row is unverified-from-memory. Against the three adjudicable references: REF-A not applicable (no key recovery claimed); REF-B does not yet exist for this object; REF-C is MATCHED on depth (r = 4) and improved by 12 bits on data. Dominated by REF-C on no axis.'
+    sota_delta: 'REF-C delta: equal depth 4, data 2^32 to 2^20, readout upgraded from an aggregate XOR-sum to a deterministic injectivity statement. Published frontier: unadjudicable.'
+    heuristic_assumptions: []
+    heuristic_note: 'unconditional at r = 4. NO heuristic assumptions, which is the main reason it is ranked first. The only conditional content is the PREDICTION that it dies at r = 5, and that prediction is falsified or confirmed by the same gate at zero marginal cost.'
+    estimated_cost:
+      implementation: 'low'
+      compute: 'low'
+    recommended_priority: 'high'
+
+  - id: 'CAND-ND-2'
+    rank: 2
+    title: 'r = 5 truncated-differential collision ratio with a mechanism-computed predicted value frozen before measurement'
+    class: 'mechanism'
+    family: 'truncated differential with a non-generic probability'
+    tracked_object: 'the count of pairs colliding on CW[j] at r = 5 together with the conditional plaintext-difference support profile of the colliding pairs. This is a projection of Delta_3, whose distribution is governed by the DDT rather than by any support rule.'
+    why_not_an_excluded_shape: 'the integral and the degree-bounded family are measured dead at r = 5; this object is not degree-bounded. Not the yoyo: no decryption oracle, no adaptivity, no exchange step, and the readout is graded by construction rather than all-or-nothing. Not the mod-8 residue: a magnitude ratio against a matched PRP arm with a separately computed mechanism prediction, no residue class anywhere.'
+    claim: 'at r = 5, over a structure whose plaintext differences lie in D_0, the number of ciphertext pairs colliding on CW[j] differs from the matched random-permutation value by a relative factor R not equal to 1, and R is computable in advance from the mechanism alone, without touching AES.'
+    mechanism: 'at r = 5 the collision event is equivalent to four specified bytes of Delta_3 vanishing, one per column, at row (c - j) in column c. Column c of Delta_3 is MC applied to a vector of SubBytes DIFFERENCES induced by Delta_2. By D2 and D3, Delta_2 is rigid: when the plaintext difference has exactly one active byte, every column of Delta_2 is a nonzero scalar multiple of a fixed column of MC and the four scalars are the only freedom. The four vanishing conditions are therefore not four independent 2^-8 events: they are four linear conditions on SubBytes output differences whose inputs are constrained by that rigid structure and by the AES DDT, whose row distribution is 0/2/4-valued and not uniform.'
+    novelty_status: 'unverified'
+    lossy_projection_test:
+      verdict: 'PASSES'
+      argument: 'the projection keeps one integer per (structure, j) plus a 16-bit plaintext-difference support word and discards every ciphertext value. AddRoundKey acts trivially on differences, ShiftRows permutes the projection index, SubBytes enters only through its difference distribution, which is exactly the object the mechanism prediction models. HONEST BOUNDARY: the retained part does NOT propagate deterministically past r = 4, and past r = 4 the object is statistical.'
+    predicted_depth:
+      deterministic_depth: 4
+      target_depth: 5
+      stopping_mechanism: 'at r = 6 the event requires four specified bytes of Delta_4 to vanish, and Delta_4 is MC of SubBytes differences of Delta_3, already full-weight and value-diffused. The rigid line structure supplying the prediction is two layers upstream, so the predicted deviation is expected to fall below achievable resolution at r = 6. The r = 6 arm is run anyway because it costs one extra AESENC.'
+    deterministic_statistic:
+      exists: false
+      honest_statement: 'NO deterministic statistic exists at r = 5. This is a magnitude ratio and it therefore HAS a detection floor, stated below. Three compensations: the predicted value R is computed BEFORE the AES measurement from the mechanism alone and frozen with a digest; CAND-ND-1 r = 4 runs as a deterministic positive control inside the same code path; the PRP arm runs at identical N through the identical code path so a null is a measured null.'
+      why_it_beats_a_bias_probe: 'the null is not a nuisance parameter, it is exactly 2^-32, and the measured count at the full coset is about 2^31, giving relative resolution about 2^-16.5. A predicted 2^-8 relative effect sits about 8 bits above the floor. In the withdrawn influence-density closure the effect and the floor were on the wrong side of each other.'
+    minimal_test:
+      design: 'stage 1, mechanism prediction, NO AES. Sample the rigid Delta_2 directly: choose c_1 and four nonzero scalars, set column c of Delta_2 to scalar times column (c_1 - c) of MC, sample compatible SubBytes input values uniformly, form the output difference, apply SR and MC to get Delta_3, and count how often the four specified bytes vanish. 10^9 samples cost seconds in C and give R to about 2^-14 relative. FREEZE R and its digest. Stage 2, measurement. Full 2^32 diagonal coset, r in 4,5,6,10, all four j, bucketed counter exactly as gate-rr78 did (about 150 s and 4 GB per arm, already measured on this machine). Compare the measured ratio to the frozen R and to the matched PRP arm.'
+      controls:
+        - 'PRP arm at identical N and identical code path'
+        - 'CAND-ND-1 r = 4 zero must reproduce inside the same run or the instrument is void'
+        - 'r = 10 decay arm'
+        - 'independent-round-key arm'
+        - 'sibling null: same measurement with MC replaced by a random invertible 4x4 GF(2^8) matrix with all entries nonzero. This negates the SPECIFIC matrix while preserving the sufficient hypothesis, which is the KN-FIND-017 lesson about nulls built by negating a sufficient hypothesis. If the sibling reproduces R, attribution to AES MixColumns is withdrawn and only the branch-number-generic part is claimed.'
+        - 'structure-destroying arm with uniformly random plaintexts'
+      required_metrics: ['collision_count_per_j', 'ratio_to_prp_arm', 'frozen_predicted_R_and_digest', 'plaintext_difference_support_histogram_of_colliding_pairs', 'relative_resolution', 'bonferroni_factor', 'wall_clock', 'peak_rss']
+    gate_cost:
+      encryptions: '2^32 per arm, about 8 arms, so about 2^35'
+      wall_clock_estimate: 'about 150 s per arm as measured by gate-rr78 on this machine, about 20 minutes for the grid on one core'
+      memory: '4 GB bucketed counter, inside the 15 GB envelope'
+      solver_needed: false
+      runs_on_this_machine: true
+    predicted_resolution: 'relative resolution 4/sqrt(mean) with mean about 2^31 per j gives about 2^-14.4 relative per j and about 2^-15.4 pooled over four j. Reported as a RELATIVE resolution on a 2^-32 event, so no bit scale is invented.'
+    trials_needed: 'at least 3 independent keys and coset bases per round count; a single 150 s trial cannot separate a real ratio from a key-specific fluctuation'
+    falsification_conditions:
+      - 'r = 5 ratio consistent with 1 to within the stated relative resolution across keys: dead at r = 5 by this readout, recorded as a scoped negative with its resolution stated'
+      - 'r = 5 ratio significantly different from 1 but ALSO different from the frozen R: the effect is real and the stated mechanism is wrong. Recorded as such, never re-explained after the fact.'
+      - 'the sibling MC null reproduces the same ratio: attribution to AES MixColumns withdrawn'
+      - 'a ratio present at r = 10: artifact tell, void'
+    confounders:
+      - 'counter overflow; the occupancy histogram must be reported for every run'
+      - 'using r = 10 AES as the PRP surrogate conflates the decay control with the null. Both must be run and reported separately.'
+      - 'multiple comparisons across j, r and key; the Bonferroni factor is recorded before the run'
+    interpretation_limits:
+      - 'toy tier, scoped to the tested rounds, keys, structures and seeds'
+      - 'a positive r = 5 reading survives where the integral is dead but only where the yoyo already lives, so it beats REF-C on depth only if it also survives r = 6'
+    target_complexity:
+      metric: 'data and time for a 5-round distinguisher'
+      this_candidate: '2^32 chosen plaintexts, 2^32 time, 4 GB, chosen-plaintext only, no decryption oracle'
+      best_known_here: 'the measured yoyo at r = 5, which needs a DECRYPTION oracle and 2^32 to 2^33 adaptive pairs for a 12x to 17x rate excess on a 2^-30 event'
+      claimed_delta: 'if positive, equal depth to the yoyo at r = 5 with a strictly WEAKER oracle and a graded rather than all-or-nothing readout. If null, 0 bits plus a measured 2^-15.4 relative resolution bound at r = 5.'
+      hidden_overhead: '4 GB counter pass per arm. Memory-bound and therefore NOT covered by the campaign throughput receipt, which is compute-bound. The 150 s figure is taken from an already-measured memory-bound run of the same shape, not extrapolated.'
+      tradeoff_note: 'parallel over j and keys but not within one counter pass without partitioning it. Four-core scaling on a memory-bound pass is unmeasured on this machine and must not be assumed.'
+    dominated_by: 'unresolvable in this environment: no primary source reachable; every recalled frontier row is unverified-from-memory. Against the adjudicable references: REF-A not applicable; REF-B not built; REF-C at r = 5 is the yoyo, which this would match on depth and beat on oracle strength and readout gradation while being dominated by it on data unless R is large.'
+    sota_delta: 'conditional. If R is confirmed: matches REF-C depth 5 with a chosen-plaintext-only oracle. If null: 0 bits plus a measured resolution bound of 2^-15.4 relative on a 2^-32 event at r = 5. Published frontier: unadjudicable.'
+    heuristic_assumptions:
+      - id: 'H1'
+        statement: 'conditioned on the rigid round-2 difference structure of D3, the SubBytes output differences entering round 3 behave, for the four vanishing conditions, like independent draws from the DDT row distribution of the AES S-box at the corresponding input differences.'
+        rigorous_support: 'the rigidity of Delta_2 is DERIVED (D2, D3), not assumed. The DDT row distribution is exactly computable by exhaustive enumeration over 2^16 pairs on this machine, so the distribution being imitated is computed, not recalled. Only independence across the four columns is assumed.'
+        validation_plan: 'stage 1 IS the validation: sample the mechanism at 10^9 draws and compare the empirical vanishing rate against the independence-model prediction, including the tail (distribution of how many of the four conditions hold, 0 to 4, against the binomial it would follow under independence). A mismatch falsifies H1 before any AES call, in seconds. The model is exact at byte level; the extrapolation from model to cipher is exactly what stage 2 tests.'
+      - id: 'H2'
+        statement: 'the matched random-permutation surrogate has, at N = 2^32 into a 32-bit projection, a collision count whose mean and variance agree with the exact birthday model to within the stated relative resolution.'
+        rigorous_support: 'the exact mean and variance of a bucketed collision count under a uniform random map into 2^32 buckets are closed-form multinomial quantities.'
+        validation_plan: 'run the PRP arm and check it against its own closed form BEFORE interpreting any AES arm. If the PRP arm departs from its exact null by more than its resolution, the harness rather than the cipher is making the reading and every AES arm in the session is uninterpretable.'
+    estimated_cost:
+      implementation: 'medium'
+      compute: 'medium'
+    recommended_priority: 'high'
+
+  - id: 'CAND-ND-3'
+    rank: 3
+    title: 'truncated boomerang quartet with two probability-one halves and a 96-bit return event'
+    class: 'composition'
+    family: 'boomerang / retracing boomerang, non-adaptive quartet'
+    tracked_object: 'the RETURN DIFFERENCE P3+P4 of a quartet built from a plaintext difference in D_0 and a fixed ciphertext-side shift nabla in the CW[0] space. The object followed is a four-text configuration, not a pair and not a set.'
+    why_not_an_excluded_shape: 'NOT the yoyo, and the distinction is structural rather than notational. The yoyo A-step EXCHANGES words between two ciphertexts, which preserves the pair XOR difference exactly and makes the object a value-orbit object at fixed difference; its A-step is an exact involution, which is why iteration provably cannot amplify it. The boomerang SHIFTS both ciphertexts by the same fixed nabla, which changes values AND leaves the quartet in a different configuration; the shift is not an involution on the quartet in the yoyo sense, so the yoyo no-amplification argument does not transfer and iteration is an open question here rather than a closed one. It is also not the integral (four texts, not a set) and not the mod-8 residue (no counting residue).'
+    claim: 'at r = 2 the return event P3+P4 in D_0 holds with probability exactly 1 (D10). The falsifiable content is the exact largest r at which the measured return rate exceeds the random-permutation rate of 2^-96 by more than the achieved resolution, and the graded return profile at that r.'
+    mechanism: 'D9 and D10. The ciphertext-side shift propagates backward deterministically for exactly two rounds; the plaintext-side difference propagates forward deterministically for exactly two rounds. The return probability at larger r is the probability that the two backward-propagated differences coincide at the junction, which is where the value dependence enters and which is what the gate measures.'
+    novelty_status: 'unverified'
+    lossy_projection_test:
+      verdict: 'PASSES'
+      argument: 'a quartet of four 128-bit texts is projected to one 16-bit support word (the zero pattern of P3+P4) plus a boolean. Massively lossy. The discard is compatible: AddRoundKey acts trivially on differences, ShiftRows permutes supports, SubBytes preserves the zero set of a difference exactly, MixColumns enters through the branch-number support rule. The retained part propagates deterministically for the two rounds D9 grants and no further, and that boundary is stated rather than assumed away.'
+    predicted_depth:
+      deterministic_depth: 2
+      target_depth: '4 to 6, measured'
+      honest_position: 'I have DERIVED the r = 2 value and have NOT derived the r = 3, 4, 5 or 6 values. I decline to guess them. The mechanism that would stop it is that the two backward-propagated junction differences must coincide, and after three mixing layers on either side every byte of the difference depends on every byte, so no support-based coincidence argument is available. That is a named difficulty and NOT an obstruction argument, so its honest status is unverified and it closes nothing.'
+    deterministic_statistic:
+      exists: true
+      statement: 'the r = 2 arm is deterministic (probability exactly 1) and is the positive control. The r >= 3 arms are not deterministic, but the 96-bit return event has expected count 2^-66 at 2^30 quartets under a random permutation, so a SINGLE hit is decisive at that data complexity. In that sense the primary readout has effectively no detection floor even though it is not a theorem.'
+      graded_readout: 'to avoid the all-or-nothing trap the yoyo hit, the readout is graded: the full 17-bin histogram of the number of zero bytes in P3+P4, plus the events P3+P4 supported in a named 8-byte union of two diagonals (null 2^-64) and in a named 12-byte set (null 2^-32). At 2^36 quartets the 2^-32 event has a null mean of 16, which makes the graded arm properly powered.'
+    minimal_test:
+      design: 'tier 1, cheap. 2^30 quartets at r in 2,3,4,5,6,10. Per quartet: draw P1, draw a nonzero delta in D_0, set P2 = P1 + delta, encrypt both, draw or fix nabla in the CW[0] space, set C3 = C1 + nabla and C4 = C2 + nabla, decrypt both, record the 16-bit zero pattern of P3+P4. Cost 4 AES operations per quartet, so 2^32 operations, about 15 to 30 s at the campaign-measured throughput. Tier 2, graded, only if tier 1 is not decisive: 2^36 quartets at the surviving round counts, about 2^38 operations, about 1000 s on one core.'
+      controls:
+        - 'PRP arm at identical quartet count and identical code path, including the decryption side'
+        - 'r = 2 determinism control (D10). A single failure voids the instrument.'
+        - 'r = 10 decay control'
+        - 'sibling null: nabla drawn from a 4-byte set that is NOT an inverse-SR diagonal, which negates the specific structure D9 uses while keeping the shift size identical'
+        - 'second sibling null: delta drawn from a 4-byte set that is not a diagonal'
+        - 'independent-round-key arm'
+        - 'degeneracy counter: nabla = 0, delta = 0, or C3 equal to C2, each counted separately; a nonzero UNCOUNTED occurrence voids the arm, since a trivial shift manufactured a spurious hit in this campaign before'
+      required_metrics: ['return_event_count_per_round', 'zero_byte_histogram_17_bins', 'graded_event_counts_and_nulls', 'degenerate_quartet_counts', 'poisson_tails', 'bonferroni_factor', 'wall_clock', 'peak_rss']
+    gate_cost:
+      encryptions: '2^32 operations at tier 1, 2^38 at tier 2'
+      wall_clock_estimate: 'tier 1 about 15 to 30 s per round count on one core; tier 2 about 1000 s per round count'
+      memory: 'negligible, under 100 MB'
+      solver_needed: false
+      runs_on_this_machine: true
+      implementation_risk: 'the decryption path is the real cost. It needs the equivalent inverse key schedule, and this campaign has already produced one false null from a wrong inverse-side index convention. The r = 2 determinism control is the specific guard and it must pass before anything else is read.'
+    predicted_resolution: 'tier 1 rare-event resolution: smallest per-quartet probability detected with 95 percent probability at N = 2^30 is 3/N, i.e. 2^-28.6, or 28.6 bits. Against a null of 2^-96 that is 67 bits of headroom on the primary event. Tier 2 gives 34.6 bits and makes the 2^-32 graded event resolvable to about 25 percent relative.'
+    trials_needed: 'at least 3 independent keys per round count at tier 1'
+    falsification_conditions:
+      - 'zero hits at r = 4, 5, 6 on the primary event AND graded histograms matching the PRP arm within resolution: dead at r = 3 by this readout, recorded with its resolution in bits'
+      - 'the r = 2 control not reading probability exactly 1: instrument void, nothing reported'
+      - 'either sibling null reproducing the effect: attribution to the diagonal / inverse-SR-diagonal structure withdrawn'
+      - 'an effect present at r = 10: artifact tell, void'
+    confounders:
+      - 'inverse key schedule and inverse round-count convention. Guarded by the r = 2 control and by an explicit decrypt-of-encrypt round trip check at every r.'
+      - 'a fixed nabla across all quartets creates a correlated sample; nabla must be re-drawn per quartet and the fixed-nabla variant reported separately'
+      - 'chosen-ciphertext queries are charged in kind, not just in count; the quartet uses an ADAPTIVE-free but chosen-ciphertext oracle and that is a stronger access model than CAND-ND-1 or CAND-ND-2'
+    interpretation_limits:
+      - 'toy tier, scoped to tested rounds, keys, seeds and harness'
+      - 'it uses a decryption oracle, so a positive result at r = 5 would MATCH the yoyo access model rather than improve on it. Only an r = 6 reading would beat REF-C.'
+    target_complexity:
+      metric: 'data, time and oracle strength for an r = 5 or r = 6 distinguisher'
+      this_candidate: '2^31 chosen plaintexts and 2^31 chosen ciphertexts at tier 1, 2^32 time, negligible memory, non-adaptive two-directional'
+      best_known_here: 'REF-C at r = 5 is the yoyo, adaptive two-directional, dead at r = 6'
+      claimed_delta: 'if it reads at r = 6 the delta against REF-C is +1 round of measured depth, which is the single most valuable outcome available in this envelope. If it reads only at r <= 5 the delta is 0 rounds and the contribution is a non-adaptive object of the same depth. If it reads dead at r = 4 the delta is negative and the deliverable is a scoped negative with a 28.6-bit resolution.'
+      hidden_overhead: 'the decryption path roughly doubles the per-quartet cost and is the dominant implementation risk rather than a compute cost'
+      tradeoff_note: 'embarrassingly parallel over quartets across four cores; memory is negligible so there is no tradeoff to state'
+    dominated_by: 'unresolvable in this environment: no primary source reachable; every recalled frontier row is unverified-from-memory. Against the adjudicable references: REF-A not applicable; REF-B not built; REF-C at r = 5 (the yoyo) dominates this on ORACLE only if the yoyo is judged weaker-access, which it is not (both use decryption), and dominates on nothing else at tier 1 data. At r = 6 nothing in this program dominates it because nothing in this program reaches r = 6.'
+    sota_delta: 'conditional on the measured death round: +1 round versus REF-C if it survives r = 6, 0 rounds if it stops at 5, negative if it stops at 4 or below. Published frontier: unadjudicable.'
+    heuristic_assumptions:
+      - id: 'H3'
+        statement: 'under the matched random permutation the return event P3+P4 in D_0 has probability exactly 2^-96 and the 17-bin zero-byte histogram is the binomial induced by 16 independent uniform bytes.'
+        rigorous_support: 'immediate for a uniform random permutation at quartet counts far below the birthday bound of the 128-bit block.'
+        validation_plan: 'measure the PRP arm against this closed form at every tier and round count before interpreting any AES arm. If the PRP arm departs from its own exact null by more than its resolution, the harness makes the reading and every AES arm is uninterpretable.'
+      - id: 'H4'
+        statement: 'the return rate at r >= 3 is governed by the coincidence probability of the two backward-propagated junction differences and therefore decays monotonically in r.'
+        rigorous_support: 'none. This is a modelling assumption and it is named as one. The monotone-decay expectation is used ONLY as an artifact tell: a non-monotone reading (dead at r, alive at r+1) is reported as an anomaly and treated as suspect, never as a finding.'
+        validation_plan: 'the round sweep 2,3,4,5,6,10 measures the decay directly. This assumption is not load-bearing for any claim; it is load-bearing only for a VOID condition.'
+    estimated_cost:
+      implementation: 'medium'
+      compute: 'low at tier 1, medium at tier 2'
+    recommended_priority: 'high'
+
+  - id: 'CAND-ND-4'
+    rank: 4
+    title: 'key-schedule-coupled column-sum object: real schedule versus independent round keys, with an explicit two-step chain to a PRP claim'
+    class: 'control'
+    family: 'key schedule in a single-key setting'
+    tracked_object: 'the 32-bit column-sum projection sigma(state) = XOR of the four columns, tracked jointly with the cross-round key-schedule constraint sigma(RK_i) = RK_{i-1}[1] + RK_{i-1}[3] (D8). The object followed is a 32-bit functional that commutes with three of the four AES layers and whose per-round key offsets are NOT free but constrained across rounds by the schedule.'
+    why_not_an_excluded_shape: 'no established family in this campaign tracks sigma. It is not the integral (a per-text functional, not a set aggregate), not degree-bounded (it is GF(2)-linear and dies at SubBytes, not at a degree wall), not the yoyo (one direction, no exchange), and not the mod-8 residue. The campaign has ARGUED the key schedule but never TESTED it for distinguishing.'
+    claim: 'the honest claim is narrow and is stated with its obstruction attached (D11). CLAIM: there exists a sigma-based statistic whose distribution under AES-128 with the real key schedule differs, at r = 5 or r = 6, from its distribution under the identical wiring with independent uniform round keys, measured across at least 2^12 independent keys. This is a distinguisher against an AES-SHAPED null, and it becomes a PRP distinguisher only via the chain in prp_chain below.'
+    mechanism: 'sigma commutes with ShiftRows, is conjugated by MixColumns, and is translated by sigma(RK_i) under AddRoundKey. Only SubBytes breaks it, and it breaks it once per round. Under independent round keys the per-round translations sigma(RK_i) are independent uniform 32-bit values; under the real schedule they satisfy the exact cross-round relation D8, so the sequence of translations lives in a proper subvariety of the product space. Any statistic that accumulates the translations across rounds therefore has a different distribution in the two worlds. The measurable candidate is the joint distribution over keys of (sigma(P), sigma(C)) coincidence counts under a structured plaintext family chosen so that the SubBytes damage is minimised, namely families constant on three columns.'
+    novelty_status: 'unverified'
+    lossy_projection_test:
+      verdict: 'PASSES, with a stated defect'
+      argument: '128 bits to 32 bits, and the discard is compatible with ShiftRows (exactly, sigma . SR = sigma), MixColumns (conjugation) and AddRoundKey (translation). THE DEFECT, stated rather than hidden: the discard is NOT compatible with SubBytes, so sigma does not propagate deterministically across even one full round. This candidate therefore fails the strict reading of the lossy-projection test at the SubBytes layer, and it is ranked fourth for exactly that reason. It is retained because the failure is at ONE layer out of four and because the key-schedule coupling is a genuinely untested lane, not because the projection is clean.'
+    predicted_depth:
+      deterministic_depth: 0
+      honest_position: 'sigma has NO deterministic depth across a full round. Any signal is statistical and its size is unknown to me. I decline to predict a depth.'
+    deterministic_statistic:
+      exists: false
+      honest_statement: 'no deterministic statistic. This is the weakest candidate on the criterion the campaign has learned to care most about, and it is stated first rather than buried. Its value is lane coverage, not power.'
+    prp_chain: 'step 1, measure real-schedule versus independent-round-key at round r. Step 2, measure independent-round-key versus PRP at the same r with the same statistic and the same data. A real-versus-independent gap at r is a PRP distinguisher at r ONLY IF step 2 shows independent-round-key is itself at the PRP null at r. If step 2 shows independent-round-key already departs from PRP at r, the gap is generic AES structure and carries NO key-schedule content. Both steps are run and both are reported; reporting step 1 without step 2 would be the laundering this question forbids.'
+    minimal_test:
+      design: 'for each of 2^12 independent keys and each arm in {real schedule, independent round keys, PRP}: take 2^16 plaintexts constant on three columns and varying over the fourth, encrypt at r in 3,4,5,6,10, and record the fibre-size histogram of sigma(C) and the 32-bit histogram of sigma(C) + MC^k(sigma(P)) for the k dictated by D8. Compare the ACROSS-KEY distributions of these per-key statistics between arms, by a chi-square-free order-statistic comparison (no numpy available, so the comparison is a sorted-quantile difference computed in pure python or C).'
+      controls:
+        - 'PRP arm at identical data, mandatory, because independent-round-key AES is a SIBLING null and not the meaningful null'
+        - 'independent-round-key arm, which is the sibling null that isolates the property named (key schedule) rather than the property AES-shaped'
+        - 'r = 10 decay control'
+        - 'a deliberately WRONG schedule relation as a second sibling: independent round keys constrained by a random linear relation of the same rank as D8. If this reproduces the effect, the attribution to the AES schedule specifically is withdrawn and only rank matters.'
+      required_metrics: ['per_key_sigma_fibre_histogram', 'across_key_quantile_differences', 'both_steps_of_prp_chain', 'achieved_resolution', 'bonferroni_factor', 'wall_clock', 'peak_rss']
+    gate_cost:
+      encryptions: '2^12 keys x 2^16 texts x 5 round counts x 4 arms = 2^32.3 encryptions'
+      wall_clock_estimate: 'about 30 s on one core at the campaign-measured throughput; the key schedules dominate and must be charged, not amortised'
+      memory: 'under 1 GB'
+      solver_needed: false
+      runs_on_this_machine: true
+    predicted_resolution: 'across-key comparison of per-key statistics at 2^12 keys resolves a shift of about 4/sqrt(2^12) = 2^-4 standard deviations in the across-key distribution. That is BLUNT. Any real key-schedule effect at r = 5 is likely far smaller, so the honest pre-registration is that a null here means only that the effect is below 2^-4 across-key sigma, which is a weak bound and must be stated in the same sentence as the number.'
+    falsification_conditions:
+      - 'real-schedule and independent-round-key arms agree within the stated across-key resolution at every r: the lane is null at this resolution, which is explicitly a WEAK bound and not a closure'
+      - 'a gap at r that is NOT accompanied by independent-round-key sitting at the PRP null: the gap is generic AES structure with no key-schedule content'
+      - 'the wrong-schedule sibling reproducing the gap: attribution to the AES schedule withdrawn, only the rank of the relation is claimed'
+      - 'a gap at r = 10: artifact tell, void'
+    confounders:
+      - 'key-schedule cost must be charged, not amortised, because the whole experiment varies the key'
+      - 'across-key statistics are not independent of the per-key text sample; the two sources of variance must be separated by a resampling arm at fixed key'
+      - 'without numpy the quantile comparison must be implemented and unit-tested by hand, which is where a silent bug would live'
+    interpretation_limits:
+      - 'toy tier'
+      - 'D11 is the named obstruction and it bounds what this can ever produce: a fixed-key distinguisher cannot query the map from key to round-key tuple, so nothing here can become a fixed-key distinguisher without the two-step chain'
+    target_complexity:
+      metric: 'existence of any measurable single-key key-schedule effect at r >= 5'
+      this_candidate: '2^28 chosen plaintexts spread over 2^12 keys, 2^32 time, under 1 GB'
+      best_known_here: 'none. This program has never tested the key schedule for distinguishing at any round count.'
+      claimed_delta: '0 bits claimed. The deliverable is lane coverage plus a stated resolution bound, and the honest expected outcome is a weak null.'
+      hidden_overhead: '2^12 key schedules, charged'
+      tradeoff_note: 'parallel over keys'
+    dominated_by: 'unresolvable in this environment: no primary source reachable; every recalled frontier row is unverified-from-memory. Against the adjudicable references: dominated by REF-C on every axis, because REF-C exhibits measured structure at r = 4 and r = 5 and this candidate exhibits none. Stated plainly rather than softened.'
+    sota_delta: '0 bits. No attack, no distinguisher claimed. Contribution is coverage of a named untested lane plus a stated resolution bound. Published frontier: unadjudicable.'
+    heuristic_assumptions:
+      - id: 'H5'
+        statement: 'the across-key distribution of the per-key sigma statistic is sufficiently concentrated that a shift of 2^-4 across-key standard deviations is attributable to the schedule rather than to key-sampling noise.'
+        rigorous_support: 'none beyond the central limit behaviour of an average over 2^12 independent keys. Named as an assumption, not derived.'
+        validation_plan: 'run the independent-round-key arm at 2^12 keys twice with disjoint key seeds and measure the reproducibility of the across-key statistic. If the two runs of the SAME arm differ by more than the claimed resolution, the resolution claim is void and is restated at the measured value.'
+    estimated_cost:
+      implementation: 'medium'
+      compute: 'low'
+    recommended_priority: 'medium'
+
+  - id: 'CAND-ND-5'
+    rank: 5
+    title: 'differential-linear hybrid with a probability-one truncated head, proposed as a calibration and declared untestable-here beyond r = 4'
+    class: 'measurement'
+    family: 'differential-linear'
+    tracked_object: 'the correlation of a single-bit linear functional of the ciphertext DIFFERENCE of a pair whose plaintext difference lies in D_0. The object followed is a correlation, which is neither a support, a set, nor a quartet.'
+    why_not_an_excluded_shape: 'never run here in any form. Not the integral, not the yoyo, not the mod-8 residue. The head is the probability-one truncated differential of D1 rather than a probabilistic differential, which is what distinguishes this design from a textbook differential-linear split.'
+    claim: 'the honest claim is a NEGATIVE testability claim plus a calibration measurement. CLAIM A (testability, derived): the differential-linear correlation of this construction at r >= 5 is below the resolution this machine can reach, so the candidate is UNTESTABLE-HERE at r >= 5 and no null measured at r >= 5 would carry information. CLAIM B (measurable): at r = 3 and r = 4 the correlation is measurable at 2^32 data with resolution 2^-16, and its measured value calibrates the active-S-box accounting on which CLAIM A rests.'
+    mechanism: 'the head is deterministic for one round (D1). The tail is an r-1 round linear approximation. The correlation of the hybrid is at most the square of the tail correlation. The tail correlation over four rounds is bounded by the product of the per-S-box maximum correlation over the minimum number of active S-boxes across four rounds. BOTH ingredients are computable on this machine rather than recalled: the S-box maximum linear correlation is an exhaustive 2^16 enumeration of the LAT, and the four-round active-S-box minimum follows by hand from the MixColumns branch number, itself computable by exhaustive enumeration. The gate computes both before quoting either.'
+    novelty_status: 'unverified'
+    recall_marker: 'that the four-round active-S-box minimum is 25 and that the AES S-box maximum linear correlation is 2^-3 are unverified-from-memory at recall confidence MEDIUM. NEITHER is load-bearing, because the gate computes both by exhaustive enumeration before using them, which converts them from recall into measurement.'
+    lossy_projection_test:
+      verdict: 'PASSES trivially and uninformatively'
+      argument: '128 bits to 1 bit is maximally lossy, and the discard is compatible with AddRoundKey and with the linear layers by definition of a linear mask. The test is passed but says nothing useful here, because the binding constraint on this candidate is RESOLUTION, not structure. Recorded so that a passed projection test is not mistaken for a promising candidate.'
+    predicted_depth:
+      measurable_depth: '3 to 4'
+      stopping_mechanism: 'resolution, not structure. Data complexity for a correlation c is about c^-2. The envelope caps a single task at about 2^38 queries, so the smallest resolvable correlation is about 2^-19. The derived ceiling on the hybrid correlation at r = 5 is far below that.'
+    deterministic_statistic:
+      exists: false
+      honest_statement: 'no deterministic statistic, and worse, the statistic is one whose floor is on the WRONG side of its predicted effect at r >= 5. This is precisely the shape of the failure that cost this campaign a withdrawn closure. It is proposed ONLY with the r >= 5 arms declared untestable-here IN ADVANCE, so that no null at r >= 5 can be misread as a closure.'
+    minimal_test:
+      design: 'stage 0, no cipher: exhaustively compute the S-box LAT maximum over 2^16 and the MixColumns branch number over the relevant enumeration, and record the derived correlation ceiling per round count. Stage 1: measure the hybrid correlation at r = 2, 3, 4 over 2^32 pairs for a small pre-registered set of masks, against the matched PRP arm. Stage 2 is NOT PROPOSED: r >= 5 is declared untestable-here and no r >= 5 arm is run, because a null there would carry no information.'
+      controls:
+        - 'PRP arm at identical data'
+        - 'r = 10 decay control at the r = 4 data complexity'
+        - 'a shuffled-mask sibling null'
+      required_metrics: ['measured_correlation_per_mask_and_round', 'derived_ceiling_from_stage_0', 'achieved_resolution_in_bits', 'wall_clock', 'peak_rss']
+    gate_cost:
+      encryptions: '2^33 per round count'
+      wall_clock_estimate: 'about 30 s per round count on one core'
+      memory: 'negligible'
+      solver_needed: false
+      runs_on_this_machine: true
+      untestable_here_declaration: 'r >= 5 arms are declared UNTESTABLE-HERE by the derived resolution argument and are recorded as such rather than run and reported as nulls (AGENTS rule 9 handling of a gate that does not fit).'
+    predicted_resolution: 'about 2^-16 on a correlation at 2^32 pairs, about 2^-19 at the 2^38 envelope cap. Stated in the same sentence as any null.'
+    falsification_conditions:
+      - 'a measured correlation at r = 4 ABOVE the stage-0 derived ceiling falsifies the derived ceiling and would be the interesting outcome, requiring the active-S-box accounting to be redone'
+      - 'a measured correlation at r = 3 consistent with the ceiling confirms the accounting and licenses the untestable-here declaration at r >= 5'
+      - 'a correlation at r = 10: artifact tell, void'
+    confounders:
+      - 'mask selection is a multiple-comparison hazard; the mask set must be frozen before any run'
+      - 'a correlation measured on differences is not a correlation on values and the two must not be pooled'
+    interpretation_limits:
+      - 'toy tier'
+      - 'the ONLY deliverable here is a calibration and an explicit untestable-here record. No distinguisher is claimed at any round count.'
+    target_complexity:
+      metric: 'measurable correlation depth'
+      this_candidate: '2^33 chosen plaintexts, 2^33 time, negligible memory, chosen-plaintext only, measurable to r = 4 at best'
+      best_known_here: 'REF-C at r = 4 (integral) and r = 5 (yoyo)'
+      claimed_delta: 'negative or zero. This candidate is DOMINATED by REF-C on depth at equal or worse data and it is proposed anyway only because the family has never been run here and because the untestable-here declaration is itself a deliverable.'
+      hidden_overhead: 'none material'
+      tradeoff_note: 'embarrassingly parallel'
+    dominated_by: 'unresolvable in this environment: no primary source reachable; every recalled frontier row is unverified-from-memory. Against the adjudicable references: DOMINATED by REF-C on depth (4 or 5 versus at most 4 here) at comparable data. Stated plainly.'
+    sota_delta: '0 bits at best, negative on depth. Contribution is a calibration of the active-S-box accounting and an explicit untestable-here record for the differential-linear family in this envelope. Published frontier: unadjudicable.'
+    heuristic_assumptions:
+      - id: 'H6'
+        statement: 'the hybrid correlation is bounded above by the square of the best r-1 round linear correlation, which is in turn bounded by the product over a minimum active-S-box count of the S-box maximum correlation.'
+        rigorous_support: 'the second bound is the standard wide-trail counting argument and rests on the MixColumns branch number, which stage 0 computes exhaustively. The first bound is the standard differential-linear composition heuristic and is NOT a theorem; it is named as a heuristic here.'
+        validation_plan: 'stage 1 measures the correlation at r = 2, 3, 4 against the stage-0 ceiling. A measured value above the ceiling falsifies H6 at that round count and is reported as a falsified pre-registration, left as written.'
+    estimated_cost:
+      implementation: 'low'
+      compute: 'low'
+    recommended_priority: 'low'
+
+objects_considered_and_dropped_before_any_experiment:
+  - object: 'the 255-byte delta-set output sequence'
+    verdict: 'dropped at the lossy-projection test'
+    reason: '2040 bits from a 128-bit key. Not lossy; it almost certainly determines the key, so it is a change of coordinates rather than an object.'
+  - object: 'the full ciphertext difference of a quartet'
+    verdict: 'dropped at the lossy-projection test'
+    reason: 'not lossy at all. Tracking it is tracking the pair. Only a projection of it (CAND-ND-3s 16-bit zero pattern) is an object.'
+  - object: 'the projective class of a column difference (the GF(2^8) line of Delta_1 and Delta_2)'
+    verdict: 'derived and folded into CAND-ND-1 and CAND-ND-2 rather than proposed separately'
+    reason: 'it is genuinely lossy and genuinely propagates through MixColumns and AddRoundKey, and it dies at the AFFINE layer L inside SubBytes rather than at the inversion (KN-FIND-017 Fact 2, internal, verified). Its deterministic reach is exactly two rounds each side, which is already what CAND-ND-1 harvests, so proposing it separately would be a re-parameterisation.'
+  - object: 'the column-product set structure of the round-2 image of a diagonal coset (D7)'
+    verdict: 'derived and folded into CAND-ND-1'
+    reason: 'this is the subspace-trail-but-not-integral object the directive asks for: a coset-to-PRODUCT-SET map whose structure genuinely SURVIVES SubBytes because SubBytes acts within columns. Its measurable shadow is exactly CAND-ND-1s r = 3 image-size-256 arm, so it is a readout of CAND-ND-1 and not a separate candidate.'
+  - object: 'the mixture / exchange quadruple'
+    verdict: 'not proposed as a primary lens'
+    reason: 'measured in this program at GOAL-AES-002 (MEAS-RT-C) with a byte-collision readout that read null at r = 4 to 10, and its round-1 difference identity verified 2000/2000. Proposing another readout of the same tracked object would be the re-parameterisation the directive rules non-responsive. Recorded as an OPEN direction below rather than as a candidate, since its own scope note says exactly one readout was tested.'
+  - object: 'an invariant-subspace or weak-key object'
+    verdict: 'not proposed'
+    reason: 'it would be a statement about a measure-zero key class and the directive requires a single-key distinguisher under a randomly drawn key with a matched PRP control. Recorded so the omission is deliberate rather than an oversight.'
+
+honest_accounting:
+  objects_considered: 5
+  candidates_proposed: 5
+  objects_dropped_before_experiment: 6
+  lanes_closed: 0
+  compute_run: 'zero'
+  dominated_by: 'unresolvable in this environment: no primary source reachable; every recalled frontier row is unverified-from-memory. Per-candidate Pareto positions against the three adjudicable references REF-A, REF-B, REF-C are stated in each candidate record and are not summarised into a single row here, because a single row would hide that CAND-ND-4 and CAND-ND-5 are dominated by REF-C while CAND-ND-1 is not.'
+  sota_delta: 'this session produces NO attack, NO distinguisher and NO measurement. Its quantitative content is: (i) a derived deterministic 4-round property (D1 to D6) whose data complexity is 2^20 against REF-Cs measured 2^32 at the same depth, a claimed 12-bit data delta pending measurement; (ii) a derived exact r = 2 quartet determinism (D10) giving the boomerang instrument a positive control it would otherwise lack; (iii) a derived cross-round key-schedule relation on a 32-bit layer-commuting projection (D8); (iv) a named obstruction for the single-key key-schedule lane (D11); (v) an explicit untestable-here declaration for differential-linear at r >= 5 with the resolution argument attached. Every one of these is a derivation, none is a measurement, and the 12-bit delta is a CLAIM pending the CAND-ND-1 gate.'
+  closures_enumerated: 'NONE at the docs/inventor-protocol.md section 4 standard. One DIFFICULTY is named without an obstruction argument and is recorded as unverified rather than as a closure: every projection constructed this session either dies at the second SubBytes layer (the algebraic ones, by the affine layer L, KN-FIND-017 Fact 2) or at the third MixColumns layer (the support-based ones, by branch-number saturation making every difference byte depend on every other), and I could not construct a projection that survives both. That is a report about this session, not a theorem about AES.'
+  one_real_closure_candidate: 'the single-key key-schedule lane has a NAMED OBSTRUCTION (D11) with an argument, and forward guidance: what remains open is the across-key measurement of CAND-ND-4 and, separately, the related-key and known-key models, which are admissible as objects of study under RQ-AES-003 but can never satisfy a completion criterion. This is offered as a closure of the FIXED-KEY-QUERY route only, not of the lane.'
+  deferred_unbounded:
+    - 'the r = 3, 4, 5, 6 return probabilities of CAND-ND-3. I derived r = 2 exactly and could not bound the rest. Recorded as DEFERRED_UNBOUNDED, a fact about this session, and kept OUT of any count of rulings.'
+    - 'whether any object reaches r = 6. I could not construct one and I could not exclude one.'
+  open_directions_for_the_next_session:
+    - 'if CAND-ND-1 reproduces, the immediate follow-on is the MAGNITUDE readout at r = 5 (CAND-ND-2), because magnitude and not the zero is what an attack consumes'
+    - 'the decryption-direction mirror of CAND-ND-1, which this program has never run in any form and which costs the same milliseconds. A direction asymmetry would be a genuine surprise.'
+    - 'the mixture / exchange quadruple has exactly one tested readout and its own scope note says so. A non-collision readout is open, but it belongs to a session that is not under a new-object directive.'
+    - 'iteration of the boomerang quartet. The yoyo cannot be amplified because its A-step is an exact involution; the boomerang shift is not, so whether iteration amplifies is OPEN and is the one route to r = 6 I can name.'
+    - 'AES-192 and AES-256 depth, currently carried over from AES-128 without measurement'
+
+non_claims:
+  - 'no claim about AES security of any kind at any round count. No distinguisher exists here, none is asserted to exist, and none was measured.'
+  - 'no impossibility claim and no barrier statement. No lane is closed. The r = 6 question is recorded unverified, not answered.'
+  - 'no evidence strength assigned, no hypothesis status changed, no ledger record written, nothing committed.'
+  - 'no literature figure is used to promote or to dismiss. No citation implying a source was read appears anywhere.'
+  - 'every gate is a PROPOSAL. No gate outcome is reported, predicted-as-observed, or implied.'
+  - 'toy tier throughout, however any gate returns.'

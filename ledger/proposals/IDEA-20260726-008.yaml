@@ -1,0 +1,129 @@
+idea:
+  id: IDEA-20260726-008
+  title: sqrt-elu cost-model re-audit of every isogeny-charging barrier in the ledger
+  class: cost-model
+  claim: >-
+    Ledger barriers that charge "evaluating a degree-d isogeny costs ~O(d)"
+    predate the sqrt-elu evaluation technique, which evaluates at ~O(sqrt(d)).
+    Any such barrier's exponent may therefore be stated against a stale cost
+    model. This record re-audits them and reports sign flips. The expected
+    outcome is that none flip, and the reason is a numerical coincidence worth
+    recording explicitly: completing the square gives, for v != 0,
+    N(u + v*pi) = (u + v*t/2)^2 + v^2*(4p - t^2)/4 >= |Delta|/4, so the minimum
+    non-scalar endomorphism degree is |Delta|/4, which is Theta(p) for generic t.
+    Under sqrt-elu that evaluates in ~O(sqrt(p)) -- landing exactly ON the
+    birthday bound, a tie rather than a win. The channel is marginal at best
+    even before IDEA-20260726-006 shows the action was free anyway.
+  mechanism: >-
+    A cost-model refresh, not an attack. Procedure: (1) enumerate every ledger
+    record (hypothesis, evidence, decision, barrier note under research/) whose
+    stated exponent depends on an isogeny or endomorphism evaluation cost term;
+    (2) for each, identify the charged degree d and the model under which it was
+    charged; (3) recompute the exponent under ~O(sqrt(d)); (4) report any
+    barrier whose conclusion changes sign, and any candidate previously rejected
+    on cost grounds whose cost crosses back under Theta(sqrt(p)). The audit is
+    mostly derivation with a small verification component: the sqrt(d) scaling
+    should be confirmed empirically at toy scale rather than assumed from the
+    literature, since the constant matters when the comparison is a tie.
+    Recording the |Delta|/4 minimum-degree computation once, with its
+    coincidence at the birthday bound, gives future proposals a citable number
+    instead of re-deriving it.
+  novelty_status: methodological
+  assumptions:
+    - >-
+      sqrt-elu evaluation achieves ~O(sqrt(d)) for the degrees and fields in
+      scope, with constants that do not swamp the asymptotic gain at the sizes
+      being compared. This must be measured, not assumed.
+    - >-
+      The ledger's isogeny-charging records state their cost model explicitly
+      enough to be re-audited. Records that do not are reported as
+      un-auditable rather than silently assigned a model.
+    - >-
+      Generic t means |Delta| = 4p - t^2 is Theta(p); curves with t near
+      +/- 2*sqrt(p) have small |Delta| and are out of the generic scope but
+      must be flagged where they appear.
+  predictions:
+    - metric: barriers_whose_exponent_sign_flips_under_sqrt_elu
+      direction: different
+      minimum_effect: >-
+        Predicted zero. Any barrier that flips is the finding and requires the
+        originating hypothesis to be revisited by the Coordinator.
+    - metric: measured_isogeny_evaluation_scaling_exponent
+      direction: different
+      minimum_effect: >-
+        Fitted exponent in cost ~ d^c is c = 0.5 +/- 0.1 over the tested degree
+        range. A materially higher c means the audit's premise is wrong and the
+        old ~O(d) charging was closer to correct than assumed.
+    - metric: minimum_non_scalar_endomorphism_degree
+      direction: different
+      minimum_effect: >-
+        Measured min degree equals |Delta|/4 to within the rounding implied by
+        integer (u, v), for 100% of tested curves. This is a closed-form
+        prediction and a single clean miss falsifies the derivation.
+  minimal_test:
+    design: >-
+      Two parts. (a) Derivation sweep, no compute: enumerate isogeny-charging
+      ledger records, tabulate charged degree and model, recompute under
+      sqrt(d), and emit a table of old vs new exponents with an explicit
+      un-auditable column. (b) Empirical anchor, toy scale: for 8-12 curves at
+      30-60 bits, enumerate small (u, v) to find the minimum non-scalar
+      endomorphism degree and compare against |Delta|/4; and measure isogeny
+      evaluation cost across a range of degrees d to fit the scaling exponent c.
+    controls:
+      - >-
+        Scalar-multiplication baseline: cost of [m]P by double-and-add, to price
+        the O(log p) path that IDEA-20260726-006 shows is always available. Every
+        isogeny cost must be reported against this, since a channel that is
+        slower than scalar multiplication is moot regardless of its exponent.
+      - >-
+        Naive-Velu ablation: evaluate the same isogenies without the sqrt-elu
+        technique and confirm the ~O(d) scaling, establishing that the measured
+        improvement is attributable to the technique and not to implementation
+        differences.
+      - >-
+        Matched rho count at each tested size, so the "exactly at the birthday
+        bound" claim is stated against a measured baseline rather than an
+        asymptotic one.
+    required_metrics:
+      - table of ledger barriers with old exponent, new exponent, flip verdict
+      - count of records classified un-auditable, with reasons
+      - fitted scaling exponent c with confidence interval
+      - measured min non-scalar endomorphism degree vs |Delta|/4 per curve
+      - scalar-multiplication and rho baselines per size
+  falsification_conditions:
+    - >-
+      Any barrier whose conclusion flips sign under the refreshed model, which
+      would mean a previously closed candidate is not closed.
+    - >-
+      Measured min non-scalar endomorphism degree materially below |Delta|/4,
+      falsifying the completing-the-square derivation.
+    - >-
+      Fitted c materially above 0.5, meaning sqrt-elu does not deliver the
+      assumed scaling in this setting and the audit's premise is void.
+  confounders:
+    - >-
+      Implementation quality dominates asymptotics at toy sizes; a fitted
+      exponent from a narrow degree range may reflect constants rather than
+      scaling. The degree range must span enough orders of magnitude to
+      separate them, and the report must say if it does not.
+    - >-
+      The tie at the birthday bound is a statement about exponents; constants
+      decide ties. A measured tie must not be reported as a potential win.
+    - >-
+      Some ledger records may charge isogeny cost implicitly inside a composite
+      term, making the audit judgement-dependent. Those must be listed as
+      un-auditable rather than assigned a model by the auditor.
+  interpretation_limits:
+    - >-
+      This is bookkeeping, not a result. A clean audit produces a citable
+      number and changes no research status by itself.
+    - >-
+      The audit's value is preventive: it stops future proposals from being
+      accepted or rejected against a stale cost model.
+    - >-
+      Nothing here bears on index calculus, descent, or relation collection,
+      which do not charge isogeny evaluation.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium

@@ -1,0 +1,205 @@
+experiment:
+  id: EXP-PMA-001
+  hypothesis_id: H-PMA-001
+  goal_id: null
+  version: 1
+  title: >-
+    Toy validation of the divisor-parity obstruction predicate for ordinary
+    PMA4 reciprocal-minor tables over k(t), char k != 2, against independent
+    brute-force matrix existence
+  status: paused
+  status_enactment_note: >-
+    Enacted 2026-08-08 by the Coordinator: DEC-20260807-5adc24 (2026-08-07)
+    paused this experiment for a fabricated/misattributed approval citation,
+    but this status field was never updated to reflect that decision until
+    now. Found during a survey for approved-but-unrun experiments to
+    dispatch; this experiment was correctly excluded from that dispatch as a
+    result of finding this gap, not despite it. Prior value: approved.
+  frozen: true
+  approved_by: coordinator
+  approved_at: '2026-07-27'
+  claim_tier: toy
+  objective: >-
+    Implement the divisor-parity obstruction predicate of IDEA-20260726-012
+    over k(t) for small finite k (F_q, q in {3, 5, 7}) and k = Q, and
+    validate it against exhaustive direct solving on small prescribed
+    instances: for each prescribed reciprocal-minor table p_emptyset = 1,
+    p_S = (t+1)/(t+d_S), decide ordinary 4x4 matrix existence by an
+    independent constructive solver (with witness matrices reverified by
+    direct minor evaluation) and compare with the predicate verdict.
+    Pre-registered prediction: exact agreement on every decided grid
+    instance, with at least one non-vacuous parity obstruction. Controls
+    include the brute-force ground truth itself, a char-2 exclusion check,
+    degenerate-locus branching, and a groebner cross-check subsample. Both
+    outcomes are reachable: exact agreement with a non-vacuous obstruction,
+    or a disagreement of either direction.
+  source_proposal: IDEA-20260726-012
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      Agreement between the divisor-parity obstruction predicate and
+      independent brute-force matrix existence on the small-instance grid,
+      and the non-vacuity of the predicate.
+    formula: >-
+      predicate_bruteforce_agreement = 1.0 exactly (every decided instance:
+      OBSTRUCTED iff no matrix over k(t) exists);
+      nonvacuous_obstruction_count >= 1; false_obstruction_count = 0;
+      false_compatibility_count = 0; char-2 inputs refused or flagged.
+    source: >-
+      The obstruction mechanism of IDEA-20260726-012: canonical reduction
+      of the three anchored orientation discriminants Delta_ijk =
+      c_ijk^2 - 4*q_ij*q_jk*q_ki over k(t) (char k != 2), where a nonzero
+      rational function is a square in k(t) only if every discrete
+      valuation in its principal divisor, including the valuation at
+      infinity, is even and its residual constant class in k*/k^{*2} is
+      square.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Exact agreement on the toy grid validates the predicate as an exact
+      classifier only on the tested scope; any generic-family or all-size
+      PMA claim requires a separate symbolic derivation track with
+      independent review (AGENTS.md rules 6 and 7).
+    correspondence: null
+  inputs:
+    prescribed_tables:
+      form: "p_emptyset = 1; p_S = (t+1)/(t+d_S) for every nonempty S of {1,2,3,4}"
+      anchored_triples: "anchor index 1: (1,2,3), (1,2,4), (1,3,4)"
+      formulas:
+        q_ij: p_i*p_j - p_ij
+        c_ijk: p_ijk - p_i*p_j*p_k + p_i*q_jk + p_j*q_ik + p_k*q_ij
+        Delta_ijk: c_ijk^2 - 4*q_ij*q_jk*q_ki
+    fields:
+      finite: [3, 5, 7]
+      rational: true
+      char2_refusal_inputs: [2, 4]
+    grid:
+      per_finite_field: "8 deterministic prescribed instances with d_S drawn from the frozen parameter box (distinct nonzero values != 1), plus >= 2 deterministically perturbed candidate-obstruction instances"
+      per_rational: "4 deterministic prescribed instances, same rule"
+      widening_fallback: "if a field's grid yields zero obstructions, one widening of its parameter box (+8 instances) is allowed per field within the budget cap; used at most once per field"
+      grid_instance_cap: 60
+    excluded_loci:
+      degenerate_branch: "instances with any relevant q_ij = 0, degree drop, or zero discriminant after canonical cancellation are branched, counted, and disclosed; never scored as obstructions and excluded from the agreement grid"
+      exceptional_locus: "pole collisions d_S = d_T, cancellation at t = -1, repeated factors, or vanishing scale factors are recorded in an explicit exceptional locus and excluded from the agreement grid"
+  controls:
+    - id: CTRL-PMA4-GROUND-TRUTH
+      method: Independent constructive existence decider (module B, separate code path from the predicate) -- branch over all orientation roots, assemble candidate matrices, and emit witness matrices; every EXISTS witness is reverified by direct evaluation of all 16 principal minors; every NOT-EXISTS verdict carries the exhausted branch log with per-branch failure reasons.
+      pass_condition: Every decided instance carries either a 16/16 reverified witness matrix or a complete exhausted branch log; undecided instances are recorded and excluded from agreement scoring with counts disclosed.
+    - id: CTRL-PMA4-CHAR2
+      method: Feed the predicate characteristic-2 inputs (k = F_2 and k = F_4).
+      pass_condition: The predicate refuses or flags every char-2 input and never returns an obstruction verdict for one.
+    - id: CTRL-PMA4-DEGENERACY
+      method: Generate degenerate fixtures (q_ij = 0, Delta_ijk = 0, colliding poles, canceled factors).
+      pass_condition: Each enters its declared separate branch or out-of-scope result; none is counted as an odd-divisor witness.
+    - id: CTRL-PMA4-GROEBNER
+      method: Groebner consistency cross-check over k(t) on a pre-declared subsample of >= 4 instances (2 obstructed, 2 not), as a third check independent of both modules; tool and version recorded.
+      pass_condition: Cross-check verdicts agree with the ground-truth decider on every subsample instance it decides; instances it cannot decide within the stage budget are recorded and skipped, never counted as agreement or disagreement.
+  independent_variables:
+    - constant_field_k: "F_q for q in {3, 5, 7}, and Q"
+    - prescribed_parameters_d_S: deterministic assignment from the frozen parameter box per instance
+    - instance_kind: "grid instance | perturbed candidate-obstruction instance | degenerate fixture | char-2 refusal input"
+  metrics:
+    primary:
+      - predicate_bruteforce_agreement: fraction of decided grid instances where predicate and ground truth agree (target exactly 1.0)
+      - nonvacuous_obstruction_count: instances OBSTRUCTED with an independently reverified odd-valuation witness and brute-force non-existence confirmation (target at least 1)
+      - false_obstruction_count: instances OBSTRUCTED where a matrix exists (target 0)
+      - false_compatibility_count: instances NOT_OBSTRUCTED_BY_THIS_GATE where no matrix exists (target 0)
+      - existence_witness_verification_failures: EXISTS verdicts whose witness fails direct 16-minor reverification (target 0)
+    secondary:
+      - obstruction_witnesses: per OBSTRUCTED instance, the explicit irreducible divisor (or infinity), its odd valuation, and the residual constant class computation
+      - decided_vs_undecided_counts: per field
+      - degenerate_branch_count: per degeneracy class
+      - exceptional_locus_count: per exclusion class
+      - grobner_crosscheck_outcomes: per subsample instance
+      - per_field_grid_sizes: including whether the widening fallback was used
+      - per_stage_wall_clock_seconds: timing per stage
+  replication:
+    seeds: []
+    seed_policy: >-
+      Deterministic: the instance grid, parameter box, perturbations, and
+      branch enumeration are fixed by the frozen deterministic rules; no
+      random sampling occurs and no seeds are used.
+    independent_instances: 40
+    planned_runs:
+      - id: RUN-PMA4-001-a
+        purpose: Implement predicate (module A) and independent existence decider (module B) with witness reverifier; calibration self-checks of the valuation/squarefree machinery; char-2 refusal control; degeneracy-fixture branching.
+      - id: RUN-PMA4-001-b
+        purpose: "Finite-field grid execution (F_3, F_5, F_7): predicate verdict, ground-truth verdict, witnesses, and agreement scoring per instance; widening fallback if triggered."
+      - id: RUN-PMA4-001-c
+        purpose: Q(t) grid execution; obstruction-witness certification with independent reverification; groebner cross-check subsample.
+      - id: RUN-PMA4-001-d
+        purpose: Aggregate metrics, apply outcome classification (including the two disagreement directions and the vacuity outcome), write analysis and execution report.
+    expected_run_count: 4
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_wall_clock_seconds: 6300
+    total_cpu_hours: 1.75
+    maximum_memory_gb: 4
+    maximum_runs: 4
+    stages:
+      - id: implementation_and_calibration
+        wall_clock_seconds: 1800
+        stop_rule: If the char-2 refusal control or the valuation machinery self-checks fail, stop; the predicate is unsound-as-implemented and no grid verdict is scored.
+      - id: finite_field_grid
+        wall_clock_seconds: 1800
+        stop_rule: Stop at 1800s recording completed instances; unfinished instances are cancelled_by_budget and disclosed; the widening fallback runs at most once per field within this stage.
+      - id: rational_grid_witnesses_and_grobner
+        wall_clock_seconds: 1800
+        stop_rule: Stop at 1800s recording completed instances; undecided groebner subsample instances are recorded and skipped, never scored.
+      - id: aggregation_and_classification
+        wall_clock_seconds: 900
+        stop_rule: Stop without interpretation if any required artifact is incomplete.
+  stopping_rules:
+    - Stop if the char-2 refusal or valuation self-checks fail; the implementation is unsound and no scientific outcome is recorded (AGENTS.md rule 5).
+    - Stop and record failed_infrastructure on any module crash; a crash is not evidence for or against the hypothesis.
+    - Stop at 1800s per run and 6300s total wall clock; record remaining planned work as cancelled_by_budget.
+    - Stop after the four planned runs; no exploratory fifth run and no second grid widening without an amendment.
+    - Stop before any ECDLP, relation, source-to-scalar, or standardized-curve work; none is authorized at any point.
+  invalidation_rules:
+    - Any run missing its manifest, exact command, environment, stdout, stderr, or raw-result file is invalid (run-integrity failure, not a scientific result).
+    - Any run with a dirty code revision in its manifest is invalid.
+    - An EXISTS verdict without a 16/16 reverified witness matrix is an invalid measurement, not a disagreement.
+    - A NOT-EXISTS verdict without a complete exhausted branch log is an invalid measurement, not a disagreement.
+    - A degenerate or exceptional-locus instance scored as an obstruction invalidates the affected instance's measurement.
+    - A char-2 input receiving an obstruction verdict (instead of refusal) invalidates the run's predicate output.
+  success_criterion: >-
+    Exact agreement between the predicate and the independent existence
+    decider across the full decided grid (false_obstruction_count = 0 and
+    false_compatibility_count = 0), at least one non-vacuous obstruction
+    with an independently reverified odd-valuation witness and a
+    brute-force non-existence confirmation, every EXISTS witness reverified
+    16/16 by direct minor evaluation, the char-2 refusal control passing on
+    F_2 and F_4 inputs, and all degenerate fixtures correctly branched.
+  falsification_criterion: >-
+    Any disagreement: (1) an instance OBSTRUCTED by the predicate where the
+    independent decider exhibits a valid matrix -- this falsifies the
+    obstruction mechanism outright; or (2) an instance
+    NOT_OBSTRUCTED_BY_THIS_GATE where no matrix exists -- this falsifies
+    H-PMA-001 as frozen (exact classifier on the grid), while the
+    one-directional obstruction claim is recorded separately and is not
+    refuted by this direction. A zero-obstruction grid after the single
+    widening fallback fails the non-vacuity prediction and is recorded as
+    predicate_vacuous, not as success. Infrastructure failure falsifies
+    nothing.
+  required_artifacts:
+    - experiments/EXP-PMA-001/specification.yaml
+    - experiments/EXP-PMA-001/implementation/parity_predicate.py
+    - experiments/EXP-PMA-001/implementation/existence_decider.py
+    - experiments/EXP-PMA-001/implementation/witness_verifier.py
+    - experiments/EXP-PMA-001/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-PMA-001/runs/<RUN-ID>/command.txt
+    - experiments/EXP-PMA-001/runs/<RUN-ID>/environment.json
+    - experiments/EXP-PMA-001/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-PMA-001/runs/<RUN-ID>/summary.json
+    - experiments/EXP-PMA-001/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-PMA-001/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-PMA-001/analysis.md
+    - experiments/EXP-PMA-001/execution-report.yaml
+    - ledger/hypotheses/H-PMA-001.yaml
+    - ledger/questions/RQ-PMA-001.yaml
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: null
+    fallback_used: false
+    authorization_ref: null

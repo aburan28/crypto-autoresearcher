@@ -1,0 +1,385 @@
+experiment:
+  id: EXP-AES-1b80e0
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-AES-d6405d
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  source_idea_id: IDEA-20260805-f2fc33
+  title: >-
+    Forced-value ladder for the hinted-recovery survivor control: recompute the
+    counting model against every committed pair count, build the structure-free
+    sieve that must reproduce the same histograms, and measure the wrong-key
+    uniformity assumption U1 across S and across corruption slots
+
+  objective: >-
+    Reduce one uncertainty: WHAT THE FALSIFIED-HINT CONTROL OF THE r=6 AND r=7
+    HINTED CONSTRUCTIONS ACTUALLY MEASURES. Specifically, determine (i) whether
+    the reported per-diagonal survivor histograms {1: 16} and {0: 16} are forced
+    by candidate-space counting plus assumption U1 rather than by any property
+    of AES; (ii) whether the already-recorded `surviving_(k3,k4)_pairs` field
+    matches its derived forced value across every committed run; and (iii) the
+    MEASURED size of any departure from U1, across S in {1,2,3} and corruption
+    slots t in {0,1,2}, which is the assumption CM-3(d)'s success-probability
+    convention silently uses and which this campaign has never measured.
+
+  what_this_is_not:
+    - Not an attack, a key recovery, a distinguisher, or a cryptanalytic result of any kind.
+    - >-
+      Not a claim, in either direction, about whether the r=6 or r=7 hinted
+      constructions isolate the correct key byte. The contract is silent on that
+      and a run may not be written up as if it were not.
+    - Not a retraction of any measurement in EV-AES-005, EV-AES-d33b1c or EV-AES-d8a13e; every number there stands.
+    - Not a status change to any hypothesis, evidence record, decision or goal record.
+    - Not a cost, exponent, asymptotic, cryptographic-scale or deployed-scheme claim.
+    - >-
+      Not a statement about full-round or deployed AES, and not a comparison to
+      published cryptanalysis in either direction (RQ-AES-003 R3, symmetric).
+    - Not approval, freezing, execution authorization, a run, an observed output, or evidence.
+
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: >-
+      At most: for AES-128 under the pinned C1 reduced-round convention, for the
+      specific constructions implemented in
+      coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/sq_null.c
+      modes attack6n and attack7n, at r in {6, 7}, on this machine, with the
+      declared keys and seeds: (a) an arithmetic statement that the reported
+      per-diagonal histograms follow from the candidate-space count and U1 with
+      probability 1 - 2.4e-7; (b) a demonstration that a structure-free
+      pseudorandom sieve of the same shape reproduces them; (c) a MEASURED
+      interval for U1's departure from uniformity at the tested S and slots.
+      NOTHING ABOUT AES SECURITY AT ANY ROUND COUNT FOLLOWS FROM ANY OF THE
+      THREE, and no outcome here raises any claim tier.
+
+  inputs:
+    committed_fixture_paths:
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/sq_null.c
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/PREREGISTRATION.md
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/wrong_keys.txt
+    fixture_enumeration_rule: >-
+      EVERY file matching runs/*.json AND runs/*.json.truncated is enumerated.
+      A truncated or unparseable file is REPORTED BY NAME as unreadable and is
+      never silently dropped; the count of readable and unreadable files is a
+      required metric. Selecting only the readable subset without reporting the
+      remainder is invalid_measurement.
+    derived_constants:
+      cells: 16
+      candidates_per_cell: 65536
+      candidate_space_total: 1048576
+      filter_width_bits: 8
+      texts_per_structure: 4294967296
+    stage_3_parameters:
+      cipher: AES-128
+      round_counts: [6, 7]
+      structures_S: [1, 2, 3]
+      corruption_slots_t: [0, 1, 2]
+      independent_target_keys_per_cell: 3
+      threads: 4
+    master_seed: 20260805
+    seed_derivation_rule: >-
+      Every stage-3 parameter is derived deterministically so a third party
+      reproduces the instances bit for bit. Let
+        digest(label, i) = SHA-256( "EXP-AES-1b80e0/v1" || "|" || label || "|" ||
+                                    decimal(master_seed) || "|" || decimal(i) ),
+      with digests interpreted as big-endian unsigned integers.
+      TARGET KEY j (j = 0,1,2):      key_j     = first 16 bytes of digest("target-key", j)
+      WRONG HINT KEY for arm (j, t): hintkey   = first 16 bytes of digest("hint-key", 100*j + t)
+      STRUCTURE BASE s within a run: base_s    = first 16 bytes of digest("base", 1000*j + 10*t + s)
+      The C binary receives every parameter on its command line as hex; it
+      contains no RNG of its own, exactly as the committed count5.c does. The
+      full derived parameter list is written to a params.json artifact BEFORE
+      any run and is hash-committed.
+    surrogate_parameters:
+      sieve_trials_with_planted_pairs: 20
+      sieve_trials_without_planted_pairs: 20
+      planted_pairs_per_trial: 16
+      sieve_seed_rule: >-
+        Trial u uses digest("sieve", u) as its stream key; acceptance of
+        candidate c at structure s is the predicate
+        (SHA-256(streamkey || c || s) mod 256) == 0, so the sieve is uniform on
+        8 bits by construction and has NO isolation property whatever.
+
+  arms_and_controls:
+    treatment: >-
+      Stage 1: the committed run files, read as a fixture. Stage 3: new
+      executions of the committed sq_null.c binary at each (S, t, key) cell,
+      recording |cand| after EVERY structure and the per-diagonal survivor
+      histogram.
+    measured_null: >-
+      The pseudorandom 8-bit sieve over the identical 2^20 candidate space, run
+      twice: WITH 16 planted always-surviving pairs (the analogue of a true
+      hint) and WITHOUT them (the analogue of a falsified hint). It has no
+      isolation property by construction, so it is a matched null of the same
+      shape whose forced values are derived before the run and which can fail.
+    positive_control: >-
+      THE S = 1 READING OF EVERY ARM, WHERE ABOUT 4096 SURVIVORS ARE FORCED. If
+      any arm reports 0 survivors at S = 1, or the sieve reports 0 at S = 1, the
+      instrument cannot produce a large non-zero count and NO NEGATIVE RESULT
+      FROM ANY OTHER STAGE MAY BE REPORTED AT ALL. This is the sensitivity
+      demonstration, and the campaign has already been bitten once by its
+      absence: EV-AES-005 records that "every surviving producer PR-A control
+      predicted ZERO, so the producer instrument was never shown able to produce
+      a correct large NON-ZERO count".
+    graded_control: >-
+      S in {1, 2, 3} in the falsified arm, with forced values 4096.0, 16.0 and
+      0.0625 and a FORCED RATIO of exactly 2^-8 at each step. Three interior
+      points; monotonicity is reported explicitly; a departure localises to a
+      specific S rather than leaving an undifferentiated negative. A ratio that
+      does not decay at the forced rate is the canonical artifact tell.
+    sibling_null: >-
+      Corrupt one byte of the TARGET CIPHERTEXT STREAM rather than a hint byte,
+      at the same rate and with the same forced value. Both corruptions destroy
+      the balance; only the hint corruption bears on "the hint is consumed". If
+      the two are indistinguishable in every reported statistic, the control
+      does not ISOLATE the hint pathway and the report says so. This discharges
+      the KN-FIND-029 practice-rule-6 obligation that V-804-1 has left open for
+      three batches.
+    ordering_control: >-
+      THE NULL ARM IS COMMITTED BEFORE THE TREATMENT ARM IS LOOKED AT. The
+      pseudorandom-sieve results and the frozen decision rule's verdict on them
+      are written and hash-committed BEFORE any stage-3 cipher arm is read, and
+      before any committed fixture value is compared to its forced value.
+      Absence of that commitment is invalid_measurement.
+    verdict_on_the_null_first: >-
+      The frozen decision rule is executed on the sieve surrogate first. If it
+      emits the same verdict on the sieve as on the real arms, the rule
+      discriminates nothing and MUST be rewritten before any real arm is read;
+      the rewrite is recorded as an amendment with its UTC stamp, never as an
+      edit to this contract.
+    comparability_policy: >-
+      Stage-1 fixture values and stage-3 new values are NOT pooled. The fixture
+      is a check of the model against already-committed numbers under conditions
+      the executing session did not control; stage 3 is a controlled measurement
+      with derived seeds. They are reported in separate tables with separate
+      z-scores and any cross-comparison is stated as such. Comparison to
+      BATCH-001's engine or to any other campaign's artifacts is forbidden
+      without a separately registered comparator contract.
+
+  metrics:
+    primary:
+      - >-
+        Signed binomial z-score of every observed `surviving_(k3,k4)_pairs`
+        value against its forced value, forced value stated beside it:
+        true arm 16 + (2^20 - 16) * 2^(-8S), falsified arm 2^20 * 2^(-8S).
+      - >-
+        Per-diagonal survivor histogram of the pseudorandom sieve, with and
+        without planted pairs, over 20 trials each.
+      - >-
+        Measured falsified-arm survivor rate as a function of the corruption
+        slot t, with the forced slot-invariance difference of 0.
+    secondary:
+      - Consecutive ratios |cand|(S+1)/|cand|(S) against the forced 2^-8, with monotonicity stated.
+      - Per-diagonal survivor histograms of the real arms, retained for continuity with OBS-B2-1.
+      - Count of readable and unreadable committed run files, by name.
+      - Measured wall clock and measured peak RSS per stage-3 arm, under CM-3(b) and CM-3(f).
+      - The derived probability that a falsified arm reports a non-empty survivor set, recomputed independently.
+
+  preregistered_prediction:
+    quantity: >-
+      P(reported per-diagonal histogram equals the observed one), on each arm,
+      under the counting model.
+    formula: >-
+      1 - 4 * (256 - [1 if true-hint arm]) * (256 * 2^(-8S))^4, evaluated at
+      S = 2, giving 1 - 2.4e-7 on both arms.
+    source: >-
+      Derived in H-AES-d6405d mechanism from the committed sq_null.c filter
+      structure. Not measured, not fitted, not taken from any external source.
+    additional_frozen_values:
+      true_arm_S1: 4111.9
+      true_arm_S2: 32.0
+      true_arm_S3: 16.06
+      falsified_arm_S1: 4096.0
+      falsified_arm_S2: 16.0
+      falsified_arm_S3: 0.0625
+      binomial_sd_S1: 63.99
+      binomial_sd_S2: 4.0
+      committed_readings_to_be_checked:
+        TRUE6_S1: 4066
+        TRUE6_S2: 32
+        WRONG6_01_S1: 4108
+        WRONG6_01_S2: 16
+    prediction_binding: >-
+      This block, together with the derived constants and the seed derivation
+      rule, is hash-committed as a PREREGISTRATION artifact whose sha256 is
+      recorded in the results artifact and reproduced verbatim in the report,
+      following the TASK-20260801-807 practice. A prediction that is falsified
+      is LEFT AS WRITTEN, labelled, and its downstream propagation traced.
+
+  replication:
+    seeds: [20260805]
+    derived_instance_count: >-
+      3 independent target keys x 3 corruption slots x 3 values of S = 27
+      stage-3 cells at r = 6, plus a reduced r = 7 set of 3 cells; 20 + 20
+      surrogate trials.
+    planned_runs: 30
+    interpretation: >-
+      Stage-3 replication is over derived independent keys and bases, not over
+      repeats of one instance. Two keys is not a distribution; three is the
+      minimum this contract will report a difference from, and the report states
+      that limitation in the same sentence as any difference.
+
+  budget:
+    wall_clock_seconds: 9000
+    cpu_seconds: 36000
+    memory_gb: 4
+    maximum_runs: 30
+    maximum_workers: 4
+    no_network: true
+    stage_budgets:
+      stage_0_reading: 1200
+      stage_1_arithmetic: 1800
+      stage_2_surrogate: 600
+      stage_3_execution: 5400
+    compute_component_reported_separately: >-
+      Required by the adopted clock convention C4. Cipher compute is reported in
+      its own field, distinct from authoring-inclusive session elapsed, because
+      this is the first AES campaign whose producers spend real compute and the
+      two were conflated once already.
+    budget_basis: >-
+      Stage-3 cost is bounded by the committed fold times of 44.36-128.15 s per
+      2^32 structure under sole-producer scheduling. GOAL-AES-003's instruction
+      that a batch WAITS rather than run degraded is BINDING here: BATCH-002
+      overran by roughly 5700 s when three producers were dispatched onto four
+      cores against that instruction, destroying one producer's entire first
+      segment.
+
+  stopping_rules:
+    - >-
+      Do not execute unless this contract is separately reviewed, approved,
+      frozen, archived and execution-authorized by the Coordinator. Only the
+      Coordinator approves (AGENTS.md rule 1).
+    - >-
+      STAGE 1 IS THE CHEAPEST DECISIVE GATE AND RUNS FIRST. If any committed
+      pair count lies outside a 3-sd binomial interval around its forced value,
+      STOP: the counting model is refuted, stages 2 and 3 are not run, and the
+      refutation is the deliverable.
+    - >-
+      If stage 0 finds the filter is not an 8-bit equality per structure or the
+      candidate space is not 2^20, STOP immediately; the whole derivation is
+      void.
+    - >-
+      If the positive control fails at S = 1 on any arm or on the sieve, STOP
+      and report an instrument failure. No negative result may be reported.
+    - >-
+      Stop before any stage-3 arm if the null arm and its digest are absent.
+    - >-
+      HALT at the declared binding_stop_utc computed from the first-act stamp,
+      recording halted_on_budget truthfully and NAMING the dropped work. A halt
+      is infrastructure signal and dropped work is SCOPE, never an answer.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any missing params.json, missing preregistration digest, or any raw record not matching the declared schema.
+    - Any comparison of stage-1 fixture values with stage-3 values as if pooled.
+    - Any use of only the readable subset of committed run files without reporting the unreadable ones by name.
+    - Any post-hoc change to the frozen forced values or tolerances after a reading has been observed.
+    - Any measurement charged to the AES-NI path without a machine-readable pinning receipt across the round counts used.
+
+  success_criterion: >-
+    The contract SUCCEEDS -- meaning it has produced a determinate reading, not
+    that any hypothesis is supported -- when all of the following hold:
+    (1) stage 0 confirms the filter structure from committed source;
+    (2) every readable committed `surviving_(k3,k4)_pairs` value is reported
+    with its forced value and signed z-score, and the unreadable files are named;
+    (3) the pseudorandom sieve is run 20 + 20 times with its verdict committed
+    BEFORE any real arm is read;
+    (4) the positive control at S = 1 passes on every arm;
+    (5) the graded ladder S = 1,2,3 is reported with both consecutive ratios and
+    an explicit monotonicity statement;
+    (6) slot invariance is reported at t = 0, 1, 2 with the forced difference 0;
+    (7) the report states, in one paragraph, exactly what OBS-B2-1 establishes
+    and exactly what it does not, and states the MEASURED interval for U1;
+    (8) every cost figure is measured, with peak RSS measured, not modelled.
+    A run meeting (1)-(8) is a determinate reading whichever way the numbers
+    fall. NO OUTCOME OF THIS CONTRACT SUPPORTS, WEAKENS OR REJECTS ANY CLAIM
+    ABOUT AES.
+
+  falsification_criterion: >-
+    H-AES-d6405d parts (A)-(D) are FALSIFIED by any of:
+    F1 any committed or newly measured pair count outside 3 binomial standard
+       deviations of its forced value;
+    F2 the pseudorandom sieve failing to reproduce {1: 16} with planted pairs
+       and {0: 16} without, in at least 19 of 20 trials each;
+    F3 stage 0 contradicting the assumed filter structure;
+    F4 a measured slot dependence in the falsified-arm survivor rate exceeding
+       3 standard deviations;
+    F5 true-arm and falsified-arm S = 2 counts not differing by approximately 16
+       across three independent keys (refutes HEUR-D2).
+    F1 IS THE OUTCOME THIS CONTRACT MOST WANTS, because it would make OBS-B2-1
+    stronger than claimed rather than weaker.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition: a review_required draft. No run, no
+      evidence, no mathematical inference.
+    determinate_reading: >-
+      A re-scoping statement about OBS-B2-1 plus a measured interval for U1 plus
+      a repaired control specification. Scoped toy, r in {6,7}, one
+      construction, one machine, three keys.
+    model_refuted: >-
+      Stage 1 refutes the counting model. The audited observation is stronger
+      than claimed; a superseding record is proposed to the Coordinator and this
+      contract's headline is withdrawn.
+    infrastructure_or_integrity_failure: >-
+      Inconclusive INFRASTRUCTURE SIGNAL, never evidence against H-AES-d6405d
+      and never a mathematical result of any kind.
+
+  infrastructure_failure_disposition: >-
+    A TIMEOUT, CRASH, MISSING DEPENDENCY, COMPILER FAILURE, COUNTER OVERFLOW,
+    TRUNCATED OUTPUT FILE OR BUDGET HALT IS REPORTED AS INFRASTRUCTURE SIGNAL
+    AND IS NEVER NEGATIVE MATHEMATICAL EVIDENCE (AGENTS.md rule 5; GOAL-AES-003
+    P3). Specifically: a failure to rebuild sq_null.c from its committed source
+    is reported with the compiler diagnostic verbatim and blocks stage 3 only;
+    stages 0-2 proceed. A truncated run output is named and counted, never
+    interpolated. If the executing container lacks a dependency that a committed
+    BATCH-001 receipt records as present -- the proposing session measured
+    `import Crypto` failing under five system interpreters while
+    count5/pin_result.json records a passing pycrypto column -- that is recorded
+    as CONTAINER DRIFT, reported, and never asserted to make the committed
+    receipt false.
+
+  scale_relevance:
+    tier: toy
+    why_conclusions_transfer_or_not: >-
+      They transfer ONLY to the exact constructions built, at r in {6, 7}, on
+      AES-128, with the tested S values, corruption slots and keys, on this
+      machine. The counting argument itself is scale-free -- it depends on the
+      candidate-space size and the filter width, not on the cipher -- which is
+      precisely why a favourable outcome says nothing about AES. THE LIMIT IS
+      THE POINT: an argument that would hold for any 8-bit filter over any 2^20
+      candidate space cannot be evidence about a particular cipher, and the
+      report must say so in those words.
+
+  required_artifacts:
+    - The frozen approved specification and a freeze receipt binding its sha256.
+    - params.json with every derived key, hint key, base and slot, hash-committed before any run.
+    - The PREREGISTRATION artifact carrying the forced values, with its sha256 reproduced verbatim in the report.
+    - The sieve surrogate source, with a comment-block inference stanza in its own text, and its 40 trial outputs.
+    - A raw record per stage-3 arm containing |cand| after every structure, the per-diagonal histogram, S, t, key digest and base.
+    - The enumeration of every committed run file with readable/unreadable status by name.
+    - Measured wall clock and measured peak RSS per arm; the compute component reported in its own field.
+    - Committed UTC budget stamps: first-act stamp with start_utc, start_epoch, declared_wall_clock_seconds and a computed binding_stop_utc; a stamp at every section boundary; a truthful halt record if one fires.
+    - A covering manifest carrying an artifact_provenance list over every declared artifact, per the adopted provenance gate, with kinds drawn from the closed vocabulary.
+    - Environment record: compiler version and flags, core count, memory, interpreter paths and importability of every dependency actually used.
+    - Snapshot archive followed by independent validation, per the goal's review chain.
+
+  approval_requirements:
+    - Independent review confirms the forced-value derivation is correct and reproducible from the committed source.
+    - Independent review confirms the sieve surrogate has no isolation property by construction.
+    - Independent review confirms the ordering control makes post-hoc tuning impossible.
+    - Coordinator separately approves and freezes without editing this draft.
+    - Execution is separately authorized after the approved frozen package exists.
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is not
+    approved and only the Coordinator may approve it (AGENTS.md rule 1).
+
+  cheapest_decisive_stage: >-
+    STAGE 1, and it can terminate the whole line. It is arithmetic over integers
+    that are already committed, costs no compute, and either confirms the
+    counting model against four or more independent readings or refutes it. It
+    runs first, before the surrogate and long before any cipher call.

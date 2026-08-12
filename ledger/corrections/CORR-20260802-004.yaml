@@ -1,0 +1,65 @@
+correction:
+  id: CORR-20260802-004
+  recorded_at: '2026-08-02'
+  record_type: identifier_alias
+  record_id: DUPLICATE-RUN-ID-REPAIR-EXP-IC-001-EXP-FCP-002
+  field: run_ids_of_235_committed_run_records
+  reason: >-
+    235 committed run records spend RUN identifiers that another experiment
+    already spends. EXP-IC-001 holds 219 and EXP-FCP-002 holds 16 whose ids
+    collide with runs under EXP-FCP-001, EXP-FCP-002 and EXP-FCP-003. The
+    colliding runs are NOT copies: they were executed at different commits,
+    with different parameters, at different times. The ids collide because the
+    RUN names were derived from the driver (RUN-FCP-*) rather than from the
+    owning experiment, so re-running the grid under a new experiment reused
+    them.
+  why_the_normal_repair_does_not_apply: >-
+    AGENTS.md rule 4 and tools/check_run_immutability.py require a defective
+    run to be superseded under a new RUN id, never edited or removed. A
+    duplicate identifier is the one defect that rule cannot repair: adding a
+    superseding record leaves both colliding records in place, so the collision
+    stands. tools/validate_ledger.py reports duplicate ids with force=True
+    precisely because an id collision is never legacy debt to be excused.
+  resolution: >-
+    The experiment that published an id first keeps it. The colliding run
+    directory is renamed to an experiment-qualified id and its manifest's
+    run.id is updated to match. Every rename is declared in
+    tools/run_id_remaps.yaml, which names this correction.
+  enforcement: >-
+    This is an exception, not a waiver. tools/check_run_immutability.py now
+    accepts a declared rename ONLY after re-deriving it: for every file in the
+    run directory it recomputes the base blob with the declared id substituted
+    and requires the new blob to match byte-for-byte. A rename that alters any
+    measurement, timing, command, environment or result fails the gate exactly
+    as an in-place edit always did. Undeclared modifications and deletions
+    under experiments/*/runs/ remain hard failures.
+  naming_rule:
+    EXP-IC-001: RUN-IC-001-<original suffix>
+    EXP-FCP-002: RUN-FCP-002-<original suffix, redundant FCP- dropped>
+    example_a: EXP-IC-001 RUN-FCP-fixed-b12-s1-t0 -> RUN-IC-001-FCP-fixed-b12-s1-t0
+    example_b: EXP-FCP-002 RUN-FCP-fixed-b16-s1-t0 -> RUN-FCP-002-fixed-b16-s1-t0
+  alias_map_location: >-
+    tools/run_id_remaps.yaml holds all 235 (experiment, from_run_id, to_run_id)
+    triples. Those entries are permanent: they are how a historical run id
+    stays resolvable against the record that now carries the new id.
+  counts:
+    total_renamed: 235
+    EXP-IC-001: 219
+    EXP-FCP-002: 16
+    identifiers_kept_by_the_first_publisher: EXP-FCP-001, EXP-FCP-002, EXP-FCP-003
+  substantive_delta: >-
+    Identifier substitution only. No measurement, parameter, timing, command,
+    environment, result, certificate or artifact hash was altered, and no run
+    was added or removed. The frozen sha256 of each renamed manifest in
+    tools/legacy_run_inventory.yaml is repointed to the new path and
+    recomputed over the substituted bytes.
+  status_effects:
+    hypothesis_status_changed: false
+    evidence_rescored: false
+    note: >-
+      Identifier hygiene only. No hypothesis status, evidence direction, claim
+      tier, SOTA delta or cryptanalytic assertion is created, altered or
+      withdrawn. Evidence records binding EXP-FCP-001 reference the retained
+      ids and are unaffected.
+  supersedes: null
+  superseded_by: null

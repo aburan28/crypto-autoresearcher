@@ -1,0 +1,252 @@
+executor_preflight_report:
+  schema: crypto.autoresearch.executor_preflight_report.v1
+  task_id: TASK-20260808-9d3de5
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-0d70df
+  experiment_id: EXP-XOR-62b256
+  hypothesis_id: H-XOR-56cc0a
+  role: executor
+  recorded_at: '2026-08-08T23:14:14Z'
+  disposition: pre_execution_refusal
+  task_state_observed: queued
+  mathematical_evidence: false
+
+  frozen_contract_validation:
+    result: not_internally_executable
+    specification:
+      path: experiments/EXP-XOR-62b256/specification.yaml
+      sha256: 978da346113595c2ba446107798a1556c97665832dc48f0a8f0482f99f8c9d58
+      yaml_parse: pass
+      experiment_status: approved
+      frozen: true
+      approved_by: coordinator
+      approved_at: '2026-08-08'
+      declared_budget:
+        wall_clock_seconds: 900
+        memory_gb: 2
+        maximum_runs: 1
+      required_artifacts:
+        - command.txt
+        - environment.json
+        - stdout.log
+        - stderr.log
+        - raw-result.json
+        - analysis.yaml
+        - manifest.yaml
+        - execution-report.yaml
+    frozen_implementation_hashes:
+      arm_d_cost:
+        path: experiments/EXP-XOR-62b256/implementation/arm_d_cost.py
+        expected_sha256: c8c8e7df68f9d761a5caed663e8d3448765a1ea2cc779e76a626adc0a7a6caf7
+        observed_sha256: c8c8e7df68f9d761a5caed663e8d3448765a1ea2cc779e76a626adc0a7a6caf7
+        match: true
+        syntax_parse: pass
+      baseline_full_grid:
+        path: experiments/EXP-SEMAEV-f48dd1/implementation/full_grid.py
+        expected_sha256: 64d682e56e28472987ebd319f6250a09620c566ab7a881701d53acce3300a540
+        observed_sha256: 64d682e56e28472987ebd319f6250a09620c566ab7a881701d53acce3300a540
+        match: true
+        syntax_parse: pass
+    dispatch_validation:
+      command: >-
+        python3 tools/research_dispatch.py
+        coordination/goals/GOAL-ECDLP-001/batches/BATCH-0d70df/dispatch_queue.json
+        --output /dev/null --report /dev/null
+        --repo-root /private/tmp/wt-ecdlp-cost-null-direct
+      exit_code: 0
+      task_ready: true
+      dependencies: []
+      declared_write_scope:
+        - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/
+        - coordination/goals/GOAL-ECDLP-001/batches/BATCH-0d70df/tasks/TASK-20260808-9d3de5/
+
+  blocking_findings:
+    - id: SPEC-CTRL-SEED-ONE-RUN
+      classification: specification_error
+      severity: blocking
+      frozen_sources:
+        - >-
+          specification.yaml lines 72-73 require CTRL-SEED: a deterministic
+          rerun must reproduce raw-result.json byte-for-byte.
+        - >-
+          specification.yaml lines 76-79 require all controls to pass in the
+          single bounded run; lines 85-92 set maximum_runs: 1 and prohibit
+          adding runs after output.
+        - >-
+          arm_d_cost.py lines 60-85 add a live time.perf_counter() value as
+          wall_clock_seconds to every Arm D record; lines 160-168 embed those
+          records in raw-result.json.
+        - >-
+          arm_d_cost.py lines 169-183 implement only baseline-hash, A/B-count,
+          and query-count controls; no rerun or byte-comparison exists. Lines
+          195-203 invoke run(output) once.
+      observation: >-
+        The exact command can neither perform nor validate the required rerun.
+        Running a second command would exceed maximum_runs and the explicit
+        one-run handoff. Moreover, live wall-clock values are serialized into
+        raw-result.json, so a second execution has no byte-stable raw payload
+        to satisfy CTRL-SEED.
+      consequence: >-
+        The frozen success criterion cannot be evaluated as all-controls-pass
+        without changing the frozen code, specification, or run budget. No
+        computation was started.
+      mathematical_evidence: false
+
+    - id: SPEC-REQUIRED-ARTIFACT-ARCHIVE-GAP
+      classification: specification_error
+      severity: blocking
+      frozen_sources:
+        - >-
+          specification.yaml lines 104-112 require command.txt,
+          environment.json, stdout.log, stderr.log, raw-result.json,
+          analysis.yaml, manifest.yaml, and execution-report.yaml.
+        - >-
+          TASK-20260808-9d3de5 artifact_paths and snapshot task
+          TASK-20260808-dda3c3 source_artifact_paths omit command.txt,
+          environment.json, stdout.log, and stderr.log.
+      observation: >-
+        The four omitted required artifacts could be created only inside this
+        task's write scope, but the frozen Coordinator snapshot task is bound
+        to stage only its declared source_artifact_paths. They therefore cannot
+        be handed off as the required immutable run package without changing a
+        frozen dispatch record.
+      consequence: >-
+        The artifact-retention and snapshot-binding completion requirements
+        cannot both be met by this Executor under the frozen queue.
+      mathematical_evidence: false
+
+  execution:
+    intended_command: >-
+      python3 experiments/EXP-XOR-62b256/implementation/arm_d_cost.py --output
+      experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001
+    invoked: false
+    invocation_count: 0
+    invocation_reason: >-
+      Refused before computation because the frozen contract is internally
+      inconsistent. Invoking the command would not repair, test, or satisfy
+      either blocking finding.
+    computation_timing:
+      started_at: null
+      finished_at: null
+      wall_seconds: null
+      reason_not_measured: no computational process was invoked
+    computation_resources:
+      peak_rss_bytes: null
+      cpu_seconds: null
+      reason_not_measured: no computational process was invoked
+    run_package:
+      path: experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/
+      created: false
+      reason: >-
+        No command.txt, stdout.log, stderr.log, environment.json,
+        raw-result.json, analysis.yaml, manifest.yaml, or execution-report.yaml
+        was fabricated for an uninvoked computation.
+
+  controls:
+    CTRL-BLOB:
+      status: pass
+      observation: both frozen implementation SHA-256 values matched before any computation
+    CTRL-A-B:
+      status: not_run
+      reason: command was not invoked
+    CTRL-QUERY:
+      status: not_run
+      reason: command was not invoked
+    CTRL-SEED:
+      status: blocked_specification_error
+      reason: one-run contract has no permitted or implemented byte-for-byte rerun check
+    CTRL-NEARBY:
+      status: static_present_not_measured
+      observation: frozen implementation declares q_grid = [1, q50, q90]
+
+  inputs:
+    parameters:
+      primes: [101, 103, 107, 211]
+      b_values: [0.4, 0.5]
+      arity_m: 3
+      seeds: [1, 2, 3, 4, 5]
+      kappa_add_equivalents_per_query: 1
+      q_grid_rule:
+        q_1: 1
+        q_50: ceil(log(1-0.50) / log(1-1/p))
+        q_90: ceil(log(1-0.90) / log(1-1/p))
+
+  provenance:
+    code:
+      commit: cb1bc33ef5edaa589e216e3700fb66b86bdd9f66
+      branch: codex/ecdlp-armd-direct
+      dirty_before_task_output_write: false
+      dirty_state_command: git status --porcelain=v1 --untracked-files=all
+      status_porcelain_before_task_output_write: ''
+    host:
+      operating_system: macOS-26.6-arm64-arm-64bit-Mach-O
+      architecture: arm64
+      python_version: 3.13.1
+      python_implementation: CPython
+      pyyaml_version: 6.0.3
+    inference:
+      runtime: codex_native
+      requested_policy: executor-implementation
+      requested_reasoning_effort: medium
+      native_authentication_check:
+        command: codex login status
+        stdout: Logged in using ChatGPT
+        authenticated: true
+      declared_policy_binding:
+        backend: openai
+        resolved_model_id: gpt-5.6-terra
+        model_provenance: operator-supplied
+        last_probed: '2026-08-02'
+      exact_session_model_verified: false
+      verification_limit: >-
+        The native login-status check establishes authenticated Codex use but
+        does not expose an exact session model. No new Codex session probe was
+        launched after the pre-execution refusal, so no exact-session runtime
+        receipt exists.
+      fallback_used: false
+      degraded_requirements: []
+      bedrock_invoked: false
+      bedrock_configured: false
+      no_bedrock_observation: >-
+        No Bedrock provider, endpoint, model identifier, or configuration was
+        selected or invoked. Only the authenticated native Codex CLI login
+        status was checked.
+
+  outputs:
+    written:
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-0d70df/tasks/TASK-20260808-9d3de5/report.yaml
+    intentionally_not_written:
+      - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/command.txt
+      - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/stdout.log
+      - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/stderr.log
+      - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/environment.json
+      - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/raw-result.json
+      - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/analysis.yaml
+      - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/manifest.yaml
+      - experiments/EXP-XOR-62b256/runs/RUN-XOR-62b256-001/execution-report.yaml
+    output_hashes:
+      raw_result_sha256: null
+      analysis_sha256: null
+      manifest_sha256: null
+      execution_report_sha256: null
+      reason_not_generated: no computational output was generated
+
+  executor_assessment:
+    validity_status: invalid
+    validity_reason: >-
+      specification_error: the frozen one-run contract cannot perform or
+      validate CTRL-SEED, and its required artifact list is not bound by the
+      frozen snapshot task.
+    protocol_complete: false
+    data_quality: invalid
+    requires_rerun: false
+    requires_protocol_successor: true
+    next_action_for_coordinator: >-
+      Create a new superseding specification and task rather than editing the
+      frozen records. It must define a genuinely byte-stable deterministic
+      control (or an authorized separately counted second run), then declare
+      every required run artifact in both the Executor task and snapshot
+      archive source lists before another execution is authorized.
+    claim_boundary: >-
+      This is a pre-execution contract failure only. It supplies no observation
+      for or against H-XOR-56cc0a and does not change any research status.

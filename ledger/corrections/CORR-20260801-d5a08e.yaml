@@ -1,0 +1,57 @@
+correction:
+  id: CORR-20260801-d5a08e
+  recorded_at: '2026-08-01'
+  record_type: identifier_scheme
+  record_id: tools/allocate_id.py + tools/validate_ledger.py ID_PATTERNS
+  field: identifier_suffix_form_and_allocation_method
+  prior_value:
+    suffix_form: '\d{3}'
+    allocation: >-
+      max+1 over committed state, later softened to a random draw from the free
+      tail above the maximum. BOTH SCAN COMMITTED STATE, and that is the defect:
+      concurrent worktrees scan the same state. max+1 makes them agree with
+      certainty; the random-tail draw only narrows the window to about 1/L, and L
+      shrinks as the maximum climbs.
+  corrected_value:
+    suffix_form: '[0-9a-f]{6}'
+    allocation: >-
+      A RANDOM 24-BIT TOKEN, DRAWN WITHOUT SCANNING ANY STATE. That is the whole
+      point: there is no shared question for two worktrees to answer identically.
+      16**6 = 16,777,216 values per (prefix, middle) namespace.
+    example: DEC-20260801-2fd115
+  backwards_compatibility: >-
+    BOTH FORMS VALIDATE AND THE LEGACY FORM IS VALID FOREVER. ID_PATTERNS now
+    reads (?:\d{3}|[0-9a-f]{6}) for all seven patterned types. Every record
+    minted before this date keeps its identifier and keeps validating - they are
+    immutable and MUST NOT be renamed, per rule 15. No existing record is touched
+    by this change. tools/validate_ledger.py reports 1168 errors before and after,
+    byte-identical: the alternation only ADDS an accepted form.
+  what_was_changed:
+    - tools/validate_ledger.py: SUFFIX_LEGACY / SUFFIX_RANDOM / SUFFIX, and the seven ID_PATTERNS entries.
+    - tools/allocate_id.py: random_token() and token_id(); --next now mints a token by DEFAULT; --numeric and --sequential retained as legacy-only, each labelled with why it collides; --seed for reproducible allocation in tests.
+    - AGENTS.md rule 14 rewritten to the token form; rule 15 (a remap is a last resort) unchanged.
+    - CLAUDE.md conventions rewritten to match.
+    - tools/test_allocate_id.py: 21 tests, up from 12. New ones pin the token regex, that token ids validate, that LEGACY ids still validate, that malformed tokens are refused, and that the space is large.
+  cost_stated_rather_than_hidden: >-
+    IDENTIFIERS NO LONGER SORT INTO CREATION ORDER. Nothing in this repository
+    ordered by them - the only numeric parse was allocate_id's own _used_numbers,
+    which now serves the legacy modes alone - but any future tooling that wants
+    chronology must read the record's `added` / `recorded_at` field, or git
+    history, instead of the suffix. Randomisation also widens gaps, which is
+    harmless: a gap was never a free slot.
+  residual_risk: >-
+    A token collision is possible, just improbable: about 1/16,777,216 per draw
+    within a namespace. The --check step before use is what catches it and remains
+    MANDATORY. token_id() additionally redraws if a candidate is already
+    occupied, bounded at 64 attempts, and reports a defect rather than looping.
+  provenance: >-
+    Adopted on the user's explicit direction of 2026-08-01, after the same
+    session's one-time remap of five colliding records (recorded in
+    CORR-20260801-758). That remap fixed the instances; this record fixes the
+    generator that produced them.
+  evidence_artifacts:
+    - tools/allocate_id.py
+    - tools/validate_ledger.py
+    - tools/test_allocate_id.py
+    - AGENTS.md
+    - CLAUDE.md

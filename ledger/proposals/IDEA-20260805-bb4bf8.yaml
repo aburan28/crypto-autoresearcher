@@ -1,0 +1,751 @@
+idea:
+  id: IDEA-20260805-bb4bf8
+  question_id: RQ-SQISIGN-001
+  added: '2026-08-05'
+  title: >-
+    The commitment-walk mixing audit: SQIsign's transcript-versus-simulation
+    claim rests on a walk-length constant nobody in this corpus has ever
+    evaluated, and the constant is decided by an EXACT linear-algebra
+    computation on toy supersingular graphs that needs no transcript sampling
+    at all
+  class: control
+
+  claim: >-
+    In a Fiat-Shamir isogeny signature of SQIsign's shape the commitment curve
+    E_1 is published in the transcript, and the honest signer produces it as the
+    endpoint of an isogeny walk that STARTS AT THE SPECIAL CURVE E_0, while the
+    zero-knowledge simulator produces the same symbol by walking BACKWARDS from
+    the response's codomain, i.e. from a generic vertex. The two distributions
+    on E_1 therefore agree only to the extent that the commitment walk MIXES.
+    Whether it mixes at the claimed security level is a statement about one
+    number - the walk length (equivalently the commitment degree) required to
+    bring the total-variation distance from stationary below 2^-lambda - and
+    this program has never evaluated that number for any isogeny scheme. It can
+    be bounded three ways that DISAGREE BY A FACTOR OF ABOUT SIX, and the
+    disagreement is the whole content: (a) the Ramanujan spectral bound gives
+    TV_k <= (sqrt(n)/2) * mu^k with mu = 2*sqrt(l)/(l+1), hence for l = 2,
+    n ~ p/12, lambda = 128, p = 2^256 a required walk length of
+    k* = (0.5*log2(n) + lambda + 1)/0.0849625 = 3004 STEPS - and it makes the
+    bound VACUOUS (TV bound 2^+104.5, i.e. greater than 1) at the ~256 steps a
+    natural parameter choice would give; (b) the recalled cutoff result for the
+    SIMPLE random walk on Ramanujan graphs puts mixing at
+    (d/(d-2))*log_{d-1}(n) = 3*log2(n) steps for d = 3; (c) the recalled cutoff
+    result for the NON-BACKTRACKING walk - which is the right model, because an
+    honest commitment isogeny is CYCLIC by construction - puts it at
+    log2(n) steps. Slopes dk_mix/dlog2(n) of 5.885 vs 3.0 vs 1.0. THE CLAIM OF
+    THIS PROPOSAL IS NOT THAT SQIsign IS UNDER-PARAMETERIZED. It is that which
+    of the three governs is an empirical question with an exact, cheap answer,
+    that the answer changes what the ZK argument is entitled to assert, and that
+    the measurement requires NO transcript sampling, NO isogeny scheme
+    implementation and NO endomorphism-ring computation - only the exact
+    iterated transition operator of the supersingular 2-isogeny graph at toy
+    primes, which is a sparse matrix of side p/12.
+
+  object_first_candidate:
+    tracked_object: >-
+      The PROBABILITY VECTOR of the commitment endpoint over the vertex set of
+      the supersingular l-isogeny graph, followed step by step through the
+      commitment walk: delta_{E_0} -> P delta_{E_0} -> ... -> P^k delta_{E_0},
+      projected at each step onto the single scalar
+      TV_k = (1/2) * sum_j |P^k delta_{E_0}(j) - pi(j)|, where pi is the
+      Eichler-mass stationary measure pi(j) proportional to 2/|Aut(E_j)|. The
+      object is the DECAY CURVE k -> TV_k and, across a ladder of primes, the
+      scaling law k_mix(n) and its slope in log2(n). The transcript symbol E_1
+      is the observable; the tracked object is the measure that produces it.
+    established_families_off_limits: >-
+      OFF-LIMITS as the primary lens for this proposal: (i) endomorphism-ring
+      and isogeny-path-finding attacks of every kind - MITM, Delfs-Galbraith,
+      van Oorschot-Wiener collision search, Wesolowski's p^{1/3+o(1)} claw
+      construction - because that flank belongs to GOAL-SSI-001 and this
+      proposal costs no hard problem and claims nothing about one; (ii) the
+      SIDH/Kani torsion-image template and any audit of the PUBLISHED-DATA
+      SURFACE, because that flank belongs to GOAL-SQISIGN-002 and is explicitly
+      out of scope for GOAL-SQISIGN-001; (iii) side channels of every kind -
+      timing, SPA on Cornacchia's algorithm, fault injection - because
+      RQ-SQISIGN-001 scopes this question to DISTRIBUTIONAL leakage in its own
+      words ("not timing: distributional"); (iv) signature malleability and
+      strong-unforgeability questions; (v) KLPT norm-equation analysis, which is
+      the subject of the sibling proposal IDEA-20260805-2a669e and is
+      deliberately NOT the lens here. What is left as the lens is the ordinary
+      spectral theory of a graph, which is why the proposal is cheap.
+    newness_score: >-
+      The mathematics is not new. Pizer's Ramanujan theorem, the Eichler mass
+      formula, and cutoff for walks on Ramanujan graphs are established results
+      (all RECALLED, UNVERIFIED here - see literature_context). What is new, and
+      what the corpus demonstrably lacks, is (1) the numerical evaluation of the
+      three competing walk-length constants at a scheme-relevant prime size,
+      (2) the observation that the constants differ by ~6x and that the loosest
+      one is VACUOUS at natural parameters, and (3) the design move that makes
+      the question answerable at all in this environment: computing TV EXACTLY
+      by sparse matrix iteration instead of estimating it by sampling
+      transcripts. The single prior proposal on this question,
+      IDEA-20260801-020, proposes sampling N transcripts and running a
+      permutation test - a design whose resolution floor is ~1/sqrt(N) and which
+      therefore cannot bound a 2^-128 statistical distance by any margin,
+      at any budget. That is not a criticism of it; it is the reason to take a
+      different route to the same question.
+    testability_score: >-
+      Very high and unusually cheap. The decisive quantity is an eigenvalue and
+      a TV curve of a sparse (l+1)-regular matrix on n ~ p/12 vertices. At the
+      top of the proposed ladder (p ~ 131111) that is n ~ 10925 vertices and
+      ~33000 nonzeros; a few hundred matrix-vector products per prime. Pure
+      Python plus numpy 2.4.6, which this container has (VERIFIED by running
+      `python3 -c "import numpy"` on this machine, 2026-08-05). No sympy, no
+      Sage, no PARI, no scipy - all VERIFIED ABSENT the same way - so the graph
+      construction must be written from scratch, and that is the only real cost.
+    survival_score: >-
+      The object survives the entire commitment stage by construction, because
+      it IS the commitment stage's distribution. It does NOT survive into the
+      response stage: the response isogeny's distribution is a different object
+      governed by the ideal-to-isogeny conversion, and this proposal makes no
+      statement about it. That boundary is stated so it cannot be quietly
+      crossed later.
+
+  mechanism: >-
+    DERIVED HERE. Every recalled external theorem is labelled and is a candidate
+    to check, never an authority; several of them are checked BY THE RUN, which
+    is the design's main defence against the recall.
+
+    THE PROTOCOL SHAPE (RECALLED, UNVERIFIED - THE ROUND-3 SPECIFICATION HAS NOT
+    BEEN READ BY THIS PROGRAM, AND RQ-SQISIGN-001.constraints FORBIDS TREATING
+    ANY OF IT AS ESTABLISHED). A SQIsign-shaped signature is a Fiat-Shamir
+    transform of a sigma protocol over the Deuring correspondence. Secret key: an
+    isogeny tau : E_0 -> E_A, equivalently a connecting left O_0-ideal I_tau.
+    Public key: E_A. Signing: (1) sample a commitment isogeny psi : E_0 -> E_1 of
+    degree D_psi and publish E_1; (2) derive a challenge isogeny phi : E_1 -> E_2
+    of degree D_phi by hashing (E_1, message); (3) produce a response isogeny
+    sigma : E_A -> E_2 of fixed degree D_sigma with phi-hat . sigma cyclic.
+    Transcript: (E_1, chall, sigma). VERIFYING THIS PARAGRAPH AGAINST THE ACTUAL
+    ROUND-3 SPECIFICATION IS STAGE 0 OF THE EXPERIMENT AND IS A GATE, NOT A
+    FORMALITY.
+
+    WHERE THE SIMULATOR SITS, AND WHY THE COMMITMENT IS THE LOAD-BEARING PIECE.
+    The standard simulator for this shape runs the transcript BACKWARDS: sample
+    the response sigma : E_A -> E_2 first (a walk of degree D_sigma from the
+    PUBLIC key E_A, needing no secret), then sample the challenge isogeny
+    backwards from E_2 to obtain E_1, then program the random oracle so that
+    H(E_1, message) selects that challenge. This simulator is efficient and
+    needs nothing secret, so the null control demanded by
+    GOAL-SQISIGN-001.next_action is INSTANTIABLE - a fact worth recording,
+    because it is not automatic and it is what makes the whole goal runnable.
+    Now compare the two laws of the published symbol E_1:
+      HONEST:    E_1 = psi(E_0),  a walk of degree D_psi from the SPECIAL vertex
+                 E_0 (j = 1728 for p = 3 mod 4; extra automorphisms; lying on
+                 the F_p-rational subgraph of size ~ sqrt(p)).
+      SIMULATED: E_1 = walk of degree D_phi backwards from E_2, and E_2 is the
+                 endpoint of a degree-D_sigma walk from E_A. With D_sigma large
+                 this is a generic vertex.
+    The two agree to statistical distance eps if and only if the degree-D_psi
+    walk from E_0 has mixed to within eps. THE ENTIRE MARGINAL-LEVEL ZK CLAIM
+    FOR THE COMMITMENT REDUCES TO A MIXING TIME. Nothing about the secret enters
+    this reduction, which is exactly why the audit is cheap - and also exactly
+    why a distinguisher found here would NOT by itself be a key-recovery route.
+    That asymmetry is stated in interpretation_limits and is not hidden.
+
+    THE THREE COMPETING CONSTANTS, DERIVED.
+    Let G_l(p) be the supersingular l-isogeny graph: vertices the supersingular
+    j-invariants in F_{p^2}, n = |SS(p)| ~ p/12, degree l+1, and the walk
+    reversible with respect to pi(j) proportional to w(j) = 2/|Aut(E_j)|
+    (w = 1 generically, 1/2 at j = 1728, 1/3 at j = 0). Write P for the
+    transition operator and mu for the second-largest |eigenvalue| of P.
+    (a) SPECTRAL BOUND, fully derived, no citation needed for the inequality
+        itself: for f_k = P^k delta_v, ||f_k - pi||_2 <= mu^k ||delta_v - pi||_2
+        <= mu^k, and TV_k = (1/2)||f_k - pi||_1 <= (1/2) sqrt(n) ||f_k - pi||_2,
+        hence
+            TV_k <= (sqrt(n)/2) * mu^k.
+        Pizer's theorem (RECALLED, UNVERIFIED) gives mu <= 2*sqrt(l)/(l+1); for
+        l = 2, mu <= 2*sqrt(2)/3 = 0.9428090..., so
+            log2(1/mu) = log2(3) - 1.5 = 0.08496250...
+        and TV_k <= 2^-lambda requires
+            k* = (0.5*log2(n) + lambda + 1) / 0.08496250.
+        FORCED NUMBERS, COMPUTED HERE AND RE-DERIVABLE IN ONE LINE:
+        at p = 2^256, n = p/12, log2(n) = 252.415, lambda = 128:
+            k* = (126.208 + 129)/0.0849625 = 3003.77, i.e. 3004 steps.
+        At k = 256 the same bound gives TV <= 2^(126.208 - 21.750) = 2^104.46,
+        which is greater than 1 and therefore SAYS NOTHING. The slope is
+        dk*/dlog2(n) = 0.5/0.0849625 = 5.8849.
+    (b) SIMPLE-RANDOM-WALK CUTOFF (RECALLED, UNVERIFIED): cutoff for the simple
+        random walk on Ramanujan graphs at (d/(d-2))*log_{d-1}(n); for d = 3
+        that is 3*log2(n). Slope 3.0.
+    (c) NON-BACKTRACKING CUTOFF (RECALLED, UNVERIFIED): cutoff for the
+        non-backtracking walk at log_{d-1}(n) = log2(n) for d = 3. Slope 1.0.
+        THIS IS THE RIGHT MODEL FOR THE HONEST COMMITMENT, because a cyclic
+        isogeny of degree l^k is exactly a non-backtracking length-k walk.
+    The three slopes 5.885 / 3.0 / 1.0 are separated by factors of ~2 and ~6.
+    Over a ladder of eight toy primes spanning log2(n) from 6.41 to 13.42 they
+    predict k_mix ranges differing by 41 vs 21 vs 7 steps. THAT SEPARATION IS
+    THE MEASUREMENT.
+
+    WHY THIS IS MEASURABLE EXACTLY, WHICH IS THE DESIGN'S ONE REAL IDEA. TV_k is
+    a deterministic functional of the transition matrix. It is computed by k
+    sparse matrix-vector products and one L1 norm. THERE IS NO SAMPLING, SO
+    THERE IS NO SAMPLING ERROR AND NO POWER PROBLEM. This is the reason to
+    prefer this route over transcript sampling: a permutation test on N sampled
+    transcripts resolves statistical distances of order 1/sqrt(N) and can never
+    reach 2^-128, whereas an exact spectral computation extrapolates through a
+    SCALING LAW whose parameters are measured, not estimated. The extrapolation
+    is still a heuristic and is numbered as HEUR-CWM-2; it is not presented as a
+    proof.
+
+    FORCED VALUES THAT VERIFY THE INSTRUMENT BEFORE IT IS BELIEVED. Three
+    quantities are fixed by counting alone and must come out exactly right, or
+    the graph construction is wrong and no measurement may be reported:
+      (i)  |SS(p)| = floor(p/12) + e, e = 0,1,1,2 for p = 1,5,7,11 mod 12.
+      (ii) EICHLER MASS FORMULA: sum over supersingular E of 1/|Aut(E)| equals
+           (p-1)/24. CHECKED NUMERICALLY IN THIS RECORD at two ladder primes:
+           p = 1031 (= 11 mod 12): |SS| = 85 + 2 = 87, one j = 0 (|Aut| = 6),
+           one j = 1728 (|Aut| = 4), 85 generic (|Aut| = 2), mass
+           = 85/2 + 1/6 + 1/4 = 42.916666..., and (1031-1)/24 = 42.916666...
+           EXACT AGREEMENT. p = 4099 (= 7 mod 12): |SS| = 341 + 1 = 342, no
+           j = 0, one j = 1728, mass = 341/2 + 1/4 = 170.75, and
+           (4099-1)/24 = 170.75. EXACT AGREEMENT. These two checks were computed
+           on this machine while writing this record and are stated as
+           consistency checks of the recalled formulas, not as a proof of them.
+      (iii) DETAILED BALANCE: w(j) A(j,j') = w(j') A(j',j) with w = 2/|Aut|.
+           The isogeny graph's adjacency matrix is NOT symmetric at j = 0 and
+           j = 1728; a construction that silently symmetrizes it has the wrong
+           stationary measure and will report a spurious O(1/n) TV floor.
+    A fourth check removes the reliance on recalled data entirely: build the
+    edge set TWICE, once by Velu 2-isogenies from curve models and once as the
+    roots of the classical modular polynomial Phi_2(j, Y), and require the two
+    edge multisets to be IDENTICAL. Phi_2's coefficients are RECALLED,
+    UNVERIFIED; the Velu construction is derived from scratch; if they disagree,
+    Velu is authoritative and the disagreement is an infrastructure finding, not
+    a mathematical one.
+
+    WHAT A RESULT WOULD AND WOULD NOT MEAN. If the measured slope is ~1.0 for
+    the non-backtracking walk, the natural parameter choice is supported by the
+    empirical scaling law and the deliverable is the second horn of
+    GOAL-SQISIGN-001's completion criterion - a measured bound with its
+    extrapolation honestly labelled heuristic. If the measured slope is ~5.9,
+    the spectral bound is TIGHT for this graph, the cutoff results do not apply
+    to it, and a commitment walk sized by log2(n) is not justified by any
+    argument this program can find - a statement about the ARGUMENT, at toy
+    scale, and not a break. If it is ~3.0 the simple walk governs and the
+    cyclic/non-backtracking structure is doing no work, which is itself
+    informative about the design. All three outcomes are deliverables.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - ledger/proposals (all SQISIGN-question proposals)
+      - ledger/goals/GOAL-SQISIGN-001.yaml, GOAL-SQISIGN-002.yaml
+      - ledger/questions/RQ-SQISIGN-001.yaml
+      - knowledge/techniques/KN-TECH-057.md
+    grep_results:
+      - >-
+        Exactly one prior proposal exists on RQ-SQISIGN-001
+        (IDEA-20260801-020, transcript-vs-baseline permutation test). No prior
+        proposal, hypothesis, experiment or evidence record in area SQISIGN
+        exists at all - the goal is draft with zero prior art, per its context
+        brief.
+      - >-
+        No record in this corpus computes a mixing time, a spectral gap, or a
+        total-variation decay curve for any supersingular isogeny graph. The
+        one isogeny-graph cost record read here, KN-TECH-057, is a FULL-COST
+        (Wiener AT^2) accounting of path-finding step counts and contains no
+        spectral quantity.
+    conclusion: >-
+      Novel WITHIN THIS CORPUS as a proposal. Almost certainly NOT novel in the
+      external literature - mixing on supersingular isogeny graphs is a studied
+      subject and the SQIsign designers will have considered it. THE SCREEN IS
+      DISCOUNTED ON PURPOSE, per the corpus-wide finding that 7420 of 7809
+      literature entries carry a bulk-seeding caveat while their machine-readable
+      citation_verified field says "read". "No prior work does X" is not
+      assertable from this corpus, and this record does not assert it.
+
+  literature_context:
+    - >-
+      NOT READ - NO SQIsign SPECIFICATION OF ANY VERSION HAS BEEN READ BY THIS
+      PROGRAM. RQ-SQISIGN-001.provenance says so explicitly and
+      RQ-SQISIGN-001.constraints forbids designing an experiment on unverified
+      per-scheme claims. This proposal complies by making the SQIsign-facing
+      interpretation a GATED STAGE (Stage 0) and by making the measurement
+      stages statements about the supersingular 2-isogeny graph alone, which
+      require no specification.
+    - >-
+      RECALLED, UNVERIFIED: Pizer, that the supersingular l-isogeny graph is
+      Ramanujan (second eigenvalue bounded by 2*sqrt(l) in the (l+1)-regular
+      normalisation). No paper read; no theorem number asserted. The run
+      MEASURES mu_emp and compares it to 2*sqrt(2)/3, so the recall is tested
+      rather than trusted.
+    - >-
+      RECALLED, UNVERIFIED: cutoff for the simple random walk on Ramanujan
+      graphs at (d/(d-2))*log_{d-1}(n), and for the non-backtracking walk at
+      log_{d-1}(n) (associated in memory with work of Lubetzky and Peres, and
+      with the non-backtracking literature). NO AUTHOR ATTRIBUTION IS ASSERTED
+      AS FACT, no venue, no year, no theorem number. Both are used only as
+      PRE-REGISTERED CANDIDATE SLOPES to be confirmed or refuted by measurement.
+    - >-
+      RECALLED, UNVERIFIED: Friedman's theorem that random d-regular graphs are
+      near-Ramanujan a.a.s. Used only to derive the matched null's expected
+      behaviour; the null's slope is measured, not assumed.
+    - >-
+      RECALLED, UNVERIFIED: the Eichler mass formula sum 1/|Aut(E)| = (p-1)/24
+      and the count |SS(p)| = floor(p/12) + e. Numerically consistent at
+      p = 1031 and p = 4099 as computed above; the run re-checks both at every
+      ladder prime by direct enumeration.
+    - >-
+      RECALLED, UNVERIFIED: the coefficients of the modular polynomial
+      Phi_2(X,Y). Used only as a cross-check against an independent Velu
+      construction; a mismatch is an infrastructure finding.
+    - >-
+      READ IN-REPO: knowledge/techniques/KN-TECH-057.md, which fixes the matched
+      full-cost path-finding baselines - MITM p^{2/3} over F_{p^2},
+      Delfs-Galbraith p^{1/3} over F_p, van Oorschot-Wiener p^{1/2} over
+      F_{p^2} and p^{1/4} over F_p conditional on unproven F_p-subgraph mixing -
+      under the Wiener 3D wiring model. NOTE THE POINTED COINCIDENCE, RECORDED
+      AND NOT ACTED ON HERE: that entry's own p^{1/4} row is CONDITIONAL ON A
+      MIXING ASSUMPTION about a supersingular subgraph. The instrument this
+      proposal builds measures exactly that class of quantity, on the full
+      graph. Pointing it at the F_p-rational subgraph would serve GOAL-SSI-001,
+      whose lane this proposal does not enter; it is recorded as forward
+      guidance for that goal's coordinator, not claimed here.
+    - >-
+      RELAYED VIA scratchpad/scout/ANGLE-BRIEF.md, NOT READ: ePrint 2026/1305
+      (SQIsign is not SUF-CMA; concrete malleability in the v2.0 spec) and
+      ePrint 2025/830 (SPA on Cornacchia's algorithm). Neither bears on this
+      proposal - the first is a malleability question and the second a side
+      channel, both off-limits above - and both are listed only so that a later
+      reader does not mistake their absence for ignorance of them.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full signing transcript (E_1, chall, sigma), together with the signer's
+      internal state (psi, I_tau, all randomness) --> the single real number
+      TV_k = (1/2) * ||P^k delta_{E_0} - pi||_1, and across a prime ladder the
+      pair (k_mix, slope).
+    what_is_discarded: >-
+      The response isogeny sigma in its entirety, the challenge, the secret
+      ideal I_tau, the identity of the individual commitment psi, and even the
+      identity of the endpoint E_1 - only the LAW of the endpoint survives.
+    why_genuinely_lossy: >-
+      Extremely lossy: the fibre over an observed TV_k is the whole space of
+      signing runs with that commitment-degree parameter. Nothing about any
+      individual signature is recoverable from the projection. This is a
+      deliberate choice, not an oversight: the question being asked is a
+      question about a distribution, so the projection to the distribution is
+      the correct object.
+    why_compatible_with_the_operations: >-
+      Exactly compatible, and this is the technical reason the object is worth
+      tracking: the commitment walk is a Markov chain on the vertex set, so the
+      projection to the law of the endpoint propagates DETERMINISTICALLY under
+      the target's own operation - one isogeny step is one application of P.
+      No approximation is introduced by the projection itself.
+    is_it_only_a_change_of_coordinates: >-
+      NO, and the check is explicit. The KN-LIT-7595 failure ((Delta, Pi) =
+      (x xor y, x*y) in characteristic 2, where the pair is recoverable as the
+      roots of t^2 + Delta t + Pi, so nothing was discarded and nothing gained)
+      does not apply: the map from a signing run to TV_k is many-to-one on an
+      astronomically large fibre and no inverse exists even in principle.
+    which_failure_was_checked_for: >-
+      THE MIRROR FAILURE - a projection so lossy that it is CONSTANT across
+      instances, with zero comparator spread, which is the failure mode
+      IDEA-20260805-e805b6 diagnoses in its own object. CHECKED, AND THE CHECK
+      RETURNED NEGATIVE FOR THIS OBJECT: TV_k is provably non-constant in k
+      (TV_0 = 1 - pi(E_0) which is within O(1/n) of 1, and TV_k -> 0), it is
+      non-constant in n across the ladder (it is the very quantity whose
+      n-dependence is the measurement), and the three candidate models assign it
+      three DIFFERENT and separated values. A constant statistic could not do
+      that. The residual risk is different and is stated as a confounder: TV_k
+      may be constant ACROSS ARMS, i.e. the supersingular graph may be
+      indistinguishable from the matched random-3-regular null - which would not
+      be an artifact but a genuine controlled-null result, and is pre-declared
+      as such.
+
+  assumptions:
+    - >-
+      That the protocol shape recalled above (commitment curve published,
+      simulator running backwards) matches the Round-3 specification. IF IT DOES
+      NOT - for instance if the commitment is generated by sampling a random
+      ideal of large norm and converting it, giving a uniform E_1 BY
+      CONSTRUCTION rather than by mixing - then the mixing premise is not
+      load-bearing for SQIsign and the SQIsign-facing half of this proposal is
+      void. The graph measurement remains valid and remains a deliverable, and
+      the redirection is recorded. This is the single most likely failure of the
+      proposal as written and Stage 0 exists to detect it before any compute.
+    - >-
+      That l = 2 is a legitimate proxy graph. SQIsign's commitment degree is
+      (RECALLED, UNVERIFIED) a smooth number with several prime factors, so the
+      relevant walk lives in a union of l-graphs, not in G_2. The l = 2 result
+      is therefore a measurement of one factor's graph and is labelled as such;
+      the union-graph question is named in forward guidance and is NOT claimed.
+    - >-
+      That the toy primes reach the asymptotic regime the scaling law describes.
+      log2(n) from 6.41 to 13.42 is a 7-bit span; a slope fitted over 7 bits and
+      extrapolated to 252 bits is an extrapolation of 36x. HEUR-CWM-2 states
+      this formally and the deliverable reports the fit residual and the
+      extrapolation factor beside every extrapolated number.
+
+  predictions:
+    - metric: >-
+        mu_emp(p): second-largest absolute eigenvalue of the reversible
+        transition operator of G_2(p), measured at every ladder prime
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUE, DERIVED BEFORE ANY RUN: mu_emp <= 2*sqrt(2)/3 =
+        0.94280904 at EVERY ladder prime, by Pizer's bound. This prediction is
+        an INSTRUMENT CHECK, not a finding: a measured mu_emp > 0.9428090 at any
+        prime means the graph construction is wrong (most likely the
+        j = 0 / j = 1728 weighting), the run is invalid, and NO measurement may
+        be reported from it.
+    - metric: >-
+        slope_NBRW = fitted dk_mix/dlog2(n) for the NON-BACKTRACKING walk on
+        G_2(p) started at j = 1728, target TV <= 1/4, over the eight-prime
+        ladder
+      direction: different
+      minimum_effect: >-
+        THREE PRE-REGISTERED CANDIDATE VALUES, FIXED BEFORE ANY RUN: 1.0
+        (non-backtracking cutoff), 3.0 (simple-walk cutoff), 5.885 (spectral
+        bound, = 0.5/0.0849625). The decision rule, also fixed now: the measured
+        slope is assigned to whichever candidate it is nearest, and only if it
+        is within 0.35 of it in absolute value; otherwise NO candidate is
+        selected and "the measured scaling matches none of the three models" is
+        the reported result. The gaps between candidates are 2.0 and 2.885, so a
+        0.35 window cannot select two.
+    - metric: >-
+        slope_SRW = the same fitted slope for the SIMPLE random walk, same
+        graph, same starting vertex
+      direction: different
+      minimum_effect: >-
+        Pre-registered at 3.0 under the same +/-0.35 rule. The SRW/NBRW PAIR is
+        the strongest single check in the design: the two walks live on the same
+        graph and differ only in the backtracking step, so a measured
+        slope_SRW/slope_NBRW ratio near 3 corroborates both recalled cutoff
+        results at once, while a ratio near 1 falsifies at least one of them.
+    - metric: >-
+        k_mix ratio between the positive-control dumbbell graph and G_2(p) at
+        matched n and matched degree, target TV <= 1/4
+      direction: higher
+      minimum_effect: >-
+        >= 10. FORCED REASONING DERIVED BEFORE THE RUN: a 3-regular graph split
+        into two halves joined by t = 1 edge has conductance Phi ~ 1/(3n/2) =
+        2/(3n), and the relaxation time of a reversible chain is at least
+        1/(2*Phi) = 3n/4, so k_mix grows LINEARLY in n while G_2(p)'s grows
+        logarithmically. At the top of the ladder (n ~ 10925) the predicted
+        ratio is in the hundreds; the threshold is set at 10 to leave a large
+        margin. IF THE MEASURED RATIO IS BELOW 10 THE INSTRUMENT IS BROKEN AND
+        NO NEGATIVE RESULT MAY BE REPORTED FROM ANY ARM.
+    - metric: >-
+        slope_NULL = fitted dk_mix/dlog2(n) on the matched null (random
+        3-regular graph, same n, configuration model, three seeds)
+      direction: different
+      minimum_effect: >-
+        Pre-registered EQUAL to slope_NBRW within 0.35. This null CAN FAIL and
+        the design wants to know if it does: if the supersingular graph mixes
+        MEASURABLY DIFFERENTLY from a matched random 3-regular graph, that is a
+        structural fact about the supersingular graph and a genuine finding. If
+        it does not, the honest conclusion is that the commitment's uniformity
+        premise is exactly as good as generic expansion and no better - a
+        CONTROLLED NULL, which is the deliverable named in
+        docs/inventor-protocol.md section 3.
+    - metric: >-
+        Delta_start = k_mix(started at j = 1728) - k_mix(started at the
+        deterministic generic vertex), same graph, same prime, same walk
+      direction: different
+      minimum_effect: >-
+        Pre-registered at 0 +/- 1 step. G_2(p) is NOT vertex-transitive, so a
+        nonzero Delta_start is possible and would be the single most directly
+        transcript-relevant number in the run: the honest walk starts at
+        j = 1728 and the simulator's does not. A Delta_start that GROWS with
+        log2(n) would say the special starting vertex costs the honest signer
+        extra walk length at every scale, which is the one outcome here that
+        bears directly on a parameter choice.
+    - metric: >-
+        graded_monotonicity: k_mix as a function of the number t of cross edges
+        in the dumbbell family, t in {1, 2, 4, 8, 16, 32}
+      direction: lower
+      minimum_effect: >-
+        Strictly monotone non-increasing in t across all six points, with
+        k_mix(t = 32)/k_mix(t = 1) <= 1/8. Six points, four of them interior.
+        A non-monotone graded curve localises an instrument fault to a specific
+        conductance regime instead of leaving "it did not work".
+    - metric: >-
+        Instrument forced values: |SS(p)| against floor(p/12) + e, the Eichler
+        mass sum against (p-1)/24, the detailed-balance residual, and the
+        Velu-vs-Phi_2 edge-multiset agreement, at every ladder prime
+      direction: different
+      minimum_effect: >-
+        EXACT. |SS(p)| exactly equal; mass sum exactly (p-1)/24 as an exact
+        rational; detailed-balance residual exactly 0 in exact arithmetic; edge
+        multisets identical. Any deviation invalidates the package. These are
+        not tolerances.
+
+  minimal_test:
+    design: >-
+      Five stages, ordered cheapest-first, each able to terminate the line.
+      STAGE 0 (reading, zero compute, GATE): obtain the SQIsign Round-3
+      specification and the primary design papers; quote verbatim how the
+      commitment curve is generated and what the ZK argument assumes about its
+      distribution; file them as KN-LIT entries with provenance levels. IF THE
+      COMMITMENT IS UNIFORM BY CONSTRUCTION RATHER THAN BY MIXING, STOP the
+      SQIsign-facing claim, record the redirection, and run Stages 1-4 as a
+      standalone graph measurement only. RQ-SQISIGN-001.constraints requires
+      this gate.
+      STAGE 1 (seconds, DECISIVE FOR THE INSTRUMENT): build G_2(p) at
+      p = 1031 by Velu; check |SS| = 87, mass = 42.916666... = (p-1)/24,
+      detailed balance exactly 0, Velu edges identical to Phi_2 roots. Any
+      failure ends the run as an infrastructure outcome, never a mathematical
+      one.
+      STAGE 2 (minutes, zero sampling): exact TV curves and mu_emp for G_2(p)
+      over the eight-prime ladder, both walks, both starting vertices.
+      STAGE 3 (minutes): matched null (random 3-regular, three seeds) and the
+      positive-control dumbbell at every ladder n, identical code path.
+      STAGE 4 (minutes): the graded dumbbell family, monotonicity reported.
+      FIT AND REPORT LAST, AND ON THE NULL FIRST: the slope fit is executed on
+      the NULL arm and printed before the treatment arm's TV curves are looked
+      at. If the frozen decision rule assigns the same candidate slope to the
+      null and the treatment, the rule discriminates nothing and must be
+      rewritten before the treatment arm is read.
+    controls:
+      - >-
+        MATCHED NULL, SAME SHAPE, CAN FAIL: a random 3-regular graph on exactly
+        the same n vertices (configuration model, seeds 1/2/3), run through the
+        identical TV and k_mix code path. FORCED VALUE DERIVED PRE-RUN: slope
+        equal to the treatment's within 0.35, and mu_emp near
+        2*sqrt(2)/3 + o(1) by Friedman (RECALLED, UNVERIFIED). It can fail in
+        either direction and either failure is informative. Matched on size,
+        degree, and regularity - not merely "random".
+      - >-
+        POSITIVE CONTROL, MUST FIRE: the dumbbell - two random 3-regular halves
+        on n/2 vertices joined by t = 1 edge - where slow mixing is forced by
+        conductance. The instrument MUST report k_mix at least 10x that of
+        G_2(p) at the same n. If it does not, the instrument cannot detect slow
+        mixing at all, and NO NEGATIVE RESULT FROM ANY ARM MAY BE REPORTED. This
+        is the sensitivity demonstration; its comparator and threshold are both
+        fixed above before any run.
+      - >-
+        GRADED CONTROL, SIX POINTS, FOUR INTERIOR, MONOTONICITY REPORTED: the
+        dumbbell with t in {1, 2, 4, 8, 16, 32}. Interpolates continuously
+        between "obstructed" and "expander" at fixed n and fixed degree, so a
+        failure localises to a conductance range rather than leaving a bare
+        negative.
+      - >-
+        STARTING-VERTEX CONTROL (the transcript-relevant pair): j = 1728 versus
+        a deterministic generic vertex, same graph, same walk. This is the arm
+        that maps onto honest-versus-simulated and it is the only arm whose
+        difference could bear on a parameter choice.
+      - >-
+        WALK-TYPE CONTROL: simple versus non-backtracking on the identical
+        graph. Their predicted slope ratio of 3 is an internal consistency check
+        on both recalled cutoff results simultaneously.
+      - >-
+        ARCHIVE CHECK, zero compute: list every prior archived measurement of
+        this observable in this corpus. NONE EXISTS - no record computes a
+        spectral gap or mixing time for any isogeny graph. That absence is
+        recorded here as an absence and is not claimed as a passed check.
+    required_metrics:
+      - mu_emp and the Ramanujan bound, per prime, per arm
+      - exact TV_k curves, k = 0..K, per prime, per arm, per walk type
+      - k_mix at TV targets 1/4 and 1/100, per prime, per arm, per walk type
+      - fitted slope and residual of k_mix against log2(n), per arm, per walk
+      - the four instrument forced values, per prime, as exact integers/rationals
+      - Delta_start per prime, and its own fitted trend in log2(n)
+      - verbatim quotation of the Round-3 commitment-generation step, or a
+        recorded statement that the specification could not be obtained
+
+  falsification_conditions:
+    - >-
+      mu_emp > 2*sqrt(2)/3 at any ladder prime. The construction is wrong; the
+      package is invalid; nothing is reported.
+    - >-
+      The dumbbell positive control does not fire (ratio < 10). The instrument
+      is insensitive to slow mixing and no negative from any arm is admissible.
+    - >-
+      The measured slope lies within 0.35 of none of {1.0, 3.0, 5.885}. Both
+      recalled cutoff results and the spectral bound are then wrong or
+      inapplicable for this graph at these sizes, and the reported result is
+      that fact plus the measured value - which would be the most interesting
+      outcome available and is NOT treated as a failure.
+    - >-
+      Stage 0 finds the commitment is uniform by construction. The
+      SQIsign-facing objection is void and must be withdrawn as a superseding
+      record; the graph measurement stands on its own.
+    - >-
+      Velu and Phi_2 disagree on any edge multiset. Infrastructure finding; Velu
+      is authoritative; the recalled Phi_2 is quarantined and no mathematical
+      conclusion is drawn from the disagreement.
+
+  confounders:
+    - >-
+      THE l = 2 PROXY. The commitment walk in a real scheme is not a pure
+      2-isogeny walk. A union graph mixes at least as fast as its slowest
+      factor, so the l = 2 measurement is informative but not sufficient, and
+      every extrapolated statement carries that gap.
+    - >-
+      THE WEIGHTING AT j = 0 AND j = 1728. If the adjacency matrix is
+      symmetrized by mistake, the stationary measure is wrong by O(1) at two
+      vertices, which puts an O(1/n) floor under every TV curve and would be
+      misread as incomplete mixing. The detailed-balance forced value exists
+      solely to catch this and it is an exact check.
+    - >-
+      FIT RANGE. Cutoff means TV stays near 1 and then plunges; a slope fitted
+      through the plunge region is meaningful, one fitted through the plateau is
+      not. The TV target for k_mix is fixed at 1/4 (and 1/100 as a secondary)
+      BEFORE the run, so the fit window cannot be chosen after seeing the
+      curves.
+    - >-
+      EXTRAPOLATION FACTOR. 7 bits of log2(n) measured, 252 bits claimed about.
+      36x. Reported beside every extrapolated number, every time.
+    - >-
+      DISTINGUISHER-IS-NOT-RECOVERY. Even a decisive finding here concerns the
+      commitment marginal, which is secret-independent. It cannot by itself be
+      a key-recovery route, and writing it up as one would be the overclaiming
+      failure this program's rules exist to prevent.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER TOY, and it may not be raised by any citation. Every number is
+      measured at p <= 131111 while the scheme's p is ~2^256. AGENTS.md rule 7.
+    - >-
+      NO SQIsign CONCLUSION IS LICENSED UNTIL STAGE 0 COMPLETES. Stages 1-4
+      measure the supersingular 2-isogeny graph and say nothing about any
+      signature scheme. RQ-SQISIGN-001.constraints forbids more and this record
+      does not ask for more.
+    - >-
+      A slope measurement is not a proof of a mixing time. The deliverable is an
+      empirical scaling law with a stated fit range, not a theorem.
+    - >-
+      This proposal costs NO hard problem. It does not evaluate, improve, or
+      comment on the endomorphism-ring or path-finding baselines of
+      KN-TECH-057, which belong to GOAL-SSI-001; it does not touch the
+      published-data surface or the Kani template, which belong to
+      GOAL-SQISIGN-002; and it does not enter the broken SIDH torsion-image
+      setting, which GOAL-SQISIGN-001 places out of scope.
+    - >-
+      A finding that the commitment marginal is distinguishable would be a
+      statement about the ZERO-KNOWLEDGE ARGUMENT, not about unforgeability, and
+      the two must not be conflated in any downstream citation.
+
+  heuristic_assumptions:
+    - id: HEUR-CWM-1
+      statement: >-
+        FORALL toy primes p in the declared ladder, the graph produced by the
+        implemented Velu construction is the supersingular 2-isogeny graph of p
+        with its correct edge multiplicities and its correct automorphism
+        weights at j = 0 and j = 1728.
+      rigorous_support: >-
+        Not a heuristic in the probabilistic sense - it is a correctness claim,
+        and it is DISCHARGED BY FOUR EXACT FORCED VALUES rather than assumed:
+        the vertex count, the Eichler mass sum, exact detailed balance, and
+        independent agreement with the Phi_2 root construction. Two of the four
+        were checked by hand while writing this record (p = 1031 and p = 4099,
+        both exact).
+      validation_plan: >-
+        Stage 1, seconds, at p = 1031, before any other computation. A failure
+        ends the run as an infrastructure outcome under AGENTS.md rule 5.
+    - id: HEUR-CWM-2
+      statement: >-
+        FORALL sufficiently large n, k_mix(n) = a*log2(n) + b for constants a, b
+        not depending on n, AND the constants fitted over log2(n) in
+        [6.41, 13.42] are the constants that govern at log2(n) = 252.4.
+      rigorous_support: >-
+        NONE THAT SURVIVES SCRUTINY, AND THIS IS THE WEAKEST LINK IN THE RECORD.
+        The spectral bound is a genuine upper bound at every n, so the 5.885
+        candidate is safe as a bound; the two cutoff candidates are asymptotic
+        statements whose approach rate at n ~ 10^4 is unknown to this program.
+        The measured slope may therefore be a finite-size artifact and the fitted
+        b may absorb a term that is not constant.
+      validation_plan: >-
+        Report the fit residual, report k_mix at BOTH TV targets (1/4 and 1/100)
+        so the b-term's stability is visible, and report the slope fitted on the
+        top four primes alone beside the slope fitted on all eight. If the two
+        differ by more than 0.35, the asymptotic regime has not been reached and
+        the extrapolation is withdrawn rather than reported with a caveat.
+    - id: HEUR-CWM-3
+      statement: >-
+        The l = 2 graph's mixing behaviour is representative of the union graph
+        over the actual commitment degree's prime factors.
+      rigorous_support: >-
+        Weak and partial. A union of expanders is at least as good an expander
+        as the best factor, so l = 2 gives a CONSERVATIVE reading in one
+        direction only. No claim of representativeness in the other direction.
+      validation_plan: >-
+        Out of scope for this experiment and named as forward guidance: run the
+        identical instrument on G_3 and on the union G_2 union G_3 at the same
+        ladder. That is a follow-on contract, not a stage of this one.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS MOVED AND NONE IS CLAIMED. This proposal contains no
+      algorithm and no attack. It audits a walk-length constant inside a
+      security argument. Stating that plainly is required by
+      docs/target-result-profile.md, which biases the program toward exponent
+      results and forbids dressing cofactor work as one; this is not even
+      cofactor work, it is instrument and argument work, and it is proposed
+      anyway because the audited constant gates a claim about a Round-3
+      candidate and the audit is cheap.
+    memory_exponent: >-
+      n/a. Peak memory of the measurement itself is O(n) floats, under 1 GB at
+      the top of the ladder.
+    best_known: >-
+      For the underlying hard problem, KN-TECH-057's matched full-cost
+      baselines: MITM p^{2/3}, Delfs-Galbraith p^{1/3}, van Oorschot-Wiener
+      p^{1/2} (F_{p^2}) and p^{1/4} (F_p, conditional). This proposal does not
+      compete with any of them and does not claim to.
+    hidden_overhead: >-
+      n/a for the audit. For the extrapolation, the hidden quantity is the
+      finite-size correction to the cutoff constant, which HEUR-CWM-2 exposes
+      rather than hides.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    n/a (no attack and no cost claim is made). ROWS CHECKED BEFORE WRITING
+    null, as required by docs/inventor-protocol.md section 5: (1) all four
+    full-cost rows of KN-TECH-057 - MITM p^{2/3} F_{p^2}, Delfs-Galbraith
+    p^{1/3} F_p, van Oorschot-Wiener p^{1/2} F_{p^2}, van Oorschot-Wiener
+    p^{1/4} F_p conditional - read in the file, with time and memory both
+    considered under the Wiener 3D wiring model; (2) Wesolowski's
+    p^{1/3+o(1)} in BOTH time AND memory, as recorded in
+    docs/target-result-profile.md and in the ANGLE-BRIEF's P13 section, noting
+    it is Pareto-INCOMPARABLE to the p^{1/2}-time/negligible-memory row rather
+    than dominating it; (3) the data/query axis, which is empty here because
+    this proposal collects no signatures and queries no oracle. WHAT WAS NOT
+    CHECKED, STATED SO THE null IS NOT A FABRICATION UNDER RULE 5: the external
+    literature on isogeny-graph mixing was not searched, because a mixing-time
+    measurement is not a point on the ECDLP/isogeny attack frontier and there is
+    no frontier row for it to sit on.
+  sota_delta: >-
+    No attack; measurement and argument contribution only. Quantitatively, the
+    deliverable is a number that does not currently exist anywhere in this
+    corpus: the fitted slope a in k_mix = a*log2(n) + b for the supersingular
+    2-isogeny graph, with a discriminating between 1.0, 3.0 and 5.885, plus the
+    derived consequence that the Ramanujan spectral bound alone requires 3004
+    two-isogeny steps for a 2^-128 guarantee at p = 2^256 and is VACUOUS (bound
+    2^+104.5 > 1) at 256 steps. Against the state of this program: zero prior
+    records of any kind in area SQISIGN, and zero spectral quantities for any
+    isogeny graph anywhere in the corpus.
+
+  estimated_cost:
+    implementation: >-
+      medium-high. The only real cost is writing supersingular graph
+      construction from scratch in pure Python: F_{p^2} arithmetic for
+      p = 3 mod 4, cubic root-finding over F_{p^2} by
+      gcd(Y^{p^2} - Y, f) plus Cantor-Zassenhaus splitting, Velu 2-isogenies,
+      and BFS. VERIFIED ON THIS MACHINE 2026-08-05: numpy 2.4.6 present; sympy,
+      scipy, Sage and PARI ALL ABSENT. If a solver were required this would be
+      an infrastructure request rather than an experiment (AGENTS.md rule 3);
+      it is not, because everything needed is integer arithmetic and dense/sparse
+      linear algebra numpy already provides.
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.80 that the experiment returns a decisive slope assignment against the
+    frozen +/-0.35 rule. It is not higher because HEUR-CWM-2 is genuinely weak -
+    n ~ 10^4 may sit below the regime where a cutoff constant has settled, and
+    the pre-declared response to that is withdrawal of the extrapolation, not a
+    caveated number. It is not lower because the measurement is EXACT (no
+    sampling error anywhere), because the three candidate slopes are separated
+    by 2.0 and 2.885 while the decision window is 0.35, and because four exact
+    forced values verify the instrument before any curve is believed.
+    SEPARATELY, 0.10 that Stage 0 plus the measurement together produce a
+    statement that a SQIsign parameter is not justified by any argument this
+    program can reconstruct. That number is low because the designers are expert
+    and the likeliest Stage-0 outcome is that the commitment is uniform by
+    construction; it is not lower because the spectral bound really is vacuous
+    at natural walk lengths, because a load-bearing constant that has never been
+    evaluated in this corpus is exactly the class the ANGLE-BRIEF's T-E finds
+    most often wrong, and because DEC-20260805-2be965 records a red team finding
+    four of five of one goal's named obstructions defective on audit.

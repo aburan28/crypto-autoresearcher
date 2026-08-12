@@ -26,6 +26,9 @@ all executable preflights are explicitly toy or model-bound until independently 
 | [ECDLP-IDEA-158](ECDLP-IDEA-158_x_only_nonfaithful_wnu_signed_lift_hypothesis.md) | Nonfaithful x-only WNU signed lift | algorithm | conservative | proposed, unapproved; theorem preflight only | [contract](contracts/ECDLP-EXP-CONTRACT-158_x_only_nonfaithful_wnu_preflight.yaml) |
 | [ECDLP-IDEA-159](ECDLP-IDEA-159_non_diagonal_conormal_polar_source_blowup_hypothesis.md) | Non-diagonal conormal-polar source blowup | algebraic-representation | representation-changing | proposed, unapproved; theorem preflight only | [contract](contracts/ECDLP-EXP-CONTRACT-159_conormal_polar_source_preflight.yaml) |
 | [ECDLP-IDEA-160](ECDLP-IDEA-160_nonlogarithmic_ramification_break_scalar_digits_hypothesis.md) | Nonlogarithmic ramification-break scalar digits | arithmetic-transfer | high-risk | proposed, unapproved; theorem preflight only | [contract](contracts/ECDLP-EXP-CONTRACT-160_ramification_break_digits_preflight.yaml) |
+| [ECDLP-IDEA-434](ECDLP-IDEA-434_isogeny_class_decomposition_yield_invariance_hypothesis.md) | Isogeny-class variation of Semaev decomposition yield | representation | representation-changing | proposed, unapproved | [contract](contracts/ECDLP-EXP-CONTRACT-434_isogeny_class_yield_preflight.yaml) |
+| [ECDLP-IDEA-435](ECDLP-IDEA-435_function_field_lift_target_coefficient_audit_hypothesis.md) | Target-coefficient audit of the function-field lifting face | control | conservative | proposed, unapproved | [contract](contracts/ECDLP-EXP-CONTRACT-435_target_coefficient_audit_preflight.yaml) |
+| [ECDLP-IDEA-436](ECDLP-IDEA-436_local_torsion_coordinate_valuation_profile_hypothesis.md) | Coordinate-valuation profile of the canonical prime-to-p torsion lift | mechanism | high-risk | proposed, unapproved | [contract](contracts/ECDLP-EXP-CONTRACT-436_valuation_profile_preflight.yaml) |
 
 The machine-readable index is [idea_registry.tsv](idea_registry.tsv). The originating
 semantic audit is [DEDUP-20260717T124917-0700.md](reviews/DEDUP-20260717T124917-0700.md),
@@ -435,6 +438,150 @@ has no preceding Coordinator snapshot commit; it is content-valid working-tree
 negative evidence, not a durable claim transition. No artifact root, run, P1554,
 lower bound, scalar recovery, or breakthrough was created.
 
+The pre-ID `20260723-a` numerical-method mechanism screen is preserved in
+[DEDUP-20260723T184854-0700.md](reviews/DEDUP-20260723T184854-0700.md). Twelve complete
+records test Hestenes–Stiefel conjugate gradients, Saad–Schultz GMRES, Brandt
+multigrid, Hutchinson trace probes, Halko–Martinsson–Tropp randomized range finding,
+Oja principal-component updates, Karmarkar projective LP optimization, the
+Grötschel–Lovász–Schrijver ellipsoid method, Beck–Teboulle mirror descent,
+Gabay–Mercier splitting, Littlestone–Warmuth weighted majority, and
+Auer–Cesa-Bianchi–Fischer UCB.
+
+Every ECDLP transplant consumes a supplied operator, hierarchy, objective, separator,
+proximal component, expert pool, reward stream, or approximate aggregate; none
+constructs P1553 R4's endpoint-derived subset-stable exact source return with charged
+signed replay, relation rank, factor logs, and fresh scalar-blind descent. All twelve
+therefore remain full pre-ID merged/scoped rejections with no canonical or deferred
+allocation. Relative conservative R01, representation-changing R03, and high-risk R12
+snapshots remain retired, unapproved, zero-run `.yaml.txt` records with empty write
+scopes. The active registry remains byte-stable at 17 rows, and the prospective
+artifact root is absent.
+
+Initial independent review in
+[REDTEAM-20260723T184509-0700.md](reviews/REDTEAM-20260723T184509-0700.md) upheld every
+semantic disposition but returned `REVISE` for a concurrent ledger/index rewrite and
+stale corpus receipts. The corrected-byte successor review is preserved in
+[REDTEAM-20260723T190000-0700.md](reviews/REDTEAM-20260723T190000-0700.md); its verdict
+governs. Any content pass remains `REVISE_NOT_DURABLE` until a verified Coordinator
+snapshot commit binds the reviewed bytes. No experiment, relation campaign, scalar
+recovery, lower bound, or breakthrough was created.
+
+The pre-ID `20260723-b` sampling/statistical-mechanics mechanism screen is preserved in
+[DEDUP-20260723T211405-0700.md](reviews/DEDUP-20260723T211405-0700.md), with independent
+working-tree review reserved at
+[REDTEAM-20260723T213000-0700.md](reviews/REDTEAM-20260723T213000-0700.md). Twelve complete
+records test Duane Hamiltonian Monte Carlo, Jordan mean-field variational inference,
+Swendsen–Wang replica tempering, Wang–Landau density-of-states sampling, Neal slice
+sampling, Smith hit-and-run, Roberts–Tweedie Langevin diffusion, Skilling nested
+sampling, Pritchard approximate Bayesian computation, Torrie–Valleau umbrella
+sampling, Braunstein–Mézard–Zecchina survey propagation, and Rubinstein's
+cross-entropy method.
+
+The native operations are distinct, but every ECDLP transplant requires a supplied
+density, energy, gradient, factor graph, simulator, likelihood constraint, convex
+membership oracle, reaction coordinate, score, or source-bearing transition model;
+or returns an approximate/aggregate distribution without exact signed occurrence
+replay. None constructs P1553 R4's endpoint-derived subset-stable exact source return
+with charged relation rank, factor logs, and fresh scalar-blind descent. All twelve
+therefore remain full pre-ID merged/scoped rejections with no canonical or deferred
+allocation. Relative conservative S05, representation-changing S02, and high-risk S01
+snapshots are retired, unapproved, zero-run `.yaml.txt` records with empty write
+scopes. The active registry remains byte-stable at 17 rows, the prospective artifact
+root is absent, and no experiment or contract ran. Correct sampling, convergence,
+relation validity, a validator pass, or a toy scalar is not a breakthrough.
+
+The pre-ID `20260724-a` coding/network mechanism screen is preserved in
+[DEDUP-20260724T001356-0700.md](reviews/DEDUP-20260724T001356-0700.md), with independent
+working-tree review reserved at
+[REDTEAM-20260724T003000-0700.md](reviews/REDTEAM-20260724T003000-0700.md). Twelve
+complete records test Koetter–Vardy soft-decision multiplicity assignment,
+Sipser–Spielman expander bit flipping, Luby LT peeling, Shokrollahi Raptor
+precoding, Berlekamp–Welch error-location interpolation, Prange
+information-set decoding, Wagner generalized-birthday merging,
+Koetter–Kschischang subspace decoding, Forney concatenated decoding,
+Fossorier–Lin ordered-statistics decoding, Duffy–Li–Médard GRAND, and
+Koetter–Médard algebraic network coding.
+
+The native operations are distinct, but every ECDLP transplant consumes a
+supplied received word, reliability matrix, sparse graph, precode, syndrome,
+explicit list, subspace, inner/outer code, noise law, membership oracle,
+network topology, packet family, or transfer polynomial; or loses exact
+signed occurrence identity through linear mixing, span/basis quotienting, or
+aggregate decoding. None constructs P1553 R4's endpoint-derived subset-stable
+exact source return with charged replay, relation rank, factor logs, and fresh
+scalar-blind descent. All twelve therefore remain full pre-ID merged/scoped
+rejections with no canonical or deferred allocation. Relative conservative
+T05, representation-changing T08, and high-risk T12 snapshots are retired,
+unapproved, zero-run `.yaml.txt` records with empty write scopes. The
+17-row active registry remains byte-stable, the prospective artifact root is
+absent, and no experiment or contract ran. Correct native decoding, a valid
+relation, transfer rank, a validator pass, or a toy scalar is not a
+breakthrough.
+
+The pre-ID `20260724-b` exact-linear-algebra mechanism screen is preserved in
+[DEDUP-20260724T031259-0700.md](reviews/DEDUP-20260724T031259-0700.md), with
+independent working-tree review reserved at
+[REDTEAM-20260724T033000-0700.md](reviews/REDTEAM-20260724T033000-0700.md).
+Twelve complete records test Wiedemann coordinate recurrences, Coppersmith
+block Wiedemann, Coppersmith block Lanczos, Massey shift-register synthesis,
+Keller–Gehrig Frobenius canonicalization, Berkowitz division-free
+characteristic circuits, Bareiss fraction-free elimination, Dixon p-adic
+lifting, Kannan–Bachem Smith reduction, Storjohann–Labahn Hermite reduction,
+Jeannerod–Neiger shifted-Popov approximant bases, and Faddeev–LeVerrier trace
+and adjugate recursion.
+
+The native operations are distinct, but every ECDLP transplant consumes a
+supplied source-bearing matrix, operator, vector sequence, equation system,
+lattice, basis, or interpolation instance; forgets exact signed occurrence
+labels through similarity, quotient, trace, recurrence, nullspace, or
+canonical-form aggregation; or swaps a downstream solver after the missing
+source representation exists. None constructs P1553 R4's endpoint-derived
+subset-stable exact source return with charged replay, relation rank, factor
+logs, and fresh scalar-blind descent. All twelve therefore remain full pre-ID
+merged/scoped rejections with no canonical or deferred allocation. Relative
+conservative U07, representation-changing U09, and high-risk U11 snapshots are
+retired, unapproved, zero-run `.yaml.txt` records with empty write scopes. The
+17-row active registry remains byte-stable, the prospective artifact root is
+absent, and no experiment or contract ran. Correct linear solving, a matrix
+invariant, canonical form, nullspace, valid relation, validator pass, or toy
+scalar is not a breakthrough.
+
+The pre-ID `20260724-c` classical computational-number-theory mechanism screen
+is preserved in
+[DEDUP-20260724T101929-0700.md](reviews/DEDUP-20260724T101929-0700.md). Initial
+independent working-tree review in
+[REDTEAM-20260724T103000-0700.md](reviews/REDTEAM-20260724T103000-0700.md)
+returned `CONTENT REVISE` solely because V01 and the producer report
+misattributed arXiv:1105.1456. Those producer bytes now name Jan-Christoph
+Schlage-Puchta correctly; corrected-byte successor review is reserved at
+[REDTEAM-20260724T105500-0700.md](reviews/REDTEAM-20260724T105500-0700.md).
+That successor returned `CONTENT REVISE` because V02, V04, and the producer
+report misattributed DOI 10.1587/transfun.E96.A.1081. Those producer bytes now
+name Ryuichi Harasawa, Yutaka Sueyoshi, and Aichi Kudo correctly; final
+corrected-byte review is reserved at
+[REDTEAM-20260724T110500-0700.md](reviews/REDTEAM-20260724T110500-0700.md).
+Twelve complete records test Tonelli–Shanks two-Sylow root descent, Cipolla
+quadratic-extension roots, Cornacchia norm descent, Adleman–Manders–Miller
+`r`-th-root extraction, Pollard `p-1`, Williams `p+1`, Morrison–Brillhart
+CFRAC, Pomerance's quadratic sieve, Lenstra ECM, Pocklington certificates,
+Goldwasser–Kilian elliptic certificates, and Atkin–Morain ECPP.
+
+The native operations are distinct, but every ECDLP transplant consumes a
+supplied residue, radicand, norm instance, composite, quadratic irrational,
+sieve polynomial, partial factorization, or auxiliary curve/order
+certificate; loses exact signed occurrence labels through roots, smoothness,
+parity, gcd, order, or certificate aggregation; or repeats H077's auxiliary
+ECM smooth-order transplant. None constructs P1553 R4's endpoint-derived
+subset-stable exact source return with charged replay, relation rank, factor
+logs, and fresh scalar-blind descent. All twelve therefore remain full pre-ID
+merged/scoped rejections with no canonical or deferred allocation. Relative
+conservative V01, representation-changing V09, and high-risk V12 snapshots are
+retired, unapproved, zero-run `.yaml.txt` records with empty write scopes. The
+17-row active registry remains byte-stable, the prospective artifact root is
+absent, and no experiment or contract ran. Correct roots, factors, smooth
+values, parity dependencies, curve orders, certificates, valid relations,
+validator passes, or toy scalars are not breakthroughs.
+
 ## Required interpretation boundary
 
 - A verifier pass establishes only implementation correctness for the tested artifact.
@@ -445,6 +592,22 @@ lower bound, scalar recovery, or breakthrough was created.
 - A toy gate can promote only to a larger scaling study; finite-size slope confidence is
   still model-bound and cannot establish a cryptographic asymptotic.
 - Negative evidence closes only the exact stated test boundary.
+
+The `434`–`436` pass (cohort `20260809-a`) was generated from the
+[GATHER-20260809](../knowledge/gathers/GATHER-20260809.md) local-corpus sweep rather
+than from a free-generation round, so it is small and source-anchored: one
+representation-changing record, one conservative control record, and one high-risk
+mechanism record. Two of the three are
+deliberately *cheap discriminators over evidence this program already holds* rather
+than new constructions — `435` audits the existing `EV-XEDN-*` relations for a target
+coefficient, and `436` is gated on a generic-group simulability memo that may reject it
+without any run. The same sweep produced two scoped negatives that were filed as
+findings instead of ideas, because they are settled by counting rather than by
+experiment: `KN-TECH-3b593f` (post-SIDH higher-dimensional isogeny machinery does not
+reach genus 1) and `KN-TECH-73630e` (the local-torsion lifting face is closed for
+group-theoretic invariants). The corpus is now 18 active proposed/unapproved records.
+No experiment ran. Only the Coordinator may approve a contract or change an official
+state.
 
 ## Layout
 

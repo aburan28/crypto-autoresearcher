@@ -18,16 +18,158 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -e ".[dev,campaign-mcp,research-loop]"
+
+      # Installed separately so the step above proves the core toolchain still
+      # works without the agent runtime's dependency tree.
+      - name: Install api_direct runtime dependencies
+        run: pip install -r requirements-agent.txt
+
+      - name: Check the local entry point is usable
+        run: python3 -m orchestration doctor || true
+
+      # Runs BEFORE the ledger validator, and is absolute rather than diffed
+      # against the base. The step below can only compare error sets, and a
+      # record that does not parse cannot be schema-checked -- so corrupting
+      # one REMOVES errors and reads as an improvement. Nine files reached
+      # main holding literal conflict markers through exactly that gap.
+      # Generated artifacts are not committed (see .gitignore). Building them
+      # here proves the corpus and every queue still build, which is the part
+      # that carried information; the files themselves carried none.
+      - name: Build generated artifacts
+        run: |
+          python3 tools/build_knowledge_index.py
+          fail=0
+          for q in $(git ls-files 'coordination/goals/*/batches/*/dispatch_queue.json'); do
+            d=$(dirname "$q")
+            python3 tools/research_dispatch.py "$q" \
+              --output "$d/dispatch_plan.json" --report "$d/dispatch_plan.md" \
+              || { echo "::warning::queue does not render: $q"; fail=1; }
+          done
+          # A queue that no longer renders is a real defect, but queues are
+          # per-campaign and a stale one must not red-light every other
+          # campaign's PR -- the coupling this workflow is being changed to
+          # remove. Reported as a warning here; main-health.yml fails on it.
+          exit 0
+
+      # PR: scoped to the files the branch touches. main: absolute.
+      # A branch that BREAKS a record still changed it and is still caught; what
+      # is no longer every campaign's problem is breakage that was already on
+      # main. See the scope comment in tools/check_merge_hygiene.py.
+      - name: Merge hygiene — conflict markers, parseability, id collisions
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 tools/check_merge_hygiene.py --base "origin/${{ github.base_ref }}"
+          else
+            python3 tools/check_merge_hygiene.py --absolute
+          fi
 
       - name: Validate ledger, experiments, and run records
-        run: python3 tools/validate_ledger.py
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+            BASE_WORKTREE="/tmp/validate-base-ledger"
+            git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true
+            trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
+            git worktree add "$BASE_WORKTREE" "$BASE_REF"
+            python3 tools/validate_ledger.py > /tmp/validate_head.out 2>&1 || true
+            (
+              cd "$BASE_WORKTREE"
+              python3 tools/validate_ledger.py > /tmp/validate_base.out 2>&1 || true
+            )
+            # validate_ledger.py emits one error per bullet line prefixed by "  - ".
+            grep '^  - ' /tmp/validate_head.out | sort -u > /tmp/validate_head.errs || true
+            grep '^  - ' /tmp/validate_base.out | sort -u > /tmp/validate_base.errs || true
+            comm -23 /tmp/validate_head.errs /tmp/validate_base.errs > /tmp/validate_new.errs || true
+            NEW_ERRORS="$(wc -l < /tmp/validate_new.errs | tr -d ' ')"
+            if [ "$NEW_ERRORS" -gt 0 ]; then
+              echo "FAIL: $NEW_ERRORS validation error(s) introduced by this PR:" >&2
+              cat /tmp/validate_new.errs >&2
+              exit 1
+            fi
+            echo "PASS: no new validation errors vs base branch"
+          else
+            python3 tools/validate_ledger.py
+          fi
 
       - name: Check run-record immutability
         run: python3 tools/check_run_immutability.py
 
+      # Absolute, not diffed: these packages assert an artifact list, an
+      # artifact count and a sha256 per file, and the check recomputes all
+      # three from the files each package actually ships. It needs no Autolab
+      # checkout, so it means the same thing here as on the porting machine.
+      - name: Check ported Autolab packages match their archived artifacts
+        run: python3 tools/port_autolab_experiments.py --verify
+
       - name: Check knowledge index is current
-        run: python3 tools/build_knowledge_index.py --check
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+            BASE_WORKTREE="/tmp/validate-base-knowledge"
+            git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true
+            trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
+            git worktree add "$BASE_WORKTREE" "$BASE_REF"
+            HEAD_STATUS=0
+            python3 tools/build_knowledge_index.py --check > /tmp/knowledge_head.out 2>&1 || HEAD_STATUS=$?
+            BASE_STATUS=0
+            (
+              cd "$BASE_WORKTREE"
+              python3 tools/build_knowledge_index.py --check > /tmp/knowledge_base.out 2>&1
+            ) || BASE_STATUS=$?
+            if [ "$BASE_STATUS" -eq 0 ] && [ "$HEAD_STATUS" -ne 0 ]; then
+              echo "FAIL: knowledge index check fails on this PR but passes on base branch" >&2
+              cat /tmp/knowledge_head.out >&2
+              exit "$HEAD_STATUS"
+            fi
+            if [ "$BASE_STATUS" -ne 0 ] && [ "$HEAD_STATUS" -ne 0 ]; then
+              echo "PASS: knowledge index check already fails on base branch"
+            fi
+          else
+            python3 tools/build_knowledge_index.py --check
+          fi
+
+      # Absolute, not diffed against base: this index is green as of the commit
+      # that introduced it, so there is no pre-existing failure to compare away.
+      # It also recomputes the sha256 of every vendored source artifact, which
+      # makes a stale-output failure and a corrupted-source failure the same red.
+      - name: Check source index is current and vendored source hashes match
+        run: python3 tools/build_source_index.py --check
+
+      - name: Validate inference configuration (offline)
+        run: python3 -m orchestration.adapter doctor
+
+      - name: Enforce no-Bedrock inference cost policy
+        run: python3 tools/check_inference_cost_policy.py
+
+      - name: Check runtime role bindings have not drifted
+        run: python3 tools/check_runtime_bindings.py
+
+      # Offline: fixtures build and every task's policy resolves. Running the
+      # suites costs tokens, so CI checks they are well-formed, not that they pass.
+      - name: Validate evaluation suites
+        run: |
+          for suite in evals/suites/*.yaml; do
+            python3 -m orchestration.eval validate --suite "$suite"
+          done
+
+      - name: Validate inference configuration (offline)
+        run: python3 -m orchestration.adapter doctor
+
+      - name: Check runtime role bindings have not drifted
+        run: python3 tools/check_runtime_bindings.py
+
+      - name: Validate live research dispatch queue
+        run: |
+          python3 tools/research_dispatch.py coordination/dispatch_queue.json \
+            --output /tmp/current_dispatch.json \
+            --report /tmp/current_dispatch.md
+
+      # The root pytest configuration deliberately scopes discovery to tests/
+      # and tools/, so the portable plugin package owns an explicit contract
+      # check rather than relying on incidental test discovery.
+      - name: Check portable plugin bundle
+        run: python3 plugins/crypto-autoresearcher-harness/tests/test_bundle.py
 
       - name: Run harness tests
         run: python3 -m pytest -q

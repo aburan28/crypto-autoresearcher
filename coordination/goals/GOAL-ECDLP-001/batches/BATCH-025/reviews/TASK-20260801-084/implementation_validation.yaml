@@ -1,0 +1,284 @@
+validation_report:
+  id: VAL-20260801-084
+  task_id: TASK-20260801-084
+  role: validator
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-025
+  experiment_id: EXP-SMTH-002
+  reviewed_on: '2026-08-01'
+  independent_session: true
+  author_of_reviewed_artifact: false
+  disposition: REVISE
+  verdict: failed
+  disposition_authority: coordinator_only
+
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    resolved_model_id: gpt-5.6-sol
+    fallback_allowed: false
+    fallback_used: false
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    independent_session_required: true
+
+  run_ids: []
+  scientific_runs_executed: 0
+
+  snapshot_verification:
+    commit: 4087f5635d5a543c5b9618f65a676b84734979cc
+    parent: cb220c47c70b3f8be725b1de0bff3c60ab996c92
+    subject: Snapshot BATCH-025 pilot implementation
+    reachable_from_validation_head: true
+    exact_changed_path_count: 3
+    exact_changed_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/archives/TASK-20260801-083/snapshot_commit_receipt.json
+    - experiments/EXP-SMTH-002/implementation/implementation.md
+    - experiments/EXP-SMTH-002/implementation/pilot_driver.py
+    artifact_sha256:
+      experiments/EXP-SMTH-002/implementation/pilot_driver.py: 9fd4f2488e6d90aacea18efe7949bb0cc112e9f36391a049bd5bcd7ae0b32603
+      experiments/EXP-SMTH-002/implementation/implementation.md: 9467b7b60bd66713e4ec5facc76935cb04a23c87c6672c280b29cef42191a2b0
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/archives/TASK-20260801-083/snapshot_commit_receipt.json: fb515b5461aa6ff614a88946583c17014abeae03c31adb07297595ec7abbc4d8
+    receipt_parent_matches_git: true
+    receipt_declared_paths_match_git_diff: true
+    receipt_source_hashes_match: true
+    receipt_commit_sha_field: null
+    receipt_caveat: >-
+      The null self-field is existing receipt-format debt. The parent, exact
+      three-path diff and both producer-file hashes were independently
+      reproduced from Git and bind this review to committed bytes.
+
+  artifact_checks:
+  - check: committed implementation snapshot exists and is immutable for review
+    status: pass
+    evidence: Exact commit, parent, diff roster and SHA-256 values reproduced.
+  - check: syntax
+    status: pass
+    evidence: Python AST parsing completed without creating a bytecode artifact.
+  - check: CLI surface
+    status: pass
+    evidence: >-
+      Help exposes only self-test and run-null-pilot. Unsupported source and
+      evidence subcommands both exited 2 without running a test or pilot.
+  - check: frozen constant arithmetic
+    status: pass
+    evidence: >-
+      Independently imported committed bytes and reproduced 32 arrays, 130816
+      records per array, 4186112 records total, 32704 records per shard and 128
+      shards, with 32704*128=4186112.
+  - check: exact result-path binding
+    status: fail
+    blocker_id: VAL084-B1
+    evidence: >-
+      run-null-pilot accepts an arbitrary --output-root. Certificate manifest
+      repository_relative_path is str(final), so an absolute output root emits
+      absolute paths, and no guard requires the frozen experiment root or the
+      exact 137-path run-evidence roster. The implementation therefore does not
+      enforce the committed repository-relative output paths.
+
+  metric_recomputations:
+  - metric: deterministic IID seed derivation
+    status: pass
+    evidence: >-
+      Recomputed first_128_bits(SHA256(EXP-SMTH-002/v1|NULL-IID-EDGE|16|0|0|0))
+      and matched derived_seed.
+  - metric: process-tree CPU seconds
+    status: fail
+    blocker_id: VAL084-B2
+    evidence: >-
+      run_null_pilot uses time.process_time() in the parent while all
+      factorizations run in ProcessPoolExecutor children. Child CPU is excluded,
+      so both the 28800-second ceiling and reported cpu_seconds omit the main
+      scientific cost.
+  - metric: process-tree peak RSS
+    status: fail
+    blocker_id: VAL084-B2
+    evidence: >-
+      resource.getrusage(RUSAGE_SELF) measures only the parent, not the four
+      factor workers. The 4294967296-byte peak-RSS ceiling and reported resource
+      accounting are consequently not enforced for the execution topology.
+  - metric: run-phase disk and tracked-byte caps
+    status: fail
+    blocker_id: VAL084-B2
+    evidence: >-
+      MAX_RUN_DISK_BYTES, MAX_OTHER_AGGREGATE_BYTES and MAX_TRACKED_BYTES are
+      declared but never read after assignment. No phase/device disk measurement
+      or aggregate-other/tracked gate exists. The implementation note's claim
+      that runtime methods enforce all frozen ceilings is false.
+
+  control_checks:
+  - check: bounded synthetic self-test
+    status: pass
+    evidence: >-
+      One independent invocation passed all six named tests and reported
+      scientific_runs=0.
+  - check: bounded pack exact cap
+    status: pass
+    evidence: 4096 input bytes produced an exact 4096-byte final pack.
+  - check: bounded pack cap plus one
+    status: pass
+    evidence: >-
+      4097 input bytes against a 4096-byte cap returned overflow, recorded
+      bytes_written=4096, and left neither final nor partial output.
+  - check: bounded pack producer failure
+    status: pass
+    evidence: Synthetic producer exit 7 could not succeed and left no output.
+  - check: split-device arithmetic
+    status: pass
+    evidence: >-
+      Exact worktree/common thresholds pass and either threshold minus one
+      fails; same-device threshold passes.
+  - check: twelve-factor composite rejection
+    status: pass_with_test_gap
+    evidence: >-
+      Independent bounded harness supplied twelve alleged factors with a
+      composite final item and observed rejection. The committed self-test uses
+      only two alleged factors, so its name does not exercise the frozen
+      twelve-factor control and must be repaired.
+  - check: 1025-byte logical-record rejection before writer
+    status: pass_with_test_gap
+    evidence: >-
+      Independent bounded harness observed CertificateShardWriter reject an
+      oversized record before writing. The committed self-test merely compares
+      a serialized length and never calls the rejection path.
+  - check: checkpoint and single-resume policy
+    status: fail
+    blocker_id: VAL084-B3
+    evidence: >-
+      The base checkpoint_policy remains binding through AMEND-007, but the
+      implementation writes no checkpoint at the 32704-record interval,
+      records none of the required checkpoint fields, and has no verified
+      resume path. Existing final shards also make a restarted writer fail
+      rather than resume from the last verified checkpoint.
+  - check: process-output handles and no-network ceiling
+    status: fail
+    blocker_id: VAL084-B2
+    evidence: >-
+      The frozen controls require observing at most eight process output
+      handles and no network during the run. The driver neither measures nor
+      enforces either condition.
+  - check: one-byte shard mutation and independent canonical-hash reproduction
+    status: fail
+    blocker_id: VAL084-B4
+    evidence: >-
+      No committed synthetic test mutates a shard and checks rejection, and no
+      test independently reproduces the seed-roster or shard-manifest canonical
+      hashes. Hash construction alone is not the required negative/independent
+      control.
+
+  heuristic_validation_checks:
+  - check: scientific interpretation
+    status: not_run
+    evidence: >-
+      No registered pilot was executed. Synthetic checks provide no HEUR-DS-1,
+      ECDLP or breakthrough evidence.
+
+  cost_model_checks:
+  - check: required feasibility result fields
+    status: fail
+    blocker_id: VAL084-B5
+    evidence: >-
+      The returned feasibility report omits peak RSS, disk bytes by phase and
+      total, factorizations per wall and CPU second by bits and null type,
+      compressed and logical bytes per certificate by bits and null type, the
+      projected v2 full-contract wall/CPU/disk table with linearity caveat, and
+      checkpoint/resume events. It also does not record the required SymPy
+      dependency version. These fields cannot be reconstructed from the emitted
+      report after a run.
+
+  proof_architecture_checks: []
+
+  seed_and_certificate_checks:
+  - check: factor certificate reconstruction
+    status: pass
+    evidence: >-
+      Bounded N=360 test reproduced sorted prime factors, LPF=5, three
+      primality checks and exact reconstruction.
+  - check: seed-roster coverage and collision claim
+    status: fail
+    blocker_id: VAL084-B6
+    evidence: >-
+      The binding seed_roster_contract requires every domain tuple and derived
+      128-bit seed. The implementation records only 32 stream descriptors and
+      hashes. For NULL-K512-ADD it checks collisions only on synthesized edge
+      hashes, not on the underlying A/B derived seeds, and its recorded seed_rule
+      describes a six-field derivation that those edge hashes do not follow.
+      Thus collision_count=0 would not certify all generated seed material and
+      the implementation note's declared no-deviation statement is unsupported.
+  - check: interrupted-write cleanup
+    status: fail
+    blocker_id: VAL084-B7
+    evidence: >-
+      run_null_pilot has no try/finally that aborts the current certificate
+      writer after worker, wall, CPU, RSS or aggregate-cap failure. A resource
+      exception can leave a .partial shard, and already renamed shards are not
+      reconciled by a checkpoint/resume receipt.
+
+  limitations:
+  - No run evidence exists or was reviewed.
+  - run-null-pilot was deliberately not invoked.
+  - Pack tests used tiny synthetic producers, not git pack-objects or a remote.
+  - This report does not alter experiment, hypothesis, goal or ledger state.
+
+  blockers:
+  - id: VAL084-B1
+    requirement: Enforce the exact frozen repository-relative output roster.
+    repair: >-
+      Remove arbitrary output-root behavior or validate the resolved root and
+      every emitted path against the literal run-evidence roster before writing.
+  - id: VAL084-B2
+    requirement: Enforce and report all frozen resource ceilings over the full process tree.
+    repair: >-
+      Add process-tree CPU/RSS accounting, live run/device disk accounting,
+      aggregate other/tracked byte gates, handle accounting and a no-network
+      execution guard, with bounded failure tests.
+  - id: VAL084-B3
+    requirement: Implement the still-binding per-shard checkpoint and one-resume contract.
+    repair: >-
+      Atomically checkpoint the required fields after each verified shard and
+      implement one deterministic resume from the last verified checkpoint
+      under the same global ceilings.
+  - id: VAL084-B4
+    requirement: Exercise the literal negative and independent hash controls.
+    repair: >-
+      Add bounded tests for a one-byte shard mutation, the literal twelve-factor
+      composite case, actual writer rejection of a 1025-byte record, and
+      independent canonical hash reproduction.
+  - id: VAL084-B5
+    requirement: Emit every frozen result field and dependency provenance.
+    repair: >-
+      Add per-phase and per-(bits,null_type) counters, full resource and
+      checkpoint event records, projection fields with caveat, and exact SymPy
+      version provenance before any execution authorization.
+  - id: VAL084-B6
+    requirement: Satisfy the literal seed-roster contract and honest collision scope.
+    repair: >-
+      Either emit every derived domain tuple and seed within the frozen cap, or
+      obtain a separately reviewed contract amendment defining a compact
+      mechanically expandable representation. Include underlying K512 A/B seeds
+      in collision accounting and state the exact edge-seed rule separately.
+  - id: VAL084-B7
+    requirement: Leave a deterministic recoverable state on every bounded failure.
+    repair: >-
+      Abort and remove the exact current partial shard in a top-level finally,
+      preserve only checkpoint-verified completed shards, and test worker and
+      resource-cap interruption paths.
+
+  narrowest_supported_statement: >-
+    At committed implementation snapshot
+    4087f5635d5a543c5b9618f65a676b84734979cc, syntax, the restricted CLI,
+    deterministic count constants, certificate reconstruction, bounded pack
+    exact-cap/cap-plus-one/producer-failure behavior and device-threshold
+    arithmetic pass bounded independent checks with scientific_runs=0. The
+    implementation does not satisfy the full effective contract through
+    AMEND-007 and must not receive pilot execution authorization. No ECDLP
+    evidence or breakthrough claim follows.
+
+  next_concrete_action: >-
+    Keep the pre-execution hold. Snapshot a successor implementation that
+    repairs VAL084-B1 through VAL084-B7, then obtain a fresh independent
+    committed-byte validation before any run authorization.
+
+  artifact_paths:
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-084/implementation_validation.yaml

@@ -1,0 +1,292 @@
+schema: crypto.autoresearch.run_design_proposal.v1
+task_id: TASK-20260802-db286e
+goal_id: GOAL-ECDLP-001
+batch_id: BATCH-029
+role: idea-generator
+run_id_proposed: RUN-SMTH-PILOT-003
+experiment_id: EXP-SMTH-002
+discharges_handoff: TASK-20260801-160
+generated_at: "2026-08-02"
+
+execution_authorized: false
+authorization_note: >-
+  DESIGN ONLY. This document authorizes nothing. It proposes a successor run
+  and the single implementation change that successor requires. No canonical
+  protocol amendment is created here, no run package is created, no immutable
+  artifact is edited, and no hypothesis, experiment, goal or ledger status
+  moves.
+
+claim_ceiling: >-
+  Feasibility of an instrument. Even a completed RUN-SMTH-PILOT-003 licenses
+  only the resource-budget derivation and fresh full-contract review named in
+  EXP-SMTH-002 outcome_ceiling. With no source arm and four replicates, NO
+  threshold, p-value, or disposition on HEUR-DS-1, H-SMTH-001 or H-SMTH-002 is
+  derivable from any outcome of this run. That is the frozen specification's
+  own statement and this design does not widen it.
+
+# ---------------------------------------------------------------------------
+# 1. DIAGNOSIS. What actually ended RUN002, from committed bytes.
+# ---------------------------------------------------------------------------
+diagnosis:
+  source: coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-144/run002_validation.yaml
+  recorded_disposition:
+    verdict: passed
+    admissibility: admissible_terminal_failed_run_partial_snapshot
+    run_completed: false
+    evidence_eligible: false
+    run_status: failed_infrastructure_or_budget
+    failure_class: resource_exhaustion
+    invalid_integrity: false
+    implementation_failure: false
+
+  the_binding_constraint_was_memory_and_ONLY_memory:
+    binding_cap_crossed: rss_only
+    peak_rss_bytes: 4310335488
+    rss_cap_bytes: 4294967296
+    exact_rss_exceedance_bytes: 15368192
+    error_message: process-tree RSS cap exceeded
+
+  consumption_at_the_stop:
+    completed_fraction: 0.40625
+    checkpointed_records: 1700608
+    wall_seconds: 392.02581237501
+    wall_cap_seconds: 7200
+    cpu_seconds: 588.5381580000001
+    cpu_cap_seconds: 28800
+    stop_events: 1
+
+  THE_CENTRAL_OBSERVATION: >-
+    RUN002 DID NOT RUN OUT OF TIME. At the stop it had consumed 5.4 percent of
+    its wall ceiling and 2.0 percent of its CPU ceiling, and it exceeded the
+    memory ceiling by 15,368,192 bytes -- 14.656 MiB, or 0.3578 percent of a
+    4 GiB cap. The run died 0.36 percent over one ceiling while sitting on
+    roughly 95 percent unused headroom in the other two. Reading
+    "resource_exhaustion" as "the pilot is too big for its budget" would be the
+    wrong lesson and would produce the wrong successor.
+
+  arithmetic_verified_by_this_task:
+    pair_count: >-
+      The specification's `pairs: 0 <= i < j < 512` and
+      `integers_per_replicate: 130816` agree exactly: C(512,2) = 512*511/2 =
+      130816. The strict i < j enumeration therefore already excludes the
+      diagonal BY CONSTRUCTION in the frozen contract; the handoff constraint
+      is satisfied by the existing design and needs no change. Recomputed here
+      rather than assumed.
+    total_call_count: >-
+      130816 integers/replicate x 2 bit-sizes x 2 fixtures/bit x 2 null types
+      x 4 replicates = 4,186,112, matching budget.maximum_factorization_calls
+      exactly.
+    checkpoint_consistency: >-
+      The two recorded shard counters 1,046,528 and 654,080 sum to 1,700,608,
+      and 1,700,608 / 4,186,112 = 0.40625 exactly, matching the recorded
+      completed fraction to the digit. The stop record is internally
+      consistent.
+    linear_projections_of_the_UNBINDING_caps:
+      method: >-
+        Divide the observed consumption by the completed fraction 0.40625.
+        This is a LINEAR extrapolation and is labelled as such; factorization
+        cost is not uniform across integers, so these are planning figures and
+        not guarantees.
+      projected_full_wall_seconds: 965
+      projected_full_wall_as_fraction_of_cap: 0.134
+      projected_full_cpu_seconds: 1449
+      projected_full_cpu_as_fraction_of_cap: 0.050
+      reading: >-
+        Under linear extrapolation the full pilot finishes in about 13 percent
+        of its wall ceiling and 5 percent of its CPU ceiling. Time is not the
+        problem and reducing the object count to buy time would be solving a
+        problem the instrument does not have.
+
+# ---------------------------------------------------------------------------
+# 2. THE DESIGN. One change, aimed at the constraint that actually bound.
+# ---------------------------------------------------------------------------
+design:
+  headline: >-
+    RUN-SMTH-PILOT-003 keeps the frozen object set unchanged and changes ONE
+    property of the driver: peak resident memory must be bounded by a declared
+    constant that does not depend on how much of the run has completed.
+
+  why_the_object_set_is_NOT_reduced: >-
+    Reducing objects is the obvious move and it is the wrong one here. The
+    ceilings that had headroom were time and CPU; the ceiling that bound was
+    memory. If memory grows with retained records, HALVING the object set
+    halves the time -- which was never scarce -- and merely postpones the same
+    RSS wall to a later fraction of a smaller run. A run that dies at 81
+    percent instead of 41 percent is not a fixed run. Worse, cutting objects
+    would silently weaken the pilot's coverage while appearing to be a budget
+    fix, which is exactly the kind of quiet scope reduction the campaign's
+    honesty rules exist to prevent. The object set therefore stays EXACTLY as
+    frozen: bits [16, 20], 2 fixtures per bit, null types [NULL-IID-EDGE,
+    NULL-K512-ADD], 4 replicates, factor base 512, 4,186,112 factorizations.
+
+  the_single_change:
+    property: bounded_working_set
+    requirement: >-
+      The driver must stream certificate records to shard files and release
+      them, so that resident memory is a function of the shard buffer size and
+      the interpreter baseline ALONE, and not of the number of records already
+      produced. Concretely: no structure that accumulates across shards may
+      retain per-record data after that shard is flushed and hashed.
+    observable_consequence: >-
+      Peak RSS becomes approximately flat in completed fraction rather than
+      increasing in it. That is a MEASURABLE, FALSIFIABLE property and section
+      3 makes it a pre-flight gate rather than an assumption.
+    what_is_not_claimed: >-
+      This design does NOT claim to know which allocation grew. The validation
+      record establishes that the cap was crossed and that
+      implementation_failure was false, not where the bytes went. The pre-flight
+      probe in section 3 is what turns this from a plausible story into a
+      checked one, and IT MAY REFUTE THE STORY -- see section 5.
+
+  namespace:
+    run_id: RUN-SMTH-PILOT-003
+    result_root: experiments/EXP-SMTH-002/results/run003/
+    run_root: experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-003/
+    rule: >-
+      FRESH AND NON-OVERWRITING, per the TASK-20260801-160 constraint. RUN003
+      must never resume, relabel, append to, or consume RUN002 partial
+      artifacts. Its shard files, manifest, seed roster and certificates are
+      written under paths that do not exist today, and a pre-flight check that
+      any target path already exists is an immediate invalid_integrity stop.
+    rationale: >-
+      RUN002's own review notes a retained-partial-work limitation. Keeping the
+      namespaces disjoint means a later reader can never mistake a RUN002
+      partial record for a RUN003 record, and the 1,700,608 RUN002 records stay
+      exactly as committed.
+
+  determinism_unchanged: >-
+    master_seed 25051, domain EXP-SMTH-002/v1, the seed rule, prime rule and
+    integer sampler are UNCHANGED. RUN003 must reproduce every stream hash the
+    seed roster generator produces. A streaming rewrite that altered the
+    sampled integers would be a different experiment wearing the same contract.
+
+# ---------------------------------------------------------------------------
+# 3. THE PRE-FLIGHT GATE. Cheap falsification before the expensive run.
+# ---------------------------------------------------------------------------
+preflight_memory_probe:
+  purpose: >-
+    Decide, for a few seconds of compute, whether the bounded-working-set claim
+    is true -- BEFORE spending the full run to find out. This is the
+    inventor-protocol ordering: cheap falsification precedes expensive
+    measurement.
+  procedure:
+    - Run the driver over a strict prefix of the frozen roster at three
+      checkpoints, at approximately 5, 10 and 20 percent of total records.
+    - Record peak process-tree RSS at each checkpoint, by the same measurement
+      the frozen budget uses, so the numbers are comparable to RUN002's.
+    - Fit no model. Compare the three peaks directly.
+  pass_condition: >-
+    Peak RSS at 20 percent does not exceed peak RSS at 5 percent by more than a
+    declared tolerance, AND the largest of the three sits below a declared
+    margin under the 4,294,967,296-byte cap. Both the tolerance and the margin
+    must be written into the successor contract as numbers BEFORE the probe is
+    run, never chosen afterwards to fit what was observed.
+  fail_condition_and_what_it_means: >-
+    If RSS still climbs with completed fraction, the bounded-working-set change
+    did not take, and RUN003 MUST NOT BE LAUNCHED. That is a useful result, not
+    a setback: it costs seconds instead of the ~965 projected seconds plus the
+    coordination cost of a second failed run package, and it refutes section
+    2's diagnosis rather than letting it survive untested.
+  why_this_is_the_right_gate: >-
+    RUN002's exceedance was 0.36 percent. A margin that small cannot be
+    eyeballed from a design document, and a successor that merely asserts
+    "memory is now bounded" would be indistinguishable, on paper, from RUN002
+    the day before it died.
+
+# ---------------------------------------------------------------------------
+# 4. BUDGET. Stated against the ceiling that actually bound.
+# ---------------------------------------------------------------------------
+budget_statement:
+  ceilings_unchanged: >-
+    Every ceiling in EXP-SMTH-002 budget stays exactly as frozen. This design
+    requests NO budget relief. Asking for a larger RSS cap would convert a
+    0.36-percent overrun into a licence to grow without bound, and would
+    discard the only sharp signal the failed run produced.
+  expected_consumption_under_the_change:
+    wall_seconds: ~965 projected linearly; ceiling 7200; projected utilisation 13.4%
+    cpu_seconds: ~1449 projected linearly; ceiling 28800; projected utilisation 5.0%
+    peak_rss_bytes: >-
+      TARGET: bounded and flat in completed fraction, below the 4,294,967,296
+      ceiling with a declared margin. NOT PROJECTED FROM RUN002 -- a single
+      over-cap observation at one completion fraction does not determine a
+      growth curve, and pretending otherwise would be fabricating a number.
+      This is what the section 3 probe measures.
+  linearity_caveat: >-
+    The wall and CPU figures are linear extrapolations from one partial run.
+    Factorization cost varies with the integer, and the 16-bit and 20-bit
+    strata were not necessarily consumed in proportion before the stop. They
+    are planning figures. The frozen contract already requires the run to
+    report projected full-contract cost "with explicit linearity caveat"; this
+    design inherits that requirement rather than replacing it.
+  stop_semantics_unchanged: >-
+    Crossing any ceiling stops at the next record boundary and yields
+    failed_infrastructure_or_budget, which is NOT evidence about mathematics,
+    smoothness, HEUR-DS-1, H-SMTH-001, H-SMTH-002 or ECDLP. Restated here
+    because RUN002 is about to be cited repeatedly as a failure, and it must
+    not accrete mathematical meaning by repetition.
+
+# ---------------------------------------------------------------------------
+# 5. FALSIFICATION AND CONTROLS
+# ---------------------------------------------------------------------------
+falsification:
+  this_design_is_wrong_if:
+    - The pre-flight probe shows peak RSS still rising with completed fraction.
+      Then the growth is not in per-record retention and the diagnosis in
+      section 2 is refuted.
+    - RSS is flat but already above the declared margin at 5 percent. Then the
+      baseline itself does not fit the cap, and the object set or the shard
+      buffer -- not the retention policy -- is what must change.
+    - A streaming rewrite fails to reproduce the seed roster stream hashes.
+      Then the change altered the experiment and must be discarded entirely.
+  controls_inherited_unchanged_from_the_frozen_contract:
+    - First and last record of every shard independently reconstructed.
+    - Every certificate reconstruction true before shard acceptance.
+    - Exact total and per-object counts match the frozen design.
+    - Re-running the seed roster generator reproduces every stream hash.
+    - An injected composite-as-prime certificate is rejected.
+    - An injected one-byte shard mutation fails the recorded SHA-256.
+  control_added_by_this_design:
+    - The three-checkpoint RSS probe of section 3, run and recorded BEFORE the
+      full run is launched, with its tolerance and margin declared in advance.
+
+# ---------------------------------------------------------------------------
+# 6. HONEST ACCOUNTING
+# ---------------------------------------------------------------------------
+inventor_accounting:
+  dominated_by: >-
+    Not applicable as a solver comparison, and stated rather than left blank:
+    this is a feasibility pilot for an instrument, not a method for solving
+    ECDLP. The standing baseline for the campaign's actual target remains
+    Pollard rho at time exponent 1/2, and nothing here approaches it.
+  sota_delta:
+    generic_ecdlp_time_exponent: 0.0
+    memory_exponent: 0.0
+    data_query_improvement: 0
+    cryptographic_security_bits_reduced: 0
+  named_obstruction: >-
+    The pilot has no source arm and four replicates. Even a flawless completion
+    yields descriptive dependency-sensitivity and implementation diagnostics
+    only. The obstruction between this instrument and any statement about
+    HEUR-DS-1 is the missing source arm, and no amount of successful running
+    removes it.
+  premature_closure_check: >-
+    Recorded because closure and overclaim are symmetric failures. A pre-flight
+    probe FAILURE would not close the smoothness lane: it would relocate the
+    memory growth and name the next thing to fix. The lane closes only on a
+    committed Coordinator decision citing evidence, budget, test boundary,
+    remaining uncertainty, and a successor -- not on a second failed run.
+
+open_items_for_the_independent_review:
+  - Check the section 2 arithmetic independently: C(512,2) = 130816, the
+    32-fold product giving 4,186,112, the 1,700,608 checkpoint summing from
+    1,046,528 + 654,080, the 0.40625 fraction, and the two linear projections.
+  - Judge whether the refusal to reduce the object set is right, given that the
+    binding cap was RSS and time had ~87 percent headroom. This is the design's
+    main judgement call and the place it is most likely to be wrong.
+  - Confirm the design edits no immutable artifact and creates no canonical
+    amendment or run package.
+  - Confirm nothing in this document treats RUN002's resource_exhaustion as
+    mathematical evidence.
+  - Set the numeric tolerance and margin for the section 3 probe, or require
+    the successor contract to set them, so they cannot be chosen after the
+    probe is observed.

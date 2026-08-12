@@ -54,6 +54,19 @@ Before escalating a result:
 - state whether the evidence is toy-scale, medium-scale, or cryptographic-scale;
 - compare projected cost against generic rho using an explicit cost model.
 
+## Research direction criterion
+
+Exemplar-pattern alignment is a standing criterion for direction
+prioritization, per `docs/target-result-profile.md` (canonical exemplar:
+Wesolowski's p^{1/3+o(1)} supersingular-isogeny result, full text at
+`inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`). When selecting or expanding
+research programs — including the Phase 4 programs above — prefer directions
+that target the asymptotic exponent of a central problem, state conditional
+results against explicit numbered heuristics, plan cryptographic-scale
+validation experiments for those heuristics, and report concrete costs,
+memory, and affected-vs-safe scope honestly. This criterion ranks directions;
+it does not lower the Phase 5 evidence gates.
+
 ## Immediate next engineering tasks
 
 - Add YAML/JSON schemas corresponding to `templates/research-records.md`.

@@ -1,0 +1,287 @@
+execution_report:
+  experiment_id: EXP-XOR-7267e4
+  hypothesis_id: H-XOR-a227dc
+  run_id: RUN-XOR-7267e4-grid
+  task_id: TASK-20260808-e6022f
+  role: executor
+  implementation_commit: 22a9f461b361599fe92a6b37836d74405dd2041e
+  implementation_commit_dirty: true
+
+  protocol_deviations:
+    - >-
+      NONE to the frozen scientific protocol (curve/factor-base rules,
+      charge model, controls, arm mechanics) -- Arms A and B are the frozen
+      full_grid.py functions imported unchanged (CTRL-BLOB verified,
+      independently recomputed sha256 matches the hash cited in
+      EV-ECDLP-65b004 and in EXP-XOR-62b256/EXP-XOR-019343's own
+      baseline_sha256 fields); Arm D is a thin wrapper calling the frozen
+      arm_c_random_predictor unchanged and relabeling its result, since that
+      function already implements exactly the "same table, Q=|F| queries
+      drawn uniformly from F_p, collision-free within run" mechanism
+      H-XOR-a227dc's own mechanism section defines for Arm D.
+    - >-
+      INTERPRETATION, not deviation: specification.yaml uses "cell" at two
+      different granularities across sections (independent_variables and
+      replication define cell=(p,b), 8 total; the stopping_rules block's own
+      first bullet defines "24 cells (4 primes x 2b x [A,B,D])"=(p,b,arm),
+      24 total, then the very next bullet's early-exit condition compares
+      C_D vs C_B "in the first 4 cells" -- a comparison only meaningful at
+      (p,b) granularity, since C_D and C_B are both arm-specific quantities
+      requiring the SAME (p,b) to compare). Resolved as (p,b) groups (the
+      only coherent reading for this specific comparison); documented here
+      rather than silently assumed.
+    - >-
+      ARTIFACT NAMING RECONCILIATION: specification.yaml's own
+      required_artifacts and TASK-20260808-e6022f's deliverables both name
+      "manifest.json" and "raw-results.json" (plural); this session's direct
+      instructions and docs/evidence-and-reproducibility.md's canonical
+      reproduction-package schema both name "manifest.yaml" and
+      "raw-result.json" (singular), and the most recent sibling precedent in
+      this lineage (EXP-XOR-019343) used the latter. Both were produced:
+      manifest.yaml (primary, narrative-rich) plus manifest.json (a faithful
+      PyYAML-derived JSON transcription of the identical data), and
+      raw-result.json (primary, written by charged_grid.py) plus
+      raw-results.json (a byte-identical copy, same sha256). No governing
+      document's literal artifact list is left unmet by this choice.
+    - >-
+      implementation.md was NOT written as a separate file: this session's
+      direct instructions prohibit writing report/summary/findings/analysis
+      .md files, since the parent agent reads this execution_report
+      directly rather than files. The equivalent narrative content
+      (protocol deviations, implementation decisions, interpretive notes)
+      is instead carried in manifest.yaml's narrative fields, in
+      charged_grid.py's own docstrings/comments (an archived, hashed
+      artifact), and in this execution_report.
+
+  runs:
+    completed: [RUN-XOR-7267e4-grid]
+    invalid: []
+    failed: []
+
+  observations:
+    - >-
+      FROZEN PREDICTION REFERENCE: specification.yaml preregistered_prediction
+      states "C_A ~ 2|F|^3; C_B ~ |F|^2 + 2*R; C_D ~ |F|^2 + 2*(#chance
+      collisions)... predicted ranking C_B < C_D < C_A in every cell." This
+      is the frozen, unadjusted comparison target; the numbers below are
+      compared against it exactly as specified, never adjusted.
+    - >-
+      C_A measured exactly matches its closed form in all 4 reached cells:
+      C_A = 2*|F|^3 exactly (self-consistency check C_A_self_consistent:
+      true in all 20 instances). This is arithmetic self-consistency of the
+      frozen arm_a_no_oracle output, not new evidence.
+    - >-
+      MEASURED vs MODELED divergence for C_B: the frozen modeled formula
+      approximates candidates_verified with R_B (C_B_modeled = |F|^2 +
+      2*R_B). The MEASURED candidates_verified_B in every reached cell is
+      approximately 2*R_B, not R_B (e.g. cell p=101,b=0.4: R_B=26,
+      candidates_verified_B=52), so measured C_B exceeds C_B_modeled by
+      roughly |F|^2+2*R_B in each cell (measured 248 vs modeled 196 in that
+      cell). A plausible mechanism (not asserted as confirmed, just
+      observed as consistent with the measured counts) is the +/-y symmetry
+      of the factor base: whenever an x-match yields a genuine relation
+      P1=-(P2+P3), the same table bucket is also x-matched by the point
+      with the same x and opposite y, contributing one same-sign false
+      positive alongside almost every genuine relation. Reported as a
+      measured-vs-modeled gap per the spec's own required labeling
+      discipline, not as a claim about the model being wrong.
+    - >-
+      PRIMARY MEASURED RESULT (uncertainty-reduction questions 1-2): in all
+      4 REACHED (p,b) cells (p in {101,103}, b in {0.4,0.5}), the measured
+      C_D_mean was LESS than the measured C_B_mean (176<248, 562.4<648,
+      180.8<272, 546.4<792). This is the textual condition specification.yaml
+      labels F2 ("C_B >= C_D") and is exactly the condition its own
+      early-exit stopping rule is keyed to. The predicted ranking
+      C_B<C_D<C_A held for the C_A leg (C_D<C_A in all 4 cells) but not for
+      the C_B<C_D leg (measured C_B>C_D, the reverse of the prediction) in
+      all 4 reached cells; ranking_C_A_gt_C_D_gt_C_B held in 0 of 4 reached
+      cells. This is a measured comparison against the frozen prediction,
+      not an interpretation of what it means for H-XOR-a227dc.
+    - >-
+      EARLY-EXIT STOPPING RULE: specification.yaml's stopping_rules state
+      "stop and escalate if in >= 2 of the first 4 cells C_D <= C_B ...
+      record as a negative result and close the successor." The measured
+      condition held in 4 of the first 4 reached cells (not merely the >=2
+      threshold). Per "stop and escalate", charged_grid.py halted after
+      group 4 and did not attempt groups 5-8 (p in {107,211}). This
+      executor recorded the measured trigger and halted as instructed;
+      "close the successor" names a Coordinator-level state-transition
+      action this executor does not and cannot perform (AGENTS.md: only the
+      Coordinator changes official hypothesis/experiment status).
+    - >-
+      R_D/R_B (uncertainty-reduction question 3), corrected n=4 groups:
+      mean 0.010593 (95% CI [0.002766, 0.01842], t(3)=3.182), i.e. Arm D
+      recovered on the order of 1% of Arm B's relation count at the
+      B-matched query count, in the 4 reached cells. F3 (R_D/R_B >= 0.95)
+      did not trip in any reached cell.
+    - >-
+      TAIL CHECK (specification.yaml tail_checks): smallest cell
+      (p=101,b=0.4) ranking_C_A_gt_C_D_gt_C_B = False (reached, measured).
+      Largest cell (p=211,b=0.5) was NOT REACHED before the early-exit
+      trigger; its value is null (absence of data), not a measured False --
+      this specific tail check is therefore incomplete, not negative.
+    - >-
+      MEMORY RECONCILIATION (uncertainty-reduction question 4, first memory
+      accounting in this lane): isolated per-arm tracemalloc peak (reset_peak()
+      baseline-subtracted; see charged_grid.py's _measure docstring for the
+      methodology correction applied before this official run -- an earlier
+      draft measurement, caught in this session's own pre-run testing and
+      never used for an archived artifact, read the raw post-call peak
+      without subtracting the reset-point baseline and produced an
+      implausible ~45,000 bytes/analytic-entry figure dominated by sympy/
+      interpreter overhead common to all three arms on a cell). After the
+      fix: implied bytes per analytic |F|^2 entry for Arm B ranges
+      75.68-83.11 across the 4 reached cells (ratio 1.10x, max_over_min);
+      for Arm D, 82.33-90.52 (ratio 1.10x). Neither exceeds the spec's >2x
+      discrepancy-flag threshold across the 4 reached cells. This
+      reconciliation covers only F_size in {12,20} (p in {101,103}); the
+      larger cells (F_size up to 27 at p=211) were never reached, so the
+      reconciliation's size range is narrower than planned. A separate,
+      whole-process, cumulative peak_rss_bytes (resource.getrusage,
+      monotonic, not isolated per arm) is also recorded: 84,639,744 bytes
+      for the entire 60-arm-run invocation.
+    - >-
+      All measured control checks passed in all 20 valid instances:
+      CTRL-QUERY-COUNT, CTRL-PRNG-NO-COLLISION, CTRL-YIELD-REF (R_B==R_A
+      exactly in every reached cell, re-derived per-configuration as the
+      spec requires, not cited from the predecessor's evidence). CTRL-BLOB
+      passed against an independently recomputed sha256 of the frozen
+      predecessor file.
+    - >-
+      Scientific-payload determinism: an independent second invocation of
+      charged_grid.py (into a separate scratch directory, not part of the
+      archived run) reproduced every C/R value and every control-check
+      result bit-for-bit; the only observed cross-run difference was in the
+      per-cell mean tracemalloc figure (e.g. 13025.6 vs 13032.6 bytes on one
+      cell, ~0.05%), consistent with ordinary allocator/GC timing noise in a
+      secondary memory metric, not a determinism defect in the charged-cost
+      or relation-count primary metrics.
+
+  anomalies:
+    - severity: informational
+      description: >-
+        RESEARCH-LINEAGE CONTEXT, discovered during pre-execution
+        due-diligence and not a blocker: a DIFFERENT, independently-designed
+        successor experiment (EXP-XOR-62b256, superseded by EXP-XOR-019343;
+        hypothesis H-XOR-56cc0a) traces to the SAME mandate
+        (DEC-20260808-6a7ac4) and was executed to completion by a different
+        agent/runtime (codex_native) before this task ran, closed without
+        status transition by DEC-20260808-b671fd. EXP-XOR-62b256's own spec
+        text calls EXP-XOR-7267e4 (this experiment) "historical" and states
+        "the historical draft is not edited or executed" -- but (a) commit
+        ancestry shows EXP-XOR-7267e4's freeze (f3af116b4) and
+        EXP-XOR-62b256's freeze (cb1bc33ef) are NOT ancestor/descendant of
+        each other -- concurrent, independently-designed successors later
+        merged into the same main, not a sequential supersession; (b)
+        DEC-20260808-6a7ac4's own next_actions explicitly declines to select
+        between multiple possible successor designs ("Either is a reasonable
+        next... this decision does not select between them"); (c) no
+        Coordinator decision revokes EXP-XOR-7267e4's own approved/frozen
+        status or H-XOR-a227dc's approved status; (d) the two designs test
+        materially different things -- H-XOR-56cc0a's coverage-matched
+        q-grid design vs this experiment's fixed-Q, full n=8-group-design
+        battery with R_D/R_B and memory accounting; (e) DEC-20260808-b671fd
+        explicitly flags that EXP-XOR-019343's own run did NOT record peak
+        memory ("The independent Validator's verdict is incomplete because
+        the run did not record peak memory") -- exactly one of this
+        experiment's four uncertainty-reduction objectives, confirming this
+        is not duplicate work. This executor proceeded with EXP-XOR-7267e4
+        exactly as its own frozen, approved contract and this task's
+        explicit handoff direct, per the operating rule that only a
+        non-null approved_by and status:approved on the NAMED experiment's
+        own specification.yaml gates execution. Flagged here for Coordinator
+        reconciliation of the two hypothesis lineages (H-XOR-a227dc vs
+        H-XOR-56cc0a) under RQ-ECDLP-002 -- a judgment squarely outside this
+        role's authority.
+    - severity: informational
+      description: >-
+        A memory-measurement methodology bug was found and fixed DURING this
+        session's own pre-run testing, before any official/archived run was
+        produced: tracemalloc.reset_peak() sets the peak baseline to
+        whatever Python-heap size is already resident (sympy import,
+        interpreter bookkeeping, ~33MB observed), not to zero; reading the
+        raw post-call peak without subtracting that baseline produced a
+        physically implausible ~45,000 bytes/table-entry figure, roughly
+        uniform across arms A/B/D on the same cell (a tell that it was not
+        isolating each arm's own allocation). Fixed by explicitly capturing
+        and subtracting the reset-point baseline (see charged_grid.py
+        _measure()). The corrected methodology yields self-consistent,
+        explicable per-arm figures (Arm A ~584-608 bytes -- no table built;
+        Arm B ~76-83 bytes/entry; Arm D ~82-91 bytes/entry, slightly above B
+        consistent with its extra SHA-256 digest allocations per query).
+        Recorded per AGENTS.md rule 8 (unexpected observations recorded, not
+        discarded) even though the defective measurement was never used in
+        an archived artifact.
+    - severity: informational
+      description: >-
+        A label-only bug (ranking_..._holds_in_n_of_8_cells hardcoding "8"
+        as the denominator even when early-exit meant only 4 groups were
+        reached, which would misleadingly imply full-grid coverage) was
+        found and fixed during construction, before the official run was
+        executed; the archived run was produced only with the corrected,
+        dynamic-denominator version (cells_reached / cells_planned fields,
+        explicit design_note strings). No scientific/computational value
+        was affected -- confirmed by comparing C/R values before and after
+        the fix (identical).
+    - severity: material
+      description: >-
+        60 of the 120 planned arm-runs (groups 5-8: p in {107,211}, both
+        b-values, all 3 arms) were NEVER ATTEMPTED. This is not a failure in
+        AGENTS.md's taxonomy (nothing was attempted-and-failed) -- it is a
+        rule-mandated non-attempt: specification.yaml's own early-exit
+        stopping rule triggered and instructed "stop and escalate", and
+        charged_grid.py halted accordingly rather than continuing past a
+        frozen stopping condition. Consequently: (a) uncertainty-reduction
+        question 2 (C_A>C_D>C_B ranking) and question 1 (C_B<C_D) are
+        answered for the 4 reached cells only, with a uniform,
+        non-borderline pattern (not a single reached cell showed the
+        predicted C_B<C_D ordering); (b) question 3 (R_D/R_B) is likewise
+        limited to 4 cells; (c) question 4 (memory reconciliation) covers
+        only F_size in {12,20}, not the full planned range up to F_size=27
+        (p=211); (d) the tail check at the largest cell (p=211,b=0.5) is
+        UNAVAILABLE, not negative. A Coordinator decision is needed on
+        whether the 4-cell result is treated as sufficient under the frozen
+        stopping rule's own text ("record as a negative result and close the
+        successor" -- an action this executor does not take) or whether a
+        protocol amendment authorizing completion of groups 5-8 is warranted
+        to also resolve objectives 3-4 across the full range. This executor
+        makes no recommendation between those options beyond naming them.
+
+  artifact_paths:
+    - experiments/EXP-XOR-7267e4/implementation/charged_grid.py
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/command.txt
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/environment.json
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/stdout.log
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/stderr.log
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/raw-result.json
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/raw-results.json
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/analysis.yaml
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/manifest.yaml
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/manifest.json
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-grid/execution-report.yaml
+
+  executor_assessment:
+    protocol_complete: true
+    protocol_complete_note: >-
+      The frozen protocol, INCLUDING its own early-exit stopping rule, was
+      executed to a well-defined terminal state exactly as specified; this
+      is true even though only 60 of the 120 planned arm-runs were
+      attempted, because the stopping rule itself defines "stop and
+      escalate" as the correct behavior at this measured condition, and no
+      unauthorized deviation from the frozen contract occurred.
+    data_quality: good
+    data_quality_note: >-
+      Zero invalid instances, zero control failures, deterministic and
+      self-consistent across an independent re-invocation, for the 20
+      instances (60 arm-runs) that were run. Scope is limited to 4 of 8
+      planned (p,b) groups; within that scope, quality is good.
+    requires_rerun: false
+    requires_rerun_note: >-
+      The completed portion requires no rerun (no defect). Whether a
+      SEPARATE, Coordinator-authorized continuation of groups 5-8 is
+      warranted is a scope/protocol decision for the Coordinator, not a
+      data-quality defect in what was measured.
+    scope: >-
+      Observations only; Coordinator and independent reviewers own
+      interpretation, hypothesis-status transitions, and any decision to
+      close the successor or amend the protocol for full-grid completion.

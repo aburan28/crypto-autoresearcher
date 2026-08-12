@@ -1,0 +1,229 @@
+task_id: TASK-20260728-701
+goal_id: GOAL-SSI-001
+batch_id: BATCH-003
+candidate_id: IDEA-20260725-001
+supersedes: coordination/goals/GOAL-SSI-001/batches/BATCH-002/tasks/TASK-20260727-601/matched_baseline_recommendation.yaml
+fixes_applied:
+  - F1: >-
+      Per-processor walk-function variation. P/2 distinct hash functions
+      assigned to walks from E_0, P/2 to walks from E_1. Each processor
+      explores a different path from its endpoint. "The walk function is
+      fixed and shared by all processors" retracted. Reconstruction records
+      which walk function produced each distinguished point.
+  - N1: >-
+      Clock cycle for VW is set by per-processor storage O(1), not the shared
+      table, because the table is accessed only at distinguished points.
+      tau column reconciled with wall-clock column: table linear dimension
+      p^{1/12} does not set the clock cycle; clock cycle is O(1).
+  - N2: >-
+      "Velu duals from stored kernels" corrected to "Velu duals from
+      recomputed kernels" / "kernels recomputed during reconstruction."
+      Kernels are recomputed from the hash function at each step during the
+      reconstruction re-run; no per-step kernel storage is required.
+  - N3: >-
+      Isogeny degree l specified as a small fixed prime (l=2 for CGL).
+      Computing E[l] and its (l+1) subgroups of order l is polynomial in
+      log p for fixed small l.
+  - N4: >-
+      O~(sqrt(|V|)) birthday bound assumes O(log p) mixing steps have
+      occurred (Ramanujan property). If collision occurs before mixing, the
+      constant may differ but the exponent is unaffected.
+regimes:
+  F_p2:
+    mitm_step_count_exponent: "1/2"
+    mitm_full_cost_exponent: "2/3"
+    mitm_full_cost_note: >-
+      Confirmed correct by RT-20260727-603 (check 2a). Table of p^{1/2}
+      entries, clock cycle p^{1/6} (set by table; every step accesses it),
+      optimal P = p^{1/2}, wall-clock p^{1/6}, hardware p^{1/2}, full cost
+      p^{1/2} * p^{1/6} = p^{2/3}. Matches Wiener BSGS result with n = |V|
+      ~ p. Unchanged from BATCH-002.
+    vw_full_cost_exponent: "1/2"
+    vw_parallelization: >-
+      P/2 distinct hash functions from E_0, P/2 from E_1; P = p^{1/4}. Each
+      processor explores a different deterministic path from its endpoint
+      using its assigned hash function h_i. A collision between any E_0-walk
+      and any E_1-walk yields a path E_0 -> E_1. This gives P = p^{1/4}
+      useful processors, p^{1/4} walk steps each, total O~(p^{1/2}) steps.
+      Without this fix (fixed walk function), only 2 useful walks exist and
+      full cost is O~(p^{3/4}), worse than MITM.
+    vw_clock_cycle: >-
+      Set by per-processor storage O(1), not the shared table, because the
+      table is accessed only at distinguished points (once every 2^d steps).
+      Amortized table-access cost per step is O(S^{1/3}/2^d) = O(p^{-1/6}),
+      subconstant. This is Wiener's theorem: parallel collision search
+      retains its advantage because per-processor storage is small
+      (KN-LIT-094, KN-TECH-035). Reconciles N1.
+    vw_mixing_assumption: >-
+      O~(sqrt(|V|)) = O~(p^{1/2}) birthday bound assumes O(log p) mixing
+      steps (Ramanujan property of G_l, KN-TECH-024). Proven for F_{p^2}.
+      If collision occurs before mixing, constant may differ but exponent
+      is unaffected (N4).
+    low_memory_collision_search:
+      defined: true
+      time_exponent: "1/2"
+      space_exponent: "poly"
+      obstruction: null
+      walk_model: >-
+        Deterministic random walk on the supersingular l-isogeny graph G_l
+        (l = small fixed prime, e.g. l=2 for CGL). At each vertex, select
+        one of (l+1) order-l subgroups of E[l] via h_i(j(E)) mod (l+1),
+        where h_i is a per-processor hash function. P/2 distinct hash
+        functions assigned to walks from E_0, P/2 to walks from E_1 (F1
+        fix). Computing E[l] and its subgroups is polynomial in log p for
+        fixed small l (N3). Ramanujan mixing time O(log p) guarantees the
+        birthday bound O~(p^{1/2}) after mixing (N4).
+      distinguished_predicate: >-
+        j-invariant with d leading zero bits in canonical F_{p^2} encoding
+        (d tunable; set 2^d = p^{1/4} for optimal full cost). O(1)-time to
+        evaluate. Unchanged from BATCH-002.
+      collision_to_path_reconstruction: >-
+        Well-defined. Re-run both walks from starting curves using their
+        recorded walk-function indices (F1 fix: walk-function tracking
+        required), using distinguished-point segmenting to locate the merge
+        vertex in polynomial space. Kernels are recomputed at each step
+        from h_i(j(E)) mod (l+1) during the reconstruction re-run -- not
+        stored (N2 fix: "recomputed kernels," not "stored kernels").
+        Compose one path with the dual of the other (Velu duals from
+        recomputed kernels) plus the F_{p^2}-isomorphism for curves at the
+        same j-invariant. No uncharged oracles required.
+      full_cost_exponent: "1/2"
+      full_cost_note: >-
+        Clock cycle O(1) (per-processor storage, N1 reconciliation) means
+        no 3D wiring penalty; full cost equals step count. P = p^{1/4}
+        useful processors (F1 fix), p^{1/4} steps each, wall-clock
+        O~(p^{1/4}), hardware O(p^{1/4}), full cost p^{1/4} * O~(p^{1/4})
+        = O~(p^{1/2}). Strictly dominates MITM full cost p^{2/3}.
+    delfs_galbraith_exponent: "not applicable to F_{p^2} regime"
+    matched_baseline: "VW distinguished-point collision search"
+    matched_baseline_full_cost_exponent: "1/2"
+    decision_relevant: true
+    decision_relevant_note: >-
+      Under full cost, the matched baseline changes from MITM (p^{2/3}) to
+      VW (p^{1/2}). The step-count exponent is unchanged (1/2). A candidate
+      must beat p^{1/2} full cost, not the easier p^{2/3} MITM target.
+      This holds only with the F1 fix (per-processor walk-function
+      variation); without it, VW achieves O~(p^{3/4}), worse than MITM.
+  F_p:
+    dg_step_count_exponent: "1/4"
+    dg_full_cost_exponent: "1/3"
+    dg_full_cost_note: >-
+      Confirmed correct by RT-20260727-603 (check 2b). DG is MITM on the
+      F_p subgraph of |V^{F_p}| ~ sqrt(p) vertices. Table of p^{1/4}
+      entries, clock cycle p^{1/12} (set by table), optimal P = p^{1/4},
+      wall-clock p^{1/12}, hardware p^{1/4}, full cost p^{1/4} * p^{1/12}
+      = p^{1/3}. Matches Wiener BSGS result with n = sqrt(p). Unchanged
+      from BATCH-002.
+    mitm_step_count_exponent: "1/2"
+    mitm_full_cost_exponent: "2/3"
+    vw_full_cost_exponent: "1/4"
+    vw_parallelization: >-
+      Same as F_{p^2}: P/2 distinct hash functions from E_0, P/2 from E_1,
+      on the F_p subgraph. P = p^{1/8} useful processors, p^{1/8} walk
+      steps each, total O~(p^{1/4}) steps. Without the F1 fix, only 2
+      useful walks exist and full cost is O~(p^{3/8}), worse than DG.
+    vw_clock_cycle: >-
+      Set by per-processor storage O(1), not the shared table (same
+      reconciliation as F_{p^2}, N1).
+    vw_mixing_assumption: >-
+      O~(sqrt(|V^{F_p}|)) = O~(p^{1/4}) birthday bound assumes O(log p)
+      mixing steps. G_l^{F_p} is NOT known to be Ramanujan -- this is an
+      unproven heuristic assumption, stronger than what DG requires (DG
+      uses BFS, no mixing). If mixing fails, VW on F_p is falsified and
+      DG at p^{1/3} full cost is the fallback baseline. Constant may
+      differ if collision occurs before mixing; exponent unaffected (N4).
+    low_memory_collision_search:
+      defined: true
+      time_exponent: "1/4"
+      space_exponent: "poly"
+      obstruction: >-
+        Conditional definition: requires rapid mixing of the F_p-rational
+        subgraph G_l^{F_p}, which is NOT proven (the subgraph is not known
+        to be Ramanujan). Delfs-Galbraith uses BFS-based MITM and does not
+        require mixing. If the mixing assumption fails, the VW analogue on
+        the F_p subgraph is falsified and DG at p^{1/3} full cost remains
+        the baseline.
+      walk_model: >-
+        Same as F_{p^2} but restricted to F_p-rational curves and
+        F_p-rational l-isogenies (l = small fixed prime, N3). Per-processor
+        walk-function variation (F1 fix): P/2 distinct hash functions from
+        E_0, P/2 from E_1. State space N' ~ sqrt(p); birthday bound gives
+        O~(p^{1/4}) steps conditional on mixing (N4).
+      distinguished_predicate: >-
+        Same as F_{p^2}: leading zero bits on j-invariant encoding.
+      collision_to_path_reconstruction: >-
+        Same as F_{p^2}: re-run walks with distinguished-point segmenting
+        using recorded walk-function indices (F1 fix), kernels recomputed
+        at each step (N2 fix), compose with dual isogeny. No uncharged
+        oracles required.
+      full_cost_exponent: "1/4"
+      full_cost_note: >-
+        Clock cycle O(1) (per-processor storage, N1) means no wiring
+        penalty; full cost equals step count. P = p^{1/8} useful
+        processors (F1 fix), p^{1/8} steps each, wall-clock O~(p^{1/8}),
+        hardware O(p^{1/8}), full cost O~(p^{1/4}). Strictly dominates DG
+        full cost p^{1/3}, conditional on the mixing assumption.
+    matched_baseline: "VW distinguished-point collision search (conditional on F_p subgraph mixing)"
+    matched_baseline_full_cost_exponent: "1/4"
+    matched_baseline_fallback: >-
+      If the F_p subgraph mixing assumption is rejected, Delfs-Galbraith at
+      full cost p^{1/3} is the matched baseline.
+    decision_relevant: true
+    decision_relevant_note: >-
+      Under full cost, the matched baseline changes from DG (p^{1/3}) to VW
+      (p^{1/4}), conditional on mixing. The step-count exponent is
+      unchanged (1/4). A candidate must beat p^{1/4} full cost (or p^{1/3}
+      if mixing is rejected), not the easier DG full-cost target. This
+      holds only with the F1 fix; without it, VW achieves O~(p^{3/8}),
+      worse than DG.
+overall_recommendation: >-
+  The F1 fix (per-processor walk-function variation) confirms the VW
+  full-cost exponents at the BATCH-002 values: p^{1/2} for F_{p^2} and
+  p^{1/4} for F_p (conditional on F_p subgraph mixing). The fix is
+  essential -- without it, only 2 useful walks exist (one from E_0, one
+  from E_1), giving full cost O~(p^{3/4}) for F_{p^2} and O~(p^{3/8}) for
+  F_p, both worse than the respective MITM/DG baselines. With the fix,
+  P/2 distinct hash functions from E_0 and P/2 from E_1 give P = p^{1/4}
+  (F_{p^2}) or P = p^{1/8} (F_p) useful processors, each exploring a
+  different deterministic path, with clock cycle O(1) from per-processor
+  storage (N1 reconciliation), polynomial space (N2: recomputed kernels),
+  fixed small l (N3), and mixing-time assumption noted (N4). The honest
+  matched baseline under Wiener full-cost accounting is the low-memory VW
+  distinguished-point collision search, not MITM or Delfs-Galbraith, in
+  both regimes. For F_{p^2}, VW achieves full cost O~(p^{1/2}) with
+  polynomial space, strictly dominating MITM's p^{2/3}; the Ramanujan
+  property guarantees mixing. For F_p, VW achieves full cost O~(p^{1/4})
+  on the F_p subgraph, strictly dominating DG's p^{1/3}, but conditional
+  on unproven mixing (DG's BFS does not need mixing). Full-cost accounting
+  changes which algorithm is the baseline (MITM/DG -> VW) but not the
+  hardness exponent (p^{1/2} for F_{p^2}, p^{1/4} for F_p). This is a
+  matched-baseline correction, not a material ranking change or a
+  sub-p^{1/4} break. It is decision-relevant because it raises the bar
+  for novelty screening: future candidates must beat the VW full cost,
+  not the easier MITM/DG full cost.
+knowledge_promotion_warranted: true
+knowledge_promotion_note: >-
+  Create a new KN-TECH entry (or update KN-TECH-029) to record the
+  complete matched-baseline package in a single coherent promotion: (1)
+  the full-cost exponents for MITM (p^{2/3} F_{p^2}) and Delfs-Galbraith
+  (p^{1/3} F_p) under the Wiener 3D wiring model -- confirmed correct by
+  RT-20260727-603, unchanged from BATCH-002; (2) the definition of the van
+  Oorschot-Wiener distinguished-point collision search on the supersingular
+  l-isogeny graph, including the corrected walk model (random l-isogeny
+  steps with per-processor hash-function variation, F1 fix; l = small fixed
+  prime, N3), distinguished predicate (leading-zero-bits on j-invariant),
+  and collision-to-path reconstruction (distinguished-point segmenting +
+  Velu duals from recomputed kernels with walk-function tracking, N2; no
+  uncharged oracles); (3) the full-cost exponents for VW (p^{1/2} F_{p^2},
+  p^{1/4} F_p conditional on mixing) -- re-derived with F1 fix and N1
+  clock-cycle reconciliation, confirmed at BATCH-002 values; (4) the
+  matched-baseline recommendation (VW, not MITM/DG, under full cost; F_p
+  conditional on mixing with DG fallback at p^{1/3}); (5) the mixing-time
+  assumption (N4) and its limitation. This fills the gap identified in the
+  BATCH-001 candidate report: KN-TECH-029 records step-count exponents but
+  does not apply Wiener full-cost accounting, and the isogeny-graph VW
+  analogue was not present in the spine. The Coordinator must verify
+  promotion gates (archived proof decomposition, validated heuristics,
+  independent review, red-team pass) before promoting. This is a
+  matched-baseline recommendation, not a breakthrough claim; no
+  review-breakthrough review is required.

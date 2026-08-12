@@ -1,0 +1,321 @@
+design_proposal:
+  record_type: idea_generator_design_proposal
+  task_id: TASK-20260801-047
+  batch_id: BATCH-025
+  title: Fresh finite-X direct smoothness measurement for HEUR-DS-1
+  status: proposal_only
+  official_state_mutation: false
+  execution_performed: false
+  materialization_note: >-
+    The Idea Generator role returned this YAML content to the Coordinator because
+    its runtime forbade direct file writes. The Coordinator materialized the
+    returned content without treating it as an approval or state transition.
+
+  candidate_records:
+    hypothesis_id: H-SMTH-002
+    experiment_id: EXP-SMTH-002
+    allocation_note: Provisional identifiers; Coordinator must confirm freshness.
+
+  objective:
+    question: >-
+      On toy ordinary prime-field curves, do ENC-B integers derived from
+      off-diagonal S3 pairs have an LPF and smoothness distribution
+      distinguishable from uniform integers on the identical finite support
+      [1,p^2]?
+    claim_ceiling: >-
+      At most a toy-scale finite-X distributional anomaly for the exact frozen
+      generators. No ECDLP speedup, asymptotic exponent, cryptographic-scale,
+      support, closure, or breakthrough claim is permitted.
+    dominated_by: Pollard-rho generic ECDLP
+    sota_delta:
+      time_exponent: 0.0
+      memory_exponent: 0.0
+      data_exponent: 0.0
+      solved_instances: 0
+
+  mechanism:
+    source_object:
+      polynomial: S3(x1,x2,Z)=c2*Z^2+c1*Z+c0
+      coefficients:
+        c2: (x1-x2)^2 mod p
+        c1: -2*((x1+x2)*(x1*x2+a)+2*b) mod p
+        c0: (x1*x2-a)^2-4*b*(x1+x2) mod p
+      enumeration: Enumerate exactly all factor-base index pairs 0 <= i < j < 512.
+      expected_count_per_cell: 130816
+      invariant: Distinct x values and i<j imply c2 != 0 mod p.
+      roots_encoding:
+        e1: -c1/c2 mod p, represented in [0,p-1]
+        e2: c0/c2 mod p, represented in [0,p-1]
+        ENC-B: N=e1*p+e2+1
+        support: 1 <= N <= p^2
+        actual_X: p^2
+    prediction:
+      direction: >-
+        Source N values have stochastically smaller LPF and higher smooth rates
+        than measured-null integers.
+      replication: >-
+        Direction must agree at both bit sizes and on at least 3 of 4 curve cells
+        per bit size.
+    falsification: >-
+      The prediction fails within this scope if the frozen familywise test does
+      not reject, if the direction or replication rule fails, or if any required
+      control invalidates the run.
+
+  test_boundary:
+    field_bits: [16, 20]
+    curves_per_bit_size: 4
+    factor_base_size: 512
+    samples_per_source_cell: 130816
+    source_cells: 8
+    toy_only: true
+    exclusions:
+    - diagonal pairs
+    - repeated factor-base x values
+    - crypto-scale inference
+    - asymptotic Dickman-rho thresholds
+    - reuse of EXP-SMTH-001 approvals or artifacts
+
+  fixture_generation:
+    master_seed: 2501
+    seed_derivation: >-
+      seed(label,bits,cell,rep)=first_128_bits(SHA256(
+      "EXP-SMTH-002/v1|"||label||"|"||bits||"|"||cell||"|"||rep)).
+    prime_rule: >-
+      Starting from 2^(bits-1)+(seed("prime",bits,cell,0) mod 2^(bits-2)),
+      select the first prime below 2^bits; reject and advance deterministically
+      if fixture construction cannot obtain 512 distinct x coordinates.
+    curve_rule: >-
+      Derive a,b modulo p from successive SHA256 blocks; reject and advance until
+      4*a^3+27*b^2 is nonzero modulo p.
+    factor_base_rule: >-
+      Derive candidate x values modulo p from successive SHA256 blocks, reject
+      duplicates, and accept x exactly when x^3+a*x+b is a quadratic residue
+      including zero, until 512 distinct x values are frozen.
+    required_fixture_checks:
+    - p has the declared bit length and is prime
+    - curve discriminant is nonzero
+    - exactly 512 distinct valid x values exist
+    - exhaustive i<j enumeration has exactly 130816 pairs
+    - c2 is nonzero for every enumerated pair
+
+  factorization:
+    requirement: >-
+      Factor every source, reference-null, calibration-null, and plant integer
+      directly.
+    certificate_per_integer:
+    - original integer N
+    - sorted prime-power factorization
+    - verified deterministic primality result for every factor
+    - product-of-prime-powers reconstruction equal to N
+    - LPF, with LPF(1)=1
+    prohibition:
+    - no smoothness inference from residues alone
+    - no reuse of a source factorization for a distinct arm
+    - no dropped duplicates or N=1 observations
+    identical_pipeline: >-
+      Every arm passes serialized N values through the same factorization,
+      certificate verification, LPF extraction, and statistic implementation.
+
+  null_design:
+    distribution: >-
+      Discrete uniform integers on [1,X], where X=p^2 for that exact cell.
+    sampler: >-
+      Rejection sampling from unbiased SHA256-derived bits; modulo reduction is
+      forbidden.
+    fixed_reference_replicate: 0
+    calibration_replicates: 200
+    calibration_indices: 1..200
+    samples_per_replicate_per_cell: 130816
+    independence: >-
+      Each cell, replicate, and draw has a distinct domain-separated seed.
+      Reference, calibration, plant, and source domains are disjoint.
+    matching:
+    - identical cell-specific X
+    - identical sample count
+    - identical factorization pipeline
+    - identical statistics
+
+  smoothness_rungs:
+    u_values: [2, 3, 4, 5]
+    bound_rule: B_u=max(2,floor(X^(1/u)))
+    rate: q_u=count(LPF(N)<=B_u)/n
+    signed_difference: delta_u=q_u(test)-q_u(reference)
+    corrected_log_ratio: >-
+      log(((count_test+0.5)/(n+1))/((count_reference+0.5)/(n+1)))
+
+  statistics:
+    transformed_value: z(N)=log(max(1,LPF(N)))/log(X)
+    per_cell:
+    - name: ks_two_sided
+      formula: sup_t |F_test(t)-F_reference(t)|
+      tail: upper
+    - name: ks_smooth_direction
+      formula: sup_t (F_test(t)-F_reference(t))
+      tail: upper
+    - name: smooth_rate_difference
+      formula: delta_u for every frozen u
+      tail: upper
+    - name: smooth_rate_log_ratio
+      formula: corrected_log_ratio for every frozen u
+      tail: upper
+    - name: upper_tail_order_means
+      formula: mean of the k largest z values for k in [1,8,64,512]
+      transformed_effect: reference-test
+      tail: upper
+    pooled_per_bit: >-
+      Recompute every statistic after concatenating the four cells at each bit
+      size.
+    replication_diagnostic: >-
+      Record the sign of every directional metric in every cell.
+
+  calibration_protocol:
+    stage_1_predata_freeze:
+      freezes:
+      - fixture and seed derivation
+      - null/reference/calibration split
+      - statistic formulas and directions
+      - family membership
+      - alpha and max-rank algorithm
+      - plant definition and acceptance rule
+      - branch logic
+      source_access: Source statistic mode must remain disabled.
+    empirical_extremeness:
+      method: leave-one-out max-rank
+      detail: >-
+        For each calibration index r, compare null replicate r with fixed
+        reference replicate 0. For each statistic, compute its one-sided upper
+        empirical rank using the other 199 replicate values. For two-sided
+        signed diagnostics, rank absolute magnitude. Take T_r as the maximum
+        rank extremeness over every frozen cell, pooled-bit statistic, rung,
+        and tail statistic.
+      family_alpha: 0.05
+      cutoff: >-
+        Empirical 95th percentile of T_1..T_200 using the conservative higher
+        order statistic.
+      real_family_p: (1 + count_r[T_r >= T_real]) / 201
+      multiplicity: Single max-rank family controls all frozen comparisons.
+    stage_2_numeric_freeze:
+      required_output:
+      - all 200 calibration statistic vectors
+      - per-statistic empirical distributions
+      - family cutoff
+      - exact family membership ordering
+      - artifact hashes
+      gate: >-
+        Independent validation must confirm seeds, support, counts,
+        certificates, leave-one-out computation, and numeric cutoff before
+        plant or source mode is enabled.
+    anti_tuning:
+    - no source integer generation, factorization, summary, or plotting before cutoff freeze
+    - no statistic, rung, direction, alpha, or family-membership changes after calibration
+    - any calibration change creates a new experiment ID and fresh seeds
+    - numeric cutoff substitution follows only the frozen algorithm
+    - calibration artifacts and cutoff hash are committed before source execution
+
+  plant_control:
+    name: certified_B4_smooth_truncation
+    construction: >-
+      Draw uniform U on [1,X] with a plant-domain seed, factor U, retain only
+      prime-power factors with prime <= B_4, and set N_plant to their product,
+      using 1 if none remain. Serialize N_plant and factor it again through the
+      ordinary downstream pipeline.
+    certified_class: Gross deterministic B_4-smooth truncation only.
+    non_claim: >-
+      It does not certify power against subtle HEUR-DS-1 alternatives.
+    pass_rule:
+    - familywise empirical p <= 0.05
+    - pooled smooth-rate delta at u=4 is positive at both bit sizes
+    - positive u=4 delta occurs in at least 3 of 4 cells at each bit size
+    sequencing: >-
+      Plant must pass after numeric cutoff freeze and before source mode is
+      enabled.
+
+  decision_branches:
+    invalid:
+      when:
+      - fixture, enumeration, encoding, seed, factorization, or certificate check fails
+      - null support or sample count differs from source
+      - any predata artifact was changed after cutoff freeze
+      interpretation: Infrastructure-invalid; no mathematical evidence.
+    revise_without_source:
+      when:
+      - independent calibration validation fails
+      - plant control fails
+      interpretation: >-
+        Measurement design lacks demonstrated power; source remains unrun.
+    toy_signal:
+      when:
+      - real_family_p <= 0.05
+      - at least one directional smoothness or LPF metric has predicted sign at both bit sizes
+      - the same metric has predicted sign in at least 3 of 4 cells per bit size
+      - all controls pass
+      interpretation: >-
+        Toy finite-X anomaly requiring fresh replication; not hypothesis support.
+    no_detected_signal:
+      when:
+      - controls pass
+      - toy_signal criteria are not met
+      interpretation: >-
+        Scoped negative only for these fixtures, sizes, encoding, and statistics.
+    inconsistent_signal:
+      when:
+      - familywise rejection occurs but direction or replication rule fails
+      interpretation: >-
+        Unexpected observation; archive without promotion and design a successor.
+
+  budgets:
+    source_integers: 1046528
+    reference_null_integers: 1046528
+    calibration_null_integers: 209305600
+    plant_integers: 1046528
+    maximum_total_factorizations: 212445184
+    maximum_runs:
+      calibration: 1
+      plant: 1
+      source: 1
+    stopping_rules:
+    - stop immediately on certificate or invariant failure
+    - stop before source if calibration validation or plant control fails
+    - do not extend seeds, cells, rungs, replicates, or alpha after observing data
+    implementation_budget_note: >-
+      Coordinator must freeze explicit wall-clock, CPU, memory, and disk limits
+      after benchmarking the identical factorization path on null-only data;
+      budget exhaustion is infrastructure-only and cannot falsify HEUR-DS-1.
+
+  required_artifacts:
+  - frozen specification and predata manifest
+  - fixture table with p,a,b and 512 ordered x values per cell
+  - complete seed roster and collision check
+  - implementation and environment lock
+  - exact commands, stdout, stderr, timestamps, and resource measurements
+  - compressed per-integer factorization certificates for every executed arm
+  - calibration statistic vectors and numeric cutoff record
+  - independent calibration validation
+  - plant raw data, results, and power-control receipt
+  - source raw data and results if source gate opens
+  - immutable run receipt with git commit and dirty-tree state
+  - independent result validation and red-team report
+
+  predecessor_repairs:
+    RV012-A1: >-
+      Tail decisions use measured finite-X order-statistic nulls, eliminating
+      the asymptotic rule that false-fired on correct nulls.
+    RV012-A2: >-
+      Enumeration is i<j by construction; all 512 diagonal undefined draws are
+      absent.
+    RV012-B2: >-
+      KS thresholds come from 200 measured null replicates at each exact X=p^2,
+      not an asymptotic cutoff.
+    RV012-B3: >-
+      Smooth-rate bands and ratios use measured finite-X null distributions,
+      not Dickman-rho bands with known inflation.
+    power_certificate: >-
+      Plant claim is narrowed to gross B_4-smooth truncation and cannot certify
+      broader alternative classes.
+
+  handoff_recommendation:
+    coordinator_action: >-
+      Translate into a fresh frozen contract, allocate fresh IDs, and snapshot
+      it before independent pre-run review.
+    execution_authorized: false
+    status_transition_authorized: false

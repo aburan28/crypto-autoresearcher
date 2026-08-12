@@ -17,7 +17,12 @@ For every proposal, provide:
 - falsification criteria;
 - scope limitations;
 - estimated implementation and compute cost;
-- dependencies on unproved assumptions or external literature.
+- dependencies on unproved assumptions or external literature;
+- named heuristic assumptions, each with a concrete experimental validation route;
+- the target complexity (time and memory exponents) versus the best known algorithm;
+- for proof-oriented proposals, a `proof_search_map` covering the exact
+  bottleneck, baseline reproduction, observation collisions, quantifier order,
+  constructive proof transforms, and the proposed method's ceiling.
 
 ## Proposal classes
 
@@ -30,6 +35,92 @@ Label each idea as one of:
 - `composition`: a novel combination of known techniques;
 - `control`: an experiment designed to distinguish competing explanations;
 - `tooling`: infrastructure that increases experimental throughput or reliability.
+
+## Search heuristics
+
+Bias idea search toward the exemplar profile in `docs/target-result-profile.md`.
+The canonical exemplar is Wesolowski, "The supersingular isogeny problem in time
+and memory p^{1/3+o(1)}" (full text: `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`).
+When generating ideas, apply the following search biases:
+
+1. **Exponent-first ambition.** Prioritize mechanisms that move the asymptotic
+   exponent of a central hard problem (exemplar: p^{1/2}·(log p)^{O(1)} →
+   p^{1/3+o(1)}) over improvements to logarithmic cofactors, constants, or
+   memory-negligible polishing. An idea whose best-case outcome improves only a
+   (log p)^{O(1)} cofactor is low priority unless it is a required building
+   block of an exponent-moving idea — say so explicitly when it is.
+2. **Hunt for external structural ingredients.** Actively search recent
+   literature for new bounds, correspondences, isometries, and unexpected
+   structural theorems that convert a known bottleneck step into a tractable
+   one (exemplar: a recent bound deg φ ≤ (p/2)^{1/3} on the smallest isogeny
+   E → E^{(p)} converted the bottleneck search into a smoothness-splitting
+   problem). Treat novelty checking as ingredient scouting: record candidate
+   external results in `knowledge/literature/` even when no idea follows
+   immediately.
+3. **Meet-in-the-middle and claw decompositions.** For any bottleneck search,
+   ask whether the target object splits into two halves, each enumerable
+   within budget, joined by a collision or keyed-table lookup (exemplar:
+   smoothness splitting with deg ψ, deg η ≤ X = B^{1/2}·(p/2)^{1/6} and a
+   codomain-keyed table).
+4. **Distribution heuristics plus re-randomization.** Consider conditional
+   designs that combine (a) a rigorous bound on some quantity, (b) a classical
+   distribution theorem for uniformly random objects of that size (e.g.
+   Canfield–Erdős–Pomerance / Dickman–de Bruijn for smoothness), and (c) a
+   re-randomization step — a random walk with explicit mixing-time
+   justification — that converts worst-case instances into average-case ones
+   and pulls the solution back through the walk.
+5. **Reduction-network cascades.** Prefer core results positioned so that
+   published polynomial-time reductions yield corollaries for free (exemplar:
+   OneEnd cascading to EndRing and Isogeny). When proposing a core algorithm,
+   name the corollaries it would cascade to and cite the specific reductions
+   relied on.
+
+## Proof-architecture search
+
+For proof-oriented proposals, apply `docs/inventor-protocol.md` section 8 and
+`KN-TECH-080` before recommending compute. At minimum:
+
+- reproduce the best-known baseline as an exact parameter slice or state why
+  the proposal is not a family extension;
+- identify the observable or certificate carrying the conclusion and search
+  for two distinct objects with the same observable;
+- write the claim's `forall`/`exists` order explicitly;
+- state the strongest result the proposed method could certify, including a
+  nearby object on which the desired conclusion fails;
+- select the constructive transform actually being attempted: boundary lift,
+  stronger invariant, telescoping potential, specialize-measure-pack,
+  representation/reduction, or observable-fiber counterexample.
+
+These are pre-compute falsification checks. A collision, ceiling, or quantifier
+failure can itself be the useful result; do not hide it to preserve the
+original proposal.
+
+## Heuristic assumptions and target complexity
+
+- Every conditional proposal must state its heuristic assumptions as named,
+  numbered, formally stated items — never inline prose. Each assumption must
+  pair a rigorous bound or structural fact with the classical distribution
+  statement it imitates (e.g. "this degree behaves like a uniformly random
+  integer of its size").
+- Each assumption must carry an experimental validation route: which quantity
+  can be sampled, via which correspondence or shortcut that makes sampling
+  feasible at cryptographically meaningful size (exemplar: the Deuring
+  correspondence used to sample minimal isogeny degrees at SQIsign-sized p),
+  which predicted distribution the empirical data is compared against (e.g.
+  empirical CDF vs the Dickman–de Bruijn ρ(u)), and which tail consistency
+  checks apply (e.g. smoothest observed sample vs predicted ρ(u)). Record the
+  sampled parameters and state any transfer or extrapolation assumptions
+  explicitly.
+- Every proposal must state its target complexity: time and memory exponents
+  versus the best known algorithm, honest disclosure of any superpolynomial
+  overhead hiding in o(1) terms, and — when memory is large — the time–memory
+  tradeoff position (e.g. van Oorschot–Wiener interpolation) and
+  parallelization behavior.
+- A proposal claiming an exponent improvement must sketch a proof
+  decomposition into single-responsibility lemmas (size bound, runtime,
+  correctness under the condition, success probability under the heuristic),
+  with the main argument merely assembling them and bookkeeping per-attempt
+  cost × inverse success probability.
 
 ## Novelty discipline
 
@@ -48,6 +139,8 @@ The Idea Generator must not:
 
 - report imagined experimental outcomes;
 - hide assumptions;
+- present a heuristic-conditional claim as unconditional;
+- omit the sampled parameters or transfer assumptions from a heuristic claim;
 - use vague language such as “might be faster” without a metric;
 - propose an experiment with no possible negative outcome;
 - convert correlation into a mechanism;
@@ -65,6 +158,30 @@ idea:
   mechanism: causal or mathematical explanation
   novelty_status: known | adaptation | speculative | unverified
   assumptions: []
+  proof_search_map:              # required for proof-oriented proposals
+    bottleneck: null             # exact step whose removal changes the theorem/cost
+    baseline_embedding:
+      parameter_slice: null      # exact old-method boundary, or not_applicable
+      reproduction_check: null   # symbolic check or frozen regression fixture
+    observation_collision:
+      observable: null           # invariant/certificate/quotient carrying the claim
+      distinct_preimage_search: null
+    constructive_transforms:
+      - transform: null         # boundary_lift | stronger_invariant |
+                                # telescoping_potential | specialization_pack |
+                                # representation_reduction | observable_fiber
+        proposed_object: null
+        predicted_gain: null
+    quantifier_order: null       # explicit forall/exists statement
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations:
+      - claim: null
+        responsibility: null    # baseline | feasibility | strictness | size |
+                                # runtime | memory | correctness |
+                                # success_probability | interface | scope
+    not_applicable_reason: null
   predictions:
     - metric: name
       direction: higher | lower | different
@@ -76,6 +193,17 @@ idea:
   falsification_conditions: []
   confounders: []
   interpretation_limits: []
+  heuristic_assumptions:
+    - id: H1
+      statement: formal statement of the assumed distribution or behavior
+      rigorous_support: the proved bound or theorem the assumption imitates
+      validation_plan: sampling method and scale, comparison distribution, tail checks
+  target_complexity:
+    time_exponent: e.g. p^{1/3+o(1)}
+    memory_exponent: e.g. p^{1/3+o(1)}
+    best_known: e.g. p^{1/2}·(log p)^{O(1)}
+    hidden_overhead: honest note on what the o(1) hides
+    tradeoff_note: time–memory tradeoff and parallelization position, if relevant
   estimated_cost:
     implementation: low | medium | high
     compute: low | medium | high
@@ -84,4 +212,4 @@ idea:
 
 ## Quality bar
 
-A useful idea must discriminate between at least two possible explanations. A proposal that only says “try this and see” is incomplete until it defines what each possible result would mean.
+A useful idea must discriminate between at least two possible explanations. A proposal that only says “try this and see” is incomplete until it defines what each possible result would mean. A proposal claiming a complexity improvement is incomplete until `heuristic_assumptions` and `target_complexity` are filled: "faster" without exponents, named assumptions, and a validation route is not a claim.

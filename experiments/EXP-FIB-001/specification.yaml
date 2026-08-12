@@ -1,0 +1,359 @@
+experiment:
+  id: EXP-FIB-001
+  hypothesis_id: H-FIB-001
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  title: >-
+    Target-dependent decomposition-difficulty predictor from Semaev fiber
+    geometry: Spearman correlation of the decomposition-count invariant
+    with per-target cost, calibrated by label-shuffled, exhaustive-truth,
+    and quasirandom-distribution controls
+  status: approved
+  frozen: true
+  approved_by: coordinator
+  approved_at: '2026-07-27'
+  claim_tier: toy
+  heuristic_under_test: HEUR-001
+  source_proposal: IDEA-20260726-003
+  objective: >-
+    Decide whether a cheap geometric invariant of the Semaev fiber — n_R,
+    the number of factor-base decompositions of a target, computed from
+    public data only — predicts per-target S_4 decomposition cost at toy
+    scale strongly enough to drive a two-phase (IC / rho) target-selection
+    strategy. The decisive metric is the Spearman rank correlation rho_s
+    between n_R and measured decomposition cost across 200 targets per
+    curve, gated at |rho_s| >= 0.4 with permutation-null p < 0.01, and
+    calibrated by a label-shuffled negative control (|rho_s| <= 0.2 inside
+    the null band), an exhaustive-truth control (n_R equals exact
+    enumeration on 100% of 8-12 bit audit targets), and a quasirandom
+    distributional reference (HEUR-001: n_R ~ Poisson(C(B,3)/N)). The
+    two-phase strategy evaluation is a gated secondary: it runs only if
+    the correlation and predictor-cost gates both pass, and it is compared
+    against measured uniform IC and uniform rho on the same targets. All
+    three proposal outcomes — no predictor, usable predictor, predictor
+    too expensive — are reachable by actual runs.
+  inputs:
+    instances:
+      main: >-
+        4 toy prime-field curves: 16-bit seeds {1, 2}, 20-bit seeds {1, 2},
+        harness/toycurve.py generate_instance; frozen with SHA-256 in
+        RUN-FIB-001.
+      truth_control: >-
+        8, 10, 12-bit curves (seed 1), 50 targets each, for exact
+        enumeration audit of the n_R instrument.
+    targets: >-
+      200 per main curve (R = a*P + b*Q, seeded uniform; scalars recorded
+      for rho control and certificate verification, never used by the
+      predictor).
+    factor_base: B = ceil(sqrt(N)) on-curve x-coordinates via harness/semaev.py build_factor_base, frozen per curve.
+    decomposition_arity: m = 3 (S_4 systems)
+    invariant:
+      definition: >-
+        n_R = number of unordered 3-subsets of the factor base summing to
+        R, computed from a per-curve enumeration table of C(B,3) tuple
+        sums (16-bit: exact; 20-bit: sampled at 5e7 evaluations per curve
+        with confidence intervals). Uses only (curve, factor base, tuple
+        sums); no secret scalars.
+      amortized_cost_model: >-
+        Predictor cost per target = (tuple evaluations performed)/N
+        (amortized table construction) + O(1) lookup; charged in
+        group-operation equivalents and reported next to the median
+        decomposition cost.
+    decomposition_cost:
+      definition: >-
+        Per-target S_4 Groebner solve cost in group-operation equivalents
+        (frozen rho calibration per size), failures and capped solves
+        counted at the full 20 s cap; wall-clock reported separately as an
+        implementation artifact.
+  controls:
+    - id: CTRL-LABEL-SHUFFLE
+      method: >-
+        Per curve, pair the n_R values with a fixed-seed random permutation
+        of the measured costs (fiber invariants paired with random targets'
+        costs); compute rho_s on the shuffled pairs.
+      pass_condition: >-
+        |rho_s(shuffled)| <= 0.2 and inside the permutation-null 95% band
+        on every curve. Failure means the correlation metric is
+        uncalibrated; the correlation claim is void (invalidation of the
+        metric, recorded, never silently discarded).
+    - id: CTRL-EXHAUSTIVE-TRUTH
+      method: >-
+        On 8, 10, 12-bit curves, enumerate all decompositions of 50
+        targets each exactly; compare measured n_R to the exact count.
+      pass_condition: >-
+        100% agreement on all 150 audit targets. Any mismatch is an
+        instrument failure: stop, record, and treat downstream correlation
+        runs as invalid.
+    - id: CTRL-RANDOM-PREDICTOR
+      method: >-
+        In the gated two-phase evaluation, replace n_R by a seeded hash of
+        x_R (a random function not derived from the fiber); the two-phase
+        strategy with a random predictor must show no advantage beyond the
+        noise band over uniform IC.
+      pass_condition: Random-predictor two-phase saving within +/-5% of zero; otherwise any fiber-predictor advantage is a selection artifact.
+    - id: CTRL-UNIFORM-IC-RHO
+      method: >-
+        Uniform IC on all K targets (no selection) and uniform rho
+        (harness/rho.py, verified certificates) on the same targets;
+        measured, never quoted.
+      pass_condition: Both baselines measured with certificates for every target used in the gated comparison.
+    - id: CTRL-QUASIRANDOM-DISTRIBUTION
+      method: >-
+        Compare the observed n_R histogram to Poisson(lambda),
+        lambda = C(B,3)/N: chi-squared goodness-of-fit (Bonferroni-adjusted
+        across 4 curves) and dispersion index in [0.5, 2] (HEUR-001).
+      pass_condition: >-
+        Non-degenerate histogram on every curve; fit outcome recorded either
+        way — a Poisson match with no cost correlation is the "correct but
+        useless" falsifier, a mismatch refutes HEUR-001.
+  independent_variables:
+    - "curve: {16-bit seed 1, 16-bit seed 2, 20-bit seed 1, 20-bit seed 2}"
+    - target_index: 200 per curve
+    - invariant_table_coverage: exact (16-bit) vs sampled at 5e7 evaluations (20-bit)
+    - "predictor: {fiber invariant n_R, label-shuffled, random hash} (gated two-phase only)"
+  metrics:
+    primary:
+      - id: spearman_rho_s_per_curve
+        definition: Spearman rank correlation between n_R and decomposition cost per curve, with 10000-replicate permutation null and p-value; class-merging rule applied (classes with expected count < 10 under Poisson(lambda) merged).
+      - id: shuffled_rho_s_per_curve
+        definition: Spearman correlation of the label-shuffled pairs per curve (calibration metric).
+      - id: predictor_cost_ratio
+        definition: amortized predictor cost per target / median decomposition cost per curve.
+    secondary:
+      - id: n_R_histogram_poisson_fit
+        definition: chi-squared statistic, Bonferroni-adjusted p, dispersion index per curve (HEUR-001 validation).
+      - truth_control_agreement (fraction of 150 audit targets with exact n_R match; gate: 1.0)
+      - decomposition_success_rate_per_curve
+      - two_phase_total_cost_vs_uniform (gated; K in {50, 100})
+      - easy_fraction_f_and_C_IC_easy (gated)
+      - n_R_sampling_cis_20bit
+      - wall_clock_artifacts
+  preregistered_prediction:
+    quantity: >-
+      (a) The empirical distribution of n_R across 200 uniform targets per
+      curve; (b) the Spearman correlation rho_s(n_R, decomposition cost).
+    formula: >-
+      (a) n_R ~ Poisson(lambda), lambda = C(B,3)/N (quasirandom birthday
+      model; at 16 bits lambda ~ 42, at 20 bits lambda ~ 170).
+      (b) Under the predictor hypothesis, rho_s <= -0.4 (more
+      decompositions, cheaper solve; |rho_s| >= 0.4); under the null of no
+      monotone association, rho_s = 0 with permutation-null 95% half-width
+      1.96/sqrt(199) ~ 0.14. Both are fixed before any run and never tuned
+      to the data.
+    source: >-
+      HEUR-001 of H-FIB-001: birthday counting over C(B,3) tuple sums with
+      equidistribution justified by Chebotarev (KN-LIT-039) under the
+      generic full-monodromy expectation for the summation cover
+      (KN-OPEN-009); hit-rate accounting precedent EV-STR-001. The
+      |rho_s| >= 0.4 threshold and the 0.2 null band are from
+      IDEA-20260726-003.
+  sample_size_justification: >-
+    n = 200 targets per curve gives the permutation-null 95% half-width
+    ~0.14, so the pre-registered effect threshold 0.4 is ~2.9 null
+    half-widths from zero (power > 0.95 for true |rho| >= 0.4 at two-sided
+    alpha 0.05) and the 0.2 null band is separated from the threshold by
+    ~1.4 half-widths. Smallest resolved event: under the frozen
+    class-merging rule, n_R classes with expected count below 10 (5% of
+    200) are merged before rho_s is computed, so the smallest retained
+    invariant class has expected count >= 10 per curve — at least 10x the
+    minimum resolvable count of 1 (stated multiple: >= 10x). The
+    exhaustive-truth control audits 150 targets with exact enumeration
+    (zero sampling error); the 20-bit sampled tables attenuate rho_s
+    toward zero (reliability >= ~0.85 at lambda' >= 48), never toward the
+    claim, and 20-bit CIs are reported with the correlation.
+  tail_checks:
+    - >-
+      Extreme-value check: compare the observed maximum n_R per curve
+      against the predicted maximum distribution of 200 Poisson(lambda)
+      samples; flag if the observed max exceeds the 99th percentile of the
+      predicted max (an unexpectedly easy tail of targets).
+    - >-
+      Zero-class check: the observed fraction of n_R = 0 targets against
+      e^{-lambda} (~0 at both sizes); any zero-root target is recorded as
+      an anomaly (AGENTS.md rule 8), never smoothed.
+    - >-
+      Hardest-decile check: the mean cost of the top-decile-cost targets
+      against their model-implied mean n_R; a hard-target subpopulation
+      invisible to the bulk fit (e.g., systematic solver pathology at
+      low n_R) is reported separately.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      No transfer claim: 16-20-bit correlations between an enumeration-
+      table invariant and sympy Groebner cost cannot bound any asymptotic
+      predictor; the fiber geometry may become uniform at scale and the
+      solver is implementation-bound. All resulting evidence carries
+      claim_tier toy.
+    correspondence: null
+  replication:
+    seeds: [1, 2]
+    seed_policy: >-
+      Deterministic: instances, targets, factor bases, enumeration orders,
+      permutation nulls, and shuffle permutations all derive from the
+      frozen seeds; every run manifest records the seeds actually used.
+    independent_instances: 4
+    planned_runs:
+      - id: RUN-FIB-001
+        purpose: >-
+          Freeze instances, targets, factor bases (SHA-256); run
+          CTRL-EXHAUSTIVE-TRUTH at 8, 10, 12 bits (150 audit targets,
+          exact enumeration vs measured n_R).
+      - id: RUN-FIB-002
+        purpose: Exact enumeration tables at 16 bits (both curves); n_R extraction for all 200 targets per curve; histograms.
+      - id: RUN-FIB-003
+        purpose: Sampled enumeration tables at 20 bits (both curves, 5e7 evaluations each); n_R estimates with confidence intervals.
+      - id: RUN-FIB-004
+        purpose: Decomposition-cost measurement at 16 bits (200 targets per curve, S_4 solves, 20 s cap, failures at cap cost).
+      - id: RUN-FIB-005
+        purpose: Decomposition-cost measurement at 20 bits (same protocol).
+      - id: RUN-FIB-006
+        purpose: >-
+          Correlation decision run: rho_s per curve with 10000-replicate
+          permutation nulls; CTRL-LABEL-SHUFFLE; Poisson fit and dispersion;
+          tail checks; class-merging rule applied.
+      - id: RUN-FIB-007
+        purpose: >-
+          Predictor-cost accounting: amortized table construction + lookup
+          versus median decomposition cost; ratio per curve against the
+          1/10 and 1/2 thresholds.
+      - id: RUN-FIB-008
+        purpose: >-
+          GATED: two-phase simulation (K in {50, 100}) versus measured
+          uniform IC and uniform rho, with CTRL-RANDOM-PREDICTOR; runs only
+          if RUN-FIB-006 and RUN-FIB-007 gates pass; otherwise recorded as
+          cancelled_by_gate with the reason, and analysis.md still written.
+    expected_run_count: 8
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_wall_clock_seconds: 9900
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 4
+    maximum_runs: 8
+    stages:
+      - id: freeze_and_truth_control
+        wall_clock_seconds: 1200
+        stop_rule: >-
+          Any truth-control mismatch stops the experiment: record instrument
+          failure; downstream correlation runs are invalid, not negative
+          evidence.
+      - id: invariant_tables
+        wall_clock_seconds: 3300
+        stop_rule: >-
+          20-bit curves stop at 5e7 tuple evaluations or 1500 s cumulative;
+          sampled n_R with CIs is recorded; never extrapolated silently.
+      - id: decomposition_measurement
+        wall_clock_seconds: 3600
+        stop_rule: >-
+          Per-solve cap 20 s; per-run cumulative cap 1500 s; unattempted
+          targets recorded cancelled_by_budget with the measured prefix
+          retained (prefix >= 100 targets per curve required for the
+          correlation run, else that curve is resource_exhaustion).
+      - id: correlation_and_decision
+        wall_clock_seconds: 900
+        stop_rule: Stop without interpretation if any control artifact is incomplete.
+      - id: twophase_gated
+        wall_clock_seconds: 900
+        stop_rule: Runs only on gate pass; on gate failure record cancelled_by_gate and stop.
+  stopping_rules:
+    - Any crash or harness error: record failed_infrastructure; never evidence (AGENTS.md rule 5).
+    - Stop after the 8 planned runs; no exploratory additional runs.
+    - Stop any run at 1800 s wall clock or 4 GB resident memory, recording the honest terminal status.
+    - Stop the whole experiment at 9900 s total wall clock; remaining runs recorded cancelled_by_budget.
+    - A null correlation is a completed result, not a failure: the full protocol (controls, distribution fit, tail checks) completes so the negative is fully scoped.
+  invalidation_rules:
+    - Any run missing its manifest, exact command, environment, raw result, summary, stdout, or stderr is invalid.
+    - Any run with dirty: true is invalid.
+    - Frozen-artifact SHA-256 mismatch invalidates dependent runs.
+    - CTRL-EXHAUSTIVE-TRUTH failure invalidates the measurement (instrument failure), and CTRL-LABEL-SHUFFLE failure invalidates the correlation metric; both are recorded, never reinterpreted as evidence about the hypothesis.
+    - Use of any secret scalar in the invariant computation invalidates the run (circularity breach); the predictor must be a function of public data only.
+    - Duplicated or missing seeds, or raw/summary disagreement, invalidates the affected run.
+    - The gated RUN-FIB-008 producing results without both gates passed is invalid (protocol breach); its outputs are discarded as confirmatory and may be kept only as clearly labeled exploratory diagnostics.
+  success_criterion: >-
+    All runs reach terminal status with valid artifacts; CTRL-EXHAUSTIVE-TRUTH
+    passes at 100%; CTRL-LABEL-SHUFFLE passes (|rho_s| <= 0.2, inside the
+    null band, on all 4 curves); n_R is non-degenerate on all curves; and
+    the pre-registered prediction is met: Spearman |rho_s| >= 0.4 with
+    permutation-null p < 0.01 on at least 3 of 4 curves (the two 16-bit
+    exact-table curves decisive), and the amortized predictor-cost ratio is
+    <= 1/10 of median decomposition cost. The gated two-phase evaluation,
+    if reached, succeeds only if the two-phase total is at least 20% below
+    measured uniform rho and below measured uniform IC at K = 100 with the
+    random-predictor control within +/-5% of zero saving.
+  falsification_criterion: >-
+    Reachable by an actual run: (a) |rho_s| < 0.2 on all 4 curves — no
+    useful predictor, including the "correct but useless" case where the
+    Poisson reference fits yet cost does not correlate; or (b) the
+    amortized predictor-cost ratio exceeds 1/2 — the predictor is too
+    expensive regardless of correlation; or (c) HEUR-001 is refuted with
+    |rho_s| < 0.2 (degenerate or non-Poisson n_R distribution at
+    Bonferroni-adjusted p < 0.01 with dispersion outside [0.5, 2] on at
+    least half the curves). The pre-registered band 0.2 <= |rho_s| < 0.4,
+    or a predictor-cost ratio in (1/10, 1/2], is recorded as inconclusive
+    and never rounded to support.
+  required_artifacts:
+    - experiments/EXP-FIB-001/specification.yaml
+    - experiments/EXP-FIB-001/frozen-instances.yaml
+    - experiments/EXP-FIB-001/analysis.md
+    - experiments/EXP-FIB-001/execution-report.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-001/manifest.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-001/command.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-001/environment.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-001/raw.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-001/summary.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-001/stdout.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-001/stderr.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-002/manifest.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-002/command.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-002/environment.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-002/raw.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-002/summary.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-002/stdout.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-002/stderr.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-003/manifest.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-003/command.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-003/environment.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-003/raw.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-003/summary.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-003/stdout.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-003/stderr.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-004/manifest.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-004/command.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-004/environment.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-004/raw.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-004/summary.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-004/stdout.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-004/stderr.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-005/manifest.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-005/command.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-005/environment.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-005/raw.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-005/summary.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-005/stdout.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-005/stderr.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-006/manifest.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-006/command.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-006/environment.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-006/raw.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-006/summary.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-006/stdout.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-006/stderr.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-007/manifest.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-007/command.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-007/environment.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-007/raw.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-007/summary.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-007/stdout.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-007/stderr.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-008/manifest.yaml
+    - experiments/EXP-FIB-001/runs/RUN-FIB-008/command.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-008/environment.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-008/raw.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-008/summary.json
+    - experiments/EXP-FIB-001/runs/RUN-FIB-008/stdout.txt
+    - experiments/EXP-FIB-001/runs/RUN-FIB-008/stderr.txt
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: null
+    fallback_used: false
+    authorization_ref: null

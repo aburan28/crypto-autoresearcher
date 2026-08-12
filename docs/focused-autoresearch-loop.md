@@ -107,9 +107,21 @@ the hash-bound plan.
 
 ## Research boundary
 
-The selector optimizes attention, not truth. Its score cannot promote a toy
-result, excuse missing full-path cost accounting, or convert a valid relation
-into a better-than-rho algorithm. A local mathematical identity, a global
-compiler, relation collection, blind descent, and an end-to-end rho/Shoup claim
-belong in separate claim rows. Existing experiment contracts, controls,
-immutable artifacts, and independent verification remain authoritative.
+The selector optimizes attention, not truth. Its score cannot excuse missing
+full-path cost accounting or convert a valid relation into a better-than-rho
+algorithm. A small-instance result must state its parameters and transfer
+assumptions. A local mathematical identity, a global compiler, relation
+collection, blind descent, and an end-to-end rho/Shoup claim belong in separate
+claim rows. Existing experiment contracts, controls, immutable artifacts, and
+independent verification remain authoritative.
+
+Direction quality is assessed against `docs/target-result-profile.md`, the
+canonical profile of a target-class result (exemplar:
+`inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`). The profile defines
+exponent-first ambition, formally stated and justified heuristics,
+single-responsibility proof decomposition, scale-aware heuristic validation,
+and concrete-cost honesty, and provides the checklist used when
+ranking candidates by mechanism novelty and decision impact (rule 2) and when
+deciding what a positive result may spawn (rule 5). Queue scores rank
+attention only; profile conformance is a separate judgment recorded by the
+Coordinator, not by the selector.

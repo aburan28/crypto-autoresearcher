@@ -1,0 +1,203 @@
+schema: crypto.autoresearch.executor_implementation_report.v1
+task_id: TASK-20260803-003
+reconciliation_id: RECON-20260802-001
+role: executor
+objective: >-
+  Implement and statically exercise the externally bound, deterministic,
+  non-authorizing reconciliation history compiler and its dispatcher and
+  preservation controls.
+
+input_binding:
+  contract_snapshot_commit: 171f33f451bb643a27aceaa1aaa6c0972e1db9f0
+  contract_snapshot_parent: 939c71dbd364b7f690cb1518c0980fadbe149c61
+  execution_base_commit: 55a302cda23d53ce37d8348a50eed2d7794bbcea
+  contract_path: coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-001/source_adjudication_contract.yaml
+  contract_sha256: a22453cecbd5c5f787bc8fcc0314e353e090f3135fdcc1368bd8da82398bfd2f
+  local_parent_commit: a9664afbf72d2dc6ff297b7a67fc517e601fff49
+  reanchor_parent_commit: 717d932c2765469f381bb182c6905c66c35e2e42
+
+implementation_observations:
+  - >-
+    The compiler hard-codes and verifies the exact contract snapshot commit,
+    its parent, contract digest, source parents, preservation roots, and
+    control-document digests before compiling any output.
+  - >-
+    Semantic inputs are read from immutable Git objects. Candidate-side or
+    dirty-worktree replacements cannot redefine the trust anchor.
+  - >-
+    The exact source census contains 100 occurrences over 91 original IDs:
+    78 completed, 10 cancelled, five blocked, and seven queued. Identity
+    classification is 82 unique, one shared-identical, and eight
+    shared-conflicting IDs.
+  - >-
+    The exact archive census contains 44 entries: 35 hash-bound and nine
+    legacy unbound entries. Seventeen hash-bound archive commits are not
+    reachable from their respective source parent; the compiler records this
+    as an explicit observation while independently verifying the named Git
+    object, path, and digest.
+  - >-
+    The monitored-reference table contains 623 exact occurrences, including
+    575 occurrences in the ten inherited BATCH-020 through BATCH-024 queues.
+    No monitored occurrence is omitted or unclassified.
+  - >-
+    The preservation model contains 128 exact mappings: 126 verbatim blob
+    copies and two absence attestations. Candidate materialization preflights
+    every target, rejects overwrite and symlink escapes, and was exercised
+    only under pytest temporary directories.
+  - >-
+    Fifteen deterministic inherited-history outputs are generated with the
+    NONAUT authority marker and schemas that cannot be consumed as runnable
+    dispatch queues. Two compilations were byte-identical in the deterministic
+    fixture.
+  - >-
+    research_dispatch rejects both protected preservation roots and all five
+    inherited queue paths, including descendant and symlink aliases, with
+    POLICY_NONAUTHORITATIVE before readiness evaluation. Ordinary queue
+    behavior remains covered by the existing regression suite.
+  - >-
+    The static report byte-binds both occurrence tables, the frozen contract,
+    and the exact compiler, checker, and dispatcher implementations.
+
+mutation_coverage:
+  - contract and control-document binding drift
+  - row omission, duplicated occurrence, and state-count drift
+  - copied completion receipt and TASK-20260731-043 ordering/equivalence drift
+  - missing, duplicated, and unclassified monitored references
+  - preservation corruption, materialized absence, overwrite, and symlink escape
+  - protected root, descendant, exact queue, relative alias, absolute alias, and symlink alias
+  - history schema and NONAUT envelope supplied directly to research_dispatch
+  - ordinary BATCH-031-shaped dispatch queue regression
+
+commands:
+  - argv:
+      - python3
+      - tools/author_reconciliation_history.py
+      - --source-table
+      - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/source_occurrence_table.json
+      - --reference-table
+      - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/reference_occurrence_table.json
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+  - argv:
+      - python3
+      - tools/check_reconciliation_generated_artifacts.py
+      - --report
+      - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/static_check_report.json
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+    result:
+      pass: true
+      findings: []
+      source_occurrences: 100
+      reference_occurrences: 623
+      preservation_mappings: 128
+      generated_history_outputs: 15
+  - argv:
+      - python3
+      - -m
+      - pytest
+      - -q
+      - tests/test_author_reconciliation_history.py
+      - tests/test_check_reconciliation_generated_artifacts.py
+      - tests/test_research_dispatch.py
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: '18 passed, 1 warning in 268.41s (0:04:28)'
+    stderr: >-
+      Pytest cache warning: the sandbox refused a .pytest_cache nodeids write;
+      test execution and results were unaffected.
+  - argv: [python3, -m, pytest, -q, tools/test_research_dispatch.py]
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: '25 passed, 1 warning in 0.64s'
+    stderr: >-
+      Pytest cache warning: the sandbox refused a .pytest_cache nodeids write;
+      test execution and results were unaffected.
+  - argv: [python3, tools/validate_ledger.py]
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: 'OK: validated 2473 records, no new violations'
+    stderr: '2248 grandfathered legacy errors suppressed; 289 legacy schema issues remain read-only.'
+  - argv: [python3, tools/check_merge_hygiene.py]
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: 'PASS: no conflict markers, no unparseable records'
+    stderr: 'Six baseline-maintenance notes only; no failure.'
+  - argv: [python3, tools/check_runtime_bindings.py]
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    exit_code: 0
+    stdout: 'OK: 5 roles consistent with every runtime binding'
+    stderr: ''
+
+protocol_deviations: []
+anomalies:
+  - >-
+    An initial implementation treated archive reachability from a source
+    parent as a required predicate. The frozen contract did not make that
+    claim. The final implementation instead records the 17 unreachable
+    archive commits as an observation and verifies their exact Git objects,
+    paths, and hashes without inventing ancestry.
+limitations:
+  - >-
+    No reconciliation candidate, repository preservation tree, or inherited
+    history output was materialized. Positive materialization controls used
+    framework temporary directories only.
+  - >-
+    Passing implementation and static checks are Executor observations only.
+    They do not authorize a candidate, merge, BATCH-031, ECDLP experiment,
+    hypothesis transition, or goal transition, and remain pending an immutable
+    snapshot plus fresh independent Validator and Red Team review.
+
+artifact_paths:
+  - tools/author_reconciliation_history.py
+  - tools/check_reconciliation_generated_artifacts.py
+  - tools/research_dispatch.py
+  - tests/test_author_reconciliation_history.py
+  - tests/test_check_reconciliation_generated_artifacts.py
+  - tests/test_research_dispatch.py
+  - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/source_occurrence_table.json
+  - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/reference_occurrence_table.json
+  - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/static_check_report.json
+  - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/implementation_report.yaml
+
+execution_report:
+  experiment_id: null
+  implementation_commit: null
+  implementation_base_commit: 55a302cda23d53ce37d8348a50eed2d7794bbcea
+  implementation_authorship: executor_then_coordinator_scoped_completion
+  protocol_deviations: []
+  runs: {completed: [], invalid: [], failed: []}
+  observations:
+    - Static checker passed with zero findings and all exact contract counts.
+    - Focused suite passed 18 tests; existing dispatcher suite passed 25 tests.
+    - Ledger, merge-hygiene, runtime-binding, and static report checks passed.
+  anomalies:
+    - Seventeen exact archive commits are not ancestors of their source parent.
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+
+inference_provenance:
+  requested_policy: executor-implementation
+  requested_reasoning_effort: null
+  exact_resolved_model_id: null
+  model_verified: false
+  fallback_allowed: false
+  fallback_used: null
+  degraded_allowed: false
+  degraded_requirements: []
+  independent_session_required: false
+  note: >-
+    The initial Executor session did not expose a probe-verified model ID. The
+    dispatching Coordinator session completed the frozen, non-overlapping
+    implementation scope transparently; no model identity was inferred.
+
+state_changes: []
+validity: implementation_complete_pending_snapshot_and_independent_review
+approval_verdict: not_within_executor_authority
+archived_by: TASK-20260803-004

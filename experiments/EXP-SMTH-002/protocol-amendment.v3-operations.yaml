@@ -1,0 +1,117 @@
+protocol_operations:
+  id: EXP-SMTH-002-AMEND-003
+  task_id: TASK-20260801-059
+  base_document: experiments/EXP-SMTH-002/specification.yaml#/experiment
+  value_document: >-
+    experiments/EXP-SMTH-002/protocol-amendment.v2.yaml#/protocol_amendment
+  operation_semantics: >-
+    Start from a deep copy of base_document. Apply operations in order. Replace
+    requires an existing target; add requires an absent target; append adds the
+    literal sequence to the existing sequence in order. Resolve value_from from
+    value_document before applying operations. Any failed precondition is
+    invalid_integrity. No same-name or implicit merge is permitted.
+  status: draft_review_required
+  execution_authorized: false
+
+  operations:
+  - op: add
+    target_path: /factorization_pipeline/primality_rule
+    value_from: /factorization_pipeline_replacement/primality_rule
+  - op: add
+    target_path: /factorization_pipeline/certificate_max_logical_bytes_per_record
+    value_from: /factorization_pipeline_replacement/certificate_max_logical_bytes_per_record
+  - op: add
+    target_path: /factorization_pipeline/oversize_record
+    value_from: /factorization_pipeline_replacement/oversize_record
+  - op: replace
+    target_path: /factorization_pipeline/shard_policy
+    literal_value:
+      logical_records_per_shard: 32704
+      shard_count_exact: 128
+      maximum_compressed_bytes_per_shard: 134217728
+      close_fsync_hash: >-
+        Close and fsync each gzip shard; record SHA-256, compressed bytes,
+        logical bytes and count before opening the next.
+  - op: add
+    target_path: /writer_topology
+    value_from: /writer_topology_replacement
+  - op: replace
+    target_path: /frozen_budget
+    literal_value:
+      maximum_runs: 1
+      maximum_resume_count: 1
+      maximum_factorization_calls: 4186112
+      maximum_primality_checks: 50233344
+      maximum_primality_checks_per_integer: 12
+      maximum_certificate_reconstructions: 4186112
+      maximum_wall_seconds: 7200
+      maximum_cpu_seconds: 28800
+      maximum_peak_rss_bytes: 4294967296
+      maximum_total_disk_bytes: 51539607552
+      maximum_certificate_archive_bytes: 18253611008
+      maximum_temporary_shard_bytes: 17179869184
+      reserved_other_artifact_bytes: 16106127360
+      maximum_workers: 4
+      maximum_process_output_handles: 8
+      no_network: true
+      tar_overhead_worst_case_bytes: 131968
+      joint_safety_derivation: >-
+        Temporary shard maxima total 16 GiB. A tar containing 128 members has
+        at most 128*(512 header + 511 padding)+1024 end bytes = 131968 bytes of
+        container overhead, so 17 GiB bounds the 16-GiB members plus overhead.
+        The remaining 15 GiB covers manifests, checkpoints, logs, results and
+        filesystem overhead. The three reservations sum exactly to 48 GiB.
+      stop_semantics: >-
+        A global ceiling yields failed_infrastructure_or_budget at the next
+        record boundary. A false certificate, seed collision, oversized logical
+        record or hash mismatch yields invalid_integrity. Neither is evidence.
+  - op: replace
+    target_path: /required_artifacts
+    literal_value:
+    - experiments/EXP-SMTH-002/implementation/pilot_driver.py
+    - experiments/EXP-SMTH-002/implementation/implementation.md
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/manifest.yaml
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/command.txt
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/environment.json
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/stdout.log
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/stderr.log
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/raw-result.json
+    - experiments/EXP-SMTH-002/results/feasibility_report.json
+    - experiments/EXP-SMTH-002/results/seed_roster.json
+    - experiments/EXP-SMTH-002/results/certificates/certificate_shards.tar
+    - experiments/EXP-SMTH-002/results/certificates/shard_manifest.json
+  - op: replace
+    target_path: /controls
+    literal_value:
+    - First and last record of every shard are independently reconstructed.
+    - Every certificate reconstruction result is true before shard acceptance.
+    - Exact total and per-object counts match the frozen design.
+    - Seed roster regeneration reproduces every stream hash with zero collisions.
+    - An injected composite-as-prime certificate is rejected.
+    - An injected one-byte shard mutation fails SHA-256.
+    - Process output handles never exceed eight and certificate shards never exceed one.
+    - A synthetic twelve-factor certificate is rejected if any alleged factor is composite.
+    - A 1025-byte logical record is rejected before the writer.
+    - Deterministic tar reconstruction yields identical SHA-256.
+    - Canonical seed-roster SHA-256 is independently reproduced.
+  - op: add
+    target_path: /seed_roster_contract
+    value_from: /seed_roster_contract
+  - op: add
+    target_path: /shard_manifest_contract
+    value_from: /shard_manifest_contract
+  - op: add
+    target_path: /scope_confirmation
+    value_from: /scope_confirmation
+
+  effective_contract_checks:
+  - /frozen_budget contains no maximum_open_output_files field.
+  - /frozen_budget maximum_process_output_handles is exactly 8.
+  - /required_artifacts contains exactly one shard_manifest path.
+  - /required_artifacts contains the tar and seed roster paths.
+  - /factorization_pipeline/shard_policy maximum is 128 MiB.
+  - Three disk reservations sum to maximum_total_disk_bytes.
+  - No source, S3, curve, factor-base, plant, p-value, evidence or state mode exists.
+
+  canonical_shard_manifest_path: >-
+    experiments/EXP-SMTH-002/results/certificates/shard_manifest.json

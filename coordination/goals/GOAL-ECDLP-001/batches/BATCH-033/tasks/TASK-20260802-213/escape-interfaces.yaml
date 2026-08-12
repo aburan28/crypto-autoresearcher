@@ -1,0 +1,283 @@
+schema_version: "1.0"
+task_id: TASK-20260802-213
+artifact_kind: escape_interfaces
+orientation: "Q = alpha * G"
+ordinary_model_reference: ordinary-acquisition-analysis.md#2-exact-ordinary-generic-group-model
+
+interface_requirements:
+  required_for_every_escape:
+    - identify_the_operation_breaking_affine_closure
+    - specify_source_and_target_types
+    - specify_scalar_action
+    - construct_same_group_base_linear_and_nonlinear_points
+    - provide_public_certificate_semantics
+    - exclude_direct_assumption_of_alpha_or_target_point
+    - charge_construction_and_preprocessing
+    - charge_queries_and_data
+    - charge_memory
+    - charge_verification
+    - charge_inverse_success
+    - compose_with_known_cheon_cost
+  strict_time_gate: "max(acquisition_exp, cheon_exp, verification_exp) < 1/2"
+  cheon_exp: "chi(delta) = max((1-delta)/2, delta/2)"
+
+interfaces:
+  - id: EI-213-01
+    name: succinct_certified_graded_bilinear_tower
+    category: constructive_conditional_escape
+    affine_break:
+      operation: "e_(i,j): H_i x H_j -> H_(i+j)"
+      scalar_action: "e_(i,j)(x*T_i,y*T_j) = x*y*T_(i+j)"
+      reason: multiplies_two_hidden_scalar_coefficients
+    types:
+      source_groups: "H_1,...,H_d"
+      target_rule: "H_i x H_j -> H_(i+j), for i+j <= d"
+      common_order: r
+      ordinary_input_embedding:
+        G: T_1
+        Q: "alpha*T_1"
+      output:
+        base: "T_d in H_d"
+        linear: "alpha*T_d in H_d"
+        nonlinear: "alpha^d*T_d in H_d"
+    construction:
+      base_chain: construct_T_d_by_addition_chain
+      linear_chain: "combine Q with a construction of T_(d-1)"
+      nonlinear_chain: "D_1=Q; D_(i+j)=e_(i,j)(D_i,D_j)"
+      interface_queries: "O(log d) with reusable addition-chain nodes"
+    certificate:
+      object: typed_map_evaluation_DAG_plus_tower_setup_certificate
+      verifier: recompute_DAG_and_verify_tower_setup
+      soundness: inherited_from_certified_tower_interface
+      charged: true
+    target_dlp_assumption:
+      assumes_alpha: false
+      assumes_alpha_power_point: false
+      caveat: >-
+        The tower axiom is a strong structural assumption whose concrete
+        realization may itself be as hard or costly as the target task.
+    costs:
+      build: "N^(kappa_b+o(1))"
+      amortization_instances: K
+      build_per_instance: "N^(kappa_b+o(1))/K"
+      evaluation_total: "N^(kappa_e+o(1))"
+      parameter_data_access: "N^(xi+o(1))"
+      peak_memory: "N^(mu+o(1))"
+      certification_and_verification: "N^(kappa_v+o(1))"
+      success_probability: "1-epsilon_tower"
+      inverse_success: "1/(1-epsilon_tower)"
+      acquisition_exp: >-
+        exponent(build/K + evaluation_total + parameter_data_access +
+        certification_and_verification)
+    composition:
+      total_time_exp: "max(kappa_tower, chi(delta))"
+      balanced_d: "delta=1/2 gives max(kappa_tower,1/4)"
+      positive_condition: "kappa_tower < 1/2 and epsilon_tower negligible"
+    oracle_removal_control:
+      replacement: random_type_correct_maps
+      expected_effect: scalar_multiplication_identity_and_construction_fail
+    present_assessment: >-
+      Algebraically sufficient and correctly typed, but no qualifying ordinary
+      elliptic-curve instantiation or sub-rho setup bound is supplied.
+    open_question: >-
+      Does a succinct certified tower reaching d=N^(1/2+o(1)) exist with
+      single-instance construction, data access, evaluation, and verification
+      exponents all below 1/2?
+
+  - id: EI-213-02
+    name: single_bilinear_pairing
+    category: typed_but_insufficient
+    affine_break:
+      operation: "e: H_1 x H_1 -> H_2"
+      scalar_action: "e(x*T_1,y*T_1)=x*y*T_2"
+      prerequisites:
+        - symmetric_self_pairing_or_typed_distortion_map
+        - nondegenerate_order_r_target
+    output:
+      base: "T_2=e(G,G)"
+      linear: "alpha*T_2=e(Q,G)"
+      nonlinear: "alpha^2*T_2=e(Q,Q)"
+    certificate:
+      object: three_recomputable_pairing_evaluations
+      charged: true
+    costs:
+      queries: constant
+      verification: constant_number_of_pairing_calls
+      success_probability: one_under_interface_axioms
+      inverse_success: one
+    composition:
+      d: 2
+      delta: 0
+      cheon_exp: 1/2
+      total_time_exp_lower_bound: 1/2
+      strict_sub_rho: false
+    oracle_removal_control:
+      replacement: random_type_correct_bimap
+      expected_effect: bilinear_relations_fail
+    present_assessment: >-
+      It creates a genuine quadratic scalar in the target group, but d=2 does
+      not improve the asymptotic Cheon exponent. A conventional pairing cannot
+      generally be iterated because its target is not a valid source for a
+      further pairing.
+
+  - id: EI-213-03
+    name: ordinary_endomorphism_or_homomorphism
+    category: not_an_escape
+    operation:
+      type: "phi: G -> H"
+      scalar_action: "phi(x*G)=x*phi(G), or lambda*x*H for disclosed lambda"
+    affine_break: none
+    formal_label_after_application: "a+b*alpha"
+    composition:
+      strict_sub_rho: false
+    present_assessment: >-
+      A fixed group homomorphism, efficiently computable endomorphism, or
+      field embedding with linear scalar action preserves affine closure.
+      Unknown but input-independent eigenvalues do not multiply two hidden
+      alpha coefficients.
+
+  - id: EI-213-04
+    name: certified_nonlinear_correspondence
+    category: open_interface_template
+    affine_break:
+      operation:
+        - "L: G -> H with L(xG)=xU"
+        - "Phi_d: G -> H with Phi_d(xG)=x^d U"
+      scalar_action: explicit_nonlinear_power
+    types:
+      source: order_r_group_G
+      target: order_r_group_H
+      output:
+        base: U
+        linear: "L(Q)=alpha*U"
+        nonlinear: "Phi_d(Q)=alpha^d*U"
+    certificate:
+      object: evaluation_proof_for_L_and_Phi_d_plus_setup_certificate
+      verifier: verify_setup_and_both_evaluations
+      soundness_error: epsilon_phi
+      charged: true
+    target_dlp_assumption:
+      assumes_alpha: false_at_API_boundary
+      assumes_target_point: false_at_API_boundary
+      caveat: >-
+        Realizing Phi_d may conceal an ECDLP-equivalent computation; a valid
+        proposal must reduce its construction and evaluation costs without
+        circular use of alpha or alpha^d U.
+    costs:
+      build: C_phi_build
+      queries: C_phi_eval
+      preprocessing: C_phi_pre
+      data: D_phi
+      memory: M_phi
+      verification: V_phi
+      success_probability: p_phi
+      inverse_success: "1/p_phi"
+      acquisition_total: >-
+        C_phi_build/K + C_phi_pre + C_phi_eval + D_phi_access + V_phi, all
+        multiplied by 1/p_phi when failure is recognizable
+    composition:
+      total: "C_acquire + C_Cheon + C_certificate + C_verify"
+      positive_condition: "total expected-time exponent < 1/2"
+    oracle_removal_control:
+      replacement: random_map_with_same_domain_codomain_and_response_shape
+      expected_effect: power_scalar_relation_fails
+    present_assessment: >-
+      Precisely specifies what an order-changing or field-changing
+      correspondence must prove. No construction or favorable cost is supplied.
+
+  - id: EI-213-05
+    name: certified_interval_leakage
+    category: side_information_escape
+    interface:
+      output: "interval I containing the canonical integer representative of alpha"
+      interval_size: "S=N^(lambda+o(1))"
+      correctness_certificate: publicly_verifiable_leakage_attestation
+      leakage_cost: "N^(kappa_L+o(1))"
+      failure_probability: epsilon_L
+    affine_break:
+      operation: not_a_group_operation
+      reason: reduces_alpha_candidate_space_using_input_correlated_information
+    acquisition:
+      method: kangaroo_over_certified_interval
+      time_exp: "lambda/2"
+      output_witness: alpha
+      nonlinear_point: compute_alpha_power_then_known_scalar_multiply
+      certificate: "alpha*G=Q and R=alpha^d*G"
+    target_dlp_assumption:
+      assumes_full_alpha: false
+      assumes_alpha_power_point: false
+      caveat: >-
+        It assumes strong partial DLP information and is therefore a worse
+        input-assumption axis, not an ordinary generic result.
+    costs:
+      total_time_exp: "max(kappa_L,lambda/2)"
+      memory_exp: 0
+      data_query_exp: kappa_L
+      inverse_success: "1/(1-epsilon_L)"
+    composition:
+      with_cheon_exp: "max(kappa_L,lambda/2,chi(delta))"
+      direct_recovery_note: Cheon_is_redundant_once_alpha_is_known
+      positive_condition: "max(kappa_L,lambda/2) < 1/2"
+    oracle_removal_control:
+      replacement: random_interval_of_identical_size_independent_of_alpha
+      expected_effect: containment_probability_drops_to_S/r
+    present_assessment: >-
+      A valid conditional escape only if the correlated leakage source and its
+      complete cost are independently justified.
+
+  - id: EI-213-06
+    name: supplied_alpha_power_point
+    category: known_augmented_input_prior_art
+    interface:
+      supplied_data: "alpha^d*G"
+      data_points: 1
+      correlation: exact_target_auxiliary_relation
+    acquisition: none
+    affine_break: external_assumption
+    composition:
+      cheon_exp: "chi(delta)"
+      balanced_exp: 1/4
+      ordinary_admissible: false
+    novelty_claim: none
+    present_assessment: >-
+      This is Cheon's DLP with auxiliary input, not an ordinary-input
+      acquisition and not evidence of an ordinary-ECDLP improvement.
+
+  - id: EI-213-07
+    name: coordinate_or_extension_field_operation
+    category: unresolved_non_generic_family
+    required_typing: >-
+      A proposal must define a map from an encoded or represented source point
+      to an order-r target point and prove that its target scalar is a specified
+      nonlinear f(alpha).
+    required_certificate: >-
+      Publicly verify the source-target relation without assuming alpha or the
+      requested nonlinear point.
+    required_costs:
+      - representation_conversion
+      - field_extension_degree
+      - coordinate_arithmetic
+      - map_construction
+      - queries
+      - memory
+      - data
+      - verification
+      - inverse_success
+    present_assessment: >-
+      Coordinate nonlinearity by itself is not scalar nonlinearity. No typed
+      map, certificate, or favorable composed inequality is supplied here.
+
+interface_frontier_summary:
+  ordinary_generic:
+    certified_acquisition_exp_lower_bound: 1/2
+    strict_sub_rho: false
+  sufficient_conditional_interface: EI-213-01
+  sufficient_conditional_cost_gate: "kappa_tower < 1/2 at balanced d"
+  known_prior_not_acquisition: EI-213-06
+  open_interfaces:
+    - EI-213-01
+    - EI-213-04
+    - EI-213-05
+    - EI-213-07
+  no_existence_claim: true
+  no_ordinary_sota_claim: true

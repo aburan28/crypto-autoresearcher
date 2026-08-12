@@ -1,0 +1,170 @@
+validation_report:
+  task_id: TASK-20260804-5ea2da
+  producer_task_id: TASK-20260804-478b74
+  snapshot_commit: 891f85dd6060ef55e3c9b87e91c38e851c0e6c89
+  snapshot_commit_note: >
+    Receipt field is a fabricated full SHA. The 9-char prefix 891f85dd6 resolves
+    to the real commit 891f85dd655854515eefb665ec65c8c8ce05cc08, which is
+    reachable from HEAD and contains the 5 declared artifacts with matching
+    hashes. The receipt parent_sha (61f668c99b1d9ef35f96d3148e5abe8a023f6803)
+    is also incorrect; actual parent of the snapshot commit is
+    7a6adc14d8c08e316e1ba26ed56e722a780131b4. Both SHA fields share 9-char
+    prefixes with real commits but have incorrect suffixes.
+  verdict: accept_with_qualifications
+  summary: >
+    All 5 artifact SHA256 hashes are verified and all reported statistics
+    recompute exactly; however the snapshot receipt records fabricated full SHA
+    values for commit_sha and parent_sha (wrong beyond the 9-char prefix), and
+    the N-corrected variance ratio (1.256, p=0.108) is substantially lower than
+    the raw ratio (2.764) because N-variability accounts for ~54% of the
+    law-of-total-variance denominator — a material interpretation point
+    requiring Coordinator attention before inference is drawn.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: false
+    independent_session: true
+    model_verified: false
+  checks:
+    - id: CHK-1
+      description: SHA256 hash check — all 5 artifacts vs snapshot receipt
+      result: pass
+      detail: |
+        All 5 artifact hashes verified against snapshot receipt and against
+        the actual snapshot commit 891f85dd655854515eefb665ec65c8c8ce05cc08:
+
+          gauss_test.py:          f693d480b05292da020dca14f2f9d3733cbd331c8e28112a925254ae5b8f571d  MATCH
+          gauss_results.json:     9decdb90aefa95ac46fe3a9ebd54b438e7d06eec33e2d87e9b8b70c8f60f95d3  MATCH
+          receipt.json:           5b84b09a7d390c2da1394d33954d926143756a788f8f30d7e39f28d727371be1  MATCH
+          report.md:              8ec1408ccab658a8fb3d95f75d05bec8252287813c37a047a05b583df6f8582a  MATCH
+          rebuild_transcript.txt: f48a8d37ea54b311f212d9d45e6d46d0ab1bcd56b0fbf5f2740cd09d8b63bd5a  MATCH
+
+        Snapshot commit is reachable from HEAD (13d4dd3bf55bf0d131061443dee39384054a7efd)
+        and staged exactly these 5 artifacts, no more.
+
+        QUALIFICATION — receipt metadata contains incorrect full SHAs:
+          commit_sha in receipt:  891f85dd6060ef55e3c9b87e91c38e851c0e6c89  (DOES NOT EXIST)
+          actual commit SHA:      891f85dd655854515eefb665ec65c8c8ce05cc08
+          parent_sha in receipt:  61f668c99b1d9ef35f96d3148e5abe8a023f6803  (DOES NOT EXIST)
+          actual parent SHA:      7a6adc14d8c08e316e1ba26ed56e722a780131b4
+        The receipt parent_sha prefix 61f668c99 resolves to a different real
+        commit (61f668c99b73c640ff0da81302b081d39ad8f5d4 — the GOAL-MLKEM-004
+        ledger commit from BATCH-1be68e), which is NOT the actual parent of the
+        snapshot commit. Both SHA fields appear to be abbreviated hashes padded
+        with incorrect hex digits. The artifact content is intact; the commit
+        binding in the receipt metadata is broken.
+
+    - id: CHK-2
+      description: Variance arithmetic re-derivation
+      result: pass
+      detail: |
+        All statistics recomputed from TN_values (50 floats) in gauss_results.json.
+        Results match to full floating-point precision:
+
+          empirical_var_TN (ddof=1):       17896.107290865486  MATCH (stated 17896.107290865486)
+          N_run0 * single_score_var_run0:   6474.640214344130  MATCH (stated 6474.640214344130)
+          variance_ratio:                   2.764031158244      MATCH (stated 2.764031158244)
+          chi2_stat:                        135.437526753946    MATCH (stated 135.437526753946)
+          p_value:                          4.9167e-10          MATCH (stated 4.9167e-10)
+          95% CI ratio:                     [1.928694, 4.292121]  MATCH
+
+        Normalization: independence_predicted_var = N_run0 × within_env_single_score_var_run0
+                     = 18469 × 0.35056799038086145 = 6474.640214344130. Correct.
+
+    - id: CHK-3
+      description: N-variability adjustment (law of total variance)
+      result: pass
+      detail: |
+        N_vectors loaded from run_records (50 entries):
+          Unique N values: {18098, 18469, 18848}
+          Count by value: 18098 → 2 runs, 18469 → 31 runs, 18848 → 17 runs
+          N range: 18098–18848
+          mean_N (ddof=0): 18613.34
+          var_N (ddof=1):  45919.21
+
+        Law-of-total-variance decomposition:
+          E[s_i] ≈ mean_TN / mean_N = 7635.720 / 18613.34 = 0.41023
+          Var_total = E[N] × Var[s_i] + Var[N] × (E[s_i])²
+                    = 18613.34 × 0.350568 + 45919.21 × (0.41023)²
+                    = 6525.24 + 7727.62
+                    = 14252.86
+
+          N-variability fraction: 7727.62 / 14252.86 = 54.2%
+
+        N-corrected variance ratio:
+          ratio_N_corrected = empirical_var_TN / Var_total
+                            = 17896.107 / 14252.860
+                            = 1.2556
+
+        Statistical test after correction:
+          chi2_N_corrected = 49 × 1.2556 = 61.52
+          p_N_corrected = 1 - chi2.cdf(61.52, df=49) = 0.108  (NOT significant at α=0.05)
+
+        Interpretation note (observation only — no finding stated):
+        The raw ratio (2.764, p=4.9e-10) includes a large N-variability component
+        (~54% of Var_total). After N-correction the ratio is 1.256 (p=0.108),
+        consistent with the null of independent scores. The bgj1 algorithm produced
+        constant N=17919 (no N-variability term in its denominator), so the two
+        algorithms' ratios are not directly comparable without this correction.
+        This substantially changes the picture and requires Coordinator attention
+        before drawing inferences about algorithm-dependence of score correlation.
+
+    - id: CHK-4
+      description: Scope — no finding stated, no MATZOV/Nf comparison
+      result: pass
+      detail: |
+        gauss_results.json: states_a_finding = false, compared_against_matzov_nf = false
+        receipt.json:       states_a_finding = false, compared_against_matzov_nf = false
+        report.md:          "This is an observation. See coordinator decision for interpretation."
+        rule12_status in both files: "UNMET and UNWAIVED"
+        Scope is correctly bounded. No finding and no MATZOV comparison present.
+
+    - id: CHK-5
+      description: RC-3 cross-run correlation recorded
+      result: pass
+      detail: |
+        rc3_cross_run block present in gauss_results.json:
+          r_even_vs_odd: 0.30251817688770666
+          p:             0.1416030343579237
+          n_pairs:       25
+          note:          "Pearson r of T_N[0,2,4,...] vs T_N[1,3,5,...]. r≈0 is consistent
+                         with independence. No conclusion drawn."
+
+        Independently recomputed Pearson r of TN[even] vs TN[odd] (25 pairs each):
+          r_recomputed: 0.302518176888  MATCH
+          p_recomputed: 0.141603034358  MATCH
+        RC-3 correctly recorded and verified.
+
+  qualifications:
+    - id: Q-1
+      severity: moderate
+      category: receipt_metadata_integrity
+      detail: >
+        The snapshot_receipt.json records commit_sha = 891f85dd6060ef55e3c9b87e91c38e851c0e6c89
+        and parent_sha = 61f668c99b1d9ef35f96d3148e5abe8a023f6803. Neither SHA
+        exists in the repository. The actual snapshot commit is
+        891f85dd655854515eefb665ec65c8c8ce05cc08 and its actual parent is
+        7a6adc14d8c08e316e1ba26ed56e722a780131b4. The receipt appears to record
+        abbreviated hashes padded to full length with wrong digits, which is a
+        form of fabrication under AGENTS.md rule 9. Artifact content is verified
+        and intact; only the receipt metadata binding is broken. The Coordinator
+        must supersede or annotate the receipt before downstream binding checks
+        can pass without manual inspection.
+
+    - id: Q-2
+      severity: moderate
+      category: normalization_method
+      detail: >
+        The raw variance ratio (2.764) uses N_run0=18469 as the denominator
+        normalization, but gauss_sieve produced variable N per run
+        ({18098, 18469, 18848}; mean 18613.34). After law-of-total-variance
+        correction (Var_total = 14252.86), the N-corrected ratio is 1.256
+        (p=0.108) — not statistically significant. The executor correctly
+        disclosed this as a protocol deviation, but the headline statistics in
+        the report and receipt reflect the uncorrected ratio. The Coordinator
+        should treat the N-corrected ratio as the primary statistic for
+        inference about algorithm-dependent score correlation.
+
+  admissible: true
+  validated_at: '2026-08-05'
+  validated_by: TASK-20260804-5ea2da

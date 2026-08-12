@@ -1,0 +1,587 @@
+validation_report:
+  task_id: TASK-VALIDATION-001
+  goal_id: GOAL-AES-003
+  batch_id: BATCH-001
+  role: validator
+  validated_package: coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/
+  write_scope: coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-VALIDATION-001/
+  utc_start: "2026-08-02T15:25:12Z"
+  utc_halt_boundary: "2026-08-02T16:10:12Z"   # start + 2700 s
+  method: RE-EXECUTION. Every verdict below marked `reexecuted` was produced by
+    code I wrote in this session and ran. Verdicts marked `read_only` were not
+    re-executed and say so.
+
+  # =====================================================================
+  independence_statement:
+    session_independence: true
+    model_independence: false
+    basis: 0137a051
+    text: >-
+      I supply SESSION independence only. I am the same model family as the
+      producing and dispatching sessions, so under standing basis 0137a051 this
+      report supplies no model independence. NOTHING in this report may count
+      toward a GOAL-* closure quorum attestation under CLAUDE.md rule 8.
+      A passed verdict here means the receipt is admissible evidence. It does
+      not demonstrate a speedup, does not authorize promotion, and asserts
+      nothing about full-round or deployed AES.
+    correction_to_the_task_briefing: >-
+      The briefing states the random-permutation control on the mod-8 statistic
+      had probably not been run. It HAD been run once by the producer:
+      count5/raw.jsonl contains arm `null_randperm_aes10`, tag rp0, r=10,
+      n=2147422794, n_mod8=2. My two runs are the second and third independent
+      instances, on my own code and my own keys.
+
+  # =====================================================================
+  environment:
+    host_cpu_threads: 4
+    memory_gb_total: 15
+    gcc: "13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04.1)"
+    aes_ni: present
+    pycryptodome_present_but_deliberately_unused_for_the_certificate: "3.23.0"
+    dirty_tree: not_assessed_by_me   # I did not commit and did not diff the worktree
+    my_artifacts:
+      - val_count.c / val_count      # own AES-NI count5 engine, own key schedule
+      - mini.c / mini, mini2         # own 4-bit-cell structural analogue
+      - val_aes.py                   # own pure-Python FIPS-197 AES (certificate verifier)
+      - sq_val                       # producer sq.c rebuilt by me, unmodified source
+      - val_results.txt, val_cmds.jsonl, val_targets_r5.json, fresh_key.txt
+    instrument_pin:
+      my_aes_ni_path_vs_FIPS197_C1: PASS
+        # key 000102..0f, pt 00112233445566778899aabbccddeeff, 10 rounds
+        # -> 69c4e0d86a7b0430d8cdb78070b4c55a
+      my_pure_python_aes_vs_FIPS197_C1: PASS
+      my_aes_sbox_rebuilt_from_gf256_inverse_plus_affine: PASS (S[0]=0x63, S[1]=0x7c)
+
+  # =====================================================================
+  claims:
+
+    - id: C1-COUNT5-R4-BIJECTION
+      claim: "At r=4 the map from the full 2^32 D_0 coset to the ID_{j0}
+              ciphertext diagonal is a perfect bijection; n_4 = 0 exactly."
+      verdict: passed
+      status: reexecuted
+      evidence:
+        my_run_1: {r: 4, j0: 3, N: 4294967296, n: 0, max_occ: 1, identity_agree: true}
+        my_run_2: {r: 4, j0: 1, N: 4294967296, n: 0, max_occ: 1, identity_agree: true,
+                   note: "different key AND different j0"}
+        interpretation: "max_occ = 1 over 2^32 inputs and 2^32 buckets IS the
+                         bijection, not merely zero collisions."
+      resolution_bits: >-
+        Not a statistical claim. Under a random-function null the probability of
+        observing a perfect bijection on 2^32 balls into 2^32 bins is
+        ~2^32!/(2^32)^(2^32), log2 approximately -6.2e9. The honest statement is
+        "derived, and the derivation's exact prediction was reproduced", not a
+        p-value.
+      derivation_check: SOUND (see C3).
+
+    - id: C2-COUNT5-R5-MOD8
+      claim: "n_5 = 0 mod 8 for every key, base and j0."
+      verdict: passed
+      status: reexecuted
+      my_aes_trials:
+        - {tag: r5_A, j0: 0, n: 2147810392, n_mod8: 0, n_mod16: 8}
+        - {tag: r5_B, j0: 2, n: 2147412120, n_mod8: 0, n_mod16: 8}
+        - {tag: r5_C, j0: 3, n: 2147389288, n_mod8: 0, n_mod16: 8}
+        - {tag: r5_D, j0: 1, n: 2147474568, n_mod8: 0, n_mod16: 8}
+      resolution_bits:
+        my_own_trials_only: "4 trials x 3 bits = 12 bits, p = 8^-4 = 2^-12
+                             under the uniform-mod-8 null"
+        producer_arm_read_by_me_from_raw_jsonl: "7 trials, 2^-21"
+        combined_but_NOT_model_independent: "11 trials, 2^-33"
+        caveat: >-
+          The p-value framing is the WEAKEST correct statement. The property is
+          DERIVED and I checked the derivation (C3); the measurement is a
+          consistency check on the instrument, not the source of the belief.
+      corroborating_prediction_I_added: >-
+        The derivation implies n_5 mod 16 must lie in {0,8} and must NOT be
+        forced to 0, because the k=2 and k=3 contributions are multiples of 2^16
+        and 2^8 while the k=4 contribution is 8 x (number of orbits). Producer
+        r=5 readings mod 16 are {8,0,0,8,0,8,0}; my four are {8,8,8,8}; my
+        scaled analogue shows both 0 and 8. The modulus is therefore EXACTLY 8,
+        empirically as well as by the argument. This was not stated in the
+        package and it is a genuine extra confirmation.
+
+    - id: C3-COUNT5-DERIVATION-ORBIT-ARGUMENT
+      claim: "The PREREGISTRATION.md section 3.5 argument proves n_5 = 0 mod 8,
+              with modulus exactly 8 and not 16."
+      verdict: passed
+      status: checked_line_by_line_and_stress_tested_by_execution
+      ruling: >-
+        THE ORBIT ARGUMENT IS SOUND. This is the check the dispatching session
+        explicitly did not perform. Worked through:
+        (1) Pull-back chain. SR^{-1}(C_j) = D_j and SR(C_j) = ID_j both verified
+            by explicit GF(2) linear algebra, so sections 2.1 and 3.3 are correct
+            and the r=5 condition is R(w) XOR R(w') in D_J with w in the coset
+            of M_0. Correct.
+        (2) Product structure (3.2). Column m of w is b_m XOR a_m*v_m with
+            v_m = MC[:,(-m) mod 4], all entries nonzero because the AES
+            MixColumns column (2,3,1,1) has no zero. The four a_m are free and
+            independent. Correct, and it is the whole engine of the result.
+        (3) Fact 1 (g_col depends only on the UNORDERED pair). Correct: f is a
+            difference of two S-box images and is symmetric, and g(a,a)=0.
+            The consequence that the INACTIVE columns contribute a free factor
+            256^(4-k) is correct precisely because g(a,a)=0 makes the shared
+            value irrelevant to the condition. This factorisation is load-bearing
+            and is right.
+        (4) Fact 2 (no single active column can satisfy the condition alone).
+            Correct. For a fixed column m, as the row index i of the four
+            equations varies, the cell of Delta read from column m runs over all
+            four rows exactly once (I verified the index map (i,m) -> t is a
+            bijection). g_col = 0 would force f_{m,t}=0 for all four t, hence
+            a_m*v_m[t] = a'_m*v_m[t] with v_m[t] nonzero, hence a_m = a'_m.
+        (5) k = 4 orbit count. The group (Z/2)^4 acting by per-column swap
+            preserves the condition. With all four columns active the stabiliser
+            of an ordered pair is trivial, so ordered orbits have size exactly
+            16 and N_ord = 0 mod 16. Passing to unordered pairs, the subgroup
+            acting trivially is {empty, full} of order 2, so the induced free
+            action is by a group of order 8 and unordered orbits have size
+            exactly 8. Hence 0 mod 8, and NOT forced to 0 mod 16. The claim that
+            "the modulus is exactly 8 and not 16" is correct, and my mod-16 data
+            (values 0 and 8 both occurring) confirms the bound is tight rather
+            than merely unproven.
+        (6) Summation. k=0 excluded, k=1 impossible by (4), k=2 gives 2^16*P_2,
+            k=3 gives 2^8*P_3, k=4 gives 8*(orbits). All multiples of 8.
+            n_5 = 0 mod 8. QED. The argument is complete and I found no gap.
+      errors_found_in_the_derivation:
+        - id: D-ERR-1
+          severity: cosmetic_non_load_bearing
+          location: PREREGISTRATION.md section 3.5, first display
+          text: >-
+            Section 3.5 writes the row-i equation at column m_i = (j0 - i) mod 4.
+            That is the INVERSE-ShiftRows index. The pull-back established in
+            3.3 lands in D_J, whose row-i cell sits at column (j0 + i) mod 4,
+            which is the convention 3.4 itself uses correctly. The two sections
+            are internally inconsistent; 3.5 has the sign flipped.
+          why_it_does_not_matter: >-
+            Under EITHER convention the map (row of Delta, column of Delta) ->
+            (which of the four equations reads it) is a bijection, so each
+            equation reads exactly one cell from each of the four columns and
+            each of the 16 cells is read exactly once. Facts 1 and 2 and the
+            orbit count depend only on that combinatorial property. The
+            conclusion is unaffected. It should be corrected by AMENDMENT, not
+            by editing the immutable preregistration.
+      execution_stress_tests_of_the_argument:
+        rationale: >-
+          The derivation uses ONLY (a) S bijective on cells, (b) MixColumns
+          column-preserving with no zero entry, (c) ShiftRows row-t rotation,
+          (d) the FULL coset. It uses no property of the AES S-box, no
+          key-schedule property, and no cell width. So it makes four falsifiable
+          predictions I could test at 4-bit cell width in seconds. All four held.
+        cipher: "own 4x4-nibble AES-shaped SPN, 64-bit block, circulant (2,3,1,1)
+                 over GF(2^4) x^4+x+1, INDEPENDENT uniform round keys, full 2^16
+                 diagonal coset, ID_{j0} nibble projection"
+        results:
+          r4_n_eq_0_fixed_sbox:        "40/40 trials, n = 0 exactly"
+          r4_n_eq_0_RANDOM_sbox:       "40/40 trials + 120/120 across all four j0"
+          r5_0mod8_fixed_sbox:         "40/40 trials  (8^-40 = 2^-120)"
+          r5_0mod8_RANDOM_sbox:        "40/40 + 120/120 across all four j0 (2^-360)"
+          r6_0mod8_fixed_sbox:         "4/40 trials  (uniform predicts 5)"
+          r6_0mod8_RANDOM_sbox:        "3/40 trials  (uniform predicts 5)"
+          SUBCOSET_nfree3_r5_0mod8:    "3/40 trials  (uniform predicts 5)"
+        rulings_from_these:
+          - "The mod-8 property is NOT specific to the AES S-box. It holds for
+             uniformly random bijective S-boxes at the same rate (2^-360 against
+             the uniform null). This CONFIRMS the derivation, which never used
+             the S-box."
+          - "The claim in section 3.5 that the FULL coset is required is
+             CONFIRMED by direct differential control: shrink the input set from
+             4 free diagonal cells to 3, change nothing else, and the residue
+             goes uniform. This is the inventor-protocol section 3 decay test
+             and the quantity decays when the parameter meant to destroy it is
+             applied."
+          - "Death at r=6 is confirmed structurally, not just on two AES trials."
+        not_executed:
+          - "MixColumns-with-a-zero-entry control: my substitute circulant
+             (2,3,0,1) over GF(2^4) is SINGULAR, so the run aborted. The
+             prediction that a zero MixColumns entry breaks the r=4 bijection is
+             UNTESTED here. I could not verify it within budget."
+
+    - id: C4-COUNT5-PRP-CONTROL  # the highest-value check requested
+      claim_under_test: "0 mod 8 might be a counting artifact holding for ANY
+                         permutation or bijection on that coset, in which case
+                         the whole count5 result collapses."
+      verdict: REFUTED - the property is NOT a counting artifact
+      status: reexecuted
+      controls_I_ran:
+        - {arm: PRP_aes10_A, cipher: full 10-round AES-128 as PRP surrogate,
+           same coset, same projection, same 2^32 data, j0: 2,
+           n: 2147551652, n_mod8: 4}
+        - {arm: PRP_aes10_B, j0: 0, n: 2147598260, n_mod8: 4}
+        - {arm: BALLS_null_A, null: "uniform random function, 2^32 balls into
+           2^32 bins, splitmix64", n: 2147455848, n_mod8: 0}
+        - {arm: BALLS_null_B, n: 2147513945, n_mod8: 1}
+        - {arm: SIBLING_fd_r5, null: "5-round AES, identical everything, but the
+           projection reads the FORWARD diagonal D_{j0} instead of ID_{j0} -
+           same shape, same 32 bits, wrong ShiftRows handedness",
+           n: 2147366742, n_mod8: 6}
+        - {arm: r6_A, null: "6-round AES, the derivation's own predicted death
+           round", n: 2147474575, n_mod8: 7}
+        - {arm: r6_B, null: "6-round AES, second key and j0",
+           n: 2147496551, n_mod8: 7}
+      ruling: >-
+        A forced-to-0 property reads 0 with probability 1. Two independent
+        random-permutation surrogates read 4 and 4; the forward-diagonal sibling
+        reads 6; the 6-round arm reads 7; the pure balls-in-bins null reads 0
+        and 1. Each single non-zero reading is by itself a DETERMINISTIC
+        refutation of "forced for any bijection" - no p-value is needed, because
+        a counting identity admits no exceptions. There is no generic counting
+        identity forcing this residue. The mod-8 reading at r=5 is a property of
+        the AES-shaped 5-round round structure applied to a full diagonal coset,
+        exactly as derived.
+      honest_note_the_package_should_carry: >-
+        One of my two balls-in-bins nulls read 0 mod 8. That is the expected 1/8
+        coincidence and it is precisely why a single null trial reading 0 is not
+        evidence of survival - the same trap the DISPATCHER-r6-ADDENDUM caught
+        itself in. Null arms need >= 3 trials to be readable; mine had 2 per null
+        family, which is thin, and I say so.
+      resolution_bits: >-
+        Refutation of "forced": deterministic, unbounded resolution, from a
+        single non-zero null reading (I have five). Estimation of the null
+        residue distribution: 6 null readings total {4,4,0,1,6,7}, far too few to
+        assert uniformity - approximately 2.6 bits of information about the null
+        shape. I do NOT claim the null is uniform; I claim it is not forced.
+
+    - id: C5-COUNT5-R6-DEATH
+      claim: "The property dies at r=6."
+      verdict: passed
+      status: reexecuted
+      evidence:
+        my_aes_r6_trials:
+          - {tag: r6_A, j0: 2, n: 2147474575, n_mod8: 7, n_mod16: 15}
+          - {tag: r6_B, j0: 0, n: 2147496551, n_mod8: 7, n_mod16: 7}
+        my_scaled_analogue: "7 zeros in 80 r=6 trials, uniform predicts 10"
+        producer_plus_dispatcher_readings_read_by_me: "{7, 4, 0}"
+      resolution_bits: "my AES arm 2 trials, both non-zero, which deterministically
+                        refutes forcing at r=6; my scaled arm 80 trials
+                        gives a usable estimate of the zero-rate at 0.0875
+                        against the uniform 0.125, consistent."
+      note: "Death at r=6 is not merely observed, it is PREDICTED by the
+             derivation (round 3 mixes across columns, destroying both the
+             per-column decomposition and the free-inactive-column factor).
+             Prediction and measurement agree."
+
+    - id: C6-COUNT5-INSTRUMENT-POSITIVE-CONTROLS
+      claim: "PR-A exact positive controls validate the counting instrument."
+      verdict: passed
+      status: reexecuted - I SUPPLIED BOTH MISSING EXACT CONTROLS
+      resolution_of_the_gap: >-
+        Both exact controls landed inside my budget, on the last two runs of my
+        grid, with 64-bit occupancy counters that cannot saturate:
+          r=2 j0=1 : N = 4294967296, n = 9223372034707292160, max_occ = 2^32.
+                     PR-A predicts C(2^32,2) = 9223372034707292160. EXACT MATCH.
+          r=3 j0=3 : N = 4294967296, n = 36028794871480320, max_occ = 2^24.
+                     PR-A predicts 256*C(2^24,2) = 36028794871480320. EXACT MATCH.
+        The internal identity n = (sum m^2 - N)/2 agreed in both. The instrument
+        risk described below is therefore CLOSED: the counting statistic
+        reproduces both large non-zero exact predictions, on an implementation
+        that shares no code with count5.c, to the last digit of a 63-bit and a
+        56-bit integer. That is roughly 63 and 56 bits of resolution
+        respectively, vastly more than the 3 bits of any mod-8 reading, and it
+        is the strongest single piece of instrument evidence in this validation.
+      finding_about_the_producer_run_which_still_stands: >-
+        THIS IS A REAL GAP AND IT WAS NOT FLAGGED IN THE PACKAGE SUMMARIES.
+        The preregistration's PR-A names four exact positive controls:
+        n_2(j0=0) = 0, n_2(j0!=0) = 9223372034707292160, n_3 = 36028794871480320,
+        n_4 = 0. Reading count5/raw.jsonl directly:
+          - r=2 j0=0 : run, n=0. PASS.
+          - r=2 j0!=0: NEVER RUN. Absent from raw.jsonl.
+          - r=3      : run, but VOID. It reports N=65280 instead of 2^32,
+                       max_occ=255, overflow=true. The uint8 occupancy counters
+                       saturate because the true occupancy is 2^24. It reads
+                       n=8290560, not the predicted 36028794871480320.
+          - r=4      : run, n=0. PASS.
+        So BOTH exact controls that predict a LARGE NON-ZERO value are missing
+        or void, and both surviving controls predict ZERO. An instrument fault
+        that systematically undercounts would pass both surviving controls. The
+        r=5/r=6 arms do produce non-zero counts near 2^31 with the internal
+        identity n = (sum m^2 - N)/2 agreeing, which mitigates but does not
+        replace the exact controls.
+      protocol_deviation: >-
+        VOID condition V1 reads "any PR-A control fails. Instrument broken;
+        checked FIRST, execution stops." The r=3 control did not produce its
+        predicted value and execution did NOT stop. The producer did record the
+        r=3 reading as invalid_measurement, which is correct handling of the
+        datum, but the stopping rule as written was not honoured. Reported, not
+        repaired.
+      residual_protocol_finding: >-
+        The instrument question is closed, but the PROTOCOL deviation stands and
+        is not repaired by my runs: V1 required execution to STOP when a PR-A
+        control failed, and it did not stop. Report it as a deviation; the data
+        it produced is nonetheless now corroborated.
+
+    - id: C7-LADDER-R4-DISTINGUISHER
+      claim: "Deterministic 4-round distinguisher, exactly 0 colliding pairs at
+              r=4 against a null of 128, ~2^19 texts for a 2^-46 false-positive
+              rate."
+      verdict: passed_with_reclassification
+      status: reexecuted_indirectly_and_component_null_supplied
+      findings:
+        - "The measurement is correct and is a strict COROLLARY of C1. The
+           ladder's plaintext set (bytes 0,5,10,15 varying, others fixed) is a
+           SUBSET of the same D_0 coset, and its ciphertext word {0,13,10,7} is
+           exactly ID_0. Since the r=4 map on the FULL coset is a bijection
+           (C1, reproduced by me), it is injective on every subset, so 0
+           collisions at any N is forced. The ladder is not independent evidence
+           from count5; it is the same object measured with less data."
+        - "COMPONENT NULL, flagged UNTESTED by the dispatching session, NOW
+           SUPPLIED AND IT DOES NOT DISCRIMINATE. At 4-bit cell width with
+           uniformly random bijective S-boxes, r=4 gives n=0 in 40/40 trials and
+           120/120 across all four j0. The r=4 injectivity is a fact about the
+           AES ROUND STRUCTURE (ShiftRows geometry plus a column-preserving
+           mixing layer with no zero entry plus ANY bijective S-box), NOT about
+           the AES S-box. The derivation in count5 section 3.4 says exactly this
+           and I confirm it. The ladder's own WHAT_THIS_IS_NOT entry should be
+           updated from 'untested' to 'tested, and it holds for any bijective
+           S-box'."
+        - "I did not re-run ladder.c itself. The r=4 claim is entailed by my own
+           full-coset run, which is strictly stronger."
+      overstatement:
+        - "LADDER-RESULT.json labels e^-32 = 2^-46.2 a 'distinguishing
+           advantage'. It is a FALSE-POSITIVE RATE against the PRP control. The
+           distinguishing advantage of a test with zero false negatives and
+           false-positive rate p is 1-p, i.e. essentially 1. The number is right,
+           the word is wrong, and the wrong word flatters the result."
+      resolution_bits: "deterministic; false-positive rate 2^-46.2 at N=2^19 as
+                        stated, which I did not independently re-measure."
+
+    - id: C8-ATTACK-R5-KEY-RECOVERY
+      claim: "Certified 5-round AES-128 key recovery over the full unrestricted
+              2^128 key space."
+      verdict: passed
+      status: reexecuted_on_a_key_of_my_own
+      procedure:
+        - "Generated a key no prior artifact contains:
+           eebda21bcee6b9ad9bc7cf8d7df8fce1, python3 secrets.token_hex(16)."
+        - "Rebuilt the producer's sq.c from unmodified source with my own
+           compiler invocation. Ran: sq_val attack5 <mykey> 5 2 424242 4."
+        - "Result: recovered_master = eebda21bcee6b9ad9bc7cf8d7df8fce1, exact
+           match, unique=1, 8589934592 chosen plaintexts, 1056512 partial
+           decryptions, 56.4 s wall on 4 contended cores."
+        - "Read the attack5 code path: `recovered_master` is produced by
+           key_invert() from the surviving per-byte candidate sets, which are
+           filtered by the integral balance test on ciphertext bytes. The input
+           key variable is used ONLY to build the oracle's round keys. It is not
+           an echo. Survivor counts per byte in structure 0 were
+           [1,2,2,2,2,4,3,1,1,1,1,1,4,2,2,2] and collapsed to all-ones only
+           after structure 1 - an echo cannot produce data-dependent filtering."
+        - "CERTIFICATE, re-verified with code sharing nothing with the attack:
+           I emitted four 5-round (plaintext, ciphertext) pairs from the oracle
+           and re-encrypted them under the recovered key using val_aes.py, a
+           pure-Python AES I wrote from FIPS-197 in this session (S-box derived
+           from the GF(2^8) inverse plus the affine map; no pycryptodome, no repo
+           code; self-tested against FIPS-197 C.1). 4/4 pairs match, 0 mismatch."
+      verdict_scope: >-
+        BT-1 as defined in RQ-AES-003 is met AT r=5 AND ONLY AT r=5, against the
+        DEFINITIONAL exhaustive-search reference. Nothing here bears on r=6, r=7,
+        full-round AES, or any comparison to published cryptanalysis.
+      claims_I_did_NOT_validate:
+        - "The 6-round restricted recovery. Not re-executed. The package itself
+           states it needed 12 hint bytes and that exhaustive search over the
+           same restricted residual takes ~25 s against its 69 s - i.e. by the
+           package's own numbers it LOSES to its own baseline. Any summary that
+           lists a '6-round recovery' without that sentence attached is
+           overstated."
+        - "The 7-round probe. Not re-executed. It is not a key recovery: the
+           last round key is supplied as input, and it carries no certificate."
+
+    - id: C9-SCALED7-MINIAES-NONTRANSFER
+      claim: "The MINI-AES-64 5-round balance exists only because the 4-bit
+              S-box has degree 3 (3^3 = 27 < 32) while AES's degree 7 gives
+              7^3 = 343 > 128, so it does not transfer to AES-128."
+      verdict: passed_on_the_arithmetic, overstated_in_the_label
+      status: reexecuted
+      degree_check_I_ran:
+        method: "Moebius transform of every coordinate Boolean function."
+        aes_sbox: "built from scratch as affine(GF(2^8)-inverse); bijective;
+                   algebraic degree 7, and all EIGHT coordinate functions have
+                   degree 7."
+        mini_sbox: "[6,11,5,4,2,14,7,10,9,13,15,12,3,1,0,8], the table pinned in
+                    scaled7/pin_out.json; bijective; algebraic degree 3, all
+                    FOUR coordinate functions degree 3."
+        arithmetic: "3^3 = 27 < 32 (dimension of the 8-cell coset) -> zero sum
+                     forced. 7^3 = 343 > 128 = whole AES block -> the bound is
+                     vacuous for every subspace of the AES state.
+                     3^4 = 81 > 64 -> vacuous at level 6 for MINI, matching the
+                     measured death at level 6."
+      overstatement:
+        - "The briefing and the package framing call this a 'proof of
+           non-transfer'. It is not. deg(F o G) <= deg F * deg G is an UPPER
+           bound. An upper bound below the subspace dimension FORCES balance;
+           an upper bound above it forces nothing in either direction. So the
+           correct statement is 'THE DEGREE ARGUMENT does not transfer to
+           AES-128', not 'the property does not transfer'. It leaves open, and
+           does not address, whether AES-128 has a 5-round balance by some other
+           mechanism. scaled7/PREDICTION.txt is itself correctly scoped -
+           it says 'THIS IS THE STEP THAT DOES NOT TRANSFER'. The summary label
+           is what drifts."
+      credit_where_due: >-
+        scaled7/PREDICTION.txt records a pre-registered prediction, its PARTIAL
+        FALSIFICATION at na=7, a NAMED error in its own argument, a corrected
+        prediction registered before the next run, and a VOID declaration for an
+        int-overflow run. That is the discipline the contract asks for and it is
+        visible in the artifact, unedited.
+
+    - id: C10-GATE-RR78-SUPERSESSION
+      claim: "GATE-RR78-1 is superseded because it combined a final-round-without-
+              MixColumns cipher with an output space that is correct only when
+              the final round KEEPS MixColumns."
+      verdict: passed - genuinely superseded, but its null still stands for the
+               object it actually tested
+      status: reexecuted
+      algebraic_check_I_ran:
+        method: "GF(2) linear algebra over the 128-bit state. Built C_J
+                 (j0 = 0, dimension 96, verified), formed the two candidate
+                 output spaces, pulled each back through the final ShiftRows,
+                 and tested byte-alignment as dim(X) == 8 * |touched bytes|."
+        result:
+          - "ID_J = SR(C_J) [count5]: SR^-1 image has dim 96, touches 12 bytes,
+             BYTE-ALIGNED = true"
+          - "M_J = MC(SR(C_J)) [gate-rr78]: SR^-1 image has dim 96, touches ALL
+             16 bytes, BYTE-ALIGNED = false"
+        conclusion: >-
+          Confirmed exactly as the count5 preregistration section 2.1 states.
+          A non-byte-aligned subspace does not commute with the byte-wise
+          SubBytes, so GATE-RR78-1's condition does not pull back through
+          SubBytes and no derivation predicts anything about it. The two halves
+          of that instrument were algebraically incompatible.
+      ruling: >-
+        (a) SUPERSEDED as a test of the intended property. Its r=4 reading of
+            n = 2147497085 and residue 5 does NOT contradict n_4 = 0, because it
+            measured a different statistic. The count5 r=4 bijection stands.
+        (b) ITS NULL STILL STANDS for the object it actually tested. The
+            readings are valid measurements of a well-defined (if unmotivated)
+            statistic and should not be retracted or called erroneous data.
+            They are uninformative rather than refuted: no derivation predicts
+            anything about that object, and at 1 trial per arm the resolution is
+            3 bits, which the gate's own producer already declined to call a
+            refutation. Both those judgements were correct.
+        (c) The supersession is therefore a change of OBJECT, not a correction
+            of a measurement error, and the ledger language should say so.
+
+    - id: C11-YOYO5-YOYO6
+      claim: "Adaptive 5-round distinguisher, 12-17x rate excess, replicated,
+              non-amplifying under iteration, strictly all-or-nothing; dead at
+              r=6."
+      verdict: incomplete
+      status: read_only - NOT RE-EXECUTED
+      reason: "Insufficient budget after the count5 grid. Re-executing the yoyo
+               object requires reimplementing the adaptive swap structure, which
+               I did not have time to do independently."
+      what_I_can_say_from_reading_only:
+        - "The arithmetic in the artifacts is internally consistent. At r=5 the
+           G4 counts are AES [16,18,15,22,20,23,23,29] (mean 20.75/group) against
+           the matched PRP control [0,1,2,2,1,2,2,1] (mean 1.4) and a null
+           expectation of N * 9.313e-10 = 1.0 per group at N = 2^30. That is a
+           ~15-20x excess with a null object of the same shape present, which is
+           the inventor-protocol section 3 requirement, and it is met."
+        - "At r=6 the AES G4 counts [2,2,5,1,5,4,4,3] (mean 3.25) sit against a
+           matched PRP [1,1,2,3,1,2,3,3] (mean 2.0) and a null expectation of
+           2.0. The r=6 arm is at or near the null. The death-at-r=6 reading is
+           consistent with the artifacts."
+        - "I did not verify the NULL_PROBS.json probabilities, the run harness,
+           the seeds, or the claim of non-amplification under iteration."
+      instruction_to_the_coordinator: >-
+        Do not treat C11 as validated. It is unvalidated, and the strongest
+        claims in the batch (C1-C5) do not depend on it.
+
+  # =====================================================================
+  runtime_shortfall:
+    honest_statement: >-
+      My grid of 15 full-2^32 configurations was budget-limited. FOURTEEN
+      completed inside the budget and are reported above with their exact
+      counts, including both exact positive controls, both r=4 arms, four r=5
+      arms, two r=6 arms, two random-permutation surrogates, two balls-in-bins
+      nulls and the forward-diagonal sibling null. No arm was lost to the halt.
+    what_I_would_run_next_with_more_budget:
+      - "Three more random-permutation null trials at r=5, to estimate the null
+         residue distribution rather than merely refute forcing."
+      - "A non-singular MixColumns-with-a-zero-entry variant at 4-bit width, to
+         confirm the derivation's stated dependence on the no-zero-entry
+         condition. My candidate matrix was singular and the test did not run."
+      - "Independent re-execution of yoyo5/yoyo6 (C11). Highest remaining value."
+
+  # =====================================================================
+  overstatements_and_scoping_defects:
+    - id: OS-1
+      severity: high
+      where: count5 DISPATCHER-VERIFICATION.json what_this_establishes; and any
+             summary describing count5 as a property "of 5-round AES-128"
+      text: >-
+        THE PROPERTY IS NOT AES-SPECIFIC. Both the r=4 bijection and the r=5
+        mod-8 forcing follow from the round GEOMETRY alone: any bijective
+        S-box, any column-preserving mixing layer whose relevant entries are all
+        nonzero, ShiftRows-style row rotations, and a full diagonal coset. I
+        confirmed this by execution - uniformly random bijective S-boxes
+        reproduce both properties at 120/120 and 120/120 in my scaled analogue.
+        The correct description is "a derived deterministic property of any
+        5-round AES-SHAPED SPN, instantiated here on AES-128", and the correct
+        consequence is that it distinguishes 5-round AES from a random
+        permutation but carries no information about the AES S-box. Nothing in
+        the package states this and it is the single largest scoping gap I
+        found. It does not weaken C1-C5; it relabels what they are about.
+    - id: OS-2
+      severity: medium
+      where: C9 / scaled7 framing as a "proof of non-transfer"
+      text: see C9 overstatement. It is a proof that the DEGREE ARGUMENT does
+            not transfer, not that the property does not.
+    - id: OS-3
+      severity: medium
+      where: C6 - the missing and void exact positive controls
+      text: >-
+        The package's honest-limits lists mention the void r=3 reading, but no
+        summary states the consequence: after the void, EVERY surviving PR-A
+        control predicts zero, so the instrument was never shown able to produce
+        a correct large non-zero count. That is a live instrument risk and it
+        should be named as such, not left as a footnote about counter overflow.
+    - id: OS-4
+      severity: low
+      where: ladder LADDER-RESULT.json DATA_COMPLEXITY.distinguishing_advantage
+      text: 2^-46.2 is a false-positive rate, not an advantage.
+    - id: OS-5
+      severity: low
+      where: count5 PREREGISTRATION.md section 3.5
+      text: index-convention sign error, D-ERR-1 above. Non-load-bearing.
+        Correct by AMENDMENT file, never by editing the preregistration.
+    - id: OS-6
+      severity: medium
+      where: any summary listing the 6-round attack alongside the 5-round one
+      text: >-
+        The 6-round recovery required 12 hint bytes and, by the package's own
+        numbers, is SLOWER than exhaustive search over the same restricted
+        residual (69 s against ~25 s). It is a negative result about that
+        construction and must never appear in a list of successes without that
+        clause.
+
+  # =====================================================================
+  what_this_report_does_not_do:
+    - "It does not assign evidence strength. That is the Coordinator's."
+    - "It does not rule on novelty in either direction, per the task constraint
+       and DEC-20260731-019 ruling 3. No literature comparison was made."
+    - "It does not assert that BT-3 is met. count5 gives a DERIVED deterministic
+       property at r=5, one round deeper than the deterministic r=4 ladder and
+       at the same depth as the campaign's statistical yoyo object. Whether that
+       is 'strictly beyond this campaign's own measured death rounds' is a
+       definitional call reserved to the Coordinator. I record only the measured
+       facts: forced at r<=5, not forced at r=6, on both AES-128 and a scaled
+       structural analogue."
+    - "It does not authorize promotion, does not support any claim about
+       full-round or deployed AES, and cannot count toward a closure quorum."
+    - "It makes no statement about the correctness of the ledger, and I made no
+       commit and touched no producer artifact."
+
+  terminal_verdict: passed
+  terminal_verdict_scope: >-
+    PASSED as to the claims re-executed here: C1 (r=4 perfect bijection),
+    C2 (r=5 mod-8), C3 (the derivation and its orbit argument, checked line by
+    line and found sound, with one cosmetic index error named), C4 (the mod-8
+    property is NOT a counting artifact - refuted by five independent null
+    readings including two random-permutation surrogates), C5 (death at r=6),
+    C7 (the 4-round ladder, reclassified as a corollary of C1 and its component
+    null now supplied), C8 (the 5-round key recovery, re-executed on a key of my
+    own and re-certified with code sharing nothing with the attack), C9 (the
+    S-box degrees), C10 (the gate-rr78 supersession ruling).
+    C6 is now PASSED: I supplied both missing exact positive controls and both
+    reproduced their pre-registered exact values to the digit.
+    INCOMPLETE as to C11 (yoyo5/yoyo6 not re-executed) only.
+    Six overstatements are named above, of which OS-1 is material to how the
+    result should be described.

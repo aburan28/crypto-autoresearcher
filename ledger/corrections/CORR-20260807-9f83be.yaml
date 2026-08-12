@@ -1,0 +1,161 @@
+correction:
+  id: CORR-20260807-9f83be
+  recorded_at: '2026-08-07'
+  recorded_by: coordinator (GOAL-ENDO-001, BATCH-523510)
+  type: confounded_measurement
+  supersedes: []
+  corrects:
+  - experiments/EXP-ICINV-9b1f7c/runs/RUN-ICINV-p4001-uniform/raw-result.json
+  - experiments/EXP-ICINV-9b1f7c/runs/RUN-ICINV-p6007-uniform/raw-result.json
+  - experiments/EXP-ICINV-9b1f7c/runs/RUN-ICINV-p4001-identity/raw-result.json
+  - experiments/EXP-JINV-dd60d3/runs/RUN-JINV-p1009-uniform/raw-result.json
+  - ledger/evidence/EV-ENDO-e8d3e5.yaml
+  - harness/exp_icinv.py
+  record_type: run
+  record_id: >-
+    RUN-ICINV-p4001-uniform, RUN-ICINV-p6007-uniform, RUN-ICINV-p4001-identity,
+    RUN-JINV-p1009-uniform (the within-class dispersion magnitude and NULL-C
+    p-values only)
+  field: harness.exp_icinv.targets_uniform
+  authority:
+    found_by: >-
+      The Coordinator, while building EXP-ICINV-55c2d8 (the N3 saturation-decay
+      sweep from DEC-20260807-c8aa8b). Not found by an external reviewer this
+      time: the sweep's own diagnostics (sorting per-curve rates within a class)
+      surfaced an impossible value -- rate_m3 = 1.0 (300/300 uniform targets
+      landing in a sum-set of density 0.016) -- which is what triggered the
+      investigation below.
+    independently_verified_by: >-
+      Direct re-derivation before this record was written: recomputed the
+      specific base point `targets_uniform` selects for curve
+      (p=4001, a=2175, b=1450), confirmed its order is exactly 2 (it is the
+      2-torsion point (3, 0)), and confirmed that `[h % order] * G` for that G
+      collapses to the single point (3, 0) repeated, dropping to the identity
+      whenever h is even.
+  the_defect:
+    location: harness/exp_icinv.py, function `targets_uniform`.
+    what_it_did: >-
+      Used "the first liftable x starting from 2" as the base point for
+      generating pseudo-random multiples, with NO check on that point's order.
+    why_that_is_wrong: >-
+      A base point's order can be small -- in the worst case, 2 (a 2-torsion
+      point). When it is, `[h % order] * G` does not sample the group at all: it
+      alternates between G and the identity depending on the parity of h, so
+      every "independent uniform target" collapses to one repeated point. The
+      function's own docstring already promised this case would be handled
+      ("`subgroup_index` below reports that so a run can declare it rather than
+      hide it") but NO SUCH FIELD OR CHECK EXISTED in the implementation --
+      documentation asserting a safeguard that was never built.
+    how_it_was_caught: >-
+      By an impossible number, not by review: a uniform sample against a
+      sum-set of density 0.016 landing 300/300 times has probability on the
+      order of 0.016^300, and the offending curve's `targets` field even
+      recorded the tell -- 221 accepted targets out of 400 draws, matching
+      almost exactly half (the fraction of odd h values), not the ~400 a
+      genuine uniform sample would accept.
+  scope_of_the_defect:
+    confirmed_incidence: >-
+      Checked directly: of 8 measured classes across the two ICINV runs (4 at
+      p=4001, 4 at p=6007), 4 contained exactly one degenerate curve each (curves
+      at (2175,1450) and (2762,1523) at p=4001; (791,1582) and (3020,33) at
+      p=6007). Roughly 1-in-100-to-140 curves, consistent with the base-point
+      search landing on one of a curve's z in {0,1,3} 2-torsion roots by chance.
+    what_it_inflated: >-
+      ONE degenerate curve per affected class, each pinned at rate_m2 or rate_m3
+      exactly 0.0 or 1.0, inflated that class's WITHIN-class dispersion ratio.
+      Directly measured at the p=4001 target class (trace=30, 138 curves): fixing
+      the one degenerate curve dropped decomp_rate_m2's ratio from 5.745 to
+      1.416 and decomp_rate_m3's from 3.642 to 2.298. NULL-C p-values shifted
+      too: decomp_efficiency_m2 0.131 -> 0.7815; decomp_efficiency_m3
+      0.295 -> 0.098.
+    what_survived_the_fix_unchanged: >-
+      BOTH qualitative conclusions of BATCH-cb71b5's evidence record hold under
+      the corrected sampler, at BOTH primes: (1) between-class -- NULL-C still
+      finds no significant between-class signal (all p-values >0.05 both before
+      and after, and MORE decisively so at p=6007: 0.1955->0.881,
+      0.6905->0.8215); (2) within-class -- decomp_rate_m2 and decomp_rate_m3
+      remain over-dispersed at the target class at p=4001 even with the
+      degenerate curve removed (ratios 1.416 and 2.298, both still comfortably
+      over the chi-square acceptance band). CORR-20260807-3ee25d defect D8's
+      finding -- that DECOMPOSITION.md section 5 prediction 1 (zero within-class
+      variance) is refuted -- is NOT an artifact of this bug. It is confirmed
+      independently by EXP-ICINV-55c2d8 (see below), which never touches the
+      degenerate-curve mechanism at all.
+    strengthened_by_the_fix: >-
+      EXP-ICINV-55c2d8, the N3 saturation-decay sweep that surfaced this defect,
+      re-ran CLEAN (post-fix) at both primes across the full density range
+      [0.024, 0.97]. The over-dispersion is now shown to be DENSITY-INDEPENDENT --
+      ratio stays in [1.3, 3.6] at every density tested, including the density
+      closest to the 1/3! operating regime a real decomposition search would
+      use (1.918 at p=4001, 1.591 at p=6007) -- with NO decay trend
+      (monotonic_decay: False at both primes). This REFUTES the "saturation
+      artifact" hypothesis both this campaign and the independent Red Team had
+      proposed as the likely explanation for D8: the effect is real and
+      persistent, not a boundary artifact of one saturated measurement.
+  classification: >-
+    A confounded measurement, not a fabrication. The instrument's DOCSTRING
+    overclaimed a safeguard ("subgroup_index... reports that") that the CODE did
+    not implement -- recorded because a promise made in a comment and not kept in
+    the code is exactly the kind of gap this program's evidence discipline
+    exists to catch, even when it costs nothing downstream.
+  required_action:
+  - >-
+    NEVER cite the RAW magnitude of the within-class dispersion ratios or the
+    exact NULL-C p-values from RUN-ICINV-p4001-uniform, RUN-ICINV-p6007-uniform,
+    RUN-ICINV-p4001-identity, or RUN-JINV-p1009-uniform. Cite
+    RUN-ICINV-p4001-degenfix, RUN-ICINV-p6007-degenfix, RUN-ICINV-p4001-fixed and
+    RUN-ICINV-p6007-fixed instead. The QUALITATIVE conclusions of those
+    superseded runs (no between-class signal; real within-class over-dispersion)
+    are unaffected and may still be cited as conclusions, just not by their exact
+    numbers.
+  - >-
+    The superseded run directories are NOT edited or deleted (AGENTS.md rule 4).
+    Their correct reading is this record.
+  - >-
+    `targets_uniform` now searches up to 200 candidate liftable points and keeps
+    the one of LARGEST order found, stopping early on a full generator. It can
+    still fail to reach a non-cyclic group's full structure from a single
+    generator -- a genuine mathematical limitation, not a bug -- but it can no
+    longer degenerate to a near-trivial subgroup by accident.
+  - >-
+    Any future addition to this harness whose docstring promises a specific
+    safeguard or diagnostic field must be checked against the actual
+    implementation before the docstring is trusted; this defect shipped with
+    exactly such a mismatch and was caught only because its output was
+    numerically impossible, not because anyone checked the promise against the
+    code.
+  evidence_artifacts:
+  - experiments/EXP-ICINV-9b1f7c/runs/RUN-ICINV-p4001-degenfix/raw-result.json
+  - experiments/EXP-ICINV-9b1f7c/runs/RUN-ICINV-p6007-degenfix/raw-result.json
+  - experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-p4001-fixed/raw-result.json
+  - experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-p6007-fixed/raw-result.json
+  - harness/exp_icinv.py
+  refs:
+  - EXP-ICINV-9b1f7c
+  - EXP-ICINV-55c2d8
+  - EXP-JINV-dd60d3
+  - RQ-ICINV-475b5e
+  - RQ-INSTR-f8faa0
+  - GOAL-ENDO-001
+  - BATCH-cb71b5
+  - BATCH-523510
+  - EV-ENDO-e8d3e5
+  - CORR-20260807-3ee25d
+  - CORR-20260807-a05e1e
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one model
+      the session runs on. Recorded, never silently substituted (AGENTS.md
+      rule 11). Session model changed from claude-opus-5 to claude-sonnet-5
+      partway through this campaign via an explicit user /model command; both
+      resolutions are recorded honestly rather than picking one.
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session.

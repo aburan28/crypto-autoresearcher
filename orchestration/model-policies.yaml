@@ -1,91 +1,264 @@
-schema_version: "1.1"
+schema_version: "2.0"
 
-# Human-readable policy aliases are stable across runtimes. The adapter layer must
-# resolve each alias to the exact model identifier supported by the active client.
+# Capability contracts, not products.
+#
+# A policy states WHAT a role needs from a model: reasoning depth, tool use,
+# context, output length, and whether it may touch official research state. It
+# never names a vendor, family, or model identifier. Concrete identifiers live
+# in `orchestration/model-bindings.yaml`, one table per backend declared in
+# `orchestration/providers.yaml`, and are resolved by `orchestration.adapter`.
+#
+# Policy ids are permanent and immutable, exactly like ledger record ids.
+# Handoffs already committed under `ledger/handoffs/` reference the pre-2.0
+# ids; those are carried forever under `aliases:` and keep resolving. An alias
+# is never reassigned to a different capability contract.
+
+adapter:
+  module: orchestration.adapter
+  providers: orchestration/providers.yaml
+  bindings: orchestration/model-bindings.yaml
+  # Reasoning-effort lattice used for every comparison below.
+  reasoning_effort_order: [none, low, medium, high, xhigh, max]
+
+# Two different questions, kept apart because conflating them makes calibration
+# impossible:
+#
+#   requires.reasoning_effort  the FLOOR a backend must support. A binding whose
+#                              `max_reasoning_effort` sits below this is a
+#                              DOWNGRADE: refused unless the handoff set
+#                              `fallback_allowed` / `degraded_allowed`.
+#   reasoning_effort           what is actually REQUESTED per call. Defaults to
+#                              the floor when omitted.
+#
+# Thinking is the dominant cost and latency term in this program, and it is not
+# uniformly useful. Deciding whether evidence justifies a state transition is
+# reasoning-bound. Running a frozen protocol and collecting artifacts is
+# instruction- and tool-bound: extra thinking there buys re-derivation of a
+# specification that was already frozen. So effort is calibrated per role rather
+# than set high everywhere and forgotten.
+
 policies:
-  coordinator-ultra-code:
-    display_name: GPT-5.6 Sol Ultra Code
-    family: gpt-5.6-sol
-    profile: ultra-code
-    reasoning_effort: high
+  coordinator-orchestration-code:
+    # `coordinator-archive` was never a defined policy: TASK-20260801-808 and
+    # TASK-20260801-811 were committed naming it, so those handoffs could not
+    # resolve at all. Both are Coordinator tasks committing and verifying
+    # repository artifacts, which is this contract. Carried as an alias rather
+    # than edited into the committed handoffs, exactly as the header above
+    # prescribes for ids that committed handoffs already reference. It is not
+    # reassigned to a different capability contract.
+    aliases: [coordinator-ultra-code, coordinator-archive]
+    summary: >-
+      Coordinator working over the repository: task decomposition, dispatch
+      plans, state transitions, and code-aware protocol design.
     purpose:
       - orchestration
       - task_decomposition
       - state_transitions
       - code_aware_planning
       - contradiction_resolution
-    may_change_official_state: true
-    fallback_policy: coordinator-sol-max
-
-  coordinator-sol-max:
-    display_name: GPT-5.6 Sol Max
-    family: gpt-5.6-sol
-    profile: max
+    requires:
+      reasoning_effort: high
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 180000
+      min_output_tokens: 16000
+    # Decides state transitions and resolves contradictions across the ledger.
+    # This is the reasoning-bound role; it is where depth is worth paying for.
     reasoning_effort: high
+    may_change_official_state: true
+    independent_session_required: false
+    fallback_policy: coordinator-orchestration
+
+  coordinator-orchestration:
+    aliases: [coordinator-sol-max]
+    summary: >-
+      Coordinator without a repository-wide code path: prioritization,
+      synthesis, and decision records.
     purpose:
       - orchestration
       - task_decomposition
       - synthesis
-    may_change_official_state: true
-
-  research-sol-max:
-    display_name: GPT-5.6 Sol Max
-    family: gpt-5.6-sol
-    profile: max
+    requires:
+      reasoning_effort: high
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 16000
     reasoning_effort: high
+    may_change_official_state: true
+    independent_session_required: false
+    fallback_policy: null
+
+  research-deep:
+    aliases: [research-sol-max]
+    summary: >-
+      Long-horizon mathematical and literature reasoning for ideation,
+      mechanism search, and experiment design.
     purpose:
       - literature_synthesis
       - hypothesis_generation
       - mechanism_search
       - experiment_design
       - mathematical_analysis
+    requires:
+      reasoning_effort: high
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 16000
+    # Mechanism search over a large literature spine. Depth is the product.
+    reasoning_effort: high
     may_change_official_state: false
+    independent_session_required: false
+    fallback_policy: null
 
-  review-xhigh:
-    display_name: GPT-5.6 Sol
-    family: gpt-5.6-sol
-    profile: reasoning
-    reasoning_effort: xhigh
+  review-adversarial:
+    # `validator-independent` (TASK-20260801-809, to: validator) and
+    # `red-team-adversarial` (TASK-20260801-810, to: red-team) were never
+    # defined policies, so both handoffs failed to resolve. role_defaults
+    # already routes validator and red_team here, so these are the names those
+    # handoffs meant. Carried as aliases rather than edited into committed
+    # handoffs; neither is reassigned to a different capability contract.
+    aliases: [review-xhigh, validator-independent, red-team-adversarial]
+    summary: >-
+      Independent adversarial review of claims, proofs, and proposed state
+      transitions. Must run in a session that did not originate the claim.
     purpose:
       - adversarial_review
       - proof_review
       - breakthrough_review
       - closure_review
       - contradiction_resolution
+    requires:
+      reasoning_effort: xhigh
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 180000
+      min_output_tokens: 16000
+    # The gate protecting every claim in the ledger. Never calibrate this down
+    # to save tokens: a review that misses a bad certificate costs more than the
+    # thinking it saved, and `evals/suites/discipline.yaml` measures exactly
+    # that trade.
+    reasoning_effort: xhigh
     may_change_official_state: false
     independent_session_required: true
+    fallback_policy: null
 
-  executor-terra:
-    display_name: GPT-5.6 Terra
-    family: gpt-5.6-terra
-    profile: executor
-    reasoning_effort: high
+  review-breakthrough:
+    aliases: []
+    summary: >-
+      The one decision class where being wrong is unrecoverable: a claimed
+      break, a closure result, or a contradiction between two independently
+      validated evidence records.
+    purpose:
+      - breakthrough_review
+      - closure_review
+      - contradiction_resolution
+    requires:
+      # A FLOOR of `max`, so a backend that cannot go this deep refuses the
+      # task outright. That refusal is the point: reviewing a claimed break on
+      # a model that cannot reach the top tier is worse than not reviewing it,
+      # because it produces a signed-off answer either way.
+      reasoning_effort: max
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 180000
+      min_output_tokens: 24000
+    reasoning_effort: max
+    may_change_official_state: false
+    independent_session_required: true
+    # No weaker policy may stand in for this one. Cross-backend fallback is
+    # still allowed, because moving to a backend that FULLY meets the `max`
+    # floor is not a weakening -- it is how you get the review you asked for.
+    fallback_policy: null
+    # But this tier can never be degraded, even with an approved amendment.
+    # Every other policy may accept a binding that misses a requirement once a
+    # coordinator signs for it; here there is nothing to sign for. A claimed
+    # break of a real curve is the one assertion this program could make that
+    # would matter outside it, and "reviewed on whatever was available" is not
+    # a review of it.
+    degradable: false
+
+  executor-implementation:
+    aliases: [executor-terra]
+    summary: >-
+      Implementation, debugging, bounded experiment execution, and artifact
+      collection. Records observations only.
     purpose:
       - implementation
       - debugging
       - experiment_execution
       - artifact_collection
+    requires:
+      # Floor, not the request: the Executor still needs a model competent
+      # enough to debug, so a `low`-only backend is rejected.
+      reasoning_effort: medium
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 24000
+    # Executes a protocol that is already frozen and approved. The hard thinking
+    # happened when the Coordinator specified it; re-deriving the design here is
+    # not just wasted budget, it is how an Executor drifts into reinterpreting a
+    # specification it is supposed to follow exactly.
+    reasoning_effort: medium
     may_change_official_state: false
+    independent_session_required: false
+    fallback_policy: null
+
+  executor-mechanical:
+    aliases: []
+    summary: >-
+      Deterministic, fully specified work: re-run a frozen command, collect
+      artifacts, reformat a record, regenerate an index.
+    purpose:
+      - artifact_collection
+      - reproduction_runs
+      - record_formatting
+    requires:
+      reasoning_effort: low
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 60000
+      min_output_tokens: 16000
+    # There is no judgment left in these tasks. Effort spent here is spent
+    # inventing variation in work whose value is that it does not vary.
+    reasoning_effort: low
+    may_change_official_state: false
+    independent_session_required: false
+    fallback_policy: executor-implementation
 
 role_defaults:
-  coordinator: coordinator-ultra-code
-  idea_generator: research-sol-max
-  research: research-sol-max
-  executor: executor-terra
-  reviewer: review-xhigh
-  red_team: review-xhigh
+  coordinator: coordinator-orchestration-code
+  idea_generator: research-deep
+  research: research-deep
+  executor: executor-implementation
+  reviewer: review-adversarial
+  validator: review-adversarial
+  red_team: review-adversarial
 
 routing_rules:
-  - id: critical-result-review
+  # Two tiers of review, because "is this receipt valid" and "did we break a
+  # real curve" were previously routed identically.
+  - id: unrecoverable-result-review
     when:
       any:
         - claimed_breakthrough: true
-        - proposed_state_transition: supported
-        - proposed_state_transition: rejected
         - proposed_state_transition: closed
         - contradicts_prior_evidence: true
     require:
-      policy: review-xhigh
+      policy: review-breakthrough
+      independent_session: true
+      reviewer_must_not_be_originating_agent: true
+      fallback_allowed: false
+
+  - id: critical-result-review
+    when:
+      any:
+        - proposed_state_transition: supported
+        - proposed_state_transition: rejected
+    require:
+      policy: review-adversarial
       independent_session: true
       reviewer_must_not_be_originating_agent: true
 
@@ -96,7 +269,7 @@ routing_rules:
         - task_requires_repo_orchestration: true
         - task_requires_experiment_pipeline_design: true
     require:
-      policy: coordinator-ultra-code
+      policy: coordinator-orchestration-code
 
   - id: research-depth
     when:
@@ -106,7 +279,7 @@ routing_rules:
         - task_type: mathematical_analysis
         - task_type: experiment_design
     require:
-      policy: research-sol-max
+      policy: research-deep
 
   - id: executor-runtime
     when:
@@ -116,12 +289,24 @@ routing_rules:
         - task_type: experiment_execution
         - task_type: artifact_collection
     require:
-      policy: executor-terra
+      policy: executor-implementation
 
 runtime_resolution:
   strict: true
   rules:
     - Never silently downgrade a requested policy.
-    - If the exact runtime model identifier is unavailable, stop the task or use the declared fallback only when the handoff explicitly permits fallback.
-    - Record requested_policy, resolved_model_id, reasoning_effort, fallback_used, and adapter_version in every agent session and run manifest.
-    - Treat UI labels and API model identifiers as separate fields.
+    - >-
+      A backend with no binding for the requested policy, or a binding that
+      cannot meet a stated requirement, stops the task. The declared
+      `fallback_policy` may be used only when the handoff sets
+      `fallback_allowed: true`, and the substitution is recorded.
+    - Record requested_policy, canonical_policy, backend, provider,
+      resolved_model_id, reasoning_effort, fallback_used, and adapter_version
+      in every agent session and run manifest.
+    - >-
+      A policy with `independent_session_required: true` resolves only when
+      the caller asserts an independent session and names the originating
+      agent.
+    - Treat UI labels and API model identifiers as separate fields. A model
+      identifier is unverified configuration until `adapter doctor --probe`
+      confirms the backend actually serves it.

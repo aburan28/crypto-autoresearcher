@@ -1,0 +1,302 @@
+idea:
+  id: IDEA-20260808-3f8a2b
+  question_id: RQ-ECDLP-002
+  added: '2026-08-08'
+  title: >-
+    Direct cost comparison: x-oracle MITM vs exhaustive search with charged
+    field-operation metric, testing whether the oracle reduces work per relation
+    found (not yield over enumeration space)
+  class: experiment
+
+  claim: >-
+    The x-oracle MITM (Arm B) reduces the total field-operation cost to find a
+    target number of relations compared to exhaustive search (Arm A), even though
+    both find the same set of relations (Y_A = Y_B). The cost reduction comes from
+    MITM filtering: Arm B builds a hash table of right-half sums (|F|^2 operations),
+    then queries |F| times and verifies only matching candidates, while Arm A
+    exhaustively checks all |F|^m tuples. The hypothesis is that
+    candidates_verified << |F|^{m-1}, so Arm B's total cost
+    (|F|^2 + |F| + 2*candidates_verified) is less than Arm A's cost (2*|F|^m).
+
+  mechanism: >-
+    STEP 1 (zero compute) -- DEFINE THE COST MODEL. Count field operations per arm:
+    Arm A: 2 * |F|^m operations (two additions per tuple for m=3).
+    Arm B: |F|^2 operations (right-half table construction) + |F| operations
+    (left-half queries) + 2 * candidates_verified operations (verification of
+    matching candidates). The hypothesis is that candidates_verified is small
+    enough that Arm B's total cost is significantly less than Arm A's.
+
+    STEP 2 (toy compute, <= 5 minutes) -- RUN THE EXPERIMENT. Use the existing
+    full_grid.py implementation from EXP-SEMAEV-f48dd1, which already tracks
+    field_operations per arm. Run the same 40 configurations (4 primes × 2 b-values
+    × 5 seeds) and extract the field_operations metric for Arms A and B.
+
+    STEP 3 (zero compute) -- STATISTICAL ANALYSIS. For each configuration, compute
+    cost_ratio = field_operations_B / field_operations_A. Test whether
+    mean(cost_ratio) < 1 with a one-sided t-test at alpha=0.05, using the
+    pseudo-replication-corrected analysis (n=8 independent groups, not n=40 cells).
+
+    STEP 4 (zero compute) -- COMPARE AGAINST BASELINES. Compare the measured cost
+    reduction against:
+    (a) Exhaustive search: the baseline is cost_ratio = 1.0 (no reduction).
+    (b) Pollard rho: estimate the cost of finding the same number of relations
+    using Pollard rho (0.886 * sqrt(N) group operations per relation, scaled to
+    field operations). This provides an upper bound on what's achievable.
+
+    STEP 5 (zero compute) -- HONEST SCOPE STATEMENT. This experiment measures
+    cost reduction at toy scale (7-8 bit primes, m=3). It does NOT measure:
+    - Asymptotic complexity improvement (both arms are O(|F|^m))
+    - Crypto-scale performance (no path from toy to crypto is claimed)
+    - Competitive advantage over Pollard rho (rho is O(sqrt(N)), this is O(|F|^m))
+
+  novelty_status: replication_with_charged_metric
+  novelty_screen:
+    method: >-
+      The experiment reuses the existing EXP-SEMAEV-f48dd1 implementation and
+      configuration. The novelty is in the metric: instead of comparing yield
+      (relations / |F|^m), which showed Y_A = Y_B, we compare cost
+      (field_operations per relation found). This is a metric change, not a
+      mechanism change.
+    results: >-
+      The existing experiment already measured field_operations but did not use it
+      as the primary comparison metric. This proposal makes it primary and adds
+      statistical testing and baseline comparison.
+    verdict: replication_with_charged_metric
+
+  novelty_note: >-
+    This is not a new mechanism; it is a new measurement of an existing mechanism.
+    The x-oracle MITM was already implemented and run; this proposal changes the
+    metric from yield to cost, which is what the red team's MODERATE objection
+    required. The honest status is "replication with charged metric," not "new idea."
+
+  avoids_tate_obstruction: false
+  tate_obstruction_note: >-
+    Not applicable. This experiment does not claim to overcome the Tate obstruction
+    or any other ECDLP-specific barrier. It measures cost reduction of a search
+    strategy, not a new attack on ECDLP.
+
+  assumptions:
+    - >-
+      The existing full_grid.py implementation correctly counts field operations.
+      This can be verified by code review (the implementation is 815 lines and
+      the field_operations counter is incremented at each E.add call).
+    - >-
+      The 40 configurations from EXP-SEMAEV-f48dd1 are representative of the
+      parameter space at toy scale. No claim is made about crypto-scale parameters.
+    - >-
+      Field operations are a reasonable proxy for asymptotic complexity. This is
+      standard in the ECDLP literature (KN-TECH-001, KN-TECH-006).
+
+  heuristic_assumptions: []
+
+  predictions:
+    - metric: >-
+        cost_ratio = field_operations_B / field_operations_A, averaged over 8
+        independent (prime, b) groups
+      direction: lower
+      minimum_effect: >-
+        mean(cost_ratio) < 1.0 with p < 0.05 (one-sided t-test, n=8 groups).
+        If cost_ratio >= 1.0, the x-oracle does not reduce cost and the hypothesis
+        is falsified.
+
+    - metric: >-
+        candidates_verified / |F|^2, the fraction of right-half pairs that survive
+        MITM filtering
+      direction: lower
+      minimum_effect: >-
+        mean(candidates_verified / |F|^2) < 0.5. If this ratio is close to 1.0,
+        the MITM filtering provides no reduction and the cost advantage vanishes.
+
+    - metric: >-
+        cost_per_relation_B vs cost_per_relation_A, where cost_per_relation =
+        field_operations / relations_found
+      direction: lower
+      minimum_effect: >-
+        mean(cost_per_relation_B) < mean(cost_per_relation_A). This is the
+        charged version of the yield comparison: instead of relations per
+        enumeration space, we measure operations per relation.
+
+  minimal_test:
+    design: >-
+      STAGE 1 (zero compute, 30 minutes) -- CODE REVIEW. Verify that full_grid.py
+      correctly counts field_operations for all three arms. Check that the counter
+      is incremented at each E.add call and that the count matches the expected
+      formula (2 * |F|^m for Arm A, |F|^2 + |F| + 2*candidates_verified for Arm B).
+
+      STAGE 2 (toy compute, <= 5 minutes) -- RE-RUN THE GRID. Execute full_grid.py
+      with the same 40 configurations. Extract field_operations for Arms A and B.
+
+      STAGE 3 (zero compute, 30 minutes) -- STATISTICAL ANALYSIS. Compute cost_ratio
+      and cost_per_relation for each configuration. Perform the pseudo-replication-
+      corrected t-test (n=8 groups). Report mean, std, 95% CI, t-statistic, p-value.
+
+      STAGE 4 (zero compute, 30 minutes) -- BASELINE COMPARISON. Estimate the cost
+      of finding the same number of relations using Pollard rho. For each (prime, b)
+      group, compute rho_cost = 0.886 * sqrt(N) * (relations_found / expected_relations),
+      where expected_relations = |F|^m / N. Compare rho_cost against field_operations_A
+      and field_operations_B.
+
+      STAGE 5 (zero compute, 30 minutes) -- HONEST REPORTING. Write a report that
+      states: (a) whether cost_ratio < 1.0, (b) the magnitude of cost reduction,
+      (c) comparison against Pollard rho, (d) explicit statement that this is a
+      constant-factor improvement with no asymptotic complexity change and no path
+      to crypto-scale.
+
+    controls:
+      - >-
+        Arm A (exhaustive search) as the baseline. cost_ratio = 1.0 means no
+        improvement; cost_ratio < 1.0 means cost reduction.
+      - >-
+        Pollard rho as the upper bound. If field_operations_B > rho_cost, the
+        x-oracle MITM is worse than the best known generic algorithm.
+      - >-
+        Pseudo-replication correction: use n=8 independent groups, not n=40 cells.
+        Arms A and B are deterministic given (prime, b), so only the group mean
+        is independent.
+
+    required_metrics:
+      - field_operations per arm (A, B)
+      - cost_ratio = field_operations_B / field_operations_A
+      - cost_per_relation = field_operations / relations_found
+      - candidates_verified / |F|^2 (MITM filtering efficiency)
+      - t-statistic, p-value, 95% CI for cost_ratio (n=8 groups)
+      - rho_cost estimate for comparison
+
+  falsification_conditions:
+    - >-
+      cost_ratio >= 1.0 (mean over 8 groups, p >= 0.05). The x-oracle does not
+      reduce cost; it only restructures the search without saving work.
+    - >-
+      candidates_verified / |F|^2 >= 0.9. The MITM filtering provides negligible
+      reduction; almost all right-half pairs survive to verification.
+    - >-
+      field_operations_B > rho_cost. The x-oracle MITM is worse than Pollard rho,
+      so even with cost reduction it is not competitive.
+
+  confounders:
+    - >-
+      TOY SCALE ONLY. The experiment runs at 7-8 bit primes (p in {101, 103, 107, 211}).
+      No claim is made about crypto-scale parameters. The cost reduction may not
+      scale; it may even reverse if hash table overhead dominates at larger sizes.
+    - >-
+      CONSTANT FACTOR ONLY. Both arms have the same asymptotic complexity O(|F|^m).
+      The cost reduction is a constant factor, not an exponent change. This is
+      fundamentally different from an asymptotic improvement like Wesolowski's
+      p^{1/3+o(1)} (inputs/P13-WESOLOWSKI-2026/paper_fulltext.md).
+    - >-
+      NO PATH TO CRYPTO. Even if cost_ratio = 0.5 at toy scale, this does not
+      imply a 2x speedup at crypto scale. The hash table overhead, memory access
+      patterns, and cache behavior may change dramatically.
+    - >-
+      DOMINATED BY POLLARD RHO. Pollard rho is O(sqrt(N)) time, O(1) memory. The
+      x-oracle MITM is O(|F|^m) time, O(|F|^2) memory. For any reasonable parameter
+      choice, rho is faster and uses less memory. This experiment does not change
+      that.
+
+  interpretation_limits:
+    - >-
+      This experiment measures cost reduction of a search strategy, not a new
+      attack on ECDLP. The result is a constant factor, not an exponent change.
+    - >-
+      Toy scale only (7-8 bit primes). No crypto-scale claim is made or supported
+      (AGENTS.md rule 7).
+    - >-
+      Dominated by Pollard rho on every axis (time, memory, simplicity). The
+      x-oracle MITM is not competitive with the best known generic algorithm.
+    - >-
+      No asymptotic complexity improvement. Both arms are O(|F|^m); the cost
+      reduction is a constant factor.
+    - >-
+      The result does not overcome the Tate obstruction or any other ECDLP-specific
+      barrier. It is a search optimization, not a structural breakthrough.
+
+  dominated_by: >-
+    Pollard rho with distinguished points (0.886 * sqrt(N) time, O(1) memory,
+    KN-TECH-001, KN-TECH-006). The x-oracle MITM is O(|F|^m) time, O(|F|^2) memory,
+    which is exponentially worse than rho for any parameter choice where |F|^m > sqrt(N).
+    At the tested parameters (p ~ 100-200, m=3, b=0.4-0.5), |F|^m ~ 10^3-10^4 while
+    sqrt(N) ~ 10-15, so rho is 2-3 orders of magnitude faster. This experiment does
+    not change that.
+
+    Also dominated by exhaustive search (Arm A) in the sense that both find the same
+    relations (Y_A = Y_B). The only question is whether Arm B does it with fewer
+    field operations, which is what this experiment tests.
+
+  sota_delta: >-
+    Zero exponent improvement. The best known is Pollard rho at O(sqrt(N)) time
+    (KN-TECH-001). This experiment tests whether a search optimization provides
+    a constant-factor cost reduction over exhaustive search. The honest delta is:
+    - Time exponent: no change (both are O(|F|^m), not O(sqrt(N)))
+    - Memory exponent: no change (both are O(|F|^2) for MITM, O(1) for rho)
+    - Constant factor: TBD by experiment, predicted to be 0.3-0.7 (30-70% cost
+      reduction) if candidates_verified << |F|^2
+    - vs Pollard rho: exponentially worse, no competition
+
+    If the experiment shows cost_ratio >= 1.0, the delta is zero and the hypothesis
+    is falsified.
+
+  target_complexity:
+    time_exponent: >-
+      No exponent improvement claimed. Both arms are O(|F|^m) = O(p^{bm}). For
+      m=3, b=0.5, this is O(p^{1.5}), which is exponentially worse than Pollard
+      rho's O(p^{0.5}).
+    memory_exponent: >-
+      O(|F|^2) = O(p^{2bm}) for MITM hash table. For m=3, b=0.5, this is O(p^3),
+      which is exponentially worse than rho's O(1).
+    best_known: >-
+      Pollard rho with distinguished points: O(sqrt(N)) time, O(1) memory
+      (KN-TECH-001, KN-TECH-006). Automorphism-discounted on CM curves
+      (KN-TECH-018). BSGS at O(sqrt(N)) time and memory (KN-TECH-031).
+    hidden_overhead: >-
+      Hash table construction and lookup overhead. At toy scale this is negligible;
+      at crypto scale it may dominate. Not measured.
+    tradeoff_note: >-
+      Time-memory tradeoff: Arm B uses O(|F|^2) memory for the hash table, while
+      Arm A uses O(1). This is a standard MITM tradeoff. The experiment does not
+      explore the tradeoff curve; it tests one point (full table).
+
+  estimated_cost:
+    implementation: low
+    compute: low
+    wall_clock_seconds: 300
+    memory_gb: 1
+
+  recommended_priority: low
+
+  honest_prior_of_survival: >-
+    0.9 that the experiment will show cost_ratio < 1.0 (the x-oracle reduces cost).
+    This is based on the existing data: Arm B already reports fewer candidates_verified
+    than |F|^2, so the cost should be lower.
+
+    0.1 that this matters for ECDLP. The cost reduction is a constant factor at toy
+    scale, with no path to crypto-scale and no asymptotic improvement. Even if
+    cost_ratio = 0.3, this does not change the fact that the algorithm is exponentially
+    worse than Pollard rho.
+
+    Priority is LOW because:
+    (a) The experiment is a metric change, not a mechanism change.
+    (b) The result will almost certainly be "yes, there is a constant-factor cost
+        reduction, but it doesn't matter for ECDLP."
+    (c) The experiment is dominated by Pollard rho and has no path to crypto-scale.
+    (d) The honest recommendation after the experiment is to close RQ-ECDLP-002's
+        x-oracle sub-question with a named obstruction: "constant-factor cost reduction
+        at toy scale, dominated by Pollard rho, no path to crypto-scale."
+
+  scope:
+    curve_families: [generic prime-field short-Weierstrass curves at toy scale]
+    field_types: [prime]
+    bit_sizes: ["7-8 bits (p in {101, 103, 107, 211})"]
+    methods: [search optimization, cost measurement]
+    claim_tier: toy
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-08'
+  source_refs:
+    - RQ-ECDLP-002
+    - H-XOR-d1a480
+    - EV-ECDLP-65b004
+    - DEC-20260808-6a7ac4
+    - EXP-SEMAEV-f48dd1
+    - KN-TECH-001
+    - KN-TECH-006

@@ -1,0 +1,60 @@
+# Batch 126 digest
+
+## Overview
+- Dominant flavor: Eurocrypt/Crypto 2002–2004-era LNCS papers on provable security — PSS, hybrid encryption/KEM, key-insulated and proxy signatures, zero-knowledge, identity-based schemes.
+- Strong ECDLP cluster: the Certicom ECC2K-130 breaking effort appears four times (Cell CPUs, NVIDIA GPUs, FPGAs, overall status), plus FPGA ECDL records and a complexity bound on Semaev's index calculus.
+- Notable classics: Vaudenay's CBC padding-oracle attack, Bellare–Kohno hash balance, Boneh–Boyen–Shacham short group signatures, Canetti–Halevi–Katz IBE→CCA, Coron on Coppersmith's method.
+- Anomalies: 8 files are garbled font-encoding garbage (biham-chen-sha0, cl04, clean, desbcr04, dps, ec-final, eurocrypt.final, plus partial junk); 4 are LNCS/proceedings front matter; 1 is IACR COI policy; 1 is textbook slides.
+- One duplicate pair: eprint_2012_002.pdf and full_gpu_indocrypt.pdf are both "ECC2K-130 on NVIDIA GPUs".
+
+## Papers
+- **b95631.pdf** — LNCS vol. 2947 front matter (?). Only series title/editor line extracted; no paper content.
+- **b99099.pdf** — LNCS vol. 3152 front matter (?). Only series editorial board list extracted; no paper content.
+- **bbpproc.pdf** — An Uninstantiable Random-Oracle-Model Scheme for a Hybrid-Encryption Problem (Bellare, Boldyreva, Palacio). Constructs an ElGamal-variant scheme provably IND-CCA-preserving in the RO model yet admitting no secure standard-model instantiation.
+- **biham-chen-sha0-proc-real-one.pdf** — Title garbled; filename suggests Biham–Chen SHA-0 collision paper (?). Extract is unreadable font-mapped junk; cannot summarize.
+- **bivariate.pdf** — Finding Small Roots of Bivariate Integer Polynomial Equations Revisited (Jean-Sébastien Coron). Simplifies Coppersmith's lattice algorithm for bivariate integer equations, applied to factoring RSA moduli with known high bits of a factor.
+- **bk.pdf** — Hash Function Balance and its Impact on Birthday Attacks (Bellare, Kohno). Introduces "balance" to measure hash-function regularity and shows birthday attacks can need far fewer than √r trials on unbalanced functions.
+- **bnn.pdf** — Security Proofs for Identity-Based Identification and Signature Schemes (Bellare, Namprempre, Neven). Gives a unifying framework yielding modular security proofs or attacks for many IBI/IBS schemes.
+- **bp.pdf** — The Knowledge-of-Exponent Assumptions and 3-Round Zero-Knowledge Protocols (Bellare, Palacio). Falsifies Hada–Tanaka's KEA2 assumption, and recovers their 3-round ZK results under a repaired KEA3.
+- **canteaut_videau.pdf** — Degree of Composition of Highly Nonlinear Functions and Applications to Higher Order Differential Cryptanalysis (Canteaut, Videau). Bounds degree of products of Boolean components of near-bent functions, yielding higher-order differential attacks on 5-round Feistel ciphers and explaining MISTY1 weakness.
+- **cbc02_e02d.pdf** — Security Flaws Induced by CBC Padding: Applications to SSL, IPSEC, WTLS (Serge Vaudenay). Classic padding-oracle side-channel attack: error messages after CBC decryption leak plaintext; discusses fixes.
+- **cell_2010_077.pdf** — ECC2K-130 on Cell CPUs (Bos, Kleinjung, Niederhagen, Schwabe). Optimized parallel Pollard rho for the Certicom ECC2K-130 ECDLP challenge on Cell SPEs; estimates ~2700 PS3s solve it in one year.
+- **ch04s.pdf** — Number Theory and Cryptography, Chapter 4 slides (McGraw-Hill, 2019). Instructor textbook slides on number theory basics; not a research paper.
+- **cl04.pdf** — Garbled extract (?). Font-mapped unreadable text; cannot identify or summarize.
+- **clean.pdf** — Garbled extract (?). Font-mapped unreadable text; cannot identify or summarize.
+- **complexity-bounds-on-semaev-s-naive-index-calculus-method-1f7yzrgu06.pdf** — Complexity bounds on Semaev's naive index calculus method for ECDLP (Yokoyama, Yasuda, Takahashi, Kogure). Analyzes Gröbner basis cost of point decomposition, proving naive index calculus cannot beat generic ECDLP methods.
+- **concpok-proc.pdf** — Multi-trapdoor Commitments and their Applications to Proofs of Knowledge Secure under Concurrent Man-in-the-middle Attacks (Rosario Gennaro). Defines multi-trapdoor commitments (Strong RSA/DDH instantiations) and compiles proofs of knowledge to concurrent-MIM security.
+- **conflicts.pdf** — IACR Policy on Conflicts of Interest (May 2022). Policy document on reviewer COI handling; not a research paper.
+- **coron.pdf** — Optimal Security Proofs for PSS and other Signature Schemes (Jean-Sébastien Coron). Shows log2(q_sig) salt bits suffice for tight PSS security and proves this salt size optimal; extends optimality technique to FDH and GHR.
+- **cryptanalysisofsflash_vf.pdf** — Cryptanalysis of SFLASH (Gilbert, Minier). Forges signatures for the NESSIE multivariate signature scheme SFLASH with under 2^38 public-function computations.
+- **crypto-final.pdf** — Finding Collisions on a Public Road, or Do Secure Hash Functions Need Secret Coins? (Hsiao, Reyzin). Separates public-coin from secret-coin collision-resistant hashing via a novel black-box impossibility proof.
+- **crypto-hybrid-04.pdf** — A New Paradigm of Hybrid Encryption Scheme (Kurosawa, Desmedt). Shows the KEM in hybrid encryption need not be IND-CCA; gets more efficient standard-model IND-CCA hybrid encryption under DDH, generalized to universal2 projective hash families.
+- **crypto04_camready2.pdf** — Signed Binary Representations Revisited (Okeya, Schmidt-Samoa, Spahn, Takagi). Introduces MOF, a canonical signed-binary form computable left-to-right, giving the first general left-to-right width-w signed exponent recoding for ECC scalar multiplication.
+- **crypto_2004.pdf** — Security, Liberty, and Electronic Communications (Susan Landau). Essay on post-9/11 electronic surveillance policy and tension between security and civil liberties; not a technical research paper.
+- **desbcr04.pdf** — Garbled extract (?). Font-mapped unreadable text; cannot identify or summarize.
+- **desmedt.pdf** — Perfectly Secure Message Transmission Revisited (Desmedt, Wang). Characterizes necessary/sufficient conditions for secure message transmission against active adversaries over mixed one-way/two-way and multicast channels.
+- **det.pdf** — Computing the RSA Secret Key is Deterministic Polynomial Time Equivalent to Factoring (Alexander May). First deterministic poly-time algorithm factoring N from (e,d) when e,d < φ(N) and p,q same bit-size, via Coppersmith's method.
+- **dm04.pdf** — On Generating the Initial Key in the Bounded-Storage Model (Dziembowski, Maurer). Proves key agreement in the bounded-storage model is impossible without an initial shared key (unless parties have huge storage), and analyzes hybrid computational key setup.
+- **dnr.pdf** — Immunizing Encryption Schemes from Decryption Errors (Dwork, Naor, Reingold). Transforms encryption schemes with decryption errors into error-immune ones (relevant to NTRU-style attacks), without random oracles.
+- **dodis-ec02.pdf** — Key-Insulated Public Key Cryptosystems (Dodis, Katz, Xu, Yung). Introduces key-insulated security: periodic key refresh via a secure device so exposure of up to t time-period keys leaves other periods secure.
+- **dps.pdf** — Garbled extract (?). Font-mapped unreadable text; cannot identify or summarize.
+- **dwni.pdf** — Privacy-Preserving Datamining on Vertically Partitioned Databases (Dwork, Nissim). Extends Dinur–Nissim noise/privacy results to multi-attribute and vertically partitioned databases, enabling datamining on published noisy statistics.
+- **e2kmain.pdf** — EUROCRYPT 2000 online guide front matter (?). Only table-of-contents header extracted; no paper content.
+- **ec-final.pdf** — Garbled extract (?). Font-mapped unreadable text; cannot identify or summarize.
+- **ec04fin.pdf** — The Exact Price for Unconditionally Secure Asymmetric Cryptography (Renner, Wolf). Shows asymmetric information-theoretic security is cheaper than two-way security, weakening assumptions needed e.g. for quantum key distribution.
+- **encryption-euro-final.pdf** — How to Fool an Unbounded Adversary with a Short Key (Russell, Wang). Information-theoretic encryption with short keys where no adversary predicts any Boolean function of the message with non-negligible advantage.
+- **eprint_2012_002.pdf** — ECC2K-130 on NVIDIA GPUs (Bernstein, Chen, Cheng, Lange, Niederhagen, Schwabe, Yang). Optimizes the Certicom ECC2K-130 ECDLP attack for GPUs despite poor binary-field support, exceeding 63M iterations/sec (duplicate of full_gpu_indocrypt.pdf).
+- **equiv.pdf** — On the Hardness of Information-Theoretic Multiparty Computation (Ishai, Kushilevitz). Relates communication complexity of unconditionally secure MPC to efficient PIR and short locally decodable codes, explaining the problem's difficulty.
+- **eucrypt-camera.pdf** — Chosen-Ciphertext Security from Identity-Based Encryption (Canetti, Halevi, Katz). Converts any CPA-secure IBE into a CCA-secure PKE in the standard model, yielding practical schemes plus BTE/forward-secure extensions.
+- **euro2004-LNCS-final.pdf** — The Hierarchy of Key Evolving Signatures and a Characterization of Proxy Signatures (Malkin, Obana, Yung). Formalizes hierarchical proxy signatures and proves tight equivalences among proxy, key-insulated, intrusion-resilient, and forward-secure signatures.
+- **eurocrypt.final.pdf** — Garbled extract (?). Font-mapped unreadable text; cannot identify or summarize.
+- **fcfinal.pdf** — Traitor Tracing with Constant Transmission Rate (Kiayias, Yung). First public-key traitor-tracing schemes with constant ciphertext/key expansion, built from discrete-log-based copyrighted functions.
+- **feb20.pdf** — Black-Box Composition Does Not Imply Adaptive Security (Steven Myers). Oracle separation showing composition of non-adaptively secure permutation generators need not be adaptively secure; proofs must be non-relativizing.
+- **final.pdf** — Cryptography in an Unbounded Computational Model (Woodruff, van Dijk). Shows that over Q with unbounded computation and real sampling, signatures, encryption, and key agreement are impossible.
+- **finaleurocr.pdf** — Algebraic Attacks and Decomposition of Boolean Functions (Meier, Pasalic, Carlet). Simplifies conditions for low-degree multiples of Boolean functions and gives an algorithm deciding their existence, relevant to algebraic attacks on stream ciphers.
+- **fpga_2016_382.pdf** — Faster elliptic-curve discrete logarithms on FPGAs (Bernstein, Engels, Lange, Niederhagen, Paar, Schwabe, Zimmermann). Breaks sect113r2 and sets a 117.35-bit binary-field ECDL record with more efficient FPGA cores.
+- **front-matter.pdf** — LNCS vol. 2567 front matter (?). Only series title/city line extracted; no paper content.
+- **full_2009_541.pdf** — Breaking ECC2K-130 (Bailey, Batina, Bernstein, et al.). Multi-platform (CPU, FPGA, PS3, GPU) collaborative attack on the Certicom ECC2K-130 ECDLP challenge; describes overall effort and cost estimates.
+- **full_gpu_indocrypt.pdf** — ECC2K-130 on NVIDIA GPUs (Bernstein, Chen, Cheng, Lange, Niederhagen, Schwabe, Yang). GPU optimization of the ECC2K-130 attack achieving >63M iterations/sec (duplicate of eprint_2012_002.pdf).
+- **golic.pdf** — Linear Cryptanalysis of Bluetooth Stream Cipher (Golić, Bagini, Morgari). Finds linear correlations in the Bluetooth E0 combiner and recovers the 128-bit key with ~2^70 complexity from ~45 initializations.
+- **groupsigs.pdf** — Short Group Signatures (Boneh, Boyen, Shacham). Constructs group signatures of RSA-signature size from the Strong Diffie–Hellman and new Decision Linear assumptions in bilinear groups, secure in the RO model.

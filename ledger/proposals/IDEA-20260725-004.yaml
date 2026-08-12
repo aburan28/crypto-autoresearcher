@@ -1,0 +1,281 @@
+idea:
+  id: IDEA-20260725-004
+  supersedes: IDEA-20260725-002
+  supersede_reason: >-
+    Anti-duplication/red-team screen returned REVISE with three verified defects:
+    (1) no machine-readable source exists for "declared falsification quantity"
+    (33/34 specification.yaml files carry only a prose falsification_criterion, and
+    11 are recorded as "invalid YAML" in tools/validate_ledger_baseline.txt with 3
+    more unparseable specs absent from that baseline); (2) prediction 5 keyed on
+    validate_ledger.py exiting 0, which is already false (it exits nonzero on the
+    un-grandfathered EXP-SIG-007/-008/DREG-004 spec parse errors); (3) both stated
+    discriminators were already resolved by inspection (9 manifest-less receipt
+    dirs across 4 experiments). This record converts the read-only checker into a
+    contract-schema amendment plus an enforcing reconciler and re-centres the open
+    question on retrofit feasibility and resolver precision.
+  title: >-
+    Machine-readable decision-quantity contract block plus receipt-keyed
+    reconciler: is the evidence gap a declaration problem or a receipt-format
+    problem?
+  class: tooling
+  claim: >-
+    Amending the experiment contract schema with a machine-readable
+    decision_quantities block (name, gate, receipt_glob, json_pointer,
+    terminal_when pointer+predicate, predicate drawn from the fixed grammar
+    {==, !=, <, <=, >, >=} applied to a literal) and implementing a read-only
+    receipt-keyed reconciler will, at 989e1cca, (a) emit >= 1 unreconciled
+    decision-quantity flag whose record names RUN-EXP-SIG-008-n and the literal
+    156520, while (b) the complete error set of tools/validate_ledger.py --
+    its live output plus its 1,142-entry grandfathered baseline -- contains zero
+    strings matching RUN-EXP-SIG-008-[lmno], RUN-EXP-SIG-007-(z|aa),
+    RUN-REP-001-[ab], 149410 or 156520; and (c) pointer-only extraction (no prose
+    parsing) will resolve the declared quantity from the terminal receipt in
+    >= 80% of the four retrofitted experiments' declared quantities, with an
+    independently adjudicated false-positive rate <= 20% and a full scan
+    <= 60 s.
+  mechanism: >-
+    Two structural facts compose into a silent gap, both re-verified at 989e1cca.
+    (i) Run discovery is manifest-keyed: tools/validate_ledger.py:461-466 globs
+    experiments/*/runs/*/manifest.yaml, so a run directory holding a completed
+    receipt but no manifest.yaml is invisible to every check. Verified by
+    listing: experiments/EXP-SIG-008/runs has 14 raw.json and 11 manifest.yaml
+    (l, m, n, o manifest-less); RUN-EXP-SIG-007-aa has command/raw/stdout/stderr
+    and no manifest.yaml and no environment.json; EXP-REP-001 has raw.json for
+    runs a, b, c but manifest.yaml only for c. The screen's repo-wide count is 9
+    such dirs across 4 experiments (EXP-SIG-008, EXP-SIG-007, EXP-REP-001,
+    EXP-DREG-004); I directly confirmed 7 of the 9.
+    (ii) The only evidence-to-run edge is forward:
+    validate_ledger.py:284-287 errors when an evidence record cites a run id not
+    in ctx.ids, and ctx.ids is populated only by check_run from manifests. So
+    citing a manifest-less run RAISES an error while omitting it raises none --
+    the incentive gradient points at omission.
+    The reconciler closes the reverse edge, but it can only do so against a
+    declared quantity. No such declaration exists in machine-readable form today:
+    33 of 34 specification.yaml files carry a falsification_criterion key (grep
+    verified; EXP-DREG-004 carries none) and every one of those 33 values is free
+    prose -- EXP-SIG-008/specification.yaml:27 reads "Falsification: gate 1
+    falsifies the freeze prediction iff completed null rank6 != 156,520". Hence
+    the schema amendment is the load-bearing half, not an afterthought: the
+    reconciler evaluates only declared pointers and predicates and never parses
+    English.
+    Whether that amendment is sufficient is genuinely open, and is what the test
+    discriminates. D1 (declaration problem): receipts already expose the quantity
+    at a stable JSON location, so a pointer suffices and the spec amendment closes
+    the gap. D2 (receipt-format problem): receipts are heterogeneous -- EXP-SIG-008
+    nests the quantity at cells[0].rank inside a resumable checkpoint chain,
+    EXP-DREG-004 run dirs carry stdout.log/stderr.log/prelaunch.json rather than a
+    uniform raw.json -- so pointer-only extraction fails often and the real remedy
+    is a receipt schema, with the spec amendment alone leaving the gap open.
+  why_not_renamed_known_approach: >-
+    The general mechanism -- a machine-readable preregistered falsification
+    criterion enforced by an automated validator against result artifacts -- is
+    established prior art outside this repo (see novelty_status and source_refs);
+    this record does NOT claim it as new. What is specific here, and what the test
+    measures, is (1) which of two remedies the observed gap actually needs
+    (spec-schema vs receipt-schema), a question with an unknown answer at
+    989e1cca, and (2) the two uncovered edges in THIS tree -- manifest-keyed
+    discovery and a forward-only evidence->run edge -- neither of which
+    validate_ledger.py nor tools/check_run_immutability.py can see. In-repo
+    anti-duplication greps returned zero relevant prior candidates.
+  novelty_status: adaptation
+  assumptions:
+    - "The 9 manifest-less receipt dirs are reachable from HEAD at 989e1cca rather
+       than untracked working-tree files. I could not run git in this session; the
+       reconciler must verify with git cat-file and bucket untracked receipts
+       separately as an artifact-policy violation, not an evidence gap."
+    - "The 3 target specs that do not parse (EXP-SIG-007, EXP-SIG-008,
+       EXP-DREG-004 per the screen's parse; they are absent from
+       tools/validate_ledger_baseline.txt) can be repaired to valid YAML without
+       changing their content, or can carry a sidecar decision_quantities.yaml.
+       If neither holds, the amendment cannot cover 3 of the 4 experiments that
+       motivate it -- see falsification_conditions."
+    - "Flag adjudication is performed by an agent that did not implement the tool."
+    - "Adding decision_quantities to a frozen approved contract is a
+       Coordinator-authorised schema change, not an Idea-Generator action. This
+       record proposes it; it does not perform it."
+  predictions:
+    - metric: unreconciled_decision_quantities at 989e1cca
+      direction: higher
+      minimum_effect: ">= 1, and the EXP-SIG-008 gate-1 flag record must name
+        RUN-EXP-SIG-008-n and the literal 156520"
+    - metric: >-
+        validate_ledger_error_content_overlap (count of validate_ledger.py errors,
+        live output plus the 1,142 baseline entries, matching
+        /RUN-EXP-SIG-008-[lmno]|RUN-EXP-SIG-007-(z|aa)|RUN-REP-001-[ab]|149,?410|156,?520/)
+      direction: lower
+      minimum_effect: "exactly 0. I already verified 0 matches for RUN-EXP-SIG-008,
+        RUN-EXP-SIG-007, RUN-DREG-004 and RUN-EXP-REP-001 in
+        tools/validate_ledger_baseline.txt. Any nonzero count falsifies the
+        blind-spot mechanism. This replaces the withdrawn exit-code prediction."
+    - metric: >-
+        pointer_resolution_rate (declared quantities resolvable from the terminal
+        receipt by json_pointer alone, over the four retrofitted experiments)
+      direction: different
+      minimum_effect: ">= 80% selects D1, declaration problem, remedy = spec-schema
+        amendment. <= 50% selects D2, receipt-format problem, remedy = receipt
+        schema. The 50-80% band is reported as mixed and neither remedy is adopted
+        without a second measurement."
+    - metric: unparseable_specification_files (yaml.safe_load raises), of 34
+      direction: higher
+      minimum_effect: ">= 11 (11 already recorded as 'invalid YAML' in
+        tools/validate_ledger_baseline.txt; the screen's independent parse reports
+        14). Amendment coverage is bounded above by (34 - this count)/34 and must be
+        reported next to every clean result."
+    - metric: specs_with_prose_only_falsification_criterion
+      direction: higher
+      minimum_effect: "= 33 of 34 (grep verified: 33 files carry a
+        falsification_criterion key, EXP-DREG-004 carries none, and no value is
+        machine-evaluable)"
+    - metric: hardcoded_provenance_drivers
+      direction: higher
+      minimum_effect: ">= 1. Verified: experiments/EXP-SIG-008/SIG8_run.sage:149
+        emits git_commit as the string literal
+        f6fa31b08a6262760f50c19d6704fcf16d02d81a, so every EXP-SIG-008 receipt
+        self-reports an unverifiable commit, and validate_ledger.py never reads
+        git_commit at all (grep: 0 hits)."
+    - metric: false_positive_rate under independent adjudication
+      direction: lower
+      minimum_effect: "<= 20% of flags"
+    - metric: wall_seconds_full_scan
+      direction: lower
+      minimum_effect: "<= 60 s"
+  minimal_test:
+    design: >-
+      Phase 0 (premise, not a prediction): record the already-established counts --
+      9 manifest-less receipt dirs across 4 experiments, 11-14 unparseable specs,
+      33/34 prose-only falsification criteria.
+      Phase 1: write the decision_quantities schema into templates/ and retrofit it
+      to exactly four experiments chosen BEFORE inspecting their receipts:
+      EXP-SIG-008 (gate 1: rank6 == 156520 on the terminal null receipt),
+      EXP-SIG-007, EXP-REP-001, EXP-DREG-004. Record for each whether the spec had
+      to be YAML-repaired and diff the repair to prove it is content-preserving.
+      Phase 2: implement tools/reconcile_receipts.py, strictly read-only, emitting
+      JSON with every required metric plus a per-flag record (experiment, run,
+      quantity, receipt path, json_pointer, evidence record consulted,
+      classification in {gap, pending_review, undeclared, superseded, control_failure}).
+      Phase 3: run it at 989e1cca; capture tools/validate_ledger.py's live error
+      list and its baseline file; compute validate_ledger_error_content_overlap by
+      regex, not by exit code.
+      Phase 4: independent adjudication of every flag (cap 30; if more, uniform
+      sample with a recorded seed).
+      Phase 5: controls (below).
+      Interpretation map fixed BEFORE execution: pointer_resolution_rate >= 80%
+      => D1, adopt the spec-schema amendment and make the reconciler a blocking
+      gate; <= 50% => D2, the spec amendment is insufficient and the next proposal
+      must be a receipt schema; 50-80% => mixed, adopt neither.
+    controls:
+      - "Baseline: tools/validate_ledger.py live error list AND its 1,142-entry
+         grandfathered baseline, both searched by regex for the run ids and
+         literals. Exit code is NOT used as a metric (it is already nonzero)."
+      - "Specificity control at an earlier commit predating EV-SIG-008: receipts
+         with no evidence record yet for their experiment must classify
+         pending_review, never gap."
+      - "Replay control: on a scratch copy with RUN-EXP-SIG-008-{l,m,n,o} removed,
+         EXP-SIG-008 gate 1 must classify clean (the censored verdict is then honest)."
+      - "Incentive check: add RUN-EXP-SIG-008-n to a scratch copy of
+         ledger/EV-SIG-008.yaml run_ids and confirm validate_ledger.py:284-287
+         emits 'evidence references unknown run'."
+      - "Checkpoint-chain control: terminal_when must select only the terminal
+         receipt (done true, cols_fraction 1); a predicate that flags every
+         checkpoint f..n manufactures false positives."
+      - "Halted-run control: RUN-EXP-SIG-008-o (halt.reason 'D5 closure anchor
+         mismatch', pass false) must classify control_failure, not a decision
+         quantity."
+      - "Independent adjudication by an agent that did not implement the tool."
+      - "Read-only enforcement: git status --porcelain unchanged after every scan."
+      - "AppleDouble filter excluding '._*' from every glob (exFAT volume)."
+      - "Per-receipt git reachability check separating committed gaps from
+         untracked files."
+      - "Stream separation: ledger/ root records are the ECDLP stream,
+         ledger/<subdir>/ is the ML-KEM/coordination stream; do not mix populations."
+      - "Content-preserving YAML repair: every spec repair diffed and reviewed;
+         if content changes, the retrofit for that experiment is void."
+    required_metrics:
+      - manifest_less_receipt_dirs
+      - distinct_experiments_affected
+      - receipts_not_cited_by_any_evidence
+      - unreconciled_decision_quantities
+      - pointer_resolution_rate
+      - unparseable_specification_files
+      - specs_with_prose_only_falsification_criterion
+      - hardcoded_provenance_drivers
+      - false_positive_rate
+      - validate_ledger_error_content_overlap
+      - wall_seconds_full_scan
+      - untracked_receipt_dirs
+    budget: "<= 5 h implementation plus independent review, <= 2 GB RAM, <= 60 s per
+      scan. No Sage and no solver compute."
+  falsification_conditions:
+    - "unreconciled_decision_quantities = 0 at 989e1cca -> claim FALSE: the
+       EXP-SIG-008 gate-1 gap is not machine-detectable from declared artifacts and
+       the approach as specified is rejected."
+    - "validate_ledger_error_content_overlap > 0 -> the blind-spot mechanism is
+       wrong: the existing validator does name these runs, and the proposal's
+       premise fails."
+    - "pointer_resolution_rate lands in the 50-80% band -> the discriminator
+       failed; report inconclusive and adopt NEITHER remedy."
+    - "false_positive_rate > 20% under independent adjudication -> too noisy to
+       gate on; a lower-noise variant needs a new proposal."
+    - "The specificity control emits any gap flag for a receipt predating its
+       experiment's first evidence record -> the tool cannot distinguish lag from
+       omission; claim fails."
+    - "The replay control still flags EXP-SIG-008 gate 1 after the four receipts
+       are removed -> the tool is not measuring receipt coverage; claim fails."
+    - "The 3 unparseable target specs can be neither content-preservingly repaired
+       nor given an accepted sidecar -> the amendment cannot cover 3 of the 4
+       experiments that motivate it; the approach fails for exactly its motivating
+       cases."
+    - "Full-repo scan exceeds 60 s -> the mechanised-gate claim fails on cost
+       grounds even if every flag is correct."
+  confounders:
+    - "The 1,142-entry grandfathered baseline can mask newly introduced errors; any
+       'validate_ledger is clean' reading must be computed against the union of
+       live errors and baseline entries, never the exit code."
+    - "Checkpoint chains: RUN-EXP-SIG-008-f..n are units of ONE resumable
+       computation; only the terminal receipt carries a decision quantity."
+    - "Legitimately superseded runs (e.g. RUN-EXP-SIG-004-c0-superseded) are
+       indistinguishable from uncited receipts without a declared superseded_by;
+       they must bucket as undeclared, not gap."
+    - "A halted run is a control failure, not a decision quantity; conflating them
+       inflates the headline metric."
+    - "File mtimes are unreliable on this exFAT volume; all time ordering must use
+       git commit timestamps."
+    - "AppleDouble ._* files double every naive glob count."
+    - "Adjudicator bias if the tool author also adjudicates."
+    - "Receipt self-reported provenance is not trustworthy: SIG8_run.sage:149
+       hard-codes git_commit, so the receipt's own commit field cannot be used to
+       order or attribute receipts."
+  interpretation_limits:
+    - "Measures evidence-integrity process, not mathematics. A clean gate does not
+       make any SIG, DREG, BKKMV or TTN result correct, and does NOT establish that
+       rank6 = 149,410 is correct -- only that it is uncited."
+    - "Coverage is bounded above by (34 - unparseable_specification_files)/34 and by
+       the set of experiments that actually carry a decision_quantities block; both
+       bounds must be reported next to every clean result."
+    - "Cannot judge whether a receipt is scientifically valid or whether a run was
+       correctly executed -- that remains the Validator's and Red Team's job."
+    - "Flags are not verdicts: the tool writes nothing and only the Coordinator may
+       change any record status or amend a frozen contract."
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  source_refs:
+    - ledger/proposals/IDEA-20260725-002.yaml
+    - tools/validate_ledger.py
+    - tools/validate_ledger_baseline.txt
+    - tools/check_run_immutability.py
+    - experiments/EXP-SIG-008/specification.yaml
+    - experiments/EXP-SIG-008/SIG8_run.sage
+    - experiments/EXP-SIG-008/runs/RUN-EXP-SIG-008-n/raw.json
+    - experiments/EXP-SIG-008/runs/RUN-EXP-SIG-008-o/raw.json
+    - ledger/EV-SIG-008.yaml
+    - AGENTS.md
+    - docs/claims-and-verification.md
+    - "web (2026-07-25 search): arXiv 2604.24658 'The Last Human-Written Paper:
+       Agent-Native Research Artifacts' (machine-readable claim records carrying
+       Statement/Status/Falsification criteria/Proof); Aperitif, ACM CHI 2022,
+       doi 10.1145/3491102.3517707 (preregistration scaffolding to generated
+       analysis code); arXiv 1905.08505 (machine-readable exchange format for
+       automated validation of verification results). Title/abstract level only --
+       not read in full."

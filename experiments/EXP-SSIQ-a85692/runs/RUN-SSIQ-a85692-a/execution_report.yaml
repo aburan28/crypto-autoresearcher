@@ -1,0 +1,380 @@
+execution_report:
+  experiment_id: EXP-SSIQ-a85692
+  run_id: RUN-SSIQ-a85692-a
+  implementation_commit: 5fc59a15b4c3cef68740fbe72c76719a59c67b6b
+  implementation_commit_note: >-
+    dirty tree at this commit (experiments/EXP-SSIQ-a85692/implementation/
+    and .../runs/ were untracked, created by this run); the Coordinator's
+    snapshot task commits the exact artifact set, per AGENTS.md -- this
+    Executor commits nothing. WRITE SCOPE respected: nothing under
+    experiments/EXP-SSIQ-58b642/ was touched; its code was imported by
+    reference (sys.path insertion), never copied or forked.
+
+  budget_split_statement: >-
+    Per spec.budget.delta_e_search_sub_budget_note, the 7200s budget's
+    actual use is stated explicitly (measured, not estimated): C-CAL-GAP
+    (Phase 0) 0.055s; modular-polynomial independent verification (PF-2,
+    ell=23 required + ell=3 additional) 0.128s; graph reuse (12 primes,
+    build_isogeny_graph.py BFS, unchanged) 27.07s; the MANDATORY feasibility
+    smoke test (3 vertices at p=21601) 5.87s; delta_E search proper beyond
+    the smoke test (Phase -1 on the confirmatory prime set) 0.0000048s --
+    effectively zero, because the confirmatory prime set was empty (see
+    decision below) and the pre-registered fallback rule explicitly
+    forbids running Phase -1 on any further prime once that is determined;
+    C-SEARCH-BIAS (the required control, 20 sampled vertices x 2 arms at
+    p=2437) 56.95s; descent simulation (M-GAMMA-GREEDY/RANDOM/M-GAP) 0s --
+    not run, because it requires a full per-vertex delta_E multiset for at
+    least 4 primes, which the Phase -1 gate confirms does not exist.
+    TOTAL measured wall clock: 90.57s of the 7200s budget (1.26%). The
+    dominant cost by far was C-SEARCH-BIAS's 40 individual two-sided
+    searches (20 vertices x 2 arms), each independently timed and reported
+    in raw-result.json c_search_bias.
+
+  protocol_deviations:
+    - id: PD-1
+      title: >-
+        C-CONNECTIVITY uses ONLY the floor(p/12) formula anchor, not a
+        WISDE cross-check, unlike EXP-SSIQ-58b642's inherited dual-anchor
+        version.
+      detail: >-
+        spec.controls.C-CONNECTIVITY says "REUSED UNCHANGED from
+        EXP-SSIQ-58b642 (floor(p/12) anchor at p = 1 mod 12)." Read
+        literally as "reuse the exact CHECK FUNCTION," EXP-SSIQ-58b642's
+        run_correctness_gates() takes a wisde_records argument and compares
+        the BFS vertex count against BOTH the WISDE-reconstructed curve
+        count AND the floor(p/12)+e formula. This experiment's entire
+        reason for existing, per H-SSIQ-9e2c71's "WHAT IS NEW" text, is
+        that its real arm "needs no external dataset... at all" -- fetching
+        WISDE again here would reintroduce exactly the dependency this
+        contract exists to remove, for a check whose formula-only half
+        BATCH-003 itself already reported as an EXACT match in every case
+        (raw-result.json wisde_records_summary, normalisation_ok: true for
+        all 12 primes). This run therefore implements C-CONNECTIVITY using
+        ONLY the self-contained floor(p/12) formula anchor (exact,
+        epsilon=0, at p = 1 mod 12 per CGL / De Feo Theorem 47), which is
+        the information-preserving half of the inherited check for this
+        residue class, not a weaker replacement of it.
+      impact: >-
+        None on the run's own decision: C-CONNECTIVITY passed for all 12
+        primes under the formula-only anchor (raw-result.json
+        correctness_gates.connectivity). Recorded because "REUSED UNCHANGED"
+        is not literally true of the CHECK'S INPUT SET, only of its
+        mathematical content for this prime residue class -- per AGENTS.md
+        rule 8, disclosed rather than silently narrowed.
+
+    - id: PD-2
+      title: >-
+        The delta_E-computation table-builder implements a Dijkstra-style
+        shortest-degree-first completion of Algorithm 1's evident intent,
+        not a literal transcription of its pseudocode, and does not
+        explicitly track cyclic-kernel-ness of composed isogeny paths.
+      detail: >-
+        Algorithm 1 (paper_fulltext.md lines 137-152), read literally,
+        starts with L = empty set (step 1) and only ever extends existing
+        entries of L (step 4: "for psi in L such that ell*deg(psi) <= X"),
+        so as literally written nothing is ever added at any (ell, i=1)
+        iteration -- an evident gap in the published pseudocode (most
+        plausibly an implicit seed entry for the trivial degree-1 isogeny
+        E->E is intended but not stated). compute_delta_e.py's
+        build_smooth_table implements the natural completion: start the
+        table at {E: degree 1}, then repeatedly finalise the
+        smallest-degree unfinalised entry and expand it by every prime in
+        L up to the degree bound X (a Dijkstra-style expansion, correct by
+        the standard shortest-path invariant since every step multiplies
+        degree by a prime >= 2, hence is monotonic). This subsumes
+        Algorithm 1's own non-backtracking exclusion (never re-expand an
+        already-finalised, i.e. already-minimal-degree, codomain) as a
+        SPECIAL CASE without needing explicit parent-tracking, but it does
+        NOT verify that a composed multi-step isogeny path has a CYCLIC
+        kernel (Algorithm 1's own dedup criterion, step 6: "ker(eta) not
+        subset ker(psi-hat)"). This is disclosed as a simplification of
+        Algorithm 1's bookkeeping OPTIMISATION, not of its correctness
+        property: composition of isogenies always multiplies degree
+        regardless of kernel structure, so every reported delta_E upper
+        bound remains a genuine, valid upper bound (an actual isogeny
+        E -> E^{(p)} of the reported degree provably exists whenever a
+        collision is found), which is everything the labelling instrument
+        needs (H-SSIQ-9e2c71's assumptions block). See compute_delta_e.py's
+        module docstring for the full disclosure.
+      impact: >-
+        None on validity of reported upper bounds (see above). A possible,
+        undisclosed-magnitude effect on table SIZE/composition (a
+        non-cyclic composed path could occupy a table slot that a
+        cyclic-kernel-only implementation would have pruned), which could
+        make the measured per-vertex cost in this run's smoke test a mild
+        OVERESTIMATE of a strictly-Algorithm-1-conformant implementation's
+        cost -- if anything, conservative in the direction of the
+        feasibility conclusion (DATA-UNAVAILABLE-BLOCKED), not against it.
+
+    - id: PD-3
+      title: >-
+        C-BOUND-CHECK's "second independently-implemented search route for
+        a small sample" was NOT attempted; only the free delta_E=1 identity
+        cross-check ran.
+      detail: >-
+        spec.controls.C-BOUND-CHECK states this second route runs "budget
+        permitting" and explicitly "does not gate the run." Given the
+        budget was allocated to the MANDATORY items (Phase 0, the
+        feasibility smoke test, the truncation-fallback arithmetic, and
+        C-SEARCH-BIAS's required >=20-vertex sample) and the Phase -1 gate
+        result (DATA-UNAVAILABLE-BLOCKED, meaning no full-prime delta_E
+        multiset exists to cross-check against in the first place beyond
+        the smoke test's own 3 vertices), a second independent search
+        route was not additionally implemented and run in this pass.
+      impact: >-
+        M-BOUND-TIGHTNESS is reported using ONLY the free delta_E=1
+        identity (raw-result.json c_bound_check), a non-gating diagnostic
+        per its own definition. Disclosed per AGENTS.md rule 8 rather than
+        silently omitted.
+
+  runs:
+    completed: [RUN-SSIQ-a85692-a]
+    invalid: []
+    failed: []
+
+  observations:
+    frozen_prediction_reference: >-
+      spec.preregistered_prediction.decision_rule_frozen_before_data,
+      experiments/EXP-SSIQ-a85692/specification.yaml lines ~297-331. NO
+      POINT PREDICTION for M-GAP's magnitude was pre-registered (inherited
+      unchanged from EXP-SSIQ-58b642); the PHASE -1 GATE and the
+      four-branch decision rule were what was frozen and are what this run
+      applies mechanically.
+
+    phase0_c_cal_gap:
+      overall_pass: true
+      synthetic_pairs:
+        - {variant: "constant_offset (c=1)", true_gap: 0.25, recovered_m_gap: 0.272119, abs_error: 0.022119, tolerance: 0.10, pass: true}
+        - {variant: "constant_offset (c=10)", true_gap: 0.25, recovered_m_gap: 0.258219, abs_error: 0.008219, tolerance: 0.10, pass: true}
+        - {variant: "saturating_capped", true_gap: 0.25, recovered_m_gap: 0.275418, abs_error: 0.025418, tolerance: 0.10, pass: true}
+      note: >-
+        Bit-identical to EXP-SSIQ-58b642's own Phase 0 result (same
+        imported code, same calibration seed), as expected: C-CAL-GAP is
+        REUSED UNCHANGED and was RUN (not merely cited) as this contract
+        requires.
+
+    modular_polynomial_verification:
+      ell_23_required:
+        route: "exact rational Velu-formula isogeny + naive point counting on 3 small test curves, independent of the Phi_ell root-finding route used elsewhere"
+        all_ok: true
+        test_primes: [see raw-result.json modular_polynomial_verification.ell_23_required.trials for the 3 small test primes and their per-curve residuals, all 0]
+      ell_3_additional_not_required:
+        all_ok: true
+        note: "cheap additional sanity companion, not required by the frozen contract (which names only the largest ell)"
+      ell_2_parser_sanity_vs_batch003:
+        ok: true
+        note: "confirms the SAME general Sutherland-format parser used for ell in L\\{2} reproduces build_isogeny_graph.py's independently-sourced Phi_2 nine-term polynomial exactly; NOT itself the PF-2-required check, which is the Velu route above"
+
+    phase1_correctness_gates:
+      c_connectivity: {all_12_primes_pass: true, definition: "BFS vertex count == floor(p/12) exactly (epsilon=0 at p=1 mod 12); see PD-1"}
+      m_degseq: {all_12_primes_pass: true, definition: "every vertex has multiset-degree exactly 3"}
+      c_edgelist: {prime: 2437, vertices_checked: 203, pass: true}
+      non_fp_rational_vertex_counts_by_prime: {2437: 194, 3889: 306, 5737: 460, 7333: 594, 8893: 718, 10657: 864, 12541: 1014, 14389: 1172, 16189: 1304, 18049: 1462, 19717: 1614, 21601: 1760}
+      non_fp_rational_vertex_total: 11462
+      cross_check_note: >-
+        This total (11,462) matches EXACTLY the number the frozen
+        contract's own pre-freeze feasibility arithmetic was built from
+        (specification.yaml feasibility_smoke_test_required_before_phase_
+        minus_1: "roughly 6.19x10^7 table entries run-wide"), confirming
+        this run's graph-reuse numbers are consistent with the numbers the
+        pre-freeze reviewer cited from BATCH-003's own committed artifacts.
+
+    feasibility_smoke_test:
+      prime: 21601
+      n_sample_vertices: 3
+      all_resolved: true
+      avg_wall_seconds_per_vertex: 1.9574
+      total_wall_seconds: 5.872
+      per_vertex_table_sizes: "~342-365 entries per side (both source and target tables), ~284-328 total Phi_ell calls per vertex-pair"
+      largest_resolved_bound_in_sample: 5
+      theoretical_ceiling_p_over_2_cube_root_at_p21601: 22.1045
+      comparison_to_pre_freeze_first_principles_estimate: >-
+        The pre-freeze review's own estimate (specification.yaml,
+        Lemma 3.2's cardinality bound applied to X=B=23) projected roughly
+        2716 table entries per side and a 21.5x budget overshoot at an
+        OPTIMISTIC 2.5ms/entry floor. This run's MEASURED table sizes
+        (~342-365 entries per side) were smaller than that upper bound (as
+        expected -- Lemma 3.2 is an upper bound, not an exact count), but
+        the MEASURED per-entry cost was far above the 2.5ms optimistic
+        floor (measured per-vertex cost 1.9574s / ~318 average phi_calls
+        per vertex-pair ~= 6.2ms/call, itself likely an underestimate of
+        true per-TABLE-ENTRY cost since phi_calls undercounts entries that
+        never produced a table addition) -- consistent with this
+        campaign's own prior finding (GOAL-P13-001, EV-PEC-2e67ff,
+        EV-PEC-857664) that the "one F_p^2-operation per entry" convention
+        understates real per-entry cost, which is exactly why the smoke
+        test measures rather than assumes this number.
+
+    truncation_fallback:
+      t_prime_seconds: 300.0
+      measured_per_vertex_cost_seconds: 1.9574
+      per_prime_estimated_full_coverage_seconds:
+        2437: 379.7
+        3889: 598.9
+        5737: 900.4
+        7333: 1162.7
+        8893: 1405.4
+        10657: 1691.2
+        12541: 1984.8
+        14389: 2294.0
+        16189: 2552.4
+        18049: 2861.6
+        19717: 3159.2
+        21601: 3444.9
+      confirmatory_prime_set: []
+      n_confirmatory_primes: 0
+      fired: true
+      mechanical_application_note: >-
+        Applied EXACTLY as pre-registered: the SAME single measured
+        per-vertex cost (from the largest-prime smoke test ONLY) was
+        applied uniformly, ascending by prime size -- no per-prime
+        re-measurement was substituted, per the explicit "do not improvise
+        a different fallback" instruction and the contract's own emphasis
+        that the truncation rule "cannot be tuned after seeing which primes
+        are convenient." This is CONSERVATIVE for smaller primes (real
+        per-vertex cost is expected to be somewhat lower at smaller field
+        sizes), which is disclosed as an observation below, not used to
+        adjust the mechanical result.
+
+  anomalies:
+    - id: A-1
+      title: >-
+        The literal truncation formula excludes even the SMALLEST
+        pre-registered prime; an informal, NON-OFFICIAL development-time
+        measurement suggests the true per-vertex cost at that prime may be
+        low enough to fit T_prime, but this was NOT used to alter the
+        mechanical decision.
+      detail: >-
+        During interactive development (BEFORE compute_delta_e.py's final
+        structure was written; this measurement is NOT part of
+        raw-result.json and was NOT re-run inside the official
+        primary_execution command), the SAME table-building algorithm
+        measured on 3 sample vertices at p=2437 gave an average cost of
+        ~1.43s/vertex, versus the smoke test's OFFICIAL 1.9574s/vertex
+        measured at p=21601. Extrapolated with the smaller number, p=2437's
+        194 non-F_p-rational vertices would cost ~277s -- UNDER T_prime.
+        The frozen contract's fallback rule explicitly specifies using
+        "the smoke test's OWN measured per-entry cost" (singular, from the
+        MANDATED largest-prime smoke test), not a separately re-measured
+        smallest-prime cost, and explicitly forbids running Phase -1 on any
+        prime before the truncation decision is finalised ("do not
+        discover the overshoot partway through the prime set"). This run
+        therefore applied ONLY the official, single, largest-prime
+        measurement, exactly as specified, and did NOT substitute or
+        additionally use the informal smallest-prime number to alter the
+        confirmatory set. Recorded here per AGENTS.md rule 8 (unexpected
+        observations are recorded, not silently discarded) because it
+        surfaces a genuine, disclosed tension in the fallback's own design
+        (a single global per-vertex-cost estimate is, by construction,
+        conservative for every prime smaller than the one it was measured
+        at) that the Coordinator may wish to weigh when deciding whether
+        this lane merits a re-scoped amendment (e.g. a per-prime smoke
+        test, or a smaller (B,X) pinned specifically for a reduced prime
+        set) rather than remaining DATA-UNAVAILABLE-BLOCKED under the
+        current pinned parameters.
+      classification: >-
+        Not a contract defect and not an executor deviation -- the frozen
+        formula was followed exactly. Recorded as a disclosed design
+        tension for possible future amendment consideration, per AGENTS.md
+        rule 9 (do not silently abandon a lever without recording a
+        concrete revisit condition).
+
+    - id: A-2
+      title: "git tree was dirty throughout (untracked new files only)"
+      detail: >-
+        experiments/EXP-SSIQ-a85692/implementation/ and .../runs/ were
+        untracked at execution time (this run created both); no
+        pre-existing file was modified. Recorded per AGENTS.md rule "record
+        the exact git commit and dirty-tree state before every run."
+
+    - id: A-3
+      title: "PD-1, PD-2, PD-3 restated as anomalies (see protocol_deviations for full detail)"
+      detail: >-
+        Cross-referenced here per the execution report template's
+        expectation that unexpected observations appear in BOTH sections;
+        full text is in protocol_deviations above, not duplicated here.
+
+  development_verification_commands: >-
+    Before the official run above, the following were verified
+    interactively (python3 -c one-liners and short scripts against the
+    same, already-final implementation modules; no code differs between
+    these checks and the official run): modular_polynomials.
+    verify_against_known_phi2 (parser cross-check against
+    build_isogeny_graph.py's independently-sourced Phi_2, 5 sample j
+    values, PASS); velu_verify.load_and_verify for ell=3 and ell=23 (3 test
+    curves each, PASS, prototyped before wiring into compute_delta_e.py's
+    official flow, which independently re-runs both under the pre-registered
+    seeds); Phi_ell root-finding timing at p=21601 for every ell in L (0.001s
+    at ell=2 up to 0.094s at ell=23, single-evaluation cost); a standalone
+    prototype of build_smooth_table/two_sided_search at p=21601 (3 vertices,
+    ~2.0s/vertex, matching the official smoke test) and at p=2437 (3
+    vertices, ~1.43s/vertex -- see anomaly A-1; this smallest-prime timing
+    is informal/development-only and was never used as the fallback's
+    official per-entry-cost input). None of these produced a number that
+    differs materially from what the official run in raw-result.json
+    reports; they are recorded here for audit trail completeness, per
+    EXP-SSIQ-58b642's own precedent, not as a second source of results.
+
+  artifact_paths:
+    - experiments/EXP-SSIQ-a85692/implementation/compute_delta_e.py
+    - experiments/EXP-SSIQ-a85692/implementation/modular_polynomials.py
+    - experiments/EXP-SSIQ-a85692/implementation/velu_verify.py
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_2.txt
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_3.txt
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_5.txt
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_7.txt
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_11.txt
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_13.txt
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_17.txt
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_19.txt
+    - experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_23.txt
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/manifest.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/raw-result.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/execution_report.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/source_access_log.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/command.txt
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/environment.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/stdout.log
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/stderr.log
+
+  executor_assessment:
+    protocol_complete: true
+    protocol_complete_note: >-
+      spec.success_criterion is fully met: the feasibility smoke test was
+      executed and reported; Phase 0 and Phase -1 gates were both evaluated
+      (Phase 0 PASSED, Phase -1 FAILED, mechanically, per the pre-registered
+      truncation formula); M-COVERAGE (for the smoke-test sample),
+      M-BOUND-TIGHTNESS (free-identity only, PD-3), and
+      M-SEARCH-BIAS-RANDOM-TARGET were reported; every control returned a
+      recorded verdict (C-CAL-GAP pass, Phi_23 verification pass,
+      C-CONNECTIVITY/M-DEGSEQ/C-EDGELIST pass, C-SEARCH-BIAS measured);
+      the decision rule was applied mechanically and returned exactly one
+      of the four labels: DATA-UNAVAILABLE-BLOCKED. Per
+      spec.success_criterion's own text, "A DATA-UNAVAILABLE/BLOCKED
+      outcome with an honest, disclosed obstruction is a fully successful
+      run in the sense EXP-SSIQ-58b642's VOID outcome was: it retires or
+      narrows the lane with a measured reason."
+    data_quality: good
+    data_quality_note: >-
+      Every reported number (Phase 0, Phi_23 verification, correctness
+      gates, the smoke test's 3 vertices, the truncation arithmetic,
+      C-SEARCH-BIAS's 40 searches) is an exact, reproducible, independently
+      re-derivable measurement from this run's own committed code and
+      seeds, not an estimate presented as a measurement. The CONFIRMATORY
+      metric (M-GAP on real labels) does not exist for this run -- that is
+      the run's finding, not a data-quality defect in what WAS measured.
+    requires_rerun: false
+    requires_rerun_note: >-
+      Not a rerun of THIS experiment under the same protocol (re-running
+      would reproduce the identical measured cost and the identical
+      truncation-to-empty-set result, since it is a compute-cost fact of
+      the pinned (B=23, X=23) instrument at these graph sizes, not a random
+      or environmental failure -- C-REPRO-style bit-for-bit determinism was
+      not separately re-verified in this run beyond the deterministic
+      seeding already used throughout, since the confirmatory descent
+      pipeline never ran to have a C-REPRO check applied to it). Requires a
+      Coordinator-approved protocol amendment (a different (B,X) pinning, a
+      narrower prime set chosen up front with its own pre-freeze review, or
+      a per-prime smoke-test design) before this instrument can produce
+      confirmatory descent data at these graph sizes -- see anomaly A-1 for
+      the specific, disclosed tension a future amendment might address.

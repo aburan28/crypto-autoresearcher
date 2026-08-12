@@ -71,9 +71,26 @@ def render(rows: list[tuple[str, ...]]) -> str:
 
 
 def main() -> int:
+    args = sys.argv[1:]
+
+    # --verify-corpus BUILDS the index and throws away the result. It exists
+    # because INDEX.md is a GENERATED FILE and is no longer committed: every
+    # branch that added a knowledge entry rewrote the whole table, so the file
+    # was one of the top conflict paths in the repository while carrying no
+    # information the corpus does not already hold.
+    #
+    # What --check protected was never the file's freshness. It was the BUILDER
+    # CRASHING on a corrupt corpus -- that is how conflict markers committed
+    # into knowledge/techniques/KN-TECH-056.md went unreported. Building and
+    # discarding preserves exactly that, and nothing is lost by dropping the
+    # byte comparison against a file that no longer exists.
+    if "--verify-corpus" in args:
+        render(collect_rows())
+        print("knowledge corpus builds cleanly")
+        return 0
+
     content = render(collect_rows())
-    check = "--check" in sys.argv[1:]
-    if check:
+    if "--check" in args:
         current = open(INDEX, encoding="utf-8").read() if os.path.exists(INDEX) else ""
         if current != content:
             print("knowledge/INDEX.md is stale; run tools/build_knowledge_index.py", file=sys.stderr)

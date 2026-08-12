@@ -1,0 +1,230 @@
+hypothesis:
+  id: H-BPR-965f0b
+  question_id: RQ-ECDLP-002
+  proposal_id: IDEA-20260806-6bb3ef
+  added: '2026-08-06'
+  statement: >-
+    On the double-and-add (ladder) factor-graph encoding of the ECDLP, belief
+    propagation is EXACT rather than approximate, because the graph is a chain
+    and hence a tree; and its message structure is completely determined by two
+    forced values: (F1) every forward message from a uniform prior is EXACTLY
+    uniform, because the ladder step R |-> 2R + bP is a bijection for prime order
+    N and a mixture of bijective pushforwards of the uniform distribution is
+    uniform; and (F2) every backward message is supported exactly on the
+    enumeration set {2^{-j}(Q - mP) : m < 2^j}. Consequently exact inference
+    costs O(n N) -- WORSE than the O(sqrt(N)) baseline -- and Fourier truncation
+    to m modes yields total cost m + N/m, minimised at 2 sqrt(N), reproducing the
+    birthday bound exactly rather than beating it.
+  mechanism: >-
+    Two encodings exist and both are decided. FLAT: variables are the n bits of
+    k with ONE factor of arity n; computing that factor's marginal is enumerating
+    its 2^n arguments, so BP degenerates to brute force by inspection. LADDER:
+    intermediate points R_{i+1} = 2 R_i + k_i P give a sparse graph -- and not
+    merely sparse, A CHAIN. On a chain BP is exact, so there is no approximation
+    question, no convergence question, no damping schedule, and no fixed point to
+    study. The entire literature on BP's approximation behaviour is INAPPLICABLE
+    here, and a session spent studying loops on this graph is studying a tree.
+    What remains is cost, and cost is message size. F1 and F2 fix it. The only
+    escape is message compression; for the natural compression on a cyclic group
+    -- keeping the m lowest character modes -- the backward message is the
+    indicator of an affine image of an interval, whose transform is a
+    Dirichlet-kernel-type object, so truncation localises the support to width
+    about N/m and the total cost is m + N/m.
+    SURVEY PROPAGATION IS INAPPLICABLE FOR A SEPARATE AND SIMPLER REASON: its
+    mechanism is the clustering of a LARGE solution space near a satisfiability
+    threshold, and the ECDLP instance has exactly one solution, so the quantity
+    SP computes is degenerate by construction. This kills that sub-family without
+    reference to F1, F2 or the compression argument.
+    FORWARD GUIDANCE, AND IT REPRODUCES A BOUNDARY THIS PROGRAM FOUND BY ANOTHER
+    ROUTE: message passing consumes SOFT constraints. The plain ECDLP has none --
+    every message is either uniform or an indicator. Soft information exists in
+    the partial-information model (leaked nonce bits, side channels), which is
+    the Hidden Number Problem setting of KN-TECH-019 where BP-style decoding
+    genuinely works. That is the SAME boundary KN-OPEN-011 and KN-OPEN-018 record
+    for lattice machinery, and this hypothesis predicts it for a completely
+    different technique for a stated common reason.
+  assumptions:
+    - >-
+      N is prime, so 2 is invertible mod N and the ladder step is a bijection.
+      Composite order is handled by Pohlig-Hellman reduction (KN-TECH-030) to
+      prime-order subgroups first.
+    - >-
+      The prior on k is uniform. A short or structured exponent changes F1 and is
+      out of scope -- that is kangaroo territory and is named as a successor.
+    - >-
+      Exact rational arithmetic is used in the message checks. F1 is an EXACT
+      statement and a floating-point check reporting "approximately uniform" has
+      not verified it.
+    - >-
+      Only the two named encodings are analysed. A third encoding with a
+      genuinely loopy graph might exist and is NOT covered; it is the honest open
+      case.
+  proof_search_map:
+    bottleneck: >-
+      The message representation size. Exact messages cost N; the entire question
+      is whether any compression retains enough. The Fourier answer is derived;
+      other compressions are the open part and are named as such.
+    baseline_embedding:
+      parameter_slice: m = N, i.e. no compression
+      reproduction_check: >-
+        Exact operation count at toy N compared against the enumeration count,
+        integer equality. If uncompressed BP does not cost exactly what
+        enumeration costs, the implementation is not the algorithm analysed.
+    observation_collision:
+      observable: the compressed message, i.e. its m retained character modes
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED, and its SIZE is the whole result: two
+        distinct logarithms k, k' whose backward messages agree on the m retained
+        modes. Their number is about N/m, which IS the residual search width. The
+        collision count is the measured quantity, not a falsifier; measuring it
+        materially below N/m would refute the derivation and would be the finding.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The ECDLP in the message-passing model, where the hypothesis becomes an
+          exact statement about message support, with separate encoding,
+          completeness, soundness, transfer and cost-loss obligations.
+        predicted_gain: >-
+          ZERO, and derived to be zero. The value is the derivation and the
+          boundary statement, not a gain.
+      - transform: telescoping_potential
+        proposed_object: >-
+          Charge the information carried by a message to a global entropy budget
+          along the chain, showing the budget is conserved because each step is a
+          bijection.
+        predicted_gain: >-
+          Turns F1 from a computation into a conservation law, covering every
+          schedule and ordering at once rather than one forward sweep.
+    quantifier_order: >-
+      Claimed: FORALL priors uniform at R_0, FORALL schedules, FORALL bits b, the
+      forward messages are exactly uniform. The bijectivity argument does not
+      depend on the schedule, which is why the conclusion is schedule-independent.
+      NOT claimed: FORALL compression schemes, the cost is at least sqrt(N). Only
+      Fourier truncation is analysed; a different compression is the open case
+      and the record must not be read as covering it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "On the ladder encoding, with a uniform prior, BP is exact, costs O(n N),
+        and under Fourier truncation attains exactly the birthday bound." It can
+        NEVER certify that no message-passing formulation helps, because the
+        encoding space is not enumerated.
+      nearby_object_control: >-
+        The Hidden Number Problem with a few leaked bits -- the nearest object
+        where the desired conclusion FAILS, because BP works there. The
+        derivation must give a different answer for it, and the reason must be
+        the presence of soft constraints. A derivation concluding "BP cannot
+        help" for the HNP too has not used the exactness of the constraint and is
+        not tracking the load-bearing structure. Sharpest available check, and
+        cheap.
+    proof_obligations:
+      - claim: The ladder encoding's factor graph is a chain, hence a tree.
+        responsibility: correctness
+      - claim: The ladder step is a bijection for prime order N.
+        responsibility: correctness
+      - claim: Forward messages from a uniform prior are exactly uniform.
+        responsibility: correctness
+      - claim: Backward message support equals the enumeration set.
+        responsibility: correctness
+      - claim: Fourier truncation to m modes localises to width about N/m.
+        responsibility: size
+      - claim: The HNP positive control succeeds on the same code.
+        responsibility: interface
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients:
+    - description: >-
+        Belief propagation and its exactness on trees; the factor-graph
+        formalism.
+      citation: >-
+        Standard. Present in this corpus only at H-MLKEM-008 and two literature
+        notes, all lattice-side; NOT re-read in this session.
+      role: supplies the method whose behaviour on a chain is being derived
+    - description: >-
+        Character-sum (Fourier) analysis on a cyclic group, and the
+        Dirichlet-kernel behaviour of a truncated interval indicator.
+      citation: >-
+        Classical. Related in this program to the H-PSEUDO character-sum lane and
+        to KN-OPEN-010's expected character-orthogonality barrier.
+      role: supplies the m + N/m compression tradeoff
+  reduction_chain:
+    core_problem: >-
+      Whether constraint propagation / message passing can reduce the ECDLP
+      search space before exact verification.
+    corollaries: []
+  predictions:
+    - metric: >-
+        maximum deviation of any forward BP message from uniform, in exact
+        rational arithmetic
+      direction: different
+      minimum_effect: >-
+        Exactly zero, at every step, every schedule, every toy N. Any non-zero
+        deviation refutes F1 and halts the run.
+    - metric: total cost of Fourier-truncated BP as a function of m
+      direction: different
+      minimum_effect: >-
+        Agreement within a factor 2 with the derived m + N/m curve across the
+        sweep, with the minimum at m ~ sqrt(N). A measured minimum materially
+        below 2 sqrt(N), reproduced at three problem sizes, refutes the
+        derivation and is the one outcome that would make this direction live.
+    - metric: HNP positive control success rate at a declared number of leaked bits
+      direction: higher
+      minimum_effect: >-
+        Must succeed. Failure means the implementation is untested and NO
+        negative conclusion may be drawn from it.
+    - metric: difference between the curve instance and the opaque-group instance
+      direction: different
+      minimum_effect: >-
+        Exactly zero on every metric. Every derivation here uses only the group
+        structure, so a difference means the pipeline uses structure the analysis
+        does not model and the analysis is incomplete.
+  test_boundary:
+    instances: >-
+      Toy prime-order subgroups at three sizes where exact rational BP over the
+      full group is feasible, plus matched opaque cyclic groups and HNP instances
+      with declared leakage.
+    parameters:
+      N_range: three toy sizes with exact rational message arithmetic feasible
+      encodings: [flat, ladder]
+      compression: Fourier truncation, m swept from 1 to N
+      hnp_leakage_bits: a declared number sufficient for BP to succeed
+    implementation: >-
+      Exact rational arithmetic throughout the message checks; floating point is
+      inadmissible for F1.
+    budget:
+      total_cpu_hours: 20
+      maximum_memory_gb: 8
+  falsification_conditions:
+    - >-
+      A forward message is not exactly uniform. F1 refuted; the record is
+      superseded, not amended, and the deviation is the finding.
+    - >-
+      Fourier-truncated BP beats 2 sqrt(N), reproduced at three sizes. The
+      compression derivation is refuted and this becomes a live direction with
+      its own successor record.
+    - >-
+      The HNP control fails. The implementation is untested; no negative
+      conclusion may be drawn and nothing is reported.
+    - >-
+      The opaque-group null differs from the curve instance. The analysis is
+      incomplete; halt until the extra structure is identified.
+  interpretation_limits:
+    - >-
+      Scoped to the two named encodings, a uniform prior, prime order, and
+      Fourier truncation as the compression. Other encodings and other
+      compressions are open and are handed forward.
+    - >-
+      Nothing here is a hardness claim; it is a cost derivation for one method
+      family.
+    - >-
+      The boundary claim -- that message passing and lattice methods share a
+      boundary for a common reason -- is a structural PREDICTION, not a proved
+      equivalence, and is labelled as such.
+    - >-
+      A reader arriving with loopy-BP intuition will expect convergence and
+      damping questions. On a chain there are none, and that is a fact about the
+      encoding rather than a limitation of the study.
+  status: specified
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-06'

@@ -1,0 +1,217 @@
+coordinator_decision:
+  id: DEC-20260802-001
+  context: >-
+    On branch claude/pr-87-review-u3l49u, tools/validate_ledger.py reports 1169
+    errors beyond the 1138 lines grandfathered in tools/validate_ledger_baseline.txt,
+    so tools/test_validate_ledger.py::LedgerCoverageTests::test_repository_validator_indexes_legacy_and_knowledge_records
+    (which asserts exit 0) fails and CI's pytest step is red. A second test,
+    test_legacy_inventory_covers_and_freezes_every_root_record, fails because
+    fourteen root-level ledger/*.yaml records are absent from the frozen inventory
+    tools/legacy_ledger_inventory.yaml. Three defect classes were separated before
+    deciding: (A) fourteen forbidden root-level records; (B) seven of those reusing
+    IDs already held by unrelated canonical decisions; (D) roughly 1150 remaining
+    lines of legacy run-manifest and record schema debt. This decision is
+    repository hygiene. It resolves no research question and creates no evidence.
+  decision: approve
+  target_ids:
+    - CORR-20260802-014
+    - DEC-20260724-023
+    - DEC-20260724-024
+    - DEC-20260724-025
+    - DEC-20260724-026
+    - DEC-20260724-005
+    - DEC-20260727-011
+    - DEC-20260727-012
+    - DEC-20260727-013
+    - DEC-20260727-004
+    - LEDGER-ROOT-RELOCATION-PR87
+    - VALIDATOR-BASELINE-PR87
+  rationale:
+    - >-
+      (A) DISPOSITION — RELOCATE, DO NOT GRANDFATHER. All fourteen root-level
+      records move into the canonical subdirectories (nine to ledger/decisions/,
+      five to ledger/evidence/) and the root originals are deleted. The
+      alternative — adding them to tools/legacy_ledger_inventory.yaml so they are
+      frozen where they lie — was rejected on the merits, not on convenience. The
+      inventory exists for records that PREDATE the canonical-directory gate; its
+      most recent frozen entry is DEC-20260722-006, while these fourteen were
+      written on 2026-07-24 and 2026-07-27. They are gate-violating, not
+      gate-predating, and freezing them would additionally convert every one of
+      their remaining schema defects into a suppressed read-only legacy warning.
+      Relocation keeps those defects visible as counted errors. It also removes
+      fourteen forced validator errors and, mechanically, makes the `records` map
+      equal the observed root set again, which is what
+      test_legacy_inventory_covers_and_freezes_every_root_record checks.
+    - >-
+      (B) DISPOSITION — REMAP THE SEVEN COLLIDING IDs, CANONICAL LANE KEEPS ITS
+      NUMBERS. DEC-20260724-001..004 and DEC-20260727-001..003 exist twice with
+      completely different content: a root lane (THM_INCBARRIER / THM_BKKMV theory
+      notes and EXP-SIG-* / EXP-GPS-* measurements, targeting H-INCB-001,
+      H-BKKMV-001, H-SIG-001) and the canonical ledger/decisions/ lane
+      (GOAL-CRYPTO-001 BATCH decisions, targeting GOAL-CRYPTO-001 and
+      IDEA-2026072*-*). AGENTS.md rule 4 forbids ID reuse. This is the exact
+      situation resolved twice before — CORR-20260724-001 and CORR-20260724-003 /
+      CORR-20260724-004, where main's IDs were retained and the colliding branch
+      records moved to the next free IDs carrying remap metadata (see
+      knowledge/literature/KN-LIT-7563.md frontmatter for the pattern). The same
+      remedy applies: the root-lane records take DEC-20260724-023..026 and
+      DEC-20260727-011..013; the canonical GOAL-CRYPTO-001 records keep
+      DEC-20260724-001..004 and DEC-20260727-001..003 unchanged. The two
+      non-colliding decisions (DEC-20260724-005, DEC-20260727-004) and all five
+      evidence records keep their IDs and are relocated only.
+    - >-
+      (B) SIDE EFFECT WORTH NAMING. Because check_legacy_ledger indexes root
+      records first, the seven CANONICAL GOAL-CRYPTO-001 decisions were the ones
+      reported as duplicates and were therefore never registered — their
+      cross-reference and knowledge_promotion checks have not been running. The
+      relocation restores them to the registry. Any error that surfaces from those
+      seven after the repair is a previously masked defect, not a new one, and
+      must be triaged, not absorbed.
+    - >-
+      (D) DISPOSITION — NOT DECIDED HERE; A ONE-TIME RE-BASELINE IS AUTHORIZED
+      ONLY CONDITIONALLY. The ~1150 remaining lines are dominated by immutable
+      historical run manifests whose underlying data does not exist (236 run
+      missing required field, 206 run directory missing artifact, 90
+      certificate.kind invalid, 90 run.code.command missing, 58 run.code.commit
+      missing = 680 lines). Those cannot be repaired: inventing a commit, a
+      command, or an artifact is a rule 9 violation, deleting the run records
+      destroys immutable evidence, and superseding each one produces hundreds of
+      records asserting nothing. For that class a documented re-baseline is the
+      least-bad option, and the argument for it is that a permanently red gate is
+      not a gate — the validator's actual job is blocking NEW violations, and it
+      cannot do that while every run is red.
+    - >-
+      (D) BUT THE REMAINING ~470 LINES ARE NOT THAT CLASS AND MUST BE TRIAGED
+      FIRST. 61 knowledge-entry-missing-field and ~24 internal-finding schema
+      errors are frontmatter metadata on entries whose bodies exist — repairable
+      by reading the entry, not by guessing. 5 invalid YAML files hide everything
+      else in those files and usually mean committed conflict markers or
+      truncation; each must be opened. ~20 duplicate RUN ids in EXP-FCP-001 are an
+      ID-collision defect of exactly the same species as (B) and take the same
+      remedy. 46 evidence-references-unknown-run, 9 decision-references-unknown-target
+      and 6 evidence-references-unknown-experiment are dangling references, some of
+      which are remap fallout that a lookup fixes and some of which point at
+      genuinely absent artifacts. 52 missing-required-field and 15
+      expected-top-level-key errors on ledger records need per-record inspection,
+      since any of them on a post-gate canonical record is a live defect.
+      Bulk-absorbing these would launder repairable violations into the
+      grandfathered set, which is precisely what the baseline header forbids.
+    - >-
+      SCOPE OF WHAT THIS DECISION DOES NOT CLAIM. It does not claim any of the
+      fourteen relocated records is now correct, verified, or independently
+      checkable. It does not claim their evidence is sound: four of the five
+      relocated evidence records cite artifacts absent from this repository, and
+      those defects are itemized in CORR-20260802-014 rather than repaired. It
+      changes no hypothesis status — H-INCB-001, H-BKKMV-001, H-SIG-001 and
+      H-DREG-001 stand exactly where their existing records leave them. It
+      promotes nothing into knowledge/. It asserts nothing about ECDLP, about any
+      cascade, freeze-degree, or support-syzygy result, and nothing at
+      cryptographic scale. It does not authorize regenerating
+      tools/validate_ledger_baseline.txt; it authorizes that only under the
+      preconditions in next_actions, and only for the named category.
+    - >-
+      METHOD LIMITATION. This Coordinator has read-only and write access to files
+      but cannot execute git or tools/validate_ledger.py. Every error count and
+      category breakdown below is taken from the dispatching session's report or
+      is an estimate derived by reading the validator source; none was measured by
+      me. The expected effect of the repair — roughly 38 error lines removed (14
+      forbidden-root, 7 duplicate-ID, 9 missing knowledge_promotion, 8 missing
+      proof_status/proof_refs) and roughly 32 lines moved from root paths to
+      canonical paths — is a prediction to be confirmed by an actual run, not a
+      result.
+  evidence_refs:
+    - tools/validate_ledger.py
+    - tools/test_validate_ledger.py
+    - tools/validate_ledger_baseline.txt
+    - tools/legacy_ledger_inventory.yaml
+    - ledger/corrections/CORR-20260802-014.yaml
+    - ledger/corrections/CORR-20260724-003.yaml
+    - ledger/corrections/CORR-20260724-004.yaml
+    - knowledge/literature/KN-LIT-7563.md
+  limitations:
+    - >-
+      No validator run, test run, or git operation was performed by this
+      Coordinator. The repair is specified, not verified. It is not official until
+      the post-commit verifier accepts the ledger commit.
+    - >-
+      The (A)/(B) repair is expected to leave roughly 32 error lines at the new
+      canonical paths (EV-SIG-007's missing `evidence:` envelope; EV-GPS-001's
+      absent hypothesis_id, unresolvable EXP-GPS-001 and six run IDs;
+      EV-SIG-008's ~20 unresolvable run IDs; EV-DREG-004's three collective range
+      labels). These are pre-existing defects of those records, carried to new
+      paths, itemized in CORR-20260802-014. They are the uncomfortable part of
+      this repair and must be named in any baseline diff, never silently included.
+    - >-
+      DEC-20260727-013 (formerly root DEC-20260727-003) cites ledger/EV-GPS-002.yaml
+      and experiments/EXP-GPS-002/, neither of which exists in this repository.
+      Its "P1 DECISIVE PASS" is therefore not checkable in-tree. The validator does
+      not check evidence_refs, so this defect is invisible to CI and is recorded
+      here instead.
+    - >-
+      DEC-20260727-004 keeps its ID in a canonical sequence where -004 and -006 are
+      gaps. A future merge that independently assigns DEC-20260727-004 will collide
+      again and will need another remap correction.
+    - >-
+      ledger/write_decisions_20260724.py and ledger/write_decisions_20260727.py
+      regenerate the deleted root records verbatim. Until they are removed or
+      retargeted, the violation is one script invocation away from returning.
+  next_actions:
+    - >-
+      1. Execute the (A)/(B) repair as one ledger archive: add the sixteen files
+      named in CORR-20260802-014 evidence_artifacts, delete the fourteen root
+      originals (ledger/DEC-20260724-001..005.yaml, ledger/DEC-20260727-001..004.yaml,
+      ledger/EV-DREG-004.yaml, ledger/EV-GPS-001.yaml, ledger/EV-SIG-006.yaml,
+      ledger/EV-SIG-007.yaml, ledger/EV-SIG-008.yaml), and make no edit to
+      tools/legacy_ledger_inventory.yaml. Then run tools/validate_ledger.py and
+      report the new count and the per-category breakdown back to the Coordinator.
+    - >-
+      2. Do NOT regenerate tools/validate_ledger_baseline.txt in that commit. The
+      re-baseline, if it happens, is a separate, separately reviewable commit with
+      its own decision record, taken only after step 1's actual numbers are known.
+    - >-
+      3. Before any re-baseline, triage the repairable classes named in the (D)
+      rationale: the 5 invalid-YAML files, the ~20 duplicate RUN ids in
+      EXP-FCP-001, the 61 knowledge-entry-missing-field and ~24 internal-finding
+      schema errors, and the 15 expected-top-level-key plus 52
+      missing-required-field errors on ledger records. Repair what can be repaired
+      from material already in the repository. Report what cannot, with reasons.
+    - >-
+      4. If a re-baseline is then still required, it is authorized for the
+      immutable-run-manifest class only (run missing required field, run directory
+      missing artifact, certificate.kind invalid, run.code.command missing,
+      run.code.commit missing) plus whatever survives step 3 triage with a written
+      reason. It must be executed by deleting and regenerating the file (the tool's
+      --update-baseline is prune-only and cannot grow an existing baseline), the
+      diff must be reviewed line by line, and no line naming a record created by
+      this repair may appear in it except the ~32 lines itemized in
+      CORR-20260802-014 limitations. Record the exact count and category table in a
+      new DEC-* record before committing.
+    - >-
+      5. Amend the baseline header in that same commit so the "lines may only ever
+      be REMOVED" invariant is re-anchored rather than quietly broken. Append:
+      "# One-time re-baseline on 2026-08-02 under DEC-20260802-001 and its
+      successor decision: N pre-gate lines in categories <list>. The
+      only-ever-removed invariant resumes from this point; a later addition is a
+      contract violation." with N and the categories filled from the actual run.
+    - >-
+      6. Remove or retarget ledger/write_decisions_20260724.py and
+      ledger/write_decisions_20260727.py so they cannot recreate root-level ledger
+      records.
+    - >-
+      7. Open the four named repair paths as bounded follow-up work, tracked but
+      not blocking CI: reconstruct the EXP-GPS-001 specification and run manifests
+      (or supersede EV-GPS-001); issue a schema-conformant superseding record for
+      EV-SIG-007; enumerate EV-DREG-004's committed CONT manifests explicitly;
+      and locate or declare-missing EV-GPS-002 / EXP-GPS-002, on which
+      DEC-20260727-013 depends.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      This is not an evidence-review decision. It reviews no run set, changes no
+      hypothesis status, and produces no durable research claim. Relocating
+      records, renumbering colliding IDs, and deciding how to account for
+      pre-gate validator debt is repository hygiene, not a finding about ECDLP or
+      about any hypothesis in this ledger. Nothing here meets — or approaches —
+      the replicated/strong threshold a KN-FIND requires.
+  decided_by: coordinator
+  decided_at: "2026-08-02"

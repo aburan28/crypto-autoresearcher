@@ -1,0 +1,584 @@
+idea:
+  id: IDEA-20260807-1c14d7
+  question_id: RQ-INSTR-f8faa0
+  added: '2026-08-07'
+  title: >-
+    COMPLETENESS OF AN ENUMERATED ISOGENY CLASS IS A WEIGHTED CARDINALITY CHECK AND
+    THAT IS NOT ENOUGH: the committed Hurwitz-Kronecker census validates the
+    enumerator against a formula using the same twist logic it is testing, so add an
+    independent all-(a,b) brute-force ground truth at tiny p and an ell-isogeny
+    closure check, and state the twist and automorphism weighting explicitly because
+    a variance measured over a structurally biased subset of a class is meaningless
+  class: tooling
+
+  claim: >-
+    (A) WHY COMPLETENESS IS LOAD-BEARING AND NOT HYGIENE. The gating measurement of
+    GOAL-ENDO-001 is the within-class variance of a cost functional. If the
+    enumerated set is a SUBSET of the class, the measured variance is the variance
+    over that subset, and the subset is not random: any natural incomplete
+    enumeration -- a breadth-first search over a few small ell, a level of a
+    volcano, a twist family -- is a structurally selected subset, typically a coset
+    of a subgroup of Cl(O) or a single volcano level. Variance over a coset is not
+    an estimate of variance over the class; it can be arbitrarily smaller. So a
+    completeness failure produces exactly the campaign's headline result --
+    "within-class variance is small" -- for a reason that has nothing to do with
+    isogenies. harness/isogeny_class.py's own module docstring says this in one
+    line: "A within-class variance measurement over a biased subset of a class is
+    meaningless." This record takes that seriously enough to ask what the existing
+    check actually proves.
+
+    (B) WHAT THE COMMITTED CENSUS PROVES, STATED PRECISELY.
+    harness/isogeny_class.py::class_census computes, for each ordinary trace t, the
+    observed weighted count sum over the enumerated curves of 2/|Aut(E)| and
+    compares it with hurwitz_class_number(4p - t^2). RUN-ICINV-p4001-a reports
+    census_failures: 0 over 127 traces, and the code carries a recorded instance of
+    the check DOING ITS JOB: the comment in _class_number_forms records that
+    omitting primitivity (gcd(A,B,C) = 1) made the census reject 60 of 127 traces at
+    p = 1009. That is a real, working instrument and this record does not propose
+    replacing it.
+    What it proves is a WEIGHTED CARDINALITY. It does not prove membership: an
+    enumeration that omitted one curve and included one spurious curve of the same
+    |Aut| would pass unchanged. It also cannot fail independently of the thing it is
+    testing, because harness/isogeny_class.py::enumerate_curves builds the set by
+    sweeping j and then applying twists_of_j, while the |Aut| assignment used in the
+    weighting is derived from the SAME j = 0 / j = 1728 case analysis that
+    twists_of_j uses. A single mistake in that case analysis moves the observed and
+    the predicted side together. The census is therefore a joint test of the
+    enumerator and the class-number code, and it is not independent of the
+    enumerator's central assumption.
+
+    (C) THE WEIGHTING, WRITTEN OUT, BECAUSE THIS IS WHERE SUCH CHECKS GO WRONG.
+    Over F_p with p > 3:
+      For u in F_p^*, (a, b) and (u^4 a, u^6 b) define F_p-isomorphic curves, and the
+      stabiliser of (a,b) in this action is Aut(E), of order 2 generically, 4 when
+      j = 1728 and p = 1 mod 4, and 6 when j = 0 and p = 1 mod 3. Hence each
+      F_p-isomorphism class corresponds to exactly (p-1)/|Aut(E)| pairs (a,b).
+      The number of F_p-isomorphism classes with a given j is 2 for j not in
+      {0, 1728} (a curve and its quadratic twist, of traces t and -t), 6 for j = 0
+      when p = 1 mod 3 and 2 otherwise, and 4 for j = 1728 when p = 1 mod 4 and 2
+      otherwise. This is exactly harness/isogeny_class.py::twists_of_j.
+      The classical count relating this to class numbers is Deuring's, in the form
+      given by Schoof, "Nonsingular plane cubic curves over finite fields",
+      J. Combin. Theory Ser. A 46(2) (1987) 183-211: for an ordinary trace the
+      number of curves of that trace, in the appropriate weighting, is a
+      Kronecker/Hurwitz class number of the discriminant t^2 - 4p. [open] THE EXACT
+      NORMALISATION -- Kronecker H versus Hurwitz H, unweighted class count versus
+      the 2/|Aut| weighting, and whether the sum runs over all orders between
+      Z[pi] and O_K -- IS RECORDED HERE AS A CLAIM TO BE CHECKED, NOT QUOTED. The
+      paper was not read in this session; only its bibliographic details and the
+      fact that it treats this count were confirmed. The committed code uses the
+      2/|Aut| weighting against a Hurwitz class number summed over f^2 dividing
+      4p - t^2, and Step 2 below settles whether that normalisation is right by
+      brute force rather than by citation.
+
+    (D) THE THREE CHECKS THIS PROPOSES, IN INCREASING STRENGTH.
+      C1  WEIGHTED CARDINALITY (committed, retained). Necessary, cheap, already
+          passing, already demonstrated to catch a real bug.
+      C2  INDEPENDENT BRUTE-FORCE GROUND TRUTH AT TINY p, WHICH BREAKS THE
+          CIRCULARITY. For p <= about 300 there are fewer than p^2 = 90000 pairs
+          (a,b). Enumerate ALL of them, discard singular ones, compute each curve's
+          trace by the character sum, and partition the pairs into F_p-isomorphism
+          classes by the explicit orbit map (a,b) -> (u^4 a, u^6 b). This uses NO
+          j-invariant formula, NO twists_of_j case analysis, and NO class number. It
+          yields the exact class sizes, the exact |Aut| distribution, and the exact
+          orbit sizes (p-1)/|Aut|. Compare against enumerate_curves and against
+          hurwitz_class_number on the same p. THIS IS THE ONLY CHECK THAT IS
+          GENUINELY INDEPENDENT OF THE ENUMERATOR, and it is cheap precisely because
+          it is dumb.
+      C3  ell-ISOGENY CLOSURE, WHICH CERTIFIES MEMBERSHIP RATHER THAN COUNT. For a
+          declared set of small ell, verify that every ell-neighbour of every
+          enumerated curve is itself enumerated. Closure plus connectivity implies
+          completeness. Connectivity of the ell-isogeny graph restricted to a set of
+          small ell is exactly the statement that the corresponding ideal classes
+          generate Cl(O), which under ERH is guaranteed by a bound of Bach's shape
+          -- Bach, "Explicit bounds for primality testing and related problems",
+          Math. Comp. 55 (1990) 355-380, giving generation by prime ideals of norm
+          at most 12 log^2 |Delta| under ERH, with a sharper constant often quoted
+          for the imaginary quadratic case. [open] THE EXACT CONSTANT IS NOT
+          RELIED ON: at toy scale the closure check is run for ALL ell up to a
+          declared bound and the result is compared with C1 and C2, so the
+          generation statement is verified rather than assumed. What C3 adds beyond
+          C1 is membership: a set that is ell-closed and has the right weighted
+          cardinality is the class.
+
+    (E) THE FAILURE MODE C3 IS SPECIFICALLY FOR. If a future lane enumerates a class
+    by breadth-first search over the ell-isogeny graph instead of by the O(p^2)
+    j-sweep -- which it will have to, because the j-sweep does not scale -- then the
+    BFS reaches only the subgroup of Cl(O) generated by the ell used, and only the
+    volcano levels reachable by those ell. Two consequences, both structural:
+      a BFS over ell that do NOT divide the conductor f stays on a single volcano
+      level and enumerates the crater of one order, not the class;
+      a BFS over ell whose ideal classes generate a proper subgroup H < Cl(O)
+      enumerates a coset of H, which is a set of size h/[Cl(O):H] with a
+      group-theoretic structure that could plausibly correlate with any functional.
+    Both look like a complete class to a cardinality check ONLY if the check is
+    omitted; C1 would catch them by count. C3 catches them by structure and,
+    critically, catches them BEFORE the count is available -- which matters at the p
+    where the j-sweep is no longer affordable and C1 is the only thing standing
+    between the campaign and a coset.
+
+    (F) THE SCOPE CEILING, STATED BECAUSE IT BOUNDS THE ENTIRE L1 LANE.
+    enumerate_curves is O(p) j-invariants times O(p) per character sum, i.e. O(p^2);
+    harness/isogeny_class.py's header claims p up to about 2^17 for full
+    enumeration. At p = 2^12 the whole enumeration ran inside the 43.4 seconds of
+    RUN-ICINV-p4001-a; at p = 2^17 the work is 1024 times larger. At the p where
+    complete enumeration is affordable, the largest prime factor of N is around 12
+    to 16 bits, so NO functional measured on a complete class is an attack cost at
+    any interesting scale. That is not an objection to the lane; it is the honest
+    boundary of what complete enumeration can ever deliver, and it belongs in the
+    completeness record because it is the reason a future lane will be tempted to
+    substitute a BFS.
+
+  resource_label: >-
+    audit: consumes no resource. It certifies the enumeration underlying L1's R1/R2/R4
+    measurements and L2's R3/R4 stratification.
+  admissibility: admissible
+  admissibility_argument: >-
+    No oracle, no attack, no group-operation advantage. The isogeny graph (R4) is
+    traversed only to certify a set, never to move an instance or to search for a
+    better curve; the reachability question T5 is therefore untouched by C3 and is
+    addressed explicitly in reachability_gate below.
+
+  discriminated_from:
+    - >-
+      harness/isogeny_class.py::class_census as committed. C1 IS that check,
+      retained unchanged. This record adds C2 (independent ground truth) and C3
+      (membership by closure), and states what C1 alone does and does not prove.
+    - >-
+      IDEA-20260807-34754f, which designs the NULL that the enumerated class is
+      compared against. Completeness is upstream of the null: a correct null over an
+      incomplete class is still a wrong answer.
+    - >-
+      IDEA-20260807-257001, which certifies a single TRANSPORT between two curves.
+      This certifies a SET. The two share the trace recomputation and nothing else.
+    - >-
+      harness/isogeny_class.py::rational_isogeny_count, which C3 must NOT use in its
+      current form: read on 2026-08-07 it returns 0 whenever ell does not divide
+      #E(F_p), while the existence of an F_p-rational ell-isogeny is governed by
+      whether X^2 - tX + p has a root modulo ell. The closure check must construct
+      neighbours by an independent route and the discrepancy is
+      IDEA-20260807-a4f5c5's to confirm or refute.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE ENUMERATED SET ITSELF, tracked as a triple (weighted cardinality,
+      |Aut|-multiset, ell-closure defect count) rather than as a list of curves.
+    lossiness: >-
+      GENUINELY LOSSY. It forgets which curves are in the set, their j-invariants,
+      their coefficients and every measured value, retaining three summary objects.
+      What it discards is discarded compatibly with the campaign's operations:
+      permuting or relabelling the curves changes none of the three, and adding or
+      removing a curve changes at least one of them deterministically. So the
+      retained part propagates under exactly the operations that could corrupt an
+      enumeration.
+    propagation: >-
+      Under adding a curve the weighted cardinality moves by 2/|Aut| and the closure
+      defect moves by at most the neighbour count. Under a BFS truncation the
+      closure defect becomes positive while the cardinality merely becomes wrong,
+      which is precisely why the two together are stronger than either.
+    survival_score: >-
+      Survives change of p, of trace and of enumeration method -- it is defined for
+      any candidate set. Dies as a completeness certificate the moment the
+      class-number normalisation is wrong, which is why C2 exists.
+
+  mechanism: >-
+    STEP 1 -- FREEZE THE WEIGHTING STATEMENT. Write (C) down as the contract's
+    normalisation clause, with the [open] marker on the exact class-number
+    convention intact. No number is reported against a convention that has not been
+    stated.
+
+    STEP 2 -- C2, AND IT COMES FIRST BECAUSE IT IS THE ONLY INDEPENDENT ONE. For
+    p in {11, 13, 17, 19, 23, 101, 103, 251, 257}: enumerate all (a,b) in F_p^2 with
+    4a^3 + 27b^2 != 0; compute each trace by the character sum; group the pairs into
+    orbits under (a,b) -> (u^4 a, u^6 b); record orbit sizes and derive |Aut| as
+    (p-1)/orbit size. Compare, per trace: the orbit count against
+    len(isogeny_classes(p)[t]); the |Aut| multiset against the enumerator's
+    aut_order field; the weighted sum against hurwitz_class_number(4p - t^2). Report
+    per-p agreement counts and the exact first disagreement if any. INCLUDE
+    p = 1 mod 12 and p = 11 mod 12 so that j = 0 and j = 1728 both appear with and
+    without their extra automorphisms; the case analysis is where this kind of code
+    fails.
+
+    STEP 3 -- C3. For a declared ell set, construct the ell-neighbours of every
+    enumerated curve by a route independent of rational_isogeny_count: find the
+    order-ell rational subgroups directly by exhausting the ell-torsion available
+    over F_p AND, separately, by checking whether X^2 - tX + p has a root modulo ell
+    and using that to predict the neighbour count. Report both counts per curve and
+    their disagreement rate; the disagreement rate is itself the audit of
+    rational_isogeny_count. Then verify closure: every constructed neighbour's
+    (a,b) must lie in the enumerated set up to isomorphism. Report the closure
+    defect, i.e. the number of neighbours not found in the set.
+
+    STEP 4 -- THE COSET SIMULATION, WHICH IS THE POSITIVE CONTROL. Deliberately
+    build an INCOMPLETE enumeration -- BFS from one curve over a single ell chosen
+    so its ideal class generates a proper subgroup -- and run C1, C2 and C3 on it.
+    C1 must fail on cardinality; C3 must report a positive closure defect. If either
+    passes on a known-incomplete set, that check cannot support a completeness claim
+    and is withdrawn.
+
+    STEP 5 -- REPORT THE CEILING. Measure enumerate_curves wall time at
+    p in {1009, 4001, 16001, 65537} and fit the O(p^2) growth, so the campaign has a
+    measured rather than asserted ceiling for complete enumeration, and record the
+    largest prime factor of N attainable at that ceiling.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      Commands run 2026-08-07: rg -i "Hurwitz|Kronecker class number|isogeny class
+      enumeration|complete.{0,20}isogeny class" over the repository (65 files
+      matched, dominated by unrelated prior work); full read of
+      harness/isogeny_class.py including class_census, _class_number_forms,
+      hurwitz_class_number, twists_of_j, enumerate_curves and rational_isogeny_count;
+      read of RUN-ICINV-p4001-a's census metrics; two web searches confirming the
+      bibliographic details of Schoof 1987 and of Bach 1990 without reading either
+      paper.
+    results: >-
+      A completeness census EXISTS and PASSES (census_failures: 0 over 127 traces at
+      p = 4001) and carries a recorded instance of catching a real bug. NO record in
+      this repository notes that the census is not independent of the enumerator's
+      twist case analysis, proposes an all-(a,b) brute-force ground truth, proposes
+      an ell-closure membership check, or states the coset failure mode of a BFS
+      enumeration. The Bach and Schoof references appear nowhere in knowledge/ or
+      ledger/.
+    verdict: adaptation
+  novelty_status_note: >-
+    ADAPTATION. Deuring's count, the twisting action, class numbers and Bach's ERH
+    generation bound are classical and none is claimed as new; both external
+    citations are marked [open] on their exact content because neither paper was
+    read in this session. What is new to this program is the observation that its
+    completeness check shares an assumption with the enumerator it checks, and the
+    dumb-but-independent construction that removes the shared assumption.
+
+  null_object_control: >-
+    MANDATORY, AND IT IS STEP 4. The NULL OBJECT is a KNOWN-INCOMPLETE SET of the
+    same shape: a BFS-truncated coset with the same p, the same trace and a plausible
+    size. Every check must FAIL on it. A completeness check that passes a
+    known-incomplete set is worthless, and this is the one experiment that
+    establishes the checks have any power at all.
+    SECOND NULL: a set of the same size at the same p assembled from curves of
+    SEVERAL traces. C1 must fail immediately; if it does not, the trace grouping is
+    not being enforced.
+    DECAY PARAMETER: the fraction of the class removed. Sweep it from 0 to 0.5 and
+    record the smallest removed fraction at which each check fires. That number is
+    the completeness instrument's minimum detectable incompleteness and it is the
+    quantity that makes "the class was complete" a bounded claim rather than an
+    assertion. A check whose firing rate does NOT rise as the removed fraction grows
+    is the canonical artifact tell and would mean the check is responding to
+    something other than the missing curves.
+
+  assumptions:
+    - >-
+      Tate: same trace over F_p is equivalent to F_p-isogenous. Classical, used as
+      the definition of the class.
+    - >-
+      (a,b) and (u^4 a, u^6 b) are F_p-isomorphic and the stabiliser is Aut(E) of
+      order 2, 4 or 6 as in (C). Elementary and verified directly by C2's orbit
+      computation rather than assumed.
+    - >-
+      [open] The exact class-number normalisation in (C). Recorded as a claim to
+      check; the committed code's convention is 2/|Aut| weighting against a Hurwitz
+      class number summed over f^2 dividing 4p - t^2, and C2 settles it empirically.
+      No citation is quoted as establishing it.
+    - >-
+      [open] Bach's ERH generation bound in the form 12 log^2 |Delta|; the constant
+      is not relied on anywhere, because C3 at toy scale sweeps all ell up to a
+      declared bound and compares with C1 and C2.
+    - >-
+      Toy scale. C2 is confined to p <= about 300 by its p^2 pair enumeration; the
+      j-sweep is confined to p of order 2^14 by its O(p^2) character sums. Every
+      number is toy-tier.
+
+  proof_search_map:
+    bottleneck: >-
+      The claim that ell-closure plus correct weighted cardinality implies
+      completeness. Everything else is enumeration. The closure implication needs
+      connectivity of the ell-graph over the declared ell set, which is the only
+      conditional step.
+    baseline_embedding:
+      parameter_slice: >-
+        p = 1009, all 127-ish ordinary traces -- the exact configuration in which
+        the committed code records the primitivity bug being caught (60 of 127
+        traces rejected before the fix).
+      reproduction_check: >-
+        Reintroduce the primitivity omission in a scratch copy and confirm the
+        census rejects the documented 60 of 127 traces at p = 1009. If it does not
+        reproduce, the recorded provenance of that fix is wrong and it must be
+        re-established before the census is trusted as a working instrument.
+    observation_collision:
+      observable: >-
+        The weighted cardinality sum of 2/|Aut| over the enumerated set.
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED. Construct two distinct sets with the same
+        weighted cardinality, one complete and one not: remove a generic curve
+        (weight 1) and add a spurious generic curve of the same trace. C1 cannot
+        distinguish them; C3 must. That collision is the exact argument for adding
+        C3 and is cheap to exhibit.
+    quantifier_order: >-
+      Intended: FOR ALL p in the tested range and FOR ALL ordinary traces t,
+      THERE EXISTS an ell set such that ell-closure plus the weighted cardinality
+      certifies the enumerated set equals the class. The reading NOT claimed:
+      THERE EXISTS one ell set that works FOR ALL (p, t) -- which is exactly the
+      generation statement that is ERH-conditional and that this design refuses to
+      assume, testing it per p instead.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At this p and this trace, the enumerated set is the complete
+        F_p-isogeny class, certified by an independent orbit count (p <= 300), by a
+        weighted class-number identity, and by ell-closure over the declared ell
+        set." It can never certify completeness at a p where none of the three runs,
+        and it can never certify anything about a class it did not enumerate.
+      nearby_object_control: >-
+        The known-incomplete coset of Step 4. A completeness apparatus that cannot
+        distinguish the class from a coset of a proper subgroup has not identified
+        the load-bearing structure.
+    proof_obligations:
+      - claim: Each F_p-isomorphism class is an orbit of size (p-1)/|Aut(E)|.
+        responsibility: correctness
+      - claim: The number of twists per j is 2, 4 or 6 exactly as in (C).
+        responsibility: correctness
+      - claim: The class-number normalisation used by the census is the right one.
+        responsibility: correctness
+      - claim: ell-closure over the declared set plus cardinality implies equality.
+        responsibility: soundness
+      - claim: The checks fail on the known-incomplete coset.
+        responsibility: success probability
+      - claim: Every reported completeness names which of C1, C2, C3 was run.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        agreement between the all-(a,b) brute-force orbit count and
+        enumerate_curves, per trace, at each tested p
+      direction: different
+      minimum_effect: >-
+        EXACT agreement on every trace at every tested p, including the j = 0 and
+        j = 1728 traces at p = 1 mod 12 and p = 11 mod 12. A single disagreement is
+        a defect in the enumerator or in the |Aut| assignment and invalidates every
+        class-based measurement taken with it until resolved.
+    - metric: >-
+        the weighted-cardinality check applied to the collision pair (one curve
+        removed, one spurious curve of the same trace and |Aut| added)
+      direction: different
+      minimum_effect: >-
+        C1 must PASS on the corrupted set -- that is the point -- and C3 must FAIL.
+        If C3 also passes, closure is not adding membership information and is
+        withdrawn.
+    - metric: >-
+        smallest removed fraction of a class at which each of C1 and C3 fires
+      direction: lower
+      minimum_effect: >-
+        C1 must fire at the removal of a single generic curve, since the weighted
+        sum moves by exactly 1. C3's threshold is the reportable number and it is
+        the campaign's minimum detectable incompleteness for a BFS-style enumeration.
+    - metric: >-
+        disagreement rate between rational_isogeny_count and the
+        X^2 - tX + p root-count prediction of the number of rational ell-isogenies
+      direction: higher
+      minimum_effect: >-
+        Strictly positive, and specifically positive on curves where ell does not
+        divide #E(F_p) but the characteristic polynomial has a root mod ell.
+        Pre-registered: if the disagreement rate is zero across the whole toy grid,
+        this record's reading of rational_isogeny_count is wrong and is withdrawn.
+    - metric: >-
+        enumerate_curves wall time versus p
+      direction: higher
+      minimum_effect: >-
+        Consistent with O(p^2) within a factor of 2 over the grid
+        {1009, 4001, 16001, 65537}. Report the extrapolated p at which enumeration
+        exceeds one hour, and the largest prime factor of N attainable there.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): write down the weighting statement (C) with the [open]
+      markers and freeze it.
+      STAGE 1 (minutes, and it is the cheapest independent check in the lane): C2 at
+      p = 11, 13, 17, 19, 23. Fewer than 600 pairs each; the orbit computation is
+      trivial; it settles the twist and |Aut| logic against nothing but the group
+      action. Any disagreement here stops the campaign's L1 lane at once.
+      STAGE 2 (an hour): C2 at p = 101, 103, 251, 257, covering both p = 1 mod 12 and
+      p = 11 mod 12.
+      STAGE 3 (an hour): the collision pair and the removal sweep, giving the
+      minimum detectable incompleteness.
+      STAGE 4 (hours): C3 on the p = 4001 target class, with both neighbour-count
+      routes reported and their disagreement rate recorded.
+      STAGE 5 (hours): the known-incomplete coset simulation; every check must fail.
+      STAGE 6 (hours): the timing ladder and the ceiling report.
+    controls:
+      - known-incomplete coset (BFS over one ell generating a proper subgroup)
+      - mixed-trace set of the right size, which C1 must reject at once
+      - collision pair with identical weighted cardinality and different membership
+      - the reintroduced primitivity bug, which must reproduce the recorded
+        60-of-127 rejection at p = 1009
+      - p chosen in both 1 mod 12 and 11 mod 12 residue classes
+    required_metrics:
+      - per-trace orbit count, |Aut| multiset and weighted sum from brute force
+      - per-trace enumerate_curves count and weighted sum
+      - per-trace hurwitz_class_number value
+      - closure defect per curve and per class, with both neighbour-count routes
+      - firing threshold of each check versus removed fraction
+      - enumerate_curves wall time versus p and the fitted exponent
+
+  falsification_conditions:
+    - >-
+      C2 disagrees with enumerate_curves at any tested p. The enumerator is defective
+      and every class-based measurement is attempted_and_inconclusive until repaired.
+    - >-
+      C2 disagrees with hurwitz_class_number while agreeing with enumerate_curves.
+      The class-number normalisation in (C) is wrong; the census has been passing for
+      the wrong reason and must be re-derived.
+    - >-
+      C3 passes on the known-incomplete coset. Closure adds nothing and is withdrawn.
+    - >-
+      C1 fails to fire when a single generic curve is removed. The weighted sum is
+      not being computed as documented.
+    - >-
+      The primitivity-bug reproduction does not yield 60 of 127 at p = 1009. The
+      recorded provenance of the census's own success is wrong, which is an
+      evidence-integrity matter and not a mathematical one.
+    - >-
+      rational_isogeny_count agrees with the characteristic-polynomial route
+      everywhere. This record's reading of it is withdrawn and L2's stratifier is
+      vindicated.
+
+  confounders:
+    - >-
+      SHARED CASE ANALYSIS. C1's observed and predicted sides both depend on the
+      j = 0 / j = 1728 case analysis. Only C2 avoids it, which is why C2 is staged
+      first despite being the least sophisticated.
+    - >-
+      SUPERSINGULAR TRACES. class_census skips t = 0 mod p with a note that the mass
+      formula differs. The brute force will include those curves, so the comparison
+      must exclude them explicitly rather than silently, or C2 will appear to
+      disagree.
+    - >-
+      SMALL p DEGENERACIES. At p = 11 or 13 the Hasse interval is tiny and some
+      traces have empty classes. Empty classes must be handled as a case, not as a
+      division by zero.
+    - >-
+      ORBIT COMPUTATION COST. C2 is O(p^2) pairs times O(p) for each character sum
+      if done naively, i.e. O(p^3); it must reuse the trace per j or per orbit, which
+      is a correctness-sensitive optimisation and must itself be checked against the
+      naive version at the smallest p.
+    - >-
+      CONCURRENT EDITS. harness/exp_icinv.py changed under this session between two
+      reads on 2026-08-07. Every source-based claim in this record must be
+      re-verified against the tree at execution time and the commit recorded.
+
+  interpretation_limits:
+    - >-
+      Completeness certified at p <= 300 by C2 and at p of order 2^12 by C1 plus C3
+      says nothing about any larger p, and in particular nothing about the regime
+      where a BFS enumeration would be used in earnest.
+    - >-
+      A complete class at toy p carries a largest prime factor of N around 12 to 16
+      bits. No functional measured on it is an attack cost at any interesting scale,
+      and no record may present one as such.
+    - >-
+      This certifies a SET. It says nothing about whether the functionals measured on
+      that set mean anything, which is L1's and L11's question.
+    - >-
+      The two external citations are bibliographic only. No theorem statement is
+      quoted as verified and the exact normalisations are marked [open].
+
+  reachability_gate: >-
+    REQUIRED, SINCE C3 MOVES BETWEEN CURVES, AND ANSWERED. C3 walks the ell-isogeny
+    graph but only to enumerate a set that is already fully enumerated by the
+    j-sweep, so every curve it reaches is already known and no search is performed.
+    It therefore uses only the CHEAP side of T5 (a random or exhaustive local
+    neighbourhood) and never the hard side (reaching a specified curve, i.e.
+    vectorization at about sqrt(h)). If a later lane uses C3's machinery to enumerate
+    a class at a p where the j-sweep is unaffordable, T5 becomes binding immediately:
+    the BFS then IS the enumeration, its completeness is exactly the generation
+    question, and this record's coset failure mode becomes the live risk rather than
+    a control.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED OR MOVED. Instrument cost: C1 is O(sqrt(|D|))
+      form enumeration per trace plus the enumeration itself at O(p^2); C2 is O(p^2)
+      pairs with trace reuse; C3 is O(|class| * |ell set| * cost of finding
+      ell-torsion), which at toy scale is O(|class| * |ell set| * p).
+    memory_exponent: >-
+      O(p) for the character table plus O(|class|) for the set. C2 at p <= 300 holds
+      at most 90000 pairs, which is kilobytes.
+    best_known: >-
+      Attack frontier unchanged: parallel rho at 0.886*sqrt(N) time and O(1) memory
+      (KN-TECH-001, KN-TECH-006), automorphism-discounted rho on CM curves
+      (KN-TECH-018), BSGS at sqrt(N) time and sqrt(N) memory. For the COMPLETENESS
+      CHECK the incumbent is harness/isogeny_class.py::class_census.
+    hidden_overhead: >-
+      The O(p^2) enumeration is the campaign's real ceiling and it is disclosed here
+      rather than in a footnote: complete enumeration and cryptographically
+      meaningful N are mutually exclusive in this harness, and every L1 conclusion
+      inherits that.
+    tradeoff_note: >-
+      A genuine tradeoff between the three checks: C2 is fully independent and
+      confined to p <= 300; C1 is cheap and scales but is not independent; C3
+      certifies membership and costs a graph traversal. A campaign at larger p pays
+      for C3 exactly what it saves by not doing the j-sweep.
+
+  dominated_by: >-
+    AS AN ATTACK: mounts none; dominated on every axis by every row of the
+    prime-field frontier -- parallel rho at 0.886*sqrt(N) time and O(1) memory
+    (KN-TECH-001, KN-TECH-006), automorphism-discounted rho on CM curves
+    (KN-TECH-018), BSGS at sqrt(N) time and sqrt(N) memory. Checked across time,
+    memory and data/queries; no axis contested.
+    AS A COMPLETENESS CHECK: the incumbent is class_census, which is cheap, scales
+    with the enumeration, and has a recorded success. This proposal dominates it on
+    INDEPENDENCE (C2 shares no assumption with the enumerator) and on STRENGTH (C3
+    certifies membership, not only a weighted count). It is dominated by the
+    incumbent on COST -- C2 is confined to p <= 300 and C3 adds a graph traversal --
+    and on REACH, since class_census runs wherever the enumeration runs.
+  sota_delta: >-
+    Zero speedup against any attack baseline; no exponent moves. Instrument delta,
+    quantitatively: adds one check that shares zero assumptions with the enumerator
+    (versus the incumbent, which shares the twist and |Aut| case analysis on both
+    sides of its comparison); adds a membership check that separates a corrupted set
+    the incumbent provably cannot separate (equal weighted cardinality, different
+    membership); produces a minimum detectable incompleteness in units of removed
+    curves, which does not currently exist; and converts the O(p^2) enumeration
+    ceiling from a docstring assertion ("p up to ~2^17") into a measured curve with
+    the attainable largest-prime-factor of N stated beside it.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.85 that C2 agrees exactly with enumerate_curves at every tested p -- the
+    enumerator's twist logic reads correct and the census already passes 127 of 127
+    traces at p = 4001, so the most likely outcome is a confirmation, which is worth
+    having because it is currently unavailable. 0.6 that the class-number
+    normalisation is exactly as the code assumes; the [open] marker is honest and
+    that is the most likely place for a surprise. 0.7 on the
+    rational_isogeny_count disagreement firing, which is the record's sharpest
+    concrete prediction. Priority is medium rather than high because C1 is already
+    passing and the failure modes C2 and C3 guard against become LIVE only when a
+    lane moves past the j-sweep -- at which point they become urgent.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json; all
+    126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-INSTR-f8faa0
+    - GOAL-ENDO-001
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - harness/isogeny_class.py
+    - harness/exp_icinv.py
+    - harness/run_icinv.py
+    - EXP-ICINV-180a0d
+    - RUN-ICINV-p4001-a
+    - KN-TECH-006
+    - KN-TECH-018
+    - IDEA-20260807-34754f
+    - IDEA-20260807-257001
+    - IDEA-20260807-a4f5c5

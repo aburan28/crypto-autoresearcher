@@ -1,0 +1,88 @@
+evidence:
+  id: EV-GPS-001
+  relocation:
+    remapped_from: null
+    prior_path: ledger/EV-GPS-001.yaml
+    note: >-
+      Canonical relocation of a root-level evidence record. No ID collision
+      existed (ledger/evidence/EV-GPS-001.yaml was free), so the ID is unchanged.
+      Body preserved verbatim apart from this block and the required
+      proof_status/proof_refs fields. Two defects are preserved rather than
+      papered over: (1) the record carries `hypothesis_ids: [GPS-1, GPS-4]`,
+      which are research-note labels, not ledger hypothesis IDs, so the schema's
+      required `hypothesis_id` has no honest value to take and is left absent —
+      assigning one would be an evidence judgement, not a relocation;
+      (2) EXP-GPS-001 has run directories under experiments/EXP-GPS-001/runs/ but
+      no committed specification.yaml and no run manifests, so neither the
+      experiment ID nor any of the six cited run IDs resolves. Both are recorded
+      as open defects in DEC-20260802-001 with named repair paths. See
+      CORR-20260802-014.
+  hypothesis_ids: [GPS-1, GPS-4]   # research/IDEAS-20260726-generic-prime-structure.md §2, §5
+  experiment_ids: [EXP-GPS-001]
+  task_id: TASK-20260726-002
+  proof_status: empirical_only
+  proof_refs: []
+  run_ids:
+    - RUN-EXP-GPS-001-a   # carry sha256 verification (76/76 ok) + SIG-008 pkl probe (valid)
+    - RUN-EXP-GPS-001-b   # exact n=21 D5 column set + composition segmentation (valid)
+    - RUN-EXP-GPS-001-c   # burst-unit profile; 3 checkpointed invocations (valid)
+    - RUN-EXP-GPS-001-d   # P1/P2 scoring (valid)
+    - RUN-EXP-GPS-001-e   # S9 ladder D3-D5; D6 censored at 240s (partial; rule 5)
+    - RUN-EXP-GPS-001-f   # S9 D6 m4ri ranks; F5 closure censored at 240s (partial; rule 5)
+  type: empirical
+  direction: mixed        # GPS-1 P1 falsified as stated; GPS-1 P2 undecidable; GPS-4 P1 not scored (infrastructure)
+  strength: single_cell   # n=21 seed 1 (GPS-1); n=12 seed 2 -> S9 subsystem (GPS-4)
+  claim_tier: toy
+  verdicts:
+    gps1_p1:
+      verdict: falsified_as_stated
+      measured:
+        burst_window: [452824, 453770]     # 947 consecutive columns, ALL pivots
+        n_classes: 9
+        top_class: ["(1,2,1,1)", 294]      # 31.0% — far below >=800/947
+        all_in_le2_classes: false
+        common_pattern: "ALL 947 pivots have u-degree exactly 1"
+        zero_pivot_unit_classes: "all u>=2 classes + u=1 class (1,1,0,3) (35 cols)"
+      reading: >
+        Block-composition class is the wrong stratification variable (9 classes,
+        top share 31%); the burst carries an exact coarser signature (u-degree 1,
+        contiguous window). Falsification criterion (i)'s "no common support
+        pattern" clause prevents declaring the class mechanism fully dead.
+      receipts: [RUN-EXP-GPS-001-b, RUN-EXP-GPS-001-c, RUN-EXP-GPS-001-d]
+    gps1_p2:
+      verdict: not_decidable_from_existing_artifacts
+      measured:
+        plateau_is_union_of_whole_classes: false   # all 34 shell classes present
+        plateau_cols_in_proven_lt2pct_classes_share: 0.0
+        plateau_cols_in_possible_lt2pct_classes_share: 0.9713
+      resume: "profile 48 live-region units [124,244,364,000) with the RUN-c engine (~3h) or LP-tighten the unit-k log"
+      receipts: [RUN-EXP-GPS-001-b, RUN-EXP-GPS-001-d]
+    gps4_p1:
+      verdict: not_scored_infrastructure   # rule 5 — not evidence about the hypothesis
+      measured:
+        S9_D6: {nrows: 60432, ncols: 29254, rank6: 28805, kernel6: 31627, K6_family: 16230, F3_images: 988, F4_images: 15136}
+        S9_ladder: {D3: {deficit: 1, extra: 1, B: 1}, D4: {deficit: 88, extra: 88, B: 88}, D5: {deficit: 564, rank: 10218, sr_pred: 10782, extra: 2077, B: 2077}}
+        S9_eqs: {total: 24, vanished: 0, const: 0, degs: "12x2 + 12x3"}
+      gaps:
+        - "n=12 D6 kernel basis not persisted in EXP-SIG-008 artifacts (sem_kernels.pkl = {k3,k4,k5} only)"
+        - "S9 F5-image closure rank exceeded the 240s invocation cap"
+      resume:
+        - "sage experiments/EXP-GPS-001/src/gps4_s9_d6.sage --out <raw>  # with F5 position-list images + m4ri stack; 1 invocation"
+        - "n=12 D6 kernel via mutual back-reduction of EXP-SIG-008/work/sem_rank6 carries (4-5 invocations), then specialization map"
+      receipts: [RUN-EXP-GPS-001-a, RUN-EXP-GPS-001-e, RUN-EXP-GPS-001-f]
+  unexpected_observations:
+    - "70 pure-u quartics (4,0,0,0) missing from the n=21 sem column set -> true quintic shell starts at col 124,244 (not 124,314); quintic shell size 654,150 (not 654,080)"
+    - "ALL 20,349 pure-u quintics (5,0,0,0) missing — the a9 missing set is NOT confined to balanced compositions"
+    - "the 947-pivot burst is a CONTIGUOUS all-pivot window [452,824,453,770], not a scattered yield spike"
+    - "EXP-SIG-008 sem_kernels.pkl holds only D3/D4/D5 kernel bases; no D6 kernel basis survives on disk"
+  integrity:
+    - "76/76 EXP-SIG-007 rank5 carries sha256-verified vs state.json (RUN-a)"
+    - "rebuilt n=21 s1 system bit-identical to staircase adjacency system_hash (RUN-b)"
+    - "ncols 778,394 reproduced exactly; up-closure == exact column set proven via total match"
+    - "0/500 adjacency row-count mismatches (RUN-b); burst profile size 947 == state.json (RUN-c)"
+    - "pinned instrument sha256 verified in every sage run"
+  boundaries:
+    - "Toy scale: boolean chained Semaev m=t=3; n=21 seed 1 and n=12 seed 2 subsystem (rule 7)"
+    - "GPS-1 conclusions are about Macaulay column scheduling of the descent system; no d_reg or asymptotic claim"
+    - "GPS-4 gate unscored: timeout/censoring is not evidence (rule 5)"
+  analysis: experiments/EXP-GPS-001/analysis.md

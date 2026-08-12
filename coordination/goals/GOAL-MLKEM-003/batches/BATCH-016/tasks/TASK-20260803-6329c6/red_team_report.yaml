@@ -1,0 +1,611 @@
+red_team_report:
+  id: RT-20260803-cd747d
+  task_id: TASK-20260803-6329c6
+  batch_id: BATCH-016
+  goal_id: GOAL-MLKEM-003
+  experiment_id: EXP-MLKEM-011
+  reviewed_snapshot_commit: 18e6679ba0
+  reviewed_ledger_commit: 405e19415b
+  verdict: blocking_objections
+
+  scope_and_tier:
+    claim_tier: toy
+    ml_kem_security_claim: none
+    rule_12_status: >-
+      UNMET AND UNWAIVED. Nothing in this report changes the status of
+      EV-MLKEM-011, EV-MLKEM-013, EV-MLKEM-017 or the withdrawn KN-FIND-031.
+    new_sampling_of_physical_system: >-
+      NONE. No G6K, no network, no new .out bytes. Only the three archived
+      files under experiments/EXP-MLKEM-011/vendor-lock/data/ were read.
+    seeded_randomness_disclosed: >-
+      Python random.Random(20260803). Used only to generate synthetic null
+      objects (N1 independent-Poisson at the archived fitted rate; N2
+      Binomial(nb_iteration, mu/nb_iteration), the minimum-variance
+      independent-iteration member) and a drift-power calibration of the
+      archived Pgood block statistic. Never a measurement of the archived
+      system.
+
+  claim_under_review: >-
+    EV-MLKEM-ce1884 observation U-1: "ANOM-5 IS THE ESTIMATOR'S NULL OBJECT,
+    NOT ITS ARITHMETIC ... the admissible dispersion floor is
+    mean_T(1 - mu_T/N) = 0.9183 for the n=43 mid band rather than the Poisson
+    point 1.0 ... the honest residue is -1.4 to -1.6 sd, WHICH IS NOT AN
+    EFFECT"; together with U-4 ("the floor is exactly tight under i.i.d.
+    iterations") and the DEC-20260803-b4d2d0 / handoff framing that the
+    remaining open question is whether identical distribution holds.
+
+  # =====================================================================
+  # THE TWO RULINGS THE HANDOFF DEMANDED
+  # =====================================================================
+
+  ruling_on_identical_distribution:
+    statement: >-
+      The independent-and-identically-distributed iteration assumption
+      SURVIVES this attack, to the limit of what the archive can test, and it
+      is NOT the assumption the floor actually rests on. I could not build a
+      case that identical distribution fails, and I record that plainly.
+    survives: true
+    why_it_survives:
+      - >-
+        The premise "the archive contains NO per-iteration data" is FALSE as
+        stated. Pgood_q241_m40_n43_nfft8_kfft3_nlat35_beta032_beta144_N25971.out
+        is 4000 per-iteration values of F(solution) in iteration order (header
+        line "#  Each Line is a value for F(solution)", nb_iteration=4000, 4017
+        total lines). The correct statement is that the archive holds no
+        per-iteration data for the two Pwrong files. BATCH-015's own
+        pgood_serial_probe() (anom5_investigation.py lines 873-917) already
+        exercised it.
+      - >-
+        That probe finds no ordering structure: lag-1..8 autocorrelation
+        max |0.035| against sd 0.0158, runs-test z = -0.214, block-mean
+        variance ratios 0.893-1.228 for B = 2..100. I calibrated its power
+        (seed 20260803, 4000 values, 120 replicates per amplitude): the B=100
+        statistic has null mean 0.993 sd 0.228, and a monotone linear drift of
+        total amplitude 0.25 sd -- i.e. 3.6 percent of the mean of
+        F(solution), since sd/mean = 0.1435 -- is detected at z = +2.35. So
+        "no drift found" here is a quantified bound, not an absence of
+        looking.
+      - >-
+        Per-iteration heterogeneity of the LATTICE does not break identical
+        distribution. The headers report sdv_dlat = 1.125372 (n=43) and
+        1.739062 (n=50), and the Pwrong header states "each time a different
+        lattice, target". A fresh redraw per iteration makes the per-iteration
+        marginal identical by construction; the heterogeneity is integrated
+        into that marginal. Non-identity requires the iteration INDEX to carry
+        information, which is what the drift probe tests.
+      - >-
+        The differing nb_iteration between files (4000 vs 6000) carries no
+        implication about within-file homogeneity: the files are different
+        instances (n=43/n_lat=35/beta_0=32/beta_1=44 versus
+        n=50/n_lat=42/beta_0=35/beta_1=41), not two halves of one run.
+      - >-
+        Unequal-weight pooling of sub-runs is excluded by BATCH-015's own
+        format test T2: "%.18e" % (count / (nb_iteration * q^k_fft)) reproduces
+        the printed string bit-for-bit on 1804 and 2311 lines with zero
+        mismatches, so each file is an equally weighted pooled count over
+        exactly nb_iteration iterations.
+    why_it_is_not_the_load_bearing_assumption: >-
+      Non-identical distribution can push phi below mean_T(1 - mu_T/N) ONLY
+      inside the 0/1 regime. For independent X_i ~ Poisson(lambda_i),
+      Var(sum X_i) = sum lambda_i = mu for ANY heterogeneous deterministic
+      lambda_i, so E[phi] = 1 exactly and no sub-floor reading is producible.
+      The validator's phi = 0.00433 counterexample (U-2) lives entirely inside
+      the 0/1 regime. Identical distribution is therefore a hypothesis that
+      matters only jointly with the far stronger, never-named hypothesis in
+      objection O-1.
+
+  ruling_on_mid_band_exhaustion:
+    exhausted: false
+    headline: >-
+      The MID-BAND LANE IS NOT EXHAUSTED at 301 bins. One clearly separable
+      SUB-LANE inside it is exhausted, and that sub-lane closure is a genuine
+      result with a named obstruction. Closing the whole lane on the bin count
+      would be the premature closure the inventor protocol treats as equal to
+      overclaiming, because the discriminating information is in the occupancy
+      STRUCTURE of the existing 301 bins, not in their number.
+    exhausted_sub_lane:
+      what: >-
+        Resolving the WHOLE-BAND mid-band dispersion ratio against any fixed
+        point reference to 3 sd.
+      named_obstruction: >-
+        The mid-band cell count is K = ln(100)/a, where a = 0.01530 per score
+        is the log-decay rate of the survival curve and the band is the fixed
+        two-decade count window 1000 <= C_T < 1e5. a is a property of the
+        physical instance (q=241, m=40, n=43, beta_0=32, beta_1=44), not of the
+        archive size, so increasing nb_iteration TRANSLATES the count window to
+        deeper scores without widening it: more iterations buy no mid-band
+        bins. The score observable is integer valued at unit granularity
+        (BATCH-015 format tests: gcd of positive increments = 1, minimum
+        mid-band increment 6), and BATCH-014's expected-count binner already
+        returns one bin per score (301 bins over 301 scores, U-10), so there is
+        no re-binning, re-weighting or re-fitting freedom left. Reaching the
+        1414 bins that 3 sd on delta = 0.1160 requires -- I recompute
+        sd*sqrt(K) = 1.4534 at K=301, hence K_needed = (1.4534/(0.1160/3))^2 =
+        1414, inside the validator's honest 1321-1488 range (D-8) -- would need
+        a count dynamic range of e^(1414*0.01530) = 2.4e9, i.e. 9.4 decades,
+        essentially the entire resolved band [0,1802]. That route is closed by
+        the floor's OWN domain: at [476,926] the archived band-shift sweep
+        already reports floor = 0.3332 because per-iteration occupancy there
+        exceeds 1, where BATCH-015's floors() sets
+        floor_independent_iterations_applicable = False.
+      forward_guidance: >-
+        A 3 sd whole-band reading is obtainable only from an instance with a
+        smaller decay rate a (a flatter survival curve), not from more
+        iterations at these parameters. Anyone wanting it must change the
+        parameter regime, and must first say what a mid-band dispersion ratio
+        at that regime would decide.
+    what_remains_available_at_301_bins_and_has_not_been_done:
+      - >-
+        R-1 (EXECUTED HERE, and it is decisive): the occupancy-signature test.
+        See objection O-1. Rejects the floor-attaining member at >= 3 sd on
+        n=43 using only the existing 301 bins.
+      - >-
+        R-2: an occupancy-matched cross-region comparison. The deep tail
+        (occupancy 0.00226) and the mid band's low-occupancy tercile
+        (occupancy 0.00454) are nearly occupancy matched. Deep tail reads
+        phi = 1.0569 against its Poisson null 0.9965 +/- 0.0591 (archived);
+        the mid-band low-occupancy tercile reads 0.6371 against 1.0072 +/-
+        0.1451 (this report). The two differ by +2.68 sd at matched occupancy.
+        Any occupancy-driven mechanism requires them to agree. Not done.
+      - >-
+        R-3: a joint two-file test with SIGN as the discriminator. See O-6. The
+        same statistic on the same pipeline reads -2.45 sd (n=43) and +1.66 sd
+        (n=50) against Poisson. Not done as a joint test.
+      - >-
+        R-4: use the shallow band as a direct in-archive MEASUREMENT of the
+        within-iteration dispersion index the floor assumes. At per-iteration
+        occupancy 12676 (n=43) and 10966 (n=50), phi reads 1.0462 +/- 0.0613
+        and 1.0909 +/- 0.0571. That is a measurement of exactly the quantity
+        the floor sets to (1 - p), and it was never used for that purpose.
+      - >-
+        R-5: a model-selection-free reading. phi moves 1.2370 -> 0.9067 ->
+        0.8727 -> 0.8023 across Chebyshev degrees 2,3,4,5 while the floor is
+        invariant at 0.9182566 to seven digits. The rate-model order is a
+        larger lever on this statistic (0.43) than the entire floor correction
+        (0.082). The producer's own second-difference statistic (0.6741, with
+        its identity check 0.6780) is one such reading and was not carried into
+        the conclusion.
+
+  # =====================================================================
+  # NUMBERED OBJECTIONS
+  # =====================================================================
+
+  objections:
+    - id: O-1
+      severity: blocking
+      title: >-
+        The floor's load-bearing hypothesis is not i.i.d.; it is that no
+        iteration ever places two candidate scores in the same mid-band cell --
+        and the archive's own data rejects that at >= 3 sd.
+      statement: >-
+        mean_T(1 - mu_T/N) is the minimum over the independent-iteration family
+        and is attained ONLY by the member with X_iT in {0,1} for every
+        iteration i and cell T (BATCH-015 states this itself:
+        floors()["attained_when"], anom5_investigation.py lines 547-549). U-1
+        and U-4 then use that minimum as the REFERENCE POINT. That is a
+        different and much stronger claim, and it is testable in-archive
+        because the floor makes a sharp prediction the Poisson member does not:
+        the per-cell Pearson term must satisfy E[t_T] = 1 - mu_T/N, i.e. the
+        regression of t_T on per-iteration occupancy must have slope exactly
+        -1, and the deficit must be concentrated where occupancy is largest.
+        It is not.
+      measured:
+        instrument: >-
+          BATCH-015's own estimator, deliberately reused so that the per-cell
+          terms are the same object the producer summed. Reproduces
+          phi(n43,mid) = 0.8022946873653165 and floor = 0.9182566445182725 to
+          all printed digits. This reproduction is explicitly NOT an
+          independent check; the new content is the decomposition.
+        n43_mid_band_terciles_by_occupancy:
+          low:  {occ_mean: 0.00454, observed_phi: 0.6371, N1_poisson_null: "1.0072 +/- 0.1451", N2_floor_member_null: "0.9971 +/- 0.1430"}
+          mid:  {occ_mean: 0.01839, observed_phi: 0.8645, N1_poisson_null: "1.0121 +/- 0.1344", N2_floor_member_null: "0.9783 +/- 0.1499"}
+          high: {occ_mean: 0.22091, observed_phi: 0.9043, N1_poisson_null: "1.0021 +/- 0.1390", N2_floor_member_null: "0.7802 +/- 0.1145"}
+        slope_of_per_cell_pearson_term_on_occupancy:
+          n43: {observed: 0.1972, N1_poisson_null: "-0.0329 +/- 0.5478", N2_floor_member_null: "-0.9671 +/- 0.3365", z_against_floor_member: 3.46, z_against_floor_member_after_lag1_deflation: 3.15}
+          n50: {observed: 1.5114, N1_poisson_null: "0.1249 +/- 1.2397", N2_floor_member_null: "-0.9296 +/- 1.2033", z_against_floor_member: 2.03}
+        null_calibration: >-
+          400 replicates for the n=43 file and 250 for the n=50 file, per null,
+          seed 20260803, run through the identical instrument at the identical
+          fitted mu over the identical band, so leverage and edge asymmetry are
+          present in the null and cancel. The instrument recovers slope 0 under
+          Poisson and slope -1 under the floor-attaining member, as it must.
+        lag1_deflation_note: >-
+          n=43 residual lag-1 autocorrelation is +0.104 (validator D-9), so the
+          independent-cell null sd is optimistic by about sqrt(1+2*0.104) =
+          1.10; the deflated z is quoted above and is still >= 3. n=50 lag-1 is
+          +0.007, no material deflation.
+      why_it_is_blocking: >-
+        The deficit is carried entirely by cells where the floor correction is
+        0.5 percent, and vanishes in the cells where the floor correction is 22
+        percent. The floor therefore moves the reference in the part of the
+        band that does not contain the deficit. U-1's "the honest residue is
+        -1.4 to -1.6 sd" is a whole-band average of an occupancy dependence
+        pointing the wrong way, and it is not an admissible summary of this
+        archive.
+      cheapest_check: >-
+        Rerun the archived degree-5 fit on scores 551-851 of the n=43 file,
+        keep the 301 per-cell terms t_T = (D_T - mu_T)^2 / (mu_T (1 - h_T))
+        instead of only their mean, and regress them on mu_T/4000. The floor
+        predicts slope -1; Poisson predicts 0. Calibrate with the producer's
+        own N1 and N2 generators at the same mu. About 12 seconds of pure
+        Python; no new sampling. This is the check that settles the whole
+        question, and it settles it against the floor as a reference point.
+
+    - id: O-2
+      severity: material
+      title: >-
+        The floor-attaining member is also structurally implausible for this
+        generator, independently of O-1's statistics.
+      statement: >-
+        Each iteration emits q^k_fft = 241^3 = 13,997,521 candidate scores. The
+        floor requires that at most one of them lands on any given mid-band
+        score, in every iteration. From the archived counts: n=43 places
+        24.6047 mid-band candidates per iteration across 301 cells, and
+        sum_T p_T^2 = 8.578, so a Poisson-per-cell allocation expects 4.29
+        colliding PAIRS per iteration -- the 0/1 property would have to be
+        violated several times per iteration and is not. In the same file's
+        shallow band a single iteration deposits up to 49,036 candidates on ONE
+        score (max increment 196,143,254 over 4000 iterations), so multiple
+        occupancy of a single cell by a single iteration is a demonstrated
+        property of this process, not a hypothetical.
+      cheapest_check: >-
+        Two lines on the archived bytes: max(D_T over the shallow band) /
+        nb_iteration for the per-iteration multiplicity, and
+        0.5 * sum_T (D_T/nb_iteration)^2 over the mid band for the expected
+        collision count. Both computed here; both in the file BATCH-015 already
+        parsed.
+
+    - id: O-3
+      severity: material
+      title: >-
+        The premise "the archive contains no per-iteration data" is false as
+        stated, and the correction matters because it is what gives the
+        surviving i.i.d. ruling its evidence.
+      statement: >-
+        See ruling_on_identical_distribution. The Pgood file is 4000
+        per-iteration values in iteration order; the archive lacks per-iteration
+        data only for the Pwrong files. EV-MLKEM-ce1884's boundaries paragraph
+        ("it is an assumption and is not verified from per-iteration data,
+        which the archive does not contain") should read "not verified from
+        per-iteration Pwrong data; the per-iteration Pgood sequence supports it
+        at n=43 with the power quoted".
+      cheapest_check: >-
+        head -17 of
+        experiments/EXP-MLKEM-011/vendor-lock/data/Pgood_q241_m40_n43_nfft8_kfft3_nlat35_beta032_beta144_N25971.out
+        and the iteration_sequence_probe_pgood block of
+        BATCH-015/tasks/TASK-20260803-d9afbd/results.json.
+
+    - id: O-4
+      severity: material
+      title: >-
+        The commissioned i.i.d. attack is inert on its own terms, and the task
+        card's framing should not be carried forward as the open question.
+      statement: >-
+        See why_it_is_not_the_load_bearing_assumption. Heterogeneous but
+        independent Poisson rates give E[phi] = 1 exactly. A sub-floor reading
+        needs the 0/1 property as well, and O-1/O-2 dispose of that. Directing
+        the next batch at identical distribution would spend it on the
+        assumption that cannot produce the observed sign.
+      cheapest_check: >-
+        Var(sum_i X_i) = sum_i lambda_i for independent Poisson X_i; one line,
+        no compute. Equivalently: run the producer's mc_null with a
+        deliberately heterogeneous per-iteration rate and confirm phi stays at
+        1 unless the generator is switched to Bernoulli.
+
+    - id: O-5
+      severity: material
+      title: >-
+        The floor is more volatile under band redefinition than the statistic
+        it is used to reference, and the archived sweep evaluates it outside
+        its own applicability domain without saying so.
+      statement: >-
+        Over BATCH-015's mid_band_edge_shift_sweep the floor moves 0.9183 ->
+        0.8318 -> 0.6815 -> 0.3332 while phi moves 0.8023 -> 0.8445 -> 0.8826
+        -> 1.0272, so the reported residue swings from -1.63 sd to +10.16 sd.
+        A reference point that moves further than the measurement it
+        references cannot carry a 0.1-sized correction. Worse, the wide rows
+        are the floor applied where per-iteration occupancy exceeds 1:
+        band_shift_sweep (anom5_investigation.py lines 824-845) calls floors()
+        but emits only floor_independent_iterations and DROPS
+        floor_independent_iterations_applicable, which is the flag that would
+        have marked those rows invalid. Validator D-6 caught the prose symptom
+        ("inside about 1.5 sd everywhere"); the code-level cause is this
+        dropped field.
+      cheapest_check: >-
+        Add fl["floor_independent_iterations_applicable"] and
+        fl["max_per_iteration_occupancy"] to the dict emitted at
+        anom5_investigation.py lines 841-844 and re-read the sweep. Rows
+        [501,901] and [476,926] will flag False.
+
+    - id: O-6
+      severity: material
+      title: >-
+        The floor story needs two different mechanisms for one statistic on one
+        pipeline; the sign disagreement between the files is itself the
+        artifact tell.
+      statement: >-
+        Against the floor, n=43 mid sits -1.38 sd BELOW it and n=50 mid sits
+        +2.19 sd ABOVE it. So U-1 explains n=43 by the file sitting at its
+        minimum-variance floor while U-6 explains n=50 by an unrelated
+        over-dispersion mechanism (M-a3). Against a single Poisson reference
+        the two readings are -2.36 and +1.68, symmetric noise among six
+        post-hoc-selected region-by-file readings: |z| = 2.36 is two-sided
+        p = 0.0183, and 1 - (1 - 0.0183)^6 = 0.105 after Sidak. The parsimonious
+        reading is that neither is an effect, and it does not need the floor at
+        all. Nothing about n=43 -> n=50 is a parameter that should flip the sign
+        of a real sub-Poisson mechanism, which is the protocol's
+        "what should this quantity have done" test failing for the mechanism
+        claim in both directions.
+      cheapest_check: >-
+        The six phi values and their MC nulls are already in
+        BATCH-015 results.json job_A_regions; the Sidak arithmetic is one line.
+
+    - id: O-7
+      severity: material
+      title: What the floor is and is not entitled to claim.
+      entitled: >-
+        (a) mean_T(1 - mu_T/N) is a valid LOWER BOUND on E[phi] over the
+        independent-and-identically-distributed iteration family, and is
+        attained by the 0/1 member -- U-4's mathematics is correct and the
+        validator's correction of the "any independent-iteration model"
+        quantifier (U-2, U-3) stands and must be carried forward.
+        (b) Consequently the admissible set is [floor, infinity), so a reading
+        of 0.8023 does not by itself falsify the i.i.d.-iteration family: it is
+        inside the admissible set. That is a real and useful negative.
+        (c) The deep-tail conclusion (U-5) is untouched by everything in this
+        report: at occupancy 0.00226 and 0.00113 the floor and the Poisson
+        point differ by 2.6e-4 and 1.4e-4, far below the 0.05-0.15 sds, so
+        BATCH-014's T-1 stands either way.
+      not_entitled: >-
+        (a) That 0.9183 is the operative reference point, or "the estimator's
+        null object". O-1 rejects the member that attains it at >= 3 sd.
+        (b) That "the honest residue is -1.4 to -1.6 sd". The residue against
+        the reference the data supports is about -2.4 sd on n=43, and it is
+        concentrated in the low-occupancy third of the band at -2.55 sd.
+        (c) That ANOM-5 is dissolved BECAUSE of the floor. ANOM-5 is
+        nonetheless not an effect, for the independent reasons in O-6 and R-5:
+        post-hoc multiplicity over six readings, a rate-model-order sensitivity
+        (0.43) five times the size of the floor correction (0.082), and a sign
+        disagreement between the two files. The batch's top-level conclusion
+        survives; its stated mechanism does not.
+
+    - id: O-8
+      severity: minor
+      title: >-
+        Raised and RETIRED: the mid-band Chebyshev degrees are hardcoded, but
+        they are traceable and correct.
+      statement: >-
+        anom5_investigation.py line ~1247 hardcodes "5 if d['tag'] == 'n43'
+        else 3" as a literal with no in-script justification. I checked
+        BATCH-014 TASK-20260803-f81a66 results.json: chosen_degree is 5 for
+        n=43 mid and 3 for n=50 mid, selected by a stated forward-selection
+        rule on the deviance at chi^2_{1,0.95} = 3.841, with the range over
+        converged degrees at or above chosen reported as 0.7998-0.8106 (n=43)
+        and 1.0870-1.1065 (n=50). The choice is legitimate. The gap is
+        traceability only: BATCH-015 does not restate the provenance beside the
+        literal.
+      cheapest_check: >-
+        grep chosen_degree in
+        BATCH-014/tasks/TASK-20260803-f81a66/results.json; already done.
+
+    - id: O-9
+      severity: minor
+      title: The 0.739 occupancy figure leads the reader with the maximum.
+      statement: >-
+        U-1 says "per-iteration occupancy up to 0.739, so the admissible
+        dispersion floor is mean_T(1 - mu_T/N) = 0.9183". The floor uses the
+        MEAN occupancy, which the producer's own results.json records as
+        mean_per_iteration_occupancy = 0.08174. The entire floor correction is
+        therefore 0.0817, slightly less than one sd (0.0838) of the statistic
+        it is being used to reinterpret. Quoting the max next to the floor
+        overstates how much of the band the correction touches -- which is
+        exactly what O-1 then measures.
+      cheapest_check: >-
+        mean_per_iteration_occupancy and max_per_iteration_occupancy in the
+        floors block of BATCH-015 results.json.
+
+    - id: O-10
+      severity: none_checked_and_clear
+      title: dominated_by and sota_delta on EV-MLKEM-ce1884 are correctly filled.
+      statement: >-
+        dominated_by: null carries dominated_by_basis "Not applicable: no
+        attack advanced, no cost frontier occupied", and sota_delta is "Zero.
+        No time, memory, data or security quantity is improved or claimed".
+        Under inventor-protocol section 5 that is a justified null, not the
+        unchecked null that would be a rule 5 fabrication. No time, memory or
+        data axis is claimed anywhere in this batch, so there is no frontier row
+        to check against. Recorded as verified rather than silently passed.
+
+  required_controls:
+    - >-
+      C-1 (highest priority, cheap, decides the batch): the occupancy-signature
+      control of O-1, with the N1 and N2 null objects run through the identical
+      instrument at the identical fitted mu. Any future use of an occupancy
+      floor as a reference must pass it first.
+    - >-
+      C-2: the occupancy-matched deep-tail versus low-occupancy-tercile
+      comparison (R-2). It is the archive's cleanest "what should this quantity
+      have done" test and costs nothing.
+    - >-
+      C-3: report floor_independent_iterations_applicable and
+      max_per_iteration_occupancy on every row of any band sweep that quotes a
+      floor (O-5).
+    - >-
+      C-4: any residue quoted in sd units must carry the rate-model-order range
+      beside it, since that range (0.43 for n=43 across degrees 2-5) dominates
+      the correction being argued about.
+
+  counterexample_or_mutation: >-
+    The decisive mutation is the null object itself. Take the producer's own N2
+    generator -- Binomial(nb_iteration, mu_T/nb_iteration), the exact
+    floor-attaining member -- and run it through the producer's own estimator
+    at the archived mu. It reproduces the floor as a whole-band mean (my
+    calibration: 0.9181 against the analytic 0.9183) AND produces occupancy
+    slope -0.967 +/- 0.337 with tercile means 0.997 / 0.978 / 0.780. The
+    archived data produces slope +0.197 and terciles 0.637 / 0.865 / 0.904. The
+    whole-band mean cannot tell these apart; the occupancy structure separates
+    them immediately. Referring an observation to a floor without checking the
+    floor's own occupancy signature is the failure mode this exposes, and it is
+    general: any reference point derived as an extremum of a family should be
+    checked for the family member's distinctive signature, not just its scalar
+    value.
+
+  baseline_comparison: >-
+    Not applicable in the attack sense: this batch advances no attack, occupies
+    no cost frontier, and improves no time, memory, data or query quantity. The
+    relevant baseline is the previous null object, BATCH-014's independent
+    Poisson point at 1.0. BATCH-015 proposed to replace it with 0.9183. This
+    report finds the archive supports the Poisson-type member and rejects the
+    0.9183-attaining member at >= 3 sd, so the operative reference reverts to
+    approximately 1.0 -- while the top-level conclusion drawn from it (ANOM-5
+    is not an effect) is unchanged, for the independent reasons in O-6.
+
+  heuristic_challenges:
+    - >-
+      H-1: "each iteration contributes at most one candidate score to each
+      cell" (anom5_investigation.py line 547) is an unnumbered, unstated,
+      load-bearing heuristic promoted from "attained_when" annotation to
+      reference point without ever being written down as an assumption. It is
+      the assumption O-1 and O-2 reject. Numbering and justifying it was
+      required and did not happen.
+    - >-
+      H-2: the random-model transfer is asserted, not checked. The minimum
+      variance member is a statement about an idealized allocation; the object
+      at hand is the score histogram of 13,997,521 FFT-derived candidates per
+      iteration, which is not a uniformly random allocation and, per O-2,
+      demonstrably multiply-occupies cells. The cheapest experiment exposing
+      the deviation is C-1, and it exposes it.
+    - >-
+      H-3: identical distribution is a legitimate stated heuristic and survives
+      (see ruling). It should be carried as a numbered, explicit hypothesis with
+      its power bound (drift > 0.25 sd of F(solution) excluded at 2.35 sd on
+      n=43 only), not as an unexamined footnote or as the open question.
+
+  cost_model_challenges:
+    - >-
+      No time, memory or query cost is claimed anywhere in BATCH-015, so there
+      is no cost model to challenge and no van Oorschot-Wiener interpolation to
+      demand. Recorded as non-applicable rather than omitted.
+    - >-
+      The one budget-like quantity that IS claimed is statistical: "roughly 1321
+      to 1488 bins would be needed for 3 sd and the archive has 301". I
+      recompute 1414 from sd*sqrt(K) = 1.4534 and delta = 0.1160, consistent
+      with the validator's range, and I add the missing half of the accounting:
+      those bins are not purchasable with more iterations at all, because the
+      band width is ln(100)/a with a fixed by the instance. The stated cost
+      implies a feasible-but-expensive path; the honest cost is that the path
+      does not exist at these parameters.
+
+  reduction_and_scope_challenges:
+    - >-
+      Scope is not inflated: EV-MLKEM-ce1884 is explicitly toy tier, explicitly
+      disclaims ML-KEM and Carrier et al. Kyber cost figures, and keeps rule 12
+      unmet and unwaived. Verified and not contested.
+    - >-
+      One scope creep to block: U-1's phrase "ANOM-5 IS THE ESTIMATOR'S NULL
+      OBJECT, NOT ITS ARITHMETIC" reads as a general statement about the
+      instrument. What the archive supports is narrower and conditional: the
+      Poisson point is in the interior of the admissible set, so a sub-1 reading
+      is not by itself a falsification of the iteration model. It is not
+      supported that the observed reading is explained by the null object's
+      placement.
+
+  proof_architecture_challenges:
+    - >-
+      Quantifier order (audit 3): the batch already found one quantifier error
+      (U-2/U-3, "any independent-iteration model") and correctly narrowed it to
+      i.i.d. It then did not re-run the same audit on the narrowed statement.
+      Written out: "for all i.i.d. iteration models, E[phi] >= floor" is TRUE
+      and is a bound; "there exists an i.i.d. model attaining the floor" is TRUE
+      and is the 0/1 member; "the observed process IS that member" is a third
+      statement, neither implied by the first two nor checked, and it is what
+      the -1.4 sd residue silently assumes. The same blind spot that produced
+      U-3 produced this.
+    - >-
+      Observation collision (audit 2): the observable is the whole-band scalar
+      phi. The two ground-truth objects on opposite sides of the conclusion --
+      the Poisson member and the floor-attaining member -- are separated on that
+      observable by only (1.0071 - 0.9181) / 0.0808 = 1.10 sd (my calibration,
+      seed 20260803), which is why the whole-band scalar cannot identify which
+      one generated the data, and why moving the reference between them was
+      always going to look like it settled the question without settling it. On
+      the occupancy slope the same two objects are separated by
+      (-0.0329 - (-0.9671)) / 0.3365 = 2.78 sd. The additional condition that
+      breaks the collision is per-cell occupancy, exactly the quantity the
+      whole-band mean discards. The collision was findable before any compute.
+    - >-
+      Degrees of freedom binding, restated correctly: the DEC-20260803-52a750
+      binding attaches to the WHOLE-BAND RMS RATIO of log2 residuals, whose
+      effective dof is O(1) (published defensible range 1.51-2.35 across
+      conventions, and restricting to count >= 1000 buys no degrees of freedom,
+      being the same O(1) family) because Cov(C_T, C_T') = min(lambda_T,
+      lambda_T') makes the cumulative residual covariance nearly rank one.
+      phi is a DIFFERENT statistic, built on the INCREMENTS D_T rather than the
+      cumulative counts, whose lag-1 residual autocorrelation is +0.104 (n=43)
+      and +0.007 (n=50); its effective dof is therefore of order K, not O(1),
+      and its analytic sd of about sqrt(2/K) is approximately right. Conflating
+      the two in either direction would be an error, and I make neither
+      conflation. I make no new fit-dependence inference and therefore run no
+      new bias-versus-centred-scatter decomposition; U-8's decomposition and its
+      "unresolved under both fits" qualification are not contested here.
+
+  narrowest_supported_statement: >-
+    On two archived toy-dimension files (q=241, m=40, n=43 and n=50; raw
+    undivided score scale; toy tier; no ML-KEM claim): the n=43 mid-band
+    dispersion reading phi = 0.8023 is NOT explained by the finite-iteration
+    occupancy floor mean_T(1 - mu_T/N) = 0.9183. The floor is a correct lower
+    bound over independent-and-identically-distributed iterations and is
+    attained by the member that places at most one candidate per cell per
+    iteration; that member predicts a regression slope of the per-cell Pearson
+    term on occupancy of -1 and a deficit concentrated at high occupancy, and
+    the archive shows slope +0.197 (floor member null -0.967 +/- 0.337,
+    seed 20260803, 400 replicates; z = +3.46, or +3.15 after deflating for the
+    +0.104 lag-1 residual autocorrelation) with the deficit instead
+    concentrated in the LOWEST-occupancy tercile (phi = 0.6371 against a
+    Poisson null of 1.0072 +/- 0.1451, where the floor correction is 0.5
+    percent). The n=50 file agrees in direction (slope +1.511 against a floor
+    member null of -0.930 +/- 1.203). The identical-distribution hypothesis
+    survives and is not the load-bearing one. ANOM-5 remains not an effect,
+    but on independent grounds: |z| = 2.36 among six post-hoc-selected
+    region-by-file readings gives Sidak p = 0.105; the rate-model-order range
+    across degrees 2-5 is 0.43, five times the floor correction of 0.082; and
+    the two files disagree in sign. The deep-tail conclusion U-5 and the
+    quantifier correction U-2/U-3 are untouched.
+
+  next_concrete_action: >-
+    Supersede observation U-1 of EV-MLKEM-ce1884 (the record is status: draft)
+    with a corrected observation that (i) keeps the floor as a lower bound and
+    keeps the admissible-set argument, (ii) drops "the honest residue is -1.4 to
+    -1.6 sd" and the framing of 0.9183 as the reference point, citing the
+    occupancy-signature rejection at >= 3 sd, (iii) restates the surviving
+    conclusion "ANOM-5 is not an effect" on the multiplicity, model-order and
+    sign-disagreement grounds, which need no floor, and (iv) corrects the
+    boundaries paragraph per O-3 to say "no per-iteration PWRONG data", with the
+    Pgood drift power bound attached. No new sampling is required for any part
+    of this, and no further batch is needed to decide the floor question.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-016/tasks/TASK-20260803-6329c6/red_team_report.yaml
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-016/tasks/TASK-20260803-6329c6/objections.md
+
+  evidence_read:
+    - experiments/EXP-MLKEM-011/vendor-lock/data/ (all three .out files, headers and bodies)
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-015/tasks/TASK-20260803-d9afbd/anom5_investigation.py (read: glm, phi_of, floors, second_difference_statistic, local_block_phi, band_shift_sweep, pgood_serial_probe, the region plan)
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-015/tasks/TASK-20260803-d9afbd/results.json
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-014/tasks/TASK-20260803-f81a66/results.json and its degree-selection code
+    - ledger/evidence/EV-MLKEM-ce1884.yaml
+    - ledger/handoffs/TASK-20260803-6329c6.yaml
+    - docs/inventor-protocol.md
+
+  not_read_and_therefore_not_summarised:
+    - >-
+      make_bins_from_observed in the BATCH-014 control (validator U-10 item). I
+      did not read it and I make no statement about it beyond noting that U-10's
+      conclusion is not load bearing for anything in this report.
+    - >-
+      BATCH-015 validation_report.yaml and validation_notes.md were consulted
+      only through EV-MLKEM-ce1884's D-1..D-9 summaries; every number I quote
+      from the validator (D-6, D-8, D-9) is one I independently recomputed or
+      located in the producer's results.json.
+
+  created_at: '2026-08-03'

@@ -1,0 +1,630 @@
+validation_report:
+  id: VAL-20260802-001
+  task_id: TASK-20260802-006
+  goal_id: GOAL-HAWK-001
+  batch_id: BATCH-001
+  role: validator
+  produced_at: '2026-08-02'
+  producer_task_id: TASK-20260802-004
+  snapshot_task_id: TASK-20260802-005
+  run_ids: []
+  verdict: ADMIT_WITH_QUALIFICATIONS
+  verdict_in_agents_vocabulary: passed
+
+  scope_of_this_validation: >-
+    A validity check on the BATCH-001 source package: receipts, transcription
+    fidelity, the two regex censuses, and provenance level. It is NOT an
+    assessment of whether any HAWK attack is correct, and confers no support on
+    any HAWK security claim in either direction.
+
+  # ------------------------------------------------------------------
+  # RECEIPT INTEGRITY (precondition for all three duties)
+  # ------------------------------------------------------------------
+  artifact_checks:
+    - check: snapshot commit reachable from HEAD
+      result: PASS
+      measured: >-
+        3a39803ca942dd3b366a5b0b17c2fdcdf812f0bd is an ancestor of HEAD
+        (bb54c7abd104523801f53bd21ac820af0a9ac5e8); recorded parent
+        57950abf7628d13d40f11040c72eeb1f6652797d confirmed by git.
+    - check: commit changes exactly the declared artifacts
+      result: PASS
+      measured: >-
+        6 files changed, 758 insertions(+), 3 deletions(-):
+        source_access_log.yaml, heuristics_transcription.md,
+        disclosed_attack_transcription.md, knowledge/INDEX.md,
+        knowledge/literature/KN-LIT-7592.md, knowledge/literature/KN-LIT-7673.md.
+        No scope expansion.
+    - check: path_sha256 in the TASK-20260802-005 archive block reproduces
+      result: PASS
+      measured: |
+        all six recomputed sha256 equal the declared values, at the snapshot
+        commit AND in the working tree:
+          source_access_log.yaml           e6f9d451e6aa558085d1717f279509b1c9a0c1f0d0b1b74fb8cc6c693d9b08d2
+          heuristics_transcription.md      4e52dc3f3c7b30bab7bd1799b0a40772145672739070b5645ceb4b86d2e00413
+          disclosed_attack_transcription.md 3e00fbac2f1c0e451dc5ff5e37776aaf3b6c005f2a627bfdfce2ec0337f1f48f
+          KN-LIT-7673.md                   9f9fa3878a4502a9f621ec06d9dcecea3b0f47eb053dc84adfb68627a2b36d78
+          KN-LIT-7592.md                   53b5a15bdfabd4243778fb9366e1b6f50e8c6021078b53d262bfe6e9fe661643
+          knowledge/INDEX.md               4bdad7026f2a19f1a96d8e3a2d37a00644007393ba3f724e1c742f5fed9918ff
+    - check: dirty-tree state
+      result: PASS
+      measured: 'git status --porcelain empty at validation time; reviewed object is not working-tree-only.'
+    - check: knowledge/INDEX.md content
+      result: NOT_VALIDATED
+      reason: 'outside this task read_scope; presence and hash verified, content not assessed.'
+
+  # ------------------------------------------------------------------
+  # DUTY 1 (PRIORITY) - TRANSCRIPTION FIDELITY
+  # ------------------------------------------------------------------
+  duty_1_transcription_fidelity:
+    method: >-
+      Re-acquired both PDFs, re-extracted with pdfminer.six 20260107
+      (extract_text, default layout params), normalized whitespace and
+      quote/dash glyphs, then checked every block-quoted passage in both
+      transcription files as 5-word shingles against the extraction, and read
+      the raw extraction around each quoted region.
+    part_a_damage_markers:
+      result: PARTIAL
+      markers_found: 5
+      marker_locations:
+        - heuristics_transcription.md:47 (global caveat, "Every formula below is therefore marked")
+        - heuristics_transcription.md:59 (delta_beta approximation, "exponent lost")
+        - heuristics_transcription.md:72 (Equation (2) of Heuristic 1)
+        - heuristics_transcription.md:136 (Theorem 1 hypothesis, dropped clause)
+        - disclosed_attack_transcription.md:74 (the GSA-intersect inequality)
+      finding: >-
+        heuristics_transcription.md satisfies part (a): it carries an explicit
+        global damage caveat (lines 39-50) and marks every non-trustworthy
+        formula it quotes. disclosed_attack_transcription.md does NOT: it has no
+        global caveat section and carries exactly one marker, while quoting at
+        least four further renderings that are damaged in the same way.
+      unmarked_damaged_renderings_in_disclosed_attack_transcription:
+        - line: 140
+          rendered: 'time **2(n/2+1)+o(n) unconditionally**'
+          source_text: 'this gives time 2(n/2+1)+o(n) unconditionally (superscript flattened by pdfminer)'
+          correct_reading: '2^{(n/2+1)+o(n)}'
+          load_bearing: false
+          note: >-
+            The prose immediately below (line 148) writes the exponent correctly
+            in backticks and the reading is forced by the cited [ADRS15] provable
+            sieve, but a marker was owed inside the quote.
+        - line: 144
+          rendered: 'our conversion 20.292β'
+          correct_reading: '2^{0.292β} (the standard [BDGL16] Core-SVP exponent)'
+          load_bearing: false
+        - lines: 105-106
+          rendered: 'for which the kernel is n Zn (Proposition D.2)'
+          source_text: 'for which the kernel is exactly √n Z^n - the √ glyph and "exactly" are on separate extraction lines and were dropped'
+          load_bearing: false
+          note: >-
+            KN-LIT-7592:65 states this only as "isometric to a scaled Z^n", which
+            is the correct hedge and does not depend on the dropped radical.
+        - lines: 41-42
+          rendered: 'Kn = Q(ζ2ℓ) ... where n = 2ℓ−1 is the ring degree'
+          correct_reading: 'K_n = Q(ζ_{2^ℓ}), n = 2^{ℓ-1}'
+          load_bearing: false
+          note: 'KN-LIT-7592:44-45 records both correctly with explicit markup.'
+        - lines: 87-90
+          rendered: 'the lattice Λ(τ) B , of rank n'
+          correct_reading: 'Λ_B^{(τ)} (sub/superscript flattened)'
+          load_bearing: false
+    part_b_no_load_bearing_claim_rests_on_a_damaged_formula:
+      result: PASS
+      checked_statements:
+        - statement: 'heuristics_transcription.md:54-77, Heuristic 1'
+          damaged_element: 'Equation (2), rendered "p2β/k ≤ δ2β−k−1 β"'
+          finding: >-
+            Marked, and explicitly disowned: lines 75-77 state the reconstruction
+            "is an inference by this task, not a transcription". Nothing
+            downstream uses the inequality. KN-LIT-7673:39,51-53 describes
+            Heuristic 1 only as "a root-Hermite-factor success condition in the
+            2016-estimates methodology", which I verified against clean source
+            prose ("let δβ = GH(β)1/(β−1) be the root Hermite factor";
+            "We use the methodology based on the '2016 estimates' ... verified
+            experimentally [AGVW17, DDGR20, PV21]"). NOT DEPENDENT.
+        - statement: 'heuristics_transcription.md:131-140, Theorem 1'
+          damaged_element: 'dropped hypothesis clause'
+          finding: >-
+            Marked. The true dropped clause, recovered by me from the line above
+            in the extraction, is "and a Z-automorphism" (nontriviality carried
+            by "U ∈ GL_n(Z) \ G_{n,Q}"); the transcriber guessed "a phrase such
+            as and a nontrivial automorphism", which is substantively right and
+            was correctly declared unreliable. The load-bearing downstream claim
+            (KN-LIT-7673:36, "nontrivial Z-automorphism σ ← INPUT") rests instead
+            on clean prose I verified verbatim: the §6 Conclusion ("given a
+            Hermitian form Q of R2 n and a nontrivial Z-automorphism σ") and the
+            abstract ("if an adversary knows a nontrivial automorphism").
+            NOT DEPENDENT.
+        - statement: 'disclosed_attack_transcription.md:64-81, the single Assumption'
+          damaged_element: 'the GSA-intersect inequality'
+          finding: >-
+            Marked, and the file states the conclusion is "structural, not
+            formulaic" (line 77). I confirmed the structural conclusion
+            independently from the raw text. NOT DEPENDENT.
+        - statement: 'disclosed_attack_transcription.md:110-134, the SRC-4/SRC-1 relationship'
+          finding: >-
+            Rests entirely on a prose sentence I verified verbatim in the
+            extraction: "...and so upgrades the endgame from the heuristic
+            pricing of [GP25, Thm. 1] to the unconditional accounting of Theorem
+            6.1." No formula involved. NOT DEPENDENT.
+        - statement: 'KN-LIT-7673, all claims'
+          finding: 'No claim quotes or depends on a damaged formula. NOT DEPENDENT.'
+        - statement: 'KN-LIT-7592 annotation (lines 22-40)'
+          finding: >-
+            Its two load-bearing elements are the census result (re-verified
+            below) and the "upgrades the endgame" prose quote (verified
+            verbatim). NOT DEPENDENT.
+    quote_verification_summary: >-
+      16 block quotes checked. The §5 group-theoretic quote
+      (heuristics_transcription.md:103-115) matched 109/109 shingles - fully
+      verbatim. Every other prose quote matched at >=90% of shingles with all
+      residuals traced to line-break/hyphenation reflow (e.g. "asymp-\ntotically")
+      or quotation-mark boundaries. Every substantive numeric and named element
+      I spot-read against the raw extraction was correct.
+    additional_fidelity_qualifications:
+      - id: Q1
+        location: heuristics_transcription.md:63-70
+        issue: >-
+          The Heuristic 1 block is presented under a heading reading "verbatim"
+          but is a reading-order REASSEMBLY of scattered extraction fragments.
+          The raw extraction reads "Heuristic 1. Suppose Λ ⊆ R2 / satisfies /
+          n is a nonzero rank-k lattice with λ1(Λ) ≤ / [eq] / then BKZ-β will
+          recover ... / 2. If β ∈ Z≥2 / (2) / √ / β". The transcriber moved
+          "satisfies", joined the orphan "√" to "2.", and moved "β" under the
+          display. Every token appears in the extraction and the reassembly is
+          the unambiguous reading - I confirmed it - but the reassembly of the
+          HYPOTHESIS is not itself covered by a marker (only the equation is).
+        severity: qualification
+      - id: Q2
+        location: disclosed_attack_transcription.md:68-72
+        issue: >-
+          The Assumption quote begins mid-phrase at "**Assumption**), as used for
+          [HAWK25, Table 8]:", eliding the words immediately before it. The full
+          source phrase is "The blocksize model is the heuristic GSA-intersect
+          estimate (GSA: Geometric Series Assumption), as used for [HAWK25,
+          Table 8]". The elision hides (i) that the counted token is part of the
+          standard name "Geometric Series Assumption", not a formal environment,
+          and (ii) that the source itself labels the surrounding estimate
+          "heuristic". A reader of the transcription alone cannot recover either.
+          The conclusion drawn is nonetheless correct.
+        severity: qualification
+      - id: Q3
+        location: disclosed_attack_transcription.md:66
+        issue: >-
+          "It appears in the **cost-comparison table**" is imprecise. Measured
+          locus: Appendix C, "The 0.72 βkey estimate of §7", which supplies the
+          blocksize model for §6.1's heuristic gate totals and §7's scope
+          estimate - not inside Table 1. The substantive claim ("conditions cost
+          estimates, not the reduction") is correct and I confirm it.
+        severity: qualification
+      - id: Q4
+        location: heuristics_transcription.md:117-121
+        issue: >-
+          "This is the load-bearing claim of the paper for cryptanalytic purposes
+          and it is not numbered" is an interpretation stated flatly, unlike the
+          dependency-structure section which is correctly labelled "a reading,
+          not a transcription". Relevant because the SRC-1 abstract contains a
+          sentence neither transcription nor KN-LIT-7673 records: "Although this
+          work does not affect the security of HAWK, it opens up a new attack
+          avenue involving the automorphism group that may be theoretically
+          interesting on its own." Recording the authors' own scope disclaimer
+          would strengthen the entry; omitting it permits over-reading.
+        severity: qualification
+
+  # ------------------------------------------------------------------
+  # DUTY 2 - CENSUS RE-VERIFICATION (independently re-run)
+  # ------------------------------------------------------------------
+  duty_2_census_reverification:
+    result: PASS
+    source_reacquisition:
+      - id: SRC-4
+        url: 'https://anthropic.com/document/hawk_key_recovery.pdf'
+        http: 200
+        bytes_measured: 748154
+        bytes_recorded: 748154
+        sha256_measured: '056faead316ea9a8eb01000cb9c548e79e21ad09a0684c3d52bbc1093183ac89'
+        sha256_recorded: '056faead316ea9a8eb01000cb9c548e79e21ad09a0684c3d52bbc1093183ac89'
+        hash_match: true
+        media_type_measured: 'PDF document, version 1.7'
+      - id: SRC-1
+        url: 'https://cic.iacr.org/p/2/2/20/pdf'
+        http: 200
+        bytes_measured: 554496
+        bytes_recorded: 554496
+        sha256_measured: '56107a8a72a662b2475a70ffc2a02a4b5303a2ae4855af01627c9ef3b40baf50'
+        sha256_recorded: '56107a8a72a662b2475a70ffc2a02a4b5303a2ae4855af01627c9ef3b40baf50'
+        hash_match: true
+        media_type_measured: 'PDF document, version 1.5'
+    extraction:
+      tool: 'pdfminer.six 20260107, extract_text, default layout parameters'
+      SRC-1:
+        chars_measured: 39268
+        chars_recorded: 39268
+        extraction_sha256_measured: '94ff38cf6737e7d3319305851d0ccb5b248b74cc930a1e72028e4a1fd713d035'
+        extraction_sha256_recorded: '94ff38cf6737e7d3319305851d0ccb5b248b74cc930a1e72028e4a1fd713d035'
+        match: true
+        determinism: 'deterministic - 3 consecutive extractions gave one identical hash'
+      SRC-4:
+        chars_measured: 78015
+        chars_recorded: 78015
+        extraction_sha256_measured: 'b6b6ed8e84dcaa89eda1b25107939a5a84bd483a75b84a333f9a25997af46c51 (run 1 of 5)'
+        extraction_sha256_recorded: 'a5bd24e6e907aeef8d50d1bde97893ca34c72acba051913657d21f17b2c348ca'
+        match: false
+        finding: >-
+          NOT A DEFECT IN THE RECEIPT, AND NOT A DIFFERENT DOCUMENT. pdfminer.six
+          extraction of SRC-4 is NONDETERMINISTIC: 5 consecutive extractions of
+          the byte-identical PDF produced 3 distinct sha256 values, all of length
+          78015. The variation is element-ordering inside a math-heavy region
+          (first divergence at char 18729, an orphan "n" token in the W(a,b)
+          display migrating between reflowed fragments). I also tested trailing
+          newline, form-feed stripping, CRLF, NFC/NFD, utf-8-sig and latin-1
+          encodings against the recorded hash - none matched. The PDF sha256, the
+          load-bearing binding, is byte-exact, and the char count is stable.
+        recommendation: >-
+          Treat the SRC-4 extraction sha256 as a non-reproducible secondary
+          artifact. If a future receipt needs a text-level hash for this PDF, it
+          must record a canonicalized form (e.g. sorted-token or
+          whitespace-normalized digest) or state that it is run-specific.
+    census_SRC_4:
+      claim_under_test: '`Heuristic` occurs 0 times and `Conjecture` 0 times; the single `Assumption` conditions a cost-comparison table, not the reduction.'
+      result: CONFIRMED
+      measured_case_sensitive_over_3_independent_extractions:
+        Heuristic: 0
+        Conjecture: 0
+        Assumption: 1
+        Theorem: 28
+        Lemma: 60
+        Proposition: 19
+        unconditional: 4
+      all_seven_match_the_recorded_table: true
+      additional_measurements_by_this_validator:
+        numbered_environments_matching_'(Heuristic|Conjecture|Assumption)\s*\d+': []
+        Hypothesis_capitalized: 0
+        Claim_capitalized: 0
+        heuristic_lowercase: 14
+        split_token_check: 'zero occurrences of "Heuris" or "Conjec" outside full words, so no hyphenation-hidden matches'
+      assumption_locus_verified: >-
+        The single capitalized `Assumption` is in Appendix C ("The 0.72 βkey
+        estimate of §7"): "The blocksize model is the heuristic GSA-intersect
+        estimate (GSA: Geometric Series Assumption), as used for [HAWK25,
+        Table 8]". It is the standard Geometric Series Assumption naming a
+        blocksize model for HEURISTIC cost estimates. It is not a hypothesis of
+        Theorem 6.1, whose proof (steps 1-3, §6) uses LLL, Ducas's block
+        reduction and an exact-SVP oracle only. CLAIM CONFIRMED.
+      material_qualification_this_validator_adds:
+        id: Q5
+        finding: >-
+          The census counts a CAPITALIZED token. It is exact, but the framing
+          headline "this attack has no heuristics"
+          (disclosed_attack_transcription.md:17) is broader than the measurement.
+          Lowercase `heuristic` occurs 14 times, and three components of the
+          paper ARE heuristic:
+          (1) §6.1/Appendix C heuristic key-recovery gate totals of about 2^80.8
+              (HAWK-512) and 2^146.5 (HAWK-1024), against the specification's
+              2^150 and 2^288 - separate from the provable totals;
+          (2) the end-to-end demonstration - "The released code is the heuristic
+              implementation of §6.2, not the provable reduction of §5: its SVP
+              stage is progressive BKZ plus a sieve", and §6.2 "replac[es] the
+              provable LIP solvers with heuristic lattice reduction and tak[es]
+              two shortcuts";
+          (3) the scope extension to non-power-of-two conductors: "we expect
+              heuristic lattice reduction to find it at blocksize somewhat below
+              φ(m)/2".
+          The artifact flags only (1)'s Core-SVP sibling (line 148). The correct
+          scoping downstream must carry is: the REDUCTION (Theorem 6.1) is
+          unconditional and heuristic-free - which I confirm - while several
+          COST and DEMONSTRATION claims in the same paper are heuristic. The
+          recorded finding is true as stated about numbered heuristics; the
+          headline invites a stronger reading than the measurement supports.
+        severity: qualification
+    census_SRC_1:
+      claim_under_test: 'exactly ONE numbered heuristic, `Heuristic 1`'
+      result: CONFIRMED
+      measured:
+        numbered_heuristic_environments: 1
+        regex_'Heuristic\s*\d+'_matches: ['Heuristic 1', 'Heuristic 1', 'Heuristic 1']
+        note_on_the_three_matches: >-
+          One is the environment statement in §4; the other two are back-
+          references in the §6 Conclusion. There is exactly ONE distinct numbered
+          heuristic. CLAIM CONFIRMED.
+        Heuristic_capitalized_total: 6
+        breakdown_of_the_six: >-
+          "Gaussian Heuristic" (standard name, §2); "4 Heuristic Hardness of SVP"
+          (section title); "Heuristic 1." (the environment); "5 Group-theoretic
+          Heuristics" (section title); two references to Heuristic 1 in §6.
+        Conjecture: 0
+        Theorem_capitalized: 7
+        Lemma_capitalized: 11
+        Proposition_capitalized: 7
+        Assumption_capitalized: 1
+        all_numbered_environments_found:
+          ['Definition 1', 'Heuristic 1', 'Lemma 1', 'Lemma 2', 'Lemma 3', 'Proposition 1', 'Proposition 2', 'Theorem 1']
+      qualifications:
+        - id: Q6
+          location: 'heuristics_transcription.md:30-31 and KN-LIT-7673:49'
+          issue: >-
+            The enumerated census list ("`Heuristic 1` ×1, `Theorem 1`,
+            `Proposition 2`, `Lemma 1`-`Lemma 3`, `Conjecture` ×0") omits
+            `Proposition 1` and `Definition 1`, which also exist. It is presented
+            as what the census "found", not as an exhaustive list, so it is not a
+            false claim; the load-bearing count (exactly one numbered heuristic,
+            zero conjectures) is exact.
+          severity: minor
+        - id: Q7
+          issue: >-
+            SRC-1 also carries an unrecorded further assumption underpinning
+            Heuristic 1's justification: "Note that we use the Geometric Series
+            Assumption (GSA) for this estimate ... and there are better
+            simulators for these lengths [CN11, BSW18]". Neither transcription
+            nor KN-LIT-7673 records it. It strengthens, not weakens, the batch's
+            reading (SRC-1's heuristic layer is thicker than one numbered
+            environment), and should be carried into ideation.
+          severity: qualification
+
+  # ------------------------------------------------------------------
+  # DUTY 3 - PROVENANCE-LEVEL CHECK
+  # ------------------------------------------------------------------
+  duty_3_provenance:
+    result: PASS
+    kn_lit_7673_level:
+      citation_verified: read
+      confidence: reported
+      matches_required: true
+      bibliographic_verification_by_this_validator: >-
+        Source PDF header reads "IACR Communications in Cryptology ISSN
+        3006-5496, Vol. 2, No. 2, 12 pages. https://doi.org/10.62056/a3qjp2w9p",
+        authors "Daniël M. H. van Gent and Ludo N. Pulles", Centrum Wiskunde &
+        Informatica, Cryptology Group, Amsterdam. The entry's title, authors,
+        year, venue string ("Vol. 2, No. 2, 12 pages") and DOI all match exactly.
+      content_claims_verified_verbatim_against_full_text:
+        - '"speeds up the key recovery attack on HAWK at least quadratically, which would halve the number of security bits" (abstract) - entry line 26-27 quotes the second half exactly.'
+        - '"plausibly no more trivial automorphisms that allow winning the omSVP game easily" (abstract) - entry line 31-32 exact.'
+        - '"verified experimentally [AGVW17, DDGR20, PV21]" - entry line 53 exact.'
+        - 'Proposition 2 statement: "computes a nonzero sublattice Λ of rot(Q) of rank at most n/2 such that λ1(Λ) ≤ √2" - entry line 38 exact.'
+        - 'Theorem 1 blocksize β = n/4 + 1, and §6 "β = rk(Λ)/2 + 1 ≤ n/4 + 1" - entry lines 40, 42 exact.'
+        - 'Luo et al. (Asiacrypt 2024) omSVP history - present in abstract.'
+      confidence_reported_is_correct: >-
+        The entry states "reading a paper is not reproducing it. Nothing here was
+        re-derived", and lists what is not verified. Correct at `reported`.
+    kn_lit_7592_upgrade:
+      claim_under_test: 'the web->read upgrade edited NO existing claim'
+      result: CONFIRMED_MECHANICALLY
+      measured: >-
+        git diff 6027d933:knowledge/literature/KN-LIT-7592.md
+        3a39803c:knowledge/literature/KN-LIT-7592.md gives 21 insertions,
+        1 deletion. The SINGLE deleted line is `citation_verified: web`. Every
+        other change is a contiguous insertion of the annotation blockquote after
+        the frontmatter. No body line was modified, reordered, or removed.
+      self_referential_claims_in_the_annotation_checked:
+        - claim: 'a grep for `upgrade|discharg|heuristic.*pricing` over the pre-upgrade entry returns zero (disclosed_attack_transcription.md:128-131)'
+          result: CONFIRMED - zero matches against 6027d933's version.
+        - claim: 'KN-LIT-7592 already recorded "unconditional and deterministic, with no numbered heuristics" at its line 73 and cited the [GP25] descent at line 43'
+          result: CONFIRMED - both lines are exactly as cited in the pre-upgrade version.
+    secondary_reporting_laundering_check:
+      result: PASS_WITH_RESIDUAL
+      method: >-
+        Grepped the full SRC-4 text for each figure and characterization asserted
+        in KN-LIT-7592 and KN-LIT-7673, and read the surrounding context.
+      primary_source_confirmations:
+        - 'Abstract verbatim: "unconditional, deterministic polynomial-time reduction from HAWK-n key recovery over Kn = Q(ζ2ℓ) to poly(n) calls to an exact Shortest Vector Problem (SVP) oracle in dimension n/2 + 1, where n = 2ℓ−1 is the ring degree" - KN-LIT-7592:43-45 accurate.'
+        - '2^150 -> 2^108 (HAWK-512) and 2^288 -> 2^182 (HAWK-1024) in the [AGPS20] gate-count model - IN THE ABSTRACT. KN-LIT-7592:71-72 adds "at most", a hedge supported by §6.1 ("the provable totals above are thus conservative"). NOT a secondary figure.'
+        - 'β_key ∈ {211, 452, 940} [HAWK25, Table 7] - in §1. Accurate.'
+        - 'O(n^2 log n) oracle calls; "In practice, a single progressive sieve sufficed for HAWK-256" - §2.1. Accurate.'
+        - 'Proposition 4.5: "(Λ(τ)_I, Q(τ)) ≅ √(n/4) Z^{n/2+1} ⊕ √(n/2) Z^{n/2−1}" - KN-LIT-7592:60-61 exact.'
+        - '"recovers a HAWK-256 secret key end-to-end in a few hours on a single server" - abstract. Accurate.'
+        - '"The construction does not transfer to Falcon. Conductors m ∈ {p^k, 2p^k} (p an odd prime), i.e. the m > 4 with cyclic (Z/m)^×, evade the attack" - abstract. KN-LIT-7592:77-80 accurate.'
+        - 'Exactly two of the 2(n/2+1) candidates, ±V_τ, satisfy Y ≡ I (mod 2) - §5/Appendix D. Accurate.'
+      residual_R1:
+        location: 'KN-LIT-7592:81-84 (pre-existing, NOT created or edited by TASK-20260802-004)'
+        text: '"The attack is exponential, not polynomial: it is a faster exponential-time attack. Per the accompanying blog post, the practical consequence is that HAWK key sizes must roughly double for the claimed security levels..."'
+        measurement: 'the strings "exponential", "double", "Claude" and "agentic" occur ZERO times in the SRC-4 PDF.'
+        assessment: >-
+          NOT laundering. The key-size-doubling consequence is explicitly
+          attributed in-line to the blog post, and the discovery attribution
+          ("Claude Mythos Preview in an agentic harness") is explicitly
+          cross-referenced to [[KN-LIT-7594]]. The one unattributed gloss - "The
+          attack is exponential, not polynomial" - is a correct and DEFLATING
+          inference from the paper's own "With the provable sieve of [ADRS15] as
+          the oracle this gives time 2^{(n/2+1)+o(n)} unconditionally", but it
+          uses a word the paper never uses inside a section headed "Key claims
+          (as reported)".
+        residual_obligation: >-
+          `citation_verified: read` now covers an entry two of whose sentences
+          are sourced from the accompanying blog post rather than the PDF.
+          Downstream must not read the `read` flag as primary-source
+          verification of those two sentences. Recommend a one-line note at the
+          next supersession; NOT a defect requiring revision of this snapshot.
+      residual_R2:
+        location: 'KN-LIT-7592 annotation ("The full text was obtained ... and read") vs KN-LIT-7592:119-123 ("read at the level of the abstract, introduction, and technical overview (§§1-2)"; "§§3-9 and appendices were not read line by line")'
+        assessment: >-
+          Self-consistent under SEEDING.md's definition of `read` ("you fetched
+          the actual paper and the claims in this entry reflect its real
+          content"), which the entry satisfies - I re-verified every content
+          claim above against the full text myself. But the annotation's
+          unqualified "and read" is looser than the body's own scoping. Prefer
+          the body's scoping.
+    claims_do_not_exceed_sources:
+      result: PASS
+      finding: >-
+        I found no claim in either KN-LIT entry that overstates its source. The
+        two entries are, if anything, hedged more tightly than the sources: 7592
+        adds "at most" to the abstract's gate-count figures, and 7673 states the
+        §5 result as what the authors say one may "reasonably suspect". The one
+        directional gap runs the other way (Q4): SRC-1's own sentence "Although
+        this work does not affect the security of HAWK..." is not recorded
+        anywhere in the package.
+
+  metric_recomputations:
+    - metric: 'SRC-4 token census (7 tokens)'
+      recomputed_value: 'Heuristic 0, Conjecture 0, Assumption 1, Theorem 28, Lemma 60, Proposition 19, unconditional 4'
+      reported_value: 'identical'
+      agreement: exact
+      stability: 'identical across 3 independent extractions of the same PDF'
+    - metric: 'SRC-1 numbered-heuristic count'
+      recomputed_value: 1 (Heuristic 1; 3 string occurrences, 1 environment)
+      reported_value: 1
+      agreement: exact
+    - metric: 'SRC-1 Conjecture count'
+      recomputed_value: 0
+      reported_value: 0
+      agreement: exact
+    - metric: 'PDF sha256, both sources'
+      agreement: exact (byte-identical re-acquisition)
+    - metric: 'pdfminer extraction sha256'
+      agreement: 'SRC-1 exact; SRC-4 mismatched due to demonstrated pdfminer nondeterminism (see duty 2)'
+
+  control_checks:
+    - control: 'negative control on the census instrument'
+      method: >-
+        Ran the same regex census for tokens the claim does not mention
+        (Hypothesis, Claim) and for split-token artifacts (Heuris, Conjec,
+        euristic) to test whether a zero count could be an extraction artifact
+        rather than a property of the document.
+      result: >-
+        SRC-4: Hypothesis 0, Claim 0, and zero partial-token matches - the zero
+        counts are genuine absences, not hyphenation losses. SRC-4's lowercase
+        `heuristic` = 14 is the positive control proving the instrument can see
+        the word in this document, which is what makes `Heuristic` = 0
+        meaningful rather than vacuous.
+    - control: 'positive control on transcription fidelity'
+      method: 'shingle-matched a quote with no mathematics (the §5 group-theoretic passage) as a fidelity baseline.'
+      result: '109/109 shingles matched - prose transcription is faithful, isolating the damage to mathematical layout exactly as the artifact claims.'
+    - control: 'null-object control (docs/inventor-protocol.md §3)'
+      result: NOT_APPLICABLE
+      reason: >-
+        This package reports no correlation, bias, or excess. It reports document
+        token counts and quoted text, both deterministic properties of two
+        hash-pinned files. There is no statistical signal requiring a null object
+        of the same shape.
+
+  heuristic_validation_checks:
+    - check: 'pre-registered prediction / sample integrity / correspondence validity / scale binding'
+      result: NOT_APPLICABLE
+      reason: >-
+        BATCH-001 validates no heuristic of this program's own, samples nothing,
+        and runs no experiment. It transcribes other groups' claim structure.
+  cost_model_checks:
+    - check: 'cost-unit honesty and per-attempt x inverse-success bookkeeping'
+      result: NOT_APPLICABLE_TO_THIS_PROGRAM
+      note: >-
+        No cost table of this program's own is advanced. I did, however, verify
+        that the artifact correctly relays the units of the SOURCE's cost table:
+        disclosed_attack_transcription.md:146-157 correctly separates the
+        unconditional-but-oracle-relative 2^{(n/2+1)+o(n)} from the heuristic
+        Core-SVP 2^{0.292β} pricing, and correctly identifies the baseline as
+        HAWK's own spec model [HAWK25, §5.1, Tables 7 and 8]. Source Table 1
+        declares its unit ("Cost of one SVP-oracle call", AGPS20 classical
+        list-decoding gates, dimensions-for-free as in [HAWK25, §5.3]). Memory
+        is NOT reported alongside time in either the source table or the
+        transcription; downstream must not treat the relayed gate counts as a
+        memory-inclusive cost.
+  proof_architecture_checks:
+    - check: 'baseline fixture, strictness witness, interface preservation, quantifier fidelity'
+      result: NOT_APPLICABLE
+      reason: 'No proof of this program is advanced. Nothing was re-derived, by the producer or by this validator.'
+  scaled_down_ladder_checks:
+    result: NOT_APPLICABLE
+    reason: >-
+      docs/inventor-protocol.md §6 governs claimed improvements that cannot be
+      executed at scale. BATCH-001 claims no improvement and no speedup, of this
+      program or over any baseline. Nothing here is a measured ratio or a
+      projection.
+
+  out_of_scope_observations:
+    - id: O1
+      observation: >-
+        LEDGER ORDERING IRREGULARITY, reported for the Coordinator's ledger
+        archive (TASK-20260802-008), not a finding against the reviewed
+        artifact. ledger/goals/GOAL-HAWK-001.yaml at HEAD already asserts
+        TASK-20260802-004's substantive result -
+        "a regex census over its full 78015-character text returns Heuristic x0
+        and Conjecture x0 ... established by TASK-20260802-004 against obtained
+        full texts" - and that text was committed in 57950abf ("BATCH-001
+        opening snapshot (TASK-20260802-003)", 05:13:52), i.e. in the commit
+        BEFORE the producer snapshot 3a39803c (05:14:06) and before any
+        independent review. The commits are 14 seconds apart in one session, so
+        this reads as batched writes committed in a misleading order rather than
+        as fabrication - and my independent re-measurement confirms the census,
+        so no correction to the substance is warranted. But under AGENTS.md
+        "Durable research commits" a ledger record carrying a producer finding
+        belongs in the post-review ledger commit, not the opening snapshot.
+    - id: O2
+      observation: >-
+        The source_access_log's pause_condition_2 assessment ("NOT FIRED ...
+        PARTIALLY BLOCKED, RETRY AVAILABLE") is assigned to the Red Team
+        (TASK-20260802-007) by the goal's next_action and I did not adjudicate
+        it. I did confirm the two facts it rests on are recorded as measurements
+        and not as inferences: the 403s carry a Cloudflare challenge body, and
+        A4/A5 returned 429s. I did not re-attempt those routes.
+
+  limitations:
+    - >-
+      This validation establishes that the receipt is admissible and the
+      transcription faithful. It establishes NOTHING about whether the
+      Straznickas-Weis reduction, the van Gent-Pulles descent, or any HAWK
+      attack is correct. No lemma was re-derived, no implementation run, no
+      certificate produced or checked.
+    - >-
+      Verification of the two sources is at the level of TEXT EXTRACTION, not of
+      the typeset PDF. I re-read the raw pdfminer output around every quoted
+      region; I did not render the PDFs. The producer's own instruction stands:
+      no formula from either transcription may be used in an argument without
+      checking the typeset PDF.
+    - >-
+      SRC-2 (eprint 2026/1318, the four heuristics the goal actually asked for)
+      and SRC-3 (eprint 2026/890) remain unobtained. Nothing here reduces the
+      uncertainty about SRC-2's heuristics; the undischarged remainder is real.
+    - >-
+      knowledge/INDEX.md is inside the snapshot but outside this task's
+      read_scope. Its hash was verified; its content was not.
+    - >-
+      Single-model independence only. This validator resolves to claude-opus-5,
+      the same model as the producer and the red team. Independence here is
+      PROCEDURAL (separate session, separate write scope, independent
+      re-acquisition and re-measurement), not model-level. Nothing in this
+      report is admissible toward the AGENTS.md rule 13 closure quorum.
+    - >-
+      Both PDFs were re-acquired over the same network path and proxy as the
+      producer used. Byte-identical re-acquisition confirms the recorded hashes;
+      it does not independently authenticate the documents against their
+      publishers.
+
+  what_this_validation_does_not_establish:
+    - 'It does not establish that HAWK is broken, weakened, or safe. No security assessment of HAWK is made or supported in either direction.'
+    - 'It does not establish that the Straznickas-Weis reduction is correct - only that this program transcribed its claim structure faithfully and that the paper does contain zero numbered heuristics and zero conjectures.'
+    - 'It does not establish that the reduction is heuristic-free in every respect. The REDUCTION (Theorem 6.1) is unconditional; the paper''s gate-count totals of about 2^80.8 / 2^146.5, its end-to-end HAWK-256 demonstration, and its non-power-of-two conductor scope claim are explicitly HEURISTIC in the source (Q5).'
+    - 'It does not establish that the gate-count figures 2^150 -> 2^108 and 2^288 -> 2^182 are correct. They are relayed at `reported` confidence and inherit every modelling assumption of [AGPS20] and of the HAWK specification.'
+    - 'It does not establish that any formula in either transcription is mathematically correct. Several are demonstrably damaged; the finding is that no claim depends on one.'
+    - 'It does not verify [HAWK25] Tables 7 and 8, §5.1 or §5.3 - the HAWK Round-3 specification remains unread by this program, so every [HAWK25] reference is relayed from SRC-4.'
+    - 'It does not adjudicate the pause-condition-2 / source-exhaustion claim (Red Team duty, TASK-20260802-007).'
+    - 'It authorizes no promotion, no hypothesis, no experiment, and no claim-tier movement. RQ-HAWK-001''s claim-tier ceiling is untouched and GOAL-HAWK-001.active_hypothesis_ids stays empty.'
+    - 'A passing verdict here means the receipt is admissible evidence of what two documents say. It is not evidence about lattices.'
+
+  recommendation_to_coordinator: >-
+    ADMIT the BATCH-001 source package. All three named duties are answered
+    affirmatively on their load-bearing content: no claim rests on a damaged
+    formula, both censuses reproduce exactly from byte-identical re-acquisitions,
+    and the provenance levels are correct with the 7592 upgrade mechanically
+    proven claim-preserving. The seven qualifications (Q1-Q7) and two residuals
+    (R1-R2) are scoping and marking defects, not falsity; none requires reissuing
+    an artifact. Carry Q5 forward explicitly into any ideation record: the
+    Straznickas-Weis REDUCTION is unconditional, while its cost tables and its
+    end-to-end demonstration are not. Observation O1 is for the ledger archive.
+
+  artifact_paths:
+    - coordination/goals/GOAL-HAWK-001/batches/BATCH-001/reviews/TASK-20260802-006/validation_report.yaml
+  artifacts_reviewed:
+    - 'coordination/goals/GOAL-HAWK-001/batches/BATCH-001/tasks/TASK-20260802-004/source_access_log.yaml @ 3a39803c'
+    - 'coordination/goals/GOAL-HAWK-001/batches/BATCH-001/tasks/TASK-20260802-004/heuristics_transcription.md @ 3a39803c'
+    - 'coordination/goals/GOAL-HAWK-001/batches/BATCH-001/tasks/TASK-20260802-004/disclosed_attack_transcription.md @ 3a39803c'
+    - 'knowledge/literature/KN-LIT-7673.md @ 3a39803c'
+    - 'knowledge/literature/KN-LIT-7592.md @ 3a39803c (and @ 6027d933 for the upgrade diff)'
+  external_sources_reacquired:
+    - 'https://anthropic.com/document/hawk_key_recovery.pdf (sha256 056faead...3ac89, 748154 bytes) - NOT committed, third-party copyright'
+    - 'https://cic.iacr.org/p/2/2/20/pdf (sha256 56107a8a...0baf50, 554496 bytes) - NOT committed, third-party copyright'
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5
+    fallback_used: false
+    independent_session: true
+    independence_note: 'procedural only; same resolved model as producer and red team'

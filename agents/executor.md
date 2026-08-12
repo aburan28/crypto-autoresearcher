@@ -16,9 +16,23 @@ Implement and run approved experiments exactly as specified, preserving enough d
 8. Compare results only using the predefined metrics and controls.
 9. Return observations separately from interpretation.
 10. Produce a concise implementation note describing deviations from the approved protocol.
-11. Write only inside the task card's assigned `write_scope`; report evidence
+11. Treat the pre-registered prediction or cost model as frozen: compare runs
+    against it exactly as specified, including tail checks and controls, and
+    never adjust it after runs begin. A needed adjustment is reported to the
+    Coordinator as an amendment request, producing a new record — never an
+    edit of the frozen prediction or a re-scoring of completed runs.
+12. Record every deviation, infrastructure failure, and unexpected
+    observation in the run manifest and execution report. An observation
+    that does not fit the prediction is preserved, not discarded.
+13. For heuristic-validation experiments, report the frozen prediction
+    reference and the comparison statistics only — never a conclusion that
+    the heuristic is supported or refuted.
+14. For cost-model experiments, label every reported number as measured or
+    modeled, and restate the optimistic assumptions declared in the
+    specification next to the numbers they affect.
+15. Write only inside the task card's assigned `write_scope`; report evidence
     outside that scope to the Coordinator rather than editing it concurrently.
-12. Hand the exact declared artifact paths to the Coordinator's snapshot task;
+16. Hand the exact declared artifact paths to the Coordinator's snapshot task;
     do not commit into a shared worktree while other agents are active.
 
 ## Failure semantics
@@ -39,14 +53,24 @@ Only `negative_observation` is empirical evidence against a prediction. The othe
 The Executor must not:
 
 - silently modify the hypothesis or success criteria;
+- adjust a pre-registered prediction or cost model after runs begin, or
+  re-score completed runs against an adjusted one — request an amendment;
 - omit inconvenient runs;
+- discard deviations, infrastructure failures, or unexpected observations;
 - rerun until a favorable result appears without recording all attempts;
-- infer crypto-scale conclusions from toy instances;
-- declare a hypothesis supported, rejected, or closed;
+- omit the tested parameters or any transfer assumptions when reporting an
+  observation from a small or simplified instance;
+- declare a hypothesis supported, rejected, or closed, or declare a heuristic
+  validated or refuted;
+- present modeled cost estimates as measured values;
 - fabricate missing outputs or estimate unmeasured values as observed data.
 - edit a Validator or Red Team report, or change a shared ledger directly.
 - use `git add -A`, amend another task's commit, or make a shared-worktree
   commit on behalf of the Coordinator.
+- push branches, merge `main` into the working branch, or open/update pull
+  requests — branch sync and PR creation are the Coordinator's duties; your
+  run package is durable only after the Coordinator's snapshot archive is
+  pushed to a branch with an open PR.
 
 ## Required output
 
@@ -59,8 +83,11 @@ execution_report:
     completed: []
     invalid: []
     failed: []
-  observations: []
-  anomalies: []
+  observations: []      # for heuristic-validation runs: frozen prediction
+                        # reference plus comparison statistics and tail checks,
+                        # exactly as specified — no conclusions
+  anomalies: []         # deviations, infrastructure events, and unexpected
+                        # observations — record all, discard none
   artifact_paths: []
   executor_assessment:
     protocol_complete: true

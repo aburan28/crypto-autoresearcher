@@ -1,0 +1,500 @@
+idea:
+  id: IDEA-20260805-b9047c
+  question_id: RQ-FAEST-001
+  added: '2026-08-05'
+  title: >-
+    FAEST and FAEST-EM invert AES in OPPOSITE arguments, and nothing in this
+    corpus says so: the secret-argument algebraic degree, why the degree-3
+    constraint encoding is only a change of coordinates, and why every
+    known-key AES distinguisher is constant across candidate secrets
+  class: mechanism
+
+  claim: >-
+    The twelve deployed FAEST parameter sets pose two structurally OPPOSITE
+    one-wayness problems, and this program has treated them as one.
+    VERIFIED THIS SESSION from faest-ref owf.c: owf_128(key, input, output)
+    runs AES-128 with the SECRET as the KEY and the public value as the
+    plaintext, so the secret enters through the KEY SCHEDULE; whereas
+    owf_em_128 calls aes128_expand_key(rk, INPUT) -- expanding the round keys
+    from the PUBLIC value -- and encrypts the SECRET, so for the six EM sets
+    the secret enters through the DATA PATH of a cipher whose key is
+    entirely known. Three consequences, each cheap and each with a forced
+    value:
+    (1) FOR THE EM SETS, FAEST'S OWF IS A KNOWN-KEY AES OBJECT. The whole
+    integral / division-property / known-key literature propagates over the
+    data argument with the key fixed and known, which is EXACTLY the EM
+    setting. For the non-EM sets the same techniques must be transposed into
+    the key argument, where the propagation object is the layered key
+    schedule, not the data path. These are different problems needing
+    different instruments and this corpus's single FAEST algebraic proposal
+    (IDEA-20260731-005) makes no distinction between them.
+    (2) THE DEGREE-3 CONSTRAINT ENCODING IS A CHANGE OF COORDINATES, NOT A
+    GAIN. FAEST proves AES with degree-<=3 constraints by introducing
+    auxiliary S-box variables. That re-encoding is BIJECTIVE on solutions:
+    given the secret every auxiliary is determined, and from any solution of
+    the constraint system the secret is read off. Nothing is discarded, so
+    by the inventor protocol's own criterion it is the
+    (Delta, Pi) = (x XOR y, x*y) failure in different notation, and the low
+    degree of the encoded system carries no information the direct
+    high-degree equation lacks. The genuinely lossy object is elsewhere: it
+    is the DEGREE PROFILE of the secret-argument map, and this proposal
+    tracks that instead.
+    (3) A KNOWN-KEY DISTINGUISHER CANNOT, BY ITSELF, DISCRIMINATE CANDIDATE
+    SECRETS. For an EM set the adversary must solve pi(s) XOR s = y with
+    pi = AES_x fully known. Any structural property of pi (a zero-sum, a
+    balanced integral set, a truncated-differential bias) is a statement
+    about pi that holds INDEPENDENTLY of s. Evaluated on the candidate-secret
+    space it is a CONSTANT -- zero comparator spread, the mirror
+    lossy-projection failure -- and therefore has zero discriminating power.
+    This is a one-line kill of the naive transfer, derived before any
+    compute, and it names precisely what would survive it: only a property
+    whose VALUE varies with the unknown s can help.
+    NO ATTACK IS CLAIMED. The deliverable is a structural split of the
+    parameter sets, one derived barrier, and one measurable quantity.
+
+  object_first_candidate:
+    tracked_object: >-
+      The ALGEBRAIC DEGREE PROFILE of the one-way function in its SECRET
+      argument: the vector (d_1, ..., d_R) where d_r is the maximum, over
+      output bits of the r-round-reduced OWF, of the F_2-algebraic degree of
+      that bit as a polynomial in the secret bits, with the public value held
+      fixed at its published value. Followed round by round through the
+      cipher. For the EM sets the secret is the plaintext and the round keys
+      are constants; for the non-EM sets the secret is the master key and the
+      round keys are themselves polynomials in it.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: Groebner / XL / linearization solving
+      of the FAEST constraint system (that is IDEA-20260731-005's object and
+      this record does not touch it), biclique and MITM key recovery,
+      VOLEitH soundness, Fiat-Shamir grinding models, commitment binding, and
+      QROM extractor analysis. Also explicitly off-limits: reporting any
+      recalled AES cryptanalytic result as an authority. The instrument here
+      is Moebius-transform degree measurement on fully specified toy ciphers,
+      which needs no external result to be correct.
+    newness_score: >-
+      Algebraic degree of AES is classical and its round bound is textbook.
+      What appears absent from this corpus, and what makes the record worth
+      having, is (a) the observation that FAEST's EM and non-EM sets place
+      the secret in opposite arguments, (b) the explicit finding that the
+      degree-3 encoding is a lossless re-encoding and therefore not a gain,
+      and (c) the constant-across-secrets kill of the known-key transfer.
+      All three are derivations, not measurements, and all three are cheap.
+    testability_score: >-
+      High for the toy instrument (exhaustive Moebius transform over a
+      16-bit state is ~10^6 word operations in pure Python; numpy 2.4.6 is
+      present in this container, MEASURED THIS SESSION by
+      `python3 -c "import numpy"`, contradicting one of the two scouting
+      reports and agreeing with the other). Low for full AES: the degree of a
+      128-variable Boolean function cannot be computed exhaustively, so the
+      full-scale statement is a BOUND plus a toy validation, and is labelled
+      that way rather than extrapolated.
+    survival_score: >-
+      Consequences (2) and (3) are derivations and survive unless the
+      derivation is wrong. Consequence (1)'s research value depends on
+      whether the secret-argument degree has a persistent deficit below its
+      bound; the honest prior is that it does not, in which case the lane
+      produces GOAL-FAEST-001's scoped barrier for this link -- the second
+      completion horn -- rather than an attack.
+
+  mechanism: >-
+    STRUCTURAL FACTS READ FROM SOURCE THIS SESSION (faest-ref owf.c/owf.h,
+    meson.build, at moving ref 'main', HTTP 200, NO COMMIT PINNED; the
+    specification PDF was NOT read):
+      owf_128(key, input, output): one AES-128 ECB block, secret = key.
+      owf_192/owf_256: two output blocks (output, output + IV_SIZE),
+        consistent with BETA = 2 and owf_output_size = 32.
+      owf_em_128(key, input, output): aes128_expand_key(rk, INPUT) then
+        encrypt the SECRET; i.e. round keys come from the public value.
+      meson.build: the EM sets carry Ske = 0 and instances.h comments
+        "EM instances do not have key expansion constraints" -- an
+        independent confirmation of the same split from a second file.
+      owf_input_size / owf_output_size: 16/16 for the 128 sets and EM-128;
+      16/32 for faest_192s/f and faest_256s/f; 24/24 for EM-192; 32/32 for
+      EM-256.
+
+    DERIVATION 1 -- THE ENCODING IS A CHANGE OF COORDINATES.
+    Write the OWF relation directly as F(s) = y, F of high F_2-degree in the
+    secret bits s. FAEST instead proves a system C(s, a) = 0 of degree <= 3
+    by introducing auxiliary variables a for S-box inputs/outputs. The map
+    s -> (s, a(s)) is a well-defined injection and its inverse is the
+    projection onto the s coordinates, so solutions of C correspond
+    bijectively to solutions of F(s) = y. NOTHING IS DISCARDED. By the
+    inventor protocol's criterion that is exactly the (Delta, Pi) failure:
+    the low degree is bought by adding variables, and the pair
+    (equations, variables) is recoverable from either side. CONSEQUENCE: the
+    degree-3-ness of FAEST's constraint system is a PROOF-SYSTEM convenience
+    and is not evidence that the underlying inversion problem is low-degree.
+    Any argument of the form "the constraint degree is only 3, therefore
+    algebraic attacks are cheap" is void, and so is its converse. THIS IS
+    STATED AS A CORRECTION TO A TEMPTING INFERENCE, NOT AS A CRITICISM OF
+    ANY EXISTING RECORD.
+
+    DERIVATION 2 -- THE SECRET-ARGUMENT DEGREE BOUND, AND WHERE THE TWO SET
+    FAMILIES DIFFER.
+    Let D = algebraic degree of the S-box over F_2 (for the AES 8-bit
+    inversion-based S-box, RECALLED AS 7 AND EXPLICITLY UNVERIFIED HERE --
+    the S-box is fully specified, so computing its ANF degree is a 2^8
+    Moebius transform and is stage 1, not a citation).
+      EM SETS: the round keys are constants of the public value, so each
+      round composes the S-box layer with affine maps, and
+      d_r <= min(n - 1, D^r) with n the block size in bits. With D = 7 and
+      n = 128 the bound saturates at r = 3 (7^3 = 343 > 127). FORCED
+      PREDICTION: d_1 = D exactly, d_2 <= D^2, d_3 = n - 1.
+      NON-EM SETS: the secret is the master key. The key schedule applies
+      one S-box column per round (Ske = 40 for the 128 sets, read from
+      meson.build), so round key r has degree <= D^{ceil(r/1)} in the master
+      key, and the state after round r has degree <= min(n - 1, D^{2r}) --
+      saturating even faster. FORCED PREDICTION: the non-EM degree profile
+      saturates at or before the EM profile, never after.
+    IF EITHER PROFILE SATURATES BY ROUND 3 OF 10 (or of 12/14), NO
+    HIGHER-ORDER-DERIVATIVE OR DIVISION-PROPERTY DISTINGUISHER IN THE SECRET
+    ARGUMENT SURVIVES TO THE FULL ROUND COUNT, and that statement -- with its
+    exact scope -- is a scoped barrier for this link of GOAL-FAEST-001's
+    chain. The whole content of the experiment is then whether the MEASURED
+    degree falls persistently below the bound, because a persistent deficit
+    is the only thing that could push the distinguisher deeper.
+
+    DERIVATION 3 -- WHY THE KNOWN-KEY TRANSFER DIES, AND WHAT SURVIVES.
+    For an EM set the adversary must solve pi(s) XOR s = y with pi = AES_x
+    public. Let P be any property of pi established by known-key analysis:
+    a zero-sum over a coset, a balanced integral set, a truncated
+    differential. P is a statement about the FUNCTION pi. Evaluated as a
+    function of the candidate secret s, it takes the same value for every s,
+    because s does not appear in it. Its spread over the candidate space is
+    ZERO, so it separates no two candidates and its discriminating power is
+    exactly nil -- the mirror lossy-projection failure, identified before any
+    compute. WHAT SURVIVES, NAMED SO THE LANE IS NOT PREMATURELY CLOSED:
+    (a) properties of the COMBINED map s -> pi(s) XOR s, which is not pi and
+    whose fixed-point-like structure is not a known-key object; (b) partial
+    information about s that reduces the search to a structured subset on
+    which pi's known structure then bites (a meet-in-the-middle shape); (c)
+    for the non-EM sets, division-property propagation in the KEY argument
+    through the LAYERED key schedule, which the ANGLE-BRIEF records as the
+    one layered target for that device and which nothing in this corpus has
+    attempted. None of these is claimed to work; they are the residual, and
+    naming them is required by the closure standard.
+
+    COST BOOKKEEPING. No attack cost is claimed. The measurement cost is
+    per-attempt (one Moebius transform over 2^n toy states, n <= 20, i.e.
+    n * 2^n word operations) times the number of cells (rounds x variants),
+    which is minutes.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      faest-ref owf.c / owf.h / meson.build / instances.h -- READ BY THIS
+      SESSION 2026-08-06 at moving ref 'main'. This is the sole primary
+      source for every structural statement above.
+    - >-
+      The algebraic degree of the AES S-box (recalled as 7), the classical
+      round-degree bound d_r <= D^r, the 4-round AES integral distinguisher,
+      and Even-Mansour's D*T = 2^n bound are ALL RECALLED-UNVERIFIED. NONE
+      is used as an authority anywhere in this record; the S-box degree is
+      made a computation and the rest are context, not premises.
+    - >-
+      NOT READ -- RELAYED from scratchpad/scout/ANGLE-BRIEF.md section 3
+      (F8 and F10): a 2026-07-28 result on 7-round AES-128 at 2^105 chosen
+      plaintexts, ePrint 2026/1039 on related-differential attacks to 7
+      rounds, and chosen-key distinguishers on full AES-192/256. If any of
+      these is real and reaches the full round count in the KEY argument it
+      would bear directly on the non-EM sets. NONE WAS FETCHED. Fetching
+      them is a stage, not a premise.
+    - >-
+      IDEA-20260731-005 owns the solving-degree lane for FAEST's degree-3
+      constraint system under partial VOLE openings. THIS RECORD DOES NOT
+      DUPLICATE IT: its object is a Groebner/XL solving degree of an
+      auxiliary-variable system; this record's object is the F_2 algebraic
+      degree of the direct secret-argument map with NO auxiliary variables.
+      Derivation 1 above is exactly the statement of how the two objects are
+      related, and is offered to that lane as a free input.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The one-way function F_s : (public value fixed) --> output, taken as a
+      Boolean map in the secret bits, PROJECTED to its degree profile
+      (d_1, ..., d_R) -- equivalently to the SUPPORT (which monomials appear)
+      of its algebraic normal form, coarsened to the top degree per round.
+    what_is_discarded: >-
+      Every coefficient. Two ciphers with identical degree profiles are
+      indistinguishable under the projection, and the fibre over a profile is
+      astronomically large.
+    why_genuinely_lossy: >-
+      Genuinely lossy by counting, and NOT recoverable: no set of degrees
+      determines an ANF.
+    why_compatible_with_the_operations: >-
+      Compatible with the operation that matters -- round composition --
+      because degree propagates deterministically under composition
+      (deg(f o g) <= deg f * deg g) and under affine maps (degree preserved).
+      The retained part therefore evolves on its own, which is precisely the
+      property the lossy-projection test asks for.
+    is_it_only_a_change_of_coordinates: >-
+      No, and BOTH failures were checked, one of them positively.
+      (i) The (Delta, Pi) failure DOES occur elsewhere in this problem and is
+      REPORTED rather than ignored: the auxiliary-variable degree-3 encoding
+      of AES is a bijective re-encoding, hence exactly a change of
+      coordinates, and Derivation 1 says so. That is a finding, not this
+      proposal's projection.
+      (ii) The mirror failure (constant across instances) ALSO occurs, for a
+      DIFFERENT candidate projection, and is likewise reported: any known-key
+      structural property of pi = AES_x is constant over candidate secrets
+      (Derivation 3), so that projection has zero spread and is discarded
+      BEFORE any compute.
+      (iii) The projection this proposal actually tracks -- the degree
+      profile -- is neither: it is many-to-one, and its comparator spread is
+      nonzero by construction because it varies with the round index r and
+      with the S-box (the affine-S-box null holds it at 1 forever while the
+      real S-box drives it to n - 1). The spread is across CIPHER VARIANTS
+      and ROUND COUNTS, not across secrets, and that is stated openly: the
+      degree profile is a property of the cipher family, so a design that
+      compared profiles across SECRETS would measure nothing. The graded and
+      null controls are built on variants and rounds for exactly that reason.
+
+  assumptions:
+    - >-
+      That faest-ref's owf.c reflects the specification's OWF definitions,
+      in particular that the EM sets key the permutation from the public
+      value. NOT VERIFIED against the specification.
+    - >-
+      That "round-reduced" is a meaningful object for FAEST's OWF. It is not
+      a deployed object: FAEST proves the FULL cipher. Round reduction is an
+      instrument for locating where the degree saturates, and any statement
+      about a round-reduced variant is a statement about the instrument, not
+      about FAEST.
+    - >-
+      That the toy small-scale cipher used for measurement is a faithful
+      analogue of AES's degree behaviour. IT IS NOT ASSUMED TO BE: the
+      experiment's transfer claim is only that the BOUND d_r <= D^r and its
+      saturation round are structural, and the toy validates the measurement
+      procedure, not the AES number.
+
+  predictions:
+    - metric: >-
+        deg_ANF(S), the F_2 algebraic degree of the AES S-box, computed by
+        exhaustive Moebius transform over its 256-entry table
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE TO BE CHECKED, NOT ASSERTED: the recalled value is 7. A
+        measured value other than 7 refutes the recollection and every bound
+        below is recomputed with the measured D. This is the cheapest
+        possible check in the whole proposal and it runs first.
+    - metric: >-
+        r_sat(EM, n = 128): the smallest r with min(n - 1, D^r) = n - 1
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE at D = 7, n = 128: r_sat = 3, since 7^2 = 49 < 127 and
+        7^3 = 343 > 127. If D is measured as something else the value
+        changes and is recomputed, not retro-fitted.
+    - metric: >-
+        measured_degree_deficit(r) = bound(r) - measured d_r on the toy
+        cipher, r = 1..5
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE AT r = 1: deficit EXACTLY 0 (one S-box layer between
+        affine maps has degree exactly D). A nonzero deficit at r = 1 means
+        the measurement is wrong, not the cipher. At r >= 2 no value is
+        pre-registered; the DELIVERABLE is whether the deficit grows,
+        vanishes, or stays constant, reported as a monotonicity statement.
+    - metric: >-
+        affine_null_degree(r) for the variant with the S-box replaced by an
+        F_2-affine bijection, r = 1..5
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: EXACTLY 1 at every r. Any value above 1 means the
+        Moebius/degree code is wrong and no other cell may be reported.
+
+  minimal_test:
+    design: >-
+      NO EXPERIMENT CONTRACT IS FILED WITH THIS PROPOSAL, deliberately: the
+      two contracts written in this session (EXP-FAEST-ae5d9f, EXP-FAEST-51f781)
+      are cheaper and more decisive, and filing a third would fill capacity
+      rather than serve the goal. The design is recorded here so a later
+      contract can be written against it without re-derivation.
+      STAGE 0 (minutes, zero risk): compute deg_ANF of the AES S-box from its
+      published table by exhaustive Moebius transform; recompute the bounds.
+      STAGE 1 (pen and paper): write out Derivations 1 and 3 in full and have
+      them independently attacked. EITHER CAN END THE LINE, and Derivation 3
+      ending it is the likely case.
+      STAGE 2 (pure Python, minutes): define a fully specified small-scale
+      AES-like SPN in the contract itself (state of r_s x c_s nibbles over
+      GF(2^4), S-box = inversion composed with a stated affine map,
+      MixColumns over GF(2^4) with stated matrix, key schedule mirroring
+      AES's rotate/sub/rcon), and measure d_r for r = 1..5 by exhaustive
+      Moebius transform over the 2^16 secret space, in BOTH the EM direction
+      (secret = plaintext, round keys constant) and the non-EM direction
+      (secret = master key, plaintext constant).
+      STAGE 3 (optional): repeat at a 20-bit state to check that the deficit
+      behaviour is not a 16-bit artefact.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE: identical cipher with the S-box
+        replaced by an F_2-affine bijection. FORCED VALUE DERIVED BEFORE THE
+        RUN: d_r = 1 for all r, in both directions. CAN FAIL, and failure
+        means the degree code is broken.
+      - >-
+        POSITIVE CONTROL WHERE THE EFFECT MUST APPEAR: r = 1 in both
+        directions, where d_1 MUST equal deg_ANF(S) exactly. If it does not,
+        the instrument cannot measure degree and no negative may be reported
+        from any cell.
+      - >-
+        GRADED CONTROL, 5 INTERIOR POINTS, MONOTONICITY REPORTED: r = 1..5 in
+        both directions. d_r must be non-decreasing in r and must saturate at
+        n - 1; the round at which it saturates is the reported quantity, and
+        a non-monotone profile localises a bug.
+      - >-
+        NEARBY-OBJECT CONTROL WHERE THE HOPED-FOR CONCLUSION IS KNOWN TO
+        FAIL: the SAME measurement in the DATA direction with the key fixed,
+        where the classical integral behaviour of AES-like ciphers is the
+        reference. This is the pair the method must separate: if the
+        instrument reports identical profiles for the EM (secret = data) and
+        the non-EM (secret = key) directions, it has not found the
+        load-bearing structure, because the key schedule is a real structural
+        difference and Ske = 40 vs Ske = 0 records it.
+    required_metrics:
+      - measured deg_ANF(S) with the S-box table's source
+      - d_r for r = 1..5, both directions, both the real and the affine-null S-box
+      - the saturation round per direction
+      - the bound-minus-measured deficit per cell
+      - the full toy cipher specification, byte-exact, so a third party reproduces it
+
+  falsification_conditions:
+    - >-
+      Derivation 1 is wrong -- the auxiliary-variable encoding is shown NOT
+      to be solution-bijective (e.g. because the constraint system admits
+      spurious solutions with no preimage). Then the encoding does discard
+      something and the "change of coordinates" finding is withdrawn.
+    - >-
+      Derivation 3 is wrong -- a known-key property of pi is exhibited whose
+      evaluation depends on the candidate secret. The mirror-failure kill is
+      void and the known-key transfer is live, which would be the most
+      interesting outcome available here.
+    - >-
+      The measured S-box degree is not 7 and the saturation round moves.
+    - >-
+      The affine null returns d_r > 1, or the r = 1 positive control does not
+      return deg_ANF(S). Instrument broken; nothing reported.
+
+  confounders:
+    - >-
+      TOY-TO-AES TRANSFER. A 16-bit toy tells you about the measurement
+      procedure and about the shape of the bound, NOT about AES-128's true
+      degree at round 3. Any statement about the deployed sets must be a
+      BOUND, not an extrapolation of a toy measurement (AGENTS.md rule 7).
+    - >-
+      ROUND-REDUCTION IS NOT DEPLOYED. FAEST proves the full cipher. A
+      distinguisher at r = 4 of 10 is not a FAEST result and may not be
+      reported as one.
+    - >-
+      RECALLED CRYPTANALYSIS. Every AES result mentioned is unread. The
+      derivations are built so that none of them is load-bearing.
+    - >-
+      ATTRACTIVE SYMMETRY. "EM and non-EM invert in opposite arguments" is a
+      pleasing sentence and therefore suspect. It rests on one line of
+      owf.c (aes128_expand_key(rk, input)) plus Ske = 0 in meson.build and
+      the instances.h comment; three independent places, but all in the
+      implementation, none in the specification.
+
+  heuristic_assumptions:
+    - id: HEUR-FD-1
+      statement: >-
+        NONE OF THE HEADLINE STATEMENTS IS HEURISTIC. Derivation 1
+        (bijective re-encoding), Derivation 3 (constant-across-secrets), and
+        the degree bound d_r <= min(n-1, D^r) are all elementary and
+        unconditional. This entry exists to record that fact rather than to
+        leave the field empty.
+      rigorous_support: >-
+        Derivation 1: the auxiliary assignment is a function of the secret and
+        the projection inverts it. Derivation 3: a property not mentioning s
+        is constant in s. Degree bound: deg(f o g) <= deg f * deg g over F_2
+        and affine maps preserve degree.
+      validation_plan: >-
+        Independent adversarial reading (red team) of the three derivations.
+        No experiment validates them; an experiment would not be the right
+        instrument.
+    - id: HEUR-FD-2
+      statement: >-
+        The small-scale SPN's degree behaviour is representative of AES's in
+        the sense that the SATURATION ROUND predicted by the bound is
+        attained rather than exceeded.
+      rigorous_support: >-
+        Weak. The bound is an upper bound; whether it is tight for a specific
+        cipher is exactly what the measurement asks, and the toy is a
+        different cipher. This is the weakest link in the proposal and is
+        labelled so.
+      validation_plan: >-
+        Measure the deficit at every r on the toy and report it. If the
+        deficit grows with r, the bound is loose and the barrier statement
+        must be weakened accordingly rather than asserted.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT MOVES. Consequences (2) and (3) are barrier-shaped: they
+      REMOVE candidate attack routes rather than adding one. The only route
+      that could move an exponent is the named residual (division-property
+      propagation in the key argument through the layered key schedule), and
+      this record does not claim it works. Stated plainly per the house rule:
+      this proposal is not an exponent proposal.
+    memory_exponent: >-
+      The measurement uses O(2^n) bits for an n-bit toy state, n <= 20, i.e.
+      <= 128 KiB. No memory claim about FAEST.
+    best_known: >-
+      For inverting AES in either argument at the FAEST data budget, the best
+      known is exhaustive search (see IDEA-20260805-59fa23 for the
+      admissibility argument). Nothing here improves on it and nothing here
+      claims to.
+    hidden_overhead: n/a -- no algorithm proposed.
+    tradeoff_note: >-
+      The EM sets have smaller signatures (3906 vs 4506 bytes at the s
+      variants, read from meson.build) and Ske = 0, i.e. no key-expansion
+      constraints. If the EM direction ever proved structurally weaker, that
+      size advantage would be paid for in security -- a tradeoff nobody in
+      this corpus has stated. Naming it is part of the deliverable.
+
+  dominated_by: >-
+    Not dominated: no algorithm and no Pareto point is claimed. Frontier rows
+    checked 2026-08-06 across time, memory and data/queries for a prior
+    statement of FAEST's secret-argument degree or of the EM/non-EM
+    structural split: IDEA-20260731-002/003/004/005/019, IDEA-20260801-005,
+    EV-FAEST-001, EV-FAEST-002, GOAL-FAEST-001, RQ-FAEST-001,
+    knowledge/literature/KN-LIT-7619, -7637, -7638, -2701. NONE mentions
+    FAEST-EM at all; none states a data budget; none states a degree. The
+    external literature was NOT searched for this question, so the absence is
+    an absence in THIS CORPUS only, and is recorded as such.
+  sota_delta: >-
+    Qualitative and structural, with three quantitative anchors. (i) The
+    twelve parameter sets split 6/6 into opposite inversion problems -- a
+    partition this corpus does not have. (ii) The saturation round r_sat = 3
+    (at D = 7, n = 128) is a number, and it bounds any secret-argument
+    higher-order-derivative distinguisher at 3 of 10/12/14 rounds. (iii) The
+    known-key transfer is killed at zero compute by a zero-spread argument,
+    with three named survivors. Against the state of the art in attacks:
+    delta ZERO on every axis, and the record says so.
+
+  estimated_cost:
+    implementation: low
+    compute: negligible
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    0.90 that Derivations 1 and 3 survive adversarial review, because both
+    are two-line arguments with no hidden quantifier. 0.10 that the
+    secret-argument degree lane yields anything beyond a barrier statement,
+    because the degree bound saturates at round 3 of at least 10 and a
+    persistent deficit large enough to reach round 10 would be an enormous
+    and long-unnoticed structural fact about AES. Not lower than 0.10
+    because the KEY argument is genuinely less studied than the data
+    argument -- the ANGLE-BRIEF records the layered key schedule as one of
+    only two live targets for division-property propagation -- and because
+    nobody has looked here. Not higher because "nobody has looked" is a
+    statement about this corpus's search, not about the world's.
+
+  source_refs:
+    - ledger/goals/GOAL-FAEST-001.yaml
+    - ledger/questions/RQ-FAEST-001.yaml
+    - ledger/proposals/IDEA-20260731-005.yaml
+    - ledger/proposals/IDEA-20260805-59fa23.yaml
+    - ledger/proposals/IDEA-20260805-38048d.yaml
+    - knowledge/literature/KN-LIT-7619.md
+    - knowledge/literature/KN-LIT-2701.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+  proposed_by: idea-generator

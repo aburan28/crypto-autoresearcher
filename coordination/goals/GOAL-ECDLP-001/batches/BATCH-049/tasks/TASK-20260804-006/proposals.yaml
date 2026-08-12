@@ -1,0 +1,605 @@
+proposals:
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-dac413
+  # Quadratic twist co-attack (DIR-2)
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-dac413
+    goal_id: GOAL-ECDLP-001
+    sub_goal_id: SG-ECDLP-002
+    direction: DIR-2
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-006
+
+    avoids_tate_obstruction: true
+    avoids_tate_obstruction_reason: >-
+      The quadratic twist E^d of E over F_p has trace -t (not the same as E's
+      trace t), so E and E^d are in DIFFERENT ordinary isogeny classes. This
+      mechanism does NOT use an ordinary isogeny to move between classes; it uses
+      the twist isomorphism over F_{p^2}, which is NOT an F_p-rational morphism.
+      Tate's theorem applies only to F_p-isogenies; a twist relation is an F_{p^2}
+      isomorphism, not an F_p-isogeny.
+
+    mechanism: >-
+      Given a target ECDLP instance on E/F_p with prime-order subgroup of order N,
+      compute the quadratic twist E^d. If trace(E) = t, then trace(E^d) = -t. If
+      -t = 1 (i.e., t = -1), then E^d is ANOMALOUS (#E^d = p) and Smart's
+      p-adic attack solves DLP on E^d in O(log p) steps. The DLP on E and E^d
+      are related: the twist map sends P ∈ E(F_p) to d^{(p-1)/2} * P' ∈ E^d(F_p)
+      via the quadratic character; if log_{E^d}(phi(Q)) can be computed from
+      log_E(Q), the transfer is complete.
+      This does NOT require an isogeny walk; it requires that the target curve E
+      itself has trace t = -1. For a RANDOM E, Prob[trace(E) = -1] ≈ 1/sqrt(p)
+      (Sato-Tate / Hasse-Weil equidistribution). So this is an attack on a
+      SPECIFIC trace class, not a generic attack.
+
+    predictions:
+      - metric: twist_anomalous_fraction
+        direction: higher
+        minimum_effect: >-
+          Among all prime-field curves E/F_p with N prime, the fraction with
+          trace(E) = -1 (so that E^d is anomalous) is approximately 1/sqrt(p).
+          At bits=20: 1/2^10 ≈ 0.001. At bits=256: negligible.
+      - metric: smart_attack_cost_on_twist
+        direction: lower
+        minimum_effect: >-
+          When trace(E) = -1, Smart's algorithm on E^d costs O(log p) group ops,
+          giving R_xfer = O(log p) / O(sqrt(N)) → 0. This is genuinely sub-rho
+          for that specific curve class.
+
+    minimal_discriminating_test:
+      description: >-
+        Generate toy prime-field curves at bits=20. For each E with prime order N:
+        (1) compute trace t = p+1-N; (2) if t = -1, compute E^d and run Smart's
+        algorithm; (3) verify DLP solution. Measure fraction of curves with t = -1
+        and verify Smart works on E^d for those curves. Cost: enumerate curves at
+        bits=20, identity those with t=-1.
+      estimated_cost: "< 1 second at bits=20 (few hundred toy curves)"
+      pass_criterion: >-
+        At least one curve with trace = -1 found; Smart's attack on E^d returns
+        correct log in O(log p) steps with a verified certificate.
+      fail_criterion: >-
+        Smart's attack on E^d fails (wrong answer) or the DLP is not transferred
+        correctly from E to E^d.
+
+    null_object_control:
+      description: >-
+        For E with trace t ≠ ±1 (so neither E nor E^d is anomalous), verify that
+        Smart's attack on E^d either fails or costs O(sqrt(p)) (no speedup). This
+        confirms the attack is specific to the t = -1 trace class.
+      expected_null_result: >-
+        Smart's algorithm on E^d for t ≠ -1 either terminates with wrong answer
+        (since E^d is not anomalous) or requires O(sqrt(p)) work via Pollard rho.
+
+    falsification_criteria:
+      - >-
+        The DLP transfer from E to E^d is blocked: if the twist map does not
+        preserve the DLP relationship between group generators (i.e., if
+        log_E(Q) ≠ f(log_{E^d}(phi(Q))) for the relevant transfer function f),
+        the attack fails.
+      - >-
+        Smart's attack requires #E^d(F_p) = p (exactly); if E^d has cofactor > 1
+        on its anomalous part, the p-adic lift may fail.
+      - >-
+        Standard ECDLP curves are explicitly chosen with trace t ≠ ±1 and t ≠ 0,
+        so this attack does not apply to any standardized curve.
+
+    dominated_by: >-
+      Pollard rho at exponent 1/2 for GENERIC curves. For the specific t=-1 curve
+      class (probability ~ 1/sqrt(p)), the attack gives O(log p) time — genuinely
+      sub-rho for that class. This is a KNOWN attack class (the "anomalous curve
+      attack / Smart-Satoh-Araki"), applied to the twist.
+    sota_delta:
+      time_exponent: -0.5_for_specific_class
+      memory_exponent: 0
+      data_or_query_exponent: not_applicable
+      verified: false
+      note: >-
+        The attack is effective (O(log p)) only for curves with trace = -1 (density
+        ~ 1/sqrt(p)). For GENERIC randomly chosen curves, Pollard rho applies.
+        This is a known result (standard curve selection already excludes t=±1),
+        not a new attack on generic ECDLP. sota_delta is only meaningful for
+        the trace=-1 subclass, not for the problem class at large.
+
+    target_class: false
+    target_class_reason: >-
+      Does not attack generic ECDLP; only the density-1/sqrt(p) trace=-1 curve
+      class. Standard curve selection explicitly excludes this. Not target-class
+      under docs/target-result-profile.md.
+
+    recommended_priority: low
+    novelty_status: known
+
+    interpretation_limits:
+      - >-
+        A positive result confirms only that Smart-anomalous attacks extend to
+        twists — a KNOWN result. Not a new cryptanalytic finding.
+      - >-
+        Does not apply to P-256, P-384, secp256k1, or any NIST/SECG curve.
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-d9ba63
+  # Volcano-surface endomorphism descent (DIR-3)
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-d9ba63
+    goal_id: GOAL-ECDLP-001
+    sub_goal_id: SG-ECDLP-002
+    direction: DIR-3
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-006
+
+    avoids_tate_obstruction: true
+    avoids_tate_obstruction_reason: >-
+      Works entirely WITHIN a single ordinary isogeny class (fixed trace t,
+      fixed N). All walks stay on the volcano of the same conductor class.
+      No attempt to change trace or reach a different special family. The Tate
+      theorem is irrelevant: we are not trying to reach a different isogeny class.
+
+    mechanism: >-
+      Within the ordinary isogeny class of a target curve E (trace t, order N,
+      CM discriminant D = t^2-4p), use the Delfs-Galbraith volcano structure to
+      walk toward the "surface" (curves with maximal CM order O_K). At the surface,
+      all curves have End(E') ≅ O_K (the maximal order). If D has small absolute
+      value and K = Q(sqrt(D)) has class number h(D) = 1, the maximal order O_K
+      contains a specific explicit endomorphism psi with norm ~ |D|^{1/2}. This
+      endomorphism gives a GLV-style decomposition: the DLP on N is split into a
+      2D problem of size ~ N^{1/2}, reducible via the 2D-variant of Pollard rho
+      in ~ N^{1/4} steps.
+      Critical condition: D must be a class-number-1 discriminant (D ∈ {-3, -4,
+      -7, ..., -163}) AND the random prime p must satisfy t^2-4p = D·f^2 for
+      some conductor f (CMness condition). For random p, the probability that
+      p is a CM prime for a class-number-1 discriminant is ~ |D|^{-1} ≈ 1/3 to
+      1/163 — rare but non-zero. For a generic random prime of 256 bits, the
+      expected smallest class-number-1 discriminant for which p is CM is ~
+      O(log p), not a fixed small |D|.
+
+    predictions:
+      - metric: endomorphism_norm_ratio
+        direction: lower
+        minimum_effect: >-
+          For a curve E at the surface of the volcano with CM by O_K for a
+          class-number-1 discriminant D, the GLV endomorphism has norm |D|/4 or
+          similar. The DLP on N decomposes into a 2D problem of determinant N
+          and short vectors of norm ~ sqrt(|D|*N). Pollard's 2D variant on this
+          lattice costs ~ (|D|*N)^{1/4} steps — a factor of |D|^{1/4} improvement
+          over standard rho. For D = -3: improvement ~ 3^{1/4} ≈ 1.32x (constant).
+      - metric: volcano_walk_cost
+        direction: lower
+        minimum_effect: >-
+          Walking from E to the surface of the volcano takes ~ log_ell(f) steps
+          where f is the conductor (index of End(E) in O_K). For a generic random
+          curve, f ~ O(sqrt(p)), so the walk costs ~ log(p)/2 steps. Negligible.
+
+    minimal_discriminating_test:
+      description: >-
+        At bits=20: (1) Generate random prime p. (2) Compute trace t of a random
+        E/F_p. (3) Check if D = t^2-4p is a perfect square times a class-number-1
+        discriminant. (4) If yes, walk to the surface and compute the GLV
+        endomorphism. (5) Apply 2D Pollard rho with the endomorphism. Compare
+        step count to standard Pollard rho.
+      estimated_cost: "~1 minute at bits=20 over a few thousand random primes"
+      pass_criterion: >-
+        2D Pollard rho with endomorphism solves DLP in ~ (|D|*N)^{1/4} steps,
+        faster than standard rho by factor ~ |D|^{1/4}.
+      fail_criterion: >-
+        2D Pollard rho step count equals standard rho step count, indicating
+        the endomorphism gives no structural advantage.
+
+    null_object_control:
+      description: >-
+        For a curve E whose CM discriminant has h(D) > 1 (no class-number-1
+        property), run the same GLV decomposition with a RANDOM element of norm
+        ~ |D|^{1/2} in End(E) (instead of the true CM endomorphism). The random
+        element does not give a GLV decomposition; verify that the 2D walk does
+        not converge faster than standard rho.
+      expected_null_result: >-
+        Step count for random-endomorphism 2D walk ≈ standard rho step count.
+        No speedup from a non-CM endomorphism.
+
+    falsification_criteria:
+      - >-
+        If 2D Pollard rho step count with the true CM endomorphism equals standard
+        rho step count (no improvement), the mechanism gives no advantage.
+      - >-
+        If the conductor f for a random prime p is always O(1) (i.e., random
+        curves are always at or near the surface), the walk cost is negligible
+        but the CM discriminant is O(p), and the GLV improvement is O(p^{1/4})
+        — identical to standard rho. No net improvement.
+      - >-
+        Standard NIST/SECG curves explicitly exclude j = 0 (D=-3), j = 1728
+        (D=-4), and small-discriminant CM curves. This attack does not apply to
+        standardized curves.
+
+    dominated_by: >-
+      Pollard rho at exponent 1/2 for generic curves. GLV with class-number-1
+      CM endomorphism gives at most ~ 1.32x constant-factor improvement (D=-3),
+      not an exponent change.
+    sota_delta:
+      time_exponent: not_applicable
+      memory_exponent: not_applicable
+      data_or_query_exponent: not_applicable
+      verified: false
+      note: >-
+        The improvement is a multiplicative constant (at best ~ 2x for the
+        best class-number-1 discriminant), NOT an exponent change. For generic
+        prime-field curves with random CM discriminant D ~ O(p), the improvement
+        is ~ D^{1/4} ~ p^{1/4}, which does give exponent 1/4 per dimension —
+        BUT: the 2D problem still has size sqrt(N) per dimension, so total cost
+        is N^{1/4} * D^{1/4}... This requires careful analysis.
+        POTENTIAL CLAIM (unverified): if D ~ p (generic case) and the 2D lattice
+        has determinant N with short vector norm ~ (D*N)^{1/2} ~ (p*N)^{1/2},
+        then the 2D Pollard walk costs ~ (p*N)^{1/4}. For a prime-order curve
+        with N ~ p, this is ~ p^{1/2} — SAME as standard rho (constant factor 1).
+        The GLV improvement vanishes for generic D ~ p. Small D gives genuine
+        improvement but only for a ~ 1/sqrt(p)-density class of primes.
+
+    target_class: false
+    target_class_reason: >-
+      Constant-factor improvement at best; not an exponent-moving result.
+      For generic prime-field curves, exponent stays at 1/2.
+
+    recommended_priority: medium
+    novelty_status: known_in_substance
+
+    interpretation_limits:
+      - >-
+        GLV and its generalisations are already incorporated into EC scalar
+        multiplication optimizations (not cryptanalysis). The cryptanalytic
+        application to the DLP is not new (Gallant-Lambert-Vanstone 2001 discuss
+        the DLP reduction).
+      - >-
+        Does not give sub-rho time exponent for generic prime-field curves.
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-027a00
+  # Semaev summation polynomial with isogeny orbit enlargement (DIR-3, potentially target-class)
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-027a00
+    goal_id: GOAL-ECDLP-001
+    sub_goal_id: SG-ECDLP-002
+    direction: DIR-3
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-006
+
+    avoids_tate_obstruction: true
+    avoids_tate_obstruction_reason: >-
+      Operates entirely within a fixed isogeny class. Uses IMAGES of the factor
+      base under isogenies (not the isogenies themselves as paths to special
+      curves). The key operation is phi(P) for P a factor-base point, which gives
+      a point on an ISOGENOUS curve E' in the same class. No trace-changing step
+      is required. The ordinary isogenies used (E -> E') stay within the class.
+
+    mechanism: >-
+      The Semaev index calculus for prime-field ECDLP (Gaudry-Diem-Joux-Lercier)
+      works as follows: define a factor base F ⊂ E(F_p) of B smooth points
+      (x-coordinates with small first coordinates, or points in a subfield-defined
+      set). Collect relations [k_i] G = sum_j n_{ij} P_j over factor-base points.
+      Solve the resulting linear system over Z/N to recover k.
+
+      The bottleneck is relation density: each random point R ∈ E has probability
+      ~ B/N of decomposing as a sum of m factor-base points (Semaev heuristic).
+      For m=2 this gives B^2 / (2N) relations per random point.
+
+      ISOGENY ORBIT ENLARGEMENT: Let phi_1,...,phi_r be cheap ordinary 2-isogenies
+      from E to E_1,...,E_r (in the same isogeny class). Define an AUGMENTED factor
+      base F* = F ∪ phi_1^{-1}(F) ∪ ... ∪ phi_r^{-1}(F) where phi_i^{-1}(F)
+      denotes preimages under phi_i. A preimage phi_i^{-1}(P) of a factor-base
+      point P ∈ E_i gives a point on E that is "isogeny-related" to a smooth point.
+      If the preimages themselves have small x-coordinates (under a suitable
+      definition of "small"), then F* has size ~ (r+1)*B but covers a much larger
+      fraction of E(F_p).
+
+      PREDICTION: The augmented factor base F* increases the relation density from
+      B^2/N to approximately ((r+1)*B)^2/N = (r+1)^2 * B^2/N for the same B.
+      Equivalently, the effective B can be shrunk by a factor of (r+1) for the
+      same relation density. Since the total index calculus cost scales as
+      exp(c * sqrt(log N * log log N)) for the optimal B, a constant-factor
+      enlargement of the factor base does NOT change the asymptotic exponent —
+      but it does give a genuine speedup in the constant c.
+
+      However: if the isogenies are SELF-MAPS of the factor base (i.e., phi
+      permutes F approximately), then the augmentation gives no new relations.
+      This is the INSTRUMENT question: does phi^{-1}(F) ∩ F ≈ |F|/2
+      (permutation, no gain) or does phi^{-1}(F) contain many NEW points
+      not in F (genuine enlargement)?
+
+    predictions:
+      - metric: augmented_factor_base_density
+        direction: higher
+        minimum_effect: >-
+          For a random ordinary 2-isogeny phi: E -> E' (same class),
+          the fraction of phi^{-1}(F) in E(F_p) that is NOT already in F
+          should be ~ (1 - B/N) * B/N (approximately B/N new preimages of
+          each factor-base point, independent of F). If phi^{-1}(F) and F
+          are approximately independent, |F* \setminus F| ≈ B^2/N additional
+          "good" points.
+      - metric: augmentation_ratio
+        direction: higher
+        minimum_effect: >-
+          Define the augmentation ratio a_r = |F ∪ phi^{-1}(F)| / |F|.
+          If a_r > 1.5 at B = N^{1/3}, then the augmented index calculus
+          is strictly faster than the standard one.
+
+    minimal_discriminating_test:
+      description: >-
+        At bits=20: define a factor base F as the set of points P ∈ E(F_p)
+        with x-coord in [0, B) for B = N/10. Compute phi^{-1}(F) for one
+        ordinary 2-isogeny phi from E to a neighbor E'. Measure |F ∩ phi^{-1}(F)|
+        and |F ∪ phi^{-1}(F)| / |F|. If this ratio > 1.05, the augmentation
+        is non-trivial.
+      estimated_cost: "< 5 seconds at bits=20"
+      pass_criterion: >-
+        |F ∪ phi^{-1}(F)| / |F| > 1.05 (augmentation ratio strictly above 1).
+        The preimage set brings genuinely new points to the factor base.
+      fail_criterion: >-
+        |F ∪ phi^{-1}(F)| ≈ |F| (phi permutes F approximately).
+        The augmentation gives no new coverage.
+
+    null_object_control:
+      description: >-
+        Replace phi with a RANDOM map psi: E(F_p) -> E(F_p) of the same degree
+        (i.e., a random bijection rather than an isogeny). Measure |F ∪ psi^{-1}(F)|.
+        If this ratio is the same as for the isogeny phi, then phi's structure
+        provides no advantage over a random map.
+      expected_null_result: >-
+        For a random bijection psi: |F ∪ psi^{-1}(F)| / |F| ≈ 2 - B/N
+        (union of two independent sets of density B/N). If phi gives a SMALLER
+        augmentation ratio than a random map, phi is ANTI-correlated with F
+        (phi permutes F; it's a structure-destroyer, not a structure-finder).
+
+    falsification_criteria:
+      - >-
+        If the augmentation ratio |F ∪ phi^{-1}(F)| / |F| ≈ 1.0 at all tested
+        bit sizes, then ordinary isogenies permute the factor base and provide
+        no enlargement.
+      - >-
+        If the isogeny preimage set phi^{-1}(F) has the same density within F as
+        a random set (augmentation ratio ≈ 2 - B/N), then the isogeny provides
+        no structural advantage over a random map.
+      - >-
+        If the asymptotic improvement is only a constant factor (same exponent
+        exp(c' sqrt(log N log log N)) with c' < c), the improvement is interesting
+        but not target-class.
+
+    dominated_by: >-
+      Standard Semaev/Gaudry-Diem index calculus at exp(c*sqrt(log N * log log N)).
+      If augmentation ratio > 1 but < 2, this gives a constant factor improvement
+      to c, not an exponent change.
+    sota_delta:
+      time_exponent: not_applicable
+      memory_exponent: not_applicable
+      data_or_query_exponent: not_applicable
+      verified: false
+      note: >-
+        The augmentation enlarges the factor base by a constant factor at most.
+        For subexponential algorithms, this changes the constant in the exponent
+        (reduces c in exp(c * sqrt(log N log log N))) but not the functional form.
+        A GENUINE exponent improvement would require a factor-base enlargement
+        that grows super-constantly with N — e.g., if phi^{-1}(F) has density
+        that GROWS relative to F as N increases. This would require an isogeny
+        that maps a density-B/N set to a density > B/N set, which would require
+        the isogeny to be "density-amplifying" — an unusual and potentially
+        important structural property worth testing.
+
+    target_class: conditional
+    target_class_reason: >-
+      If the augmentation ratio GROWS with N (rather than being a constant > 1),
+      this mechanism could change the asymptotic exponent. This would require
+      the ordinary isogeny structure to provide density amplification, which
+      is a falsifiable claim. Currently unverified and unproven.
+
+    recommended_priority: high
+    novelty_status: novel
+
+    proof_search_map:
+      observation_collision_search: >-
+        Has density amplification by ordinary isogenies been observed in any
+        prior index calculus experiment? Check Gaudry 2009, Joux-Vitse 2012,
+        Diem-Kochinke 2015 for any isogeny-augmented factor base. If absent,
+        this is a genuinely new experiment.
+      exact_baseline_reproduction: >-
+        Reproduce standard Semaev relation collection at bits=20 with B = N/10.
+        Measure baseline relation density. Then add phi^{-1}(F) and remeasure.
+      quantifier_order_statement: >-
+        The claim is: FOR ALL ordinary 2-isogenies phi from E, the augmentation
+        ratio is > 1+epsilon. The null is: FOR SOME phi, the ratio = 1
+        (phi permutes F). The test must use a RANDOM phi, not a hand-chosen one.
+      method_ceiling: >-
+        If augmentation ratio is constant (= 2 - B/N for large N), the method
+        ceiling is a constant-factor improvement to the Gaudry-Diem index calculus.
+        A nearby-object control: the same augmentation with a random map (not an
+        isogeny) gives the same constant; if so, the isogeny structure adds nothing
+        over random.
+
+    interpretation_limits:
+      - >-
+        A positive result (augmentation ratio > 1) confirms isogeny preimages
+        enlarge the factor base but does NOT establish a sub-rho time exponent
+        without proving the ratio grows with N.
+      - >-
+        Does not apply to any standardized NIST/SECG curve as a direct attack;
+        relevant only as a theoretical ECDLP complexity question.
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-e88120
+  # Class group DLP reduction via CM theory (DIR-3, potentially target-class conditional)
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-e88120
+    goal_id: GOAL-ECDLP-001
+    sub_goal_id: SG-ECDLP-002
+    direction: DIR-3
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-006
+
+    avoids_tate_obstruction: true
+    avoids_tate_obstruction_reason: >-
+      Operates entirely within a single ordinary isogeny class. Uses the group
+      structure of the ideal class group Cl(O_K) of the CM ring, which is a
+      property of curves within the same isogeny class. No trace-changing step.
+
+    mechanism: >-
+      For an ordinary elliptic curve E over F_p with CM by the order O of
+      discriminant D = t^2-4p, the Delfs-Galbraith volcano structure connects
+      E via ordinary ell-isogenies to all other curves with the same CM
+      discriminant. The class group action Cl(O_K) acts simply and transitively
+      on the set of elliptic curves with maximal CM order O_K (the "surface"
+      of the volcano). This gives a group structure (the class group) on top of
+      the ECDLP instance.
+
+      REDUCTION: The ECDLP on E is related to the discrete logarithm in Cl(O_K)
+      via the following correspondence. Fix a generator G ∈ E(F_p) of order N.
+      For any ideal a ∈ Cl(O_K), the action [a] * E gives a curve E' isogenous
+      to E. The isogeny phi_a: E -> E' maps G to a specific point. The DLP
+      log_G(Q) on E can (under conditions) be encoded as a DLP in Cl(O_K) via
+      the isogeny class structure.
+
+      FEASIBILITY QUESTION: The class group Cl(O_K) has order h(D) ~ O(sqrt(|D|)).
+      For generic random p, D = t^2-4p with |D| ~ 4p, so h(D) ~ O(sqrt(p)).
+      The DLP in Cl(O_K) of order ~ sqrt(p) is easier than the DLP in E(F_p) of
+      order ~ p IF the class group DLP is sub-rho. Class group DLP is typically
+      solved by subexponential index calculus (e.g., L[1/2, c] for ideal class
+      groups of imaginary quadratic fields). This gives:
+        - ECDLP exponent (Pollard rho): exp(c1 * sqrt(log N))
+        - Class group DLP exponent (L[1/2, c2]): exp(c2 * sqrt(log h(D) * log log h(D)))
+      With h(D) ~ sqrt(p) ~ sqrt(N), this gives:
+        exp(c2 * sqrt(0.5 * log N * log(0.5 * log N))) ~ exp(c2' * sqrt(log N * log log N))
+      This is STRICTLY FASTER than Pollard rho (exp(c1 * sqrt(log N))) asymptotically!
+
+      CONDITIONAL CAVEAT: This reduction requires:
+        1. An efficient algorithm to compute the class group action phi_a
+        2. A proven reduction from ECDLP to class group DLP
+        3. The class group index calculus to actually work as claimed
+
+      The class group action is CSIDH-like (but for ordinary curves, not
+      supersingular). The CSIDH literature (Castryck et al. 2018) develops
+      efficient class group action algorithms for supersingular curves.
+      For ORDINARY curves over F_p, analogous algorithms exist but are less
+      well-studied.
+
+    predictions:
+      - metric: class_group_dlp_cost_vs_ecdlp_cost
+        direction: lower
+        minimum_effect: >-
+          At bits=20 (p ~ 2^20), h(D) ~ 2^10. Class group DLP via baby-step
+          giant-step on Cl(O_K) costs ~ sqrt(h(D)) ~ 2^5 = 32 group ops in
+          Cl(O_K). Standard Pollard rho costs ~ 2^10 EC group ops. Ratio: 32
+          vs 1024 — a 32x speedup IF the reduction is valid.
+          At bits=256 (p ~ 2^256), h(D) ~ 2^128. Class group index calculus
+          at L[1/2] costs ~ exp(c * sqrt(128 * log 128)) ~ exp(c * 30) >>
+          Pollard rho at ~ 2^128. No improvement at crypto scale with standard
+          algorithms.
+          HOWEVER: if a better class group algorithm (L[1/3] or better) exists
+          for imaginary quadratic fields of discriminant ~ p, the reduction
+          WOULD be faster than rho for all sizes.
+      - metric: reduction_validity
+        direction: different
+        minimum_effect: >-
+          A verified certificate: given log_G(Q) mod N computed via the class
+          group reduction, verify [log_G(Q)] G = Q on E.
+
+    minimal_discriminating_test:
+      description: >-
+        At bits=20: (1) Generate prime p, random E/F_p with prime order N,
+        generator G, target Q = [k]G. (2) Compute D = t^2-4p, the class group
+        Cl(O_K) (baby-step giant-step on ideals of O_K). (3) Attempt to solve
+        the ECDLP by encoding it as a DLP in Cl(O_K) via the isogeny class action.
+        (4) Verify the answer. (5) Compare cost to direct Pollard rho at bits=20.
+      estimated_cost: ~1 minute at bits=20
+      pass_criterion: >-
+        The class group DLP gives log_G(Q) correctly with cost < Pollard rho
+        cost at bits=20.
+      fail_criterion: >-
+        (a) The reduction from ECDLP to class group DLP is not valid (wrong answer),
+        OR (b) the class group DLP costs >= Pollard rho at bits=20.
+
+    null_object_control:
+      description: >-
+        For a SUPERSINGULAR curve J over F_p (trace = 0), the CM order is
+        an order in Q(sqrt(-p)), with class number h ~ sqrt(p). Run the same
+        class-group DLP reduction on J. If the reduction works EQUALLY WELL
+        for supersingular J as for ordinary E, then the result is not specific
+        to the ordinary isogeny class structure; it's a general CM phenomenon.
+      expected_null_result: >-
+        For supersingular J, the class group DLP is the CSIDH problem, which
+        is believed to be quantum-hard but classically subexponential. If the
+        class group reduction works for supersingular J, the ordinary ECDLP
+        is at most as hard as CSIDH — but CSIDH is not known to be classically
+        sub-rho.
+
+    falsification_criteria:
+      - >-
+        If no efficient algorithm exists to encode ECDLP as class group DLP
+        (the reduction is computationally infeasible even at toy scale), the
+        mechanism is not viable.
+      - >-
+        If the class group index calculus at L[1/2] for imaginary quadratic fields
+        of discriminant ~ p does NOT give a speedup over Pollard rho (because the
+        hidden constant makes it slower for all practical p), the mechanism gives
+        no real improvement.
+      - >-
+        If the class group action phi_a requires solving the ECDLP as a sub-step
+        (circular reduction), the mechanism fails.
+
+    dominated_by: >-
+      Conditionally: class group index calculus L[1/2, c] on Cl(O_K) with
+      |Cl(O_K)| ~ sqrt(N). For generic N this is subexponential in log N,
+      strictly faster than Pollard rho's exp(c * sqrt(log N)) IF the L[1/2]
+      claim is correct and the reduction is valid. Currently UNVERIFIED.
+    sota_delta:
+      time_exponent: conditional_improvement
+      memory_exponent: not_applicable
+      data_or_query_exponent: not_applicable
+      verified: false
+      note: >-
+        CONDITIONAL: If (a) ECDLP reduces to class group DLP in Cl(O_K) and
+        (b) Cl(O_K) DLP admits L[1/2, c] index calculus for |D| ~ p, then
+        the total time is L_{p}[1/2, c'] << exp(c sqrt(log p)) = Pollard rho.
+        This WOULD be a genuine exponent improvement. Both conditions are
+        unproven and require significant mathematical work. The reduction
+        (condition a) is the primary open question: can ECDLP be efficiently
+        encoded as class group DLP without solving ECDLP first?
+
+    target_class: conditional
+    target_class_reason: >-
+      Conditional on a valid reduction from ECDLP to class group DLP and on
+      L[1/2] class group algorithms being applicable at scale p. If both hold,
+      this would reduce ECDLP to a subexponential problem in log p, beating
+      Pollard rho. This is target-class conditional on the reduction being valid.
+
+    recommended_priority: high
+    novelty_status: novel_if_reduction_valid
+
+    proof_search_map:
+      observation_collision_search: >-
+        Is there a known reduction from ECDLP (or DLP in E(F_p)) to DLP in the
+        ideal class group Cl(O_K)? Search: Biasse-Jacobson-Silvester, Joux-Naccache
+        works on CM-ECDLP, Galbraith-Smart 1999 (lifting ordinary ECDLP to class
+        groups), and the CSIDH literature for ordinary analogues.
+      exact_baseline_reproduction: >-
+        At bits=20, directly solve Cl(O_K) DLP via baby-step giant-step and
+        verify cost vs Pollard rho. Establish the baseline before any claim.
+      quantifier_order_statement: >-
+        The claim is: FOR ALL primes p (or for a density-1 set), there EXISTS
+        an efficient reduction from ECDLP on E/F_p to DLP in Cl(O_K(D)). The
+        reduction must NOT require solving ECDLP as an intermediate step.
+      method_ceiling: >-
+        Class group index calculus L[1/2] is the best known for imaginary
+        quadratic fields. A sub-L[1/2] algorithm for Cl(O_K) with |D| ~ p
+        would be a breakthrough beyond the scope of this proposal. The method
+        ceiling is the L[1/2] complexity of class group DLP.
+
+    interpretation_limits:
+      - >-
+        A positive result at toy scale (bits=20) does NOT establish that the
+        reduction is efficient at crypto scale (bits=256); the constant factors
+        in L[1/2] may dominate.
+      - >-
+        Even a valid reduction does not directly threaten any standardized curve,
+        since P-256 etc. have CM-free selection criteria.
+      - >-
+        The proof_search_map audits (especially the exact baseline and quantifier-
+        order statement) must be completed before any Executor dispatch.

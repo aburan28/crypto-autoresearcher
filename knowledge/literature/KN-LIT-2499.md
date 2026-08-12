@@ -1,0 +1,40 @@
+---
+id: KN-LIT-2499
+type: literature
+title: "An Improved Security Bound for HCTR"
+authors:
+  - "Debrup Chakraborty"
+  - "Mridul Nandi"
+year: null
+venue: null
+identifiers:
+  eprint: null
+  doi: null
+  arxiv: null
+  url: null
+tags: [finite-field, hash, pairing, symmetric]
+confidence: reported
+citation_verified: read
+added: "2026-07-24"
+superseded_by: null
+---
+
+## Contribution
+HCTR was proposed by Wang, Feng and Wu in 2005. It is a mode of operation which provides a tweakable strong pseudorandom permutation.
+
+## Key claims (as reported)
+- Though HCTR is quite an efficient mode, the authors showed a cubic security bound for HCTR which makes it unsuitable for applications where tweakable strong pseudorandom permutations are required.
+- In this paper we show that HCTR has a better security bound than what the authors showed.
+- We prove that the distinguishing advantage of an adversary in distinguishing HCTR and its inverse from a random permutation and its inverse is bounded above by 4.5σ 2 /2n , where n is the block-length of the block-cipher and σ is the number of n-block queries made by the adversary (including the tweak).
+
+## Relevance to this program
+Relevant to pairing-based reductions and endomorphism speedups (MOV/Frey-Rück special cases, GLV/GLS) that bound which curve classes are safe baselines.
+
+## Not verified here
+Entry generated during the 2026-07-24 bulk seeding pass from the local PDF's first two pages. Title/authors/year/venue were parsed heuristically and may be incomplete or mis-segmented; claims are relayed from the paper's abstract without independent verification. Upgrade to a fully verified entry after a careful read.
+
+## Local copies
+- `downloads/50860292 (1).pdf`
+- `downloads/50860292 (2).pdf`
+- `downloads/50860292 (3).pdf`
+- `downloads/50860292.pdf`

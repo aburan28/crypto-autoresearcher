@@ -1,0 +1,59 @@
+handoff:
+  id: TASK-20260727-CTRLB-IMPL
+  from: coordinator
+  to: executor
+  objective: >-
+    Compute the full-column exact GF(2) rank of the n=12 D6 NULL Macaulay
+    matrix RESTRICTED to sem's exact 174,035-column support, per the Red
+    Team's CTRL-B specification. Report deficit_genuine = rank - 138573.
+  inputs:
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control/support_confound_probe.py (rebuild + hash-verify pattern)
+    - src/h012_peel_rank.py (build_system, boolean_null, semireg_rank_pred)
+    - src/h012c_block_m4ri.py (monosets_hash, chunked staircase machinery)
+    - src/macaulay_export.py (macaulay_rows)
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-004/batch.yaml (frozen cell facts)
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/RT-N12D6.md (CTRL-B-specified)
+  frozen_cell:
+    n: 12
+    t: 3
+    ti: 0
+    seed: 2026
+    D: 6
+    sem_hash: c47d17c3fd70d5d81127e8d37e21441883f720ca10187f57a3aeb47bfe3ba818
+    null_hash: f2f610730a7155933be2afe2d979c8535e1f35f5c0c5ddb246fabe717b147344
+    sem_ncols: 174035
+    null_ncols: 190051
+    sr_pred: 156520
+    sem_rank: 138573
+    support_gap: 16016
+  constraints:
+    - Rebuild sem and null from the committed seed and verify monosets_hash against BOTH frozen receipts before any rank work; a mismatch aborts the cell as invalid, never patched.
+    - The restricted column universe is exactly sem's support (174,035 columns), preserving the null's column order; record the missing set (16,016) and its degree histogram (must be all degree 6).
+    - Full-column exact rank only; subset-column corank is invalid (h012 finding iv).
+    - TMPDIR=SAGE_TMP=/Volumes/Volume/sage-scratch-dreg; 20 GB RSS self-abort; timeout/OOM/sweep = failed_infrastructure (AGENTS rule 5), never evidence.
+    - Checkpointed staircase; git hash-object -w every carry and state.json after every invocation; mirror records in the manifest.
+    - Compute starts only after the EXP-DREG-004 rank is durably terminal (queue dependency); do not start a second ~7 GB job concurrently.
+  deliverables:
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control-b/restrict_driver.py
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control-b/manifest.yaml (identity checks, restriction certificate, mirror index, command, environment, timing)
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control-b/raw-result.json (rank, deficit_genuine, self-consistency)
+  artifact_paths:
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control-b/restrict_driver.py
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control-b/manifest.yaml
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control-b/raw-result.json
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control-b/work/
+  archived_by: TASK-20260727-CTRLB-SNAP
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 7200
+    memory_gb: 20
+    maximum_runs: 20
+  completion_gate:
+    - raw-result.json records rank(null|sem-support) with sum(npiv) == rank, or failed_infrastructure with the exact cap hit
+    - both system hashes match the frozen receipts
+    - restricted universe cardinality == 174,035 and equals sem support exactly (with the 16,016 missing-set histogram all degree 6)

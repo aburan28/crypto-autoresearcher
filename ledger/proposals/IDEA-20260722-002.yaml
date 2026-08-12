@@ -1,0 +1,63 @@
+idea:
+  id: IDEA-20260722-002
+  title: Cross-backend negative-ciphertext conformance matrix
+  class: control
+  claim: >-
+    For a selected ML-KEM library, a backend-differential suite that mutates
+    every ciphertext byte and vector lane will detect every incomplete
+    re-encryption comparison represented by CVE-2026-10097 and CVE-2026-6330
+    while producing zero scalar-versus-optimized output disagreements on
+    patched releases across all three FIPS 203 parameter sets.
+  mechanism: >-
+    Security-critical comparison bugs are functionally silent on valid KATs
+    but become deterministic output differences on malformed ciphertexts.
+    A scalar Algorithm-18 oracle plus structured negative tests turns the
+    omitted work into an observable conformance failure.
+  novelty_status: adaptation
+  assumptions:
+    - A scalar backend is independently checked against FIPS 203.
+    - Tests can observe shared-secret bytes in a laboratory harness.
+    - Every optimized backend and runtime dispatch path can be forced.
+  predictions:
+    - metric: vulnerable_positive_control_detection_rate
+      direction: higher
+      minimum_effect: 1.0
+    - metric: patched_backend_output_disagreements
+      direction: lower
+      minimum_effect: 0
+    - metric: ciphertext_byte_and_lane_coverage
+      direction: higher
+      minimum_effect: 1.0
+  minimal_test:
+    design: >-
+      Run scalar, AVX2, and NEON backends on valid ciphertexts and on one
+      mutation per byte and SIMD lane for ML-KEM-512/768/1024. Include the
+      two vulnerable wolfSSL releases as positive controls and 5.9.2 as the
+      patched control. Compare exact outputs to the scalar FIPS oracle.
+    controls:
+      - Valid known-answer tests.
+      - CVE-2026-10097 vulnerable AVX2 path.
+      - CVE-2026-6330 vulnerable NEON path.
+      - Patched wolfSSL 5.9.2 and scalar reference.
+    required_metrics:
+      - backend_dispatch_path
+      - mutated_byte_and_lane
+      - exact_shared_secret_agreement
+      - implicit_rejection_agreement
+      - coverage
+    competing_explanations:
+      - id: suite_is_discriminating
+        meaning: Vulnerable controls fail and patched backends agree.
+      - id: generator_is_inadequate
+        meaning: A vulnerable control passes, so mutation coverage is not security-relevant.
+      - id: residual_backend_bug
+        meaning: Vulnerable controls fail but a patched backend disagrees.
+  falsification_conditions:
+    - Either known vulnerable positive control is not detected.
+    - A claimed full-coverage backend or vector lane cannot be forced.
+    - The scalar reference disagrees with FIPS 203 on an independent vector.
+  interpretation_limits:
+    - Passing addresses deterministic functional comparison omissions only.
+    - It does not establish timing, power, EM, cache, or fault resistance.
+    - It does not approve a release or change official research state.
+  source_artifact: coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-208/oracle_surface_report.yaml

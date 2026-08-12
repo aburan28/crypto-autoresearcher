@@ -1,0 +1,36 @@
+---
+id: KN-LIT-6790
+type: literature
+title: "Starfish on Strike"
+authors:
+  - "Daniel J. Bernstein"
+  - "Peter Birkner"
+  - "Tanja Lange"
+year: null
+venue: null
+identifiers:
+  eprint: null
+  doi: null
+  arxiv: null
+  url: null
+tags: [curve-arithmetic, elliptic-curve, factoring, hyperelliptic, number-theory, pairing, rsa, survey]
+confidence: reported
+citation_verified: read
+added: "2026-07-24"
+superseded_by: null
+---
+
+## Contribution
+This paper improves the price-performance ratio of ECM, the elliptic-curve method of integer factorization. In particular, this paper constructs “a = −1” twisted Edwards curves having Q-torsion group Z/2 × Z/4, Z/8, or Z/6 and having a known non-torsion point; demonstrates that, compared to the curves used in previous ECM implementations, some of the new curves are more effective at finding small primes despite being faster; and precomputes particularly effective curves for several specific sizes of primes.
+
+## Key claims (as reported)
+- (Abstract too short to separate claims; see Contribution.)
+
+## Relevance to this program
+Relevant to pairing-based reductions and endomorphism speedups (MOV/Frey-Rück special cases, GLV/GLS) that bound which curve classes are safe baselines.
+
+## Not verified here
+Entry generated during the 2026-07-24 bulk seeding pass from the local PDF's first two pages. Title/authors/year/venue were parsed heuristically and may be incomplete or mis-segmented; claims are relayed from the paper's abstract without independent verification. Upgrade to a fully verified entry after a careful read.
+
+## Local copies
+- `downloads/a1ecm-20100614.pdf`

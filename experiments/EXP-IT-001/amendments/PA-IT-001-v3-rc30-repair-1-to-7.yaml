@@ -1,0 +1,258 @@
+protocol_amendment:
+  id: PA-IT-001-v3-rc30-repair-1-to-7
+  experiment_id: EXP-IT-001
+  hypothesis_id: H-IT-001
+  goal_id: GOAL-ECDLP-001
+  batch: BATCH-030
+  queue_amend_id: QUEUE-AMEND-20260801-001
+  review_cycle_id: RC-30
+  authoring_task: TASK-20260801-141
+  snapshot_task: TASK-20260801-142
+  executor_task: TASK-20260801-143
+  run_snapshot_task: TASK-20260801-144
+  validator_task: TASK-20260801-145
+  red_team_task: TASK-20260801-146
+  ledger_task: TASK-20260801-147
+  amendment_type: repair_overlay
+  from_version: 3
+  to_version: 3
+  from_version_note: >-
+    This is a REPAIR OVERLAY on the frozen executable contract
+    experiments/EXP-IT-001/specification.v3.yaml (DEC-034 APPROVED at
+    8f02ab4b7ce02dbe67a3367d559e671b1be0e556; amend freeze
+    PA-IT-001-v3-rc27-b5-b8 at d65c5e21763fe2a920e6f546f8eec039e1bc3d8f).
+    NO NEW SPEC BLOB IS WRITTEN and specification.v3.yaml is NOT edited in
+    place: corrections create new records, and this amendment IS the new
+    record. The v3 blob remains immutable and is the sole executable
+    contract; the seven repairs below are binding admission conditions for
+    the BATCH-030 rerun Executor (TASK-20260801-143) under execution gate
+    RC-30.
+  prior_disposition: >-
+    DEC-20260731-036 (recorded by TASK-20260731-131) reclassified
+    RUN-IT-001-bounded-toy from the Executor's declared completed_valid to
+    failed_infrastructure and recorded EV-IT-001 (direction neutral,
+    strength inconclusive, claim tier toy): the driver crashed EXIT:1 (Sage
+    Integer serialization TypeError at run_bounded_toy.sage.py line 746,
+    json.dump dict item 'version'), the required HEUR_ISO_1_report.json is a
+    153-byte truncated invalid-JSON crash artifact, both positive controls
+    failed (planted_path_recovered=false, plant_detected=false), the BFS
+    explored zero edges on all 21 cells (heur_edges_expanded=0), the durable
+    snapshot archived 9 of 12 manifest-declared paths, and
+    HEUR_ISO_1_report.freeze.json was undeclared and unarchived. Validator
+    VAL-20260801-129 returned NOT_ADMISSIBLE (blocking D-1..D-4); Red Team
+    RT-20260731-130 returned BLOCKING x2 + HIGH x3 (RT-130-O1..O6, including
+    the C_special model inversion and the missing per-attempt x
+    inverse-success-probability term). The scientific question stays
+    inconclusive and H-IT-001 stays `specified` until an admissible
+    measurement exists.
+  crash_evidence: >-
+    Reference only — this amendment asserts NO measurement. Crash evidence is
+    archived in the BATCH-028 snapshot a4561488 (stderr.log at
+    experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/stderr.log, recorded
+    by EV-IT-001 observation O-6): 'TypeError: Object of type Integer is not
+    JSON serializable ... when serializing dict item ''version''' at
+    run_bounded_toy.sage.py line 746, followed by EXIT:1 at
+    2026-07-31T23:17:32Z. HEUR_ISO_1_report.json is the 153-byte partial
+    write of that dump.'
+  v3_path: experiments/EXP-IT-001/specification.v3.yaml
+  v3_approval_snapshot: 8f02ab4b7ce02dbe67a3367d559e671b1be0e556
+  v3_amend_freeze: d65c5e21763fe2a920e6f546f8eec039e1bc3d8f
+  v1_path: experiments/EXP-IT-001/specification.yaml
+  v2_path: experiments/EXP-IT-001/specification.v2.yaml
+  do_not_execute:
+    - experiments/EXP-IT-001/specification.yaml
+    - experiments/EXP-IT-001/specification.v2.yaml
+  repairs:
+    - id: FIX-1
+      title: Sage Integer -> int() casts before every json.dump
+      defect_source: >-
+        DEC-036 concrete_run_defects_for_rerun D-1/D-2 + EV-IT-001 O-6; crash
+        was 'TypeError: Object of type Integer is not JSON serializable' at
+        run_bounded_toy.py line 746, dict item 'version'.
+      requirement: >-
+        Sage Integer -> int() casts before every json.dump. Every Sage
+        Integer leaking into json.dump must be cast (heur_report['version']
+        and every other Sage Integer leaf in every declared artifact —
+        manifest.json, raw-result.json, summary.json, HEUR_ISO_1_report.json,
+        HEUR_ISO_1_report.freeze.json, transfer_gate_report.json,
+        concrete_cost_table.json, null_it_isogeny_transfer_report.json). All
+        declared artifacts must be valid JSON. Any crash or nonzero exit code
+        must be recorded as a protocol_deviations entry naming the code and
+        the stderr tail — never silently, never as completed_valid.
+      acceptance_criteria:
+        - Every declared artifact parses with json.load (valid JSON).
+        - >-
+          stderr.log contains no 'TypeError: Object of type Integer is not
+          JSON serializable' and no json.dump traceback.
+        - >-
+          exit code 0 for any run declared completed_valid; any nonzero exit
+          or crash recorded in manifest protocol_deviations with the code and
+          stderr tail.
+        - heur_report['version'] serializes as a JSON number.
+    - id: FIX-2
+      title: Working BFS — neighbor enumeration explores nonzero edges
+      defect_source: >-
+        DEC-036 RT-130-O2 / EV-IT-001 O-5: heur_edges_expanded=0 on all 21
+        cells — the search instrument never executed an edge expansion, so
+        every R_xfer=0.0 was a censorship placeholder.
+      requirement: >-
+        The BFS neighbor enumeration must explore nonzero edges:
+        C_search / heur_edges_expanded > 0 on at least some cells, with the
+        per-cell and total counters reported in raw-result.json. H_min values
+        must be reported uncensored wherever H_min <= hops_max, and the
+        censorship reason must be recorded where a cell stays censored.
+      acceptance_criteria:
+        - >-
+          heur_edges_expanded > 0 on at least some cells and the sum over
+          cells > 0 (not all-zero).
+        - >-
+          At least one uncensored H_min sample exists where H_min <=
+          hops_max, or an explicit contract-conformant reason is recorded for
+          total censorship (a total-censorship rerun is itself a defect
+          report, not a measurement).
+    - id: FIX-3
+      title: Recoverable planted-path positive control before any sub-rho reading
+      defect_source: >-
+        DEC-036 RT-130-O2 / EV-IT-001 O-4: planted_path_recovered=false
+        (path_edges=[], n_hops_planted=0); per the frozen v3 contract the
+        harness was void for sub-rho / transfer-gate claims.
+      requirement: >-
+        CTRL-PLANTED-PATH-POS must recover a cheap reverse path:
+        planted_path_recovered=true with H_min >= 1, non-empty path_edges,
+        endpoint != start, and a verified certificate on the pulled-back log.
+        This control is REQUIRED before any sub-rho reading; the harness is
+        void otherwise (report plant failure as a harness-void condition, not
+        as support for generic safety).
+      acceptance_criteria:
+        - planted_path_recovered=true.
+        - H_min >= 1 and path_edges non-empty and endpoint != start.
+        - >-
+          The planted path carries a verified discrete-log certificate
+          (wrapper-reverified) on E pulled back from E'.
+        - >-
+          Any R_xfer < 0.7 reading on unplanted cells is gated on this
+          control being true and is reported with the gate status.
+    - id: FIX-4
+      title: C_special calibrated against true Smart/MOV attack cost
+      defect_source: >-
+        DEC-036 RT-130-O4: the C_special model was inverted for the anomalous
+        planted family (modeled 7856 ops vs true Smart cost ~O(log p) ~ 20
+        ops at toy); recomputation at the true cost flips the control to PASS
+        (R_xfer ~ 0.047 < 0.7). The gate outcome was model-dominated.
+      requirement: >-
+        C_special must be calibrated against the true Smart/MOV attack cost
+        (~O(log p) ~ 20 ops at toy sizes) so the anomalous-family planted
+        control PASSES at the calibrated cost. The modeled-vs-true cost
+        discrepancy must be disclosed in transfer_gate_report.json with the
+        calibrated value and its source.
+      acceptance_criteria:
+        - >-
+          transfer_gate_report.json records C_special at the calibrated
+          Smart/MOV cost (~O(log p) ~ 20 ops at toy), not at a modeled cost
+          three orders of magnitude higher.
+        - The anomalous-family planted control evaluates to PASS (R_xfer <
+          0.7) at the calibrated cost.
+        - The calibration constant, its source, and any ± sensitivity are
+          disclosed in the report.
+    - id: FIX-5
+      title: Null plant injected into a cell with nonzero honest cost
+      defect_source: >-
+        DEC-036 RT-130-O2 / EV-IT-001 O-4: plant_detected=false because the
+        plant was injected into a zero-signal cell (C_path_reported=0,
+        C_path_recomputed=0, predicate false by construction) — the null
+        control never fired.
+      requirement: >-
+        CTRL-NULL-IT-PLANT must inject the plant into a cell whose honest
+        (unplanted) cost C_path_honest > 0, so that detection is a real
+        predicate evaluation over a nonzero baseline. The report must disclose
+        the injection cell's honest cost.
+      acceptance_criteria:
+        - >-
+          The injection cell has C_path_honest > 0 before the plant is
+          injected (recorded in null_it_isogeny_transfer_report.json).
+        - >-
+          plant_detected is evaluated over that nonzero baseline and reported
+          with the predicate inputs; a plant-in-a-zero-signal-cell injection
+          is recorded as a protocol deviation.
+    - id: FIX-6
+      title: Per-attempt x inverse-success-probability term (or explicit deterministic-only declaration)
+      defect_source: >-
+        DEC-036 RT-130-O5: no per-attempt x inverse-success-probability term
+        in the transfer accounting; R_xfer was deterministic-cost-only, so
+        under censorship the true expected transfer cost was unbounded.
+      requirement: >-
+        The transfer accounting must include a per-attempt cost x
+        (1 / p_success) term in the expected transfer cost, OR the report must
+        explicitly declare the accounting deterministic-only, stating the
+        consequence (expected transfer cost unbounded under probabilistic
+        failure, so no expected-cost comparison to matched rho is claimed).
+      acceptance_criteria:
+        - >-
+          transfer_gate_report.json contains the term
+          per_attempt_cost / p_success with p_success defined and sourced, or
+          an explicit deterministic-only declaration with the stated
+          consequence.
+        - No expected-cost comparison to matched rho is claimed in
+          deterministic-only mode.
+    - id: FIX-7
+      title: Complete durable snapshot of ALL manifest-declared paths plus HEUR_ISO_1_report.freeze.json
+      defect_source: >-
+        DEC-036 D-3/D-4: the durable snapshot archived 9 of 12
+        manifest-declared paths (missing command.txt, environment.json,
+        stdout.log, stderr.log — the only record of the crash) and
+        HEUR_ISO_1_report.freeze.json was undeclared and unarchived, so the
+        density freeze obligation (spec.v3 lines 147-151, 390-394) was not
+        certifiable.
+      requirement: >-
+        The run manifest must declare every artifact path, including
+        command.txt, environment.json, stdout.log and stderr.log, plus
+        HEUR_ISO_1_report.freeze.json. Snapshot task TASK-20260801-144 must
+        archive ALL manifest-declared paths PLUS HEUR_ISO_1_report.freeze.json
+        (command.txt, environment.json, stdout.log, stderr.log included), and
+        the post-commit receipt must cover 13 of 13 declared paths.
+      acceptance_criteria:
+        - >-
+          manifest.json artifact_paths lists all 12 paths (manifest.json,
+          raw-result.json, command.txt, environment.json, stdout.log,
+          stderr.log, summary.json, HEUR_ISO_1_report.json,
+          transfer_gate_report.json, concrete_cost_table.json,
+          null_it_isogeny_transfer_report.json, execution_report.yaml) PLUS
+          experiments/EXP-IT-001/results/HEUR_ISO_1_report.freeze.json.
+        - >-
+          TASK-20260801-144 archives every manifest-declared path plus
+          HEUR_ISO_1_report.freeze.json; the snapshot receipt covers 13/13.
+        - >-
+          HEUR_ISO_1_report.freeze.json is valid JSON and carries
+          frozen_before_path_search and rate_iso_1_pass per spec.v3
+          (lines 147-151, 390-394), written BEFORE path search.
+  hypothesis_alignment: >-
+    H-IT-001 status unchanged (`specified`). No hypothesis status transition
+    at batch open; H-DS-001, H-IC-001, H-STR-002 untouched; GOAL-ECDLP-001,
+    EV-IT-001, DEC-20260731-036 and all BATCH-028/BATCH-029 records untouched
+    by this amendment.
+  binding: >-
+    Executor TASK-20260801-143, admitted only after TASK-20260801-142 verifies
+    and all seven FIX-1..FIX-7 admission conditions hold under RC-30, MUST
+    execute against experiments/EXP-IT-001/specification.v3.yaml with this
+    repair overlay PA-IT-001-v3-rc30-repair-1-to-7.yaml. v1 and v2 remain
+    immutable historical blobs. Do not edit specification.v3.yaml.
+  no_run_authorized_at_open: true
+  no_executor_authorized_at_open: true
+  claim_ceiling: toy
+  claim_ceiling_note: >-
+    No crypto-scale, no asymptotic support, no H-DS-001 support, no S1_met, no
+    STR, no lane death, no promotion. All promotion gates OPEN. This amendment
+    and its queue assert NO measurement: they reference only the archived
+    crash evidence and the defect list in DEC-20260731-036.
+  reserved_ledger_records: >-
+    EV-IT-002 and DEC-20260801-002 are RESERVED for the BATCH-030 ledger
+    archive TASK-20260801-147 and are NOT written at batch open.
+  inference_provenance:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: opencode/deepseek-v4-flash-free
+    fallback_used: true
+    model_verified: false
+    fallback_reason: >-
+      Coordinator served on runtime opencode/deepseek-v4-flash-free;
+      coordinator-orchestration-code not attainable on this backend. Same
+      disclosure pattern as DEC-20260731-036.

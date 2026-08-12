@@ -1,0 +1,80 @@
+correction:
+  id: CORR-20260731-009
+  recorded_at: '2026-07-31'
+  record_type: archive_procedure
+  record_id: GOAL-ECDLP-001/BATCH-020/TASK-20260731-045
+  field: receipt_commit_convention_used_by_the_archiving_session
+  prior_value:
+    convention_this_batch_uses: >-
+      BATCH-020's own precedent, set by TASK-20260731-041 at commit cac4d8b4:
+      the snapshot_commit_receipt.json is written INSIDE THE SAME COMMIT as the
+      producer artifacts, with the receipt's own `commit_sha` field left NULL
+      because a file cannot contain the hash of the commit that adds it. The
+      commit SHA is bound afterwards in the queue's archive.commit_sha, which is
+      a separate coordination write. Verified by inspection: cac4d8b4's
+      name-status includes archives/TASK-20260731-041/snapshot_commit_receipt.json,
+      and that receipt records commit_sha null with parent_sha populated.
+  corrected_value:
+    what_the_archiving_session_actually_did: >-
+      TASK-20260731-045 was archived using BATCH-014's DIFFERENT convention
+      (INT-BATCH007-T): twelve producer artifacts in commit
+      61cd52621e0a53669cee8f30af145f8193838362, and the receipt in the FOLLOWING
+      commit 0d214d72, with the receipt recording the attested commit_sha
+      explicitly. Both commits are correct in themselves and both are pushed.
+  the_defect_this_creates: >-
+    NO SINGLE COMMIT CHANGES ALL THIRTEEN DECLARED PATHS, SO TASK-20260731-045
+    CANNOT BE BOUND UNDER THIS QUEUE'S CONTRACT. tools/research_dispatch.py
+    verify_archive computes expected_paths as archive.artifact_paths UNION the
+    source task's artifact_paths - here the receipt plus TASK-20260731-044's
+    twelve - and requires the bound commit to change EXACTLY that set. Commit
+    61cd5262 changes twelve of the thirteen (no receipt); commit 0d214d72 changes
+    the receipt plus four unrelated coordination paths. Binding either one fails.
+    Because TASK-20260731-046 (Validator) and TASK-20260731-047 (Red Team) both
+    declare depends_on [TASK-20260731-044, TASK-20260731-045], neither becomes
+    ready while TASK-20260731-045 is unbindable.
+  attribution: >-
+    THIS IS THE ARCHIVING SESSION'S OWN PROCEDURAL ERROR AND IS RECORDED AS SUCH.
+    It was not caused by the co-driver, by the ID remap of CORR-20260731-891, or
+    by the instrument declaration of CORR-20260731-463. The session read
+    INT-BATCH007-T in the BATCH-014 queue and applied it to BATCH-020 without
+    first checking that BATCH-020 had already chosen the opposite convention at
+    TASK-20260731-041. Checking the sibling archive in the SAME batch would have
+    caught it, and that check is the cheap one that was skipped.
+  what_is_NOT_damaged:
+    - >-
+      EVERY ARTIFACT IS COMMITTED, IMMUTABLE AND READABLE. The run package, the
+      four result files, the execution report and the instrument are at commit
+      61cd5262; the receipt is at 0d214d72. Nothing is lost and nothing needs
+      re-running. The measurement itself is unaffected.
+    - >-
+      THE QUEUE RENDERS. TASK-20260731-045 remains state `queued` with
+      archive.commit_sha null, so the dispatcher verifies nothing and refuses
+      nothing. NO FALSE BINDING WAS WRITTEN, and none may be: binding a commit
+      that does not match the declared set would be exactly the evidence-integrity
+      failure this field exists to prevent.
+    - >-
+      NO HYPOTHESIS STATUS, CLAIM TIER OR GOAL STATUS MOVES. H-DS-001 remains
+      analyzed; H-IC-001 and H-STR-002 are untouched; claim tier remains toy.
+  why_no_workaround_was_invented: >-
+    The three candidate repairs were each rejected on the merits and are recorded
+    so the next session does not re-derive them. (1) Re-committing the twelve
+    artifacts to produce a thirteen-path commit is impossible - they are already
+    committed, so a new commit changes nothing. (2) Emptying
+    archive.artifact_paths so the declared set is only the twelve is rejected by
+    the schema, which requires a nonempty text list. (3) Amending
+    TASK-20260731-046 / -047 depends_on to drop TASK-20260731-045 would delete
+    the review gate that makes the snapshot-before-review discipline meaningful,
+    to work around a bookkeeping error - a cure worse than the disease.
+  resume_options_for_the_coordinator_stated_without_choosing: >-
+    EITHER (A) a Coordinator decision re-declares TASK-20260731-045's archive over
+    the twelve-path commit 61cd5262 and re-homes the receipt declaration, which
+    requires deciding what nonempty artifact_paths that archive then carries; OR
+    (B) BATCH-020 adopts BATCH-014's rule wholesale - no archive card in the queue
+    is ever marked completed with its commit_sha bound - which makes archive
+    verification a documentary rather than a mechanical check for this batch and
+    unblocks the review chain at the cost of the automated gate. THE CHOICE IS THE
+    COORDINATOR'S AND IS NOT MADE HERE.
+  evidence_artifacts:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-045/snapshot_commit_receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-041/snapshot_commit_receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/dispatch_queue.json

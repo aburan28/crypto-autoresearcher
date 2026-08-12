@@ -221,6 +221,41 @@ class DispatchPlannerTests(unittest.TestCase):
             deferred_by_id(plan)["CHILD"], ["dependency_not_completed:PARENT:failed"]
         )
 
+    def test_failure_provenance_ledger_archive_can_preserve_failed_source(self) -> None:
+        failed = task("FAILED", 10, state="failed", role="validator")
+        successor = task("SUCCESSOR", 20, state="completed", role="validator")
+        successor["supersedes_failed_task"] = "FAILED"
+        archive = archive_task(
+            "LEDGER",
+            [failed, successor],
+            priority=90,
+            kind="ledger",
+        )
+        archive["dispatch_exception"] = {
+            "kind": "terminal_failure_provenance_archive",
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+            "successor_review_completed_independently": True,
+        }
+        plan = dispatch.select(queue(failed, successor, archive, maximum=1))
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["LEDGER"])
+        self.assertTrue(plan["gates"]["all_selected_dependencies_completed"])
+        self.assertTrue(plan["gates"]["terminal_noncompleted_tasks_do_not_unblock_successors"])
+
+    def test_failure_provenance_archive_requires_completed_independent_successor(self) -> None:
+        failed = task("FAILED", 10, state="failed", role="validator")
+        archive = archive_task("LEDGER", [failed], priority=90, kind="ledger")
+        archive["dispatch_exception"] = {
+            "kind": "terminal_failure_provenance_archive",
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+            "successor_review_completed_independently": True,
+        }
+        with self.assertRaisesRegex(
+            dispatch.DispatchError, "lacks a completed independent successor"
+        ):
+            dispatch.select(queue(failed, archive, maximum=1))
+
     def test_running_task_consumes_a_slot(self) -> None:
         running = task("RUNNING", 1, state="running")
         ready = task("READY", 90)
@@ -510,6 +545,32 @@ class DispatchPlannerTests(unittest.TestCase):
         first = dispatch.select(copy.deepcopy(source))
         second = dispatch.select(copy.deepcopy(source))
         self.assertEqual(first["plan_sha256"], second["plan_sha256"])
+
+
+class InferencePolicyTests(unittest.TestCase):
+    """The optional `inference` block is checked against the policy contract."""
+
+    def check(self, policy: Any, role: str) -> None:
+        dispatch.validate_inference({"inference": {"policy": policy}}, role,
+                                    "queue.tasks[0].handoff")
+
+    def test_absent_block_is_accepted(self) -> None:
+        dispatch.validate_inference({}, "executor", "queue.tasks[0].handoff")
+
+    def test_legacy_alias_is_accepted(self) -> None:
+        self.check("review-xhigh", "validator")
+
+    def test_unknown_policy_is_rejected(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "unknown inference policy"):
+            self.check("research-sol-maxx", "idea-generator")
+
+    def test_reviewer_needs_an_independent_session_policy(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "independent session"):
+            self.check("research-deep", "validator")
+
+    def test_worker_may_not_take_a_state_changing_policy(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "may change official"):
+            self.check("coordinator-orchestration", "executor")
 
 
 if __name__ == "__main__":

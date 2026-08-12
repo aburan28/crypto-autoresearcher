@@ -1,0 +1,1025 @@
+red_team_report:
+  id: RT-20260802-96d908
+  task_id: TASK-20260802-96d908
+  goal_id: GOAL-P13-001
+  batch_id: BATCH-002
+  role: red-team
+  independent_session: true
+  originator_of_claim: false
+  timestamp: "2026-08-02"
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: "claude-opus-5"
+    resolved_model_binding: >
+      Claude Code subagent defined by .claude/agents/red-team.md carrying
+      'model: inherit'; the session resolved it to claude-opus-5. The backend
+      identifier is reported by the runtime context, not by an adapter probe.
+    model_verified: false
+    model_verified_reason: >
+      'python3 -m orchestration.adapter doctor --probe' cannot verify a Claude
+      Code subagent binding and no probe was performed by this task. Recorded
+      as unverified rather than asserted (AGENTS.md, artifact policy).
+    fallback_used: true
+    fallback_reason: >
+      Claude Code cannot resolve the GPT-5.6 policy aliases in
+      orchestration/model-policies.yaml; .claude/agents/*.md carry
+      'model: inherit' (CLAUDE.md, "Model policy note").
+    degraded_allowed: true
+    inference_amendment: INFAMEND-20260802-P13-002
+    degraded_requirements:
+      - >
+        review-adversarial requires reasoning_effort: xhigh; under this harness
+        the resolved model's effort tier cannot be set or verified per task, so
+        the requirement is recorded as UNVERIFIED rather than asserted as met.
+      - >
+        executor-implementation requires reasoning_effort: medium; same
+        unverifiability. Carried here because INFAMEND-20260802-P13-002 records
+        it for the whole of BATCH-002.
+    not_degraded:
+      - >
+        independent_session_required is genuinely satisfied: this session did
+        not produce the contract, the implementation, or the run package.
+    consequence: >
+      This report may not be counted as a review-breakthrough-tier review,
+      which is non-degradable (AGENTS.md, "Model policy").
+
+  snapshot_reviewed:
+    run_package_commit: 49166fa5
+    frozen_contract_commit: 0e773e9a
+    head_at_review: 07026077
+    working_tree_check: >
+      `git diff --stat 49166fa5 -- experiments/EXP-PEC-6be870/` and
+      `git diff --stat HEAD -- experiments/EXP-PEC-6be870/` both returned empty.
+      Every artifact reviewed below is the committed snapshot, not working-tree
+      drift. No working-tree-only artifact was accepted as evidence.
+
+  materials_read_this_session:
+    - experiments/EXP-PEC-6be870/specification.yaml (frozen contract, full)
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/raw-result.json (full, programmatically)
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/execution_report.yaml (targeted sections)
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/manifest.yaml (status, inference, result)
+    - experiments/EXP-PEC-6be870/implementation/per_entry_cost.py (root-finding pipeline, poly_powmod, measure_primary)
+    - experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/raw-result.json (model formulas, per_field, vOW grid)
+    - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md (Algorithm 1, Lemma 3.2/3.3 + footnote, Algorithm 2, Section 4.1, Section 4.2)
+    - coordination/tasks/TASK-20260724-P13-RT/red_team_report.yaml (own prior objections RT-C1, RT-C2, RT-S1)
+    - AGENTS.md, agents/red-team.md, coordination/goals/GOAL-P13-001/batches/BATCH-002/dispatch_queue.json
+  external_sources_retrieved_this_session: none
+  recomputation_note: >
+    Every quantity labelled "RT2 recomputation" below was computed in this
+    session by re-fitting the committed per-ell arrays in
+    raw-result.json with an independently written OLS routine. It is my own
+    derived analysis of committed data, not a new run and not a measurement.
+    Nothing here is quoted from recollection except where explicitly labelled.
+
+  claim_under_review: >
+    That RUN-PEC-6be870-a's measured per-entry exponent gamma_reported =
+    [0.8691, 0.9783] (W-MID point 0.9739), extrapolated under the
+    pre-registered law c = gamma * log2(B_opt) / sqrt(log2 p), yields
+    c = 0.771 / 0.864 / 0.868 at NIST-I and therefore moves the concrete
+    NIST-I question by roughly halving the overhead exponent that RT-C1
+    calibrated at c ~ 1.78-1.88.
+
+  overall_verdict: >
+    The RUN IS A HIGH-QUALITY MEASUREMENT AND ITS HEADLINE IS THE WRONG
+    QUANTITY. The controls, the instrumentation, the provenance battery, and
+    the executor's honesty are all better than the interpretation resting on
+    them. Two defects are decisive and both are in the inference layer, not the
+    data layer: (1) the pre-registered law measures only the ell-SCALING of the
+    per-entry overhead and discards the intercept, and the run's own null
+    object proves the law returns c ~ 0 for an object measured at 2^12.3
+    F_{p^2}-multiplications per entry; (2) the primary series is
+    compositionally inhomogeneous across ell = 101/103, and the headline
+    gamma = 0.9739 EXCEEDS BOTH of its homogeneous constituents (IMPL-A alone
+    0.9332, IMPL-B alone 0.7929), which no genuine exponent can do. Correcting
+    (1) alone moves c at NIST-I from 0.864 to ~1.59 and the modelled NIST-I
+    margin from 20.4 to 8.8 bits at w = 2^30. My own prior RT-C1 fares no
+    better and I retract part of it below: its gamma = 2 rested on an
+    arithmetic error, and the run's own homogeneous local slope is flat at
+    ~0.94 from ell = 17 to ell = 197 with no acceleration whatever.
+
+  # ==================================================================
+  # OBJECTIONS, RANKED BY SEVERITY
+  # ==================================================================
+  objections:
+
+    - id: RT2-C1
+      rank: 1
+      severity: critical
+      target: >
+        The pre-registered extrapolation law c = gamma * log2(B_opt) /
+        sqrt(log2 p), and every c value in raw-result.json extrapolation.rows.
+      claim_challenged: >
+        That c = 0.864 at NIST-I is the overhead the run measured.
+      body: >
+        THE LAW MEASURES THE SLOPE AND DISCARDS THE LEVEL. Paper Section 4.1
+        (frozen text, line 230) assumes "constructing a table costs a single
+        F_{p^2}-operation per entry". The overhead multiplier over that
+        assumption is therefore the FULL measured per_entry at ell = B_opt,
+        i.e. A * B_opt^gamma, and in bits it is log2(A) + gamma*log2(B_opt).
+        The contract's derivation (specification.yaml,
+        derivation_of_the_law) sets the table-cost multiplier equal to
+        B_opt^gamma = 2^{gamma*log2 B_opt}, which silently sets A = 1. The run
+        measured A directly: the W-MID intercept is 8.9241 bits, i.e.
+        A = 2^8.92 = 486 F_{p^2}-multiplications per entry at ell = 1,
+        p ~ 2^40. Nine bits of measured, ell-independent overhead are dropped
+        by the law before c is computed.
+        THE RUN'S OWN NULL OBJECT FALSIFIES THE LAW AS A MEASURE OF OVERHEAD.
+        C-NULL builds tables whose per-entry cost is O(1) in ell BY
+        CONSTRUCTION and measures per_entry_null = 5118.83 at ell = 2 and
+        4903.13 at ell = 101, i.e. 2^12.32 and 2^12.26 F_{p^2}-multiplications
+        per entry (raw-result.json, controls.C-NULL.flatness_*). gamma_null =
+        -0.0132, so the pre-registered law returns c_null =
+        -0.0132*14.2/16 = -0.0118 ~ 0. The law therefore reports "no overhead"
+        for an object the same run measured at 2^12.3 operations per entry
+        against the paper's assumed 2^0. That is not a marginal calibration
+        issue; it is a demonstration, internal to the run, that c as defined
+        cannot represent the quantity the NIST-I margin needs.
+        MAGNITUDE (RT2 recomputation, from the committed W-MID fit and the
+        committed vOW model): at NIST-I, log2 B_opt = 14.2, sqrt(log2 p) = 16,
+        log2T_full = 108.7309, T_DG = 2^128.
+          law as reported          : overhead 13.83 bits, c = 0.864, margin@w=2^30 = 20.44 bits
+          + measured intercept     : overhead 22.75 bits, c = 1.422, margin@w=2^30 = 11.52 bits
+          + intercept scaled to p  : overhead 25.43 bits, c = 1.589, margin@w=2^30 =  8.84 bits
+        The intercept scaling is not a guess: per_entry_cost.py computes roots
+        as gcd(x^{p^2} - x, f) via poly_powmod with exponent Q = p*p, whose
+        binary loop runs log2(p^2) = 2*log2(p) iterations, plus
+        Cantor-Zassenhaus splittings at exponent (Q-1)/2. The cost is therefore
+        LINEAR IN log2 p at fixed ell, so A(2^256)/A(2^40) = 256/40 = 6.4,
+        i.e. +2.678 bits. This is read off the committed implementation, not
+        recalled.
+        DIRECTION: this objection is anti-attack. It roughly doubles the
+        modelled overhead exponent relative to the reported c and cuts the
+        modelled NIST-I margin by 11.6 bits.
+      cheapest_discriminating_control: >
+        Zero new compute. Recompute the extrapolation under the corrected law
+        c = [log2(A) + gamma*log2(B_opt)] / sqrt(log2 p) using the intercepts
+        ALREADY IN raw-result.json (fit.windows.*.intercept), and report both
+        the law-as-frozen value and the corrected value side by side. The
+        frozen contract must not be edited; this belongs in a superseding
+        analysis record. Discriminating check that the correction is the right
+        one: apply the corrected law to C-NULL and confirm it returns
+        c_null = 12.3/16 = 0.77 rather than 0.
+      what_the_quantity_should_have_done: >
+        The parameter meant to destroy a genuine ell-driven overhead is ell
+        itself going to 1. Under the reported law the overhead vanishes there.
+        Under measurement it does not: it converges to 2^8.9. A quantity that
+        fails to decay when the parameter meant to destroy it is removed is the
+        artifact tell of docs/inventor-protocol.md section 3, applied here to
+        the ESTIMATOR rather than to the signal.
+
+    - id: RT2-C2
+      rank: 2
+      severity: high
+      target: >
+        gamma_reported = [0.8691, 0.9783], the W-MID point estimate 0.9739, the
+        W-TOP slope 0.9735, and the curvature declaration
+        single_exponent_model_misspecified = true with
+        gamma_local_top = 1.1706.
+      claim_challenged: >
+        That 0.9739 is a measured per-entry exponent of anything, and that the
+        positive curvature is evidence about the top of the range.
+      body: >
+        THE PRIMARY SERIES IS NOT ONE SERIES. The contract's carry_forward_rule
+        sets primary per_entry(ell) = min over implementations. The committed
+        cost_ratio_A_over_B shows IMPL-B (Karatsuba) is the minimum at EVERY
+        ell >= 17, with the ratio rising monotonically 1.081 (ell = 17) ->
+        1.2954 (ell = 101). IMPL-B was run over the core grid only, so the
+        primary series is min(A,B) for 11 <= ell <= 101 and IMPL-A ALONE for
+        103 <= ell <= 211. Losing IMPL-B at ell = 103 imposes a pure upward
+        level shift of log2(1.2954) = 0.373 bits that has nothing to do with
+        ell-scaling, sitting one third of the way along a 4.26-octave window.
+        THE TELL: the headline exceeds both constituents. RT2 recomputation on
+        the committed medians, same estimator, same W-MID window:
+          IMPL-A alone, ell >= 11 (full range 11..211) : gamma = 0.9332
+          IMPL-B alone, ell 11..101                    : gamma = 0.7929
+          IMPL-A alone, ell 11..101                    : gamma = 0.9179
+          PRIMARY min(A,B), ell >= 11  (REPORTED)      : gamma = 0.9739
+        A minimum of two power laws cannot have a larger exponent than either
+        one. 0.9739 > 0.9332 and 0.9739 > 0.7929 is only possible because the
+        composition changes inside the window. The headline is a Simpson-type
+        composition artifact, not an exponent.
+        THE CURVATURE IS THE SAME ARTIFACT. RT2 recomputation of rolling
+        8-point local slopes:
+          ell   2.. 19  primary +0.7403   IMPL-A +0.7692   [min(A,B)]
+          ell  29.. 59  primary +0.7989   IMPL-A +0.9411   [min(A,B)]
+          ell  53.. 83  primary +0.7129   IMPL-A +0.9331   [min(A,B)]
+          ell  67..103  primary +1.2263   IMPL-A +0.9386   [MIXED]
+          ell  79..113  primary +1.7817   IMPL-A +0.9424   [MIXED]
+          ell 101..137  primary +1.3259   IMPL-A +0.9642   [MIXED]
+          ell 109..151  primary +0.9503   IMPL-A +0.9503   [A only]
+          ell 163..197  primary +0.9718   IMPL-A +0.9718   [A only]
+        The apparent acceleration is confined EXACTLY to the three MIXED
+        windows that straddle ell = 101. On the homogeneous IMPL-A series the
+        local slope is flat at 0.93-0.97 from ell = 17 through ell = 197 and
+        shows no acceleration at all. The contract's misspecification rule
+        therefore fired on a composition artifact, and gamma_local_top = 1.1706
+        is not evidence that the exponent is rising.
+        THE QUADRATIC IS NOT STABLE ENOUGH TO EXTRAPOLATE EITHER WAY. RT2
+        recomputation of the same quadratic diagnostic on nested windows:
+          W-ALL (ell>=2)   c = +0.04881  local slope at top 1.171
+          W-MID (ell>=11)  c = +0.08410  local slope at top 1.290
+          ell >= 23        c = +0.10161  local slope at top 1.335
+          ell >= 43        c = +0.04427  local slope at top 1.228
+          ell >= 101       c = -0.29506  local slope at top 0.724
+        The sign of c flips on the top half of the data. A diagnostic whose
+        extrapolated local slope ranges over [0.72, 1.34] with the window
+        cannot support a 6.5-octave extrapolation in either direction. This is
+        the honest answer to the question posed in my task brief: the curvature
+        is NOT evidence that the exponent is still rising toward 2 at ell ~
+        2^14, and I decline to make that argument.
+      cheapest_discriminating_control: >
+        Run IMPL-B over the extension grid 103..211 (4 samples each) under the
+        identical harness and seeds. The core grid at 8 samples took a
+        measurable fraction of a 3600 s window and the extension at 4 samples
+        already completed once, so this is a single-digit-hour successor run.
+        Pre-register the test: if the composition explanation is right, the
+        min(A,B) slope over ell >= 11 must FALL to at or below gamma_A = 0.9332
+        once IMPL-B covers the whole range, and the W-ALL quadratic c must move
+        toward zero. Cheaper still and worth doing first at zero compute:
+        report gamma_A and gamma_B as the primary homogeneous pair and demote
+        min(A,B) to a diagnostic.
+
+    - id: RT2-C3
+      rank: 3
+      severity: high
+      target: >
+        The transfer of a p ~ 2^40 measurement to log2 p in {256, 384, 512,
+        576, 768} under a law whose only p-dependence is the divisor
+        sqrt(log2 p).
+      claim_challenged: >
+        That the experiment constrains c(p) at cryptographic p.
+      body: >
+        c IS A FUNCTION OF p AND p WAS NOT VARIED. The design varied ell over
+        46 values and j over 8, and held p at a single value: the largest prime
+        below 2^40 congruent to 3 mod 4. The p-axis has n = 1. Every NIST-level
+        row in extrapolation.rows is therefore an extrapolation along an axis
+        on which the experiment has no leverage whatsoever, and no bootstrap,
+        jackknife, or window-union interval in the run quantifies that.
+        THE LAW'S p-DEPENDENCE HAS THE WRONG SHAPE. The law makes c decrease in
+        p at fixed gamma*log2 B_opt because it divides by sqrt(log2 p), while
+        the measured object's per-entry cost is LINEAR in log2 p (poly_powmod
+        at exponent Q = p*p; see RT2-C1). The overhead in bits is
+        log2(A_0) + log2(log2 p) + gamma*log2(B_opt), and the middle term is
+        exactly the term the law omits. This is not a small correction at
+        cryptographic scale: it is +2.678 bits going from p = 2^40 to p = 2^256
+        and +4.26 bits at p = 2^768.
+        This objection is independent of RT2-C1: even a reviewer who accepts
+        that the intercept should be dropped must still confront the fact that
+        the retained ell-scaling was measured at one prime and that its own
+        prefactor demonstrably moves with p.
+      cheapest_discriminating_control: >
+        Three-point p sweep with a deliberately tiny ell grid. Re-run the
+        identical harness at p just below 2^20, 2^30 and 2^40 with
+        ell in {11, 23, 47, 101} and 4 samples each, and fit
+        log2 per_entry = alpha*log2(log2 p) + gamma*log2(ell) + const. The
+        predicted alpha is 1 (cost linear in log2 p). Cost: far below the
+        original run, because the dominant term is 2*log2(p) squarings and both
+        the field and the grid shrink. Any alpha significantly different from 1
+        is a finding about the implementation; alpha = 1 confirmed is what
+        licenses the +2.678-bit correction in RT2-C1 scenario (3).
+
+    - id: RT2-C4
+      rank: 4
+      severity: high
+      target: >
+        Declared assumption L4, and non_claims bullet 4: gamma is a property of
+        this pure-Python implementation pair; batched Sutherland-type modular
+        polynomial evaluation is not implemented.
+      claim_challenged: >
+        That L4 is a caveat. It is the dominant term, and the task brief is
+        right that this is the strongest anti-result attack available.
+      body: >
+        THE MEASURED EXPONENT IS THE POLYNOMIAL-MULTIPLICATION EXPONENT MINUS
+        ONE, AND NOTHING ELSE. Structurally, from the committed pipeline:
+        cost(ell) ~ [2*log2(p^2) exponentiation steps + O(log ell) CZ
+        splittings] * M(ell), where M is the polynomial multiplication routine;
+        per_entry = cost/(ell+1) ~ log2(p) * M(ell)/ell. So
+        gamma = exponent(M) - 1. The run confirms this internally and it is the
+        only prediction in the whole report that both implementations test:
+          M schoolbook, exponent 2      -> predicted gamma 1.000, measured 0.9332
+          M Karatsuba,  exponent 1.585  -> predicted gamma 0.585, measured 0.7929
+        Karatsuba has realised only about 30% of its asymptotic advantage by
+        ell = 101, which is exactly what a crossover-limited Karatsuba does at
+        degree ~100; the measured gamma_A - gamma_B = 0.125 over the common
+        range 11..101 against an asymptotic 0.415 is the quantitative form of
+        that. With quasi-linear multiplication (FFT or Kronecker substitution),
+        exponent(M) -> 1 + o(1) and gamma -> 0 up to polylog, which is exactly
+        the (B + log p)^{O(1)} that Lemma 3.3 declines to pin down and
+        approximately what Section 4.1's one-operation-per-entry convention
+        assumes up to the constant that RT2-C1 restores.
+        QUANTIFIED, AS THE BRIEF REQUIRES. The ell-dependent part of the
+        modelled NIST-I overhead is gamma*14.2 bits:
+          schoolbook  gamma 0.9332  -> 13.25 bits
+          Karatsuba   gamma 0.7929  -> 11.26 bits (asymptotic 0.585 -> 8.31)
+          quasi-linear/batched      ->  ~0 bits + polylog
+        A competent optimisation can therefore remove UP TO 13.25 of the 25.43
+        bits of intercept-corrected NIST-I overhead, i.e. about 54% of it, and
+        would raise the modelled NIST-I margin at w = 2^30 from 8.84 bits to
+        22.67 bits. That single unimplemented routine is worth more bits than
+        the entire measured gamma, more than the entire c-scenario family the
+        run was built to collapse, and roughly four times the +-3.51-bit
+        irreproducibility band. The frozen paper's own Lemma 3.3 footnote names
+        this route and credits the suggestion to Damien Robert, so it is not a
+        speculative escape hatch invented by the red team; it is the paper's
+        stated expectation about how the list would actually be populated.
+        DIRECTION: pro-attack, and it dominates. Stated plainly as the brief
+        requires: a measured gamma from an unoptimised implementation is an
+        UPPER bound on the achievable per-entry exponent, so the run's headline
+        is anti-attack by construction and cannot be used to argue that the
+        attack is more expensive than the paper claims.
+        UNVERIFIED RECOLLECTION, FLAGGED AND NOT RELIED ON: I recall a
+        sqrt-elu style isogeny evaluation with cost about O~(sqrt(ell)) per
+        ell-isogeny, which if applicable would give gamma ~ 0.5 by a different
+        route than batched modular polynomials; I did not retrieve a source
+        this session, and its applicability here is doubtful because it needs
+        ell-torsion over a small extension. It is recorded as a recollection
+        and no number above depends on it.
+      cheapest_discriminating_control: >
+        Do not implement FFT. Implement Kronecker substitution only: pack
+        F_{p^2}[x] products into big-integer multiplications and let CPython's
+        int multiplication (Karatsuba above ~70 limbs) do the work, counting
+        the equivalent F_{p^2}-multiplications by the declared conversion. This
+        is a one-routine change to MULFN in per_entry_cost.py, reuses the whole
+        harness and every control, and measures a third point on the
+        exponent(M) -> gamma curve. Pre-register the prediction gamma_C <
+        gamma_B < gamma_A. If gamma_C comes in near 0.3-0.5, the honest
+        headline of this whole line of work becomes "the per-entry exponent is
+        an implementation parameter in [0, 0.93], not a constant of Algorithm
+        1", and the c-calibration programme should be re-scoped accordingly.
+
+    - id: RT2-C5
+      rank: 5
+      severity: medium-high
+      target: >
+        W-TOP (ell 173..211, n = 8, R^2 = 0.9995, max |residual| 0.0032 bits,
+        bootstrap CI [0.9646, 0.9783]) and its role as the upper end of
+        gamma_reported.
+      claim_challenged: >
+        That the cleanest-looking window is the most trustworthy one.
+      body: >
+        THE STRONGEST-LOOKING FIT SITS ENTIRELY IN THE UNCONTROLLED REGION, AT
+        HALF THE SAMPLE DENSITY, ON A NEGLIGIBLE LEVER ARM. Three facts, all
+        from the committed record:
+        (a) NULL COVERAGE. controls.C-NULL.per_ell_per_entry covers exactly
+        ell in {2,...,101}, 25 values. Every W-TOP ell (173, 179, 181, 191,
+        193, 197, 199, 211) lies OUTSIDE it. The contract's own void clause
+        says a primary measurement that C-NULL cannot cover "may not be cited
+        as a measured exponent by any downstream record". The executor
+        disclosed the coverage gap honestly (execution_report line 311) but the
+        gap is load-bearing: the window that supplies the HIGH end of
+        gamma_reported is the window with no null-object control.
+        (b) SAMPLE DENSITY. W-TOP ell carry 4 IMPL-A samples each; core ell
+        carry 8 IMPL-A plus 8 IMPL-B. The cluster bootstrap is defined over 8
+        j-indices; at extension ell only the first 4 pool members exist. The
+        W-TOP bootstrap completed 1991 of 2000 replicates rather than 2000
+        (fit.windows.W-TOP.bootstrap_replicates), a 9-replicate shortfall the
+        record does not explain. Small, but it is an unexplained deviation in
+        the estimator that produced the reported upper bound.
+        (c) LEVER ARM. W-TOP spans log2(211) - log2(173) = 0.286 octaves. It is
+        used to characterise behaviour 6.48 octaves further out at
+        log2 B_opt = 14.2, a ratio of 22.6 lever arms. Its R^2 = 0.9995 and
+        0.0032-bit residuals are not precision about the world; they are the
+        signature of a deterministic instruction counter fitted over a range
+        too narrow to bend. The contract anticipated exactly this when it wrote
+        that "with a near-deterministic counter the sampling CI understates the
+        real uncertainty", and then still let W-TOP set the interval's high end.
+      cheapest_discriminating_control: >
+        Extend C-NULL over the identical extension grid 103..211 at 4 samples
+        each. The null is 2-isogeny steps only, so its per-sample cost is
+        independent of ell and this is the cheapest measurement in the whole
+        design - materially cheaper than the primary samples at those ell.
+        Pre-register the pass criterion already in the contract
+        (|gamma_null| <= 0.15 and CI containing 0) applied to the extension
+        range alone. Until that exists, W-TOP should be reported as
+        UNCONTROLLED and should not set the high end of gamma_reported.
+
+    - id: RT2-C6
+      rank: 6
+      severity: medium
+      target: >
+        My own prior RT-C2, and the vOW interpolation
+        T(w) = T_full / sqrt(min(w, M)) that gives +0.5 bits of margin per bit
+        of memory at zero access cost. This experiment excludes hashing, table
+        insertion and table lookup entirely (specification.yaml,
+        excluded_costs_and_their_direction, declared attack-favourable).
+      claim_challenged: >
+        My prior claim that table access is "the binding constraint" and that
+        the model's memory scaling is void.
+      body: >
+        I AM CORRECTING MY OWN PRIOR OBJECTION IN THE ATTACK'S FAVOUR AT SMALL
+        w AND SHARPENING IT AT LARGE w. At NIST-I an F_{p^2} multiplication is
+        a handful of 256-bit modular multiplications; a random access into a
+        2^30-entry table is a DRAM miss. On any commodity machine those are the
+        same order of magnitude. So at w = 2^30 the excluded table access is
+        worth roughly 0 to 1 bit per entry, NOT the large beta I implied in
+        RT-C2, and its exclusion does NOT materially bias the 8.84-bit margin
+        computed under RT2-C1 scenario (3). RT-C2 as written overstated this
+        at the memory sizes where the margin is actually evaluated.
+        WHERE RT-C2 SURVIVES, AND SHARPER THAN BEFORE: the model credits
+        +0.5*log2(w) bits of margin for memory, uniformly, with no access cost.
+        Real access latency is a staircase - cache, DRAM, local flash, network
+        - and going from a 2^30-entry DRAM table to a 2^50-entry distributed
+        table is roughly three to four orders of magnitude of latency, i.e.
+        about 10-13 bits, against the 10 bits of margin the model hands back
+        over that same range. To first order the memory axis is FLAT, not
+        +0.5 bits per bit. The operational consequence is narrow and testable:
+        every margin statement should be quoted at w = 2^30 and the larger-w
+        rows should not be read as improvements. That is a smaller claim than
+        RT-C2 made and I am replacing RT-C2's version with it.
+        These latency figures are engineering common knowledge and I did not
+        retrieve a citation this session; they are used only to argue that two
+        effects roughly cancel, and no numeric margin above depends on them.
+      cheapest_discriminating_control: >
+        Unchanged from NC-4 and still unrun: add a per-table-access cost of
+        2^beta F_{p^2}-ops with beta in {0, 5, 10} to the existing
+        cost_model.py of EXP-WESOVOW-001 and recompute the w grid, with beta
+        tied to w by a declared staircase rather than held constant. Hours of
+        work, no new mathematics. Calibrate beta from the measured scaling in
+        the paper's own references [3] and [16] (bibliographic subtask, still
+        not done in this programme).
+
+    - id: RT2-C7
+      rank: 7
+      severity: medium
+      target: >
+        The comparison itself: attack overhead is charged in measured
+        F_{p^2}-multiplications while T_DG = 2^{log2p/2} is charged at one
+        F_{p^2}-operation per step with no constant.
+      claim_challenged: >
+        That subtracting a measured per-entry overhead from a nominal baseline
+        yields a margin.
+      body: >
+        THIS OBJECTION FAVOURS THE ATTACK AND I RAISE IT BECAUSE MY MANDATE
+        REQUIRES BOTH DIRECTIONS. The whole NC-2 programme replaces the
+        attack's idealised one-operation-per-entry convention with a measured
+        cost, while leaving the Delfs-Galbraith baseline at the identical
+        idealised convention it was always quoted under. A DG step is an
+        isogeny walk step plus a subfield test, which is many F_{p^2}
+        operations, not one. Charging realism to one side of a comparison and
+        not the other is a biased protocol regardless of which side benefits,
+        and here it is systematically anti-attack: it inflates every overhead
+        bit in the tables above.
+        BOUNDING IT HONESTLY: a DG step is plausibly 2^5 to 2^7 F_{p^2}-ops, so
+        symmetric realism would return 5-7 bits to the attack's margin, against
+        the 25.4 bits the corrected law charges it. The asymmetry is real and
+        it is NOT large enough to overturn any sign conclusion here - but it is
+        the same order as the entire irreproducibility band, so it must be
+        carried explicitly rather than left as an unstated convention. I
+        deliberately do NOT apply this correction to any margin number in this
+        report, because I have no measurement of it; it is recorded as a
+        one-sided bias of known sign and unmeasured magnitude.
+      cheapest_discriminating_control: >
+        Symmetric instrumentation. Point the SAME counting harness at a
+        Delfs-Galbraith step: one 2-isogeny walk step plus one subfield test at
+        the same p ~ 2^40, counting F_{p^2}-multiplications by the identical
+        instrument. The walk machinery already exists in per_entry_cost.py
+        (walk_pool) and its counters are already reset and discarded - the
+        measurement is nearly free and was thrown away by this run. Report the
+        margin as a difference of two MEASURED per-step costs, never as
+        measured-minus-nominal.
+
+    - id: RT2-C8
+      rank: 8
+      severity: low
+      target: >
+        Completion-gate status; assumption L2 and the secondary kappa.
+      claim_challenged: >
+        Housekeeping items that do not change a headline but must not be lost.
+      body: >
+        (a) THE CORE GRID WAS NOT DELIVERED. ell = 97 was dropped by a fetch
+        obstruction on phi_j_97.txt (curl 35, connection reset), so 25 of 26
+        required core ell were measured and core_grid_complete = false. The
+        contract's success_criterion requires the full 26 at 8 samples. 1/26 =
+        3.8% is far below the 25% INCOMPLETE threshold, and the executor
+        recorded the gate as NOT MET explicitly and substituted no value, which
+        is the correct handling. Per AGENTS.md rule 5 this is an infrastructure
+        outcome and not mathematical evidence. It is recorded here only so that
+        no downstream record describes this run as having met its completion
+        gate, because it did not.
+        (b) kappa RESTS ON TWO PRIMES. secondary_L2_kappa is computed from
+        exhaustive builds at B = 2 and B = 3 only; at B = 2 kappa = 1 is forced
+        by there being a single prime, and the entire non-trivial content is
+        two rows at B = 3 (kappa 0.9235, 0.9215). Transferring that 12 octaves
+        to B_opt ~ 2^14.2 is a scale transfer with n = 1 informative point. The
+        run labels it SECONDARY and declares the transfer untested, which is
+        adequate. My own analytic estimate under an equal-entries-per-prime
+        model puts the correction at about -1 bit (entry-weighted mean of
+        ell^gamma ~ B^gamma/(gamma+1)), i.e. small and attack-favourable; I
+        flag it as my derivation under a stated model, not a measurement.
+        c_kappa should not be cited as a measured refinement.
+      cheapest_discriminating_control: >
+        (a) Retry the Phi_97 fetch in a scoped successor; the same URL
+        succeeded earlier in the same session, so this is transient. (b) Push
+        the exhaustive C-BASE.4-style build to B = 7 and B = 13, which brings
+        the number of informative primes from 1 to 5 and costs seconds.
+
+  # ==================================================================
+  # WHAT I RETRACT AND WHAT I KEEP FROM MY OWN PRIOR REPORT
+  # ==================================================================
+  self_correction_of_prior_red_team_positions:
+    - prior_id: RT-C1
+      disposition: PARTIALLY RETRACTED - arithmetic error identified
+      body: >
+        RT-C1 step (b) reasoned that "per-entry cost ~ (degree-ell evaluation +
+        root-finding)/(ell+1) ... with O(1) >= 2 realistically", and step (c)
+        then calibrated 2^{c*sqrt(log2 p)} >= B_opt^2, i.e. gamma = 2. Those
+        two steps are inconsistent with each other: step (b) correctly divides
+        by ell+1 and step (c) then charges ell^2 PER ENTRY anyway. Lemma 3.3 of
+        the frozen paper amortises explicitly over "each batch of (<=) ell + 1
+        new entries", and the run's committed samples confirm entries(ell) =
+        ell + 1 for ell >= 3 (and ell for ell = 2, the non-backtracking
+        convention). Under schoolbook arithmetic the per-BATCH cost is ~ell^2
+        and the per-ENTRY cost is ~ell, so the correct naive calibration is
+        gamma = 1, which is precisely what the contract pre-registered and what
+        the homogeneous IMPL-A series measured (0.9332). RT-C1's gamma = 2 was
+        off by exactly one factor of ell.
+        RT-C1 additionally quoted the c = 2.0 margin row (2.27 bits) as its
+        headline while its own derivation supported only c >= 1.78, whose row
+        is 5.87 bits. That overstated the objection by 3.6 bits.
+        WHAT SURVIVES, AND IT IS THE LOAD-BEARING HALF: RT-C1's core assertion
+        was that c = 0 is not a neutral default and that the omitted per-entry
+        work is UNMEASURED rather than small. That is now confirmed and
+        strengthened, but through the INTERCEPT (RT2-C1) rather than through
+        the exponent. Intercept-corrected, c at NIST-I is 1.42 to 1.59 under
+        the linear model and 1.80 under the quadratic - numerically almost
+        exactly RT-C1's 1.78-1.88, arrived at for an entirely different and
+        better-supported reason. I flag that coincidence explicitly so that
+        nobody reads it as confirmation of the original argument. It is not.
+    - prior_id: RT-C2
+      disposition: NARROWED
+      body: >
+        See RT2-C6. Table access is not the binding constraint at w = 2^30 with
+        256-bit field arithmetic; my prior framing overstated it there. What
+        survives is narrower and sharper: the model's free +0.5 bits of margin
+        per bit of memory is approximately cancelled by real latency growth
+        beyond DRAM, so margins should be quoted at w = 2^30 and the larger-w
+        rows should not be read as improvements.
+    - prior_id: RT-S1
+      disposition: PARTIALLY WEAKENED, NOT WITHDRAWN
+      body: >
+        See adjudication below. The specific sub-claim that "the NIST-I margin
+        is within a few bits of zero under defensible constant-factor
+        calibrations" is no longer supported and should be retired. The general
+        position - that no scope statement stronger than the paper's own
+        abstract hedge is supported - stands, for reasons that are now
+        different and narrower than in July.
+
+  # ==================================================================
+  # THE ARITHMETIC THE BRIEF ASKED FOR
+  # ==================================================================
+  nist1_margin_arithmetic:
+    method: >
+      RT2 recomputation. All inputs are committed constants: log2T_full =
+      108.7309 and T_DG = 2^128 and log2 B_opt = 14.2 from
+      RUN-WESOVOW-001/raw-result.json per_field."log2p=256"; the fit intercepts
+      and slopes from RUN-PEC-6be870-a/raw-result.json fit.windows and
+      fit.curvature. margin(w) = 128 - (108.7309 - 0.5*log2(w) + overhead_bits),
+      i.e. the committed model's own vOW interpolation with the overhead
+      applied as the model applies it.
+    rows:
+      - scenario: "paper Section 4.1 convention, per_entry = 1"
+        overhead_bits: 0.00
+        c_equivalent: 0.000
+        margin_w2e30_bits: 34.27
+        margin_w2e40_bits: 39.27
+      - scenario: "PRE-REGISTERED LAW as reported (gamma_W-MID = 0.9739)"
+        overhead_bits: 13.83
+        c_equivalent: 0.864
+        margin_w2e30_bits: 20.44
+        margin_w2e40_bits: 25.44
+      - scenario: "law + measured intercept (full per_entry at p = 2^40)"
+        overhead_bits: 22.75
+        c_equivalent: 1.422
+        margin_w2e30_bits: 11.52
+        margin_w2e40_bits: 16.52
+      - scenario: "law + intercept scaled to p = 2^256  [RT2 PREFERRED LINEAR READING]"
+        overhead_bits: 25.43
+        c_equivalent: 1.589
+        margin_w2e30_bits: 8.84
+        margin_w2e40_bits: 13.84
+      - scenario: "quadratic W-ALL + p-scaled intercept (most pessimistic construction from this data)"
+        overhead_bits: 28.87
+        c_equivalent: 1.804
+        margin_w2e30_bits: 5.40
+        margin_w2e40_bits: 10.40
+      - scenario: "RT-C1 prior calibration c = 1.78, law-only"
+        overhead_bits: 28.40
+        c_equivalent: 1.775
+        margin_w2e30_bits: 5.87
+        margin_w2e40_bits: 10.87
+      - scenario: "quasi-linear / batched evaluation, gamma -> 0, p-scaled intercept only"
+        overhead_bits: 11.60
+        c_equivalent: 0.725
+        margin_w2e30_bits: 22.67
+        margin_w2e40_bits: 27.67
+      - scenario: "old c = 2.0 scenario row (RT-C1 headline, NOT supported by this data)"
+        overhead_bits: 32.00
+        c_equivalent: 2.000
+        margin_w2e30_bits: 2.27
+        margin_w2e40_bits: 7.27
+    irreproducibility_band:
+      nist1_time_deviation_bits: 2.2309
+      max_abs_deviation_all_five_fields_time_and_memory_bits: 3.5133
+      note: >
+        The 3.51-bit figure my prior report used is the MEMORY deviation at
+        log2 p = 768, the largest absolute deviation anywhere in the C1 control.
+        The tightest correct band for a NIST-I TIME statement is 2.2309 bits.
+        Both are quoted; the conclusion below is unchanged under either.
+    verdict: >
+      DOES THE NIST-I MARGIN CLEAR THE BAND AT THE MEASURED GAMMA? YES, under
+      every reading I can construct from the run's own data. The tightest
+      reading I am willing to defend - linear fit, intercept restored, p-scaled
+      - gives 8.84 bits at w = 2^30, which clears the 3.51-bit band by 5.3 bits
+      and the 2.23-bit band by 6.6 bits. The single most pessimistic
+      construction available in the data (quadratic on W-ALL, whose curvature I
+      have argued in RT2-C2 is itself a composition artifact and which
+      therefore OVERSTATES the case against the attack) still gives 5.40 bits
+      and still clears both bands. The only scenario that fails to clear is
+      c = 2.0, which is the row my own prior report quoted and which the
+      homogeneous measurement now excludes: the IMPL-A local slope is flat at
+      0.93-0.97 from ell = 17 to ell = 197.
+      THE MARGIN'S SIGN IS NOW ROBUST AT NIST-I. ITS MAGNITUDE IS NOT: the
+      defensible span is 5.40 to 22.67 bits at w = 2^30, a width of 17.3 bits,
+      and that width is set almost entirely by quantities this experiment did
+      not measure - the polynomial multiplication routine (RT2-C4, worth up to
+      13.25 bits) and the p-scaling (RT2-C3, worth 2.7 bits) - not by anything
+      it did measure.
+
+  # ==================================================================
+  required_controls:
+    - id: NC2a
+      name: "IMPL-B over the extension grid"
+      discriminates: RT2-C2
+      why_first: >
+        It is the only control that can be run with zero new code, it decides
+        whether the headline number is a composition artifact, and it decides
+        whether the contract's misspecification declaration should stand.
+      pre_registered_prediction: >
+        min(A,B) slope over ell >= 11 falls to <= gamma_A = 0.9332; W-ALL
+        quadratic c moves toward 0.
+    - id: NC2b
+      name: "Corrected-law recomputation with the intercept restored"
+      discriminates: RT2-C1
+      why_first: >
+        Zero compute. Every input is already in raw-result.json. Must be a
+        superseding analysis record; the frozen contract is not edited.
+      pre_registered_prediction: >
+        Applying the corrected law to C-NULL returns c_null ~ 0.77, not 0.
+    - id: NC2c
+      name: "Kronecker-substitution third implementation"
+      discriminates: RT2-C4
+      pre_registered_prediction: "gamma_C < gamma_B < gamma_A."
+    - id: NC2d
+      name: "Three-point p sweep at tiny ell grid"
+      discriminates: RT2-C3
+      pre_registered_prediction: "alpha = 1 in log2 per_entry ~ alpha*log2(log2 p) + gamma*log2(ell)."
+    - id: NC2e
+      name: "C-NULL extension over ell 103..211"
+      discriminates: RT2-C5
+      pre_registered_prediction: "|gamma_null| <= 0.15 with CI containing 0 on the extension range alone."
+    - id: NC2f
+      name: "Symmetric instrumentation of a Delfs-Galbraith step"
+      discriminates: RT2-C7
+      pre_registered_prediction: "DG per-step cost lands in 2^5..2^7 F_{p^2}-multiplications at p ~ 2^40."
+    - id: NC4
+      name: "Bandwidth/latency staircase in the vOW cost model (carried forward, still unrun)"
+      discriminates: RT2-C6
+
+  counterexample_or_mutation: >
+    THE CHEAPEST DISCRIMINATING OBJECT IS ALREADY IN THE RUN AND WAS NOT USED
+    THIS WAY. Apply the pre-registered extrapolation law to the run's own
+    C-NULL series. gamma_null = -0.0132 gives c_null = -0.0118 ~ 0, i.e. the
+    law reports ZERO overhead. The same control measures per_entry_null =
+    2^12.32 at ell = 2 and 2^12.26 at ell = 101 against Section 4.1's assumed
+    2^0. An estimator that returns "no overhead" for an object it has just
+    measured at 4900-5100 operations per entry is measuring the slope of the
+    overhead, not the overhead. This is a mutation of the ANALYSIS, costs
+    nothing, and is fully internal to the committed artifact - no new run, no
+    new assumption, no external citation.
+    The second mutation, also free: recompute the headline slope on IMPL-A
+    alone. It falls from 0.9739 to 0.9332 and the "misspecification" signal
+    disappears from the local-slope profile. Any headline that changes when you
+    remove an implementation-switching discontinuity from the middle of the
+    window was never a property of the object.
+
+  baseline_comparison:
+    end_to_end_baseline: >
+      Unchanged in structure from my July report and still not instantiated by
+      this programme. The end-to-end baseline for every concrete NIST-I claim
+      is Delfs-Galbraith with the Santos-Costello-Shi subfield acceleration
+      ([15] in the frozen bibliography) and the concrete constants of Adj et al.
+      ([3]), run as n-way parallel subset-hitting with negligible memory and no
+      shared state, i.e. T_base = k * 2^{log2p/2} / n walk-steps on hardware
+      whose total budget matches the attack's (memory-w table + n processors +
+      interconnect). The constant k is STILL unquantified in this repository -
+      no task in BATCH-001 or BATCH-002 fetched [15] or [3] - so every margin
+      number in this report carries an unquantified constant-factor uncertainty
+      in ADDITION to the overhead uncertainty, in the attack's disfavour if k >
+      1. RT2-C7 adds the symmetric point that the baseline's per-step cost is
+      also charged at 1 F_{p^2}-op when it is plausibly 2^5-2^7, which cuts the
+      other way by 5-7 bits.
+    pollard_rho_and_bsgs: >
+      NOT APPLICABLE AND RECORDED AS SUCH RATHER THAN OMITTED. The problem
+      under review is the supersingular isogeny / endomorphism-ring problem,
+      not a discrete logarithm in a cyclic group. Pollard rho and BSGS have no
+      instantiation against it; the correct specialised baselines are
+      Delfs-Galbraith (p^{1/2}) and its refinements, and the meet-in-the-middle
+      / vOW parallel collision search family that RUN-WESOVOW-001 already models.
+      Both are compared above.
+    closest_specialized_baseline_for_the_measured_quantity: >
+      For the measured quantity itself - F_{p^2}-multiplications per table
+      entry when populating ell-isogeny neighbours via Phi_ell - the closest
+      specialised baselines are (i) the run's own IMPL-B, and (ii) the
+      Sutherland-style batched modular polynomial evaluation named in the
+      frozen paper's Lemma 3.3 footnote. (i) beats the headline. (ii) is
+      unimplemented here and I did not retrieve its literature this session, so
+      it is recorded as an UNCHECKED frontier axis, not as absent.
+
+  pareto_honesty:
+    dominated_by:
+      - axis: time (per-entry F_{p^2}-multiplications)
+        dominator: >
+          The run's OWN IMPL-B. Over ell 11..101 IMPL-B is cheaper at every
+          ell >= 17, by a factor rising to 1.2954, with homogeneous exponent
+          0.7929 against IMPL-A's 0.9179 on the same range. The headline
+          measurement is dominated by a routine inside the same file.
+        status: CHECKED, from committed per_ell.cost_ratio_A_over_B
+      - axis: time (asymptotic per-entry exponent)
+        dominator: >
+          Any quasi-linear polynomial multiplication (Kronecker substitution,
+          FFT) or batched Sutherland-type modular polynomial evaluation, which
+          drives gamma toward 0 up to polylog and removes up to 13.25 of the
+          25.43 modelled NIST-I overhead bits.
+        status: >
+          STRUCTURALLY ESTABLISHED from the committed pipeline (gamma =
+          exponent(M) - 1, corroborated by the run's own two-implementation
+          pair), NOT MEASURED. The external Sutherland literature was not
+          retrieved this session; that axis is UNCHECKED.
+      - axis: memory / data
+        dominator: >
+          Not applicable to the measured quantity: this run stores nothing and
+          queries nothing. For the DOWNSTREAM claim, the attack's memory is
+          2^93.28 entries at NIST-I against Delfs-Galbraith's negligible
+          memory, and the model's +0.5-bit-per-bit memory credit is
+          approximately cancelled by real access latency (RT2-C6). The attack
+          does NOT dominate DG on the memory axis at any tested w and the
+          comparison is a genuine trade, not a Pareto improvement.
+        status: CHECKED against RUN-WESOVOW-001 per_field memory rows
+    dominated_by_is_not_null: true
+    dominated_by_note: >
+      Setting dominated_by to null here would have been a fabrication under
+      AGENTS.md rule 9. Every row above names what dominates, on which axis,
+      and whether I actually checked it or am flagging it unchecked.
+    sota_delta:
+      quantity: "width of the defensible NIST-I margin interval at w = 2^30"
+      before_this_run: >
+        Scenario family c in {0, 0.5, 1, 2} with no measurement anywhere:
+        margin in [2.27, 34.27] bits, width 32.00 bits, lower end INSIDE the
+        +-3.51-bit irreproducibility band.
+      after_this_run_under_rt2_corrected_reading: >
+        margin in [5.40, 22.67] bits, width 17.27 bits, lower end OUTSIDE both
+        the 3.51-bit and the 2.23-bit band.
+      delta: >
+        Narrowing of 14.73 bits, i.e. 46% of the prior uncertainty width, plus
+        the qualitative gain that the lower end now clears the irreproducibility
+        band. This is a real and non-trivial contribution and I state it as such
+        despite everything above. What it is NOT: a determination of c. The
+        residual 17.27-bit width is dominated by the unimplemented
+        multiplication routine and the unmeasured p-scaling, and the run's
+        headline c = 0.864 is not inside my corrected interval at all.
+      dominated_by_field_of_the_run_itself: >
+        The run package does not carry a dominated_by field; the contract did
+        not require one for a pure measurement. Recorded as a gap, not a
+        violation, since docs/inventor-protocol.md binds ideation and closure
+        deliverables. The DOWNSTREAM evidence and decision records must carry
+        it, populated from the rows above.
+      kn_lit_7593_check: >
+        The eliminated-dimension rule applies here in a mild form. The paired
+        design removes j-to-j variation from the ell slope, and its cost - pool
+        generation by 120-step 2-isogeny walks - is explicitly excluded from the
+        measurement as sample preparation. That exclusion is correct for a
+        per-entry cost measurement because Algorithm 1 does not regenerate the
+        pool per entry. No search dimension is claimed eliminated as a speedup,
+        so no uncharged invariant cost is being smuggled into a headline. No
+        objection on this axis.
+
+  heuristic_challenges:
+    - id: RT2-H0
+      statement: >
+        NOTHING IN THIS RUN BEARS ON HEURISTIC 1, and the run says so
+        (non_claims). My July objections RT-H1 through RT-H4 are therefore
+        UNTOUCHED and remain open: the paper's Figures 1-2 test the body of the
+        smoothness distribution under an unidentified size model while
+        Heuristic 1 is a tail statement at u ~ sqrt(log p); the walk-based
+        quaternion sampler is unvalidated; the ell = 2 parity channel is
+        untested; and the disjointness content of the heuristic has no
+        supporting data anywhere in the record. Controls NC-3 and NC-6 from my
+        July report remain unrun.
+      severity: high
+      why_it_matters_here: >
+        P0 sits inside every margin number in this report. A constant-factor
+        error in P0 at the operating point moves log2T_full directly and
+        therefore moves all eight margin rows by the same amount. A programme
+        that resolves c to +-2 bits while P0 carries an unbounded
+        constant-factor uncertainty has optimised the wrong term. This is a
+        prioritisation objection against the batch plan, not against the run.
+    - id: RT2-H1
+      statement: >
+        The run's OWN heuristic is L1 and it is not numbered, justified, or
+        given a random-model transfer argument in the exemplar's sense. L1
+        asserts that a power law measured over ell <= 211 extends to ell ~
+        2^14.2. The contract labels it UNTESTED, which is honest, but the
+        target-result profile requires a heuristic to come with a rigorous
+        bound plus a distribution theorem or an explicit falsification
+        condition. L1 has neither. The run's own non_claims concede the
+        identifiability limit: "This experiment cannot discriminate between
+        per-entry cost laws that agree over ell <= 251 and diverge at ell ~
+        2^14."
+      severity: medium
+      transfer_challenge: >
+        The random-model transfer question in the exemplar's sense - does the
+        justification apply to the structured object at hand - has a clean
+        answer here and it is unfavourable to extrapolation: per_entry is NOT
+        an unstructured empirical curve. It is log2(p)*M(ell)/(ell+1) for a
+        known M. That structure is what licenses extrapolation AT ALL, and it
+        is also what makes the extrapolated value a property of M rather than
+        of Algorithm 1 (RT2-C4). The run gets the benefit and the cost of the
+        same fact and reports only the benefit.
+
+  cost_model_challenges:
+    - "RT2-C1: the law drops the measured intercept; falsified by the run's own null object; worth +11.6 bits of NIST-I overhead."
+    - "RT2-C3: c(p) extrapolated along an axis with n = 1; the law's p-dependence has the wrong sign of structure; worth +2.7 bits at NIST-I."
+    - "RT2-C4: gamma = exponent(M) - 1; a competent optimisation removes up to 13.25 bits, about 54% of the corrected overhead."
+    - "RT2-C6: the vOW +0.5-bit-per-memory-bit credit is approximately cancelled by real latency beyond DRAM; quote margins at w = 2^30 only."
+    - "RT2-C7: measured overhead is charged to the attack while the baseline keeps its nominal one-op-per-step convention; worth 5-7 bits back to the attack, unmeasured."
+    - >
+      Total-cost bookkeeping: VERIFIED CORRECT, no objection. log2T =
+      log2M - log2P0 in RUN-WESOVOW-001 is per-attempt cost times inverse
+      success probability with a full table rebuild per attempt, and the vOW
+      regime divides that same total by sqrt(w). Per-attempt cost is not being
+      confused with total expected cost anywhere in this chain.
+
+  reduction_and_scope_challenges:
+    - id: RT2-S1
+      target: "My own prior RT-S1 position, as the brief requires me to address explicitly."
+      severity: high
+      position: >
+        RT-S1 IS PARTIALLY WEAKENED AND NOT WITHDRAWN, and I separate the two
+        halves because they now have different fates.
+        RETIRED: the sub-claim that "the NIST-I margin is within a few bits of
+        zero under defensible constant-factor calibrations". This rested on
+        RT-C1's gamma = 2, which contained an arithmetic error (see
+        self_correction above), and on quoting the c = 2.0 row rather than the
+        c = 1.78 its own derivation supported. Under every reading constructible
+        from RUN-PEC-6be870-a the NIST-I margin at w = 2^30 is between 5.40 and
+        22.67 bits and clears both the 2.23-bit and 3.51-bit irreproducibility
+        bands. The "margin might be zero at NIST-I" scenario should be retired
+        from the programme's active hypothesis set and I am the one who put it
+        there.
+        STANDING: that no scope statement stronger than the paper's own abstract
+        hedge is supported. The reasons are now narrower and I list them so the
+        Coordinator can attack them in turn: (i) the magnitude is uncertain over
+        a 17.3-bit span, set by an unimplemented multiplication routine
+        (RT2-C4) and an unmeasured p-scaling (RT2-C3), which is far wider than
+        any parameter-setting decision tolerates; (ii) the headline gamma is a
+        composition artifact and the clean homogeneous number has not yet been
+        reported as primary (RT2-C2); (iii) the window supplying the interval's
+        upper end has no null-object control (RT2-C5); (iv) the baseline
+        constant k is still unquantified and no task has fetched [15] or [3]
+        (RT-S2, unchanged since July); (v) Heuristic 1's tail behaviour, which
+        sets P0 and therefore every margin row, remains untested (RT2-H0). The
+        paper's own hedge - "impact on concrete parameter sets remains to be
+        clarified" - remains the correct framing, and it is now correct for
+        reasons of MAGNITUDE rather than of SIGN.
+    - id: RT2-S2
+      target: "Whether the NIST-I question moves off INCONCLUSIVE."
+      severity: high
+      position: >
+        NO - BUT THE UNCERTAINTY IS MATERIALLY NARROWER AND THE NARROWING IS
+        ASYMMETRIC IN THE ATTACK'S FAVOUR.
+        H-WESO-001.adjudicated_positions.concrete_threat_nist1 should remain
+        INCONCLUSIVE. What has changed is which scenarios are live: the
+        "overhead swallows the NIST-I advantage" branch is no longer supported
+        by any evidence in the record, and the surviving question is whether the
+        advantage is roughly 5 bits or roughly 23 bits. That is a real research
+        result and the Coordinator should record it as one. It is not a move off
+        INCONCLUSIVE, because a 17.3-bit interval whose width is dominated by an
+        unwritten subroutine is not a concrete threat assessment, and because
+        AGENTS.md rule 7 forbids presenting an 80-bit-field measurement over
+        ell <= 211 as validation at NIST-I.
+    - id: RT2-S3
+      target: "Scope inflation audit of the affected/safe scheme lists."
+      severity: low
+      position: >
+        NO INFLATION FOUND IN THIS RUN. The contract's non_claims explicitly
+        disclaim CSIDH, (qt-)Pegasis and torsion-based constructions, disclaim
+        any bearing on Heuristic 1, disclaim any hypothesis-status change, and
+        cap the claim tier at medium with the extrapolated c carrying no tier at
+        all. This is the most scrupulous non_claims block in the programme and I
+        record that rather than manufacturing an objection. The binding risk is
+        entirely downstream: the c values are quotable numbers sitting in a
+        manifest result block, and nothing in the manifest prevents a later
+        record from citing c = 0.864 without the L1-L4 attachments. RT2-C1 makes
+        that number wrong, not merely conditional.
+
+  proof_architecture_challenges:
+    - id: RT2-P1
+      attack: "Observation-fiber"
+      finding: >
+        SUCCEEDS, and the contract concedes it. Hold the observable fixed -
+        per_entry over ell <= 211 at p ~ 2^40 - and vary the underlying object:
+        M(ell) schoolbook, M(ell) Karatsuba, and M(ell) quasi-linear all sit in
+        the same fiber to within the measured resolution over the low end of
+        the range while diverging by up to 13.25 bits at ell = 2^14.2. The run's
+        own audit_dispositions records observation_collision as "APPLICABLE and
+        NOT closed" and names batched evaluation as the collision candidate. The
+        missing separator is a third implementation at a different M-exponent,
+        which is control NC2c.
+    - id: RT2-P2
+      attack: "Quantifier-order"
+      finding: >
+        The contract states the supported form correctly: "for THIS
+        implementation pair, there exists gamma such that for all ell in the
+        measured range". The extrapolation then silently uses the uniform form
+        "there exists gamma for all ell up to 2^14.2 and for all p up to 2^768",
+        with the witness chosen after seeing one implementation at one prime.
+        The contract's own L1/L4 flag this; the manifest's
+        extrapolated_c_per_level block does not carry the quantifier with it.
+    - id: RT2-P3
+      attack: "Method-ceiling"
+      finding: >
+        The ceiling of this method is an UPPER bound on the per-entry exponent
+        of an unoptimised implementation. It can never establish a lower bound
+        on the cost of an optimal one, so it can never establish that the attack
+        is more expensive than the paper claims. The contract states this
+        verbatim. The consequence is under-drawn in the run's framing: the
+        method as designed cannot answer the question the batch posed, and can
+        only ever narrow it from above.
+    - id: RT2-P4
+      attack: "Nearby-object"
+      finding: >
+        C-NULL is the correct nearby object and it PASSES as a flatness control
+        - gamma_null = -0.0132, CI containing 0, ratio 0.958 within the
+        2^{+-0.5} band. I record that the null control is well designed and did
+        its job. It also, unintentionally, falsifies the extrapolation law
+        (RT2-C1). A control that passes its own criterion while refuting the
+        estimator built on top of it is the most informative object in the run
+        and the run does not notice.
+    - id: RT2-P5
+      attack: "Boundary and strictness"
+      finding: >
+        C-BASE.6 correctly embeds the paper's convention as gamma_paper = 0, and
+        the denominator entries(ell) = ell + 1 matches Lemma 3.3's "each batch
+        of (<=) ell + 1 new entries" exactly, confirmed against committed
+        samples. The counting-unit and amortisation objection raised in my task
+        brief therefore FAILS: the denominator is the paper's own and does not
+        flatter the attack. I record this as a failed attack rather than
+        pressing it.
+
+  narrowest_supported_statement: >
+    For the specific pure-Python implementation pair committed at 49166fa5, at
+    the single prime p = 1099511627563 (80-bit F_{p^2}), over 45 measured prime
+    degrees 2 <= ell <= 211 (ell = 97 lost to a fetch obstruction), the number
+    of F_{p^2} multiplications required to instantiate Phi_ell(j, x) and extract
+    its distinct roots, divided by the ell + 1 entries that Lemma 3.3 amortises
+    that batch over, is well described by a power law in ell whose exponent is
+    0.9332 for schoolbook multiplication and 0.7929 for Karatsuba multiplication
+    over the range where both were run, with an ell-independent prefactor of
+    2^8.92 multiplications per entry. Controls C-INSTR, C-BASE.1-6, C-ALT.1-2
+    and C-NULL all pass as specified, C-NULL over ell 2..101 only. Nothing about
+    behaviour at ell ~ 2^14, at any other prime, or for any other multiplication
+    routine follows, and the reported headline gamma_reported = [0.8691, 0.9783]
+    is not a homogeneous measurement of either implementation.
+    Downstream, and as a MODEL SUBSTITUTION carrying no claim tier: restoring the
+    measured intercept and its log p scaling to the pre-registered law gives
+    c ~ 1.59 at NIST-I rather than the reported 0.864, and a modelled advantage
+    over Delfs-Galbraith of 8.84 bits at w = 2^30 entries, inside a defensible
+    span of 5.40 to 22.67 bits whose width is set by unmeasured quantities.
+
+  next_concrete_action: >
+    Run NC2b and NC2a, in that order, as a single scoped successor experiment
+    under a NEW EXP id that supersedes nothing and edits nothing at 49166fa5.
+    NC2b is free and decides the number: recompute the extrapolation under
+    c = [log2(A) + gamma*log2(B_opt)] / sqrt(log2 p) using the intercepts
+    already committed in fit.windows.*.intercept, report it beside the
+    law-as-frozen value, and validate the correction by confirming it returns
+    c_null ~ 0.77 for C-NULL instead of 0. NC2a costs a few hours and decides
+    whether the headline was ever a measurement: run IMPL-B over ell 103..211
+    at 4 samples with the committed seeds, pre-registering that the min(A,B)
+    slope must fall to at or below 0.9332 and that the W-ALL quadratic c must
+    move toward zero. Until NC2b is on the record, no downstream evidence or
+    decision record should cite c = 0.864 at NIST-I, because the run's own
+    C-NULL control shows that estimator returns c ~ 0 for an object costing
+    2^12.3 F_{p^2}-multiplications per entry.
+
+  prohibitions_observed:
+    - "No Executor receipt, Validator report, ledger record, queue, or specification was altered. One file written, inside the assigned write_scope."
+    - "No git commit was made."
+    - "No research status was changed; H-WESO-001 and GOAL-P13-001 are untouched."
+    - "No bounded failure is called an impossibility result: the run is a valid scoped measurement and is described as one."
+    - "The conditional theorem of the frozen paper is not attacked for being conditional; no objection here touches Theorem 1.1 as an asymptotic statement."
+    - "Numbers labelled 'RT2 recomputation' are my own derived analysis of committed data, not new runs. Recollections are labelled and no conclusion depends on one."
+
+  artifact_paths:
+    - coordination/goals/GOAL-P13-001/batches/BATCH-002/reviews/TASK-20260802-96d908/red_team_report.yaml

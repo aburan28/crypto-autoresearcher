@@ -1,0 +1,48 @@
+hypothesis:
+  id: H-JMV-001
+  question_id: RQ-JMV-001
+  statement: >-
+    Figure 1 of Jao-Miller-Venkatesan 2005 (arXiv:math/0411378v3) misreports the Frobenius
+    conductor c_pi for at least one listed standards curve. Specifically the P-256 row
+    (c_pi = 3, P(c_pi) = 3) is inconsistent with the published P-256 parameters, because
+    3 | c_pi requires 9 | d_pi and -d_pi = 4p - t^2 is congruent to 3 mod 9 for P-256; the
+    reported value is consistent instead with P-224, which is absent from the table.
+  mechanism: >-
+    The conductor is defined by d_pi = t^2 - 4q = c_pi^2 * d_K with d_K a fundamental
+    discriminant. A prime l divides c_pi only if l^2 | d_pi. For l = 3 this is an exact,
+    factoring-free test: if -d_pi = 3 (mod 9) then 3 exactly divides -d_pi, so 9 does not
+    divide d_pi, so 3 does not divide c_pi. A row misattribution between adjacent table
+    entries is the most economical explanation for the reported value appearing on the
+    P-256 row while the curve satisfying 9 | -d_pi (P-224) is absent from the table.
+  assumptions:
+    - Published curve constants (NIST FIPS 186-2, IETF RFC 2409) are correct as transcribed, verified per curve by checking G lies on the curve and [n]G = O.
+    - "UNVERIFIED AND LOAD-BEARING: the transcription of Figure 1 used here is faithful to arXiv:math/0411378v3. The paper is not in the corpus. An independent reviewer must check the verbatim table transcription against the source before any conclusion is drawn."
+    - c_pi means the conductor of Z[pi] in O_K, not the largest integer whose square divides d_pi; the two differ by a factor 2 whenever the squarefree part is 2 or 3 mod 4.
+  predictions:
+    - metric: "-d_pi mod 9 for P-256, recomputed from verified published parameters"
+      direction: different
+      minimum_effect: "residue is nonzero (3 does not divide c_pi), contradicting Figure 1's c_pi = 3"
+    - metric: number of Figure 1 rows exactly reproduced by independent recomputation
+      direction: lower
+      minimum_effect: at least one row contradicted by an exact factoring-free certificate
+    - metric: "-d_pi mod 9 for P-224"
+      direction: different
+      minimum_effect: "residue is 0, i.e. 9 | -d_pi, consistent with the misattribution reading"
+  test_boundary:
+    instances:
+      - NIST prime curves P-192, P-224, P-256, P-384, P-521
+      - Koblitz K-163/233/283/409/571, binary B-163/233/283/409/571, IPSec 3rd/4th OG curves - only insofar as a declared GF(2^m) implementation is available; otherwise recorded as not_attempted
+    parameters: {trial_division_bound: 1000000, conductor_definition: "d_pi = c_pi^2 * d_K with d_K fundamental"}
+    implementation: experiments/EXP-JMV-001 at spec version 2 (extends the scouting script experiments/EXP-JMV-001/cpi_audit.py, which is NOT a run)
+    budget: {total_cpu_hours: 1, maximum_runs: 5, maximum_memory_gb: 4}
+  falsification_conditions:
+    - The recomputed P-256 row matches Figure 1 (9 | -d_pi, so 3 may divide c_pi); the scouting mod-9 result fails to reproduce.
+    - The independently reviewed verbatim transcription of Figure 1 does not report c_pi = 3 for P-256; the claim then has no subject and is withdrawn.
+    - "The Koblitz positive control d_pi = -7*c_pi^2 fails: the pipeline is invalid and no row, confirming or contradicting, is evidence either way."
+  interpretation_limits:
+    - Arithmetic claims about these exact named curves only. Asserts nothing about the difficulty of dlog on them, about Theorem 1.1, or about GRH.
+    - "Unresolved factorizations are censored, never reported as c_pi = 1; c_pi = 1 is a positive claim requiring a complete factorization. Trial division to 10^6 finding no square factor is a censored negative."
+    - Level count (number of orders between Z[pi] and O_K, i.e. the number of divisors of c_pi) is censored whenever c_pi is censored, and the "10 of 11 curves are single-level" reading of the table inherits that censoring.
+    - A defect in an external publication is not a result about ECDLP hardness and confers no advantage of any kind.
+  status: approved
+  proposed_by: session

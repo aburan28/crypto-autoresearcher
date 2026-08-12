@@ -1,0 +1,510 @@
+schema_version: "1.0"
+
+# Policy -> concrete model, one table per backend.
+#
+# This is the ONLY file that contains vendor model identifiers. Swapping the
+# program from one inference vendor to another is an edit here plus
+# `AUTORESEARCH_BACKEND=<backend>` — no change to role contracts, skills,
+# dispatch, ledger records, or committed handoffs.
+#
+# Integrity rules (they are why `provenance` exists):
+#   * A model identifier written here is an ASSERTION, not a fact. It becomes
+#     verified only when `python -m orchestration.adapter doctor --probe`
+#     confirms the backend serves it, which stamps `last_probed`.
+#   * `capabilities` are likewise operator assertions. The resolver compares
+#     them against `requires` in model-policies.yaml and refuses a downgrade;
+#     it cannot detect capabilities you have overstated. Overstating them to
+#     make a policy resolve is an evidence-integrity failure, exactly like
+#     overstating a claim tier.
+#   * `model: null` means "declared but unbound". The resolver stops with a
+#     named error instead of guessing a nearby model.
+#
+# provenance values:
+#   runtime-verified  — identifier reported by the executing runtime itself
+#   operator-supplied — asserted by the operator; unverified until probed
+#   unbound           — no identifier chosen yet
+
+defaults:
+  backend: anthropic
+  # Consulted in order when the selected backend cannot serve a policy AND the
+  # handoff set `fallback_allowed: true`. Cross-backend substitution is always
+  # recorded as `fallback_used: true` with the reason.
+  backend_fallback_order: [anthropic, zai, openrouter, openai, local]
+
+bindings:
+
+  # -------------------------------------------------------------------------
+  anthropic:
+    coordinator-orchestration-code:
+      model: claude-opus-5
+      provenance: runtime-verified
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
+          mode: anthropic_thinking
+          # The policy's requested effort selects the budget. 0 disables
+          # extended thinking entirely, which is the point of the `low` tier.
+          budget_by_effort: {none: 0, low: 0, medium: 8000, high: 16000,
+                             xhigh: 32000, max: 48000}
+
+    coordinator-orchestration:
+      model: claude-opus-5
+      provenance: runtime-verified
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
+          mode: anthropic_thinking
+          # The policy's requested effort selects the budget. 0 disables
+          # extended thinking entirely, which is the point of the `low` tier.
+          budget_by_effort: {none: 0, low: 0, medium: 8000, high: 16000,
+                             xhigh: 32000, max: 48000}
+
+    research-deep:
+      model: claude-opus-5
+      provenance: runtime-verified
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
+          mode: anthropic_thinking
+          # The policy's requested effort selects the budget. 0 disables
+          # extended thinking entirely, which is the point of the `low` tier.
+          budget_by_effort: {none: 0, low: 0, medium: 8000, high: 16000,
+                             xhigh: 32000, max: 48000}
+
+    review-adversarial:
+      model: claude-opus-5
+      provenance: runtime-verified
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
+          mode: anthropic_thinking
+          # The policy's requested effort selects the budget. 0 disables
+          # extended thinking entirely, which is the point of the `low` tier.
+          budget_by_effort: {none: 0, low: 0, medium: 8000, high: 16000,
+                             xhigh: 32000, max: 48000}
+
+    review-breakthrough:
+      model: claude-opus-5
+      provenance: runtime-verified
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 64000
+        reasoning:
+          mode: anthropic_thinking
+          budget_by_effort: {none: 0, low: 0, medium: 8000, high: 16000,
+                             xhigh: 32000, max: 48000}
+
+    executor-implementation:
+      model: claude-sonnet-5
+      provenance: runtime-verified
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
+          mode: anthropic_thinking
+          budget_by_effort: {none: 0, low: 0, medium: 8000, high: 16000,
+                             xhigh: 32000, max: 48000}
+
+    # Fully specified, deterministic work: a small fast model at zero
+    # temperature with thinking off. Effort spent here would only invent
+    # variation in work whose value is that it does not vary.
+    executor-mechanical:
+      model: claude-haiku-4-5-20251001
+      provenance: runtime-verified
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: medium
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 16000
+        temperature: 0.0
+        reasoning:
+          mode: anthropic_thinking
+          budget_by_effort: {none: 0, low: 0, medium: 4000}
+
+  # -------------------------------------------------------------------------
+  # GLM via the Z.ai OpenAI-compatible endpoint.
+  #
+  # Every identifier and capability below is operator-supplied and UNVERIFIED.
+  # Run `python -m orchestration.adapter doctor --backend zai --probe` before
+  # any run whose manifest will be cited as evidence.
+  zai:
+    coordinator-orchestration-code:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+        temperature: 0.2
+        reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
+
+    coordinator-orchestration:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+        temperature: 0.2
+        reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
+
+    research-deep:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+        temperature: 0.4
+        reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
+
+    # `review-adversarial` requires xhigh. If this backend's ceiling really is
+    # `high`, the resolver refuses it unless the handoff allows fallback, and
+    # records the downgrade. Raise `max_reasoning_effort` only if the provider
+    # documents a deeper reasoning tier — not to make the gate pass.
+    review-adversarial:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+        temperature: 0.1
+        reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: high}}
+
+    executor-implementation:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+        temperature: 0.0
+        reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
+
+    executor-mechanical:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 16000
+        temperature: 0.0
+        reasoning: {mode: openai_effort, effort_map: {low: low, medium: medium, high: high}}
+
+    # Declared so the coverage check sees it, and deliberately left at the
+    # `high` ceiling this backend actually claims. `review-breakthrough` has a
+    # floor of `max` and no fallback, so it REFUSES here. Raise this only if
+    # the provider documents a deeper reasoning tier -- never to make the gate
+    # pass, which is the exact overstatement the discipline suite is built to
+    # catch.
+    review-breakthrough:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 32000
+
+  # -------------------------------------------------------------------------
+  # Same models, Anthropic wire format — this is what an Anthropic-protocol CLI
+  # (the `claude_code` runtime) is pointed at to run entirely on GLM.
+  zai-anthropic:
+    coordinator-orchestration-code:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+
+    coordinator-orchestration:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+
+    research-deep:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+
+    review-adversarial:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+
+    executor-implementation:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 24000
+
+    executor-mechanical:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 16000
+
+    # Same as `zai`: floor of `max` versus a `high` ceiling, so this refuses.
+    review-breakthrough:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 32000
+
+  # -------------------------------------------------------------------------
+  # Declared but unbound. The program refuses to guess an identifier: fill
+  # `model` from the vendor's own model list, then probe.
+  #
+  #   python -m orchestration.adapter models --backend openai
+  #
+  # Example shape once bound:
+  #   research-deep:
+  #     model: <exact id from the vendor model list>
+  #     provenance: operator-supplied
+  #     capabilities: {max_reasoning_effort: high, tool_use: true,
+  #                    structured_output: true, context_tokens: 200000,
+  #                    max_output_tokens: 32000}
+  #     request: {max_tokens: 24000,
+  #               reasoning: {mode: openai_effort, effort_map: {high: high}}}
+  # Fireworks serves open-weight models; fill ids from the provider's own list
+  # (`adapter models --backend fireworks`) rather than guessing. Canonical form
+  # is `accounts/fireworks/models/<name>`; short slugs also resolve.
+  fireworks:
+    coordinator-orchestration-code: {model: null, provenance: unbound}
+    coordinator-orchestration: {model: null, provenance: unbound}
+    research-deep: {model: null, provenance: unbound}
+    review-adversarial: {model: null, provenance: unbound}
+    review-breakthrough: {model: null, provenance: unbound}
+    executor-implementation: {model: null, provenance: unbound}
+    executor-mechanical: {model: null, provenance: unbound}
+
+  # Same models over the Anthropic wire. `review-breakthrough` has a `max`
+  # floor, so it will refuse here unless a binding genuinely declares that
+  # ceiling — declaring one to make the gate pass is the overstatement the
+  # discipline suite exists to catch.
+  fireworks-anthropic:
+    coordinator-orchestration-code: {model: null, provenance: unbound}
+    coordinator-orchestration: {model: null, provenance: unbound}
+    research-deep: {model: null, provenance: unbound}
+    review-adversarial: {model: null, provenance: unbound}
+    review-breakthrough: {model: null, provenance: unbound}
+    executor-implementation: {model: null, provenance: unbound}
+    executor-mechanical: {model: null, provenance: unbound}
+
+  openai:
+    coordinator-orchestration-code:
+      model: gpt-5.6-terra
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: &openai_56_capabilities
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 1050000
+        max_output_tokens: 128000
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: xhigh, max: max}}
+
+    coordinator-orchestration:
+      model: gpt-5.6-terra
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: *openai_56_capabilities
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: xhigh, max: max}}
+
+    research-deep:
+      model: gpt-5.6-sol
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: *openai_56_capabilities
+      request:
+        max_tokens: 64000
+        reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: xhigh, max: max}}
+
+    review-adversarial:
+      model: gpt-5.6-sol
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: *openai_56_capabilities
+      request:
+        max_tokens: 64000
+        reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: xhigh, max: max}}
+
+    executor-implementation:
+      model: gpt-5.6-terra
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: *openai_56_capabilities
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {medium: medium, high: high}}
+
+    executor-mechanical:
+      model: gpt-5.6-luna
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: *openai_56_capabilities
+      request:
+        max_tokens: 16000
+        temperature: 0.0
+        reasoning: {mode: openai_effort, effort_map: {low: low, medium: medium}}
+
+    review-breakthrough:
+      model: gpt-5.6-sol
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: *openai_56_capabilities
+      request:
+        max_tokens: 128000
+        reasoning: {mode: openai_effort, effort_map: {max: max}}
+
+  openrouter:
+    coordinator-orchestration-code: {model: null, provenance: unbound}
+    coordinator-orchestration: {model: null, provenance: unbound}
+    research-deep: {model: null, provenance: unbound}
+    review-adversarial: {model: null, provenance: unbound}
+    executor-implementation: {model: null, provenance: unbound}
+    executor-mechanical: {model: null, provenance: unbound}
+    review-breakthrough: {model: null, provenance: unbound}
+
+  local:
+    coordinator-orchestration-code: {model: null, provenance: unbound}
+    coordinator-orchestration: {model: null, provenance: unbound}
+    research-deep: {model: null, provenance: unbound}
+    review-adversarial: {model: null, provenance: unbound}
+    executor-implementation: {model: null, provenance: unbound}
+    executor-mechanical: {model: null, provenance: unbound}
+    review-breakthrough: {model: null, provenance: unbound}

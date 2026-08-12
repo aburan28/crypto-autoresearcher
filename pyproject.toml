@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crypto-autoresearcher"
+version = "0.3.0"
+description = "Runtime-neutral multi-agent harness for reproducible ECDLP research"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0", "sympy>=1.12"]
+
+[project.optional-dependencies]
+# The api_direct runtime and the eval harness. Kept optional so the ledger and
+# experiment toolchain stays installable from a small, slow-moving dependency
+# set -- a run record has to be reproducible years from now.
+agent = ["langgraph>=1.0,<2", "langchain-core>=1.0,<2", "langgraph-checkpoint-sqlite>=3.0,<4"]
+# Closed Research Loop v2 contracts.  Keep this optional until a later phase
+# wires the controller into the base ledger-only command path.
+research-loop = ["pydantic>=2,<3"]
+# The local peer daemon is deliberately separate from the ledger-only install.
+# It speaks Streamable HTTP over loopback and persists only rebuildable
+# coordination state; FastMCP is imported lazily by the daemon factory.
+campaign-mcp = ["fastmcp>=3.4.3,<4"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+autoresearch = "orchestration.cli:main"
+autoresearch-adapter = "orchestration.adapter.cli:main"
+autoresearch-agent = "orchestration.agent.cli:main"
+autoresearch-eval = "orchestration.eval.cli:main"
+autoresearch-campaign-mcp = "orchestration.campaign.mcp_server:main"
+
+[tool.setuptools]
+# INSTALL WITH `pip install -e .`
+#
+# This is a repository-resident tool, not a redistributable library: role
+# contracts (AGENTS.md, agents/*.md), suites, and the ledger live at the
+# repository root and are located relative to the package. A non-editable
+# install puts the package in site-packages and those lookups break --
+# `autoresearch doctor` detects that and says so.
+packages = ["orchestration", "orchestration.adapter", "orchestration.agent",
+            "orchestration.campaign", "orchestration.eval", "orchestration.executors",
+            "orchestration.formal", "orchestration.knowledge", "orchestration.routing", "harness",
+            "crypto_autoresearcher"]
+
+[tool.setuptools.package-dir]
+crypto_autoresearcher = "src/crypto_autoresearcher"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "tools"]

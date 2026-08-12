@@ -1,0 +1,238 @@
+correction:
+  id: CORR-20260802-1d8384
+  recorded_at: '2026-08-02'
+  record_type: claim
+  goal_id: GOAL-MONO-001
+  batch_id: BATCH-003
+  experiment_id: EXP-MONO-4b50b6
+  corrected_record: experiments/EXP-MONO-4b50b6/runs/RUN-MONO-4b50b6-001/execution_report.md
+  also_corrects:
+    - experiments/EXP-MONO-4b50b6/runs/RUN-MONO-4b50b6-001/manifest.yaml
+    - experiments/EXP-MONO-4b50b6/runs/RUN-MONO-4b50b6-001/run_record.yaml
+    - experiments/EXP-MONO-4b50b6/contract.md
+    - experiments/EXP-MONO-4b50b6/mono3_census.py
+
+  raised_by: >-
+    Both independent reviews of RUN-MONO-4b50b6-001: TASK-20260802-1b4130 (Red
+    Team, ADMIT_WITH_CORRECTION, objections O-1 through O-13) and
+    TASK-20260802-e2702a (Validator, ADMIT_WITH_QUALIFICATIONS, findings V-1
+    through V-25). Every defect below was found by review, not by the producer.
+
+  correction_method: >-
+    BY SUPERSESSION, NOT BY EDIT. Every named artifact is inside the BATCH-003
+    snapshot commit fdb8ef8f and is byte-intact against that receipt, verified at
+    close. Nothing is rewritten. Anyone reading those artifacts must apply the
+    substitutions below. The checks they claimed but did not perform are now
+    performed with archived commands in RUN-MONO-4b50b6-002.
+
+  defect_1_closed_form_numbers_labelled_measured:
+    severity: BLOCKING
+    found_by: RT O-3, independently flagged by validator V-19
+    what: >-
+      execution_report.md says "the harness MEASURES [1.4897, 1.5102]" and
+      "MEASURED p*|Delta| never exceeds 0.9994"; manifest.yaml carries
+      [1.4897, 1.5102] under result.summary_measurements; results.json names a
+      field exact_enumeration.ratio_measured_over_quasirandom. NONE OF THOSE
+      NUMBERS IS A CENSUS MEASUREMENT. They are arithmetic on the closed form.
+    what_the_sampled_census_actually_gives:
+      relation_ratio_by_prime:
+        '211': [0.7536, 2.4117]
+        '431': [0.0, 4.6533]
+        '809': [0.0, 10.9812]
+        '1601': [0.0, 10.7611]
+      curves_with_zero_joint_hits: {'211': 0, '431': 3, '809': 10, '1601': 16}
+      expected_joint_hits_per_curve: {'211': 8.09, '431': 1.94, '809': 0.55, '1601': 0.14}
+      p_times_abs_delta_max_sampled: {'211': 1.625, '431': 3.074, '809': 7.443, '1601': 10.833}
+      p_times_abs_delta_max_exact: {'211': 0.7275, '431': 0.9988, '809': 0.9994, '1601': 0.9922}
+    corrected_reading: >-
+      The correct label for [1.4897, 1.5102] and for the p*|Delta| bounds is
+      DERIVED, CLOSED FORM. The PER-CURVE sampled census supports neither: at
+      30000 samples the binomial sigma is 0.00289, which exceeds the entire
+      random-panel effect bound 1/p at every prime above 211.
+    but_the_correction_is_two_sided: >-
+      RT O-3 concluded the sampled census "cannot support the factor-1.5
+      statement at all". THAT IS TRUE PER CURVE AND FALSE POOLED. RUN-002 V8
+      pools all 2400000 draws against a shuffled window of identical size and
+      finds real/quasirandom 1.5313 at z=+6.34 versus null 0.7305, a ratio of
+      ratios of 2.0962 against a predicted 1/freq_split ~ 2.01. The validator
+      independently ran the same test and got 1.531 at z=+6.34 with the null at
+      z=-0.27. SO THE SAMPLED CENSUS DOES CARRY THE RESULT, but only pooled and
+      only against a matched null - neither of which RUN-001 did.
+    a_further_artifact_neither_review_isolated: >-
+      The harness's quasirandom prediction freq_split*(W_eff/p)^2 treats the
+      x1==x2 diagonal as eligible to split when it is always degree_drop. That
+      inflates the denominator by W_eff/(W_eff-1) = 4/3 in BOTH arms, which is
+      exactly why the null arm sits at 0.7305 = 0.75 rather than 1.0. The
+      artifact cancels in the ratio of ratios. The validator read the null as
+      "vanishes" (ratio 0.974 on its own construction); on the harness's own
+      prediction it reads 0.73, and the difference is this diagonal, not a
+      discrepancy between the reviews.
+
+  defect_2_icex_feed_would_propagate_a_refuted_model:
+    severity: BLOCKING
+    found_by: RT O-10, independently flagged by validator V-19
+    what: >-
+      The emitted outcome_id FULL_MONODROMY_BARRIER_TOY activates the frozen
+      protocol's icex_feed package whose prescribed relation_rate_input is
+      chebotarev_S2_split * (W_eff/p)^2 - EXACTLY THE MODEL THIS RUN REFUTES. The
+      refutation existed only in execution-report prose; no field in results.json,
+      manifest.yaml or GOAL-ICEX-001 would have stopped a driver from ingesting it.
+    disposition: >-
+      SUPERSEDED BY DEC-20260802-a51c82, which states the replacement, and
+      GOAL-ICEX-001.next_action, which is amended to name that decision so the
+      consuming driver cannot miss it. See that decision for the replacement form.
+
+  defect_3_aggregate_outcome_inverts_agents_rule_3:
+    severity: latent, not exercised
+    found_by: validator V-20 gap 1
+    what: >-
+      aggregate_outcome tests only passes_full_monodromy_test and NEVER READS
+      reverify_exception[].disposition. A curve whose independent reverification
+      returned failed_infrastructure would therefore have been promoted to
+      EXCEPTIONAL_LOCUS_TOY - turning an infrastructure failure into positive
+      mathematical evidence, which AGENTS.md rule 3 forbids in the opposite
+      direction and whose spirit this inverts.
+    exercised: false
+    exercised_note: >-
+      Zero exception candidates arose, so reverify_exception is empty and the
+      emitted outcome is unaffected. RUN-002 V7 recomputes the outcome with the
+      disposition honoured and gets the same answer.
+    not_repaired_in_place: >-
+      mono3_census.py is inside the snapshot commit and is byte-intact. Editing
+      it would break the receipt binding for a defect that changed no result. The
+      SUCCESSOR harness must carry the corrected rule, stated here.
+    other_fidelity_gaps_same_finding:
+      - The two window controls sit outside the outcome gate despite barrier_aggregate_rule (iv).
+      - FAMILY_RATE_ALERT (exception_family_rate_screen) is implemented nowhere.
+      - CTRL-NEG-UNIFORM-WINDOW and CTRL-NEG-SHUFFLED-WINDOW are collapsed into one boolean each (conservative).
+
+  defect_4_two_controls_pass_without_power:
+    severity: inherited from the frozen protocol
+    found_by: RT O-7 and validator V-14, independently
+    what: >-
+      CTRL-NEG-UNIFORM-WINDOW compares an ABSOLUTE difference against tolerance
+      0.02, and CTRL-NEG-SHUFFLED-WINDOW against 0.03, when the expected rates are
+      (W_eff/p)^2 - of order 3.6e-4 down to 6.2e-6.
+    measured_tolerance_over_expected: {'211': 56, '431': 232, '809': 818, '1601': 3204}
+    largest_W_eff_still_passing: {'211': 30, '431': 61, '809': 114, '1601': 226}
+    empty_window_passes_at_every_pinned_prime: true
+    corrected_reading: >-
+      READ THESE TWO AS "NOT EVALUATED", NOT AS "PASSED". They cannot distinguish
+      a correct window from an empty one. The executor could not relax a frozen
+      control and did not; it also did not flag this, and should have. The
+      successor protocol should use a relative tolerance or raise W.
+
+  defect_5_the_pinned_test_could_not_have_failed:
+    found_by: RT O-2 and validator V-19, independently
+    what: >-
+      EXCEPTIONAL_LOCUS_TOY needed a sampled excursion of 143 sigma at p=211 and
+      52 sigma at p=1601, probability of order 1e-500 per curve, because the exact
+      deviation is bounded by 4/p while the envelope is 6/sqrt(p). Worst
+      exact|Delta|/envelope over 105 curves is 0.0416.
+    corrected_reading: >-
+      outcome_id IS NOT THE EVIDENCE. Its informational content is instrument
+      integrity. The mathematical content of this batch is the Lemma and its
+      corollaries, and the census confirms rather than establishes them. RUN-001's
+      execution report does say "The census confirms it; the identity establishes
+      it", but places it under a gate table that invites the opposite reading.
+    in_fairness_to_the_protocol: >-
+      The identity was found BY this run. Before it, the protocol designers had no
+      way to know the experiment was one-sided. This is not a design failure by
+      TASK-20260725-705.
+
+  defect_6_delta_over_envelope_mislabelled:
+    found_by: validator V-24
+    what: >-
+      execution_report.md's gate table reads "worst case Delta/envelope = 0.135".
+      0.1354 is max delta_over_weil, i.e. |Delta| / (2/sqrt p). Divided by the
+      envelope 3*(2/sqrt p) the true figure is 0.045.
+    consequence: >-
+      The stated "7x margin" is really 22x. THE ERROR IS CONSERVATIVE - it
+      understates how comfortably the test passed - but it is still wrong.
+
+  defect_7_generating_subgroup_order_false_on_seven_curves:
+    found_by: validator V-21
+    what: >-
+      generating_subgroup_order records #E on 7 of 105 curves where the true order
+      of the recorded base point is 28, 45, 32, 80, 3, 2 or 2.
+    affects_any_measurement: false
+    affects_note: >-
+      The field is descriptive; no metric consumes it. Recorded as a correction
+      rather than repaired, per the immutability rule.
+    related: >-
+      Two of those curves (p=809 A=795 B=0; p=1601 A=250 B=0) have a 2-torsion
+      lexicographically-smallest point, so W_eff collapses to 1. Both are in the
+      quarantined automorphism panel and enter no aggregate. Found independently
+      by RT O-8c and by RUN-002 V4. The successor harness needs a guard.
+
+  defect_8_asserted_verifications_with_no_archived_command:
+    found_by: RT O-5 and O-6, validator V-25
+    what: >-
+      contract.md asserted a sympy verification of the identity; run_record.yaml
+      reported closed_form_check over 105 curves and exact_deviation_bounds; and
+      manifest.yaml offered the former in the certificate.verifier slot. NONE OF
+      THOSE COMPUTATIONS EXISTED IN THE ARCHIVED HARNESS. They were true - both
+      reviewers reproduced them independently - but a stated computation with no
+      recorded command is not admissible evidence.
+    discharged_by: >-
+      RUN-MONO-4b50b6-002, which performs all of them in the harness with an
+      archived command: V1 proves the identity over Z by exact grid interpolation
+      on [-3,3]^4 (7 points per variable exceeds the degree bound, so this is a
+      proof and not a probabilistic test, and needs no CAS), V3 evaluates the
+      trace formula on all 105 curves, V2 enumerates all p^2 pairs on 19 curves
+      (17054059 pairs, 0 disagreements) INDEPENDENTLY of the closed form, and V4
+      classifies all 1196 off-diagonal factor-base pairs instead of assuming them.
+
+  defect_9_random_panel_is_a_small_height_box:
+    found_by: RT O-12
+    what: >-
+      "80 random ordinary controls" are drawn from A in [0,64], B in [1,64] - at
+      p=1601 that is 4160 of 2563201 pairs, 0.16 percent of the curve space, all
+      of tiny height.
+    affects_any_conclusion: false
+    affects_note: >-
+      The universality in the corollaries comes from the identity, which is
+      height-blind, so nothing concluded is wrong. But "random ordinary controls"
+      invites a sampling reading the panel cannot support, and a successor
+      protocol that dropped the identity would inherit a badly non-uniform panel.
+
+  what_is_and_is_not_wrong:
+    the_mathematics_is_correct: >-
+      BOTH REVIEWERS RE-DERIVED IT INDEPENDENTLY AND IT HELD. The Red Team proved
+      the identity on a 7^4 integer grid plus 20000 random points; the Validator
+      proved it in sympy from the protocol's own coefficients AND separately
+      confirmed S_3 vanishes at x(P +/- Q), which discharges CF-NORM-S3
+      universally. Both brute-force enumerated Corollary B (the Validator at
+      p=23,31,37 covering Z in {0,1,3}; the Red Team on 12 curves at the pinned
+      primes) and both got exact agreement. Both classified all 1196 factor-base
+      pairs and found 0 non-split.
+    no_number_in_run_001_is_false: >-
+      Every quantity RUN-001 reported is arithmetically correct. The defects are
+      LABELLING, PROVENANCE, CONTROL POWER, PROPAGATION and one LATENT LOGIC
+      inversion - not wrong results.
+    changes_no_hypothesis_status: true
+    is_not_a_cryptanalytic_result: true
+    admissible_toward_closure_quorum: false
+
+  open_items:
+    - id: OI-1
+      item: >-
+        The successor harness must carry: the reverification-disposition rule
+        (defect 3), a 2-torsion generator guard (defect 7), relative tolerances on
+        the two window controls (defect 4), FAMILY_RATE_ALERT, and a uniform
+        (A,B) draw (defect 9). None is repaired in place, because all the affected
+        code is inside a verified snapshot.
+    - id: OI-2
+      item: >-
+        RUN-MONO-4b50b6-002 CARRIES NO INDEPENDENCE - same session and same
+        resolved model as the producer. Its value is that the computations are
+        archived and rerunnable. The independence in this batch is the two
+        reviews, and both of those resolved to claude-opus-5 as well; see
+        DEC-20260802-a51c82 on AGENTS.md rule 12.
+
+  recorded_by: coordinator
+  authority_note: >-
+    Written at the BATCH-003 close from claude/algebraic-number-theory-kb-zpmu0c.
+    It edits no immutable artifact, changes no status, and asserts no
+    cryptanalytic result. Every defect it records was found by an independent
+    reviewer, and each is attributed.

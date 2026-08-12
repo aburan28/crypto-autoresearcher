@@ -1,0 +1,242 @@
+schema_version: "1.0"
+
+# Cost policy is enforced by orchestration/adapter/config.py before resolution
+# or transport. It applies to backend ids, endpoint metadata, and bound model
+# ids, so renaming a Bedrock backend does not bypass the guard. Historical run
+# receipts are data and remain immutable; this governs new inference only.
+governance:
+  forbidden_provider_substrings: [bedrock]
+  reason: Amazon Bedrock is disabled by operator cost policy.
+
+# Backends and runtimes. This file answers "where do requests go and how are
+# they shaped"; `model-bindings.yaml` answers "which model serves which policy
+# on that backend"; `model-policies.yaml` answers "what does the role need".
+#
+# Nothing here is Claude-specific or Codex-specific. Claude Code and the Codex
+# CLI are two of several *runtimes* (bottom of this file) that can drive the
+# same role contracts; `api_direct` drives them through this repository's own
+# transport in `orchestration/adapter/transport.py`.
+
+# ---------------------------------------------------------------------------
+# Wire protocols
+# ---------------------------------------------------------------------------
+# Two request/response shapes cover every backend the program uses today. A new
+# vendor is usually a new `backends:` entry, not new code.
+wire_protocols:
+  anthropic_messages:
+    path: /v1/messages
+    auth: {style: header, header: x-api-key}
+    static_headers:
+      anthropic-version: "2023-06-01"
+    models_path: /v1/models
+    system_field: system                 # top-level, not a message
+    max_tokens_field: max_tokens
+
+  openai_chat:
+    path: /chat/completions
+    auth: {style: bearer, header: Authorization}
+    static_headers: {}
+    models_path: /models
+    system_field: message                # system becomes the first message
+    max_tokens_field: max_tokens
+
+# ---------------------------------------------------------------------------
+# Backends
+# ---------------------------------------------------------------------------
+# `base_url` may be overridden per deployment with the env var in
+# `base_url_env` — required for self-hosted and gateway deployments.
+#
+# `provenance` is an integrity field, not decoration:
+#   runtime-verified  — identifier confirmed by the executing runtime
+#   operator-supplied — asserted by the operator; confirm with `doctor --probe`
+backends:
+  anthropic:
+    display_name: Anthropic Messages API
+    wire: anthropic_messages
+    base_url: https://api.anthropic.com
+    base_url_env: ANTHROPIC_BASE_URL
+    api_key_env: ANTHROPIC_API_KEY
+    supports_models_probe: true
+
+  zai:
+    display_name: Z.ai open platform (GLM), OpenAI-compatible
+    wire: openai_chat
+    base_url: https://api.z.ai/api/paas/v4
+    base_url_env: ZAI_BASE_URL
+    api_key_env: ZAI_API_KEY
+    supports_models_probe: true
+    notes: >-
+      Mainland-China deployments use https://open.bigmodel.cn/api/paas/v4 —
+      set ZAI_BASE_URL rather than editing this file.
+
+  zai-anthropic:
+    display_name: Z.ai (GLM) via its Anthropic-compatible endpoint
+    wire: anthropic_messages
+    base_url: https://api.z.ai/api/anthropic
+    base_url_env: ZAI_ANTHROPIC_BASE_URL
+    api_key_env: ZAI_API_KEY
+    supports_models_probe: false
+    notes: >-
+      Same models as `zai`, spoken in the Anthropic wire format. This is the
+      backend to point the `claude_code` runtime at: it lets an
+      Anthropic-protocol CLI drive GLM without any Anthropic account.
+
+  fireworks:
+    display_name: Fireworks AI (open-weight models), OpenAI-compatible
+    wire: openai_chat
+    base_url: https://api.fireworks.ai/inference/v1
+    base_url_env: FIREWORKS_BASE_URL
+    api_key_env: FIREWORKS_API_KEY
+    supports_models_probe: true
+    notes: >-
+      Serves open-weight models (GLM, Kimi, DeepSeek, Qwen, Llama and similar) —
+      not Anthropic's or OpenAI's proprietary models. Model ids take the
+      canonical form `accounts/fireworks/models/<name>`; short slugs are also
+      accepted. Probe before binding: `adapter models --backend fireworks`.
+
+  fireworks-anthropic:
+    display_name: Fireworks AI via its Anthropic-compatible endpoint
+    wire: anthropic_messages
+    # Note the missing `/v1`: the wire protocol appends `/v1/messages`, so the
+    # composed endpoint is https://api.fireworks.ai/inference/v1/messages.
+    base_url: https://api.fireworks.ai/inference
+    base_url_env: FIREWORKS_ANTHROPIC_BASE_URL
+    api_key_env: FIREWORKS_API_KEY
+    # Fireworks authenticates this endpoint with its own header rather than
+    # `x-api-key`, so a real Anthropic key sitting in the environment cannot be
+    # picked up by mistake. This override is why `auth` is per-backend and not
+    # only per-wire-protocol.
+    auth: {style: header, header: X-Fireworks-Api-Key}
+    supports_models_probe: false
+    notes: >-
+      Same open-weight models as `fireworks`, spoken in the Anthropic wire
+      format — the backend to point an Anthropic-protocol CLI at. It does NOT
+      provide access to Claude models.
+
+  openai:
+    display_name: OpenAI Responses/Chat-compatible API
+    wire: openai_chat
+    base_url: https://api.openai.com/v1
+    base_url_env: OPENAI_BASE_URL
+    api_key_env: OPENAI_API_KEY
+    supports_models_probe: true
+
+  openrouter:
+    display_name: OpenRouter (multi-vendor gateway)
+    wire: openai_chat
+    base_url: https://openrouter.ai/api/v1
+    base_url_env: OPENROUTER_BASE_URL
+    api_key_env: OPENROUTER_API_KEY
+    supports_models_probe: true
+    notes: >-
+      Useful as a single-credential path to several vendors. Model ids are
+      namespaced (`vendor/model`), so its binding table differs from a direct
+      vendor backend even when the underlying model is identical.
+
+  local:
+    display_name: Self-hosted OpenAI-compatible server (vLLM, SGLang, Ollama)
+    wire: openai_chat
+    base_url: http://localhost:8000/v1
+    base_url_env: LOCAL_LLM_BASE_URL
+    api_key_env: LOCAL_LLM_API_KEY
+    api_key_optional: true
+    supports_models_probe: true
+    notes: >-
+      For air-gapped or reproducibility-critical review runs: a pinned local
+      weight set is the only configuration in which `resolved_model_id` is
+      stable across time.
+
+# ---------------------------------------------------------------------------
+# Runtimes
+# ---------------------------------------------------------------------------
+# A runtime is the thing that actually executes an agent turn — it owns the
+# tool loop, the filesystem, and the session. Roles are defined once in
+# `agents/*.md`; each runtime binds them its own way.
+#
+# `env` names the variables `python -m orchestration.adapter env` emits, so one
+# command repoints any of these runtimes at any wire-compatible backend.
+runtimes:
+  claude_code:
+    display_name: Claude Code (CLI, subagents in .claude/agents/)
+    wire: anthropic_messages
+    role_binding: .claude/agents/<role>.md
+    tool_loop: builtin
+    env:
+      base_url: ANTHROPIC_BASE_URL
+      api_key: ANTHROPIC_AUTH_TOKEN
+      model: ANTHROPIC_MODEL
+      small_model: ANTHROPIC_SMALL_FAST_MODEL
+    compatible_backends: [anthropic, zai-anthropic, fireworks-anthropic]
+    notes: >-
+      Subagent frontmatter accepts only the runtime's own model names, so
+      per-role model selection here is process-level: launch one runtime per
+      policy with the env below, rather than mixing policies in one session.
+
+  codex_cli:
+    display_name: OpenAI Codex CLI / any OpenAI-protocol agent CLI
+    wire: openai_chat
+    role_binding: .codex/agents/<role>.toml
+    tool_loop: builtin
+    env:
+      base_url: OPENAI_BASE_URL
+      api_key: OPENAI_API_KEY
+      model: OPENAI_MODEL
+    compatible_backends: [openai, zai, fireworks, openrouter, local]
+    notes: >-
+      This runtime previously bound roles by convention — a session read
+      AGENTS.md and agents/<role>.md and was trusted to behave. Nothing checked
+      it, and a convention is not a binding. The role files are now generated
+      by `tools/generate_runtime_agents.py` and verified by
+      `tools/check_runtime_bindings.py`, and `.codex/config.toml` registers
+      them. AGENTS.md and the role contract are still required reading: the
+      generated file grants the tool surface and points at them.
+      Codex always exposes a shell, so a role whose contract excludes
+      `run_commands` is prompt-restrained here, not harness-restrained —
+      `check_runtime_bindings.py --list` prints these as OVER-GRANT.
+
+  opencode:
+    display_name: OpenCode (CLI, agents in .opencode/agent/)
+    wire: openai_chat
+    role_binding: .opencode/agent/<role>.md
+    tool_loop: builtin
+    env:
+      base_url: OPENAI_BASE_URL
+      api_key: OPENAI_API_KEY
+      model: OPENAI_MODEL
+    compatible_backends: [openai, zai, fireworks, openrouter, local]
+    notes: >-
+      Of the CLI runtimes this is the one with real per-role enforcement: its
+      `permission` block denies a tool outright rather than asking the model
+      not to use it, so the generated bindings withhold `bash` from the
+      Coordinator and the Idea Generator instead of merely instructing them.
+      Model routing is NOT taken from the env vars above the way the other
+      runtimes take it: OpenCode resolves providers through its own
+      `opencode.json` `provider:` block, so point that at the backend and
+      record the resolved model in the run manifest as usual. The env names
+      are listed for the OpenAI-compatible case only.
+
+  api_direct:
+    display_name: This repository's own runtime (orchestration.agent, LangGraph)
+    wire: any
+    role_binding: agents/<role>.md
+    tool_loop: langgraph
+    env: {}
+    compatible_backends: [anthropic, zai, zai-anthropic, fireworks,
+                          fireworks-anthropic, openai, openrouter, local]
+    notes: >-
+      Executes a role against any backend above, with the tool surface derived
+      from orchestration/roles.yaml and the task's write_scope enforced by the
+      tools rather than merely requested of the model. State is checkpointed
+      per task id, so a long run resumes instead of restarting. Requires
+      requirements-agent.txt; the adapter core does not.
+      Roles needing a capability this runtime lacks (web_search) are refused
+      outright rather than run with a reduced tool surface --
+      `tools/check_runtime_bindings.py --list` shows which.
+
+defaults:
+  backend: anthropic
+  backend_env: AUTORESEARCH_BACKEND      # overrides `backend` at resolve time
+  runtime: claude_code
+  runtime_env: AUTORESEARCH_RUNTIME
+  request_timeout_seconds: 600
+  max_retries: 3

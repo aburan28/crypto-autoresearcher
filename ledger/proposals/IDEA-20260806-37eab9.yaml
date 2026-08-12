@@ -1,0 +1,525 @@
+idea:
+  id: IDEA-20260806-37eab9
+  question_id: RQ-ECDLP-002
+  added: '2026-08-06'
+  title: >-
+    POLLARD RHO AS A BOUNDED OPTIMISATION PROBLEM: derive the size of the prize
+    BEFORE spending the search budget -- the achievable region is closed above by
+    the ideal random-map constant this program's own baseline already assumes,
+    and closed below by the birthday floor, so the entire iteration-function
+    search space is worth a factor under 1.3 and exactly zero exponent; and one
+    of the four proposed sub-families (adaptive walks) is killed outright by the
+    memorylessness that parallel collision search requires
+  class: algorithm
+
+  claim: >-
+    (A) THE CEILING, DERIVED FIRST BECAUSE IT SIZES EVERYTHING ELSE. This
+    program's baseline convention, recorded in KN-TECH-006, is
+    "0.886*sqrt(n) group operations, van Oorschot-Wiener parallelisation
+    assumed, fully charged", and that entry already states that Teske's
+    well-chosen r-adding walks REACH the ideal random-walk constant, roughly 20
+    percent better than Pollard's original three-branch map. Two consequences,
+    both immediate and both apparently unstated anywhere in this ledger:
+      - THE HEADROOM ABOVE THE IDEAL IS ALREADY SPENT. Searching partition
+        functions to approach ideal random-map behaviour is a solved problem and
+        the solution is in the baseline. A search that rediscovers it has
+        rediscovered the baseline.
+      - THE ONLY REMAINING HEADROOM IS BELOW THE IDEAL, i.e. an iteration
+        function that is BETTER THAN RANDOM, and that headroom is bounded by the
+        birthday floor: a memoryless walk must visit Omega(sqrt(N)) DISTINCT
+        group elements before a collision is available at all, so no iteration
+        function can push the constant below 1. The searchable band is therefore
+        [1, ideal-random-map constant], a factor strictly below 1.3, with ZERO
+        change to the exponent (forbidden by KN-TECH-005 in any case).
+    SIZE THE PRIZE, THEN DECIDE. That derivation costs nothing, is checkable, and
+    is the single most useful thing to say about this direction before a GPU is
+    switched on.
+
+    (B) ONE OF THE FOUR PROPOSED SUB-FAMILIES IS DEAD ON ARRIVAL, AND THE
+    ARGUMENT IS THREE LINES. Van Oorschot-Wiener parallel collision search works
+    because the walk is MEMORYLESS: the next point depends only on the current
+    point. That is exactly what makes two walks that ever meet stay merged, which
+    is what makes a distinguished-point collision between DIFFERENT processors
+    detectable and meaningful. AN ADAPTIVE WALK WHOSE STEP DEPENDS ON HISTORY
+    BREAKS THIS: two walks arriving at the same point with different histories
+    diverge again, so a shared distinguished point is no longer a collision, and
+    the parallel algorithm -- which is the baseline, not an optimisation of it --
+    stops working entirely. Any adaptive walk must therefore either (i) be
+    adaptive only in a way that is a function of the current point, in which case
+    it is not adaptive but merely a more complicated memoryless map, or
+    (ii) abandon parallelisation and be compared against the SERIAL rho baseline,
+    which it must then beat by enough to overcome losing near-linear parallel
+    speedup. Neither branch is promising and both are stated here so the search
+    does not spend a batch discovering it.
+
+    (C) LEARNED STEP FUNCTIONS COLLAPSE INTO (A), AND THE COLLAPSE IS A COST
+    ARGUMENT. A learned iteration must be EVALUATED once per step. The baseline
+    step is one point addition plus a table index -- on the order of ten field
+    multiplications in a standard model. So the per-step budget for anything
+    learned is roughly ten field multiplications before it is net-negative, and
+    the step-count reduction it must buy to break even is bounded by (A) at under
+    1.3x total. A learned function costing 100x a point addition must therefore
+    reduce the step count by more than 100x, which (A) forbids. THE ONLY LEARNED
+    STEP FUNCTION THAT CAN EVER PAY IS ONE EVALUABLE IN O(1) FIELD OPERATIONS,
+    which is a table, which is what r-adding walks already are. This is not a
+    reason to skip the experiment; it is the constraint the experiment must be
+    designed under, and designing it otherwise wastes the batch.
+
+    (D) WHAT IS ACTUALLY OPEN, AND IT IS CONCRETE. The genuinely unresolved
+    iteration-function problem in this space is not partition choice but the
+    NEGATION-MAP FRUITLESS CYCLE problem. Using the automorphism {+-1}
+    (KN-TECH-018) shrinks the effective search space by a factor 2 and so the
+    step count by sqrt(2), but a walk defined on {+-A} classes can enter short
+    fruitless cycles that must be detected and escaped, and the escape mechanism
+    costs. The net gain is therefore a difference of two quantities that are
+    close together, it depends on implementation detail, and it is exactly the
+    kind of question a bounded automated search settles better than an argument.
+    The same applies to larger automorphism groups on j = 0 and j = 1728 curves.
+    THIS is the sub-problem to point the optimiser at.
+
+    (E) THE UNIT PROBLEM, WHICH MAKES EVERY MEASURED IMPROVEMENT SUSPECT UNTIL
+    FIXED. "Group operations" is not a unit. A group operation is itself an
+    arithmetic circuit over F_p whose cost differs by a factor of roughly two to
+    three across curve models -- affine, Jacobian, Montgomery, Edwards,
+    x-only -- and a walk that trades table lookups for additions, or that works
+    on x-coordinates only, is not comparable to the baseline in step counts at
+    all. Every number this proposal reports must therefore be in FIELD
+    MULTIPLICATIONS with the curve model named, and the baseline must be re-costed
+    in the same unit. A 10 percent step-count win that costs 15 percent more per
+    step is a loss, and in the group-operation unit it looks like a win.
+
+    (F) WHAT THIS IS NOT. NOT an exponent claim -- the exponent is fixed by
+    KN-TECH-005 and nothing here touches it. NOT a claim that constant factors do
+    not matter: they set record sizes and they are what a real computation pays.
+    NOT a proposal to attack any deployed parameter set.
+
+  discriminated_from:
+    - >-
+      KN-TECH-006 and Teske's r-adding result recorded there. Those establish the
+      baseline and that the ideal constant is reachable. This proposal takes that
+      as its CEILING rather than its target, which is the opposite orientation,
+      and asks what is left underneath.
+    - >-
+      IDEA-20260805-c8524f, IDEA-20260806-3b91c7, IDEA-20260805-45bf55 and
+      IDEA-20260805-52a0d1, the records that mention adding walks. All four are
+      cost-convention and baseline-admissibility records -- what the baseline is,
+      how it is charged, whether an estimator is unit-covariant. None proposes
+      searching the iteration-function space, and none derives the achievable
+      band.
+    - >-
+      KN-TECH-018 (endomorphism and automorphism speedups). That records the
+      GLV/GLS and negation speedups as known techniques. This proposal targets
+      the specific unresolved engineering-and-analysis question inside the
+      negation speedup -- fruitless cycle avoidance under full charging -- rather
+      than the speedup itself.
+    - >-
+      KN-TECH-052 (fitting and extrapolating cost exponents from bounded
+      experiments). Relevant as the methodology this proposal's measurements must
+      obey; not an overlap, since nothing here fits an exponent -- the exponent is
+      fixed and only the constant is measured.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE ITERATION FUNCTION ITSELF, as a point in a declared design space:
+      (partition rule, number of branches r, jump multiset, automorphism quotient
+      and its cycle-escape rule, distinguished-point predicate). The tracked
+      quantity is its fully charged expected cost in field multiplications to
+      first useful collision.
+    lossiness: >-
+      Not a projection of group elements at all, so the section-2 lossy-projection
+      test does not apply and this record does not pretend it does. The object is
+      an algorithm parameter, which is why the class is `algorithm` and why the
+      relevant discipline is cost honesty rather than propagation typing.
+    propagation: >-
+      Not applicable in the tracked-object sense. What must propagate is the
+      MEMORYLESSNESS property of (B); it is a hard constraint on the design space
+      and every generated candidate is checked against it before it is measured.
+    survival_score: >-
+      Not applicable. The relevant survival statement is that any candidate
+      violating memorylessness is discarded before measurement, not scored.
+
+  mechanism: >-
+    STEP 1 -- DERIVE THE BAND EXACTLY. Write down, in field multiplications for a
+    named curve model: the fully charged parallel rho baseline per KN-TECH-006's
+    convention; the ideal random-map constant; and the birthday floor for a
+    memoryless walk. Report the band as a ratio. This is Stage 0, it is arithmetic
+    on published constants, and it decides whether anything after it is worth
+    running.
+
+    STEP 2 -- CONSTRAIN THE DESIGN SPACE BEFORE SEARCHING IT. Encode
+    memorylessness as a hard filter (B), and the per-step cost budget as a
+    penalty term (C). A search that does not carry both will spend its budget in
+    regions that were excluded by derivation, and will report improvements that
+    vanish under charging.
+
+    STEP 3 -- SEARCH, WITH THE OBJECTIVE STATED IN THE RIGHT UNIT. Objective:
+    expected FIELD MULTIPLICATIONS to first useful collision, fully charged --
+    including table setup, the distinguished-point predicate evaluation, cycle
+    detection and escape, and the memory traffic the DP granularity implies.
+    Search space: r, the partition rule, the jump multiset distribution, the
+    automorphism quotient, the escape rule, and the DP granularity d. Method:
+    exhaustive at small r, then any bounded optimiser; the method is not the
+    contribution and any optimiser that respects the constraints is acceptable.
+
+    STEP 4 -- THE SYMBOLIC-DYNAMICS DIAGNOSTIC, WITH ITS FORCED VALUE. For a
+    walk with an r-cell partition, record the sequence of cell labels visited.
+    For an ideal walk the labels are i.i.d. uniform over r symbols, so the
+    empirical block entropy is exactly log2(r) bits per symbol and the sequence
+    is an unbiased Bernoulli shift. FORCED VALUE, DERIVED BEFORE MEASURING:
+    log2(r). Measured entropy BELOW log2(r) is precisely the deficiency that
+    makes a walk worse than random, and it localises WHERE -- which block length
+    first shows the deficit tells you whether the problem is cell imbalance
+    (block length 1) or correlation (block length 2 or more). This turns
+    "symbolic dynamics" from a lens into a diagnostic with a derived null, and it
+    is cheap.
+
+    STEP 5 -- THE NEGATION-MAP SUB-PROBLEM, WHICH IS THE ONE WITH REAL STAKES.
+    Restrict to walks on {+-A} classes, measure fruitless-cycle frequency as a
+    function of the escape rule, and report the net gain against the un-quotiented
+    baseline in the same unit. Predicted net gain is below the naive sqrt(2) and
+    could be negative for a bad escape rule; measuring where it turns negative is
+    the result.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      grep -ril over ledger/, knowledge/, docs/ for "iteration function",
+      "r-adding", "adding walk", "Teske", "partition function", "fruitless",
+      "negation map", "symbolic dynamics", "subshift", performed 2026-08-06
+      against merge-base 0c856274.
+    results: >-
+      "iteration function": two hits, both literature notes (KN-LIT-2916,
+      KN-LIT-096). "symbolic dynamics" and "subshift": ZERO hits. Teske and
+      r-adding walks appear as BASELINE citations in cost-convention records and
+      in KN-TECH-006, never as an optimisation target. No record in this
+      repository searches the iteration-function design space, derives the
+      achievable band, or states the memorylessness constraint on adaptive walks.
+    verdict: >-
+      ADAPTATION. Iteration-function quality is a studied topic and Teske's
+      result is the standing answer; none of that is claimed as new. What is
+      proposed as new to this program is the framing as a BOUNDED optimisation
+      with the band derived first, the memorylessness no-go for adaptive walks,
+      the cost-charging collapse of learned steps, and the entropy diagnostic
+      with its forced value. No novelty is claimed against the external
+      literature, where the negation-map cycle problem in particular has a known
+      body of work that Stage 0 must locate before any search is run.
+
+  null_object_control: >-
+    (1) DERIVED NULL: the entropy diagnostic's forced value log2(r) for an ideal
+    walk. (2) BASELINE NULL, BLOCKING: a plain Teske r = 20 adding walk measured
+    on the identical instrumented harness in the identical unit. Every candidate
+    is reported as a ratio against THAT, measured in the same run, not against a
+    quoted constant from the literature -- because the most likely way this
+    experiment produces a false win is by comparing an instrumented candidate
+    against an uninstrumented or differently-charged baseline. (3)
+    RANDOM-FUNCTION NULL: a walk driven by a genuinely random oracle (a keyed
+    hash into the group), which realises the ideal constant by construction. Any
+    candidate beating it is claiming to beat random and must survive
+    re-measurement at three problem sizes before the claim is recorded at all.
+
+  assumptions:
+    - >-
+      The generic square-root bound (KN-TECH-005) holds, so no exponent
+      improvement is available and the entire exercise is about constants. Stated
+      as an assumption rather than a background fact because it is what bounds
+      the claim.
+    - >-
+      The baseline convention of KN-TECH-006 is the comparison target, including
+      full charging. A candidate compared against an idealised serial count is
+      not compared against this program's baseline.
+    - >-
+      Toy and mid-scale measurement only; the constant is expected to be
+      size-independent above a threshold, which is itself checked rather than
+      assumed by measuring at three sizes.
+
+  proof_search_map:
+    bottleneck: >-
+      The fully charged per-step cost in field multiplications. Every candidate's
+      apparent win or loss is decided there, and every historical dispute about
+      walk quality reduces to whether the per-step cost was charged consistently.
+    baseline_embedding:
+      parameter_slice: >-
+        r = 20 Teske adding walk with the standard DP granularity is the exact
+        slice reproducing the recorded baseline.
+      reproduction_check: >-
+        The instrumented harness must reproduce the 0.886*sqrt(n) convention of
+        KN-TECH-006 within a pre-registered band at three problem sizes before
+        any candidate is measured. If the harness cannot reproduce the baseline
+        it cannot measure a deviation from it.
+    observation_collision:
+      observable: >-
+        Expected fully charged cost to first useful collision.
+      distinct_preimage_search: >-
+        Two very different iteration functions with the same cost is the
+        expected and uninteresting case. The sharp version of the audit is the
+        opposite and it is a real risk: two DIFFERENT costs reported for what is
+        actually the SAME walk under a relabelling of the partition. The search
+        must canonicalise candidates up to partition relabelling and
+        automorphism, or it will report the same walk repeatedly as distinct
+        discoveries and inflate its own coverage.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          A cost measure in field multiplications with charges added only over
+          proved-disjoint blocks -- step evaluation, DP predicate, cycle
+          detection, escape, memory traffic -- so the total is additive by
+          construction and a win can be attributed to a block.
+        predicted_gain: >-
+          Attribution rather than a single opaque ratio; without it a measured
+          win cannot be reproduced or explained.
+      - transform: boundary_lift
+        proposed_object: >-
+          Enlarge the admissible walk family from r-adding walks to all
+          memoryless maps expressible in O(1) field operations, and ask for a
+          strict inward improvement on the ideal constant rather than mere
+          feasibility.
+        predicted_gain: >-
+          Bounded by (A) at under 1.3x, and the honest expectation is that the
+          true achievable gain is a few percent at most.
+    quantifier_order: >-
+      What may be claimed: EXISTS a walk W in the declared family such that FOR
+      ALL three tested problem sizes, W's fully charged cost is below the
+      instrumented Teske baseline by more than the measurement band.
+      What may NOT be claimed: FOR ALL problem sizes -- three sizes is not all
+      sizes, and a constant that drifts with size is a different phenomenon that
+      must be reported as such rather than averaged away.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "A constant-factor improvement of at most the derived band, at the tested
+        sizes, in the stated unit, under full charging." It can NEVER certify an
+        exponent change, and it can never certify anything about a walk family
+        outside the declared space.
+      nearby_object_control: >-
+        A random-oracle walk, which realises the ideal constant by construction.
+        If the search reports a candidate beating the random-oracle walk by more
+        than the derived band, the measurement is wrong -- the band is a
+        derivation, so exceeding it falsifies the instrument rather than the
+        band. This is the cheapest available check that the harness is honest.
+    proof_obligations:
+      - claim: The harness reproduces the KN-TECH-006 baseline at three sizes.
+        responsibility: baseline
+      - claim: Adaptive walks break DP-based parallel collision detection.
+        responsibility: correctness
+      - claim: The band [1, ideal] is correctly derived.
+        responsibility: size
+      - claim: Costs are in field multiplications with the curve model named.
+        responsibility: interface
+      - claim: Candidates are canonicalised up to partition relabelling.
+        responsibility: correctness
+      - claim: No exponent claim is made anywhere.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        best fully charged cost found by the search, as a ratio to the
+        instrumented Teske r = 20 baseline in field multiplications
+      direction: lower
+      minimum_effect: >-
+        A ratio below 0.95 sustained at all three problem sizes is required
+        before any improvement is recorded. Predicted outcome: no candidate
+        reaches 0.95, and the search confirms the baseline is at the ideal
+        constant -- which is a controlled confirmation, not a failure.
+    - metric: >-
+        block entropy of the partition-symbol sequence, at block lengths 1 to 4
+      direction: different
+      minimum_effect: >-
+        Forced value log2(r) per symbol for an ideal walk. Any candidate whose
+        measured entropy is below log2(r) by more than the sampling band is
+        provably worse than random and is discarded without further measurement,
+        which is what makes the diagnostic worth computing.
+    - metric: >-
+        net gain of the negation-quotient walk with the best escape rule, versus
+        the un-quotiented baseline, fully charged
+      direction: lower
+      minimum_effect: >-
+        Naive prediction sqrt(2) ~ 1.414x. Predicted actual: strictly below that
+        and possibly below 1.0 for poor escape rules. The DELIVERABLE is the
+        escape-rule threshold at which the gain turns negative, which is a number
+        nobody in this ledger has.
+    - metric: >-
+        number of adaptive candidates surviving the memorylessness filter
+      direction: different
+      minimum_effect: >-
+        Exactly 0 for genuinely history-dependent candidates. A non-zero count
+        means the filter is wrong, since (B) is a derivation.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): derive the band; locate the external negation-map
+      cycle literature; state the memorylessness filter and the per-step budget.
+      If the band is narrower than the measurement precision achievable, stop
+      here -- that is a legitimate and cheap outcome.
+      STAGE 1 (hours, HARD GATE): build the instrumented harness; reproduce the
+      KN-TECH-006 baseline at three problem sizes within the pre-registered band.
+      STAGE 2 (HARD GATE): run the random-oracle walk control and confirm it
+      lands at the ideal constant.
+      STAGE 3 (compute-bounded): search the declared space with the
+      memorylessness filter and per-step charging; canonicalise candidates.
+      STAGE 4 (hours): entropy diagnostic on the top candidates and on the
+      baseline.
+      STAGE 5 (compute-bounded): the negation-quotient sub-problem and its escape
+      rules; report the sign-change threshold.
+    controls:
+      - instrumented Teske r = 20 baseline measured in the same run
+      - random-oracle walk realising the ideal constant
+      - derived entropy null log2(r)
+      - memorylessness filter, with its rejection count reported
+    required_metrics:
+      - fully charged cost in field multiplications, per candidate, per size
+      - per-block cost attribution (step, DP predicate, cycle detect, escape, memory)
+      - block entropy at lengths 1 to 4
+      - fruitless-cycle rate and escape overhead per escape rule
+      - curve model and DP granularity for every reported number
+      - candidates generated, filtered, canonicalised, measured
+
+  falsification_conditions:
+    - >-
+      The harness cannot reproduce the KN-TECH-006 baseline at three sizes.
+      Instrument failure; no candidate may be reported.
+    - >-
+      A candidate beats the random-oracle control by more than the derived band.
+      The band is a derivation, so this falsifies the measurement, and the run
+      halts until the discrepancy is explained.
+    - >-
+      An adaptive candidate passes the memorylessness filter. The filter or the
+      derivation in (B) is wrong.
+    - >-
+      No candidate reaches the 0.95 ratio. This is the PREDICTED outcome and is
+      recorded as a controlled confirmation that the baseline sits at the ideal
+      constant -- with the derived band as the named obstruction and the
+      negation-quotient sub-problem as the forward guidance.
+
+  confounders:
+    - >-
+      Unit substitution. Reporting step counts instead of field multiplications
+      is the classic way a walk that trades cheap steps for expensive ones looks
+      like an improvement. Named in (E) and enforced by the required metrics.
+    - >-
+      Baseline quotation. Comparing an instrumented candidate against a quoted
+      literature constant rather than an instrumented baseline measured in the
+      same run. The blocking control exists for this.
+    - >-
+      Relabelling duplicates. Without canonicalisation the search will report the
+      same walk many times and inflate coverage.
+    - >-
+      Size drift. A constant measured at one size may not hold at another; three
+      sizes are required and drift must be reported rather than averaged.
+    - >-
+      Parallelisation loss hidden in a serial comparison. A candidate that gives
+      up memorylessness must be compared against the SERIAL baseline and charged
+      for the lost near-linear parallel speedup, which will usually dominate
+      whatever it gained.
+
+  interpretation_limits:
+    - >-
+      Constant factors only. Nothing here touches the exponent and no result may
+      be summarised as if it did.
+    - >-
+      Scoped to the declared walk family, the named curve model, the tested sizes
+      and the stated charging convention.
+    - >-
+      A confirmed baseline is a real result under docs/inventor-protocol.md
+      section 3 and must not be reported as a failed search.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The fully charged cost ratio of a memoryless walk to the ideal random-map
+        walk is independent of the group order above a threshold size, so a ratio
+        measured at three toy sizes transfers to cryptographic sizes.
+      rigorous_support: >-
+        Rigorous side: the expected collision time of a genuinely random map on
+        N points is sqrt(pi N / 2), so the SHAPE of the cost is fixed and only a
+        multiplicative constant is at stake. Heuristic side: that a specific
+        computable walk's deviation from random behaves like a size-independent
+        constant rather than drifting -- which is the assumption Teske's result
+        is normally read as supporting and which this proposal measures rather
+        than inherits.
+      validation_plan: >-
+        Measure the ratio at three problem sizes spanning at least a factor 256
+        in N and fit the size dependence. Comparison: a flat line at the measured
+        constant, against the alternative of a fitted drift term. Tail check: the
+        largest per-size deviation from the flat fit. Toy and mid-scale only, and
+        labelled so; no crypto-scale validation of H1 is claimed, and H1's
+        failure would mean every constant in this space must be re-measured per
+        size, which would itself be a useful finding.
+
+  target_complexity:
+    time_exponent: >-
+      p^{1/2}, UNCHANGED AND UNCHANGEABLE HERE. The generic bound (KN-TECH-005)
+      forbids any exponent movement by iteration-function design. The claimed
+      target is a constant factor within the derived band, strictly below 1.3.
+    memory_exponent: >-
+      O(1) per processor plus the distinguished-point table; the DP granularity d
+      is a search parameter and its memory is charged, so candidates that buy
+      speed with table size are penalised rather than credited.
+    best_known: >-
+      This program's baseline: 0.886*sqrt(n) group operations with
+      van Oorschot-Wiener parallelisation, fully charged (KN-TECH-006), already
+      at the ideal random-walk constant per Teske. That is the number to beat and
+      it is the ceiling of the achievable band.
+    hidden_overhead: >-
+      Nothing hides in an o(1) here because there is no asymptotic claim. What
+      does hide, and is disclosed, is the curve model: a factor two to three in
+      per-step field-multiplication cost sits entirely inside the choice of
+      model and can swamp every effect this proposal measures.
+    tradeoff_note: >-
+      The DP granularity d is the memory/steps knob and is explicitly part of the
+      search space rather than fixed, so candidates are compared on the tradeoff
+      surface and not at one point of it.
+
+  dominated_by: >-
+    Dominated by the fully charged parallel rho baseline of KN-TECH-006 on every
+    axis unless a candidate clears the 0.95 ratio at all three sizes, which is
+    predicted not to happen. Checked against the frontier rows this program
+    records for prime-field ECDLP: rho at p^{1/2} with O(1) memory (KN-TECH-001,
+    KN-TECH-006), BSGS at p^{1/2} time and memory (KN-TECH-031), kangaroo for
+    intervals, and the automorphism-accelerated variants (KN-TECH-018) which are
+    the ones this proposal would actually have to beat in the negation
+    sub-problem. On the data/query axis nothing changes.
+  sota_delta: >-
+    Predicted zero improvement, with a DERIVED CEILING of under 1.3x on any
+    possible improvement and a floor of 1.0 from the birthday bound -- so the
+    entire direction is worth at most a factor 1.3 and exactly zero exponent, and
+    that number is the deliverable. Secondary deliverables as numbers: 1 whole
+    sub-family (adaptive walks) killed by a 3-line derivation; 1 per-step cost
+    budget (about 10 field multiplications) that collapses the learned-step
+    family into the same band; 1 derived entropy null (log2 r) usable as a cheap
+    pre-filter; and 1 measured escape-rule threshold at which the negation-quotient
+    gain changes sign, which no record currently has.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.97 that no candidate beats the baseline by 5 percent -- Teske's result is
+    the reason, and the band derivation says why no search could. 0.8 that the
+    negation-quotient sub-problem yields a usable sign-change threshold, which is
+    where essentially all the expected value of this record sits. The record is
+    worth filing mostly for (A) and (B): they let the program decline this
+    direction for a stated reason instead of either running it blind or
+    dismissing it, and a stated reason is what the closure standard requires.
+
+  id_allocation_provenance: >-
+    python3 tools/allocate_id.py --next idea --date 20260806 (random token, no
+    state scanned), then --check IDEA-20260806-37eab9 confirmed free before use.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-06'
+  source_refs:
+    - KN-TECH-001
+    - KN-TECH-005
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-TECH-031
+    - KN-TECH-035
+    - KN-TECH-036
+    - KN-TECH-052
+    - KN-TECH-056
+    - KN-OPEN-001
+    - RQ-ECDLP-002
+    - IDEA-20260805-c8524f
+    - IDEA-20260806-3b91c7

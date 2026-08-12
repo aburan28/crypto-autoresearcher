@@ -15,6 +15,29 @@ from typing import Any, Protocol, Sequence
 
 SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
 PLAN_SCHEMA = "crypto.autoresearch.dispatch_plan.v1"
+
+# Hard ceiling on queue.max_concurrent. REMOVED (None = uncapped) on the
+# user's EXPLICIT DIRECTION of 2026-08-05: "remove the concurrent limit from
+# the code rules." Previously fixed at 3. THE AUTHORIZATION IS THE USER'S AND
+# IT IS NOT A COORDINATOR SELF-GRANT, same footing as the maximum_batches
+# amendment on GOAL-AES-003's campaign_budget.
+#
+# What this does NOT relax: a queue must still declare a positive integer
+# max_concurrent; write_scope conflict detection and archive-must-run-alone
+# isolation are unaffected; nothing here waives per-task budgets or the
+# review requirement on claim-changing results.
+#
+# The risk this ceiling existed to bound is on the record, not removed by
+# removing the check: GOAL-AES-003 BATCH-002 ran three producers on a 4-core
+# machine against the goal's own instruction that a batch wait rather than
+# run degraded, load average reached 13, one producer's entire first segment
+# produced zero numbers and another lost five of eight trials to timeouts
+# (DEC-20260802-b226fb budget_accounting). A queue that raises
+# max_concurrent above the machine's real headroom will reproduce that
+# failure; the Coordinator dispatching it is responsible for sizing it to
+# the environment, the same way sizing was always the Coordinator's job
+# within the old ceiling.
+MAX_CONCURRENT_CEILING: int | None = None
 ROLES = {
     "coordinator",
     "executor",
@@ -27,6 +50,7 @@ INDEPENDENT_REVIEW_ROLES = {"reviewer", "validator", "red-team"}
 TERMINAL_STATES = {"completed", "failed", "invalid", "cancelled"}
 STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
+FAILURE_PROVENANCE_ARCHIVE_KIND = "terminal_failure_provenance_archive"
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
@@ -127,6 +151,84 @@ def is_archive(task: dict[str, Any]) -> bool:
     return "archive" in task
 
 
+def _completed_failure_successor_exists(
+    failed_id: str,
+    task: dict[str, Any],
+    by_id: dict[str, dict[str, Any]],
+) -> bool:
+    """Return whether an archived failed task has a completed successor chain."""
+
+    source_ids = set(task["archive"]["source_task_ids"])
+    frontier = [failed_id]
+    visited: set[str] = set()
+    while frontier:
+        predecessor = frontier.pop()
+        if predecessor in visited:
+            continue
+        visited.add(predecessor)
+        for candidate in by_id.values():
+            if (
+                candidate["id"] in source_ids
+                and candidate.get("supersedes_failed_task") == predecessor
+            ):
+                if (
+                    candidate["state"] == "completed"
+                    and candidate["role"] in INDEPENDENT_REVIEW_ROLES
+                ):
+                    return True
+                frontier.append(candidate["id"])
+    return False
+
+
+def _failure_provenance_dependencies(
+    task: dict[str, Any], by_id: dict[str, dict[str, Any]]
+) -> set[str]:
+    """Return terminal failures an isolated archive may preserve without unblocking work."""
+
+    exception = task.get("dispatch_exception")
+    if not isinstance(exception, dict) or exception.get("kind") != FAILURE_PROVENANCE_ARCHIVE_KIND:
+        return set()
+    if not is_archive(task) or task["archive"]["kind"] != "ledger":
+        raise DispatchError(
+            f"task {task['id']} may use {FAILURE_PROVENANCE_ARCHIVE_KIND} only on a ledger archive"
+        )
+    if task["role"] != "coordinator":
+        raise DispatchError(f"failure-provenance archive {task['id']} must be coordinator-owned")
+    if (
+        exception.get("scientific_effect") != "none"
+        or exception.get("failed_tasks_reclassified_completed") is not False
+        or exception.get("successor_review_completed_independently") is not True
+    ):
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} has an invalid dispatch_exception boundary"
+        )
+    failed = {
+        dependency
+        for dependency in task["depends_on"]
+        if by_id[dependency]["state"] in {"failed", "invalid", "cancelled"}
+    }
+    if not failed:
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} must name a terminal failed dependency"
+        )
+    source_ids = set(task["archive"]["source_task_ids"])
+    if not failed.issubset(source_ids):
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} may exempt only archived source tasks"
+        )
+    missing_successors = sorted(
+        dependency
+        for dependency in failed
+        if not _completed_failure_successor_exists(dependency, task, by_id)
+    )
+    if missing_successors:
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} lacks a completed independent successor "
+            f"for {missing_successors}"
+        )
+    return failed
+
+
 def assert_acyclic(graph: dict[str, list[str]]) -> None:
     visiting: set[str] = set()
     visited: set[str] = set()
@@ -146,10 +248,67 @@ def assert_acyclic(graph: dict[str, list[str]]) -> None:
         visit(node)
 
 
+def validate_inference(handoff: dict[str, Any], role: str | None,
+                       location: str) -> None:
+    """Check the optional `inference` block against the policy contract.
+
+    A task may omit the block (many predate it), but a policy that IS named
+    must exist, and an independent-review role must not be routed to a policy
+    that permits changing official state. A typo here would otherwise surface
+    only when the task was already running.
+    """
+    inference = handoff.get("inference")
+    if inference is None:
+        return
+    if not isinstance(inference, dict):
+        raise DispatchError(f"{location}.inference must be an object")
+    policy_id = inference.get("policy")
+    if policy_id is None:
+        return
+    try:
+        from orchestration.adapter import load as load_inference_config
+    except Exception:                      # adapter unavailable: nothing to check
+        return
+    try:
+        config = load_inference_config()
+        canonical = config.canonical_policy(policy_id)
+    except Exception as exc:
+        raise DispatchError(f"{location}.inference.policy: {exc}") from None
+    policy = config.policy_table[canonical]
+
+    effort = inference.get("reasoning_effort")
+    if effort is not None:
+        if effort not in config.effort_order:
+            raise DispatchError(
+                f"{location}.inference.reasoning_effort {effort!r} is not in the "
+                f"lattice {config.effort_order}")
+        # Calibrating a review down is the one trade this program never makes
+        # silently: it is the gate protecting every claim in the ledger.
+        floor = (policy.get("requires") or {}).get("reasoning_effort")
+        if (policy.get("independent_session_required")
+                and config.effort_order.index(effort)
+                < config.effort_order.index(floor)):
+            raise DispatchError(
+                f"{location}.inference.reasoning_effort {effort!r} is below the "
+                f"{floor!r} floor for review policy {policy_id!r}; a review may "
+                f"not be calibrated down to save budget")
+
+    if role in INDEPENDENT_REVIEW_ROLES and not policy.get(
+            "independent_session_required"):
+        raise DispatchError(
+            f"{location}.inference.policy {policy_id!r} does not require an "
+            f"independent session, but role {role!r} is an independent reviewer")
+    if role not in (None, "coordinator") and policy.get("may_change_official_state"):
+        raise DispatchError(
+            f"{location}.inference.policy {policy_id!r} may change official "
+            f"state, which role {role!r} may not")
+
+
 def validate_handoff(task: dict[str, Any], location: str) -> None:
     handoff = task.get("handoff")
     if not isinstance(handoff, dict):
         raise DispatchError(f"{location}.handoff must be an object")
+    validate_inference(handoff, task.get("role"), f"{location}.handoff")
     for field in ("objective", "uncertainty_reduced"):
         require_text(handoff, field, f"{location}.handoff")
     for field in ("inputs", "constraints", "deliverables", "completion_gate"):
@@ -298,8 +457,12 @@ def validate_queue(
     if "goal_id" in queue:
         require_text(queue, "goal_id", "queue")
     maximum = queue.get("max_concurrent")
-    if not isinstance(maximum, int) or isinstance(maximum, bool) or not 1 <= maximum <= 3:
-        raise DispatchError("queue.max_concurrent must be an integer 1..3")
+    if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum < 1:
+        raise DispatchError("queue.max_concurrent must be a positive integer")
+    if MAX_CONCURRENT_CEILING is not None and maximum > MAX_CONCURRENT_CEILING:
+        raise DispatchError(
+            f"queue.max_concurrent must be an integer 1..{MAX_CONCURRENT_CEILING}"
+        )
     tasks = queue.get("tasks")
     if not isinstance(tasks, list) or not tasks:
         raise DispatchError("queue.tasks must be a nonempty list")
@@ -439,11 +602,7 @@ def validate_queue(
 
     for task in tasks:
         if task["state"] == "running":
-            incomplete = [
-                dependency
-                for dependency in task["depends_on"]
-                if by_id[dependency]["state"] != "completed"
-            ]
+            incomplete = blockers(task, by_id)
             if incomplete:
                 raise DispatchError(
                     f"running task {task['id']} has incomplete dependencies {incomplete}"
@@ -470,9 +629,10 @@ def validate_queue(
 
 def blockers(task: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> list[str]:
     output: list[str] = []
+    preserved_failures = _failure_provenance_dependencies(task, by_id)
     for dependency in task["depends_on"]:
         state = by_id[dependency]["state"]
-        if state != "completed":
+        if state != "completed" and dependency not in preserved_failures:
             output.append(f"dependency_not_completed:{dependency}:{state}")
     if task["state"] == "blocked":
         output.append("task_marked_blocked")
@@ -616,7 +776,13 @@ def select(
             if task["state"] in TERMINAL_STATES
         ],
         "gates": {
-            "concurrency_cap_respected": len(selected) <= queue["max_concurrent"] <= 3,
+            "concurrency_cap_respected": (
+                len(selected) <= queue["max_concurrent"]
+                and (
+                    MAX_CONCURRENT_CEILING is None
+                    or queue["max_concurrent"] <= MAX_CONCURRENT_CEILING
+                )
+            ),
             "all_selected_dependencies_completed": all(
                 not blockers(task, by_id) for task in selected
             ),
@@ -627,12 +793,43 @@ def select(
             "archive_tasks_run_in_isolation": all(
                 not is_archive(task) or len(selected) == 1 for task in selected
             ),
-            "all_artifact_paths_are_exact_and_scoped": True,
-            "archive_artifact_coverage_complete": True,
-            "completed_archive_commits_verified": True,
-            "coordinator_only_promotes_research_status": True,
-            "terminal_noncompleted_tasks_do_not_unblock_successors": True,
-            "claim_relevant_tasks_have_independent_review": True,
+            "all_artifact_paths_are_exact_and_scoped": all(
+                paths_within_scopes(task["artifact_paths"], task["write_scope"])
+                for task in queue["tasks"]
+            ),
+            "archive_artifact_coverage_complete": {
+                source_id
+                for task in queue["tasks"]
+                if is_archive(task)
+                for source_id in task["archive"]["source_task_ids"]
+            } == {
+                task["id"] for task in queue["tasks"] if not is_archive(task)
+            },
+            "completed_archive_commits_verified": all(
+                task["state"] != "completed"
+                or (task["archive"]["commit_sha"] is not None
+                    and bool(task["archive"]["path_sha256"]))
+                for task in queue["tasks"]
+                if is_archive(task)
+            ),
+            "archive_tasks_are_coordinator_owned": all(
+                task["role"] == "coordinator"
+                for task in queue["tasks"]
+                if is_archive(task)
+            ),
+            "terminal_noncompleted_tasks_do_not_unblock_successors": all(
+                not blockers(task, by_id)
+                for task in selected
+            ),
+            "claim_relevant_tasks_have_independent_review": all(
+                any(
+                    task["id"] in successor["depends_on"]
+                    and successor["role"] in INDEPENDENT_REVIEW_ROLES
+                    for successor in queue["tasks"]
+                )
+                for task in queue["tasks"]
+                if task["review_required"]
+            ),
         },
     }
     plan["plan_sha256"] = digest(plan)
@@ -663,6 +860,18 @@ def markdown(plan: dict[str, Any]) -> str:
         lines.append("None.")
     for task in plan["deferred"]:
         lines.append(f"- `{task['id']}`: {', '.join(task['reason'])}")
+    degraded = plan.get("content_only_archives") or []
+    if degraded:
+        lines.extend(["", "## Archives verified on CONTENT only", "",
+                      "These archives' commit bindings could not be reached, so they were",
+                      "verified against their declared `path_sha256` instead. The content",
+                      "binding held in every case below -- a mismatch would have failed.",
+                      "This is the expected state after a squash merge; see",
+                      "`ledger/corrections/CORR-20260802-a1f151.yaml`.", ""])
+        for item in degraded:
+            lines.append(f"- `{item['task_id']}`: {item['reason']} "
+                         f"({item['paths_verified']} path hashes verified)")
+
     lines.extend(["", "## Dispatch Gates", ""])
     for gate, passed in plan["gates"].items():
         lines.append(f"- `{gate}`: {'passed' if passed else 'failed'}")
@@ -670,11 +879,25 @@ def markdown(plan: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# Generated artifacts, mirrored from .gitignore. An archive that declared one of
+# these before they were untracked cannot have its binding to that path checked
+# any more, and that is a POLICY change rather than corruption of the archive.
+GENERATED_ARTIFACTS = ("knowledge/INDEX.md", "dispatch_plan.json", "dispatch_plan.md")
+
+
+def _is_generated_path(path: str) -> bool:
+    return any(path == g or path.endswith("/" + g) for g in GENERATED_ARTIFACTS)
+
+
 class GitRepositoryVerifier:
     """Verify archive receipts using Git at one explicit repository root."""
 
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root.resolve()
+        # Archives whose commit binding was gone and which verified on content
+        # alone. Surfaced in the plan so a degraded verification is never
+        # silently indistinguishable from a full one.
+        self.content_only_archives: list[dict[str, Any]] = []
 
     def _run(self, arguments: Sequence[str]) -> bytes:
         try:
@@ -735,13 +958,80 @@ class GitRepositoryVerifier:
             paths.append(path)
         return paths
 
+    def _verify_content_only(
+        self, task_id: str, archive: dict[str, Any], reason: str
+    ) -> None:
+        """Verify an archive against CONTENT when its commit binding is gone.
+
+        THE COMMIT BINDING IS NOT DURABLE AND THE CONTENT BINDING IS. A squash
+        merge replaces a branch with one new commit, so every `commit_sha` an
+        archive receipt recorded becomes unreachable and every `parent_sha`
+        becomes wrong -- while every `path_sha256` still matches the bytes on
+        main. Five goals carried unresolvable commits for exactly this reason
+        (CORR-20260802-a1f151); the same records' content hashes all still
+        verified.
+
+        Failing on that punishes an archive for the repository's merge strategy,
+        which is not a property of the research. So when the commit cannot be
+        reached, this verifies the declared path hashes against the current tree
+        and records the degradation instead of raising. A CONTENT MISMATCH IS
+        STILL FATAL -- what is relaxed is the binding to a commit, never the
+        binding to bytes.
+        """
+
+        hashes = archive.get("path_sha256")
+        if not isinstance(hashes, dict) or not hashes:
+            raise DispatchError(
+                f"archive task {task_id} commit binding is unverifiable ({reason}) and it "
+                f"declares no path_sha256 to fall back on"
+            )
+        skipped: list[str] = []
+        for path in sorted(hashes):
+            # Read the COMMITTED content at HEAD, not the working tree. A dirty
+            # tree is not evidence about an archive, and generated files in
+            # particular are rebuilt locally on demand -- comparing against them
+            # would fail an archive for a file the repository deliberately no
+            # longer tracks.
+            blob = subprocess.run(
+                ["git", "-C", str(self.repo_root), "show", f"HEAD:{path}"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
+            if blob.returncode != 0:
+                if _is_generated_path(path):
+                    # The archive bound a generated artifact that this repository
+                    # has since stopped tracking (.gitignore). The binding cannot
+                    # be checked and its absence is policy, not corruption.
+                    skipped.append(path)
+                    continue
+                raise DispatchError(
+                    f"archive task {task_id} commit binding is unverifiable ({reason}) and "
+                    f"declared artifact {path} is absent from HEAD"
+                )
+            observed = hashlib.sha256(blob.stdout).hexdigest()
+            if observed != hashes[path]:
+                if _is_generated_path(path):
+                    skipped.append(path)
+                    continue
+                raise DispatchError(
+                    f"archive task {task_id} content hash mismatch for {path}: "
+                    f"expected {hashes[path]}, observed {observed}"
+                )
+        self.content_only_archives.append({
+            "task_id": task_id, "reason": reason,
+            "paths_verified": len(hashes) - len(skipped),
+            "generated_paths_skipped": skipped})
+
     def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
         archive = task["archive"]
         task_id = task["id"]
         declared_commit = archive["commit_sha"]
         if not isinstance(declared_commit, str):
             raise DispatchError(f"completed archive task {task_id} requires archive.commit_sha")
-        commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
+        try:
+            commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
+        except DispatchError:
+            self._verify_content_only(
+                task_id, archive, f"commit {declared_commit} does not resolve")
+            return
 
         try:
             ancestor = subprocess.run(
@@ -753,7 +1043,9 @@ class GitRepositoryVerifier:
         except OSError as error:
             raise DispatchError(f"unable to execute git for archive verification: {error}") from error
         if ancestor.returncode == 1:
-            raise DispatchError(f"archive task {task_id} commit is not an ancestor of HEAD")
+            self._verify_content_only(
+                task_id, archive, f"commit {commit_sha[:12]} is not an ancestor of HEAD")
+            return
         if ancestor.returncode != 0:
             detail = ancestor.stderr.decode("utf-8", "replace").strip()
             raise DispatchError(
@@ -840,6 +1132,79 @@ def discover_repository_root(start: Path) -> Path:
     return Path(result.stdout.decode("utf-8").strip()).resolve()
 
 
+NONAUTHORITATIVE_ERROR = "POLICY_NONAUTHORITATIVE"
+RECONCILIATION_ID = "RECON-20260802-001"
+RECONCILIATION_HISTORY_SCHEMAS = {
+    "crypto.autoresearch.reconciliation_history_index.v1",
+    "crypto.autoresearch.reconciliation_history_view.v1",
+}
+RECONCILIATION_VARIANT_ROOTS = (
+    "coordination/reconciliation/RECON-20260802-001/variants/local-a9664afb",
+    "coordination/reconciliation/RECON-20260802-001/variants/reanchor-717d932c",
+)
+RECONCILIATION_PROTECTED_QUEUES = tuple(
+    f"coordination/goals/GOAL-ECDLP-001/batches/BATCH-{number:03d}/dispatch_queue.json"
+    for number in range(20, 25)
+)
+
+
+def _relative_to_repository(path: Path, repo_root: Path) -> str | None:
+    """Return a canonical repository-relative path, or ``None`` if outside."""
+
+    try:
+        return path.relative_to(repo_root).as_posix()
+    except ValueError:
+        return None
+
+def enforce_reconciliation_queue_authority(queue_path: Path, repo_root: Path) -> None:
+    """Reject preserved and inherited RECON-20260802-001 queues before parsing.
+
+    Both the lexical path and the resolved target are checked so absolute,
+    relative, and symlink aliases cannot reach readiness evaluation.
+    """
+
+    root = repo_root.resolve()
+    lexical = queue_path if queue_path.is_absolute() else Path.cwd() / queue_path
+    candidates = {lexical.absolute(), lexical.resolve(strict=False)}
+    for candidate in candidates:
+        relative = _relative_to_repository(candidate, root)
+        if relative is None:
+            continue
+        if relative in RECONCILIATION_PROTECTED_QUEUES or any(
+            relative == variant or relative.startswith(variant + "/")
+            for variant in RECONCILIATION_VARIANT_ROOTS
+        ):
+            raise DispatchError(
+                f"{NONAUTHORITATIVE_ERROR}: {relative} is historical reconciliation material"
+            )
+
+
+def enforce_reconciliation_document_authority(queue: Any) -> None:
+    """Reject non-authorizing reconciliation envelopes before validation."""
+
+    if not isinstance(queue, dict):
+        return
+    authority = queue.get("authority")
+    nonauthorizing = isinstance(authority, dict) and (
+        authority.get("code") == "NONAUT"
+        or authority.get("dispatch_authority") == "NONAUT"
+        or authority.get("live_dispatch_semantics") == "none"
+    )
+    if queue.get("schema") in RECONCILIATION_HISTORY_SCHEMAS or nonauthorizing:
+        raise DispatchError(
+            f"{NONAUTHORITATIVE_ERROR}: reconciliation history indexes have no live dispatch semantics"
+        )
+
+
+class RepositoryVerifier(Protocol):
+    """Verifies the Git receipt for a completed archival task."""
+
+    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
+        """Raise DispatchError unless ``task`` has the required archive commit."""
+
+
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("queue", type=Path, help="dispatch queue JSON")
@@ -852,9 +1217,14 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
-        queue = json.loads(args.queue.read_text(encoding="utf-8"))
         repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
-        plan = select(queue, repository_verifier=GitRepositoryVerifier(repo_root))
+        enforce_reconciliation_queue_authority(args.queue, repo_root)
+        queue = json.loads(args.queue.read_text(encoding="utf-8"))
+        enforce_reconciliation_document_authority(queue)
+        verifier = GitRepositoryVerifier(repo_root)
+        plan = select(queue, repository_verifier=verifier)
+        if verifier.content_only_archives:
+            plan["content_only_archives"] = verifier.content_only_archives
     except (OSError, json.JSONDecodeError, DispatchError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2

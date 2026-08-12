@@ -1,0 +1,396 @@
+experiment:
+  id: EXP-DTREE-001
+  hypothesis_id: H-DTREE-001
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  title: >-
+    Multi-level descent tree for prime-field ECDLP: exact-enumeration
+    decomposition-probability slope versus the (B'/N)^(m-1) heuristic, and
+    measured depth-2 versus single-level descent cost on shared instances
+  status: approved
+  frozen: true
+  approved_by: coordinator
+  approved_at: '2026-07-27'
+  claim_tier: toy
+  heuristic_under_test: HEUR-001
+  source_proposal: IDEA-20260726-005
+  objective: >-
+    Decide the two claims of H-DTREE-001 with measured quantities only.
+    C1: validate or refute the decomposition-probability heuristic
+    P_dec(m, B') ~ (B'/N)^(m-1) (HEUR-001) by fitting the exact log-slope
+    gamma of P_dec versus B' on 8-12 bit curves from full enumeration of
+    C(B', m) tuple sums (zero sampling error), separating gamma = m-1 = 2
+    (proposal's heuristic) from gamma ~ m = 3 (birthday counting). C2:
+    measure single-level descent cost C_1 = C_solve(m)/P(m, B) and depth-2
+    cost C_2 = C_solve(m')/P(m', B_med) + m'*C_solve(m)/P(m, B) on the same
+    instances, targets, solver, and accounting, for B_med in
+    {2B, 4B, 8B, 16B} and m' in {2, 3}, and decide whether any
+    configuration achieves C_2 < 0.8*C_1 with a bootstrap CI below 1.0.
+    Every failure at either level is charged at full cap cost
+    (failed-descent control); the medium-base log-table construction is
+    charged to preprocessing; the generic-heuristic control compares
+    measured C_2 to the HEUR-001-predicted C_2 so a generic-equivalent
+    outcome is named as such. The negative outcome (C_2 >= C_1 everywhere)
+    is fully reachable and closes the multi-level route at toy scale.
+  inputs:
+    instances:
+      main: >-
+        3 toy prime-field curves at 16, 20, 24 bits (seeds {1, 2, 3} mapped
+        one-to-one to sizes), harness/toycurve.py generate_instance;
+        frozen with SHA-256 in RUN-DTREE-001.
+      slope_curves: 3 tiny curves at 8, 10, 12 bits (seed 1) for exact enumeration.
+    targets: >-
+      50 shared descent targets per main curve (R = a*P + b*Q, seeded
+      uniform, scalars recorded), reused by the single-level control, every
+      depth-2 configuration, and the rho baseline — the comparison is
+      within-instance, never against literature numbers.
+    factor_bases:
+      standard: B = ceil(sqrt(N)) on-curve x-coordinates (harness/semaev.py build_factor_base)
+      medium: B_med in {2B, 4B, 8B, 16B} per main curve, same construction rule, frozen
+      slope_grid: >-
+        At 8-12 bits, all B' >= 8 with C(B', 3) >= 50 and
+        lambda = C(B', 3)/N <= 0.7 (non-saturated); the grid is computed
+        from exact lambda values and frozen in RUN-DTREE-001 (deterministic
+        rule, no adaptive choice after measurement).
+    decomposition_arities: "second_stage m = 3; first_stage m' in {2, 3}"
+    solver: >-
+      sympy Buchberger via harness/semaev.py (implementation-bound; S_3 for
+      arity 2, S_4 for arity 3); per-solve cap 20 s; capped solves count at
+      full cap cost as failures.
+  controls:
+    - id: CTRL-SINGLE-LEVEL
+      method: >-
+        Single-level descent C_1 measured on the same instances and the
+        same 50 targets per curve, with the same solver, cap, and cost
+        accounting as every depth-2 configuration. Never quoted from
+        literature.
+      pass_condition: C_1 measured with median, IQR, and failure rate for every main instance.
+    - id: CTRL-MATCHED-RHO
+      method: harness/rho.py per-target solves on the same targets, verified discrete-log certificates.
+      pass_condition: All baseline solves certified; median per-target cost recorded.
+    - id: CTRL-GENERIC-HEURISTIC
+      method: >-
+        Compute the C_2 predicted by HEUR-001 (P_dec = (B'/N)^(m-1)) for
+        every configuration and compare to the measured C_2; agreement
+        within the pre-registered tolerance (ratio in [0.5, 2]) means the
+        multi-level structure is generic-equivalent.
+      pass_condition: Comparison recorded for every measured configuration; the generic-equivalence verdict is a reported label, not a gate.
+    - id: CTRL-MEDBASE-LOGS
+      method: >-
+        Measure the medium-base log-table construction cost (one
+        second-stage decomposition per medium-base element, from the
+        factor-base log table) at the smallest B_med per size; extrapolate
+        to larger B_med by the measured per-element cost and charge it to
+        preprocessing, never to per-target descent.
+      pass_condition: Per-element cost measured; extrapolation flagged; included in the fully charged comparison.
+    - id: CTRL-FAILED-DESCENT
+      method: >-
+        Every failed or capped solve at either level counts at full cap
+        cost toward both C_1 and C_2; no post-hoc selection of successful
+        branches; a depth-2 target whose first stage succeeds but any
+        second stage fails is a failed target at full accumulated cost.
+      pass_condition: Failure counts and censored counts reported per configuration; any dropped failure invalidates the configuration.
+    - id: CTRL-ENUMERATION-AUDIT
+      method: >-
+        Independently recompute the exact tuple-sum enumeration on one
+        randomly chosen slope cell per tiny curve (different code path) and
+        compare decomposable-element counts exactly.
+      pass_condition: Exact agreement on all 3 audited cells; any disagreement invalidates the slope measurement (integrity failure).
+  independent_variables:
+    - "instance: {16, 20, 24 bits} x seeds {1, 2, 3}"
+    - "medium_base_size: B_med in {2B, 4B, 8B, 16B}"
+    - "first_stage_arity: m' in {2, 3}"
+    - slope_cell: B' over the frozen non-saturated grid at 8, 10, 12 bits
+  metrics:
+    primary:
+      - id: slope_gamma_exact
+        definition: >-
+          Least-squares log-slope of exact P_dec(m = 3, B') versus log B'
+          over the frozen non-saturated cells (>= 6 cells pooled across
+          8-12 bits), with 95% CI; compared against gamma = 2 (HEUR-001)
+          and gamma = 3 (birthday model P_dec = 1 - exp(-C(B',3)/N)).
+      - id: c1_single_level
+        definition: Median single-level descent cost per target per instance (group-operation equivalents), with IQR, failure rate, censor counts.
+      - id: c2_depth2_per_configuration
+        definition: Measured C_2 per (B_med, m') configuration per instance, same accounting; ratio C_2/C_1 with bootstrap 95% CI.
+      - id: optimal_b_med
+        definition: argmin over the grid of measured C_2 per size; compared to B.
+    secondary:
+      - p_dec_sampled_16_24 (Wilson intervals per configuration)
+      - c_solve_per_arity (S_3 vs S_4; dependence on base size recorded)
+      - medbase_logtable_cost_per_element
+      - generic_heuristic_predicted_c2_vs_measured
+      - fully_charged_totals (preprocessing + medium-base logs + K descents + verification) per configuration
+      - wall_clock_artifacts
+  preregistered_prediction:
+    quantity: >-
+      The exact log-slope gamma of P_dec(m = 3, B') versus B' on 8-12 bit
+      curves, fitted over the frozen non-saturated cells; and, per
+      configuration, the sign of C_2/C_1 - 1.
+    formula: >-
+      Under HEUR-001, P_dec(m, B') = Theta((B'/N)^(m-1)), so gamma = m - 1
+      = 2 at m = 3. Under the competing birthday model,
+      P_dec = 1 - exp(-lambda) with lambda = C(B', m)/N, so gamma ~ m = 3
+      in the small-lambda regime. Both slopes are fixed before any run; the
+      fit decides which (if either) the exact enumeration supports, and the
+      generic-heuristic control prices C_2 from HEUR-001's formula
+      regardless of the slope outcome.
+    source: >-
+      HEUR-001 of H-DTREE-001 (the (B'/N)^(m-1) heuristic as stated in
+      IDEA-20260726-005's mechanism, carried by KN-TECH-003 and at home in
+      the extension-field regime of KN-LIT-022); the birthday competing
+      model follows from tuple-sum counting (EV-STR-001 accounting
+      precedent).
+  sample_size_justification: >-
+    The slope measurement is exact enumeration (zero sampling error): every
+    fitted cell counts decomposable group elements over the full group.
+    The frozen grid rule (B' >= 8, C(B', 3) >= 50, lambda <= 0.7) yields at
+    least 6 non-saturated cells across 8-12 bits (e.g., at 12 bits B' in
+    {8, 16} gives lambda ~ 0.014 and ~0.14; analogous cells exist at 8 and
+    10 bits), spanning more than a decade in lambda — the two candidate
+    slopes (2 vs 3) differ by a full unit over that range, so the fit
+    separates them decisively. Smallest resolved event: the smallest fitted
+    cell has C(B', 3) >= 50 tuples, i.e., at least ~24 decomposable group
+    elements even after collision thinning at lambda <= 0.7 — at least 24x
+    the minimum resolvable count of 1 (stated multiple: >= 24x). For the
+    cost measurement, 50 shared targets per configuration-arm and a minimum
+    validity prefix of 10 measured targets in at least 2 configurations per
+    size give the bootstrap CI on C_2/C_1 resolution ~15%; the 0.8 success
+    threshold sits ~1.3 CI-widths below 1.0, so a true 20% advantage is
+    detectable and a true null is recorded cleanly.
+  tail_checks:
+    - >-
+      Extreme-cell agreement: at the largest fitted B' per tiny curve,
+      compare the exact decomposable-element count to the birthday
+      prediction N*(1 - exp(-lambda)); a deviation > 10% flags
+      equidistribution failure of tuple sums and is reported with the slope.
+    - >-
+      Multiplicity tail: the largest observed tuple-sum multiplicity per
+      tiny curve against the Poisson max prediction; outliers are recorded
+      (AGENTS.md rule 8), never trimmed.
+    - >-
+      Zero-cell audit: any frozen-rule cell with exactly 0 decomposable
+      elements triggers exact re-verification by the independent audit path
+      (arithmetic bug versus true zero); the audit outcome is recorded.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      No transfer claim: exact slopes at 8-12 bits and Groebner-bound costs
+      at 16-24 bits are finite-size statements; near saturation the
+      probability law changes character, and the sympy solver bounds every
+      cost number. Evidence from this experiment carries claim_tier toy.
+    correspondence: null
+  replication:
+    seeds: [1, 2, 3]
+    seed_policy: >-
+      Deterministic: instances, targets, factor and medium bases,
+      enumeration orders, and audit-cell choices derive from the frozen
+      seeds; every run manifest records the seeds actually used.
+    independent_instances: 6
+    planned_runs:
+      - id: RUN-DTREE-001
+        purpose: >-
+          Freeze main instances, targets, standard and medium bases; compute
+          and freeze the non-saturated slope grid at 8-12 bits from exact
+          lambda values; SHA-256 of all frozen artifacts.
+      - id: RUN-DTREE-002
+        purpose: >-
+          Exact-enumeration slope measurement at 8, 10, 12 bits over the
+          frozen grid; CTRL-ENUMERATION-AUDIT on 3 cells; Poisson tail
+          checks; slope fit with CI.
+      - id: RUN-DTREE-003
+        purpose: CTRL-SINGLE-LEVEL C_1 at 16 bits (50 shared targets, failures at cap cost).
+      - id: RUN-DTREE-004
+        purpose: CTRL-SINGLE-LEVEL C_1 at 20 bits.
+      - id: RUN-DTREE-005
+        purpose: CTRL-SINGLE-LEVEL C_1 at 24 bits.
+      - id: RUN-DTREE-006
+        purpose: >-
+          Depth-2 C_2 measurement at 16 bits: configurations in frozen
+          order (m' = 2 ascending B_med, then m' = 3 ascending B_med),
+          50 shared targets, both stages charged, CTRL-FAILED-DESCENT.
+      - id: RUN-DTREE-007
+        purpose: Depth-2 C_2 measurement at 20 bits, same protocol.
+      - id: RUN-DTREE-008
+        purpose: Depth-2 C_2 measurement at 24 bits, same protocol.
+      - id: RUN-DTREE-009
+        purpose: >-
+          CTRL-MEDBASE-LOGS: medium-base log-table construction cost at the
+          smallest B_med per size (per-element cost measured, extrapolation
+          rule frozen).
+      - id: RUN-DTREE-010
+        purpose: CTRL-MATCHED-RHO baseline on the same 50 targets per main curve, verified certificates.
+      - id: RUN-DTREE-011
+        purpose: >-
+          Decomposition-probability sampling at 16-24 bits for every tested
+          (m', B_med) cell (Wilson intervals); CTRL-GENERIC-HEURISTIC
+          comparison of predicted versus measured C_2.
+      - id: RUN-DTREE-012
+        purpose: >-
+          Aggregation: optimal B_med per size, C_2/C_1 with bootstrap CIs,
+          slope decision, fully charged totals, analysis.md.
+    expected_run_count: 12
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_wall_clock_seconds: 12300
+    total_cpu_hours: 3.5
+    maximum_memory_gb: 4
+    maximum_runs: 12
+    stages:
+      - id: freeze
+        wall_clock_seconds: 600
+        stop_rule: >-
+          If the frozen grid yields fewer than 6 non-saturated cells across
+          the three tiny sizes, stop and record design_infeasible with the
+          exact lambda table; do not improvise a new grid.
+      - id: exact_slope
+        wall_clock_seconds: 900
+        stop_rule: Any audit disagreement stops the slope line (integrity failure); cost runs may still proceed.
+      - id: single_level
+        wall_clock_seconds: 2700
+        stop_rule: Per-solve cap 20 s; per-run cumulative cap 1500 s; unattempted targets recorded cancelled_by_budget with the measured prefix retained.
+      - id: depth2
+        wall_clock_seconds: 5400
+        stop_rule: >-
+          Frozen configuration order (cheapest first: m' = 2 ascending
+          B_med, then m' = 3); per-run cumulative cap 1500 s; a size with
+          fewer than 10 measured targets in at least 2 configurations is
+          resource_exhaustion (recorded, not evidence).
+      - id: preprocessing_and_baselines
+        wall_clock_seconds: 1500
+        stop_rule: If medium-base log construction exceeds its cap, record the measured per-element lower bound and flag the extrapolation.
+      - id: aggregation
+        wall_clock_seconds: 1200
+        stop_rule: Stop without interpretation if any required artifact from an earlier stage is incomplete.
+  stopping_rules:
+    - Any crash or harness error: record failed_infrastructure; never evidence (AGENTS.md rule 5).
+    - Stop after the 12 planned runs; no exploratory additional runs.
+    - Stop any run at 1800 s wall clock or 4 GB resident memory, recording the honest terminal status.
+    - Stop the whole experiment at 12300 s total wall clock; remaining runs recorded cancelled_by_budget.
+    - A null or negative C2 outcome completes the full protocol (slope, baselines, fully charged accounting) so the scoped negative is fully recorded.
+  invalidation_rules:
+    - Any run missing its manifest, exact command, environment, raw result, summary, stdout, or stderr is invalid.
+    - Any run with dirty: true is invalid.
+    - Frozen-artifact SHA-256 mismatch (including the frozen slope grid) invalidates dependent runs.
+    - Any dropped or uncharged failure at either descent level invalidates the affected configuration (CTRL-FAILED-DESCENT breach).
+    - Use of literature or cross-instance numbers in place of the same-instance C_1 or rho baseline invalidates the comparison.
+    - Enumeration-audit disagreement invalidates the slope measurement (integrity failure, not a scientific outcome).
+    - Duplicated or missing seeds, or raw/summary disagreement, invalidates the affected run.
+  success_criterion: >-
+    All 12 runs reach terminal status with valid artifacts; the slope fit
+    uses at least 6 exact non-saturated cells and passes the enumeration
+    audit; C_1 is measured on every main instance on the shared targets;
+    and at least one of the two claims is decided in the positive: C1 —
+    the slope CI contains exactly one of {2, 3}, validating or refuting
+    HEUR-001's exponent at toy scale; C2 — at least one (B_med, m', m)
+    configuration at the largest tested size achieves C_2 < 0.8*C_1 with
+    bootstrap 95% CI on C_2/C_1 entirely below 1.0, with the
+    generic-heuristic control labeling the advantage generic-equivalent or
+    non-generic, and the fully charged comparison (including medium-base
+    logs and matched rho) reported.
+  falsification_criterion: >-
+    Reachable by an actual run: (a) C_2 >= C_1 for every tested
+    configuration at every size meeting the validity prefix, or the optimal
+    B_med = B at every size — the multi-level route is closed at toy scale;
+    or (b) the exact slope CI excludes m - 1 = 2, refuting HEUR-001's
+    exponent (a CI containing m = 3 confirms the competing birthday model);
+    or (c) every winning configuration is generic-equivalent under
+    CTRL-GENERIC-HEURISTIC (ratio in [0.5, 2]) — no non-generic signal.
+    Infrastructure failure, censor collapse below the validity prefix, or
+    an integrity failure is recorded as inconclusive, never as
+    falsification (AGENTS.md rule 5).
+  required_artifacts:
+    - experiments/EXP-DTREE-001/specification.yaml
+    - experiments/EXP-DTREE-001/frozen-instances.yaml
+    - experiments/EXP-DTREE-001/analysis.md
+    - experiments/EXP-DTREE-001/execution-report.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-001/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-001/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-001/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-001/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-001/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-001/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-001/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-002/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-002/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-002/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-002/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-002/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-002/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-002/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-003/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-003/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-003/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-003/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-003/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-003/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-003/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-004/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-004/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-004/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-004/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-004/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-004/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-004/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-005/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-005/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-005/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-005/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-005/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-005/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-005/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-006/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-006/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-006/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-006/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-006/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-006/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-006/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-007/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-007/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-007/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-007/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-007/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-007/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-007/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-008/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-008/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-008/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-008/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-008/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-008/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-008/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-009/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-009/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-009/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-009/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-009/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-009/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-009/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-010/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-010/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-010/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-010/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-010/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-010/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-010/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-011/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-011/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-011/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-011/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-011/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-011/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-011/stderr.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-012/manifest.yaml
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-012/command.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-012/environment.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-012/raw.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-012/summary.json
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-012/stdout.txt
+    - experiments/EXP-DTREE-001/runs/RUN-DTREE-012/stderr.txt
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: null
+    fallback_used: false
+    authorization_ref: null

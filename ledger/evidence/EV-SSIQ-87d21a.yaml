@@ -1,0 +1,236 @@
+evidence:
+  id: EV-SSIQ-87d21a
+  hypothesis_id: null
+  hypothesis_id_note: >-
+    Explicitly null, not omitted: this run is a synthetic-data-only
+    validation-infrastructure fix (GD-10) and bears on no hypothesis's
+    real-arm prediction. Naming H-SSIQ-36e970 here would invite exactly
+    the inference this run cannot support -- that it tested or advanced
+    the delta_E-gradient question, which it does not.
+  question_id: RQ-SSIQ-9702af
+  goal_id: GOAL-SSIQ-001
+  batch_id: BATCH-007
+  experiment_ids: [EXP-SSIQ-a85692]
+  run_ids: [RUN-SSIQ-a85692-d]
+  type: empirical
+  direction: neutral
+  direction_note: >-
+    NEUTRAL WITH RESPECT TO H-SSIQ-36e970 (this run makes no claim about
+    it -- it is a synthetic-data-only test of validation infrastructure,
+    not a re-analysis of real delta_E labels). hypothesis_id is null
+    because, unlike every prior run in this campaign, this run does not
+    test or bear on any hypothesis's real-arm prediction at all: it is
+    infrastructure work (fixing GD-10) that BOTH reviewers confirm
+    succeeded on its own narrow terms, while independently surfacing a
+    separate, previously-unknown defect (GD-11) in shared library code.
+  strength: inconclusive
+  strength_note: >-
+    inconclusive AS "not applicable," not as "tested weakly": strength
+    normally describes evidence FOR OR AGAINST a hypothesis prediction,
+    and this run has none to offer (hypothesis_id is explicitly null,
+    see hypothesis_id_note). What is firm,
+    independently confirmed by both reviewers via direct code reading and
+    independent re-execution: GD-10 is genuinely fixed. What is newly
+    established, independently reproduced by both reviewers from first
+    principles: GD-11, a genuine, reproducible defect in
+    dht.ols_loglog_fit's degeneracy guard, broader than the Executor's own
+    disclosure.
+  claim_tier: toy
+  claim_tier_note: >-
+    Toy scale / infrastructure scale. No graph, no delta_E label, and no
+    descent metric from any real prime is touched by this run. GD-11's
+    scope note below states precisely which real N values are implicated.
+  proof_status: empirical_only
+  proof_refs:
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-d/raw-result.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-d/self_test_v4.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-d/execution_report.yaml
+    - coordination/goals/GOAL-SSIQ-001/batches/BATCH-007/reviews/VAL-BATCH-007.md
+    - coordination/goals/GOAL-SSIQ-001/batches/BATCH-007/reviews/RT-BATCH-007.md
+    - coordination/goals/GOAL-SSIQ-001/batches/BATCH-007/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v4.md
+  preregistration_binding:
+    specification: experiments/EXP-SSIQ-a85692/specification_v4.yaml
+    freeze_commit: 0b15e854
+    verified_by: TASK-20260805-aeb1ed
+    detail: >-
+      specification_v4.yaml frozen 2026-08-05 at commit 0b15e854, a
+      versioned amendment to v3 (frozen 7f40426b), after its own
+      pre-freeze Red Team review (RT-PREFREEZE-EXP-SSIQ-a85692-v4.md,
+      FREEZE-WITH-FIXES, PF-1 through PF-3 applied, including a NEW
+      mutation_precondition_v4 requirement the reviewer satisfied by hand
+      -- itself finding the original two-check design missed the exact
+      mutation it was supposed to guard against). The Validator confirmed
+      manifest.yaml's code.commit equals the freeze commit.
+  observations:
+    - id: O-1
+      statement: >-
+        GD-10 IS GENUINELY FIXED, INDEPENDENTLY CONFIRMED BY BOTH
+        REVIEWERS THROUGH DIRECT CODE READING AND INDEPENDENT
+        RE-EXECUTION, NOT BY TRUSTING THE EXECUTOR'S OWN "PASS" CLAIM.
+        The Validator re-imported reanalyze_v3 and re-executed all three
+        checks, reproducing every reported number bit-exactly, and
+        independently re-traced the min_primes off-by-one mutation. The
+        Red Team independently executed the same mutation against the
+        actual code and confirmed CHECK 3 (and only CHECK 3, not CHECK 1
+        or CHECK 2) correctly flips evaluable from True to False under
+        the mutant. Both confirm all three checks call
+        c_null_label_comparison_v3 directly (grep-verified and, in the
+        Validator's case, re-executed) -- no hand-written duplicate of
+        its internal logic exists anywhere, closing the exact gap GD-10
+        named. The Red Team additionally AST-parsed the entire transitive
+        import chain and confirmed zero module-level file I/O, closing
+        PF-3's entry-point-isolation requirement structurally, not
+        incidentally.
+      supported_by: [TASK-20260805-0c809b, TASK-20260805-aeb1ed, TASK-20260805-b73a2e]
+      confidence: high
+    - id: O-2
+      statement: >-
+        A NEW MUTATION WAS FOUND, NOT CAUGHT: silently dropping rng_seed
+        threading (random.Random() instead of random.Random(rng_seed))
+        produces bit-identical, fully-passing output on all three checks,
+        because the noiseless exact-power-law construction makes every
+        valid bootstrap resample recover the identical gamma regardless
+        of randomness -- a reproducibility-determinism property this
+        self-test's design cannot test with noiseless synthetic data.
+        Lower severity: no existing claim asserts this property was
+        tested, so nothing is invalidated; recorded as backlog (a noisy,
+        non-exact-power-law synthetic construction would be needed to
+        close it), not as a defect requiring immediate action.
+      supported_by: [TASK-20260805-b73a2e]
+      confidence: medium
+    - id: O-3
+      statement: >-
+        A GENUINE, REPRODUCIBLE DEFECT WAS FOUND IN SHARED LIBRARY CODE,
+        INDEPENDENT OF AND LOWER IN THE STACK THAN GD-9/GD-10.
+        dht.ols_loglog_fit's degeneracy guard (if sxx == 0.0: raise
+        ValueError, an exact-float comparison after IEEE-754 summation of
+        n copies of log(N)) does not always fire when it should: whether
+        n*log(N)/n round-trips to bit-identical log(N) depends on log(N)'s
+        specific mantissa bits, unrelated to any property of the actual
+        data. The Executor disclosed this at one point (N=500, n=3); the
+        Red Team independently reproduced the mechanism from first
+        principles and swept a wider grid, finding it recurs at multiple
+        (N, n) combinations, is NOT cosmetic (a fully-degenerate design at
+        N=611, n=6 with prime 7333's real random_median value produces a
+        spurious, plausible-looking gamma=0.5 rather than the correct
+        ValueError), and -- MATERIALLY BEYOND THE ORIGINAL DISCLOSURE --
+        recurs at N=324, which is prime 3889's own real N value, already
+        used in every real-arm bootstrap this campaign has run, at n=3,
+        the exact resample size CHECK 3 exercises for the first time in
+        this campaign's history.
+      supported_by: [TASK-20260805-b73a2e]
+      confidence: high
+    - id: O-4
+      statement: >-
+        NO CURRENTLY-ARCHIVED REAL RESULT IS CONTAMINATED -- CHECKED
+        DIRECTLY, NOT ASSUMED, BY BOTH REVIEWERS INDEPENDENTLY. The
+        Validator confirmed BATCH-004/005/006's real-arm bootstraps
+        (RUN-SSIQ-a85692-b's descent_metrics, gamma_greedy=0.2335,
+        m_gap_ci_lo=-0.408/ci_hi=1.326) always resampled at n=4 over the
+        fixed N-set {203,324,478,611}, and confirmed the guard fires
+        correctly for all four of these values at n=4. The Red Team
+        independently confirmed the same via its own wider grid sweep. The
+        null arm's fit-and-bootstrap branch has never yet run on real data
+        (survivor count was always 0, below the floor, in every prior
+        batch), so there is no already-computed null-arm CI to check. BOTH
+        REVIEWERS EMPHASIZE THIS IS A FACT ABOUT THIS PARTICULAR VALUE SET
+        AT THIS PARTICULAR RESAMPLE SIZE, NOT A STRUCTURAL GUARANTEE: N=324
+        is anomalous at n=3, n=6, n=7, n=8 (just not n=4, by coincidence of
+        that value's specific mantissa bits per the Red Team's arithmetic),
+        and N=611 is anomalous at every n>=5 the Red Team tested.
+      supported_by: [TASK-20260805-aeb1ed, TASK-20260805-b73a2e]
+      confidence: high
+    - id: O-5
+      statement: >-
+        THE EXECUTOR'S CHECK-3 WORKAROUND (excluding N=500 from the
+        synthetic construction) IS LEGITIMATE FOR CHECK 3'S OWN STATED
+        PURPOSE, disclosed in three places before being cited as evidence,
+        and correctly flagged FLAGGED_FOR_INDEPENDENT_REVIEW by the
+        Coordinator's own precommit check rather than silently endorsed.
+        Both reviewers confirm this. But the Red Team notes a scoping
+        caution: CHECK 3's own reported "all_checks_pass: true" will read,
+        to a future record, as "the fit-and-bootstrap branch is validated
+        at the boundary" -- true only for the specific, ANOM-11-avoiding
+        N-values chosen, not for arbitrary real trapped_exclusion_filter_v3
+        output at n=3, which is exactly what the next real dispatch that
+        reaches this branch would supply. This record states that scoping
+        limit explicitly rather than letting it be inferred.
+      supported_by: [TASK-20260805-b73a2e]
+  inference: >-
+    GD-10 is closed: the required validation artifact now genuinely
+    exercises the function it exists to validate, independently confirmed
+    by both reviewers through direct code reading and re-execution, the
+    exact discipline this campaign's own standing repair (GD-9's, applied
+    recursively by GD-10's own naming) requires. A NEW defect, GD-11, is
+    named against dht.ols_loglog_fit's degeneracy guard -- a shared
+    library function imported unchanged into both EXP-SSIQ-58b642 and
+    EXP-SSIQ-a85692 since BATCH-003 -- discovered as a direct consequence
+    of this batch's own new boundary-length check (CHECK 3, n=3) probing a
+    resample size no prior real dispatch had exercised. No currently-
+    archived number is contaminated, but the exposure is real and
+    concrete: the next real run that reaches the null arm's fit-and-
+    bootstrap branch at a small survivor count including prime 3889 is at
+    genuine risk of a silently wrong CI. Recommended fix (replace the
+    exact-float sxx==0.0 check with max(xs)==min(xs) or an epsilon-relative
+    tolerance) is not itself applied by this record; it is BATCH-008's
+    next action.
+  boundaries:
+    - >-
+      This run makes NO claim about H-SSIQ-36e970's real-arm prediction,
+      about whether a delta_E-gradient exists, or about a p^{1/4}
+      algorithm's existence, likelihood, or proximity.
+    - >-
+      GD-11 is a defect in code that predates this campaign's amendment
+      lineage by several batches (imported unchanged since BATCH-003); it
+      is not introduced by anything this batch's own v4 amendment changed.
+    - >-
+      GD-11's exposure is precisely scoped: confirmed NOT to affect any
+      already-archived real number (O-4), confirmed to affect specific
+      (N, resample-size) combinations including at least one real
+      campaign prime (N=324, prime 3889) at n=3 (O-3).
+    - >-
+      CHECK 3's "all_checks_pass: true" validates the min_primes gate and
+      the fit/CI arithmetic for the SPECIFIC N-values tested, not the
+      general numerical robustness of dht.ols_loglog_fit/bootstrap_gap_ci
+      at n=3 for arbitrary real N -- that question is exactly what GD-11
+      names and remains open (O-5).
+    - >-
+      Evidence strength capped at preliminary, campaign-wide and unchanged
+      by this batch: independence remains session-only.
+  unresolved_confounds:
+    - >-
+      GD-11's fix (hardening the degeneracy guard) is UNRESOLVED --
+      BATCH-008's ranked action item, requiring its own scoped amendment
+      and pre-freeze review before the null arm's fit-and-bootstrap branch
+      next runs on real data.
+    - >-
+      The rng_seed determinism gap (O-2) is UNRESOLVED and recorded as
+      backlog, lower priority than GD-11.
+    - >-
+      The trapping-mechanism diagnostic (DEC-20260805-e46f4f's deferred
+      next_actions item 2) remains UNRESOLVED and is unaffected by GD-11
+      (disjoint data and code paths, confirmed by the Red Team).
+    - >-
+      Model independence remains absent and unverifiable in this
+      environment, unchanged from every prior batch.
+  reviewed_by: coordinator
+  review_bindings:
+    validator:
+      task_id: TASK-20260805-aeb1ed
+      report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-007/reviews/VAL-BATCH-007.md
+      verdict: ADMIT-WITH-CONDITIONS
+      conditions: [gd11-scope-and-non-contamination-caveat-required-in-successor-records]
+      receipts_verified: >-
+        Content-verified independently: commit a925cf30, parent 0b15e854,
+        10/10 path hashes recomputed from git blobs, exact declared-path
+        set, reachable from HEAD.
+    red_team:
+      task_id: TASK-20260805-b73a2e
+      report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-007/reviews/RT-BATCH-007.md
+      verdict: CHALLENGE
+      challenge_target: >-
+        the run package's own framing of ANOM-1 as narrowly scoped to one
+        synthetic value (N=500); independently found it materially
+        broader (affects real prime 3889's N value at the exact resample
+        size CHECK 3 introduces), named as new defect GD-11.
+  recorded_at: '2026-08-05'

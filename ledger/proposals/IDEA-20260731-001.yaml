@@ -1,0 +1,80 @@
+idea:
+  id: IDEA-20260731-001
+  title: Matched dual-vs-primal Kyber cost reconciliation under MATZOV costing
+  class: measurement
+  question_id: RQ-MLKEM-003
+  goal_id: GOAL-MLKEM-003
+  claim: >-
+    Independently recomputing Kyber-512/768/1024 attack costs with a pinned
+    lattice-estimator build under the MATZOV reduction-cost model will show that
+    (i) dual_hybrid+fft does not beat primal_bdd, (ii) Carrier/MATZOV-2022
+    dual headline costs sit several bits below that dual_hybrid estimate on at
+    least two parameter sets, and (iii) primal_bdd under MATZOV still lands
+    below the NIST classical cutoffs 143/207/272 — while ADPS16/core-SVP
+    primal reproduces the official pq-crystals Kyber.py column.
+  mechanism: >-
+    KN-OPEN-016 remains open because dual-attack headlines (KN-LIT-109/110)
+    were contested at the heuristic layer (KN-LIT-111) and then repaired in a
+    coding-theoretic MATZOV variant (KN-LIT-7617). Before trusting any repaired
+    dual number, the program must freeze a single named cost convention, run
+    primal and dual estimators on identical Kyber LWE parameters, and measure
+    the gap to published dual claims. Lattice-estimator's MATZOV cost model and
+    matzov dual_hybrid are the publicly auditable instruments for that
+    matched comparison; the submission scripts supply the core-SVP control.
+  novelty_status: adaptation
+  assumptions:
+    - Kyber Round-3 / ML-KEM parameters are as in KN-LIT-7618 (n=256·k, q=3329).
+    - NIST classical cutoffs used in the dual literature are 143/207/272.
+    - Carrier claimed shortfalls are 3.5/11.9/12.3 bits (KN-LIT-7617 abstract).
+    - MATZOV-2022 Table-1 dual costs are 137.5/193.5/257.8 (KN-LIT-110).
+    - lattice-estimator dual_hybrid with RC.MATZOV is a fair instrument for the
+      MATZOV dual template as implemented publicly — not a reimplementation of
+      Carrier polar decoding.
+  predictions:
+    - metric: dual_fft_MATZOV_minus_primal_bdd_MATZOV
+      direction: higher
+      minimum_effect: at_least_0_on_all_three_sets
+    - metric: carrier_claimed_log2_minus_dual_fft_MATZOV
+      direction: lower
+      minimum_effect: at_most_-4_on_at_least_two_sets
+    - metric: NIST_minus_primal_bdd_MATZOV
+      direction: higher
+      minimum_effect: positive_on_all_three_sets
+    - metric: abs_coreSVP_primal_ADPS16_minus_Kyber_py_classical
+      direction: lower
+      minimum_effect: at_most_1.5_bits
+  minimal_test:
+    design: >-
+      Pin lattice-estimator and pq-crystals/security-estimates commits. Run
+      LWE.primal_usvp, LWE.primal_bdd, and dual_hybrid(±fft) under RC.MATZOV,
+      RC.ADPS16, and RC.GJ21 on schemes.Kyber512/768/1024. Run Kyber.py for the
+      official core-SVP column. Compare to Carrier and MATZOV-2022 claimed dual
+      costs from filed KN-LIT entries.
+    controls:
+      - Official Kyber.py primal/dual core-SVP column (ADPS16-style).
+      - Same parameters across all estimator calls (schemes.Kyber*).
+      - Named cost-model sweep so dual-vs-primal is never cross-model.
+    required_metrics:
+      - log2_rop per (scheme, attack, cost_model, fft)
+      - best_MATZOV_attack
+      - margins vs NIST / Carrier / MATZOV-2022
+    competing_explanations:
+      - id: dual_beats_primal_under_MATZOV
+        meaning: dual_hybrid+fft log2_rop < primal_bdd under RC.MATZOV.
+      - id: published_dual_claims_match_estimator
+        meaning: Carrier/MATZOV-2022 dual costs within 2 bits of dual_hybrid+fft.
+      - id: coreSVP_margin_is_the_whole_story
+        meaning: ADPS16 costs stay above NIST cutoffs (they should not — control).
+  falsification_conditions:
+    - dual_hybrid+fft under MATZOV beats primal_bdd on any Kyber set by ≥0.5 bits.
+    - Carrier claimed dual costs are within 2 bits of dual_hybrid+fft on all three sets.
+    - primal_bdd under MATZOV is ≥ NIST cutoff on any set.
+    - ADPS16 primal disagrees with Kyber.py classical by >1.5 bits on any set.
+  interpretation_limits:
+    - Cost-model estimates are not cryptanalytic breaks and carry no certificates.
+    - lattice-estimator matzov dual is not Carrier's polar-code repair; a gap to
+      Carrier may reflect either overclaim or missing algorithmic ingredients.
+    - Module-LWE is modeled as LWE via schemes.Kyber* (standard estimator practice).
+    - claim_tier remains medium/estimate — never crypto-scale key recovery.
+  source_artifact: knowledge/open-problems/KN-OPEN-016.md
+  related_literature: [KN-LIT-109, KN-LIT-110, KN-LIT-111, KN-LIT-7617, KN-LIT-7618]

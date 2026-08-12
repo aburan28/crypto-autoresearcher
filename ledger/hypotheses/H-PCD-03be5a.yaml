@@ -1,0 +1,249 @@
+hypothesis:
+  id: H-PCD-03be5a
+  question_id: RQ-ECDLP-001
+  proposal_id: IDEA-20260806-e4f96e
+  added: '2026-08-06'
+  statement: >-
+    The polynomial-calculus refutation degree PC(F) of the Semaev decomposition
+    system for an undecomposable target -- {S_m = 0, factor-base membership,
+    field equations} -- is an unconditional lower bound on the maximum degree
+    reached by EVERY Groebner-order solver on that instance, and at m = 3, 4 and
+    p <= 2^16 it either (OUTCOME 1) agrees with the measured F4 maximum degree
+    within 1, promoting this program's heuristic degree-of-regularity results to
+    solver-independent statements, or (OUTCOME 2) lies at least 2 below it,
+    quantifying an exploitable gap in the program's own solver. Separately:
+    matched random systems of the same shape are predicted to give the SAME PC
+    degree, so any Semaev-specific reading requires a gap of at least 2 against
+    that null.
+  mechanism: >-
+    A Groebner basis computation that terminates having considered no polynomial
+    above degree D yields a degree-D polynomial calculus refutation of the same
+    system. Contrapositively PC(F) > D implies every Groebner-order solver --
+    every monomial order, every selection strategy, F4, F5, XL, BooleanSolve --
+    must reach degree at least PC(F). So PC(F) is a property of the SYSTEM where
+    the degree of regularity (KN-TECH-004, KN-TECH-011) is a property of one
+    solver's execution.
+    Computing PC(F) is linear algebra: for a fixed D, "does a degree-D refutation
+    exist" is decided by asking whether 1 lies in the row space of the degree-D
+    Macaulay matrix; PC(F) is the least such D, found by binary search. This
+    program already has Macaulay machinery in the BKK and DREG lanes, so the
+    marginal cost is a rank computation and a search loop.
+    PC degree is ENCODING-SENSITIVE, which is simultaneously the technique's main
+    weakness and the reason a measured spread across encodings is itself a
+    result. Three encodings are therefore measured, never one.
+  assumptions:
+    - >-
+      The Groebner-to-PC simulation holds in the exact variant used (PC over
+      F_p, PCR with dual variables, field equations as axioms or built into the
+      ring). Verified CONSTRUCTIVELY at Stage 1 rather than quoted; failure ends
+      the line.
+    - >-
+      Toy scale (p <= 2^16, m in {3, 4}) is where exact rank computations on the
+      degree-D Macaulay matrix are feasible. No extrapolation to crypto-scale
+      degrees is performed and none is licensed.
+    - >-
+      The factor base is the one already frozen in the program's toy Semaev
+      protocols, so the numbers are comparable with existing DREG-lane records
+      rather than describing a fresh setup.
+    - >-
+      "Groebner-order solver" is pinned to a stated model. A solver manipulating
+      polynomials in factored or straight-line form is OUTSIDE it and the bound
+      says nothing about such a solver.
+  proof_search_map:
+    bottleneck: >-
+      The rank computation on the degree-D Macaulay matrix, whose size grows as
+      binomial(n + D, D). It determines the largest (m, p) reachable and consumes
+      essentially the whole budget.
+    baseline_embedding:
+      parameter_slice: m = 3, smallest declared prime, encoding E1
+      reproduction_check: >-
+        Frozen fixture: the exact instance, seed, factor base and target from an
+        existing DREG run record, re-run through both meters. Exact integer
+        comparison of the recorded degree of regularity against the newly
+        measured F4 maximum degree. A mismatch is an instrument-comparability
+        failure and halts the line -- without it, OUTCOME 1 and OUTCOME 2 are not
+        distinguishable because the two meters would not be measuring comparable
+        things.
+    observation_collision:
+      observable: the integer PC(F)
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED: a Semaev system and a matched random
+        system with the same PC degree. That collision does not falsify the
+        measurement, it CALIBRATES it -- it establishes that at this scale PC
+        degree is a function of shape rather than of summation-polynomial
+        structure, and it bounds what any conclusion may say. Reporting a Semaev
+        PC degree without having run this search is prohibited.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          "How hard is decomposition for algebraic solvers" restated as the rank
+          condition "1 is in the row space of the degree-D Macaulay matrix".
+        predicted_gain: >-
+          One integer per instance bounding all solvers, replacing a per-solver
+          empirical curve. The gain is statement strength, not attack cost.
+      - transform: stronger_invariant
+        proposed_object: >-
+          The full Macaulay rank profile as a function of D, not only the
+          threshold at which 1 appears.
+        predicted_gain: >-
+          A curve rather than a point, comparable across m and against the null
+          with far more resolution than a single crossing.
+    quantifier_order: >-
+      Intended: FORALL encodings in the declared set, FORALL instances F in the
+      declared toy family, EXISTS an integer PC(F) such that FORALL
+      Groebner-order solvers S in the declared model, the maximum degree S
+      reaches on F is at least PC(F). The weaker reading FORALL S EXISTS a bound
+      is exactly what the degree of regularity already is and would make this
+      redundant; the audit is to confirm the Stage-1 simulation is uniform over
+      solvers and uses no property of a particular strategy.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "No Groebner-order solver, in this encoding, on this instance family, at
+        this scale, reaches a solution below degree PC(F)." Any summary dropping
+        one of those four qualifiers overclaims under AGENTS.md rule 4.
+      nearby_object_control: >-
+        The DECOMPOSABLE instance -- same curve, factor base and arity, target
+        that DOES decompose. The method must fail to produce a refutation there.
+        A method that cannot distinguish decomposable from undecomposable is
+        measuring the encoding's shape only.
+    proof_obligations:
+      - claim: The Groebner-to-PC simulation holds in the variant used.
+        responsibility: correctness
+      - claim: PC(F) computed by Macaulay rank equals the definition.
+        responsibility: correctness
+      - claim: Binary search on D finds the least such D and terminates.
+        responsibility: runtime
+      - claim: The satisfiable control yields no refutation at any tested D.
+        responsibility: soundness
+      - claim: Every reported degree names its encoding.
+        responsibility: scope
+      - claim: >-
+          Measured F4 maximum degree reproduces the recorded DREG-lane degree of
+          regularity on the frozen fixture.
+        responsibility: baseline
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-PCD-1
+      formal_statement: >-
+        For the frozen toy Semaev family, PC(F) is monotone non-decreasing in m
+        at fixed p, and its dependence on p is o(log p).
+      random_model_justification: >-
+        Monotonicity in m is expected because the arity-m system contains the
+        arity-(m-1) structure after specialisation; the p-dependence claim
+        imitates the standard expectation that refutation degree is governed by
+        combinatorial shape rather than field size once the field is large enough
+        to avoid degenerate coincidences.
+      supporting_results:
+        - KN-TECH-004 and KN-TECH-011 (degree of regularity, first-fall degree)
+        - KN-FIND-f8c290 (Semaev index-calculus complexity tight at toy scale)
+      validation_experiment_ids: [EXP-PCD-887825]
+      falsification_condition: >-
+        A fitted p-dependence exceeding o(log p) across the declared prime
+        ladder, or non-monotonicity in m at fixed p.
+    - id: HEUR-PCD-2
+      formal_statement: >-
+        The instrumented F4 implementation's reported maximum degree is a
+        faithful proxy for "the degree a Groebner-order solver reaches" in the
+        declared model.
+      random_model_justification: >-
+        The simulation makes any Groebner run yield a PC refutation; HEUR-PCD-2
+        is the narrower implementation claim that the instrumentation reports
+        that degree correctly.
+      supporting_results:
+        - KN-TECH-011 (F4/F5 solving-degree complexity)
+      validation_experiment_ids: [EXP-PCD-887825]
+      falsification_condition: >-
+        Two independent solver implementations disagreeing on the maximum degree
+        for the same instance and seed. That is an instrument failure, not a
+        finding, and blocks any OUTCOME verdict.
+  structural_ingredients:
+    - description: >-
+        Polynomial calculus / PCR refutation degree, and the simulation of a
+        degree-D Groebner computation by a degree-D PC refutation.
+      citation: >-
+        Standard proof-complexity material; ABSENT from this program's 88
+        recorded techniques ("polynomial calculus" returns zero hits) and NOT
+        re-read in this session. Stage 0 locates it and any prior PC-degree
+        results on summation-polynomial systems.
+      role: converts a solver-specific meter into a solver-independent bound
+    - description: The Macaulay matrix and its degree-D rank condition.
+      citation: KN-TECH-011, and the program's existing BKK/DREG machinery
+      role: makes PC degree computable by linear algebra
+  reduction_chain:
+    core_problem: >-
+      The algebraic-solver cost of the decomposition step in point-decomposition
+      index calculus.
+    corollaries: []
+  predictions:
+    - metric: PC degree versus the measured F4 maximum degree, m = 3 and 4
+      direction: different
+      minimum_effect: >-
+        PRE-REGISTERED TWO-BRANCH RULE, committed before running: agreement
+        within 1 records OUTCOME 1; PC degree at least 2 below records OUTCOME 2;
+        a difference of exactly 1 is declared INCONCLUSIVE IN ADVANCE so neither
+        branch can be reached by rounding.
+    - metric: PC degree of Semaev systems versus matched random systems
+      direction: different
+      minimum_effect: >-
+        A gap of at least 2 is required before any Semaev-specific statement.
+        PREDICTED: no gap. That prediction is recorded here so a match is a
+        confirmed control rather than a disappointment.
+    - metric: spread of PC degree across encodings E1, E2, E3 on the same instance
+      direction: different
+      minimum_effect: >-
+        Report the full spread. A spread of 3 or more means the number is
+        primarily an encoding artifact, and that must be stated in the same
+        sentence as any reported degree.
+  test_boundary:
+    instances: >-
+      The frozen toy Semaev family already used in the DREG lane: prime-field
+      curves with p <= 2^16, factor base and targets as recorded, plus matched
+      decomposable targets for the nearby-object control.
+    parameters:
+      arities: [3, 4]
+      primes_log2: [10, 12, 14, 16]
+      encodings:
+        - E1 Semaev S_m in x-coordinates with field equations
+        - E2 factor base as an explicit vanishing polynomial
+        - E3 the DREG-lane Weil-restriction-style expansion
+    implementation: >-
+      Exact rank over F_p on the degree-D Macaulay matrix, binary search on D,
+      validated on textbook instances of known refutation degree before any
+      Semaev system is touched.
+    budget:
+      total_cpu_hours: 400
+      maximum_memory_gb: 64
+  falsification_conditions:
+    - >-
+      Stage 1's extraction fails: a degree-D F4 run does not yield a degree-D PC
+      refutation in the variant used. The load-bearing relation is false as
+      stated; the record is superseded, not amended.
+    - The satisfiable control returns a finite refutation degree. Instrument broken.
+    - Textbook validation instances give the wrong known degree. Same disposition.
+    - >-
+      Matched random systems give the same PC degree as Semaev systems. No
+      Semaev-specific conclusion may be drawn; the honest report is that at this
+      scale PC degree measures shape -- AND THAT IS THE RESULT, not a failure.
+    - >-
+      Macaulay matrices at m = 4 exceed the memory budget before any degree is
+      resolved. INFRASTRUCTURE outcome under AGENTS.md rule 5, recorded as such,
+      never evidence about refutation degree.
+  interpretation_limits:
+    - >-
+      Bounds one step of one attack family, in one encoding, in one proof system,
+      at toy scale. Not a statement about the ECDLP.
+    - >-
+      OUTCOME 1 does not make index calculus infeasible; it makes existing degree
+      measurements solver-independent within the stated model.
+    - >-
+      OUTCOME 2 is not an attack. It is a quantified inefficiency in the
+      program's own solver; converting it into an algorithm is separate work.
+    - >-
+      No interaction with the GGM bound (KN-TECH-005): that bounds generic
+      algorithms, this bounds algebraic solvers on a specific encoding. Neither
+      implies the other.
+  status: specified
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-06'

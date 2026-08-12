@@ -1,0 +1,130 @@
+experiment:
+  id: EXP-STR-002
+  hypothesis_id: H-STR-002
+  version: 1
+  title: >-
+    Endomorphism-invariant factor base displacement rank and relation density
+    on toy GLV (j=0) prime-field curves
+  status: approved
+  objective: >-
+    Test whether a phi-invariant factor base (union of phi-orbits, phi =
+    (zeta_3*x, y), r=3) on j=0 curves induces a relation matrix with
+    displacement rank alpha = O(1) << B, and whether the relation-density
+    penalty is small enough for a net LA advantage. This directly addresses
+    why the AP approach (EV-STR-001) failed: non-residue gaps broke additive
+    structure, while multiplicative endomorphism structure is exact.
+  inputs:
+    curve_generation: >-
+      Deterministic j=0 curves (a=0, b determined by seed) with p ≡ 1 mod 3,
+      using harness.toycurve.generate_instance with field_bits and seed, then
+      filtering for p ≡ 1 mod 3. If the generated p is not 1 mod 3, skip to
+      the next prime.
+    bit_sizes: [8, 12, 16, 20, 24]
+    seeds: [1, 2, 3]
+    factor_base_size: B = ceil(sqrt(N))
+    decomposition_arity: [2, 3]
+    endomorphism: >-
+      phi(x,y) = (zeta_3 * x mod p, y) where zeta_3 is a primitive cube root
+      of unity mod p (exists since p ≡ 1 mod 3). phi has order r=3:
+      phi^3 = identity. Factor base F is a union of phi-orbits of length 3.
+    target_count: 10 per (bits, seed, m)
+  controls:
+    - >-
+      Random factor base: identical B and curve, non-phi-invariant factor base.
+      Measure displacement rank and relation density. Direct control from
+      EV-STR-001.
+    - >-
+      phi-ablation control: use the same phi-invariant F but measure
+      displacement rank with a random (non-phi) shift operator. Alpha should
+      return to ~B, confirming the structure comes from phi.
+    - >-
+      Matched rho baseline: per (bits, seed) for reference.
+  independent_variables:
+    - field_bits: [8, 12, 16, 20, 24]
+    - factor_base_type: [phi_invariant, random]
+    - decomposition_arity: [2, 3]
+  metrics:
+    primary:
+      - displacement_rank_alpha: >-
+          Measured displacement rank of the relation matrix with respect to
+          the phi-shift operator Z (r×r block-cyclic shift). Computed as
+          rank([M, Z*M]) - rank(M) over F_n. For phi-invariant F, predicted
+          alpha <= r = 3. For random F, expected alpha ~ B.
+      - relation_density_penalty: >-
+          (random hit rate) / (phi-invariant hit rate), where hit rate is
+          the fraction of random targets that decompose over the factor base.
+          Predicted < B/alpha.
+      - structured_vs_wiedemann_cost_ratio: >-
+          (alpha^2 * B * ceil(log2(B))) / (2 * B^2). Predicted < 0.5 at the
+          largest tested B.
+    secondary:
+      - phi_invariant_hit_rate: fraction of targets decomposing over phi-invariant F
+      - random_hit_rate: fraction of targets decomposing over random F
+      - commutation_holds: boolean, does M*Phi == Phi*M?
+      - rho_group_operations: rho baseline cost
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 3
+    targets_per_instance: 10
+  budget:
+    wall_clock_seconds_per_run: 120
+    total_cpu_hours: 2
+    maximum_memory_gb: 4
+    maximum_runs: 300
+  stopping_rules:
+    - Per-run timeout: 120s for any Groebner solve or rho run.
+    - Total wall-clock: 3600s. Stop and record remaining as cancelled_by_budget.
+  invalidation_rules:
+    - any run with dirty: true is invalid.
+    - any run with missing manifest/raw-result/stdout/stderr is invalid.
+    - any decomposition claim with a failed certificate is completed_invalid.
+    - if the generated p is not 1 mod 3 for a given (bits, seed), skip that
+      instance and note it in the analysis.
+  success_criterion: >-
+    displacement_rank_alpha <= 3 for phi-invariant factor bases at all tested
+    B, AND relation_density_penalty < B/3, AND structured_vs_wiedemann_cost_ratio
+    < 0.5 at the largest tested B. This confirms H-STR-002: endomorphism
+    symmetry gives a net LA advantage that the AP approach missed.
+  falsification_criterion: >-
+    displacement_rank_alpha ~ B for phi-invariant factor bases (no separation
+    from random baseline), OR relation_density_penalty >= B/3 (LA saving
+    swamped by extra relation collection). Either condition closes the
+    endomorphism-invariant LA direction at toy scale for j=0 curves.
+  required_artifacts:
+    - specification.yaml
+    - analysis.md
+    - runs/<RUN-ID>/manifest.yaml
+    - runs/<RUN-ID>/raw-result.json
+    - runs/<RUN-ID>/stdout.log
+    - runs/<RUN-ID>/stderr.log
+    - runs/<RUN-ID>/command.txt
+    - runs/<RUN-ID>/environment.json
+  assigned_to: executor
+  approved_by: coordinator
+  prior_evidence:
+    - EV-STR-001
+  prior_decision:
+    - DEC-20260726-003
+  command_template: >-
+    python3.13 -m harness.endomorphism_la
+    --bits {bits} --seeds {seeds}
+    --arity {m} --targets 10
+    --exp-id EXP-STR-002
+  implementation_note: >-
+    Requires a new harness module harness/endomorphism_la.py that:
+    (1) generates j=0 curves with p ≡ 1 mod 3;
+    (2) computes zeta_3 = primitive cube root of unity mod p;
+    (3) builds phi-invariant factor bases as unions of phi-orbits;
+    (4) collects relations via S_{m+1} decomposition (reusing harness/semaev.py);
+    (5) forms the relation matrix and measures displacement rank with the
+        phi-shift operator;
+    (6) measures relation hit rate for phi-invariant vs random factor bases;
+    (7) reports all metrics through harness/runner.py with certificates.
+  expected_run_count: >-
+    5 bit_sizes * 3 seeds * 2 arities * (1 phi-invariant + 1 random + 1 rho) * 10 targets
+    = 600 runs (approximate; some instances skipped if p not 1 mod 3).
+  inference_receipt:
+    requested_policy: "coordinator-ultra-code"
+    resolved_model_id: "fireworks-ai/accounts/fireworks/models/glm-5p2"
+    fallback_used: true
+    authorization_ref: "DEC-20260726-005"

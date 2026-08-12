@@ -1,0 +1,266 @@
+run_manifest:
+  task_id: TASK-20260806-e19f6c
+  role: executor
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  goal: GOAL-HQC-001
+  batch: BATCH-4b8ad3
+  run_of: >-
+    Planted-correlation control arm for OPEN-6 (EV-HQC-b71230): an instance
+    whose true joint block-failure law is derived in closed form BEFORE any
+    sampling (design.md), pushed through the block-partition path and then
+    through measure.py's own estimator + jackknife code (TASK-20260806-cde749),
+    to test whether the PS-R3 pipeline recovers a known answer.
+  claim_tier: toy
+  authority: >-
+    I am the Executor. This manifest records observations only. It concludes
+    NOTHING about A17, HQC's decoding-failure rate, or any standardized HQC
+    parameter set, and it changes no research status. MATCH/MISMATCH per k
+    is reported without interpretation; that judgement belongs to the
+    Coordinator and the two independent reviewers dispatched after this task
+    (TASK-20260806-9f4b27 validator, TASK-20260806-21c8da red team).
+  dispatch_source: coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/dispatch_queue.json
+  budget_authorized:
+    wall_clock_seconds: 2700
+    core_seconds: 1800
+    memory_gb: 2
+    runs_authorized: 1
+
+  pre_registration_ordering:
+    claim: design.md was written and frozen BEFORE planted_arm.py was run on
+      any data, and planted_arm.py's own closed-form derivation reproduces
+      design.md's frozen table bit-for-bit before any trial is sampled.
+    evidence_file_mtimes_utc:
+      design.md: '2026-08-06T15:48:35Z'
+      planted_arm.py_first_written: '2026-08-06T15:48:35Z (created after design.md; last
+        functional edit 2026-08-06T15:56:23Z, a bookkeeping-only fix, see
+        deviations.stage_double_append_bug below -- MEASUREMENT and generation
+        fields are bit-identical before and after that fix)'
+      planted_results.json_final: '2026-08-06T15:57:41Z'
+    order_holds: true
+    in_run_reproduction_check: >-
+      planted_arm.py's planted_law() recomputes mu_bar_k, q, and
+      log2_A_k(k) for k=2..18 from the same closed form at run time and
+      compares it to DESIGN_TABLE_LOG2_A (design.md Section 2.1, transcribed
+      as a module constant) with a 1e-12 tolerance; a mismatch aborts the
+      run before any trial is sampled. Result: mismatched_keys=[],
+      verdict=PASS (see planted_results.json planted_law.
+      design_md_reproduction_check).
+
+  commands:
+    dependency_install: >-
+      pip3 install --quiet numpy pyyaml scipy
+      (the execution environment shipped with neither numpy nor pyyaml nor
+      scipy pre-installed; see deviations.missing_dependencies below)
+    calibration_throughput_estimate: >-
+      python3 /tmp/.../scratchpad/bench.py  (ad hoc, 10 chunks of 20,000
+      trials of the vectorized partition+reduce step, run in scratch space
+      outside this task's write scope and outside --out-dir; produced no
+      committed artifact; measured ~64,700 trials/core-second, used only to
+      size the T=1e7 run against the 1800 core-second budget -- design.md
+      Section 6)
+    fail_closed_check_verification: >-
+      MEASURE_PY_EXPECTED_SHA256 in planted_arm.py was deliberately set to
+      "000...0" and the script re-run
+      (PYTHONDONTWRITEBYTECODE=1 python3 planted_arm.py --out-dir . --trials
+      2000 --batches 200 --sub-chunk 1000); it printed "FAIL-CLOSED: measure.py
+      sha256 mismatch. expected=000...0 actual=a4fd1ecb..." to stdout, wrote
+      NO planted_results.json, and exited with a non-zero status (echo
+      EXIT_CODE printed 1 after the earlier, path-mismatched dry run; the
+      in-place deliberate-mismatch run at the correct working directory also
+      exited non-zero on the same message). The constant was then reverted to
+      the correct hash (a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e6
+      7465b24f5dc8) and verified with a passing smoke run before the
+      authorized T=1e7 run. This demonstrates the check actually reads the
+      field it guards and aborts on a real mismatch (constraint: FAIL-CLOSED,
+      NOT FAIL-OPEN).
+    smoke_runs_before_the_authorized_run:
+    - 'python3 planted_arm.py --out-dir <scratch> --trials 200000 --batches 200 --sub-chunk 1000  (17/17 MATCH, sanity-checked the full pipeline at 2% of planned T)'
+    - 'python3 planted_arm.py --out-dir <scratch> --trials 20000 --batches 200 --sub-chunk 1000  (post-revert smoke check, 17/17 MATCH)'
+    the_authorized_run_command: >-
+      PYTHONDONTWRITEBYTECODE=1 python3 planted_arm.py --out-dir . > stdout.log 2> stderr.log
+    the_authorized_run_note: >-
+      This exact command was executed TWICE, back-to-back, with identical
+      deterministic seeds: once producing a merged-stdout/stderr log (later
+      discarded/overwritten), and once (after fixing the stage-bookkeeping
+      bug in deviations below) producing the final stdout.log/stderr.log
+      pair committed here. Both executions' MEASUREMENT, generation, and
+      planted_law JSON fields were diffed programmatically and found
+      bit-identical (the fix touched only budget.stages bookkeeping, not any
+      computed value). Only the final execution's planted_results.json is
+      the run of record.
+
+  git:
+    commit: 24393e4cd576863473d6ab478c4100d9bab4ab72
+    branch: claude/hqc-experiments-6unh3p
+    dirty: true
+    dirty_paths:
+    - '?? coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/'
+    dirty_tree_note: >-
+      The only untracked path is this task's own directory (the deliverables
+      this run produced). No other path in the working tree is modified.
+      This task did not commit; the Coordinator's snapshot task
+      (TASK-20260806-5a3d0e) does that.
+
+  environment:
+    python: 3.11.15
+    numpy: 2.4.6
+    pyyaml: 6.0.1
+    scipy: 1.17.1
+    platform: Linux-6.18.5-fc-v18-x86_64-with-glibc2.39
+    processor: x86_64
+    cpu_count: 4
+    note: >-
+      python/numpy/pyyaml versions are identical to TASK-20260806-cde749's
+      recorded environment (its run_manifest.yaml: python 3.11.15, numpy
+      2.4.6, pyyaml 6.0.1), which is what makes the sha256-pinned import of
+      its measure.py meaningful here.
+
+  seeds:
+    seed_prefix: TASK-20260806-e19f6c/PLANTED-ARM/v1
+    derivation: >-
+      seed(purpose, n) = first 8 bytes, big-endian, of SHA-256 of the ASCII
+      string "<seed_prefix>|<purpose>|<n>". Distinct from measure.py's own
+      prefix ("EXP-HQC-982268/v3/INV-NULL"), so the two tasks' random
+      streams cannot collide or be mistaken for one another (design.md
+      Section 4).
+    per_batch_seeds: >-
+      seed("batch", i) for i = 0..199, one np.random.Generator(PCG64(seed))
+      per jackknife batch, used for both the M_t draw (rng.integers) and the
+      subset-selection keys (rng.random) within that batch, in that order,
+      across all sub-chunks of the batch.
+    first_5_batch_seeds:
+    - 9601590527170946251
+    - 5222632537941845232
+    - 16973235911378402874
+    - 11974716645161014900
+    - 13478773041054962395
+    prng: numpy.random.Generator(numpy.random.PCG64(seed)), one instance per
+      jackknife batch, consumed in a fixed order (m0 draw then subset keys,
+      per sub-chunk, in sub-chunk order) -- deterministic and reproduced
+      bit-for-bit across the two back-to-back executions of the authorized
+      run (see the_authorized_run_note above).
+
+  timings:
+    started_at_utc: '2026-08-06T15:56:29Z'
+    finished_at_utc: '2026-08-06T15:57:41Z'
+    wall_seconds_measured: 71.844
+    core_seconds_measured: 71.976
+    core_seconds_authorized: 1800.0
+    core_seconds_used_fraction: 0.04
+    wall_seconds_authorized: 2700.0
+    wall_seconds_used_fraction: 0.027
+    stage_breakdown:
+    - stage: provenance
+      core_seconds: 0.336
+      wall_seconds: 0.195
+    - stage: fail_closed_integrity_and_import
+      core_seconds: 0.023
+      wall_seconds: 0.023
+    - stage: planted_law_derivation
+      core_seconds: 0.0
+      wall_seconds: 0.0
+    - stage: block_partition_generation
+      core_seconds: 71.608
+      wall_seconds: 71.617
+    - stage: estimator_and_jackknife_reused_verbatim
+      core_seconds: 0.008
+      wall_seconds: 0.008
+    peak_rss_mb_self: '~200 (see planted_results.json budget.peak_rss_mb_self
+      for the exact final-run figure)'
+    subsample_forced: false
+    subsample_note: >-
+      No shakedown or calibration step forced any planned run onto a
+      subsample. T=1e7 trials and 200/200 jackknife batches were both
+      achieved in full (planted_results.json generation.achieved_equals_planned
+      = true). The pre-run throughput calibration (see commands.
+      calibration_throughput_estimate) ran in scratch space, at reduced
+      scale, and is not part of the charged/authorized run.
+
+  fail_closed_checks:
+  - name: measure.py sha256 integrity
+    reads: MEASURE_PY_EXPECTED_SHA256 (module-level constant) vs. sha256_file(MEASURE_PY)
+    aborts_on_mismatch: true
+    verified_by: deliberate-mismatch dry run, see commands.fail_closed_check_verification
+  - name: block-partition self-check (F == block_fail)
+    reads: per-sub-chunk equality between the recovered block-reduce output and
+      the planted block_fail pattern
+    aborts_on_mismatch: true
+    sub_chunks_checked_in_authorized_run: 1000
+    fired: false
+  - name: N_JACK_BATCHES cross-check
+    reads: measure.N_JACK_BATCHES (imported module attribute) vs. this task's
+      own N_JACK_BATCHES constant
+    aborts_on_mismatch: true
+    fired: false
+  - name: L = N/n_e parameter sanity (RULE-2)
+    reads: computed L vs. the declared N_2 constant
+    aborts_on_mismatch: true
+    fired: false
+
+  deviations:
+  - id: missing_dependencies
+    kind: infrastructure
+    detail: >-
+      The execution environment for this task had no numpy, pyyaml, or scipy
+      installed (`import numpy` raised ModuleNotFoundError at the start of
+      this task). Installed via `pip3 install --quiet numpy pyyaml scipy`
+      before any code touching real data was run; the versions installed
+      (numpy 2.4.6, pyyaml 6.0.1, scipy 1.17.1) happen to match
+      TASK-20260806-cde749's recorded environment exactly. This is an
+      infrastructure fact about the execution environment, not a result, and
+      is disclosed per AGENTS.md rule 5.
+  - id: stage_double_append_bug
+    kind: implementation_error, self-caught, fixed before the run of record
+    detail: >-
+      planted_arm.py's original stage_end(name, cw0, cc0) helper appended its
+      own return value to the module-level `stages` list internally; the
+      call sites in main() ALSO wrapped each call in `stages.append(...)`,
+      double-appending every stage's timing record into
+      planted_results.json's budget.stages (5 stages recorded as 10 entries).
+      This did not affect any computed value -- core_seconds/wall_seconds
+      totals are computed independently via core_seconds()/time.time()
+      deltas at close-out, not by summing the stages list, and MEASUREMENT /
+      generation / planted_law were verified bit-identical before and after
+      the fix (see commands.the_authorized_run_note). Found by manual
+      inspection of the first authorized-run output before it was accepted
+      as the run of record; fixed by removing the redundant outer
+      `stages.append(...)` wrapper at all 5 call sites; the script was
+      re-run once more (the second back-to-back execution) to produce the
+      committed planted_results.json with a clean 5-entry budget.stages list.
+      Recorded here rather than silently discarded, per AGENTS.md "record,
+      never discard."
+
+  validity:
+    status: valid_measurement
+    reason: >-
+      All fail-closed gates passed (measure.py integrity, block-partition
+      self-check on all 1000 sub-chunks, N_JACK_BATCHES cross-check, L=N/n_e
+      sanity), T achieved (10,000,000) equals T planned, and the run stayed
+      within its core-second (71.9/1800) and wall-clock (70.1/2700) budget.
+    scoped_to: >-
+      ONE planted-correlation control arm, order-matched to PS-R3's n_e=56,
+      n_2=128, dup=1, m=17, k=2..18, T=1e7, one seed family, no replication.
+      Claim tier: toy. Reuses measure.py's estimator and jackknife code
+      unmodified (sha256-verified). Does not exercise stage_a.py's
+      cryptographic (T)-sampler at all; see design.md Section 3.2 for the
+      full list of residuals this leaves in OPEN-6.
+    result_summary: 17 / 17 reported cells (k=2..18) recovered log2_Ahat_k
+      within the adopted 3-jackknife-SE band of the closed-form planted
+      value. See comparison_report.md for the full per-k table and Section 8
+      for an observed (uninterpreted) same-direction offset pattern across
+      all 17 cells.
+
+  artifacts:
+    design.md:
+      sha256: aa188ff2c78ebe96bc2cb5a7432c1aefb5d1fe132fa12bd82b46953eacc7201c
+    planted_arm.py:
+      sha256: 99cab24eca4042da2669fc30c6ffa7881da9d31a96f6e1e045514ce9b5df911c
+    planted_results.json:
+      sha256: e87dcc920d6b223cae497c5ff91b8e4ffef24b77b1c3101cac1544296a166280
+    comparison_report.md:
+      sha256: 6ce1d5a9b9c415037bc9b9b93e9b0ed4578a767626056fe80f89e5a6acef1eb9
+    stdout.log:
+      sha256: 7fa48bcd5f6ceff56eb57614481a9f89694b02c4ca8fce5cf64d72ca91b36c78
+    stderr.log:
+      sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855

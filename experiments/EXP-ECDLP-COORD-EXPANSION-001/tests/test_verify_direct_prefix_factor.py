@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+import importlib.util
+import sys
+import unittest
+from pathlib import Path
+
+
+SOURCE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "src"
+    / "verify_direct_prefix_factor.py"
+)
+
+
+def load_module():
+    spec = importlib.util.spec_from_file_location(
+        "verify_direct_prefix_factor_under_test", SOURCE_PATH
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("unable to load direct-prefix verifier")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+MODULE = load_module()
+
+
+class VerifyDirectPrefixFactorTests(unittest.TestCase):
+    def test_normalize_removes_timing(self) -> None:
+        self.assertEqual(
+            MODULE.normalize(
+                {
+                    "peak_rss_bytes": 1,
+                    "value": {"total_wall_seconds": 2, "rank": 24},
+                }
+            ),
+            {"value": {"rank": 24}},
+        )
+
+    def test_accounting_rejects_wrong_suffix_count(self) -> None:
+        result = {
+            "rows": [
+                {
+                    "r_size": 5,
+                    "cuts": [
+                        {
+                            "cut": 2,
+                            "degree": 16,
+                            "basis_dimension": 48,
+                            "prefix_count": 1,
+                            "suffix_count": 124,
+                            "target_independent_advice_field_elements": 1,
+                            "targets": {},
+                        }
+                    ],
+                }
+            ]
+        }
+        self.assertFalse(MODULE.accounting_consistent(result))
+
+
+if __name__ == "__main__":
+    unittest.main()

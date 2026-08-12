@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crypto-kb"
+version = "0.1.0"
+description = "S3 -> Docling -> Qdrant -> MCP retrieval layer for the ECDLP research corpus"
+requires-python = ">=3.11"
+
+# The core pipeline (parse markdown/plaintext, chunk, hash, sparse+dense
+# embed, fingerprint, manifest) runs on this set alone. Everything heavier is
+# an extra and is imported lazily, so `crypto-kb` stays installable and
+# testable on a machine with no Qdrant, no AWS credentials, and no torch.
+dependencies = [
+  "pydantic>=2",
+  "pydantic-settings>=2",
+  "typer>=0.12",
+  "structlog>=24",
+  "tenacity>=8",
+  "prometheus-client>=0.20",
+  "PyYAML>=6",
+]
+
+[project.optional-dependencies]
+# Vector index + agent-facing server. Needed for anything past CHUNKED.
+# Bounded to the server family in docker-compose.yml (qdrant/qdrant:v1.12.4).
+# qdrant-client will not guarantee a skew wider than one minor version and
+# warns on every connection; unbounded `>=1.12` resolved to 1.19 against a
+# 1.12 server. Move the image and this bound together, never one alone.
+index = ["qdrant-client>=1.12,<1.13"]
+mcp = ["fastmcp>=2"]
+# Object store and event ingestion.
+aws = ["boto3>=1.34"]
+# PDF/DOCX/PPTX/HTML parsing. Large (pulls a torch stack); the local corpus
+# backfill does not need it.
+docling = ["docling>=2"]
+# Opt-in upgrade from the pinned dependency-free dense embedder.
+transformers = ["sentence-transformers>=3"]
+dev = ["pytest>=8"]
+all = [
+  "crypto-kb[index,mcp,aws,dev]",
+]
+
+[project.scripts]
+crypto-kb = "crypto_kb.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The frozen evaluation slice is data the package reads at runtime, not a test
+# fixture: `crypto-kb evaluate` stages from it.
+[tool.setuptools.package-data]
+crypto_kb = ["eval/corpus_manifest.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+  "integration: needs an index backend (in-memory Qdrant is used by default)",
+]

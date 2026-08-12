@@ -1,0 +1,146 @@
+correction:
+  id: CORR-20260729-004
+  recorded_at: '2026-07-29'
+  record_type: claim
+  record_type_note: >-
+    record_type has no coordination value in the template enumeration; claim is
+    used as the closest permitted token, following CORR-20260724-001,
+    CORR-20260727-001 and CORR-20260729-003. The corrected artifacts are dispatch
+    queues, not research claims.
+
+  corrected_record: coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/dispatch_queue.json
+  also_affects: coordination/goals/GOAL-ECDLP-001/batches/BATCH-010/dispatch_queue.json
+  goal_id: GOAL-ECDLP-001
+  observed_at_commit: f5895f58
+
+  summary: >-
+    After PR #55 and PR #58 merged, BOTH GOAL-ECDLP-001 dispatch queues fail to
+    render, for two different reasons, and one task identifier now appears in two
+    different batches. The research these merges carried is intact and correct on
+    main; the coordination layer is what did not survive the merge.
+
+  measured_facts:
+    method: >-
+      Read on origin/main f5895f58 with tools/research_dispatch.py and direct
+      inspection of both queue files. No value is relayed.
+
+    batch_009_failure:
+      error: >-
+        artifact path ledger/goals/GOAL-ECDLP-001.yaml is owned by both
+        TASK-20260728-002 and TASK-20260727-006
+      claimants:
+        - task_id: TASK-20260728-002
+          state: completed
+          role: coordinator
+        - task_id: TASK-20260727-006
+          state: running
+          role: coordinator
+          provenance: >-
+            introduced by e77ca6a4, "ledger: BATCH-009 close - H-GGM-001 supported
+            -> specified on REV-20260727-002 DOES_NOT_SURVIVE"
+      cause: >-
+        Two independently authored BATCH-009 definitions were combined by the
+        merge without reconciling ownership. research_dispatch.py enforces
+        one owner per artifact path, so the queue is unrenderable.
+
+    task_id_in_two_batches:
+      task_id: TASK-20260728-002
+      appears_in: [BATCH-009, BATCH-010]
+      note: >-
+        A handoff identifier is immutable and must denote one task. The same id
+        now labels a card in two different batches of the same goal. This is an
+        identifier collision produced by the merge, not by either authoring
+        session, and it is distinct from the ownership error above.
+
+    batch_010_failure:
+      error: completed archive task TASK-20260728-002 requires archive.commit_sha
+      state: completed
+      archive_commit_sha: null
+      declared_artifact_paths: 1
+      note: >-
+        CORR-20260729-003 recorded this card declaring 7 paths against a 195-path
+        commit. The declared count has since been edited to 1; the commit_sha is
+        still unbound, so the failure persists and the declared-versus-committed
+        gap is now wider, not narrower.
+
+  what_is_and_is_not_wrong:
+    research_is_intact: >-
+      Verified present on main at f5895f58: EV-IC-002, EV-STR-003, EV-ENDO-001,
+      DEC-20260728-001, KN-FIND-002, and refutation_claims_v2.yaml
+      (REF-20260728-002). H-IC-001 and H-STR-002 both read weakened. No evidence,
+      decision or hypothesis record is affected by this correction.
+    coordination_is_broken: >-
+      Neither GOAL-ECDLP-001 queue renders, so the goal cannot dispatch any task
+      through the harness despite reading status active.
+    the_merge_was_otherwise_correct: >-
+      The identifier collisions PR #55 carried were resolved by supersession, not
+      by discarding a side: the displaced records were reissued as
+      DEC-20260727-008, -009 and -010. That part of the merge followed AGENTS.md
+      rule 4. The defect recorded here is confined to the coordination layer.
+
+  why_this_is_a_correction_and_not_a_repair:
+    - >-
+      Choosing which of the two coordinator cards should own
+      ledger/goals/GOAL-ECDLP-001.yaml decides which BATCH-009 narrative is
+      authoritative. That is a Coordinator judgement on the GOAL-ECDLP-001 line,
+      not a mechanical reconciliation.
+    - >-
+      TASK-20260727-006 reads running. Clearing another session's running marker
+      is not a side branch's call, and the batch it belongs to closed on a
+      DOES_NOT_SURVIVE review whose disposition this record does not touch.
+    - >-
+      Resolving a duplicated task identifier requires reissuing one card under a
+      free id with an alias declaration, exactly as the record merge did for the
+      decision records. Doing that silently is how the earlier collisions were
+      created.
+
+  corrected_statement: >-
+    At f5895f58, GOAL-ECDLP-001 reads status active with current_batch_id
+    BATCH-010, but neither BATCH-009 nor BATCH-010 can be rendered by
+    tools/research_dispatch.py. BATCH-009 fails because two coordinator cards
+    claim ledger/goals/GOAL-ECDLP-001.yaml; BATCH-010 fails because a completed
+    archive carries a null commit_sha. Separately, TASK-20260728-002 labels cards
+    in two different batches. The goal is therefore not dispatchable, and its
+    recorded next_action - to run the BATCH-009 ledger archive - is already
+    satisfied, since EV-ENDO-001, DEC-20260728-001, KN-FIND-002 and
+    refutation_claims_v2.yaml are all present on main.
+
+  scope_of_this_correction:
+    corrects: >-
+      The renderability of the two GOAL-ECDLP-001 dispatch queues and the
+      duplicated task identifier, as observed at f5895f58.
+    does_not_correct:
+      - Any evidence, decision, hypothesis or knowledge record.
+      - >-
+        The BATCH-009 close at e77ca6a4 or its H-GGM-001 supported -> specified
+        transition on REV-20260727-002.
+      - CORR-20260729-003, which remains accurate for what it recorded.
+    changes_no_hypothesis_status: true
+    is_not_a_cryptanalytic_result: true
+
+  open_items:
+    - id: OI-1
+      item: >-
+        Decide which coordinator card owns ledger/goals/GOAL-ECDLP-001.yaml in
+        BATCH-009, and record the reassignment as a queue amendment.
+    - id: OI-2
+      item: >-
+        Reissue one of the two TASK-20260728-002 cards under a free handoff id
+        with an alias declaration, so the identifier denotes one task again.
+    - id: OI-3
+      item: >-
+        Resolve TASK-20260728-002's null archive.commit_sha in BATCH-010 together
+        with the declared-versus-committed gap recorded in CORR-20260729-003. The
+        declared count has moved from 7 to 1 while the commit changed 195 paths.
+    - id: OI-4
+      item: >-
+        Update the goal's next_action, which directs a ledger archive whose
+        records are already committed on main.
+
+  recorded_by: orchestrator
+  authority_note: >-
+    Written from a side branch by the session that measured the failures. It
+    creates no decision record, changes no status, edits no queue, reissues no
+    identifier, and edits no immutable record. Its only claim is the measured
+    state of the two queues at f5895f58 and the reason each repair needs a
+    Coordinator ruling.

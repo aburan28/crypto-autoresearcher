@@ -1,0 +1,40 @@
+{
+  "mutation_manifest": {
+    "id": "MUTATIONS-ECDLP-TT-NORM-RANK-002",
+    "version": 2,
+    "experiment_id": "EXP-ECDLP-TT-NORM-RANK-001",
+    "required_outcome": "Every mutation is rejected by its frozen detector. Surviving mutations invalidate the run.",
+    "controls": [
+      {"id": "CTRL-SEPARABLE", "field": "F_947", "B": 4, "formula": "product(j=1..5, i_j+1)", "expected_cut_ranks": [1, 1, 1, 1]},
+      {"id": "CTRL-NORM", "field": "F_947", "B": 4, "formula": "g=(i1+1)+omega*(i2+1), omega^2=2; h=(i1+1)^2-2*(i2+1)^2", "expected_cut_ranks": [2, 1, 1, 1]},
+      {"id": "CTRL-ZERO", "field": "F_947", "B": 4, "formula": "0", "expected_cut_ranks": [0, 0, 0, 0]},
+      {"id": "CTRL-SPIKE", "field": "F_947", "B": 4, "formula": "1 only at (0,0,0,0,0), else 0", "expected_cut_ranks": [1, 1, 1, 1]},
+      {"id": "CTRL-DENSE", "field": "F_947", "B": 4, "formula": "SHA256('TT-NORM-DENSE|i1|i2|i3|i4|i5') interpreted big-endian modulo 947", "expected_cut_ranks": [4, 16, 16, 4]},
+      {"id": "CTRL-ASYMMETRIC", "field": "F_947", "B": 4, "formula": "independent of i1; choose f0 when i2=0,i3=0, f1 when i2=0,i3!=0, f2 when i2!=0; f0 rows are e0; f1 row is e1 for i4=0 and e2 otherwise; f2 rows are e3; value is the selected row's i5 coordinate", "expected_cut_ranks": [1, 2, 3, 4], "certificate": "Cut spaces are respectively one i1 row type, two i2 row types, the three independent flattened matrices f0/f1/f2, and the four standard i5 rows e0/e1/e2/e3."}
+    ],
+    "mutations": [
+      {"id": "M01-WRONG-B3", "classification": "dynamic_producer", "cell": "C08:random_unique:Q00", "transformation": "At RCB gate 20 use X3=b*t2 instead of X3=(3*b mod p)*t2 for every RCB call.", "detectors": ["independent RCB digest mismatch", "projective affine-replay mismatch"], "required": "rejected"},
+      {"id": "M02-FLIP-GATE37", "classification": "dynamic_producer", "cell": "C08:random_unique:Q00", "transformation": "Replace exact gate 37 X3=X3-t0 by X3=X3+t0 for every RCB call.", "detectors": ["independent RCB digest mismatch", "projective affine-replay mismatch"], "required": "rejected"},
+      {"id": "M03-AFFINE-PRODUCER", "classification": "dynamic_producer", "cell": "C08:random_unique:Q00", "transformation": "Replace the RCB output by the independently normalized affine sum (x,y,1), or (0,1,0) for the identity, while retaining the claim that values came from the frozen RCB circuit.", "detectors": ["RCB nonzero-value digest mismatch", "source provenance mismatch"], "required": "rejected"},
+      {"id": "M04-ZERO-PROJECTIVE", "classification": "dynamic_artifact", "cell": "C08:random_unique:Q00", "transformation": "Replace the first lexicographic source output by (0,0,0).", "detectors": ["nonzero projective validity gate"], "required": "rejected"},
+      {"id": "M05-WRONG-FROBENIUS", "classification": "dynamic_producer", "cell": "C08:random_unique:Q00", "transformation": "Use conjugate(u+omega*v)=u+omega*v instead of u-omega*v for every tuple.", "detectors": ["product-versus-quadratic norm mismatch"], "required": "rejected"},
+      {"id": "M06-G-SQUARED", "classification": "dynamic_producer", "cell": "C08:random_unique:Q00", "transformation": "Set h=g*g instead of g*conjugate(g).", "detectors": ["base-field membership failure", "product-versus-quadratic norm mismatch"], "required": "rejected"},
+      {"id": "M07-RANK-FIELD-PROVENANCE", "classification": "static_artifact", "cell": "CTRL-NORM", "transformation": "Change metadata rank_field.h from F_p to F_p2 while leaving the numerically equal base-valued matrix and rank unchanged.", "detectors": ["mandatory rank-field provenance gate before numeric comparison"], "required": "rejected", "note": "Numerical rank cannot detect this mutation because scalar extension preserves rank."},
+      {"id": "M08-RAW-BOND-AS-RANK", "classification": "dynamic_artifact", "cell": "C08:random_unique:Q00", "transformation": "Replace each exact h rank by the ambient-capped square of the corresponding reported g rank and set rank_kind=raw_hadamard_product.", "detectors": ["rank_kind provenance gate", "independent exact rank mismatch when values differ"], "required": "rejected"},
+      {"id": "M09-REVERSE-CUTS", "classification": "dynamic_artifact", "cell": "CTRL-ASYMMETRIC", "transformation": "Report cut ranks in order [rho4,rho3,rho2,rho1] while labeling them cuts [1,2,3,4].", "detectors": ["expected asymmetric profile [1,2,3,4]", "independent cut-order replay"], "required": "rejected"},
+      {"id": "M10-POSTSELECT-TARGET", "classification": "static_protocol", "cell": "C08:random_unique", "transformation": "Replace Q00 by the minimum-rank target from a scanned candidate list after tensor evaluation.", "detectors": ["target ID and SHA256-to-scalar provenance must match instance-manifest-v1.json", "selection firewall"], "required": "rejected"},
+      {"id": "M11-DUPLICATE-PRIMARY", "classification": "dynamic_manifest", "cell": "C08:random_unique", "transformation": "Replace registry entry R-01, including its identifier and point, by a copy of R-00.", "detectors": ["primary identifier uniqueness", "primary affine-point uniqueness", "manifest digest mismatch"], "required": "rejected"},
+      {"id": "M12-SHARED-VERIFIER-CODE", "classification": "static_source", "cell": "verifier", "transformation": "Add an import of generate_tt_norm_rank or load its source path from verify_tt_norm_rank.", "detectors": ["AST import scan", "source-path and loaded-module provenance scan"], "required": "rejected"},
+      {"id": "M13-OMIT-ENUMERATION-COST", "classification": "static_artifact", "cell": "baseline", "transformation": "Delete accounting.full_enumeration and its tuple and RCB-call counters.", "detectors": ["required accounting-key gate", "execution-matrix count equality"], "required": "rejected"},
+      {"id": "M14-OMIT-MEMORY", "classification": "static_artifact", "cell": "baseline", "transformation": "Delete canonical storage, logical traffic, peak RSS, or RSS platform-unit metadata.", "detectors": ["required accounting-key gate"], "required": "rejected"},
+      {"id": "M15-ASYMPTOTIC-LABEL", "classification": "static_artifact", "cell": "baseline", "transformation": "Replace interpretation SANITY_ONLY by ASYMPTOTIC or set breakthrough_claim=true.", "detectors": ["interpretation firewall", "breakthrough_claim must be false"], "required": "rejected"}
+    ],
+    "execution": {
+      "generator_mode": "mutations",
+      "verifier_mode": "mutations",
+      "process_boundary": "The generator emits isolated mutated mini-artifacts. The non-importing verifier must reject each and then emit one strict valid:true suite result only if every expected rejection occurred.",
+      "static_checks": "Static mutations are applied to in-memory copies of records or source text; repository files are never modified by the suite.",
+      "selection_firewall": "Mutation IDs, transformations, cells, detectors, and outcomes are frozen in this manifest before source implementation."
+    }
+  }
+}

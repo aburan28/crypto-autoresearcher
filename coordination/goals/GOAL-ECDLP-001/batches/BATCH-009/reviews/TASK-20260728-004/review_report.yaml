@@ -1,0 +1,897 @@
+review_report:
+  id: RT-20260728-001
+  task_id: TASK-20260728-004
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-009
+  role: red-team
+  kind: pre-execution contract review (design falsification attempt)
+  written_on: '2026-07-28'
+
+  verdict: REVISE
+
+  verdict_meaning: >-
+    REVISE means the Coordinator must issue a versioned protocol_amendment
+    (EXP-ENDO-001 v2), snapshot-commit it, and have it independently re-reviewed
+    BEFORE TASK-20260728-005 executes. Per INT-BATCH009-E the dispatcher cannot
+    enforce this: a `completed` review carrying REVISE unblocks TASK-20260728-005
+    mechanically. The gate is the Coordinator's. Executing this contract
+    unamended would consume the batch and return `inconclusive_instrument` or
+    `mixed` for reasons already derivable from the contract's own arithmetic.
+    REVISE is NOT REJECT: the mechanism is sound, the derivation of index pinning
+    is correct, CTRL-COLLAPSE / CTRL-EIGEN / CTRL-CERT are well designed, the
+    basis-labelling discipline is a genuine improvement over BATCH-007, and every
+    blocking objection below is repairable by text changes plus one extra control
+    arm. Nothing here is a research result and nothing here is a cryptanalytic
+    result.
+
+  session_and_policy_disclosure:
+    independent_session: true
+    non_originating: >-
+      This session did not write the hypothesis, the specification, the goal
+      record, or the dispatch queue. It read them only as committed blobs.
+    requested_policy: review-xhigh
+    requested_policy_canonical_alias: review-adversarial
+    resolved_model_id: claude-opus-5
+    model_provenance: >-
+      Reported by the runtime environment of this session. NOT obtained from
+      orchestration/adapter.
+    model_verified: false
+    model_verified_reason: >-
+      `python3 -m orchestration.adapter doctor --probe` was NOT run. Bash is
+      read-only for this task and a probe touches the network and may write
+      state. The identifier is therefore unverified configuration.
+    fallback_used: not_determinable_in_this_session
+    reasoning_effort: not_observable_in_this_session
+    policy_equivalence_claimed: false
+    policy_equivalence_note: >-
+      No claim is made that claude-opus-5 satisfies the review-xhigh capability
+      contract. That determination belongs to the adapter, not to this report.
+
+  snapshot_binding:
+    contract_commit: a6b5ca60b99f115e0e74b0d2932b19bd63084785
+    parent_commit: f6aac954fdc1d7750ce7e393bc4cfa5e0509781c
+    branch: claude/ecdlp-batch006
+    receipt_path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/archives/TASK-20260728-003/snapshot_commit_receipt.json
+    reviewed_blobs:
+      - path: experiments/EXP-ENDO-001/specification.yaml
+        sha256: 346d3b168acb33fa15e3c62a48212dc69a86f08d3edbde68e5ebedfae5d9d6fe
+      - path: ledger/hypotheses/H-ENDO-001.yaml
+        sha256: af46248d6910f1b25892931c396f5c2d48c9a8e09c1e79cd11ea41fbc513e7f5
+    verification_performed:
+      - 'git show a6b5ca60 --stat: exactly 4 paths changed, matching the receipt list. PASS'
+      - 'parent of a6b5ca60 is f6aac954 as declared. PASS'
+      - 'all four path_sha256 values recomputed from the commit tree and matched. PASS'
+      - 'git merge-base --is-ancestor a6b5ca60 HEAD: reachable. PASS'
+      - 'git status --porcelain: clean working tree at review time. PASS'
+      - >-
+        PRE-REGISTRATION ORDER CONFIRMED. `git ls-tree -r a6b5ca60 --
+        experiments/EXP-ENDO-001` returns specification.yaml and nothing else.
+        No path matching EXP-ENDO-001/(driver|results|runs) exists at a6b5ca60,
+        at its parent, at HEAD, or as an untracked file in the working tree.
+        The contract provably precedes any measurement in commit order and this
+        is checkable by any third party. PASS - this is the strongest property
+        of the submission.
+      - 'both new records load under yaml.safe_load (checked on copies outside the repo). PASS'
+      - >-
+        receipt was committed separately in 64dc636e, which touches only
+        snapshot_commit_receipt.json. This is INT-BATCH009-C / DEFER-BATCH008-002
+        applying as declared; it does NOT weaken the pre-registration, because
+        the four contract paths are inside a6b5ca60 and the later commit adds no
+        experiment artifact.
+    integrity_verdict: >-
+      Snapshot integrity PASSES without reservation. Every objection below is
+      about the DESIGN, not about the commit.
+
+  blocking_objections:
+
+    - id: B1
+      title: >-
+        The cell the contract calls GENUINE is the algebraically degenerate one.
+        J0 at r = 3 has first minimum exactly 1, for every N.
+      severity: blocking
+      answers_prompt_question: 2 (priority - synthetic cells)
+      argument: >-
+        For an ordinary elliptic curve over a prime field, End(E) tensor Q is an
+        imaginary quadratic field, so the Z-module generated by the efficiently
+        computable eigenvalues has rank exactly 2. The specification sets
+        genuine_r_bound: 3 for J0 because THREE DISTINCT SCALARS exist
+        (1, lambda, lambda^2). Distinct scalars are not Z-independent
+        coordinates, and r in this design is a coordinate count. Concretely and
+        with no computation: the two roots of L^2 + L + 1 = 0 mod N sum to -1 by
+        Vieta, so 1 + lambda_2 + lambda_3 = 0 mod N identically. Therefore the
+        vector (1, 1, 1, 0, 0, 0) lies in W_3 on EVERY J0 instance, and the
+        infinity-norm first minimum of W_3 is exactly 1, independent of N,
+        against a predicted N^(1/6) (about 25 at 28 bits). The same relation
+        persists at r = 4. The specification itself states the relation
+        (`lambda_3 = -1 - lambda_2`, synthetic_rank_rule) and then labels the
+        cell genuine. H-ENDO-001's interpretation_limits already note that the
+        supersingular endomorphism ring has rank 4, which presupposes the
+        ordinary rank-2 fact the genuine_r_bound contradicts.
+      consequences:
+        - >-
+          S2 / F3. Forty J0 cells (r = 3 and r = 4, four sizes, five seeds) enter
+          the shrinkage regression at y = log_N(1) = 0 against predicted 1/6 and
+          1/8. The first minimum is 1, so exact enumeration trivially succeeds
+          and the cells are NOT excluded by the exact-enumeration restriction.
+        - >-
+          Cost and memory. The scalar map (a_1, a_2, a_3) -> sum a_i lambda_i
+          factors through a two-dimensional quantity, so the P-side list has at
+          most (4X+1)^2 distinct images rather than (2X+1)^3. At 28 bits that is
+          about 11,025 distinct images against a predicted peak of
+          2^3 sqrt(N) = 131,072 - a factor 12 miss on a cell the design calls
+          genuine.
+        - >-
+          HEUR-1. W_3 contains the whole rank-2 family {(t,t,t,u,u,u)}, so the
+          box census counts about (2cX+1)^2 trivial witnesses and the Poisson
+          chi-square rejects - an artifact of the CM relation, not of
+          equidistribution, and arm F has no criterion that can say so.
+        - >-
+          F1 false-positive route. See B4.
+      required_fix: >-
+        Set genuine_r_bound: 2 for BOTH CM families; declare every r >= 3 cell
+        synthetic; add RC-3 (small-relation screen) so synthetic draws actually
+        realize the generic model; add RC-1 (relation-matched control).
+      answer_to_the_priority_question: >-
+        The r-scaling measurement beyond r = 2 measures a CONSTRUCTION, not
+        endomorphisms - but the defect is worse than the Coordinator's own
+        INT-BATCH009-M correction states. The problem is not confined to the
+        cells labelled synthetic. It reaches the cell labelled genuine, where the
+        primary geometric metric collapses to a constant. This is the same defect
+        class that sank phi_alpha in BATCH-007 (a metric that turned out to count
+        bookkeeping), with the aggravation that here the bookkeeping is a
+        pre-registered `genuine` cell feeding the primary regression.
+
+    - id: B2
+      title: >-
+        S3's factor-2 band fails at 16 and 20 bits from the contract's own
+        ceiling rule, so the `confirmed` branch is unreachable.
+      severity: blocking
+      answers_prompt_question: 1 and 3
+      argument: >-
+        STEP 4 defines the cost through X = ceil(N^(1/(2r))) and then reports the
+        ASYMPTOTIC simplification rho(r) = 2^(r+1), labelling it
+        derived-in-contract. The exact derived quantity is
+        rho(r) = 2 (2 ceil(N^(1/(2r))) + 1)^r / sqrt(N), and the ratio of the
+        exact value to 2^(r+1) is ((2 ceil(y) + 1) / (2y))^r with y = N^(1/(2r)).
+        At small y the ceiling is a large relative inflation raised to the r-th
+        power. Recomputed from the contract text alone (table in the
+        budget_and_arithmetic section below): the ratio reaches 2.34, 3.81 and
+        2.43 at 16 bits r = 4, 2.60 at 16 bits r = 3, and 3.57, 2.13, 2.64 at
+        20 bits r = 4 - all outside the pre-registered factor-2 band. Roughly
+        four fifths of the admissible N range at 16 bits r = 4 fails the band.
+      consequence: >-
+        S3 demands the band hold "for every family and every completed field
+        size ... at every r", and the pre-registered degradation order drops
+        28-bit cells FIRST and 16-bit cells LAST. So the cells that fail
+        deterministically are exactly the cells that always survive. S3 cannot
+        pass, therefore S1-S5 cannot all hold, therefore `confirmed` is
+        unreachable - for arithmetic reasons contained in the contract, with no
+        mathematical content whatsoever. This is the dual of the EXP-IC-001 v3
+        defect the card asked me to check for: not a near-tautological positive,
+        but a near-impossible one.
+      required_fix: >-
+        Predict the exact per-cell value 2 (2 ceil(N^(1/(2r))) + 1)^r / sqrt(N)
+        and band around THAT; keep 2^(r+1) as the asymptotic reading only, and
+        relabel it derived-asymptotically rather than derived-in-contract.
+
+    - id: B3
+      title: >-
+        S5 calibrates against the |Aut| quotient while the only rho variant the
+        contract specifies is negation-only. S5 fails deterministically.
+      severity: blocking
+      answers_prompt_question: 1 and 4
+      argument: >-
+        CTRL-BASELINE specifies "matched Pollard rho with negation", which
+        corresponds to |Aut| = 2. S5 and F4 calibrate the measured cost against
+        0.886 sqrt(N / |Aut|) with |Aut| = 6 on J0 and 4 on J1728. Arm H-RHOCAL
+        never says which variant it runs. If the executor implements what is
+        written, the measured-to-predicted ratio is sqrt(3) = 1.73 on J0 and
+        sqrt(2) = 1.41 on J1728, both far outside the 20 percent band. S5 then
+        fails on both endomorphism-rich families with no mathematics involved,
+        which again blocks `confirmed`. F4 does not fire (it requires a
+        deviation on the LOW side), so the outcome is `mixed`.
+      secondary: >-
+        Even a correctly implemented automorphism-quotient walk does not attain
+        0.886 sqrt(N / |Aut|) without explicit fruitless-cycle handling
+        (Wiener-Zuccherato; Duursma-Gaudry-Morain; Bos-Kleinjung-Niederhagen;
+        Bernstein-Lange-Schwabe for negation). The contract requires no cycle
+        handling and pre-registers a 20 percent band around the idealized
+        constant. The known-answer calibration is therefore aimed at a value the
+        specified instrument is not built to reach.
+      required_fix: >-
+        Pin the rho variant per arm, calibrate each against its own |Aut|, and
+        pre-register the cycle-handling method and the rho memory parameter.
+
+    - id: B4
+      title: >-
+        F1 is unreachable by any structural effect, and reachable only through
+        B1's redundancy artifact - whose pre-registered interpretation is false.
+      severity: blocking
+      answers_prompt_question: 1 (the card's central question)
+      argument: >-
+        Total meet-in-the-middle cost splits into a list-build term and a
+        collision-search term. The list-build term is (2X+1)^r, a deterministic
+        function of (N, r) with no curve, no eigenvalue and no k in it. It is
+        therefore IDENTICAL by construction in arms A, B and D. The only
+        structure-sensitive term is where in the second list the collision lands,
+        with expectation about N / |L1| = sqrt(N) / 2^r, whose share of the total
+        is about 4^(-r): 6.25 percent at r = 2, 1.6 percent at r = 3, 0.4 percent
+        at r = 4. A TOTAL collapse of the collision search - an oracle that hits
+        a witness on the first probe - moves rho(r) by less than the 15 percent
+        monotonicity tolerance at every r >= 2. No structural effect confined to
+        the search stage can fire F1.
+      the_only_route_that_fires_it: >-
+        The list-build term shrinks only if (a_i) -> sum a_i lambda_i is
+        non-injective on the box, i.e. only if a small-coefficient Z-relation
+        exists among the lambda_i. That is exactly B1's CM relation. So: if the
+        driver enumerates coefficient vectors (the literal reading), F1 is
+        unreachable; if it enumerates distinct scalar images, F1 fires on the
+        J0 r >= 3 cells and CTRL-RANDSUB does not reproduce it, satisfying F1's
+        stated conditions exactly - and the pre-registered reading, "the
+        endomorphism lane carries exploitable structure beyond the pinned index
+        ... would collapse the load-bearing exit-map claim of
+        IDEA-20260727-005", would be precisely backwards. The trigger is a
+        REDUNDANT coordinate, the opposite of exploitable structure.
+      answer_to_the_f1_question: >-
+        F1 is NOT genuinely reachable as intended. It is either unreachable by
+        construction or reachable only with a false interpretation attached.
+      required_fix: >-
+        Pre-register the enumeration convention (coefficient vectors vs distinct
+        scalar images); require any F1 firing to survive RC-1, the
+        relation-matched control; and add a cost metric that can move
+        independently of the list-build term (distinct scalar images per unit box
+        volume, and collision-search probes counted separately from list-build
+        additions).
+
+    - id: B5
+      title: >-
+        Unpinned measurement conventions flip at least four criteria. A
+        pre-registration whose verdict depends on unstated analysis choices is
+        not a pre-registration.
+      severity: blocking
+      answers_prompt_question: 1 and 4
+      unpinned_choices:
+        - >-
+          S2 pooling. The criterion says "regressing log_N(first minimum) on
+          1/(2r) over exact-enumeration cells" without saying per-family or
+          pooled across arms. My arithmetic (scratch, illustrative only): a
+          J0-only fit including B1's zeros gives slope about 1.30, outside
+          [0.85, 1.15], firing F3; a fit pooled over J0, J1728, GEN and RANDSUB
+          dilutes the zeros to one third and gives slope about 1.05 with R^2
+          near the 0.90 floor. The verdict flips on a choice the contract never
+          makes.
+        - >-
+          S3 aggregation. "the measured rho(r) is non-decreasing in r within
+          15 percent" - across the five seeds, is that the mean, the median, or
+          per-seed? Within-cell scatter from the ceiling effect is a factor 2 to
+          3, so the three readings disagree.
+        - >-
+          MITM early termination. If both lists are built in full, the derived
+          r = 1 cost is 4 sqrt(N) against matched BSGS at 1.5-2 sqrt(N), i.e. a
+          ratio of 2.0 to 2.67 against CTRL-GENJ's "within a factor 2" - at or
+          over the threshold with zero slack. If the second list is streamed
+          until collision, the cost is about 2.5 sqrt(N) and CTRL-GENJ passes.
+          S4, and with it `confirmed`, turns on an unstated loop convention.
+        - >-
+          BSGS counting. Worst case (2 sqrt(N)) or expected (about 1.5 sqrt(N))
+          changes the CTRL-GENJ ratio by a third.
+        - >-
+          F6's denominator. The threshold is mitm_peak_entries / rho_peak_entries
+          >= sqrt(N)/16, but rho's stored-entry count is a free implementation
+          knob. With Floyd cycle-finding it is 2 and F6 can never fire; with
+          distinguished points it is whatever the DP rate makes it. F6 as written
+          is undecidable.
+      required_fix: >-
+        Pin each convention in v2, in the criterion text, not in prose.
+
+    - id: B6
+      title: >-
+        S2's band ignores the O(1/log N) finite-size term, so F3 is at material
+        risk of firing with a false diagnosis attached.
+      severity: blocking
+      answers_prompt_question: 4
+      argument: >-
+        The measured quantity is log_N(lambda_1) = 1/(2r) + ln(c)/ln(N), where c
+        is the O(1) multiplicative constant by which the actual first minimum
+        misses the Minkowski bound. At 16 to 28 bits ln(N) is 11 to 19, so a
+        perfectly ordinary c in the range 0.2 to 0.8 displaces y by 0.02 to 0.09
+        - and the displacement is LARGEST at r = 1, where the constant is
+        furthest from 1, which systematically DEPRESSES the fitted slope. A rough
+        estimate puts the clean-design slope at about 0.79 at 16 bits and 0.88 at
+        28 bits, straddling the 0.85 floor. The [0.85, 1.15] band is centred on
+        the asymptotic value 1 and pre-registers no finite-size allowance. F3's
+        pre-registered reading - "the Minkowski minimum is not being attained,
+        the box is the wrong size, and the cost comparison is UNINTERPRETABLE" -
+        would then be a false diagnosis of a normalization choice, and F3
+        OVERRIDES a partial confirmation.
+      required_fix: >-
+        Fit lambda_1 = c_r N^(1/(2r)) with a free per-rank constant (regress
+        log lambda_1 on log N within each r) and band the EXPONENT, not the
+        log_N ratio.
+
+  non_blocking_objections:
+    - id: N1
+      title: STEP 3 asserts a false intermediate step.
+      detail: >-
+        "The symmetric closed box [-X, X]^(2r) has volume (2X+1)^(2r)" is wrong:
+        (2X+1)^(2r) is the integer-point COUNT; the volume is (2X)^(2r). The
+        conclusion survives, but only via the closed-and-bounded form of
+        Minkowski's theorem (volume >= 2^n det suffices for a compact symmetric
+        convex body), which the text never invokes - and the boundary case is
+        exactly where the ceiling in X puts it. The same conflation appears in
+        H-ENDO-001's mechanism. The card asked whether derived-in-contract values
+        are derived rather than asserted: the index is properly derived; the
+        slope-1 prediction is correct but its written derivation is not.
+    - id: N2
+      title: The pinned determinant is not why shortness is unexploitable.
+      detail: >-
+        W_r cannot be constructed by an attacker: its congruence coefficients are
+        (lambda_i, k lambda_i) and involve the unknown k. If W_2 could be
+        written down, LLL in dimension 4 would return a witness of norm about
+        3.4 N^(1/4) in polynomial time, and k = -A/B mod N follows immediately -
+        which would break ECDLP. So the determinant emphatically does NOT protect
+        anything; non-constructibility does. STEP 5's dichotomy ("either the
+        determinant is not pinned or the balanced split is not the best
+        decomposition") omits the true third explanation, and the enumeration
+        cost is set by the box side and the split, not by the determinant at all.
+        A `confirmed` verdict would attach a true observation to a false
+        mechanism unless the evidence record states this.
+    - id: N3
+      title: Scope inflation in the rerank rationale.
+      detail: >-
+        The snapshot commit message says this experiment "gates
+        IDEA-20260727-005's classification barrier". It cannot. The load-bearing
+        part of that barrier is which homomorphisms are EFFICIENTLY COMPUTABLE -
+        a computational statement. This design fixes the lambda_i by fiat and no
+        arm searches for an unexpected exit map. What it can confirm, index = N,
+        is a one-line consequence of End(Z/N) = Z/N and needs no experiment. The
+        gating value that outranked the COMMITTED EXP-STR-004 is therefore not
+        delivered by the design as frozen. This does not by itself justify
+        reversing the rerank, but it must not be repeated in the evidence record.
+    - id: N4
+      title: Arms F and G have no pre-registered criterion.
+      detail: >-
+        RUN-ENDO-001-F-H1 and RUN-ENDO-001-G-H2 validate HEUR-1 and HEUR-2 and
+        appear in no S or F clause. Two of eight arms will produce numbers no
+        criterion consumes, which is an open invitation to post-hoc reading -
+        especially given B1, which guarantees the HEUR-1 census fails on the
+        J0 r = 3 cells.
+    - id: N5
+      title: S3 is ill-defined for family GEN.
+      detail: >-
+        GEN runs r = 1 only, so monotonicity in r is vacuous and rho(4)/rho(1) is
+        undefined, yet S3 says "for every family". Either GEN is exempt, which is
+        unstated, or S3 is unsatisfiable.
+    - id: N6
+      title: Budget rules have two gaps.
+      detail: >-
+        (a) 8 arms x 1800 s exceeds the 7200 s total, so the global cap can be
+        reached before arms G and H start; the degradation order covers dropped
+        CELLS but not an arm that never begins, and S5 on zero data is
+        undefined. Arm execution order is unspecified, yet F4's own text makes
+        calibration gate the interpretation of every other number - arm H should
+        be pre-registered to run FIRST. (b) Feasibility depends on the
+        incremental-list convention, which appears only in derivation prose: at
+        one point addition per entry the run is minutes, but if each entry is
+        built by a fresh scalar multiplication (about 42 additions at 28 bits)
+        arm A alone is roughly 40x more expensive and blows both caps.
+    - id: N7
+      title: CTRL-EIGEN is vacuous on synthetic and RANDSUB cells.
+      detail: >-
+        The check is phi_i(P) = [lambda_i]P, but a synthetic lambda has no phi_i;
+        the check degenerates to [lambda]P = [lambda]P. S1's qualifier "whose
+        eigenvalue check passed" therefore filters nothing there, and S1 on those
+        cells is a self-test of the HNF routine over integers - correct to run,
+        but not a test of the hypothesis.
+    - id: N8
+      title: No known-answer control for the shortest-vector routine.
+      detail: >-
+        CTRL-COLLAPSE covers the HNF path only. The routine that produces the
+        S2/F3 metric has no positive control. Constructively, B1 supplies a free
+        one: a J0 r = 3 lattice has first minimum exactly 1, provable from Vieta
+        with no measurement.
+    - id: N9
+      title: INT-BATCH009-C applies as declared.
+      detail: >-
+        TASK-20260728-003 declares its own receipt as an artifact path, but the
+        receipt was necessarily committed later, in 64dc636e. Verified; it does
+        not weaken the pre-registration, since the four contract paths are inside
+        a6b5ca60 and 64dc636e adds no experiment artifact. Reported rather than
+        routed around, and no hash was fabricated anywhere in this review.
+    - id: N10
+      title: Card/prompt filename mismatch - reconcile before the archive task.
+      detail: >-
+        The dispatch card declares artifact_paths
+        [.../TASK-20260728-004/contract_review.yaml]; the launching task
+        specified exactly review_report.yaml and adversarial_notes.md. I followed
+        the launching task exactly and did NOT create a third file. The
+        Coordinator must reconcile artifact_paths before TASK-20260728-009 runs.
+        This is the third such mismatch in the campaign.
+    - id: N11
+      title: The hypothesis was created at `approved` and the contract frozen at
+        `approved` before this review.
+      detail: >-
+        H-ENDO-001 carries status_history [approved] with decision_id: null, and
+        EXP-ENDO-001 is `approved` at the snapshot, so the `review_required`
+        state was skipped. The Coordinator documented and justified this
+        (check_cross_refs needs a resolvable hypothesis_id, and binding to
+        H-STR-002 would have been false). The consequence is that the amendment
+        route is now the only remaining gate before compute is spent.
+
+  per_question_findings:
+
+    prompt_Q1_decidable_criterion_and_reachable_negative:
+      verdict: FAILS on both halves.
+      near_tautological_branch_check: >-
+        S1 is effectively tautological - the index of the kernel of a congruence
+        whose coefficient vector contains the unit lambda_1 = 1 is N by
+        elementary algebra, and on synthetic and RANDSUB cells no curve enters at
+        all. That is acceptable as an instrument self-test and the contract says
+        so; it is not a test of anything at issue. The EXP-IC-001 v3 failure mode
+        (a criterion that cannot fail) recurs here in its DUAL form: S3 and S5
+        cannot PASS (B2, B3), so the `confirmed` branch is unreachable.
+      unreachable_branch_check: >-
+        The EXP-IC-002 failure mode (a branch unreachable by construction) does
+        NOT recur in the same shape: `mixed` here is defined as the residual of
+        S and F, is genuinely reachable, and is in fact the most likely outcome.
+        The unreachable branch is `confirmed`, and the misfiring branches are F1
+        (B4) and F6 (B5).
+      per_criterion:
+        S1: 'passes by construction; not discriminating. See N7.'
+        S2: 'verdict depends on an unspecified pooling choice (B5) and on an unallowed finite-size term (B6).'
+        S3: 'cannot pass at 16 bits (B2); ill-defined for GEN (N5); aggregation unpinned (B5).'
+        S4: 'CTRL-COLLAPSE is sound and is the best-designed clause in the contract; CTRL-RANDSUB is vacuous against the dominant cost term (B4); CTRL-GENJ sits exactly on its own threshold (B5).'
+        S5: 'fails deterministically as specified (B3).'
+        F1: 'unreachable as intended; reachable only via B1 with a false reading (B4).'
+        F2: 'reachable only as an implementation bug; the contract says so correctly.'
+        F3: 'at material risk of firing for two artifact reasons pulling in opposite directions (B1 up, B6 down), with a false pre-registered diagnosis.'
+        F4: 'cannot fire from the specified instrument, since the specified rho variant is slower than the calibration target, not faster (B3).'
+        F5: 'well posed and reachable. The one falsifier that works as designed.'
+        F6: 'undecidable - its denominator is a free implementation parameter (B5).'
+
+    prompt_Q2_synthetic_cell_problem:
+      verdict: >-
+        The r-sweep beyond r = 2 measures a construction, and the defect reaches
+        one cell the contract calls genuine. See B1 in full.
+      is_it_the_phi_alpha_defect: >-
+        Yes, in the same class, with an aggravation. In BATCH-007 a metric turned
+        out to count row-insertion bookkeeping. Here the primary cost metric
+        rho(r) is, on the dominant term, a deterministic function of (N, r) with
+        no curve in it, so on synthetic cells arms A, B and D are literally the
+        same computation performed three times; and the primary geometric metric
+        collapses to the constant 1 on the J0 r >= 3 cells. The difference from
+        BATCH-007 is that this contract already declares the synthetic-cell
+        limitation honestly and forbids attack claims from those cells, which is
+        a real improvement - it simply drew the genuine/synthetic line one rank
+        too high.
+      what_survives: >-
+        The synthetic cells still test something legitimate and elementary: that
+        a uniformly drawn index-N sublattice of Z^(2r) has index N and roughly
+        attains its Minkowski bound. That is worth one cheap arm, not four ranks
+        across two families.
+
+    prompt_Q3_two_to_the_r_versus_sqrt_N_collapse:
+      verdict: >-
+        They do not collapse in the RATIO rho(r), which is the primary metric -
+        but a worse degeneracy occurs in the same cells, and the degradation
+        order preserves exactly those cells.
+      detail: >-
+        At 16 bits the subgroup rule permits N as small as 2^12. The predicted
+        list size at r = 4 is then (2X+1)^4 = 9^4 = 6561 against N = 4096: the
+        enumeration covers MORE scalars than the group contains, a collision is
+        guaranteed trivially, and the cost exceeds exhaustive search. The
+        meet-in-the-middle is not in the birthday regime at all in those cells;
+        it is saturated. Separately, the ceiling discretization inflates rho(r)
+        by 2.1x to 4.4x over the asymptotic prediction at 16-bit r >= 3 and
+        20-bit r = 4 (B2). So the separation between meet-in-the-middle cost and
+        birthday cost holds cleanly at 24 and 28 bits and degenerates at 16 bits
+        for r >= 3 and marginally at 20 bits for r = 4.
+      compounding_defect: >-
+        The pre-registered degradation order drops 28-bit cells FIRST and 24-bit
+        cells SECOND, so under any budget pressure the design degrades onto
+        precisely the sizes where the confound is worst. The order is inverted
+        relative to the confound. The declared consequence (S3 INCONCLUSIVE below
+        four sizes) is honest but does not repair it: it converts a
+        budget shortfall into a guaranteed non-answer.
+
+    prompt_Q4_honest_sourcing_of_predicted_values:
+      verdict: >-
+        No value traces to an unarchived probe as far as I can determine, and the
+        basis-labelling discipline is genuine and is the contract's second real
+        strength. Two derived-in-contract values are nonetheless over-claimed.
+      audit:
+        - value: 'index = N'
+          label_claimed: derived-in-contract
+          finding: >-
+            CORRECT and correctly derived. A homomorphism Z^(2r) -> Z/N whose
+            coefficient vector contains a unit is surjective; its kernel has
+            index N and determinant N. Verified independently.
+        - value: 'regression slope 1 for log_N(first minimum) on 1/(2r)'
+          label_claimed: derived-in-contract
+          finding: >-
+            Conclusion correct, derivation defective (N1: volume misidentified as
+            lattice-point count). Additionally the target is asymptotic and the
+            band allows no finite-size term (B6), and the derivation is false on
+            the J0 r >= 3 cells where the true value is 0 (B1).
+        - value: 'rho(r) = 2^(r+1), hence rho(1) = 4, rho(4) = 32, ratio 8'
+          label_claimed: derived-in-contract
+          finding: >-
+            OVER-CLAIMED. What is derived in contract is
+            2 (2 ceil(N^(1/(2r))) + 1)^r / sqrt(N); 2^(r+1) is its asymptotic
+            simplification, and the simplification error exceeds the contract's
+            own factor-2 acceptance band at the tested sizes (B2). Relabel as
+            derived-asymptotically and predict the exact formula.
+        - value: '0.886 = sqrt(pi/4)'
+          label_claimed: literature-constant
+          finding: >-
+            Numerically correct (sqrt(pi/4) = 0.8862) and correctly labelled as
+            never measured by this campaign. Its APPLICATION is inconsistent with
+            the specified rho variant (B3).
+        - value: 'all bands and tolerances (0.85-1.15, R^2 0.90, factor 2, 15 percent, threshold 4, 20 percent, sqrt(N)/16)'
+          label_claimed: pre-registered-tolerance, untested
+          finding: >-
+            Correctly labelled as judgement calls fixed before execution. Three
+            of them are nonetheless mis-set against the contract's own arithmetic
+            (B2, B5-F6, B6).
+      probe_provenance_check: >-
+        I found no number in the contract that requires an unarchived probe to
+        produce. Every quantity is either an arithmetic consequence of the stated
+        box rule, the classical birthday constant, or a declared tolerance. The
+        BATCH-007 failure mode (a pre-registration copied from a scratchpad
+        script) does NOT recur. The failure mode that recurs instead is different
+        and, here, more consequential: values derived correctly in the asymptotic
+        limit and pre-registered as if exact at 16 bits.
+
+    prompt_Q5_claim_boundaries:
+      verdict: CONFIRMED ADEQUATE, with one addition required.
+      findings:
+        - >-
+          Every declared field size is 16 to 28 bits. Under
+          tools/validate_ledger.py::tier_of_run, bits <= 32 is toy tier, so every
+          run this contract can produce is toy. claim_tier_ceiling: toy is
+          correct, and the manifest rule (inputs.parameters.field_bits set to the
+          largest completed size) makes the ceiling computable. No record derived
+          from this experiment may assert medium or crypto tier.
+        - >-
+          The scope_statement and interpretation_limits are explicit and
+          adequate: not a cryptanalytic result, not an attack improvement, not a
+          closure, not an impossibility claim, not crypto-scale validation, no
+          asymptotic claim moves, no promotion gate addressed.
+        - >-
+          Under the governing rule A1 (constant-factor and log-cofactor
+          improvements are not target-class; the governing document is absent at
+          this commit and is not cited as present), nothing this experiment can
+          produce is target-class. The only positive quantity available is the
+          classical automorphism-quotient constant, at most sqrt(6) = 2.449, and
+          the contract already excludes it explicitly. Even the F1 branch, if it
+          fired, could not be target-class: its only reachable trigger is a
+          redundant coordinate (B4).
+        - >-
+          ADDITION REQUIRED. The contract nowhere states that the algorithm under
+          test is Pareto-DOMINATED at every rank including r = 1. Its derived
+          r = 1 cost is 4 sqrt(N) against BSGS at 1.5-2 sqrt(N), and its memory
+          is 2^r sqrt(N) against rho's O(w). The experiment measures how much
+          WORSE than the baseline the augmented search is, and the evidence
+          record must say so in those words.
+
+    prompt_Q6_hypothesis_wellformedness_and_binding:
+      wellformedness: >-
+        H-ENDO-001 conforms to templates/research-records.md: statement,
+        mechanism, assumptions, predictions with metric/direction/minimum_effect
+        (directions higher, lower, different are all in the allowed set),
+        test_boundary with instances, parameters, implementation and budget,
+        falsification_conditions, interpretation_limits, status, proposed_by. It
+        adds numbered heuristics HEUR-1 and HEUR-2 with rigorous_support and a
+        named validation arm each, which is the discipline the target profile
+        asks for and is better than the campaign's prior hypotheses. It parses
+        under yaml.safe_load.
+      defects:
+        - 'genuine_r_bound contradiction (B1); the record itself notes the supersingular rank-4 contrast while never stating the ordinary rank-2 fact that contradicts genuine_r_bound: 3.'
+        - >-
+          Prediction 5 (mitm_peak_entries / rho_peak_entries >= sqrt(N)/16) is
+          not a decidable prediction, because rho's stored-entry count is
+          unfixed (B5).
+        - >-
+          HEUR-1's random-model transfer is asserted, not established. The
+          classical statement invoked is Siegel's mean value theorem, which
+          averages over the space of unimodular lattices under Haar measure;
+          W_r is a fixed index-N sublattice determined by k, and the averaging
+          available is over k in [1, N-1]. The transfer is plausible at r = 1, 2
+          and is FALSE at J0 r >= 3, where W_r contains a rank-2 sublattice of
+          norm-1 vectors. CHEAPEST EXPERIMENT THAT EXPOSES THE DEVIATION: compute
+          the first minimum of W_3 on any single J0 instance - it is 1, not
+          N^(1/6). No curve arithmetic and no run record are needed; Vieta
+          settles it on paper.
+      binding_verdict: >-
+        CORRECT. Binding EXP-ENDO-001 to H-ENDO-001 rather than to H-STR-002 is
+        right. H-STR-002 is the phi_alpha / structured-instrument lane whose only
+        reproducible effect is the relation-collection factor r = 3 recorded in
+        DEC-20260727-009 at 2.62-3.20x; the mechanism here (witness lattice,
+        index pinning, Minkowski, balanced meet-in-the-middle) is different, and
+        binding to H-STR-002 would have been false as the Coordinator states. The
+        interpretation_limits clause forbidding any reading into H-STR-002 or
+        H-IC-001 is well drafted and should be kept verbatim.
+      binding_caveat: >-
+        One leakage risk remains: S5 and F4 measure the automorphism-quotient
+        constant, which is adjacent to the only reproducible effect in the
+        H-STR-002 lane. The two are NOT the same quantity - DEC-20260727-009
+        records a factor-r relation-collection quotient in index calculus, while
+        S5 predicts a sqrt(|Aut|) rho quotient - and the evidence record must not
+        conflate them in either direction.
+
+    card_Q2_budget_arithmetic:
+      shown_not_summarized: see budget_and_arithmetic below.
+
+    card_Q5_controls:
+      CTRL-COLLAPSE: >-
+        SOUND. Planting a composite modulus M = d e and imposing the congruence
+        mod d gives a true index d < M that the HNF must report, and the
+        meet-in-the-middle must finish below sqrt(M). It is a real positive
+        control on the HNF path, it has a stop-the-experiment consequence
+        attached, and it is the best-designed clause in the contract.
+      CTRL-RANDSUB: >-
+        VACUOUS against the quantity it is meant to control. Arm D has no curve,
+        so its mitm_cost is necessarily a simulated enumeration count - the same
+        arithmetic as arms A and B's dominant term. Its "match within the
+        acceptance band" is therefore an arithmetic identity, not an empirical
+        agreement. It does correctly absorb the ceiling artifact (both arms share
+        it), which is its one real job; it cannot detect any structural effect,
+        because the structure-sensitive term carries 4^(-r) of the weight (B4).
+      CTRL-GENJ: 'sits exactly on its own pass/fail boundary (B5).'
+      CTRL-EIGEN: 'sound on genuine cells, vacuous on synthetic and RANDSUB cells (N7).'
+      CTRL-CERT: >-
+        SOUND and correctly tied to docs/claims-and-verification.md: a witness is
+        replayed on the curve and, where B is invertible, k = -A/B is checked by
+        [k]P = Q. Keep verbatim.
+      missing: 'no positive control for the shortest-vector routine (N8); no relation-matched control (RC-1).'
+
+  required_controls:
+    - id: RC-1
+      title: Relation-matched random-sublattice control - THE CHEAPEST DISCRIMINATING CONTROL
+      description: >-
+        A control arm identical to CTRL-RANDSUB except that the drawn eigenvalues
+        are forced to satisfy the same Z-relation as the CM family
+        (lambda_1 + lambda_2 + lambda_3 = 0 mod N) with no CM origin. If arms A
+        at r >= 3 and this control agree, then any F1 firing is the coordinate-
+        redundancy artifact and NOT endomorphism structure. Cost: a variant of an
+        existing lattice-only arm; no new machinery, no curve arithmetic.
+    - id: RC-2
+      title: Known-answer test for the first-minimum routine
+      description: >-
+        Assert first minimum = 1 exactly on a J0 r = 3 lattice (provable from
+        Vieta, no measurement) and on a planted-short-vector lattice with a known
+        minimum. Without this, S2 and F3 rest on an uncontrolled routine.
+    - id: RC-3
+      title: Small-relation screen on synthetic eigenvalue draws
+      description: >-
+        Reject any synthetic draw admitting a nonzero integer relation
+        sum c_i lambda_i = 0 mod N with max |c_i| <= X, so that cells labelled
+        synthetic actually realize the generic model they stand for. Report the
+        rejection count.
+    - id: RC-4
+      title: Distinct-scalar-image counter per cell
+      description: >-
+        Report, beside the point-addition count, the number of DISTINCT scalar
+        images the P-side enumeration produces. This makes list redundancy
+        visible instead of absorbing it into the cost, and it is the metric that
+        can move with r independently of the list-build term.
+    - id: RC-5
+      title: Pin rho's stored-entry count and report the time-memory line
+      description: >-
+        Fix w explicitly, and report the van Oorschot-Wiener interpolation for
+        both algorithms, so that F6 becomes decidable and the memory comparison
+        is against a stated baseline rather than an implicit one.
+
+  counterexample_or_mutation: >-
+    A single no-compute counterexample to P2 as stated: on ANY J0 instance at
+    r = 3, the two roots of L^2 + L + 1 = 0 mod N sum to -1 (Vieta), so
+    (1, 1, 1, 0, 0, 0) lies in W_3 and the infinity-norm first minimum is exactly
+    1 for every N, against a predicted N^(1/(2r)) = N^(1/6). This falsifies the
+    random-lattice model on the design's own `genuine` cells before any run
+    exists, and it is checkable on paper.
+
+  baseline_comparison:
+    pollard_rho_negation: 'about 0.886 sqrt(N/2) group operations, O(w) memory, linear parallel speedup by van Oorschot-Wiener distinguished points.'
+    pollard_rho_automorphism_quotient: 'about 0.886 sqrt(N/|Aut|) - at most sqrt(6) = 2.449x better than plain rho at j = 0, degraded in practice by fruitless cycles (Wiener-Zuccherato; Duursma-Gaudry-Morain; Bos-Kleinjung-Niederhagen; Bernstein-Lange-Schwabe). This is the closest specialized baseline and it is the known correct way endomorphisms help.'
+    bsgs: 'about 1.5-2 sqrt(N) operations, sqrt(N) memory.'
+    the_algorithm_under_test: >-
+      derived 2 (2 ceil(N^(1/(2r))) + 1)^r operations, i.e. about 2^(r+1)
+      sqrt(N), with 2^r sqrt(N) memory.
+    verdict: >-
+      Dominated by BSGS by about 2^r in BOTH time and memory at every rank
+      including r = 1 (where the derived cost is exactly 2x BSGS), and dominated
+      absolutely by rho on memory. There is no time-memory point at which it
+      wins: shrinking the stored list to w forces the join to scan about N/w,
+      which is the classical Shanks tradeoff line, strictly worse than rho's
+      sqrt(N)/m parallel line for w < sqrt(N). Consequently NO outcome of this
+      experiment, F1 included, can be an attack improvement. The whole lane sits
+      above the known Pareto frontier at every point.
+
+  heuristic_challenges:
+    - >-
+      HEUR-1 is numbered and its rigorous half (Minkowski existence) is correctly
+      separated from its heuristic half (the count) - good practice. But the
+      random-model transfer is asserted through Siegel's mean value theorem,
+      which is a statement about Haar-random unimodular lattices, not about a
+      fixed index-N kernel indexed by k. The transfer FAILS on the design's own
+      J0 r >= 3 cells. Cheapest exposure: compute one first minimum at J0 r = 3.
+    - >-
+      HEUR-2 is honestly scoped as not load-bearing for P1. Its validation arm G
+      tests lambda_2/N against uniform by KS - but the quantity that matters for
+      the first minimum is not the marginal distribution of lambda_2, it is the
+      absence of SMALL integer relations among the lambda_i. Arm G as specified
+      would pass on the J0 r = 3 configuration that B1 shows is maximally
+      degenerate. The KS test is aimed at the wrong statistic.
+    - >-
+      Neither heuristic has a criterion in S1-S5 or F1-F6 (N4), so neither can be
+      recorded as validated or falsified by this contract as frozen.
+
+  cost_model_challenges:
+    - 'per-attempt vs total expected cost: the contract counts a single balanced pass and its derivation assumes constant success probability in one pass (HEUR-1). With the box at c = 1 that is defensible, but the total expected cost must be written as per-pass cost x inverse success probability, and the box-inflation factor c needed in practice is exactly what HEUR-1 leaves open. No criterion records what c the runs actually needed.'
+    - 'the o(1)/constant accounting is inverted: the headline 2^(r+1) HIDES the ceiling factor, which at the tested sizes is between 1.0 and 4.4 and is the dominant discrepancy (B2).'
+    - 'memory is stated (2^r sqrt(N) entries) but its comparison target is unfixed (B5-F6).'
+    - 'the van Oorschot-Wiener interpolation is never written down; without it the memory clause has no baseline (RC-5).'
+    - 'budget feasibility rests on a per-entry cost convention stated only in prose (N6).'
+
+  reduction_and_scope_challenges:
+    - 'no published reduction is invoked, so no reduction instantiation is at risk.'
+    - 'the only external results used are the classical rho constants, cited correctly as literature and used only for calibration.'
+    - 'scope inflation appears once, in the claimed gating of IDEA-20260727-005 (N3), and must not propagate into EV-ENDO-001.'
+    - 'affected-vs-safe scheme scope: correctly absent. The contract makes no scheme claim at all, which is the right call at 16-28 bits.'
+
+  narrowest_supported_statement: >-
+    Nothing about the endomorphism lane is supported or weakened by this review,
+    because no run exists. What IS established here: (i) the TASK-20260728-003
+    snapshot is intact and the pre-registration ordering claim is verified
+    against Git - the contract provably precedes any measurement; (ii) the
+    contract's index-pinning derivation is mathematically correct; and (iii) as
+    frozen, the contract's `confirmed` branch is unreachable and its most
+    informative falsifier F1 is unreachable except through an artifact, so
+    executing it unamended would consume the batch without adjudicating the
+    endomorphism lane. No hypothesis status changes, no evidence or decision
+    record is created, and no execution is authorized by this report.
+
+  non_breakthrough_boundaries:
+    - This is a pre-execution design review. It contains no measurement, no run, and no evidence.
+    - No outcome of EXP-ENDO-001 can exceed toy tier (<= 28 bits, tier_of_run <= 32 bits).
+    - No outcome, including F1, can be an attack improvement: the algorithm under test is Pareto-dominated by BSGS at every rank and by rho on memory absolutely.
+    - Nothing here is a cryptanalytic result, a hardness result, a lower bound, a closure, or an impossibility claim.
+    - No asymptotic exponent of GOAL-ECDLP-001 moves in either direction, and none of the four promotion gates is addressed.
+    - No closure quorum is claimed or claimable; H-STR-002 and H-IC-001 remain weakened and are untouched by this review.
+    - The scratch probes referenced below are NOT evidence and no conclusion rests on them.
+
+  budget_and_arithmetic:
+    method: >-
+      Recomputed from the contract's own STEP 4 box rule, at the admissible N
+      range implied by subgroup_requirement (N >= 2^(field_bits - 4)). Reported
+      as exact-formula-vs-prediction ratio ((2 ceil(y) + 1) / (2y))^r,
+      y = N^(1/(2r)).
+    ceiling_artifact_table: >-
+      16 bits: r=1 ratio 1.00-1.02; r=2 1.06-1.41; r=3 1.55-2.60; r=4 1.60-3.81.
+      20 bits: r=1 1.00-1.01; r=2 1.03-1.20; r=3 1.27-1.65; r=4 1.74-3.57.
+      24 bits: r=1 1.00; r=2 1.02-1.10; r=3 1.10-1.49; r=4 1.27-1.93.
+      28 bits: r=1 1.00; r=2 1.01-1.05; r=3 1.14-1.31; r=4 1.49-1.99.
+      Values above 2.00 violate the pre-registered factor-2 band: they occur at
+      16 bits r=3 and r=4 and at 20 bits r=4, i.e. in the cells the degradation
+      order preserves longest.
+    saturation_check: >-
+      At 16 bits with N = 2^12, the r = 4 list is (2*4+1)^4 = 6561 > N = 4096:
+      the enumeration covers more scalars than the group holds and the cost
+      exceeds exhaustive search. Those cells are not in the birthday regime.
+    largest_cell: >-
+      28 bits, r = 4, N <= 2^28: X = ceil(N^(1/8)) <= 12, list (2X+1)^4 = 25^4 =
+      390,625 entries per side, 781,250 point additions per cell, x5 seeds =
+      3.91M for that (family, size, rank).
+    arm_totals: >-
+      Arm A (J0) meet-in-the-middle: about 6.4M point additions at 28 bits, 1.4M
+      at 24 bits, 0.35M at 20 bits, 0.09M at 16 bits, total about 8.2M. Arm B
+      similar. Arm D is lattice-only. Arm H is about 1.5M rho steps
+      (600 runs x about sqrt(N)). Arms F and G are modest as declared (<= 4096
+      enumerated lattice points per cell; >= 500 CM curves whose orders come from
+      Cornacchia rather than point counting).
+    feasibility: >-
+      About 17M point additions across arms A and B. In CPython with affine
+      coordinates and one modular inverse per addition (3-8 microseconds), that
+      is roughly 50-140 s of arithmetic, realistically 150-600 s with interpreter
+      and hash-table overhead. FITS inside 1800 s per arm and 7200 s total, and
+      about 390,625 dictionary entries is well inside 8 GB. BUT this holds only
+      under the incremental one-addition-per-entry convention, which appears only
+      in derivation prose: with a fresh scalar multiplication per entry (about 42
+      additions at 28 bits) arm A alone is roughly 40x more expensive and exceeds
+      both caps. Pin the convention (N6).
+    conclusion: >-
+      The budget is adequate as intended and fragile as written. The binding risk
+      is implementation convention, not CPU.
+
+  probe_disclosure:
+    status: NOT EVIDENCE
+    paths:
+      - /private/tmp/claude-501/-Volumes-Volume-crypto-autoresearcher/455e8ba4-931b-40ce-8b54-c2895583be26/scratchpad/check.py
+      - /private/tmp/claude-501/-Volumes-Volume-crypto-autoresearcher/455e8ba4-931b-40ce-8b54-c2895583be26/scratchpad/lat2.py
+    note: >-
+      Two scratch scripts, run OUTSIDE the repository, integer arithmetic only,
+      no curve arithmetic, no repository file read or written by them. They
+      re-derive the contract's own STEP 4 formula and exhibit first minimum = 1
+      at J0 r = 3 (checked at N = 65521 and N = 1048573). They are unarchived and
+      are NOT evidence. NO conclusion in this report rests on them: B1's core is
+      Vieta's formula on paper, and B2's core is the ceiling in the contract's
+      own definition of X. The probes are illustrative only.
+
+  recommended_action:
+    count: 1
+    action: >-
+      Coordinator issues a versioned protocol_amendment freezing EXP-ENDO-001 v2
+      before TASK-20260728-005 executes, and keeps TASK-20260728-005 blocked
+      until v2 is snapshot-committed and independently re-reviewed
+      (INT-BATCH009-E: the dispatcher will not enforce this). The amendment must
+      carry, and only carry: (a) genuine_r_bound 2 for both CM families, every
+      r >= 3 cell labelled synthetic, plus controls RC-1 and RC-3 [B1];
+      (b) S3 rebanded on the exact per-cell formula
+      2 (2 ceil(N^(1/(2r))) + 1)^r / sqrt(N) with 2^(r+1) relabelled
+      derived-asymptotically [B2]; (c) the rho variant pinned per arm and
+      calibrated against its own |Aut|, with cycle handling pre-registered [B3];
+      (d) the enumeration convention pinned, F1 required to survive RC-1, and
+      RC-4 added [B4]; (e) S2 pooling, S3 seed aggregation, MITM termination,
+      BSGS counting and rho's stored-entry count all pinned in criterion text,
+      with RC-5 [B5]; (f) S2 refitted as lambda_1 = c_r N^(1/(2r)) with a free
+      per-rank constant and the band placed on the exponent [B6]; and
+      (g) acceptance criteria for arms F and G, a pre-registered arm order
+      running H-RHOCAL first, and RC-2 [N4, N6, N8].
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-004/review_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-004/adversarial_notes.md
+
+  handoff_note: >-
+    This report is working-tree-only and is NOT a durable research artifact until
+    the Coordinator's ledger archive task commits it and the post-commit verifier
+    accepts the receipt. No commit was made by this session and no file outside
+    the assigned write_scope was created or modified.
+
+red_team_report:
+  id: RT-20260728-001
+  task_id: TASK-20260728-004
+  claim_under_review: >-
+    EXP-ENDO-001 as frozen at a6b5ca60 can discriminate P1 (index pinning),
+    P2 (Minkowski shrinkage) and P3 (cost neutrality with a 2^r constant) on the
+    witness lattice W_r, with shrinkage-without-cost-reduction as the falsifiable
+    signature and F1 as a reachable negative.
+  objections: [B1, B2, B3, B4, B5, B6, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11]
+  required_controls: [RC-1, RC-2, RC-3, RC-4, RC-5]
+  counterexample_or_mutation: >-
+    J0 at r = 3: the roots of L^2 + L + 1 sum to -1 by Vieta, so
+    (1, 1, 1, 0, 0, 0) is in W_3 and the first minimum is exactly 1 for every N,
+    against a predicted N^(1/6). A paper counterexample to P2 on the design's own
+    `genuine` cells.
+  baseline_comparison: >-
+    Dominated by BSGS by about 2^r in time and memory at every rank including
+    r = 1, and by Pollard rho absolutely on memory; the closest specialized
+    baseline, automorphism-quotient rho at 0.886 sqrt(N/|Aut|), caps the whole
+    lane at a sqrt(6) constant. No time-memory point exists where the algorithm
+    under test wins.
+  heuristic_challenges:
+    - 'HEUR-1: Siegel-style random-lattice transfer does not apply to a fixed index-N kernel indexed by k, and fails outright at J0 r >= 3. Cheapest exposure: one first-minimum computation, settled on paper by Vieta.'
+    - 'HEUR-2: arm G tests the marginal distribution of lambda_2, but the load-bearing property is the ABSENCE of small integer relations among the lambda_i; the KS statistic would pass on the maximally degenerate configuration.'
+    - 'Neither heuristic has an acceptance criterion in S1-S5 or F1-F6, so neither can be recorded as validated.'
+  cost_model_challenges:
+    - 'the headline 2^(r+1) hides a ceiling factor of 1.0-4.4 at the tested sizes, which exceeds the contract''s own factor-2 band.'
+    - 'total expected cost = per-pass cost x inverse success probability is not written down; no criterion records the box inflation actually needed.'
+    - 'memory is quantified but its comparison target (rho''s stored entries) is a free parameter, making F6 undecidable.'
+    - 'no van Oorschot-Wiener time-memory interpolation is stated.'
+    - 'budget feasibility depends on a per-entry cost convention that appears only in prose.'
+  reduction_and_scope_challenges:
+    - 'no published reduction is invoked; none is at risk.'
+    - 'the claimed gating of IDEA-20260727-005''s classification barrier is scope inflation: the design fixes the eigenvalues by fiat and cannot test which maps are efficiently computable.'
+    - 'toy-tier ceiling is correctly enforced; no scheme scope is claimed, correctly.'
+  narrowest_supported_statement: >-
+    The snapshot is intact and the pre-registration precedes measurement in
+    commit order; the index-pinning derivation is correct; as frozen, the
+    contract cannot reach `confirmed` and cannot reach F1 except through an
+    artifact. Nothing about the endomorphism lane is supported or weakened.
+  next_concrete_action: >-
+    Coordinator issues protocol_amendment EXP-ENDO-001 v2 covering (a)-(g) above
+    and keeps TASK-20260728-005 blocked until v2 is snapshot-committed and
+    independently re-reviewed.
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-004/review_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-004/adversarial_notes.md

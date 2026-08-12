@@ -1,0 +1,256 @@
+red_team_report:
+  id: RT-20260723-403
+  task_id: TASK-20260723-403
+  goal_id: GOAL-CRYPTO-001
+  batch_id: BATCH-004
+  requested_policy: review-xhigh
+  resolved_model_id: gpt-5.6-sol-xhigh
+  reasoning_effort: xhigh
+  fallback_used: false
+  adapter_version: cursor-subagent-2026-07
+
+  review_basis:
+    snapshot_task_id: TASK-20260723-402
+    producer_task_id: TASK-20260723-401
+    snapshot_commit: 404956b49584c69b531bf563852d23b0593b7031
+    snapshot_parent: 30df6c48eddca6dcba45c4cc5f27a644383a3ef3
+    snapshot_reachable_from_review_head: true
+    producer_paths_match_snapshot_hashes: true
+    receipt_hash_matches_task_card: true
+    caveat: >-
+      The committed receipt itself still has null commit fields and
+      pending_post_commit status. The subsequently committed task-card archive
+      block supplies the commit, parent, and hashes, and direct Git checks
+      confirmed them. The receipt alone is not a finalized verification
+      record.
+
+  claim_under_review: >-
+    TASK-20260723-401 concludes INCONCLUSIVE_COST_CLAIM: the exact published
+    algorithm has no assignable end-to-end exponent because its q, B, M, H,
+    stopping, and certificate events are not aligned, while an explicitly
+    aligned low-success model has conditional expected work at least
+    N^(1-o(1)).
+
+  independent_recomputation:
+    assumptions:
+      - N is an abstract prime subgroup order.
+      - r=Theta(log(N)) and 1<=d<=r.
+      - M=binom(r+d,d), H=binom(r+d,d-1), and B=binom(r,d).
+      - >-
+        Any public success charged to q is contained in one of the M
+        fixed-b completion events.
+    exact_identities:
+      - H/M=d/(r+1).
+      - >-
+        For N>2*r-1, alpha=(N-2*r+1)/(N*(N-r+1)) satisfies
+        0<alpha<1/N.
+      - >-
+        q_exist=1-(1-alpha)^M <= M*alpha < M/N by the union bound.
+      - >-
+        For a full outer pass, B*H=(B*M)*d/(r+1); B cannot multiply
+        completion mass without multiplying full failed-pass work.
+    low_success_retry_charge: >-
+      In a stationary retry model with success probability q=o(1) and cost at
+      least H for each failed fixed-b trial, the exact failure contribution is
+      ((1-q)/q)*H, not H/q. Since q=o(1), this is
+      Omega(N*H/M)=Omega(N*d/(r+1))=N^(1-o(1)). The missing factor does not
+      alter the low-success exponent, but it matters outside that regime.
+    sublinear_defect_regime: >-
+      If d=o(r), log(M)=o(r)=o(log(N)), so M=N^o(1). For d>=2, H=N^o(1),
+      q_exist<=N^(-1+o(1)), and the conditional retry lower bound has exponent
+      tending to one. At d=1 the stated duplicate mechanism has H=1 and no
+      pair, so this modeled success law is not applicable.
+    linear_defect_regime: >-
+      For d=delta*r and r=kappa*ln(N), with fixed 0<delta<=1,
+      M=N^(mu+o(1)) and B=N^(beta+o(1)), where
+      mu=kappa*((1+delta)*ln(1+delta)-delta*ln(delta)) and
+      beta=kappa*(-delta*ln(delta)-(1-delta)*ln(1-delta)).
+      H has the same N-exponent as M, while a full pass B*H has exponent
+      beta+mu. If B*M=Theta(N), then B*H=Theta(N*d/(r+1))=Theta(N).
+    constant_fixed_b_endpoint: >-
+      M=Theta(N) forces d=Theta(r) and gives H=Theta(N). If only M=Omega(N)
+      is known, H=Omega(N) but can be superlinear; an exact exponent of one
+      must not be assigned. Endpoint counts still do not lower-bound an
+      early-stopped successful branch without a prefix theorem.
+    preprocessing_and_memory: >-
+      Polynomial-in-log(N) curve-only and single-target setup has N-exponent
+      zero. An exact fixed-b table costs
+      Theta(H*(d*log(N)+log(H)+metadata)) bits up to representation details;
+      a hash-only Las Vegas path must retain or recompute exact vectors.
+      Target-bearing rows cannot be amortized across unrelated targets.
+
+  objections:
+    - id: OBJ-403-01
+      category: stopping_time
+      severity: material_but_not_verdict_changing
+      objection: >-
+        The producer sometimes writes H/q as an expected-work lower bound.
+        With only full cost on failures, the failure contribution is
+        ((1-q)/q)H. H/q is asymptotically interchangeable only when q=o(1);
+        it is not justified for constant-success or q near one.
+      narrowest_correction: >-
+        Restrict the cancellation to the low-success regime and retain
+        unknown early-stopped work at constant success.
+    - id: OBJ-403-02
+      category: exponent_undercharge
+      severity: material_but_not_verdict_changing
+      objection: >-
+        The YAML labels the M=Omega(N) full-table work and memory exponent as
+        1-o(1). This is only a near-linear lower bound: M, hence H, may be
+        superlinear in N. Equality at exponent one follows from M=Theta(N),
+        not M=Omega(N).
+      narrowest_correction: >-
+        Say at least N^(1-o(1)), with exact exponent unknown unless the
+        relation between r, d, and N fixes M=Theta(N).
+    - id: OBJ-403-03
+      category: formula_event_mismatch
+      severity: blocking
+      objection: >-
+        q_exist counts M fixed-b completion events, whereas public acceptance
+        requires an exact duplicate, union size d, a verified zero minor,
+        recoverable source coefficients, nonzero target coefficient, and a
+        final public relation certificate. The snapshot gives no proof that
+        every accepted certificate is contained in the counted event family,
+        nor a prefix bound for the actual enumeration order.
+      narrowest_correction: >-
+        Preserve the conditional bound but do not assign the published
+        algorithm an expected exponent.
+    - id: OBJ-403-04
+      category: boundary_counterexample
+      severity: blocking_for_d_equals_1
+      objection: >-
+        At d=1, H=1, so a fixed-b table has no two entries to collide, while
+        q_exist>0. This directly falsifies equality between endpoint existence
+        and duplicate-procedure success on an admitted parameter boundary.
+      narrowest_correction: >-
+        Exclude d=1 from the duplicate theorem or specify and separately cost
+        a proved direct-completion branch.
+    - id: OBJ-403-05
+      category: end_to_end_path
+      severity: blocking
+      objection: >-
+        Rank failures, exact collision resolution, index provenance, source
+        recovery, scalar orientation, and target-dependent retries are absent
+        from the probability formula. Relation collection, factor-log solving,
+        and target descent are not separate omissions for a genuinely direct
+        relation solver, but that makes the relation-to-oriented-scalar
+        certificate path mandatory.
+      narrowest_correction: >-
+        Treat every omitted condition as a charged failure until one common
+        success event and retry law are proved.
+    - id: OBJ-403-06
+      category: specialized_baseline_notation
+      severity: minor
+      objection: >-
+        The 2018 success formula implies N/log(N)^2 expected passes. Calling
+        total work N^(1-o(1)) suppresses the unspecified polynomial cost per
+        pass; the safest statement is exponent tending to one, with total
+        N^(1+o(1)) when a polynomial-in-log(N) pass bound is included.
+      narrowest_correction: >-
+        Separate expected pass count from total bit work while retaining the
+        conclusion that this specialized baseline is not sub-rho.
+    - id: OBJ-403-07
+      category: archive_receipt
+      severity: integrity_caveat_resolved_by_git
+      objection: >-
+        snapshot-receipt.json is still marked pending_post_commit and contains
+        null commit and parent fields.
+      narrowest_correction: >-
+        Cite the verified task-card archive block or a Coordinator-issued
+        finalized receipt; direct Git verification makes this a documentation
+        issue rather than a blocker to this review.
+
+  required_controls:
+    - >-
+      A source-level acceptance-containment lemma for every d>=2, mapping each
+      accepted duplicate certificate to the fixed-b M-event family.
+    - >-
+      A prefix stopping theorem for the actual b and H enumeration order,
+      including rank, duplicate, union, orientation, and certificate failures.
+    - >-
+      Separate formulas for low-success retries, constant-success early stop,
+      and any d=1 special branch.
+    - >-
+      A cost ledger that reports aggregate work and peak bit memory, charges
+      target-dependent rebuilds and exact collision recovery, and does not
+      amortize them as curve-only preprocessing.
+
+  counterexample_or_mutation: >-
+    The cheapest counterexample is d=1: preserve the displayed M and q_exist
+    but run the stated fixed-b duplicate interface with H=1; success is
+    impossible because there is no pair. For d>=2, permuting the same H
+    endpoint entries preserves M, H, and endpoint duplicate existence while
+    changing the first-duplicate position, demonstrating that endpoint q and H
+    alone do not determine early-stopped expected work.
+
+  baseline_comparison:
+    pollard_rho: >-
+      N^(1/2+o(1)) expected group operations and N^o(1) serial bit memory.
+      The conditionally aligned low-success signature route is
+      Omega(N*d/(r+1))=N^(1-o(1)), so it is asymptotically worse. The
+      unaligned published route is unresolved, not evidence of improvement.
+    baby_step_giant_step: >-
+      N^(1/2+o(1)) time and N^(1/2+o(1)) bit-memory exponent. Fixed d may use
+      sub-BSGS peak memory but has conditionally near-linear retry work;
+      M=Theta(N) gives a Theta(N)-entry-scale exact table. No improved
+      time-memory point is established.
+    specialized_2018_problem_l: >-
+      The quoted success 0.6*log(N)^2/N gives N/log(N)^2 expected passes and
+      exponent tending to one; polynomial pass costs do not make it sub-rho.
+      This is the closest predecessor with a whole-algorithm probability.
+    specialized_minor_families_2023_2025: >-
+      Quoted polynomial per-kernel costs lack a large-N prime-field kernel
+      count and success law, so their end-to-end exponent remains unknown and
+      they cannot serve as a demonstrated sub-rho comparator.
+    specialized_2026_signature_method: >-
+      Its exact full-loop endpoint is B*H and its fixed-b probability uses M.
+      The missing acceptance containment and prefix law prevent an exact
+      expected-cost comparison; under the explicit low-success alignment it
+      is near-linear and loses to both generic square-root baselines.
+
+  narrowest_supported_statement: >-
+    For d>=2, if every accepted fixed-b certificate is contained in the M
+    completion events, q=o(1), and every failed trial processes at least H
+    exact entries, then expected failure work is
+    Omega(N*d/(r+1))=N^(1-o(1)). The snapshot does not establish these premises
+    for the complete published process. At d=1 the stated duplicate interface
+    and q_exist are directly inconsistent.
+
+  verdict: INCONCLUSIVE_COST_CLAIM
+  verdict_rationale: >-
+    The producer's verdict survives. The exact binomial ratio and low-success
+    near-linear conditional lower bound recompute correctly, but H/q needs a
+    (1-q) qualifier, M=Omega(N) supports only an at-least-near-linear endpoint,
+    and the source-alignment, prefix, rank, source-recovery, orientation, and
+    certificate gaps remain. These corrections narrow the conditional claim;
+    they neither supply sub-rho evidence nor justify a broader impossibility
+    conclusion.
+
+  recommended_next_action: &only_next_action >-
+    Produce one source-aligned d>=2 lemma that maps every accepted fixed-b
+    certificate to the M completion events and proves a prefix success bound
+    for the actual b/H order with all rank, orientation, and verification
+    conditions; if the lemma fails, retain INCONCLUSIVE_COST_CLAIM and close
+    only the failed interface.
+  next_concrete_action: *only_next_action
+
+  scope_limits:
+    - Formula and asymptotic review only; no empirical result was generated.
+    - No claim about all zero-minor locators or all ECDLP algorithms.
+    - No lower bound beyond the stated conditional fixed-b interface.
+    - Failure at d=1 closes only that duplicate interface unless repaired.
+    - No inference from toy scales to cryptographic scales.
+
+  safety_scope:
+    classification: non_operational_academic_mathematics
+    activity: immutable_snapshot_formula_cost_and_stopping_time_review
+    real_keys: none
+    deployed_systems: none
+    standardized_curve_execution: none
+    key_recovery_software: none
+    operational_compromise_instructions: none
+    compute_performed: none
+
+  artifact_paths:
+    - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-004/tasks/TASK-20260723-403/red_team_report.yaml
+    - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-004/tasks/TASK-20260723-403/audit_review.md

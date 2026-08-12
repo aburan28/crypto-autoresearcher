@@ -1,0 +1,107 @@
+correction:
+  id: CORR-20260802-f050d6
+  recorded_at: '2026-08-02'
+  record_type: goal_binding
+  record_id: GOAL-ECDLP-001
+  field: dispatch_queue_path_and_current_batch_id_do_not_point_at_the_live_batch
+  detected_by: >-
+    /launch-research-harness step 4 (bind committed state), run 2026-08-02.
+    The binding check is the whole point of that step and it failed here.
+
+  finding_1_stale_goal_pointer:
+    recorded_values:
+      current_batch_id: BATCH-024
+      dispatch_queue_path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/dispatch_queue.json
+      updated_at: '2026-07-29'
+      updated_by_decision: null
+      latest_verified_commit: f6f5210d4272598687f33a71e816fc43a6925cbc
+    observed_state_of_that_batch: >-
+      BATCH-024's queue renders and every one of its 14 tasks is `completed`.
+      It is a CLOSED batch (DEC-20260801-011, REVISE/NON-EXECUTION). The goal's
+      dispatch_queue_path therefore points at a batch with no dispatchable
+      work, so a harness launch that follows the pointer as written finds
+      nothing to do and can wrongly read that as the campaign being finished.
+    what_the_pointer_should_reference: >-
+      The primary lane's live batch is BATCH-025, which is IN FLIGHT on
+      EXP-SMTH-002. Its last committed task, TASK-20260801-160, is a design
+      handoff for a fresh RUN-SMTH-PILOT-003 after RUN-SMTH-PILOT-002 failed.
+      That design has not been delivered: the task directory contains the
+      handoff and no design output.
+
+  finding_2_the_live_batch_is_unrenderable:
+    batch: BATCH-025
+    observed: >-
+      The directory holds 10 task directories, roughly 60 archive directories,
+      authorizations and reviews -- and NO dispatch_queue.json and NO
+      dispatch_plan.json/md. A find across the batch for any queue or plan file
+      returns nothing.
+    consequence: >-
+      tools/research_dispatch.py cannot render a plan for BATCH-025, so the
+      batch cannot pass a dispatch gate, cannot have its archive commits
+      verified by the post-commit verifier, and cannot legally dispatch a
+      worker: the harness contract executes only tasks appearing in a rendered
+      plan's `dispatches` array. Substantial committed work sits in that
+      directory outside the mechanism that is supposed to bind it.
+    severity: >-
+      This does not invalidate the artifacts already committed under BATCH-025;
+      they are immutable and stand as authored. It means the batch cannot be
+      ADVANCED through the dispatcher in its present form.
+
+  repair_chosen: open_a_fresh_properly_queued_batch
+  repair_rationale: >-
+    THE ALTERNATIVE WAS REJECTED DELIBERATELY. Reconstructing a BATCH-025
+    dispatch queue after the fact would require inventing declared_commit_sets,
+    archive bindings, path hashes and task states that were never declared when
+    the work ran. That is manufacturing archive records, which AGENTS.md
+    forbids, and it would produce a queue whose gates "pass" only because its
+    author chose the declarations to fit the commits already made. A fresh
+    bounded batch carrying the owed action forward, citing the committed
+    handoff as its input, asserts nothing about how BATCH-025 was run.
+  repair_batch: BATCH-029
+  repair_scope: >-
+    BATCH-029 carries exactly one owed producer action -- the RUN-SMTH-PILOT-003
+    design that TASK-20260801-160 handed off and that was never delivered --
+    plus its snapshot, independent review, and ledger archive. The goal
+    record's pointer fields are rebound in that ledger archive
+    (TASK-20260802-7ee93d), not here: a correction record states the defect,
+    and only a Coordinator ledger archive moves binding state.
+
+  grounding_facts_verified_for_the_successor:
+    run002_disposition: >-
+      TASK-20260801-144's validation records verdict `passed`,
+      admissibility `admissible_terminal_failed_run_partial_snapshot`,
+      run_completed false, evidence_eligible false, and integrity block
+      run_status `failed_infrastructure_or_budget` with failure_class
+      `resource_exhaustion`, invalid_integrity false, implementation_failure
+      false.
+    consequence_under_AGENTS_rule_3: >-
+      RUN-SMTH-PILOT-002 is an infrastructure/budget failure and is therefore
+      NOT negative mathematical evidence about smoothness or about HEUR-DS-1.
+      The successor is a repeat of an unfinished measurement, not a response to
+      a negative result, and BATCH-029 must not be described as if the earlier
+      run had said anything about the mathematics.
+    binding_constraint_carried_from_the_handoff: >-
+      RUN003 must use a fresh run-specific, non-overwriting result namespace
+      and must never resume, relabel, append to, or consume RUN002 partial
+      artifacts.
+
+  effect_on_research_state:
+    dispositions_changed: 0
+    statuses_changed: 0
+    hypotheses_moved: []
+    goal_status_changed: false
+    claim_tier: none
+    note: >-
+      No hypothesis, evidence, decision, claim tier or goal status moves on
+      this record. It reports two binding defects and names the repair.
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    model_verified: false
+    fallback_used: true
+    fallback_reason: >-
+      Run under the Claude Code harness, which cannot resolve the GPT-5.6
+      family policy aliases in orchestration/model-policies.yaml. The actual
+      resolved model is recorded directly per the CLAUDE.md model policy note.
+    degraded_requirements: []

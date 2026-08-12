@@ -1,0 +1,107 @@
+control_protocol:
+  id: CTRL-PLANT-CONTRASTIVE-F2
+  experiment_id: EXP-DS-001
+  hypothesis_id: H-DS-001
+  goal_id: GOAL-ECDLP-001
+  sub_goal_id: SG-ECDLP-001
+  batch_id: BATCH-023
+  protocol_amendment_id: PA-DS-001-v2-ctrl-plant-contrast
+  extends_protocol: CTRL-RT056-PLANT-CLOSED-PATH
+  extends_note: Does not edit CTRL-RT056-PLANT-CLOSED-PATH.yaml. Adds a scientific
+    contrastive discrimination requirement that theater-r2 protocol path alone lacked.
+  parent_contract: experiments/EXP-DS-001/specification.v2.yaml
+  parent_contract_sha256: 898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a
+  parent_approval_snapshot: 65f3c82babae49a9acea64cfa2650d4f3d45cf72
+  parent_approval_decision: DEC-20260731-003
+  discharges:
+  - RT070-B2
+  - RT047-B3
+  sources:
+  - RT-20260731-070
+  - RT-20260731-047
+  - DEC-20260731-017
+  - EV-DS-006
+  claim_tier: toy
+  confirmatory_status: exploratory_control
+  claim_ceiling: 'Toy-tier plant-contrastive detection only. NOT CLAIMABLE: crypto-scale
+    ECDLP improvement; asymptotic support; S1_met; GOAL completion; any change to
+    H-IC-001 / H-STR-002. Promotion gates remain OPEN.'
+  purpose: 'Scientifically attack RT070-B2 / RT047-B3 by requiring plant detection
+    to be contrastive: null_gate_f2_shape must fail on primary plant-OFF costs and
+    pass on costs_as_read_by_gate (plant-ON), or an adjacent small-ladder cell must
+    exhibit that contrast. Forbid crediting planted_bug_detected on a cell where plant-OFF
+    is already F2_eligible.'
+  method:
+    reuse: 'Keep closed-path injection hygiene from CTRL-RT056-PLANT-CLOSED-PATH:
+      live /4 at harvest/reporting path before null-gate; detection_path enum {null_gate_f2_shape}
+      only; echo_entailment_check=false; no echo-entailment class.'
+    contrastive_definition:
+      null_gate_f2_shape: R < 0.5 AND R_null < 0.9
+      plant_off_gate: null_gate_f2_shape evaluated on primary_costs_plant_off
+      plant_on_gate: null_gate_f2_shape evaluated on costs derived from costs_as_read_by_gate
+        (R_plant, R_null_plant)
+      discriminative_credit: plant_off_gate == false AND plant_on_gate == true
+    forbid:
+    - crediting planted_bug_detected when plant_off_gate is true
+    - null_gate_echo_factor
+    - echo_entailment_class
+    - hardcoded planted_bug_detected=true
+    - editing rejected BATCH-021 freeze blobs
+    - laundering RUN-DS-001-ctrl-theater / results/ctrl_theater
+    allowed_detection_path_enum:
+    - null_gate_f2_shape
+    required_report_fields:
+    - injection_site
+    - costs_as_read_by_gate
+    - primary_costs_plant_off
+    - plant_off_null_gate_f2_shape
+    - plant_on_null_gate_f2_shape
+    - contrastive_discriminative
+    - detection_path
+    - echo_entailment_check
+    - cell_or_ladder_search_record
+    pass_condition: planted_bug_detected true ONLY if contrastive_discriminative true
+      (plant_off_null_gate_f2_shape false AND plant_on_null_gate_f2_shape true) on
+      the reported cell; echo_entailment_check=false; required fields present. If
+      the default cell cannot host contrast, Executor MAY search a small declared
+      ladder and report the first discriminative cell OR report contrastive_fail with
+      honest negative observation (not infrastructure failure).
+    falsifies_if: planted_bug_detected credited while plant_off_null_gate_f2_shape
+      is true; OR detection_path outside enum; OR echo_entailment_check true/omitted;
+      OR synthetic shortcuts / hardcoded true; OR BATCH-021 unauthorized artifacts
+      reused.
+  scope:
+    default_cell:
+      bits: 20
+      B: 64
+      m: 4
+      seed: 101
+      known_non_discriminative_note: >-
+        EV-DS-006 / RUN-DS-001-ctrl-theater-r2 under composing null_split already
+        has plant-OFF F2_eligible (R≈0.0345, R_null≈0.044). Crediting plant on
+        this cell alone is forbidden (RT070-B2). Prefer ladder hunt.
+    null_split_mode_for_contrast: composing
+    null_split_mode_note: >-
+      Under asymmetric packaging R_null≫1, /4 on R alone cannot create F2
+      (R_null stays ≥0.9). Contrastive F2 credit requires packaging where
+      R_null can fall below 0.9 (composing), with plant-OFF R≥0.5 so /4 can
+      flip plant-ON into F2. If no such cell exists within the ladder budget,
+      report contrastive_fail honestly — not infrastructure failure; not lane death.
+    suggested_ladder_cells:
+      - note: >-
+          Prior planted-matrix cells with R∈[0.5,2) (middle_band). Under
+          composing with R_null≈R these are cheapest candidates for
+          plant-OFF fail ∧ plant-ON pass after /4. Not a guarantee.
+      - {bits: 16, B: 128, m: 4, seed: 102}
+      - {bits: 16, B: 128, m: 4, seed: 103}
+      - {bits: 16, B: 128, m: 5, seed: 101}
+      - {bits: 16, B: 128, m: 5, seed: 102}
+      - {bits: 16, B: 128, m: 5, seed: 103}
+    ladder_allowed: Small ladder only (≤6 cells) varying bits/B/m/seed within toy
+      regime to hunt plant-OFF non-F2 ∧ plant-ON F2 contrast. No full 54-cell matrix.
+    matrix: Single cell or small ladder. No full 54-cell re-run. No HEUR re-run.
+    does_not_supersede: EV-DS-002 / EV-DS-003 / EV-DS-004 / EV-DS-006 remain immutable
+      prior records.
+  required_artifacts:
+  - experiments/EXP-DS-001/results/ctrl_plant_contrast/plant_contrastive_report.json
+  - experiments/EXP-DS-001/results/ctrl_plant_contrast/summary.json

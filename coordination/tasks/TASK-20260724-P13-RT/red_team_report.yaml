@@ -1,0 +1,611 @@
+task_id: TASK-20260724-P13-RT
+role: RedTeam_P13RT
+goal: GOAL-P13-001
+object: >
+  Falsification attempts against the interpretation, the concrete cost model,
+  and the claimed scope of Wesolowski (2026), "The supersingular isogeny
+  problem in time and memory p^{1/3+o(1)}" (frozen source
+  inputs/P13-WESOLOWSKI-2026/paper_fulltext.md), and against the wave-1
+  producer artifacts research/P13-HEUR-001/heuristic_analysis.md and
+  experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/*.
+mandate: >
+  Attack, not confirm. Per AGENTS.md rules 5-7: a scoped failure is not an
+  impossibility result; toy-scale evidence is not crypto-scale validation;
+  every objection names its cheapest discriminating control. Nothing here
+  promotes, weakens, or rejects any hypothesis - state transitions belong to
+  the Coordinator.
+
+inference:
+  requested_policy: review-xhigh
+  resolved_model: "kimi-work subagent (exact model identifier not exposed by runtime)"
+  fallback_used: true
+  fallback_reason: "GPT-5.6 policy aliases not resolvable in the Kimi Work harness; recorded explicitly per AGENTS.md rule 11."
+  independent_session_required: true
+  originator_of_claim: false
+
+materials_read_this_session:
+  - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md (full 350 lines, readable this session)
+  - research/P13-HEUR-001/heuristic_analysis.md (full)
+  - experiments/EXP-WESOVOW-001/specification.yaml (full)
+  - experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/execution_report.yaml (full)
+  - experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/raw-result.json (full)
+  - coordination/tasks/TASK-20260724-P13-REV/review_report.yaml (format + overlap check)
+external_sources_retrieved_this_session: none
+  # All mathematical claims below are either (a) derived in-line from the
+  # artifacts listed above, or (b) explicitly labelled unverified recollection.
+
+objections:
+
+  # ============ SURFACE 1: HEURISTIC 1 ============
+
+  - id: RT-H1
+    target: "Heuristic 1 - experimental support (paper Sec. 4.2, Figures 1-2)"
+    claim_challenged: >
+      "In all cases, the data points closely align with the prediction of
+      Heuristic 1" supports Heuristic 1 as stated.
+    severity: high
+    body: >
+      The figures CANNOT support Heuristic 1 as stated; they support a strictly
+      weaker statement. Three independent reasons, all derived from the frozen
+      text: (1) SIZE-MODEL NON-IDENTIFICATION (producer B6, red-team
+      confirmed): the plotted prediction rho(u) uses u = log(p/2)/(3x),
+      i.e. it plugs in the AOV worst-case bound (p/2)^{1/3} as the SIZE of
+      every sample, not the sample's actual degree delta_E. The two models
+      "delta_E factors like a uniform integer of size (p/2)^{1/3}" and
+      "delta_E factors like a uniform integer of its own size, with size
+      drawn from the lattice-minimum distribution" differ by a horizontal
+      shift of order log(const)/log B in u and are nearly indistinguishable
+      over most of the CDF; the paper reports no residual analysis, and the
+      right-panel zoom (500 smoothest) is the only separating region. (2)
+      ORDER-STATISTIC ANECDOTES ARE NON-DISCRIMINATING: the "smoothest of
+      100,000 samples is 12589-smooth, predicted rho ~ 1/69232, consistent"
+      check is a single order statistic. Under the model, P(at least one of
+      100,000 samples is 12589-smooth) ~ 1 - (1 - 1/69232)^100000 ~ 0.76 -
+      i.e. the observation is "consistent" with the model AND with any model
+      assigning that threshold a probability within a factor ~2-3 either way.
+      A factor-2-3 error in P0 at the operating point is worth 1-1.6 bits on
+      every Sec. 4.1 figure, so the anecdote certifies nothing at the
+      precision the cost table needs. (3) TESTED u-RANGE: at p = 5*2^248-1
+      the algorithm's operating point is u = sqrt(ln(p/2)) ~ 13.1
+      (B ~ e^{4.4} ~ 82); the figure's abscissa covers this, but it sits
+      exactly where the (1+o(1)) slack of CEP is largest and where the
+      empirical resolution (rho(13) ~ 2^-60, far below 1/100000) is ZERO:
+      no sample can ever be that smooth, so the operating point itself is
+      untested by the figures - they test the BODY of the distribution
+      (u ~ 4-8), while the attack lives in the far left tail. The figures
+      establish "no gross bias in the body"; Heuristic 1 makes a claim
+      about the tail at u ~ sqrt(log p). These are different statements.
+      Net: the paper's own evidence is consistent with Heuristic 1 but
+      equally consistent with (a) the alternative size model and (b) a
+      constant-factor deficit (producer's B3) at the operating u. The
+      interpretation "experiments support Heuristic 1" is therefore an
+      over-read; "experiments do not contradict a Dickman-shaped body" is
+      the maximal supported reading.
+    cheapest_control: >
+      Producer's EXP-1/T1 (size-conditioned smoothness on AOV ground truth,
+      all curves for p <= 22,000, exact Psi comparators, no Dickman
+      asymptotics) with the B6-aware double fit (against Psi(n,B)/n with
+      n = actual delta_E AND against Psi(X,B)/X with X = (p/2)^{1/3}). This
+      directly identifies which size model the data support and costs days
+      of laptop time using AOV's published enumeration approach. Add a
+      full-sample KS/likelihood comparison in place of order-statistic
+      anecdotes.
+
+  - id: RT-H2
+    target: "Heuristic 1 - sampling measure of Sec. 4.2 ('uniform up to conjugation')"
+    claim_challenged: >
+      Sampling random maximal orders "uniformly random up to conjugation"
+      yields delta_E statistics for a uniformly random supersingular curve,
+      as Heuristic 1 requires.
+    severity: medium
+    body: >
+      The paper asserts, and the producer accepted with caveats, that
+      uniform-over-conjugacy-classes of maximal orders is the right measure
+      for uniform-over-curves (delta_E = delta_{E^{(p)}} makes delta a class
+      function; the O(1) extra-automorphism curves are negligible). That
+      argument is sound FOR THE VALUE delta_E but it does not validate the
+      SAMPLER: the paper does not show that its quaternion sampling method
+      reaches conjugacy classes uniformly. If the sampler (random walks in
+      the ideal-class graph, per the producer's reading of Panny's method)
+      mixes to a distribution tilted by class structure (e.g. toward orders
+      with small sublattices / short ideals - exactly the regime that makes
+      delta_E small), Figures 1-2 measure the wrong ensemble and the
+      "consistency" is an artifact. This is a standard failure mode of
+      walk-based samplers and is NOT excluded by anything in the frozen
+      text. Separately: the identification Hom(E,E^{(p)}) = "the unique
+      two-sided ideal P of reduced norm p" is consistent with the Deuring
+      conventions verified by Reviewer_P13REV against Wesolowski FOCS 2022
+      (HAL hal-03340899), so I do not attack the isometry itself - only the
+      uniformity of what is sampled from it.
+    cheapest_control: >
+      Two-sample comparison at toy primes where full enumeration is cheap
+      (p <= 22,000, AOV ground truth): enumerate ALL maximal orders and
+      their delta_E; then run the paper's walk-based sampler at the same
+      primes; two-sample KS test on the delta_E distributions plus the
+      producer's T5 spike calibration (fraction with delta_E = 1 must match
+      the p^{-1/2+o(1)} subfield mass predicted by B1). Cost: hours-days.
+      If the walk sampler fails T5/KS at toy scale, Figures 1-2 are
+      evidentially void for Heuristic 1 until the sampler is re-validated.
+
+  - id: RT-H3
+    target: "Heuristic 1 - small-prime structure of the MINIMUM"
+    claim_challenged: >
+      Producer's B2 (no local obstruction: the degree form Q' of
+      discriminant p/4 is a nondegenerate ternary form mod ell for
+      ell not dividing 2p, hence isotropic and representing all classes)
+      closes the congruence-obstruction attack route.
+    severity: medium
+    body: >
+      B2 closes obstruction at the level of REPRESENTED VALUES of a single
+      form. Heuristic 1 is about the MINIMUM of the form over the lattice -
+      a different statistic. Conditioning on "n is the smallest represented
+      value" can correlate with divisibility even when representation is
+      class-uniform; no representation argument excludes a selection effect
+      in the minimum. Concretely, the one small prime B2's nondegeneracy
+      argument does NOT cover is ell = 2 (discriminant p/4 is degenerate at
+      2). A parity bias of delta_E (P(even) != 1/2) is invisible to all of
+      the producer's provable de-risking (B1-B9), changes every odd-B
+      smoothness probability by a constant factor, and - being constant -
+      survives the (1+o(1)) asymptotically while moving the concrete cost
+      table by ~1 bit and every Figure-1/2 fit at small B. The producer's
+      B4 parity check shows no FORCED parity, which is necessary but not
+      sufficient for P(even) = 1/2. This is the cheapest place where a
+      constant-factor falsification of the random-integer model could be
+      hiding, and it is a falsification of the MODEL (replace by the
+      measured distribution), not of the attack's exponent.
+    cheapest_control: >
+      One statistic on already-planned data: P(delta_E even) over AOV's
+      complete enumerations (all curves, p <= 22,000, stratified by
+      p mod 8), compared to 1/2 with exact binomial error bars
+      (producer's T2 restricted to ell = 2). Marginal cost ~zero on top of
+      EXP-1; |z| > 3 persistent in p = constant-factor model rejection.
+
+  - id: RT-H4
+    target: "Heuristic 1 - core content (near-disjointness)"
+    claim_challenged: >
+      Producer's headline 1: the heuristic "sits in a favorable position"
+      because the proven first moment matches u^{-u(1+o(1))}, so it is
+      "the standard shape of a true-looking analytic heuristic".
+    severity: medium
+    body: >
+      The first-moment match is necessary, not evidence of truth: it is
+      shared by EVERY distribution with the same mean, including maximally
+      correlated ones (P(count >= 1) anywhere in (0, E[count]]). The
+      heuristic's entire content is the second-moment/disjointness side,
+      which the producer correctly marks unproven and which has NO
+      supporting data anywhere in the record: the paper's Figures 1-2
+      test the smoothness of the MINIMUM (a proxy for "count >= 1"), and
+      even they only test it in the body (RT-H1). The "favorable position"
+      framing risks being read as confirmation; the correct red-team
+      reading is: the heuristic is exactly as unproven as the day it was
+      stated, with refutation channels narrowed but not closed. The one
+      channel with known large fluctuations (L(1,chi)) is provably
+      p^{o(1)} (producer's robustness observation - I checked the
+      exponent arithmetic: log log d fluctuations are u^{o(u)}, absorbed);
+      so a refutation must come from correlations between representation
+      events across smooth n - which is precisely EXP-2's (iii)/(i)
+      ratio, currently unmeasured.
+    cheapest_control: >
+      Producer's EXP-2 (LMOMENT): compute the exact first moment via
+      H(4np) and the empirical smooth-conjugate-isogeny count at ~50
+      primes p in [10^4, 10^6]; the disjointness ratio (iii)/(i) bounded
+      away from 1 while events are rare is the strongest obtainable
+      toy-scale refutation of Heuristic 1. No cheaper control exists for
+      the disjointness question itself.
+
+  # ============ SURFACE 2: COST MODEL ============
+
+  - id: RT-C1
+    target: "Paper Sec. 4.1 cost floor AND EXP-WESOVOW-001's inherited convention: 'constructing a table costs a single F_{p^2}-operation per entry'"
+    claim_challenged: >
+      Time ~ M F_{p^2}-operations with M = Psi(X,B)*X is a usable "lower
+      bound" on the attack's cost, and the c-overhead scenarios
+      (c in {0, 0.5, 1, 2}) adequately bracket the omitted costs.
+    severity: high
+    body: >
+      The floor is off by a factor that GROWS with B_opt and is plausibly
+      LARGER than the executor's largest overhead scenario at NIST-I.
+      Derivation from the paper's own Lemma 3.3: each entry batch costs one
+      modular-polynomial instantiation + root-finding of cost
+      (B + log p)^{O(1)}, with the exponent explicitly "not investigated"
+      (paper footnote). At the executor's optima B_opt = 2^14.2 (p=256) ...
+      2^26.1 (p=768): (a) classically, Phi_ell(X,Y) has ~ell^2 coefficients
+      of ~6*ell*log(ell) bits; a single Phi_ell for ell ~ B_opt ~ 2^14 is
+      terabyte-scale to store, so the per-entry cost cannot be divorced
+      from poly(B_opt) in any classical model; (b) even under the most
+      charitable batching, per-entry cost ~ (degree-ell evaluation +
+      root-finding)/(ell+1) ~ (B + log p)^{O(1)}/B with O(1) >= 2
+      realistically (evaluation O(ell log ell) field ops per entry plus
+      instantiation amortized), i.e. >= poly(B_opt) ~ 2^{14..26} extra
+      ops per entry; (c) calibrating the executor's scenario parameter to
+      2^{c*sqrt(log2 p)} >= B_opt^2 gives c >= 2*14.2/16 = 1.78 at p=256
+      and c >= 2*26.1/27.7 = 1.88 at p=768 - i.e. a defensible classical
+      calibration sits AT OR ABOVE the executor's maximum c = 2.0
+      scenario, not near c = 0. Under c = 2 at p = 256, w = 2^30, the
+      executor's own table shows the margin over Delfs-Galbraith shrinking
+      to 2.27 bits (raw-result.json, log2p=256, w=2^30, c=2.0) - INSIDE
+      the 3.51-bit irreproducibility band of control C1 (RT-C4). Note the
+      ASYMMETRY that makes this objection structural rather than a hedge:
+      the baseline's per-step cost (one isogeny walk step per DG iteration)
+      is (log p)^{O(1)}, independent of B, while the attack's per-entry
+      cost grows polynomially in B_opt. The o(1)-overhead is therefore
+      systematically anti-attack, and c = 0 (the scenario where "the
+      attack beats DG at every tested memory") is not a neutral default;
+      it is the most attack-favorable corner of the scenario space.
+      Corollary: the wave-1 headline "vOW middle regime beats
+      Delfs-Galbraith at all tested w = 2^30..2^80 when c = 0" is true of
+      the model and materially misleading as a statement about the attack.
+      (Unverified recollection, flagged: batched Sutherland-type modular
+      evaluation - hinted in the paper's footnote via Damien Robert - can
+      reduce per-entry costs below the naive bound; the direction of the
+      true constant is genuinely open, which is the point: it is
+      UNMEASURED, not small.)
+    cheapest_control: >
+      Instrument Panny's proof-of-concept (yx7.cc/files/p-one-third.py,
+      retrieved by the producer this wave) at p ~ 2^40: count actual
+      F_{p^2}-operations per table entry (modular polynomial handling +
+      root finding + hashing + walk steps), derive an empirical c(p) at
+      toy scale, and extrapolate ONLY with an explicit, stated scaling
+      law. Cost: days. This converts c from an arbitrary scenario knob
+      into a measured quantity and directly discriminates whether the
+      NIST-I margin is ~34 bits (c=0) or ~2 bits (c=2).
+
+  - id: RT-C2
+    target: "EXP-WESOVOW-001 vOW regime: T(w) = T_full/sqrt(min(w,M)) down to w = 2^30 and up to 2^80"
+    claim_challenged: >
+      The vOW interpolation is costed as if random access to a w-entry
+      table were unit-cost at any w, so "beats DG at w = 2^30..2^80" is a
+      meaningful comparison.
+    severity: high
+    body: >
+      The model inherits van Oorschot-Wiener's idealized RAM assumption in
+      a regime where it is physically void, and says so nowhere. From the
+      executor's own byte conversions: w = 2^60 entries = 2^66 bytes at
+      64 B/entry = 64 EiB - beyond aggregate planetary storage; even
+      w = 2^50 (64 PiB) exceeds any single installation. The binding
+      constraint in real vOW deployments is not capacity but BANDWIDTH:
+      every distinguished point generated by any processor must be looked
+      up/inserted in a shared table across an interconnect, and each such
+      access costs orders of magnitude more than one F_{p^2}-op. The
+      paper's own citations [3, 16] (Adj et al.; Costello et al. - not
+      re-fetched this session; named in the frozen text as "extensive
+      practical considerations") exist precisely because real vOW
+      implementations are bandwidth-limited. Consequences: (i) every
+      crossover computed at w >= 2^50 is a statement about a machine that
+      cannot exist; (ii) at feasible w (<= ~2^45-2^50) the model's
+      advantage survives c = 0-1 but per RT-C1 the surviving scenario is
+      the uncalibrated one; (iii) the comparison "attack at memory w vs
+      DG at zero memory" is not apples-to-apples on hardware: the fair
+      end-to-end baseline (below) is DG parallelized over the same
+      hardware budget, whose memory need is negligible and whose
+      communication cost per distinguished point is the SAME bandwidth
+      problem - but DG has ~no table, so it parallelizes over physically
+      independent hardware with no shared state. The model's silence on
+      this asymmetry flatters the attack.
+    cheapest_control: >
+      Add two scenario rows to the existing cost model (pure parameter
+      change, no new code paths): (a) a per-table-access cost of
+      2^{beta} F_{p^2}-ops with beta in {10, 20, 30} modelling network
+      vs local access, applied to the distinguished-point rate implied
+      by vOW at memory w; (b) a hard physical ceiling w <= 2^50 with
+      infeasible rows flagged rather than reported as wins. Hours of
+      work on the existing script. For calibration of beta, the cheapest
+      honest source is the published scaling measurements in the paper's
+      own references [3, 16] (fetch + extract; not done this session).
+
+  - id: RT-C3
+    target: "Paper line 39: 'The algorithm parallelizes perfectly'; vOW paragraph's p^{1/2+o(1)}/(w^{1/2} n) claim"
+    claim_challenged: >
+      Parallelism multiplies the advantage at no cost beyond n processors.
+    severity: medium
+    body: >
+      Converges with Reviewer_P13REV GAP-6 (full-memory regime: each
+      parallel instance needs the full p^{1/3+o(1)} table, so memory, not
+      time, is binding). Red-team addition for the vOW regime: the
+      p^{1/2}/(w^{1/2} n) formula assumes the shared distinguished-point
+      table scales linearly in n at unit access cost - exactly the
+      bandwidth assumption falsified in practice for large-w collision
+      search (RT-C2). "Parallelizes perfectly" is therefore only true in
+      the same idealized RAM model, and in that model the word is
+      content-free (every repeat-until-success Las Vegas loop
+      "parallelizes perfectly"). As written it will be misread as a
+      practical statement.
+    cheapest_control: >
+      Same as RT-C2 (bandwidth scenarios make the claim's domain
+      explicit); no separate experiment needed. Cheapest discriminating
+      control for the WORD itself is bibliographic: extract the measured
+      parallel scaling from [16] and compare to linear.
+
+  - id: RT-C4
+    target: "EXECUTOR's partial C1 failure (deviations 0.05-3.51 bits from the paper's five Sec. 4.1 pairs)"
+    claim_challenged: >
+      That the deviations are (a) attributable to rho-evaluation error,
+      or (b) evidence of a real discrepancy with the paper's model.
+    severity: medium-low
+    body: >
+      Adjudication of the three hypotheses posed in the task brief.
+      (1) NOT rho error: the executor's cross-method validation
+      (max 0.00251 bits vs converged du=1e-5 marching; rho(2) rel err
+      1.7e-3) excludes numerical rho error by two orders of magnitude
+      below the deviations; the recorded Laplace-inversion switch was
+      the right fix and the receipts support it. (2) MOST PLAUSIBLY
+      unstated parameter choices in the paper: the executor's own
+      variant sweep (rho vs w^{-w} for Psi; rho(u) vs u^{-u} for P0;
+      grid resolution 0.05 bit bound) closes at most ~1.3 of the 3.51
+      bits and has no consistent sign, while the residual has a monotone
+      MEMORY trend (deviations -0.78... wait, recorded: +0.78, -1.11,
+      +0.14, -2.69, -3.51 bits across growing p) - a p-dependent drift
+      is the signature of a finite-size effect, i.e. the paper likely
+      evaluated Psi(X,B) more precisely than leading-order Dickman
+      (exact Buchstab/DP enumeration at B ~ 2^14-2^26 is feasible, or
+      de Bruijn's refined estimate) or optimized B over a different
+      (e.g. integer-prime) grid. (3) NOT a real discrepancy: all
+      deviations are <= 1.3% of the respective exponents, mixed in sign
+      on time, and the paper labels the section "rough" with "optimistic
+      assumptions" - the five pairs are irreproducible FROM THE FROZEN
+      TEXT ALONE because the B grid, Psi evaluation method, and rounding
+      are unstated; that is a reproducibility gap in the paper, not a
+      modelling error by the executor. DIRECTION IT CUTS: against
+      over-confidence in the Sec. 4.1 numbers, in BOTH directions -
+      the pairs must be treated as having an irreducible +/-4-bit
+      uncertainty band, which (see RT-C1) swallows the 2.27-bit c=2
+      margin at NIST-I. It does not cut against the asymptotic theorem
+      at all.
+    cheapest_control: >
+      Convention sweep (NC-1): recompute the five pairs under a small
+      product of conventions - {leading-order rho(w), exact DP Psi(X,B),
+      de Bruijn refined} x {u^{-u}, rho(u)} x {0.1-bit grid, integer-B
+      grid} x {X rounding modes} - and identify which convention
+      reproduces all five pairs within 0.75 bit. Pure Python, hours.
+      If none closes, request the author's computation script; the five
+      pairs were produced by code and the frozen text under-specifies it.
+
+  - id: RT-C5
+    target: "EXP-WESOVOW-001 model completeness: M/P0 total work and per-attempt rebuild"
+    claim_challenged: >
+      That omitted per-attempt costs (table rebuild, random walk) could
+      silently understate total work in the middle regime.
+    severity: low
+    body: >
+      VERIFIED, no objection on the rebuild: the executor's
+      log2T = log2M - log2P0 includes a FULL table rebuild per random-walk
+      attempt (T_full per attempt, times 1/P0 attempts), and the vOW
+      regime divides that same total by sqrt(w), so rebuild is not
+      double-missed. The random-walk re-randomization (n = O(log p)
+      2-isogeny steps per attempt) contributes log(p)*P0^{-1} = p^{o(1)}
+      total - absorbed, correct. Remaining un-costed items are exactly
+      the ones the executor lists (modular-polynomial per-entry costs
+      [RT-C1], the (log X + 2) cofactor of Lemma 3.2, vOW constants of
+      [43]). For completeness: the vOW constant factor (distinguished-
+      point probability calibration, ~(pi/4)^{1/2}-type factors per
+      [43]) is sub-bit and genuinely negligible - no objection; the
+      dominant omissions are RT-C1 and RT-C2. One genuine model GAP
+      remains un-costed anywhere: the final conversion of the matched
+      path to an efficient isogeny representation (Reviewer GAP-4;
+      polynomial, absorbed asymptotically, but at NIST-I concrete level
+      it adds B^{O(1)} per SUCCESSFUL attempt only - negligible against
+      the 1/P0 rebuilds; no objection, recorded for the ledger).
+    cheapest_control: >
+      None beyond RT-C1/RT-C2 controls; fold the (log X + 2) cofactor
+      (<= 2^{~7} at p=768 - actually ~0.09 bits per entry, negligible)
+      into NC-1's convention sweep for completeness.
+
+  # ============ SURFACE 3: SCOPE ============
+
+  - id: RT-S1
+    target: "Scope claim (as posed for assessment): 'beats Delfs-Galbraith at any super-polylog memory'"
+    claim_challenged: >
+      The attack dominates the previous p^{1/2} methods at any memory
+      above polylogarithmic, i.e. a broad practical re-rating of
+      SQIsign-family parameters is already warranted.
+    severity: high
+    body: >
+      OVERSTATED as a practical claim; true only in a narrow formal
+      sense. Decomposition: (a) FORMALLY, in the model with c = 0,
+      T_vOW(w) = p^{1/2+o(1)}/w^{1/2} < p^{1/2} iff w^{1/2} exceeds the
+      superpolynomial overhead - the executor's analytic crossovers
+      confirm w* < 0 bits for c <= 1 at all five fields, i.e. the model
+      attack wins at ANY w. But the correct threshold statement is
+      w > (overhead)^2 = 2^{2c*sqrt(log2 p)}, which is super-polylog but
+      at c = 2, p = 256 equals 2^{64} ENTRIES (2^70 bytes) - a large
+      absolute constant hiding inside "super-polylog". (b) AT THE SAME
+      MEMORY: is there a classical algorithm at memory w that the
+      attack must also beat? Delfs-Galbraith's p^{1/2} is a
+      subset-hitting cost (hit the ~p^{1/2} subfield curves among ~p);
+      memory does not buy time for subset-hitting, so the classical
+      floor is ~p^{1/2} at any w and the formal comparison stands.
+      (Unverified recollection: no classical memory-w tradeoff better
+      than constants is known for the subfield-hitting step.) (c)
+      PRACTICALLY: at w <= 2^50 (the physical ceiling per RT-C2) and
+      c = 2 (the classically defensible calibration per RT-C1), the
+      NIST-I margin is 12.27 bits at w = 2^50 and 2.27 bits at w = 2^30
+      (raw-result.json) - and 2.27 bits is INSIDE the +/-3.51-bit
+      irreproducibility band of the paper's own five pairs (RT-C4). At
+      NIST-III/V the margins (19.6-50.0 bits at c = 2) survive. So the
+      honest scope statement is: "under Heuristic 1, asymptotically
+      p^{1/3+o(1)}; concretely, the advantage at NIST-I is within a
+      few bits of zero under defensible constant-factor calibrations
+      and is not currently decidable from the published record; at
+      NIST-III/V a robust margin survives all tested overhead
+      scenarios." Any security-parameter action premised on the
+      NIST-I margin is premature; any claim that the attack "does not
+      affect" NIST-I is equally unsupported. The paper's own abstract
+      hedging ("impact on concrete parameter sets remains to be
+      clarified") is the correct scope and should be adopted verbatim
+      as the research-state framing.
+    cheapest_control: >
+      NC-2 (empirical c calibration, RT-C1) is THE discriminating
+      control for the entire scope question: it collapses the c in
+      {0,...,2} scenario family to a measured point and decides
+      whether the NIST-I margin is ~34 bits or ~2 bits. Until it runs,
+      every scope statement stronger than the abstract's own hedge
+      should be treated as unverified.
+
+  - id: RT-S2
+    target: "Baseline choice in both the paper and EXP-WESOVOW-001: T_DG = p^{1/2} exactly"
+    claim_challenged: >
+      p^{1/2} = 2^{log2p/2} is the right comparison point for "previous
+      methods".
+    severity: medium
+    body: >
+      The baseline is the 2016 Delfs-Galbraith exponent with NO constant
+      and NO subsequent improvement. The frozen text itself cites the
+      refinement literature ([15] Santos-Costello-Shi subfield
+      acceleration; [24][26][40] log-factor and structural improvements;
+      [3] concrete cost studies) - these shave constants and, in [15]'s
+      case, a claimed non-trivial practical factor off the p^{1/2}
+      exponent's leading constant. Control C2 "PASS" therefore certifies
+      reproduction of the paper's OWN baseline convention, not of the
+      best classical attack. Simultaneously, the baseline's per-step cost
+      (an isogeny walk step) is itself several F_{p^2}-ops, so the
+      comparison in "F_{p^2}-operations" silently assumes DG steps cost
+      1 op too - an error in DG's favor that partially cancels RT-C1's
+      anti-attack asymmetry; the net sign of the constant-factor
+      comparison between the two algorithms is UNKNOWN from the record.
+      This is exactly why the end-to-end baseline below is defined in
+      hardware terms rather than op-count terms.
+    cheapest_control: >
+      One bibliographic task (hours): fetch [15] and [3] and extract
+      their stated constant-factor improvements over DG at 256-bit
+      fields; re-baseline the model as T_base = k * p^{1/2} with k an
+      explicit, cited constant. No new experiments needed; it changes
+      every margin number by the same shift and must precede any
+      parameter-setting conclusion.
+
+  # ============ SURFACE 4: CROSS-CUTTING ============
+
+  - id: RT-X1
+    target: "Research-state framing across wave-1 artifacts"
+    claim_challenged: >
+      That the combined wave-1 record (reviewer: core mathematics sound;
+      producer: no exponent-breaking bias found; executor: model
+      advantage at c = 0) supports any promotion of the paper's claims
+      toward 'supported'.
+    severity: high
+    body: >
+      The three wave-1 results are individually correct and jointly
+      NON-CUMULATIVE: (i) the reviewer verified structure and asymptotics
+      CONDITIONAL on Heuristic 1 and on [4]/Theorem 1.5 - a load-bearing
+      external dependency (Reviewer GAP-7; the arXiv:2607.14624 source
+      was fetched by the PRODUCER, not the reviewer, so its Theorem 4.2
+      content currently rests on a single-session, single-reader
+      retrieval); (ii) the producer showed the known fluctuation channels
+      cannot break the exponent - which narrows refutation routes but
+      adds zero positive evidence for disjointness (RT-H4); (iii) the
+      executor's advantage survives only in the uncalibrated corner of
+      its own scenario space (RT-C1). The conjunction is: "a conditional
+      theorem, whose condition is an unproven tail statement tested only
+      in the body, whose external keystone is single-reader verified,
+      whose concrete impact at NIST-I is undecidable from the record."
+      That is precisely the paper's own self-assessment, and the
+      research state should not move past it.
+    cheapest_control: >
+      Independent re-retrieval of arXiv:2607.14624 (Theorem 4.2,
+      Prop. 3.1, eqs. (7)-(8)) by a fresh Validator session with hash
+      comparison against the producer's retrieval - closes the
+      single-reader dependency at near-zero cost.
+
+end_to_end_baseline: >
+  The end-to-end baseline for every concrete comparison is: Delfs-
+  Galbraith with the Santos-Costello-Shi fast subfield root detection
+  ([15] in the frozen bibliography) and the concrete constants of Adj
+  et al. ([3]), run as n-way parallel subset-hitting with negligible
+  memory and negligible inter-process communication, i.e.
+  T_base = k * 2^{log2p/2} / n walk-steps on hardware whose total
+  budget matches the attack's (memory-w table + n processors +
+  interconnect). At log2p = 256 this is ~2^128/n walk-steps with no
+  shared state. All margin claims must be stated against THIS baseline
+  at equal hardware budget - not against bare 2^{log2p/2} and not at
+  equal op-count with asymmetric memory. The current record does not
+  yet instantiate k (see RT-S2), so all concrete margins in
+  RUN-WESOVOW-001 carry an unquantified constant-factor uncertainty in
+  addition to the c-overhead uncertainty.
+
+next_controls:
+  - id: NC-1
+    name: "Convention sweep to resolve control C1"
+    discriminates: RT-C4
+    protocol: >
+      Recompute the paper's five Sec. 4.1 pairs under the product of
+      conventions {leading-order rho(w), exact DP Psi(X,B), de Bruijn
+      refined} x {u^{-u}, rho(u)} x {0.1-bit B grid, integer-B grid}
+      x {X rounding modes}; success = some convention reproduces all
+      five pairs within the pre-stated 0.75 bit. Pure Python on the
+      existing cost_model.py; hours.
+    falsification_note: >
+      If no convention closes, the paper's five pairs are irreproducible
+      from the frozen text - a reproducibility defect to record against
+      Sec. 4.1 (not evidence against Theorem 1.1).
+  - id: NC-2
+    name: "Empirical per-entry cost calibration (c-measurement)"
+    discriminates: RT-C1, RT-S1
+    protocol: >
+      Instrument Panny's PoC (yx7.cc/files/p-one-third.py) at p ~ 2^40:
+      count F_{p^2}-operations per table entry including modular
+      polynomial evaluation/root-finding, hashing, and walk steps;
+      derive c(p) at toy scale; state an explicit scaling law before any
+      extrapolation to 2^256+. Days. This is the single highest-value
+      control in the wave: it decides whether the NIST-I margin is
+      ~34 bits (c = 0) or ~2 bits (c = 2).
+  - id: NC-3
+    name: "Sampler validation + minimum-congruence statistic on AOV ground truth"
+    discriminates: RT-H1, RT-H2, RT-H3
+    protocol: >
+      Execute the producer's EXP-1 (all maximal orders, p <= 22,000)
+      with three pre-registered additions: (a) two-sample KS of
+      walk-sampled vs enumerated delta_E at the same primes (RT-H2);
+      (b) P(delta_E even) vs 1/2, exact binomial, stratified by p mod 8
+      (RT-H3); (c) B6-aware double size-model fit (RT-H1). Days of
+      laptop time; T5 spike calibration as the validity gate.
+  - id: NC-4
+    name: "Bandwidth and physical-ceiling scenarios in the cost model"
+    discriminates: RT-C2, RT-C3
+    protocol: >
+      Add per-table-access cost 2^{beta} ops, beta in {10, 20, 30}, and
+      a flagged physical ceiling w <= 2^50 to cost_model.py; recompute
+      crossovers; calibrate beta from the published scaling measurements
+      in [3]/[16] (fetch-and-extract subtask). Hours plus one
+      bibliographic session.
+  - id: NC-5
+    name: "Independent keystone re-verification"
+    discriminates: RT-X1
+    protocol: >
+      Fresh Validator session re-fetches arXiv:2607.14624 and
+      independently extracts Theorem 4.2 (delta_E <= (p/2)^{1/3}),
+      Prop. 3.1, and eqs. (7)-(8); hash/compare against the producer's
+      retrieval record. Near-zero cost; removes the single-reader
+      dependency of the 1/3 exponent's external input.
+  - id: NC-6
+    name: "Disjointness ratio (producer's EXP-2)"
+    discriminates: RT-H4
+    protocol: >
+      Producer's EXP-2/LMOMENT unchanged: exact first moment via H(4np)
+      vs empirical smooth-conjugate-isogeny count at ~50 primes in
+      [10^4, 10^6]; ratio bounded away from 1 in the rare-event regime
+      is the strongest obtainable toy-scale refutation of Heuristic 1.
+
+summary_of_falsification_attempts: >
+  ATTEMPTED AND FAILED to break the exponent: no new arithmetic bias
+  beyond the producer's constant-factor B3 was found; the ell = 2 gap in
+  the producer's nondegeneracy argument (RT-H3) is the cheapest
+  remaining hiding place for a constant-factor model falsification and
+  is untested. SUCCEEDED in falsifying the INTERPRETATION of the paper's
+  experimental support: Figures 1-2 test the body of the distribution
+  under an unidentified size model, while Heuristic 1 is a tail
+  statement at u ~ sqrt(log p) (RT-H1). SUCCEEDED in falsifying the
+  NEUTRALITY of the cost model's c = 0 scenario: a defensible classical
+  calibration of the un-costed modular-polynomial work sits at c ~ 1.8,
+  where the NIST-I margin shrinks to ~2.3 bits - inside the paper's own
+  +/-3.51-bit irreproducibility band (RT-C1, RT-C4). SUCCEEDED in
+  bounding the SCOPE claim: "beats Delfs-Galbraith at any super-polylog
+  memory" is formally true in the idealized RAM model with c = 0 and
+  practically undecidable at NIST-I from the current record; NIST-III/V
+  margins survive all tested scenarios (RT-S1). No objection in this
+  report touches Theorem 1.1 as a conditional asymptotic statement;
+  every objection targets interpretation, concrete-cost precision, or
+  scope, and each names its cheapest discriminating control.
+
+artifacts:
+  - coordination/tasks/TASK-20260724-P13-RT/red_team_report.yaml
+
+timestamp: "2026-07-24T17:50:37-07:00"

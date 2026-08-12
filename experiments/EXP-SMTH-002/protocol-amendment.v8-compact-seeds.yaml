@@ -1,0 +1,112 @@
+protocol_operations:
+  id: EXP-SMTH-002-AMEND-008
+  task_id: TASK-20260801-086
+  base_contract: >-
+    Materialize the exact contract through EXP-SMTH-002-AMEND-007 at
+    SHA-256 0ed7278e940f3475b05370926aee3f3083b16823cb31bb99376ddb681811b93b,
+    then apply this replacement.
+  operation_semantics: >-
+    Replace requires the target to exist and replaces its entire value. Any
+    failed precondition is invalid_integrity; no implicit merge applies.
+  status: draft_review_required
+  execution_authorized: false
+  scientific_design_unchanged: true
+
+  operations:
+  - op: replace
+    target_path: /seed_roster_contract
+    literal_value:
+      path: experiments/EXP-SMTH-002/results/seed_roster.json
+      representation: compact_mechanically_expandable_v1
+      canonical_encoding: UTF-8 canonical JSON with sorted keys and compact separators
+      derivation:
+        seed_bytes: first 16 bytes of SHA-256 over the exact UTF-8 domain string
+        separator: literal vertical bar byte 0x7c
+        tuple_fields_in_order: [domain, object_name, bits, fixture, replicate, draw]
+        domain: EXP-SMTH-002/v1
+        integer_encoding: base-10 ASCII without sign, padding or whitespace
+      iid_edge_streams:
+        stream_count: 16
+        object_name: NULL-IID-EDGE
+        bits: [16, 20]
+        fixtures: [0, 1]
+        replicates: [0, 1, 2, 3]
+        draw_range_inclusive: [0, 130815]
+        seeds_per_stream: 130816
+        exact_seed_count: 2093056
+      k512_coordinate_streams:
+        stream_count: 32
+        object_names: [NULL-K512-ADD-A, NULL-K512-ADD-B]
+        bits: [16, 20]
+        fixtures: [0, 1]
+        replicates: [0, 1, 2, 3]
+        draw_range_inclusive: [0, 511]
+        seeds_per_stream: 512
+        exact_seed_count: 16384
+        edge_value_rule: >-
+          For i<j, the edge value is ((A_i+A_j mod p)*p) plus
+          (B_i+B_j mod p) plus 1. It has no additional tuple-derived seed and
+          must not be included in seed collision counts.
+        edge_commitment_rule: >-
+          If an implementation hashes the four endpoint seeds to bind an edge,
+          label that value edge_commitment, record its separate rule, and never
+          describe it as a tuple-derived seed or include it in collision counts.
+      prime_streams:
+        stream_count: 4
+        object_name: prime
+        bits: [16, 20]
+        fixtures: [0, 1]
+        replicate: 0
+        draw: 0
+        seeds_per_stream: 1
+        exact_seed_count: 4
+      total_exact_derived_seed_count: 2109444
+      roster_entries:
+        exact_count: 52
+        one_per_stream: true
+        required_fields:
+        - object_name
+        - bits
+        - fixture
+        - replicate
+        - first_draw
+        - last_draw
+        - seed_count
+        - ordered_concatenated_seed_bytes_sha256
+      expansion_rule: >-
+        Enumerate roster entries in lexicographic (object_name,bits,fixture,replicate)
+        order and draws in increasing order. Recompute each 16-byte seed from the
+        frozen derivation. Concatenating seeds within one stream must reproduce
+        its recorded SHA-256; expansion must yield exactly 2109444 tuples/seeds.
+      collision_rule: >-
+        During the run, insert every one of the 2109444 expanded 16-byte seeds
+        into an exact membership set. Any duplicate yields invalid_integrity.
+        Record inserted_count=2109444, distinct_count=2109444 and collision_count=0.
+        Probabilistic filters or checking only stream hashes are forbidden.
+      overall_fields:
+      - schema
+      - derivation
+      - stream_entries
+      - inserted_count
+      - distinct_count
+      - collision_count
+      - ordered_all_seed_bytes_sha256
+      - canonical_payload_sha256
+      independent_control: >-
+        A validator expands all 48 descriptors independently, reproduces every
+        stream hash and ordered_all_seed_bytes_sha256, and recomputes zero exact
+        collisions without trusting producer counters.
+      maximum_file_bytes: 33554432
+
+  effective_contract_checks:
+  - 16 times 130816 equals 2093056 IID seeds.
+  - 32 times 512 equals 16384 K512 coordinate seeds.
+  - 2093056 plus 16384 plus 4 equals 2109444 total exact seeds.
+  - Exactly 52 compact stream entries expand deterministically to every seed.
+  - K512 A and B domains are distinct and edge values create no extra seed.
+  - Exact collision membership covers all 2109440 seeds.
+  - Scientific counts, archive ownership, pack limits and null-only scope remain unchanged.
+
+  release_condition: >-
+    Fresh independent committed-byte PASS is required before any implementation
+    repair authorization. Pilot execution remains unauthorized.

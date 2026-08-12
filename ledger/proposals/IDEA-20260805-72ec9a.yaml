@@ -1,0 +1,587 @@
+idea:
+  id: IDEA-20260805-72ec9a
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  added: '2026-08-05'
+  title: >-
+    REF-B does not exist yet, and the hint budget already decides who wins:
+    freeze the measured CM-3 conversion constant, build the generic baseline as
+    a curve B(h), and derive the domination frontier h* before the next
+    construction is dispatched
+  class: measurement
+
+  claim: >-
+    Completion criterion C2 requires a generic baseline this campaign
+    implements, freezes and measures, and after two batches NO SUCH BASELINE
+    EXISTS: every margin on the record is against REF-A (definitional 2^127) or
+    against an ad-hoc "exhaustive search over the same hinted residual" costed
+    after the candidate's own cost was known -- which C2's own discipline names
+    as the way a margin is manufactured. Worse, the ONE number a baseline needs
+    is unfrozen and the record carries two values for it that differ by about a
+    factor of 4.4: EV-AES-005 prices REF-A at "the package's own measured
+    3.35e8 enc/s" while RQ-AES-003 and GOAL-AES-003 carry 7.555e7 AES-128 enc/s
+    single core from MEAS-GOAL-AES-002-001. CM-3(a) requires exactly this
+    conversion to be MEASURED and frozen, and no committed artifact reconciles
+    the two.
+    THE PROPOSAL IS ONE MEASUREMENT AND ONE DERIVATION, IN THAT ORDER. Measure
+    and freeze the conversion constant T(r, k, threading, key-schedule
+    treatment) for r = 3..7 on this machine, with measured peak RSS beside it;
+    then define the baseline as a CURVE rather than a point,
+    B(h, r, k) = 2^(k-1-h) * (1 / T(r,k)) seconds, where h is the number of key
+    bits the construction is handed as a hint. The curve immediately yields a
+    DOMINATION FRONTIER h*, the hint budget above which the trivial baseline
+    finishes inside a single 1600 s producer task:
+      h* = k - 1 - log2(1600 * T(r,k)),
+      h* = 88.0 at T = 3.35e8 and h* = 90.2 at T = 7.555e7, for k = 128.
+    EVERY HINTED CONSTRUCTION THIS CAMPAIGN HAS BUILT SITS ABOVE h*. The r=6
+    mode consumes 12 of 16 last-round-key bytes, h = 96, so B(96) is 2^31
+    encryptions, i.e. 6.4-28.4 s depending on which of the two committed
+    throughput figures is used -- against the construction's measured 69.39 s.
+    THE DOMINATION EV-AES-005 RECORDS AS A FINDING WAS DERIVABLE FROM h ALONE
+    BEFORE THE RUN. This proposal claims no result; it proposes to measure the
+    constant, freeze the curve, and install h* as a pre-dispatch gate so the
+    next producer task is not spent rediscovering arithmetic.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE HINT BUDGET h -- the number of key bits a construction is supplied
+      with, counted before anything else about it is discussed -- followed
+      through to the measured cost of the trivial alternative B(h). The campaign
+      currently tracks candidate cost in seconds and compares it to whatever
+      baseline seems appropriate afterwards. Tracking h first makes the
+      comparison forced rather than chosen.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: differential and truncated differential;
+      linear and multidimensional linear; integral / square / division property;
+      impossible differential; meet-in-the-middle and Demirci-Selcuk; boomerang
+      and retracing boomerang; biclique; algebraic (XSL-family) and Groebner;
+      yoyo; mixture differential / exchange; subspace trail; partial sums as a
+      cost reorganisation.
+      DELIBERATE AND EXPLICIT EXCEPTION, WHICH RQ-AES-003 GRANTS IN WRITING: the
+      BASELINE arm is built from a known construction on purpose. The off-limits
+      list "binds the NOVEL arm, never the baseline arm". There is no novel arm
+      in this proposal at all -- the baseline here is exhaustive key search over
+      a hinted residual, the most generic construction available, and choosing
+      anything cleverer would weaken the honesty of the comparison rather than
+      strengthen it.
+    newness_score: >-
+      The arithmetic is trivial and is not claimed as new. What is absent from
+      this repository is (i) any frozen measured conversion constant at all,
+      (ii) any baseline implemented as a runnable artifact, and (iii) any
+      statement of h*. The novelty is organisational, and the goal record's own
+      what_does_not_count(ii) explains why that matters: "a margin against a
+      baseline this campaign built badly, or one whose parameters were chosen
+      after the candidate's cost was known" counts for nothing.
+    testability_score: >-
+      Very high and entirely local. Every stage is a measurement on this machine
+      with no external dependency; the whole proposal is executable inside one
+      producer task.
+    survival_score: >-
+      The curve survives for as long as the machine and the CM-3 unit do, and
+      it is reusable by every future construction under this goal and by
+      GOAL-AES-002 by explicit reference. It is a durable instrument, which is
+      also its limitation: RQ-AES-003 what_does_not_count(viii) is explicit that
+      an instrument is INFRASTRUCTURE and does not complete this goal.
+
+  mechanism: >-
+    DERIVED IN-REPO. Sources: RQ-AES-003 claim_tier_ceiling R1 and R2,
+    GOAL-AES-003 campaign_budget.sizing_basis, EV-AES-005 observation OBS-5 and
+    boundary 2, EV-AES-d8a13e OBS-B2-2, and
+    coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/sq_null.c.
+
+    STEP 1 -- THE DEFINITION THAT DOES NOT CHANGE WITH r. REF-A is
+    2^(k-1) r-round AES-k evaluations, because reducing the round count reduces
+    the cost of one trial and not the number of trials. A construction handed h
+    bits of key material faces a residual of k - h bits, so the generic
+    alternative is
+      B(h, r, k) = 2^(k-1-h) r-round AES-k evaluations
+    in the average-case convention, and 2^(k-h) in the worst case. CM-3(c)
+    requires one convention on BOTH sides; the average case is adopted here and
+    must be declared once and applied everywhere.
+
+    STEP 2 -- THE CONVERSION CONSTANT, WHICH IS THE ONLY MEASURED INPUT.
+    CM-3(a) requires attack work to be converted to the r-round-encryption unit
+    "by a MEASURED conversion (the harness's own measured r-round throughput),
+    or the comparison is void". Let T(r, k, cfg) be encryptions per second under
+    a declared configuration cfg = (thread count, key schedule amortised or
+    charged per trial, engine). Then
+      B(h, r, k) = 2^(k-1-h) / T(r, k, cfg) seconds.
+    THE RECORD CARRIES TWO INCOMPATIBLE VALUES AND NEITHER IS FROZEN.
+    EV-AES-005 OBS-5 prices REF-A at "the package's own measured 3.35e8 enc/s".
+    RQ-AES-003 and GOAL-AES-003 carry 7.555e7 AES-128 enc/s single core from
+    MEAS-GOAL-AES-002-001 with a four-core figure of 2^28.17 explicitly
+    "ASSUMED LINEAR AND NOT MEASURED". The ratio 3.35e8 / 7.555e7 = 4.43 is not
+    obviously the core count (4x) nor obviously a round-count effect (about 2x
+    from 10 rounds to 5), and no committed artifact reconciles them. UNTIL IT IS
+    RECONCILED, EVERY COST STATEMENT UNDER THIS GOAL CARRIES AN UNRESOLVED
+    FACTOR OF 4.4, WHICH IS 2.15 BITS. That is the audit, and it is the kind of
+    load-bearing constant that has closed work off in this program before.
+
+    STEP 3 -- THE DOMINATION FRONTIER, DERIVED. B(h) fits inside one 1600 s
+    producer task exactly when 2^(k-1-h) / T <= 1600, i.e.
+      h >= h* := k - 1 - log2(1600 * T).
+      T = 3.35e8 = 2^28.32 -> h* = 127 - 38.96 = 88.04
+      T = 7.555e7 = 2^26.17 -> h* = 127 - 36.81 = 90.19
+    So h* lies in [88, 91] and its exact value is decided by the very constant
+    step 2 says is unfrozen. FOR ANY CONSTRUCTION WITH h >= h*, the trivial
+    baseline completes inside one producer task and the best achievable margin
+    is bounded by 1600 s divided by the candidate's own runtime -- a ceiling
+    that has nothing to do with cryptanalysis.
+
+    STEP 4 -- THE CAMPAIGN'S OWN CONSTRUCTIONS, PLACED ON THE CURVE. Read from
+    sq_null.c and EV-AES-d8a13e:
+      r = 6 mode (attack6n): 3 hint bytes per diagonal x 4 diagonals = 12 of the
+        16 last-round-key bytes, h = 96 bits, yielding 4 bytes = 32 bits.
+        B(96) = 2^31 encryptions = 6.4 s at T = 3.35e8, 28.4 s at T = 7.555e7.
+        EV-AES-005 boundary 2 records "roughly 25 s" measured for exhaustive
+        search over the same residual, which sits inside that bracket and is
+        consistent with the single-core figure. Candidate measured cost:
+        69.39 s. DOMINATED, and derivable at h = 96 before any run.
+      r = 7 mode (attack7n): the full last round key is supplied plus 3 of 4
+        bytes per diagonal at the previous level, so h >= 128 and B <= 1
+        encryption. This is why the r=7 arm is not a key recovery, and that too
+        follows from h alone.
+      r = 5 certified recovery (BATCH-001): h = 0, full unrestricted key space.
+        B(0) = 2^127 encryptions = 1.02e30 s at T = 3.35e8. Margin against
+        REF-A about 28 orders of magnitude, exactly as EV-AES-005 records. The
+        curve reproduces the campaign's only real success as its h = 0 endpoint,
+        which is the baseline-reproduction check for this instrument.
+
+    STEP 5 -- WHERE THE CURVE IS MEASURED AND WHERE IT IS MODELLED, STATED
+    BEFORE ANYONE IS TEMPTED TO BLUR IT. B(h) is RUNNABLE TO COMPLETION only
+    for h above roughly h* - 4, because below that the residual exceeds the
+    measured envelope of 2^38.8 encryptions per producer task. For smaller h the
+    figure is a MEASURED CONVERSION applied to a DERIVED COUNT, which CM-3(a)
+    explicitly permits and CM-3(b) explicitly distinguishes from a measured
+    end-to-end cost. THE CONSEQUENCE MUST BE WRITTEN INTO ANY C2 CLAIM: a C2
+    margin at small h rests on a measured constant times an exact count, not on
+    a baseline that was run to completion, and a record that states it otherwise
+    is making a modelled claim while calling it measured. This is not a defect
+    of the design; it is the honest structure of C2 in this environment, and
+    nobody has written it down.
+
+    STEP 6 -- THE COST BOOKKEEPING C2 ALSO DEMANDS AND WHICH TIME ALONE MISSES.
+    CM-3(e) makes the comparison a PARETO comparison across time, memory, data
+    and success probability. The baseline needs about two known plaintext /
+    ciphertext pairs and negligible memory. The r=6 construction needs 2^33
+    chosen plaintexts (two 2^32 structures) and a 2^20-entry candidate bitmap
+    plus 4 x 4 x 1024 x 8 bytes of parity tables. EV-AES-d8a13e OBS-B2-2 already
+    records that adding query cost makes the domination LARGER, not smaller.
+    The curve must therefore be published as a triple (time, measured peak RSS,
+    queries with their kind) at every h, or it repeats the time-only error the
+    red team is required to attack.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      NO EXTERNAL SOURCE READ OR CITED. Every figure above is either derived
+      arithmetic or a value quoted from a committed in-repository record, with
+      the record named. Under RQ-AES-003 R3 no comparison to the published
+      frontier is made in either direction.
+    - >-
+      NOT READ -- RELAYED CLAIM, AND NOT LOAD-BEARING: MEAS-GOAL-AES-002-001 is
+      cited by RQ-AES-003 as the source of 7.555e7 enc/s and 2^38.81 reach. This
+      proposal has NOT opened that measurement receipt; it quotes the figure as
+      RQ-AES-003 quotes it. Opening it and confirming the configuration behind
+      the number is Stage 1 of the test, precisely because the whole proposal
+      turns on which configuration each figure describes.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      A whole construction (round count, threat model, data pattern, memory
+      profile, hint structure) --> the single integer h, its hint budget in bits.
+    what_is_discarded: >-
+      Everything except how much key material was supplied. Two constructions
+      with the same h but entirely different mechanisms project to the same
+      point on the curve.
+    why_genuinely_lossy: >-
+      Extremely lossy, and deliberately so.
+    why_compatible_with_the_operations: >-
+      Compatible with the one operation that matters for a C2 comparison: the
+      generic alternative's cost is a function of the residual key space and
+      nothing else, so h propagates deterministically to B(h). It is exactly the
+      right coordinate for the baseline question and exactly the wrong one for
+      any other question.
+    is_it_only_a_change_of_coordinates: >-
+      CHECKED FOR BOTH FAILURES, AND THE ANSWER IS THE SECOND ONE, PARTIALLY.
+      It is not a change of coordinates: h is not invertible to the construction
+      and no construction is recoverable from it. It IS close to the mirror
+      failure -- an observable so coarse that it is nearly constant across the
+      objects the campaign builds, since every hinted construction so far sits
+      in a narrow band h in {96, >=128}. THAT NEAR-CONSTANCY IS THE FINDING
+      RATHER THAN A DEFECT: a family of constructions clustered above h* is a
+      family whose domination was decided before any of them ran. The
+      projection's usefulness is as a GATE, not as a measurement of anything,
+      and it is proposed as a gate.
+
+  assumptions:
+    - >-
+      That the CM-3 unit is one r-round AES-k encryption of one block, with the
+      key-schedule treatment declared. If CM-3 as committed fixes something
+      else, the curve must be rebuilt in that unit; the structure is unchanged.
+    - >-
+      That the average-case convention 2^(k-1) is the one CM-3(c) declares. If
+      the worst case is declared instead, every figure doubles on BOTH sides and
+      h* falls by exactly 1 bit.
+    - >-
+      That a hint of h bits leaves a residual of exactly k - h bits. TRUE for
+      the campaign's constructions, which are handed round-key BYTES; NOT true
+      in general -- a hint on an intermediate state or a partial round key can
+      constrain the master key non-bijectively. Any future construction must
+      declare its residual size explicitly rather than let h be inferred, and
+      the gate must ask for the residual, not for the byte count.
+
+  proof_search_map:
+    bottleneck: >-
+      The conversion constant T. It appears in every cost sentence this campaign
+      can write, it is required by CM-3(a) to be measured and frozen, it is not
+      frozen, and the record carries two values 4.43 apart. Everything
+      downstream -- REF-A margins, REF-B margins, h*, the producer reach figure
+      2^38.81 -- is scaled by it.
+    baseline_embedding:
+      parameter_slice: >-
+        h = 0 reproduces REF-A exactly: B(0, r, 128) = 2^127 r-round
+        encryptions, which is the definitional reference and needs no document.
+        The curve must return EV-AES-005's own 1.02e30 s at T = 3.35e8, and
+        h = 128 must return one encryption.
+      reproduction_check: >-
+        Exact arithmetic against two committed endpoints (1.02e30 s at h = 0;
+        "roughly 25 s" at h = 96), not a resemblance. Both are integers or
+        quoted figures in committed records.
+    observation_collision:
+      observable: The measured seconds of a construction.
+      distinct_preimage_search: >-
+        A COLLISION IS ALREADY ON THE RECORD AND IS THE REASON THE CURVE IS
+        NEEDED. The r=5 recovery at 25.66 s and the r=6 hinted mode at 69.39 s
+        are within a factor of 3 of each other in the observable "measured
+        seconds", yet one beats its reference by 28 orders of magnitude and the
+        other LOSES to its reference. Measured seconds does not identify the
+        verdict; (h, seconds) does. Any record reporting seconds without h is
+        reporting a quantity that does not determine what it is used to
+        determine.
+    constructive_transforms:
+      - transform: specialize_measure_pack
+        proposed_object: >-
+          Build a problem-specific resource measure -- the pair (h, cost in the
+          CM-3 unit) -- realised by measuring T once per (r, k, cfg), and add
+          charges only over disjoint blocks: encryption work, verification work,
+          table build, and query transport, each charged once and named.
+        predicted_gain: >-
+          Every future construction gets its verdict against REF-B computed
+          before it is dispatched, at zero compute, from one integer. No
+          attacker gain of any kind.
+    quantifier_order: >-
+      CLAIMED: THERE EXISTS a frozen conversion constant T(r, k, cfg), measured
+      once and committed, such that FOR ALL h in the declared range the baseline
+      cost is 2^(k-1-h)/T seconds. The witness T may depend on (r, k, cfg) and
+      on NOTHING ELSE -- in particular not on the construction being compared,
+      which is exactly the dependence that would let a baseline be tuned to
+      manufacture a margin. The forbidden weaker order -- FOR ALL constructions
+      THERE EXISTS a baseline cost -- is what an ad-hoc after-the-fact
+      comparison actually instantiates, and C2 exists to forbid it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a frozen, measured, machine-specific conversion constant and a
+        derived baseline curve, with the measured/modelled boundary marked. It
+        CANNOT certify that any construction beats any baseline -- that requires
+        a construction -- and under RQ-AES-003 what_does_not_count(viii) it is
+        INFRASTRUCTURE and does not complete this goal on its own. Saying so
+        plainly is part of the proposal.
+      nearby_object_control: >-
+        THE NEARBY OBJECT WHERE THE HOPED-FOR CONCLUSION FAILS: the campaign's
+        own r=6 hinted mode. Any baseline framework that does NOT return
+        "dominated" there is wrong, because the domination is independently
+        measured and committed. Running the curve against it is the required
+        negative control and it must fail to produce a margin.
+    proof_obligations:
+      - claim: "B(0,r,128) = 2^127 r-round encryptions, reproducing REF-A."
+        responsibility: baseline
+      - claim: "h* = k - 1 - log2(1600 T), evaluating to 88.0 and 90.2."
+        responsibility: correctness
+      - claim: "The r=6 mode has h = 96, read from sq_null.c, not inferred."
+        responsibility: interface
+      - claim: "T is measured under a declared cfg and frozen before any candidate cost."
+        responsibility: strictness
+      - claim: "The measured/modelled boundary of B(h) is marked at every h."
+        responsibility: scope
+      - claim: "Peak RSS and query counts are measured, not modelled, on both sides."
+        responsibility: correctness
+
+  predictions:
+    - metric: >-
+        Reconciliation of the two committed throughput figures: the measured
+        ratio T(cfg_A)/T(cfg_B) once both configurations are identified and
+        re-measured on this machine
+      direction: different
+      minimum_effect: >-
+        The committed ratio is 4.43. PREDICTION, PRE-REGISTERED: the re-measured
+        ratio is explained by (thread count) x (round-count ratio) x
+        (key-schedule treatment) to within 20 per cent. If it is not, one of the
+        two committed figures describes a configuration nobody has recorded, and
+        that is a correction-record-level finding about a constant used
+        program-wide under this goal.
+    - metric: >-
+        Measured single-core throughput T(r, 128) for r = 3, 4, 5, 6, 7, key
+        schedule amortised, on the pinned harness and separately on the AES-NI
+        path
+      direction: different
+      minimum_effect: >-
+        FORCED SHAPE: T(r) must be monotone DECREASING in r and approximately
+        proportional to 1/r once the fixed per-block overhead is subtracted, so
+        T(3)/T(7) should lie in [1.6, 2.6]. A measured T(r) that is flat in r,
+        or non-monotone, indicates the measurement is dominated by loop overhead
+        rather than by the cipher and the constant is not usable.
+    - metric: >-
+        h*, the hint budget at which B(h) equals 1600 s, computed from the
+        frozen T
+      direction: different
+      minimum_effect: >-
+        PREDICTED 88 <= h* <= 91 for k = 128 and r in 3..7. A value outside that
+        bracket means the frozen T differs from both committed figures by more
+        than a factor of 4 and must be explained before it is used.
+    - metric: >-
+        Verdict of the curve on the campaign's committed r=6 hinted mode
+        (h = 96, measured 69.39 s)
+      direction: different
+      minimum_effect: >-
+        MUST RETURN "DOMINATED", with B(96) in [6.4, 28.4] s. If the curve
+        returns a margin for the r=6 mode, it contradicts a committed measured
+        comparison and the framework is wrong.
+    - metric: >-
+        Measured peak RSS of the baseline implementation and of the r=6
+        construction, side by side in the same unit
+      direction: different
+      minimum_effect: >-
+        Both MEASURED, neither modelled. FORCED EXPECTATION: the baseline is
+        below 16 MiB (it holds two pairs and a key schedule) while the
+        construction holds a 2^20-byte bitmap plus parity tables. A baseline
+        measured above 100 MiB indicates the implementation carries uncharged
+        state and must be rebuilt.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, and the ordering is a C2 requirement rather
+      than a preference: the baseline is frozen and committed BEFORE any
+      candidate cost is measured, and it is produced by a task that produces no
+      candidate.
+      STAGE 0 (reading, zero compute): open MEAS-GOAL-AES-002-001 and the
+      BATCH-001 package receipt, identify the exact configuration behind 7.555e7
+      and behind 3.35e8, and record which one CM-3 as committed adopts. If CM-3
+      already fixes one, the audit's scope narrows to confirming it.
+      STAGE 1 (measurement, minutes): measure T(r, 128, cfg) for r = 3..7 at 1
+      and 4 threads, key schedule amortised and charged, on the pinned
+      pure-Python harness and on the AES-NI C path SEPARATELY AND LABELLED,
+      with measured peak RSS. Freeze and commit the table before Stage 3.
+      STAGE 2 (derivation, zero compute): evaluate B(h) and h*, place every
+      construction the campaign has built on the curve, and check the two
+      committed endpoints.
+      STAGE 3 (baseline implementation, hours): implement exhaustive search over
+      an h-bit-hinted residual as a runnable artifact, tuned in good faith, and
+      RUN it at h in {96, 100, 104} where it completes; record measured wall
+      clock, measured peak RSS, query count and kind, and the measured success
+      probability convention. Compare against the derived B(h) at the same h:
+      the derivation and the run must agree within the measured variance, and a
+      disagreement means the conversion constant does not convert.
+    controls:
+      - >-
+        NULL OBJECT, FORCED VALUE PRE-DERIVED, CAN FAIL: the baseline run at
+        h = 128, where the residual is empty and the cost is one verification.
+        FORCED: measured time equal to the verification cost alone, within
+        timing noise. If the implementation charges more than that, it carries
+        uncharged setup and every other point on the curve is inflated.
+      - >-
+        POSITIVE CONTROL WHERE THE EFFECT MUST APPEAR: the baseline at h = 104,
+        residual 2^23, must COMPLETE and must RECOVER the key. If it does not
+        recover a key it is not a key-recovery baseline and no comparison to it
+        is admissible. This is the sensitivity demonstration.
+      - >-
+        GRADED CONTROL, THREE INTERIOR POINTS, MONOTONICITY REPORTED: measured
+        baseline time at h = 104, 100, 96, whose forced ratios are exactly
+        16 x and 16 x. A measured ratio departing from 16 localises the
+        departure to a residual size and indicates the search loop is not
+        dominated by encryption.
+      - >-
+        SIBLING NULL ISOLATING THE CHARGED QUANTITY: run the identical loop with
+        the encryption replaced by a no-op of the same call structure. The
+        difference isolates cipher work from loop overhead, which is exactly
+        what T must measure and what a naive timing would conflate.
+      - >-
+        ORDERING CONTROL: the T table and B(h) are hash-committed BEFORE any
+        candidate construction's cost is measured under them. Absence of that
+        commitment is invalid_measurement under C2's own wording.
+      - >-
+        ARCHIVE CHECK (zero compute): enumerate every prior cost figure under
+        this goal and restate it in the frozen unit. AVAILABLE: EV-AES-005
+        OBS-5 (25.66 s / 56.4 s), boundary 2 (69.39 s vs ~25 s), EV-AES-d8a13e
+        OBS-B2-2. Restating them is not re-measuring them and the distinction
+        is preserved.
+    required_metrics:
+      - T(r, k, cfg) for r = 3..7, both engines, both thread counts, with peak RSS
+      - the reconciliation of 3.35e8 against 7.555e7, or an explicit failure to reconcile
+      - B(h) as a table with the measured/modelled boundary marked
+      - h* with the T used to compute it named in the same line
+      - measured baseline wall clock, peak RSS, queries and kind at h in {96,100,104}
+      - every construction on the record placed on the curve with its h
+
+  falsification_conditions:
+    - >-
+      The measured T disagreeing with BOTH committed figures by more than a
+      factor of 4. The measurement environment has changed or one of the
+      committed figures describes something else; either way the curve cannot be
+      frozen until it is explained.
+    - >-
+      The measured baseline time at h = 96 falling outside [6.4, 28.4] s. The
+      conversion constant does not convert and CM-3(a)'s requirement is unmet.
+    - >-
+      The measured ratios between h = 104, 100 and 96 departing from 16x. The
+      baseline is not dominated by the residual search and is not a generic
+      baseline.
+    - >-
+      The baseline at h = 104 failing to recover the key. No comparison to it is
+      admissible and nothing negative may be reported from any other stage.
+
+  confounders:
+    - >-
+      THIS PROPOSAL IS INFRASTRUCTURE AND THE GOAL RECORD SAYS SO. RQ-AES-003
+      what_does_not_count(viii): a measured throughput receipt is infrastructure
+      and does not complete this goal. It is proposed because C2 is unreachable
+      without it, not because it is a result, and any record built on it must
+      repeat that sentence.
+    - >-
+      A BASELINE BUILT BY THE SAME SESSION AS A CANDIDATE IS NOT A BASELINE. C2
+      requires a DIFFERENT task and an independent red-team pass specifically on
+      the baseline. This proposal must be dispatched as a standalone producer
+      task, and a card that bundles it with a candidate construction violates
+      the criterion it exists to serve.
+    - >-
+      THE MEASURED/MODELLED BOUNDARY IS THE PLACE A C2 CLAIM WILL BE
+      LAUNDERED. B(h) below about h* - 4 is a measured constant times a derived
+      count. CM-3(b) caps a modelled cost claim at `analyzed`. Any C2 margin at
+      small h inherits that cap and must say so in the same sentence.
+    - >-
+      FOUR-CORE SCALING IS UNMEASURED and RQ-AES-003 says so explicitly
+      ("2^28.17 on four cores ASSUMED LINEAR AND NOT MEASURED"). Measuring it is
+      inside this proposal's scope precisely because assuming it is how a
+      factor of 4 enters a comparison unnoticed.
+
+  interpretation_limits:
+    - >-
+      NO MARGIN IS CLAIMED AGAINST ANY REFERENCE. This proposal builds the
+      instrument that would let a margin be claimed honestly, and claims none.
+    - >-
+      NO STATUS CHANGE to EV-AES-005, EV-AES-d8a13e or any decision is proposed.
+      If the reconciliation shows a committed figure was misconfigured, the
+      resolution is a superseding correction record under a new id, never an
+      edit (AGENTS.md rule 4).
+    - >-
+      Claim tier `toy`, reduced-round only. No statement about full-round or
+      deployed AES. No comparison to published cryptanalysis in either
+      direction (RQ-AES-003 R3, symmetric), and R5's clause travels with every
+      sentence that states a margin computed from this curve.
+
+  heuristic_assumptions:
+    - id: HEUR-B1
+      statement: >-
+        The cost of exhaustive search over an h-bit-hinted residual is
+        2^(k-1-h) r-round encryptions plus O(1) verification, i.e. the search
+        loop is encryption-dominated and the per-trial overhead is negligible.
+      rigorous_support: >-
+        Not a theorem: it is an implementation property, and a badly written
+        loop can be overhead-dominated by an order of magnitude. It is stated
+        formally so that it can be measured rather than assumed, and the sibling
+        no-op null is the measurement.
+      validation_plan: >-
+        The graded control at h = 104, 100, 96 with forced 16x ratios, plus the
+        no-op sibling that isolates loop overhead from cipher work.
+      falsification_condition: >-
+        Measured ratios outside [12, 20] between consecutive graded points, or
+        the no-op loop costing more than 20 per cent of the real loop.
+    - id: HEUR-B2
+      statement: >-
+        A hint of h key bits leaves a residual of exactly 2^(k-h) master keys.
+      rigorous_support: >-
+        True when the hint is a set of independent round-key bytes that pull
+        back bijectively to master-key bits, which holds for AES-128's key
+        schedule but NOT in general and not for AES-192/256, where a single
+        128-bit round key does not determine the master key. Stated here because
+        a future construction hinting an intermediate state would violate it
+        silently.
+      validation_plan: >-
+        For each construction placed on the curve, the residual is COUNTED from
+        the key schedule rather than inferred from the byte count, and the count
+        is recorded beside h.
+      falsification_condition: >-
+        Any construction whose counted residual differs from 2^(k-h). The curve
+        must then be indexed by the residual, not by h, and every placement is
+        recomputed.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS MOVED AND THIS PROPOSAL IS NOT AN ATTACK. The exponent it
+      makes legible is the baseline's: k - 1 - h, in r-round encryptions. Its
+      contribution to exponent-first work is negative in the useful direction --
+      it tells the campaign, before dispatch, that any construction with h at or
+      above about 88 bits is competing against an exponent of at most 39, which
+      one producer task exhausts. THE DESIGN CONSEQUENCE IS THE DELIVERABLE:
+      hunt constructions with h below about 87, or expect domination.
+    memory_exponent: >-
+      Baseline memory is O(1) -- two pairs and a key schedule -- and will be
+      MEASURED as peak RSS, not asserted. That O(1) is what makes the baseline
+      hard to beat on the Pareto frontier and it must appear in every
+      comparison, per CM-3(f).
+    best_known: >-
+      Not asserted; see dominated_by.
+    hidden_overhead: >-
+      The candidate side's query cost is the term most often omitted: the r=6
+      mode uses 2^33 chosen plaintexts against the baseline's about 2 known
+      pairs, with oracle transport charged at zero because the process is its
+      own oracle. That zero is an artifact of the harness and is named as such.
+    tradeoff_note: >-
+      The whole point of the curve is that it is a trade and not a scalar:
+      (time, memory, queries, success probability) at each h, per CM-3(e).
+
+  dominated_by: >-
+    Unresolvable in this environment: no primary source reachable from this
+    harness was read for this record, and every recalled frontier row is
+    unverified-from-memory (RQ-AES-003 R5). Rows checked INSIDE this repository
+    across time, memory and data/queries for an existing implemented generic
+    baseline or a frozen conversion constant under this goal: RQ-AES-003
+    constraints and R2, GOAL-AES-003 campaign_budget and batch_checkpoints,
+    EV-AES-001..005, EV-AES-d33b1c, EV-AES-d8a13e, DEC-20260802-9bda5c,
+    DEC-20260802-b226fb, both BATCH-002 review reports, and the BATCH-001 and
+    BATCH-002 coordination trees. NO implemented baseline artifact and NO frozen
+    T table were found; the two throughput figures were found in the records
+    named above and are not reconciled by any of them. Absence of a search
+    result is not evidence that no such artifact exists (AGENTS.md retrieval
+    policy).
+  sota_delta: >-
+    Against REF-A: no margin claimed. Against REF-B: THE PROPOSAL IS REF-B; it
+    claims no margin against it and exists so that a later claim can be made
+    honestly. Against REF-C: not applicable, no distinguisher.
+    Quantitative deltas actually claimed: the campaign's conversion constant
+    moves from two unreconciled committed values a factor 4.43 apart (2.15 bits)
+    to one measured and frozen value with a stated configuration; and the
+    baseline moves from an after-the-fact ad-hoc figure to a curve committed
+    before any candidate is costed, which is the difference C2 draws between an
+    admissible and an inadmissible comparison. Published-frontier comparison:
+    UNADJUDICABLE in this environment, in both directions.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.95 that the conversion constant can be measured and frozen and that h*
+    lands in [88, 91]. It is not higher because four-core scaling is unmeasured,
+    the AES-NI path is unpinned across r = 3-7 and may not be chargeable at all,
+    and the campaign's environment has already produced one 4.43-fold
+    unreconciled discrepancy in exactly this quantity. It is not lower because
+    every input is a local measurement with no external dependency.
+    0.30 that the reconciliation of 3.35e8 against 7.555e7 produces a clean
+    explanation in terms of threads, rounds and key-schedule treatment; more
+    likely one figure will turn out to describe a configuration that was never
+    recorded, which is a finding rather than a failure.
+    0.00 probability that this proposal by itself completes any criterion: it is
+    infrastructure by the goal record's own ruling, and it is proposed anyway
+    because C2 is unreachable without it.

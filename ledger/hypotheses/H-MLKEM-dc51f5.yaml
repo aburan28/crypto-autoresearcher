@@ -1,0 +1,614 @@
+hypothesis:
+  id: H-MLKEM-dc51f5
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  source_idea: IDEA-20260805-1d76e9
+
+  statement: >-
+    SCOPE: multi-target key recovery against N independently keyed ML-KEM
+    sessions by the primal uSVP embedding only, under the convention that a
+    failed BKZ attempt at block size beta costs the same as a successful one.
+    CLAIM TIER: `derivation` for parts A and C at FIPS-shaped parameters,
+    `toy_scale` for every measured arm. NO ATTACK IS IMPLEMENTED. NO FIPS 203
+    PARAMETER SET IS AFFECTED OR CLEARED.
+    PART A (EXACT, UNCONDITIONAL GIVEN UNIFORM A). For A uniform on
+    R_q^{k x k} with R_q = Z_q[X]/(X^n+1), q = 3329, and any fixed (s, e) whose
+    secret is nonzero in every CRT slot, t = A s + e is EXACTLY UNIFORM on
+    R_q^k. The public key's distribution is therefore identical for a
+    record-short secret and a typical one, and the total variation distance
+    between the public-key law conditioned on any two norm classes is at most
+    P[some slot degenerates] <= (n/2) q^{-2k} = 2^{-39.80} for ML-KEM-512
+    parameters. CONSEQUENCE: any target-selection statistic that does not use A
+    has advantage at most 2^{-39.80}.
+    PART B (EXACT). ||(s,e)||^2 is a sum of D = 2kn iid centred-binomial
+    squares. E[S] = D eta/2 and Var(S) = D Var(X^2) EXACTLY, giving
+    E[S]/sd(S) = sqrt(D/kappa) with kappa = Var(X^2)/E[X^2]^2 an exact rational
+    (5/3 at eta = 3, 3/2 at eta = 2). For ML-KEM-512 parameters E[S] = 1536 and
+    Var(S) = 3840 exactly, so the relative spread is 4.034 per cent.
+    PART C (CONDITIONAL ON THE 2016 uSVP ESTIMATE). Writing GAIN(u) =
+    (c_T gamma/2) u + log2 p(u) for the bits saved by attacking the best of
+    1/p(u) keys at shortfall u, with gamma = -dbeta/dln||(s,e)||, the strategy
+    has an interior optimum IFF gamma > gamma_crit := 7.8843 sqrt(D/kappa).
+    THE PREDICTION IS THAT IT DOES NOT: gamma/gamma_crit = 0.554 / 0.598 /
+    0.689 at illustrative ML-KEM-512 / 768 / 1024 parameters, the derivative of
+    GAIN at u = 0 is -12.73 / -14.80 / -13.22 bits per unit u, and direct
+    maximisation against the EXACT left tail returns max GAIN = -0.987 /
+    -0.991 / -0.992 bits at u <= 0.001. The lane therefore closes with a NAMED
+    OBSTRUCTION -- public keys are uniformly distributed, and the norm's
+    relative spread is too small to pay for the failed attempts -- and NOT with
+    a fatigue report. THE MARGIN IS ONLY A FACTOR 1.45 TO 1.81 IN gamma, so
+    gamma is the single quantity worth measuring and the experiment is built
+    around it.
+
+  mechanism: >-
+    DERIVED IN-REPO on 2026-08-05; the numbers were computed on this machine in
+    pure Python and numpy 2.4.6 (SCOUT-COMPUTED, re-run in-harness before
+    citation). numpy IS present; sympy, scipy, fpylll and Sage are ABSENT
+    (verified by import). No BKZ can be run here and the design says so.
+
+    PART A -- UNIFORMITY OF THE PUBLIC KEY, AND WHAT IT DOES AND DOES NOT SAY.
+    Since q - 1 = 3328 = 2^8 * 13, Z_q^* contains the 256th roots of unity but
+    not the 512th, so ord_512(3329) = 2 (computed) and X^256 + 1 factors over
+    F_q into exactly 128 irreducible QUADRATICS. Hence
+    R_q = prod_{i=1}^{128} F_{q^2}.
+    Fix (s, e) and draw A uniformly. In slot i the map A_i -> A_i s_i from
+    M_k(F_{q^2}) to F_{q^2}^k is F_{q^2}-linear and SURJECTIVE whenever
+    s_i != 0, so A_i s_i is uniform on F_{q^2}^k, independently across slots.
+    Therefore t = A s + e is EXACTLY uniform on R_q^k whenever no slot
+    degenerates, with a law that does not depend on (s, e) in any way. Two
+    secrets of wildly different norm induce IDENTICAL public-key laws.
+    The only escape is degeneracy. Heuristically P[s_i = 0] = q^{-2k}, which at
+    ML-KEM-512 (k = 2) is 3329^{-4} = 2^{-46.80}; a union bound over the 128
+    slots gives 2^{-39.80}.
+    WHAT THIS DOES NOT SAY, STATED AT FULL FORCE SO THE RECORD CANNOT BE
+    MISREAD: for a FIXED A the pair (s, e) is essentially determined by t --
+    that is why LWE decoding works at all -- so information about ||(s,e)||
+    exists in (A, t) and is merely computationally hidden. Part A closes the
+    A-OBLIVIOUS selection route and nothing more. An A-AWARE cheap screen (a
+    bounded-budget reduction reading off the basis profile slope) is NOT
+    excluded, and measuring whether such a screen correlates with ||(s,e)|| is
+    a declared arm of EXP-MLKEM-6715e6.
+
+    PART B -- THE ORDER STATISTIC, EXACTLY.
+    X ~ CBD(eta) has P[X = j] = C(2eta, eta+j)/2^{2eta}. Exact moments,
+    computed here: eta = 2 gives E[X^2] = 1, E[X^4] = 2.5, Var(X^2) = 1.5,
+    kappa = 3/2; eta = 3 gives E[X^2] = 1.5, E[X^4] = 6, Var(X^2) = 3.75,
+    kappa = 5/3. For S = ||(s,e)||^2 over D = 2kn coefficients,
+    E[S] = D eta/2, Var(S) = D Var(X^2), E[S]/sd(S) = sqrt(D/kappa).
+    ML-KEM-512 (k = 2, eta1 = 3, D = 1024): E[S] = 1536, Var(S) = 3840,
+    sd = 61.968, sqrt(D/kappa) = 24.787, relative spread 4.034 per cent.
+    ML-KEM-1024 (k = 4, eta1 = 2, D = 2048): E[S] = 2048, Var(S) = 3072,
+    sqrt(D/kappa) = 36.950, relative spread 2.706 per cent.
+    THE TAIL IS COMPUTED EXACTLY, NOT APPROXIMATED. The support of X^2 is
+    {0, 1, 4, 9} for eta = 3, so the distribution of S is a D-fold convolution
+    over an integer support of size 9D + 1 -- milliseconds. The Gaussian form
+    p(u) = Phi(-u sqrt(D/kappa)) is retained only for the closed-form
+    threshold, and its agreement with the exact tail is reported (checked at
+    u = 0.05: exact log2 p = -3.2187 against Gaussian -3.2150).
+
+    PART C -- THE BALANCE, AND THE THRESHOLD.
+    From the 2016 primal-uSVP condition sqrt(beta/d) ||(s,e)|| <=
+    delta_beta^{2beta-d-1} q^{(d-m)/d} with
+    ln delta_beta = ln(beta/(2 pi e))/(2 beta) -- RECALLED FORM, verification
+    is stage 0 -- differentiate the right-hand side in beta:
+      dRHS/dbeta = 2 ln delta_beta + (2 beta - d - 1) dlndelta/dbeta,
+      dlndelta/dbeta = (1 - ln(beta/(2 pi e)))/(2 beta^2),
+      gamma := 1/(dRHS/dbeta).
+    A fractional shortfall u in S reduces ln||(s,e)|| by u/2 to first order, so
+    beta(u) = beta_full - gamma u/2.
+    Per-attempt cost times inverse success probability:
+      log2 Cost(u) = c_T (beta_full - gamma u/2) + log2(1/p(u)),
+      GAIN(u) = (c_T gamma/2) u + log2 p(u).
+    At u = 0, p = 1/2 so GAIN(0) = -1: the multi-target strategy starts a full
+    bit behind, because failures are paid for. Differentiating at the origin,
+    d/du[-log2 Phi(-u r)] = (phi(0)/Phi(0)) r / ln 2 with r = sqrt(D/kappa) and
+    phi(0)/Phi(0) = 0.79788, so an interior optimum exists iff
+      c_T gamma/2 > 0.79788 r / ln 2,
+      i.e. gamma > gamma_crit = (2 * 0.79788/(c_T ln 2)) r = 7.8843 r.
+    EVALUATION at illustrative (beta, d) -- beta and d are RECALLED-UNVERIFIED
+    and are used only to illustrate:
+      512:  beta 400, d 1000, D 1024, kappa 5/3, r 24.787: gamma 108.26,
+            gamma_crit 195.43, ratio 0.554, dGAIN/du|_0 = -12.73
+      768:  beta 623, d 1500, D 1536, kappa 3/2, r 32.000: gamma 150.92,
+            gamma_crit 252.30, ratio 0.598, dGAIN/du|_0 = -14.80
+      1024: beta 875, d 2000, D 2048, kappa 3/2, r 36.950: gamma 200.80,
+            gamma_crit 291.33, ratio 0.689, dGAIN/du|_0 = -13.22
+    Direct maximisation over a fine u grid against the EXACT tail confirms the
+    threshold verdict: max GAIN = -0.987 / -0.991 / -0.992 bits, attained at
+    u <= 0.001, i.e. at the boundary.
+
+    WHY THIS IS A SCREEN AND NOT A MEASUREMENT, IN GOAL-MLKEM-005's OWN C1
+    VOCABULARY. Is the SIGN forced a priori? Only partly, and the part that is
+    forced is the part with no content: min over N is never above the mean, so
+    "the luckiest key is weaker" is guaranteed and worthless. The sign of GAIN
+    is NOT forced -- it is the comparison of two derivatives, either of which
+    could win. Is the MAGNITUDE a closed form in pre-run quantities? Entirely:
+    (D, kappa) from the noise law, gamma from the lattice geometry, c_T from
+    the sieve exponent. Would an object with the lattice, the modulus and the
+    sieve DELETED reproduce it? THE ANSWER SPLITS AND NAMING THE SPLIT IS THE
+    SCREEN'S DELIVERABLE: the tail factor sqrt(D/kappa) is reproduced exactly
+    by D iid bounded integers with no lattice, no modulus and no sieve, so any
+    finding whose content is "the norm concentrates" is forced by counting
+    alone; gamma is NOT so reproduced and is the only quantity carrying
+    ML-KEM-specific information. THEREFORE gamma IS THE ONLY THING WORTH
+    MEASURING.
+
+    WHAT IS NOT DERIVED, AND IS THE WEAKEST LINK. gamma. It comes from a
+    recalled form of a heuristic estimate, it is the decisive quantity, the
+    verdict flips if it is wrong by a factor 1.45 to 1.81, and it cannot be
+    measured at ML-KEM scale in this container. The design's answer is a
+    toy-dimension measurement with an explicit statement that a toy gamma does
+    not transfer -- not a claim that the derived gamma is safe.
+
+  assumptions:
+    - >-
+      FROZEN INPUTS, fixed before any evaluation. (1) q = 3329, n = 256, and
+      the CBD parameters eta1 = 3 for ML-KEM-512, eta1 = 2 for 768 and 1024.
+      (2) kappa = Var(X^2)/E[X^2]^2 computed exactly from the CBD law, not
+      fitted. (3) c_T = 0.292. (4) The illustrative (beta, d) pairs
+      (400, 1000), (623, 1500), (875, 2000), labelled illustrative at every
+      use. (5) gamma_crit = 7.8843 sqrt(D/kappa). (6) The cost convention: a
+      failed attempt costs the same as a successful one. NO OTHER DEGREE OF
+      FREEDOM EXISTS; any change after a number is observed requires a
+      versioned amendment and is never an edit.
+    - >-
+      The 2016 primal-uSVP success condition in the form written above.
+      RECALLED, UNVERIFIED -- no source was read by the author of this record.
+      gamma is entirely a consequence of this form and gamma is decisive, so
+      verifying the form is stage 0 and nothing downstream may be cited before
+      it passes.
+    - >-
+      c_T = 0.292 is RELAYED from this corpus (KN-TECH-040 via KN-TECH-044);
+      primary NOT READ. It enters gamma_crit linearly, so a 10 per cent error
+      moves the ratios by 10 per cent and does not flip any verdict.
+    - >-
+      That a failed BKZ attempt costs full price. This is the
+      conservative-for-the-attacker convention and it is the reason
+      GAIN(0) = -1. An attacker with a cheap early-abort test pays less; no
+      such test is known to this author, and its possible existence is recorded
+      as an open route in interpretation_limits rather than dismissed.
+    - >-
+      Environment verified by import on 2026-08-05: numpy 2.4.6 present;
+      sympy, scipy, fpylll, Sage absent. Every computation in this hypothesis
+      is exact integer or float arithmetic and needs none of the absent
+      packages.
+
+  proof_search_map:
+    bottleneck: >-
+      The step at which the attacker converts a population of N keys into a
+      reduced block size. Everything else in a multi-target attack is
+      bookkeeping. If that step cannot pay for the failed attempts it induces,
+      the whole family is dead regardless of how the individual attack is
+      implemented; if it can, the family becomes the goal's top priority.
+    baseline_embedding:
+      parameter_slice: >-
+        N = 1, u = 0. At N = 1 the model must reproduce the incumbent
+        single-target situation exactly: cost 2^{c_T beta_full}, GAIN = 0 by
+        definition, no tail penalty and no block-size reduction.
+      reproduction_check: >-
+        SYMBOLIC AND EXACT, and it is a real check rather than a tautology,
+        because the multi-target formula must degenerate correctly: setting
+        p = 1 forces u to the left endpoint where beta(u) = beta_full, so
+        GAIN = 0. An implementation that returns nonzero GAIN at N = 1 has an
+        off-by-one in the failure accounting. A second, independent exact
+        anchor: E[S] and Var(S) recovered from the D-fold convolution must
+        equal 1536 and 3840 at ML-KEM-512 parameters to 13 significant
+        figures, which pins the tail machinery before it is used.
+    observation_collision:
+      observable: >-
+        The single real number gamma/gamma_crit, and the derived max GAIN.
+      distinct_preimage_search: >-
+        A COLLISION EXISTS AND IT IS THE HYPOTHESIS'S MAIN IDENTIFIABILITY
+        HAZARD, SO IT IS STATED FIRST. gamma_crit depends on (D, kappa) only
+        through r = sqrt(D/kappa), so any two parameter sets with the same r
+        have the same threshold whatever their dimensions and noise laws --
+        for instance D = 1024 with kappa = 5/3 and D = 922 with kappa = 3/2
+        both give r near 24.8. The observable therefore does not identify the
+        parameter set; it identifies one ratio. THE SEPARATING CONDITION is
+        gamma, which is a property of the lattice geometry and not of the noise
+        law, so the pair (gamma, r) is identifying where r alone is not, and
+        every reported verdict carries both coordinates rather than the ratio
+        alone.
+        A SECOND COLLISION, ON THE OTHER SIDE OF THE CONCLUSION, IS EXPLICITLY
+        SOUGHT: two secret laws with the SAME mean and variance of S but
+        different higher moments give the same Gaussian threshold and different
+        EXACT tails. The exact-convolution arm exists precisely to break that
+        collision, and if the exact and Gaussian verdicts ever disagree, the
+        exact one is authoritative and the closed form is downgraded to
+        indicative.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          Replace "the attacker attacks N keys" by an explicit resource measure
+          -- per-attempt cost times inverse success probability -- and charge
+          only over the disjoint blocks of failed attempts, so the data axis
+          (N keys) appears additively in the cost as log2(1/p).
+        predicted_gain: >-
+          Converts an unbounded "multi-target attacks are cheaper" intuition
+          into a single scalar with a sign. The predicted sign is negative;
+          being able to say which sign, and by how many bits, is the gain.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable (the public key t) fixed and vary the forgotten
+          structure (s, e). Part A shows the fibre is the entire
+          slot-nondegenerate secret space, so no intrinsic invariant of t
+          distinguishes low-norm from typical secrets.
+        predicted_gain: >-
+          Kills the cheap-selection route at zero compute, which is the only
+          version of the mechanism that would have been inexpensive. The
+          residual -- A-aware screens -- is named rather than swept up.
+    quantifier_order: >-
+      PART A, CLAIMED IN THIS ORDER: FORALL (s, e) with s nonzero in every CRT
+      slot, the law of t = A s + e over uniform A is the uniform law on R_q^k.
+      The witness (the uniform law) does NOT depend on (s, e); that
+      independence IS the claim, and it is what makes selection impossible.
+      The degenerate case is quantified separately and bounded, never absorbed.
+      PART C, CLAIMED IN A STRICTLY WEAKER ORDER AND NEVER TO BE STATED AS
+      PART A's: FORALL parameter sets in a finite illustrative table, EXISTS no
+      u > 0 with GAIN(u) > 0. The universal ranges over three rows of a table
+      whose (beta, d) are recalled, not over ML-KEM. Presenting Part C as a
+      uniform theorem about ML-KEM would be the central overclaim available
+      here and is prohibited in advance.
+      THE TRAP BEING HUNTED: a witness (the weak key) that is allowed to depend
+      on the instance cannot be produced by a selection procedure whose input
+      distribution does not depend on the instance. That is Part A in one
+      sentence.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: that A-oblivious target selection has advantage bounded by a
+        computed degeneracy probability (EXACT), and that under a declared cost
+        convention and a recalled uSVP estimate the primal multi-target
+        strategy has no interior optimum at three illustrative parameter rows
+        (CONDITIONAL). It CANNOT certify that multi-target attacks on ML-KEM
+        are impossible; it says nothing about dual attacks, hybrid attacks,
+        decoding attacks, ciphertext-side multi-target, decryption failures, or
+        any attacker with an early-abort test.
+      nearby_object_control: >-
+        THE NEARBY OBJECT ON WHICH THE HOPED-FOR CONCLUSION IS KNOWN TO FAIL IS
+        A KEY WITH A DEGENERATE CRT SLOT. If s = 0 in slot i then t_i = e_i is
+        a SMALL element rather than uniform, so selection succeeds trivially
+        and with advantage approaching 1. A method that cannot separate a
+        degenerate key from a merely short one has not identified the load-
+        bearing structure -- which is uniformity, not shortness. This planted
+        object is a REQUIRED arm, it is run BEFORE the real arm, and if the
+        instrument fails to fire on it no negative may be reported at all.
+        A GRADED version with slots zeroed at j in {0, 1, 2, 4, 8} localises
+        any instrument failure to a specific degeneracy level.
+    proof_obligations:
+      - claim: >-
+          A_i s_i is uniform on F_{q^2}^k for every nonzero s_i, hence t is
+          uniform whenever no slot degenerates.
+        responsibility: correctness
+      - claim: >-
+          P[some slot degenerates] <= (n/2) q^{-2k}, with the per-slot
+          probability bounded rather than assumed equal to q^{-2k}.
+        responsibility: strictness
+      - claim: >-
+          E[S] = D eta/2 and Var(S) = D Var(X^2) exactly, and the D-fold
+          convolution reproduces both.
+        responsibility: baseline
+      - claim: >-
+          gamma equals the reciprocal of the beta-derivative of the 2016
+          condition's right-hand side, for the form actually published.
+        responsibility: interface
+      - claim: >-
+          GAIN's maximiser computed against the exact tail agrees with the
+          closed-form threshold verdict, or the exact computation is reported
+          as authoritative.
+        responsibility: correctness
+      - claim: >-
+          Failed attempts are charged at full price and the convention is
+          stated wherever the result is cited.
+        responsibility: runtime
+      - claim: >-
+          Part A and Part C are never reported at the same strength, and the
+          closure names its four open residuals.
+        responsibility: scope
+
+  rerandomization: null
+
+  asymptotic_claim:
+    problem: >-
+      Multi-target key recovery against N independently keyed ML-KEM sessions
+      via the primal uSVP embedding.
+    prior_best: >-
+      Single-target primal uSVP at 2^{c_T beta_full} with beta_full the block
+      size quoted for the parameter set under a named cost model.
+    time_exponent: >-
+      c_T (beta_full - gamma u/2) + log2(1/p(u)) per attack, minimised over u.
+      The predicted minimum is at u = 0 and the predicted value is
+      c_T beta_full + 1 bit, i.e. WORSE than the incumbent. NO EXPONENT MOVES
+      IN EITHER DIRECTION: even if the threshold were crossed, the tail is
+      Gaussian in u and the block-size response is linear, so the mechanism
+      cannot produce a 2^{Omega(beta)} gain by construction. Stating that
+      ceiling is part of the record.
+    memory_exponent: >-
+      Unchanged: 2^{c_M beta(u)} per attempt, and attempts are sequential, so
+      the peak memory is that of a single reduced attack.
+    hidden_cofactor: >-
+      gamma's derivation hides the 2016 estimate's own error; the cost
+      convention hides any early-abort saving; the first-order expansion of
+      beta(u) hides O(u^2).
+    claim_kind: constant_factor
+
+  heuristic_assumptions:
+    - id: HEUR-WK-1
+      formal_statement: >-
+        FORALL ML-KEM parameter sets, the required BKZ block size depends on
+        (s, e) only through ||(s,e)||, and beta(u) = beta_full - gamma u/2 +
+        O(u^2) with gamma the reciprocal of the beta-derivative of the 2016
+        condition's right-hand side.
+      random_model_justification: >-
+        NONE THAT IS RIGOROUS, AND THIS IS THE LOAD-BEARING HEURISTIC. The 2016
+        condition is itself a heuristic estimate resting on the Geometric
+        Series Assumption and on the Gaussian heuristic for random q-ary
+        lattices; its differentiation is exact GIVEN the form; the form is
+        recalled and unread. The record does not disguise this.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-6715e6]
+      falsification_condition: >-
+        Stage 0 source verification finds a materially different form. Part C
+        is then withdrawn and re-derived; Part A stands independently. Stage 4
+        additionally measures dbeta/dln||v|| at toy dimension by pure-Python
+        lattice reduction and reports the discrepancy against the derived
+        gamma, WITH the explicit statement that a toy gamma does not transfer
+        to beta = 400.
+    - id: HEUR-WK-2
+      formal_statement: >-
+        For s drawn coefficient-wise from CBD(eta), the CRT slot value
+        s mod f_i is near-uniform on F_{q^2}^k in the sense that
+        P[s_i = 0] <= C q^{-2k} for a small absolute constant C.
+      random_model_justification: >-
+        The reduction map is surjective and Z-linear, and the source carries
+        about 2.03 bits per coefficient over 2kn coefficients against
+        2k log2 q = 46.80 bits needed for one slot, so the image is expected to
+        be near-uniform. That expectation is not a proof. NOTE the bound is
+        used only to make an already tiny quantity tiny: Part A's exact
+        statement is CONDITIONAL on non-degeneracy and does not depend on
+        HEUR-WK-2; the heuristic only bounds how often the condition fails.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-6715e6]
+      falsification_condition: >-
+        Exact enumeration at toy n and small q returns P[s_i = 0] more than a
+        factor 10 above q^{-2k}. The union bound is then restated with the
+        measured constant and the 2^{-39.80} figure is corrected rather than
+        defended.
+    - id: HEUR-WK-3
+      formal_statement: >-
+        The Gaussian approximation to the left tail of S is adequate for
+        u <= 0.1, in the sense that the closed-form threshold verdict agrees
+        with the exact-convolution verdict.
+      random_model_justification: >-
+        Not needed as an assumption -- it is REPLACED by exact computation. The
+        Gaussian form appears only in the closed-form threshold; the exact
+        D-fold convolution is computed and is authoritative. Agreement was
+        checked here at u = 0.05 (exact log2 p = -3.2187 against Gaussian
+        -3.2150).
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-6715e6]
+      falsification_condition: >-
+        Exact and Gaussian verdicts disagree anywhere on the u grid. The exact
+        one stands, the closed-form threshold is reported as indicative only,
+        and gamma_crit is withdrawn as a headline.
+
+  structural_ingredients:
+    - description: >-
+        CRT decomposition of Z_q[X]/(X^n+1) at q = 3329, n = 256 into 128
+        copies of F_{q^2}.
+      citation: >-
+        DERIVED AND COMPUTED IN-REPO: q - 1 = 2^8 * 13 and ord_512(3329) = 2.
+        No external citation is asserted and none is needed. That FIPS 203's
+        NTT is "incomplete" with 128 degree-2 factors is a well-known
+        consequence and is stated as such, not as an authority.
+      role: >-
+        Supplies the exact surjectivity argument for Part A and the exact
+        degeneracy count.
+    - description: >-
+        The 2016 primal-uSVP success estimate relating block size, lattice
+        dimension, root-Hermite factor and the planted vector's norm.
+      citation: >-
+        RECALLED, UNVERIFIED. NO SOURCE WAS READ. This is the single external
+        ingredient the hypothesis depends on and verifying it is stage 0.
+      role: >-
+        Supplies gamma, the only quantity in the balance that carries
+        ML-KEM-specific information.
+    - description: >-
+        The classical sieve time exponent c_T = 0.292.
+      citation: >-
+        RELAYED from KN-TECH-044 / KN-TECH-040 in this corpus; primary NOT
+        READ.
+      role: >-
+        Converts a block-size reduction into bits, and scales gamma_crit.
+
+  reduction_chain:
+    core_problem: >-
+      Determine whether selecting among N independently keyed ML-KEM sessions
+      by realised secret norm reduces the cost of primal uSVP key recovery.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. Nothing here reduces to a statement about dual
+      attacks, hybrid attacks, decoding, decryption failures, or the
+      ciphertext-side multi-target question that IDEA-20260805-3d71ca owns.
+      Nothing here closes KN-OPEN-016 or KN-OPEN-017. A negative outcome closes
+      one lane and the closure must name its four residuals explicitly (see
+      interpretation_limits) or it is a fatigue report.
+
+  predictions:
+    - metric: >-
+        WK-1 exact moments recovered from the D-fold convolution of the law of
+        X^2
+      direction: different
+      minimum_effect: >-
+        E[S] = 1536 and Var(S) = 3840 EXACTLY at (D, eta) = (1024, 3);
+        E[S] = 2048 and Var(S) = 3072 at (2048, 2). Relative error above 1e-9
+        invalidates the tail machinery and no tail number may be reported.
+    - metric: WK-2 ratio gamma/gamma_crit per parameter row
+      direction: lower
+      minimum_effect: >-
+        0.554 / 0.598 / 0.689, each strictly below 1.0. FORCED given the
+        frozen inputs. A ratio above 1.0 at any row falsifies the screen and
+        promotes the lane to the goal's top priority.
+    - metric: WK-3 maximum GAIN over u against the EXACT tail, in bits
+      direction: lower
+      minimum_effect: >-
+        -0.987 / -0.991 / -0.992 bits, maximiser at u <= 0.001, each within
+        0.01 bits. Any positive maximum refutes the screen.
+    - metric: >-
+        WK-4 A-oblivious selection advantage at toy parameters: empirical total
+        variation between the public-key law conditioned on the lowest-decile
+        ||(s,e)|| and on the median decile
+      direction: lower
+      minimum_effect: >-
+        Statistically indistinguishable from the chance floor at the achieved
+        sample size, with the exact toy-cell degeneracy bound computed and
+        stated BEFORE the run. Per-group error bars required.
+    - metric: >-
+        WK-5 planted-degeneracy positive control: the same statistic on keys
+        with s = 0 in exactly one CRT slot
+      direction: higher
+      minimum_effect: >-
+        Advantage rising to essentially 1 at the same sample size. IF IT DOES
+        NOT FIRE, THE INSTRUMENT IS BROKEN AND NO NEGATIVE FROM WK-4 MAY BE
+        REPORTED.
+    - metric: >-
+        WK-6 graded degeneracy ladder, j slots zeroed, j in {0, 1, 2, 4, 8}
+      direction: higher
+      minimum_effect: >-
+        Monotone non-decreasing in j, from the forced floor at j = 0 to near 1
+        at j = 8. Non-monotonicity localises an instrument defect to a specific
+        j rather than leaving "it did not work".
+    - metric: >-
+        WK-7 RING-DELETED MATCHED NULL: WK-4's statistic on a plain-LWE
+        instance with A uniform in Z_q^{nk x nk}, matched in dimension,
+        modulus, noise law and sample count
+      direction: different
+      minimum_effect: >-
+        The degeneracy escape does not exist at all, so the bound falls from
+        (n/2) q^{-2k} to q^{-nk}, and the planted positive control is
+        UNCONSTRUCTIBLE. Reporting that the positive control cannot be built in
+        the null IS the ring's sensitivity demonstration.
+    - metric: >-
+        WK-8 toy-dimension gamma measured by pure-Python reduction, against the
+        derived gamma
+      direction: different
+      minimum_effect: >-
+        Reported as a ratio with no threshold attached, together with the
+        explicit statement that a toy gamma does not transfer to beta = 400. A
+        ratio far from 1 does not falsify HEUR-WK-1 at ML-KEM scale and must
+        not be reported as doing so.
+
+  test_boundary:
+    instances:
+      - >-
+        Derived arms: three illustrative parameter rows (n = 256, k in
+        {2, 3, 4}, q = 3329, eta1 in {3, 2, 2}) with recalled (beta, d).
+      - >-
+        Measured arms: toy MLWE at n in {8, 16}, k = 2, q = 3329, CBD eta = 3,
+        with treatment, randomly-relabelled null, planted-degeneracy positive
+        control, graded ladder, and the ring-deleted matched null.
+    parameters:
+      n: 256
+      q: 3329
+      k_values: [2, 3, 4]
+      eta1_by_set: {512: 3, 768: 2, 1024: 2}
+      D_by_set: {512: 1024, 768: 1536, 1024: 2048}
+      kappa_by_eta: {2: 1.5, 3: 1.6666666666666667}
+      c_T: 0.292
+      illustrative_beta_d: {512: [400, 1000], 768: [623, 1500], 1024: [875, 2000]}
+      gamma_crit_coefficient: 7.8843
+      toy_n_values: [8, 16]
+      toy_k: 2
+      u_grid_step: 0.0002
+    implementation: >-
+      Pure Python plus numpy 2.4.6 (present, verified 2026-08-05). Exact
+      integer convolution for the tail; exact rational moments for kappa;
+      float arithmetic for gamma and the threshold. sympy, scipy, fpylll and
+      Sage are ABSENT (verified), so no BKZ is available and the toy gamma arm
+      uses a pure-Python reduction or is reported as not run.
+    budget:
+      stage0_wall_clock_seconds: 3600
+      stage0_compute: zero -- source verification and re-derivation
+      stage1_wall_clock_seconds: 600
+      stage2_wall_clock_seconds: 1800
+      stage3_wall_clock_seconds: 7200
+      stage4_wall_clock_seconds: 14400
+      stage4_status: optional; may be reported as not run without invalidating stages 0-3
+      maximum_memory_gb: 8
+
+  falsification_conditions:
+    - >-
+      F1 (ZERO COMPUTE, PRIMARY) -- gamma/gamma_crit >= 1 at any parameter row,
+      or the exact-tail maximisation returns a positive maximum GAIN. The
+      screen's conclusion is wrong, the multi-target lane is live, and it
+      becomes this goal's highest-priority mechanism. This is the outcome the
+      hypothesis most wants to be wrong about and it is checked first.
+    - >-
+      F2 -- stage 0 finds the 2016 condition has a materially different form.
+      Part C is withdrawn and re-derived; Part A is unaffected and stands.
+    - >-
+      F3 -- WK-5, the planted-degeneracy positive control, does not fire. The
+      instrument cannot detect the effect it exists to detect and NO negative
+      from WK-4 may be reported.
+    - >-
+      F4 -- a single toy instance is exhibited in which t is not uniform
+      despite every slot of s being nonzero. Part A's derivation is wrong and
+      is withdrawn by a superseding record.
+    - >-
+      F5 -- WK-1's exact moments disagree with 1536 / 3840. The convolution is
+      wrong; nothing downstream is reportable.
+    - >-
+      F6 (NOT A FALSIFICATION, PRE-REGISTERED BEFORE ANY EVALUATION) -- if the
+      exact-tail verdict and the closed-form threshold verdict disagree, the
+      FIRST reading is that the closed form's first-order origin analysis is
+      too coarse, and only the second is that the exact computation is wrong.
+      Fixed here, before any evaluation, and may not be selected afterwards.
+
+  interpretation_limits:
+    - >-
+      NO ML-KEM PARAMETER SET IS AFFECTED OR CLEARED. No attack is implemented
+      or claimed. Rule 4 in full. Every (beta, d) used is illustrative and
+      recalled and must be labelled so at every citation.
+    - >-
+      PART A IS EXACT AND UNCONDITIONAL GIVEN UNIFORM A; PART C IS HEURISTIC
+      AND CONDITIONAL ON gamma. They may never be reported at the same
+      strength, and any evidence record must carry them as separate
+      observations with separate tiers.
+    - >-
+      A NEGATIVE CLOSES EXACTLY ONE LANE -- primal-uSVP multi-target key
+      selection by realised secret norm, under the full-price failure
+      convention, at the three illustrative rows -- and the closure is
+      admissible ONLY if it names all four residuals: (i) A-AWARE cheap
+      screening, which Part A does not exclude; (ii) ciphertext-side
+      multi-target and the decryption-failure lane, which are different objects
+      and different oracle models; (iii) dual, hybrid and decoding attacks
+      whose success depends on (s,e) otherwise than through its norm; (iv) any
+      early-abort test that makes a failed attempt cheaper than a successful
+      one. A closure missing any of the four is a fatigue report and is not
+      admissible under docs/inventor-protocol.md section 4.
+    - >-
+      CLAIM TIER: `derivation` for Parts A and C, `toy_scale` for WK-4 through
+      WK-8. GOAL-MLKEM-005's C2 is PARTIALLY served: the measured arms are real
+      measurements with a named removed object (the ring, via WK-7; the
+      degeneracy, via WK-5/6) and a demonstrated sensitivity, but they measure
+      the SELECTION claim, not the cost balance. Claiming C2 for the cost
+      balance would overstate the package and is prohibited here in advance.
+    - >-
+      THE MARGIN IS NOT COMFORTABLE. gamma/gamma_crit is between 0.55 and 0.69,
+      so a factor 1.45 to 1.81 error in gamma flips the verdict. Any citation
+      of the negative must carry that number, and a citation that presents the
+      lane as comfortably closed misrepresents this record.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-1d76e9.yaml
+    - ledger/proposals/IDEA-20260805-530869.yaml
+    - ledger/proposals/IDEA-20260805-3d71ca.yaml
+    - ledger/questions/RQ-MLKEM-001.yaml
+    - ledger/goals/GOAL-MLKEM-005.yaml
+    - knowledge/techniques/KN-TECH-1a5b7e.md
+    - knowledge/techniques/KN-TECH-044.md
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - docs/claims-and-verification.md

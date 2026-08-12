@@ -1,0 +1,177 @@
+idea:
+  id: IDEA-20260726-002
+  title: Endomorphism-invariant factor base for block-structured relation matrix linear algebra
+  class: algorithm
+  claim: >-
+    For prime-field curves with an efficiently computable endomorphism phi of
+    small degree d (e.g., GLV curves with CM discriminant -3 or -4), a factor
+    base F chosen as a union of phi-orbits induces a block-circulant structure
+    on the relation matrix with displacement rank alpha = O(d) = O(1), which
+    is not broken by non-residue gaps (unlike the additive-translation AP
+    approach that failed in EV-STR-001), and the resulting structured solve
+    beats generic sparse Wiedemann by a factor of B/alpha — but only if the
+    relation-density penalty from constraining F to be phi-invariant does not
+    inflate the factor-base size B until the LA saving is swamped. The
+    two-sided test discriminates between "endomorphism symmetry gives a net
+    LA advantage that the AP approach missed" and "the relation-density
+    penalty cancels the LA saving, as it did for AP supports."
+  mechanism: >-
+    The failed AP approach (EV-STR-001, KN-OPEN-006) tried to exploit additive
+    translation symmetry of factor-base x-coordinates to induce Toeplitz
+    structure. It failed for two reasons: (1) non-residue gaps in the x-interval
+    factor base broke translation invariance, giving displacement rank alpha
+    ~ B (generic maximum), and (2) the AP constraint imposed a 17.5x-4128x
+    relation-density penalty. This proposal exploits multiplicative
+    endomorphism symmetry instead. For a curve with endomorphism phi (e.g.,
+    phi(x,y) = (zeta*x, y) for j=0 curves, where zeta is a cube root of
+    unity), choosing F = {phi^i(P_j) : i = 0..r-1, j = 1..B/r} makes the
+    factor base a union of phi-orbits of length r (r = 3 for CM disc -3,
+    r = 2 for CM disc -4 with the negation map). The endomorphism is defined
+    over F_p (or a small extension), so phi(F) = F exactly — no non-residue
+    gaps. The relation matrix M then satisfies a commutation relation
+    M * Phi = Phi * M (where Phi is the permutation matrix of phi acting on
+    factor-base indices), making M block-circulant with block size r. The
+    displacement rank of a block-circulant matrix is alpha = O(r) = O(1),
+    independent of B. A superfast structured solve costs O(alpha * B * log B)
+    vs Wiedemann's O(B^2 * m). The critical open question is the
+    relation-density penalty: constraining F to phi-orbits reduces the
+    effective factor-base freedom, potentially lowering the decomposition
+    probability. Unlike the AP case, the phi-orbit constraint does not
+    restrict the x-coordinate support to an interval — it only requires that
+    if x is in F, then phi(x) is also in F. The penalty depends on whether
+    phi-orbits are evenly distributed in F_p (Chebotarev predicts yes for
+    generic curves, but the factor base is a finite sample).
+  novelty_status: unverified
+  assumptions:
+    - >-
+      The curve E/F_p has an efficiently computable endomorphism phi of small
+      degree d with phi defined over F_p (GLV/GLS curves: j=0, j=1728, or
+      curves with CM by a small discriminant).
+    - >-
+      The endomorphism phi acts as a permutation on the factor base F (i.e.,
+      F is chosen as a union of phi-orbits), which is a design constraint on
+      F, not a property of a random F.
+    - >-
+      The block-circulant commutation M * Phi = Phi * M holds for the
+      relation matrix M, which requires that the summation polynomial
+      S_{m+1} is equivariant under phi (i.e., phi respects the addition law).
+      This is true because phi is a group endomorphism.
+    - >-
+      The displacement rank alpha = O(r) survives lifting from x-coordinates
+      to full point representations, including negation and sign handling.
+    - >-
+      The relation-density penalty from the phi-orbit constraint is
+      measurable at toy scale and does not grow faster than B/alpha.
+  predictions:
+    - metric: displacement_rank_alpha_of_phi_invariant_relation_matrix
+      direction: lower
+      minimum_effect: >-
+        alpha <= r (the endomorphism order), clearly below the generic
+        maximum min(rows, B) and below the random-baseline alpha ~ B measured
+        in EV-STR-001. This is the primary positive prediction; if alpha
+        grows like B, the idea is falsified.
+    - metric: phi_orbit_relation_density_vs_random_factor_base
+      direction: lower
+      minimum_effect: >-
+        relation-density penalty < B/alpha (the threshold above which the LA
+        saving is cancelled). The competing prediction is penalty >= B/alpha,
+        which would falsify the net-advantage claim.
+    - metric: structured_solve_time_vs_wiedemann
+      direction: lower
+      minimum_effect: >-
+        structured solve model ops alpha^2 * B * ceil(log2 B) is at least
+        2x cheaper than Wiedemann model ops 2 * B^2 * m at the largest tested
+        B. If the ratio is < 2x, the LA saving is within noise.
+  minimal_test:
+    design: >-
+      For 3-5 toy GLV prime-field curves (j=0 with p = 1 mod 3, and j=1728
+      with p = 1 mod 4) at 16, 20, and 24 bits: (1) construct a phi-invariant
+      factor base F of B = ceil(sqrt(N)) points as a union of phi-orbits;
+      (2) collect relations using the S_{m+1} decomposition test with m=3,
+      measuring hit rate and relation-density penalty vs a random
+      (non-phi-invariant) factor base of the same size; (3) form the relation
+      matrix and measure displacement rank alpha using the (Z, Z^T) generator
+      pair where Z is the phi-shift operator; (4) compare alpha to the random
+      baseline (EV-STR-001 measured alpha ~ B for random/AP supports); (5)
+      compute the structured-solve model cost alpha^2*B*log(B) vs Wiedemann
+      2*B^2*m and the fully-charged total cost including the relation-density
+      penalty. Use the existing harness (harness/semaev.py) with the
+      phi-invariant factor base modification.
+    controls:
+      - >-
+        Random factor base: identical B, identical curve, non-phi-invariant
+        factor base — measure displacement rank and relation density. This
+        is the direct control from EV-STR-001.
+      - >-
+        AP factor base: the EV-STR-001 AP-constrained factor base on the
+        same curve — reproduce the alpha ~ B and 17.5x penalty as a benchmark.
+      - >-
+        phi-ablation control: use the same F but measure displacement rank
+        with a random (non-phi) shift operator — alpha should return to ~ B,
+        confirming the structure comes from phi.
+      - >-
+        Matched rho and BSGS: report per-target costs for comparison.
+      - >-
+        Negation/twist control: verify that the negation map (which is always
+        available) does not break the block-circulant structure. If negation
+        maps phi-orbits to distinct phi-orbits, the block structure is
+        preserved; if it maps within orbits, it may halve the block size.
+    required_metrics:
+      - displacement rank alpha for phi-invariant, random, and AP factor bases
+      - relation hit rate (successful decompositions per attempt) for each
+      - relation supply (total admissible tuples) for each
+      - structured-solve model ops vs Wiedemann model ops
+      - fully-charged total cost (relation collection + LA + descent) for each
+      - rho and BSGS group-operation counts
+  falsification_conditions:
+    - >-
+      Displacement rank alpha grows like B (or faster), showing no separation
+      from the random baseline — the block-circulant structure does not
+      survive the relation collection process.
+    - >-
+      The phi-orbit relation-density penalty >= B/alpha, meaning the LA
+      saving is swamped by the extra relation collection cost (the same
+      failure mode as EV-STR-001).
+    - >-
+      The block-circulant commutation M * Phi = Phi * M fails on measured
+      relation matrices, indicating that the endomorphism equivariance of
+      S_{m+1} does not translate to matrix-level structure.
+    - >-
+      The fully-charged total cost (including penalty) exceeds matched rho
+      for all tested B and m.
+  confounders:
+    - >-
+      GLV curves (j=0, j=1728) are special curves with extra automorphisms;
+      results may not transfer to generic curves. The GGM lower bound
+      (KN-TECH-005) applies to generic curves; the endomorphism is a
+      non-generic structural feature that the model excludes.
+    - >-
+      The endomorphism is public and computable, so it is part of the
+      non-generic structure. But the S*T^2 preprocessing bound (KN-LIT-013)
+      still applies; the question is whether the block structure provides
+      a non-generic LA advantage that the generic bound does not capture.
+    - >-
+      Toy-scale displacement rank may not reflect asymptotic behavior;
+      alpha = O(1) at B = 64 does not prove alpha = O(1) at B = 2^128.
+    - >-
+      The phi-orbit constraint may interact with the negation map in
+      non-obvious ways (negation is always available and gives a 2x speedup
+      for rho; if it breaks the block structure, the net advantage is lost).
+  interpretation_limits:
+    - >-
+      Toy-scale only; applies to GLV curves with small endomorphism degree.
+      No claim about generic curves or crypto-scale behavior.
+    - >-
+      A measured alpha = O(1) with small penalty is a structural signal, not
+      a breakthrough. Promotion requires complete end-to-end cost accounting
+      showing a net advantage over matched rho and the S*T^2 frontier.
+    - >-
+      The idea is restricted to endomorphism-rich curves; generic curves
+      have no efficiently computable endomorphism beyond the negation map.
+    - >-
+      A negative result (alpha ~ B or penalty too large) closes only the
+      tested scope (these curves, B, m, endomorphism types).
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high

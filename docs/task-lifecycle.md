@@ -109,6 +109,20 @@ The Coordinator assigns an evidence strength and chooses one transition:
 - `inconclusive` — data do not discriminate explanations;
 - `pause` — low expected information gain relative to cost.
 
+Before a `weaken` or `reject_scoped` transition, the Coordinator seeks the
+strongest checkable refutation artifact the result admits — counterexample
+certificate, then derivation note, then declared `empirical_only` — and
+records it in the evidence record's `proof_status`/`proof_refs`
+(`docs/claims-and-verification.md`, "Refutation artifacts"). The artifact is
+archived before the decision that relies on it.
+
+The decision record's `knowledge_promotion` field is filled at this step: a
+`support` or `reject_scoped` decision backed by `replicated`/`strong`
+evidence promotes a `KN-FIND` entry into `knowledge/findings/` (per
+`/curate-knowledge`); any other outcome records a concrete `not_warranted`
+reason. Proven scoped negatives are promoted like positives — they are the
+boundaries future ideation checks against.
+
 ## 9a. Ledger commit and official transition
 
 After every required Validator, Reviewer, and Red Team task completes, the
@@ -120,7 +134,9 @@ commit inside a shared worktree.
 
 ## 10. Synthesis
 
-Synthesis statements must reference hypothesis, experiment, run, evidence, and decision IDs. They must explicitly distinguish toy-scale, medium-scale, and cryptographic-scale evidence.
+Synthesis statements must reference hypothesis, experiment, run, evidence, and
+decision IDs. They must state the tested parameters and distinguish direct
+observations from transfer or extrapolation arguments.
 
 ## 10a. Goal checkpoint, rerank, and continuation
 

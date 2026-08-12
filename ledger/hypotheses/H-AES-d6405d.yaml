@@ -1,0 +1,520 @@
+hypothesis:
+  id: H-AES-d6405d
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  source_idea_id: IDEA-20260805-f2fc33
+
+  statement: >-
+    SCOPE: the hinted r=6 and r=7 partial-sums constructions of
+    TASK-20260802-9dcca8 (sq_null.c modes attack6n and attack7n) as built, on
+    AES-128, under the pinned C1 reduced-round convention, in this environment.
+    CLAIM TIER toy. NO ATTACK IS PROPOSED, NO KEY RECOVERY, NO DISTINGUISHER, NO
+    EXPONENT MOVED, NO STATEMENT ABOUT FULL-ROUND OR DEPLOYED AES, AND NO
+    COMPARISON TO PUBLISHED CRYPTANALYSIS IN EITHER DIRECTION.
+    THE HYPOTHESIS IS IN FOUR PARTS, EACH SEPARATELY FALSIFIABLE.
+    (A) THE FORCED LADDER. Let S be the number of 2^32-text structures processed
+        and let the candidate space be the 2^20 = 1,048,576 pairs
+        (k3, k4) = (K6[p3], K5'[4c+r]) over 4 ciphertext diagonals and 4
+        MixColumns rows. Under U1 -- wrong-candidate 8-bit balance sums uniform
+        and independent across structures -- the expected surviving population is
+          TRUE-HINT ARM:      16 + (2^20 - 16) * 2^(-8S)
+          FALSIFIED-HINT ARM:      2^20 * 2^(-8S)
+        with binomial standard deviations sqrt(2^20 * 2^(-8S) * (1 - 2^(-8S))).
+        At S = 1 and S = 2 these are 4111.9 / 4096.0 (sd 63.99) and
+        32.0 / 16.0 (sd 4.0).
+    (B) THE CONTROL CANNOT FAIL. The per-diagonal survivor histograms that
+        EV-AES-d8a13e OBS-B2-1 reports -- {1: 16} with a true hint and {0: 16}
+        with any falsified hint byte -- follow from (A) with probability
+        1 - 2.4e-7 each, because a k3 is reported only if some k4 survives in
+        all four rows and that has probability about (2^-8)^4 = 2^-32 per wrong
+        k3 after S = 2. Their likelihood ratio against any alternative
+        preserving U1 is 1. OBS-B2-1 therefore has near-total power against the
+        single alternative "the hint bytes are not consumed by the filter" -- it
+        is an excellent code-path check -- and near-zero power as a
+        key-isolation claim. NOTHING MEASURED IS WRONG; THE READING IS
+        MIS-SCOPED, AND THIS HYPOTHESIS PROPOSES A RE-SCOPING, NEVER A
+        RETRACTION.
+    (C) THE STATISTIC THAT HAS POWER WAS ALREADY RECORDED. The per-structure
+        field `surviving_(k3,k4)_pairs` separates the arms by a factor of
+        exactly 2 at S = 2 on counts whose sd is 4, i.e. about 2.8 sd per
+        matched run pair, and it is printed in the same JSON object as the
+        histogram. Predicted: every committed value of that field lies within 3
+        binomial standard deviations of its forced value from (A).
+    (D) SLOT INVARIANCE. The forced falsified-arm value does not depend on WHICH
+        hint slot is corrupted, because the derivation uses only that some u_t
+        changes. Predicted: the survivor rate at corruption slots t = 1 and
+        t = 2 is equal in distribution to that at t = 0, whose arms are
+        committed. This converts the campaign's own outstanding rank-4 next
+        action from an open observation into a pre-registered equality.
+    IF ANY COMMITTED PAIR COUNT FALLS OUTSIDE ITS 3-SD INTERVAL, U1 IS REFUTED,
+    PARTS (A)-(D) FALL, AND OBS-B2-1 BECOMES STRONGER THAN CLAIMED RATHER THAN
+    WEAKER. That outcome is the one this hypothesis would most like to see and
+    it is written into the falsification conditions rather than into a caveat.
+
+  mechanism: >-
+    DERIVED IN-REPO FROM COMMITTED SOURCE. Primary artifact read:
+    coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/sq_null.c,
+    functions worker6 and mode_attack6, plus the committed run outputs under
+    that task's runs/ directory. NO EXTERNAL SOURCE WAS READ AND NONE IS CITED;
+    the whole derivation is elementary counting and needs none.
+
+    THE FILTER. For ciphertext diagonal d with byte positions
+    DIAGP[d] = (p0, p1, p2, p3) and MixColumns row r, the code maintains
+    cand[d][r][k3][k4], initialised to all ones, and after each structure of
+    2^32 chosen plaintexts zeroes every entry for which
+      sum_texts ISB[ ( XOR_t IMIX[r][t] * ISB[ C[p_t] ^ K6[p_t] ] ) ^ K5'[4c+r] ]
+    is non-zero in GF(2^8). Three of the four K6 bytes are supplied as a HINT;
+    (k3, k4) = (K6[p3], K5'[4c+r]) is searched exhaustively over 256 x 256. The
+    per-(d,r) candidate space is 2^16 and the total is 4 * 4 * 2^16 = 2^20.
+
+    THE COUNT. Under U1 a wrong pair survives one structure with probability
+    2^-8 and S structures with probability 2^(-8S). In the TRUE-HINT arm exactly
+    16 pairs -- one per (d, r) cell -- are correct and survive with probability
+    1, because the level-4 integral balance is a theorem for the correct key
+    bytes (this is HEUR-D2, used and not established here). In the FALSIFIED arm
+    the correct pair is disqualified too, because a wrong hint byte changes
+    u0, u1 or u2 for every text and ISB is a bijection, so all 2^20 pairs are
+    wrong. Part (A) follows immediately.
+
+    THE POST-PROCESSING THAT DESTROYS THE INFORMATION. The reported per-diagonal
+    survivor_count counts k3 values for which SOME k4 survives in ALL FOUR rows.
+    After S = 2 the probability that a given wrong k3 has a surviving partner in
+    one row is about 256 * 2^-16 = 2^-8, so surviving all four rows has
+    probability about 2^-32. Over 255 wrong k3 per diagonal and 4 diagonals that
+    is 1020 * 2^-32 = 2.4e-7 in the true arm; in the falsified arm the true k3
+    is also wrong, giving 1024 * 2^-32 = 2.4e-7. Part (B) follows. This is
+    exactly the KN-TECH-1a5b7e failure mode: a comparator whose spread is zero
+    is a constant of the apparatus, and here the constant is 1 - 2.4e-7 on both
+    arms.
+
+    THE GRADED STRUCTURE THE LADDER SUPPLIES. The falsified-arm forced values
+    decay by EXACTLY 2^-8 per structure: 4096.0 -> 16.0 -> 0.0625 at
+    S = 1, 2, 3. Three interior points, a forced ratio, and a monotonicity
+    requirement, so a departure localises to a specific S and a specific
+    corruption slot instead of leaving an undifferentiated negative. A quantity
+    that fails to decay at the forced rate as S rises is the canonical artifact
+    tell of docs/inventor-protocol.md section 3.
+
+    WHAT THE COMMITTED DATA ALREADY SAYS. ARITHMETIC PERFORMED BY THE PROPOSING
+    SESSION ON COMMITTED INTEGERS. IT IS NOT A RUN, NOT EVIDENCE, AND NOT
+    INDEPENDENTLY REPRODUCED; recomputing it is stage 1 of EXP-AES-1b80e0.
+      runs/TRUE6.json      (nstruct=2, target 2b7e1516..., seed 90001):
+                           S=1 -> 4066, S=2 -> 32
+      runs/WRONG6-01.json  (same target, same seed, same two bases):
+                           S=1 -> 4108, S=2 -> 16
+      z-scores against (A): -0.72, exact; +0.19, exact.
+    Four numbers, all inside 1 sd, two hitting their forced value exactly. That
+    agreement is the campaign's FIRST measurement of U1 -- the wrong-key
+    uniformity assumption that every partial-sums cost statement and CM-3(d)'s
+    success convention silently use -- and it has never been read as one.
+
+    WHY THIS IS NOT A DEMOLITION AND MUST NOT BE WRITTEN AS ONE. The
+    constructions may or may not isolate the correct key byte; this hypothesis
+    is SILENT on that and says so three times on purpose. What it asserts is
+    that the reported control does not measure it. Under RQ-AES-003 R4(1) the
+    campaign has already made the symmetric error once -- reading a controlled
+    null as a closure when the statistic had no power by construction -- and the
+    correction there was a re-scoping, not a retraction. The same disposition
+    applies here.
+
+  assumptions:
+    - >-
+      U1 IS THE ONLY LOAD-BEARING ASSUMPTION AND IT IS MEASURED RATHER THAN
+      ASSERTED. See HEUR-D1. If U1 is false the forced values are wrong and so
+      is part (B); the hypothesis is then falsified in the direction that
+      strengthens the audited result.
+    - >-
+      The reading of sq_null.c is correct as to the candidate-space size 2^20,
+      the 8-bit filter per structure, and the all-four-rows condition on the
+      reported count. A misreading of any of the three voids parts (A) and (B).
+      Confirming them by re-reading the committed source is stage 0.
+    - >-
+      HEUR-D2 (correct pair survives with probability 1) is USED and NOT
+      ESTABLISHED here.
+    - >-
+      No claim is made about attack6n's or attack7n's cost, utility or
+      domination status. EV-AES-005 boundary 2 and EV-AES-d8a13e OBS-B2-2 stand
+      unchanged: the r=6 mode is DOMINATED by exhaustive search over the same
+      hinted residual (69.39 s against roughly 25 s) and the r=7 arm is NOT a
+      key recovery. Every citation of this hypothesis carries both clauses
+      (CORR-20260802-003).
+
+  proof_search_map:
+    bottleneck: >-
+      The inference from "the falsified arm read {0: 16}" to "the construction
+      isolates the correct key byte". It is the single step every downstream
+      statement about the hinted constructions passes through, and if the
+      reading is forced the step carries no weight -- which leaves the isolation
+      property UNMEASURED rather than refuted.
+    baseline_embedding:
+      parameter_slice: >-
+        S = 0 must return |cand| = 2^20 on both arms; S -> infinity must return
+        16 on the true arm and 0 on the falsified arm. The closed form
+        16 + (2^20 - 16) 2^(-8S) returns 2^20 at S = 0 and 16 in the limit;
+        2^20 * 2^(-8S) returns 2^20 and 0. Both endpoints are exact.
+      reproduction_check: >-
+        EXACT INTEGER IDENTITIES against four committed measurements (4066, 32,
+        4108, 16) with stated binomial intervals, not a curve resembling a
+        curve. The check is arithmetic and costs no compute.
+    observation_collision:
+      observable: >-
+        The per-diagonal survivor histogram over the 16 (d, r) cells.
+      distinct_preimage_search: >-
+        A COLLISION IS EXHIBITED BY DERIVATION AND IS THE CONTENT OF PART (B).
+        Two ground-truth objects on opposite sides of the claimed conclusion --
+        (A') a filter that genuinely isolates the correct key byte, and (B') a
+        pure uniform 8-bit sieve with 16 planted always-surviving pairs and NO
+        isolation property whatever -- produce the SAME observable, {1: 16} and
+        {0: 16}, each with probability 1 - 2.4e-7. No additional condition in
+        the reported package separates them. THE COLLISION IS ALSO BUILDABLE:
+        the sieve surrogate is a few lines and milliseconds, and constructing it
+        turns the argument into a demonstration. The repaired observable
+        |cand| separates the pair at S = 2 by 32 against 16 on sd 4.
+    constructive_transforms:
+      - transform: stronger_compositional_invariant
+        proposed_object: >-
+          Carry the surviving POPULATION SIZE after every structure rather than
+          the final uniqueness verdict -- strictly more state than the
+          conclusion needs, which is exactly why it survives the filtering
+          recursion and retains the distributional content the verdict discards.
+        predicted_gain: >-
+          A control with a forced two-fold arm separation and a forced
+          2^-8-per-structure graded decay, replacing one with zero comparator
+          spread. NO gain to any attacker; the gain is evidential and is stated
+          as such.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable ({0: 16}) fixed and vary the forgotten structure:
+          real AES filter versus uniform sieve, corruption slot t = 0 versus
+          t = 1 versus t = 2, S = 1 versus 2 versus 3. The intrinsic invariant
+          proposed to distinguish the fibres is |cand| after each structure.
+        predicted_gain: >-
+          If |cand| also fails to distinguish them, the whole family of survivor
+          statistics is insensitive to the property named and the finding is
+          that -- reported, not hidden.
+    quantifier_order: >-
+      THE AUDITED CLAIM, WRITTEN OUT: FOR ALL falsified hints the survivor set
+      is empty, THEREFORE the construction isolates the correct byte.
+      THE COUNTER-STATEMENT, IN THE ORDER THAT MATTERS: THERE EXISTS a single
+      counting model M -- uniform 8-bit sieve, no isolation property -- such
+      that FOR ALL hints, true or falsified, FOR ALL round counts r in {6, 7},
+      FOR ALL corruption slots and FOR ALL keys, M predicts the observed
+      histogram to probability 1 - 2.4e-7. The witness M does not depend on the
+      key, the round count, the slot or the seed; it is uniform over exactly the
+      family the conclusion quantifies over. A conclusion that a uniform
+      structure-free witness reproduces is not evidence for structure. The
+      weaker reading -- FOR EACH arm THERE EXISTS some model reproducing it --
+      would be trivially satisfiable and is explicitly NOT what is claimed.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: that the reported reading of this control is forced under U1,
+        that its discriminating power is confined to the hint-consumption
+        alternative, that the pair-count statistic has measurable power, and a
+        MEASURED value of U1's departure from uniformity with a stated interval.
+        IT CANNOT CERTIFY THAT THE CONSTRUCTION FAILS TO ISOLATE THE KEY BYTE,
+        and writing that sentence would be the mirror of the error being
+        audited. It moves no exponent and produces no attack.
+      nearby_object_control: >-
+        THE NEARBY OBJECT WHERE THE HOPED-FOR CONCLUSION FAILS, AND IT MUST BE
+        BUILT RATHER THAN ARGUED: a pure pseudorandom 8-bit sieve over the same
+        2^20 candidate space with 16 planted always-surviving pairs, hashing
+        (candidate index, structure index) to 8 bits and accepting iff zero. It
+        has NO isolation property by construction. If it reproduces {1: 16} and
+        {0: 16}, the control is DEMONSTRATED insensitive to the property it
+        names. A method that cannot separate the real filter from this sieve on
+        the reported observable has not found the load-bearing structure. Cost:
+        milliseconds.
+    proof_obligations:
+      - claim: "Candidate space is 2^20 and the per-structure filter is an 8-bit equality, read from sq_null.c."
+        responsibility: interface
+      - claim: "E[|cand|] = 16 + (2^20-16) 2^(-8S) and 2^20 2^(-8S) under U1."
+        responsibility: correctness
+      - claim: "P(reported histogram = the observed one) = 1 - 2.4e-7 on each arm."
+        responsibility: correctness
+      - claim: "Every committed pair count lies within 3 binomial sd of its forced value."
+        responsibility: baseline
+      - claim: "The pseudorandom sieve reproduces both histograms in >= 19 of 20 trials."
+        responsibility: soundness
+      - claim: "Falsified-arm survivor rate is independent of the corruption slot."
+        responsibility: strictness
+      - claim: >-
+          The result is a RE-SCOPING of OBS-B2-1 and asserts nothing about
+          whether the constructions isolate the key byte.
+        responsibility: scope
+      - claim: >-
+          No cost, utility or domination statement about attack6n/attack7n is
+          altered; the r=6 mode remains dominated and r=7 remains not a recovery.
+        responsibility: scope
+    not_applicable_reason: null
+
+  rerandomization: null
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. There is NO complexity claim of any kind. This is a
+    CONTROL AUDIT of a committed measurement. It makes no cipher easier to
+    attack, moves no exponent, and its sota_delta on every attack axis -- time,
+    memory, data, queries, advice -- is exactly zero. dominated_by is recorded
+    on the source idea as unresolvable in this environment per RQ-AES-003 R5,
+    never null.
+
+  heuristic_assumptions:
+    - id: HEUR-D1
+      formal_statement: >-
+        U1. For every candidate pair (k3, k4) other than the correct one, for
+        every diagonal d in {0,1,2,3} and row r in {0,1,2,3}, and for every
+        structure, the 8-bit value
+        sum_texts ISB[(XOR_t IMIX[r][t] * ISB[C[p_t] ^ K6[p_t]]) ^ K5'] is
+        uniformly distributed on GF(2^8) and independent across distinct
+        structures and distinct candidates.
+      random_model_justification: >-
+        The standard argument -- a wrong key byte makes the partial decryption a
+        non-integral function of the text, whose 2^32-fold sum is a balanced
+        pseudorandom byte -- predicts CONCENTRATION, not exactness, says nothing
+        about the size of the fluctuation, and says nothing at all about
+        independence across candidates that share most of their partial sums.
+        The independence half is the weaker half and is stated as such. This is
+        a candidate to measure, never an authority.
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-1b80e0]
+      falsification_condition: >-
+        Any committed or newly measured `surviving_(k3,k4)_pairs` value outside
+        3 binomial standard deviations of its forced value; or a measured
+        consecutive ratio departing from 2^-8 beyond its 99 per cent binomial
+        interval; or a measured slot dependence. MEASURED AND REPORTED FIRST, in
+        every case, BEFORE any statement about the control's power.
+    - id: HEUR-D2
+      formal_statement: >-
+        The correct (k3, k4) satisfies the balance equation with probability
+        exactly 1, i.e. the level-4 integral balance holds exactly for the
+        2^32-text structure at the correct key bytes.
+      random_model_justification: >-
+        Not a random-model claim at all; it is the construction's own structural
+        premise, derived elsewhere in this campaign and USED but not established
+        here. If it is false the true-arm forced value collapses onto the
+        falsified-arm one and the two arms become indistinguishable at every S.
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-1b80e0]
+      falsification_condition: >-
+        Measured true-arm and falsified-arm S = 2 counts that do not differ by
+        approximately 16, over at least three independent target keys. The
+        committed pair (32 versus 16) is one observation and is not a
+        distribution.
+
+  structural_ingredients:
+    - description: >-
+        The candidate-bitmap population size |cand| after each structure, as a
+        sufficient statistic for the filter's sieving behaviour.
+      citation: >-
+        Elementary; derived in this record from the committed sq_null.c. No
+        external citation is asserted and none was read.
+      role: the repaired observable with non-zero comparator spread
+    - description: >-
+        Pseudorandom 8-bit sieve with planted always-surviving members, as a
+        structure-free nearby object of identical shape.
+      citation: >-
+        Constructed for this hypothesis; not taken from any source.
+      role: the nearby-object control that decides whether the reading is forced
+
+  reduction_chain:
+    core_problem: >-
+      Determine what the falsified-hint control of the r=6 and r=7 hinted
+      constructions actually measures, and supply a survivor statistic with
+      demonstrable power.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. Nothing here reduces to any statement about AES's
+      security at any round count, about any other construction, or about the
+      published frontier. A control audit has no corollaries outside its own
+      instrument, and inventing some would be the laundering RQ-AES-003 R5
+      forbids.
+
+  predictions:
+    - metric: >-
+        G1 -- true-arm S = 1 pair count (runs/TRUE6.json structure 0) against
+        the forced value
+      direction: different
+      minimum_effect: >-
+        FORCED 4111.9, binomial sd 63.99. Committed reading 4066 sits at
+        -0.72 sd. PASS iff |measured - 4111.9| < 192 (3 sd).
+    - metric: >-
+        G2 -- falsified-arm S = 2 pair count (runs/WRONG6-01.json structure 1)
+      direction: different
+      minimum_effect: >-
+        FORCED EXACTLY 16.0, sd 4.0. Committed reading 16. PASS iff
+        |measured - 16| <= 12 in every replicate.
+    - metric: >-
+        G3 -- arm separation at S = 2, true minus falsified, over at least three
+        independent target keys
+      direction: higher
+      minimum_effect: >-
+        FORCED EXACTLY +16, sd of the difference 5.66. PASS iff the mean
+        difference over >= 3 key pairs exceeds 16 - 3*5.66/sqrt(3) = 6.2 and
+        does not exceed 16 + the same. A separation near zero falsifies HEUR-D2.
+    - metric: >-
+        G4 -- probability, under the derived model, that a falsified arm reports
+        a non-empty survivor set in at least one of 16 cells
+      direction: lower
+      minimum_effect: >-
+        FORCED 2.4e-7, derived before any run. THIS IS THE HEADLINE. If the
+        correct value exceeds 1e-2 the control had real power and part (B) is
+        FALSIFIED.
+    - metric: >-
+        G5 -- graded decay: falsified-arm ratio |cand|(S+1)/|cand|(S) at
+        S = 1 -> 2 and S = 2 -> 3
+      direction: different
+      minimum_effect: >-
+        FORCED EXACTLY 2^-8 = 0.00390625 at each step, monotone. PASS iff each
+        measured ratio lies inside the 99 per cent binomial interval implied by
+        the S-th count. A ratio flat across S is the artifact tell and voids the
+        arm.
+    - metric: >-
+        G6 -- slot invariance: falsified-arm survivor rate at corruption slots
+        t = 1 and t = 2 against the committed t = 0 arms at the same S
+      direction: different
+      minimum_effect: >-
+        FORCED difference of means EXACTLY 0, tolerance 3 * sd(S). A measured
+        slot dependence falsifies U1 in a localised way and is a substantive
+        finding about the filter.
+    - metric: >-
+        G7 -- pseudorandom-sieve surrogate histograms at S = 2, with and without
+        16 planted always-surviving pairs
+      direction: different
+      minimum_effect: >-
+        PREDICTED {1: 16} and {0: 16} respectively in at least 19 of 20
+        independent trials. Failure withdraws part (B).
+
+  test_boundary:
+    instances:
+      - >-
+        The committed run outputs of TASK-20260802-9dcca8 under
+        coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/,
+        every file including the *.json.truncated ones, which are enumerated and
+        reported as unreadable rather than silently dropped.
+      - >-
+        New executions of the committed sq_null.c binary at nstruct in {1, 2, 3}
+        and corruption slots t in {0, 1, 2}, on at least three independent
+        target keys per cell.
+      - >-
+        A pseudorandom 8-bit sieve surrogate over the identical 2^20 candidate
+        space, 20 trials with and 20 without planted pairs.
+    parameters:
+      cipher: AES-128, C1 reduced-round convention
+      round_counts: [6, 7]
+      candidate_space_per_cell: 65536
+      cells: 16
+      candidate_space_total: 1048576
+      structures_S: [1, 2, 3]
+      corruption_slots_t: [0, 1, 2]
+      texts_per_structure: 4294967296
+      independent_target_keys_minimum: 3
+    implementation: >-
+      The committed sq_null.c binary, rebuilt from its committed source with the
+      recorded flags, plus a new surrogate written for this hypothesis. The
+      proposing session has no shell for the executing environment and did NOT
+      compute artifact digests; the Executor records instrument paths and
+      sha256 values at setup.
+    budget:
+      stage_0_and_1_wall_clock_seconds: 1800
+      stage_0_and_1_compute: "zero cipher work; arithmetic and file reading only"
+      stage_2_wall_clock_seconds: 600
+      stage_3_wall_clock_seconds_ceiling: 9000
+      stage_3_note: >-
+        Stage 3 is NOT authorized by this record. Only the Coordinator approves
+        execution (AGENTS.md rule 1). The committed fold times of 44.36-128.15 s
+        per 2^32 structure bound the cipher cost; the ceiling above assumes
+        sole-producer scheduling, and GOAL-AES-003's instruction that a batch
+        WAITS rather than run degraded is binding here, since BATCH-002 overran
+        by roughly 5700 s when it was not.
+
+  falsification_conditions:
+    - >-
+      F1 (ZERO COMPUTE, THE PRIMARY FALSIFIER). Any committed
+      `surviving_(k3,k4)_pairs` value lying outside a 3-sd binomial interval
+      around its forced value. U1 is refuted, parts (A)-(D) fall, and OBS-B2-1
+      is STRONGER than claimed. This costs no compute and is the cheapest
+      possible refutation.
+    - >-
+      F2. The pseudorandom-sieve surrogate failing to reproduce {1: 16} and
+      {0: 16}. Part (B) is unsupported and is withdrawn.
+    - >-
+      F3. Stage 0 finding that the filter is not an 8-bit equality per structure
+      or that the candidate space is not 2^20. The derivation is void.
+    - >-
+      F4. A measured slot dependence in the falsified-arm survivor rate. Part
+      (D) is refuted and the finding is about the filter, not the control.
+    - >-
+      F5. Measured true-arm and falsified-arm S = 2 counts not differing by
+      approximately 16 across three independent keys. HEUR-D2 is refuted and the
+      arms are indistinguishable at every S, which would make part (C)'s
+      proposed repair useless as well.
+    - >-
+      F6 (THE PLANNED NEGATIVE, PRE-REGISTERED BEFORE ANY GATE). If every gate
+      passes, the deliverable is NOT "the control is worthless". It is a
+      re-scoping statement naming exactly what OBS-B2-1 establishes (hint
+      consumption, near-total power) and exactly what it does not (key
+      isolation, near-zero power), PLUS the measured value of U1 with its
+      interval, PLUS the repaired control specification. A pass that does not
+      produce all three HAS NOT FINISHED. The negative disposition is a
+      DELIVERABLE, not a failure.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy and it may not be raised by any downstream citation.
+      Reduced-round AES-128 only, r in {6, 7}, one construction, one machine.
+      No statement about full-round or deployed AES under any outcome
+      (RQ-AES-003 R6).
+    - >-
+      NO COMPARISON TO PUBLISHED CRYPTANALYSIS IS MADE IN EITHER DIRECTION
+      (RQ-AES-003 R3, symmetric). Nothing here is claimed novel and nothing is
+      claimed known.
+    - >-
+      THIS HYPOTHESIS IS SILENT ON WHETHER THE CONSTRUCTIONS ISOLATE THE CORRECT
+      KEY BYTE. It concerns what the reported control measures. Merging the two
+      would be the error the record exists to name.
+    - >-
+      NO STATUS CHANGE to EV-AES-005, EV-AES-d33b1c, EV-AES-d8a13e,
+      DEC-20260802-9bda5c or DEC-20260802-b226fb is proposed or implied. Any
+      re-scoping is a Coordinator act on a superseding record, never an edit
+      (AGENTS.md rules 1 and 4).
+    - >-
+      INSTRUMENT FINDING, NOT MECHANISM FINDING. This bears on the CONTROL, which
+      is the instrument. It supports and weakens no hypothesis about AES.
+    - >-
+      A pass here does NOT license the r=6 construction in any way. It remains
+      DOMINATED (69.39 s against roughly 25 s over the same hinted residual,
+      with 2^33 chosen plaintexts against O(1)), and r=7 remains not a key
+      recovery.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-f2fc33.yaml
+    - ledger/questions/RQ-AES-003.yaml
+    - ledger/goals/GOAL-AES-003.yaml
+    - ledger/evidence/EV-AES-005.yaml
+    - ledger/evidence/EV-AES-d8a13e.yaml
+    - ledger/evidence/EV-AES-d33b1c.yaml
+    - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/sq_null.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/PREREGISTRATION.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/TRUE6.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/WRONG6-01.json
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; all roles run model: inherit under
+      standing basis 0137a051eb5828789eb267fa83c8278086578d4c. Recorded, never
+      silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; no
+      `python3 -m orchestration.adapter doctor --probe` was run here.

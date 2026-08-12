@@ -1,0 +1,70 @@
+# Retrieval configuration, as documentation of the defaults.
+#
+# The running values come from `crypto_kb.config.Settings` (environment
+# variables prefixed CRYPTO_KB_). This file records what those defaults are
+# and why, so a change is a decision rather than a drift.
+
+chunking:
+  # Plan Phase 5. Hierarchy is consulted before any of these; they are the
+  # bounds applied to what the hierarchy produces, never the primary split.
+  nominal_tokens: 640        # target band 500-800
+  maximum_tokens: 1200
+  minimum_tokens: 120
+  neighbour_overlap_tokens: 100   # band 80-150
+  parent_target_tokens: 3000      # band 2000-4000
+  parent_maximum_tokens: 4000
+  # Units a chunk boundary must never fall inside. Enforced in
+  # crypto_kb/chunking/equations.py.
+  atomic_units:
+    - theorem-and-proof
+    - definition
+    - algorithm
+    - complexity-derivation
+    - experiment-result-table
+    - equation-with-its-explanation
+    - negative-result-conclusion
+    - assumptions-list
+
+embeddings:
+  dense:
+    backend: hashing            # or sentence-transformers
+    model: hashing-ngram-v1
+    dimension: 512
+    # Changing either of these changes vector semantics. Bump the collection
+    # name with them -- never mutate a collection in place.
+  sparse:
+    backend: bm25
+    model: bm25-v1
+    k1: 1.2
+    b: 0.75
+    identifier_part_weight: 0.3   # see crypto_kb/text.py
+
+index:
+  collection: crypto_knowledge_v1
+  distance: cosine
+  fusion: reciprocal-rank        # not a weighted score blend; see qdrant.py
+
+retrieval:
+  default_top_k: 6
+  max_top_k: 10
+  candidate_multiplier: 4        # candidates = max(top_k * 4, min_candidates)
+  min_candidates: 20
+  max_chunks_per_source: 2
+  max_chunks_per_parent: 3
+  max_chars_per_result: 4000
+  exclude_superseded_by_default: true
+  exclude_parents_from_search: true
+  rerank:
+    backend: none                # 'cross-encoder' once evaluation justifies it
+    model: null
+
+evaluation:
+  questions: tests/retrieval_eval/questions.jsonl
+  corpus_slice: crypto_kb/eval/corpus.py
+  gates:
+    exact_identifier_recall_at_5: ">= 0.95"
+    general_recall_at_5: ">= 0.80"
+    filter_correctness: "== 1.00"
+    source_attribution: ">= 0.95"
+    duplicate_rate: "< 0.15"
+    median_context_tokens: "< 5000"

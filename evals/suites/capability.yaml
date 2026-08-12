@@ -1,0 +1,146 @@
+suite:
+  name: capability
+  description: >-
+    Can the harness actually solve things? Every task here has an answer this
+    repository can verify arithmetically -- a recovered scalar re-checked as
+    Q = kP, a decomposition recomputed independently, a claim about curve
+    order that is simply true or false. No model judges another model, and no
+    grader accepts prose.
+
+    These tasks are deliberately small enough to finish inside a bounded
+    budget. They measure whether the loop can read a problem, write code, run
+    it, and emit a checkable artifact. They do NOT measure cryptanalytic
+    ability at crypto scale, and a good score here says nothing about a
+    256-bit curve.
+
+  tasks:
+    - id: EVAL-CAP-DLOG-12
+      kind: capability
+      role: executor
+      summary: Recover a 12-bit toy discrete log and emit a certificate.
+      tags: [ecdlp, tool_use, code_execution]
+      fixtures:
+        - type: ecdlp_instance
+          seed: 11
+          field_bits: 12
+          path: work/instance.json
+      handoff:
+        objective: >-
+          Recover the scalar k with Q = kP for the curve instance in
+          work/instance.json, and write it to work/answer.json.
+        uncertainty_reduced: Whether the runtime can solve a bounded ECDLP instance.
+        inputs: [work/instance.json]
+        constraints:
+          - The harness package is available; `python3 -c "import harness.rho"` works
+            from the repository root.
+          - Do not guess. The answer is checked by recomputing kP.
+        deliverables: [work/answer.json]
+        artifact_paths: [work/answer.json]
+        completion_gate:
+          - work/answer.json contains an integer field "k".
+        inference: {policy: executor-implementation, fallback_allowed: false}
+        budget: {wall_clock_seconds: 900, memory_gb: 2, maximum_runs: 1}
+      graders:
+        - {type: file_exists, path: work/answer.json}
+        - {type: discrete_log_certificate, path: work/answer.json,
+           instance: work/instance.json}
+        - {type: stopped_cleanly}
+        - {type: no_scope_violations}
+
+    - id: EVAL-CAP-DLOG-16
+      split: held_out
+      kind: capability
+      role: executor
+      summary: The same problem one size up, to expose where the loop starts failing.
+      tags: [ecdlp, scaling]
+      fixtures:
+        - type: ecdlp_instance
+          seed: 7
+          field_bits: 16
+          path: work/instance.json
+      handoff:
+        objective: >-
+          Recover the scalar k with Q = kP for work/instance.json and write it
+          to work/answer.json.
+        uncertainty_reduced: Where the runtime's success rate begins to degrade.
+        inputs: [work/instance.json]
+        constraints:
+          - The harness package is available for import.
+          - A brute-force scan is acceptable at this size if it finishes in budget.
+        deliverables: [work/answer.json]
+        artifact_paths: [work/answer.json]
+        completion_gate:
+          - work/answer.json contains an integer field "k".
+        inference: {policy: executor-implementation, fallback_allowed: false}
+        budget: {wall_clock_seconds: 900, memory_gb: 2, maximum_runs: 1}
+      graders:
+        - {type: file_exists, path: work/answer.json}
+        - {type: discrete_log_certificate, path: work/answer.json,
+           instance: work/instance.json}
+        - {type: stopped_cleanly}
+
+    - id: EVAL-CAP-CURVE-ORDER
+      kind: capability
+      role: executor
+      summary: Compute a curve order that is checkable against a known value.
+      tags: [arithmetic, verification]
+      fixtures:
+        - type: file
+          path: work/curve.json
+          content: {p: 17, a: 2, b: 2}
+      handoff:
+        objective: >-
+          Compute the number of points on the curve y^2 = x^3 + ax + b over
+          F_p given in work/curve.json (including the point at infinity) and
+          write {"order": N} to work/order.json.
+        uncertainty_reduced: Whether the runtime performs and checks basic curve arithmetic.
+        inputs: [work/curve.json]
+        constraints:
+          - Count points; do not recall a value from memory.
+        deliverables: [work/order.json]
+        artifact_paths: [work/order.json]
+        completion_gate: ["work/order.json contains an integer field \"order\"."]
+        inference: {policy: executor-implementation, fallback_allowed: false}
+        budget: {wall_clock_seconds: 600, memory_gb: 2, maximum_runs: 1}
+      graders:
+        - {type: file_exists, path: work/order.json}
+        # y^2 = x^3 + 2x + 2 over F_17 has order 19 (the textbook example that
+        # tests/test_harness.py also pins).
+        - {type: field_equals, path: work/order.json, field: order, equals: 19}
+        - {type: stopped_cleanly}
+
+    - id: EVAL-CAP-VERIFY-SCRIPT
+      split: held_out
+      kind: capability
+      role: executor
+      summary: Write a reusable verifier, not just an answer.
+      tags: [code_quality, reproducibility]
+      fixtures:
+        - type: ecdlp_instance
+          seed: 3
+          field_bits: 10
+          path: work/instance.json
+      handoff:
+        objective: >-
+          Write work/verify.py which reads work/instance.json and work/answer.json,
+          exits 0 when the answer satisfies Q = kP, and exits non-zero otherwise.
+          Also produce work/answer.json with the correct k.
+        uncertainty_reduced: >-
+          Whether the runtime produces independently re-runnable verification
+          rather than an unsupported assertion.
+        inputs: [work/instance.json]
+        constraints:
+          - work/verify.py must exit non-zero for a wrong answer, not print and exit 0.
+        deliverables: [work/answer.json, work/verify.py]
+        artifact_paths: [work/answer.json, work/verify.py]
+        completion_gate:
+          - "`python3 work/verify.py` exits 0 with the correct answer in place."
+        inference: {policy: executor-implementation, fallback_allowed: false}
+        budget: {wall_clock_seconds: 900, memory_gb: 2, maximum_runs: 1}
+      graders:
+        - {type: file_exists, path: work/verify.py}
+        - {type: discrete_log_certificate, path: work/answer.json,
+           instance: work/instance.json}
+        - {type: command_succeeds, command: [python3, work/verify.py],
+           timeout_seconds: 120}
+        - {type: stopped_cleanly}

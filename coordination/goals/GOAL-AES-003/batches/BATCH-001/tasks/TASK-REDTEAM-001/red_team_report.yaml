@@ -1,0 +1,748 @@
+red_team_report:
+  task_id: 'TASK-20260802-908'
+  role: 'red-team'
+  goal_id: 'GOAL-AES-003'
+  batch_id: 'BATCH-001'
+  question_id: 'RQ-AES-003'
+  reviewed_snapshot_commit: '54ee869b'
+  snapshot_receipt: 'coordination/goals/GOAL-AES-003/batches/BATCH-001/archives/TASK-20260802-906/snapshot-receipt.json'
+  reviewed_receipts:
+    - 'coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/receipts/TASK-20260802-902/receipt.json'
+    - 'coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/receipts/TASK-20260802-903/receipt.json'
+    - 'coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/receipts/TASK-20260802-904/receipt.json'
+    - 'coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/receipts/TASK-20260802-905/receipt.json'
+  status: 'complete within budget. No measurement was re-run; this is a paper-and-source audit of the cost model, the omitted terms, the controls and the claim tiers. Source read: attack/sq.c, count5/count5.c, count5/raw.jsonl, count5/commands.txt, count5/PREREGISTRATION.md, ladder/ladder.c, ladder/LADDER-RESULT.json, newdist/candidates.yaml, yoyo6/yoyo6.c and the yoyo6/yoyo5 result JSONs, attack/*.json, scaled7/RESULTS.json.'
+  not_checked:
+    - 'gate-rr78 driver/analyze source beyond the receipt summary; the gate is VOID in-package and I did not re-derive the incompatibility.'
+    - 'scaled7 / MINI-AES-64 beyond the top of RESULTS.json; the ANALOGY_LIMIT wording is adequate and I did not audit the analogue itself.'
+    - 'certify.py line by line; certificate re-verification is the validator card (TASK-20260802-907), not mine.'
+    - 'candidates.yaml beyond CAND-ND-1 and the derivations D1-D11.'
+
+  # =====================================================================
+  # ITEM 1. THE MEASURED COST COMPARISON (r=5 key recovery vs REF-A)
+  # =====================================================================
+  cost_audit_r5:
+    reported_number: '25.66 s wall clock (attack/attack5_out.json, field "seconds")'
+    what_the_number_actually_covers: >-
+      Read from sq.c mode_attack5: t0 is taken AFTER ni_key_expand and srand and
+      BEFORE the structure loop; t1 is taken AFTER the last structure and BEFORE
+      key_invert. The interval therefore includes (a) chosen-plaintext
+      generation, (b) all 2^33 five-round AES-NI encryptions, (c) parity
+      accumulation, and (d) all 1,056,768 partial decryptions of the candidate
+      sieve. It is the whole solving pipeline including data generation, not
+      only the solving phase. 25.66 = 12.70 + 12.96, the two per-structure
+      times, so the sieve cost is inside rounding.
+    terms_OUTSIDE_the_25_66_s:
+      - id: 'C1'
+        term: 'compilation of sq.c'
+        magnitude: 'order 1 s, once'
+        charged: false
+      - id: 'C2'
+        term: 'ni_key_expand + S-box/tables + srand'
+        magnitude: 'microseconds'
+        charged: false
+      - id: 'C3'
+        term: 'key_invert (rk_last -> master), taken after t1'
+        magnitude: 'microseconds'
+        charged: false
+      - id: 'C4'
+        term: 'target (plaintext,ciphertext) pair generation via the separate `sq targets` invocation, producing targets_r5.json'
+        magnitude: 'milliseconds'
+        charged: false
+      - id: 'C5'
+        term: 'THE CERTIFICATE CHECK ITSELF. certify.py under pycryptodome on 4 blocks, plus interpreter startup.'
+        magnitude: 'order 0.5 s'
+        charged: false
+        note: 'This is the term the harness cares about most and it is not in any reported figure. It is still negligible at this scale, but it must be named, not assumed.'
+      - id: 'C6'
+        term: 'THREAD COUNT AND MACHINE. The run used 4 threads (visible only in attack/INDEPENDENT-VERIFICATION.json command line, `./sq attack5 ... 4`). Receipt 902 says "on the stated machine" but STATES NO MACHINE: no CPU model, no core count, no clock, no memory, no OS, no compiler flags anywhere in receipt 902.'
+        magnitude: 'not a time term; it is a missing denominator'
+        charged: false
+        severity_pointer: 'DEF-02'
+      - id: 'C7'
+        term: 'CPU-seconds versus wall-clock. 25.66 s wall on 4 threads is approximately 102.6 CPU-s. Only wall clock is reported. A comparison against REF-A must fix one unit; the package fixes none.'
+        magnitude: '4x'
+        charged: false
+      - id: 'C8'
+        term: 'ORACLE QUERY / DATA TRANSPORT. The 2^33 chosen plaintexts are never materialised and never leave the process: sq.c generates the plaintext in a register, encrypts it with AES-NI under the target key in the same loop, and accumulates parity. The attacker plays the oracle. In a real chosen-plaintext model the same attack costs 2^33 oracle queries, i.e. 2^33 * 16 B = 128 GiB of plaintext submitted and 128 GiB of ciphertext returned. That transport is charged at exactly zero here.'
+        magnitude: 'unbounded in the query model; zero as measured'
+        charged: false
+        severity_pointer: 'DEF-01'
+      - id: 'C9'
+        term: 'MEMORY. Audited by inspection of sq.c: the working set is per-thread parb[16][256] = 4 KiB plus a 16x4 uint64 fold, plus cand[16][256] = 4 KiB in the driver. Total well under 1 MiB, L1/L2 resident, with no 2^33-sized array anywhere. There is no memory term to add back and no time-memory tradeoff to charge.'
+        magnitude: '< 1 MiB'
+        charged: false
+        note: 'This is the one omitted term that is genuinely, verifiably negligible, and the receipt should say so rather than leave it silent. Contrast count5, which mmaps 4 GiB (see cost_audit_count5).'
+      - id: 'C10'
+        term: 'PRECOMPUTATION. None. attack5 builds no table beyond the S-box; build_gm() is called only in modes 6 and 7. There is no precomputation to amortise and no eliminated search dimension whose cost went uncharged.'
+        magnitude: 'zero'
+        charged: false
+    honest_end_to_end_total: >-
+      Adding back every term above: at most 30 s wall clock, at most about 110
+      CPU-seconds on 4 threads, under 1 MiB working set, 2^33 chosen plaintexts
+      generated in-process, one independent-implementation certificate check.
+      Call it 1.2x the reported 25.66 s. Nothing found in the audit is larger
+      than a constant factor.
+    REF_A_charged_at_the_same_rate: >-
+      The measured throughput is 2^33 / 25.66 = 3.35e8 five-round AES-NI
+      encryptions per second on this machine at 4 threads. Charging REF-A one
+      five-round encryption plus a comparison per trial at that same measured
+      rate gives 2^128 / 3.35e8 = 1.02e30 s = 3.2e22 years. This is arithmetic
+      from the key length and the package's own measured throughput; no external
+      figure enters.
+    ruling: >-
+      THE COMPARISON HOLDS, with about 28 orders of magnitude of headroom. The
+      honest total (<=30 s wall) is roughly 3.4e28 times cheaper than REF-A
+      charged at the package's own measured per-trial rate. Multiplying the
+      attack side by 1000x for every uncharged term would still leave 25 orders
+      of magnitude. RQ-AES-003 BT-1 is met at r=5 on the tested machine, key
+      size, round convention and solver. Two things must nevertheless be stated
+      alongside it and currently are not: the comparison is in wall-clock on an
+      unnamed 4-thread machine, and the attack's 2^33 chosen plaintexts are
+      charged at zero transport because the process is its own oracle.
+    where_the_cost_comparison_does_NOT_hold:
+      - claim: 'the r=6 hinted run'
+        finding: >-
+          attack/INDEPENDENT-VERIFICATION.json states, in the producer's own
+          words, that exhaustive search over the SAME restricted residual would
+          take about 25 s against the attack's 69 s. That is a measured LOSS to
+          a generic baseline the campaign can implement. Receipt 902's r6 block
+          does not contain it, contains no dominated_by field, and its
+          cost_comparison block discusses r=5 only. Under AGENTS rule 5 and the
+          Pareto-honesty requirement, an r=6 result promoted into EV-AES-005
+          without that line would be a fabricated null on the dominated_by axis.
+        severity_pointer: 'DEF-03'
+      - claim: 'the r=7 run'
+        finding: >-
+          No baseline is stated at all, and the correct one is free. See
+          item_6_the_one_that_would_hurt_most and DEF-01.
+    cost_audit_count5:
+      finding: >-
+        count5.c mmaps 1<<32 bytes = 4 GiB of counter array with MADV_HUGEPAGE,
+        4 threads, and each full-coset arm costs 355-517 s (count5/raw.jsonl).
+        Fifteen arms were run, roughly 1.7 hours of wall clock and a 4 GiB
+        resident working set. Receipt 903 reports NEITHER the memory nor the
+        time for any arm. The r=4 bijection and the r=5 residue are the two
+        claims that rest on this engine, and neither is costed anywhere in the
+        package. This matters concretely for the priority control: adding 7 more
+        matched-null arms costs about 1 hour and 4 GiB, which is affordable, and
+        that fact is invisible from the receipts.
+      severity_pointer: 'DEF-04'
+    cost_audit_unreported_positive:
+      finding: >-
+        attack/compare6_out.json contains the package's only measured
+        self-implemented baseline comparison: naive tail 19.191 s versus
+        partial-sums tail 0.100 s, measured_speedup 191.89, op_count_ratio
+        85.60, same_candidate_set 1, on identical inputs. That is exactly the
+        shape RQ-AES-003 BT-2 asks for, and it appears in NO receipt. Recorded
+        here so the archiver does not lose it; it is a legitimate `measured`
+        result about the partial-sum tail and it is not a claim about AES.
+
+  # =====================================================================
+  # ITEM 2. THE REF-A / LITERATURE BOUNDARY (RQ-AES-003 R3)
+  # =====================================================================
+  ref_a_literature_boundary_audit:
+    method: 'read every place the package states a comparison, a superlative, a novelty status, or a "what this is not", and asked whether a reader who knows nothing about published cryptanalysis would be led to import one.'
+    verdict: 'MOSTLY RESPECTED, WITH ONE OUTRIGHT BREACH AND ONE STRUCTURAL RISK.'
+    breach:
+      id: 'DEF-05'
+      where: 'coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/attack/INDEPENDENT-VERIFICATION.json, field what_this_does_NOT_establish[0]'
+      text_as_written: '"Novelty. The integral/square attack on 5-round AES is a standard technique and this is very probably a rediscovery."'
+      why_this_is_a_breach: >-
+        DEC-20260731-019 ruling 3 is symmetric: an unverified recollection of
+        the literature may be used neither to promote NOR to dismiss. The
+        sentence asserts, as flat fact and from recollection, both that the
+        technique is standard and that this work is very probably a
+        rediscovery. That it is deployed to DEFLATE the result does not make it
+        permitted; ruling 3 exists precisely to stop the deflating direction
+        being treated as the safe one. The trailing clause ("recorded as
+        unadjudicable rather than as either") does not repair the two assertions
+        that precede it.
+      the_correct_form_is_already_in_this_package: >-
+        newdist/candidates.yaml CAND-ND-1 shows the compliant handling:
+        novelty_status "unverified", novelty_note tagged
+        "unverified-from-memory, recall confidence MEDIUM-HIGH, used neither to
+        promote nor to dismiss", plus an explicit statement that the recollection
+        is not load-bearing because D1-D6 are derived in-session. The package is
+        internally inconsistent in applying its own rule.
+      required_repair: >-
+        EV-AES-005 must say "this package does not establish novelty for any
+        result in it, and no primary source is reachable here", and must not
+        repeat or paraphrase the standard/rediscovery assertion in either
+        direction.
+    structural_risk_by_omission:
+      id: 'DEF-06'
+      finding: >-
+        The "no literature comparison" disclaimer is present in receipt 902's
+        cost_comparison, in receipt 904's r6 block, and in ladder/LADDER-RESULT
+        WHAT_THIS_IS_NOT. It is ABSENT from receipt 903 entirely - the r=4 exact
+        bijection and the r=5 mod-8 residue, which are the package's two most
+        striking-sounding distinguisher statements, carry no novelty or
+        literature boundary at all. Uneven disclaimer coverage is exactly the
+        mechanism by which a package becomes dishonest without any single
+        sentence being false: a reader meets "over the FULL 2^32 coset the
+        projection is a bijection" with no boundary attached and supplies the
+        missing comparison themselves.
+      required_repair: 'the boundary statement attaches to EVERY claim in EV-AES-005, not to the ones that happen to have inherited one.'
+    implicature_check_on_the_r5_headline:
+      finding: >-
+        "A working, executed, certified key recovery on 5-round AES-128 ... in
+        ~27 seconds on 4 cores" is a true, self-contained, definitionally
+        anchored statement, and REF-A is correctly characterised throughout as
+        following from key length and checkable offline. I find no phrasing in
+        the four receipts that smuggles a published-cryptanalysis comparison
+        into the REF-A comparison itself. The REF-A framing is clean.
+    implicature_check_on_the_death_round:
+      finding: >-
+        Receipt 904's "measured_death_round: between r=5 and r=6 FOR THIS
+        STATISTIC AS THIS CAMPAIGN MEASURED IT" plus its explicit not_a_comparison
+        clause is the best-scoped sentence in the package. No objection.
+
+  # =====================================================================
+  # ITEM 3 + 4. PER-CLAIM TIER RULING AND CHEAPEST FALSIFYING CONTROL
+  # =====================================================================
+  claims:
+
+    - id: 'RT-C01'
+      claim: 'certified 5-round AES-128 key recovery, unique candidate per byte, master key recovered and certified against an independent implementation; 2^33 chosen plaintexts, 25.66 s'
+      source: 'receipt 902 r5_key_recovery; attack/attack5_out.json, rerun_attack5.json, k2_attack5.json'
+      assigned_tier: 'measured'
+      verdict: 'TIER UPHELD. This is the strongest claim in the package and the only one with a solution certificate.'
+      scope_that_must_travel_with_it: 'AES-128, r=5, the pinned final-round-drops-MixColumns convention, single key, chosen plaintext, one unnamed 4-thread machine, wall clock, in-process oracle.'
+      cheapest_falsifying_control: 'run the identical binary at r=10 (a permutation stand-in) and require it to FAIL to produce a unique key.'
+      control_ran: true
+      control_result: 'attack/ctl_prp10_out.json: unique 0, and three bytes have EMPTY candidate sets (survivors 0,0,0). The control is rejected. This is what makes the r=5 uniqueness interpretable.'
+      second_cheapest_control: 'run on a key the executor never saw.'
+      second_control_ran: true
+      second_control_result: 'attack/INDEPENDENT-VERIFICATION.json, key 8b0e2b41..., exact match, 27.14 s, certificate at full 10 rounds under pycryptodome. See RT-C02 for its independence status.'
+      residual_objection: 'none that threatens the claim. The uncharged terms are constant factors (see cost_audit_r5) and the certificate is at 10 rounds in the corroborating run, which pins the master key rather than a round-equivalent key.'
+
+    - id: 'RT-C02'
+      claim: 'the r=5 recovery works on a freshly generated key the producer never saw'
+      source: 'receipt 902 r5_on_a_key_the_producer_never_saw'
+      assigned_tier: 'measured'
+      verdict: 'TIER UPHELD FOR THE MEASUREMENT, BUT ITS SUPPORT IS SINGLE-SOURCE. Only the dispatching session ran it. Under standing basis 0137a051 that is session independence and code-path independence, not model independence.'
+      cheapest_falsifying_control: 'a third party runs the same binary on its own fresh key.'
+      control_ran: false
+      note: 'the receipt already labels this CORROBORATION and not validation. No objection to the labelling; it must survive into EV-AES-005 verbatim.'
+
+    - id: 'RT-C03'
+      claim: 'r=6: no unique key; with 3-of-4 K6-prime hint bytes per diagonal, survivors remain on one structure; 74.03 s'
+      source: 'receipt 902 r6; attack/attack6_out.json'
+      assigned_tier: 'measured'
+      verdict: 'TIER NOT SUPPORTED AS STATED. Two defects. (1) attack/attack6b_out.json, same bases, same hint budget, reports unique:1 and recovered_master 2b7e1516...28aed2a6... i.e. the CORRECT FIPS-197 key, in 69.39 s. The receipt reports the failing run as the r=6 outcome and does not mention the succeeding one, and no artifact designates which run is authoritative or what changed between attack6 and attack6b (attack6 also emits a WRONG master, 2bbf6e6c...). (2) No dominated_by: the producer measured that exhaustive search over the same restricted residual costs about 25 s against this run 69 s, so the r=6 hinted attack LOSES to a generic baseline, and receipt 902 does not say so.'
+      required_downgrade: 'record as: two discrepant r=6 runs exist; the succeeding one (attack6b, unique:1, 69.39 s) is DOMINATED by ~25 s exhaustive search over the same hinted residual. Not a positive r=6 result under RQ-AES-003 BT-1 or BT-2.'
+      cheapest_falsifying_control: 'a WRONG-HINT NULL: rerun attack6 with the three hint bytes per diagonal taken from an unrelated random key. If the filter still returns a unique surviving byte, the uniqueness is a property of the filter, not evidence about r=6.'
+      control_ran: false
+      note: 'this control was not flagged anywhere in the package and it is the cheapest thing on this whole card: one rerun, ~70 s.'
+
+    - id: 'RT-C04'
+      claim: 'r=7 GIVEN full K7 plus 3-of-4 K6-prime bytes per diagonal, the filter isolates the four remaining K6-prime bytes correctly (8034b976), 108.39 s, 2^33 chosen plaintexts'
+      source: 'receipt 902 r7; attack/attack7_out.json'
+      assigned_tier: 'measured'
+      verdict: >-
+        TIER UPHELD ONLY FOR THE NARROW READING "the level-4 balance filter
+        still isolates a unique correct byte when one round is peeled with a
+        given key", AND THE PACKAGE MUST SAY WHY. Reading sq.c mode_attack7:
+        argv[2] is the MASTER KEY. The program expands it, computes
+        K6' = MC^{-1}(K6) from rk[rounds-1], slices the hints out of k6p, and
+        sets truth[d] = k6p[DIAGP[d][3]] from the SAME array. The AES-128 key
+        schedule is invertible from any single round key, so "given full K7"
+        is "given the master key". The four bytes reported as recovered are a
+        closed-form function of the program's own input, already resident in
+        memory before the search starts, computable in nanoseconds.
+      what_the_receipt_says: 'it says "THIS_IS_NOT_A_7_ROUND_BREAK ... it is GIVEN the entire last round key ... it is NOT a 7-round key recovery." That is true and it is good practice. It does NOT say that K7 determines the master key, nor that the honest baseline for the reported quantity is zero work.'
+      required_addition: 'a dominated_by stating that the reported recovery is dominated by free key-schedule arithmetic, and that the 108.39 s and 2^33 chosen plaintexts buy information about the FILTER, not about the key.'
+      cheapest_falsifying_control: 'the same WRONG-HINT NULL as RT-C03: supply K7 from the true key but the 3-of-4 hint bytes from an unrelated key, or vice versa, and check whether unique_per_diagonal still reads 1. If it does, the uniqueness is an artifact of the filter geometry and the r=7 reading carries no information at all.'
+      control_ran: false
+      severity_pointer: 'DEF-01'
+
+    - id: 'RT-C05'
+      claim: 'random-permutation control for the key recovery: r=10 AES gives no unique key'
+      source: 'receipt 902 random_permutation_control; attack/ctl_prp10_out.json'
+      assigned_tier: 'measured'
+      verdict: 'TIER UPHELD, LABEL WRONG. The null object is 10-round AES under a related key schedule, not a random permutation. The receipt does say "r=10 AES as a stand-in permutation", which is honest; EV-AES-005 must not compress that to "random-permutation control".'
+      systemic_objection: 'SEE cross_cutting_objections.shared_null_object. Every null in this batch is 10-round AES.'
+      cheapest_falsifying_control: 'n/a - this IS a control.'
+      control_ran: true
+
+    - id: 'RT-C06'
+      claim: 'r=4: over the FULL 2^32 diagonal coset the inverse-ShiftRows-diagonal projection is an exact bijection - 0 colliding pairs, every bucket occupied exactly once'
+      source: 'receipt 903 r4_exact_bijection; count5/raw.jsonl arm aes_r4; corroborated at N=2^20 and 2^24 by ladder/LADDER-RESULT.json'
+      assigned_tier: 'measured'
+      verdict: >-
+        TIER UPHELD FOR THE MEASUREMENT AND ARGUABLY TOO LOW FOR THE STATEMENT,
+        WHILE THE ATTRIBUTION AROUND IT IS OVERSTATED. Two separate rulings.
+        (a) The measurement is exhaustive over the tested coset and has no
+        detection floor; `measured` is right. Scope it honestly: ONE key at
+        j0=3 at N=2^32 (count5/raw.jsonl has exactly one aes_r4 arm), plus 12
+        keys at N=2^20 and 3 keys at N=2^24 from the ladder.
+        (b) newdist/candidates.yaml derivations D1-D5 PROVE the statement:
+        differences in D_0 give a round-1 difference in column 0 (D1); D3 makes
+        at least one column of Delta_2 fully active; D4 then shows no column of
+        Delta_3 can be zero; D5 transports that through a bytewise-bijective
+        SubBytes and ShiftRows to the CW[j] projection at r=4. If that argument
+        is sound, this is a theorem, not a measurement, and the tier for the
+        MATHEMATICAL statement could rise above `measured` once the derivation
+        is checked.
+      the_attribution_objection: >-
+        D4 and D5 use only three facts: SubBytes is a bytewise bijection,
+        MixColumns has no zero entry, and the ShiftRows geometry. Nothing about
+        the AES S-box and nothing about the specific MDS matrix. The package's
+        own derivation therefore ALREADY answers the question receipt 905 calls
+        untested: the r=4 zero is a fact about the round STRUCTURE of a large
+        class of byte-oriented SPNs, not about AES-128. Calling it "a
+        deterministic 4-round distinguisher for AES-128" (LADDER-RESULT
+        WHAT_THIS_IS) is therefore an overstatement that the package's own
+        derivation contradicts.
+      cheapest_falsifying_control: 'COMPONENT NULL: recompile with a random bijective S-box (and separately with a random MDS-free-of-zeros MixColumns) and rerun the ladder at r=4, N=2^20. Cost: one recompile, seconds. D4/D5 predict 0 collisions in BOTH cases; if the recompile instead shows collisions, the implementation does not realise the derivation and the whole ladder is suspect.'
+      control_ran: false
+      note: 'the cheapest control here is also a PREDICTED control - the package can say in advance what it should read, which is what makes it worth one minute of compute.'
+
+    - id: 'RT-C07'
+      claim: 'the r=5 pair count reads n = 0 mod 8'
+      source: 'receipt 903 r5_residue; count5/raw.jsonl'
+      assigned_tier: 'analyzed'
+      verdict: >-
+        TIER UPHELD, BUT THE RECEIPT MISSTATES ITS OWN EVIDENCE IN BOTH
+        DIRECTIONS AND BOTH MISSTATEMENTS MUST BE CORRECTED BEFORE THIS REACHES
+        EV-AES-005.
+      misstatement_1_understates_the_positive: >-
+        The receipt says the residue rests on "a small number of trials" with
+        "a 1-in-8 per-trial probability". count5/raw.jsonl contains SEVEN aes_r5
+        full-coset arms (j0 = 0,3,2,2,1,2,3), and count5/commands.txt shows each
+        was run under a DIFFERENT round-key schedule and base. All seven read
+        n_mod8 = 0. An eighth arm, null_indep_roundkeys at r=5, also reads 0.
+        Under the uniform null over seven independent trials that is 8^-7 =
+        4.8e-7, not 1/8.
+      misstatement_2_overstates_the_gap: >-
+        The receipt lists "MATCHED RANDOM-PERMUTATION NULL on the mod-8
+        statistic" under controls_NOT_run and calls it THE LOAD-BEARING GAP.
+        The raw file contains arm null_randperm_aes10 (r=10, j0=2, same
+        statistic, same N=2^32) reading n_mod8 = 2. The control WAS run, once,
+        and read nonzero. The honest statement is "run at n=1, read 2 mod 8,
+        underpowered", not "not run". A control reported as absent when the raw
+        artifact contains it is a discrepancy between the claim statement and
+        the evidence under AGENTS rule 5, even though here it errs toward
+        caution.
+      what_the_quantity_should_do: >-
+        The parameter that should destroy this is r. It does: r=6 reads 7, 4
+        (producer) and 0 (dispatcher), consistent with uniform; the sibling
+        forward-diagonal projection at r=5 reads 2; the r=10 arm reads 2. This
+        is decay in the right place, which is the opposite of the flat-when-it-
+        should-decay artifact tell. That argues the residue is not a pure
+        counting artifact - but one null trial cannot settle it.
+      cheapest_falsifying_control: 'SEVEN MORE null_randperm_aes10 arms at N=2^32 under seven fresh key schedules, matched j0 to the AES arms. If the residues are uniform, the r=5 reading stands at p < 1e-6 and should be promoted; if two or more read 0, the residue is a counting artifact and the claim collapses. Cost, from raw.jsonl timings: ~500 s and 4 GiB each, about 1 hour of wall clock in total.'
+      control_ran: 'PARTIALLY - one arm of the seven-arm control exists and read 2.'
+      note: 'this remains the single highest-value unrun measurement in the batch, exactly as the queue objective says. The correction is that it is a POWER gap, not an existence gap.'
+
+    - id: 'RT-C08'
+      claim: 'r=6 mod-8 readings 7, 4, 0 are consistent with the uniform null; the 0 is a coincidence, not the property surviving a round deeper'
+      source: 'receipt 903 r6; count5/raw.jsonl; DISPATCHER-r6-ADDENDUM.json'
+      assigned_tier: 'measured'
+      verdict: 'TIER UPHELD AND THE RULING IS CORRECT. This is the best piece of self-discipline in the package: the reading that would have been the campaign headline is recorded as a near-miss. No objection. Note only that the third reading is dispatching-session-only.'
+      cheapest_falsifying_control: 'more r=6 arms; if they cluster on 0, the ruling is wrong.'
+      control_ran: false
+      note: 'not urgent. The r=5 null (RT-C07) dominates it in value.'
+
+    - id: 'RT-C09'
+      claim: 'the aes_r3 arm at N=65280 is an invalid measurement (V4 counter overflow), not a null result'
+      source: 'receipt 903 invalid_measurements; count5/raw.jsonl shows max_occ 255 and overflow true'
+      assigned_tier: 'measured (as an invalidity)'
+      verdict: 'TIER UPHELD. Correctly recorded as invalid rather than dropped, consistent with AGENTS rule 3. No objection.'
+      cheapest_falsifying_control: 'n/a'
+      control_ran: 'n/a'
+
+    - id: 'RT-C10'
+      claim: 'yoyo-style adaptive distinguisher at r=5: 48 observed hits against a PRP-null expectation of 4.0, excess factor 12, Poisson tail p = 1.3e-34'
+      source: 'receipt 904 r5; yoyo6/r5_fresh.json, r5_corr.json; yoyo5/DISPATCHER-REPLICATION.json'
+      assigned_tier: 'measured'
+      verdict: >-
+        SPLIT RULING. The HIT COUNT is `measured` and the tier is upheld. The
+        P-VALUE IS NOT `measured` AND SHOULD BE `analyzed`: the null expectation
+        4.0 and the tail 1.3e-34 come from the analytic model in
+        yoyo6/NULL_PROBS.json (W_ge_1 p = 9.313e-10 = 2^-30), not from an
+        empirical null at matched N. That is a claim-tier error the coordinator
+        did not flag, and it is the standard way an extreme p-value becomes an
+        instrument artifact.
+      unreported_control: >-
+        yoyo6/iter5_prp.json EXISTS and is not in receipt 904 at all: label
+        prp_r5_G8, N=2^30, hits1 = 0 against an analytic expectation of 1.0,
+        while yoyo6/r5_fresh.json at HALF that N (2^29) reads hits1 = 10. That
+        is the matched-stand-in control RQ-AES-003 explicitly demands for a
+        distinguisher, it was run, it separates cleanly, and the receipt omits
+        it. Omitting a control that PASSED is still a reporting defect, because
+        the archiver cannot credit what the receipt does not carry.
+      cheapest_falsifying_control: 'compute the empirical null from the r=10 stand-in arm at the SAME N as the AES arm and re-derive the tail from it instead of from NULL_PROBS.json. Zero new compute if a matched-N prp arm exists; one arm otherwise. Second cheapest: check whether the hits are spread across distinct structures or clustered - clustering breaks the Poisson independence the tail assumes.'
+      control_ran: 'PARTIALLY - a prp arm exists at N=2^30, but the reported p-value is analytic and the clustering check is not in any artifact.'
+
+    - id: 'RT-C11'
+      claim: 'no usable yoyo signal at r=6 (excess 1.25); the measured death round for this statistic is between r=5 and r=6'
+      source: 'receipt 904 r6; yoyo6/r6_main.json (N=2^31, hits1 = 2 against an analytic expectation of 2.0)'
+      assigned_tier: 'measured'
+      verdict: 'TIER UPHELD, AND THE SCOPING SENTENCE IS EXEMPLARY. One objection: a null result at r=6 needs a power statement. With an expectation of 2.0 at N=2^31, this arm could not have detected an excess factor below roughly 2-3. "No usable signal" is therefore "no signal of size >= X", and X is not stated.'
+      cheapest_falsifying_control: 'a positive-control injection: run r=6 with a deliberately weakened round (e.g. identity MixColumns in one round) and confirm the instrument would have seen a signal of the size being excluded.'
+      control_ran: false
+
+    - id: 'RT-C12'
+      claim: 'structure-destroyed control removes the yoyo signal (excess 0.25)'
+      source: 'receipt 904 structure_destroyed_control'
+      assigned_tier: 'measured'
+      verdict: 'TIER UPHELD as a direction, UNDERPOWERED as a number. Excess 0.25 against an expectation of 4 means roughly 1 hit observed. Neither N nor the raw hit count is in the receipt.'
+      cheapest_falsifying_control: 'n/a - this IS a control; it needs N and the hit count printed, not a new measurement.'
+      control_ran: true
+
+    - id: 'RT-C13'
+      claim: 'at r=3 the yoyo statistic saturates completely (every trial a hit)'
+      source: 'receipt 904 r3_saturation'
+      assigned_tier: 'measured'
+      verdict: 'TIER UPHELD and correctly reported as saturation carrying no distinguishing information. No objection.'
+      cheapest_falsifying_control: 'n/a'
+      control_ran: 'n/a'
+
+    - id: 'RT-C14'
+      claim: 'CAND-ND-1 projection-multiplicity ladder: pairs 0 / 2146959360 / 0 / 112 / 139 / 125 at r = 2,3,4,5,6,10 against a null of 128 at N=2^20; r=4 zero on 12 of 12 keys; 0 at N=2^24 against a null of 32768'
+      source: 'receipt 905 ladder_CAND_ND_1; ladder/LADDER-RESULT.json, ladder/ladder.c'
+      assigned_tier: 'measured'
+      verdict: >-
+        TIER UPHELD FOR THE NUMBERS. THREE OBJECTIONS TO WHAT IS BUILT ON THEM.
+      objection_1_double_counting: >-
+        THE LADDER r=4 ZERO AND THE count5 r=4 BIJECTION ARE THE SAME STATISTIC.
+        Verified in source: count5.c with pimode "id" builds the shuffle index
+        4*((j0-t) mod 4)+t and varies plaintext bytes {0,5,10,15}; ladder.c
+        projects onto CW = the inverse-ShiftRows diagonal over a D_0-difference
+        set. Same object, same projection family; the ladder is a strict
+        subsample (N=2^20/2^24) of count5's exhaustive N=2^32. They are TWO
+        IMPLEMENTATIONS OF ONE PROPERTY, which is a valuable implementation
+        cross-check and must be credited as one, but EV-AES-005 must not list
+        them as two independent findings with two independent strengths.
+      objection_2_mislabelled_quantity: >-
+        LADDER-RESULT.json DATA_COMPLEXITY reports
+        distinguishing_advantage 2^-11.5 / 2^-46.2 / 2^-184.7 at N =
+        2^18/2^19/2^20. Those numbers are e^-8, e^-32, e^-128, i.e. the
+        FALSE-POSITIVE probability of the stand-in null, not an advantage. The
+        advantage is 1 - 2^-46. Calling a false-positive rate an "advantage"
+        inverts the reading of the headline sentence "~2^19 chosen plaintexts
+        give a 2^-46 distinguisher".
+      objection_3_a_recorded_prediction_failure_that_is_actually_a_success: >-
+        LADDER-RESULT reports "two of four predictions are off": predicted
+        saturation at r=2 but measured 0 collisions, and predicted ~2^24 excess
+        at r=3 but measured ~2^31. Both are explained by the package's own
+        derivations. D6 predicts saturation at r=2 "for every j nonzero", and
+        the ladder measures j=0, for which column 0 of Delta_1 is exactly the
+        active column, so injectivity is what D6 predicts. D7 says the r=3
+        projection takes at most 256 distinct values over any subset of the
+        coset, and 256 * C(2^20/256, 2) = 2146959360, which is the measured
+        value EXACTLY. Both "misses" are hits. The derivation was never re-read
+        against the measurement. Recorded here because a package that scores
+        itself wrong in the pessimistic direction is still a package that did
+        not close the loop.
+      cheapest_falsifying_control: 'the random-bijective-S-box component null of RT-C06, plus recomputing 256*C(N/256,2) at a second N to confirm D7.'
+      control_ran: false
+      independence: 'ENTIRELY dispatching-session, single implementation, for every arm except r=4 (which count5 corroborates). See item_5.'
+
+    - id: 'RT-C15'
+      claim: 'GATE-RR78-1 is VOID, not negative: it paired a MixColumns-less final round with an output space valid only when the final round keeps MixColumns'
+      source: 'receipt 905 gate_RR78; count5/PREREGISTRATION.md 2.1'
+      assigned_tier: 'analyzed'
+      verdict: >-
+        TIER UPHELD AND THIS IS THE MODEL ENTRY OF THE BATCH. A gate built on an
+        algebraically incompatible pairing produces evidence in neither
+        direction, and the package says exactly that instead of banking a
+        negative. This is the correct closure standard under
+        docs/inventor-protocol.md section 4: named obstruction, argument,
+        forward guidance. No objection.
+      minor_defect: 'gate-rr78/chain.log is bound by receipt 905 at sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, which is the hash of the EMPTY string. The file is empty. Binding an empty file by hash is harmless but the archiver should not treat it as content. attack/attack7_err.txt is likewise empty (correctly, it is a stderr capture).'
+      cheapest_falsifying_control: 'n/a - it is a void, not a claim.'
+      control_ran: 'n/a'
+
+    - id: 'RT-C16'
+      claim: 'MINI-AES-64 balance property holds through the analogue low rounds as predicted; NO transfer to AES-128 asserted'
+      source: 'receipt 905 mini_aes_64; scaled7/RESULTS.json'
+      assigned_tier: 'measured'
+      verdict: 'TIER UPHELD. The ANALOGY_LIMIT is stated at the top of the artifact and repeated in the receipt, and the non-transfer argument is named rather than assumed. No objection to the tier. Under AGENTS rule 7 this is toy-scale by construction and is labelled as such, which is the correct handling.'
+      cheapest_falsifying_control: 'n/a - nothing is claimed about AES-128 from it.'
+      control_ran: 'n/a'
+
+    - id: 'RT-C17'
+      claim: 'candidate generation against RQ-AES-003 with cheapest falsification controls named; candidates killed by their own control recorded as killed'
+      source: 'receipt 905 candidate_generation; newdist/candidates.yaml'
+      assigned_tier: 'analyzed'
+      verdict: >-
+        TIER UPHELD, WITH ONE UPGRADE NOTE AND ONE UNVERIFIED-ARTIFACT NOTE.
+        Upgrade note: candidates.yaml is not merely a candidate list, it
+        contains derivations D1-D11 that PROVE the r=4 statement (see RT-C06)
+        and PREDICT the r=3 count exactly (see RT-C14). Treating it only as
+        `analyzed` ideation loses the load-bearing part of the package.
+        Artifact note: candidates.yaml records yaml_verification.parser_run =
+        false, i.e. it has never been parsed by a YAML parser. Any archiver that
+        machine-reads it must parse it first and report the outcome.
+      cheapest_falsifying_control: 'run a YAML parser over candidates.yaml, and independently re-derive D4/D5 by exhaustive check over a small state space.'
+      control_ran: false
+
+  # =====================================================================
+  # ITEM 5. CORROBORATION-ONLY CLAIMS (session but not model independence)
+  # =====================================================================
+  corroboration_only:
+    standing_basis: '0137a051eb5828789eb267fa83c8278086578d4c'
+    rule: 'the dispatching session is a different session from the producer, and in several cases a different from-scratch implementation, but the resolved model is claude-opus-5 for producer, dispatcher, validator and red team alike. Nothing in this batch has model independence.'
+    claims_whose_ONLY_support_is_the_dispatching_session_re_run:
+      - 'RT-C02 - the r=5 recovery on the fresh key 8b0e2b41... (attack/INDEPENDENT-VERIFICATION.json). Producer never ran this key.'
+      - 'RT-C08 partial - the third r=6 mod-8 reading, the 0 (count5/DISPATCHER-r6-ADDENDUM.json). The producer contributed only the 7 and the 4.'
+      - 'RT-C14 - THE ENTIRE CAND-ND-1 LADDER. ladder/LADDER-RESULT.json states measured_by "dispatching session (Bash), own from-scratch implementation". The r=3 excess, the r=5/6/10 arms, the 12-key r=4 replication, the N=2^24 arms and the whole DATA_COMPLEXITY table have NO producer-side measurement. Only the r=4 zero is corroborated from the other side, by count5.'
+      - 'RT-C10 headline - receipt 904 attributes the reported r=5 yoyo implementation to "the dispatching session own from-scratch AES-NI probe". The producer has a reading of its own (a 16x excess per yoyo5/DISPATCHER-REPLICATION.json), so this one has two implementations, but one session-family and one model.'
+      - 'count5/DISPATCHER-VERIFICATION.json and DISPATCHER-independent-check.c - the identity cross-check on the counting statistic.'
+    consequence_for_EV_AES_005: >-
+      Every item above carries strength at most "corroborated, single model".
+      The ladder is the one to watch: it is the package's cheapest-data claim
+      and it rests on one implementation written by one session.
+
+  # =====================================================================
+  # CROSS-CUTTING OBJECTIONS
+  # =====================================================================
+  cross_cutting_objections:
+    shared_null_object:
+      finding: >-
+        EVERY "random permutation" control in this batch is 10-round AES:
+        attack/ctl_prp10_out.json (r=10 AES), count5 arm null_randperm_aes10
+        (r=10), yoyo6.c line 76-77 (prp arm = an independent second key at 10
+        rounds), ladder r10_PRP_control. That is a defensible stand-in and the
+        902 receipt labels it as one, but it is a SINGLE SHARED ASSUMPTION
+        across four otherwise independent statistics: any property of the AES
+        round function that persisted to 10 rounds would be invisible to all
+        four nulls simultaneously. The exposure is limited here because all four
+        signals die at r=5-6, but the null-object control demanded by
+        docs/inventor-protocol.md section 3 - a random function or random
+        bijection of the same shape - has not been run anywhere in this batch.
+      cheapest_remedy: 'one additional stand-in of a structurally different shape (e.g. AES-10 with a random bijective S-box, which costs one recompile and doubles as the RT-C06 component null).'
+    wrong_hint_null_absent_everywhere:
+      finding: >-
+        Both hinted modes (attack6, attack7) derive their hint bytes inside the
+        binary from the true key. No arm anywhere supplies hints from a wrong
+        key. Without it, "the filter isolates the correct byte uniquely" cannot
+        be separated from "the filter isolates A byte uniquely". This is the
+        cheapest unrun control in the package and it was not flagged by anyone.
+    machine_and_environment_unrecorded:
+      finding: 'gate-rr78/environment.json exists; nothing comparable exists for the attack, count5, ladder or yoyo tasks, and no receipt names a CPU, a core count, a compiler or flags. Every wall-clock number in this batch is therefore uninterpretable outside itself.'
+    preregistration_internal_inconsistency:
+      finding: >-
+        count5/PREREGISTRATION.md section 1 gives ID_j = {4*((j-t) mod 4)+t} and
+        then enumerates "ID_0 = {0,5,10,15}, ID_1 = {4,9,14,3}". Those enumerated
+        sets are D_0 and D_1, the FORWARD diagonals; the formula gives ID_0 =
+        {0,13,10,7}. count5.c implements the FORMULA correctly, so no measurement
+        is affected. It is nevertheless the exact geometry confusion that
+        receipt 904 records as having cost this campaign a failed replication,
+        sitting inside a document declared immutable and load-bearing. It must be
+        corrected by a dated AMENDMENT file, never by an edit.
+    receipts_diverge_from_raw_artifacts:
+      finding: 'three separate places (RT-C03 attack6b, RT-C07 the null arm reported as not run, RT-C10 the omitted prp arm) where a receipt and the raw artifact it binds do not agree. Since EV-AES-005 will be minted from the receipts, each divergence propagates. This is the systemic defect of the batch.'
+
+  # =====================================================================
+  # ITEM 6. THE ONE THAT WOULD HURT MOST
+  # =====================================================================
+  item_6_the_one_that_would_hurt_most:
+    answer: >-
+      The claim that survives only because the control that would kill it was
+      not run is CAND-ND-1 AS FRAMED - "a deterministic 4-round distinguisher
+      FOR AES-128, cheap in data, with perfect separation from a matched PRP
+      control" (ladder/LADDER-RESULT.json WHAT_THIS_IS, carried into receipt 905
+      as "the r=4 zero is a sharp deterministic reading").
+    why: >-
+      The numbers are not in doubt: the r=4 zero is exhaustive at N=2^32 in
+      count5 and replicated on 12 keys in the ladder, and no control can kill
+      the measurement. What survives unearned is the words "for AES-128". The
+      control that would settle it is the random-bijective-S-box component null,
+      and the package states it as untested. But the package also contains, in
+      newdist/candidates.yaml, its own derivation D4-D5, which establishes the
+      r=4 impossibility from three ingredients only - SubBytes bytewise
+      bijective, MixColumns free of zero entries, the ShiftRows geometry - and
+      uses NOTHING specific to AES. If the component null is run, D4-D5 predicts
+      it comes back showing the same zero for any bytewise-bijective S-box. The
+      claim then survives as a true and provable statement about a wide class of
+      byte-oriented SPNs, and dies as a statement about AES-128 in particular.
+      That is the result that would hurt: not a retraction of a measurement, but
+      the collapse of the batch's cheapest-data headline from "a distinguisher
+      for AES" into "a structural identity of the round function that AES shares
+      with any cipher of that shape", established by the package's own algebra
+      and confirmable in one recompile.
+    runner_up: >-
+      RT-C04, the r=7 run. It is not a control gap but a baseline gap, and it is
+      the single most severe defect in the batch: sq.c mode_attack7 takes the
+      MASTER KEY as argv[2], derives K7 and the hint bytes from it, and reports
+      as "recovered" four bytes it had already computed from its own input. The
+      receipt says the run is not a key recovery, which is correct and to its
+      credit, but it does not say that the honest baseline for the reported
+      quantity is a closed-form key-schedule computation costing nothing. A
+      reader who takes "recovered_K6prime_bytes matches true_K6prime_bytes,
+      108.39 s" at face value has been given a dominated_by of null where the
+      true entry is "free arithmetic".
+    what_I_am_NOT_saying: >-
+      I am not saying the r=4 property is known, standard, or previously
+      published. No primary source is reachable here and DEC-20260731-019
+      ruling 3 forbids the dismissal as firmly as the promotion. I am saying
+      this package does not establish novelty, and that its own derivation
+      narrows what the property is about.
+    what_I_am_NOT_recommending: >-
+      I am not recommending that the ladder lane, the mod-8 lane, or the r=6/r=7
+      lane be abandoned. Every one of them has a named, cheap, decisive next
+      measurement (the seven matched-null arms; the component null; the
+      wrong-hint null), and premature closure is a failure mode symmetric with
+      overclaiming. A count of statistics that died at r=5 is a fatigue report
+      about this search, not a statement about reduced-round AES.
+
+  # =====================================================================
+  # DEFECTS
+  # =====================================================================
+  defects:
+    - id: 'DEF-01'
+      severity: 'high'
+      title: 'r=7 result carries no dominated_by, and its baseline is free'
+      detail: 'sq.c mode_attack7 receives the master key, derives K7 and the 3-of-4 hints from it, and reports four K6-prime bytes that are a closed-form function of that input. The AES-128 key schedule is invertible from any round key. 108.39 s and 2^33 chosen plaintexts are charged against a baseline of zero. No wrong-hint null exists.'
+      required_repair: 'EV-AES-005 records the r=7 run as a FILTER measurement with dominated_by = free key-schedule arithmetic, and names the wrong-hint null as the outstanding control.'
+    - id: 'DEF-02'
+      severity: 'medium'
+      title: 'no machine, core count, compiler or flags recorded for any timing in the batch'
+      detail: 'receipt 902 says "on the stated machine"; no machine is stated. Thread count 4 is recoverable only from a command line inside INDEPENDENT-VERIFICATION.json. Wall clock is reported without CPU-seconds.'
+      required_repair: 'record CPU model, cores, threads used, compiler and flags alongside every wall-clock figure, or mark the figure as machine-unqualified.'
+    - id: 'DEF-03'
+      severity: 'high'
+      title: 'r=6 dominated_by omitted, and two discrepant r=6 runs with no authoritative designation'
+      detail: 'attack6b_out.json (unique 1, correct master, 69.39 s) is absent from receipt 902, which reports attack6_out.json (unique 0, wrong master, 74.03 s) as the r=6 outcome. Neither carries the producer own finding that exhaustive search over the same restricted residual costs about 25 s, i.e. the r=6 attack loses to a generic baseline.'
+      required_repair: 'designate the authoritative run, state what differs between attack6 and attack6b, and record the dominated_by. Do not promote r=6 as meeting BT-1 or BT-2.'
+    - id: 'DEF-04'
+      severity: 'medium'
+      title: 'count5 engine cost unreported'
+      detail: 'count5.c mmaps 4 GiB; arms cost 355-517 s each; fifteen arms were run. No memory or time figure appears in receipt 903, so the affordability of the priority control is invisible.'
+      required_repair: 'record per-arm seconds (they are in raw.jsonl) and the 4 GiB working set, and use them to price the seven-arm null.'
+    - id: 'DEF-05'
+      severity: 'medium'
+      title: 'literature recollection used to DISMISS, contrary to DEC-20260731-019 ruling 3'
+      detail: 'attack/INDEPENDENT-VERIFICATION.json asserts the integral/square attack on 5-round AES "is a standard technique" and that this work "is very probably a rediscovery". Both are unverified recollections asserted as fact. Ruling 3 is symmetric; the deflating direction is not the safe one.'
+      required_repair: 'EV-AES-005 states only that novelty is not established and not assessable here. It must not repeat the assertion in either direction.'
+    - id: 'DEF-06'
+      severity: 'medium'
+      title: 'uneven literature-boundary coverage across receipts'
+      detail: 'receipt 903, which carries the r=4 bijection and the r=5 residue, has no novelty or literature boundary at all, while 902, 904 and the ladder artifact do. Selective disclaiming is how a package becomes misleading with no false sentence in it.'
+      required_repair: 'attach the boundary to every claim in EV-AES-005.'
+    - id: 'DEF-07'
+      severity: 'medium'
+      title: 'receipt 903 misstates the mod-8 evidence in both directions'
+      detail: 'it understates the positive (seven independent full-coset r=5 arms under distinct key schedules all read 0, p = 8^-7 = 4.8e-7, not 1/8) and overstates the gap (the matched stand-in null WAS run once, arm null_randperm_aes10, reading 2 mod 8; the receipt lists it under controls_NOT_run).'
+      required_repair: 'restate as: seven independent AES r=5 readings of 0; one stand-in null arm reading 2; the control is UNDERPOWERED, not absent; tier stays analyzed pending six or seven more null arms.'
+    - id: 'DEF-08'
+      severity: 'medium'
+      title: 'the r=5 yoyo p-value is analytic, not measured, and the matched stand-in arm that was run is omitted from the receipt'
+      detail: 'expected 4.0 and tail 1.3e-34 derive from yoyo6/NULL_PROBS.json, an analytic model. yoyo6/iter5_prp.json (N=2^30, hits1 = 0) is a run stand-in arm and appears in no receipt. No clustering check exists, so the Poisson independence the tail assumes is untested.'
+      required_repair: 'tier the hit count measured and the p-value analyzed; surface iter5_prp.json as the control RQ-AES-003 demands; add the clustering check.'
+    - id: 'DEF-09'
+      severity: 'medium'
+      title: 'the r=4 result is at risk of being double-counted'
+      detail: 'count5 r4_exact_bijection and the ladder r=4 zero are the same statistic on the same object, verified in source. They are two implementations of one property, not two properties.'
+      required_repair: 'EV-AES-005 lists one claim with two independent implementations, not two claims.'
+    - id: 'DEF-10'
+      severity: 'low'
+      title: 'false-positive rate mislabelled as distinguishing advantage'
+      detail: 'ladder DATA_COMPLEXITY reports 2^-11.5 / 2^-46.2 / 2^-184.7 as distinguishing_advantage; they are e^-8, e^-32, e^-128, the stand-in null tail probabilities. The advantage is 1 minus those.'
+      required_repair: 'rename the field.'
+    - id: 'DEF-11'
+      severity: 'low'
+      title: 'a recorded prediction failure that is a prediction success'
+      detail: 'the ladder scores two of four CAND-ND-1 predictions as off. D6 predicts saturation at r=2 only for j nonzero, and the ladder measures j=0, for which injectivity is the prediction. D7 predicts at most 256 distinct values at r=3, giving exactly 256*C(2^20/256,2) = 2146959360, the measured value to the digit. The derivation was not re-read against the measurement.'
+      required_repair: 'correct the scoring; the correction strengthens the derivation and weakens the "distinguisher for AES-128" framing (see item 6).'
+    - id: 'DEF-12'
+      severity: 'low'
+      title: 'preregistration internal inconsistency on the load-bearing geometry'
+      detail: 'count5/PREREGISTRATION.md enumerates the forward diagonals D_0, D_1 as examples of ID_0, ID_1, contradicting its own formula. count5.c implements the formula, so no measurement is affected.'
+      required_repair: 'a dated AMENDMENT file, never an edit to the immutable prereg.'
+    - id: 'DEF-13'
+      severity: 'low'
+      title: 'all four null objects are the same object'
+      detail: 'every "random permutation" arm in the batch is 10-round AES. A property of the AES round function persisting to r=10 would be invisible to all four simultaneously.'
+      required_repair: 'add one structurally different stand-in; the random-S-box recompile serves double duty as the RT-C06 component null.'
+    - id: 'DEF-14'
+      severity: 'informational'
+      title: 'candidates.yaml has never been parsed, and an empty file is bound as an artifact'
+      detail: 'candidates.yaml records yaml_verification.parser_run = false. gate-rr78/chain.log is bound at the sha256 of the empty string and is empty.'
+      required_repair: 'parse before machine-reading; do not treat the empty log as content.'
+
+  # =====================================================================
+  # BASELINE COMPARISON SUMMARY
+  # =====================================================================
+  baseline_comparison:
+    REF_A_definitional:
+      basis: '2^128 single-key trials, from key length alone, charged at the package own measured 3.35e8 five-round AES-NI encryptions per second'
+      REF_A_cost: '1.02e30 s = 3.2e22 years on the same machine'
+      r5_attack_honest_total: '<= 30 s wall, <= 110 CPU-s, < 1 MiB, 2^33 in-process chosen plaintexts'
+      ruling: 'BT-1 met at r=5. Holds by ~28 orders of magnitude after every omitted term is added back.'
+      r6_ruling: 'NOT met. The hinted r=6 run at 69.39 s is dominated by ~25 s exhaustive search over the same restricted residual.'
+      r7_ruling: 'NOT APPLICABLE and dominated. The reported quantity is a free function of the given input.'
+    REF_B_generic_baseline_implemented_by_this_campaign:
+      only_instance: 'attack/compare6_out.json - partial-sums tail 0.100 s vs naive tail 19.191 s, speedup 191.89, identical candidate sets. Present in no receipt.'
+      ruling: 'a legitimate measured BT-2-shaped result about the tail algorithm, not about AES security. Should be surfaced, correctly scoped.'
+    distinguisher_baseline:
+      requirement: 'RQ-AES-003 requires a distinguisher to survive past the round count at which this program own measured objects die, with a measured false-positive rate against a matched random-permutation control.'
+      ruling: >-
+        NOT MET BY ANY OBJECT IN THIS BATCH. The integral is exact at r=4, the
+        ladder is exact at r=4 and generic from r=5, the yoyo dies between r=5
+        and r=6, and the mod-8 residue is at r=5 with a one-trial null. Nothing
+        here goes deeper than what the campaign already had; the ladder is
+        cheaper in data at the SAME depth, which the artifact itself states. The
+        measured false-positive rates that do exist are against 10-round AES,
+        not against a matched random permutation.
+    dominated_by_audit:
+      finding: >-
+        No artifact in this batch contains a dominated_by field on any axis.
+        Under AGENTS rule 5 and docs/inventor-protocol.md, an absent
+        dominated_by is not a null; it is an unmade comparison. Time, memory and
+        data/query axes must each be filled before EV-AES-005 asserts a Pareto
+        position. The two entries I can already fill from the package own
+        artifacts are the r=6 one (dominated by ~25 s residual search) and the
+        r=7 one (dominated by free key-schedule arithmetic).
+
+  # =====================================================================
+  # SCOPE LIMITS OF THIS REPORT
+  # =====================================================================
+  scope_limits:
+    - 'I re-ran nothing. Every number above is read from the snapshot-bound artifacts or computed by hand from them; the arithmetic I performed is the throughput/REF-A division, 8^-7, and 256*C(4096,2).'
+    - 'I did not verify the certificates. That is TASK-20260802-907.'
+    - 'I did not verify D1-D11. RT-C06 and the item 6 answer are CONDITIONAL on that derivation being sound, and I name re-deriving D4/D5 as the check.'
+    - 'Nothing here asserts anything about full-round or deployed AES, at any round count or threat model.'
+    - 'Nothing here asserts, in either direction, any comparison to published cryptanalysis.'
+    - 'I change no official state, assign no evidence strength, and recommend no promotion.'
+
+  # =====================================================================
+  # ONE NEXT CONCRETE ACTION
+  # =====================================================================
+  next_action:
+    action: >-
+      Run SEVEN matched stand-in null arms of the mod-8 counting statistic:
+      count5 with r=10, N=2^32 full coset, ptmode coset, pimode id, under seven
+      FRESH key schedules with j0 matched to the seven aes_r5 arms already in
+      count5/raw.jsonl. Then read the residues.
+    why_this_one: >-
+      It is the only unrun measurement in the batch that can either promote the
+      package strongest distinguisher claim to p < 1e-6 or destroy it outright,
+      it is priced from the package own raw.jsonl at about 500 s and 4 GiB per
+      arm (roughly one hour total), and either outcome is a reportable result of
+      this batch. The component null of RT-C06 is cheaper still but its outcome
+      is already predicted by D4-D5, so it settles attribution rather than
+      existence; run it second, in the same hour, as one recompile.
+    do_not_do: 'do not promote RT-C07 above analyzed before those arms exist, and do not close the lane if they come back uniform - a uniform null kills the residue, not the lane.'
+
+  # =====================================================================
+  # INFERENCE
+  # =====================================================================
+  inference:
+    policy: 'review-adversarial'
+    requested_policy: 'review-adversarial'
+    resolved_model: 'claude-opus-5'
+    fallback_used: true
+    fallback_note: 'orchestration/model-policies.yaml names a GPT-5.6-family alias that this harness cannot resolve; .claude/agents subagent frontmatter supports only Claude models, so all roles run model: inherit here.'
+    model_verified: false
+    standing_basis: '0137a051eb5828789eb267fa83c8278086578d4c'
+    independence_statement: >-
+      This session supplies SESSION INDEPENDENCE but NOT MODEL INDEPENDENCE. The
+      red team, the validator, the dispatching session and the four producer
+      tasks all resolve to claude-opus-5. No finding in this report may be
+      counted toward a model-independent attestation, and this report does not
+      constitute one of the three CONCUR attestations required by AGENTS rule 8.

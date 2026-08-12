@@ -1,0 +1,99 @@
+handoff:
+  id: TASK-20260802-901
+  from: coordinator
+  to: coordinator
+  kind: ledger_archive
+  objective: >-
+    Archive the (A)/(B) root-ledger relocation and ID remap authorized by
+    DEC-20260802-001 and recorded in CORR-20260802-014, as one isolated ledger
+    commit, then verify the post-commit receipt before the repair is treated as
+    durable. This task carries no research claim.
+  inputs:
+    - ledger/decisions/DEC-20260802-001.yaml
+    - ledger/corrections/CORR-20260802-014.yaml
+    - tools/legacy_ledger_inventory.yaml
+    - tools/test_validate_ledger.py
+  constraints:
+    - Stage ONLY the declared paths below. A scope-expanding commit blocks the repair.
+    - >-
+      Make no edit to tools/legacy_ledger_inventory.yaml. Neither `records` nor
+      `remapped_ids` may gain an entry; see CORR-20260802-014 `affects`.
+    - >-
+      Make no edit to tools/validate_ledger_baseline.txt in this commit. The
+      re-baseline is a separate decision and a separate commit.
+    - Merge origin/main into the working branch before committing; never rebase.
+    - >-
+      Resolve no sync conflict inside a ledger record by editing it. A conflict is
+      a new superseding record under a new id.
+    - Run this task alone; no concurrent worker commits into this worktree.
+  deliverables:
+    - The ledger commit, reachable from HEAD, changing exactly the declared paths.
+    - The commit receipt (commit sha, parent sha, per-path sha256, record ids).
+    - >-
+      A fresh `python3 tools/validate_ledger.py` run on the committed tree, with
+      the total new-error count and the per-category breakdown reported back to
+      the Coordinator before any further action on (D).
+    - A pushed branch with an open or refreshed PR against main naming the records below.
+  artifact_paths:
+    added:
+      - ledger/decisions/DEC-20260802-001.yaml
+      - ledger/corrections/CORR-20260802-014.yaml
+      - ledger/handoffs/TASK-20260802-901.yaml
+      - ledger/decisions/DEC-20260724-023.yaml
+      - ledger/decisions/DEC-20260724-024.yaml
+      - ledger/decisions/DEC-20260724-025.yaml
+      - ledger/decisions/DEC-20260724-026.yaml
+      - ledger/decisions/DEC-20260724-005.yaml
+      - ledger/decisions/DEC-20260727-011.yaml
+      - ledger/decisions/DEC-20260727-012.yaml
+      - ledger/decisions/DEC-20260727-013.yaml
+      - ledger/decisions/DEC-20260727-004.yaml
+      - ledger/evidence/EV-DREG-004.yaml
+      - ledger/evidence/EV-GPS-001.yaml
+      - ledger/evidence/EV-SIG-006.yaml
+      - ledger/evidence/EV-SIG-007.yaml
+      - ledger/evidence/EV-SIG-008.yaml
+    deleted:
+      - ledger/DEC-20260724-001.yaml
+      - ledger/DEC-20260724-002.yaml
+      - ledger/DEC-20260724-003.yaml
+      - ledger/DEC-20260724-004.yaml
+      - ledger/DEC-20260724-005.yaml
+      - ledger/DEC-20260727-001.yaml
+      - ledger/DEC-20260727-002.yaml
+      - ledger/DEC-20260727-003.yaml
+      - ledger/DEC-20260727-004.yaml
+      - ledger/EV-DREG-004.yaml
+      - ledger/EV-GPS-001.yaml
+      - ledger/EV-SIG-006.yaml
+      - ledger/EV-SIG-007.yaml
+      - ledger/EV-SIG-008.yaml
+  archived_by: TASK-20260802-901
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 4
+    maximum_runs: 0
+  completion_gate:
+    - >-
+      tools/test_validate_ledger.py::LedgerCoverageTests::test_legacy_inventory_covers_and_freezes_every_root_record
+      passes (the `records` map again equals the observed root-level ledger set).
+    - >-
+      tools/test_validate_ledger.py::LedgerCoverageTests::test_legacy_id_remaps_resolve_to_canonical_records
+      passes unchanged (remapped_ids was not edited).
+    - >-
+      tools/validate_ledger.py reports zero "new root-level ledger record is
+      forbidden" errors and zero "duplicate ID" errors for
+      DEC-20260724-001..004 and DEC-20260727-001..003.
+    - >-
+      The validator's total new-error count and category breakdown are reported
+      to the Coordinator. Reaching exit 0 is NOT part of this gate: the residual
+      (D) debt is out of this task's scope and is decided separately.
+    - The commit receipt is verified against Git and the PR names the added records.
+  decided_by: coordinator
+  created_at: "2026-08-02"

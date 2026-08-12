@@ -181,3 +181,143 @@ it is not a durable claim-transition review. No artifact root or experiment was
 created. See
 [DEDUP-20260720T151603-0700.md](../../reviews/DEDUP-20260720T151603-0700.md) and
 [REDTEAM-20260720T153805-0700.md](../../reviews/REDTEAM-20260720T153805-0700.md).
+
+## Cohort 20260723-a
+
+Twelve full pre-ID records screen Hestenes–Stiefel conjugate gradients,
+Saad–Schultz GMRES, Brandt multigrid, Hutchinson trace estimation,
+Halko–Martinsson–Tropp randomized range finding, Oja streaming PCA, Karmarkar
+projective LP optimization, Grötschel–Lovász–Schrijver ellipsoid separation,
+Beck–Teboulle mirror descent, Gabay–Mercier splitting, Littlestone–Warmuth
+weighted majority, and Auer–Cesa-Bianchi–Fischer UCB. Each native operation is
+distinct, but its ECDLP transplant consumes a supplied source-bearing operator,
+hierarchy, objective, oracle, expert/reward stream, or approximate aggregate; or
+loses exact signed occurrence and empty-fibre semantics. None constructs P1553
+R4's endpoint-derived subset-stable exact source return, so none receives a
+canonical or deferred ID.
+
+Relative conservative R01, representation-changing R03, and high-risk R12
+snapshots use `.yaml.txt`, remain retired/unapproved zero-run records, and have
+empty write scopes. The active registry remains byte-stable at 17 rows. No
+prospective artifact root or experiment was created.
+
+The corrected producer review is
+[DEDUP-20260723T184854-0700.md](../../reviews/DEDUP-20260723T184854-0700.md).
+Initial independent review
+[REDTEAM-20260723T184509-0700.md](../../reviews/REDTEAM-20260723T184509-0700.md)
+upheld all twelve semantic rejections but returned `REVISE` because a concurrent
+ledger/index rewrite made the earlier complete-corpus receipts stale. The
+corrected-byte successor is
+[REDTEAM-20260723T190000-0700.md](../../reviews/REDTEAM-20260723T190000-0700.md);
+its verdict governs. Any content pass remains `REVISE_NOT_DURABLE` without a
+preceding verified Coordinator snapshot commit.
+
+## Cohort 20260723-b
+
+Twelve full pre-ID records screen Duane Hamiltonian Monte Carlo, Jordan mean-field
+variational inference, Swendsen–Wang replica tempering, Wang–Landau density-of-states
+sampling, Neal slice sampling, Smith hit-and-run, Roberts–Tweedie Langevin diffusion,
+Skilling nested sampling, Pritchard approximate Bayesian computation,
+Torrie–Valleau umbrella sampling, Braunstein–Mézard–Zecchina survey propagation, and
+Rubinstein's cross-entropy method. Each native operation is distinct, but its ECDLP
+transplant consumes a supplied source density, energy, gradient, factor graph,
+simulator, likelihood/membership constraint, reaction coordinate, score, or
+transition model; or loses exact occurrence identity through continuous relaxation,
+sampling, aggregation, or heuristic decimation. None constructs P1553 R4's
+endpoint-derived subset-stable exact source return, so none receives a canonical or
+deferred ID.
+
+Relative conservative S05, representation-changing S02, and high-risk S01 snapshots
+use `.yaml.txt`, remain retired/unapproved zero-run records, and have empty write
+scopes. The active registry remains byte-stable at 17 rows. No prospective artifact
+root or experiment was created. See
+[DEDUP-20260723T211405-0700.md](../../reviews/DEDUP-20260723T211405-0700.md) and the
+independent review reserved at
+[REDTEAM-20260723T213000-0700.md](../../reviews/REDTEAM-20260723T213000-0700.md).
+Any content pass remains `REVISE_NOT_DURABLE` without a preceding verified
+Coordinator snapshot commit.
+
+## Cohort 20260724-a
+
+Twelve full pre-ID records screen Koetter–Vardy soft-decision multiplicity
+assignment, Sipser–Spielman expander bit flipping, Luby LT degree-one peeling,
+Shokrollahi Raptor precoding, Berlekamp–Welch error-location interpolation,
+Prange information-set decoding, Wagner generalized-birthday merging,
+Koetter–Kschischang subspace decoding, Forney concatenated decoding,
+Fossorier–Lin ordered-statistics decoding, Duffy–Li–Médard GRAND, and
+Koetter–Médard algebraic network coding. Each native operation is distinct, but
+its ECDLP transplant consumes a supplied word, reliability matrix, graph,
+precode, syndrome, list, subspace, code pair, noise law, membership oracle,
+topology, packet family, or transfer polynomial; or loses occurrence identity.
+None constructs P1553 R4's endpoint-derived subset-stable exact source return,
+so none receives a canonical or deferred ID.
+
+Relative conservative T05, representation-changing T08, and high-risk T12
+snapshots use `.yaml.txt`, remain retired/unapproved zero-run records, and have
+empty write scopes. The active registry remains byte-stable at 17 rows. No
+prospective artifact root or experiment was created. See
+[DEDUP-20260724T001356-0700.md](../../reviews/DEDUP-20260724T001356-0700.md) and the
+independent review reserved at
+[REDTEAM-20260724T003000-0700.md](../../reviews/REDTEAM-20260724T003000-0700.md).
+Any content pass remains `REVISE_NOT_DURABLE` without a preceding verified
+Coordinator snapshot commit.
+
+## Cohort 20260724-b
+
+Twelve full pre-ID records screen Wiedemann scalar Krylov recurrence,
+Coppersmith block Wiedemann, Coppersmith block Lanczos, Massey shift-register
+synthesis, Keller–Gehrig Frobenius canonicalization, Berkowitz division-free
+characteristic circuits, Bareiss fraction-free elimination, Dixon p-adic
+lifting, Kannan–Bachem Smith form, Storjohann–Labahn Hermite form,
+Jeannerod–Neiger shifted-Popov approximant bases, and Faddeev–LeVerrier trace
+recursion. Each native operation is distinct, but its ECDLP transplant begins
+with a supplied source-bearing matrix, operator, sequence, equation system,
+lattice, basis, or interpolation instance; preserves only an invariant,
+quotient, recurrence, nullspace, or aggregate; or merely substitutes a
+downstream solver. None constructs P1553 R4's endpoint-derived subset-stable
+exact source return, so none receives a canonical or deferred ID.
+
+Relative conservative U07, representation-changing U09, and high-risk U11
+snapshots use `.yaml.txt`, remain retired/unapproved zero-run records, and have
+empty write scopes. The active registry remains byte-stable at 17 rows. No
+prospective artifact root or experiment was created. See
+[DEDUP-20260724T031259-0700.md](../../reviews/DEDUP-20260724T031259-0700.md) and
+the independent review reserved at
+[REDTEAM-20260724T033000-0700.md](../../reviews/REDTEAM-20260724T033000-0700.md).
+Any content pass remains `REVISE_NOT_DURABLE` without a preceding verified
+Coordinator snapshot commit.
+
+## Cohort 20260724-c
+
+Twelve full pre-ID records screen Tonelli–Shanks two-Sylow root descent,
+Cipolla quadratic-extension roots, Cornacchia norm descent,
+Adleman–Manders–Miller `r`-th-root extraction, Pollard `p-1`, Williams
+`p+1`, Morrison–Brillhart CFRAC, Pomerance's quadratic sieve, Lenstra ECM,
+Pocklington certificates, Goldwasser–Kilian elliptic certificates, and
+Atkin–Morain ECPP. Each native operation is distinct, but its ECDLP transplant
+begins with a supplied residue, radicand, norm instance, composite, quadratic
+irrational, sieve polynomial, factorization, or auxiliary curve/order
+certificate; preserves only an algebraic root, smoothness event, parity
+dependency, gcd, group order, or certificate; or repeats the H077 ECM-style
+smooth-order route. None constructs P1553 R4's endpoint-derived
+subset-stable exact source return, so none receives a canonical or deferred
+ID.
+
+Relative conservative V01, representation-changing V09, and high-risk V12
+snapshots use `.yaml.txt`, remain retired/unapproved zero-run records, and
+have empty write scopes. The active registry remains byte-stable at 17 rows.
+No prospective artifact root or experiment was created. See
+[DEDUP-20260724T101929-0700.md](../../reviews/DEDUP-20260724T101929-0700.md)
+and the initial independent review at
+[REDTEAM-20260724T103000-0700.md](../../reviews/REDTEAM-20260724T103000-0700.md).
+That review returned `CONTENT REVISE` solely for misattributing
+arXiv:1105.1456; corrected producer bytes name Jan-Christoph Schlage-Puchta.
+Corrected-byte successor review is reserved at
+[REDTEAM-20260724T105500-0700.md](../../reviews/REDTEAM-20260724T105500-0700.md).
+That successor returned `CONTENT REVISE` because V02, V04, and the producer
+report misattributed DOI 10.1587/transfun.E96.A.1081. Those producer bytes now
+name Ryuichi Harasawa, Yutaka Sueyoshi, and Aichi Kudo correctly; final
+corrected-byte review is reserved at
+[REDTEAM-20260724T110500-0700.md](../../reviews/REDTEAM-20260724T110500-0700.md).
+Any content pass remains `REVISE_NOT_DURABLE` without a preceding verified
+Coordinator snapshot commit.

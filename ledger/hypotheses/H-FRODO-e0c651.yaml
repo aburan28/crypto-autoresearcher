@@ -1,0 +1,672 @@
+hypothesis:
+  id: H-FRODO-e0c651
+  question_id: RQ-FRODO-3260cc
+
+  statement: >-
+    SCOPE: the FrodoKEM sampling table and the decryption failure rate at
+    Frodo-640 / -976 / -1344, as printed in the primary standardisation text once
+    that text is filed; exact rational and certified-interval arithmetic only; no
+    lattice-hardness estimate, no attack, no implementation analysis. CLAIM TIER:
+    SPLIT -- CRYPTO for the arithmetic assertion that a printed number does or does
+    not reproduce, TOY for every security reading. NO EXPONENT IS MOVED AND NONE IS
+    CLAIMED.
+
+    THE HYPOTHESIS, IN TWO PARTS THAT MUST BE RUN IN THIS ORDER.
+
+    PART 1 -- THE TABLE IS OVER-DETERMINED. The thirteen-integer sampling table is
+    constrained by identities that follow from the sampler's construction and from
+    the object it approximates, and those identities are checkable in exact integer
+    and rational arithmetic on the table alone. Specifically:
+    C1 (normalisation) p_0 + 2*sum_{k>=1} p_k = M exactly, M a power of two;
+    C2 (second moment) Var(chi) = (2/M)*sum_{k>=1} k^2 p_k agrees with
+       sigma^2 + 1/12 to within a bound that depends on sigma;
+    C4 (unimodality) the table is strictly decreasing and its cumulative sequence
+       strictly increasing;
+    C5 (kurtosis) kurt(chi) is computable exactly and forces kurt(product of two
+       independent chi samples) = kurt(chi)^2.
+    The hypothesis asserts these are GATES: a transcription or a document that
+    fails C1 makes every downstream computation void, and running them first costs
+    milliseconds.
+
+    PART 2 -- THE MUTATION CONTROL HAS A DERIVED MAGNITUDE. The standard mutation
+    control asks whether a seeded perturbation changes the output. That test is
+    passed by any pipeline whose output depends on its input at all, including one
+    that is wrong by orders of magnitude, so it does not license a reproduction
+    claim. The hypothesis asserts that the correct magnitude is DERIVABLE IN
+    ADVANCE, because the failure rate's dependence on the table factors through the
+    single scalar v = Var(chi):
+      Var(X) = 2n v^2 + v,  d log2 DFR/dv = (t^2/(2 Var(X)^2 ln2)) * (4 n v + 1),
+    and the table enters v linearly, so the perturbation "p_12 -= 1, p_0 += 2" has
+    dv = -2*144/M exactly and a PREDICTED response of -0.167 bits at Frodo-640.
+    A pipeline whose measured response is outside [-0.33, -0.08] bits has failed a
+    control it would have passed in the weak form, and NO AGREEMENT WITH A PUBLISHED
+    FAILURE RATE MAY THEN BE REPORTED AS A VERIFICATION -- which is
+    RQ-FRODO-3260cc.constraints's requirement, made quantitative.
+
+    THE THREE FORCED VALUES, DERIVED BEFORE ANY RUN AND EACH ABLE TO FAIL.
+    (i) C1 returns exactly 2^16 on the Frodo-640 excerpt table -- ALREADY COMPUTED
+        in this record, so for that cell it is a reproduction target and is reported
+        as one rather than as an open prediction.
+    (ii) The Rademacher null (chi_null(+-1) = 1/2) collapses the entire convolution
+        to a binomial: X is a sum of exactly 2n+1 Rademacher variables and
+        P(|X| >= t) = 2 * sum_{j: 2j-(2n+1) >= t} C(2n+1,j) / 2^{2n+1}, an exact
+        rational the pipeline must return bit for bit.
+    (iii) Because kurt(product) = kurt(chi)^2 = 8.97 > 3 on the excerpt table, the
+        summands are strongly leptokurtic and the exact failure rate MUST EXCEED the
+        Gaussian tail at matched variance, which at Frodo-640 is log2 = -148.84
+        under the recalled parameters. A recomputation landing below that bracket
+        indicates a broken pipeline or wrong parameters and may NOT be reported as a
+        FrodoKEM discrepancy.
+
+    WHAT IS NOT ASSERTED. Whether the published failure rates reproduce. That is the
+    question, and predicting its answer either way would be predicting the result.
+    What is fixed in advance is the DECISION RULE (below) and the controls that
+    license using it.
+
+  mechanism: >-
+    DERIVED IN THIS RECORD. Every FrodoKEM structural fact below is RECALLED,
+    UNVERIFIED, and a READ TARGET; the derivation's structure is independent of the
+    specific values and is stated so it can be re-instantiated once they are read.
+
+    THE SAMPLER AND WHAT IT FORCES (PART 1). The sampler consumes a fixed-length
+    uniform bit string, uses one bit as a sign and the rest to index a cumulative
+    table over the magnitude, and emits an integer of magnitude at most 12.
+    Applying a sign to magnitude 0 gives 0 either way, so the zero cell is not split
+    while every non-zero cell is. Hence chi(0) = p_0/M and chi(+k) = chi(-k) = p_k/M
+    for k >= 1, and total mass forces C1: p_0 + 2 sum_{k>=1} p_k = M. This is an
+    INTEGER equality with no rounding slack, which is why it is a gate rather than
+    a diagnostic. EVALUATED ON THE EXCERPT (SCOUT-COMPUTED, outside the harness,
+    from the extraction-damaged row in RQ-FRODO-3260cc.provenance): the thirteen
+    integers 9288, 8720, 7216, 5264, 3384, 1918, 958, 422, 164, 56, 17, 4, 1 give
+    one-sided sum 37412 and 9288 + 2*(37412-9288) = 65536 = 2^16 EXACTLY. That
+    establishes only that the extraction preserved thirteen integers in order and
+    that the convention is denominator 2^16 with the zero cell counted once. It
+    establishes nothing about FrodoKEM's security and does not verify the
+    specification, which has not been read.
+
+    C2 AND ITS TARGET CONSTANT. Rounding a continuous Gaussian of variance sigma^2
+    to the nearest integer adds the variance of the rounding residual, nearly
+    uniform on [-1/2,1/2], so Var(rounded Gaussian) = sigma^2 + 1/12 + eps(sigma)
+    with eps exponentially small in sigma^2 by Poisson summation (RECALLED AS
+    STANDARD, a candidate to check, and computed directly rather than cited in the
+    experiment). SCOUT-COMPUTED on the excerpt: Var(chi) = 64895/8192 =
+    7.9217529296875 exactly, against 2.8^2 + 1/12 = 7.9233333..., a difference of
+    -1.58e-3, i.e. 2.0e-4 relative. C2 passes at Frodo-640 on the excerpt. ITS VALUE
+    IS THAT IT CAN FAIL AND THAT IT SEES WHAT C1 CANNOT: C1 is blind to any
+    transposition of two table entries, and C2 is not.
+
+    C5 AND WHY IT PROPAGATES. For independent mean-zero a, b ~ chi,
+    Var(ab) = Var(a)Var(b) and E[(ab)^4] = E[a^4]E[b^4], so kurt(ab) = kurt(chi)^2.
+    SCOUT-COMPUTED: E[chi^4] = 187.95361328125, kurt(chi) = 2.99508, hence
+    kurt(product) = 8.970. A table entry check has thereby produced a DIRECTIONAL
+    CONSTRAINT ON A QUANTITY COMPUTED IN A DIFFERENT STAGE, which is the strongest
+    form a cheap gate can take.
+
+    THE FAILURE EVENT AND THE SENSITIVITY (PART 2). RECALLED: the decryption noise
+    in one coordinate is X = sum_{i=1}^{n} (e'_i s_i - s'_i e_i) + e'', i.e. 2n
+    independent products of two independent chi samples plus one chi sample, and the
+    coordinate fails when |X| >= t with t = q/2^{B+1}; the reported rate is the
+    union over nbar*mbar coordinates. At Frodo-640 the recalled values are n = 640,
+    q = 2^15, B = 2, nbar = mbar = 8, hence 2n = 1280, t = 4096, 64 coordinates.
+
+    Summands are mean-zero and independent, so Var(X) = 2n v^2 + v with v = Var(chi),
+    and dVar(X)/dv = 4 n v + 1. In the far tail log P(|X| >= t) ~ -t^2/(2 Var X) up
+    to subexponential factors, so d log2 P/d Var(X) = t^2/(2 Var(X)^2 ln 2). Chaining
+    and substituting the exact-rational dv for a table perturbation gives the
+    predicted response. SCOUT-COMPUTED at Frodo-640:
+
+      v = 7.9217529296875,  Var(X) = 1280 v^2 + v = 80333.2587,
+      t/sqrt(Var X) = 14.4515,
+      d log2 DFR/d Var(X) = 1.8753e-3,   dVar(X)/dv = 20280.6875,
+      d log2 DFR/dv = 38.033 bits per unit of v,
+      perturbation "p_12 -= 1, p_0 += 2": dv = -288/65536 = -9/2048 exactly,
+      PREDICTED RESPONSE = -0.1671 bits.
+
+    THREE DISTINGUISHABLE FAILURE MODES follow, which is exactly what the weak
+    control cannot supply: a WRONG SIGN means the variance bookkeeping is inverted;
+    a response near zero means the table is not propagating into the tail; a
+    response much larger than predicted means something is being amplified. The
+    graded ladder u in {1,2,4,8,16} gives five interior points whose responses must
+    be in ratio 1:2:4:8:16 to first order, so a saturating or non-monotone response
+    localises the defect instead of leaving "it did not work".
+
+    THE NULL WITH A CLOSED FORM. Under chi_null(+1) = chi_null(-1) = 1/2, each
+    product e'_i s_i is again Rademacher, so X is a sum of exactly 2n+1 Rademacher
+    variables and its law is an exact shifted binomial with
+    P(X = 2j-(2n+1)) = C(2n+1,j)/2^{2n+1}. The tail is a finite sum of binomial
+    coefficients -- no convolution at all -- and the identical pipeline must return
+    it exactly. Same number of product terms, same threshold, same union: a null of
+    the same shape whose answer is known independently and which CAN FAIL.
+
+    THE COST PROBLEM AND THE RESOLUTION, STATED RATHER THAN WISHED AWAY. The exact
+    law of X needs 2n = 1280 convolutions of a 289-point product distribution with
+    denominators 2^32; carried fully exactly the coefficients reach ~2^{16*(2n+1)}
+    ~ 2^20500 bits, which exceeds any reasonable batch budget --
+    GOAL-FRODO-001.pause_conditions anticipates exactly this. THE RESOLUTION IS NOT
+    TO ABANDON EXACTNESS BUT TO MOVE IT: carry the pmf in fixed-point integers with
+    DIRECTED ROUNDING so each coefficient is an interval with exact rational
+    endpoints, and propagate intervals through the convolutions by binary
+    exponentiation. The output is a CERTIFIED ENCLOSURE [lo, hi] containing the true
+    failure rate, with lo and hi exact rationals -- no floating point anywhere, and
+    therefore no shared rounding convention with the published computation, which is
+    what RQ-FRODO-3260cc.constraints requires. THE ENCLOSURE WIDTH IS A REPORTED
+    METRIC, and a run whose enclosure is wider than the discrepancy sought has
+    produced a BUDGET OUTCOME about a computation, never evidence about the number
+    being computed (AGENTS.md rule 5).
+
+    WHAT THIS MECHANISM DOES NOT DO. It does not compute a Renyi divergence
+    (H-FRODO-8ea540's). It does not charge an attacker cost
+    (IDEA-20260805-f16b44's). It does not touch LWE hardness at Frodo's dimensions,
+    which GOAL-FRODO-001.non_duplication reserves for GOAL-MLKEM-003 and -004.
+
+  assumptions:
+    - >-
+      FROZEN BEFORE ANY EVALUATION; no clause may be adjusted after a number is
+      observed without a versioned amendment recorded as exploratory_only:
+      (1) C1: p_0 + 2 sum_{k>=1} p_k = M, M a power of two, exact integer equality.
+      (2) C2 target: Var(chi) vs sigma^2 + 1/12; acceptance 5e-3 relative at
+          Frodo-640 and Frodo-976, and 5e-2 at Frodo-1344 because sigma is recalled
+          as ~1.4 and the neglected theta-function term is exponentially small in
+          sigma^2 and is therefore NOT obviously negligible there. The looser band
+          at small sigma is set here, before reading, for a stated reason.
+      (3) C4: zero non-strict descents, zero repeated cumulative entries.
+      (4) C5: kurt(product) = kurt(chi)^2, and the Gaussian bracket is the tail at
+          matched variance.
+      (5) MUTATION: "p_12 -= 1, p_0 += 2"; predicted -0.1671 bits; acceptance band
+          [-0.33, -0.08], i.e. a factor of two either way, because the derivation
+          uses a Gaussian slope while the true tail is leptokurtic.
+      (6) GRADED: u in {1,2,4,8,16}; responses in ratio 1:2:4:8:16 to within 15 per
+          cent at u <= 8; the u = 16 departure is reported, not excused.
+      (7) DECISION RULE for reproduction, fixed here: |recomputed - published|
+          below 0.5 bits = reproduced within the published figure's own printed
+          precision (one decimal in the exponent is +/- 0.05 bits, so 0.5 bits is
+          ten times the document's resolution); above 2 bits = stated discrepancy
+          with its size; between = inconclusive, with the enclosure width reported
+          beside it. THE RULE MAY NOT BE REVISED AFTER ANY NUMBER IS SEEN. EV-IC-002
+          is this program's own precedent for a support verdict being retracted
+          because a criterion was revised after the prior one was observed to fail.
+    - >-
+      Every FrodoKEM structural value (n, q, B, nbar, mbar, the noise form, the
+      threshold, the published rates) is RECALLED or excerpt-derived and is a READ
+      TARGET. The derivation is built to be re-instantiated; its numbers are not
+      portable.
+    - >-
+      The source gate of RQ-FRODO-3260cc.constraints[0] is SHUT. No stage consuming
+      a FrodoKEM figure may execute before the specification and the primary
+      failure-rate analysis are filed as KN-LIT entries with provenance and
+      extraction damage marked. This is GOAL-HQC-001's BATCH-001-to-002 sequence and
+      it is not optional.
+    - >-
+      The table used in Part 2 has already passed Part 1. Running the failure-rate
+      pipeline on an unvalidated transcription would make every number meaningless,
+      and the ordering is therefore part of the hypothesis rather than a convenience.
+
+  proof_search_map:
+    bottleneck: >-
+      The step at which a thirteen-integer table becomes a hundred-bit exponent. The
+      failure rate is the only quantity in FrodoKEM's document that is simultaneously
+      (i) load-bearing for the IND-CCA argument, (ii) a finite exact computation at
+      the real parameters, and (iii) far too small to check by sampling -- so it is
+      the one number for which an independent recomputation is both possible and
+      genuinely the only available check.
+    baseline_embedding:
+      parameter_slice: >-
+        chi replaced by Rademacher, where the entire convolution collapses to a
+        binomial tail in closed form; and n' in {8,16,32,64,128} with the true chi,
+        where a fully exact rational computation is affordable and the certified
+        enclosure can be checked against it. Both are the same pipeline on smaller
+        or simpler inputs, not a different method.
+      reproduction_check: >-
+        EXACT, as Fractions, not "within tolerance". The Rademacher slice must
+        return 2*sum_{j:2j-(2n+1)>=t} C(2n+1,j)/2^{2n+1} bit for bit, and at every
+        rung of the reduced-dimension ladder the enclosure must contain the fully
+        exact answer. A plot that looks similar is not an embedding.
+    observation_collision:
+      observable: >-
+        The single number log2 DFR at the decoding threshold.
+      distinct_preimage_search: >-
+        A COLLISION EXISTS, IT IS CONSTRUCTIBLE, AND IT IS THE MAIN LIMITATION OF
+        THIS HYPOTHESIS. Two error distributions can agree in their tail mass at t
+        and disagree everywhere else -- concretely, a Gaussian and a leptokurtic
+        mixture can be matched at one threshold by scaling one of them, so the
+        printed failure rate does NOT identify the distribution that produced it.
+        The separating condition is the tail's local log-curvature, i.e. evaluating
+        the tail at t(1-eps), t and t(1+eps) instead of at t alone. THIS IS WHY THE
+        EXPERIMENT EVALUATES THREE THRESHOLDS: a reproduction at one threshold is
+        consistent with two computations that do not describe the same distribution,
+        and the second log-derivative is the cheapest available discriminator
+        (IDEA-20260805-f16b44 develops the cost consequence of exactly this
+        collision). A SECOND collision, definitional and much more likely to bite in
+        practice: a per-coordinate rate and a per-key rate differ by
+        log2(nbar*mbar) = 6 bits with no error anywhere, so the observable is not
+        even determined by the scheme until the convention is read.
+    constructive_transforms:
+      - transform: stronger_compositional_invariant
+        proposed_object: >-
+          Propagate the PAIR (pmf enclosure, gradient of the pmf with respect to
+          each table cell) through the convolution rather than the pmf alone. The
+          gradient of a convolution with respect to a factor's parameters is itself
+          a convolution, so the stronger state costs the same machinery and survives
+          the recursion.
+        predicted_gain: >-
+          Converts the mutation control from a yes/no smoke test into a quantitative
+          instrument with a derived expected magnitude, and yields the first computed
+          sensitivity of a decryption failure rate to its error table in this corpus.
+      - transform: specialize_measure_pack
+        proposed_object: >-
+          Replace exact rational coefficients by directed-rounding fixed-point
+          intervals, so the resource measure is precision-bits rather than
+          numerator-bits, and charge the discarded tail mass only into the upper
+          endpoint.
+        predicted_gain: >-
+          Reduces the coefficient size from ~2^20500 bits to a few hundred bits at
+          the cost of a reported enclosure width, turning a computation the goal's
+          own pause_conditions flag as possibly infeasible into one whose failure
+          mode is a stated interval rather than a timeout.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable (log2 DFR at t) fixed and vary the forgotten structure
+          (the tail's curvature). The intrinsic invariant proposed to distinguish the
+          resulting objects is the second log-derivative of the tail.
+        predicted_gain: >-
+          If the invariant cannot distinguish a scale-perturbed from a
+          shape-perturbed tail, the reproduction claim is weaker than it looks and
+          must say so.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER. THERE EXISTS one pipeline and one frozen decision rule
+      (fixed in assumptions clause 7, before any evaluation) such that FOR ALL three
+      parameter sets, FOR ALL declared control arms, and FOR ALL seeds, the pipeline
+      returns a certified enclosure whose relation to the published figure the rule
+      classifies. The pipeline and the rule may NOT depend on the parameter set, on
+      the arm, or on the observed value.
+      THE TRAP BEING HUNTED, STATED EXPLICITLY: the weaker order -- FOR ALL parameter
+      sets THERE EXISTS a rule under which the recomputation agrees -- is trivially
+      satisfiable by choosing the tolerance after seeing the residual, and it is
+      exactly how a reproduction claim becomes vacuous. It is NOT claimed and is NOT
+      admissible. A second quantifier point specific to the failure rate: the
+      published figure is a bound over WHICH set of ciphertexts and keys -- the
+      average over both, the worst case over ciphertexts, or the average over keys
+      and worst over ciphertexts? Those are three different numbers and the document
+      prints one. Determining which is a required output.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a CRYPTO-tier arithmetic statement that a certified enclosure of the
+        decryption failure rate, computed independently of the reference
+        implementation, does or does not contain the published figure at each
+        standardised parameter set, with the enclosure width and the discrepancy
+        size stated; plus TOY-tier statements about what a discrepancy would mean.
+        IT CANNOT CERTIFY that FrodoKEM is secure or insecure, cannot support any
+        attack claim, cannot move any exponent, and cannot say anything about LWE.
+        It also cannot certify the DESIGNERS' method, only the number.
+      nearby_object_control: >-
+        THE NEARBY OBJECT WHERE THE HOPED-FOR CONCLUSION FAILS is the same pipeline
+        applied to a distribution that is NOT close to a rounded Gaussian but has the
+        SAME variance -- for instance a two-point distribution at +-sqrt(v). The
+        failure rate there differs by many bits from FrodoKEM's despite the matched
+        variance, because the tail is governed by kurtosis and not by variance. A
+        pipeline that returns similar answers for the two has not identified the
+        load-bearing structure and its agreement with a published figure is
+        uninformative. THIS CONTROL IS MANDATORY and it is the sharpest one available
+        here, because it directly tests whether the pipeline is sensitive to the
+        thing that actually determines the answer.
+    proof_obligations:
+      - claim: "C1 is forced by the sampler's construction, not assumed."
+        responsibility: correctness
+      - claim: "Var(rounded Gaussian) = sigma^2 + 1/12 + eps with eps computed, not cited."
+        responsibility: baseline
+      - claim: "The Rademacher null returns the binomial tail exactly."
+        responsibility: correctness
+      - claim: "The certified enclosure contains the true value; validated at every ladder rung."
+        responsibility: soundness
+      - claim: "The mutation response magnitude is derived before the run and the band is fixed before it."
+        responsibility: strictness
+      - claim: "The published figure's convention (per coordinate / per key; average / worst case) is read, not inferred."
+        responsibility: interface
+      - claim: "Independence from the reference implementation: the Rademacher null and the sampling positive control are independent methods."
+        responsibility: interface
+      - claim: "Arithmetic and security claims are recorded at separate tiers; no attack language anywhere."
+        responsibility: scope
+      - claim: "An exhausted budget is reported as a budget outcome and never as a negative about the number."
+        responsibility: runtime
+    not_applicable_reason: null
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. NO COMPLEXITY CLAIM. This hypothesis recomputes a published
+    number and builds the controls that license the comparison. It makes no scheme
+    easier to attack, moves no exponent, and adds no algorithm; sota_delta is zero
+    on time, memory, data, queries and advice, and dominated_by is not applicable
+    because no Pareto point is claimed.
+
+  heuristic_assumptions:
+    - id: HEUR-FD-1
+      formal_statement: >-
+        (Coordinate union) The nbar*mbar coordinate failure events of one key satisfy
+        DFR_key = 1 - (1 - DFR_coord)^{nbar*mbar}, or at minimum the union bound
+        DFR_key <= nbar*mbar * DFR_coord.
+      random_model_justification: >-
+        The union BOUND is rigorous for any dependence structure (Boole). The
+        EQUALITY form assumes independence, which is false: the coordinates share the
+        secret matrices S and S' and their failure events are positively correlated
+        through the secret's norm. Positive correlation makes the true per-key rate
+        SMALLER than the independent product, so the equality form errs on the
+        conservative side for a security claim -- stated here so a reviewer can
+        attack the direction argument rather than take it on trust.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FRODO-60fd9d]
+      falsification_condition: >-
+        At the reduced-dimension ladder rungs, where the rate is large enough to
+        sample, the measured per-key rate falls outside the interval between the
+        union bound and the independent product. The union model is then wrong in a
+        way the direction argument did not anticipate and must be restated. At
+        FrodoKEM's own parameters the two forms agree far beyond any precision at
+        issue, and demonstrating that with a number IS the validation.
+    - id: HEUR-FD-2
+      formal_statement: >-
+        (Gaussian slope) d log2 P(|X| >= t)/d Var(X) = t^2/(2 Var(X)^2 ln 2), used
+        ONLY to derive the mutation control's predicted magnitude.
+      random_model_justification: >-
+        Exact for a Gaussian, approximate for the leptokurtic sum X actually is
+        (kurt(product) = 8.97 by C5). THE DIRECTION OF THE ERROR IS KNOWN: a heavier
+        tail is less sensitive to variance at fixed t, because more of the tail mass
+        comes from single large summands, so the derived -0.167 bits is expected to
+        be a slight OVER-estimate of the true response. That is why the acceptance
+        band is a factor of two rather than tight, and why the band is asymmetric in
+        interpretation: a measured response slightly smaller in magnitude than
+        predicted is the expected outcome, and one larger is the surprising one.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FRODO-60fd9d]
+      falsification_condition: >-
+        The measured response at u = 1 lies outside [-0.33, -0.08] bits. Reported as
+        a failure of the CONTROL, which blocks the reproduction claim, and separately
+        as evidence about HEUR-FD-2 -- the two readings are distinguished by whether
+        the graded ladder is linear: a linear ladder with the wrong slope indicts
+        HEUR-FD-2, a non-linear ladder indicts the pipeline.
+    - id: HEUR-FD-3
+      formal_statement: >-
+        (Enclosure soundness) The directed-rounding interval arithmetic yields
+        [lo, hi] with lo <= true DFR <= hi, all discarded tail mass charged into hi
+        and none into lo.
+      random_model_justification: >-
+        Constructive rather than heuristic: valid by construction PROVIDED the
+        implementation is correct, so the assumption is about the implementation.
+        It is listed because Stage 5's entire output is an enclosure and an unsound
+        enclosure would produce a confident wrong answer rather than a visible
+        failure -- the worst available failure mode.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FRODO-60fd9d]
+      falsification_condition: >-
+        At any rung of the reduced-dimension ladder the fully exact rational answer
+        falls outside the enclosure. HEUR-FD-3 is refuted, Stage 5 halts, and no
+        enclosure-based number is reported.
+    - id: HEUR-FD-4
+      formal_statement: >-
+        (Rounding-model constant) Var(rounded Gaussian at sigma) = sigma^2 + 1/12 +
+        eps(sigma) with |eps| exponentially small in sigma^2, used as C2's target.
+      random_model_justification: >-
+        Poisson summation gives the correction as a theta series whose non-constant
+        terms carry exp(-2 pi^2 sigma^2). RECALLED AS STANDARD, NOT CITED, and a
+        CANDIDATE TO CHECK. At sigma = 2.8 the leading neglected term is far below
+        the observed 2.0e-4 residual; at the recalled sigma ~ 1.4 of Frodo-1344 it
+        may not be, which is why C2's band is looser there.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FRODO-60fd9d]
+      falsification_condition: >-
+        Direct exact summation of the rounded Gaussian's variance at each stated
+        sigma disagrees with sigma^2 + 1/12 by more than C2's band. The MODEL is then
+        wrong at that sigma, not the table, and C2 must be restated against the
+        directly computed variance instead. This is checked by computation, not
+        assumed, and it costs milliseconds.
+
+  structural_ingredients:
+    - description: >-
+        Exact-rational moment identities on a finite integer sampling table.
+      citation: >-
+        ledger/proposals/IDEA-20260805-390957.yaml, identities C1, C2, C4, C5,
+        derived in that record. Evaluated so far ONLY against the extraction-damaged
+        excerpt in RQ-FRODO-3260cc.provenance.
+      role: the gate that licenses every downstream computation
+    - description: >-
+        Rademacher collapse of a sum of products to a binomial tail.
+      citation: Elementary; derived in this record. No external source is claimed.
+      role: null object with a closed-form answer, of the same shape as the treatment
+    - description: >-
+        Certified enclosure by directed-rounding fixed-point convolution.
+      citation: >-
+        Standard interval-arithmetic practice; NOT cited to any source and derived
+        here as a construction. GOAL-FRODO-001.pause_conditions names
+        interval-arithmetic bracketing as an anticipated cheaper falsification gate,
+        which is where the idea comes from.
+      role: makes the true-dimension computation affordable without abandoning exactness
+    - description: >-
+        Decryption-failure attacks and failure boosting, as the frame that decides
+        what a discrepancy would be worth.
+      citation: >-
+        knowledge/techniques/KN-TECH-048.md (IN-REPO, READ). Its own primary sources
+        KN-LIT-119, KN-LIT-118, KN-LIT-080, KN-LIT-055 are NOT READ by this record
+        and no figure from them is asserted.
+      role: boundary marker only; the cost derivation is IDEA-20260805-f16b44's, not this hypothesis's
+
+  reduction_chain:
+    core_problem: >-
+      Compute, independently of the reference implementation and in certified exact
+      arithmetic, the decryption failure rate of FrodoKEM at each standardised
+      parameter set, together with a demonstration that the computing pipeline
+      detects a perturbation of a derived, pre-stated magnitude.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. Nothing here reduces to a statement about LWE hardness,
+      about FrodoKEM's IND-CCA security, or about any other scheme. The one
+      downstream consumer is IDEA-20260805-f16b44's cost audit, which takes the
+      recomputed rate and its local curvature as INPUTS and is a separate record at a
+      separate tier. GOAL-FRODO-001.non_duplication reserves the lattice-estimator
+      lane for GOAL-MLKEM-003 and -004 and this hypothesis makes no claim in it.
+
+  predictions:
+    - metric: "G1 - table gate: C1 as an exact integer, per parameter set, from a twice-transcribed table"
+      direction: different
+      minimum_effect: >-
+        EXACTLY the stated power of two, zero tolerance. At Frodo-640 the excerpt
+        already gives 65536 (SCOUT-COMPUTED), so that cell is a REPRODUCTION target
+        and is reported as one; Frodo-976 and Frodo-1344 are genuinely open because
+        no excerpt table exists for them.
+    - metric: "G2 - C2 relative residual |Var(chi) - (sigma^2 + 1/12)|/(sigma^2 + 1/12), exact rational"
+      direction: lower
+      minimum_effect: >-
+        Below 5e-3 at Frodo-640 and Frodo-976 (excerpt gives 2.0e-4 at Frodo-640,
+        so the band is an order of magnitude above the observation and is not a
+        restatement of it); below 5e-2 at Frodo-1344 for the stated
+        small-sigma reason.
+    - metric: "G3 - C4: non-strict descents and repeated cumulative entries"
+      direction: lower
+      minimum_effect: "EXACTLY 0 for both, per parameter set."
+    - metric: "G4 - Rademacher null: pipeline output against the binomial-tail closed form, as Fractions"
+      direction: different
+      minimum_effect: >-
+        EXACT equality, bit for bit. Any inequality is a pipeline defect and halts
+        the run.
+    - metric: "G5 - MUTATION CONTROL: Delta log2 DFR for 'p_12 -= 1, p_0 += 2' at Frodo-640"
+      direction: lower
+      minimum_effect: >-
+        -0.1671 bits predicted, band [-0.33, -0.08], derived before any run. OUTSIDE
+        THE BAND IN EITHER DIRECTION, OR ZERO, OR POSITIVE: the control has failed
+        and NO agreement with a published failure rate may be reported as a
+        verification (RQ-FRODO-3260cc.constraints).
+    - metric: "G6 - graded mutation ladder: responses at u in {1,2,4,8,16} and the fitted slope"
+      direction: lower
+      minimum_effect: >-
+        Strictly monotone decreasing, responses in ratio 1:2:4:8:16 to within 15 per
+        cent at u <= 8, and the fitted slope within a factor of 2 of the derived
+        38.03 bits per unit of v. Saturation or non-monotonicity localises the
+        defect; report which.
+    - metric: "G7 - directional bracket: exactly computed log2 DFR against the Gaussian tail at matched variance"
+      direction: higher
+      minimum_effect: >-
+        STRICTLY GREATER. Forced by kurt(product) = kurt(chi)^2 = 8.97 > 3, computed
+        from the table alone. At Frodo-640 the bracket is -148.84 under the recalled
+        parameters. Landing below it indicates broken parameters or a broken
+        pipeline and may NOT be reported as a FrodoKEM discrepancy.
+    - metric: "G8 - nearby-object control: log2 DFR for a two-point distribution at +-sqrt(v), same variance as chi"
+      direction: different
+      minimum_effect: >-
+        Differing from the chi result by more than 5 bits. The two objects have
+        IDENTICAL variance and different kurtosis, so a pipeline that returns similar
+        answers is responding to variance alone and has not identified what
+        determines the tail. If the difference is under 5 bits, G7's bracket and the
+        whole sensitivity argument are suspect and must be re-derived.
+    - metric: "G9 - enclosure width, hi - lo, in bits of log2 DFR, per parameter set"
+      direction: lower
+      minimum_effect: >-
+        Below 0.05 bits. Instrument quality, not a result: a wider enclosure means
+        the run did not answer the question and reports a budget outcome (AGENTS.md
+        rule 5), never a negative about the published number.
+    - metric: "G10 - reproduction: |recomputed - published| in bits of log2 DFR, per parameter set"
+      direction: lower
+      minimum_effect: >-
+        NO PREDICTION IS MADE, deliberately -- predicting agreement would be
+        predicting the answer to the question the goal exists to ask, and predicting
+        disagreement would be worse. What is pre-registered is the decision rule in
+        assumptions clause 7, which is fixed before any number is seen and may not be
+        revised afterwards.
+
+  test_boundary:
+    instances:
+      - Frodo-640, Frodo-976, Frodo-1344 as printed in the primary standardisation text, once filed.
+      - Rademacher null, point-mass null, two-point same-variance nearby object, and a directly constructed rounded Gaussian as the positive control for the table gate.
+      - Reduced-dimension ladder at n' in {8,16,32,64,128} with the true chi, where a fully exact rational answer is affordable.
+    parameters:
+      parameter_sets: [Frodo-640, Frodo-976, Frodo-1344]
+      recalled_structure: "X = sum_{i=1}^{n}(e'_i s_i - s'_i e_i) + e''; fail when |X| >= t = q/2^{B+1}; union over nbar*mbar coordinates"
+      recalled_values_frodo640: {n: 640, q: 32768, B: 2, nbar: 8, mbar: 8, product_terms: 1280, threshold: 4096, coordinates: 64}
+      recalled_values_provenance: "RECALLED, UNVERIFIED; every one is a read target and none may be used before Stage 0 files the source"
+      excerpt_table_frodo640: [9288, 8720, 7216, 5264, 3384, 1918, 958, 422, 164, 56, 17, 4, 1]
+      excerpt_table_provenance: "EXTRACTION-DAMAGED EXCERPT, RQ-FRODO-3260cc.provenance; a provisional working table only"
+      excerpt_derived_exact: {two_sided_sum: 65536, variance: "64895/8192", kurtosis_chi: 2.99508, kurtosis_product: 8.970}
+      excerpt_derived_provenance: "SCOUT-COMPUTED in ledger/proposals/IDEA-20260805-390957.yaml and this record, outside the harness; re-run in-harness before citing"
+      mutation: "p_12 -= 1, p_0 += 2"
+      graded_u: [1, 2, 4, 8, 16]
+      ladder_n: [8, 16, 32, 64, 128]
+      arithmetic: "exact rational for the table gate and the nulls; directed-rounding fixed-point intervals for the true-dimension convolution; no floating point in any reported quantity"
+    implementation: >-
+      Pure-Python integer and Fraction arithmetic for Stages 1 to 4, which require no
+      third-party package. Stage 5's convolution would benefit from an array
+      library, and THE CONTAINER ENVIRONMENT IS DISPUTED: one 2026-08-05 sweep
+      reports no numpy, no sympy, no Sage and no fpylll verified by pip list, and
+      another reports running a null with numpy 2.4.6 on the same machine. The
+      executor must resolve this by running the import itself and recording the
+      result in the manifest BEFORE costing Stage 5. If Stage 5's cheapest path
+      needs a package that is absent, that is an infrastructure request and never an
+      experimental result (AGENTS.md rule 3).
+    budget:
+      stage1_wall_clock_seconds: 300
+      stage2_wall_clock_seconds: 600
+      stage3_wall_clock_seconds: 1800
+      stage4_wall_clock_seconds: 3600
+      stage5_wall_clock_seconds_ceiling: 21600
+      stage5_maximum_memory_gb: 8
+      note: >-
+        NO STAGE IS AUTHORIZED BY THIS RECORD. The source gate of
+        RQ-FRODO-3260cc.constraints[0] is shut and
+        GOAL-FRODO-001.next_action requires the KN-LIT filing first. Stage 5
+        additionally requires a separate committed Coordinator authorization after
+        Stages 1 to 4 have passed.
+
+  falsification_conditions:
+    - >-
+      F1 (MILLISECONDS, THE PRIMARY FALSIFIER). C1 fails on a table that survived
+      its own two-pass transcription diff. Everything downstream is void for that
+      parameter set; report a transcription or document defect and STOP. This is the
+      cheapest possible termination of the whole line and it is ordered first for
+      that reason.
+    - >-
+      F2. The Rademacher null does not return the binomial tail exactly. Hard
+      pipeline failure; halt and report nothing about FrodoKEM.
+    - >-
+      F3. The mutation response falls outside [-0.33, -0.08] bits. The control has
+      failed; no reproduction and no discrepancy may be reported. Distinguish
+      HEUR-FD-2 failure from pipeline failure by the graded ladder's linearity.
+    - >-
+      F4. The nearby-object control (G8) returns a result within 5 bits of chi's.
+      The pipeline responds to variance rather than to the tail, and G7's bracket
+      and the sensitivity derivation are suspect.
+    - >-
+      F5. The enclosure fails to contain the fully exact answer at any ladder rung.
+      HEUR-FD-3 refuted; halt Stage 5 and report no enclosure-based number.
+    - >-
+      F6. The exactly computed log2 DFR falls below the Gaussian bracket. Parameters
+      or pipeline wrong; re-read rather than report.
+    - >-
+      F7 (NOT A FALSIFICATION, PRE-REGISTERED). If a "discrepancy" of about 6 bits
+      appears, the FIRST reading is the per-coordinate versus per-key convention and
+      only the SECOND is an error in the document. That order is fixed here and may
+      not be reversed after the fact.
+    - >-
+      F8 (THE PLANNED NEGATIVE). If the enclosure at the true dimensions cannot be
+      driven below 2 bits within budget, the batch must still emit the table gate
+      results, the mutation and graded control results, the reduced-dimension ladder,
+      and the enclosure achieved, with the budget outcome stated as a budget outcome.
+      A run that stops without emitting those HAS NOT FINISHED. The negative
+      disposition is a deliverable.
+
+  interpretation_limits:
+    - >-
+      SPLIT CLAIM TIER. CRYPTO is available ONLY for the arithmetic assertion that a
+      certified enclosure does or does not contain a printed figure at the
+      standardised parameters. EVERY security reading is capped at TOY by
+      RQ-FRODO-3260cc.scope.claim_tier_ceiling, and a record that reports both at one
+      tier has failed regardless of what it computed.
+    - >-
+      A DISCREPANCY IS NOT AN ATTACK, NOT A BREAK, AND NOT A STATEMENT ABOUT
+      DEPLOYED FRODOKEM, until it is costed with a charged attacker cost and
+      independently reviewed (RQ-FRODO-3260cc.constraints). No record from this
+      hypothesis may use the words break, attack, or vulnerable.
+    - >-
+      A REPRODUCTION VERIFIES AN ARITHMETIC ASSERTION AND NOTHING ELSE. It does not
+      verify the parameter choice, the IND-CCA argument, the FO transform, the
+      designers' method, or LWE hardness.
+    - >-
+      THE MUTATION CONTROL LICENSES THE COMPARISON; IT DOES NOT STRENGTHEN IT. A
+      pipeline that detects a 0.167-bit perturbation has shown it detects
+      perturbations of about that size and nothing smaller. The detection floor is a
+      reported metric and every citation must carry it.
+    - >-
+      IMPLEMENTATION-SIDE FRODOKEM RESULTS (KN-LIT-2088, KN-LIT-3859, KN-LIT-118,
+      KN-TECH-047) ARE OUT OF SCOPE and may not be scored as evidence about this
+      hypothesis in either direction (AGENTS.md rule 7).
+    - >-
+      TIMEOUTS, MISSING PACKAGES, AND MEMORY EXHAUSTION IN STAGE 5 ARE
+      INFRASTRUCTURE SIGNAL. They are never evidence about the failure rate
+      (AGENTS.md rule 5), and GOAL-FRODO-001.pause_conditions says so in its own
+      words.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/questions/RQ-FRODO-3260cc.yaml
+    - ledger/goals/GOAL-FRODO-001.yaml
+    - ledger/proposals/IDEA-20260805-390957.yaml
+    - ledger/proposals/IDEA-20260805-411b60.yaml
+    - ledger/proposals/IDEA-20260805-f16b44.yaml
+    - knowledge/techniques/KN-TECH-048.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - templates/research-records.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to one model.
+      Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; `python3 -m
+      orchestration.adapter doctor --probe` was not run here.

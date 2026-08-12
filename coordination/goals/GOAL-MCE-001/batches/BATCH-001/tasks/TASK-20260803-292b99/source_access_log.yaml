@@ -1,0 +1,764 @@
+# Source access log — TASK-20260803-292b99
+# GOAL-MCE-001 / BATCH-001 / role: executor
+#
+# ROUTE ORDER DECLARED AT 2026-08-03T03:08:05Z, BEFORE ANY ATTEMPT (first
+# attempt A01 at 2026-08-03T03:08:49Z). Attempts are appended in execution
+# order. A blocked or failing route is a recorded outcome, NEVER negative
+# mathematical evidence (AGENTS.md rule 5).
+
+schema: crypto.autoresearch.source_access_log.v1
+task_id: TASK-20260803-292b99
+goal_id: GOAL-MCE-001
+batch_id: BATCH-001
+role: executor
+declared_at: '2026-08-03T03:08:05Z'
+first_attempt_at: '2026-08-03T03:08:49Z'
+last_attempt_at: '2026-08-03T03:17:19Z'
+repo_commit_at_start: a6a04546919d14ff6f4adf7decb9fee7ee388062
+worktree_dirty_at_start: true
+worktree_dirty_paths_at_start:
+  - coordination/goals/GOAL-MCE-001/batches/BATCH-001/dispatch_queue.json
+repo_commit_at_end: 6b4c09dcbbeda129c0989467f8b8300c6b5eaf5f
+head_moved_during_execution: true
+head_move_note: >-
+  UNEXPECTED OBSERVATION, recorded under AGENTS.md rule 8 rather than dropped.
+  HEAD advanced from a6a04546919d14ff6f4adf7decb9fee7ee388062 to
+  6b4c09dcbbeda129c0989467f8b8300c6b5eaf5f while this task was running
+  (commits 585f01b6 "dispatch the two producers" and 6b4c09dc "split the
+  snapshot per producer"), and the dispatch_queue.json dirt present at start
+  was committed by that concurrent actor. THIS TASK MADE NO COMMIT, staged
+  nothing, and touched no file outside its write scope. It is recorded because
+  a reviewer re-running against the recorded start commit will find a tree
+  that no longer matches HEAD, and because the task card read at start
+  (tasks[0] of dispatch_queue.json at a6a04546) may differ from the committed
+  version at 6b4c09dc.
+
+inference:
+  requested_policy: executor-implementation
+  resolved_model: claude-opus-5
+  fallback_used: true
+  fallback_note: >-
+    orchestration/model-policies.yaml policy aliases (GPT-5.6 family) do not
+    resolve under this Claude Code harness; subagent frontmatter supports only
+    Claude models and all subagents run model: inherit. Resolved model is the
+    session model. Recorded, never silently substituted.
+
+client:
+  tool: curl (via /usr/bin/curl)
+  tls: >-
+    --cacert /root/.ccr/ca-bundle.crt through the session agent proxy
+    (HTTPS_PROXY). TLS verification was NEVER disabled and HTTPS_PROXY was
+    NEVER unset.
+  user_agent: >-
+    Mozilla/5.0 (X11; Linux x86_64) crypto-autoresearcher/1.0 (research
+    transcription; contact via repo)
+  redirects: followed (-L)
+  timeout_seconds: 60
+  note: >-
+    A single user-agent string was used for every attempt. No user-agent,
+    header, cookie, or IP variation was tried against any endpoint that
+    returned a bot-protection challenge.
+
+prohibitions_observed:
+  - >-
+    No bot-protection challenge was circumvented or attempted to be
+    circumvented. Two distinct challenge systems were met (Cloudflare
+    "cf-mitigated: challenge" on eprint.iacr.org non-HTML paths; an
+    Anubis-style proof-of-work interstitial on hal.science /document paths).
+    Neither was solved, proxied, or evaded.
+  - No outward-facing correspondence was sent to any author or maintainer.
+  - No third-party copyrighted PDF is committed to this repository. Only URL,
+    HTTP status, byte count and sha256 are recorded so a reviewer can
+    re-acquire and verify byte-identity. Retrieved bodies live only in the
+    session scratchpad and are not part of the repo.
+  - No fetch was retried more than once against a 403; A29 is a single
+    transience check of A02 and is reported as such.
+
+# ---------------------------------------------------------------------------
+# DECLARED ROUTE ORDER (primary target: iacr:2026/1232)
+# ---------------------------------------------------------------------------
+declared_route_order:
+  - rank: 1
+    route: eprint-abstract
+    endpoint_kind: abstract
+    url: https://eprint.iacr.org/2026/1232
+    rationale: >-
+      Measured precondition: eprint.iacr.org ABSTRACT pages returned HTTP 200
+      on 75/75 requests from this harness on 2026-08-03 (RQ-MCE-e65b3c
+      provenance). Cheapest route; also yields the canonical version-stamped
+      PDF path and any DOI/arXiv cross-reference.
+  - rank: 2
+    route: eprint-pdf-canonical
+    endpoint_kind: pdf
+    url: https://eprint.iacr.org/2026/1232.pdf
+    rationale: >-
+      TESTED AND REPORTED SEPARATELY FROM RANK 1, per named duty 3.
+      GOAL-HQC-001 BATCH-001's red team established the PDF endpoint returns
+      403 and that a contrary Coordinator claim was FALSE because only HTML
+      endpoints had been tested. No result at rank 1 is generalised to this
+      rank or vice versa.
+  - rank: 3
+    route: eprint-pdf-archive
+    endpoint_kind: pdf
+    url: https://eprint.iacr.org/archive/2026/1232/<version-timestamp>.pdf
+    rationale: >-
+      Version-stamped archive path, to be discovered from the rank-1 abstract
+      page. A distinct URL shape from rank 2 and therefore a distinct test.
+  - rank: 4
+    route: arxiv
+    endpoint_kind: abstract-then-pdf
+    url: https://arxiv.org/abs/<id> (only if an arXiv id is disclosed)
+    rationale: Independent open repository; separate host, separate egress policy.
+  - rank: 5
+    route: hal-inria
+    endpoint_kind: abstract-then-pdf
+    url: https://api.archives-ouvertes.fr/search/ then <deposit>/document
+    rationale: >-
+      Author affiliations are Inria / ANSSI / Telecom Paris / XLIM-CNRS; HAL is
+      the mandated open deposit there. Open repository per knowledge/SEEDING.md.
+  - rank: 6
+    route: openalex-or-semanticscholar-oa-link
+    endpoint_kind: metadata-then-pdf
+    url: https://api.openalex.org/works , https://api.semanticscholar.org/graph/v1/...
+    rationale: >-
+      Metadata APIs that expose an open-access PDF location if one exists on a
+      third host. Metadata only unless an OA location is returned.
+  - rank: 7
+    route: publisher-doi
+    endpoint_kind: metadata-then-pdf
+    url: resolved from any DOI found at ranks 1 or 6
+    rationale: Last resort; likely paywalled, recorded either way.
+
+route_order_deviations:
+  - id: DEV-1
+    what: >-
+      Additional routes not in the declared list were attempted after ranks 1-7
+      were exhausted for the primary target: IACR OAI-PMH (A11), author
+      homepages and an open Apache directory index (A12-A14, A25), an IACR
+      listing mirror (A20), Internet Archive / scholar.archive.org (A21-A23),
+      OpenAIRE (A24), and a web search engine used only to discover candidate
+      hosts (A17, A18, A26).
+    why: >-
+      The declared order was exhausted without obtaining the primary body. These
+      are all open, non-circumventing routes to the same class of object. They
+      are recorded here as an explicit protocol deviation rather than folded
+      silently into the declared order.
+    effect_on_primary: none — the primary body was still not obtained.
+    effect_on_secondary: >-
+      A13/A14/A25 (author homepage of H. Randriambololona) yielded the full text
+      of secondary target KN-LIT-71d1a0 directly from the author's own site.
+
+secondary_targets_declared:
+  note: >-
+    Attempted only after the primary route order was exhausted, in the priority
+    order fixed by the task card.
+  order:
+    - {rank: 1, kn_lit: KN-LIT-71d1a0, id: 'iacr:2024/1193', title_short: syzygy distinguisher, outcome: FULL TEXT OBTAINED}
+    - {rank: 2, kn_lit: KN-LIT-4c8135, id: 'arXiv:2304.14757', title_short: high-rate alternant key recovery, outcome: FULL TEXT OBTAINED}
+    - {rank: 3, kn_lit: KN-LIT-7ee1a9, id: 'iacr:2025/531', title_short: degree-2 alternant distinguisher, outcome: ABSTRACT ONLY}
+
+# ---------------------------------------------------------------------------
+# ATTEMPTS — primary target iacr:2026/1232
+# ---------------------------------------------------------------------------
+attempts:
+  - id: A01
+    target: 'iacr:2026/1232'
+    route_rank: 1
+    endpoint_kind: abstract
+    url: https://eprint.iacr.org/2026/1232
+    ts_start: '2026-08-03T03:08:49Z'
+    ts_end: '2026-08-03T03:08:52Z'
+    http_status: 200
+    curl_rc: 0
+    bytes: 17323
+    sha256: 6e27530d976a4841fe86e41a016741c9d770735e597862a57d083bbe9b58f1a6
+    content_type: text/html; charset=utf-8
+    outcome: SUCCESS
+    obtained: >-
+      Title, four authors with affiliations, full abstract, authors' revision
+      Note, category, keywords, version history (2026-06-10 received,
+      2026-06-12 revised), licence CC BY, BibTeX. NOT the paper body.
+
+  - id: A02
+    target: 'iacr:2026/1232'
+    route_rank: 2
+    endpoint_kind: pdf
+    url: https://eprint.iacr.org/2026/1232.pdf
+    ts_start: '2026-08-03T03:09:16Z'
+    ts_end: '2026-08-03T03:09:16Z'
+    http_status: 403
+    curl_rc: 0
+    bytes: 5615
+    sha256: 9803f199d58e269d2ad5c52101f422ff49391658aa7612a4a082a35f258252a7
+    content_type: text/html; charset=UTF-8
+    response_headers_of_note:
+      server: cloudflare
+      cf-mitigated: challenge
+      cf-ray: a2521f627da4f274-IAD
+      body_title: 'Just a moment...'
+    outcome: BLOCKED — bot-protection challenge, not circumvented
+    note: >-
+      THE PDF ENDPOINT IS REPORTED SEPARATELY FROM THE ABSTRACT ENDPOINT AND NO
+      RESULT IS GENERALISED BETWEEN THEM. A01 (abstract, HTML) returned 200 and
+      A02 (pdf) returned 403 in the same session, 24 seconds apart, from the
+      same client. The sha256 of a challenge body is NOT reproducible: see A29,
+      which returned the same 5615 bytes with a different sha256 because the
+      challenge page embeds a per-request nonce.
+
+  - id: A03
+    target: 'iacr:2026/1232'
+    route_rank: 3
+    endpoint_kind: abstract
+    url: https://eprint.iacr.org/archive/versions/2026/1232
+    ts_start: '2026-08-03T03:09:24Z'
+    ts_end: '2026-08-03T03:09:25Z'
+    http_status: 403
+    curl_rc: 0
+    bytes: 5675
+    sha256: 4ef49c9dfc4f562994fcc941e6d24bc7a48fe30ad52477b30d5c526abb6cef35
+    content_type: text/html; charset=UTF-8
+    response_headers_of_note: {cf-mitigated: challenge}
+    outcome: BLOCKED — challenge. Version-stamped archive path NOT discoverable.
+    note: >-
+      This is an HTML endpoint that was BLOCKED. It is the counterexample to any
+      claim that "eprint HTML works": the challenge is path-scoped, not
+      format-scoped. /YYYY/NNNN served; /archive/* and *.pdf did not.
+
+  - id: A04
+    target: 'iacr:2026/1232'
+    route_rank: 3
+    endpoint_kind: pdf
+    url: 'https://eprint.iacr.org/archive/2026/1232/20260612:000000.pdf'
+    ts_start: '2026-08-03T03:09:56Z'
+    ts_end: '2026-08-03T03:09:57Z'
+    http_status: 403
+    curl_rc: 0
+    bytes: 5730
+    sha256: b9db0b743932a0d8c943eda987297b23ccbb1fb208599602ace7926480a8c4bd
+    content_type: text/html; charset=UTF-8
+    response_headers_of_note: {cf-mitigated: challenge}
+    outcome: BLOCKED — challenge
+    note: >-
+      Timestamp component is a CONSTRUCTED GUESS from the revision date, because
+      A03 (the authoritative source of the version stamp) was blocked. A 403
+      challenge is returned before any path resolution, so this attempt tests
+      the endpoint's reachability only and says nothing about whether the URL
+      would have been correct.
+
+  - id: A05
+    target: 'iacr:2026/1232'
+    route_rank: 5
+    endpoint_kind: metadata
+    url: https://api.archives-ouvertes.fr/search/?q=title_t:"subexponential attack on the McEliece"&...
+    ts_start: '2026-08-03T03:10:04Z'
+    ts_end: '2026-08-03T03:10:05Z'
+    http_status: 200
+    bytes: 116
+    sha256: 316b596864c92e18c8f6688107ad49ecfc3fe632ebdc85efe82c65ed28ba8064
+    outcome: NEGATIVE — numFound 0. Not deposited in HAL under this title.
+
+  - id: A06
+    target: 'iacr:2026/1232'
+    route_rank: 5
+    endpoint_kind: metadata
+    url: https://api.archives-ouvertes.fr/search/?q=authFullName_t:"Jean-Pierre Tillich" AND title_t:McEliece&...
+    ts_start: '2026-08-03T03:10:10Z'
+    ts_end: '2026-08-03T03:10:11Z'
+    http_status: 200
+    bytes: 6226
+    sha256: a6edcccb6f08d5349557bc2c6e3de2b1e87075230d4341516f9519ba219b5c8f
+    outcome: NEGATIVE — 20 records, newest 2023. No 2026 deposit.
+
+  - id: A07
+    target: 'iacr:2026/1232'
+    route_rank: 6
+    endpoint_kind: metadata
+    url: https://api.openalex.org/works?filter=title.search:heuristic subexponential attack McEliece
+    ts_start: '2026-08-03T03:10:23Z'
+    ts_end: '2026-08-03T03:10:24Z'
+    http_status: 200
+    bytes: 489
+    sha256: 7ad9863979a122517751a8a9d2e4e2d75660ed0be834c05bc282e565f2cb23e5
+    outcome: NEGATIVE — meta.count 0. Not indexed (paper is ~2 months old).
+
+  - id: A08
+    target: 'iacr:2026/1232'
+    route_rank: 4
+    endpoint_kind: metadata
+    url: http://export.arxiv.org/api/query?search_query=all:"subexponential attack on the McEliece"
+    ts_start: '2026-08-03T03:10:24Z'
+    ts_end: '2026-08-03T03:10:26Z'
+    http_status: 503
+    bytes: 22
+    sha256: 5fce5f5e9283ca6f3e7d4c56f339c5b0aea89c6c2e483e4e4f81856c6391324a
+    outcome: INFRASTRUCTURE — plain-HTTP URL; the session proxy serves HTTPS only. Retried as A09.
+
+  - id: A09
+    target: 'iacr:2026/1232'
+    route_rank: 4
+    endpoint_kind: metadata
+    url: https://export.arxiv.org/api/query?search_query=all:"subexponential attack on the McEliece"
+    ts_start: '2026-08-03T03:10:35Z'
+    ts_end: '2026-08-03T03:11:22Z'
+    http_status: 429
+    bytes: 14
+    sha256: 467622e2f17f01d302d6c790b13078569f17d71cd83910558535019a594e07c1
+    outcome: INFRASTRUCTURE — rate limited. Not retried; C01/C02 later show arxiv.org itself is reachable.
+
+  - id: A10
+    target: 'iacr:2026/1232'
+    route_rank: 6
+    endpoint_kind: metadata
+    url: https://api.semanticscholar.org/graph/v1/paper/search?query=heuristic+subexponential+attack+McEliece&fields=...
+    ts_start: '2026-08-03T03:11:22Z'
+    ts_end: '2026-08-03T03:11:22Z'
+    http_status: 429
+    bytes: 174
+    sha256: 65ab993d12c5c2cc9b68e6da2bb79b326930283e520363ffcdc145f88cd5a148
+    outcome: INFRASTRUCTURE — rate limited (no API key). Retried once as A19.
+
+  - id: A11
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: metadata
+    url: https://eprint.iacr.org/oai?verb=GetRecord&metadataPrefix=oai_dc&identifier=oai:eprint.iacr.org:2026/1232
+    ts_start: '2026-08-03T03:11:36Z'
+    ts_end: '2026-08-03T03:11:37Z'
+    http_status: 200
+    bytes: 3273
+    sha256: 0de9ebddac8b755d9b77b68c77664c1fa3a88731c7114854d495db6229a3b3a0
+    content_type: text/xml; charset=utf-8
+    outcome: SUCCESS (metadata only)
+    obtained: >-
+      dc:description carrying the abstract. USED AS AN INDEPENDENT
+      CROSS-CHECK of A01's abstract transcription: a second eprint endpoint,
+      different response format, same abstract text. This is the transcription
+      control for attack_transcription.md. Still NOT the paper body.
+
+  - id: A12
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: author-page
+    url: https://who.paris.inria.fr/Jean-Pierre.Tillich/
+    ts_start: '2026-08-03T03:11:37Z'
+    ts_end: '2026-08-03T03:11:38Z'
+    http_status: 404
+    bytes: 196
+    sha256: 80c3fe2ae1062abf56456f52518bd670f9ec3917b7f85e152b347ac6b6faf880
+    outcome: NEGATIVE — no such page at this guessed URL.
+
+  - id: A13
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: author-page
+    url: https://perso.telecom-paris.fr/randriam/
+    ts_start: '2026-08-03T03:11:38Z'
+    ts_end: '2026-08-03T03:11:39Z'
+    http_status: 200
+    bytes: 6231
+    sha256: f59f56399d925c3a8abc7f0ed5056b9201a0cf96ddf1722b43c104b0edefeee6
+    outcome: SUCCESS (index page). No 2026 preprint listed; newest item advertised is
+      "le distingueur par syzygies (juillet 2024)". Led to B01.
+
+  - id: A14
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: author-page
+    url: https://perso.telecom-paris.fr/randriam/maths.html
+    ts_start: '2026-08-03T03:11:56Z'
+    ts_end: '2026-08-03T03:11:58Z'
+    http_status: 200
+    bytes: 20268
+    sha256: 2119aea0a51860ed5984239b8f5d76128f291ca701004513dadefc60b43b95a8
+    outcome: NEGATIVE for the primary — publication list contains no 2026 item.
+
+  - id: A15
+    target: 'iacr:2026/1232'
+    route_rank: 5
+    endpoint_kind: metadata
+    url: https://api.archives-ouvertes.fr/search/?q=authFullName_t:"Axel Lemoine"&...
+    ts_start: '2026-08-03T03:12:23Z'
+    ts_end: '2026-08-03T03:12:24Z'
+    http_status: 200
+    bytes: 2589
+    sha256: 2d7c2ab3074dca103499a6185a0a0a07d7454dbdda721474f1fc7f3a2c3cb00e
+    outcome: NEGATIVE for the primary (8 records, newest 2025). Disclosed HAL
+      deposits for two 2026-line siblings; see D01/D02.
+
+  - id: A16
+    target: 'iacr:2026/1232'
+    route_rank: 2
+    endpoint_kind: pdf
+    url: https://ia.cr/2026/1232.pdf
+    ts_start: '2026-08-03T03:12:33Z'
+    ts_end: '2026-08-03T03:12:34Z'
+    http_status: 404
+    bytes: 236
+    sha256: 9448f8a1159c9b14e3e1b9d8eab1a6ddf88d26e1f888a34cef430c756e4e6e1e
+    outcome: NEGATIVE — the ia.cr short-URL host does not serve a .pdf suffix.
+
+  - id: A17
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: search
+    url: https://html.duckduckgo.com/html/?q="A Heuristic Subexponential Attack on the McEliece Cryptosystem"
+    ts_start: '2026-08-03T03:12:34Z'
+    ts_end: '2026-08-03T03:12:34Z'
+    http_status: 202
+    bytes: 14294
+    sha256: a04b3e5317621ea63f0fc244f91ffd40c3efacfe8fd790b4ccd9663437ce502e
+    outcome: NEGATIVE — anomaly/JS page, no result links.
+
+  - id: A18
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: search
+    url: https://lite.duckduckgo.com/lite/?q="Heuristic Subexponential Attack on the McEliece"
+    ts_start: '2026-08-03T03:12:52Z'
+    ts_end: '2026-08-03T03:12:53Z'
+    http_status: 200
+    bytes: 17014
+    sha256: b94868a4c9e34007b5ee07466823b1584d841f8cd592f10a0482f84bf7a123ec
+    outcome: PARTIAL — five result URLs, none a full-text mirror. Led to A20.
+    leads_recorded_not_fetched:
+      - url: https://classic.mceliece.org/mceliece-610-20260623.pdf
+        why_not_fetched: >-
+          classic.mceliece.org is the write territory of the sibling producer
+          TASK-20260803-f3aece, and a Classic McEliece project document about
+          this paper would be a SECONDARY characterisation of it. Fetching it
+          would risk importing a third party's reading of the attack into a
+          verbatim-transcription deliverable. Recorded as a lead for the
+          Coordinator; NOT fetched, NOT quoted, NOT relied on.
+      - url: https://iacr.org/news/item/28776
+      - url: https://eprint-classic.github.io/2026.html
+
+  - id: A19
+    target: 'iacr:2026/1232'
+    route_rank: 6
+    endpoint_kind: metadata
+    url: https://api.semanticscholar.org/graph/v1/paper/search?query=heuristic%20subexponential%20attack%20McEliece&...
+    ts_start: '2026-08-03T03:12:53Z'
+    ts_end: '2026-08-03T03:12:54Z'
+    http_status: 429
+    bytes: 174
+    sha256: 65ab993d12c5c2cc9b68e6da2bb79b326930283e520363ffcdc145f88cd5a148
+    outcome: INFRASTRUCTURE — still rate limited. Route abandoned.
+
+  - id: A20
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: mirror-listing
+    url: https://eprint-classic.github.io/2026.html
+    ts_start: '2026-08-03T03:13:06Z'
+    ts_end: '2026-08-03T03:13:07Z'
+    http_status: 200
+    bytes: 424813
+    sha256: d29aed8b60bcdc97ef489cc74ada58edb3883186acb013904df32e80df053bde
+    outcome: NEGATIVE — a listing mirror only; its PDF links point back to
+      eprint.iacr.org/2026/1232.pdf, i.e. to the blocked endpoint A02.
+      Independently corroborates title and author list.
+
+  - id: A21
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: archive
+    url: https://archive.org/wayback/available?url=eprint.iacr.org%2F2026%2F1232.pdf
+    ts_start: '2026-08-03T03:13:17Z'
+    ts_end: '2026-08-03T03:13:17Z'
+    http_status: 200
+    bytes: 66
+    sha256: dfb29a905ad3080c11db68e8a5415bca85db0327d03afe107af00138e1c61335
+    outcome: >-
+      NEGATIVE — response body was {"archived_snapshots": {}}. No Wayback
+      capture of the PDF exists.
+
+  - id: A22
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: archive
+    url: https://web.archive.org/cdx/search/cdx?url=eprint.iacr.org/2026/1232*&output=text&limit=40
+    ts_start: '2026-08-03T03:13:17Z'
+    ts_end: '2026-08-03T03:13:29Z'
+    http_status: null
+    curl_rc: 35
+    curl_error: 'Recv failure: Connection reset by peer'
+    bytes: 0
+    sha256: null
+    outcome: INFRASTRUCTURE — connection reset, no body written.
+
+  - id: A23
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: archive
+    url: https://scholar.archive.org/search?q="Heuristic Subexponential Attack on the McEliece"
+    ts_start: '2026-08-03T03:13:43Z'
+    ts_end: '2026-08-03T03:13:44Z'
+    http_status: 200
+    bytes: 470
+    sha256: 40a0457e763902ed12097cffc3536f1e9a2306a95a701ab2df18f7d47e2b9c39
+    outcome: INFRASTRUCTURE — HTTP 200 whose BODY is a rate-limit notice, not a
+      result set. Status code and content disagree; recorded as such.
+
+  - id: A24
+    target: 'iacr:2026/1232'
+    route_rank: 6
+    endpoint_kind: metadata
+    url: https://api.openaire.eu/search/publications?title=Heuristic Subexponential Attack McEliece&format=json&size=5
+    ts_start: '2026-08-03T03:13:44Z'
+    ts_end: '2026-08-03T03:13:45Z'
+    http_status: 200
+    bytes: 428
+    sha256: 7403c526a1081aaf22cb5c03c7116330023786c54114861204957b42c890d52e
+    outcome: NEGATIVE — total 0.
+
+  - id: A25
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: author-directory
+    url: https://perso.telecom-paris.fr/randriam/maths/
+    ts_start: '2026-08-03T03:14:23Z'
+    ts_end: '2026-08-03T03:14:25Z'
+    http_status: 200
+    bytes: 16752
+    sha256: b479384b4c9aa900b9dfb106b57192010ac8d534f115de656ccc1c0b1a0b6335
+    outcome: NEGATIVE for the primary — open Apache index; newest file is
+      distingueur.pdf / distingueur_20250501.pdf (2025-05-02). No 2026 item.
+
+  - id: A26
+    target: 'iacr:2026/1232'
+    route_rank: null
+    deviation: DEV-1
+    endpoint_kind: search
+    url: https://lite.duckduckgo.com/lite/?q=Pierre+Briaud+XLIM+publications+homepage
+    ts_start: '2026-08-03T03:14:25Z'
+    ts_end: '2026-08-03T03:14:36Z'
+    http_status: null
+    curl_rc: 35
+    curl_error: 'Recv failure: Connection reset by peer'
+    bytes: 0
+    sha256: null
+    outcome: INFRASTRUCTURE — connection reset. Briaud author-page route not
+      completed; recorded as an untried remainder, not as a negative.
+
+  - id: A27
+    target: 'iacr:2026/1232'
+    route_rank: 5
+    endpoint_kind: metadata
+    url: https://api.archives-ouvertes.fr/search/?q=authFullName_t:"Pierre Briaud"&...
+    ts_start: '2026-08-03T03:16:43Z'
+    ts_end: '2026-08-03T03:16:44Z'
+    http_status: 200
+    bytes: 3943
+    sha256: 48fbf8efaeaea448287246f62fcf389bd165c43f2ba2226f1b2809ff1cbbf96d
+    outcome: NEGATIVE — 15 records; the sole 2026 item is "Quantum Advantage via
+      Solving Multivariate Polynomials", not the target. No HAL deposit of the
+      primary.
+
+  - id: A28
+    target: 'iacr:2026/1232'
+    route_rank: 5
+    endpoint_kind: metadata
+    url: https://api.archives-ouvertes.fr/search/?q=McEliece&fq=producedDateY_i:2026&...
+    ts_start: '2026-08-03T03:16:44Z'
+    ts_end: '2026-08-03T03:16:45Z'
+    http_status: 200
+    bytes: 1148
+    sha256: 2490b528d5ea87dcc815715c267992be78b76da73f853b7c77e9e18ead54a3b1
+    outcome: NEGATIVE — 3 records for 2026, none the target. HAL route exhausted.
+
+  - id: A29
+    target: 'iacr:2026/1232'
+    route_rank: 2
+    endpoint_kind: pdf
+    url: https://eprint.iacr.org/2026/1232.pdf
+    ts_start: '2026-08-03T03:16:57Z'
+    ts_end: '2026-08-03T03:16:58Z'
+    http_status: 403
+    bytes: 5615
+    sha256: 66d5fd98ab45466ed7507c655184637013da20b570551c605f5d90212635da15
+    response_headers_of_note: {cf-mitigated: challenge}
+    outcome: BLOCKED — single transience check of A02, 8 minutes later. Same
+      status, same byte count, DIFFERENT sha256 (per-request nonce in the
+      challenge body). The block is not transient over this interval.
+
+# ---------------------------------------------------------------------------
+# ATTEMPTS — secondary target 1: KN-LIT-71d1a0, iacr:2024/1193
+# ---------------------------------------------------------------------------
+  - id: B01
+    target: 'KN-LIT-71d1a0 / iacr:2024/1193'
+    endpoint_kind: pdf
+    url: https://perso.telecom-paris.fr/randriam/maths/distingueur.pdf
+    ts_start: '2026-08-03T03:14:08Z'
+    ts_end: '2026-08-03T03:14:10Z'
+    http_status: 200
+    bytes: 726538
+    sha256: b69f8256133dcfd8c9d5dae196b8f653f5b956532a7ba949f400af3b902d68c0
+    content_type: application/pdf
+    file_type: PDF document, version 1.5
+    outcome: SUCCESS — FULL TEXT OBTAINED (author's own copy, sole author's site)
+    version_caveat: >-
+      This is the AUTHOR'S copy dated 2025-05-02 in the directory index (A25),
+      byte-identical in size to distingueur_20250501.pdf. Its own title block
+      reads "The syzygy distinguisher (Eurocrypt 2025 version, expanded, with
+      supplementary material and errata)". The IACR ePrint record (B02) shows
+      "2025-10-16: last of 4 revisions". THIS COPY IS THEREFORE NOT NECESSARILY
+      THE LATEST ePrint VERSION and every quotation from it is scoped to this
+      sha256.
+    extraction: pdfminer.six extract_text -> 90136 chars
+
+  - id: B02
+    target: 'KN-LIT-71d1a0 / iacr:2024/1193'
+    endpoint_kind: abstract
+    url: https://eprint.iacr.org/2024/1193
+    ts_start: '2026-08-03T03:14:10Z'
+    ts_end: '2026-08-03T03:14:11Z'
+    http_status: 200
+    bytes: 14002
+    sha256: bb35bf020a539b0f1b31d092cd56ba4de1ec6841aaefd7c870f938546173c9b2
+    outcome: SUCCESS — abstract, DOI 10.1007/978-3-031-91095-1_12, "A major
+      revision of an IACR publication in EUROCRYPT 2025", 4 revisions,
+      licence CC BY.
+
+# ---------------------------------------------------------------------------
+# ATTEMPTS — secondary target 2: KN-LIT-4c8135, arXiv:2304.14757
+# ---------------------------------------------------------------------------
+  - id: C01
+    target: 'KN-LIT-4c8135 / arXiv:2304.14757'
+    endpoint_kind: abstract
+    url: https://arxiv.org/abs/2304.14757
+    ts_start: '2026-08-03T03:16:58Z'
+    ts_end: '2026-08-03T03:16:58Z'
+    http_status: 200
+    bytes: 41951
+    sha256: a329ea5860050208c0ff97c87fc782fee2d5153c76f98c5bd5d12a529f5e964b
+    outcome: SUCCESS — citation_title "Polynomial time key-recovery attack on
+      high rate random alternant codes"; authors Bardet Magali, Mora Rocco,
+      Tillich Jean-Pierre. Identity of KN-LIT-4c8135 confirmed.
+
+  - id: C02
+    target: 'KN-LIT-4c8135 / arXiv:2304.14757'
+    endpoint_kind: pdf
+    url: https://arxiv.org/pdf/2304.14757
+    ts_start: '2026-08-03T03:16:58Z'
+    ts_end: '2026-08-03T03:16:58Z'
+    http_status: 200
+    bytes: 526690
+    sha256: ebbd94ac3cd00b0f0e723aeab56fd3b0820c89d47072fc8241f12c5f93c564b8
+    content_type: application/pdf
+    file_type: PDF document, version 1.4, 36 pages
+    outcome: SUCCESS — FULL TEXT OBTAINED
+    version_caveat: >-
+      URL has no version suffix, so arXiv served the CURRENT version as of this
+      timestamp. The specific version number was not recorded from the abstract
+      page. Quotations are scoped to this sha256.
+    extraction: pdfminer.six extract_text -> 103525 chars
+
+# ---------------------------------------------------------------------------
+# ATTEMPTS — secondary target 3: KN-LIT-7ee1a9, iacr:2025/531
+# ---------------------------------------------------------------------------
+  - id: D01
+    target: 'KN-LIT-7ee1a9 / iacr:2025/531'
+    endpoint_kind: pdf
+    url: https://inria.hal.science/hal-05461754/document
+    ts_start: '2026-08-03T03:17:07Z'
+    ts_end: '2026-08-03T03:17:08Z'
+    http_status: 200
+    bytes: 12595
+    sha256: 1d67cddb18cd17a68d8d89be0958a360c9a29b6f69dbbfbb3c1ea4960547e253
+    content_type: text/html; charset=utf-8
+    outcome: BLOCKED — HTTP 200 whose body is a proof-of-work bot interstitial
+      ("Making sure you're not a bot!", Anubis-style, difficulty 4), NOT a PDF.
+      Not solved, not circumvented. STATUS CODE AND CONTENT DISAGREE; a reviewer
+      re-acquiring by status code alone would wrongly record success.
+
+  - id: D02
+    target: 'KN-LIT-7ee1a9 / iacr:2025/531'
+    endpoint_kind: pdf
+    url: https://inria.hal.science/hal-04953992/document
+    ts_start: '2026-08-03T03:17:18Z'
+    ts_end: '2026-08-03T03:17:19Z'
+    http_status: 200
+    bytes: 12595
+    sha256: c679bb677851fd473cc54933d8a9d124900da41e2b69499af2437aa750c45474
+    outcome: BLOCKED — same interstitial, different nonce (hence different
+      sha256 at identical byte count).
+
+  - id: D03
+    target: 'KN-LIT-7ee1a9 / iacr:2025/531'
+    endpoint_kind: abstract
+    url: https://eprint.iacr.org/2025/531
+    ts_start: '2026-08-03T03:17:19Z'
+    ts_end: '2026-08-03T03:17:20Z'
+    http_status: 200
+    bytes: 16793
+    sha256: 88035f1a7a0f59750cbaf89a770295643f0e9a111d72b43bbb6d9ad497bfb299
+    outcome: SUCCESS (abstract only) — Lemoine, Mora, Tillich; full abstract.
+      Body NOT obtained.
+
+# ---------------------------------------------------------------------------
+# SUMMARY
+# ---------------------------------------------------------------------------
+summary:
+  attempts_total: 36
+  attempts_ids: [A01, A02, A03, A04, A05, A06, A07, A08, A09, A10, A11, A12,
+                 A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24,
+                 A25, A26, A27, A28, A29, B01, B02, C01, C02, D01, D02, D03]
+  primary_target: 'iacr:2026/1232'
+  primary_body_obtained: false
+  primary_abstract_obtained: true
+  primary_abstract_cross_checked: >-
+    YES — A01 (HTML abstract page) and A11 (OAI-PMH dc:description) are two
+    different endpoints in two different response formats on the same host and
+    carry the same abstract text. This is a within-source control, not an
+    independent-source control.
+  endpoint_finding_reported_separately:
+    abstract_endpoint: 'https://eprint.iacr.org/2026/1232 -> HTTP 200 (A01)'
+    pdf_endpoint: 'https://eprint.iacr.org/2026/1232.pdf -> HTTP 403, cf-mitigated: challenge (A02, reconfirmed A29)'
+    archive_html_endpoint: 'https://eprint.iacr.org/archive/versions/2026/1232 -> HTTP 403, challenge (A03)'
+    explicit_non_generalisation: >-
+      The 200 at the abstract endpoint does NOT license any statement about the
+      PDF endpoint, and the 403 at the PDF endpoint does NOT license any
+      statement about the abstract endpoint. A03 additionally shows the split is
+      NOT "HTML works, PDF does not": an HTML path under /archive/ was blocked
+      too. The correct statement is path-scoped, not format-scoped.
+  full_texts_obtained:
+    - {kn_lit: KN-LIT-71d1a0, attempt: B01, sha256: b69f8256133dcfd8c9d5dae196b8f653f5b956532a7ba949f400af3b902d68c0}
+    - {kn_lit: KN-LIT-4c8135, attempt: C02, sha256: ebbd94ac3cd00b0f0e723aeab56fd3b0820c89d47072fc8241f12c5f93c564b8}
+  abstract_only:
+    - {kn_lit: KN-LIT-7c4620, attempts: [A01, A11]}
+    - {kn_lit: KN-LIT-7ee1a9, attempt: D03}
+  blocked_hosts_and_paths_for_reviewer:
+    - 'eprint.iacr.org/*.pdf — Cloudflare challenge (403)'
+    - 'eprint.iacr.org/archive/* — Cloudflare challenge (403)'
+    - 'inria.hal.science/*/document — proof-of-work interstitial served with HTTP 200'
+    - 'api.semanticscholar.org — 429 without an API key'
+    - 'export.arxiv.org/api — 429 (arxiv.org itself reachable)'
+  routes_not_exhausted:
+    - >-
+      Pierre Briaud author page: the search step (A26) was reset by the peer and
+      was not retried. This route is UNTRIED, not negative.
+    - >-
+      Publisher DOI (declared rank 7): no DOI exists for iacr:2026/1232 (the
+      ePrint record shows none), so the route was inapplicable rather than
+      failed.
+    - >-
+      HAL landing pages (as opposed to /document) were not tried for the
+      degree-2 distinguisher; only the direct file paths were, and those are
+      interstitial-protected.
+  classification: >-
+    infrastructure_error for the primary body (bot-protection challenge on the
+    only host that serves it, plus indexing lag at every aggregator). This is a
+    RECORDED OUTCOME AND NOT NEGATIVE MATHEMATICAL EVIDENCE (AGENTS.md rule 5).
+    It says nothing whatsoever about the attack, the McEliece cryptosystem, or
+    Classic McEliece.
