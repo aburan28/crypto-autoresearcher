@@ -27,7 +27,9 @@ SCHEMA_EVIDENCE_BUNDLE_V1 = "crypto.autoresearch.evidence_bundle.v1"
 
 _HASH_PATTERN = r"^sha256:[0-9a-f]{64}$"
 _GIT_COMMIT_PATTERN = r"^[0-9a-f]{7,64}$"
-_IDENTIFIER_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:/@+\-]*$"
+# Research Loop task and successor kinds intentionally use snake_case, so
+# underscore is part of the canonical identifier alphabet.
+_IDENTIFIER_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:/@+_\-]*$"
 
 Identifier = Annotated[
     str,
