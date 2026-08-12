@@ -519,6 +519,98 @@ def _chunk_size(B: int, n: int) -> int:
     return max(1, min(B, CHUNK_ELEMENTS // max(n, 1)))
 
 
+# --------------------------------------------------------------------------
+# control replicates as independent work items
+#
+# The B permutations INSIDE blocked_permutation_null_both draw from one
+# sequential stream -- CHUNK_ELEMENTS is a fixed constant precisely so that
+# consumption, and therefore every draw, is a function of (B, n, seed) alone.
+# Sharding that loop would move every draw and change every recorded p-value,
+# so it is left exactly as it is.
+#
+# The CONTROL REPLICATES above it are a different matter: each one derives its
+# own seed from (pool, rung, functional, d_idx, r) and shares no state with any
+# other, so which process evaluates it cannot be observed in the result. These
+# two callables package one replicate each. They are module-level and hold only
+# arrays so a pool can pickle them, and they are pure in their arguments, which
+# is what parallel.verify_determinism actually checks.
+#
+# Order still matters after the fan-out: `ps` feeds sum()/min()/max(), and
+# float addition is not associative. sharded_map places results by index
+# rather than appending them on completion, which is what keeps the reduction
+# identical to the serial one.
+# --------------------------------------------------------------------------
+
+
+class _PowerReplicate:
+    """One CTRL-POWER replicate, keyed by (d_idx, delta, r)."""
+
+    def __init__(self, pool_name, pool_n, labels, blocks_rung, u_curve,
+                 rung, B, layout):
+        self.pool_name = pool_name
+        self.pool_n = pool_n
+        self.labels = labels
+        self.blocks_rung = blocks_rung
+        self.u_curve = u_curve
+        self.rung = rung
+        self.B = B
+        self.layout = layout
+
+    def __call__(self, index, item):
+        d_idx, delta, r = item
+        rng = np.random.default_rng(
+            derive_seed("CTRLPOWER", self.pool_name, self.rung, "synthetic",
+                        d_idx, r))
+        eps = rng.standard_normal(self.pool_n)
+        Y = eps + delta * self.u_curve
+        seed = derive_seed("CTRLPOWERPERM", self.pool_name, self.rung,
+                           "synthetic", d_idx, r)
+        dd = blocked_permutation_null_both(Y, self.labels, self.blocks_rung,
+                                           self.B, seed,
+                                           layout=self.layout)["weighted"]
+        return dd["p_lower"]
+
+
+class _NullObjReplicate:
+    """One CTRL-NULLOBJ replicate; labels are precomputed by the caller.
+
+    null_object_labels() needs the whole Pool, so its result is built in the
+    parent and only the label array travels. That keeps Pool off the pickle
+    path entirely and costs nothing -- the call is a permutation.
+    """
+
+    def __init__(self, pool_name, vals_no, blocks_rung, rung,
+                 nullobj_functional, B):
+        self.pool_name = pool_name
+        self.vals_no = vals_no
+        self.blocks_rung = blocks_rung
+        self.rung = rung
+        self.nullobj_functional = nullobj_functional
+        self.B = B
+
+    def __call__(self, index, item):
+        r, lab = item
+        seed = derive_seed("NULLOBJ", self.pool_name, self.rung,
+                           self.nullobj_functional, 0, r)
+        d = blocked_permutation_null_both(self.vals_no, lab, self.blocks_rung,
+                                          self.B, seed)["weighted"]
+        return d["p_lower"], d["T_obs"]
+
+
+def _map_replicates(fn, items, workers: int):
+    """sharded_map when workers > 1, plain comprehension when it is 1.
+
+    The import is deferred so the serial path -- still the default -- picks up
+    no dependency on the runner package that a standalone invocation might not
+    have installed.
+    """
+    if workers <= 1:
+        return [fn(i, item) for i, item in enumerate(items)]
+    from crypto_autoresearcher.parallel import sharded_map
+
+    return sharded_map(fn, items, workers=workers)
+
+
 def blocked_permutation_null_both(values, labels, blocks, B: int, seed: int,
                                   layout: "_Layout | None" = None) -> dict:
     """Both statistics from one pass of B within-block label permutations.
@@ -1593,7 +1685,7 @@ def s4_ladder(pool: Pool, values: dict, B: int = PRIMARY_B,
 def s5_controls(pool: Pool, values: dict, ladder: dict,
                 replicates: int = CONTROL_REPLICATES, B: int = CONTROL_B,
                 nullobj_functional: str = "full_liftable",
-                progress=None) -> dict:
+                progress=None, workers: int = 1) -> dict:
     """CTRL-NULLOBJ, CTRL-SIZE0, CTRL-POWER and CTRL-NSURR at every rung.
 
     Run and WRITTEN OUT before the S4 ladder table is interpreted: a decision
@@ -1620,15 +1712,14 @@ def s5_controls(pool: Pool, values: dict, ladder: dict,
     # ---------------- CTRL-NULLOBJ ----------------
     vals_no = values[nullobj_functional]
     for rung in RUNGS:
-        ps, tobs = [], []
-        for r in range(replicates):
-            lab = null_object_labels(pool, rung, r)
-            seed = derive_seed("NULLOBJ", pool.name, rung,
-                               nullobj_functional, 0, r)
-            d = blocked_permutation_null_both(vals_no, lab, blocks[rung], B,
-                                              seed)["weighted"]
-            ps.append(d["p_lower"])
-            tobs.append(d["T_obs"])
+        items = [(r, null_object_labels(pool, rung, r))
+                 for r in range(replicates)]
+        pairs = _map_replicates(
+            _NullObjReplicate(pool.name, vals_no, blocks[rung], rung,
+                              nullobj_functional, B),
+            items, workers)
+        ps = [p for p, _ in pairs]
+        tobs = [t for _, t in pairs]
         rej = sum(1 for x in ps if x <= LEVEL)
         out["CTRL_NULLOBJ"][rung] = {
             "rejections": rej, "replicates": replicates,
@@ -1654,19 +1745,18 @@ def s5_controls(pool: Pool, values: dict, ladder: dict,
         corr = within_block_corr_u_N(pool, blocks[rung], u)
         u_curve = u[pool.labels]
         curve_rows = {}
+        # One fan-out per rung rather than one per delta: the whole
+        # (delta, replicate) grid goes out together, so a pool is created
+        # 7 times instead of 42 and the slowest delta cannot idle the rest.
+        grid = [(d_idx, delta, r)
+                for d_idx, delta in enumerate(EFFECT_GRID)
+                for r in range(replicates)]
+        grid_ps = _map_replicates(
+            _PowerReplicate(pool.name, pool.n, pool.labels, blocks[rung],
+                            u_curve, rung, B, lay),
+            grid, workers)
         for d_idx, delta in enumerate(EFFECT_GRID):
-            ps = []
-            for r in range(replicates):
-                rng = np.random.default_rng(
-                    derive_seed("CTRLPOWER", pool.name, rung, "synthetic",
-                                d_idx, r))
-                eps = rng.standard_normal(pool.n)
-                Y = eps + delta * u_curve
-                seed = derive_seed("CTRLPOWERPERM", pool.name, rung,
-                                   "synthetic", d_idx, r)
-                dd = blocked_permutation_null_both(Y, pool.labels, blocks[rung],
-                                                   B, seed, layout=lay)["weighted"]
-                ps.append(dd["p_lower"])
+            ps = grid_ps[d_idx * replicates:(d_idx + 1) * replicates]
             rej = sum(1 for x in ps if x <= LEVEL)
             curve_rows[f"{delta}"] = {
                 "delta_in_within_class_sd": delta,
@@ -2808,7 +2898,8 @@ def _stage_pool(args) -> int:
     controls = s5_controls(pool, values, ladder, replicates=args.replicates,
                            B=args.control_b,
                            nullobj_functional=args.nullobj_functional,
-                           progress=lambda s: say(f"   {s} ({budget.elapsed:.0f}s)"))
+                           progress=lambda s: say(f"   {s} ({budget.elapsed:.0f}s)"),
+                           workers=args.workers)
     say(f"   controls in {time.time() - t5:.1f} s")
     lo, hi = controls["exact_binomial_acceptance_interval"]["lo"], \
         controls["exact_binomial_acceptance_interval"]["hi"]
@@ -3284,6 +3375,13 @@ def main(argv=None) -> int:
     ap.add_argument("--pool", default=None,
                     choices=["POOL_A", "POOL_B", "POOL_C", "POOL_D"])
     ap.add_argument("--replicates", type=int, default=CONTROL_REPLICATES)
+    ap.add_argument("--workers", type=int, default=1,
+                    help="processes for the S5 control replicates. Default 1 "
+                         "runs them inline and forks nothing. Results are "
+                         "identical at any value -- each replicate derives its "
+                         "own seed and results are reassembled in index order. "
+                         "Under the locked runner this must not exceed the "
+                         "contract's budget.maximum_workers.")
     ap.add_argument("--primary-b", dest="primary_b", type=int, default=PRIMARY_B)
     ap.add_argument("--control-b", dest="control_b", type=int, default=CONTROL_B)
     ap.add_argument("--nullobj-functional", default="full_liftable")
