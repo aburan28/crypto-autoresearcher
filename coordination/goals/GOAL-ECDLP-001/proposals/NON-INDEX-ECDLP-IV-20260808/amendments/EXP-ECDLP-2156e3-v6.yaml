@@ -1,0 +1,207 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-2156e3
+  version_from: 5
+  version_to: 6
+  kind: preaction_candidate_key_and_digest_boundary_superseding_amendment
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  supersedes:
+    path: amendments/EXP-ECDLP-2156e3-v5.yaml
+    snapshot_commit: a1e457a1d
+    treatment: immutable_prior_amendment_remains_unchanged
+  scope_statement: >-
+    This amendment separates the pre-action candidate key used to freeze the
+    Arm-B window from kernel and map digests that may require transfer
+    construction. It prevents an ostensibly cheap rationality filter from
+    being preceded by hidden map work or from ordering candidates using fields
+    unavailable for refused and truncated rows. It does not approve Arm B,
+    select a target, or assert an ECDLP result.
+  defect: >-
+    The prior candidate_order included kernel_digest and map_digest. Those
+    fields can be undefined, expensive, or only available after a candidate has
+    passed a rationality/classification gate. Using them to order the stream
+    makes the fixed window depend on post-filter construction and can hide
+    costs or create inconsistent refusal/truncation rows.
+  corrected_order:
+    pre_action_candidate_key:
+      schema: crypto.autoresearch.ecdlp.preaction_candidate_key.v1
+      fields:
+        - source_instance_id
+        - degree
+        - target_j
+        - target_coefficients_digest
+        - candidate_rank
+        - candidate_seed
+      canonical_order: bytewise
+      derivation: >-
+        Derive only from the frozen source row, degree, target-label generator,
+        public target coefficients, declared candidate rank, and deterministic
+        candidate seed. The derivation may not call a transfer map, inspect
+        target-side rho, inspect timing, or require a solved scalar.
+      binding: preaction_candidate_stream_digest
+    window_cut: >-
+      Apply the fixed per-source/per-degree cap to the pre-action key stream.
+      The v5 no-refill rule remains in force; later keys are truncations and
+      are never promoted after a refusal.
+    post_window_classification: >-
+      Only after the window is frozen may the implementation attempt kernel
+      materialization, map construction, rationality/class gates, exact
+      certificate checks, and target-side solve admission.
+  digest_boundary:
+    pre_action_required:
+      - source_instance_id
+      - degree
+      - target_j
+      - target_coefficients_digest
+      - candidate_rank
+      - candidate_seed
+      - candidate_policy_digest
+      - generator_version
+    post_window_fields:
+      kernel_digest:
+        required_when: in_window_and_kernel_attempted
+        absent_decision: not_attempted_with_reason
+      map_digest:
+        required_when: in_window_and_map_attempted
+        absent_decision: not_attempted_with_reason
+      certificate_digest:
+        required_when: in_window_and_certificate_attempted
+        absent_decision: not_attempted_with_reason
+    truncation_fields:
+      required: [pre_action_candidate_key, candidate_ordinal, truncation_reason]
+      forbidden: >-
+        Truncated rows must not trigger kernel or map construction merely to
+        populate post-window digests.
+    refusal_fields:
+      required: [pre_action_candidate_key, refusal_reason, attempted_stage]
+      null_digest_semantics: >-
+        A null kernel/map/certificate digest means the corresponding stage was
+        not attempted and must carry an explicit reason. Null is not a valid
+        digest and may not be interpreted as a successful identity map.
+  manifest_contract:
+    candidate_order_prior_value: >-
+      bytewise(source_instance_id, degree, target_j,
+      target_coefficients_digest, kernel_digest, map_digest)
+    candidate_order_corrected_value: >-
+      bytewise(source_instance_id, degree, target_j,
+      target_coefficients_digest, candidate_rank, candidate_seed)
+    required_fields:
+      - candidate_policy_digest
+      - generator_version
+      - preaction_candidate_stream_digest
+      - primary_window_digest
+      - truncation_digest
+      - pre_action_candidate_key
+      - candidate_ordinal
+      - candidate_window_status
+      - target_j
+      - target_coefficients_digest
+      - candidate_rank
+      - candidate_seed
+      - kernel_digest
+      - map_digest
+      - certificate_digest
+      - attempted_stage
+      - refusal_reason
+    row_statuses:
+      in_window: [candidate, rejected, refusal, unsupported, eligible_for_transfer]
+      truncated: [truncated]
+  cost_schema_additions:
+    fields:
+      preaction_key_derivation_ops: {type: integer, unit: field_operation}
+      preaction_stream_serialization_bytes: {type: integer, unit: byte}
+      kernel_materialization_ops: {type: integer, unit: field_operation}
+      map_materialization_ops: {type: integer, unit: field_operation}
+      post_window_digest_ops: {type: integer, unit: field_operation}
+      not_attempted_refusals: {type: integer, unit: event}
+    accounting: >-
+      Pre-action key and stream costs are charged for every candidate and
+      truncation marker. Kernel/map/certificate costs are charged only for
+      in-window attempts, with explicit not-attempted refusals for rows that do
+      not reach those stages. No post-window digest work is hidden in the
+      prefilter or candidate-order cost.
+    formulas:
+      one_shot: >-
+        C_1_v6 = C_preaction_key + C_stream_serialize + C_window_cut +
+        C_truncation + C_filter + C_class_filter + C_kernel + C_map +
+        C_certificate + C_rejected + C_not_attempted + C_path_search +
+        C_construct + C_forward + C_serialize + C_target_rho +
+        C_inverse_or_dual + C_replay.
+      amortized: >-
+        For k in {1,8,64}, C_k_v6 = C_preaction_key + C_stream_serialize +
+        C_window_cut + C_truncation + C_filter + C_class_filter + C_kernel +
+        C_map + C_certificate + C_rejected + C_not_attempted + C_path_search +
+        C_construct + k * (C_forward + C_serialize + C_target_rho +
+        C_inverse_or_dual + C_replay).
+  controls_added:
+    - id: C-PREACTION-KEY
+      kind: deterministic-key-control
+      construction: >-
+        Recompute the pre-action stream and digest for every matched policy
+        without constructing any kernel or map.
+      expected: >-
+        Candidate stream, primary window, and truncation digests are identical
+        across policies before classification begins.
+    - id: C-DIGEST-REFUSAL
+      kind: post-window-refusal-control
+      construction: >-
+        Force predeclared rationality, class, degree, and certificate refusals
+        and verify explicit null digest plus attempted-stage reason.
+      expected: >-
+        Refusal rows retain their pre-action key and never masquerade as an
+        identity or successful transfer.
+  verifier_contract:
+    independent_verifier: harness/verify_isogeny_transfer_v2.py
+    required_checks:
+      - preaction_candidate_key_recomputed
+      - candidate_order_excludes_kernel_and_map_digests
+      - preaction_stream_digest_recomputed
+      - primary_window_and_truncation_digest_recomputed
+      - no_kernel_or_map_work_for_truncated_rows
+      - null_digest_has_not_attempted_reason
+      - post_window_digest_costs_charged
+      - no_dynamic_refill
+      - complete_transfer_certificate_for_admitted_rows
+    forbidden_shortcuts:
+      - ordering_by_post_filter_digest
+      - constructing_map_to_define_candidate_order
+      - treating_null_digest_as_identity
+      - dropping_refusal_or_truncation_rows
+      - selecting_candidate_window_after_observing_cost_or_solve
+  falsification_conditions_added:
+    - >-
+      A candidate stream or window digest changes when post-window map/kernel
+      construction is enabled; the pre-action boundary is violated.
+    - >-
+      Kernel or map construction occurs for a truncated row without a declared
+      conformance reason; the candidate-cost accounting is invalid.
+    - >-
+      A refusal row has a null digest without an attempted-stage reason or is
+      treated as an identity map; the row is invalid.
+    - >-
+      Any control orders matched candidates differently before classification;
+      the comparison is invalid.
+    - >-
+      A candidate window is refilled or moved after a post-window outcome; the
+      fixed-window and no-refill contracts are violated.
+  interpretation_gate:
+    only_boundary_claim: >-
+      This repair establishes an ordering and cost boundary for a future
+      inventory. It makes no statement about target availability, transfer
+      success, rho cost, or ECDLP hardness.
+    fixed_window_scope: >-
+      Any future observation remains limited to the declared source rows,
+      degrees, pre-action generator, candidate cap, and control schedules.
+  dispatch_gate:
+    not_dispatchable: true
+    required_before_approval:
+      - independent review of EXP-ECDLP-2156e3-v5 and this v6 amendment together
+      - deterministic pre-action key generator and digest boundary frozen
+      - source-hash-bound implementation and conformance fixtures
+      - backend preflight passes without prohibited fallback
+      - Coordinator decision explicitly admits or rejects the repair

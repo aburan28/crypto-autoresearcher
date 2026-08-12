@@ -50,6 +50,7 @@ INDEPENDENT_REVIEW_ROLES = {"reviewer", "validator", "red-team"}
 TERMINAL_STATES = {"completed", "failed", "invalid", "cancelled"}
 STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
+ARCHIVE_BINDING_MODES = {"commit", "content_first"}
 FAILURE_PROVENANCE_ARCHIVE_KIND = "terminal_failure_provenance_archive"
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -348,6 +349,15 @@ def validate_archive_shape(task: dict[str, Any], location: str) -> None:
             raise DispatchError(f"{location}.archive.{field} is required")
     if archive["kind"] not in ARCHIVE_KINDS:
         raise DispatchError(f"{location}.archive.kind must be snapshot or ledger")
+    # Legacy archives are commit-bound.  `content_first` is intentionally
+    # opt-in: it is for source packages committed before their archive task
+    # ran, where one exact changed-path commit cannot express intact custody.
+    # Never infer this from a failed commit-scope check.
+    binding_mode = archive.get("binding_mode", "commit")
+    if binding_mode not in ARCHIVE_BINDING_MODES:
+        raise DispatchError(
+            f"{location}.archive.binding_mode must be commit or content_first"
+        )
     require_text_list(archive, "source_task_ids", f"{location}.archive")
     if len(archive["source_task_ids"]) != len(set(archive["source_task_ids"])):
         raise DispatchError(f"{location}.archive.source_task_ids contains duplicates")
@@ -832,6 +842,12 @@ def select(
             ),
         },
     }
+    # Keep declared and legacy content-only bindings visible in the canonical
+    # plan (and therefore its digest), rather than adding them only during CLI
+    # rendering after the plan has been hashed.
+    content_only = getattr(repository_verifier, "content_only_archives", None)
+    if content_only:
+        plan["content_only_archives"] = content_only
     plan["plan_sha256"] = digest(plan)
     return plan
 
@@ -959,7 +975,13 @@ class GitRepositoryVerifier:
         return paths
 
     def _verify_content_only(
-        self, task_id: str, archive: dict[str, Any], reason: str
+        self,
+        task_id: str,
+        archive: dict[str, Any],
+        reason: str,
+        *,
+        expected_paths: Sequence[str] | None = None,
+        allow_generated_skip: bool = True,
     ) -> None:
         """Verify an archive against CONTENT when its commit binding is gone.
 
@@ -985,6 +1007,11 @@ class GitRepositoryVerifier:
                 f"archive task {task_id} commit binding is unverifiable ({reason}) and it "
                 f"declares no path_sha256 to fall back on"
             )
+        if expected_paths is not None and set(hashes) != set(expected_paths):
+            raise DispatchError(
+                f"archive task {task_id} declared content_first binding must provide "
+                "path_sha256 for every archive and source artifact"
+            )
         skipped: list[str] = []
         for path in sorted(hashes):
             # Read the COMMITTED content at HEAD, not the working tree. A dirty
@@ -996,7 +1023,7 @@ class GitRepositoryVerifier:
                 ["git", "-C", str(self.repo_root), "show", f"HEAD:{path}"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
             if blob.returncode != 0:
-                if _is_generated_path(path):
+                if allow_generated_skip and _is_generated_path(path):
                     # The archive bound a generated artifact that this repository
                     # has since stopped tracking (.gitignore). The binding cannot
                     # be checked and its absence is policy, not corruption.
@@ -1008,7 +1035,7 @@ class GitRepositoryVerifier:
                 )
             observed = hashlib.sha256(blob.stdout).hexdigest()
             if observed != hashes[path]:
-                if _is_generated_path(path):
+                if allow_generated_skip and _is_generated_path(path):
                     skipped.append(path)
                     continue
                 raise DispatchError(
@@ -1026,9 +1053,15 @@ class GitRepositoryVerifier:
         declared_commit = archive["commit_sha"]
         if not isinstance(declared_commit, str):
             raise DispatchError(f"completed archive task {task_id} requires archive.commit_sha")
+        binding_mode = archive.get("binding_mode", "commit")
         try:
             commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
         except DispatchError:
+            if binding_mode == "content_first":
+                raise DispatchError(
+                    f"archive task {task_id} declared content_first binding requires "
+                    "archive.commit_sha to resolve to a commit"
+                )
             self._verify_content_only(
                 task_id, archive, f"commit {declared_commit} does not resolve")
             return
@@ -1043,6 +1076,11 @@ class GitRepositoryVerifier:
         except OSError as error:
             raise DispatchError(f"unable to execute git for archive verification: {error}") from error
         if ancestor.returncode == 1:
+            if binding_mode == "content_first":
+                raise DispatchError(
+                    f"archive task {task_id} declared content_first binding requires "
+                    "archive.commit_sha to be an ancestor of HEAD"
+                )
             self._verify_content_only(
                 task_id, archive, f"commit {commit_sha[:12]} is not an ancestor of HEAD")
             return
@@ -1069,6 +1107,32 @@ class GitRepositoryVerifier:
                 raise DispatchError(
                     f"archive task {task_id} parent_sha does not match first parent {parents[0]}"
                 )
+
+        if binding_mode == "content_first":
+            # This mode deliberately binds every declared artifact byte at HEAD
+            # instead of insisting that one commit changed the entire source
+            # package. A real, reachable commit, its declared parent, and the
+            # archival message IDs remain mandatory.
+            self._verify_content_only(
+                task_id,
+                archive,
+                "declared content_first binding mode",
+                expected_paths=expected_paths,
+                allow_generated_skip=False,
+            )
+            message = self._run(["log", "-1", "--format=%B", commit_sha]).decode(
+                "utf-8", "replace"
+            )
+            missing_ids = [
+                identifier
+                for identifier in [task_id, *archive["record_ids"]]
+                if identifier not in message
+            ]
+            if missing_ids:
+                raise DispatchError(
+                    f"archive task {task_id} commit message is missing IDs {missing_ids}"
+                )
+            return
 
         actual_paths = self._changed_paths(commit_sha, task_id)
         expected = set(expected_paths)
@@ -1223,8 +1287,6 @@ def main() -> int:
         enforce_reconciliation_document_authority(queue)
         verifier = GitRepositoryVerifier(repo_root)
         plan = select(queue, repository_verifier=verifier)
-        if verifier.content_only_archives:
-            plan["content_only_archives"] = verifier.content_only_archives
     except (OSError, json.JSONDecodeError, DispatchError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2

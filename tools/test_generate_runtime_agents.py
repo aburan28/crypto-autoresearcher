@@ -118,7 +118,14 @@ class GeneratedBindingTests(unittest.TestCase):
                     forced = set(over_granted(self.roles_doc, role, runtime))
                     effective = set(
                         effective_capabilities(self.roles_doc, role, runtime))
-                    contracted = set(role_spec(self.roles_doc, role)["capabilities"])
+                    # "Contracted" means everything the role asked for, and an
+                    # optional capability is asked for -- just conditionally on
+                    # the runtime having it. Counting only the required ones
+                    # would report `send_messages` on Claude Code as forced by
+                    # the runtime, when the role requested it.
+                    spec_doc = role_spec(self.roles_doc, role)
+                    contracted = (set(spec_doc["capabilities"])
+                                  | set(spec_doc.get("optional_capabilities") or []))
                     self.assertEqual(effective - contracted, forced)
 
     def test_an_over_grant_is_stated_in_the_binding_it_affects(self) -> None:
