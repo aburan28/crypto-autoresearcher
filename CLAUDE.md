@@ -25,6 +25,9 @@ Code specifically.
   - `/run-experiment` — bounded execution, immutable run records
   - `/review-evidence` — validation, evidence strength, official decision
   - `/research-status` — read-only ledger overview
+  - `/deep-research` — cross-portfolio synthesis of ledger + knowledge state
+    into a ranked, justified shortlist of next experiments; read-only, no
+    ledger writes
   - `/curate-knowledge` — maintain the knowledge corpus
   - `/coordinate-research-goal` — launch and continuously coordinate a committed
     research goal across dispatch batches
