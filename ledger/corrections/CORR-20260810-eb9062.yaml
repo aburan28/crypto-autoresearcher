@@ -1,0 +1,123 @@
+correction:
+  id: CORR-20260810-eb9062
+  recorded_at: '2026-08-10'
+  recorded_by: coordinator (GOAL-ENDO-001, BATCH-d7e255)
+  type: affine_vs_projective_conflation_in_a_coordinator_artifact
+  severity: minor_forward_looking_no_measurement_invalidated
+  supersedes: []
+  corrects:
+  - ledger/handoffs/TASK-20260810-ab0a07.yaml
+  record_type: handoff
+  record_id: TASK-20260810-ab0a07
+  field: >-
+    stage_0_gate_note, implementation note (2) and the probe report inside it --
+    the identification of Sage's `Ideal.dimension()` with the AFFINE
+    singular-locus dimension, and the reported probe value.
+  prior_value: >-
+    "(2) The affine singular-locus dimension is available as
+    `Ideal.dimension()`." and, in the same note, "`Ideal.dimension()` returned 1
+    on all three probe curves."
+  corrected_value: >-
+    THE VALUE 1 IS THE HOMOGENISED DIMENSION, NOT THE AFFINE ONE. On five members
+    of the p = 4001, t = 30 class -- (441, 294), (17, 1345), (109, 2740),
+    (134, 1423), (148, 2766) -- the f_V-free Jacobian ideal
+    I_3 = <S_3, dS_3/dx1, dS_3/dx2, dS_3/dx3> over GF(4001) has AFFINE dimension
+    0 and vector_space_dimension (degree) 6, while its HOMOGENISATION has
+    dimension 1. `Ideal.dimension()` returns whichever of the two the ring it was
+    built in makes it; it is not by itself a statement about the affine locus.
+    The correct statement for a successor is: the affine singular locus is
+    computed on the UN-HOMOGENISED ideal, the homogenised value is computed
+    separately, BOTH ARE REPORTED AND LABELLED DISTINCTLY, and neither
+    substitutes for the other.
+  what_happened: >-
+    This is an error in a COORDINATOR artifact, and it originated UPSTREAM OF THE
+    EXECUTOR. The dispatching session ran a stage-0 capability probe, built the
+    ideal in a ring that included the homogenising variable, read
+    `Ideal.dimension()` there, and passed the reading to the Coordinator as "the
+    affine singular-locus dimension"; the Coordinator wrote that identification
+    and the value 1 into the handoff without distinguishing the two rings. It is
+    exactly the conflation the frozen contract forbids in
+    specification.yaml:inputs.ideal_definition.affine_vs_projective, whose stated
+    reason is that homogenisation can add components at infinity and conflating
+    the two would make a difference AT INFINITY look like a difference BETWEEN
+    CURVES -- sitting inside the dispatch record that quotes the rule.
+  scope_of_impact: >-
+    THE RUN CARRIED NOTHING FORWARD, SO NO RUN ARTIFACT IS AFFECTED AND NO
+    MEASUREMENT IS INVALIDATED. The handoff's own stage_0_gate_note forbade
+    citing the probe as a result or carrying the dimension value into any output,
+    and the Executor complied: EXP-ICINV-e0cd8f terminated at the SR3 backend
+    gate before any ideal was built (ideals_built 0, resolutions_computed 0) and
+    computed no dimension at all. Neither run record, neither manifest and no
+    figure in EV-ICINV-6b6264 contains the value. The defect is entirely
+    forward-looking: its only route to harm is a successor inheriting the
+    identification.
+  independent_verification: >-
+    FOUND BY THE INDEPENDENT VALIDATING SESSION. VAL-20260810-dc8bd8
+    (validator_capability_probe, second observation) flags it explicitly as a
+    LATENT INSTRUMENT HAZARD IN A COORDINATOR ARTIFACT, names the handoff lines,
+    states that the affine value is 0 and the homogenised value 1 on five class
+    members, and records that the run is not affected. Its required-corrections
+    item C3 assigns the correction to the Coordinator, which is this record. The
+    same probe also found that Sage 10.9's MPolynomialIdeal has NO `.degree()`
+    method (AttributeError), the sibling of the handoff's recorded `.betti()`
+    gap; that is not itself an error in the handoff, which never claimed
+    otherwise, and is recorded here because it constrains the same successor.
+  why_this_is_recorded_rather_than_quietly_fixed: >-
+    The handoff is a committed ledger record and is not edited (AGENTS.md
+    rule 4). Beyond that: the defect entered through a Coordinator's own probe,
+    was written into the dispatch record by the Coordinator, and was caught by an
+    independent reviewer rather than by either party that produced it -- which is
+    precisely the failure mode the review step exists to catch, and recording it
+    where a successor will read it is the whole of its value. A campaign that
+    records the Executor's defects and not its Coordinator's is not keeping an
+    honest ledger.
+  required_action:
+  - >-
+    ANY SUCCESSOR CONTRACT OR HANDOFF IN THIS LANE MUST compute the singular
+    locus and its dimension and degree on the UN-HOMOGENISED ideal, compute the
+    homogenised values separately, and REPORT BOTH DISTINCTLY with the ring each
+    was computed in named in the artifact. Neither may be presented as the other.
+  - >-
+    No successor may repeat the identification of `Ideal.dimension()` with the
+    affine singular-locus dimension without stating the ring the ideal was built
+    in.
+  - >-
+    A successor must obtain singular-locus DEGREE by a route that exists on the
+    primary backend, since Sage 10.9's MPolynomialIdeal has no `.degree()`
+    method; `vector_space_dimension` on the zero-dimensional affine ideal is one
+    such route and agrees with the msolve staircase computation on the one curve
+    where both were performed (VAL-20260810-dc8bd8).
+  - >-
+    A Coordinator stage-0 probe value entering a handoff must name the ring,
+    order and grading it was computed under, or must not be quoted at all.
+  evidence_artifacts:
+  - ledger/handoffs/TASK-20260810-ab0a07.yaml
+  - experiments/EXP-ICINV-e0cd8f/specification.yaml
+  - coordination/goals/GOAL-ENDO-001/batches/BATCH-d7e255/reviews/TASK-20260810-ab0a07/validation_report.yaml
+  - experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-e0cd8f-s1/per-curve-invariants.json
+  refs:
+  - GOAL-ENDO-001
+  - BATCH-d7e255
+  - EXP-ICINV-e0cd8f
+  - TASK-20260810-ab0a07
+  - VAL-20260810-dc8bd8
+  - EV-ICINV-6b6264
+  - DEC-20260810-d70ece
+  - H-ICINV-d5e351
+  - RQ-ICINV-475b5e
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one model
+      the session runs on. Recorded, never silently substituted (AGENTS.md
+      rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; this Coordinator has no
+      shell.
