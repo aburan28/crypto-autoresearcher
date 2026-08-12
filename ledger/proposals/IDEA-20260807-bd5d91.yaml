@@ -1,0 +1,689 @@
+idea:
+  id: IDEA-20260807-bd5d91
+  question_id: RQ-TORS-8c7b79
+  added: '2026-08-07'
+  title: >-
+    THE k-RESAMPLE NULL IS FORCED FOR EXACTLY THE STATISTICS L7 IS MOST TEMPTED TO
+    MEASURE, SO IT IS NOT A NULL FOR THEM: build a two-layer instrument -- a STATIC
+    INPUT-PROVENANCE GATE that mechanically refuses any statistic whose
+    implementation never reads (P, Q), and the empirical k-resample null applied
+    only to statistics that survive the gate -- with a graded planted-leak positive
+    control that has three interior points, not two ends
+  class: control
+
+  claim: >-
+    (A) THE PROBLEM WITH THE LANE'S OWN MANDATED NULL, STATED PRECISELY.
+    RQ-TORS-8c7b79 and the BATCH-cb71b5 brief mandate the canonical control
+    "resample k with the curve held fixed; any statistic that still appears to
+    correlate is an artifact." That control is correct and necessary. It is also,
+    for a large and important subclass of L7 statistics, FORCED -- and
+    KN-TECH-1a5b7e obligation 4 says a contrast whose value is derivable before the
+    run carries no information about the question, however cleanly it replicates.
+    THE DERIVATION: let s be a statistic whose implementation is a function of
+    (p, a, b) alone -- the Elkies/Atkin classification, the factorisation type of
+    psi_ell, the kernel count kappa_ell, the volcano level, the class fingerprint,
+    the Frobenius eigenvalues on E[ell]. Under k-resampling with the curve fixed,
+    s does not change AT ALL, so the measured correlation between s and k is
+    exactly the sampling noise of the correlation estimator on a constant vector,
+    i.e. identically zero variance in the s coordinate and hence a correlation of
+    zero or undefined. The null "passes" with probability 1, by construction, on
+    every such statistic, forever. Under KN-TECH-1a5b7e's checklist line
+    `can_this_null_fail`, the honest answer for these statistics is NO -- and that
+    entry's own rule is that if a null cannot fail it is not a null.
+    CONSEQUENCE: running the k-resample null on a curve-only statistic and
+    reporting the resulting zero as a controlled negative would be recording an
+    algebraic identity as an experimental result. That is the specific failure this
+    proposal exists to make impossible, and it is a live risk because at least four
+    proposals in this batch compute curve-only statistics.
+
+    (B) LAYER 1 -- THE STATIC INPUT-PROVENANCE GATE, WHICH COSTS NO COMPUTE AND
+    RUNS FIRST. A statistic is registered with the instrument as a callable plus a
+    declared input signature. The gate does three things mechanically:
+      G1 -- SIGNATURE CHECK: does the callable's declared signature accept the
+        point data (P, Q) at all? If not, the statistic is CURVE-ONLY and is
+        stamped k-independent by construction. No null is run. The verdict is
+        recorded as `k_independent_by_construction`, which is a DIFFERENT verdict
+        from `null_passed` and must never be reported as the latter.
+      G2 -- TAINT CHECK: for statistics that do accept (P, Q), run the statistic
+        twice on the same curve with two different points and assert the outputs
+        differ on at least one of a declared battery of point pairs. A statistic
+        that accepts points and ignores them is curve-only in disguise; the taint
+        check catches it empirically where the signature check cannot.
+      G3 -- SECRET-LEAK CHECK, and this one is a circularity guard rather than a
+        provenance one: assert that the statistic's input path never receives k,
+        the harness ground truth, or the discrete-log-solving oracle. The toy
+        harness stores k inside ECDLPInstance for verification purposes
+        (harness/toycurve.py), which makes accidental leakage EASY, and a statistic
+        that reads k is measuring its own input. G3 is implemented by passing the
+        statistic a redacted instance object that raises on any access to k.
+    THE GATE IS THE PROPOSAL'S PRIMARY DELIVERABLE. It converts the lane's hard
+    constraint -- "a statistic computed from the curve alone is independent of k by
+    construction" -- from a sentence in a brief into a mechanical refusal, and it
+    costs nothing.
+
+    (C) LAYER 2 -- THE EMPIRICAL k-RESAMPLE NULL, APPLIED ONLY TO SURVIVORS, WITH
+    THE FULL KN-TECH-1a5b7e OBLIGATION SET FILLED. For a statistic s that passes
+    G1-G3, the null holds (E, P) fixed and resamples k, recomputing s(E, P, [k]P).
+    Obligations, in the entry's own order:
+      OBJECT REMOVED: the association between the statistic's value and the
+        particular secret k. OBJECT PRESERVED (the list that matters more): the
+        curve, the base point, the group order N, the cofactor structure, the
+        torsion data, the field size, and the statistic's entire implementation.
+      STATISTIC: one entry per statistic, never one per null.
+      STATISTIC_READS_THE_OBJECT: proved by G2, not asserted.
+      SENSITIVITY DEMONSTRATION: the graded planted-leak family in (D), with a
+        NAMED comparator (the k-resample arm itself, which is the arm the null is
+        about), a numeric threshold declared before the run, both ends of the
+        dynamic range exhibited, and AT LEAST THREE INTERIOR POINTS with an
+        explicit monotonicity report -- because KN-TECH-1a5b7e's own worked case
+        records a two-point gate passing while the statistic was non-monotone in
+        between, so the instrument was fit to DETECT a departure and unfit to SIGN
+        one.
+      FORCED VALUE: derived per statistic before the run. For curve-only statistics
+        the forced value is zero and the gate refuses them; for point-reading
+        statistics the forced value must be computed and reported, and if it equals
+        the expected observation the design is rejected before it runs.
+      ALTERNATIVE EXHAUSTIVENESS: the decision rule emits LEAK, NO-LEAK, or
+        NEITHER, with the NEITHER branch and its action declared in advance.
+
+    (D) THE GRADED PLANTED-LEAK POSITIVE CONTROL, WHICH IS WHAT MAKES ANY NULL
+    HERE CITABLE. Define a family of synthetic statistics indexed by a leak
+    fraction t in [0, 1]:
+      s_t(E, P, Q) = with probability t, the true low bit of k (available to the
+      control harness only, never to a real statistic); with probability 1 - t, a
+      fresh uniform bit.
+    At t = 0 the statistic is pure noise and the instrument must return NO-LEAK.
+    At t = 1 it is a perfect one-bit leak and the instrument must return LEAK. The
+    control is run at t in {0, 0.1, 0.25, 0.5, 0.75, 1} -- four interior points --
+    and the instrument must be MONOTONE across them. THE DETECTION THRESHOLD AT
+    WHICH THE INSTRUMENT FIRST RETURNS LEAK IS THE INSTRUMENT'S SENSITIVITY, and it
+    is the number that every L7 null in this batch must be reported against: a null
+    from an instrument that cannot detect a 25 percent one-bit leak is a statement
+    about the instrument's blindness, not about the statistic.
+    MAXIMAL-REMOVAL CONTROL (KN-TECH-1a5b7e mode 2): total removal must be at least
+    as extreme as partial removal and on the same side. Implemented by replacing Q
+    with a uniformly random point of G, which removes ALL of the k-association
+    rather than re-randomising it; the measured contrast there must be at least as
+    large as under k-resampling and in the same direction. If it is not, the null is
+    inverted and every verdict is void.
+
+    (E) WHY THIS IS NOT MERELY HYGIENE. The instrument decides between two
+    competing explanations for every null L7 produces: (i) the statistic genuinely
+    carries no information about k, or (ii) the instrument cannot see information
+    about k at the effect size in question. Those are different claims with
+    different consequences, and no L7 negative in this batch can be told apart
+    without the graded control in (D). This proposal supplies the discrimination.
+
+  resource_label: 'audit: consumes no resource'
+  admissibility: admissible
+  admissibility_argument: >-
+    ADMISSIBLE. This proposal consumes no non-generic resource and mounts no attack;
+    it is an instrument in the sense of L14 (RQ-INSTR-f8faa0), applied to L7's
+    specific hard constraint. The admissibility filter of DECOMPOSITION.md section 2
+    does not bind because nothing here applies any map to points of G in order to
+    gain an advantage -- the only maps applied to points are the statistics under
+    test, and the instrument's job is to characterise them, not to use them. The
+    instrument's OUTPUT, however, is what makes the other L7 proposals'
+    admissibility arguments checkable: a statistic that fails G1 is curve-only and
+    its lane must say so, which is the mechanical form of the filter.
+
+  discriminated_from:
+    - >-
+      KN-TECH-1a5b7e (null-sufficiency checklist and the five-part obligation).
+      That is the program's GENERAL contract for any measured contrast, and this
+      proposal does not restate or extend it -- it INSTANTIATES it for one specific
+      null (k-resampling with the curve fixed) and adds one thing the general
+      contract does not contain: the observation that this particular null is
+      FORCED for curve-only statistics and therefore must be preceded by a static
+      gate rather than run and reported. That observation is an application of the
+      contract's own `can_this_null_fail` line to a null the contract never
+      examined.
+    - >-
+      L14 / RQ-INSTR-f8faa0. That lane owns instrumentation, null objects and
+      certificates campaign-wide. This proposal is the L7-specific instrument and is
+      filed in L7 because the forced-null argument is specific to the structure of
+      L7's statistics (curve-only versus point-reading), not a general property of
+      nulls. If the Coordinator prefers, it transfers to L14 unchanged; the record
+      does not depend on which lane owns it.
+    - >-
+      IDEA-20260807-6eab6a. That record proves certain point-READING statistics are
+      nonetheless constant in k (the coprimality corollaries). Those statistics
+      would PASS G1 (they accept P and Q) and would FAIL G2 in a specific and
+      interesting way -- they read the points and produce the same value anyway.
+      G2 is therefore not merely a lint check: it separates "does not read the
+      points" from "reads the points and is constant anyway", and the second
+      category is exactly what 6eab6a discovered. This proposal must record that
+      category as a distinct verdict, `constant_despite_reading_points`, or it
+      would misfile every one of 6eab6a's corollaries.
+    - >-
+      Ordinary statistical hygiene. The distinguishing content is the FORCED-NULL
+      derivation and the graded planted-leak sensitivity curve with a monotonicity
+      report. A generic "we ran a control" is not this.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE INPUT PROVENANCE OF A STATISTIC: the set of instance fields the
+      statistic's implementation actually reads, tracked from declaration (G1)
+      through empirical dependence (G2) to secret-leak exclusion (G3), together
+      with the statistic's detection threshold on the graded planted-leak family.
+    lossiness: >-
+      Lossy in the right way: it forgets the statistic's mathematical content
+      entirely and retains only which inputs it consumes and how sensitively. Two
+      completely different statistics with the same provenance and the same
+      sensitivity are treated identically, which is correct -- the gate is about
+      admissibility of a measurement, not about the mathematics it encodes.
+    propagation: >-
+      Propagates through composition exactly and usefully: a statistic built from
+      curve-only parts is curve-only; a statistic that composes a curve-only part
+      with a point-reading part is point-reading. This makes the gate compositional
+      and cheap to apply to a whole batch of proposals at once, which is its
+      practical value.
+    survival_score: >-
+      Survives arbitrary changes to the statistic's internals -- that is the point.
+      It fails to distinguish a statistic that reads points meaningfully from one
+      that reads them and discards them, which is exactly why G2 exists as an
+      empirical supplement to G1, and why the third verdict
+      `constant_despite_reading_points` exists as a supplement to both.
+
+  mechanism: >-
+    STEP 1 (implementation, low) -- the registry and the gate. A statistic is
+    registered as (name, callable, declared_inputs, lane, owning proposal id). G1
+    inspects declared_inputs. G2 evaluates the callable on a declared battery of
+    point pairs on a fixed curve. G3 passes a redacted instance whose `k` attribute
+    raises on access, and asserts the callable completes. Output: one of four
+    verdicts -- `k_independent_by_construction`, `constant_despite_reading_points`,
+    `point_dependent_admitted`, `rejected_reads_secret`.
+
+    STEP 2 (implementation, low) -- the k-resample harness. Given (E, P) and a
+    registered point-dependent statistic, draw M >= 100 fresh k values with a
+    recorded seed, compute s each time, and report the empirical distribution plus
+    the association statistic against k declared per statistic in advance (the
+    default is a permutation-tested mutual-information estimate on binned s, with
+    the binning declared before the run).
+
+    STEP 3 (the graded control, and this is the part that must not be skipped) --
+    implement s_t and run the whole pipeline at t in {0, 0.1, 0.25, 0.5, 0.75, 1}.
+    Report: the emitted verdict at each t; whether the verdict sequence is monotone;
+    the detection threshold t* at which LEAK is first emitted; and the false-positive
+    rate of the decision rule, DERIVED before the run and CHECKED after
+    (KN-TECH-1a5b7e mode 5).
+
+    STEP 4 (the maximal-removal control) -- replace Q by a uniform random point of
+    G and confirm the contrast is at least as extreme as under k-resampling and on
+    the same side.
+
+    STEP 5 (comparator replication) -- the k-resample arm is a GENERATED comparator,
+    so per KN-TECH-1a5b7e mode 5 it must be replicated: at least 8 independent draws
+    of the whole resample ensemble, with the interval reported rather than a single
+    draw. A residual read against a single comparator draw is not admissible.
+
+    STEP 6 (adoption) -- run G1-G3 over every statistic named in this batch's L7
+    proposals and publish the verdict table. That table is the deliverable other
+    lanes consume, and producing it costs minutes.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      Commands run 2026-08-07 from the repository root:
+      `grep -ril "null object\|null_object\|controlled null" knowledge/ docs/ ledger/`;
+      `grep -ril "resample" ledger/ knowledge/`;
+      `grep -n "can_this_null_fail\|forced_value" knowledge/techniques/KN-TECH-1a5b7e.md`;
+      plus a full read of KN-TECH-1a5b7e's rule, obligation-3 criterion, and
+      checklist sections, and of docs/inventor-protocol.md section 3.
+    results: >-
+      KN-TECH-1a5b7e is the program's null-sufficiency contract and contains the
+      five obligations, the `can_this_null_fail` line, the graded-control idiom, the
+      monotonicity refinement, and the mode-5 comparator-replication rule. It
+      contains NO instance of the k-resample null and no treatment of curve-only
+      versus point-reading statistics. `grep -ril "resample"` returns the campaign's
+      own RQ and DECOMPOSITION records mandating the k-resample null but no
+      instrument implementing it and no analysis of whether it can fail. No static
+      provenance gate exists anywhere in this repository.
+    verdict: >-
+      ADAPTATION of KN-TECH-1a5b7e to one specific null, plus one genuinely new
+      argument (the forced-null derivation for curve-only statistics and the
+      consequent need for a static gate) and one new verdict category
+      (`constant_despite_reading_points`, which IDEA-20260807-6eab6a's corollaries
+      require). No external literature check performed this session, so external
+      novelty is UNVERIFIED and is not claimed.
+
+  null_object_control: >-
+    MANDATORY AND SUPPLIED -- AND THIS PROPOSAL'S NULL IS ITS OWN INSTRUMENT TURNED
+    ON ITSELF, which is the only honest option for a control proposal.
+    MATCHED NULL OBJECT: the t = 0 arm of the graded planted-leak family -- a
+    statistic of the identical shape (one bit, same call signature, same binning)
+    that provably carries NO information about k. The instrument must return NO-LEAK
+    there. KN-TECH-1a5b7e's `verdict_on_the_null_arm` line is explicit that this arm
+    is RUN FIRST; if it emits the same label as the real arm, the rule is in mode 4
+    and is void.
+    DECAY PARAMETER: the leak fraction t. The instrument's association statistic must
+    DECAY monotonically to the noise floor as t decreases to 0. A statistic that does
+    not decay as the planted leak is removed is the canonical artifact tell
+    (docs/inventor-protocol.md section 3) and would mean the instrument is responding
+    to something other than the leak.
+    SECOND DECAY PARAMETER: the resample count M. The estimated association on the
+    t = 0 arm must shrink like M^{-1/2}. If it does not, there is a fixed
+    non-decaying component in the estimator, and KN-TECH-1a5b7e's own algebra
+    (excess = sqrt(1 + 2 M b^2 / k) for a fixed bias b) says that a contrast growing
+    with M is one number reported many times, not evidence.
+    CAN THIS NULL FAIL? YES -- and that is the test the lane's mandated null itself
+    fails on curve-only statistics, which is the whole point of claim (A). The
+    graded control can fail at t = 1 (blindness), at t = 0 (false positive), or in
+    between (non-monotonicity), and each failure has a distinct declared action.
+
+  assumptions:
+    - >-
+      The harness exposes k for verification (harness/toycurve.py stores it in
+      ECDLPInstance), so a statistic CAN accidentally read it. G3 exists precisely
+      because of this, and its implementation depends on being able to hand the
+      statistic a redacted object -- a Python-level property that must be verified
+      rather than assumed, since a determined implementation can reach around it.
+      The gate is a guard against accident, not against adversarial code, and the
+      record says so.
+    - >-
+      Statistics are deterministic given their declared inputs. A statistic with
+      internal randomness must declare its seed, or G2's taint check will report
+      spurious point-dependence.
+    - >-
+      M >= 100 resamples per cell and >= 8 independent comparator ensemble draws.
+      Both thresholds are PRE-REGISTERED; the second comes from KN-TECH-1a5b7e's
+      mode-5 rule for generated comparators.
+    - >-
+      Toy scale: 16-24 field bits, pure Python. At these sizes N can be small enough
+      that the space of k is not much larger than M, which would make "resampling k"
+      approach enumerating it; the design must assert N >> M at every cell or the
+      resample null degenerates.
+
+  proof_search_map:
+    bottleneck: >-
+      Not computational -- the whole instrument runs in minutes. The bottleneck is
+      DESIGN: the association statistic between s and k must be chosen and
+      pre-registered per statistic, and a badly chosen one (for instance Pearson
+      correlation against an integer k, which is meaningless because k has no order
+      structure relevant to the group) will report nothing regardless of the leak.
+      The graded control exists to expose exactly that failure.
+    baseline_embedding:
+      parameter_slice: >-
+        t = 1: a perfect one-bit leak. At that slice the instrument must reproduce
+        the trivially known answer LEAK with the association statistic at its
+        maximum. This is the boundary where the instrument's job is easiest.
+      reproduction_check: >-
+        Frozen fixture: one curve, one seed, s_1 = the true low bit of k, M = 1000
+        resamples, exact assertion that the emitted verdict is LEAK and that the
+        association statistic equals its theoretical maximum for a one-bit
+        dependence to within the estimator's stated finite-sample bias. A failure
+        here is a total instrument failure and blocks the entire L7 batch.
+    observation_collision:
+      observable: >-
+        The emitted verdict (LEAK / NO-LEAK / NEITHER) and the association statistic.
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED, and finding it is the deliverable: two
+        statistics with the same emitted verdict NO-LEAK, one of which is a genuine
+        no-leak (t = 0) and one of which is a real leak below the detection
+        threshold (t just under t*). That collision is the instrument's blind spot
+        and t* is its exact measurement. Every L7 null in this batch must be
+        reported alongside t*, or the reader cannot tell the two preimages apart.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Move "is this statistic k-independent?" out of statistics and into a
+          static property of the implementation -- which inputs it reads -- where
+          for a large subclass it becomes a decidable syntactic condition rather
+          than an estimation problem. Encoding obligation: declared_inputs must be
+          truthful, checked by G2. Soundness obligation: G1 must never stamp a
+          point-reading statistic as curve-only. Cost-loss obligation: G1 says
+          nothing about statistics that do read points, which is why layer 2 exists.
+        predicted_gain: >-
+          Converts an unbounded number of forced-null experiments into zero
+          experiments plus one syntactic check. No attack gain; a direct saving of
+          the batch's measurement budget and, more importantly, of the
+          interpretation errors those measurements would have invited.
+    quantifier_order: >-
+      Claimed: FORALL statistics s registered with declared inputs not including
+      (P, Q), FORALL curves E, FORALL k, k': s(E) = s(E) -- i.e. the k-resample
+      contrast is identically zero and the null cannot fail. AND: FORALL registered
+      point-reading statistics, THERE EXISTS a measured detection threshold t* such
+      that the instrument emits LEAK for planted leaks above t* and NO-LEAK below,
+      with monotonicity verified over at least four interior points. The dangerous
+      weaker reading NOT claimed: "the instrument detects any leak", which no finite
+      instrument does and which would license reading every NO-LEAK as an absence
+      of information.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "This statistic, on this toy family, at this resample count, carries no
+        detectable association with k at an effect size above t*." It can NEVER
+        certify that a statistic carries no information about k -- only that any
+        information it carries is below the measured threshold. Every L7 negative
+        that cites this instrument inherits that qualifier and must state t*.
+      nearby_object_control: >-
+        The nearby object where the desired conclusion FAILS is s_t for t slightly
+        below t*: a statistic that genuinely leaks and that the instrument reports
+        as NO-LEAK. Exhibiting it is mandatory, because a method that cannot show
+        its own failure mode has not been characterised.
+    proof_obligations:
+      - claim: The k-resample contrast is identically zero for curve-only statistics.
+        responsibility: correctness
+      - claim: G1 never stamps a point-reading statistic as curve-only.
+        responsibility: soundness
+      - claim: G2 detects a statistic that accepts points and ignores them.
+        responsibility: feasibility
+      - claim: G3 prevents a statistic from reading k.
+        responsibility: interface
+      - claim: The verdict sequence over the graded family is monotone in t.
+        responsibility: correctness
+      - claim: The decision rule's false-positive rate is derived before the run and matches after.
+        responsibility: success_probability
+      - claim: The comparator ensemble is replicated at least 8 times and reported as an interval.
+        responsibility: size
+      - claim: Every reported null states t* alongside it.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        Verdict on the t = 0 arm (pure noise statistic), over >= 8 independent
+        comparator ensembles, M = 1000
+      direction: different
+      minimum_effect: >-
+        NO-LEAK on every ensemble draw, with the derived false-positive rate matching
+        the observed rate to within its binomial interval. A single LEAK on the t = 0
+        arm at a rate exceeding the derived FPR puts the rule in KN-TECH-1a5b7e
+        mode 4 and voids every verdict. BASIS - the FPR is DERIVED from the declared
+        decision rule before the run; the derivation is part of the deliverable and
+        is UNTESTED at the time of writing.
+    - metric: >-
+        Verdict on the t = 1 arm (perfect one-bit leak)
+      direction: different
+      minimum_effect: >-
+        LEAK on 100 percent of ensembles. Failure here means total blindness and
+        blocks the batch. BASIS - construction; a KNOWN-ANSWER CALIBRATION.
+    - metric: >-
+        Detection threshold t* over t in {0, 0.1, 0.25, 0.5, 0.75, 1}, and
+        monotonicity of the verdict sequence
+      direction: different
+      minimum_effect: >-
+        t* reported as a number with its interval, and the verdict sequence reported
+        as monotone or NOT monotone. If it is not monotone, no directional reading
+        may be attached to any verdict from this rule -- the instrument would be fit
+        to detect a departure and unfit to sign one, which is KN-TECH-1a5b7e's own
+        recorded failure and is why four interior points are required rather than
+        two ends. NO specific value of t* is predicted; predicting it would be
+        fabrication, and measuring it is the deliverable.
+    - metric: >-
+        Association statistic on the t = 0 arm as a function of resample count M in
+        {100, 300, 1000, 3000}
+      direction: lower
+      minimum_effect: >-
+        Must decay as M^{-1/2} within a factor 2. A non-decaying component means a
+        fixed bias b in the estimator, and by KN-TECH-1a5b7e's algebra any contrast
+        that then grows with M is that single b reported repeatedly. BASIS -
+        standard estimator scaling plus KN-TECH-1a5b7e's derivation; the factor-2
+        band is PRE-REGISTERED and UNTESTED.
+    - metric: >-
+        Maximal-removal control (Q replaced by a uniform random point of G) versus
+        the k-resample contrast
+      direction: higher
+      minimum_effect: >-
+        At least as extreme, and on the same side. An inverted or smaller maximal
+        removal is KN-TECH-1a5b7e mode 2 and voids the null. BASIS - the entry's
+        stated rule; used here as a design constraint, not a measurement.
+    - metric: >-
+        Gate verdict table over every statistic named in this batch's L7 proposals
+      direction: different
+      minimum_effect: >-
+        Every statistic receives exactly one of the four verdicts, and the four
+        curve-only statistics this batch already contains (Elkies/Atkin
+        classification, psi_ell factorisation type, kappa_ell, class fingerprint)
+        must all receive `k_independent_by_construction` rather than `null_passed`.
+        BASIS - claim (A); this is a consistency requirement on the batch, not a
+        measurement.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): the forced-null derivation of claim (A), written out,
+      and the four-verdict taxonomy. Complete without any run and already useful.
+      STAGE 1 (hours): implement the registry and G1-G3; run G1-G3 over the
+      statistics named in this batch's L7 proposals; publish the verdict table.
+      STAGE 2 (hours, HARD GATE): the graded planted-leak family at
+      t in {0, 0.1, 0.25, 0.5, 0.75, 1}, M in {100, 300, 1000, 3000}, >= 8
+      comparator ensemble draws. Report t*, monotonicity, and the derived-versus-
+      observed false-positive rate. Nothing else in L7 is reported until this
+      passes.
+      STAGE 3 (minutes): maximal-removal control.
+      STAGE 4 (minutes): the frozen t = 1 reproduction fixture.
+      BUDGET: minutes to a couple of CPU-hours total; the instrument itself uses no
+      division polynomials and no isogenies, so it has no ell-dependence and no
+      ell <= 13 cap. It runs at 16-24 field bits with N >> M asserted per cell.
+    controls:
+      - t = 0 arm run FIRST, must emit NO-LEAK (blocking, mode-4 guard)
+      - t = 1 arm, must emit LEAK (blocking, blindness guard)
+      - four interior points with monotonicity report (blocking)
+      - maximal removal, Q replaced by a uniform random point of G (blocking, mode-2 guard)
+      - ">= 8 comparator ensemble draws with the interval reported (blocking, mode-5 guard)"
+      - M-ladder decay check on the t = 0 arm (blocking)
+      - N >> M assertion per cell
+    required_metrics:
+      - gate verdict per registered statistic, with the four-verdict taxonomy
+      - t*, its interval, and the monotonicity flag
+      - derived and observed false-positive rate of the decision rule
+      - association statistic per (t, M), with comparator intervals
+      - maximal-removal contrast versus k-resample contrast, signed
+      - pass/fail of every gate control
+
+  falsification_conditions:
+    - >-
+      The t = 0 arm emits LEAK at a rate above the derived false-positive rate. The
+      decision rule is in mode 4; every verdict it has emitted is void and the
+      instrument is not delivered.
+    - >-
+      The t = 1 arm emits NO-LEAK. Total blindness; the instrument is not delivered
+      and no L7 null in this batch may cite it.
+    - >-
+      The verdict sequence is non-monotone in t. The instrument may be used to
+      DETECT but never to SIGN, and every downstream record must carry that
+      restriction explicitly.
+    - >-
+      Maximal removal produces a smaller or oppositely signed contrast than
+      k-resampling. Mode 2; the null is inverted and the design is withdrawn.
+    - >-
+      G1 stamps a statistic `k_independent_by_construction` that G2 shows to be
+      point-dependent. The gate is unsound and must be fixed before use; a false
+      curve-only stamp is the worst failure this instrument can have, because it
+      suppresses a measurement that should have been run.
+    - >-
+      The t = 0 association does not decay as M^{-1/2}. A fixed estimator bias
+      exists; the association statistic must be replaced before any null is
+      reported.
+
+  confounders:
+    - >-
+      Choice of association statistic. k has no metric structure relevant to the
+      group, so correlation-style statistics against integer k are close to
+      meaningless; a binned mutual-information or permutation-tested contingency
+      statistic is the declared default. A poorly chosen statistic will report
+      NO-LEAK for everything including t = 1, which is why the t = 1 arm is
+      blocking.
+    - >-
+      Small N at toy scale. If N is not much larger than M, resampling k approaches
+      enumerating it and the resample ensemble is not independent of the base point
+      structure. Asserted per cell.
+    - >-
+      Multiple statistics. Registering many statistics and reporting the most
+      extreme verdict is a multiple-comparison error; the family-wise correction
+      must be declared with the registry, before any statistic is run.
+    - >-
+      The redaction in G3 is a Python-level guard. It catches accidental reads and
+      does not constitute a security boundary; a statistic that reconstructs k by
+      solving the instance would pass G3 and is a CIRCULARITY failure that only a
+      human reviewer catches. The record names this limit rather than implying the
+      gate is complete.
+
+  interpretation_limits:
+    - >-
+      A NO-LEAK verdict means "no association detectable above t*", never "no
+      information". Every L7 negative citing this instrument must state t*.
+    - >-
+      `k_independent_by_construction` is a statement about the statistic's inputs,
+      not about the mathematics. It is stronger than an empirical null in one
+      respect (it cannot be wrong about the inputs) and weaker in another (it says
+      nothing about a differently implemented statistic computing the same
+      mathematical quantity from point data).
+    - >-
+      The instrument is toy scale and single-machine; claim_tier capped at toy.
+    - >-
+      Nothing here is evidence about the ECDLP. It is evidence about measurements.
+    - >-
+      This record creates no hypothesis status and assigns no work; the gate's
+      verdict table is an input to the Coordinator's prioritisation, not a decision.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The declared association statistic's null distribution on the t = 0 arm is
+        well approximated by its permutation distribution at M >= 100, so the
+        derived false-positive rate is accurate to within its binomial interval.
+      rigorous_support: >-
+        Rigorous half: the permutation distribution is exact under the null of
+        independence by construction, since permuting the k labels destroys any
+        association while preserving both marginals. Distributional half: the claim
+        that M >= 100 suffices imitates the standard finite-sample adequacy
+        expectation for permutation tests on low-cardinality binned statistics; no
+        theorem is quoted for it and it is refutable on its own terms by the
+        M-ladder.
+      validation_plan: >-
+        SAMPLE: the t = 0 arm at M in {100, 300, 1000, 3000}, with >= 8 independent
+        ensemble draws at each M, on 5 curves x 3 field sizes. SHORTCUT: none
+        needed; the t = 0 statistic is a coin flip and costs nothing, which is
+        precisely why the graded control is affordable at every M. COMPARISON
+        DISTRIBUTION: the empirical false-positive rate against the derived rate,
+        by binomial interval, at each M. TAIL CHECK: the largest single-ensemble
+        association value at t = 0 against the permutation distribution's declared
+        upper tail -- one extreme ensemble at the declared alpha is expected and
+        must not be read as a leak. TOY SCALE ONLY, LABELLED AS SUCH.
+    - id: H2
+      statement: >-
+        The instrument's detection threshold t* measured on the synthetic one-bit
+        leak family transfers, as an order of magnitude, to real statistics with
+        comparable output cardinality -- i.e. t* is primarily a function of (M,
+        output cardinality, association statistic) and only secondarily of the
+        statistic's internals.
+      rigorous_support: >-
+        No theorem. The rationale is that the association estimator sees only the
+        joint contingency table of (binned s, k-derived label), whose dimensions are
+        fixed by output cardinality, so its power is governed by that table's size
+        and M. This is a plausible-mechanism argument, it is the WEAKEST assumption
+        in this record, and it is the one that would most damage downstream claims
+        if false -- because every L7 null would then be reported against a t*
+        measured on a different object.
+      validation_plan: >-
+        SAMPLE: rerun the graded family at three output cardinalities (2, 8, 243 --
+        the last matching the T1 truncation of IDEA-20260807-df906f) and report t*
+        for each. COMPARISON: t* as a function of cardinality against the
+        contingency-table power heuristic. TAIL CHECK: whether t* at cardinality 243
+        with M = 1000 is even estimable, given roughly 4 samples per cell -- if it
+        is not, the honest consequence is that df906f's T1-level nulls CANNOT be
+        reported against a measured threshold at that M, and its M must rise.
+        This is a concrete, pre-registered way for H2 to fail informatively.
+
+  reachability_gate: >-
+    NOT APPLICABLE, and stated rather than omitted. The instrument moves between no
+    curves; every measurement holds (E, P) fixed by construction, which is the
+    definition of the null it implements. T5 imposes no cost. One consequence for
+    lanes that DO move between curves: a statistic evaluated after transport must be
+    re-registered with the gate, because transport changes the curve and a statistic
+    that was point-dependent on E may be curve-only on E' if its implementation
+    silently recomputes curve data. The gate is cheap enough to re-run per transport
+    and the record recommends it.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED and none is possible: the instrument mounts no
+      attack and its verdicts constrain measurements, not algorithms. Cost is
+      O(M * cost(s)) per statistic per cell, with M <= 3000 and cost(s) whatever the
+      statistic costs; for the batch's L7 statistics that is seconds to minutes.
+    memory_exponent: >-
+      O(M + output cardinality). Negligible.
+    best_known: >-
+      For ECDLP the frontier is unchanged and untouched: rho at 0.886*sqrt(N) with
+      O(1) memory per processor (KN-TECH-001, KN-TECH-006), automorphism-discounted
+      (KN-TECH-018), BSGS at 2*sqrt(N) time and sqrt(N) memory (KN-TECH-031),
+      Pohlig-Hellman fixing N (KN-TECH-030). For NULL DESIGN the incumbent is
+      KN-TECH-1a5b7e's checklist, which this instantiates and does not replace.
+    hidden_overhead: >-
+      The gate's soundness depends on truthful `declared_inputs`, which G2 checks
+      empirically but cannot check exhaustively; and G3 is an accident guard rather
+      than a boundary. Both limits are disclosed and neither can be removed by more
+      compute.
+    tradeoff_note: >-
+      Not an attack. The only tradeoff is M against detection threshold: t* falls
+      roughly as M^{-1/2} for a fixed output cardinality, so a lane wanting a
+      tighter null must pay linearly in resamples, and the H2 validation plan
+      measures where that stops being affordable.
+
+  dominated_by: >-
+    AS AN ATTACK: mounts none. Dominated on every axis by every row of the
+    prime-field frontier, checked individually -- parallel rho with distinguished
+    points (0.886*sqrt(N) group operations, O(1) memory per processor, linear
+    parallel speedup; KN-TECH-001, KN-TECH-006); automorphism-discounted rho on CM
+    curves (KN-TECH-018); BSGS (2*sqrt(N) time, sqrt(N) memory; KN-TECH-031);
+    Pohlig-Hellman (KN-TECH-030). Data/query axis: it issues no oracle queries and
+    produces no solve.
+    AS A NULL-DESIGN CONTRIBUTION: dominated in generality by KN-TECH-1a5b7e, which
+    is the full contract and covers every contrast the program measures; this record
+    is strictly narrower and adds only the forced-null derivation for the k-resample
+    null, the static gate, and the fourth verdict category. It is NOT dominated as
+    an IMPLEMENTATION, because no instrument implementing the k-resample null exists
+    in this repository.
+  sota_delta: >-
+    Zero speedup against any attack baseline. Instrument delta, quantified:
+    (i) it converts an unbounded number of forced-zero measurements into zero
+    measurements plus one syntactic check, and this batch alone contains at least
+    four curve-only statistics that would otherwise have been null-tested
+    pointlessly; (ii) it attaches a measured detection threshold t* to every L7
+    negative, replacing the currently unqualified claim "no correlation found" with
+    "no association above t* at M resamples and output cardinality c"; (iii) it
+    supplies a four-point monotonicity report, which KN-TECH-1a5b7e's own recorded
+    failure shows a two-point gate cannot substitute for; (iv) total cost: minutes
+    to a couple of CPU-hours, with no division polynomials, no isogenies and no
+    dependence on ell.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.98 that the forced-null derivation is correct -- it is an identity. 0.9 that
+    G1-G3 are implementable and sound for the statistics in this batch; the residual
+    is that Python signature inspection is a weak proxy for input provenance and
+    some statistics will need manual declaration. 0.75 that the graded control is
+    monotone in t for the default association statistic; non-monotonicity is a real
+    possibility and, per KN-TECH-1a5b7e's own worked case, it is the failure mode
+    that a two-point gate would have hidden. 0.5 that t* at output cardinality 243
+    is estimable at M = 1000, which if false directly forces df906f to raise its
+    resample count -- an informative failure, and the reason H2's validation plan is
+    written to surface it early.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json; all
+    126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-TORS-8c7b79
+    - KN-TECH-001
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-TECH-030
+    - KN-TECH-031
+    - KN-TECH-034
+    - KN-TECH-056
+    - KN-TECH-1a5b7e
+    - KN-FIND-b7e091
+    - IDEA-20260807-6eab6a
+    - IDEA-20260807-df906f
+    - IDEA-20260807-c98c3d
+    - IDEA-20260807-1d9c5f

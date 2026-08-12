@@ -168,3 +168,107 @@ def test_run_wrapper_records_optional_exemplar_metadata(tmp_path):
         open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
     assert manifest["heuristic_validation"] == hv
     assert manifest["cost_model"] == cm
+
+
+# --- GOAL-ENDO-001 N6: executed-source pinning -------------------------------
+# Open since DEC-20260807-c8aa8b, promoted to blocking by CORR-20260807-0f5d56.
+# `code.commit` plus a `dirty` boolean does not identify the code that ran; 17
+# of EXP-ICINV-4d33aa's 19 measurement runs were in that state, which is why an
+# EXP-INSTR-85b102 root cause is permanently unrecoverable.
+
+def test_source_provenance_pins_every_executed_repo_module():
+    from harness import runner
+
+    prov = runner.source_provenance()
+    assert prov["all_pinned"] is True
+    assert prov["file_count"] > 0
+    # It must find the modules this test actually imported, not a declared list.
+    assert "harness/runner.py" in prov["files"]
+    assert "harness/toycurve.py" in prov["files"]
+    for rel, entry in prov["files"].items():
+        assert entry["status"] in {"clean", "modified", "untracked"}, rel
+        assert entry["sha256"] and len(entry["sha256"]) == 64, rel
+    # Nothing outside the repo, and nothing that is not Python source.
+    assert all(not r.startswith("/") and r.endswith(".py") for r in prov["files"])
+
+
+def test_source_provenance_hash_matches_the_file_on_disk():
+    """The pin must be the file's real content hash, or it pins nothing."""
+    import hashlib
+    from harness import runner
+
+    prov = runner.source_provenance()
+    rel = "harness/toycurve.py"
+    with open(os.path.join(runner.REPO, rel), "rb") as fh:
+        expected = hashlib.sha256(fh.read()).hexdigest()
+    assert prov["files"][rel]["sha256"] == expected
+
+
+def test_untracked_source_is_distinguished_from_untracked_run_output():
+    """The original N6 defect: outputs and source were both 'untracked'."""
+    from harness import runner
+
+    split = runner.untracked_source_vs_output()
+    assert set(split) == {"untracked_source_code", "untracked_other_count",
+                          "untracked_output_count"}
+    assert isinstance(split["untracked_source_code"], list)
+    # Run outputs live under experiments/*/runs/ and must never be counted as
+    # source, which is what made an untracked .py invisible.
+    assert all(not p.startswith("experiments/") or "/runs/" not in p
+               for p in split["untracked_source_code"])
+
+
+def test_run_manifest_carries_source_pins(tmp_path):
+    inst = generate_instance(seed=11, field_bits=8)
+    res = rho.solve(inst)
+    rr = RunResult(
+        run_suffix="n6-b8-s11", curve_id=curve_id(inst.p, inst.a, inst.b, 8),
+        seed=11, parameters={"field_bits": 8},
+        metrics={"group_operations": res.group_operations},
+        certificate={"kind": "discrete_log",
+                     "statement": {"curve": {"p": inst.p, "a": inst.a, "b": inst.b},
+                                   "P": list(inst.P), "Q": list(inst.Q), "k": res.k}},
+        stdout="ok\n")
+    out = str(tmp_path)
+    run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(out, "runs", run_id, "manifest.yaml")))["run"]
+    source = manifest["code"]["source"]
+    assert source["all_pinned"] is True
+    assert source["files"]["harness/runner.py"]["sha256"]
+    # The legacy fields survive: this is additive, so old readers still work.
+    assert manifest["code"]["commit"] and "dirty" in manifest["code"]
+    assert "untracked_output_count" in manifest["code"]["untracked"]
+
+
+def test_write_run_refuses_when_executed_source_cannot_be_pinned(tmp_path):
+    """N6 is blocking: an unpinnable run is refused, not silently recorded."""
+    from unittest.mock import patch
+
+    from harness import runner as runner_module
+
+    inst = generate_instance(seed=13, field_bits=8)
+    res = rho.solve(inst)
+    rr = RunResult(
+        run_suffix="n6-refuse-b8-s13", curve_id=curve_id(inst.p, inst.a, inst.b, 8),
+        seed=13, parameters={"field_bits": 8},
+        metrics={"group_operations": res.group_operations},
+        certificate={"kind": "discrete_log",
+                     "statement": {"curve": {"p": inst.p, "a": inst.a, "b": inst.b},
+                                   "P": list(inst.P), "Q": list(inst.Q), "k": res.k}},
+        stdout="ok\n")
+    unpinnable = {"files": {"harness/ghost.py": {"sha256": None,
+                                                 "status": "unreadable"}},
+                  "file_count": 1, "all_pinned": False, "all_clean": False,
+                  "modified": [], "untracked": [],
+                  "unreadable": ["harness/ghost.py"]}
+    out = str(tmp_path)
+    with patch.object(runner_module, "source_provenance", return_value=unpinnable):
+        with pytest.raises(RuntimeError, match="not pinnable"):
+            write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                      command="pytest", started=1.0, finished=2.0, out_root=out)
+    # And it must not leave a half-written run directory behind.
+    assert not os.path.exists(os.path.join(out, "runs", "RUN-SEMAEV-n6-refuse-b8-s13"))

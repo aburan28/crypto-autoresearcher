@@ -1,0 +1,108 @@
+working_directory: /home/user/crypto-autoresearcher
+
+# ---------------------------------------------------------------------
+# No new modular-polynomial fetch, no new external data of any kind: this
+# amendment performs NO Phi_ell sourcing (it reuses trapping_diagnostic_v5.
+# build_graph_for_prime, IMPORTED UNCHANGED, which itself reuses
+# build_isogeny_graph.py's Phi_2 BFS -- no Phi_ell>2 evaluation is needed
+# for GRAPH construction, only for the delta_E search proper, which reuses
+# compute_delta_e.two_sided_search UNCHANGED against the SAME already-
+# vendored modpoly_data/*.txt files every prior run in this lineage used).
+# See source_access_log.yaml for the explicit reuse-by-reference statement.
+# ---------------------------------------------------------------------
+
+# ---------------------------------------------------------------------
+# primary_execution: rebuild the p=2437 graph (IMPORTED UNCHANGED,
+# trapping_diagnostic_v5.build_graph_for_prime) + re-run the two-part
+# graph-identity verification (PF-8) + PART A (probe_delta_e_search_v8:
+# 194 non-F_p-rational vertices, independent per-vertex RNG, FIXED 15.0s
+# budget each, F_p-rational vertices wired in unconditionally per PF-9) +
+# REQUIRED COMPARISON against RUN-SSIQ-a85692-b's archived delta_map + the
+# PF-1/PF-9 strengthened coverage gate (len(new_delta_map)==203) + PART B
+# (probe_permutation_null_control_v8: depth0_fraction/summary_stats
+# IMPORTED UNCHANGED from delta_e_permutation_null_control_v7.py, 1000
+# permutation trials, PERSISTS/WEAKENS/AMBIGUOUS labelling), single
+# combined command:
+ulimit -v 2097152
+timeout 3600 python3 experiments/EXP-SSIQ-a85692/implementation/delta_e_independent_rng_probe_v8.py \
+  --run-dir experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h \
+  > experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h/stdout.log \
+  2> experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h/stderr.log
+
+# ulimit -v 2097152 KB == 2 GiB, matching specification_v8.yaml's own
+# budget.maximum_memory_gb: 2. timeout 3600 matches
+# budget.wall_clock_seconds_per_run: 3600, both hard caps applied exactly
+# as pre-registered.
+
+# --raw-result-b defaults to RUN-SSIQ-a85692-b/raw-result.json (relative to
+# the script's own directory, resolved identically regardless of cwd), so
+# it is not passed explicitly above; the default was used for this run,
+# unmodified.
+
+# ---------------------------------------------------------------------
+# ACTUAL EXECUTION HISTORY: PF-3's own required operational discipline
+# (specification_v8.yaml amendment_scope, "REQUIRED: the Executor MUST
+# launch this run's command detached via the identical setsid/nohup/disown
+# pattern RUN-SSIQ-a85692-b's own command.txt documents, PROACTIVELY, not
+# only after a first attempt is killed") was applied on the FIRST and ONLY
+# attempt of this run -- no attempt was killed by the environment-imposed
+# background-process lifetime limit, since the run finished naturally in
+# 278.50s (well under both this run's own 3600s cap and the empirically
+# ~60-65-minute infrastructure kill window RUN-SSIQ-a85692-b's own history
+# disclosed). The exact detached invocation used, byte-for-byte identical
+# in its ulimit/timeout/python3/--run-dir argv to the primary_execution
+# command above:
+#   setsid nohup bash -c 'ulimit -v 2097152; timeout 3600 python3 \
+#     experiments/EXP-SSIQ-a85692/implementation/delta_e_independent_rng_probe_v8.py \
+#     --run-dir experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h \
+#     > experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h/stdout.log \
+#     2> experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h/stderr.log; \
+#     echo "EXITCODE=$?" >> experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h/stdout.log' \
+#     < /dev/null > /dev/null 2>&1 &
+#   disown -a
+# The detachment mechanism (setsid/nohup/disown) is an operational
+# adaptation to this session's execution environment, not a change to the
+# experiment's protocol, code, seeds, budget, or any pre-registered number:
+# the ulimit/timeout/python3/--run-dir/argv are byte-for-byte identical to
+# the primary_execution command above, and its own internal 3600s `timeout`
+# guard is what actually bounds this run's real compute -- the external
+# detachment only prevented the HARNESS from tearing the process down
+# before that internal limit (never reached; the run finished naturally)
+# had a chance to apply. Process exited with EXITCODE=0.
+
+# ---------------------------------------------------------------------
+# Pre-execution verification commands run BEFORE the official run above
+# (interactive python3 -c invocations against the SAME, already-final
+# implementation module delta_e_independent_rng_probe_v8.py; no code
+# differs between these checks and the official run below) -- recorded for
+# audit-trail completeness, per this lineage's own established precedent
+# (RUN-SSIQ-a85692-b's own command.txt), not as a second source of results:
+#   - derive_per_vertex_seed exercised standalone: confirmed deterministic
+#     (same base_seed+vertex -> same seed across two calls) and distinct
+#     across two different vertices.
+#   - tdv5.build_graph_for_prime(2437, 20260805) + verify_graph_identity
+#     exercised standalone on the REAL graph: confirmed n_vertices=203,
+#     n_non_fp_rational=194, n_fp_rational=9, graph_identity pass=True --
+#     matching every prior amendment's own archived figures for this prime.
+#   - The PART A per-vertex search loop (compute_delta_e.two_sided_search,
+#     UNCHANGED) exercised on a SMALL sample of 5 real non-F_p-rational
+#     vertices with the official PER_VERTEX_BUDGET_SECONDS=15.0, confirming
+#     ~1.4s/vertex average (consistent with RUN-SSIQ-a85692-b's own
+#     archived ~1.47s/vertex baseline for this prime) -- a CODE-PATH
+#     integration test on 5/194 vertices, NOT the official run and NOT a
+#     source of any reported research number (this sample's own resolved
+#     values were discarded, not merged into the official run below, which
+#     re-derives its own complete, independent 194-vertex result from
+#     scratch under the identical fixed per-vertex RNG/budget procedure).
+#   - check_coverage_gate / compare_against_archived / PART B's own
+#     run_probe_permutation_null_control_v8 exercised end-to-end using
+#     RUN-SSIQ-a85692-b's own ALREADY-ARCHIVED delta_map as a stand-in
+#     input (this is READ-ONLY reuse of already-committed data, spending NO
+#     new delta_E search compute): confirmed gate_pass=True,
+#     n_value_differs=0 (self-comparison), real_depth0_fraction=1.0,
+#     margin=23.076923076923073 percentage points, outcome=PERSISTS --
+#     this margin figure matches specification_v8.yaml's own cited
+#     reference figure (v7's archived 23.1-point margin for p=2437, EV-SSIQ
+#     -a64d92 O-2) to the digits shown, independently confirming PART B's
+#     implementation reproduces the known-correct statistic before spending
+#     any real search compute on the official run.

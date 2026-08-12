@@ -294,6 +294,11 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return _delegate("orchestration.eval.cli", args.rest)
 
 
+def cmd_campaign(args: argparse.Namespace) -> int:
+    """Read-only campaign observations and the local peer-MCP daemon."""
+    return _delegate("orchestration.campaign.cli", args.rest)
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     """Where things stand, without running anything."""
     cfg = config_module.load()
@@ -383,7 +388,8 @@ def build_parser() -> argparse.ArgumentParser:
     for name, handler, help_text in (
             ("adapter", cmd_adapter, "resolve policies, inspect backends"),
             ("agent", cmd_agent, "plan or run a single dispatched task"),
-            ("eval", cmd_eval, "evaluation suites, baselines, comparisons")):
+            ("eval", cmd_eval, "evaluation suites, baselines, comparisons"),
+            ("campaign", cmd_campaign, "read-only campaign observations and peer coordination")):
         p = sub.add_parser(name, help=help_text,
                            add_help=False)   # pass --help through to the sub-CLI
         p.add_argument("rest", nargs=argparse.REMAINDER)

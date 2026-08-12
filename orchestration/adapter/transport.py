@@ -18,6 +18,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from .config import ConfigError, REQUEST_TARGET_SELECTOR_FIELDS
 from .resolver import Resolution
 
 RETRY_STATUS = {408, 409, 429, 500, 502, 503, 504}
@@ -25,6 +26,25 @@ RETRY_STATUS = {408, 409, 429, 500, 502, 503, 504}
 
 class TransportError(RuntimeError):
     """The request could not be completed against the configured backend."""
+
+
+class _TargetCheckingRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Validate every default-urllib redirect destination before following it."""
+
+    def __init__(self, config):
+        super().__init__()
+        self._config = config
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        self._config.assert_inference_target_allowed(
+            newurl, context="redirected inference endpoint")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _default_opener(config) -> Callable[..., Any]:
+    """Build a standard opener whose redirects remain inside the cost policy."""
+    return urllib.request.build_opener(
+        _TargetCheckingRedirectHandler(config)).open
 
 
 @dataclass
@@ -166,9 +186,14 @@ def build_request(config, resolution: Resolution, *, system: str | None,
                   ) -> tuple[str, dict[str, str], dict[str, Any]]:
     """Return (url, headers, body) for this resolution. No network I/O."""
     env = os.environ if env is None else env
+    config.assert_inference_target_allowed(
+        resolution.backend, resolution.provider, resolution.base_url,
+        resolution.resolved_model_id, context="resolved inference target")
     protocol = config.wire_protocol(resolution.wire)
     backend = config.backend(resolution.backend)
     url = resolution.base_url + protocol["path"]
+    config.assert_inference_target_allowed(
+        url, context="resolved inference endpoint")
 
     api_key = env.get(resolution.api_key_env, "")
     if not api_key and not backend.get("api_key_optional"):
@@ -181,6 +206,13 @@ def build_request(config, resolution: Resolution, *, system: str | None,
     headers.update(auth_headers(protocol, backend, api_key))
 
     request_cfg = dict(resolution.request)
+    config.assert_inference_target_allowed(
+        request_cfg, *request_cfg.values(), context="resolved inference request")
+    selectors = sorted(REQUEST_TARGET_SELECTOR_FIELDS.intersection(request_cfg))
+    if selectors:
+        raise ConfigError(
+            "resolved inference request may not override transport target "
+            f"selector(s): {', '.join(selectors)}")
     reasoning = request_cfg.pop("reasoning", None) or {}
     limit = max_tokens or request_cfg.pop("max_tokens", None) or 4096
     request_cfg.pop("max_tokens", None)
@@ -220,6 +252,10 @@ def build_request(config, resolution: Resolution, *, system: str | None,
     if tools:
         body["tools"] = translate_tools(tools, resolution.wire)
     body.update(request_cfg)  # any remaining provider-specific knobs
+    config.assert_inference_target_allowed(
+        url,
+        *(body.get(field) for field in REQUEST_TARGET_SELECTOR_FIELDS),
+        context="final inference request")
     return url, headers, body
 
 
@@ -279,12 +315,21 @@ def parse_response(wire: str, payload: dict[str, Any]) -> Completion:
     raise TransportError(f"unsupported wire protocol {wire!r}")
 
 
-def post_json(url: str, headers: dict[str, str], body: dict[str, Any], *,
+def post_json(config, url: str, headers: dict[str, str], body: dict[str, Any], *,
               timeout: float, max_retries: int,
               opener: Callable[..., Any] | None = None,
               sleep: Callable[[float], None] = time.sleep) -> dict[str, Any]:
-    """POST with bounded retries. Retries are transport failures, never results."""
-    opener = opener or urllib.request.urlopen
+    """POST a preflighted request with bounded retries.
+
+    This is deliberately another guard boundary rather than trusting callers
+    to have passed through ``build_request``.  Keeping it here closes future
+    direct-call regressions before a ``urllib`` request object is constructed.
+    """
+    config.assert_inference_target_allowed(
+        url,
+        *(body.get(field) for field in REQUEST_TARGET_SELECTOR_FIELDS),
+        context="outbound inference request")
+    opener = opener or _default_opener(config)
     data = json.dumps(body).encode("utf-8")
     last_error: Exception | None = None
     for attempt in range(max_retries):
@@ -316,7 +361,7 @@ def complete(config, resolution: Resolution, *, system: str | None,
         max_tokens=max_tokens, tools=tools, env=env)
     started = time.time()
     payload = post_json(
-        url, headers, body,
+        config, url, headers, body,
         timeout=float(defaults.get("request_timeout_seconds", 600)),
         max_retries=int(defaults.get("max_retries", 3)),
         opener=opener, sleep=sleep)
@@ -337,6 +382,8 @@ def list_models(config, backend_name: str, *, env: dict[str, str] | None = None,
             f"its identifiers against the provider's own documentation")
     protocol = config.wire_protocol(backend["wire"])
     url = config.base_url(backend_name, env) + protocol["models_path"]
+    config.assert_inference_target_allowed(
+        url, context="resolved model-probe endpoint")
     api_key = env.get(backend["api_key_env"], "")
     if not api_key and not backend.get("api_key_optional"):
         raise TransportError(
@@ -345,7 +392,7 @@ def list_models(config, backend_name: str, *, env: dict[str, str] | None = None,
     headers = {k: str(v) for k, v in (protocol.get("static_headers") or {}).items()}
     headers.update(auth_headers(protocol, backend, api_key))
 
-    opener = opener or urllib.request.urlopen
+    opener = opener or _default_opener(config)
     request = urllib.request.Request(url, headers=headers, method="GET")
     try:
         with opener(request, timeout=timeout) as response:

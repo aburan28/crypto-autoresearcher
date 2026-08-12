@@ -8,6 +8,7 @@ experiment:
     crossover K*(BKK) = ceil(s*beta/(1-t*beta)) versus the no-BKK baseline,
     with beta = 2/(m+1), and the rescue-window prediction t in [1, (m+1)/2)
   status: draft
+  version: 1
   claim_tier: toy
   objective: >-
     Measure, on the same toy instances used by EXP-MTIC-001, the relation
@@ -31,17 +32,21 @@ experiment:
         Deterministic seeds; frozen by SHA-256 in frozen-instances.yaml.
     factor_bases:
       description: >-
-        F = {P : x(P) < t} with |F| ~ B for b in {0.4, 0.5, 0.6}: B = round(p^b),
+        F = {P : x(P) < t} with |F| ~ B for b in {0.6, 0.7}: B = round(p^b),
         t = smallest threshold attaining |F| >= B. Frozen.
     targets:
       description: >-
         50 per (curve, b) for T_desc measurement, matched rho baseline on the
         same targets; scalars recorded.
   factors:
+    curves: 5
+    curve_seed_set: [1, 2, 3, 4, 5]
+    field_bits: [16]
+    b: [0.6, 0.7]
     m: [3, 4, 5]
-    curve: [5 curves]
-    b: [0.4, 0.5, 0.6]
-    seeds: [10]
+    min_prime_order_bits: 14
+    target_count: 50
+    target_streams: [desc, harv]
   controls:
     - null_no_bkk: >-
         bit-exact no-BKK code path (single flag) on the same instances;
@@ -69,8 +74,9 @@ experiment:
     maximum_runs: 1
   stopping_rules:
     - description: >-
-        any cell exceeding 10x expected median cost: stop, record timed-out,
-        never synthesized into K*
+        any cell exceeding expected median cost by >10x or with per-target check
+        cap exhaustion: stop target/measurements, mark timed-out, do not synthesize
+        into finite K*.
   required_artifacts:
     - specification.yaml
     - frozen-instances.yaml
@@ -87,12 +93,23 @@ experiment:
     - description: >-
         S_rel_BKK/S_rel_std < beta or T_desc_BKK/T_desc_std < beta (factor not
         reached in both channels)
+  success_criterion: >-
+    Criterion A (algebraic model): median measured K*(BKK)/K*(std) within 25%
+    relative of R_theory = beta*(1-t)/(1-t*beta) across completed cells, with
+    beta = 2/(m+1). Criterion B (per-channel): measured full-check ratio
+    S_rel_BKK/S_rel_std and T_desc_BKK/T_desc_std within 25% of the sweep
+    factor, in both channels. Criterion C (rescue window, v0 prediction):
+    cells with beta*(B/2)^(m-1) < sqrt(N) and B^(m-1) >= sqrt(N) give finite
+    K*(BKK) where the standard run is infinite. AMEND-001 revises scope: the
+    v1 protocol keeps A/B and drops C (structurally empty at toy sizes); the
+    falsifiable rescue quantity is re-cast as the measured full-check ratio
+    against 2^(m-1).
   review_gate:
     review_required: true
     review_roles: [validator, reviewer]
     preconditions:
       - description: >-
-          smoke gate passes: BKK full_checks factor >= 2/(m+1) at m=3 on the
+          smoke gate passes: BKK full-checks factor >= 2/(m+1) at m=3 on the
           smoke curve, before full dataset execution
   status_history:
     - event: drafted
@@ -108,3 +125,26 @@ experiment:
       note: >-
         DEC-20260805-48b52e: full dataset not approved under the proxy BKK
         model. BATCH-124 reimplements the typed-index-subset BKK enumeration.
+    - event: smoke_gate_passed
+      at: '2026-08-05'
+      by: coordinator
+      note: >-
+        v2 smoke driver implements the correct BKK enumeration and verifies the
+        theorem's exact combinatorial content (gamma 0.49997 vs 0.5; speedup
+        1.99988 vs 2.0 at m=3, 200k trials). SMOKE-FIND-004 corrected the v1
+        proxy gate. Dataset blocked on design-honesty item SMOKE-FIND-003
+        (rescue-window cells require b >= 0.6 or larger N) and Executor full
+        run dispatch.
+    - event: status_draft_to_review_required
+      at: '2026-08-05'
+      by: coordinator
+      note: >-
+        DEC-20260805-d4b182: smoke gate passed; proceed to Executor full
+        dataset once the rescue-window design note is recorded in an amendment.
+    - event: amendment_approved
+      at: '2026-08-06'
+      by: coordinator
+      note: >-
+        SMOKE-FIND-003 closure requirement recorded: full dataset now uses
+        b in {0.6, 0.7}, five fixed 16-bit seeds {1..5}, and both harvest and
+        descent target batches per curve.

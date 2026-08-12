@@ -10,6 +10,9 @@ from __future__ import annotations
 import io
 import json
 import urllib.error
+import urllib.request
+from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -62,6 +65,138 @@ def test_config_rejects_binding_for_unknown_backend(tmp_path):
     path.write_text(yaml.safe_dump(bindings))
     with pytest.raises(config_module.ConfigError, match="unknown backend"):
         adapter.load(bindings_path=path)
+
+
+def test_config_rejects_bedrock_backend_before_resolution(tmp_path):
+    providers = yaml.safe_load((REPO / "orchestration/providers.yaml").read_text())
+    providers["backends"]["amazon-bedrock"] = {
+        "display_name": "Amazon Bedrock",
+        "wire": "anthropic_messages",
+        "base_url": "https://bedrock-runtime.example.invalid",
+        "api_key_env": "AWS_ACCESS_KEY_ID",
+    }
+    path = tmp_path / "providers.yaml"
+    path.write_text(yaml.safe_dump(providers))
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.load(providers_path=path)
+
+
+def test_config_rejects_bedrock_model_hidden_under_allowed_backend(tmp_path):
+    bindings = yaml.safe_load((REPO / "orchestration/model-bindings.yaml").read_text())
+    bindings["bindings"]["openai"]["research-deep"]["model"] = (
+        "amazon-bedrock/us.example-model")
+    path = tmp_path / "bindings.yaml"
+    path.write_text(yaml.safe_dump(bindings))
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.load(bindings_path=path)
+
+
+def test_config_rejects_bedrock_request_model_override_before_resolution(tmp_path):
+    bindings = yaml.safe_load((REPO / "orchestration/model-bindings.yaml").read_text())
+    bindings["bindings"]["openai"]["research-deep"]["request"]["model"] = (
+        "AmazOn-BeDrOcK/us.example-model")
+    path = tmp_path / "bindings.yaml"
+    path.write_text(yaml.safe_dump(bindings))
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.load(bindings_path=path)
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("path", "@amazon-bedrock.example.invalid/v1/messages"),
+    ("models_path", "/Amazon-Bedrock/models"),
+])
+def test_config_rejects_bedrock_wire_protocol_paths_before_resolution(tmp_path,
+                                                                      field, value):
+    providers = yaml.safe_load((REPO / "orchestration/providers.yaml").read_text())
+    providers["wire_protocols"]["openai_chat"][field] = value
+    path = tmp_path / "providers.yaml"
+    path.write_text(yaml.safe_dump(providers))
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.load(providers_path=path)
+
+
+def test_resolver_rejects_bedrock_endpoint_override(cfg):
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.resolve(
+            cfg, "research-deep", backend="zai",
+            env={"ZAI_BASE_URL": "https://bedrock-runtime.example.invalid"})
+
+
+def test_transport_rejects_tampered_bedrock_resolution(cfg):
+    resolution = adapter.resolve(cfg, "research-deep", backend="zai", env={})
+    tampered = replace(
+        resolution, resolved_model_id="amazon-bedrock/us.example-model")
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.build_request(
+            cfg, tampered, system=None,
+            messages=[adapter.Message("user", "must not send")],
+            env={"ZAI_API_KEY": "unused"})
+
+
+def test_transport_rejects_tampered_request_model_before_opener(cfg):
+    resolution = adapter.resolve(cfg, "research-deep", backend="zai", env={})
+    tampered = replace(
+        resolution, request={"model": "amazon-bedrock/us.example-model"})
+    calls = []
+
+    def forbidden_opener(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("forbidden request reached opener")
+
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.complete(
+            cfg, tampered, system=None,
+            messages=[adapter.Message("user", "must not send")],
+            env={"ZAI_API_KEY": "unused"}, opener=forbidden_opener)
+    assert calls == []
+
+
+def test_transport_rechecks_composed_endpoint_before_opener(cfg):
+    providers = deepcopy(cfg.providers)
+    providers["wire_protocols"]["openai_chat"]["path"] = (
+        "@amazon-bedrock.example.invalid/v1/chat/completions")
+    tampered_cfg = replace(cfg, providers=providers)
+    resolution = adapter.resolve(tampered_cfg, "research-deep", backend="zai", env={})
+    calls = []
+
+    def forbidden_opener(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("forbidden request reached opener")
+
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.complete(
+            tampered_cfg, resolution, system=None,
+            messages=[adapter.Message("user", "must not send")],
+            env={"ZAI_API_KEY": "unused"}, opener=forbidden_opener)
+    assert calls == []
+
+
+def test_model_probe_rechecks_composed_endpoint_before_opener(cfg):
+    providers = deepcopy(cfg.providers)
+    providers["wire_protocols"]["openai_chat"]["models_path"] = (
+        "@amazon-bedrock.example.invalid/v1/models")
+    tampered_cfg = replace(cfg, providers=providers)
+    calls = []
+
+    def forbidden_opener(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("forbidden request reached opener")
+
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.list_models(
+            tampered_cfg, "zai", env={"ZAI_API_KEY": "unused"},
+            opener=forbidden_opener)
+    assert calls == []
+
+
+def test_opencode_disables_bedrock_and_uses_allowed_defaults():
+    opencode = json.loads((REPO / "opencode.json").read_text())
+    assert "amazon-bedrock" in opencode["disabled_providers"]
+    model_ids = [opencode["model"], opencode["small_model"]]
+    model_ids.extend(
+        agent["model"] for agent in opencode.get("agent", {}).values()
+        if agent.get("model"))
+    assert all("bedrock" not in model.casefold() for model in model_ids)
 
 
 # --------------------------------------------------------------------------
@@ -276,7 +411,7 @@ class _Response(io.BytesIO):
         return False
 
 
-def test_transient_failures_retry_then_succeed():
+def test_transient_failures_retry_then_succeed(cfg):
     attempts = []
 
     def opener(request, timeout=None):
@@ -287,12 +422,12 @@ def test_transient_failures_retry_then_succeed():
         return _Response(json.dumps({"ok": True}).encode())
 
     payload = transport_module.post_json(
-        "https://example.invalid/v1/messages", {}, {"model": "m"},
+        cfg, "https://example.invalid/v1/messages", {}, {"model": "m"},
         timeout=1, max_retries=3, opener=opener, sleep=lambda _: None)
     assert payload == {"ok": True} and len(attempts) == 3
 
 
-def test_client_errors_are_not_retried():
+def test_client_errors_are_not_retried(cfg):
     attempts = []
 
     def opener(request, timeout=None):
@@ -301,10 +436,37 @@ def test_client_errors_are_not_retried():
                                      io.BytesIO(b"bad key"))
 
     with pytest.raises(transport_module.TransportError, match="401"):
-        transport_module.post_json("https://example.invalid/v1/messages", {},
+        transport_module.post_json(cfg, "https://example.invalid/v1/messages", {},
                                    {"model": "m"}, timeout=1, max_retries=3,
                                    opener=opener, sleep=lambda _: None)
     assert len(attempts) == 1
+
+
+@pytest.mark.parametrize(("url", "body"), [
+    ("https://amazon-bedrock.example.invalid/v1/messages", {"model": "safe"}),
+    ("https://example.invalid/v1/messages", {"model": "Amazon-Bedrock/model"}),
+])
+def test_post_json_rejects_forbidden_target_before_opener(cfg, url, body):
+    calls = []
+
+    def forbidden_opener(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("forbidden request reached opener")
+
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        transport_module.post_json(
+            cfg, url, {}, body, timeout=1, max_retries=1,
+            opener=forbidden_opener, sleep=lambda _: None)
+    assert calls == []
+
+
+def test_default_redirect_handler_rejects_forbidden_endpoint_before_following(cfg):
+    handler = transport_module._TargetCheckingRedirectHandler(cfg)
+    request = urllib.request.Request("https://example.invalid/v1/messages")
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        handler.redirect_request(
+            request, None, 302, "Found", {},
+            "https://Amazon-BeDrOcK.example.invalid/v1/messages")
 
 
 # --------------------------------------------------------------------------
