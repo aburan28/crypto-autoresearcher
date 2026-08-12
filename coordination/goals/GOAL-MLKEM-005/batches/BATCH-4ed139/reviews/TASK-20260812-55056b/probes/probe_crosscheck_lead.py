@@ -110,8 +110,8 @@ def main():
     print("\n--- HEADLINE SCALARS ---")
     f0 = lead["FIXTURE_F0"]
     f1 = lead["FIXTURE_F1"]
-    print("lead FIXTURE_F0 verdict:", f0.get("VERDICT"))
-    print("lead FIXTURE_F1 verdict:", f1.get("VERDICT"))
+    print("lead FIXTURE_F0 verdict:", f0.get("R2_OUT_1_F0_VERDICT"))
+    print("lead FIXTURE_F1 verdict:", f1.get("R2_OUT_2_F1_VERDICT"))
     print("lead TERMINATION:", json.dumps(lead["TERMINATION"])[:400])
     print("lead peak_rss_mb:", lead.get("peak_rss_mb"),
           " wall_clock_seconds:", lead.get("wall_clock_seconds"))
