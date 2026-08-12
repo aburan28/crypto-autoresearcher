@@ -178,7 +178,7 @@ candidate, empty queue, timeout, or temporary lack of a promising idea does not
 complete the goal: record the narrowest result and add the next concrete action
 instead.
 
-Both terminal statuses return control to `/launch-research-harness` step 8,
+Both terminal statuses return control to `/launch-research-harness` step 9,
 which picks up the next goal. Because the run continues either way, there is no
 incentive to reach for `completed` — an honest `paused` with a resume action
 costs the harness nothing.
