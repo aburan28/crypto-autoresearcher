@@ -358,11 +358,19 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
     source_ids = [item.metadata["source_id"] for item in documents]
     source_keys = [item.source_key for item in documents]
 
-    assert len(documents) == 10_920
-    assert len(set(source_ids)) == 10_920
-    assert len(set(source_keys)) == 10_920
-    assert len(sink.keys) == 21_840
-    assert len(set(sink.keys)) == 21_840
+    # The independently reviewed BATCH-bac554 snapshot staged 10,920 records.
+    # Its subsequent neutral PASS archive adds one evidence and one decision
+    # record, both of which are part of the live corpus at this branch tip.
+    expected_document_count = 10_922
+    assert len(documents) == expected_document_count
+    assert len(set(source_ids)) == expected_document_count
+    assert len(set(source_keys)) == expected_document_count
+    assert len(sink.keys) == 2 * expected_document_count
+    assert len(set(sink.keys)) == 2 * expected_document_count
+    assert {
+        "evidence:EV-DREG-39e13d",
+        "decision:DEC-20260812-a987b8",
+    } <= set(source_ids)
 
     assert len(diagnostics.registered_source_paths) == 76
     assert diagnostics.matched_registered_source_paths == diagnostics.registered_source_paths
