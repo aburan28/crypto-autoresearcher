@@ -20,12 +20,11 @@ Why that matters, precisely (`tools/validate_ledger.py`):
     ctx.register(str(rec_id), ...)      # line 266, keeps the FIRST only
 
 For a colliding ID, `ctx.ids` therefore points at the FIRST manifest globbed
-while `ctx.run_params` holds the LAST. The claim-tier ceiling
-(`declared > max(run_tiers)`) is evaluated against those last-written
-parameters. If two same-named runs disagree on `field_bits`, the ceiling that
-exists to stop a toy result being presented at crypto scale is checked against
-a manifest the citing record never meant. `tier_divergent: true` below marks
-every ID where that is not hypothetical.
+while `ctx.run_params` holds the LAST. Scale metadata and run provenance are
+evaluated against those last-written parameters. If two same-named runs
+disagree on `field_bits`, the report marks the ambiguity rather than silently
+using one manifest for a claim the citing record never meant.
+`tier_divergent: true` below marks every ID where that is not hypothetical.
 
 Usage:
     python3 tools/build_duplicate_run_ids.py            # write the map
@@ -97,7 +96,7 @@ def collisions() -> dict:
         records[rec_id] = {
             "occurrences": entries,
             # True when the colliding manifests would not agree about the
-            # claim-tier ceiling. These are the ones where an arbitrary pick
+            # scale metadata. These are the ones where an arbitrary pick
             # changes the answer rather than merely the provenance.
             "tier_divergent": len({t for t in tiers if t is not None}) > 1,
         }

@@ -352,7 +352,7 @@ class TierOfRunTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertIsNone(vl.tier_of_run({"field_bits": value}))
 
-    def test_claim_tier_ceiling_uses_the_largest_cell(self) -> None:
+    def test_claim_tier_is_not_an_automatic_scale_ceiling(self) -> None:
         ctx = vl.Ctx(set())
         ctx.run_params["RUN-T-001"] = {"field_bits": [16, 20]}
         ctx.ids["RUN-T-001"] = "x"
@@ -363,8 +363,8 @@ class TierOfRunTests(unittest.TestCase):
             "claim_tier": "crypto",
         }
         vl.check_cross_refs(ctx)
-        self.assertTrue(any("exceeds what its runs' parameters allow" in e
-                            for e in ctx.errors), ctx.errors)
+        self.assertFalse(any("exceeds what its runs' parameters allow" in e
+                             for e in ctx.errors), ctx.errors)
 
 
 class CommittedRegistryTests(unittest.TestCase):

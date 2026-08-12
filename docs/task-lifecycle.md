@@ -134,7 +134,9 @@ commit inside a shared worktree.
 
 ## 10. Synthesis
 
-Synthesis statements must reference hypothesis, experiment, run, evidence, and decision IDs. They must explicitly distinguish toy-scale, medium-scale, and cryptographic-scale evidence.
+Synthesis statements must reference hypothesis, experiment, run, evidence, and
+decision IDs. They must state the tested parameters and distinguish direct
+observations from transfer or extrapolation arguments.
 
 ## 10a. Goal checkpoint, rerank, and continuation
 

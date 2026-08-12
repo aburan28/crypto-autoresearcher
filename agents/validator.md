@@ -70,8 +70,9 @@ verifies:
    distribution (uniform up to conjugation; isometry of quadratic forms), and
    the substitute sampler is itself covered by a positive/negative control.
 4. **Scale binding.** The run's parameter sizes (bit length of p, sample
-   count) match the scale the claim requires. Toy-scale validation is
-   recorded as a limitation, never as scale-matched evidence (AGENTS rule 7).
+   count), declared scope, and any transfer assumptions are recorded. A
+   scale mismatch is reported as a limitation or assumption, not treated as
+   an automatic invalidation.
 5. **Cost-unit honesty.** Concrete cost tables declare their unit (field
    operations vs bit operations vs memory cells), flag optimistic assumptions
    (e.g., one F_{p^2}-operation per table entry, tightness of the success

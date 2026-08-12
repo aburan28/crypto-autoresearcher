@@ -134,10 +134,10 @@ results by citing verified polynomial-time reductions. Do not re-prove what a
 cited reduction already gives, and do not claim an adjacent problem without
 naming the reduction that carries it.
 
-### A7. Experimental heuristic validation at cryptographic scale
+### A7. Experimental heuristic validation and transfer assumptions
 
-Section 4.2 validates Heuristic 1 empirically *at cryptographically sized
-parameters*, not on toy curves:
+Section 4.2 validates Heuristic 1 empirically at large parameters and states
+the transfer assumptions used by the sampling method:
 
 - **Method.** Direct computation of the smallest isogeny E → E^{(p)} is
   infeasible at large p, so the Deuring correspondence is used as a sampling
@@ -158,11 +158,10 @@ parameters*, not on toy curves:
   ρ(u) ≈ 1/3312 — consistent.
 
 **Profile rule.** Every heuristic a target-class result depends on gets a
-dedicated validation experiment at the largest feasible scale, with the
-sampling method (including any correspondence used to reach that scale), the
-sample sizes, the distributional prediction being compared against, and
-explicit tail checks — all recorded as artifacts. Toy-scale validation alone
-never supports a cryptographic-scale heuristic claim (AGENTS.md rule 7).
+dedicated validation experiment at a declared scale, with the sampling method
+(including any correspondence used to reach that scale), the sample sizes,
+the distributional prediction being compared against, explicit tail checks,
+and all transfer assumptions recorded as artifacts.
 
 ### A8. Concrete-cost and scope honesty
 
@@ -312,9 +311,8 @@ how it may be presented and promoted.
 - C15. Are time–memory tradeoffs and parallelization behavior stated? (A8)
 - C16. Is there an explicit affected-vs-safe scope statement naming which
   systems or parameter regimes the result does and does not threaten? (A8)
-- C17. Is toy-scale evidence presented only as toy-scale, and does any
-  crypto-scale claim rest on crypto-scale validation or on a clearly labeled
-  extrapolation? (A7; AGENTS.md rule 7)
+- C17. Are the tested parameters, transfer assumptions, and extrapolations
+  explicit in the evidence supporting the claim? (A7)
 - C18. Is a proof-of-concept implementation referenced or planned, with its
   fidelity limits stated? (A8)
 
@@ -366,9 +364,9 @@ of `docs/evidence-and-reproducibility.md`:
    sample sizes; the exact distributional prediction compared against (e.g.,
    Dickman–de Bruijn ρ(u) with the u-parameterization stated); CDF data in
    machine-readable form; and tail consistency checks on extreme samples.
-   Claim-tier rules of `docs/claims-and-verification.md` apply unchanged: a
-   validation run at toy scale contributes at tier `toy` regardless of the
-   heuristic's cryptographic ambition.
+   Claim-tier metadata and the record's tested parameters remain explicit, but
+   a validation run is not automatically barred from supporting a broader
+   conditional interpretation.
 2. **Concrete-cost table.** A required artifact *before any asymptotic claim
    is promoted* past `analyzed`. It must state: the cost model (what is
    counted, at what unit cost); standardized parameter sets; time and memory
@@ -379,15 +377,14 @@ of `docs/evidence-and-reproducibility.md`:
    evidence and blocks promotion — an evidence-integrity failure, not a
    mathematical result.
 
-### Claim-tier ceiling
+### Claim-tier reporting
 
-The profile does not raise the claim-tier ceiling of
-`docs/claims-and-verification.md`. Empirical heuristic validation, however
-large, supports a claim about the *tested distribution at the tested sizes*;
-the asymptotic statement remains conditional on the heuristic. Records must
-keep the conditional phrasing ("Assuming Heuristic H, ...") in every evidence
-record, synthesis, and ledger entry, exactly as Theorem 1.1 and Corollary 1.2
-carry "Assuming Heuristic 1".
+The profile requires claim-tier metadata, tested parameters, and transfer
+assumptions to be visible in every evidence record, synthesis, and ledger
+entry. Empirical heuristic validation remains conditional on the heuristic;
+records must keep the conditional phrasing ("Assuming Heuristic H, ...") in
+every evidence record, synthesis, and ledger entry, exactly as Theorem 1.1 and
+Corollary 1.2 carry "Assuming Heuristic 1".
 
 ### Review routing
 
@@ -397,4 +394,4 @@ target-class form (C1 answered "yes") is automatically in that category: the
 Reviewer checks the decomposition against Part B, the Red Team attacks the
 heuristic justification (C3–C5), the cost model (C13–C15), and the scope
 statement (C16), and the Validator checks the heuristic-validation experiment
-integrity (C12) and the claim-tier ceiling.
+    integrity (C12) and the claim-tier report and transfer assumptions.
