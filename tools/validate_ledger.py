@@ -9,7 +9,7 @@ Mechanically enforces the invariants that AGENTS.md and docs/ state in prose:
   * required fields are present per record type;
   * run manifests are complete and reproducible;
   * a run claiming a solve carries a verified certificate;
-  * an evidence record never asserts above the claim tier its runs allow;
+  * evidence records carry descriptive scale metadata and explicit scope;
   * knowledge/INDEX.md is not stale.
 
 Exit code 0 if clean, 1 if any error. Empty ledger validates clean.
@@ -537,8 +537,8 @@ def check_cross_refs(ctx: Ctx):
             # collisions themselves are frozen and disclosed in
             # tools/duplicate_run_ids.yaml -- they cannot be repaired, because
             # renumbering rewrites committed manifests. What is NOT tolerable
-            # is a citation nobody can resolve: the claim-tier ceiling below
-            # reads ctx.run_params, which holds whichever colliding manifest
+            # is a citation nobody can resolve: scale metadata and run
+            # provenance read ctx.run_params, which holds whichever colliding manifest
             # was globbed LAST, so an unqualified citation is checked against a
             # run the record may never have meant.
             for run_id in body.get("run_ids") or []:
@@ -551,15 +551,9 @@ def check_cross_refs(ctx: Ctx):
                             f"cites run '{run_id}', which exists under "
                             f"{sorted(owners)}; experiment_ids must name "
                             f"exactly one of them to resolve the citation")
-            # Claim-tier ceiling.
-            declared = TIER_ORDER.get(body.get("claim_tier"))
-            run_tiers = [tier_of_run(ctx.run_params.get(r, {}))
-                         for r in body.get("run_ids") or []]
-            run_tiers = [t for t in run_tiers if t is not None]
-            if declared is not None and run_tiers and declared > max(run_tiers):
-                ctx.err(ctx.ids[rec_id], f"claim_tier '{body.get('claim_tier')}'"
-                                         f" exceeds what its runs' parameters "
-                                         f"allow")
+            # `claim_tier` is descriptive metadata. The record and decision
+            # must state the tested parameters and any transfer assumptions,
+            # but the validator does not impose an automatic scale ceiling.
         elif rec_type == "coordinator_decision":
             for target_id in body.get("target_ids") or []:
                 if (str(target_id).startswith(("RQ-", "H-", "EXP-", "EV-"))

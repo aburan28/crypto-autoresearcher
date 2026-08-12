@@ -20,10 +20,12 @@ a suggester -- it writes no records and creates no files.
     python3 tools/allocate_id.py --check EXP-RT1476-001
     python3 tools/allocate_id.py --next hypothesis --area SUBRES   # random token
     python3 tools/allocate_id.py --next coordinator_decision --date 20260728
+    python3 tools/allocate_id.py --next correction --date 20260728
     python3 tools/allocate_id.py --audit
 
-Patterns are imported from `validate_ledger`, never restated, so this tool and
-the build gate cannot drift apart. If they disagree, that is the bug.
+Ledger patterns and the shared suffix grammar are imported from
+`validate_ledger`, so this tool and the build gate cannot silently disagree on
+legacy or random suffixes.
 """
 from __future__ import annotations
 
@@ -44,11 +46,20 @@ REPO = vl.REPO
 SEARCH_GLOBS = [
     os.path.join(REPO, "ledger", "*.yaml"),            # root, live not legacy
     os.path.join(REPO, "ledger", "*", "*.yaml"),       # typed subdirectories
+    os.path.join(REPO, "ledger", "corrections", "*.md"),
     os.path.join(REPO, "experiments", "*", "specification.yaml"),
+    os.path.join(REPO, "experiments", "*", "corrections", "*.yaml"),
+    os.path.join(REPO, "experiments", "*", "corrections", "*.md"),
     os.path.join(REPO, "knowledge", "*", "*.md"),
-    # Batch directories. Their identifier lives in the DIRECTORY name, which is
-    # why occurrences() matches on the parent as well as the stem.
+    # Batch directories. Their identifier lives in the directory name; the
+    # recursive collision index below sees the directory itself.
     os.path.join(REPO, "coordination", "goals", "*", "batches", "*", "*.json"),
+    # Control-plane corrections may live inside a batch rather than the ledger.
+    # They remain part of the same global CORR identifier space.
+    os.path.join(REPO, "coordination", "goals", "*", "batches", "*",
+                 "corrections", "*.yaml"),
+    os.path.join(REPO, "coordination", "goals", "*", "batches", "*",
+                 "corrections", "*.md"),
 ]
 
 # id prefix -> the record type whose pattern governs it
@@ -61,16 +72,46 @@ PREFIX_TYPE = {
     "DEC": "coordinator_decision",
     "TASK": "handoff",
     "BATCH": "batch",
+    "CORR": "correction",
 }
 
 # Record types whose identifier is PREFIX-SUFFIX with no date or area segment.
 NO_MIDDLE = {"batch"}
 
 
-ID_TOKEN = re.compile(r"\b(RQ|IDEA|H|EXP|EV|DEC|TASK|CORR|GOAL|KN|RUN)-[A-Za-z0-9._-]+\b")
+# Corrections are coordination/control-plane records rather than one of the
+# ledger record types validated by validate_ledger.check_record, so
+# validate_ledger.ID_PATTERNS has no "correction" entry. Reuse the validator's
+# canonical legacy-or-random suffix expression instead of copying it.
+SUPPLEMENTAL_ID_PATTERNS = {
+    "correction": re.compile(rf"^CORR-\d{{8}}-{vl.SUFFIX}$"),
+}
+
+# SEARCH_GLOBS remains the curated set used by audit(): broadening that audit
+# to every task receipt and archive path would count one logical task once per
+# artifact and manufacture a large new duplicate-debt baseline. Allocation has
+# a different requirement. An identifier is not free if it appears in ANY
+# repository path component, including a deep task directory or task-card
+# filename, so occurrences() uses this recursive path index instead.
+PATH_SCAN_EXCLUDED_DIRS = {
+    ".git",
+    ".worktrees",  # other checkouts are not records in this checkout
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+}
+PATH_SCAN_EXCLUDED_FILES = {".git", ".DS_Store"}
+PATH_ID_PREFIX = re.compile(
+    rf"^(?:{'|'.join(map(re.escape, PREFIX_TYPE))})-"
+)
 
 
 def _paths() -> list[str]:
+    """Curated canonical record files used by the legacy-debt audit."""
     out: list[str] = []
     for pattern in SEARCH_GLOBS:
         out += [p for p in glob.glob(pattern)
@@ -78,15 +119,53 @@ def _paths() -> list[str]:
     return sorted(set(out))
 
 
+def _identifier_paths() -> list[str]:
+    """Identifier-bearing files and directories anywhere in this checkout.
+
+    This deliberately inspects path components only; it never parses or scans
+    file contents. Directories are included because TASK, EXP, BATCH, and other
+    records often carry their identifier in a parent directory while their
+    artifacts have generic names such as receipt.json.
+    """
+    out: list[str] = []
+    for current, directories, files in os.walk(REPO, followlinks=False):
+        directories[:] = sorted(
+            directory
+            for directory in directories
+            if directory not in PATH_SCAN_EXCLUDED_DIRS
+            and not directory.startswith("._")
+        )
+        for directory in directories:
+            if PATH_ID_PREFIX.match(directory):
+                out.append(os.path.join(current, directory))
+        for filename in sorted(files):
+            if (filename in PATH_SCAN_EXCLUDED_FILES
+                    or filename.startswith("._")):
+                continue
+            if PATH_ID_PREFIX.match(filename):
+                out.append(os.path.join(current, filename))
+    return sorted(set(out))
+
+
+def _path_names_identifier(path: str, rec_id: str) -> bool:
+    """Whether one identifier-bearing path component names rec_id."""
+    name = os.path.basename(path)
+    stem = os.path.splitext(name)[0]
+    if name == rec_id or stem == rec_id:
+        return True
+    # Task cards and receipts sometimes append a descriptive suffix. Require a
+    # delimiter so TASK-...-001 never matches the distinct TASK-...-0010.
+    return any(stem.startswith(rec_id + delimiter)
+               for delimiter in (".", "_", "-"))
+
+
 def occurrences(rec_id: str) -> list[str]:
-    """Every file whose NAME carries this identifier, across the whole union."""
-    hits = []
-    for path in _paths():
-        stem = os.path.basename(path)
-        parent = os.path.basename(os.path.dirname(path))
-        if rec_id in stem or rec_id == parent:
-            hits.append(os.path.relpath(path, REPO))
-    return hits
+    """Every repository path component that carries this identifier."""
+    return [
+        os.path.relpath(path, REPO)
+        for path in _identifier_paths()
+        if _path_names_identifier(path, rec_id)
+    ]
 
 
 def well_formed(rec_id: str) -> tuple[bool, str]:
@@ -96,7 +175,7 @@ def well_formed(rec_id: str) -> tuple[bool, str]:
     if rec_type is None:
         return True, (f"no pattern is enforced for {prefix}-* in "
                       "validate_ledger.ID_PATTERNS; well-formedness NOT checked")
-    pattern = vl.ID_PATTERNS[rec_type]
+    pattern = vl.ID_PATTERNS.get(rec_type) or SUPPLEMENTAL_ID_PATTERNS[rec_type]
     if pattern.match(rec_id):
         return True, f"matches {rec_type} pattern {pattern.pattern}"
     return False, (f"does NOT match {rec_type} pattern {pattern.pattern} "
@@ -109,7 +188,8 @@ def check(rec_id: str) -> int:
     hits = occurrences(rec_id)
     print(f"identifier: {rec_id}")
     print(f"  well-formed: {'YES' if ok else 'NO'} -- {why}")
-    print(f"  occurrences across the union ({len(_paths())} files scanned): "
+    print(f"  occurrences across the union "
+          f"({len(_identifier_paths())} identifier-bearing paths scanned): "
           f"{len(hits)}")
     for h in hits:
         print(f"    {h}")
@@ -127,9 +207,7 @@ def check(rec_id: str) -> int:
 def _used_numbers(prefix: str, middle: str) -> set[int]:
     pat = re.compile(rf"^{re.escape(prefix)}-{re.escape(middle)}-(\d{{3}})$")
     used: set[int] = set()
-    for path in _paths():
-        for token in ID_TOKEN.findall(os.path.basename(path)) or []:
-            pass
+    for path in _identifier_paths():
         stem = os.path.splitext(os.path.basename(path))[0]
         m = pat.match(stem)
         if m:
@@ -271,7 +349,7 @@ def main(argv: list[str] | None = None) -> int:
     middle = args.area or args.date
     if not middle and args.next not in NO_MIDDLE:
         ap.error("--next requires --area (for RQ/H/EXP/EV) or --date "
-                 "(for IDEA/DEC/TASK); batch takes neither")
+                 "(for IDEA/DEC/TASK/CORR); batch takes neither")
     if args.sequential:
         return next_free(args.next, middle)
     return token_id(args.next, middle, seed=args.seed)

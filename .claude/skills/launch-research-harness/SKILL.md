@@ -18,7 +18,7 @@ errand: batches follow batches, and a goal reaching a terminal status hands off
 to the next goal rather than ending the session. Only the conditions in
 "Terminal stops" below end a run. Everything else — an empty ready set, a failed
 candidate, an exhausted campaign budget, a completed goal — is a transition to
-the next unit of work, taken through the standing loop in step 8. Indefinite
+the next unit of work, taken through the standing loop in step 9. Indefinite
 operation changes what you do when work runs out; it changes none of the
 evidence, archival, or review rules, and it is never a licence to manufacture
 work to stay busy.
@@ -65,7 +65,7 @@ Pick in this order:
    a pause was recorded for a reason, and resuming it requires either the user
    or a committed Coordinator decision clearing that reason.
 
-If no `active` goal exists at all, do not stop — go to step 8's "when the
+If no `active` goal exists at all, do not stop — go to step 9's "when the
 portfolio is empty".
 
 **Resume** an existing goal: use its `dispatch_queue_path` and
@@ -87,7 +87,7 @@ Confirm before dispatching workers:
   `total_wall_clock_seconds`, and `max_concurrent` sized to what the
   environment can run without degrading — see "Concurrency" below). An
   exhausted budget stops *this campaign*, not the harness: pause the goal and
-  move to the next one via step 8. Never quietly raise a budget to keep a
+  move to the next one via step 9. Never quietly raise a budget to keep a
   campaign running — a budget extension is a Coordinator decision with a
   recorded rationale.
 - `next_action` is concrete; empty queue alone does not complete the goal.
@@ -113,18 +113,101 @@ Use the paths the goal/batch already use (e.g. `dispatch_queue.json` or
 `dispatch_queue.v2.json`). Fix validation errors before starting agents.
 Execute only tasks listed under the plan's `dispatches` array (Ready Tasks).
 
-### 6. Run the coordinate loop
+### 6. Launch the subagents
+
+**Ready tasks are executed BY SUBAGENTS, never by this session.** The top-level
+session orchestrates: it renders the plan, launches agents, archives their
+output, and reports. Doing a worker's job here loses the role's tool
+restrictions, its reasoning-effort calibration, and — for review tasks — the
+independence the policy requires.
+
+**Pick the subagent from (queue role, `inference.policy`).** Each agent carries
+its own reasoning effort, calibrated in `orchestration/model-policies.yaml` and
+enforced against the binding by `tools/check_runtime_bindings.py`:
+
+| queue `role` | `inference.policy` | `subagent_type` | effort |
+|---|---|---|---|
+| `executor` | `executor-mechanical` | `executor-mechanical` | low |
+| `executor` | `executor-implementation` | `executor` | medium |
+| `coordinator` | `coordinator-orchestration-code`, `coordinator-orchestration` | `coordinator` | high |
+| `idea-generator` | `research-deep` | `idea-generator` | high |
+| `validator`, `reviewer` | `review-adversarial` | `validator` | xhigh |
+| `red-team` | `review-adversarial` | `red-team` | xhigh |
+| `validator`, `reviewer` | `review-breakthrough` | `validator-breakthrough` | max |
+| `red-team` | `review-breakthrough` | `red-team-breakthrough` | max |
+
+A task that names no policy takes its role's `default_policy` from
+`orchestration/roles.yaml`. Resolve any doubt with the table the harness itself
+reads — never from memory:
+
+```sh
+python3 tools/check_runtime_bindings.py --list   # role → policy → effort → binding
+```
+
+Which tier a review gets is not a judgement call: `routing_rules` in
+`model-policies.yaml` sends `claimed_breakthrough`, a proposed closure, or a
+result contradicting prior validated evidence to `review-breakthrough`, and
+that policy is `degradable: false`.
+
+**Effort is a property of the agent, not of the call.** Do not pass a `model`
+override to the Agent tool, and do not reach for a cheaper tier to get a stuck
+task moving — substituting `validator` for `validator-breakthrough` is exactly
+the silent downgrade the policy layer forbids. If the required tier cannot be
+served, that is a pause condition for the goal (step 4), not a substitution.
+
+**How to launch:**
+
+- Put every ready task with a disjoint `write_scope` in **one message, one
+  Agent call each**, so they run concurrently. Separate messages serialize the
+  batch and waste the whole point of `max_concurrent`.
+- Never exceed the queue's `max_concurrent`, and size it to real headroom (see
+  "Concurrency").
+- **Independent review is a fresh Agent call.** Never continue the producing
+  agent's session with `SendMessage` to obtain a review — a continuation
+  carries the producer's context and is the opposite of the independent session
+  `review-adversarial` and `review-breakthrough` require.
+- Producers may run with `run_in_background: true`; the snapshot archive waits
+  for their terminal results. Coordinator `snapshot` and `ledger` archive tasks
+  run **alone**, never alongside other agents.
+- Subagents do not spawn subagents. Nesting puts work outside the batch the
+  Coordinator authorised.
+
+**Bind every prompt to the committed task card** rather than restating it:
+
+```text
+Execute task <TASK-ID> for goal <GOAL-ID>.
+
+Read first, and follow exactly:
+  - <batch-dir>/tasks/<TASK-ID>/task_card.yaml   (your task card)
+  - ledger/handoffs/<TASK-ID>.yaml               (your handoff envelope)
+  - AGENTS.md and your role contract
+
+Snapshot commit to read (review roles): <sha>
+write_scope: <exact paths>  — write nothing outside it; never commit.
+Budget: <wall clock / trials / cells>.
+Requested policy: <policy-id>. Record it alongside the model that actually
+answered; if this session cannot honour it, refuse rather than downgrade.
+Deliverable: <artifact_paths>.
+Return only the output record your role contract declares.
+```
+
+**When an agent returns**, record its result in the task receipt and move to
+the archive step. A returned artifact is not evidence until a Coordinator
+archive commits it and the dispatcher's post-commit verifier accepts it.
+
+### 7. Run the coordinate loop
 
 Follow `/coordinate-research-goal` for every batch:
 
 1. Start ≤ the queue's declared `max_concurrent` non-archive ready tasks with
-   disjoint `write_scope`, via the matching subagent role
-   (`.claude/agents/{coordinator,idea-generator,executor,validator,red-team}.md`).
+   disjoint `write_scope`, each via the subagent chosen in step 6.
 2. On producer terminal: Coordinator-only `snapshot` archive alone; verify
    via dispatcher/Git before any review reads artifacts.
-3. Independent Reviewer / Validator / Red Team as required (`review-xhigh`
-   policy; independent session; never the producing agent alone on claim-changing
-   results).
+3. Independent Reviewer / Validator / Red Team as required, at the tier step 6
+   selects (`review-adversarial` → `validator` / `red-team`;
+   `review-breakthrough` → `validator-breakthrough` / `red-team-breakthrough`).
+   Fresh agent call, independent session; never the producing agent alone on
+   claim-changing results.
 4. Coordinator-only `ledger` archive alone; verify parent, paths, hashes,
    record IDs.
 5. Update the `GOAL-*` record in that ledger commit: batch checkpoint, decision
@@ -132,7 +215,7 @@ Follow `/coordinate-research-goal` for every batch:
    the verified checkpoint.
 6. Regenerate the dispatch plan; open the next bounded batch while status is
    `active`. Do not pause between batches for user confirmation — return to
-   step 5 and keep going. When the goal leaves `active`, go to step 8.
+   step 5 and keep going. When the goal leaves `active`, go to step 9.
 
 Lifecycle stage skills when a ready task maps to them: `/propose-ideas`,
 `/design-experiment`, `/run-experiment`, `/review-evidence`,
@@ -141,7 +224,7 @@ Lifecycle stage skills when a ready task maps to them: `/propose-ideas`,
 Handoffs live in `ledger/handoffs/` (envelope in `AGENTS.md`). Task cards and
 receipts stay under the batch/task `write_scope`.
 
-### 7. Branch and PR hygiene
+### 8. Branch and PR hygiene
 
 Research only exists as durable evidence when it is committed AND pushed to a
 branch that has an open PR against `main`. Two git duties ride alongside every
@@ -180,7 +263,7 @@ batch is mid-flight; it exists so the work is reviewable and mergeable, not as
 a claim of closure. A goal, idea, or experiment that exists only in a local
 commit is not generated — it is unpublished.
 
-### 8. Standing loop: goal terminal → next goal
+### 9. Standing loop: goal terminal → next goal
 
 A goal ending is a campaign boundary, not the end of the run. When the selected
 goal leaves `active`, record its terminal state properly and then re-enter the
@@ -260,8 +343,14 @@ cheaper ones.
 - Snapshot archive before independent review; ledger archive before promotion.
 - Never fabricate commands, outputs, timings, statistics, citations, or runs.
 - Infra failures/timeouts are not mathematical counterevidence.
-- Toy-curve results never become crypto-scale claims.
-- Record requested policy + resolved model; no silent policy downgrade.
+- Small- or toy-curve results are admissible; record the tested parameters and
+  any transfer or extrapolation assumptions explicitly. Toy-curve results
+  never become crypto-scale claims.
+- Record requested policy + resolved model; no silent policy downgrade —
+  including by dispatching a lower-effort subagent than the task's policy
+  selects (step 6).
+- Research work runs in subagents, not in the top-level session; independent
+  review is a fresh agent call, never a continuation of the producer's.
 - Never use Amazon Bedrock. OpenCode and the inference adapter must reject any
   Bedrock provider, backend, endpoint, or model before a request is sent.
 - Workers do not commit into a shared worktree; Coordinator archive tasks alone

@@ -58,7 +58,8 @@ The Executor must not:
 - omit inconvenient runs;
 - discard deviations, infrastructure failures, or unexpected observations;
 - rerun until a favorable result appears without recording all attempts;
-- infer crypto-scale conclusions from toy instances;
+- omit the tested parameters or any transfer assumptions when reporting an
+  observation from a small or simplified instance;
 - declare a hypothesis supported, rejected, or closed, or declare a heuristic
   validated or refuted;
 - present modeled cost estimates as measured values;
