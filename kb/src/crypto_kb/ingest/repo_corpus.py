@@ -22,6 +22,12 @@ from pathlib import Path
 from typing import Any, Callable, Collection, Iterator
 
 from crypto_kb.config import SOURCE_PREFIX
+from crypto_kb.ingest.schema_supersession import (
+    SchemaSupersession,
+    SchemaSupersessionError,
+    load_schema_supersessions,
+    route_repository_source,
+)
 from crypto_kb.metadata import metadata_key
 from crypto_kb.models import Authority, ClaimStatus, EvidenceLevel, ProvenanceClass, SourceType
 
@@ -225,7 +231,9 @@ RULES: tuple[StagingRule, ...] = (
                 SourceType.LEDGER, "hypothesis", _ledger_record),
     StagingRule("questions", "ledger/RQ-*.yaml", "ledgers/questions",
                 SourceType.LEDGER, "question", _ledger_record),
-    StagingRule("decisions", "ledger/DEC-*.yaml", "ledgers/decisions",
+    StagingRule("decisions", "ledger/decisions/DEC-*.yaml", "ledgers/decisions",
+                SourceType.LEDGER, "decision", _ledger_record),
+    StagingRule("decisions-root", "ledger/DEC-*.yaml", "ledgers/decisions",
                 SourceType.LEDGER, "decision", _ledger_record),
     StagingRule("experiments", "experiments/*/specification.yaml", "experiments/specifications",
                 SourceType.EXPERIMENT, "experiment", _experiment),
@@ -278,6 +286,7 @@ def iter_staged(
     include: Collection[str] | None = None,
 ) -> Iterator[StagedDocument]:
     allowed = None if include is None else frozenset(include)
+    supersessions = load_schema_supersessions(repo_root)
     seen_ids: set[str] = set()
     for rule in rules:
         count = 0
@@ -288,7 +297,7 @@ def iter_staged(
                 continue
             if allowed is not None and path.relative_to(repo_root).as_posix() not in allowed:
                 continue
-            document = _stage_one(repo_root, path, rule, git_commit)
+            document = _stage_one(repo_root, path, rule, git_commit, supersessions)
             if document is None:
                 continue
             source_id = document.metadata["source_id"]
@@ -303,12 +312,23 @@ def iter_staged(
 
 
 def _stage_one(
-    repo_root: Path, path: Path, rule: StagingRule, git_commit: str
+    repo_root: Path,
+    path: Path,
+    rule: StagingRule,
+    git_commit: str,
+    supersessions: dict[str, SchemaSupersession] | None = None,
 ) -> StagedDocument | None:
-    raw = path.read_bytes()
+    registry = supersessions if supersessions is not None else load_schema_supersessions(repo_root)
+    routed = route_repository_source(repo_root, path, registry)
+    raw = routed.data
     text = raw.decode("utf-8", errors="replace")
     front = _front_or_record(path, text)
     if front is None:
+        if routed.supersession is not None:
+            raise SchemaSupersessionError(
+                f"registered replacement for "
+                f"{routed.supersession.superseded_path} is not parseable"
+            )
         return None
 
     identifier = _identifier(path, rule, front)
@@ -319,6 +339,31 @@ def _stage_one(
         "provenance_class": ProvenanceClass.DETERMINISTIC.value,
         **fields,
     }
+    if routed.supersession is not None:
+        entry = routed.supersession
+        legacy_id = _legacy_identifier(path, rule)
+        expected_id = entry.redirect_id or entry.replacement_id or legacy_id
+        if identifier != expected_id:
+            raise SchemaSupersessionError(
+                f"registered replacement for {entry.superseded_path} declares "
+                f"identifier {identifier!r}, expected {expected_id!r}"
+            )
+        if entry.redirect_id:
+            # The pinned target parsed to the declared canonical identifier.
+            # Its ordinary discovery path will stage it once; suppress only
+            # this immutable alias after that identity check succeeds.
+            return None
+        if legacy_id != identifier:
+            metadata["supersedes"] = sorted(
+                {*metadata.get("supersedes", []), legacy_id}
+            )
+        metadata["verification_artifacts"] = sorted(
+            {
+                *metadata.get("verification_artifacts", []),
+                f"{entry.superseded_path}@sha256:{entry.superseded_sha256}",
+                f"{entry.superseding_path}@sha256:{entry.superseding_sha256}",
+            }
+        )
     metadata = {k: v for k, v in metadata.items() if v is not None or k in {"superseded_by"}}
     relative = path.relative_to(repo_root).as_posix()
     # Keyed by identifier, not filename: every experiment's spec is called
@@ -364,6 +409,14 @@ def _identifier(path: Path, rule: StagingRule, front: dict[str, Any]) -> str:
     if rule.name == "experiment-analysis":
         return f"{base}-analysis"
     return base
+
+
+def _legacy_identifier(path: Path, rule: StagingRule) -> str:
+    if path.name in {"specification.yaml", "analysis.md", "paper_fulltext.md"}:
+        base = path.parent.name
+    else:
+        base = path.stem
+    return f"{base}-analysis" if rule.name == "experiment-analysis" else base
 
 
 def _path_topics(relative: str) -> list[str]:
