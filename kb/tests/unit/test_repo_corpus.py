@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-from crypto_kb.ingest.repo_corpus import RULES, iter_staged
+from crypto_kb.ingest.repo_corpus import (
+    RULES,
+    StagingDiagnostics,
+    iter_staged,
+    stage_repository,
+)
 from crypto_kb.ingest.schema_supersession import (
     SchemaSupersessionError,
     load_schema_supersessions,
@@ -248,6 +253,11 @@ def test_redirect_alias_is_not_staged_twice(tmp_path: Path) -> None:
     assert [item.metadata["source_id"] for item in documents] == [
         "evidence:EV-NEW-abcdef"
     ]
+    assert documents[0].metadata["supersedes"] == ["EV-OLD"]
+    assert documents[0].metadata["verification_artifacts"] == sorted([
+        f"{old_rel}@sha256:{_sha(old)}",
+        f"{new_rel}@sha256:{_sha(new)}",
+    ])
 
 
 def test_redirect_target_identifier_mismatch_fails_closed(tmp_path: Path) -> None:
@@ -309,8 +319,118 @@ def test_repository_dreg_replacements_stage_exact_ids() -> None:
 
     documents = list(iter_staged(repo_root, rules, "test-commit", include=include))
 
-    assert {item.metadata["source_id"] for item in documents} == {
+    by_id = {item.metadata["source_id"]: item for item in documents}
+    assert set(by_id) == {
         "experiment:EXP-DREG-001",
         "evidence:EV-DREG-7597cb",
         "decision:DEC-20260811-e77b9d",
     }
+    assert by_id["experiment:EXP-DREG-001"].metadata.get("supersedes", []) == []
+    assert by_id["experiment:EXP-DREG-001"].metadata["verification_artifacts"] == [
+        "experiments/EXP-DREG-001/specification.yaml@sha256:"
+        "44fe37a126e5998054cb9788e1208b13d15ee87448c78737bddd1666e2cf5c8b",
+        "ledger/corrections/schema-supersessions/20260811/"
+        "experiments__EXP-DREG-001__specification.v2.yaml@sha256:"
+        "fa056f97306ad46e21077c46794dfab371a85f695551b13c51acaa1e6de486b2",
+    ]
+    assert by_id["evidence:EV-DREG-7597cb"].metadata["supersedes"] == [
+        "EV-GOAL-DREG-001-B003"
+    ]
+    assert by_id["decision:DEC-20260811-e77b9d"].metadata["supersedes"] == [
+        "DEC-GOAL-DREG-001-B003"
+    ]
+
+
+def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_debt() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    diagnostics = StagingDiagnostics()
+
+    class DrySink:
+        def __init__(self) -> None:
+            self.keys: list[str] = []
+
+        def put(self, key: str, data: bytes, content_type: str | None = None) -> None:
+            del data, content_type
+            self.keys.append(key)
+
+    sink = DrySink()
+    documents = stage_repository(repo_root, sink, diagnostics=diagnostics)
+    source_ids = [item.metadata["source_id"] for item in documents]
+    source_keys = [item.source_key for item in documents]
+
+    assert len(documents) == 10_920
+    assert len(set(source_ids)) == 10_920
+    assert len(set(source_keys)) == 10_920
+    assert len(sink.keys) == 21_840
+    assert len(set(sink.keys)) == 21_840
+
+    assert len(diagnostics.registered_source_paths) == 76
+    assert diagnostics.matched_registered_source_paths == diagnostics.registered_source_paths
+    assert diagnostics.unmatched_registered_source_paths == []
+    assert sum(bool(item.metadata.get("verification_artifacts")) for item in documents) == 75
+
+    expected_unparseable = {
+        "ledger/H-BKKMV-001.yaml",
+        "ledger/H-DREG-001.yaml",
+        "ledger/H-EQJ-001.yaml",
+        "ledger/H-FB3-001.yaml",
+        "ledger/H-ICI-001.yaml",
+        "ledger/H-R6-001.yaml",
+        "ledger/H-REP-001.yaml",
+        "ledger/H-SIG-001.yaml",
+        "ledger/RQ-DREG-001.yaml",
+        "ledger/RQ-FB3-001.yaml",
+        "ledger/RQ-ISO-001.yaml",
+        "ledger/RQ-R6-001.yaml",
+        "ledger/RQ-SIG-001.yaml",
+        "ledger/RQ-TTN-001.yaml",
+        "experiments/EXP-DREG-002/specification.yaml",
+        "experiments/EXP-EQJ-001/specification.yaml",
+        "experiments/EXP-FB-001/specification.yaml",
+        "experiments/EXP-FB3-001/specification.yaml",
+        "experiments/EXP-ICI-001/specification.yaml",
+        "experiments/EXP-REP-001/specification.yaml",
+        "experiments/EXP-REP-002/specification.yaml",
+        "experiments/EXP-SIG-001/specification.yaml",
+        "experiments/EXP-SIG-004/specification.yaml",
+        "experiments/EXP-SIG-005/specification.yaml",
+    }
+    assert {item.path for item in diagnostics.unparseable_sources} == expected_unparseable
+    assert {item.source_id for item in diagnostics.duplicate_source_ids} == {
+        f"decision:DEC-20260722-{number:03d}" for number in range(1, 6)
+    }
+    assert all(
+        item.kept_path.startswith("ledger/decisions/")
+        and item.skipped_path.startswith("ledger/DEC-")
+        and not item.identical_bytes
+        for item in diagnostics.duplicate_source_ids
+    )
+    assert [item.source_path for item in diagnostics.redirect_suppressions] == [
+        "ledger/hypotheses/H-XOR-YIELD.yaml"
+    ]
+
+    checkpoint_ids = {item for item in source_ids if item.startswith("goal-checkpoint:")}
+    assert len(checkpoint_ids) == 103
+    assert "goal-checkpoint:GOAL-ECDLP-001:BATCH-ef31ab" in checkpoint_ids
+    assert (
+        "goal-checkpoint:GOAL-ECDLP-001:BATCH-ef31ab-close-20260808"
+        in checkpoint_ids
+    )
+
+    xor_documents = [
+        item for item in documents if item.metadata["source_id"] == "hypothesis:H-XOR-d1a480"
+    ]
+    assert len(xor_documents) == 1
+    assert _sha(xor_documents[0].data) == (
+        "b9876d58c71699b5332039d8a7dc618c007a65907649e433f03e871d2e4519a8"
+    )
+    assert xor_documents[0].metadata["supersedes"] == ["H-XOR-YIELD"]
+    assert xor_documents[0].metadata["verification_artifacts"] == [
+        "ledger/corrections/schema-supersessions/20260808/"
+        "ledger__hypotheses__H-XOR-d1a480.v2.yaml@sha256:"
+        "b9876d58c71699b5332039d8a7dc618c007a65907649e433f03e871d2e4519a8",
+        "ledger/hypotheses/H-XOR-YIELD.yaml@sha256:"
+        "541bda542e20b161d3bdd606cd88c18ee65cb857f8fcd5ae6d39d459962b0ac7",
+        "ledger/hypotheses/H-XOR-d1a480.yaml@sha256:"
+        "655c01aa05986f760b2a348ba5e3cfdb1103cdb1af4eb27f97610db9217cd1f8",
+    ]
