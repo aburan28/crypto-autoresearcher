@@ -295,8 +295,13 @@ def main():
         "correct_means": finite_decay_means
         + [target_metrics["DECAY_uniform_error"]["correct_mean"]],
         "wrong_means": [
-            target_metrics[name]["wrong_mean"]
-            for name in finite_decay_names + ["DECAY_uniform_error"]
+            target_metrics["DECAY_sigma0.5"]["wrong_mean"],
+            target_metrics["DECAY_sigma1"]["wrong_mean"],
+            report_tables["main"]["uniform"]["mean"],
+            target_metrics["DECAY_sigma4"]["wrong_mean"],
+            target_metrics["DECAY_sigma8"]["wrong_mean"],
+            target_metrics["DECAY_sigma16"]["wrong_mean"],
+            target_metrics["DECAY_uniform_error"]["wrong_mean"],
         ],
         "ranks": [
             target_metrics[name]["rank"]
