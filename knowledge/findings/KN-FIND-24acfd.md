@@ -7,8 +7,17 @@ confidence: observed_directly
 scope: process
 source_refs: [GOAL-MLKEM-004, BATCH-d2a728, TASK-20260803-535d15, TASK-20260803-bc2f41, TASK-20260803-586a7f, KN-TECH-797223]
 added: 2026-08-13
-superseded_by: null
+superseded_by: KN-FIND-3546c2
 ---
+
+> **Superseded by `KN-FIND-3546c2` on 2026-08-13, same day, before merge.** The
+> loss described below is real and happened, but the framing is wrong in a way
+> that matters: these were not *the* program's batch-1 reviews. `BATCH-d2a728`
+> had already been reviewed, archived and ledger-committed on `main`
+> (`TASK-20260803-586a7f`), and the campaign had run to batch 6 and closed. The
+> work lost here was a **duplicate** session operating on a stale snapshot. The
+> durability mechanism this record recommends is sound and was implemented; the
+> stated cause is not. Read `KN-FIND-3546c2` instead.
 
 ## What happened
 
