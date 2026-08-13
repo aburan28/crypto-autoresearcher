@@ -1,11 +1,19 @@
 ---
 id: KN-FIND-3546c2
-type: finding
+type: internal_finding
 title: A goal resumed without reading the merge digest re-reviewed a batch that was already archived and a campaign that was already closed
-tags: [process, harness, concurrency, dispatch, review, durability, replication]
+tags: [process, harness, concurrency, dispatch, review, durability, replication, ml-kem]
 confidence: observed_directly
+evidence_level: observed_directly
 scope: process
 source_refs: [GOAL-MLKEM-004, BATCH-d2a728, TASK-20260803-535d15, TASK-20260803-bc2f41, TASK-20260803-586a7f, DEC-20260805-0b3e11, KN-FIND-24acfd]
+internal_refs: [DEC-20260805-0b3e11]
+proof_status: not_applicable
+proof_refs:
+  - coordination/goals/GOAL-MLKEM-004/independent-replication-20260813/README.md
+  - coordination/goals/GOAL-MLKEM-004/independent-replication-20260813/red_team_report.yaml
+  - coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/archives/TASK-20260803-586a7f/ledger_commit_receipt.json
+review_refs: []
 supersedes: KN-FIND-24acfd
 added: 2026-08-13
 superseded_by: null

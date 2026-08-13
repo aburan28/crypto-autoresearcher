@@ -1,11 +1,17 @@
 ---
 id: KN-FIND-24acfd
-type: finding
+type: internal_finding
 title: Two independent review sessions were lost because the batch design archives reviews only after both complete
-tags: [process, harness, archival, durability, dispatch, review, infrastructure]
+tags: [process, harness, archival, durability, dispatch, review, infrastructure, ml-kem]
 confidence: observed_directly
+evidence_level: observed_directly
 scope: process
 source_refs: [GOAL-MLKEM-004, BATCH-d2a728, TASK-20260803-535d15, TASK-20260803-bc2f41, TASK-20260803-586a7f, KN-TECH-797223]
+internal_refs: [DEC-20260805-0b3e11]
+proof_status: not_applicable
+proof_refs:
+  - coordination/goals/GOAL-MLKEM-004/independent-replication-20260813/README.md
+review_refs: []
 added: 2026-08-13
 superseded_by: KN-FIND-3546c2
 ---
