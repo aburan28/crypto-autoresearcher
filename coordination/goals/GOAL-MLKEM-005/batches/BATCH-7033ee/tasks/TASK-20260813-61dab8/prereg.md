@@ -279,11 +279,16 @@ already froze, run through a second, independently-written kernel.
              THIS DOES NOT YET EXIST. It is the lead's deliverable, not an
              already-archived value.
 
-    Fibre dispersion at binary64, s_c^fib(X, L, b) — UNCHANGED from PREREG-3
-             3.1: the ALREADY-ARCHIVED float_sd value at
-             results_relvar.json.per_candidate.<X>.per_cell.<L>_<b>.float_sd,
+    Fibre dispersion at binary64, s_c^fib(X, L, b) — the same ALREADY-ARCHIVED
+             float_sd quantity PREREG-3 3.1 named, at the location
+             BATCH-fbb639's measure_c3lane.py and report_c3lane.md already
+             recorded after PREREG-3's prose misnamed it as a bare top-level
+             per_candidate:
+                 results_relvar.json's
+                 G_VAR["per_candidate"]["<X>"]["per_cell"]["<L>_b<beta>"]["float_sd"]
              sd over the N_BASES = 8 fibre-family bases. READ, never
-             recomputed.
+             recomputed. This is a PATH CORRECTION ONLY — the quantity, the
+             file and every archived value are unchanged from PREREG-3.
 
 ### 2.2 Independence requirements for ROUTE-I2 — BINDING, CHECKED BY BOTH REVIEWS
 
@@ -418,16 +423,24 @@ completing `GOAL-MLKEM-005`; flagging any `BATCH-fbb639` cell's verdict as
 methodologically unsupported (§2.7's revisit condition is **not** triggered
 by `NODATA` — there is no measurement to trigger it).
 
-**T-INDEP-CONFIRMS** — **FIRES WHEN** `COVERED2` is non-empty and, over
-`COVERED2`, `D_route_independent` stays **at or near machine epsilon**
-(operationally: every cell's `D_route_independent <= 1e-8`, four orders of
-magnitude below the smallest `s_c^fib` value reported anywhere in
-`results_relvar.json`'s `per_candidate` block for `lam1n`/`hkz` at these
-lattices, so no genuine ambiguity is created at this specific threshold —
-the lead reports the exact smallest such `s_c^fib` value alongside this
-check so the margin is checkable, not asserted) — i.e. essentially the same
-scale as `PREREG-3`'s already-archived route-disagreement figures, under
-genuine algorithmic independence this time. **MEANS:** the observables are
+**T-INDEP-CONFIRMS** — **FIRES WHEN** `COVERED2` is non-empty and
+`T-INDEP-UNDERMINES`'s condition fires at **no** covered cell — i.e., stated
+operationally and as the **exact complement** of that branch so that no
+outcome falls between the two: every covered cell has
+`D_route_independent < 0.1 * s_c^fib` at that cell **and** no cell's `VERDICT`
+flips from `"EXCEEDS"` to `"DOES NOT EXCEED"` relative to `PREREG-3`'s
+reported verdict. The lead **must additionally report** `max`
+`D_route_independent` over `COVERED2` and the smallest `s_c^fib` value in
+`results_relvar.json`'s `G_VAR.per_candidate` block for `lam1n`/`hkz` at
+these lattices, and **must state which regime the confirmation is in**:
+`at or near machine epsilon` when every covered cell satisfies
+`D_route_independent <= 1e-8` (the `1e-12`..`1e-15` scale of `PREREG-3`'s own
+already-archived route-disagreement figures), or `below the dispersion
+threshold but above machine epsilon` when some cell exceeds `1e-8` while
+staying under `0.1 * s_c^fib` — the second is a genuine and expected outcome
+for a from-scratch reduction at `d <= 40`, it fires this same branch, and it
+is reported as the weaker of the two readings rather than as machine-epsilon
+agreement. **MEANS:** the observables are
 numerically well-behaved under a second, independently-written kernel; the
 `EXCEEDS` verdicts `BATCH-fbb639` reported survive independent verification
 at the cells checked. **LICENSES:** a statement, citable without
