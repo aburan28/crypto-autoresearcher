@@ -26,8 +26,8 @@ which is what was verified here.
 
 All five verification areas pass. The repair is an honest, bounded-precision
 reconstruction; the immutable tree is untouched; the completion gate is carried
-only by the new superseding record. Findings below are non-blocking and none is
-above minor severity.
+only by the new superseding record. Findings below are non-blocking (one
+medium-severity coordination inconsistency, unrelated to the repair content).
 
 ---
 
@@ -128,7 +128,7 @@ artifact" (01:33:49Z and even the anomalous 01:34:10Z are both < 01:54:16Z).
 
 | # | severity | finding |
 |---|---|---|
-| F1 | info | **Snapshot commit binding lives in the queue, not the receipt.** The on-disk `archives/TASK-20260806-621261/snapshot-receipt.json` (SHA-256 `e99eeb50…`, matching the queue's recorded value) carries no `commit_sha`: it records `commit_pending: false` and notes that a first-pass draft had declared a stale commit hash, the binding by design being the queue's `archive` block. That block declares `commit_sha: 7e140114…`, `parent_sha: f03eb9b4…`, and 4 `path_sha256` entries (the 3 repair artifacts plus the receipt itself), all of which match disk (§1). There is therefore no commit-identity conflict and nothing to reconcile before the ledger transition. |
+| F1 | **medium** | **Snapshot-receipt / queue commit-SHA inconsistency.** The on-disk `archives/TASK-20260806-621261/snapshot-receipt.json` (whose SHA-256 matches the queue's recorded `e52c8cd9…`) declares `commit_sha: 1d8fe80a…` with 3 path hashes, while the queue's `archive` block for the same task declares `commit_sha: 28458db3…` with 4 path hashes (including the receipt itself). Same parent SHA (`f03eb9b4…`). The three repair-artifact hashes agree across receipt, queue, and disk, so the artifact binding is unaffected; only the commit identity is in conflict. Git was not run (per task constraints), so the true commit could not be resolved here. **Action:** Coordinator should reconcile the receipt with the queue (regenerate or supersede the receipt) before the ledger transition. |
 | F2 | minor | **M18 justification phrasing.** `reconstruction_basis` says "every artifact mtime <= 01:33:49Z (A12)" — literally false for `budget_stamps.jsonl` (01:34:10Z, A13). Correct for all *run* artifacts; the anomaly is disclosed in the completion record. Value `false` remains correct and justified. |
 | F3 | minor | **M19 "last artifact 01:33:49Z"** — same A13 subtlety; the substantive claim (binding stop not reached) holds under either reading since 01:34:10Z < 01:54:16Z as well. |
 | F4 | info | **M17 upper bound** uses A12 (01:33:49Z) rather than the stamps file's own mtime A13 (01:34:10Z); consistent with the assessment's exclusion of A13 as a run event and disclosed. Honest and conservative. |
@@ -138,8 +138,8 @@ artifact" (01:33:49Z and even the anomalous 01:34:10Z are both < 01:54:16Z).
 
 **Accept** the repair artifacts. The reconstruction is faithful (all 20 events
 re-derived and matched), the immutable tree is untouched, the completion gate
-is carried only by the new superseding record, and everything parses. The
-snapshot binding is unambiguous (F1): the queue's `archive` block for
-TASK-20260806-621261 names commit `7e140114…` over parent `f03eb9b4…` and its
-four path hashes match disk, so the ledger transition (TASK-20260806-ccfd8b)
-is not blocked.
+is carried only by the new superseding record, and everything parses. Before
+the ledger transition (TASK-20260806-ccfd8b), reconcile finding F1: the
+snapshot receipt and the queue disagree on the snapshot commit SHA — the
+receipt should be regenerated or superseded so the binding commit is
+unambiguous.
