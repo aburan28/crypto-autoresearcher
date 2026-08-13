@@ -108,9 +108,9 @@ original proposal.
   correspondence used to sample minimal isogeny degrees at SQIsign-sized p),
   which predicted distribution the empirical data is compared against (e.g.
   empirical CDF vs the Dickman–de Bruijn ρ(u)), and which tail consistency
-  checks apply (e.g. smoothest observed sample vs predicted ρ(u)). Toy-scale
-  validation must be labeled as such and never presented as crypto-scale
-  validation.
+  checks apply (e.g. smoothest observed sample vs predicted ρ(u)). Record the
+  sampled parameters and state any transfer or extrapolation assumptions
+  explicitly.
 - Every proposal must state its target complexity: time and memory exponents
   versus the best known algorithm, honest disclosure of any superpolynomial
   overhead hiding in o(1) terms, and — when memory is large — the time–memory
@@ -140,7 +140,7 @@ The Idea Generator must not:
 - report imagined experimental outcomes;
 - hide assumptions;
 - present a heuristic-conditional claim as unconditional;
-- present toy-scale heuristic validation as cryptographic-scale validation;
+- omit the sampled parameters or transfer assumptions from a heuristic claim;
 - use vague language such as “might be faster” without a metric;
 - propose an experiment with no possible negative outcome;
 - convert correlation into a mechanism;

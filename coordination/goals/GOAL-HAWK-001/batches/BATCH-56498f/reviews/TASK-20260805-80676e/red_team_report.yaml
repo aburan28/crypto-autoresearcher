@@ -1,0 +1,220 @@
+---
+red_team_report:
+  task_id: TASK-20260805-80676e
+  producer_task_id: TASK-20260805-755738
+  batch_id: BATCH-56498f
+  goal_id: GOAL-HAWK-001
+  reviewed_at: '2026-08-05'
+  reviewed_by: TASK-20260805-80676e
+
+  verdict: pass_with_constraints
+
+  summary: >
+    The core mathematical conclusion — fractional left O-ideals of norm q' in an
+    indefinite maximal quaternion order are infinite in number — is correct, but
+    the derivation contains two invalid proofs (Claim 2.1 uniqueness is circular;
+    Claim 2.2 cites Hasse-Minkowski for a Z-representation result that requires
+    Eichler's theorem), and the complexity summary over-privileges Case A
+    ("undefined-degenerate") over Case C ("super-polynomial"), which is more
+    consistent with both the algorithm's "short U" description and the authors'
+    own characterization.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: false
+    independent_session: true
+    model_verified: false
+
+  objections:
+
+    - id: RT-OBJ-1
+      axis: OBJ-1
+      title: "Claim 2.1 uniqueness proof is circular — norm argument proves a tautology"
+      severity: blocking_proof_gap
+      claim_affected: "Claim 2.1 (canonical form uniqueness)"
+      claim_correct: true
+      proof_valid: false
+      detail: >
+        From (1/r₁)J₁ = (1/r₂)J₂ the derivation derives r₂J₁ = r₁J₂ (valid
+        scalar multiplication), then computes r₂²·nrd(J₁) = r₁²·nrd(J₂).
+        Substituting nrd(J₂) = r₂²q' and nrd(J₁) = r₁²q' (both known by
+        construction) yields r₁²r₂²q' = r₁²r₂²q' — a tautology. The claim
+        "nrd(J₁) = r₂²q' from the other side" is unsupported: the other side
+        gives nrd(J₂) = r₂²q', not a new equation for J₁. The conclusion r₁ = r₂
+        does not follow from this argument. The correct proof is: r₁ and r₂ are
+        both the minimum of {s ∈ Z_{>0} : sI ⊆ O}; the minimum of a set is
+        unique; therefore r₁ = r₂, then J₁ = J₂. This one-sentence argument is
+        not written in the derivation.
+      impact_on_conclusion: >
+        Claim 3.1 (infinite count) is not invalidated: it rests on Claims 2.2 and
+        2.3, and the correct uniqueness argument supports 2.3. But the derivation
+        should not be cited as a formal proof of 2.1 uniqueness until the proof
+        is replaced.
+      repair: >
+        Replace the norm argument in Claim 2.1 with: "Both r₁ and r₂ equal
+        min{s ∈ Z_{>0} : sI ⊆ O}, which is unique; hence r₁ = r₂ and
+        J₁ = r₁I = r₂I = J₂."
+
+    - id: RT-OBJ-2
+      axis: OBJ-2
+      title: "Claim 2.2 cites Hasse-Minkowski for a Z-representation result it does not establish"
+      severity: blocking_proof_gap
+      claim_affected: "Claim 2.2 (existence of integral ideal of norm q'r² for each r)"
+      claim_correct: true
+      proof_valid: false
+      detail: >
+        Hasse-Minkowski is a theorem about Q-rational representations: a
+        quadratic form over Q is isotropic over Q iff it is isotropic over R and
+        over Q_p for all p. It does not guarantee Z-integer points. The derivation
+        asserts "Hasse-Minkowski guarantees a Z-point on {nrd = n}"; this is
+        incorrect — Hasse-Minkowski guarantees a Q-rational point, and the step
+        from Q to Z requires an additional argument. The correct tool is Eichler's
+        theorem on integral representations for indefinite maximal quaternion
+        orders: for indefinite B/Q with maximal order O, nrd: O → Z_{≥0} is
+        surjective (Voight, Quaternion Algebras (2021), Theorem 30.1.1,
+        following from the strong approximation theorem / spinor genera). For the
+        split model B = M_2(Q), O = M_2(Z), the surjectivity is trivially verified
+        by [[n,0],[0,1]] ∈ O with det = n.
+      impact_on_conclusion: >
+        The conclusion (norm surjectivity, hence existence of integral ideals of
+        every positive norm) is almost certainly correct and is a standard result.
+        The derivation's numerical verification confirms it for small r. But the
+        cited proof is the wrong theorem.
+      repair: >
+        Replace "Hasse-Minkowski theorem guarantees a Z-point" with "Eichler's
+        theorem (Voight §30.1) gives surjectivity of nrd: O → Z_{≥0} for
+        indefinite maximal orders, by strong approximation."
+
+    - id: RT-OBJ-3
+      axis: OBJ-3
+      title: >
+        Infinite pool conclusion depends on unbounded denominators, which is
+        inconsistent with the algorithm's short-U re-randomization constraint
+      severity: substantive_constraint
+      claim_affected: >
+        Classification label "undefined-degenerate" and Case A as primary
+        complexity scenario
+      detail: >
+        The algorithm (KN-LIT-7670/7674) re-randomizes by conjugating the Gram
+        matrix G by a short lower-triangular unimodular U. "Short" entries means
+        U has entries bounded by some height B, implying the resulting Gram
+        matrix G' = U·G·U^T has associated ideal denominators bounded by a
+        polynomial function of B. This places the algorithm in Case B (B=1,
+        integral ideals) or bounded-R Case C (R polynomial in B), not Case A
+        (unbounded denominators). The derivation does not engage with this
+        constraint. The "infinite pool → density 0" conclusion is only valid
+        under Case A, which requires sampling from ideals with denominators
+        growing without bound — geometrically inconsistent with any finite-height
+        shortness bound on U. Additionally, the Case C analysis assumes easy-
+        instance count grows slower than R³ to establish density → 0, but this
+        growth rate is not derived — it is assumed.
+      impact_on_conclusion: >
+        The "undefined-degenerate" primary complexity label is not the scenario
+        most supported by available algorithmic information. The algorithm's
+        "short U" constraint suggests Case B or bounded-C, for which the pool is
+        finite and the density question depends on easy-instance structure within
+        that finite pool — not determinable without the paper body.
+      repair: >
+        Add a note to the Case analysis: "The 'short U' re-randomization
+        constraint implies bounded denominators, placing the algorithm in Case B
+        or bounded-R Case C rather than Case A. The Case A scenario (unbounded
+        denominators, density 0) requires a positive argument that U can produce
+        ideals with arbitrarily large denominators."
+
+    - id: RT-OBJ-4
+      axis: OBJ-4
+      title: >
+        "Undefined-degenerate" is stronger than the authors' own "super-polynomial"
+        characterization; Case C is the primary consistent scenario
+      severity: framing_constraint
+      claim_affected: >
+        results.yaml classification.label and summary's primary complexity class
+      detail: >
+        The authors (iacr:2026/1318 30/06 update, transcribed in KN-LIT-7674)
+        say "the main algorithm appears to run in super-polynomial time" —
+        a finite (if super-polynomial) runtime, not undefined or non-terminating
+        in expectation. Case A (the "undefined-degenerate" scenario) implies
+        there is no finite probability mass on easy instances and the algorithm
+        does not terminate — a stronger statement than "super-polynomial time."
+        The authors' phrase "of which there are many" correctly describes the
+        infinite full set but is also consistent with the algorithm's effective
+        pool being a natural finite subset (e.g., those produced by the bounded-
+        height conjugation). The derivation should adopt the authors' "super-
+        polynomial" primary label (consistent with Case C) rather than
+        "undefined-degenerate" (Case A), and reserve Case A as a possibility
+        requiring a separate argument that U produces unbounded denominators.
+      repair: >
+        Change results.yaml classification.label from "undefined-degenerate
+        (pool infinite, density 0 in natural measure)" to "super-polynomial
+        (Case C most consistent with authors' characterization and short-U
+        constraint; Case A possible but requires additional argument)."
+
+    - id: RT-OBJ-5
+      axis: OBJ-5
+      title: >
+        Three-case uncertainty is correctly identified but the case hierarchy
+        is inverted relative to the available evidence
+      severity: framing_constraint
+      claim_affected: "Derivation's overall complexity conclusion and summary"
+      detail: >
+        The derivation correctly notes that all three cases (A, B, C) are
+        consistent with available information and that case selection requires
+        the algorithm body. However, by labelling "undefined-degenerate" as the
+        primary classification and listing Case B ("polynomial, original claim")
+        and Case C ("super-polynomial, no upper bound") as alternatives, the
+        summary implies an ordering of plausibility that is not supported. Given:
+        (a) the authors report "super-polynomial time" (not undefined/non-
+        terminating), (b) the algorithm uses "short U" which implies bounded
+        denominators, and (c) Case B is disfavored by the authors' own correction
+        (they concede the algorithm is not polynomial), Case C (bounded, super-
+        polynomial) is the most consistent scenario with available information.
+        The derivation's body reaches the correct conclusion ("uncertainty
+        statement: exact scenario cannot be determined without the algorithm
+        body") but the summary and results.yaml do not reflect the correct
+        case hierarchy.
+      repair: >
+        Revise the summary to: "Scenario most consistent with available
+        information: Case C (height-bounded fractional ideals, super-polynomial
+        expected runtime with unknown upper bound). Case A (undefined/non-
+        terminating) is possible but requires unbounded denominators inconsistent
+        with short-U. Case B (polynomial) is disfavored by the authors' own
+        retraction. No complexity classification can be finalized without the
+        algorithm body."
+
+  required_controls:
+    - >
+      Before citing the derivation's infinite-ideal-count as evidence in any
+      complexity argument, verify: (1) Eichler's theorem applies to the specific
+      quaternion algebra B used in HAWK (O_F, not just M_2(Q)); (2) the notion of
+      "fractional left O-ideal" in the HAWK paper matches the definition used here.
+    - >
+      The numerical verification (M_2(Z), q'=7) is internally consistent but uses
+      the split model. Confirm that the Möbius exact-denominator extraction applies
+      without modification to non-split indefinite maximal orders (the GCD-of-
+      entries definition may not transfer directly to non-commutative settings
+      where elements do not have a canonical representative matrix form).
+
+  narrowest_supported_statement: >
+    The set of fractional left O-ideals of reduced norm q' in an indefinite maximal
+    quaternion order O over Q is infinite. This follows from: (a) Eichler's theorem
+    (not Hasse-Minkowski) gives nrd surjective onto Z_{≥0}, so integral ideals of
+    norm q'r² exist for all r ≥ 1; (b) for each r, choosing J with gcd(r, content(J))
+    = 1 yields a fractional ideal (1/r)J with exact denominator r; (c) distinct
+    denominators yield distinct fractional ideals by the minimality argument (not the
+    circular norm argument). Under Case A (unbounded denominators in the sampling
+    pool), the density of any fixed finite easy-instance set is 0 and the algorithm
+    does not terminate in expectation. Under Case B or bounded-C (consistent with
+    short-U re-randomization), the pool is finite, the density is unknown without
+    the algorithm body, and the authors' characterization ("super-polynomial time")
+    is consistent with Case C. No statement about HAWK security follows from this
+    derivation.
+
+  artifact_paths:
+    - path: >
+        coordination/goals/GOAL-HAWK-001/batches/BATCH-56498f/reviews/TASK-20260805-80676e/red_team_report.yaml
+    - path: >
+        coordination/goals/GOAL-HAWK-001/batches/BATCH-56498f/reviews/TASK-20260805-80676e/falsification_review.md
+
+  no_status_change: true
+  no_security_conclusion: true

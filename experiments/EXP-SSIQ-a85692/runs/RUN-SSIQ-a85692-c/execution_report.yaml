@@ -1,0 +1,323 @@
+execution_report:
+  experiment_id: EXP-SSIQ-a85692
+  run_id: RUN-SSIQ-a85692-c
+  spec_version: 3
+  implementation_commit: 7f40426b041044b9074f8bf208971786bde83801
+  implementation_commit_note: >-
+    Commit at execution time. Tree was dirty ONLY with this run's own new,
+    untracked artifacts (experiments/EXP-SSIQ-a85692/implementation/reanalyze_v3.py
+    and experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/) -- confirmed by
+    `git status --porcelain` and `git diff --stat` against every file
+    specification_v3.yaml requires stay untouched (RUN-SSIQ-a85692-a and
+    RUN-SSIQ-a85692-b's run directories; specification.yaml,
+    specification_v2.yaml, specification_v3.yaml; compute_delta_e.py and
+    compute_delta_e_v2.py), both reporting zero changes to any of them. This
+    Executor committed nothing (commits are the Coordinator's snapshot
+    task, per AGENTS.md); this run package is not durable until that
+    archive exists.
+
+  required_artifacts_note_diff_cross_check: >-
+    REQUIRED DELIVERABLE per the launching task and per
+    specification_v3.yaml required_artifacts_note's own instruction ("The
+    Executor's own execution_report.yaml must confirm this diff list
+    against the code it actually wrote/ran, and report any discrepancy
+    rather than silently reconciling it"). Checked item by item against
+    experiments/EXP-SSIQ-a85692/implementation/reanalyze_v3.py as actually
+    written and run:
+      (1) "NEW: a reanalysis script/module (e.g. reanalyze_v3.py) that
+      READS RUN-SSIQ-a85692-b's raw-result.json (does not re-execute
+      compute_delta_e_v2.py's search machinery at all), applies
+      trapped_exclusion_filter_v3, and implements
+      c_null_label_comparison_v3." -- MATCHES. reanalyze_v3.py's main()
+      opens args.run_b (RUN-SSIQ-a85692-b/raw-result.json) with plain
+      json.load, reads ONLY descent_metrics.per_prime and
+      c_null_label.per_prime (confirmed by grep: the only two subscripts
+      of run_b used anywhere are ["descent_metrics"]["per_prime"],
+      ["c_null_label"]["per_prime"], plus ["c_search_bias"]["magnitudes_comparable_flag"]
+      and ["correctness_gates"]["connectivity"] inside the dead
+      >=4-real-arm-survivors branch that never executes on this data --
+      see item below). trapped_exclusion_filter_v3() and
+      c_null_label_comparison_v3() are both implemented as named top-level
+      functions, called from main(). compute_delta_e_v2.py is never
+      imported anywhere in reanalyze_v3.py (grep confirms no
+      "compute_delta_e_v2" or "import.*_v2" string appears in the file) and
+      is therefore never invoked, directly or transitively.
+      (2) "NEW, REQUIRED, PF-1 FIX: a synthetic self-test... producing
+      runs/RUN-SSIQ-a85692-c/synthetic_self_test.json (inputs, computed
+      outputs, and the expected/analytic values checked against)." --
+      MATCHES. run_synthetic_self_test_v3() is implemented, called first
+      in main(), and its full return value (inputs, computed,
+      expected_analytic, checks, self_test_verdict) is written verbatim to
+      --self-test-out as a SEPARATE file from raw-result.json, never
+      merged into it (raw-result.json only cross-references it by path in
+      its own synthetic_self_test_source field).
+      (3) "IMPORTED UNCHANGED, BY REFERENCE: ols_loglog_fit and
+      bootstrap_gap_ci from descent_hitting_time.py." -- MATCHES.
+      reanalyze_v3.py does `import descent_hitting_time as dht` (after
+      `import compute_delta_e as v1c` triggers v1c's own sys.path.insert
+      for that module's directory, so this resolves to the SAME
+      already-loaded module object v1c itself uses) and calls
+      dht.ols_loglog_fit / dht.bootstrap_gap_ci directly, with zero
+      reimplementation -- neither function's body is redefined or shadowed
+      anywhere in reanalyze_v3.py.
+      (4) "IMPORTED UNCHANGED, BY REFERENCE, PF-2 FIX: apply_decision_rule
+      from compute_delta_e.py (v1)." -- MATCHES, with a disclosed,
+      SPEC-PREDICTED non-invocation on this specific dispatch's data.
+      reanalyze_v3.py does `import compute_delta_e as v1c` and main()
+      calls `v1c.apply_decision_rule(...)` inside the
+      >=4-real-arm-survivors branch (the branch not_evaluable_decision_rule_v3
+      also lives in), exactly per decision_rule_v3's text. On THIS run's
+      actual data, real_survivors=0 (<4), so decision_rule_v3's own NEW
+      GATE reports DATA-UNAVAILABLE-BLOCKED directly and the
+      >=4-survivors branch -- including its apply_decision_rule call -- is
+      never entered; raw-result.json records this explicitly
+      (apply_decision_rule_invoked=false, apply_decision_rule_result=null).
+      This is the SAME evidentiary shape PF-1 already named for
+      c_null_label_comparison_v3's fit-and-bootstrap branch, now also true
+      of apply_decision_rule: it is imported correctly and its call site is
+      present and reachable in the code, but this run's own artifacts
+      supply no runtime evidence that call site executes correctly, because
+      the branch containing it never fires on this data. Disclosed here
+      rather than silently glossed as "used" -- NOT a discrepancy against
+      the diff list (the diff list says "imported unchanged, by reference,"
+      which is true; it does not say "invoked on this run's data"), but
+      worth stating plainly per this campaign's post-GD-9 discipline.
+      Unlike c_null_label_comparison_v3's fit-and-bootstrap branch,
+      apply_decision_rule ALREADY has independent runtime evidence that it
+      executes correctly: it is the SAME function, called with the SAME
+      signature, that RUN-SSIQ-a85692-b's own compute_delta_e_v2.py already
+      invoked and that produced that run's independently-verified
+      CONTROL-FAILURE-VOID branch (EV-SSIQ-f3ce32 O-3, both BATCH-005
+      reviewers). No NEW synthetic test of apply_decision_rule was built
+      here because it is reused, unmodified, machinery with prior
+      independent verification -- unlike c_null_label_comparison_v3, which
+      is NEW code this amendment adds and had NO prior runtime verification
+      of any kind before this batch's synthetic self-test.
+      (5) "UNCHANGED, NOT INVOKED AT ALL: compute_delta_e_v2.py's search,
+      smoke-test, admission, and Phase -1 execution code." -- MATCHES.
+      Confirmed by (1) above: compute_delta_e_v2.py is not imported.
+      (6) "New run id RUN-SSIQ-a85692-c (v1's RUN-SSIQ-a85692-a and v2's
+      RUN-SSIQ-a85692-b stay frozen and untouched; this run's manifest.yaml
+      names RUN-SSIQ-a85692-b as its sole real-data source, and states
+      explicitly that the synthetic self-test data is NOT sourced from any
+      prior run)." -- MATCHES on all three clauses: run id is
+      RUN-SSIQ-a85692-c; both prior run directories independently confirmed
+      byte-for-byte untouched (implementation_commit_note above, `git diff
+      --stat` reporting zero changes); manifest.yaml's inputs.parameters
+      names real_data_source_run: RUN-SSIQ-a85692-b, and
+      raw-result.json/synthetic_self_test.json both state explicitly that
+      the synthetic data is independent of any prior run.
+    NET RESULT: no discrepancy found between required_artifacts_note's
+    diff list and the code as actually written and run. One item (4) is
+    flagged above not as a discrepancy but as a disclosure this campaign's
+    own post-GD-9 discipline requires: apply_decision_rule's import is
+    correct and its call site is present, but this specific dispatch's own
+    data never exercises that call site, so this run's artifacts alone are
+    not runtime evidence that decision_rule_v3's >=4-survivors branch
+    executes correctly end-to-end (independent prior evidence for
+    apply_decision_rule itself exists from RUN-SSIQ-a85692-b, cited above;
+    no equivalent prior evidence existed for c_null_label_comparison_v3,
+    which is why PF-1 required the synthetic self-test specifically for
+    that function and not for apply_decision_rule).
+
+  protocol_deviations:
+    - id: PD-1
+      statement: >-
+        NONE FOUND against specification_v3.yaml's own text. This run
+        implements trapped_exclusion_filter_v3, c_null_label_comparison_v3,
+        decision_rule_v3, not_evaluable_decision_rule_v3, and
+        synthetic_self_test_v3 exactly as the frozen spec states them (see
+        required_artifacts_note_diff_cross_check above for the function-level
+        confirmation). No prediction, tolerance, threshold, or control was
+        adjusted after this run began, and none was adjusted based on this
+        run's own output.
+    - id: PD-2
+      statement: >-
+        MINOR, DISCLOSED, NON-SUBSTANTIVE: reanalyze_v3.py computes
+        c_null_label_comparison_v3 (and writes its result to
+        raw-result.json) UNCONDITIONALLY -- i.e. regardless of whether
+        decision_rule_v3's own real-arm gate passes or fails -- rather than
+        only inside the >=4-real-arm-survivors branch where decision_rule_v3's
+        text formally introduces it. This is a DISCLOSURE/reporting choice,
+        not a decision-rule change: decision_rule_v3's own NEW GATE (real-arm
+        survivors < 4) still determines the terminal decision.branch
+        entirely on its own (DATA-UNAVAILABLE-BLOCKED), and
+        c_null_label_comparison_v3's result (NOT-EVALUABLE) is reported
+        purely as an additional, honest disclosure of what the null-arm
+        filter and comparison logic would say if evaluated -- consistent
+        with evidentiary_limitation_disclosure_v3's own instruction to
+        state this branch's reachability plainly rather than let a
+        report block's mere presence imply something the run cannot
+        support. No spec text was violated: specification_v3.yaml never
+        says c_null_label_comparison_v3 may ONLY be computed inside the
+        >=4-survivors branch, and computing it either way changes nothing
+        about the reported decision on this run's actual data.
+    - id: PD-3
+      statement: >-
+        The >=4-real-arm-survivors branch of decision_rule_v3 (recomputing
+        gamma_greedy/gamma_random/m_gap on the surviving subset, then
+        calling apply_decision_rule with the real c_null_label_control_failure
+        value) is IMPLEMENTED in reanalyze_v3.py but was NOT exercised by
+        this run's actual data (real_survivors=0 < 4). This is expected and
+        predicted by specification_v3.yaml's own worked check and
+        independently confirmed by the pre-freeze review
+        (RT-PREFREEZE-EXP-SSIQ-a85692-v3.md check (b)) before this run
+        executed -- not a surprise discovered here. Disclosed per this
+        campaign's standing discipline of naming every code path a run's
+        own artifacts cannot supply runtime evidence for (see
+        required_artifacts_note_diff_cross_check item (4) above).
+
+  runs:
+    completed:
+      - RUN-SSIQ-a85692-c
+    invalid: []
+    failed: []
+
+  budget_split_statement: >-
+    Total measured wall-clock: 0.035312652587890625s against a 300s budget
+    (spec_v3.budget.wall_clock_seconds_per_run). No meaningful split to
+    report: this run performs no delta_E search, no Phi_ell verification,
+    no graph construction, and (on this run's actual data) no OLS
+    fit/bootstrap on the real-data path at all -- the entire measured time
+    is JSON deserialization, a threshold filter over <=5 primes per arm,
+    and the synthetic self-test's two OLS fits plus one 2000-resample
+    bootstrap on 4 points. Peak address-space usage was not instrumented
+    but the 1 GiB ulimit was never approached (process completed in
+    ~35ms). Consistent with, and slightly better than, the pre-freeze
+    review's own estimate (check (f)) that 300s was "generous by roughly
+    two to three orders of magnitude" for this class of arithmetic.
+
+  observations:
+    - id: OBS-1
+      statement: >-
+        FROZEN PREDICTION REFERENCE: specification_v3.yaml's own worked
+        check (inputs.trapped_exclusion_filter_v3, PF-3-fix-applied text)
+        states, stated BEFORE this run executed and independently
+        reconfirmed by the pre-freeze reviewer
+        (RT-PREFREEZE-EXP-SSIQ-a85692-v3.md check (b)): applying
+        trapped_exclusion_filter_v3 to RUN-SSIQ-a85692-b's own
+        already-committed numbers excludes ALL FOUR primes in BOTH the real
+        arm (trapped_fraction 0.8374, 0.7222, 0.8201, 0.8511) and the null
+        arm (0.8079, 0.7037, 0.7908, 0.8478) -- zero primes survive in
+        either arm. COMPARISON STATISTIC (this run's own measurement):
+        trapped_exclusion_filter_v3.real_arm.n_survivors=0,
+        trapped_exclusion_filter_v3.null_arm.n_survivors=0, with the
+        per-prime excluded_trapped_fraction values matching the frozen
+        prediction to every digit shown (see raw-result.json). MATCH:
+        exact, to full float precision, against both the spec's own worked
+        check and the pre-freeze review's independent re-derivation.
+    - id: OBS-2
+      statement: >-
+        FROZEN DECISION RULE REFERENCE: decision_rule_v3's NEW GATE states
+        that fewer than 4 real-arm survivors triggers DATA-UNAVAILABLE-BLOCKED
+        "for lack of coverage under the corrected trapped-vertex filter."
+        COMPARISON STATISTIC: this run's decision.branch is
+        "DATA-UNAVAILABLE-BLOCKED", with decision.reason naming exactly
+        that cause and explicitly distinguishing it from the BATCH-003
+        (WISDE unavailability) and BATCH-004 (budget-formula exhaustion)
+        instances of the same run-level label, per the spec's own
+        instruction. MATCH: exact, mechanically forced by OBS-1's
+        real_survivors=0 count.
+    - id: OBS-3
+      statement: >-
+        FROZEN PREDICTION REFERENCE: evidentiary_limitation_disclosure_v3
+        states, before this run executed, "THIS SPECIFIC DISPATCH... IS
+        EXPECTED, WITH HIGH CONFIDENCE INDEPENDENTLY CONFIRMED AT
+        PRE-FREEZE, TO EXERCISE ONLY c_null_label_comparison_v3's
+        NOT-EVALUABLE PATH." COMPARISON STATISTIC: this run's
+        c_null_label_comparison_v3.evaluable=false,
+        c_null_label_comparison_v3.c_null_label_control_failure="NOT-EVALUABLE",
+        with n_null_survivors=0 (<3, the min_primes_required stated in the
+        same result). MATCH: exact. The fit-and-bootstrap branch
+        (dht.ols_loglog_fit/dht.bootstrap_gap_ci calls inside
+        c_null_label_comparison_v3) did NOT execute on this run's real
+        data, confirmed both by the reported evaluable=false flag and by
+        direct reading of reanalyze_v3.py's control flow (the `if
+        len(null_survivors) < min_primes` branch returns immediately,
+        before any dht.* call).
+    - id: OBS-4
+      statement: >-
+        SYNTHETIC SELF-TEST (PF-1's fix, REQUIRED ARTIFACT, INDEPENDENT of
+        RUN-SSIQ-a85692-b's real data): two exact power laws
+        (greedy_median(N)=N**0.3, random_median(N)=N**0.8, N in [100,
+        1000, 10000, 100000]) run through the IDENTICAL dht.ols_loglog_fit
+        / dht.bootstrap_gap_ci calls c_null_label_comparison_v3 uses.
+        COMPARISON STATISTIC against the analytically-derived expected
+        values: gamma_null_greedy=0.29999999999999993 (expected 0.3,
+        |diff|<1e-9: match), gamma_null_random=0.8 (expected 0.8, exact),
+        m_gap_null=0.5000000000000001 (expected 0.5, |diff|<1e-9: match),
+        bootstrap 95% CI [0.4999999999999998, 0.5000000000000004]
+        (analytically predicted to degenerate to a point at 0.5 for a
+        noiseless power law, since every point lies exactly on the fitted
+        log-log line regardless of which points a given bootstrap resample
+        duplicates -- confirmed: the CI's width is ~6e-16, i.e.
+        floating-point noise, not statistical spread). r_squared=1.0 for
+        both fits, as expected for an exact linear relationship in
+        log-log space. n_boot_valid_draws=1968 of 2000 (32 degenerate
+        draws -- all four resampled indices identical, sxx=0 -- correctly
+        skipped by dht.bootstrap_gap_ci's own except ValueError clause,
+        not silently included). ALL FIVE self-test checks report PASS
+        (see synthetic_self_test.json checks block). This is the ONLY
+        runtime evidence this batch supplies that
+        c_null_label_comparison_v3's fit-and-bootstrap branch, and the
+        pre-registered comparison rule built on top of it (mirroring
+        apply_decision_rule's own DETECTED criterion, m_gap_ci_lo > 0.0),
+        execute correctly -- per evidentiary_limitation_disclosure_v3, no
+        stronger claim than this is made: this test validates CORRECTNESS
+        of the mechanism, not its STATISTICAL POWER on real data (PF-4,
+        explicitly left as an open, forward-looking question the
+        pre-freeze review recorded for whichever future run first reaches
+        this branch with real, non-degenerate data).
+    - id: OBS-5
+      statement: >-
+        REQUIRED_ARTIFACTS_NOTE DIFF-LIST CROSS-CHECK (this campaign's own
+        required deliverable per GD-9's standing repair): see
+        required_artifacts_note_diff_cross_check above for the full item-by-item
+        confirmation. NO DISCREPANCY was found between the frozen spec's
+        stated diff list and the code as actually written and run. One
+        disclosure (not a discrepancy) is recorded: apply_decision_rule is
+        correctly imported and its call site is present in the
+        >=4-real-arm-survivors branch, but this run's own data never
+        exercises that branch, so this run's artifacts alone cannot serve
+        as runtime evidence that call site works on THIS dispatch --
+        independent prior runtime evidence for apply_decision_rule already
+        exists from RUN-SSIQ-a85692-b (unlike c_null_label_comparison_v3,
+        which is new code with no prior runtime verification before this
+        batch's synthetic self-test).
+
+  anomalies: []
+
+  artifact_paths:
+    - experiments/EXP-SSIQ-a85692/implementation/reanalyze_v3.py
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/manifest.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/raw-result.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/execution_report.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/source_access_log.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/command.txt
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/environment.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/stdout.log
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/stderr.log
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-c/synthetic_self_test.json
+
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+    note: >-
+      All required artifacts produced. decision_rule_v3's NEW GATE fired
+      exactly as the frozen spec's own worked check predicted and the
+      pre-freeze review independently confirmed, producing
+      DATA-UNAVAILABLE-BLOCKED "for lack of coverage under the corrected
+      trapped-vertex exclusion filter" -- itself a genuine, informative
+      result per decision_rule_v3's own text (consistent with
+      H-SSIQ-36e970's mechanism section: it is evidence about whether
+      trapped greedy descent at N in [203, 611] is a property of graph
+      size rather than labelling quality, not evidence about delta_E
+      itself). The synthetic self-test (a required, distinct artifact)
+      independently validates that c_null_label_comparison_v3's
+      fit-and-bootstrap branch, unreachable on this run's real data, is
+      correctly implemented and executes end-to-end on constructed data
+      with an analytically-known answer. No conclusion is drawn here about
+      whether H-SSIQ-36e970's or H-SSIQ-137200's real-arm prediction is
+      supported or refuted -- that judgement belongs to the Coordinator and
+      independent reviewers, per AGENTS.md and agents/executor.md.

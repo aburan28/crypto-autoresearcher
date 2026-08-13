@@ -1,0 +1,586 @@
+idea:
+  id: IDEA-20260805-a102ec
+  question_id: RQ-MLKEM-003
+  goal_id: GOAL-MLKEM-004
+  added: '2026-08-05'
+  title: >-
+    Three load-bearing constants inside MATZOV.Nf that two campaigns argued over
+    and nobody read: the single-representative-length model (sign forced by
+    monotonicity), the mixed bits/nats union-bound term, and the unchecked
+    N-versus-sieve-database consistency condition
+
+  class: control
+
+  claim: >-
+    MATZOV.Nf assigns EVERY one of its N dual vectors the same length lsigma_s,
+    which is the OUTER radius of the sieve ball -- sqrt(4/3) times the Gaussian
+    heuristic length. Since the per-vector advantage exp(-2 pi^2 r^2/q^2) is
+    strictly decreasing in r and every database vector satisfies r <= R by the
+    definition of the sieve, the per-vector advantage is POINTWISE at least the
+    modelled one, so the model's aggregate advantage is a strict lower bound and
+    Nf's N is a strict OVERESTIMATE, unconditionally and with no distributional
+    assumption whatsoever. The magnitude is a closed form,
+    rho = sum_{k>=0} kappa^k / prod_{j=1..k}(beta_sieve/2 + j), with
+    kappa = (1/2) ln(N_Nf / L) recoverable from Nf's own output and L its own
+    log-term; the correction to the sample count is exactly N/rho^2, i.e.
+    -2 log2(rho) bits on Nf's T_table term. Two further defects of the same file
+    are audited alongside: (2) the union-bound term
+    (k_enum*Hf + k_fft*log(p) + log(1/mu)) adds a quantity in BITS to two
+    quantities in NATS, since Hf divides by log(2) and is used elsewhere as
+    2^(k_enum*Hf); (3) Nf returns an N that is consumed by
+    red_cost_model.short_vectors without any check that N is at most the number
+    of vectors a sieve of dimension beta_sieve can hold, approximately
+    (4/3)^(beta_sieve/2), even though the single-length model is exactly the
+    statement that all N come from inside one such ball. THE PROPOSAL CLAIMS NO
+    ML-KEM RESULT. It claims that three checkable statements about a pinned file
+    can be settled at zero compute, that each has a derived sign, and that this
+    program has cited that file across two campaigns without settling any of
+    them.
+
+  object_first_candidate:
+    tracked_object: >-
+      The LENGTH DISTRIBUTION of the sieve database, projected to the single
+      scalar the cost model consumes. Followed through: sieve output pool ->
+      empirical distribution of ||v||^2 -> mean per-vector advantage
+      E[exp(-2 pi^2 ||v||^2 sigma^2 / q^2)] -> the aggregate distinguishing
+      statistic -> N. The model replaces the whole distribution by its supremum;
+      the object tracked here is the discarded spread and what it is worth in
+      bits.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: estimator differencing (GOAL-MLKEM-003's
+      closed lane); new score statistics on candidate groups (GOAL-MLKEM-004's
+      six refuted observables); primal/BDD attacks; decryption-failure and FO
+      attacks; implementation side channels; and -- specific to this proposal --
+      ANY inference about the independence heuristic. That question belongs to
+      IDEA-20260805-5a4409 and mixing the two would let a length-model result be
+      read as an independence result, which is the conflation
+      DEC-20260805-0b3e11 spent six batches disentangling.
+    newness_score: >-
+      The Jensen-type observation is elementary; auditing a published cost
+      function is a standard move. What this corpus does not contain is any
+      record that anyone read estimator/lwe_dual.py's MATZOV.Nf line by line.
+      EV-MLKEM-015 ran it, EV-MLKEM-011/012/013/016/018 audited Carrier's tables
+      and code, GOAL-MLKEM-003 differenced its outputs for twelve batches and
+      GOAL-MLKEM-004 tried to measure its input for six, and the one artifact
+      that quotes its source (BATCH-f75059's wellposedness.md) quotes line 540
+      only. The newness is that the file was opened.
+    testability_score: >-
+      Maximal for items (2) and (3): both are decided by reading and by arithmetic
+      on numbers the estimator already prints, at zero compute and in minutes.
+      High for item (1): the sign is decided on paper; the magnitude needs only
+      the empirical length distribution of a sieve database, and one such database
+      is ALREADY ARCHIVED in this repository
+      (BATCH-f75059/.../vectors.json, 17,919 certified vectors at d = 60,
+      q = 127, with x and y emitted per vector).
+    survival_score: >-
+      Item (1)'s sign survives to cryptographic parameters unchanged, because it
+      needs only that database vectors lie inside the sieve ball. Its MAGNITUDE
+      does not survive automatically: rho depends on beta_sieve and kappa, both of
+      which are crypto-scale quantities, so the crypto-scale number is a model
+      evaluation and not a measurement, and is labelled as such. The magnitude's
+      MODEL -- the Gaussian-heuristic ball law for database lengths -- is what the
+      toy measurement tests, and it may well fail, which is a stated outcome
+      rather than a risk to be managed.
+
+  mechanism: >-
+    SOURCE READ THIS SESSION. github.com/malb/lattice-estimator at commit
+    3e48ef421ec256afddb3e7d2249a77eab6e9ba12 -- the pin
+    tools/sage_free_estimator/README.md records as the commit EXP-MLKEM-015 used.
+    estimator/lwe_dual.py, class MATZOV, lines 526-564. The three expressions
+    below are transcribed from that file, not recalled:
+
+      k_lat = params.n - k_fft - k_enum                                    # 540
+      lsigma_s = ( Xe.stddev**(m/(m+k_lat))
+                 * (Xs.stddev*q)**(k_lat/(m+k_lat))
+                 * sqrt(4/3)
+                 * sqrt(beta_sieve/2/pi/e)
+                 * deltaf(beta_bkz)**(m+k_lat-beta_sieve) )                # 543-549
+      N = ( exp(4*(lsigma_s*pi/q)**2)
+          * exp(k_fft/3.0*(Xs.stddev*pi/p)**2)
+          * (k_enum*Hf(Xs) + k_fft*log(p) + log(1/mu)) )                   # 552-556
+      Hf(Xs) = RR(1/2 + log(sqrt(2*pi)*Xs.stddev)
+                  + log(coth(pi**2 * Xs.stddev**2))) / log(2.0)            # 560-564
+
+    ITEM 1 -- THE SINGLE REPRESENTATIVE LENGTH, AND A SIGN THAT NEEDS NO
+    DISTRIBUTION. sqrt(beta_sieve/(2 pi e)) is the Gaussian-heuristic length of a
+    shortest vector in a unit-determinant lattice of dimension beta_sieve, and
+    sqrt(4/3) is the sieve's saturation radius, so lsigma_s is the length of a
+    vector at the OUTER EDGE of the sieve ball, rescaled by the determinant
+    factors and by deltaf(beta_bkz)^(m+k_lat-beta_sieve). Write R := lsigma_s and
+    kappa := 2 (R pi / q)^2, so that the per-vector advantage the model uses is
+    abar = exp(-kappa) and Nf's first factor is exp(4(R pi/q)^2) = exp(2 kappa) =
+    abar^{-2}. Now: a(r) := exp(-2 (r pi/q)^2) is strictly decreasing, and every
+    vector in a sieve database of radius R satisfies ||v|| <= R BY THE DEFINITION
+    OF THE DATABASE. Hence a(||v_i||) >= a(R) for every i, POINTWISE. Therefore
+        (1/N) sum_i a(||v_i||) = rho * a(R)  with rho >= 1,
+    unconditionally, for every pool, with no Gaussian heuristic, no convexity
+    argument and no distributional model. The aggregate signal is N * rho * abar
+    rather than N * abar, so the distinguishing condition N rho abar >=
+    sqrt(N ln D) gives
+        N_true = N_Nf / rho^2,   correction = -2 log2(rho) bits.            (A)
+    THE SIGN IS FORCED AND THE DIRECTION IS THAT Nf IS CONSERVATIVE: the dual
+    attack needs strictly fewer samples than Nf says, on this ingredient alone.
+    That direction is the uncomfortable one -- it moves toward the MATZOV/Carrier
+    claims rather than away from them -- and it is stated first for that reason.
+
+    THE MAGNITUDE NEEDS A MODEL, AND THE MODEL IS NAMED. Under the Gaussian
+    heuristic the number of lattice points of norm at most r in dimension
+    beta = beta_sieve grows as (r/gh)^beta, so the database's length CDF is
+    F(r) = (r/R)^beta on [0, R]. Then
+        rho = E[a]/a(R) = beta * integral_0^1 t^{beta-1} e^{-kappa t^2} dt * e^{kappa}
+            = sum_{k>=0} kappa^k / prod_{j=1}^{k} (beta/2 + j),             (B)
+    an everywhere-convergent series with the two-sided bound
+        1 + kappa/(beta/2+1)  <=  rho  <=  1 / (1 - kappa/(beta/2+1))
+    valid for kappa < beta/2 + 1. Both kappa and beta are recoverable from Nf's
+    own output with no new computation: beta_sieve is an argument, and
+    kappa = (1/2) * ln( N_Nf / L ) where L = k_enum*Hf + k_fft*log(p) +
+    log(1/mu) is Nf's own third factor. So the correction (A) is computable for
+    every parameter set this program has ever cited, at zero compute, from
+    numbers already printed. NO VALUE OF rho IS ASSERTED IN THIS PROPOSAL; it is
+    a stage-1 output.
+    SCOPE OF THE CLEAN SIGN: the pointwise bound needs the vectors to lie inside
+    the ball, which is exactly true when beta_sieve = m + k_lat (the
+    deltaf exponent is then 0 and there is one sieve on the whole lattice). When
+    beta_sieve < m + k_lat the vectors are lifted from a projected sublattice and
+    R becomes a model output rather than a hard bound; the sign is then
+    CONDITIONAL and the record must say so. The toy measurement is run at
+    beta_sieve = m + k_lat, where it is unconditional.
+
+    ITEM 2 -- MIXED UNITS IN THE UNION-BOUND TERM. Hf divides by log(2.0), so it
+    returns bits; that reading is confirmed by its other use, 2**(k_enum*H) in
+    MATZOV.cost line 610, which is only dimensionally sensible for bits. In Nf
+    the same Hf is ADDED to k_fft*log(p) and to log(1/mu), both natural
+    logarithms. A union bound over 2^(k_enum*H) * p^(k_fft) / mu candidates has
+    natural logarithm k_enum*H*ln(2) + k_fft*ln(p) + ln(1/mu); the code omits the
+    ln(2) on the first summand only. FORCED CONSEQUENCE, if the reading is right:
+    the term is inflated by at most a factor 1/ln 2 = 1.4427, hence N and the
+    T_table cost by at most log2(1.4427) = 0.529 bits, and by exactly 0 when
+    k_enum = 0. The estimator's own docstring (estimator/lwe.py, READ) reports
+    zeta = 0 at the Kyber512 optimum under RC.ADPS16, so the most likely finding
+    is INERT AT THE OPTIMUM AND LIVE OFF IT -- which still matters, because the
+    optimiser explores k_enum > 0 and because hybrid variants live there. WHETHER
+    THE MATZOV PAPER'S FORMULA HAS THE SAME MIXING IS UNKNOWN: the paper has NOT
+    BEEN READ, and settling that is the audit's first obligation. Until it is
+    settled this is an observation about a file, not a claim about a result.
+
+    ITEM 3 -- AN UNCHECKED SELF-CONSISTENCY CONDITION. MATZOV.cost passes Nf's N
+    straight into red_cost_model.short_vectors(beta, N=N, d=k_lat+m,
+    sieve_dim=beta_sieve). The length model that produced that N is the statement
+    that all N vectors sit inside ONE sieve ball of dimension beta_sieve, which
+    holds at most (4/3)^(beta_sieve/2) lattice points under the Gaussian
+    heuristic. Nf never checks N <= (4/3)^(beta_sieve/2), and neither does cost.
+    If the inequality fails at a reported optimum, then the additional vectors
+    come from re-randomised sieves or from the dimensions-for-free construction,
+    whose length distributions are not the one modelled, and the single-length
+    model is being applied to vectors that do not exist in the ball it describes.
+    THE CHECK IS ONE COMPARISON OF TWO NUMBERS THE ESTIMATOR ALREADY RETURNS
+    (cost["N"] and cost["beta_"]), for every parameter set, and it has two
+    outcomes both of which are useful: the condition holds everywhere, and item 1
+    is clean; or it fails somewhere, and the length model has a stated domain of
+    validity that no record in this corpus has ever stated.
+
+    COST BOOKKEEPING. Items 2 and 3: reading plus arithmetic on printed numbers;
+    minutes, no sieve, no new instrument, and the pinned estimator already runs
+    Sage-free in this repository under tools/sage_free_estimator with an existing
+    exact-equality known-answer control. Item 1's magnitude at crypto scale:
+    evaluation of series (B); item 1's MODEL check: one pass over an archived
+    17,919-vector file with numpy, which is installed here (verified this session:
+    numpy 2.4.6 imports; fpylll, g6k and estimator do NOT, so any stage needing a
+    sieve is an infrastructure request under AGENTS.md rule 3 and must rebuild
+    per KN-TECH-14efa5).
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      estimator/lwe_dual.py class MATZOV (Nf lines 526-558, Hf lines 560-564,
+      cost lines 566-626) and estimator/lwe.py's docstring, at pin
+      3e48ef421ec256afddb3e7d2249a77eab6e9ba12. READ THIS SESSION. All three
+      items are statements about this text.
+    - >-
+      MATZOV, "Report on the Security of LWE" (2022), pages 15, 29, 37-39 as
+      cited by the source's own comments; Guo-Johansson AC:GuoJoh21. NOT READ --
+      relayed claim. Every attribution of an ASSUMPTION to the papers is
+      therefore an inference from the code, and stage 0 either confirms it from
+      the primary text or restates the finding as being about the estimator only.
+    - >-
+      tools/sage_free_estimator/README.md, READ, which records the pin, the
+      exact-equality bar for the shim, and the archived reference values
+      (Kyber512 log2(rop) 140.1994731076, Kyber768 200.9587149141, reproduced at
+      delta 0.0). These are quoted as the control this audit must re-pass, not as
+      results of this audit.
+    - >-
+      EV-MLKEM-015 / KN-FIND-015, the program's pinned dual-versus-primal answer
+      under RC.MATZOV. READ via the goal brief and KN-OPEN-016. This proposal
+      does not recompute it and does not contest it; it audits three inputs to
+      the function that produced it.
+    - >-
+      KN-OPEN-016, READ IN FULL, whose disputed margins (Carrier's claimed
+      3.5 / 11.9 / 12.3 bit shortfalls for Kyber-512/768/1024, themselves
+      relayed) are the scale against which any bit-level correction here must be
+      sized.
+    - >-
+      GOAL-MLKEM-004 instrument block and KN-TECH-14efa5 for the rebuild recipe;
+      BATCH-f75059's wellposedness.md for the KA-3 and KA-5 known-answer controls
+      this audit re-uses. READ.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The sieve database { v_i } in Z^{m+k_lat}, N vectors --> the single scalar
+      the cost model consumes, lsigma_s; and, in the repaired version, the
+      empirical distribution of ||v_i||^2 --> the scalar E[a(||v_i||)].
+    what_is_discarded: >-
+      Direction, lattice coordinates, pairwise geometry, and -- this is the item
+      under audit -- the entire spread of the length distribution, replaced by its
+      supremum.
+    why_genuinely_lossy: >-
+      Genuinely and extremely lossy: N vectors of dimension m+k_lat collapse to
+      one real number. The discard is compatible with the target's operations in
+      the precise sense that matters here: after averaging over the error e, the
+      per-vector advantage depends on the vector ONLY through ||v||^2, so a
+      length-only summary retains everything the advantage law can see and the
+      projection propagates deterministically into the aggregate statistic. It
+      does NOT retain what the independence question needs, and this proposal
+      does not pretend otherwise -- that is IDEA-20260805-5a4409's object.
+    is_it_only_a_change_of_coordinates: >-
+      No: the map pool -> length distribution -> E[a] is many-to-one at every
+      stage and no vector is recoverable from it. MIRROR FAILURE CHECKED, AND
+      THIS IS THE REAL RISK HERE: a length summary can be so concentrated that it
+      is effectively constant across instances, in which case rho is a constant
+      of the apparatus rather than a measured quantity. The check is explicit and
+      pre-registered: the empirical length distribution's spread is reported
+      FIRST, before rho, and if the relative spread of ||v||^2 across the pool is
+      below the pre-declared resolution then rho is reported as a model
+      evaluation and NOT as a measurement. Concentration is expected to increase
+      with dimension -- the ball law puts a 1-(1-eps)^beta fraction within a
+      relative eps of the outer radius -- so the honest reading is that item 1 is
+      a MODEL correction whose model is checked at toy scale, and it is written
+      that way throughout.
+
+  assumptions:
+    - >-
+      That the pinned estimator is the instrument whose constants matter. It is
+      the instrument this program cites; whether it matches MATZOV's paper is a
+      separate question the audit is designed to answer, not to assume.
+    - >-
+      That a sieve database contains only vectors of norm at most the saturation
+      radius. True by construction for a single sieve; conditional under
+      dimensions-for-free, and scoped accordingly above.
+    - >-
+      That the distinguishing condition is signal >= sqrt(variance * ln D), which
+      is the form Nf itself embodies. Using Nf's own bookkeeping to correct Nf is
+      deliberate: it makes the correction exact within the model rather than
+      introducing a second, unrelated model.
+
+  predictions:
+    - metric: >-
+        SIGN of rho - 1 on the archived 17,919-vector pool
+        (BATCH-f75059/.../vectors.json), computed as
+        mean_i exp(-c ||v_i||^2) / exp(-c max_i ||v_i||^2) for the run's own c
+      direction: higher
+      minimum_effect: >-
+        STRICTLY GREATER THAN 1, forced by pointwise monotonicity before any data
+        are read. This prediction cannot fail unless the implementation is wrong,
+        and it is listed for exactly that reason: it is the arithmetic control
+        that must pass before any magnitude is believed.
+    - metric: >-
+        Empirical length-CDF exponent: the slope of log(F(r)) against log(r/R)
+        on the archived pool, fitted over the pre-declared quantile range
+        [0.1, 0.8]
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE beta_sieve = 60 under the Gaussian-heuristic ball law, with
+        a pre-registered acceptance band of [48, 72] (+/- 20 per cent). THIS IS
+        THE FALSIFIABLE HEART OF ITEM 1 AND IT MAY WELL FAIL: a real g6k database
+        is trimmed, saturated at a ratio below 1, and produced with
+        dimensions-for-free, none of which the pure ball law models. THE PLANNED
+        DISPOSITION ON FAILURE IS PRE-REGISTERED HERE so it cannot be chosen
+        afterwards: if the fitted exponent falls outside the band, rho is
+        recomputed from the EMPIRICAL length distribution instead of from (B),
+        the crypto-scale extrapolation is downgraded from a model evaluation to
+        an explicitly unsupported one, and the failure of the ball law is
+        reported as the batch's primary finding.
+    - metric: >-
+        rho and the correction -2 log2(rho) evaluated by series (B) at every
+        parameter set this program cites, using kappa = (1/2) ln(N_Nf/L) and
+        beta_sieve read from the estimator's own output
+      direction: different
+      minimum_effect: >-
+        NO VALUE IS ASSERTED. What is pre-registered is the reporting rule: the
+        number is reported to two decimal places in bits, beside the disputed
+        margin it must be compared against (3.5 / 11.9 / 12.3 bits, relayed via
+        KN-OPEN-016), and the record states in the same sentence that it is a
+        CONSTANT and moves no exponent.
+    - metric: >-
+        Units check: the ratio Nf(as written) / Nf(with k_enum*Hf replaced by
+        k_enum*Hf*ln 2), at each parameter set, and separately at the optimiser's
+        selected k_enum
+      direction: higher
+      minimum_effect: >-
+        FORCED to lie in [1, 1.4427], equal to 1 exactly when k_enum = 0, and
+        bounded by 0.529 bits. Derived before the run. If a computed ratio leaves
+        that interval the transcription of the formula is wrong and the audit
+        halts.
+    - metric: >-
+        Consistency check: log2(cost["N"]) - (beta_sieve/2) * log2(4/3) at each
+        reported optimum
+      direction: different
+      minimum_effect: >-
+        NO VALUE ASSERTED; the sign is the deliverable. Negative means N fits in
+        one sieve ball and item 1's model is self-consistent there. Positive
+        means it does not, and the single-length model is applied outside its own
+        domain -- which is a statement about the estimator that no record in this
+        corpus makes, in either direction.
+
+  minimal_test:
+    design: >-
+      Three stages, cheapest first; stage 0 and stage 1 need no sieve and no new
+      instrument.
+      STAGE 0 (reading, zero compute). Obtain MATZOV 2022 pages 29 and 37-39 and
+      Guo-Johansson; quote the advantage law, the union-bound term and the
+      length model verbatim, or record that the source could not be obtained and
+      restate every finding as being about the estimator alone. TERMINATES ITEM 2
+      immediately if the paper carries the ln 2 the code omits (then the code has
+      a transcription defect) or if the paper omits it too (then the defect is in
+      the published analysis, which is a larger and rule-12-routed finding).
+      STAGE 1 (arithmetic, minutes, pinned estimator only). Re-pass the
+      sage_free_estimator known-answer control at exact equality; then compute
+      kappa, rho, the units ratio and the N-versus-ball-size comparison at every
+      cited parameter set.
+      STAGE 2 (archived data, minutes, numpy only, NO SIEVE). Fit the length-CDF
+      exponent and compute the empirical rho on the archived pool; compare
+      against (B) evaluated at beta = 60.
+      STAGE 3 (OPTIONAL, instrument required). Repeat stage 2 on freshly sieved
+      pools at three or more dimensions to test whether the fitted exponent
+      tracks beta_sieve. This is the only stage that needs KN-TECH-14efa5's
+      rebuild and it is explicitly outside the minimal deliverable.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE (forced value derived pre-run, CAN FAIL).
+        A synthetic pool of N vectors whose lengths are drawn EXACTLY from the
+        ball law F(r) = (r/R)^60 with the same R and N as the archived pool.
+        Forced value: fitted exponent 60 within the band, and empirical rho equal
+        to series (B) at beta = 60 within Monte-Carlo error. If the synthetic
+        pool fails its own forced value the estimator of rho is biased and no
+        statement about the real pool may be made.
+      - >-
+        POSITIVE CONTROL (must fire, graded, >= 3 interior points). Synthetic
+        pools with lengths drawn from F(r) = (r/R)^beta at beta in
+        {15, 30, 60, 120, 240}. Forced: the fitted exponent must track the
+        planted beta monotonically with slope 1, and rho must DECREASE
+        monotonically in beta (more concentration at the edge, less Jensen gain),
+        matching (B) at each point. This localises any estimator failure to a
+        regime instead of leaving "it did not work", and it is the sensitivity
+        demonstration without which no negative may be reported.
+      - >-
+        DEGENERATE-NULL CONTROL. A pool with ALL lengths equal to R exactly.
+        Forced value rho = 1.000000 exactly. This is the model's own object; if
+        the estimator does not return 1 there, it is wrong.
+      - >-
+        KNOWN-ANSWER CONTROLS ON THE INSTRUMENT, reused rather than reinvented:
+        Nf(beta_bkz=45) == Nf(beta_bkz=300) when beta_sieve = m + k_lat (KA-5 of
+        BATCH-f75059); Nf independent of p when k_fft = 0 (KA-3); and the
+        repository's own Kyber512/768 log2(rop) reference values at delta
+        0.00e+00 (tools/sage_free_estimator/README.md).
+      - >-
+        ARCHIVE CHECK (zero compute). Enumerate every prior measurement in this
+        corpus of a sieve database's length distribution. Batch 1 of
+        GOAL-MLKEM-004 tested the per-vector advantage law ACROSS ||x||^2 deciles
+        and reported 0.987-1.060 with no trend (EV-MLKEM-da9e3b, quoted via the
+        goal record). That is a test of the POINTWISE law and it PASSED; it is
+        not a test of the aggregation, and no record in this corpus computes the
+        aggregate. The distinction is recorded here rather than discovered later.
+      - >-
+        VERDICT-ON-THE-NULL-FIRST. The fitted-exponent decision rule is run on
+        the synthetic ball-law pool and the verdict committed before the archived
+        pool is fitted.
+
+  falsification_conditions:
+    - >-
+      The degenerate-null control does not return rho = 1, or the graded positive
+      control's fitted exponent does not track the planted beta. The estimator is
+      broken; nothing is reportable.
+    - >-
+      Stage 0 finds that the paper's Nf integrates over a length distribution.
+      Item 1 is then a defect of the code alone, or of this proposal's reading of
+      it, and must be restated accordingly.
+    - >-
+      Stage 0 finds the paper carries the ln 2. Item 2 becomes a transcription
+      defect in the pinned estimator, worth at most 0.529 bits, and the finding
+      is that this program has cited a file with a units defect across two
+      campaigns.
+    - >-
+      The units ratio leaves [1, 1.4427] at any cell. The formula was
+      mis-transcribed here and the audit halts pending re-derivation.
+    - >-
+      The archived pool's fitted length exponent lands outside [48, 72]. The
+      Gaussian-heuristic ball law does not describe this database; item 1's
+      magnitude must be recomputed empirically and the crypto-scale number is
+      NOT reported as supported. This is the single most likely failure and its
+      disposition is fixed above, before any fit.
+
+  confounders:
+    - >-
+      SATURATION AND TRIMMING. A g6k database is saturated to a ratio below 1 and
+      may be trimmed, so its empirical length law is not the pure ball law even
+      when the Gaussian heuristic is exact. This confounds the exponent fit and
+      is the reason the fit's failure has a pre-declared disposition rather than
+      being treated as a refutation of the heuristic.
+    - >-
+      DIMENSIONS FOR FREE. When beta_sieve < m + k_lat the vectors are lifted
+      from a projected sublattice and the pointwise bound ||v|| <= R is not
+      available. Item 1's sign is unconditional only at beta_sieve = m + k_lat
+      and the record must carry that clause on every citation.
+    - >-
+      TOY CONCENTRATION. At beta = 60 the ball law already concentrates most mass
+      near the outer radius, so the measured rho at toy scale may be close to 1
+      and carry little information about the crypto-scale rho, which depends on
+      kappa/beta at crypto values of both. The toy measurement tests the LAW, not
+      the number, and the record must not let the two be confused.
+    - >-
+      AUDIT ASYMMETRY. Finding a defect in someone else's constant is cheap to
+      produce and reads as rigour. Every item here therefore carries a forced
+      value that can come out the other way, and item 1's forced sign points
+      toward the attack being CHEAPER, which is the direction least flattering to
+      a program whose failure history is partial wins that died once costs were
+      charged.
+
+  interpretation_limits:
+    - >-
+      NO ML-KEM CLAIM. No break, no security proof, no FIPS 203 parameter set
+      affected or cleared. A corrected constant in a cost function is not an
+      attack.
+    - >-
+      MOVES NO EXPONENT, AND SAYS SO. All three items are constants: at most
+      -2 log2(rho) bits, at most 0.529 bits, and a domain-of-validity statement
+      worth no bits at all. They are worth having only because the disputed
+      quantity in KN-OPEN-016 is itself a handful of bits.
+    - >-
+      A finding about the estimator is not a finding about MATZOV's paper unless
+      stage 0 obtains the paper. The two must be reported separately in every
+      sentence.
+    - >-
+      Item 1 corrects Nf in the direction of the attack. That is not evidence for
+      the MATZOV or Carrier headlines, which rest on far more than this term, and
+      it must never be cited as such.
+    - >-
+      Rule 12 is UNMET and UNWAIVED. Nothing here proposes a status change to
+      EV-MLKEM-015, KN-FIND-015 or any other record, and a correction of the
+      instrument that produced EV-MLKEM-015 is precisely the kind of claim
+      GOAL-MLKEM-004's standing_blocker forbids this lane from asserting.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NOT LOAD-BEARING FOR THE SIGN. rho >= 1 follows from a(r) monotone
+        decreasing and ||v_i|| <= R for all i. No distribution is assumed.
+      rigorous_support: >-
+        Pointwise comparison of a decreasing function on a bounded support.
+        Elementary.
+      validation_plan: >-
+        Direct arithmetic on the archived pool; the degenerate-null control pins
+        the equality case.
+    - id: H2
+      statement: >-
+        BALL LAW. The length distribution of a sieve database of dimension
+        beta_sieve has CDF F(r) = (r/R)^{beta_sieve} on [0, R], R the saturation
+        radius.
+      rigorous_support: >-
+        The Gaussian heuristic for the number of lattice points in a ball. This
+        is the standard heuristic and it is named here rather than used silently,
+        because the entire magnitude of item 1 rests on it and because
+        saturation, trimming and dimensions-for-free are all known reasons it
+        might fail for a real database.
+      validation_plan: >-
+        The fitted-exponent prediction above, with its band, its synthetic
+        positive control at five planted exponents, and a pre-declared
+        disposition on failure. Cost of being wrong: the magnitude is recomputed
+        empirically; the sign is untouched.
+    - id: H3
+      statement: >-
+        Hf returns bits and Nf's other two summands are nats, so the union-bound
+        term mixes units.
+      rigorous_support: >-
+        Hf divides by log(2.0); 1/2 + ln(sqrt(2 pi) sigma) = ln(sqrt(2 pi e)
+        sigma), so Hf is the discrete-Gaussian differential entropy in bits; and
+        MATZOV.cost uses 2**(k_enum*H), which is dimensionally consistent only
+        with bits. All three observations are from the read source.
+      validation_plan: >-
+        Stage 0's comparison against the paper, plus the bounded-ratio check.
+        This heuristic is about a file and is settled by reading, not by
+        measurement.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. THIS PROPOSAL MOVES NO EXPONENT AND MAKES NO ASYMPTOTIC CLAIM, stated
+      plainly. It corrects constants inside an existing cost function. The
+      constants are worth stating because the comparison they feed --
+      dual versus primal at FIPS 203 parameters -- is disputed at the level of
+      single-digit bits (KN-OPEN-016), so a term of 0.5 to 1 bit is a
+      non-negligible fraction of the disputed quantity and is currently uncounted
+      in either direction.
+    memory_exponent: >-
+      Not touched. Nf models no memory, and neither does this audit; the memory
+      question is KN-OPEN-017's and GOAL-MLKEM-005's and is deliberately not
+      annexed. Recording that the audit LEAVES the memory column empty is itself
+      a Pareto statement under docs/claims-and-verification.md's requirement that
+      memory be stated beside time.
+    best_known: >-
+      EV-MLKEM-015 / KN-FIND-015 under pinned RC.MATZOV costing. Uncontested here.
+    hidden_overhead: >-
+      Item 3 is precisely a hidden-overhead audit: it asks whether the N the
+      model charges for can be produced by the sieve the model prices.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    Item 1 is dominated in ambition by any re-derivation of the dual attack's
+    advantage law from primary sources -- which would subsume it -- and stage 0
+    is exactly an attempt to find that such a re-derivation already exists in
+    MATZOV 2022 or Ducas-Pulles. NOT READ; no claim that it does not.
+    Rows checked, with what each was checked on:
+    (1) TIME -- this program's own MLKEM lane: EV-MLKEM-011 through -021,
+    EV-MLKEM-da9e3b, -50901f, -b43de0, -ba6c25, -d777f0, -2cd08b, and
+    KN-FIND-012/013/014/015/016. Batch 1 of GOAL-MLKEM-004 tested the per-vector
+    advantage law across deciles and found no trend; NOTHING tests the
+    aggregation, the units, or the ball-size consistency. Not dominating.
+    (2) TIME -- GOAL-MLKEM-003's twelve batches of estimator differencing. They
+    consumed the function's OUTPUTS and never its source. Not dominating.
+    (3) MEMORY -- no row of this comparison has been costed with memory anywhere
+    in this corpus (KN-OPEN-017 states this in its own words). The frontier is
+    incomplete on that axis and this audit does not complete it.
+    (4) DATA/QUERIES -- items 2 and 3 consume no data at all; item 1 consumes one
+    already-archived file. Nothing is cheaper.
+    (5) EXTERNAL -- Ducas-Pulles (KN-LIT-111) and Carrier et al. (KN-LIT-7617),
+    both NOT READ, either of which may already contain item 1's correction.
+    Recorded as candidate dominators pending stage 0.
+    A bare `null` here would be a fabrication under AGENTS.md rule 5.
+  sota_delta: >-
+    No attack, no speedup, no exponent. Quantitatively the deliverable is three
+    signed numbers: -2 log2(rho) bits on Nf's sample count (sign forced
+    NEGATIVE, i.e. toward the attack); at most +0.529 bits currently charged by a
+    units mismatch (sign forced POSITIVE, i.e. against the attack, and exactly
+    zero when k_enum = 0); and a boolean domain-of-validity statement for the
+    length model at each cited parameter set. Against KN-OPEN-016's disputed
+    3.5 / 11.9 / 12.3 bits these are 4 to 30 per cent of the quantity in dispute,
+    and they currently sit uncounted on both sides.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    0.95 that items 2 and 3 are settled decisively, because both are decided by
+    reading and by comparing printed numbers, and the estimator already runs in
+    this repository under a Sage-free shim with an exact-equality control.
+    0.85 that item 1's SIGN survives review, because it follows from monotonicity
+    on a bounded support and needs no heuristic.
+    0.40 that item 1's MAGNITUDE at crypto scale survives review, and that number
+    is deliberately low: it rests on the ball law, and the ball law is exactly
+    the kind of inherited heuristic this program's own T-E template says goes
+    unvalidated. Why not lower: the model is checkable against an archived
+    database at zero cost, five planted-exponent controls price the estimator,
+    and the disposition on failure is fixed before the fit. Why not higher: a real
+    g6k database is saturated and trimmed, the archived pool is one database at
+    one dimension, and a single-dimension fit cannot distinguish a wrong exponent
+    from a finite-size effect -- which is why the dimension sweep is named as an
+    optional stage rather than claimed as done.

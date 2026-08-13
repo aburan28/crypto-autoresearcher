@@ -1,0 +1,187 @@
+validation_report:
+  id: VAL-20260803-029
+  task_id: TASK-20260803-029
+  run_id: RUN-IT-001-rc47
+  batch_id: BATCH-047
+  experiment_id: EXP-IT-001
+  hypothesis_id: H-IT-001
+  goal_id: GOAL-ECDLP-001
+  amendment_id: PA-IT-001-v3-rc45-repair-5
+  snapshot_commit: be21c53c58cb64eb882cc27954bc74f7d33f9c82
+  run_execution_commit: 3362bab5e1c41287dd090255c9327ebf94d54a5b
+  run_execution_dirty: true
+  verdict: COMPLETED_VALID_SCOPED
+  blocks_ledger_record: false
+
+  findings:
+    - id: F-1
+      subject: BF-1 closure — CTRL-ANOMALOUS-TRACE1
+      status: CLOSED
+      detail: >-
+        anomalous_trace1_certificate.json has verified: true. Curve parameters:
+        p=771853 (prime, independently confirmed via sympy.isprime), N=p=771853
+        (so #E(F_p)=p), trace=1 (Smart anomalous condition: t = p+1-#E = 1).
+        c_special_formula_id: C_special_smart is recorded in both the certificate
+        and the manifest. Validator independently computed C_special_smart =
+        ceil(8 * log2(771853)) = ceil(8 * 19.558) = ceil(156.46) = 157, matching
+        the certificate exactly. matched_rho = ceil(0.886 * sqrt(771853)) =
+        ceil(0.886 * 878.78) = ceil(778.6) = 779, matching the certificate.
+        C_special_smart / matched_rho = 157/779 = 0.2015 < 0.7: the Smart
+        formula alone cannot falsely inflate R_xfer above the gate threshold,
+        satisfying the headroom requirement. Stdout log confirms: "BF-1 PASS:
+        p=771853 N=771853 trace=1 C_special_smart=157 headroom=622". The
+        forbidden quadratic formula (20*(log2 N)^2) and MOV formulas are not
+        used as the anomalous pass threshold. BF-1 void from BATCH-046 is CLOSED.
+
+    - id: F-2
+      subject: BF-2 closure — CTRL_NULL_IT_PLANT edge ledger
+      status: CLOSED
+      detail: >-
+        null_plant_edge_ledger.json is non-empty: 48 rows (well above the
+        >=1 row requirement). Stdout log confirms "BF-2: running
+        recompute_null_plant_from_ledger.py on null plant cell edge data" and
+        "BF-2 PASS: null_plant_edge_ledger.json has 48 rows", confirming the
+        script was invoked against raw edge data during the run. Validator
+        independently ran recompute_null_plant_from_ledger.py against
+        null_plant_edge_ledger_raw.json (48 edges) with --c-search 48
+        --c-path-reported 268, obtaining: C_eval=1024, C_path_recomputed=1072,
+        C_path_reported=268, plant_detected=true, plant_detection_eps=0 — matching
+        the ledger exactly. BF-2 void from BATCH-046 is CLOSED.
+
+    - id: F-3
+      subject: BF-3 closure — CTRL-NULL-PACKAGING-GATE
+      status: CLOSED
+      detail: >-
+        manifest.ctrl_null_packaging_gate_passed: true. raw-result BF3_gate_test
+        records: gate_rejects_synthetic: true, gate_accepts_synthetic: false,
+        synthetic_rxfer_tested: 0.5 (< 0.7), synthetic_null_gate_pass_value: null.
+        Gate logic: "accept iff R_xfer < 0.7 AND null_gate_pass is True; synthetic
+        claim has null_gate_pass=None → rejected". BF-3 void from BATCH-046 is CLOSED.
+
+    - id: F-4
+      subject: provenance binding
+      status: CLOSED
+      detail: >-
+        manifest.batch_id: BATCH-047 and manifest.task_id: TASK-20260803-027
+        are correctly bound. raw-result.batch_id: BATCH-047, raw-result.task_id:
+        TASK-20260803-027. execution_report path correctly references BATCH-047.
+        No prior-batch references in binding fields.
+
+    - id: F-5
+      subject: rho_special=0.0 and R_xfer interpretation for unplanted curves
+      status: PARTIAL
+      detail: >-
+        rho_special=0.0 at ALL three bit sizes (20, 24, 28), with special_count=0
+        and F_hit=0.0 at every hop distance. All 21 unplanted curves have
+        heur_stop_reason="censored_consistent_with_density_freeze_rho_zero",
+        C_special=0 (modeled), C_pullback=0 (modeled), certificate_pass=false,
+        and null_gate_pass=null. R_xfer values are computed in mode=
+        "censorship_lower_bound", meaning R_xfer = C_path / matched_rho where
+        C_path is only the gate BFS search cost. The observation that
+        "19/21 unplanted curves show R_xfer < 1.0" is NOT a transfer claim.
+        These values say nothing about transfer feasibility. Correctly labeled.
+        SCOPED CONCERN: The R_xfer metric as a transfer ratio is structurally
+        undefined when the density universe contains no special curves. The
+        ledger record must state this limitation explicitly.
+
+    - id: F-6
+      subject: planted path control validity (CTRL-PLANTED-PATH-POS)
+      status: PARTIAL
+      detail: >-
+        The "no rational 2-isogeny" comment in anomalous_trace1_certificate.json
+        refers ONLY to the anomalous curve (j=823, p=771853) and does NOT void
+        the planted path control, which uses a different curve family and a
+        different field prime. The planted path control uses endpoint_j=415112
+        in a prime field p approx 2097169 (bits approx 21). path_edges confirms
+        a ell=2 isogeny from j=415112 to j=1032394 was found, planted_path_recovered=true,
+        certificate_pass=true, n_hops_planted=4, H_min=1 >= 1 (FIX-3 min_hops
+        requirement satisfied), path non-empty, endpoint j=1032394 != search
+        start j=415112.
+        SCOPED CONCERN: start_det for the BFS start j=415112 shows any_special=true
+        (embedding_degree_leq_threshold=true, embedding_degree=1). This means the
+        BFS search starts at a curve that is ITSELF already special. Since
+        trace/group-order is an isogeny-class invariant for ordinary curves, the
+        planted walk traverses curves all having the same group order — the control
+        demonstrates path-finding WITHIN special isogeny classes, NOT transfer from
+        a generic non-special curve to a special target. This is consistent with
+        rho_special=0. Ledger record must not cite planted_path_recovered=true as
+        evidence of generic-to-special transfer capability.
+
+    - id: F-7
+      subject: claim ceiling
+      status: CLOSED
+      detail: >-
+        No artifact claims a crypto-scale ECDLP improvement, asymptotic bound,
+        or H-IT-001 status change. claim_tier: toy in manifest. sota_delta: all
+        three axes not_applicable in both manifest and raw-result.
+        dominated_by: "Pollard rho at exponent 1/2 (matched negation)" in both.
+        All four asymptotic-claim promotion gates remain open.
+
+    - id: F-8
+      subject: protocol deviation — driver modification
+      status: PARTIAL
+      detail: >-
+        run_bounded_toy.py was modified (dirty M entry in git status). The
+        actual command includes flags (--batch-id, --task-id, --mode smoke_then_measure)
+        not in the amendment's frozen command template. However, these are
+        explicitly specified in the BATCH-047 task card (TASK-20260803-027.md)
+        which is a Coordinator-authorized document. The driver modification is
+        transparent and recorded in dirty_entries_sample. The manifest's
+        protocol_deviations: [] field understates these deviations.
+        REMAINING CONCERN: Ledger record must cite TASK-20260803-027 task card
+        as the authorizing instrument and note the protocol_deviations field
+        inaccuracy.
+
+  required_narrowings:
+    - id: RN-1
+      applies_to: F-5
+      requirement: >-
+        Ledger evidence record must state that rho_special=0.0 at all tested
+        bit sizes renders R_xfer for unplanted curves structurally undefined as
+        a transfer ratio. The reported values are censorship lower bounds (gate
+        BFS cost / matched_rho) only. No H-IT-001 support, weakening, or
+        transfer mechanism inference may be drawn from these measurements.
+
+    - id: RN-2
+      applies_to: F-6
+      requirement: >-
+        Ledger evidence record must not cite planted_path_recovered=true as
+        evidence of generic ECDLP to special-curve transfer. The planted path
+        control starts from a special curve (embedding_degree=1) and operates
+        within special isogeny classes (class-invariant property of group order).
+        Consistent with DEC-20260803-004.
+
+    - id: RN-3
+      applies_to: F-8
+      requirement: >-
+        Ledger evidence record must note that manifest.protocol_deviations: []
+        understates command deviations from the amendment's frozen strings.
+        Cite TASK-20260803-027 task card as the authorizing instrument for the
+        --batch-id, --task-id, --mode smoke_then_measure additions and the
+        differing seed/run-id.
+
+  metric_recomputation_notes:
+    - subject: C_special_smart at bits=20
+      computed_value: 157
+      reported_value: 157
+      match: true
+    - subject: matched_rho at N_star=771853
+      computed_value: 779
+      reported_value: 779
+      match: true
+    - subject: BF-2 recompute validation
+      C_path_recomputed: 1072
+      edge_count: 48
+      plant_detected: true
+      match: true
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    reasoning_effort: xhigh
+    fallback_used: false
+    independent_session: true
+    model_verified: false
+
+  reviewed_at: "2026-08-04"
+  reviewer_role: validator

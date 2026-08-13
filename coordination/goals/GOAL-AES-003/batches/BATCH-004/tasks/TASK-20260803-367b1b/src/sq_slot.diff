@@ -1,0 +1,27 @@
+--- src/sq_null.c	2026-08-02 22:44:14.536400741 +0000
++++ src/sq_slot.c	2026-08-02 22:45:36.825351801 +0000
+@@ -649,14 +649,22 @@
+     uint8_t key[16], hkey[16]; hex2bin(argv[2],key,16); hex2bin(argv[3],hkey,16);
+     int rounds=atoi(argv[4]); int nstruct=atoi(argv[5]); unsigned seed=(unsigned)strtoul(argv[6],0,10);
+     int nthreads=atoi(argv[7]); int nwrong=atoi(argv[8]);
++    /* TASK-20260802-447db8 RANK 4: optional SLOT BITMASK semantics. With the
++       literal 9th argument "mask", argv[8] is a bitmask over slots t=0,1,2
++       instead of a prefix length. Without it, slotmask=(1<<nwrong)-1 reproduces
++       the original prefix semantics EXACTLY. This is the only behavioural
++       change made to sq_null.c. */
++    int slotmask = (argc>9 && !strcmp(argv[9],"mask")) ? nwrong : ((1<<nwrong)-1);
+     build_gm(); ni_key_expand(key); srand(seed);
+     uint8_t rk[11][16], hrk[11][16]; key_expand(key,rk,11); key_expand(hkey,hrk,11);
+     uint8_t hint[4][3];
+     for(int d=0;d<4;d++) for(int t=0;t<3;t++)
+-        hint[d][t] = (t<nwrong) ? hrk[rounds][DIAGP[d][t]] : rk[rounds][DIAGP[d][t]];
++        hint[d][t] = ((slotmask>>t)&1) ? hrk[rounds][DIAGP[d][t]] : rk[rounds][DIAGP[d][t]];
+     static uint8_t cand[4][4][256][256]; memset(cand,1,sizeof cand);
+     double t0=now(); uint64_t total=0;
+-    printf("{\"mode\":\"attack6n\",\"rounds\":%d,\"target_key\":\"",rounds); phex(key,16);
++    printf("{\"mode\":\"attack6n\",\"slotmask\":%d,\"false_slots\":[%s%s%s],\"rounds\":%d,\"target_key\":\"",
++        slotmask,(slotmask&1)?"0":"",((slotmask&2)?((slotmask&1)?",1":"1"):""),
++        ((slotmask&4)?((slotmask&3)?",2":"2"):""),rounds); phex(key,16);
+     printf("\",\"hint_key\":\""); phex(hkey,16);
+     printf("\",\"seed\":%u,\"nstruct\":%d,\"nthreads\":%d,\"hint_bytes_per_diagonal\":3,\"structures\":[",seed,nstruct,nthreads);
+     for(int s=0;s<nstruct;s++){

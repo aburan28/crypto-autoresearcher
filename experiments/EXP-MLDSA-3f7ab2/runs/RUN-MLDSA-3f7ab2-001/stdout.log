@@ -1,0 +1,190 @@
+EXP-MLDSA-3f7ab2 RUN-MLDSA-3f7ab2-001
+Arithmetic Re-Derivation: SelfTargetMSIS Margin at TCHES 2018 Parameter Sets
+Executor: TASK-20260805-9aed15 (BATCH-214d98, GOAL-MLDSA-001)
+Model: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+Policy: executor-implementation
+Timestamp: 2026-08-05
+FIPS 204 scope note: All results use academic parameter sets from KN-LIT-056 TCHES 2018.
+NOT labeled as FIPS 204 ML-DSA parameters (DEC-20260805-0d59ff gate-1).
+
+=== STEP 1: PARAMETER EXTRACTION FROM KN-LIT-056 ===
+
+Accessed: https://tches.iacr.org/index.php/TCHES/article/download/839/791
+File size: 768625 bytes. pdftotext extraction successful.
+Full text read: YES. Table 2 located at text offset ~28204.
+
+--- KN-LIT-056 Table 2 (verbatim structure) ---
+  "Table 2: Parameters for Dilithium."
+  Columns: weak | medium | recommended | very high
+
+  q:          8380417 | 8380417 | 8380417 | 8380417
+  d:          14      | 14      | 14      | 14
+  weight of c: 60     | 60      | 60      | 60         <== tau = 60 for ALL sets
+  gamma1:     523776  | 523776  | 523776  | 523776
+  gamma2:     261888  | 261888  | 261888  | 261888
+  (k, l):     (3,2)   | (4,3)   | (5,4)   | (6,5)
+  eta:        7       | 6       | 5       | 3
+  beta:       375     | 325     | 275     | 175
+  omega:      64      | 80      | 96      | 120
+
+  BKZ block-size b to break SIS:
+              235     | 355     | 475     | 605
+  Best Known Classical bit-cost (SIS):
+              68      | 103     | 138     | 176
+  Best Known Quantum bit-cost (SIS):
+              62      | 94      | 125     | 160
+  Best Plausible bit-cost (SIS):
+              48      | 73      | 98      | 125
+
+  BKZ block-size b to break LWE:
+              200     | 340     | 485     | 595
+  Best Known Classical bit-cost (LWE):
+              58      | 100     | 141     | 174
+  Best Known Quantum bit-cost (LWE):
+              53      | 91      | 128     | 158
+  Best Plausible bit-cost (LWE):
+              41      | 71      | 100     | 124
+--- End of Table 2 ---
+
+CRITICAL DISCREPANCY WITH IDEA-GENERATOR ESTIMATES:
+  Idea-generator unverified: tau~39 (ML-DSA-44), ~49 (ML-DSA-65), ~60 (ML-DSA-87)
+  Verified from Table 2:     tau=60 for ALL FOUR SETS
+  Idea-generator unverified: ML-DSA-87 with (k=8, l=7)
+  Verified from Table 2:     Maximum is (k=6, l=5); k=8, l=7 NOT PRESENT in TCHES 2018
+  Note: ML-DSA-44/65/87 naming is from FIPS 204 (standardized 2024), NOT from KN-LIT-056.
+  Arithmetic will use verified TCHES 2018 parameter sets.
+
+=== STEP 2: BKZ COST MODEL IDENTIFICATION ===
+
+Citation from KN-LIT-056 Section 4.3:
+  "We follow the general methodology from [ADPS16, BCD+16] to analyze the security
+  of our signature scheme, with minor adaptations."
+  [ADPS16] = Alkim, Ducas, Pöppelmann, Schwabe (2016) "Post-quantum key exchange --
+             a new hope"
+  [BCD+16] = Bos, Costello, Ducas et al. (2016) "Frodo: Take off the ring!"
+
+Cost formula identified (verified by cross-checking Table 2):
+  Classical:     cost ≈ 0.292 * beta  bits
+  Quantum:       cost ≈ 0.265 * beta  bits
+  Best plausible: cost ≈ 0.207 * beta bits
+
+Cross-validation (all four parameter sets, SIS/MSIS):
+  weak (beta_SIS=235):        0.292*235=68.62~68 ✓, 0.265*235=62.28~62 ✓, 0.207*235=48.64~48 ✓
+  medium (beta_SIS=355):      0.292*355=103.66~103 ✓, 0.265*355=94.08~94 ✓, 0.207*355=73.49~73 ✓
+  recommended (beta_SIS=475): 0.292*475=138.70~138 ✓, 0.265*475=125.88~125 ✓, 0.207*475=98.33~98 ✓
+  very_high (beta_SIS=605):   0.292*605=176.66~176 ✓, 0.265*605=160.33~160 ✓, 0.207*605=125.24~125 ✓
+All values agree within 1 bit. BKZ model correctly identified.
+
+BKZ model ambiguity: NONE (single model, CTRL-2 not applicable).
+
+=== STEP 3: log2|C| COMPUTATION ===
+
+Challenge set C = { c in R_q : deg(c) < n, exactly tau coefficients are +/-1, rest zero }
+|C| = C(n, tau) * 2^tau   (binomial coefficient * sign choices)
+log2|C| = log2(C(n, tau)) + tau
+
+Parameters: n=256, tau=60 (SAME for all four parameter sets)
+
+C(256, 60) = 202929899521004920281576448432233382754299099020348543566400
+log2(C(256, 60)) = 197.0147 bits   (computed: Python math.comb() + math.log2())
+log2|C| = 197.0147 + 60 = 257.0147 bits
+
+Note: tau=60 is IDENTICAL for all four TCHES 2018 parameter sets.
+Therefore log2|C| = 257.01 bits for ALL sets (weak, medium, recommended, very_high).
+
+=== STEP 4: SELFTARGETMSIS ESTIMATE (APPLYING SPECIFICATION FORMULA) ===
+
+Specification formula: cost_SelfTargetMSIS = cost_MSIS + log2|C|
+
+Note on formula provenance:
+  This formula is from IDEA-20260805-3f7ab2, NOT from KN-LIT-056.
+  KN-LIT-056 Appendix C.3 says: "best known attack [on SelfTargetMSIS] involves
+  either breaking the security of H or solving the MSISk,l+1,zeta problem for
+  [A | t0]." In the paper's analysis, SelfTargetMSIS ~ MSIS (comparable cost).
+  The formula treats log2|C| as an additive cost component (hash programmability);
+  this interpretation may differ from the paper's analysis.
+
+Results (all applying classical cost_MSIS from Table 2):
+  weak:        cost_MSIS=68 + log2|C|=257.01 = 325.01 bits
+  medium:      cost_MSIS=103 + log2|C|=257.01 = 360.01 bits
+  recommended: cost_MSIS=138 + log2|C|=257.01 = 395.01 bits
+  very_high:   cost_MSIS=176 + log2|C|=257.01 = 433.01 bits
+
+Discrepancy (formula vs paper MSIS estimate):
+  All four sets: +257.01 bits (formula gives HIGHER estimate than MSIS alone)
+  This is the log2|C| component. The formula produces estimates well above
+  the MSIS estimates in Table 2.
+
+Dominant component at all parameter sets: log2|C| (257 bits) >> cost_MSIS (68-176 bits)
+
+=== STEP 5: RESULTS TABLE ===
+
+Parameter set | k | l | tau | cost_MSIS_cl | log2|C| | formula_SelfTarget_cl | MSIS_NIST_target_cl | dominant
+weak          | 3 | 2 |  60 |    68 bits   | 257.01  |       325.01 bits     |  48-68 bits (Cat1~)  | hash
+medium        | 4 | 3 |  60 |   103 bits   | 257.01  |       360.01 bits     |  73-103 bits (Cat2~) | hash
+recommended   | 5 | 4 |  60 |   138 bits   | 257.01  |       395.01 bits     |  98-138 bits (Cat3~) | hash
+very_high     | 6 | 5 |  60 |   176 bits   | 257.01  |       433.01 bits     | 125-176 bits (Cat5~) | hash
+
+Binding assumption (from paper, Section 4.2):
+  "SelfTargetMSIS is the assumption upon which new message forgery is based."
+  Paper says SelfTargetMSIS >= MSIS (harder); best attack reduces to MSIS_{k,l+1,zeta}.
+  In Table 2, the SIS cost estimate appears to correspond to the SelfTargetMSIS
+  analysis (k, l+1 dimensions), making it ALREADY the SelfTargetMSIS estimate.
+
+SelfTargetMSIS vs MSIS hardness (from KN-LIT-056):
+  Section 4.2: "there is a (non-tight) reduction from MSIS to SelfTargetMSIS"
+  --> SelfTargetMSIS is AT LEAST AS HARD as MSIS
+  --> "SelfTargetMSIS is HARDER than (or equivalent to) MSIS" per KN-LIT-056
+
+=== KN-LIT-3907 TIGHTNESS LOSS ===
+
+Request: CMA-to-NMA tightness loss factor T from KN-LIT-3907.
+KN-LIT-3907 access: BLOCKED (full text inaccessible).
+KN-LIT-3907 abstract excerpt:
+  "We provide new, fixed proofs for the affected CMA-to-NMA reduction, both for the
+  ROM and the QROM, and we perform a concrete security analysis for the case of
+  Dilithium to show that the claimed security level is still valid after addressing
+  the gap."
+
+Tightness loss T: NOT DERIVABLE FROM ABSTRACT ALONE
+Corrected estimate = stated_bits - log2(T): CANNOT COMPUTE (data_gap: GAP-1)
+
+=== CTRL-1: MLWE COST REDERIVATION (CALIBRATION CONTROL) ===
+
+MLWE rederivation using same ADPS16 model:
+  weak:        beta_LWE=200, formula=0.292*200=58.4~58, paper=58, delta=0 ✓
+  medium:      beta_LWE=340, formula=0.292*340=99.3~100, paper=100, delta=0 ✓
+  recommended: beta_LWE=485, formula=0.292*485=141.6~141, paper=141, delta=0 ✓
+  very_high:   beta_LWE=595, formula=0.292*595=173.7~174, paper=174, delta=0 ✓
+
+CTRL-1 STATUS: PASSED (delta <= 1 bit at all sets; within specified 5-bit threshold)
+BKZ model calibration confirmed: ADPS16 model correctly reproduces published MLWE estimates.
+
+MLWE vs MSIS comparison (classical, from Table 2):
+  weak:        MLWE=58, MSIS=68; MSIS slightly harder
+  medium:      MLWE=100, MSIS=103; broadly comparable
+  recommended: MLWE=141, MSIS=138; MLWE slightly harder
+  very_high:   MLWE=174, MSIS=176; broadly comparable
+Conclusion: MLWE and MSIS are broadly comparable at all four TCHES 2018 parameter sets.
+
+=== CTRL-2: BKZ MODEL SENSITIVITY ===
+Not applicable: single model (ADPS16) identified with no ambiguity.
+
+=== SUMMARY ===
+
+KN-LIT-056 access: FULL TEXT ACCESSED (TCHES 2018 PDF)
+Parameter table: VERIFIED from Table 2
+
+Key observations (RECORDED, NOT STATED AS FINDINGS):
+1. tau=60 for ALL parameter sets in TCHES 2018 (idea-generator tau estimates falsified)
+2. ML-DSA-87 (k=8, l=7) not present in TCHES 2018 (FIPS 204 naming)
+3. BKZ cost model: ADPS16, cost ≈ 0.292β bits (classical), verified against all Table 2 entries
+4. log2|C| = 257.01 bits (tau=60, n=256, all sets)
+5. Specification formula cost_SelfTargetMSIS = cost_MSIS + log2|C| yields 325-433 bits
+   (this formula is from IDEA-20260805-3f7ab2, not from KN-LIT-056)
+6. Paper treats SelfTargetMSIS ≥ MSIS (harder); best attack reduces to MSIS_{k,l+1}
+7. KN-LIT-3907 tightness loss T: not derivable from abstract alone (data_gap: GAP-1)
+8. CTRL-1 passes: MLWE estimates reproduced within 1 bit at all sets
+9. MLWE and MSIS broadly comparable at all TCHES 2018 parameter sets
+
+states_a_finding: false

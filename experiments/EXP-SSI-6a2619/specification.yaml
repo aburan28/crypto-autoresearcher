@@ -1,0 +1,430 @@
+experiment:
+  id: EXP-SSI-6a2619
+  version: 1
+  status: approved
+  frozen: true
+  execution_authorized: true
+  evidence_eligible: true
+  hypothesis_id: H-SSI-df550b
+  question_id: RQ-SSI-001
+  goal_id: GOAL-SSI-001
+  source_proposal: IDEA-20260805-062bee
+  title: >-
+    Toy-scale census of the minimal L-smooth Frobenius-conjugate isogeny degree over the
+    supersingular graph: measure (beta, gamma) in F(D)/N ~ c D^beta p^{-gamma} against a
+    matched random-target null, an exact delta = 1 positive control, and an exact 4^k envelope
+
+  objective: >-
+    If separately approved, frozen and authorized, construct the full supersingular
+    j-invariant set over F_{p^2} at four declared primes, build the ell-isogeny graph for
+    ell in a declared set L, and measure the cumulative distribution of delta_L(E), the
+    minimal L-smooth isogeny degree from E to its Frobenius conjugate E^{(p)}. Fit the two
+    exponents (beta, gamma) and report them against pre-registered forced values, against a
+    matched null in which the target is a uniformly random supersingular curve, and against
+    an exact positive control and an exact upper envelope. The purpose is to measure the
+    distribution whose covering threshold equals, by the derived identity of H-SSI-df550b,
+    the time exponent of the best-known algorithm for the supersingular endomorphism problem.
+
+  what_this_is_not:
+    - Not an isogeny-path computation, not an endomorphism-ring recovery, not an attack.
+    - Not an algorithm. No new algorithm is implemented, proposed, or benchmarked here.
+    - >-
+      Not a test of, and not evidence about, Theorem 1.5 of
+      inputs/P13-WESOLOWSKI-2026/paper_fulltext.md. That theorem is an EXISTENCE bound proved
+      for every curve; no distributional measurement can bear on it, and any output that
+      reads as if it does is malformed.
+    - >-
+      Not a test of, and not evidence about, Heuristic 1 of that paper, which concerns the
+      SMOOTHNESS of the minimal degree. This experiment measures its SIZE. The two are
+      independent and neither validates the other.
+    - Not a cryptographic-scale claim, not a cost claim, not a security claim, not a parameter recommendation.
+    - Not approval, freezing, execution authorization, a run, an observation, or evidence.
+    - Not a status change to any existing record, hypothesis, decision, or open problem.
+
+  claim_ceiling: >-
+    TIER toy. A completed run could support, at most: measured values of (beta_hat,
+    gamma_hat) for the L-SMOOTH minimal Frobenius-conjugate degree, over supersingular
+    graphs at p in {503, 1019, 2003, 4003} with p = 3 mod 4, for L = {2, 3} (optionally
+    {2,3,5,7}), on the declared graph construction, with the declared arms and controls. It
+    could NOT support any statement about unrestricted delta, about any prime outside the
+    tested set, about p = 1 mod 4, about any complexity bound, about any exponent of any
+    algorithm at cryptographic scale, or about KN-OPEN-013. AGENTS.md rule 7 applies without
+    exception and no downstream citation may raise this tier.
+
+  environment_check_performed_at_design_time:
+    measured_in_this_session_outside_the_harness: true
+    numpy: "2.4.6 -- `import numpy` SUCCEEDS"
+    sympy: "ABSENT -- `import sympy` raises ModuleNotFoundError"
+    sage: "ABSENT -- `import sage` fails"
+    consequence: >-
+      The contract uses NO computer-algebra system. Every step is pure Python plus numpy
+      integer arithmetic. This resolves, for this contract only and by direct measurement,
+      the environment disagreement recorded in the 2026-08-05 scouting brief; the executor
+      MUST re-record these three checks in the run manifest rather than inheriting them.
+
+  inputs:
+    primes: [503, 1019, 2003, 4003]
+    prime_condition: >-
+      p = 3 mod 4, so that F_{p^2} = F_p[i] with i^2 = -1 and j = 1728 is supersingular.
+      Each declared prime is checked for primality and for p mod 4 == 3 at load; a failure is
+      a CONSTRUCTION_FAILURE for that cell and no substitute prime may be chosen.
+    field_bits_per_cell:
+      "503": 18
+      "1019": 20
+      "2003": 22
+      "4003": 24
+    field_bits_note: >-
+      field_bits is recorded as ceil(2*log2(p)) (the size of F_{p^2}) in every run manifest,
+      so that the claim-tier machinery in tools/validate_ledger.py can compute a tier from the
+      run rather than falling through on a missing field.
+    ell_set_L: [2, 3]
+    ell_set_L_optional: [5, 7]
+    ell_set_note: >-
+      L = {2, 3} is REQUIRED. Extending to {2,3,5,7} is OPTIONAL and, if run, is reported as a
+      separate graded cell in L rather than merged, so that the L-dependence of beta_hat is
+      visible.
+    D_window: "1 <= D <= floor((p/2)^(1/3))"
+    D_grid: >-
+      All integers D in the window that are representable as L-smooth degrees, i.e. all
+      L-smooth integers in [1, floor((p/2)^(1/3))], in increasing order. The grid is derived
+      from p and L alone and contains no free choice.
+    master_seed: 6262019
+    domain: "EXP-SSI-6a2619/v1"
+    seed_encoding: >-
+      ASCII bytes of domain || "|" || label || "|" || decimal(p) || "|" || decimal(counter),
+      hashed with SHA-256; digest integers are interpreted big-endian unsigned. The only
+      randomness in the whole contract is the null arm's target selection, label "null-target".
+    null_target_draw: >-
+      For each curve index i in the canonical ordering, draw t_i uniformly from
+      {0, ..., |S|-1} by rejection sampling on SHA-256 digests with label "null-target" and
+      counter i, discarding values at or above floor(2^256/|S|)*|S|. The null target for
+      curve i is S[t_i]. Self-targets (t_i equal to i) are RETAINED, not resampled: excluding
+      them would bias the D = 1 bin, which is the arm's most informative bin.
+
+  declared_deterministic_construction:
+    design_status: declared_only_not_implemented_or_observed
+    vertex_set_construction_A:
+      name: deuring_hasse_roots
+      method: >-
+        Let m = (p-1)/2 and H(lambda) = sum_{i=0}^{m} binom(m,i)^2 lambda^i over F_p.
+        Evaluate H at every lambda in F_{p^2} = F_p[i] by vectorised Horner in numpy int64
+        (all intermediate products are below p^2 < 2^48 and are reduced mod p at every step).
+        Retain the roots. Map each root to a j-invariant by
+        j = 256 * (l^2 - l + 1)^3 / (l^2 * (l-1)^2), with the inverse computed by
+        multiplying by the conjugate and inverting the F_p-norm via Fermat. Collect the
+        distinct j values.
+      terminal_rule: >-
+        If the retained j-set is empty, or if any norm inversion encounters a zero norm at a
+        retained root, terminate that cell as CONSTRUCTION_FAILURE. Do not skip the root, do
+        not perturb lambda, do not change the prime.
+    vertex_set_construction_B:
+      name: phi2_bfs_from_1728
+      method: >-
+        Breadth-first search from j = 1728 over F_{p^2}, expanding by the roots of the
+        classical modular polynomial Phi_2(X, j) (a cubic in X), root-finding by equal-degree
+        splitting over F_{p^2} rather than by exhaustive search.
+      terminal_rule: >-
+        If the search does not terminate within the declared budget, record the cell's
+        construction B as INCOMPLETE. This is an infrastructure outcome and NEVER a
+        mathematical result; construction A's set is then used, and the agreement control for
+        that cell is reported as NOT PERFORMED rather than as passed.
+    construction_agreement_gate: >-
+      Where both constructions complete, the two j-sets must be EXACTLY EQUAL as sets. A
+      mismatch is an integrity failure that terminates the package as invalid_measurement.
+      Both sets are hash-committed (SHA-256 over the canonical sorted decimal
+      "a,b\n" encoding of each j = a + b*i).
+    sanity_invariants_checked_before_any_measurement:
+      invariants:
+        - "|S| is within 2 of floor(p/12) + 1."
+        - "S is closed under Frobenius conjugation (a, b) -> (a, -b mod p)."
+        - "The ell = 2 graph on S is connected."
+        - >-
+          Every j in S with b = 0 (i.e. j in F_p) is its own conjugate. This is the
+          precondition of the positive control and is checked before the control is
+          evaluated.
+      note: >-
+        All four invariants were confirmed at p = 103, 251, 503, 1019 in a design-time
+        feasibility probe run OUTSIDE THE HARNESS in this session (|S| = 9, 22, 43, 86
+        against floor(p/12)+1 = 9, 21, 42, 85; closure under conjugation true at all four;
+        the 2-isogeny graph connected at all four). THOSE NUMBERS ARE SCOUT-COMPUTED AND MUST
+        BE RE-MEASURED IN-HARNESS; they are recorded here as feasibility evidence for the
+        budget, not as results.
+    edge_construction: >-
+      For each ell in L, an undirected edge {j1, j2} exists exactly when Phi_ell(j1, j2) = 0
+      in F_{p^2}, tested over all ordered pairs from S. Self-loops (Phi_ell(j, j) = 0) are
+      retained as loops of weight log ell and do not affect distances. Phi_2 and Phi_3 are the
+      classical modular polynomials, transcribed with a hash and independently re-checked by
+      verifying that every vertex has between 1 and ell+1 distinct neighbours.
+    edge_multiplicity_limitation: >-
+      A pairwise vanishing test yields a SIMPLE graph: edge multiplicities are collapsed.
+      delta_L is an EXISTENCE quantity, so multiplicities do not affect it, but this
+      limitation is recorded because it would matter for any later counting measurement on
+      the same artifact.
+    distance_computation: >-
+      log delta_L(E, target) = the Dijkstra shortest-path distance from E to the target with
+      edge weight log(ell) for an ell-edge. delta_L is recovered as the exact integer product
+      of the ell values along the recorded path, computed in exact integer arithmetic and NOT
+      by exponentiating the float distance. Ties are broken by the canonical vertex ordering.
+
+  arms_and_controls:
+    treatment: >-
+      For every E in S, target = E^{(p)}, i.e. the conjugate j-invariant (a, -b mod p).
+      Measure delta_L and record it. Emit F_L(D) = #{E : delta_L(E) <= D} on the D grid.
+    measured_null: >-
+      For every E in S, target = a uniformly random member of S drawn by the declared seed
+      rule. Measure delta_L with the IDENTICAL code path and emit F_L_null(D) on the
+      IDENTICAL D grid. FORCED VALUES DERIVED BEFORE THE RUN: (beta, gamma) = (2, 1), hence
+      covering exponent gamma/beta = 1/2, which is the classical Delfs-Galbraith exponent.
+      This null CAN FAIL in both directions and is not decoration.
+    ordering_control: >-
+      The null arm is generated, measured, fitted and HASH-COMMITTED IN FULL -- including its
+      beta_hat_null and gamma_hat_null -- before any treatment-arm distance is computed or
+      looked at. Absence of that commitment is invalid_measurement. If the fitting rule
+      applied to the null does not produce a number in a plausible range at all, the rule is
+      rewritten BEFORE the treatment arm is read, and the rewrite is recorded.
+    positive_control: >-
+      Every E in S with j(E) in F_p must return delta_L(E) = 1 EXACTLY, because E is
+      isomorphic to E^{(p)} there and the identity is a separable isogeny of degree 1.
+      Required rate: 1.000, exactly. IF THIS FAILS, THE INSTRUMENT CANNOT DETECT SMALL
+      DEGREES AND NO NEGATIVE RESULT MAY BE REPORTED FROM ANY ARM OF THAT CELL.
+    envelope_control: >-
+      For each E, let k(E) be the ell = 2 graph distance from E to the nearest F_p-rational
+      vertex. Then delta_L(E) <= 4^{k(E)} is FORCED by the derived Lipschitz law
+      delta(E') <= m^2 delta(E) with witness w^{(p)} o phi o w_hat. Required violations: 0.
+      A single violation HALTS the run before any slope is reported.
+    graded_control: >-
+      Bucket S by k(E) = 0, 1, 2, 3, ... and report, per bucket: bucket size, median
+      delta_L, maximum delta_L, and the envelope 4^k. At least 3 interior buckets must be
+      populated for the graded control to count as performed. Pre-registered: median delta_L
+      is NON-DECREASING in k. A non-monotone bucket localises the obstruction to that shell.
+    predicted_law_control: >-
+      Before any measurement, compute in EXACT INTEGER/RATIONAL ARITHMETIC, for each (p, D)
+      cell, the L-smooth restricted prediction
+      F_L_pred(D) = K * sqrt(p) * sum_{d <= D, d L-smooth} sqrt(d), with K fitted ONCE per
+      prime by matching total mass at the top of the D window and reported explicitly as a
+      fitted nuisance constant. THE CONSTANT K IS NOT PRE-REGISTERED AND MUST NOT BE
+      PRESENTED AS ONE: the multiplicity bookkeeping behind it (optimal-embedding counts,
+      Galois / Atkin-Lehner identification, h versus 2h) is NOT derived in H-SSI-df550b. Only
+      the two EXPONENTS are pre-registered.
+    comparability_policy: >-
+      Cross-prime comparison of beta_hat is permitted and is the gamma-uniformity check.
+      Cross-L comparison is permitted and is reported as a graded cell. Comparison of any
+      quantity here to any figure in any other experiment, in this goal or elsewhere, is
+      FORBIDDEN without a separately registered comparator contract naming both domains,
+      both constructions, the statistic, the expected relation, and the failure disposition.
+
+  independent_variables:
+    - p (four declared primes)
+    - D (the L-smooth grid inside the window)
+    - arm (treatment conjugate target / null random target)
+    - L (required {2,3}; optional {2,3,5,7} as a separate cell)
+    - k (distance shell to the F_p-rational set) for the graded control only
+
+  metrics:
+    primary:
+      - >-
+        beta_hat: OLS slope of log(F_L(D)/|S|) on log D over the declared window, treatment
+        arm, per prime, with R^2 and residuals.
+      - >-
+        beta_hat_null, gamma_hat_null: the same fit on the null arm, plus the cross-prime
+        p-slope of the null.
+      - >-
+        gamma_hat: cross-prime OLS slope of log(F_L(1)/|S|) on log p (the exact D = 1 anchor).
+    secondary:
+      - positive_control_rate (required exactly 1.000) and its per-prime counts.
+      - envelope_violations (required exactly 0) with the offending vertices listed if any.
+      - >-
+        smoothness_gap_drift: max/min over the D window of F_L(D)/F_L_pred(D), per prime and
+        per arm.
+      - "graded table: bucket sizes, median and max delta_L per k, with the 4^k envelope."
+      - "|S| per prime against floor(p/12)+1; conjugation closure; ell=2 connectivity."
+      - both vertex-set construction hashes and their agreement receipt.
+      - wall clock and peak RSS per stage.
+
+  preregistered_prediction:
+    quantity: >-
+      The cumulative distribution F_L(D)/|S| of the minimal L-smooth isogeny degree to the
+      Frobenius conjugate, and its two fitted exponents.
+    formula: >-
+      F(D)/N = c * D^beta * p^{-gamma} with PRE-REGISTERED (beta, gamma) = (3/2, 1/2) for the
+      treatment arm and (2, 1) for the null arm; hence covering exponents gamma/beta = 1/3 and
+      1/2 respectively. The L-smooth restricted form actually measured is
+      F_L(D) = K * sqrt(p) * sum_{d <= D, d L-smooth} sqrt(d), with K a fitted nuisance
+      constant that is NOT pre-registered.
+    source: >-
+      Derived in H-SSI-df550b mechanism steps (B) and (C). The treatment law's exponents rest
+      on HEUR-DELTA-1, which is RECALLED AND UNVERIFIED (Deuring correspondence plus an
+      Eichler-type optimal-embedding count h ~ sqrt(dp); NO SOURCE READ IN THIS SESSION), and
+      are anchored by two READ facts from inputs/P13-WESOLOWSKI-2026/paper_fulltext.md:
+      Theorem 1.5's degree bound (p/2)^{1/3}, and section 1.3's statement that
+      conjugate-adjacency "occurs with probability O(p^{-1/2})". The null law's exponents are
+      elementary counting and rest on no heuristic.
+    fork_fixed_before_execution: >-
+      beta_hat in [1.35, 1.65] -> consistent with 3/2. beta_hat in [0.35, 0.65] -> consistent
+      with 1/2 (only subfield-walk structure visible; covering exponent 1 at this scale).
+      beta_hat >= 1.85 -> covering threshold below p^{1/3} at the tested scale;
+      HYPOTHESIS-GENERATING ONLY, routed to a derivation, never to a claim. beta_hat outside
+      [0.3, 2.5] or R^2 < 0.9 -> no power law at this scale and NOTHING is concluded about any
+      exponent. THIS FORK MAY NOT BE ALTERED AFTER ANY TREATMENT NUMBER IS OBSERVED; an
+      alteration requires a versioned protocol amendment with confirmatory_status
+      exploratory_only and is never an edit.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      p <= 4003 is toy by any measure and the conclusions DO NOT transfer to cryptographic
+      scale. What the design does claim is that the quantity measured is scale-INVARIANT in
+      form: an exponent of a power law is meaningful at any scale at which the law holds, and
+      the contract tests whether the law holds at all rather than assuming it. The
+      transferability limit is stated explicitly: an exponent measured over roughly three
+      binary orders of magnitude in p and one to two decades in D is a description of that
+      range, and the contract therefore makes beta (a WITHIN-prime slope over the full D
+      range, well conditioned) primary and gamma (a CROSS-prime slope over four points,
+      badly conditioned) secondary.
+    correspondence: >-
+      None. Instances are sampled directly -- indeed exhaustively, the whole vertex set at
+      each prime -- so no correspondence trick is used and none is claimed.
+
+  tail_checks:
+    - >-
+      D = 1 exact anchor: F_L(1) must equal the count of j in F_p, which must in turn be
+      h(-p) or 2h(-p) according to p mod 8. Class numbers are computed independently in the
+      run (by counting reduced forms) and compared. A mismatch is an integrity failure.
+    - >-
+      Top of window: F_L(D_max)/|S| must be strictly below 1 for L = {2,3} (the smooth
+      restriction cannot cover the graph). If it reaches 1, the window is mis-derived.
+    - >-
+      Extreme value check: the LARGEST measured delta_L must not exceed 4^{k_max}, where
+      k_max is the graph eccentricity of the F_p-rational set. Reported with both numbers.
+    - >-
+      Null-arm sanity: the null arm's median delta_L must be close to |S|^{1/2} in the sense
+      that log(median)/log(|S|) lies in [0.35, 0.65]. Outside that, the null's own forced
+      value has failed and the instrument is not calibrated.
+
+  replication:
+    seeds: [6262019]
+    independent_instances: 4
+    interpretation: >-
+      The treatment arm is DETERMINISTIC -- it measures the whole vertex set with a fixed
+      target map -- so replication across seeds is meaningless for it and is not performed.
+      The only stochastic component is the null arm's target draw, which is repeated at 3
+      additional seeds derived from the master seed (labels "null-target-r1..r3") and whose
+      seed-to-seed spread in beta_hat_null MUST BE REPORTED BEFORE any treatment-versus-null
+      comparison is made. If that spread is comparable to the treatment-null difference, the
+      comparison is reported as within noise, not as a separation.
+
+  budget:
+    wall_clock_seconds_per_run: 14400
+    total_cpu_hours: 8
+    maximum_memory_gb: 8
+    maximum_runs: 1
+    maximum_workers: 1
+    no_network: true
+    budget_derivation: >-
+      From the design-time feasibility probe (SCOUT-COMPUTED OUTSIDE THE HARNESS, to be
+      re-measured): construction A plus the Phi_2 graph took 0.01 / 0.18 / 1.45 / 14.5 seconds
+      at p = 103 / 251 / 503 / 1019. Construction A's cost grows like p^3, giving roughly two
+      minutes at p = 2003 and tens of minutes at p = 4003; the graph build is |S|^2 pairwise
+      polynomial evaluations, which is negligible beside it (|S| ~ 334 at p = 4003). The
+      ceiling above carries an order of magnitude of headroom for construction B and for the
+      optional L = {2,3,5,7} cell.
+
+  stopping_rules:
+    - >-
+      Do not execute unless this contract is separately reviewed, approved, frozen, archived,
+      and explicitly authorized. It is `review_required` and carries no approved_by.
+    - Stop before the treatment arm if the null arm and its fitted slopes are not hash-committed.
+    - >-
+      Stop at the first envelope violation, and stop at the first positive-control failure,
+      in both cases before any slope is computed for that cell.
+    - >-
+      Stop the cell if the two vertex-set constructions both complete and disagree.
+    - Stop on any budget, memory, or wall-clock exhaustion, recording the partial cell coverage.
+    - >-
+      A cell that exceeds budget is REPORTED AS COVERED-UP-TO, with its exact D and p
+      coverage. Partial coverage is a scope statement and never a negative result.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any treatment number observed before the null commitment.
+    - Any construction, invariant, agreement, positive-control, or envelope failure.
+    - Any change to the pre-registered fork after any treatment number is observed.
+    - Any float-derived value of delta_L (it must be an exact integer product along the path).
+    - Any cross-experiment comparison without a separately registered comparator contract.
+    - >-
+      Any output sentence that presents a delta_L statement as a statement about delta, or a
+      distributional statement as bearing on Theorem 1.5, or a toy number as crypto-scale.
+
+  success_criterion: >-
+    This contract has NO current success outcome because it is not authorized for execution;
+    its only current disposition is `review_required`. IF a separately approved, frozen and
+    authorized successor is executed, its single positive disposition is: both vertex-set
+    constructions agree where both complete; all four sanity invariants hold; the
+    positive-control rate is exactly 1.000 and envelope violations are exactly 0 at every
+    completed prime; the null arm is committed before the treatment arm and reproduces
+    covering exponent 1/2 within its declared band with a reported seed spread; the graded
+    control has at least 3 populated interior buckets with monotone medians; the
+    measured/predicted ratio drifts by less than a factor 3; and beta_hat and gamma_hat are
+    reported per prime with R^2, residuals, and the pre-registered fork applied verbatim.
+    THAT DISPOSITION ESTABLISHES A TOY-SCALE DISTRIBUTIONAL MEASUREMENT AND NOTHING ELSE --
+    no attack, no cost, no exponent of any algorithm, no cryptographic-scale conclusion.
+
+  falsification_criterion: >-
+    HEUR-DELTA-1 is refuted OVER THE TESTED SCOPE if, at every completed prime, beta_hat lies
+    in [0.35, 0.65] with R^2 >= 0.9 and a non-drifting measured/predicted ratio. HEUR-DELTA-2
+    is refuted if the ratio drifts by more than a factor 3. The derived Lipschitz law is
+    refuted by a single envelope violation that survives an implementation review. NONE of
+    these refutes Theorem 1.5, Heuristic 1, the p^{1/3+o(1)} result, or any statement about
+    cryptographic-scale hardness, and the execution report must say so on its face.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition. A review_required draft; no run, no evidence, no
+      mathematical inference.
+    future_toy_distribution_readout: >-
+      Only after separate approval, freezing, authorization and a valid execution. Scoped
+      toy-only, L-smooth-only, p = 3 mod 4 only, and never an attack or exponent claim.
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, missing dependency, construction failure, or budget exhaustion is an
+      INFRASTRUCTURE OUTCOME under AGENTS.md rule 5. It is reported as infrastructure signal
+      and is NEVER negative mathematical evidence against H-SSI-df550b, HEUR-DELTA-1,
+      HEUR-DELTA-2, or any proposition about isogeny hardness. In particular, failure of
+      construction B to terminate is an infrastructure outcome and the affected cell reports
+      its agreement control as NOT PERFORMED rather than as passed or failed.
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification and a freeze receipt binding its SHA-256.
+    - >-
+      Re-recorded environment checks (`import numpy`, `import sympy`, `import sage`) with
+      their outcomes, in the run manifest, plus interpreter and package versions.
+    - Both vertex-set constructions with their hashes and the agreement receipt per prime.
+    - The transcribed Phi_2 and Phi_3 coefficients with a hash and the neighbour-count check.
+    - >-
+      The null arm's full output and fitted slopes, hash-committed with a timestamp strictly
+      preceding any treatment-arm output.
+    - Per-prime F_L(D) tables for both arms, machine-readable, with |S| and the D grid.
+    - The pre-computed F_L_pred tables and the fitted K per prime, with the arithmetic used.
+    - Positive-control counts, envelope-violation list, and the graded k-bucket table.
+    - beta_hat, gamma_hat, R^2, residuals and the applied fork verdict, per prime and per arm.
+    - The null-arm seed spread across the 3 replication seeds.
+    - field_bits per run manifest, command, git commit and dirty state, stdout, stderr, timings, peak RSS.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - >-
+      Independent review confirms that the pre-registered fork, the null's forced values, the
+      positive control and the envelope are all derivable from H-SSI-df550b without reference
+      to any measured number.
+    - >-
+      Independent review confirms that HEUR-DELTA-1's RECALLED status is carried into every
+      output sentence and that no unread source is cited as authority.
+    - >-
+      Coordinator separately approves and freezes a contract without editing this draft.
+    - >-
+      User separately authorizes execution after receiving the approved frozen package.
+
+  approval_status: >-
+    Pending review. No `approved_by` field is present because this contract is not approved,
+    and only the Coordinator may approve it (AGENTS.md rule 1).
+
+  assigned_to: executor

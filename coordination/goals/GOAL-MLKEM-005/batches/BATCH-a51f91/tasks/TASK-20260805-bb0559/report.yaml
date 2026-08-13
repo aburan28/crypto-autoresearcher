@@ -1,0 +1,902 @@
+schema: crypto.autoresearch.validation_report.v1
+task_id: TASK-20260805-bb0559
+role: validator
+goal_id: GOAL-MLKEM-005
+batch_id: BATCH-a51f91
+reviewed_snapshot: 7983a474be82684cca63ffd79495a3a50e582e62
+reviewed_producers:
+  - TASK-20260805-e6a153   # T1 census
+  - TASK-20260805-cdee80   # T4 reads + corpus hygiene
+  - TASK-20260805-708b70   # T2 measurement
+  - TASK-20260805-9672b3   # T3 conversion
+archived_by: TASK-20260805-d23bf0
+recorded_at: "2026-08-06"
+
+verdict: ADMISSIBLE_WITH_DEFECTS
+
+verdict_meaning: >-
+  Admissible means the receipts are usable as evidence of what they say they are
+  evidence of, at the scope they declare. It does not support any ML-KEM claim,
+  does not demonstrate a speedup, does not validate any heuristic, and does not
+  authorise a status change or a promotion. AGENTS.md rule 12 remains UNMET and
+  UNWAIVED and this report changes the status of no EV-MLKEM-* record and no
+  KN-* entry. The mechanism studied is SESSION recovery; no number in this
+  package or in this report may be subtracted from the in-repo primal_bdd
+  margins of 2.80 / 6.04 / 1.28 bits.
+
+scope_of_this_review:
+  read: >-
+    Only the Coordinator-committed snapshot 7983a474 and, where a producer claim
+    is about the world outside it, the primary sources the producer pinned by
+    sha256 and the estimator source pinned by the producer's own revision field.
+  re_derived_independently: true
+  code_shared_with_producers: none
+  validator_scripts_written_from_scratch: 4
+  compute_runs_used: 2
+  budget_declared: {wall_clock_seconds: 3000, memory_gb: 6, maximum_runs: 2}
+  budget_respected: true
+  read_scope_note: >-
+    The queue's read_scope for this task is the batch directory. Verifying the
+    recount, the negative full-text searches and the estimator anomaly required
+    reading knowledge/literature/, the pinned primary sources, and the pinned
+    lattice-estimator source. The launching card directed each of those checks
+    explicitly. No file outside
+    coordination/goals/GOAL-MLKEM-005/batches/BATCH-a51f91/tasks/TASK-20260805-bb0559/
+    was written. No git commit was run.
+
+# ---------------------------------------------------------------------------
+snapshot_integrity:
+  - id: I1
+    claim: "snapshot_receipt.json declares 52 producer paths with sha256"
+    status: reproduced
+    method: >-
+      Recomputed sha256 of every declared path from `git show 7983a474:<path>`
+      and from the working tree.
+    result: "52/52 match at the commit; 52/52 match in the working tree; 0 mismatches, 0 missing."
+  - id: I2
+    claim: "commit 7983a474 has parent 0585d985f and is reachable from HEAD"
+    status: reproduced
+    result: "`git merge-base --is-ancestor` succeeds; `git log -1 --format=%H %P` gives the declared parent."
+  - id: I3
+    claim: "the commit changes exactly the declared artifacts"
+    status: reproduced
+    result: >-
+      `git diff --name-status 0585d985f 7983a474` lists 53 paths: the 52 declared
+      producer paths plus the receipt itself, which the receipt's own
+      verification.scope ("exact declared producer and receipt paths") admits.
+      No scope expansion.
+  - id: I4
+    claim: "snapshot verification status"
+    status: reproduced_with_caveat
+    result: >-
+      The receipt records `verification.status: bound_pending_verifier`, i.e. the
+      dispatcher's GitRepositoryVerifier has not yet accepted it. Under CLAUDE.md
+      rule 7 the package is therefore not yet official. I performed the
+      equivalent checks by hand (I1-I3) and they pass; that is a validator
+      recomputation, not the dispatcher's acceptance. Defect DEF-10.
+  - id: I5
+    claim: "producer dirty-tree state at run time"
+    status: reproduced
+    result: >-
+      T2 records commit 096b9256b with dirty paths limited to its own untracked
+      task directory; T3 records commit 0585d985f with the same restriction and
+      additionally records that HEAD advanced mid-task (b0a72b920 -> 0585d985f)
+      and that the advancing commit touched only dispatch_queue.json and left
+      T3's own card byte-identical. Both statements are consistent with the git
+      history I read.
+
+# ---------------------------------------------------------------------------
+T1_census_TASK-20260805-e6a153:
+  - id: T1-1
+    claim: "24 rows: 14 deployment_mode, 8 governing_clause, 2 scope_note"
+    status: reproduced
+    method: "Independent recount of census.json row_kind."
+    result: "deployment_mode 14, governing_clause 8, scope_note 2, total 24 - identical to the declared row_counts."
+  - id: T1-2
+    claim: "6 deployment modes fix M = 1 and 8 state no count bound; 2 and 6 for governing clauses"
+    status: reproduced_as_classified
+    result: >-
+      Recount of census.json m_class gives deployment_mode one=6 / count_unstated=8
+      and governing_clause one=2 / count_unstated=6, matching row_counts exactly.
+      The classification of two of those six deployment rows is itself contested -
+      see DEF-6.
+  - id: T1-3
+    claim: "the largest numeric M stated by any of the 24 rows is 1"
+    status: reproduced
+    method: "Scanned every row's `m` field for numerals and read each in context."
+    result: >-
+      No row states any M above 1. The only other numerals in `m` fields are the
+      SP 800-57 cryptoperiod "1 to 2 years" (R05, R17), which is a time bound and
+      not a count, and R11's "n/a" text.
+  - id: T1-4
+    claim: "the producer declined to read this as a ceiling"
+    status: reproduced
+    result: >-
+      census.md states the refusal twice, in the Distribution section and in
+      "What this census does not say", and the refusal is symmetric: it records
+      that none of the 8 count-unstated modes forbids a large M either. This is
+      the correct reading and it is the opposite of premature closure.
+  - id: T1-5
+    claim: "FIPS 203 states no use-count bound, by negative full-text search"
+    status: reproduced
+    method: >-
+      Re-fetched https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
+      (HTTP 200, 1252341 bytes, sha256 fe1f12f3... - byte-identical to the value
+      the producer pinned in receipt.json). Extracted text with pdfminer.six
+      (the installed pypdf and pdfminer both fail on a broken `cryptography`
+      rust binding; the module was stubbed, which is safe because the PDF has no
+      /Encrypt). Positive controls first: "module-lattice-based
+      key-encapsulation" 60 hits, "shall remain private" 1, "sp 800-227" 11,
+      "decapsulation key" 38 - so the extraction is trustworthy before any zero
+      is read from it.
+    result: >-
+      Zero hits for cryptoperiod, "number of queries/decapsulations/
+      encapsulations/ciphertexts/uses", multi-user, multi-target, "at most 2",
+      "single use", "single-use", "one-time", "limit the number", "use count",
+      "usage count", lifetime, rotate, rotation, "how many". The single
+      "maximum number" hit bounds iterations of a sampling loop; the single
+      "reuse"/"reused" hit is about variable names being reused across
+      algorithms. I added seven terms the census did not declare and they return
+      nothing either. The negative reproduces and is stronger than stated.
+  - id: T1-6
+    claim: "draft-ietf-tls-hybrid-design-16 Sec. 2 delegates the reuse bound"
+    status: reproduced
+    method: >-
+      Re-fetched the draft (HTTP 200, 52657 bytes, sha256 3a5148cb... -
+      byte-identical to the pinned value) and matched the sentence verbatim.
+    result: >-
+      The sentence is present exactly as quoted. The only "2^" figures in the
+      draft are the 2^16-1 byte length limits on the key_exchange field, which
+      are sizes and not use counts.
+  - id: T1-7
+    claim: "the one normative count delegation dead-ends at FIPS 203"
+    status: not_reproduced
+    result: >-
+      The delegation is to "any bounds in the specification of the KEM OR
+      SUBSEQUENT SECURITY ANALYSES". census.md quotes the whole sentence in
+      R13's bounding_mechanism column but its derivation column and its
+      structural finding both address only the first limb, concluding "the
+      delegation therefore terminates without a value". The second limb does not
+      terminate; it points at an open, unenumerated literature - which is
+      precisely where this batch's own T4 read (Bernstein, ePrint 2022/1580)
+      sits. Defect DEF-5. The direction matters: the chain is more open than the
+      census says, which weakens any reading of the census as a ceiling and so
+      cuts the same way as the producer's own refusal.
+  - id: T1-8
+    claim: "source pinning is checkable"
+    status: reproduced
+    method: >-
+      Re-fetched six of the 25 pinned sources today and compared byte counts and
+      sha256: FIPS-203, draft-ietf-tls-hybrid-design-16,
+      draft-sfluhrer-cfrg-ml-kem-security-considerations-05, RFC-9629-CMS-KEM,
+      draft-ietf-tls-esni-25, RFC-9180-HPKE.
+    result: "6 of 6 byte-identical to the pinned bytes and sha256. The census cites the real documents."
+  - id: T1-9
+    claim: "the 'not stated' rows are genuinely not stated"
+    status: reproduced_on_the_sampled_rows
+    method: >-
+      Ran my own searches over the four re-fetched plain-text sources for
+      "number of", "limit", "at most", "2^", "maximum", "cryptoperiod",
+      "multi-target", "multi-user", "use count", "reuses", and read every hit in
+      context.
+    result: >-
+      No hit in R24 (sfluhrer-05), R18 (RFC 9629), R15 (esni-25) or R06
+      (RFC 9180) bounds the number of ciphertexts decapsulable under one key.
+      The hits are bit-security statements, AEAD/extension counting, DNS label
+      lengths, XOF call counts and Internet-Draft expiry. Sampled, not
+      exhaustive: 4 of the 14 "not stated" rows were re-read at source.
+  - id: T1-10
+    claim: "CNSA 2.0 unretrievable, HTTP 403, recorded as an acquisition failure under rule 5"
+    status: reproduced
+    result: >-
+      My own single attempt against the same media.defense.gov URL returned 403.
+      The census records it as MISSING rather than as a specification stating no
+      bound, which is the correct handling under AGENTS.md rule 5.
+
+# ---------------------------------------------------------------------------
+T4_reads_and_corpus_TASK-20260805-cdee80:
+  - id: T4-1
+    claim: "no claim about ePrint 2021/1351's BODY appears anywhere in the deliverables"
+    status: reproduced_with_one_caveat
+    method: >-
+      Enumerated every occurrence of 2021/1351, Duman, "prefix hashing", "CCS
+      2021" and the DOI in reads.md and corpus_hygiene.json and read each in
+      context.
+    result: >-
+      The abstinence holds. reads.md Sec. 3.2 states in terms that "The body of
+      2021/1351 is not summarised here and no mathematical conclusion is drawn
+      from it." Sec. 3.3 reports only the abstract, which was read at HTTP 200.
+      Every substantive statement in Sec. 3.4 is attributed to Bernstein Sec. A.4
+      and introduced as "Its findings, as the paper states them". Sec. 3.5
+      records the limit and asks a Reviewer to obtain the paper.
+      corpus_hygiene.json's draft entry carries an explicit instruction not to
+      relay Bernstein's characterisation as the other paper's own content.
+      ONE CAVEAT: reads.md Sec. 3.3 adds "i.e. in the introduction, as a remark
+      supporting the applicability of the main FO theorem, not as the paper's
+      headline theorem". "Page 3" is Bernstein's; the characterisation of the
+      statement's ROLE inside a body that was not read is an inference beyond it.
+      Defect DEF-8. It is hedged and immaterial to the verdict, but it is the one
+      place where the abstinence is thin.
+  - id: T4-2
+    claim: "kill condition (iii) DOES NOT FIRE; the verdict rests on the abstract plus Bernstein Appendix A.4"
+    status: reproduced
+    result: >-
+      The verdict as written is a statement about the retrievable record ("on the
+      record this environment could retrieve, the DHKLS statement is not
+      established as concretely tight at ML-KEM parameters"), not about DHKLS
+      being wrong, and reads.md Sec. 3.5 says so explicitly and distinguishes
+      "does not close" from "is open". That is the correct form for a negative
+      under docs/inventor-protocol.md: it names the obstruction, cites the
+      argument, and states what remains open with a concrete successor action.
+  - id: T4-3
+    claim: "5,582 entries carry citation_verified: read with every identifier null"
+    status: reproduced
+    method: >-
+      Independent recount over knowledge/literature/*.md with yaml front-matter
+      parsing rather than regex. knowledge/ is unchanged between the producer's
+      measurement commit 096b9256b and HEAD, so the comparison is like-for-like.
+    result: "5582 - exact match."
+  - id: T4-4
+    claim: "1,938 of 1,939 'no abstract extractable' entries are marked read"
+    status: reproduced
+    result: >-
+      1939 entries contain the string; 1938 of them carry citation_verified:
+      read. The single exception is KN-LIT-7607, which carries `web`. Exact match,
+      and the exception is now named.
+  - id: T4-5
+    claim: "7,421 of 7,809 entries name downloads/ paths"
+    status: reproduced
+    result: "7809 total entries, 7421 naming a downloads/ path - exact match on both figures."
+  - id: T4-6
+    claim: "citation_verified histogram: read 7459, web 314, false 21, true 9, full_text 4, full_text_supplied 2"
+    status: reproduced
+    result: "All six counts match exactly and sum to 7809."
+  - id: T4-7
+    claim: "novelty-check defeat: 'multi-target' and 'one-out-of-many' do not reach KN-LIT-4974"
+    status: reproduced
+    result: >-
+      KN-LIT-4974's front matter carries all four identifier fields null and its
+      tag line contains neither phrase, so neither keyword nor exact-identifier
+      retrieval can reach it. The producer states this as a floor, not an
+      estimate of any retrieval engine's recall, which is what AGENTS.md's
+      knowledge-retrieval policy requires.
+  - id: T4-8
+    claim: "Ducas-Pulles Sec. 5-6 read from a pre-existing scratchpad PDF, provenance flagged"
+    status: partially_reproduced
+    result: >-
+      The file's declared size (1,021,750 bytes), mtime (2026-08-02T17:47:20Z)
+      and sha256 (947f2826...) are all exactly as reads.md Sec. 4.0 declares - the
+      producer's self-description of its own source is accurate and checkable.
+      The PDF is NOT in the declared artifact set, so its CONTENT is
+      unable_to_check by me under this task's quoting constraint, and nothing
+      quoted from reads.md Sec. 4 is treated here as archived-source-backed.
+      Defect DEF-9.
+  - id: T4-9
+    claim: "'The route by which a prior task obtained the full text is not recorded in this repository'"
+    status: not_reproduced
+    result: >-
+      inputs/MLKEM-DUAL-SOURCES-20260802/provenance.json does record a successful
+      route: ir.cwi.nl/pub/35843/35843.pdf, HTTP 200, 2,523,731 bytes, sha256
+      8915ed36..., labelled "journal-version-of-record-2025-11-20". What is
+      unrecorded is the route to the SCRATCHPAD copy specifically, which is a
+      different version - and that difference independently explains the
+      two-typesetting anomaly the producer reports. Defect DEF-7; a narrowing of
+      the producer's statement, not a contradiction of its substance.
+
+# ---------------------------------------------------------------------------
+T2_measurement_TASK-20260805-708b70:
+  - id: T2-1
+    claim: >-
+      For a Haar-random rank-beta projector P drawn independently of e,
+      R = ||Pe||^2/||e||^2 is EXACTLY Beta(beta/2,(d-beta)/2) for every fixed
+      e != 0, hence the marginal law of R is Beta for ANY error law.
+    status: reproduced
+    verdict_on_the_derivation: CORRECT
+    proof_i_reconstructed: >-
+      Write u = e/||e||. P is distributed as V P0 V^T with V Haar on O(d) and
+      P0 = diag(1_beta, 0). Then R = u^T P u = ||P0 V^T u||^2 = squared norm of
+      the first beta coordinates of V^T u, and V^T u is uniform on S^{d-1} for
+      every fixed unit u. The squared norm of any beta coordinates of a uniform
+      point on S^{d-1} is Beta(beta/2,(d-beta)/2). The law therefore does not
+      depend on u at all, so mixing over any error law leaves it unchanged.
+    numerical_check: >-
+      My own code, 16384 Haar draws at d=100, beta=30, for three maximally
+      different fixed unit vectors: e=(1,0,...,0) KS p=0.809; e=all-ones/sqrt(d)
+      KS p=0.480; a single CBD draw KS p=0.068. Means 0.30000 / 0.29973 / 0.29888
+      against beta/d = 0.3. This independently reproduces the producer's V6a
+      (KS p=0.572 for e=(1,0,...,0)) under a different seed and different code,
+      and extends it to two further vectors.
+  - id: T2-2
+    claim: "the declared demonstration statistic has EXPECTED CONTRAST EXACTLY ZERO"
+    status: reproduced_with_a_precision_correction
+    result: >-
+      The operational conclusion holds and is independently reproduced. The word
+      "exactly" is an overstatement of one step. The declared statistic is the
+      mean over projector draws of an EMPIRICAL order statistic computed on N
+      samples that SHARE one projector, so its expectation is a functional of the
+      CONDITIONAL law of R given P, not of the marginal. The two arms differ in
+      that conditional law - which is exactly what the producer's own V6c
+      measures - so equality of the marginals does not force equality of the
+      expectations. The honest statement is "zero to leading order, with any
+      residual far below the declared gate", not "exactly zero".
+      This is an instance of the finite-sample caution in KN-TECH-1a5b7e's own
+      "How to run obligation 4" section, applied to the producer's own
+      derivation. Defect DEF-1. It does not disturb the negative.
+  - id: T2-3
+    claim: "the declared statistic does not separate the isotropic and anisotropic arms"
+    status: reproduced
+    method: >-
+      My own script, d=100, beta=30, N=2^18 CBD errors, 64 Haar projector draws,
+      per-draw empirical 2^-10 quantile with the frozen estimator (k = round(pN),
+      R_sorted[k-1]), scored against the Beta(15,35) quantile.
+    result: >-
+      Signed shift -0.0010883, i.e. 0.50 pooled standard errors of the difference,
+      and 0.17 times the isotropic arm's own between-draw sd (denominator: the
+      isotropic arm's between-draw sd of the 2^-10 quantile ratio over its 64
+      draws), against a gate that requires 4. The producer's V6b obtained +0.00267
+      at 1.09 pooled standard errors. Two independent measurements with OPPOSITE
+      SIGNS, both far below the gate: that is what a near-zero expected contrast
+      looks like, and it is stronger corroboration than either alone.
+  - id: T2-4
+    claim: "Var_P(E[R|P]) moves by a factor 1198, against a closed form it matches to 0.69%"
+    status: not_reproduced_at_the_stated_precision
+    result: >-
+      The CLOSED FORM reproduces exactly: I evaluated
+      Var_Beta * (d/(d-1)) * (sum s_i^4 - (sum s_i^2)^2/d) / (sum s_i^2)^2
+      by hand and by code and obtained 1.4973262032085532e-05, digit-for-digit
+      the producer's value. The two MEASURED figures do not carry the precision
+      claimed for them. Both are sample variances of 64 draws (verify.py reuses
+      V6b's NP=64), whose own relative standard deviation is sqrt(2/63) = 17.8%.
+      My independent 64-draw measurement gives an anisotropic value 22.7% below
+      the closed form (1.3 sd - unremarkable) and a ratio of 827, where the
+      denominator of that ratio is the isotropic arm's between-draw variance of
+      E[R|P], which the producer itself records as sitting at the sampling floor
+      Var(R)/N. A ratio whose denominator is an estimator floor is not a physical
+      contrast, and "1198" and "827" are the same quantity measured twice.
+      The honest statements are: the closed form is confirmed exactly as algebra
+      and confirmed to within roughly one 18% sampling sd as a measurement; and
+      the anisotropy is loud in the between-draw variance by two to three orders
+      of magnitude, with the leading digit unresolved. Defect DEF-2. This matters
+      because the producer's proposed D2 amendment rests on both figures.
+  - id: T2-5
+    claim: "the producer did NOT substitute the statistic that works"
+    status: reproduced
+    result: >-
+      Verified in three places. results.json and receipt.json both adjudicate
+      branch NEITHER with classification invalid_measurement. report.md Sec. 5.3
+      states "These do not rescue the demonstration and are not offered as a
+      substitute" and Sec. 6 states the P1-and-P2 branch is NOT taken. The
+      Var_P(E[R|P]) result appears only under V6c and under defect D2 as a
+      REQUESTED amendment for the Coordinator to grant. The frozen threshold was
+      not adjusted and no run was re-scored. This is the correct behaviour and it
+      is the single most creditable thing in the batch.
+  - id: T2-6
+    claim: "two of four entries in the frozen variance_values LIST are arithmetically wrong; the formula is correct"
+    status: reproduced
+    result: >-
+      Recomputed 2*beta*(d-beta)/(d^2*(d+2)) myself. d100_b30 and d100_b40 agree
+      to float precision. d140_b30: frozen 0.0024152803180914513 against the
+      formula's 0.0023713710836447254, relative error 1.85e-02. d140_b40: frozen
+      0.0028747433264887066 against 0.002874389192296637, relative error
+      1.23e-04. Exactly as reported. measure.py computes from the formula, never
+      from the list (FROZEN_SHA256 is a module constant at line 50 and the file
+      is hash-checked at run start), so no reported number depends on the wrong
+      entries. The file was correctly NOT edited.
+  - id: T2-7
+    claim: "prediction_frozen.json is the file that was hashed at run start"
+    status: reproduced
+    result: >-
+      sha256 of the archived file equals the value in prediction_frozen.sha256,
+      the value hardcoded in measure.py line 50, the value in receipt.json, and
+      the value printed in stdout.log as both `sha256` and `expected`. The
+      binding is real.
+  - id: T2-8
+    claim: "the frozen prediction's timestamp precedes the first research number"
+    status: reproduced_with_an_internal_inconsistency
+    result: >-
+      Freeze 16:38:29Z (filesystem mtime; the file's own declared field says
+      16:38:00Z). The receipt's runs[] block gives protocol-run start 16:42:58Z
+      and first_research_number_at_utc 16:42:58Z, which is arithmetically
+      consistent with finish 16:48:36Z and wall 337.32 s. But the receipt's
+      completion_gate and report.md both say the run started 16:44:53Z. Two
+      different start times for the same run appear in the same receipt. Both are
+      after the freeze, so the ORDERING claim survives; the record is internally
+      inconsistent. Separately, the freeze time is a self-reported mtime that git
+      does not preserve, and the smoke run (SMOKE-...-000) carries no timestamp
+      at all, so "before any research number" rests on the producer's declaration
+      that a d=40, beta=12 smoke cell is not a research cell. That declaration is
+      reasonable and is stated in advance in the frozen file. Defect DEF-4.
+  - id: T2-9
+    claim: "the sensitivity table: shift/s = 0.79, 1.09, 1.97, 3.73, gate not met in any cell"
+    status: reproduced
+    method: >-
+      Recomputed the shift and s myself from the per-draw ratio arrays archived
+      in results.json (cells.*.arms.*.per_draw[*].p2em10.ratio).
+    result: >-
+      Every `s` and every `signed_shift` in receipt.json's
+      sensitivity_adjudication reproduces from the raw arrays to better than
+      1e-12 in all four cells. Signs alternate +,-,-,+ as reported.
+  - id: T2-10
+    claim: "the 4*s gate is a 4-sigma gate"
+    status: not_reproduced
+    result: >-
+      Not claimed in those words by the producer, but it is what "4*s" reads as,
+      and the yardstick is mis-specified. The quantity thresholded is a PAIRED
+      difference of means: the demonstration arm reuses the SAME 8 projector draws
+      as the Haar arm (frozen file, sensitivity_demonstration_arm). The declared
+      spread `s` is the UNPAIRED per-draw sd of one arm. Computing the paired
+      per-draw difference from the archived arrays gives sd 0.0108 / 0.0143 /
+      0.0117 / 0.0121, so the proper standard error of the shift over 8 draws is
+      0.0038 - 0.0050 and the observed shifts are 0.53, 0.55, 1.47 and 1.68 of it.
+      On that scale nothing is resolved at all. Meanwhile 4*s = 0.0102 / 0.0101 /
+      0.0124 / 0.0078 is SMALLER than 4 proper standard errors, so the frozen gate
+      was more LENIENT than a 4-sigma test - and it still failed in every cell.
+      Defect DEF-3. The direction is favourable: the negative is robust to the
+      correction, and is if anything understated.
+  - id: T2-11
+    claim: "the anisotropy is invisible at the declared 8 draws"
+    status: additional_observation
+    result: >-
+      Not asserted by the producer, and worth recording because the run's own
+      archived data refute it for a different statistic. The demonstration arm's
+      between-draw sd of the 2^-10 quantile ratio is 4.86, 5.79, 4.33 and 5.75
+      times the Haar arm's, where the denominator in each case is the Haar arm's
+      between-draw sd of the same ratio over the same 8 draws. So a demonstration
+      declared on the SPREAD of the declared statistic, rather than on its mean,
+      would have moved by roughly a factor of 5 at the declared 8 draws, inside
+      the protocol run, with no extra compute. This is an observation about what
+      the archived data show; adopting it is a Coordinator decision and I have
+      neither adopted nor implemented it.
+  - id: T2-12
+    claim: "the frozen P1/P2 rule emits the identical verdict on the null arm and the real arm in all four cells"
+    status: reproduced
+    result: >-
+      stdout.log shows the null arm scored FIRST in every cell, per
+      KN-TECH-1a5b7e mode 4's null-first check, and receipt.json's
+      headline_numbers record P1_on_the_null_arm and P2_on_the_null_arm true in
+      all four. The producer's reading - that a rule which fires identically on
+      its own null discriminates nothing, whatever its branch count - is correct,
+      and it is the producer's own report of its own failure.
+  - id: T2-13
+    claim: "E[R] = beta/d is forced and carries zero information"
+    status: reproduced
+    result: >-
+      The derivation is trivially correct (E||Pe||^2 = sigma^2 tr P for iid
+      equal-variance coordinates) and holds for every basis and for the Haar arm
+      alike. It is labelled FORCED in the frozen file, in results.json, in
+      receipt.json and in report.md Sec. 2.1, and no conclusion is drawn from it.
+      Correct handling.
+  - id: T2-14
+    claim: "toy scale is not transported"
+    status: reproduced
+    result: >-
+      No extrapolation to beta=606 / d=1420 appears anywhere in T2's artifacts. The
+      four-point beta trend is explicitly labelled "four points, not a law".
+      report.md Sec. 8 and receipt.json scope_statements both restate the
+      primal_bdd margin prohibition verbatim.
+
+# ---------------------------------------------------------------------------
+T3_conversion_TASK-20260805-9672b3:
+  - id: T3-1
+    claim: "known-answer control PASSED verbatim at delta 0.00e+00"
+    status: reproduced
+    method: >-
+      Called primal_bdd under RC.MATZOV myself, through the committed shim and
+      the pinned estimator 3e48ef421ec2, from a script sharing no code with
+      convert.py.
+    result: >-
+      Kyber512 140.1994731076207 beta 389 eta 422 d 1005; Kyber768
+      200.9587149140538 beta 606 eta 640 d 1420; Kyber1024 270.7236234535225
+      beta 855 eta 889 d 1867. Digit-for-digit identical to the control stdout
+      and to results.json baselines.
+  - id: T3-2
+    claim: "cost_zeta is SEQUENTIAL, so no reported beta is ever the argmin over the joint (beta,d) grid"
+    status: reproduced
+    verdict_on_the_finding: CORRECT
+    method: "Read estimator/lwe_primal.py at the pinned revision myself."
+    result: >-
+      cost_zeta step 1 searches beta with `local_minimum(40, max_beta+precision)`
+      calling f(beta, ...) with d supplied by the closed-form heuristic inside
+      cls.cost; step 2 then runs `local_minimum(params.n - zeta, cost["d"]+1)`
+      with `f(beta=cost["beta"], d=d)` - beta pinned. There is no loop back to
+      step 1. The reported beta is therefore the argmin of a one-dimensional
+      search along the heuristic curve d(beta), never the joint argmin. The
+      producer's own precision_note ("d follows beta through the closed form; what
+      it never does is hold d fixed INDEPENDENTLY of beta") is the correct
+      qualifier and is present. Measured consequence: at the baselines, step 2
+      moves d by +8 / +31 / +35 and log2(rop) by 0.0088 / 0.0263 / 0.0263 bits.
+  - id: T3-3
+    claim: "primal_bdd(params, optimize_d=False) SILENTLY DISCARDS the kwarg"
+    status: reproduced
+    method: "Both by reading the source and by executing it."
+    result: >-
+      Source: PrimalHybrid.__call__ builds `f = partial(self.cost_zeta, ...)`
+      with no **kwds, and the explicit-zeta branch - the one primal_bdd always
+      takes, since primal_bdd passes zeta=0 - is `cost = f(zeta=zeta)`. Every
+      extra kwarg is dropped without warning. Execution: primal_bdd(Kyber512,
+      RC.MATZOV, optimize_d=False) returns 140.1994731076207 / beta 389 / d 1005,
+      identical to the default call, while PrimalHybrid.cost_zeta(...,
+      optimize_d=False) returns 140.20824345474767 / d 1013. Exactly the numbers
+      the producer records. The anomaly is upstream, it is real, and the producer
+      correctly recorded it without patching the shim.
+  - id: T3-4
+    claim: "beta*(c) is a non-monotone integer staircase, falling as c rises 3/2/3 times"
+    status: reproduced
+    method: "Re-ran the estimator myself at five c values around the named example."
+    result: >-
+      Kyber512: c = 0.975 -> beta 386, 0.9775 -> 387, 0.98 -> 389, 0.9825 -> 387,
+      0.985 -> 388. The named non-monotone pair reproduces exactly (387 -> 389 ->
+      387). Recomputing the counts from results.json's own recorded scan points
+      with my own code gives 3 / 2 / 3 anomalous pairs for 512/768/1024, matching
+      the recorded beta_non_monotone_in_c_count. ADDITIONAL OBSERVATION: over the
+      same three points log2(rop) is monotone increasing (139.4838 < 139.6277 <
+      139.6341), so beta is a non-monotone readout of a monotone cost - which
+      sharpens the producer's caution rather than contradicting it.
+  - id: T3-5
+    claim: "0.292 is not the slope of the model that produced these beta; RC.MATZOV's own is 0.2742/0.2804/0.2801"
+    status: reproduced
+    method: "My own OLS of log2(rop) on beta over results.json's 41 recorded scan points per set."
+    result: >-
+      0.27416 / 0.28039 / 0.28009 for Kyber512/768/1024, matching to five
+      decimals. 0.292 exceeds each by 6.51% / 4.14% / 4.25%, where the
+      denominator in each case is that set's own estimator OLS bits-per-block.
+      Note both are modelled constants from different models; the producer says so.
+  - id: T3-6
+    claim: "OLS slopes 118.445/166.608/224.480, residual sd 0.494/0.452/0.685, se 2.477/2.266/3.432"
+    status: reproduced
+    result: "All nine figures reproduce exactly from the recorded raw points with independently written OLS."
+  - id: T3-7
+    claim: "the a-priori omitted/retained ratio 1/(4 beta ln delta) is 0.159/0.139/0.127 at beta = 389/606/855"
+    status: reproduced
+    result: >-
+      Computed by hand from the recorded ln_delta values: 0.15863, 0.13938,
+      0.12732. The producer's obligation-4 label is correct - this is a function
+      of beta alone, fixed a priori, and the linearisation-vs-finite-difference
+      comparison is a design audit and not a finding. That label is binding and
+      is respected throughout the artifacts.
+  - id: T3-8
+    claim: "the finite-difference table cells"
+    status: reproduced
+    method: "Independently recomputed four cells."
+    result: >-
+      Kyber512 c=0.99 -> 139.90625951247276, beta 388, d 990 (dbeta -1);
+      Kyber512 c=0.90 -> 136.72786628397614, beta 377, d 994 (dbeta -12);
+      Kyber768 c=0.99 -> 200.4159817022687, beta 604, d 1436 (dbeta -2);
+      Kyber1024 c=0.95 -> beta 843 (dbeta -12). All four digit-for-digit
+      identical to results.json.
+  - id: T3-9
+    claim: "toy n=100's dbeta_fd = 0 is FORCED by the estimator's own beta search floor"
+    status: reproduced
+    result: >-
+      cost_zeta step 1 opens `local_minimum(40, ...)`, so beta = 40 is the floor.
+      The producer found this after the run, labelled it forced wherever it
+      appears, and did not remove the row. Correct handling.
+  - id: T3-10
+    claim: "the control passed at delta 0.00e+00 run twice with byte-identical stdout"
+    status: reproduced_as_recorded
+    result: >-
+      control.stdout.log is byte-identical to the stdout_VERBATIM block in
+      receipt.json, and my own independent recomputation of all three baselines
+      matches it exactly. I did not re-run the control script itself a second
+      time; the byte-identity of the two producer runs is recorded, not
+      re-observed by me.
+
+# ---------------------------------------------------------------------------
+coordinator_recorded_defects_audit:
+  - id: CD1
+    as_recorded: "Handoff `inference` blocks omitted from every card (caught by T1)."
+    status: accurate
+    finding: >-
+      At the batch-creation commit 096b9256b all EIGHT task cards - the four
+      producers, both Coordinator archival cards, the red-team card and this
+      validator card - lack an `inference` block. They were added at b0a72b920.
+      "Every card" is exact and if anything understates the reach: it includes
+      the Coordinator's own. T1 and T4 both record the gap and both name the
+      AGENTS.md role default they used instead rather than silently filling it,
+      which is the correct handling. Follow-on: T2 ran at 096b9256b, i.e. BEFORE
+      the fix, and its receipt records requested_policy "executor-implementation"
+      without noting that its card carried none at run time - a small provenance
+      gap the other two producers do not have.
+  - id: CD2
+    as_recorded: "T2's sensitivity demonstration has expected contrast exactly zero -- mode 1 inside the screen's own control (caught by T2)."
+    status: substantively_accurate_with_an_overstated_word
+    finding: >-
+      The mechanism is real, the classification as KN-TECH-1a5b7e mode 1 applied
+      to the demonstration rather than to the null is right, and it does convict
+      the Coordinator's own card, which is the creditable part. "Exactly" is the
+      one word that does not survive - see T2-2 and DEF-1.
+  - id: CD3
+    as_recorded: "Two of four entries in T2's frozen variance_values LIST are arithmetically wrong; the formula used was correct (caught by T2)."
+    status: accurate
+    finding: "Reproduced exactly, including both relative errors. See T2-6."
+  - id: CD4
+    as_recorded: "The batch objective asserts T3 repairs dropped terms 'worth ~4-6% at ML-KEM shapes'. T3 reproduces NO quantity matching that."
+    status: accurate
+    finding: >-
+      I reproduced all three candidate quantities independently: the a-priori
+      omitted/retained ratio 12.7-15.9% (denominator: the retained term), the OLS
+      slope gap -4.0/-1.4/+3.1% (denominator: the linearised 1/(2 ln delta)), and
+      the 0.292-vs-MATZOV gap +4.14 to +6.51% (denominator: the estimator's own
+      OLS bits-per-block). Only the third overlaps 4-6% and it is a cost-model
+      constant mismatch, not a dropped-term effect. The Coordinator's own
+      characterisation of its own error is exact.
+
+# ---------------------------------------------------------------------------
+defects:
+  - id: DEF-1
+    severity: low
+    new: true
+    where: "TASK-20260805-708b70/report.md Sec. 5.3; verify.py V6 comment block; receipt.json D2"
+    what: >-
+      "Expected contrast EXACTLY ZERO" overstates one step. Equality of the two
+      arms' MARGINAL laws is proved and correct; the declared statistic is an
+      empirical order statistic over N samples sharing one projector, so its
+      expectation depends on the CONDITIONAL law given P, which the two arms do
+      not share - as the producer's own V6c demonstrates. Correct wording: zero to
+      leading order, with any residual far below the declared gate.
+    material: false
+    reverses_a_conclusion: false
+  - id: DEF-2
+    severity: medium
+    new: true
+    where: "TASK-20260805-708b70/verification.json V6c; report.md Sec. 5.3; receipt.json D2"
+    what: >-
+      "a factor 1198" and "agreement to 0.69%" are quoted at a precision a
+      64-draw sample variance cannot support (its own relative sd is
+      sqrt(2/63) = 17.8%). My independent 64-draw measurement returns 827 for the
+      same ratio - denominator in both cases the ISOTROPIC arm's between-draw
+      variance of E[R|P], which the producer itself places at the sampling floor
+      Var(R)/N. The closed form 1.4973262032085532e-05 is confirmed exactly as
+      algebra. Material because the producer's requested D2 amendment rests on
+      both measured figures; if that amendment is granted, its threshold must be
+      set from a replicated comparator, per KN-TECH-1a5b7e mode 5.
+    material: true
+    reverses_a_conclusion: false
+  - id: DEF-3
+    severity: medium
+    new: true
+    where: "TASK-20260805-708b70/prediction_frozen.json sensitivity_spread_s and sensitivity_threshold_DECLARED_NOW"
+    what: >-
+      The frozen gate thresholds a PAIRED difference of means (same 8 projector
+      draws in both arms) against 4x the UNPAIRED per-draw sd of one arm. The
+      paired difference's own standard error over 8 draws is 0.0038-0.0050, so
+      4*s = 0.0078-0.0124 is a 1.8-2.7 sigma gate, not a 4 sigma gate. Direction:
+      the declared gate is more lenient than it reads, and it still failed in
+      every cell, so the negative is robust and understated.
+    material: false
+    reverses_a_conclusion: false
+  - id: DEF-4
+    severity: low
+    new: true
+    where: "TASK-20260805-708b70/receipt.json completion_gate vs runs[]; report.md header"
+    what: >-
+      Two different protocol-run start times appear in the same receipt: 16:42:58Z
+      in runs[] and first_research_number_at_utc, 16:44:53Z in completion_gate and
+      in report.md. The 16:42:58Z figure is the one consistent with the recorded
+      finish time and wall clock. The freeze time is a self-reported filesystem
+      mtime that git does not preserve, and the smoke run carries no timestamp.
+      Ordering survives; the record does not agree with itself.
+    material: false
+    reverses_a_conclusion: false
+  - id: DEF-5
+    severity: medium
+    new: true
+    where: "TASK-20260805-e6a153/census.md structural finding and R13 derivation"
+    what: >-
+      "The delegation therefore terminates without a value" addresses only the
+      first limb of the clause. draft-ietf-tls-hybrid-design-16 Sec. 2 delegates to
+      "any bounds in the specification of the KEM OR SUBSEQUENT SECURITY
+      ANALYSES". The second limb does not terminate. The census quotes the whole
+      sentence, so nothing is concealed, but the summary drops the limb - and the
+      dropped limb is where this very batch's T4 read lives.
+    material: true
+    reverses_a_conclusion: false
+    direction: "Makes the chain more open, so it cuts the same way as the producer's own refusal to read a ceiling."
+  - id: DEF-6
+    severity: medium
+    new: true
+    where: "TASK-20260805-e6a153/census.md Distribution; census.json m_class for R12 and R14"
+    what: >-
+      R12 and R14 are classified m_class "one" and counted among the "6 fix
+      M = 1", but their own m fields read "1 per handshake" and their own
+      derivations say the value is structural, not a single-use rule, and that
+      R13 permits key-share reuse. On the census's own definition of M - the
+      number of ciphertexts decapsulable under ONE encapsulation key - those two
+      rows belong in count_unstated, which would make the deployment-mode
+      distribution 4 fix M = 1 and 10 state no count bound.
+    material: true
+    reverses_a_conclusion: false
+    direction: "Weakens the M=1 side of the census's own headline; strengthens the producer's refusal to read a ceiling."
+  - id: DEF-7
+    severity: low
+    new: true
+    where: "TASK-20260805-cdee80/reads.md Sec. 4.0"
+    what: >-
+      "The route by which a prior task obtained the full text is not recorded in
+      this repository" is overstated. provenance.json records a successful
+      HTTP 200 retrieval from the CWI institutional repository of a different
+      version, which also explains the two-typesetting anomaly the same section
+      reports. What is unrecorded is the route to the scratchpad copy specifically.
+    material: false
+    reverses_a_conclusion: false
+  - id: DEF-8
+    severity: low
+    new: true
+    where: "TASK-20260805-cdee80/reads.md Sec. 3.3"
+    what: >-
+      "i.e. in the introduction, as a remark supporting the applicability of the
+      main FO theorem, not as the paper's headline theorem" characterises the ROLE
+      of a statement inside a body the task did not read. "Page 3" is sourced to
+      Bernstein; the role reading is an inference beyond him. The only thin spot
+      in an otherwise exemplary abstinence.
+    material: false
+    reverses_a_conclusion: false
+  - id: DEF-9
+    severity: low
+    new: false
+    producer_self_reported: true
+    where: "TASK-20260805-cdee80/reads.md Sec. 4 (Ducas-Pulles Sec. 5-6)"
+    what: >-
+      The source PDF is in a session scratchpad and is not in the declared
+      artifact set. Its size, mtime and sha256 are exactly as declared and I
+      confirmed all three, but its CONTENT is outside the snapshot and I cannot
+      verify it. Everything reads.md reports from Sec. 5-6 of that paper is
+      unable_to_check by me and must not be cited downstream as archived.
+    material: true
+    reverses_a_conclusion: false
+  - id: DEF-10
+    severity: low
+    new: true
+    where: "archives/TASK-20260805-9f6345/snapshot_receipt.json"
+    what: >-
+      verification.status is "bound_pending_verifier": the dispatcher's
+      GitRepositoryVerifier has not accepted the snapshot. I performed the
+      equivalent checks by hand and they pass, but a validator recomputation is
+      not the dispatcher's acceptance, and under CLAUDE.md rule 7 the package is
+      not official until it is.
+    material: false
+    reverses_a_conclusion: false
+  - id: DEF-11
+    severity: low
+    new: false
+    producer_self_reported: true
+    where: "TASK-20260805-9672b3/results.json scan_staircase.by_set[*]"
+    what: >-
+      The key `non_monotone_pairs_beta_rises_when_norm_grows` holds the EXPECTED
+      steps, not the anomalous ones. Confirmed: the count field
+      beta_non_monotone_in_c_count (3/2/3) is correct and reproduces from the raw
+      points, every raw point is recorded, and verification.json supersedes the
+      mislabelled key rather than editing the immutable results.json. Correct
+      handling of a labelling error.
+    material: false
+    reverses_a_conclusion: false
+
+defects_that_reverse_a_producer_conclusion: none
+overclaims_found: none
+fabrications_found: none
+scope_violations_found: none
+
+# ---------------------------------------------------------------------------
+controls_and_null_objects:
+  inventor_protocol_section_3_check: >-
+    Every reported signal in this batch that could be an artifact was measured
+    against a null object of the same shape. T2's Haar-random-subspace arm is a
+    null of the correct shape (it deletes the projector's provenance and
+    preserves the error law, beta, d, the statistic, the code path and the exact
+    error vectors), it was scored FIRST, and the producer reports that the frozen
+    rule fires identically on it - which is the honest reading and is the reason
+    P1 and P2 carry no information. T3's C1 null object (identical code path with
+    c = 1) returns delta exactly 0 and simultaneously reproduces the Sage-archived
+    baselines, which is what licenses the DiscreteGaussian substitution. T1 has no
+    contrast, states so, and does not invent a null in order to look rigorous -
+    which is the correct application of the rule rather than an evasion of it.
+  decay_check: >-
+    The canonical artifact tell (a quantity that does not decay when the parameter
+    meant to destroy it increases) does not arise here, because the batch reports
+    no surviving positive signal. Its closest analogue - "does the demonstration
+    move when the projector draw count is raised?" - was run: V6b at 8x the
+    declared draws still returns nothing, which is the correct diagnosis of a
+    zero-power demonstration rather than an underpowered one, and my independent
+    64-draw run agrees with the opposite sign.
+  comparator_replication: >-
+    T2 drew its comparator 8 times and reported the interval, per KN-TECH-1a5b7e
+    mode 5. The one comparator NOT replicated is the 64-draw sample variance
+    behind V6c, which is exactly where DEF-2 bites.
+
+heuristic_validation_checks:
+  applicable: partially
+  notes: >-
+    T2 is the batch's only heuristic-validation experiment. The theoretical
+    prediction (the Beta(beta/2,(d-beta)/2) law and its variance formula) was
+    pre-registered in prediction_frozen.json, hash-bound into measure.py, and
+    hash-verified in-process at run start, before sampling - I confirmed the
+    binding at four independent places. Sample sizes, the three seed families and
+    the quantile estimator are all in the frozen file and in results.json, and I
+    recomputed the sensitivity table from the archived raw per-draw arrays. The
+    theoretical prediction is a theorem, and I reconstructed its proof rather than
+    accepting it. The parameter sizes (d <= 140, beta <= 40) are NOT the claimed
+    scale and the producer records that as a binding limitation under AGENTS.md
+    rule 7, computing no extrapolation - which is why no heuristic is validated
+    here and none is claimed to be.
+  cost_model_checks: >-
+    T3 is a cost-model readout, not a cost table. Every rop/beta/eta/d is labelled
+    MODELLED and not measured, both models in play (the card's 0.292 and
+    RC.MATZOV's own bits-per-block) are named as different models, and the
+    disagreement between them is quantified against a named denominator. Memory is
+    reported beside time for both compute tasks (T2 peak RSS 1.124 GB against a
+    6 GB budget; T3 0.1184 GB against 4 GB). No per-attempt-cost x
+    inverse-success-probability claim is made because no attack is costed.
+
+what_this_package_does_NOT_establish:
+  - "No ML-KEM break, no security claim in either direction, no FIPS 203 parameter set affected or cleared."
+  - "No heuristic validated or refuted. T2's own adjudication is NEITHER / instrument outcome."
+  - "No ceiling on M. T1 explicitly declines to read its own table as one, and DEF-5 and DEF-6 both make the record more open than the census's summary."
+  - "No speedup, no exponent moved, no concrete-cost claim."
+  - "Nothing at beta = 606, d = 1420. No number here is subtracted from the in-repo primal_bdd margins of 2.80 / 6.04 / 1.28 bits."
+  - "Rule 12 UNMET and UNWAIVED. No EV-MLKEM-* or KN-* status change is proposed or made."
+
+recommended_next_actions_for_the_coordinator:
+  - "Run the dispatcher's post-commit verifier on 7983a474 to clear DEF-10; the package is not official until it accepts."
+  - "If T2's D2 amendment is granted, set the replacement threshold from a REPLICATED comparator and not from the 64-draw V6c figures (DEF-2). The archived run already contains a cheaper candidate: the demonstration arm's between-draw spread moves by roughly a factor of 5 against the Haar arm's spread at the declared 8 draws (T2-11)."
+  - "Correct the paired/unpaired mismatch in any successor sensitivity gate (DEF-3) before re-freezing."
+  - "Record DEF-5 and DEF-6 as corrections to the census summary. Both make the M record more open, so neither is self-serving, and both bear on how C2 is read."
+  - "Treat reads.md Sec. 4 as unverifiable pending an archived Ducas-Pulles source (DEF-9)."
+  - "The corpus figures are exact and systemic. Acting on them is a curation decision outside every role in this batch."
+
+inference:
+  requested_policy: review-xhigh
+  requested_policy_note: >-
+    The card names the legacy alias `review-xhigh`, which AGENTS.md carries
+    forever as an alias of `review-adversarial`.
+  resolved_model_id: claude-opus-5
+  runtime: "Claude Code (claude-agent-sdk subagent, model: inherit)"
+  fallback_used: true
+  fallback_allowed: true
+  fallback_reason: >-
+    orchestration/model-policies.yaml names GPT-5.6-family aliases that Claude
+    Code cannot resolve; per CLAUDE.md the subagents run model: inherit.
+  degraded_allowed: false
+  degraded_requirements: []
+  reasoning_effort: null
+  model_verified: false
+  model_verified_note: >-
+    `python3 -m orchestration.adapter doctor --probe` was not run by this task, so
+    the identifier is unverified configuration in the sense of AGENTS.md.
+  independent_session: true
+  independence_note: >-
+    Independence here is PROCEDURAL, not model-level: this validator and all four
+    producers resolve to the same model family. Every number in this report was
+    re-derived from primary artifacts, primary sources and independently written
+    code, which is the only independence available under this harness. It is not
+    the independence AGENTS.md rule 12 requires, and rule 12 remains unmet.
+
+environment:
+  python: "3.11.15"
+  platform: "Linux-6.18.5-fc-v18-x86_64-with-glibc2.39"
+  numpy: "2.4.6"
+  scipy: "1.17.1"
+  estimator_commit: "3e48ef421ec256afddb3e7d2249a77eab6e9ba12"
+  estimator_path: "/tmp/le (clean tree)"
+  validator_scripts:
+    - "val_t2.py   - Haar exact-law proof check, declared-statistic contrast, Var_P(E[R|P]), frozen-list audit"
+    - "val_t3.py   - baselines, anomaly A1, four finite-difference cells, the c-staircase"
+    - "recount.py  - corpus hygiene recount over knowledge/literature/"
+    - "pdftext.py  - discarded; superseded by pdfminer.six after it failed its own positive controls"
+  scripts_location: "session scratchpad (outside the repository; not part of the declared artifact set)"
+
+artifact_paths:
+  - coordination/goals/GOAL-MLKEM-005/batches/BATCH-a51f91/tasks/TASK-20260805-bb0559/report.yaml
+  - coordination/goals/GOAL-MLKEM-005/batches/BATCH-a51f91/tasks/TASK-20260805-bb0559/notes.md
+
+completion_gate:
+  every_quantitative_claim_statused: true
+  claims_statused: 45
+  reproduced: 36
+  reproduced_with_caveat_or_correction: 5
+  not_reproduced: 3
+  partially_reproduced_or_unable_to_check: 1
+  explicit_verdict: ADMISSIBLE_WITH_DEFECTS
+  numbered_defects: 11
+  no_repair_performed: true
+  no_git_commit_run: true
+  wrote_only_within_write_scope: true

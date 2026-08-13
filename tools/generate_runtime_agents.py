@@ -95,16 +95,43 @@ def _authority_notes(spec: dict[str, Any]) -> list[str]:
 
 def _over_grant_warning(roles_doc: dict[str, Any], role: str,
                         runtime: str) -> list[str]:
-    forced = over_granted(roles_doc, role, runtime)
+    forced = set(over_granted(roles_doc, role, runtime))
     if not forced:
         return []
-    return [
-        "",
-        "IMPORTANT -- this runtime grants you capabilities your contract does",
-        f"not: {', '.join(sorted(forced))}. The harness cannot withhold them "
-        "here, so",
-        "the restriction is yours to keep. Do not use them.",
-    ]
+    lines: list[str] = []
+
+    # Codex and OpenCode expose one primitive for both creating and modifying
+    # files.  A role such as Idea Generator deliberately has ``write_files``
+    # but not ``edit_files``: it may create its declared proposal artifacts,
+    # but it must not rewrite existing records.  Saying "do not use
+    # edit_files" is operationally impossible on these runtimes because it
+    # also forbids the only way to create a file.  State the enforceable
+    # boundary instead.
+    declared = set(role_spec(roles_doc, role).get("capabilities") or [])
+    coupled_write_edit = any(
+        {"write_files", "edit_files"}.issubset(set(group))
+        for group in (roles_doc.get("runtime_capability_coupling", {}).get(runtime, []) or [])
+    )
+    if ("edit_files" in forced and "write_files" in declared
+            and coupled_write_edit):
+        lines += [
+            "",
+            "IMPORTANT -- this runtime couples authorized file creation to its",
+            "file-modification (`edit_files`) primitive. You may use that shared primitive only",
+            "to create new files inside the task's declared write scope. Do not",
+            "modify, replace, or delete any existing file.",
+        ]
+        forced.remove("edit_files")
+
+    if forced:
+        lines += [
+            "",
+            "IMPORTANT -- this runtime grants you capabilities your contract does",
+            f"not: {', '.join(sorted(forced))}. The harness cannot withhold them "
+            "here, so",
+            "the restriction is yours to keep. Do not use them.",
+        ]
+    return lines
 
 
 # --------------------------------------------------------------------------
@@ -167,7 +194,14 @@ def _codex_config(roles_doc: dict[str, Any]) -> str:
         "max_depth = 1",
         "",
     ]
-    for role in roles_doc["roles"]:
+    for role, spec in roles_doc["roles"].items():
+        # A role with no Codex binding gets no registry entry: policy-tier
+        # variants exist only where a runtime can carry reasoning effort in its
+        # agent format, and Codex role files reject unknown keys. Emitting the
+        # entry anyway would point `config_file` at a file this script never
+        # writes.
+        if "codex_cli" not in (spec.get("runtime_bindings") or {}):
+            continue
         lines += [
             f"[agents.{role}]",
             f'description = "{_description(role)}"',

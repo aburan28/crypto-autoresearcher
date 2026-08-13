@@ -1,0 +1,834 @@
+red_team_report:
+  id: RT-20260802-fa1dcc
+  task_id: TASK-20260802-fa1dcc
+  goal_id: GOAL-AES-003
+  batch: BATCH-003
+  role: red-team
+  reviewed_at: 2026-08-02
+
+  claim_tier: toy
+  claim_tier_basis: >-
+    Reduced-round AES-128 and AES-shaped SPNs, r in {4,5,6,10}, one or two keys
+    per arm, one 4-core machine. Nothing in this report is a statement about
+    full-round or deployed AES, and no comparison to published cryptanalysis is
+    made or implied in either direction (RQ-AES-003 R3).
+
+  assigns_no_state: >-
+    This report assigns no official state, no evidence strength, and recommends
+    no promotion. Those are the Coordinator's, on the validator's and this
+    report's inputs.
+
+  independence:
+    session_independent: true
+    model_independent: false
+    basis: >-
+      Standing basis 0137a051eb5828789eb267fa83c8278086578d4c. This review is a
+      SESSION that did not produce either package and read only the archive
+      bound at commit 13da18a1a9f821956e1c1e7e750b8888b67db215. It is NOT model
+      independent: all roles in this harness run model: inherit and resolve to
+      claude-opus-5. Nothing here counts toward a closure quorum.
+
+  snapshot_integrity_check_i_ran:
+    archive: coordination/goals/GOAL-AES-003/batches/BATCH-003/archives/TASK-20260802-d8a5ed/snapshot-receipt.json
+    commit_sha: 13da18a1a9f821956e1c1e7e750b8888b67db215
+    declared_paths: 47
+    recomputed_sha256_match: 46
+    recomputed_sha256_mismatch: 1
+    the_one_mismatch: >-
+      The receipt's entry for ITSELF. The receipt records
+      snapshot-receipt.json = 73407d3cd5d88e701c3fe06e010985ca8bb9cc2887c301cdfbeafb64e40a7cbf;
+      the file on disk hashes to
+      3eb40e35565ee7c6b851692f33d290e7c5ea1706ed05e603a6da5009eb343ece,
+      which is also the value the dispatch_queue archive block records for it.
+      A file cannot contain its own sha256, so this entry is unverifiable BY
+      CONSTRUCTION and is a schema wart, not evidence tampering. Every other
+      declared path matches. I did not treat any working-tree-only artifact as
+      durable evidence.
+
+  claim_under_review: >-
+    (1) RANK 2: that the cross-instrument confound named in EV-AES-d8a13e is
+    NARROWED BUT NOT CLOSED, because the two engines agree exactly on one
+    AES-NI configuration while engine B's software T-table path never produced
+    a count. (2) RANK 2 corollary: that count5.c's uint8 saturating counter is
+    a capability limit that makes the r=4 critical arm uncross-checkable on
+    engine A. (3) RANK 1: that the r=5 half of the round-split rule in
+    CORR-20260802-46b73b SURVIVES, established on a fresh key with an
+    independently written engine, WITHOUT reproducing BATCH-002's exact
+    segment-3 counts. (4) RANK 4: that single-slot hint falsification empties
+    the candidate set at t=1 and t=2 exactly as at t=0.
+
+  what_i_credit_before_objecting: >-
+    Both producers named their own largest holes first and in the strongest
+    available wording, and both are accurate where I could check them. Rank 2's
+    OBS-447db8-2 predicted the count5.c capability limit in PREREGISTRATION.md
+    P2.4 BEFORE measuring and I confirm it from source. Rank 1's
+    matrix_verification.json computes each determinant twice by independent
+    methods and checks the inverse both ways. Rank 2's exact-agreement claim is
+    exact: I re-read runs/A1_count5.json and runs/B2_cnt_aesni.json and every
+    field including all 13 histogram bins is identical. The two timeouts are
+    correctly classified as resource_exhaustion and not as evidence, per
+    AGENTS rule 3.
+
+  objections:
+
+    - id: OBJ-1
+      severity: high
+      title: >-
+        THE ONE THAT WOULD HURT MOST. There is no decay control and no null
+        arm ANYWHERE in this campaign for the zero-entry mixing matrices --
+        the exact matrices the round-split rule is about.
+      what_i_checked: >-
+        I extracted every counting arm carrying an n_mod8 field across
+        BATCH-001, BATCH-002 and BATCH-003 and recomputed n mod 8 from n
+        myself; the reported field agreed with my recomputation in all 22
+        arms. Every arm with r >= 6 uses AES MixColumns -- either matrix
+        02030101010203010101020303010102 (cnt.c) or the AES-NI hardwired
+        equivalent (count5.c). NOT ONE r >= 6 arm exists under M0
+        (00030101010203010101020303010102) or M1
+        (00030101010203000101000303000102).
+      the_argument: >-
+        docs/inventor-protocol.md section 3 requires naming the parameter that
+        is supposed to destroy the signal and showing the measurement does what
+        it should as that parameter increases. For the AES-MixColumns family
+        the campaign DOES this and does it well: r=6 nulls read n mod 8 = 4, 0,
+        7, 7 and r=10 nulls read 2, 4, 4, 0, and the pooled null residue
+        histogram {0:3, 1:1, 2:2, 3:0, 4:3, 5:0, 6:1, 7:3} over 13 arms gives
+        chi-square 7.31 on 7 df, p = 0.398. For M0 and M1 the campaign has
+        measured ONLY the structured side. The reading that is supposed to
+        decay has never been watched failing to decay. Until it has, "the r=5
+        mod-8 property survives a fact-2-violating mixing layer" and "M0/M1
+        force mod-8 = 0 at every round count, which would make the reading a
+        property of the matrix rather than of the round geometry" are
+        observationally indistinguishable on the evidence in hand.
+      why_this_is_not_speculative: >-
+        There is a positive reason to expect the M0/M1 arms to behave
+        differently from the AES-MC arms, and it is visible in the histograms
+        the batch already holds. Under M1 at r=5 the occupancy histogram is
+        {0:4284365663, 256:6167727, 512:3085256, 768:1029383, 1024:257247,
+        1280:51908, 1536:8656, 1792:1296, 2048:149, 2304:10, 2560:1} -- every
+        occupancy is a MULTIPLE OF 256. Under M0 at r=4 it is {0:4278190080,
+        256:16777216}, likewise. Under AES MixColumns at r=5 it is
+        {0:1580100570, 1:1579946777, 2:790002231, ...} with max_occ 12, which
+        is Poisson-shaped and has no such divisibility. So the M0/M1 arms are
+        exhibiting a fiber-size degeneracy that the AES-MC arms do not, and
+        that degeneracy is a plausible mechanism for n mod 8 = 0 that has
+        NOTHING to do with round count. Whether it dies at r=6 is exactly the
+        unmeasured question.
+      the_validator_recorded_this_gap_itself_and_it_was_never_filled: >-
+        BATCH-001 TASK-VALIDATION-001/validation_report.yaml, under
+        execution_stress_tests_of_the_argument, records verbatim:
+        "not_executed:
+           - \"MixColumns-with-a-zero-entry control: my substitute circulant
+             (2,3,0,1) over GF(2^4) is SINGULAR, so the run aborted.\""
+        Its r=6 decay figures -- "r6_0mod8_fixed_sbox: \"4/40 trials (uniform
+        predicts 5)\"" and "r6_0mod8_RANDOM_sbox: \"3/40 trials (uniform
+        predicts 5)\"" -- are therefore decay evidence for the NO-ZERO-ENTRY
+        layer only. The zero-entry lane has been open since BATCH-001 and three
+        batches have added structured arms to it without ever adding its null.
+      cheapest_discriminating_control: RC-1
+
+    - id: OBJ-2
+      severity: high
+      title: >-
+        The rank 2 anchor could not have covered the load-bearing arms even
+        with unlimited wall clock. The producer attributes the hole to the
+        timeouts; the deeper cause is a design limit, and naming it correctly
+        changes what the next batch should buy.
+      what_i_checked_in_the_code: >-
+        I read src/count5.c in full. It has no mixing-matrix parameter of any
+        kind. Its round function is
+        "for(int i=1;i<Rr;i++) for(int k=0;k<8;k++) p[k]=_mm_aesenc_si128(p[k],RK[i]);"
+        and _mm_aesenc_si128 hardwires AES MixColumns in silicon. Its argv is
+        "count5 <r> <j0> <RK_hex 11*16 bytes> <base_hex 16 bytes> <pimode id|fd>
+        <ptmode coset|scr> [<scrRK_hex 11*16 bytes>]" -- no matrix argument
+        exists to pass.
+      consequence: >-
+        A count5.c-versus-cnt.c anchor can ONLY ever be run at MAT = AES
+        MixColumns. Every arm the round-split rule rests on has MAT != AES
+        MixColumns by construction, because varying the mixing layer is the
+        whole point of those arms. So the rank 2 design, executed perfectly on
+        a dedicated machine, would still have anchored zero of them. The item
+        recorded in checks_not_run as "engine B software T-table full-coset
+        count on the anchor configuration ... This is the single largest hole
+        in the RANK 2 result" is a real hole but it is not the load-bearing
+        one: filling it would anchor the software kernel at AES MixColumns,
+        which is not where the round-split rule lives.
+      the_fair_correction_that_cuts_the_other_way: >-
+        Rank 1 supplied the coverage rank 2 structurally could not, and neither
+        the receipt nor rank 2 says so. collide.c -- a third, independently
+        written engine with a configurable matrix and a 16-bit counter -- ran
+        r=4, j0=0, M0, on BATCH-002's own key 6fe52e2e9b3ea04085c370f9bc609245
+        and base e35f00e7631cdd862e59d126e72b8fc9, and returned n =
+        547608330240 with occ_hist {0:4278190080, 256:16777216} and max_occ
+        256, digit-identical to BATCH-002's cnt.c software path. THAT is a
+        cross-implementation anchor of the software counting kernel AT A
+        NON-AES MATRIX, which is the thing the round-split rule actually needs
+        and the thing the AES-NI-to-AES-NI comparison can never provide.
+        Stronger still, and unremarked anywhere in the batch: BATCH-002 ran
+        that arm with wbits=1 and collide.c ran it with winbits=2, i.e. a
+        DIFFERENT window partitioning of the value space, and they still agree
+        to the digit. The window-partitioning logic -- one of the plausible
+        wrong-counting-loop failure modes -- is therefore anchored across two
+        distinct partitionings, plus a third if the BATCH-002 validator's
+        engine used another.
+      verdict_on_narrowed_not_closed: >-
+        The producer's read is correct about rank 2 IN ISOLATION and too
+        conservative about the batch as a whole. Refusing to notice rank 1's
+        contribution to the same confound is premature closure of the
+        instrument question in the pessimistic direction, which
+        docs/inventor-protocol.md treats as a failure mode symmetric with
+        overclaiming.
+
+    - id: OBJ-3
+      severity: medium
+      title: >-
+        What a single-block soft pin does and does not license, from the source
+        rather than from the summary. The unpinned surface is smaller than the
+        producer implies in one respect and larger in another.
+      what_i_checked_in_the_code: >-
+        I read src/cnt.c in full. The soft and AES-NI branches of worker() are
+        two arms of one if(ENG_SOFT), and they SHARE, verbatim and by
+        execution, everything after the transform: proj(), the window test
+        "if(WBITS==0 || (v>>(32-WBITS))==CURWIN)", the value-partition test
+        "if((uint64_t)idx>=qlo && (uint64_t)idx<qhi)", the increment, histw(),
+        the "if(wsum!=inw) overflow_suspect=1" integrity detector, and the
+        n / n_alt = (S2-N)/2 arithmetic. The exact agreement at B2 therefore
+        anchors all of that. The soft path's genuinely unique surface is
+        enc_soft() plus the four-line input construction.
+      what_the_pin_does_NOT_cover_and_the_producer_understates: >-
+        enc_soft() UNDER A NON-AES MATRIX. The four-way pin
+        (ref.py / pin.c / cnt block soft / cnt block aesni, all four returning
+        4167e8f8367c38cdb7bde2ade620a7a8 at r=5) was necessarily run at MAT =
+        AES MixColumns, because that is the only matrix an AES-NI reference can
+        compute. The T-table construction
+        "for(int j=0;j<4;j++) for(int x=0;x<256;x++){ uint32_t w=0;
+        for(int i=0;i<4;i++) w|=(uint32_t)gmul(MAT[i][j],SBOX[x])<<(8*i); T[j][x]=w; }"
+        is the one piece of the transform that varies with MAT, and it is the
+        one piece the pin cannot reach. It is anchored by exactly one thing in
+        this campaign: rank 1's collide.c agreement on the M0 r=4 arm (OBJ-2).
+      what_it_does_NOT_cover_that_nobody_names: >-
+        The 16-bit counter path. The anchor ran cw=8. Every high-occupancy arm
+        the round-split rule uses -- the M0 r=4 arm and both M1 r=5 arms --
+        runs cw=16, i.e. the cnt16 branch, and the anchor never executes it.
+        Again the only cover is rank 1's collide.c, which used counter_bits 16.
+      failure_modes_the_task_named_that_i_can_RULE_OUT_from_the_source: >-
+        Accumulation order and races: ruled out. Both branches are
+        VALUE-partitioned -- "uint64_t lo=0, hi=1ull<<32;  // every thread:
+        full input scan" with each thread owning [qlo,qhi) of the value space
+        -- so increments are plain and non-atomic and no two threads can touch
+        the same cell. Thread count cannot change the result. Counter width:
+        cnt.c declares "\"saturating\":false" and its uint8 path WRAPS rather
+        than saturates, so a 256-fold occupancy would make wsum short by a
+        multiple of 256 and trip the wsum!=inw detector; it cannot silently
+        produce a wrong n. The value/input partition choice changed mid-flight
+        in BATCH-002 (deviation D-2) but the superseded input-partitioned
+        design produced no recorded measurement, and the file's own header says
+        so; the code I read is unambiguously the value-partitioned one.
+      one_latent_hazard_that_affects_no_recorded_run: >-
+        "uint64_t qspan=ENTRIES/NTHREADS" is integer division and the tail
+        [NTHREADS*qspan, ENTRIES) is dropped by BOTH worker() and histw() if
+        NTHREADS does not divide ENTRIES. Every recorded run used NTHREADS in
+        {1,2,4}, all powers of two dividing 2^(32-WBITS), so no measurement is
+        affected, and the drop would in any case surface as N_ok false. Named
+        as a latent limit, not as a defect in any number.
+
+    - id: OBJ-4
+      severity: medium
+      title: >-
+        The capability limit is real but its cross-batch consequence is
+        narrower and sharper than "the campaign's most-cited exact result is
+        unverifiable".
+      what_i_checked_in_the_code: >-
+        count5.c's counter is uint8_t and its increment is
+        "uint8_t *q=base_cnt+v; uint8_t c=*q; if(c!=255) *q=c+1; else *q=255;"
+        with a 256-bin histogram and an overflow flag set by "(maxocc>=255)".
+        Engine A cannot represent occupancy 255 or above. BATCH-002's r=4
+        critical arm has max_occ exactly 256. Confirmed.
+      what_this_does_NOT_imply: >-
+        It does not make n = 547608330240 unverifiable. That arm now has THREE
+        agreeing implementations at two different window partitionings:
+        BATCH-002's cnt.c (cw=16, wbits=1), the BATCH-002 validator's own
+        engine, and BATCH-003's collide.c (counter_bits 16, winbits 2). Engine
+        A is simply not, and cannot be, one of them. Saying the result is
+        "unverifiable by the engine that produced BATCH-001" is true and says
+        nothing about the result.
+      what_it_DOES_imply_for_cross_batch_claims: >-
+        Three things, all narrow and all actionable. (a) Engine A is
+        permanently disqualified as ARBITER for any dense-occupancy
+        configuration, so the cross-instrument programme cannot be run in the
+        direction BATCH-003 attempted for precisely the arms that matter; it
+        has to be run BATCH-002-class engine against BATCH-003-class engine,
+        which is what rank 1 in fact did. (b) Every BATCH-001 number must be
+        read with its own max_occ beside it, and any BATCH-001 arm at max_occ
+        255 is an invalid measurement rather than a number. I confirmed exactly
+        one such arm exists in BATCH-001 count5/raw.jsonl (one record with
+        overflow true), so the exposure is bounded and already handled.
+        (c) Any future claim of the form "BATCH-001 and BATCH-00N agree" must
+        state the max_occ of the configuration, because agreement is only
+        meaningful below 255.
+
+    - id: OBJ-5
+      severity: high
+      title: >-
+        The r=5 half of the round-split rule. Counting genuinely independent
+        arms, and correcting the framing in BOTH directions.
+      independence_rule_i_applied: >-
+        Arms differing only in j0 on the same key, base and matrix are
+        projections of ONE 2^32 ciphertext set. They are one draw, not two.
+        This is the same defect EV-AES-d8a13e OBS-B2-4 already names for
+        BATCH-002's M1 pair: "The producer's two r=5 arms are two projections
+        of the SAME 2^32 ciphertexts, differing only in j0".
+      enumeration_of_arms_bearing_on_the_r5_half: >-
+        A "bearing" arm is r=5 with a mixing matrix that violates the
+        no-zero-entry hypothesis. There are exactly three independent
+        ciphertext sets in the whole campaign.
+        (i) BATCH-002, M0 (one zero, at [0][0]), key 6fe52e..., base e35f00...,
+            j0=0 and j0=1: ONE set. In segments 1-2, hence REVIEWED.
+        (ii) BATCH-002, M1 (four zeros), SAME key and base, j0=0 and j0=1: ONE
+            set. Segment 3, UNREVIEWED, carrying no weight in EV-AES-d8a13e,
+            and NOT reproduced by rank 1.
+        (iii) BATCH-003 rank 1, M1, fresh key b8993a3a783aeba67c0cbb2f8e0fed7a
+            and base 44537428faa5bf9ef29f33d1a2207588, j0=0, on an
+            independently written engine: ONE set. Now before reviewers.
+      the_answer_to_the_gate_question: >-
+        The r=5 half now rests on reviewed ANALYSIS plus TWO reviewed
+        independent measurements at two different zero-entry matrices, two
+        different keys and three different engines -- but NOT on a reproduction
+        of the segment-3 numbers, which remain exactly as unreviewed as they
+        were, because rank 1 spent its budget on an independent key instead of
+        on BATCH-002's key. DEC-20260802-b226fb's condition reads: "It is held
+        back because its r=5 half rests on reviewed ANALYSIS plus arms that are
+        themselves unreviewed, and a knowledge entry is the wrong place to
+        first assert something whose decisive measurement is queued for review
+        in the next batch. Promote it after the BATCH-003 rank 1 review, or
+        record why the" -- and that condition admits two readings. Under
+        "the segment-3 arms are now reviewed", rank 1 does NOT satisfy it and
+        never could, having changed the key. Under "the r=5 half now has
+        reviewed measurement support", rank 1 does satisfy it, and arm (i) had
+        already partly satisfied it before this batch. Which reading binds is
+        the Coordinator's call and I do not make it.
+      the_one_in_eight_framing_is_wrong_twice_over_and_i_say_so_in_the_campaigns_favour: >-
+        First, the null is MEASURED, not assumed. BATCH-002's
+        rank2_null_residue_distribution pools 13 null arms with residue
+        histogram {0:3, 1:1, 2:2, 3:0, 4:3, 5:0, 6:1, 7:3}, chi-square 7.31 on
+        7 df, p = 0.398, and it correctly refuses a p-value framing as the
+        weakest available statement. It also discloses its own worst arm: the
+        r=10 PRP surrogate N1 read n_mod8 = 0, a null failure at the expected
+        1-in-8 rate, disclosed rather than dropped. Second, and more
+        important, for the M0 and M1 arms "n mod 8 = 0" is a LOSSY PROJECTION
+        of a far sharper reading the campaign holds and does not report: those
+        occupancy histograms are supported entirely on multiples of 256, so
+        every fiber has size divisible by 256 and mod-8 is a corollary of it.
+        Against the campaign's own uniform-random-function null (the BALLS
+        arms, Poisson-shaped, max_occ about 12) that is not a three-bit
+        coincidence. The campaign is arguing about a 1-in-8 statistic while
+        holding a deterministic divisibility fact that implies it. That is why
+        the evidence keeps LOOKING thinner than it is.
+      but_this_cuts_toward_OBJ_1_not_away_from_it: >-
+        256-divisibility looks like a degeneracy of the zero pattern, and it is
+        absent under AES MixColumns. So the sharper observable makes the
+        unmeasured question sharper too: does the 256-divisibility ALSO hold at
+        r=6 under M1? If it does, the M0/M1 arms are measuring the matrix and
+        not the round count, and the r=5 half is confounded exactly where it is
+        strongest-looking.
+
+    - id: OBJ-6
+      severity: medium
+      title: >-
+        A precision defect in the batch's own framing: "fact 2 is FALSE for
+        every j0" is true only of the SUPERSEDED blanket form of the condition,
+        and invites a reading that is false of the refined form
+        CORR-20260802-46b73b itself established.
+      the_passages_in_full: >-
+        The rank 1 handoff states the uncertainty reduced as: "Whether the r=5
+        mod-8 property genuinely survives a mixing layer in which the
+        derivation's fact 2 is FALSE for every j0, measured by a session that
+        did not produce the original reading." CORR-20260802-46b73b states:
+        "Two further arms under a four-zero matrix, in which fact 2 is FALSE
+        for every j0 rather than merely unnecessary, both read n mod 8 = 0."
+        Fact 2 itself, quoted by that same correction, is: "MC has no zero
+        entry, and v_col[t] != 0, so g_col = 0 with a != a' is impossible."
+      the_arithmetic_i_did: >-
+        M1's rows, from rank 1's own matrix_verification.json, are
+        [0,3,1,1], [1,2,3,0], [1,1,0,3], [3,0,1,2], with zero_entries
+        [[0,0],[1,3],[2,2],[3,1]]. The refined r=4-critical entries are
+        M[(-c-j0) mod 4][c] for c=0..3.
+        At j0=0 those are M[0][0]=0, M[3][1]=0, M[2][2]=0, M[1][3]=0 -- ALL
+        FOUR ZERO, the maximally adversarial case.
+        At j0=1 those are M[3][0]=3, M[2][1]=1, M[1][2]=3, M[0][3]=1 -- ALL
+        FOUR NONZERO.
+      why_it_matters: >-
+        Under the literal blanket reading ("MC has no zero entry") the sentence
+        is defensible, since M1 has zeros regardless of j0. But CORR-20260802-46b73b
+        is the record that MADE the refined form operative at r=4, and under the
+        refined form the M1 j0=0 and M1 j0=1 arms test structurally DIFFERENT
+        conditions. Two consequences. (a) A reader will over-read the M1 j0=1
+        arm as an adversarial test when it is not one. (b) BATCH-002's M1 pair
+        is better designed than "same set, differing only in j0" suggests -- it
+        is one adversarial and one non-adversarial arm -- and rank 1 ran only
+        the adversarial one, so the j0-independence of the r=5 reading under M1
+        is measured at one j0 by a reviewed session. Rank 1's checks_not_run
+        already says this: "the j0-dependence of the r=5 M1 reading is measured
+        here at one j0 only."
+
+    - id: OBJ-7
+      severity: medium
+      title: >-
+        RANK 4 has no in-batch POSITIVE control. Both new arms read {0:4}, and
+        the check that would distinguish "the filter is slot-sensitive
+        everywhere" from "the slotmask patch broke the filter" was not run --
+        and the check that WAS declared could not have detected it either.
+      the_declared_check_and_why_it_is_insufficient: >-
+        RESULTS.json checks_not_run records: "backward-compatibility rerun of
+        sq_slot in prefix mode reproducing BATCH-002 PART6-1of3-A byte for
+        byte -- reason: not enough wall clock. The equivalence rests on the
+        diff, which shows slotmask=(1<<nwrong)-1 when the \"mask\" argument is
+        absent, and on the per-diagonal hint_used/hint_true fields of the two
+        new runs." Even had it been run, PART6-1of3-A is itself a FALSE-hint
+        arm reading {0:4}, so that rerun compares zero to zero and cannot
+        detect an all-empty regression. The load-bearing missing arm is a
+        TRUE-hint one.
+      what_i_verified_in_the_diff_and_what_i_will_not_claim: >-
+        The change is one line: "int slotmask = (argc>9 && !strcmp(argv[9],\"mask\"))
+        ? nwrong : ((1<<nwrong)-1);" and the hint construction becomes
+        "hint[d][t] = ((slotmask>>t)&1) ? hrk[rounds][DIAGP[d][t]] :
+        rk[rounds][DIAGP[d][t]];". With slotmask=0 every hint byte comes from
+        the TRUE key rk, so the code path is sound BY INSPECTION, and the
+        per-diagonal hint_used against hint_true fields in both runs do show
+        exactly one byte differing at the intended index -- that is a real
+        partial control and I credit it. But "sound by inspection" is precisely
+        what a control exists to replace, and this batch's own standing rule is
+        that code reading is not a run.
+      also_scope: >-
+        Pooled {0:12} is 12 diagonals from three runs on ONE target key
+        (2b7e151628aed2a6abf7158809cf4f3c) and ONE hint key
+        (53787ef6b300ea19f0a43d4915afd440), nstruct=2. The slot claim is
+        single-key, and OBS-447db8-3's scope line says so.
+
+    - id: OBJ-8
+      severity: low
+      title: >-
+        A summary field in rank 2's RESULTS.json disagrees with its own raw
+        receipt. No measurement is affected; the class of defect is what
+        matters.
+      the_discrepancy: >-
+        commands_rank2.txt records two distinct engine-B software attempts:
+        "B1 taskset -c 1 ./cnt soft 5 1 ... 8 0 1" (one thread) and
+        "B1-attempt2 taskset -c 0,1 ./cnt soft 5 1 ... 8 0 2" (two threads).
+        runs/B1_cnt_soft.status reads "exit=124 start=1785710705 end=1785711306",
+        which is 601 s. runs/B1b_cnt_soft.status reads "exit=124
+        start=1785711378 end=1785712278", which is 900 s. But RESULTS.json's
+        arms.B1_cnt_soft carries "command": "./cnt soft 5 1 ... 8 0 2" and
+        "wall_seconds_measured": 900 -- attempt 2's command and attempt 2's
+        wall time, under attempt 1's label.
+      mitigation_i_credit: >-
+        RESULTS.json's runs_that_did_not_complete section has BOTH attempts
+        recorded correctly and separately, at 601 s / 1 thread and 900 s /
+        2 threads. Neither run produced output, so no number in the batch is
+        affected. Recorded because build_results.py generates these fields
+        mechanically and the same generator writes the fields that DO carry
+        numbers.
+
+  required_controls:
+
+    - id: RC-1
+      priority: 1
+      answers: OBJ-1
+      control: >-
+        The decay control for the zero-entry matrices. Run r=6, and if
+        affordable r=10, under M1 and under M0, same engine, same key and base
+        as the r=5 arms. Report BOTH n mod 8 AND whether the occupancy
+        histogram is still supported on multiples of 256.
+      what_it_should_do_if_the_reading_is_real: >-
+        The mod-8 residue should go UNIFORM and the 256-divisibility should
+        DISAPPEAR, matching the AES-MixColumns r=6 nulls which read 4, 0, 7, 7.
+      what_a_flat_result_would_mean: >-
+        If either survives at r=6, the M0/M1 readings are a property of the
+        matrix rather than of the round count, and the r=5 half of the
+        round-split rule is confounded. Under docs/inventor-protocol.md
+        section 3 a quantity that stays flat when it should decay is an
+        artifact tell, and this is the measurement that would expose it.
+      cheapest_form: >-
+        NOT at byte scale, where one arm costs 833-1138 s on this machine. Use
+        the BATCH-001 validator's own 4x4-nibble AES-shaped SPN over GF(2^4)
+        with a NON-SINGULAR zero-entry matrix, at r=4, r=5 and r=6, 40 trials
+        each. That harness runs "in seconds" by its own report, it makes the
+        r=4 / r=5 / r=6 comparison a within-instrument one, and it closes the
+        item that validator recorded as not_executed because its own substitute
+        circulant (2,3,0,1) over GF(2^4) was singular. A non-singular
+        zero-entry 4x4 over GF(2^4) is easy to exhibit; verify it by the same
+        Gauss-Jordan the campaign already has.
+
+    - id: RC-2
+      priority: 2
+      answers: OBJ-7
+      control: >-
+        The rank 4 positive control: sq_slot with slotmask 0, i.e.
+        "./sq_slot attack6n 2b7e151628aed2a6abf7158809cf4f3c
+        53787ef6b300ea19f0a43d4915afd440 6 2 90009 1 0 mask", every other
+        parameter identical to R4-T1 and R4-T2.
+      expected_reading: >-
+        A NON-EMPTY survivor histogram with the diagonals unique and correct.
+        EV-AES-d8a13e OBS-B2-1 reports {1: 16} with every survivor the correct
+        byte for the true-hint case at a comparable configuration; the exact
+        shape here will depend on nstruct=2, so report it as measured rather
+        than against a preregistered number.
+      cost: about 320 s, one run, on the deterministic seed already used.
+      why_it_is_the_best_value_in_the_batch: >-
+        It is the only run that can distinguish "single-slot falsification
+        empties the set" from "the patched binary empties the set".
+
+    - id: RC-3
+      priority: 3
+      answers: OBJ-2, OBJ-3
+      control: >-
+        ONE run that answers both questions the snapshot receipt puts to
+        reviewers: cnt.c SOFT against collide.c on r=5, j0=0, M1, under
+        BATCH-002's key 6fe52e2e9b3ea04085c370f9bc609245 and base
+        e35f00e7631cdd862e59d126e72b8fc9, on a dedicated core.
+      why_this_and_not_the_arm_rank_2_chased: >-
+        Finishing the timed-out soft count at AES MixColumns anchors the
+        software kernel where the round-split rule does not live (OBJ-2). This
+        run instead anchors the software kernel at a NON-AES matrix, at cw=16,
+        AND reproduces a segment-3 number digit-for-digit, which is the second
+        question the receipt asks. Budget it alone: cnt.c soft needs roughly
+        550-580 s of dedicated core by the producer's own estimate, and every
+        failure in this batch traces to contention on 4 cores.
+
+    - id: RC-4
+      priority: 4
+      answers: OBJ-5, OBJ-6
+      control: >-
+        Rank 1's dropped A5 -- r=4, M1, j0=0. This is the sharpest single
+        falsifiable prediction available to the campaign and it was the last
+        item in the frozen drop order.
+      the_prediction: >-
+        At j0=0 all four of M1's refined-critical entries M[(-c) mod 4][c] are
+        zero (arithmetic in OBJ-6), so the r=4 half of the round-split rule
+        predicts the paired-count behaviour that the M0 j0-pair exhibited --
+        BATCH-002 measured 547608330240 at the critical j0 and exactly 0 at a
+        non-critical one under M0. A reading inconsistent with the r=4 half
+        under the maximally adversarial matrix would falsify that half, which
+        is currently the better-supported of the two.
+
+    - id: RC-5
+      priority: 5
+      answers: OBJ-6
+      control: >-
+        r=5, M1, j0=1 on a reviewed engine and a fresh key. Under M1 the
+        j0=1 refined-critical entries are all NONZERO, so this is a
+        structurally different condition from the arm rank 1 ran, not a second
+        sample of it. If the r=5 reading is genuinely j0-independent under M1,
+        that must be shown rather than assumed.
+
+    - id: RC-6
+      priority: 6
+      answers: OBJ-5
+      control: >-
+        Report the 256-divisibility of the M0/M1 occupancy histograms as the
+        primary observable, with the campaign's existing uniform-random-function
+        null (the BALLS arms) as the null-object comparison, and derive n mod 8
+        from it. This costs no compute -- the histograms are already in
+        raw_runs.jsonl and raw.jsonl -- and it stops a deterministic structural
+        fact being litigated as a three-bit coincidence.
+
+  counterexample_or_mutation: >-
+    The mutation that would settle the most at the lowest cost is RC-1 in its
+    nibble form: hold the S-box, the key schedule, the coset and the projection
+    fixed, hold the mixing matrix at a NON-SINGULAR zero-entry matrix over
+    GF(2^4), and sweep r = 4, 5, 6 with 40 trials each. Round count is the only
+    varying parameter, and round count is precisely the parameter the
+    round-split rule claims is decisive. If n mod 8 = 0 at r=6 at materially
+    above the 1-in-8 rate the AES-MixColumns nulls exhibit (4/40 and 3/40
+    against a uniform prediction of 5), the zero-entry family forces the
+    residue independently of round count and the r=5 half of
+    CORR-20260802-46b73b is measuring the matrix. That is a direct falsifier,
+    it takes seconds, and it fills a gap the campaign's own validator recorded
+    as open in BATCH-001 and has carried unfilled through three batches.
+
+  baseline_comparison:
+    applicability: >-
+      Pollard-rho, BSGS and factor-base baselines are not applicable: this is a
+      symmetric-primitive measurement campaign, not an ECDLP one, and no
+      discrete-log solve or relation is claimed. RESULTS.json's certificate
+      block correctly reads kind none for both producers.
+    external_comparison_forbidden_here: >-
+      RQ-AES-003 R3 forbids comparison to published cryptanalysis in this
+      repository in either direction, and I make none. This is a constraint on
+      this repository, not a claim that no such comparison exists.
+    the_in_campaign_baseline_that_does_apply: >-
+      For the r=6 hinted construction the baseline is exhaustive search over
+      the hinted residual, and EV-AES-d8a13e OBS-B2-2 already records
+      dominated_by "exhaustive search over the hinted residual" with
+      sota_delta negative, at 69.39 s against roughly 25 s, and already records
+      that adding query cost makes the domination LARGER: 2^33 chosen
+      plaintexts against O(1). BATCH-003's rank 4 arms consume 8589934592
+      chosen plaintexts each and do not change that comparison in either
+      direction. I checked the Pareto axes named in docs/inventor-protocol.md
+      section 5 -- time, memory, data/queries -- and the record is dominated on
+      time and on queries; memory is not the binding axis for either side.
+    for_the_counting_properties: >-
+      No attack is claimed, so dominated_by is "n/a (no attack claimed;
+      distinguisher and measurement contribution only)" and sota_delta is "no
+      attack; the r=4 bijection and r=5 mod-8 forcing are deterministic
+      properties of a class of round functions, not a cost improvement." Those
+      strings should be WRITTEN into any downstream record rather than left
+      null; a null there without the check is a fabrication under AGENTS rule 5.
+
+  heuristic_challenges:
+    - >-
+      NOT the exemplar profile, and I do not force it. Nothing in this batch is
+      an exponent-first, heuristic-conditional asymptotic claim of the
+      docs/target-result-profile.md kind. There is no numbered heuristic, no
+      random-model transfer argument, no o(1) overhead term and no inverse
+      success probability to audit, because there is no asymptotic claim and no
+      attack. Applying that checklist here would be theatre.
+    - >-
+      The one assumption that DOES function like an unstated heuristic is the
+      uniform-residue null for n mod 8. The campaign handles it correctly and
+      better than most of this checklist would demand: it MEASURES the null over
+      13 arms rather than assuming it, reports chi-square 7.31 on 7 df with
+      p = 0.398, discloses its own zero-reading null arm, and explicitly records
+      that "A p-value framing is the WEAKEST correct statement available on this
+      question. The deterministic refutation already settled forcing." I record
+      that as a strength. The unmet part is scope, not rigour: that measured
+      null covers the AES-MixColumns family only (OBJ-1).
+    - >-
+      Scale honesty, in the direction that matters here. The claim "the r=4 and
+      r=5 properties are NOT AES-S-box-specific" is carried unhedged through
+      three batches on a control that was run in a SCALED analogue. The
+      BATCH-001 validator's own words: "I confirmed this by execution -
+      uniformly random bijective S-boxes reproduce both properties at 120/120
+      and 120/120 in my scaled analogue." The analogue is a "own 4x4-nibble
+      AES-shaped SPN, 64-bit block, circulant (2,3,1,1) over GF(2^4) x^4+x+1,
+      INDEPENDENT uniform round keys, full 2^16 diagonal coset". That is
+      entirely appropriate for a claim about round GEOMETRY, which is
+      cell-width independent by construction, and the validator says so. But
+      downstream records state the 120/120 without the analogue, and AGENTS
+      rule 4 asks that scale be carried with the number. The fix is one clause,
+      not a rerun.
+
+  cost_model_challenges:
+    - >-
+      Budget accounting is honest in both packages and I could not break it.
+      Rank 1's halt_note reads "Work stopped before the binding stop because no
+      further arm of this object could fit: the cheapest remaining arm needed
+      ~833 s against 648 s left at 1785712684. Nothing was cut off
+      mid-measurement; both launched arms ran to completion." Its stamps carry
+      a computed binding_stop and the drop decision is stamped at the moment it
+      was taken, before the outcome of A3 was known. Rank 2 records
+      halted_on_budget false with three named dropped items. Neither inflates.
+    - >-
+      The measurement cost model, however, is what destroyed this batch's
+      headline, and it is the same defect EV-AES-d8a13e already charges to the
+      Coordinator: "Producers consumed roughly 15300 s against 9600 s declared,
+      because the Coordinator dispatched three producers onto 4 cores against
+      this goal's explicit instruction that a batch WAITS rather than run
+      degraded." BATCH-003 repeated it. Rank 2's environment block records "two
+      other producers were active on this 4-core machine throughout; a process
+      named collide held 1.2-2.0 cores for the whole task. This is the direct
+      cause of the two timeouts recorded below" -- and collide is rank 1's own
+      engine, so the two producers in this batch destroyed each other's work.
+      The engine-B soft count needs about 550-580 s of DEDICATED core; it was
+      given 601 s and 900 s of a contended one and returned nothing both times.
+      This is not a mathematical result and must not be read as one, but it is
+      a scheduling model that is now 0 for 2 and should not be run a third time.
+    - >-
+      Per-arm cost is the binding constraint on everything above. At 833-1138 s
+      per byte-scale arm on this machine, a 3000 s producer buys two arms. Every
+      control I list at byte scale (RC-3, RC-4, RC-5) costs one producer slot
+      each. RC-1 in its nibble form costs seconds and answers the biggest
+      question, which is why I ranked it first.
+
+  reduction_and_scope_challenges:
+
+    - id: SCOPE-1
+      title: >-
+        THE QUESTION THE CAMPAIGN KEEPS DEFERRING, answered plainly. After
+        BATCH-003 there is essentially nothing left in this campaign that is
+        specifically about AES rather than about AES-shaped SPNs, and
+        BATCH-003 moved it FURTHER from AES, not closer.
+      component_by_component: >-
+        (a) The r=4 bijection and the r=5 mod-8 forcing: round geometry. The
+        BATCH-001 validator ruled, in an objection it graded severity high:
+        "THE PROPERTY IS NOT AES-SPECIFIC. Both the r=4 bijection and the r=5
+        mod-8 forcing follow from the round GEOMETRY alone: any bijective
+        S-box, any column-preserving mixing layer whose relevant entries are
+        all nonzero, ShiftRows-style row rotations, and a full diagonal coset.
+        ... The correct description is \"a derived deterministic property of any
+        5-round AES-SHAPED SPN, instantiated here on AES-128\", and the correct
+        consequence is that it distinguishes 5-round AES from a random
+        permutation but carries no information about the AES S-box." BATCH-002
+        and BATCH-003 then showed the properties also survive TWO NON-AES
+        MIXING MATRICES. So the AES S-box was already out and BATCH-003 takes
+        most of AES MixColumns out too. What remains as hypothesis is the
+        SHAPE: a 4x4 byte state, ShiftRows-style row-t rotations, a
+        column-preserving non-singular mixing layer, a C1 last round and a full
+        diagonal coset. AES-128 is one instance of that shape.
+        (b) The r=5 yoyo signal (EV-AES-d8a13e OBS-B2-5): I searched the
+        campaign and found NO random-bijective-S-box control for it. The
+        120/120 control covers the counting properties only. So the yoyo
+        signal's S-box dependence is not established either way -- it is
+        UNTESTED, which is a different and more interesting status than
+        "not AES-specific".
+        (c) The r=6/r=7 hint constructions: this is the ONLY place an
+        AES-specific object is load-bearing, namely the AES key schedule, since
+        the hint bytes are drawn as hrk[rounds][DIAGP[d][t]] and
+        rk[rounds][DIAGP[d][t]] from an AES key expansion. But the finding
+        there is that falsifying one hint byte empties the survivor set, which
+        is a statement about the tightness of a filter and would plausibly hold
+        for any SPN's analogous filter; and r=6 is dominated while r=7 is not a
+        key recovery, both already recorded.
+      the_plain_statement: >-
+        This campaign's durable content, if it has any, is a statement about a
+        CLASS -- 4x4-byte AES-shaped SPNs with a C1 last round -- instantiated
+        on AES-128. Any knowledge entry arising from it should be titled and
+        scoped to the class. Keeping it under a goal named for AES will cause
+        the next reader to over-read it, which is exactly the error the
+        BATCH-001 validator graded high and which three batches have now
+        carried forward as a boundary line rather than fixed in the title.
+      this_is_a_scoping_statement_not_a_closure: >-
+        Per docs/inventor-protocol.md section 4 I owe forward guidance rather
+        than a fatigue report, and I do not assert that an AES-specific result
+        is unavailable here. What is OPEN and unprobed: the S-box-specific lane
+        (the L-composed-with-Inv factorisation and the degree-7 property the
+        BATCH-001 validator verified by Moebius transform, versus the degree-3
+        nibble S-box) has never been used as a lens by this campaign; the
+        key-schedule-specific lane appears only as a hint source and has never
+        been attacked as structure; and the yoyo signal is the single result
+        whose S-box dependence has never been measured. ONE arm of the existing
+        yoyo probe with a uniformly random bijective S-box would settle whether
+        ANY result in this campaign is AES-specific, and it is cheap. That is
+        the highest-value open direction the batch leaves, and it is not in any
+        queue.
+
+    - id: SCOPE-2
+      title: Affected-versus-safe inflation check.
+      finding: >-
+        No inflation found. Both producers' claim_tier_basis blocks state
+        reduced-round only and no full-round or deployed implication, and rank
+        4's OBS-447db8-3 volunteers "The construction remains hint-assisted and
+        is NOT a key recovery." EV-AES-d8a13e's boundaries carry the same. This
+        is the one axis where the campaign has been consistently disciplined and
+        I record it as such rather than manufacture an objection.
+
+  proof_architecture_challenges:
+    - >-
+      Observation-collision, and it is where the batch is weakest. The
+      observable supporting the r=5 half is "n mod 8 = 0". I can name a second
+      ground-truth object with the same observable and on the other side of the
+      claimed conclusion: a mixing matrix whose zero pattern forces every fiber
+      to a size divisible by 256 INDEPENDENTLY of round count would read 0 at
+      r=5 and also at r=6, while the round-split rule attributes the r=5
+      reading to round geometry. The M0 and M1 histograms show that fiber sizes
+      ARE divisible by 256 under these matrices. The separator that would rule
+      the collision out is exactly RC-1, and it has not been run. Under
+      docs/inventor-protocol.md section 8 audit 2 a collision is a direct
+      falsifier of identifiability unless an additional condition separates it,
+      and no such condition is currently supplied by measurement.
+    - >-
+      Nearby-object control, partly satisfied and partly not. The campaign has
+      run the right nearby objects on the AES-MixColumns side: r=6 (the
+      predicted death round), r=10, the forward-diagonal sibling projection
+      which reads n mod 8 = 2 at r=5, and the reduced sub-coset which the
+      validator reports goes uniform at 3/40 -- "shrink the input set from 4
+      free diagonal cells to 3, change nothing else, and the residue goes
+      uniform. This is the inventor-protocol section 3 decay test and the
+      quantity decays when the parameter meant to destroy it is applied." That
+      is a genuinely good nearby-object programme and I credit it without
+      reservation. It has simply never been run on the zero-entry side.
+    - >-
+      Quantifier order. The r=5 half is stated as "for every non-singular
+      column-preserving mixing layer, n mod 8 = 0 at r=5", but the witness set
+      that has been measured is {AES MixColumns, M0, M1} -- three matrices, two
+      of them sharing a key and base. The analytic line (a) in
+      CORR-20260802-46b73b is what carries the universal quantifier, not the
+      measurements, and the correction says so honestly: "This correction would
+      read identically had they not been run, because it is written from the
+      reviewed analysis." I have no objection to a universally quantified
+      conclusion resting on an argument; my objection is only that the
+      measurements should not be counted twice, once as confirmation of the
+      argument and again as independent support for the universal claim.
+    - >-
+      Method ceiling. Even fully confirmed at every control I list, the r=4 and
+      r=5 properties are deterministic distinguishers for a class of reduced
+      round functions on a full 2^32 diagonal coset. Their ceiling is a
+      distinguisher, not a key recovery, and no chain in this campaign converts
+      one into the other. The r=6/r=7 hint constructions are the only key-facing
+      objects and both are already recorded as dominated or as not a key
+      recovery. Nobody in this batch overclaims past that ceiling; I state it so
+      that a downstream reader who sees "survives" does not.
+
+  narrowest_supported_statement: >-
+    ON THE ANCHOR: on ONE configuration (r=5, j0=1, id projection, full 2^32
+    coset of D_0, FIPS-197 key 2b7e151628aed2a6abf7158809cf4f3c, base
+    00112233445566778899aabbccddeeff, real AES MixColumns, C1), BATCH-001's
+    count5.c and BATCH-002's cnt.c AES-NI path return identical values in every
+    reported field -- N = 4294967296, n = n_alt = 2147661752, max_occ = 12, and
+    all 13 occupancy bins. Together with a four-way single-block pin agreeing at
+    r=5 and r=10 and a passing FIPS-197 C.1 known-answer test, this establishes
+    that the two engines share the coset layout, the ID_{j0} projection index
+    set and its bit placement, the C1 round structure, the key schedule and the
+    definition of the counting statistic. It establishes NOTHING about dense
+    occupancy, nothing at any other r, j0 or key, and nothing that requires
+    either the software T-table transform under a non-AES matrix or the 16-bit
+    counter path. An agreement here is a failure to detect a difference on one
+    point of a large configuration space; it is not a proof of equivalence.
+    SEPARATELY, and not credited by the rank 2 package, rank 1's collide.c
+    reproduced BATCH-002's M0 r=4 j0=0 arm exactly (n = 547608330240, occ_hist
+    {0:4278190080, 256:16777216}, max_occ 256) at a DIFFERENT window
+    partitioning, which does anchor the software counting kernel at a non-AES
+    matrix and at 16-bit counter width.
+    ON THE ROUND-SPLIT RULE: the r=5 half is supported by reviewed analysis plus
+    two independent reviewed measurements at two zero-entry matrices, two keys
+    and three engines, ONE of which (rank 1's) is the maximally adversarial
+    configuration in which all four refined-critical entries are zero. It is NOT
+    supported by any reproduction of BATCH-002's segment-3 counts, which remain
+    unreviewed and unreproduced. And it is NOT yet distinguished from the
+    competing explanation that the zero-entry matrices force the residue at
+    every round count, because no r >= 6 arm under those matrices exists.
+    ON RANK 4: with the target key, hint key, rounds, nstruct and seed held
+    identical to BATCH-002's t=0 arm, corrupting slot t=1 alone and slot t=2
+    alone each yields an empty candidate set over 4 diagonals, with exactly one
+    hint byte differing at the intended index in every diagonal. This is one
+    target key, one hint key, and no true-hint positive control was run in the
+    same session with the patched binary.
+
+  next_concrete_action: >-
+    RUN RC-1 IN ITS NIBBLE FORM, ALONE, BEFORE ANY FURTHER BYTE-SCALE ARM.
+    Exhibit a non-singular 4x4 matrix over GF(2^4) with at least one zero entry
+    -- verified by the campaign's existing Gauss-Jordan, since the BATCH-001
+    validator's first attempt at this was singular and aborted -- and sweep
+    r = 4, 5, 6 with 40 trials each on that validator's 4x4-nibble AES-shaped
+    SPN, holding S-box, key schedule, coset and projection fixed. Report n mod 8
+    AND whether the occupancy histogram remains supported on multiples of the
+    cell-count analogue at each r. It costs seconds, it is a within-instrument
+    comparison so no cross-engine anchoring is needed, it fills the item that
+    validator itself recorded as not_executed three batches ago, and it is the
+    only measurement in the queue that can falsify the r=5 half of
+    CORR-20260802-46b73b rather than accumulate further agreement with it. If it
+    decays, the round-split rule is materially stronger than it is today and the
+    promotion question DEC-20260802-b226fb deferred becomes answerable on
+    evidence rather than on a reading of the word "measurement". If it does not
+    decay, the batch has found the confound before a knowledge entry asserted
+    it, which is the outcome this whole review sequence exists to buy.
+
+  inference:
+    policy: red-team-review
+    requested_policy: red-team-review
+    resolved_model: claude-opus-5
+    fallback_used: true
+    fallback_note: >-
+      orchestration/model-policies.yaml names GPT-5.6-family aliases this
+      harness cannot resolve; .claude/agents/ subagents run model: inherit.
+      Recorded as fallback rather than silently substituted.
+    model_verified: false
+    model_verified_reason: no adapter probe exists in this harness
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-fa1dcc/red_team_report.yaml
+
+  uncommitted: >-
+    This report is left UNCOMMITTED and no git add was run, per the task card
+    constraint and CORR-20260802-009. The ledger archive task stages it.

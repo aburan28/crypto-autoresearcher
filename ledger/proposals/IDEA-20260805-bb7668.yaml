@@ -1,0 +1,465 @@
+idea:
+  id: IDEA-20260805-bb7668
+  question_id: RQ-MLKEM-003
+  goal_id: GOAL-MLKEM-004
+  added: '2026-08-05'
+  title: >-
+    The empty admissible set was a property of the measurement's geometry, not of
+    MATZOV.Nf: sieve the m+k_lat dual lattice instead of the full one and the
+    comparison C2 asked for becomes well-posed at a cost of one design line
+
+  class: control
+
+  claim: >-
+    BATCH-f75059 proved, correctly and by exhaustive enumeration over all 351
+    integer pairs, that no (m, k_enum, k_fft, p, beta_bkz, beta_sieve) makes
+    MATZOV.Nf a prediction about the object GOAL-MLKEM-004 measured. The proof is
+    sound and its two premises are both DESIGN CHOICES of that measurement, which
+    its own artifact states: R1 holds because "the measured database is a
+    bgj1_sieve run over the full d = m + n = 60 dimensional dual lattice", and R2
+    holds because "the measured design scores candidate secrets that differ from
+    s on any of all n = 25 coordinates" (wellposedness.md, quoted verbatim).
+    Neither is imposed by Nf. Choosing any 0 < k_fft < n, sieving the
+    (m + k_lat)-dimensional dual lattice with k_lat = n - k_fft, and scoring
+    candidates on the k_fft block ALONE satisfies R1 and R2 simultaneously by
+    construction, and the admissible set is then nonempty by inspection with no
+    tuple manufactured. The claim of this proposal is narrow and entirely
+    procedural: THE OBSTRUCTION THAT MADE C2 UNREACHABLE FOR SIX BATCHES IS
+    REMOVED BY A CHANGE OF SIEVED LATTICE, AND NO BATCH AFTER THE SECOND
+    ATTEMPTED IT. It claims no result about the heuristic, no attack, and no
+    security statement.
+
+  object_first_candidate:
+    tracked_object: >-
+      The DIMENSION SPLIT (k_lat, k_enum, k_fft) itself, treated as the tracked
+      object rather than as configuration: followed from the secret's coordinate
+      partition, through which coordinates the sieve is asked to make short,
+      through which coordinates the candidate axis ranges over, into which term
+      of Nf each one lands (k_lat into lsigma_s's exponent and into the sieved
+      dimension m + k_lat; k_fft into both the log-term and the
+      modulus-switching factor; k_enum into the log-term and into T_guess). The
+      point of tracking it is that GOAL-MLKEM-004 held it fixed at
+      (n, 0, 0) for six batches and then reported the resulting incompatibility
+      as a property of the law.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: estimator differencing (the closed
+      GOAL-MLKEM-003 lane); ad hoc candidate-group score contrasts (the six
+      refuted observables of GOAL-MLKEM-004); primal/BDD attacks; decryption
+      failure and FO attacks; implementation side channels. Also declared
+      off-limits, and this one is specific to this proposal: ANY NEW OBSERVABLE.
+      This proposal deliberately proposes no statistic at all. Its entire content
+      is that the measurement must be performed on a different lattice, and
+      adding a novel observable on top would repeat the campaign's actual failure
+      mode, which was six new observables and no geometry change.
+    newness_score: >-
+      LOW, AND DECLARED LOW. Sieving a projected sublattice and FFT-ing over a
+      guessed block is the dual attack as published; there is nothing new in it
+      as mathematics. What is new is only that this program has never done it,
+      and that the record which established the impossibility already contains
+      the two sentences that dissolve it. A proposal whose novelty is
+      organisational should say so, and this one does.
+    testability_score: >-
+      High and cheap. The change is confined to instance construction and to
+      which columns of A enter the dual basis; the sieve, the certificate, the
+      scoring code and the rebuild recipe (KN-TECH-14efa5) are unchanged. The
+      test that it worked is itself a known-answer check: rerun the same
+      exhaustive enumeration compare.py performs and confirm the admissible set
+      is nonempty and contains the intended tuple.
+    survival_score: >-
+      The split survives to cryptographic parameters unchanged -- it is how the
+      attack is defined there. What does not survive is the toy modulus: at
+      q = 127 with a small k_fft the candidate space D = p^{k_fft} is small
+      enough that the union-bound regime Nf models may not be entered at all.
+      Whether the toy cell reaches that regime is a completion gate of the
+      experiment, not an assumption of it.
+
+  mechanism: >-
+    THE OBSTRUCTION, QUOTED. estimator/lwe_dual.py:540 (READ this session at the
+    pin 3e48ef421ec256afddb3e7d2249a77eab6e9ba12) is
+    `k_lat = params.n - k_fft - k_enum`, so k_lat + k_fft + k_enum = n is an
+    identity. BATCH-f75059's wellposedness.md derives two requirements from the
+    measured design and concludes: "R1 and R2 are simultaneously satisfiable only
+    if n = 0." Both quoted requirements are conditional on the design:
+      R1: "the measured database is a bgj1_sieve run over the full d = m + n = 60
+          dimensional dual lattice L = {(x,y) : y = A^T x mod q}, in which every
+          one of the n = 25 secret coordinates has a short y-component"
+          => m + k_lat = m + n => k_enum + k_fft = 0.
+      R2: "the measured design scores candidate secrets that differ from s on any
+          of all n = 25 coordinates" => k_enum + k_fft = n.
+    The red team of that batch recorded the same thing in code terms
+    (EV-MLKEM-50901f: "R2 is a free design choice, compare.py:372-379 is
+    literally `if k==0 and k==25`", and "the tuple (35,0,0,.,.,60) is
+    admissible"). The impossibility is real, narrow, and about the measurement.
+
+    THE REPAIR, DERIVED. Fix 0 < k_fft < n and put k_enum = 0, k_lat = n - k_fft.
+    Partition the secret coordinates and the columns of A accordingly:
+    A = [A_lat | A_fft], s = (s_lat, s_fft). Build the dual basis of
+        L' = { (x, y_lat) in Z^m x Z^{k_lat} : y_lat = A_lat^T x mod q },
+    of dimension m + k_lat and determinant q^{k_lat}, and sieve THAT. Then
+      - R1 holds by construction: the sieved dimension is m + k_lat exactly, and
+        exactly k_lat secret coordinates are absorbed by the shortness of y_lat.
+      - R2 holds by construction: candidates range over the k_fft block only, so
+        a candidate differs from the truth on exactly k_enum + k_fft = k_fft
+        coordinates.
+      - k_lat + k_fft + k_enum = (n - k_fft) + k_fft + 0 = n, satisfying line
+        540 identically.
+    The admissible set is therefore { (k_enum, k_fft) = (0, k_fft) } and is
+    nonempty by inspection. No tuple is manufactured: k_fft is CHOSEN as part of
+    the instance construction, before any measurement, and the sieve is then run
+    on the lattice that choice determines.
+
+    WHAT THIS UNLOCKS, TERM BY TERM. With the repair in place every symbol in
+    Nf's expression acquires a referent on the measured object:
+      lsigma_s = sigma_e^{m/(m+k_lat)} (sigma_s q)^{k_lat/(m+k_lat)}
+                 sqrt(4/3) sqrt(beta_sieve/(2 pi e))
+                 deltaf(beta_bkz)^{m + k_lat - beta_sieve}
+      N = exp(4 (lsigma_s pi / q)^2)
+          * exp(k_fft/3 (sigma_s pi / p)^2)
+          * (k_enum Hf + k_fft log p + log(1/mu))
+    (lines 543-556, read). Three consequences that the campaign's geometry made
+    unavailable and that this repair makes available:
+    (i) The modulus-switching factor exp(k_fft/3 (sigma_s pi/p)^2) stops being
+        identically 1. Batch 2 recorded exactly this: "the design performs no FFT
+        sub-block split, so k_fft = 0 under any reading that respects the vector
+        family, and then Nf is identically independent of p ... The factor
+        exp(k_fft/3 (sigma_s pi/p)^2) -- which exists precisely to charge the
+        adjacent-FFT-bin penalty, i.e. the very near-miss phenomenon batch 1
+        observed -- is therefore identically 1 and untestable here."
+        BATCH 1 OBSERVED THE PHENOMENON AND BATCH 2 PROVED THE TERM THAT CHARGES
+        IT WAS UNTESTABLE IN THAT DESIGN. Four further batches then studied
+        near-miss candidate groups without restoring the term. The repair
+        restores it, and p becomes a swept parameter whose predicted effect on N
+        is a closed form.
+    (ii) The length model stops being contaminated. wellposedness.md records that
+        the obstruction "through k_lat ... then contaminates the length model as
+        well": lsigma_s's exponents m/(m+k_lat) and k_lat/(m+k_lat) are
+        meaningless when k_lat is not the sieved lattice's secret block. With the
+        repair they are determined by the run, so the predicted vector length is
+        a number the run can be compared against.
+    (iii) beta_bkz remains irrelevant when beta_sieve = m + k_lat, by the same
+        known-answer control KA-5 the campaign already established
+        (deltaf(beta_bkz)^{m+k_lat-beta_sieve} has exponent 0). So the repair
+        costs no new free parameter: the tuple is (m, 0, k_fft, p, *, m+k_lat)
+        with m, k_fft, p, beta_sieve all pinned by construction and beta_bkz
+        provably inert.
+
+    COST BOOKKEEPING. Per attempt: one sieve of dimension m + k_lat instead of
+    m + n, which is strictly cheaper -- the campaign's own instrument record
+    reports bgj1 at dimension 70 in 335.2 s and gauss_sieve at dimension 50 in
+    0.94 s (GOAL-MLKEM-004 instrument.verified_by_execution, quoted), so a
+    (m+k_lat) in the 40 to 70 range is minutes. Inverse success probability: 1;
+    the construction is deterministic given seeds. The only new cost is the
+    obligation to run at several k_fft, since a single k_fft would reproduce the
+    campaign's one-cell habit that EV-MLKEM-2cd08b lists first among its
+    boundaries.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      coordination/goals/GOAL-MLKEM-004/batches/BATCH-f75059/tasks/TASK-20260803-5f11b7/wellposedness.md
+      and compare.py section S2. READ IN FULL this session; all quotations above
+      are verbatim from those files.
+    - >-
+      estimator/lwe_dual.py, class MATZOV, at pin
+      3e48ef421ec256afddb3e7d2249a77eab6e9ba12. READ this session.
+    - >-
+      MATZOV 2022 and Guo-Johansson (AC:GuoJoh21), cited by the estimator source
+      with page references. NOT READ -- relayed claim. Whether the papers'
+      geometry is the code's geometry is a stage-0 obligation, and if it is not,
+      the repair is a repair of the pinned instrument only.
+    - >-
+      EV-MLKEM-50901f and DEC-20260803-264d6a (batch 2's evidence and decision).
+      READ. The red team's finding that R2 is a free design choice is recorded
+      there and was never consumed by a later batch.
+    - >-
+      DEC-20260805-0b3e11, criterion C2 clause (a): "No comparison against Nf was
+      ever made: batch 2 PROVED no admissible tuple exists for this design, and
+      the batch-6 package disclaims it in report.md." READ. The words "for this
+      design" are the Coordinator's own and are the whole of this proposal.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The dual vector (x, y) in the full lattice --> its restriction (x, y_lat)
+      in the projected lattice, with the k_fft block's image w = A_fft^T x
+      carried unconstrained.
+    what_is_discarded: >-
+      Nothing about the vector. The map is a change of which coordinates the
+      sieve is asked to shorten; it is a re-basing of the same object plus a
+      relaxation of k_fft constraints, not a compression of it.
+    why_genuinely_lossy: >-
+      IT IS NOT. This audit returns a NEGATIVE and the proposal records it rather
+      than dressing the change up as a new object. Under the lossy-projection
+      test of docs/inventor-protocol.md section 2, the (k_lat, k_fft) split is a
+      change of coordinates on the instance, and the KN-LIT-7595 failure mode
+      applies to it exactly: nothing is discarded, so nothing is gained AS AN
+      OBJECT.
+    why_compatible_with_the_operations: >-
+      Trivially compatible, which is the other half of the negative: a change of
+      coordinates always is.
+    is_it_only_a_change_of_coordinates: >-
+      YES, AND THAT IS THE HONEST ANSWER. This proposal fails the lossy-projection
+      test considered as a candidate new object, and it is submitted anyway,
+      under a different justification which is stated plainly: it is a
+      PRECONDITION, not a discovery. C2 of GOAL-MLKEM-004 cannot be evaluated on
+      an instance whose geometry makes its subject undefined, and no amount of
+      new observables repairs that. The mirror failure was checked as well: the
+      change is not constant across instances (it is not a statistic at all), so
+      the constancy failure does not apply. Recording a failed audit and
+      proceeding for a declared different reason is the behaviour
+      docs/inventor-protocol.md section 8 asks for -- "A non-applicable audit
+      records why" -- and is preferable to renaming a configuration change as an
+      object.
+
+  assumptions:
+    - >-
+      That the pinned estimator's Nf is the object whose well-posedness matters.
+      If MATZOV's paper differs, the repair repairs the instrument this program
+      cites, which is still worth doing, and the record must say which.
+    - >-
+      That a toy cell can enter the regime Nf models at all. NOT ASSUMED,
+      TESTED: the experiment's completion gate requires that the correct
+      candidate be distinguishable at the chosen (N, D) in the un-ablated arm,
+      and reports the cell as OUT OF REGIME rather than reporting a comparison if
+      it is not.
+    - >-
+      That k_enum = 0 is admissible. It is, by line 540 with k_fft + k_lat = n.
+      A k_enum > 0 arm is optional and is not required for well-posedness.
+
+  predictions:
+    - metric: >-
+        admissible_tuples_found from the identical exhaustive enumeration
+        compare.py performs, run on the repaired design
+      direction: higher
+      minimum_effect: >-
+        EXACTLY ONE tuple, (k_enum, k_fft) = (0, k_fft_chosen), for each chosen
+        k_fft, out of the (n+1)(n+2)/2 pairs enumerated. Forced by construction
+        and derived before the run. If the enumeration returns the empty set the
+        repair was not implemented as specified and the run is void.
+    - metric: >-
+        Nf sensitivity to p on the repaired design: the ratio
+        Nf(p = p_1)/Nf(p = p_2) at fixed everything else
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE exp(k_fft/3 (sigma_s pi)^2 (1/p_1^2 - 1/p_2^2)), an exact
+        consequence of the read source line 554. It must be strictly greater than
+        1 for p_1 < p_2 and must equal 1 identically when k_fft = 0. The k_fft = 0
+        arm is therefore a known-answer control that reproduces batch 2's own
+        KA-3 result and confirms the repair did not perturb the instrument.
+    - metric: >-
+        Measured mean squared dual-vector length on the sieved (m+k_lat) lattice
+        against Nf's predicted lsigma_s^2, at three or more (m, k_lat) cells
+      direction: different
+      minimum_effect: >-
+        A ratio reported per cell with no target value asserted -- this is the
+        first cell in which the length model has a referent, so the honest
+        deliverable is the measured ratio and its trend, not a pass/fail against
+        a number invented here. What IS pre-registered is the falsifier: if the
+        ratio is not within a factor of 2 at any cell, the length model does not
+        describe this sieve's output and every downstream comparison inherits
+        that, which must be stated in the headline rather than in a limitation.
+    - metric: >-
+        Fraction of cells in which the correct candidate is the argmax of the
+        FFT score over the k_fft block (regime check)
+      direction: higher
+      minimum_effect: >-
+        >= 0.9 over the declared cells. Below that the cell is OUT OF REGIME and
+        is reported as such; no comparison against Nf is made from an out-of-regime
+        cell, and a batch in which every cell is out of regime reports exactly
+        that and no finding.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first.
+      STAGE 0 (zero compute): re-run compare.py's own admissibility enumeration
+      against the repaired design's parameters. Seconds, pure Python, no sieve,
+      no estimator. It either returns the intended tuple or the design is wrong,
+      and it can terminate the line before any instrument is built.
+      STAGE 1 (zero compute): evaluate Nf on the repaired design's parameters at
+      several p and k_fft, and verify the forced ratios above. Needs only the
+      pinned estimator under tools/sage_free_estimator, whose known-answer
+      control already exists and must be re-passed.
+      STAGE 2 (instrument, ~1 CPU-hour): rebuild per KN-TECH-14efa5, verify, and
+      sieve the (m + k_lat) dual lattice. Certificate: y_lat = A_lat^T x mod q,
+      re-verified by integer arithmetic independent of g6k, as batch 1 did.
+      STAGE 3: the regime check and the length-ratio measurement, at >= 3 cells
+      and >= 3 instances per cell.
+    controls:
+      - >-
+        KNOWN-ANSWER, k_fft = 0 ARM (null object of the same shape, forced value
+        derived pre-run, CAN FAIL). Set k_fft = 0 and confirm Nf is exactly
+        independent of p, reproducing batch 2's KA-3. If p moves N when k_fft = 0
+        the instrument is broken and nothing else in the package is readable.
+      - >-
+        KNOWN-ANSWER, beta_bkz ARM. Nf(beta_bkz = 45) == Nf(beta_bkz = 300) to
+        machine precision when beta_sieve = m + k_lat, reproducing batch 2's
+        KA-5 on the repaired geometry.
+      - >-
+        KNOWN-ANSWER, ESTIMATOR ROUND TRIP. Reproduce the repository's own
+        documented Kyber512 value (rop ~ 2^115.5, beta 395, p 5, zeta 0, t 40
+        under RC.ADPS16, quoted from estimator/lwe.py's docstring) and the
+        sage_free_estimator README's archived Kyber512/768 log2(rop) values at
+        delta 0.00e+00. Exact equality is the bar, per that README.
+      - >-
+        POSITIVE CONTROL (must fire). At a cell with generous N, the correct
+        candidate must be the argmax of the FFT score. If it is not, the
+        distinguisher is not working and no statement about the model may be
+        made from that cell.
+      - >-
+        GRADED CONTROL, >= 3 interior points, monotonicity reported. Sweep
+        k_fft in {1, 2, 3, 4} at fixed m and fixed candidate count where
+        possible, and report how the measured required N tracks Nf's predicted
+        N. A prediction that tracks at one k_fft and not at others localises the
+        failure to a term.
+      - >-
+        NEGATIVE-SPACE CHECK (zero compute). Enumerate every prior batch of
+        GOAL-MLKEM-004 and record, for each, the (k_lat, k_enum, k_fft) it
+        measured at. Expected: (n, 0, 0) in all six. Recorded as a fact about the
+        campaign, not as a criticism of any batch.
+    required_metrics:
+      - the admissible set returned by the unmodified enumeration, per cell
+      - Nf value and its three factors separately, per (k_fft, p) cell
+      - measured mean and spread of ||(x, y_lat)||^2 against lsigma_s^2
+      - dual-membership certificate counts (checked entries, violating entries)
+      - argmax-correct fraction per cell, with seeds
+
+  falsification_conditions:
+    - >-
+      The enumeration returns the empty admissible set on the repaired design.
+      The repair does not work as derived and the derivation above is wrong.
+    - >-
+      The k_fft = 0 known-answer arm shows p-dependence, or the beta_bkz arm
+      shows beta_bkz-dependence. The instrument is broken.
+    - >-
+      Every declared cell is out of regime. Then the toy scale cannot host the
+      comparison at all, which is a NAMED OBSTRUCTION of exactly the kind
+      GOAL-MLKEM-004 was careful to say it did NOT have, and it would be the
+      first real one in this lane. It must be reported as such and not as a
+      failure of the repair.
+    - >-
+      Stage 0 shows that some later batch of GOAL-MLKEM-004 did in fact change
+      the geometry and the record was misread here. The proposal is then void and
+      the misreading is corrected by a new record.
+
+  confounders:
+    - >-
+      SMALL-D REGIME. At toy q and small k_fft the candidate count D = p^{k_fft}
+      may be too small for the union-bound asymptotics Nf uses to bind. This is
+      the most likely reason the repaired cell says nothing, and the regime check
+      exists to detect it before any comparison is reported.
+    - >-
+      A SHORTER LATTICE IS AN EASIER LATTICE. Sieving m + k_lat < m + n
+      dimensions produces relatively shorter vectors for the same effort, which
+      changes the advantage and hence the required N. This is not a confounder of
+      the well-posedness claim but it is a confounder of any cross-batch
+      comparison to the campaign's archived numbers, and such comparisons are
+      forbidden by this contract rather than caveated.
+    - >-
+      REPAIRING A DESIGN IS CHEAP TO PROPOSE. A proposal that says "the previous
+      six batches used the wrong geometry" reads as rigour and costs nothing to
+      write. The stage-0 enumeration, which can refute it in seconds, is placed
+      first for that reason.
+
+  interpretation_limits:
+    - >-
+      NO CLAIM ABOUT THE HEURISTIC. Making a comparison possible is not making
+      one. This proposal produces no delta, no direction and no bits.
+    - >-
+      NO CRITICISM OF BATCH 2 IS INTENDED OR LICENSED. Its impossibility proof is
+      correct, was verified in code over all 351 pairs, and its own artifact
+      names both premises as design facts. What is criticised, if anything, is
+      that four subsequent batches inherited the geometry without revisiting it.
+    - >-
+      NO ML-KEM CLAIM. Toy scale, no attack, no exponent, no parameter set
+      affected or cleared.
+    - >-
+      This proposal does not adjudicate CORR-20260805-527ffc's open dispute about
+      which decision closed GOAL-MLKEM-004.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING. The repair is an identity check on line 540 plus a
+        construction; k_lat + k_fft + k_enum = n holds by definition of the
+        partition, and the sieved dimension is m + k_lat by construction of the
+        basis. No distributional assumption enters the well-posedness claim.
+      rigorous_support: >-
+        The dual basis [[I_m, A_lat],[0, q I_{k_lat}]] has determinant q^{k_lat}
+        and its row span is exactly {(x, y_lat) : y_lat = A_lat^T x mod q}.
+        Elementary and checkable by integer arithmetic, which the certificate
+        does.
+      validation_plan: >-
+        The membership certificate re-verified independently of the sieve, as
+        batch 1 did at 0 violating entries out of 447,975 (EV-MLKEM-2cd08b
+        certificate_refs, quoted).
+    - id: H2
+      statement: >-
+        The toy cell enters the regime in which Nf's union-bound form is the
+        governing constraint.
+      rigorous_support: >-
+        NONE. Nf's derivation (as inferred from the code's algebra, the paper NOT
+        READ) is asymptotic in the number of candidates. At D of order tens this
+        is not obviously in force.
+      validation_plan: >-
+        The regime check: argmax-correct fraction >= 0.9 and a measured
+        required-N curve that is monotone in D. If either fails the cell is
+        declared out of regime and no comparison is reported from it.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. NO EXPONENT IS MOVED AND NONE IS CLAIMED. This proposal is a
+      precondition for a measurement, not a mechanism. Stating that plainly is
+      required by the contract and is the correct answer here.
+    memory_exponent: >-
+      n/a. The repaired sieve is strictly smaller than the one the campaign ran,
+      so the measurement's memory is bounded by the campaign's own archived
+      figures.
+    best_known: >-
+      EV-MLKEM-015 / KN-FIND-015 remains the program's pinned answer on the
+      dual-versus-primal comparison and is not contested here.
+    hidden_overhead: n/a.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    Nothing dominates it on the axis it occupies, because it occupies a
+    precondition rather than a result -- and that is a weak form of
+    non-domination, so it is stated as such rather than as `null`. Rows checked:
+    (1) TIME -- every alternative route to C2 in this corpus. GOAL-MLKEM-003's
+    estimator differencing (closed, named obstruction, DEC-20260803-64b55b);
+    GOAL-MLKEM-004's six batches (all at the same (n,0,0) split); EV-MLKEM-015's
+    estimator run (a cost computation, not a measurement of the object). None
+    makes the comparison well-posed.
+    (2) MEMORY -- the repaired sieve is smaller than the campaign's, so no
+    alternative is cheaper in memory.
+    (3) DATA/QUERIES -- one sieve per cell; the archived pool cannot be reused
+    because its geometry is the thing being changed, and that is stated rather
+    than papered over.
+    (4) EXTERNAL -- Carrier et al.'s coding-theoretic variant (KN-LIT-7617, NOT
+    READ) claims to avoid the contested assumptions and would, if correct, make
+    the MATZOV comparison less interesting. Recorded as a partial dominator on
+    RELEVANCE, not on cost.
+  sota_delta: >-
+    Zero on every attack axis: no time, memory, data, query or advice improvement,
+    no exponent, no constant. The quantitative delta is procedural and is stated
+    as a number anyway: the admissible tuple set goes from 0 elements out of 351
+    enumerated pairs to exactly 1, and the number of Nf terms with a referent on
+    the measured object goes from 2 of 3 factors (advantage law, log-term) to
+    3 of 3 (adding the modulus-switching factor), with the length model
+    decontaminated. That is the whole delta and it is not dressed up as more.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.90 that the repair makes the admissible set nonempty exactly as derived --
+    it is an identity plus a construction, and the only way it fails is a
+    misreading of line 540, which stage 0 catches in seconds. 0.45 that a toy
+    cell built this way is IN REGIME and can host a real comparison; this is the
+    number that matters and it is under a half, because D = p^{k_fft} at toy q is
+    small and Nf's form is asymptotic in D. Why 0.45 is not lower: k_fft and p
+    are both free, so D can be pushed up by choosing p larger at fixed k_fft, and
+    the sieve cost does not grow with D. Why it is not higher: nobody has run
+    this cell, the campaign's six batches provide no calibration for it, and an
+    out-of-regime result is a real possibility that the contract is written to
+    report rather than to hide.

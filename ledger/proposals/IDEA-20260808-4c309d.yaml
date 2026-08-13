@@ -1,0 +1,211 @@
+idea:
+  id: IDEA-20260808-4c309d
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  title: A certified FLOOR on key-guessing overhead - for each placement of a distinguisher
+    inside reduced-round AES, no attack in the class can guess fewer than rank(M) minus the
+    key-schedule relation count, and the (floor vs actual) deficit table names the only shapes
+    with room left.
+  class: measurement
+  claim: 'Fix a distinguisher occupying rounds [a,b] with input functional phi_in (byte positions
+    at round a) and output functional phi_out (at round b). Build the INFLUENCE MATRIX M over
+    GF(2^8) by lifting phi_in back to the plaintext and phi_out forward to the ciphertext
+    through the LINEAR PART ONLY (ShiftRows composed with MixColumns; SubBytes replaced by
+    an opaque per-byte bijection), with columns indexed by expanded-key bytes. CLAIM - every
+    attack in the class that EVALUATES phi from plaintext/ciphertext pairs must know at least
+    rank(M) expanded-key bytes, less the number of independent GF(2)-linear key-schedule relations
+    among them (the quantity catalogue A2-1 reports as 960/1216/1248 for AES-128/192/256,
+    to be re-derived not cited). DELIVERABLE - a table over all shapes up to the symmetry
+    group of A1-07 with three columns: certified floor, bytes the campaign''s own committed
+    constructions actually guess, deficit. DISCRIMINATION - deficit 0 CLOSES that shape in
+    that class (a scoped barrier statement, GOAL-AES-001''s admitted deliverable); deficit
+    >= 1 byte names the exact bytes that may not need guessing.'
+  mechanism: 'Key-recovery cost is dominated by 2^{8g}, g = guessed key bytes, and every published
+    saving (key bridging, differential enumeration) reduces g. Nothing in this repository
+    bounds g from below. A floor exists because SubBytes is a per-byte bijection and so removes
+    no information: phi''s dependence on the plaintext factors through the linear layers,
+    so the set of key bytes phi genuinely depends on is a linear-algebraic invariant - a rank
+    over GF(2^8) of a matrix at most 32 x 16(R+1), microseconds, no solver. Subtracting the
+    key-schedule relations is what makes the floor tight: two round keys sharing schedule
+    links cost less entropy than their byte count suggests.'
+  why_not_a_renamed_known_approach: 'Nearest known method - key bridging (recalled_unverified),
+    an UPPER-bound instrument that finds savings; mine is a LOWER-bound instrument that certifies
+    no further saving exists in the class. Logically opposite, and a program holding only
+    the first can never close a shape. Nearest internal record - catalogue A2-1, which COUNTS
+    relations; this record USES them as the subtrahend and adds the influence-rank term A2-1
+    does not have. LOSSY-PROJECTION TEST - projection is (state,key) -> the set of expanded-key
+    byte indices phi''s value depends on. It discards every value and keeps a dependency set.
+    Compatibility: SubBytes acts as the identity on dependency sets, ShiftRows permutes them,
+    MixColumns merges each four into their union, AddRoundKey adjoins one key index - so every
+    AES operation propagates the retained part deterministically. Genuinely lossy. PASSES.
+    Honest weakness stated up front: because SubBytes acts as the identity, the projection
+    is blind to the S-box, which is exactly why it yields a floor and not an attack.'
+  predictions:
+  - observable: rank(M) for the 4-round integral shape the campaign already runs
+    metric: bytes
+    predicted: exactly 4 (one last-round-key column), deficit 0 - a hand-known fixture
+  - observable: deficit for the campaign's r=6 hinted partial-sums construction (attack6n)
+    metric: bytes actually guessed minus certified floor
+    predicted: strictly positive, at least 1 byte
+  - observable: fraction of shapes at deficit 0 at R = 6, up to symmetry
+    metric: fraction
+    predicted: strict minority (below 50 percent)
+  - observable: effect of the A2-1 subtraction
+    metric: floor with vs without the subtraction
+    predicted: lowers the floor by at least 1 byte for at least one AES-192/256 shape; 0 for
+      AES-128 shapes spanning at most 2 consecutive round keys
+  - observable: null control with MixColumns replaced by the identity
+    metric: rank(M_null) vs rank(M)
+    predicted: strictly smaller; equality means the instrument measures state size, not diffusion
+  minimal_test: Derivation plus arithmetic, no cryptanalytic compute. Build M symbolically
+    from the pinned FIPS-197 harness for R = 4..7 over a pre-declared shape enumeration; compute
+    rank over GF(2^8); subtract the re-derived key-schedule relations restricted to the spanned
+    round keys; compare against the guess counts read from the campaign's OWN committed sources
+    (attack6n, attack7n, the r=5 recovery). For one deficit-0 shape, add a CONSTRUCTIVE impossibility
+    check - show symbolically that phi is not computable from fewer bytes - so the closure
+    rests on a derivation and not on the rank alone.
+  controls:
+  - Identity-MixColumns null (prediction 5).
+  - The 4-round integral fixture frozen before any other shape is computed.
+  - Independent recomputation of rank(M) with a different elimination order.
+  - Re-derivation of the A2-1 relation counts rather than citation (A2-1 is catalogue-level,
+    unvalidated).
+  confounders:
+  - Class boundary - the floor binds attacks that COMPUTE phi; attacks that statistically
+    ESTIMATE phi are outside it, and every closure sentence must say so.
+  - Opaque-bijection treatment of SubBytes is conservative for the floor but blinds it to
+    S-box-specific savings.
+  - Importing A2-1's counts unchecked would rest the floor on an unvalidated number.
+  falsification_conditions:
+  - rank(M) is not 4 on the 4-round fixture - construction wrong, nothing publishable.
+  - An exhibited attack computes phi knowing fewer bytes than the floor - refuted outright.
+  - Identity-MixColumns null returns the same rank - instrument void.
+  - Every shape at deficit 0 - the key-guessing axis is closed for the class; a strong scoped
+    negative.
+  interpretation_limits: Reduced-round, RQ-AES-001 ceiling. Deficit 0 closes A CLASS OF ATTACKS
+    ON A SHAPE, never AES. A positive deficit is a pointer, not an attack. The instrument
+    is blind to S-box values by construction.
+  assumptions:
+  - The pinned FIPS-197 harness is ground truth for the linear layers.
+  - A2-1 counts are re-derived, not cited.
+  - A1-07's symmetry group is available, else "all shapes" is a sample and must be labelled
+    one.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: FOR ALL shapes in the class, an attack knowing fewer than rank(M) - rel expanded-key
+      bytes cannot evaluate phi on any plaintext/ciphertext pair with success better than
+      2^{-8} per missing byte.
+    rigorous_ingredient: rank(M) is a proved linear-algebra quantity and per-byte SubBytes
+      bijectivity is FIPS-197-verified in the pinned harness; only the step that a missing
+      byte costs a full 8 bits is heuristic.
+    distribution_imitated: The wrong-key randomisation hypothesis restricted to one byte -
+      the unknown byte's contribution to phi is uniform on GF(2^8).
+    validation_route: TOY, LABELLED AS TOY. On the GOAL-AES-001 BATCH-003 GF(2^4) analogue,
+      exhaustively enumerate all values of one omitted key nibble and measure phi's empirical
+      distribution against uniform by total-variation distance, over all keys. On real AES
+      at r = 4, sample 2^20 (missing-byte, data) pairs and compare to uniform. Never presented
+      as crypto-scale.
+    tail_checks: Report the LEAST uniform byte position, not the mean; a position at total-variation
+      distance above 2^{-2} means that byte is partly free and the floor is overstated there.
+  - id: HA-2
+    statement: the enumerated shape set is complete up to the symmetry group G of A1-07.
+    rigorous_ingredient: C_4 column rotation is a proved automorphism of the AES round function
+      (ShiftRows is a per-row cyclic shift; MixColumns acts identically on every column; both
+      commute with a cyclic relabelling of columns).
+    distribution_imitated: not applicable - group-theoretic completeness.
+    validation_route: Enumerate the FULL unquotiented shape set at R = 4 where it is small,
+      verify the orbit decomposition, and confirm the quotiented table reproduces every full-set
+      entry before applying the quotient at R = 6, 7.
+    tail_checks: Report any orbit whose size does not divide 4 - extra stabiliser is where
+      completeness arguments silently lose cases.
+  target_complexity:
+    time_exponent: 'NO ATTACK, NO EXPONENT IMPROVEMENT CLAIMED. It certifies a LOWER bound
+      of 8*(rank(M) - rel) bits on the key-guessing exponent per shape. Its exponent relevance
+      is as a SEARCH-PRUNING BUILDING BLOCK for A1-01 and A1-02: a positive deficit is a pointer
+      at the only shapes where an exponent movement remains possible in this class. Stated
+      as a building block explicitly, per the brief''s priority rule.'
+    memory_exponent: negligible - matrices at most 32 x 128 over GF(2^8).
+    best_known_baseline: None exists in this repository; there is currently no instrument
+      that lower-bounds key-guessing overhead for any AES attack shape.
+    hidden_overhead_disclosure: The floor holds only for the class the projection defines;
+      widening the class (statistical estimation of phi, S-box-specific relations, related-key)
+      invalidates it. No asymptotic claim, so no o(1).
+    time_memory_tradeoff: not applicable - no attack is produced.
+  sota_delta: Zero attack improvement, by construction and by admission. The delta is methodological
+    - it converts "we found no saving" into "no saving exists in this class on this shape",
+    i.e. the difference between a fatigue report (honest status `unverified` per docs/inventor-protocol.md
+    section 4) and a closure.
+  dominated_by: Nothing in this repository does this - checked IDEA-20260805-4bd60c (closure
+    STANDARD for C3, not an instrument), H-AES-0e5fa1 and H-AES-b02749 (projection classes
+    / key schedule as a circuit, both forward), catalogue A2-1 and A2-6, and all 57 KN-FIND
+    lines. Externally a MILP key-bridging search dominates on expressiveness and is unavailable
+    here; whether the floor question is answered in the literature is UNRESOLVABLE-IN-THIS-ENVIRONMENT.
+  estimated_cost: Implementation LOW-MEDIUM (matrix construction is the delicate part); compute
+    NEGLIGIBLE; one producer slot including HA-1's toy validation.
+  recommended_priority: high
+  honest_prior_of_survival: 4-round fixture 0.85; at least one positive-deficit shape 0.75;
+    at least one shape closed with a constructive impossibility check 0.6; HA-1 surviving
+    its worst-byte tail check 0.5 - that is the weak point, since partial key recovery from
+    data is what real attacks do. Decision either way 0.9.
+  novelty_status: unverified
+  novelty_class: speculative
+  novelty_screen: CATALOGUE_TITLES.txt (A2-1 is a SUBROUTINE here, not a duplicate; A2-6's
+    key-schedule byte-activity automaton is forward propagation); EXISTING_HYPOTHESES.txt
+    (H-AES-b02749, key schedule as a layered Boolean circuit - upper-bound/propagation); EXISTING_PROPOSALS.txt
+    (IDEA-20260805-33a11e tracks master-key algebraic degree, again forward); REJECTED_TITLES.txt,
+    DEFERRED_TITLES.txt, KNOWLEDGE_BARRIERS.txt - no matches. EXTERNAL LITERATURE NOT SCREENED.
+  discriminated_from: A2-1 counts relations; this uses them as one term in a floor plus an
+    influence rank. H-AES-b02749 / IDEA-20260805-33a11e propagate FROM the key; this computes
+    backward dependency OF the distinguisher functional ON the key. The direction is the whole
+    point - forward gives attacks, backward gives floors.
+  source_refs:
+  - ref: catalogue A2-1 - 960/1216/1248 GF(2)-linear relations on the expanded key
+    status: internal_catalogue_unvalidated
+    use: used only after independent re-derivation.
+  - ref: key bridging for AES key recovery
+    status: recalled_unverified
+    use: named as the nearest UPPER-bound method; not authority.
+  proof_search_map:
+    bottleneck: The absence of any lower-bound instrument, which is why every AES negative
+      in this program is currently a fatigue report.
+    baseline_embedding:
+      parameter_slice: the 4-round integral shape, whose guessed set is known by hand.
+      reproduction_check: rank(M) must equal 4 there; frozen as a fixture before any other
+        shape.
+    observation_collision:
+      observable: the integer rank(M) minus rel.
+      distinct_preimage_search: AES and identity-MixColumns sharing a floor is the dangerous
+        collision; prediction 5 is that search and is mandatory.
+    constructive_transforms:
+    - transform: stronger_invariant
+      proposed_object: backward dependency set of the distinguisher functional on expanded-key
+        bytes
+      predicted_gain: Converts "no saving found" into "no saving exists in class", per shape.
+    - transform: observable_fiber
+      proposed_object: constructive impossibility check on a deficit-0 shape
+      predicted_gain: upgrades a rank argument into a checkable derivation artifact.
+    quantifier_order: FOR ALL shapes in the class, FOR ALL attacks in the class that evaluate
+      phi from plaintext/ciphertext pairs, the number of expanded-key bytes known is at least
+      rank(M) - rel. The quantifier is over the CLASS on both sides; it is NOT "for all attacks
+      on AES".
+    method_ceiling:
+      strongest_certifiable_claim: '"within the class, shape (a,b,phi) admits no attack guessing
+        fewer than F bytes."'
+      nearby_object_control: An AES variant with the IDENTITY S-box has the identical M and
+        identical floor yet is trivially breakable - that variant must be printed beside every
+        table so no reader reads the floor as a security statement.
+    proof_obligations:
+    - claim: rank(M) is the correct dependency count
+      responsibility: correctness
+    - claim: the A2-1 subtraction is valid on the spanned round keys
+      responsibility: baseline
+    - claim: a missing byte costs 8 bits
+      responsibility: success_probability
+    - claim: shape enumeration complete up to G
+      responsibility: interface
+    - claim: class boundary stated in every closure sentence
+      responsibility: scope
+    not_applicable_reason: null

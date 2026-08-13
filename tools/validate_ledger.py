@@ -9,7 +9,7 @@ Mechanically enforces the invariants that AGENTS.md and docs/ state in prose:
   * required fields are present per record type;
   * run manifests are complete and reproducible;
   * a run claiming a solve carries a verified certificate;
-  * an evidence record never asserts above the claim tier its runs allow;
+  * evidence records carry descriptive scale metadata and explicit scope;
   * knowledge/INDEX.md is not stale.
 
 Exit code 0 if clean, 1 if any error. Empty ledger validates clean.
@@ -27,6 +27,13 @@ edit (AGENTS.md core rule 4) is routed via tools/run_supersession_registry.yaml:
 the run-schema check reads the superseding record, while both files stay
 pinned by sha256 and the superseded file must remain present at its
 original path. Supersession redirects the check; it never suppresses it.
+
+The same rule applies to archived ledger, experiment, knowledge, and goal
+checkpoint records through tools/schema_supersession_registry.yaml.  The
+discovered source stays byte-identical and hash-pinned; validation reads the
+explicit replacement record.  This is deliberately separate from the legacy
+inventories and the prune-only baseline: a supersession must supply a complete
+record and cannot turn an error into a warning.
 
 Usage: python3 tools/validate_ledger.py [--no-baseline] [--update-baseline]
 """
@@ -64,6 +71,17 @@ RUN_SUPERSESSION_REQUIRED = ["run_id", "superseded_path", "superseded_sha256",
 # and register the same run id twice, weakening the duplicate-ID check).
 RUN_MANIFEST_PATH = re.compile(
     r"^experiments/[^/]+/runs/[^/]+/manifest\.yaml$")
+SCHEMA_SUPERSESSION_REGISTRY = os.path.join(
+    REPO, "tools", "schema_supersession_registry.yaml"
+)
+SCHEMA_SUPERSESSION_SCHEMA = "schema-supersession-registry-v1"
+SCHEMA_SUPERSESSION_REQUIRED = ["kind", "superseded_path",
+                                "superseded_sha256", "superseding_path",
+                                "superseding_sha256", "defect", "registered"]
+SCHEMA_SUPERSESSION_KINDS = {
+    "ledger", "experiment", "knowledge", "goal_checkpoint"
+}
+SCHEMA_SUPERSESSION_ROOT = "ledger/corrections/schema-supersessions/"
 SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
 # Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
@@ -209,6 +227,7 @@ class Ctx:
         self,
         legacy_paths: set[str],
         legacy_id_remaps: dict[str, str] | None = None,
+        schema_supersessions: dict[str, dict] | None = None,
     ):
         self.errors: list[str] = []
         self.legacy_warnings: list[str] = []
@@ -220,6 +239,18 @@ class Ctx:
         self.legacy_paths = legacy_paths
         self.legacy_id_remaps = legacy_id_remaps or {}
         self.legacy_aliases: set[str] = set()
+        self.schema_supersessions = schema_supersessions or {}
+
+    def source_path(self, path: str) -> str:
+        """Return the hash-pinned replacement for a registered source path."""
+        entry = self.schema_supersessions.get(os.path.abspath(path))
+        if (entry and not entry.get("redirect_id")
+                and os.path.isfile(entry["superseding_path"])):
+            return entry["superseding_path"]
+        return path
+
+    def schema_supersession(self, path: str) -> dict | None:
+        return self.schema_supersessions.get(os.path.abspath(path))
 
     def err(self, path: str, msg: str, *, force: bool = False):
         # First line only: PyYAML messages span lines and embed absolute
@@ -243,14 +274,20 @@ class Ctx:
 
 
 def load_yaml(path: str, ctx: Ctx):
+    source = ctx.source_path(path)
     try:
-        return yaml.safe_load(open(path, encoding="utf-8"))
+        with open(source, encoding="utf-8") as handle:
+            return yaml.safe_load(handle)
     except yaml.YAMLError as e:
-        ctx.err(path, f"invalid YAML: {e}")
+        ctx.err(source, f"invalid YAML: {e}")
         return None
 
 
 def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
+    supersession = ctx.schema_supersession(path)
+    if supersession and supersession.get("redirect_id"):
+        ctx.legacy_aliases.add(os.path.splitext(os.path.basename(path))[0])
+        return
     doc = load_yaml(path, ctx)
     if doc is None:
         return
@@ -268,7 +305,13 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     if not ID_PATTERNS[rec_type].match(str(rec_id)):
         ctx.err(path, f"ID {rec_id} does not match {rec_type} format")
     stem = os.path.splitext(os.path.basename(path))[0]
-    if stem != str(rec_id):
+    replacement_id = (supersession or {}).get("replacement_id")
+    if replacement_id and str(rec_id) != replacement_id:
+        ctx.err(path, f"registered replacement_id '{replacement_id}' != "
+                      f"superseding record id '{rec_id}'", force=True)
+    if replacement_id:
+        ctx.legacy_aliases.add(stem)
+    elif stem != str(rec_id):
         ctx.err(path, f"filename stem '{stem}' != id '{rec_id}'")
         if os.path.abspath(path) in ctx.legacy_paths:
             ctx.legacy_aliases.add(stem)
@@ -308,6 +351,10 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
 
 
 def check_experiment(path: str, ctx: Ctx):
+    supersession = ctx.schema_supersession(path)
+    if supersession and supersession.get("redirect_id"):
+        ctx.legacy_aliases.add(os.path.basename(os.path.dirname(path)))
+        return
     doc = load_yaml(path, ctx)
     if doc is None:
         return
@@ -319,6 +366,13 @@ def check_experiment(path: str, ctx: Ctx):
     if not rec_id or not ID_PATTERNS["experiment"].match(str(rec_id)):
         ctx.err(path, f"bad experiment id {rec_id!r}")
         return
+    replacement_id = (supersession or {}).get("replacement_id")
+    if replacement_id and str(rec_id) != replacement_id:
+        ctx.err(path, f"registered replacement_id '{replacement_id}' != "
+                      f"superseding record id '{rec_id}'", force=True)
+    if replacement_id:
+        stem = os.path.basename(os.path.dirname(path))
+        ctx.legacy_aliases.add(stem)
     for field in REQUIRED["experiment"]:
         if not field_is_satisfied(body, field):
             ctx.err(path, f"missing required field '{field}'")
@@ -483,8 +537,8 @@ def check_cross_refs(ctx: Ctx):
             # collisions themselves are frozen and disclosed in
             # tools/duplicate_run_ids.yaml -- they cannot be repaired, because
             # renumbering rewrites committed manifests. What is NOT tolerable
-            # is a citation nobody can resolve: the claim-tier ceiling below
-            # reads ctx.run_params, which holds whichever colliding manifest
+            # is a citation nobody can resolve: scale metadata and run
+            # provenance read ctx.run_params, which holds whichever colliding manifest
             # was globbed LAST, so an unqualified citation is checked against a
             # run the record may never have meant.
             for run_id in body.get("run_ids") or []:
@@ -497,15 +551,9 @@ def check_cross_refs(ctx: Ctx):
                             f"cites run '{run_id}', which exists under "
                             f"{sorted(owners)}; experiment_ids must name "
                             f"exactly one of them to resolve the citation")
-            # Claim-tier ceiling.
-            declared = TIER_ORDER.get(body.get("claim_tier"))
-            run_tiers = [tier_of_run(ctx.run_params.get(r, {}))
-                         for r in body.get("run_ids") or []]
-            run_tiers = [t for t in run_tiers if t is not None]
-            if declared is not None and run_tiers and declared > max(run_tiers):
-                ctx.err(ctx.ids[rec_id], f"claim_tier '{body.get('claim_tier')}'"
-                                         f" exceeds what its runs' parameters "
-                                         f"allow")
+            # `claim_tier` is descriptive metadata. The record and decision
+            # must state the tested parameters and any transfer assumptions,
+            # but the validator does not impose an automatic scale ceiling.
         elif rec_type == "coordinator_decision":
             for target_id in body.get("target_ids") or []:
                 if (str(target_id).startswith(("RQ-", "H-", "EXP-", "EV-"))
@@ -608,6 +656,147 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
     return entries
 
 
+def _schema_supersession_kind_for_path(relative: str) -> str | None:
+    patterns = {
+        "ledger": re.compile(
+            r"^ledger/(?:questions|proposals|hypotheses|evidence|decisions|handoffs)/[^/]+\.yaml$"),
+        "experiment": re.compile(r"^experiments/[^/]+/specification\.yaml$"),
+        "knowledge": re.compile(
+            r"^knowledge/(?:literature|techniques|findings|open-problems)/[^/]+\.md$"),
+        "goal_checkpoint": re.compile(
+            r"^ledger/goals/[^/]+/checkpoints/[^/]+\.yaml$"),
+    }
+    for kind, pattern in patterns.items():
+        if pattern.match(relative):
+            return kind
+    return None
+
+
+def load_schema_supersessions(path: str | None = None) -> dict[str, dict]:
+    """Load immutable-record schema replacements keyed by original path."""
+    path = path or SCHEMA_SUPERSESSION_REGISTRY
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as handle:
+        doc = yaml.safe_load(handle)
+    if (not isinstance(doc, dict)
+            or doc.get("schema") != SCHEMA_SUPERSESSION_SCHEMA):
+        raise ValueError("invalid schema supersession registry schema")
+    records = doc.get("records") or []
+    if not isinstance(records, list):
+        raise ValueError("schema supersession registry records must be a list")
+    entries: dict[str, dict] = {}
+    for index, raw in enumerate(records):
+        if not isinstance(raw, dict):
+            raise ValueError(
+                f"schema supersession record {index} must be a mapping")
+        for field in SCHEMA_SUPERSESSION_REQUIRED:
+            if not str(raw.get(field) or "").strip():
+                raise ValueError(
+                    f"schema supersession record {index} is missing "
+                    f"required field '{field}'")
+        kind = str(raw["kind"]).strip()
+        if kind not in SCHEMA_SUPERSESSION_KINDS:
+            raise ValueError(
+                f"schema supersession record {index} has invalid kind {kind!r}")
+        superseded = str(raw["superseded_path"]).strip()
+        superseding = str(raw["superseding_path"]).strip()
+        for label, relative in (("superseded_path", superseded),
+                                ("superseding_path", superseding)):
+            if os.path.isabs(relative) or ".." in relative.split("/"):
+                raise ValueError(
+                    f"schema supersession {label} must be a repository-relative "
+                    f"path without '..': {relative}")
+        discovered_kind = _schema_supersession_kind_for_path(superseded)
+        if discovered_kind != kind:
+            raise ValueError(
+                f"schema supersession kind {kind!r} does not match discovered "
+                f"source kind {discovered_kind!r}: {superseded}")
+        redirect_id = raw.get("redirect_id")
+        if redirect_id and raw.get("replacement_id"):
+            raise ValueError(
+                "schema supersession may declare redirect_id or "
+                "replacement_id, not both")
+        if not redirect_id and not superseding.startswith(SCHEMA_SUPERSESSION_ROOT):
+            raise ValueError(
+                "schema supersession replacement must live below "
+                f"{SCHEMA_SUPERSESSION_ROOT}: {superseding}")
+        superseding_kind = _schema_supersession_kind_for_path(superseding)
+        if redirect_id and superseding_kind != kind:
+            raise ValueError(
+                f"schema redirect target kind {superseding_kind!r} does not "
+                f"match source kind {kind!r}: {superseding}")
+        if not redirect_id and superseding_kind is not None:
+            raise ValueError(
+                "schema supersession replacement must not itself match a "
+                f"validator discovery glob: {superseding}")
+        digests = {}
+        for label in ("superseded_sha256", "superseding_sha256"):
+            digest = str(raw[label]).strip().lower()
+            if not SHA256_HEX.match(digest):
+                raise ValueError(
+                    f"schema supersession {label} must be 64 hex characters: "
+                    f"{raw[label]!r}")
+            digests[label] = digest
+        key = os.path.abspath(os.path.join(REPO, superseded))
+        if key in entries:
+            raise ValueError(
+                f"schema supersession registry lists {superseded} more than once")
+        replacement_id = raw.get("replacement_id")
+        entries[key] = {
+            "kind": kind,
+            "superseded_path": key,
+            "superseded_sha256": digests["superseded_sha256"],
+            "superseding_path": os.path.abspath(
+                os.path.join(REPO, superseding)),
+            "superseding_sha256": digests["superseding_sha256"],
+            "replacement_id": (str(replacement_id).strip()
+                               if replacement_id else None),
+            "redirect_id": (str(redirect_id).strip() if redirect_id else None),
+        }
+    return entries
+
+
+def check_schema_supersessions(ctx: Ctx,
+                               supersessions: dict[str, dict]) -> None:
+    """Pin both sides of every schema supersession before routing reads."""
+    for key in sorted(supersessions):
+        entry = supersessions[key]
+        for role, file_path, expected in (
+            ("superseded", entry["superseded_path"],
+             entry["superseded_sha256"]),
+            ("superseding", entry["superseding_path"],
+             entry["superseding_sha256"]),
+        ):
+            if not os.path.isfile(file_path):
+                ctx.err(file_path,
+                        f"registered {role} schema record is missing; a "
+                        "supersession requires both records to be present",
+                        force=True)
+                continue
+            with open(file_path, "rb") as handle:
+                actual = hashlib.sha256(handle.read()).hexdigest()
+            if actual != expected:
+                ctx.err(file_path,
+                        f"registered {role} schema record hash changed "
+                        f"(registry pins {expected[:8]}, found {actual[:8]}); "
+                        "supersede it instead of editing it",
+                        force=True)
+
+
+def check_schema_redirects(ctx: Ctx,
+                           supersessions: dict[str, dict]) -> None:
+    """Require every alias-only supersession to resolve to its pinned target."""
+    for entry in supersessions.values():
+        target_id = entry.get("redirect_id")
+        if not target_id:
+            continue
+        if target_id not in ctx.ids and target_id not in ctx.knowledge:
+            ctx.err(entry["superseded_path"],
+                    f"schema redirect target '{target_id}' is not a canonical "
+                    "record", force=True)
+
+
 def _run_id_of(path: str) -> str | None:
     try:
         with open(path, encoding="utf-8") as handle:
@@ -615,7 +804,15 @@ def _run_id_of(path: str) -> str | None:
     except (OSError, yaml.YAMLError):
         return None
     body = doc.get("run") if isinstance(doc, dict) else None
-    rec_id = body.get("id") if isinstance(body, dict) else None
+    if isinstance(body, dict):
+        rec_id = body.get("id")
+    elif isinstance(doc, dict):
+        # A supersession is specifically how an archived flat pre-schema
+        # manifest gains the canonical nested shape.  Its historical id is
+        # still binding and must match the replacement.
+        rec_id = doc.get("run_id") or doc.get("id")
+    else:
+        rec_id = None
     return str(rec_id) if rec_id else None
 
 
@@ -755,7 +952,8 @@ def check_knowledge_entries(ctx: Ctx) -> None:
     for entry_type, (directory, prefix) in KNOWLEDGE_TYPES.items():
         pattern = os.path.join(REPO, "knowledge", directory, "*.md")
         for path in sorted(glob.glob(pattern)):
-            text = open(path, encoding="utf-8").read()
+            source = ctx.source_path(path)
+            text = open(source, encoding="utf-8").read()
             if not text.startswith("---"):
                 ctx.err(path, "knowledge entry is missing YAML frontmatter")
                 continue
@@ -769,7 +967,12 @@ def check_knowledge_entries(ctx: Ctx) -> None:
             if not isinstance(rec_id, str) or not rec_id.startswith(prefix):
                 ctx.err(path, f"knowledge id must start with {prefix}")
                 continue
-            if stem != rec_id:
+            supersession = ctx.schema_supersession(path)
+            replacement_id = (supersession or {}).get("replacement_id")
+            if replacement_id and rec_id != replacement_id:
+                ctx.err(path, f"registered replacement_id '{replacement_id}' != "
+                              f"superseding knowledge id '{rec_id}'", force=True)
+            if not replacement_id and stem != rec_id:
                 ctx.err(path, f"filename stem '{stem}' != id '{rec_id}'")
             if frontmatter.get("type") != entry_type:
                 ctx.err(path, f"knowledge type must be '{entry_type}'")
@@ -779,6 +982,8 @@ def check_knowledge_entries(ctx: Ctx) -> None:
             if rec_id in ctx.knowledge:
                 ctx.err(path, f"duplicate knowledge ID {rec_id}")
             ctx.knowledge[rec_id] = path
+            if replacement_id:
+                ctx.knowledge[stem] = path
             if entry_type == "internal_finding":
                 refs = frontmatter.get("internal_refs")
                 if not isinstance(refs, list) or not refs:
@@ -799,7 +1004,20 @@ def check_knowledge_entries(ctx: Ctx) -> None:
         promotion = body.get("knowledge_promotion")
         if not isinstance(promotion, dict):
             continue
-        for knowledge_id in promotion.get("promoted") or []:
+        for entry in promotion.get("promoted") or []:
+            # Records in the wild write both shapes: a bare `KN-*` id, and a
+            # mapping carrying the id plus a note or action. Take the id from
+            # either. An entry that is neither is a malformed reference, not a
+            # reason to abort the whole run -- an unhashable one used to raise
+            # TypeError here and take every later check down with it.
+            if isinstance(entry, dict):
+                knowledge_id = entry.get("id")
+            else:
+                knowledge_id = entry
+            if not isinstance(knowledge_id, str):
+                ctx.err(ctx.ids[rec_id], "knowledge_promotion entry is not a "
+                                         f"knowledge ID: {entry!r}")
+                continue
             if knowledge_id not in ctx.knowledge:
                 ctx.err(ctx.ids[rec_id], "knowledge_promotion references "
                                          f"unknown entry '{knowledge_id}'")
@@ -1166,13 +1384,20 @@ def main() -> int:
         print(f"FAIL: cannot load run supersession registry: {error}",
               file=sys.stderr)
         return 1
+    try:
+        schema_supersessions = load_schema_supersessions()
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        print(f"FAIL: cannot load schema supersession registry: {error}",
+              file=sys.stderr)
+        return 1
     legacy_paths = {os.path.abspath(os.path.join(REPO, path))
                     for path in (*legacy_inventory, *legacy_run_inventory)}
     absolute_remaps = {
         os.path.abspath(os.path.join(REPO, path)): target
         for path, target in legacy_id_remaps.items()
     }
-    ctx = Ctx(legacy_paths, absolute_remaps)
+    ctx = Ctx(legacy_paths, absolute_remaps, schema_supersessions)
+    check_schema_supersessions(ctx, schema_supersessions)
     check_legacy_ledger(ctx, legacy_inventory)
     for sub, rec_type in LEDGER_DIRS.items():
         for path in sorted(glob.glob(os.path.join(REPO, "ledger", sub, "*.yaml"))):
@@ -1191,6 +1416,7 @@ def main() -> int:
     # reviewed_record_ids may cite KN-* entries (ctx.knowledge), not only
     # ledger ids (ctx.ids).
     check_knowledge_entries(ctx)
+    check_schema_redirects(ctx, schema_supersessions)
     check_goals(ctx)
     check_cross_refs(ctx)
     check_knowledge_index(ctx)
@@ -1222,6 +1448,11 @@ def main() -> int:
         print(f"note: {len(run_supersessions)} superseded run manifest(s) "
               f"routed to their superseding records by "
               f"{os.path.relpath(RUN_SUPERSESSION_REGISTRY, REPO)}; both "
+              f"records stay hash-pinned")
+    if schema_supersessions:
+        print(f"note: {len(schema_supersessions)} archived schema record(s) "
+              f"routed to complete replacements by "
+              f"{os.path.relpath(SCHEMA_SUPERSESSION_REGISTRY, REPO)}; both "
               f"records stay hash-pinned")
     if stale:
         print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "

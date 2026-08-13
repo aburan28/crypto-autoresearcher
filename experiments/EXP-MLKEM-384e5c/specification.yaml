@@ -1,0 +1,359 @@
+experiment:
+  id: EXP-MLKEM-384e5c
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-MLKEM-b1300f
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  batch_id: null
+  assigned_to: executor
+
+  title: >-
+    Review-required contract: the calibration-free memory-charging shift of the
+    enumeration/sieving crossover, with a null oracle pair, a synthetic
+    sensitivity control, a seven-point alpha ladder, and a source-verification
+    stage that can withdraw every absolute number in the package
+
+  objective: >-
+    If separately approved, frozen and authorised, determine (i) whether the
+    shift exponent e(alpha) = log2 beta*(alpha)/log2 beta*(0) equals
+    1 + (c_M/c_T) alpha exactly, independently of the calibrated enumeration
+    constant; (ii) whether the resulting crossover at alpha = 1 exceeds the
+    block sizes at which ML-KEM is costed; and (iii) whether the enumeration
+    branch caps the effect of charging sieve memory at those block sizes, and
+    by how many bits. The contract is a cost-model derivation with a numerical
+    evaluation. It reduces no lattice and takes no measurement of any
+    cryptographic object.
+
+  what_this_is_not:
+    - Not an attack on ML-KEM, on Module-LWE, or on any lattice problem. No attack is implemented, run, simulated or claimed.
+    - Not a security level for any FIPS 203 parameter set. Every block size used is illustrative and RECALLED-UNVERIFIED, and no parameter set is asserted affected or cleared.
+    - Not a claim that enumeration is practically preferable at any dimension anyone has executed. Nobody has run enumeration at block size 400 and this contract does not pretend otherwise.
+    - Not a physical cost model. T * M^alpha is a family of accounting conventions; no value of alpha is asserted to be correct.
+    - Not a measurement of a lattice algorithm. No sieve and no enumeration implementation is available in this environment (fpylll and Sage ABSENT, verified by import 2026-08-05).
+    - Not an answer to KN-OPEN-017, which asks for a model pricing the near-neighbour list and its ACCESS PATTERN; this contract prices memory by a single exponent and models no access pattern.
+    - Not approval, freezing, execution authorisation, a run, an observed output, or evidence.
+
+  claim_ceiling:
+    tier: medium
+    tier_vocabulary_note: >-
+      `medium` is used from the TIER_ORDER vocabulary {toy, medium, crypto} in
+      tools/validate_ledger.py deliberately, rather than an off-vocabulary
+      string such as `estimate`, because an off-vocabulary tier causes the
+      validator's ceiling check to be SKIPPED (TIER_ORDER.get returns None).
+      This contract therefore accepts a ceiling it can be held to. `medium`
+      denotes: a statement about cost models evaluated at cryptographically
+      relevant block sizes, resting on relayed constants, with no measurement
+      of any cryptographic object. It is NOT `crypto`: nothing here is
+      validated against a cryptographic-scale execution.
+    exact_scope_a_run_could_support: >-
+      At most: that under the frozen accounting family and the two frozen
+      exponent pairs, the crossover block size obeys the stated closed form;
+      that at alpha = 1 with the frozen calibration it lies at 1433; and that
+      at the three illustrative block sizes the enumeration branch is cheaper
+      at alpha = 1 by the stated number of bits. Nothing about ML-KEM's
+      security, nothing about which alpha is right, nothing about finite-
+      dimension behaviour.
+
+  inputs:
+    frozen_constants:
+      c_T: 0.292
+      c_M: 0.2075
+      beta_star_0: 70
+      c_E_rule: "c_E := c_T / log2(beta_star_0)"
+      c_E_value: 0.0476401561
+    alpha_grid: [0.0, 0.1666666667, 0.3333333333, 0.5, 0.6666666667, 0.8333333333, 1.0]
+    beta_evaluation_grid: "integers 60..2000 inclusive, step 1"
+    illustrative_block_sizes: [400, 600, 875]
+    illustrative_block_size_provenance: >-
+      RECALLED-UNVERIFIED. These are the author's recollection of core-SVP
+      block sizes for ML-KEM-512/768/1024 and are NOT taken from FIPS 203, from
+      the Kyber specification, or from any read source. They are used ONLY to
+      illustrate arithmetic and every table cell derived from them carries the
+      label. Stage 2 attempts to replace them with sourced values; failure to
+      source them is recorded as failure, and the illustrative labels remain.
+    null_pair:
+      family_A: {c_T: 0.292, c_M: 0.2075}
+      family_B: {c_T: 0.349, c_M: 0.2075}
+      note: "identical memory exponents by construction; the c_T of family B is an arbitrary declared value and is not attributed to any algorithm"
+    synthetic_control_pairs:
+      deltas: [0.05, 0.10, 0.2075]
+      construction: "family B' has c_M = 0.2075 - Delta and the same c_T as family A; all values are declared, none is attributed to any algorithm"
+    determinism: >-
+      The computation is DETERMINISTIC. No random number is drawn anywhere in
+      this contract. There is therefore no seed and no seed-derivation rule,
+      and this absence is declared rather than left implicit: a third party
+      reproduces every number bit-for-bit from the frozen constants above plus
+      the declared IEEE-754 double arithmetic and the declared solver.
+    solver_specification: >-
+      beta*(alpha) is obtained BOTH ways and the two must agree: (i) closed
+      form beta* = 2^{(c_T + alpha c_M)/c_E}; (ii) bisection on
+      f(beta) = (c_T + alpha c_M) beta - c_E beta log2 beta over [1.0001, 10^6]
+      to absolute tolerance 1e-9. Disagreement beyond 1e-6 relative is an
+      integrity failure, not a finding.
+    environment_declaration: >-
+      Verified by import on 2026-08-05 in this container: numpy 2.4.6 PRESENT;
+      sympy ABSENT; scipy ABSENT; fpylll ABSENT; Sage ABSENT; Python 3.11.15.
+      Nothing in this contract requires an absent package. The executor
+      re-records these imports at setup; a differing environment is recorded,
+      not worked around.
+
+  independent_variables:
+    - alpha, over the seven-point grid
+    - the oracle pair (real, null, three synthetic controls)
+    - beta, over the evaluation grid
+
+  arms_and_controls:
+    treatment: >-
+      The real pair: sieving (c_T, c_M) = (0.292, 0.2075) against enumeration
+      (c_E beta log2 beta, poly). Evaluate beta*(alpha) on the alpha grid and
+      the min-cost envelope on the beta grid.
+    measured_null: >-
+      NULL PAIR: two families with IDENTICAL memory exponents. FORCED VALUE,
+      DERIVED BEFORE ANY RUN: the alpha term cancels from both sides, so the
+      crossover between them is independent of alpha, the fitted shift exponent
+      is exactly 1, and its alpha-derivative is exactly 0. THIS NULL CAN FAIL:
+      an implementation that charges memory to the wrong side, or that folds
+      alpha into the base rather than the exponent, returns a nonzero
+      derivative here. Failure invalidates the run; it does not produce a
+      finding.
+    positive_control: >-
+      SYNTHETIC SENSITIVITY CONTROL, three levels. For declared memory-exponent
+      gaps Delta in {0.05, 0.10, 0.2075} the fitted shift exponent must equal
+      1 + (Delta/c_T) alpha at every alpha, exactly. THE REMOVED OBJECT IS THE
+      MEMORY-EXPONENT GAP; THE STATISTIC IS THE FITTED SHIFT EXPONENT; THE
+      SENSITIVITY IS 1 + (Delta/c_T) alpha, DECLARED HERE BEFORE THE RUN --
+      the three obligations of KN-TECH-1a5b7e, discharged with a threshold and
+      a named comparator rather than as advice. IF THIS CONTROL DOES NOT FIRE
+      AT ALL THREE LEVELS, NO NEGATIVE RESULT MAY BE REPORTED FROM THIS
+      CONTRACT.
+    graded_control: >-
+      The seven-point alpha ladder with FIVE interior points. Required
+      reporting: the value at every point, the forced value at every point
+      (70.0 / 115.8 / 191.5 / 316.7 / 523.8 / 866.4 / 1433.0), the residual at
+      every point, and a strict-monotonicity verdict. A failure at an interior
+      point localises the defect to an alpha regime rather than leaving "it did
+      not work".
+    calibration_circularity_control: >-
+      ZERO COMPUTE, AND IT IS A CONTROL ON THE ARGUMENT, NOT THE CODE. Rerun
+      the whole evaluation with c_E taken from any independently sourced
+      enumeration exponent obtained in stage 2, and report how far the model's
+      beta*(0) then lands from 70. If no source is obtained, record NOT
+      AVAILABLE. Substituting a recalled constant and calling this a passed
+      check is prohibited.
+    ordering_control: >-
+      The null pair and all three synthetic controls are evaluated, written to
+      disk and SHA-256 committed BEFORE the treatment pair is evaluated or
+      looked at. The commitment hash appears in the run manifest. Absence of
+      the commitment is invalid_measurement.
+    verdict_on_the_null_first: >-
+      The frozen decision rule (below) is executed against the null pair's
+      output before the treatment output is read. If the rule emits the same
+      label on both, it discriminates nothing and must be rewritten before the
+      treatment arm is opened.
+    archive_check: >-
+      ZERO COMPUTE. Enumerate every prior measurement of this observable in the
+      corpus. EXPECTED: NONE -- KN-OPEN-017 states in its own words that no
+      source in this corpus computes the crossover under full cost. Recorded as
+      an absence; no claim is made from the absence.
+    comparability_policy: >-
+      No cross-contract comparison to EXP-MLKEM-010..015 or to any estimator
+      output is permitted from this contract. Those records compute step-count
+      costs under named lattice-estimator cost models; this contract computes a
+      different quantity under a different convention. A comparison may be made
+      only by a separately registered comparator contract naming both
+      conventions, both statistics and the expected relation.
+
+  metrics:
+    primary:
+      - XC-1 fitted shift exponent e(alpha) per alpha per oracle pair, with the solver residual and the closed-form/bisection agreement.
+      - XC-2 beta*(1) for the treatment pair.
+      - XC-3 overstatement in bits, (c_T + c_M) beta - min(enum, sieve at alpha=1), at each illustrative block size.
+      - XC-4 alpha-derivative of log beta* for the null pair.
+      - XC-5 fitted shift exponent for each synthetic control pair at each Delta.
+    secondary:
+      - XC-6 the seven-point ladder table with forced values, residuals and the monotonicity verdict.
+      - XC-7 fragility: the o(beta) correction in bits per unit beta required on the enumeration side to bring beta*(1) below 875.
+      - The min-cost envelope over the beta grid at each alpha, as a table.
+      - Verbatim quotations obtained in stage 2 for c_T, c_M and the crossover dimension, each with its source identifier, or an explicit record that the source could not be obtained.
+      - The archive-check result and the calibration-circularity result.
+
+  heuristic_under_test: HEUR-XC-2
+
+  preregistered_prediction:
+    quantity: >-
+      The shift exponent e(alpha) = log2 beta*(alpha) / log2 beta*(0), and the
+      three overstatement figures.
+    formula: >-
+      e(alpha) = 1 + (c_M/c_T) alpha = 1 + 0.7106164 alpha exactly;
+      beta*(alpha) = 70^{e(alpha)}; overstatement(beta) =
+      (c_T + c_M) beta - min(c_E beta log2 beta, (c_T + c_M) beta).
+      Predicted values: ladder 70.0 / 115.8 / 191.5 / 316.7 / 523.8 / 866.4 /
+      1433.0; overstatement 35.1 / 35.9 / 29.7 bits at beta = 400 / 600 / 875;
+      null-pair derivative exactly 0; synthetic control exponent
+      1 + (Delta/c_T) alpha.
+    source: >-
+      Derived in H-MLKEM-b1300f `mechanism`, from the definition of the cost
+      family and the two exponent pairs. NOT taken from any external theorem.
+      The constants c_T, c_M and beta*(0) are RELAYED from KN-TECH-044 and
+      KN-OPEN-017 and their primaries were NOT READ by the author of this
+      contract.
+    fixed_before_execution: true
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      The evaluated block sizes include the range at which ML-KEM is costed, so
+      the arithmetic is at a cryptographically relevant scale. THE CONCLUSIONS
+      DO NOT TRANSFER FROM THAT ARITHMETIC TO ANY STATEMENT ABOUT ML-KEM'S
+      SECURITY, for two stated reasons: the exponents are asymptotic and the
+      calibration point beta = 70 sits in a regime where constants dominate;
+      and the block sizes themselves are recalled rather than sourced. The
+      honest limit of transfer is: this contract can license one methodological
+      sentence in a later comparison ("which alpha is this computed at"), and
+      nothing else.
+    correspondence: null
+
+  tail_checks:
+    - Evaluate the min-cost envelope at beta = 1433 and confirm the two branches agree to within 0.1 bits, which is a consistency check on the crossover solver rather than a finding.
+    - Confirm the sign structure at alpha = 0 across the whole beta grid: enumeration above sieving for every beta > 70 and below for every beta < 70. This is a property of the functional forms and CAN fail if they are miswritten, unlike the crossover value itself which is fixed by the calibration.
+    - Report the overstatement as a function of beta over the whole grid, not only at the three illustrative points, and identify its maximiser. A maximiser outside the evaluated range indicates the illustrative points were chosen unrepresentatively.
+
+  replication:
+    seeds: []
+    seeds_note: >-
+      DELIBERATELY EMPTY AND DECLARED. The computation is deterministic and
+      draws no random numbers; replication is bit-for-bit reproduction from the
+      frozen constants, not seed variation. Recording a seed list here would be
+      decoration.
+    independent_instances: 5
+    independent_instances_note: >-
+      The five instances are the five oracle pairs (one treatment, one null,
+      three synthetic controls), not five random draws.
+    independent_reimplementation: >-
+      REQUIRED. The closed-form and bisection solvers must be written
+      independently and must agree to 1e-6 relative at every grid point. This
+      is the only replication available for a deterministic computation and it
+      substitutes for seed replication.
+
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 2
+    maximum_runs: 3
+    stage_budget:
+      stage0_derivation_seconds: 3600
+      stage1_controls_seconds: 600
+      stage2_source_retrieval_seconds: 7200
+      stage3_treatment_seconds: 600
+    no_network_stage1_and_3: true
+    network_stage2: >-
+      Stage 2 requires outbound access to attempt source retrieval. If the
+      network is unavailable, stage 2 records NOT OBTAINED for every source and
+      the package proceeds with every absolute number labelled unsourced. That
+      is an infrastructure outcome and is never mathematical evidence.
+
+  stage_ordering_and_the_decisive_gate:
+    stage0: >-
+      ZERO COMPUTE, ~1 HOUR, AND IT CAN END THE WHOLE LINE. Re-derive
+      log2 beta*(alpha) = (c_T + alpha c_M)/c_E on paper and verify that c_E
+      cancels in the ratio to alpha = 0. A second reader confirms. IF THE
+      CANCELLATION IS WRONG THE HYPOTHESIS HAS NO CONTENT AND THE RUN STOPS
+      HERE. This is the cheapest decisive gate in the contract and it runs
+      first.
+    stage1: >-
+      MINUTES. Implement both solvers. Run the null pair and the three
+      synthetic controls. Commit and hash their outputs. If the null fails or
+      any synthetic control fails, STOP: the instrument is broken and no
+      negative may be reported.
+    stage2: >-
+      HOURS, ZERO COMPUTE. Attempt to obtain the sources behind c_T, c_M and
+      beta*(0) = 70, and record verbatim what each says -- in particular
+      whether the sieve whose exponents are quoted is the sieve whose crossover
+      was measured. A finding that they are different families withdraws every
+      absolute number and leaves the calibration-free shift exponent standing.
+    stage3: >-
+      MINUTES. Evaluate the treatment pair, the ladder, the envelope and the
+      illustrative table.
+    which_stage_can_terminate: "stage 0 (derivation error) and stage 1 (instrument failure). Stage 2 can withdraw all absolute numbers without terminating the run."
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived and explicitly authorised. It carries no approved_by field.
+    - Stop at stage 0 if the c_E cancellation does not hold.
+    - Stop before the treatment arm if the null-pair output and its hash are absent.
+    - Stop before reporting any negative if any synthetic control fails at any Delta.
+    - Stop if the closed-form and bisection solvers disagree beyond 1e-6 relative at any grid point.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any treatment number produced or inspected before the null-pair commitment hash exists.
+    - Any change to a frozen constant, to the alpha grid, or to the illustrative block-size list after any number has been observed. Changes require a versioned amendment with confirmatory_status exploratory_only; they are never edits.
+    - Any table cell derived from the illustrative block sizes that is presented without its RECALLED-UNVERIFIED label.
+    - Any comparison against EXP-MLKEM-010..015 or against an estimator output made from within this contract.
+    - Any statement of P3 (the enumeration cap at ML-KEM block sizes) in P1's quantifier order, i.e. as a uniform theorem rather than as an existential over a finite illustrative table.
+
+  success_criterion: >-
+    THIS DRAFT HAS NO CURRENT SUCCESS OUTCOME BECAUSE IT IS NOT AUTHORISED FOR
+    EXECUTION. If a later, separately approved and frozen successor is
+    executed, its only positive disposition is a complete readout in which:
+    the stage-0 cancellation is confirmed by a second reader; the null pair
+    returns an alpha-derivative of exactly 0; all three synthetic controls
+    return 1 + (Delta/c_T) alpha at every alpha; the seven-point ladder
+    reproduces its forced values within 0.1 and is strictly monotone; XC-1
+    matches 1 + 0.7106164 alpha within 1e-9 relative; and every absolute number
+    is accompanied by the provenance stage 2 actually secured. That disposition
+    establishes a statement about COST MODELS at claim tier `medium` and
+    establishes NO ML-KEM attack, cost, security level, exponent or
+    deployed-scheme conclusion.
+
+  falsification_criterion: >-
+    The hypothesis is falsified, in decreasing order of severity, by: (F1) the
+    c_E cancellation failing at stage 0, which removes P1's content entirely;
+    (F5) XC-3 coming out negative at any illustrative block size, which refutes
+    P3 and converts the deliverable into the opposite statement -- charging
+    memory raises the attack exponent by alpha c_M beta with no fallback, which
+    is a stronger statement about ML-KEM's margin and is equally reportable;
+    (F4) stage 2 establishing that the quoted exponent pair and the measured
+    crossover belong to different algorithm families, which withdraws P2 and P3
+    and leaves P1 alone. XC-4 and XC-5 failures are INSTRUMENT failures, not
+    falsifications: they invalidate the run and license no conclusion in either
+    direction.
+
+  infrastructure_failure_disposition: >-
+    A timeout, crash, missing dependency, unavailable network, or unobtainable
+    source is reported as INFRASTRUCTURE SIGNAL and is NEVER negative
+    mathematical evidence (AGENTS.md rule 5). Specifically: failure to obtain a
+    source in stage 2 does not refute the constant it would have verified, does
+    not license using the recalled value as though verified, and does not
+    terminate the package -- it downgrades every absolute number to unsourced
+    and is recorded in the execution report as an unmet obligation. Absence of
+    fpylll, Sage, sympy or scipy is likewise infrastructure and is already
+    accounted for in the design, which requires none of them.
+
+  required_artifacts:
+    - Frozen approved specification and a freeze receipt binding its SHA-256.
+    - Stage-0 derivation note with the second reader's confirmation, dated before any numeric output exists.
+    - The null-pair and synthetic-control outputs with their SHA-256 commitment, written before any treatment number.
+    - Both solver implementations, their agreement table, and the environment import record.
+    - The seven-point ladder table with forced values, residuals and monotonicity verdict.
+    - The min-cost envelope over the full beta grid at every alpha.
+    - The illustrative ML-KEM table with every cell carrying its provenance label.
+    - Stage-2 source-retrieval log with verbatim quotations or explicit NOT OBTAINED entries per source.
+    - The calibration-circularity result or an explicit NOT AVAILABLE.
+    - The archive-check enumeration.
+    - Manifest, exact command, git commit and dirty-tree state, stdout, stderr, timestamps and resource measurements.
+    - Snapshot archive followed by independent validation and red-team review before any evidence record is written.
+
+  approval_requirements:
+    - Independent review confirms that stage 0 is genuinely decisive, that the null pair can actually fail, and that the synthetic control's declared sensitivity is a criterion rather than advice.
+    - Independent review confirms the P1/P2/P3 quantifier separation is enforced by the invalidation rules and not merely stated.
+    - Coordinator separately approves and freezes; no approved_by field is present because this draft is not approved.
+
+  approval_status: >-
+    Pending Coordinator review. Not approved, not frozen, not authorised for
+    execution. Only the Coordinator may approve (AGENTS.md rule 1).
+
+  approved_by: null

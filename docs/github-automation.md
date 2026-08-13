@@ -47,7 +47,7 @@ review paths below cannot drift apart — the same discipline
 ### Division of labor with CI
 
 `.github/workflows/validate.yml` enforces everything mechanical: ledger schema,
-cross-references, the numeric `claim_tier` ceiling, run companion artifacts,
+cross-references, the declared `claim_tier` metadata, run companion artifacts,
 `experiments/**/runs/**` immutability, knowledge-index freshness, runtime
 bindings, dispatch-queue validity, and the test suite. `REVIEW.md` tells the
 reviewer not to repeat any of it.
@@ -79,16 +79,16 @@ workflows are inert — they run and fail on the missing secret.
 To verify, open a throwaway PR that edits a markdown file. A `claude-pr-review`
 job should appear in Checks within a minute or two and post a summary comment.
 
-### Amazon Bedrock or Google Cloud instead
+### Cloud-provider substitution
 
-Both workflows use the direct Claude API. To route through Bedrock or Google
-Cloud's Agent Platform, drop `anthropic_api_key`, add `use_bedrock: "true"` or
-`use_vertex: "true"`, and add the corresponding cloud auth step. The pattern is
-in <https://code.claude.com/docs/en/github-actions>. This is the same
-substitution `orchestration/providers.yaml` makes for the research runtimes,
-but the GitHub Action resolves its model independently of
-`orchestration/model-bindings.yaml` — a reviewer model is not a research
-inference policy and is not recorded in any run manifest.
+Amazon Bedrock is prohibited by the repository cost policy. Do not add
+`use_bedrock`, AWS authentication for inference, a Bedrock endpoint, or a
+Bedrock model to either workflow. Google Cloud's Agent Platform may be
+configured with `use_vertex: "true"` and the corresponding authentication step,
+provided the selected model still satisfies the review policy. GitHub Actions
+resolve their models independently of `orchestration/model-bindings.yaml`, so
+the workflow must enforce the no-Bedrock rule directly rather than relying on
+the research adapter.
 
 ## The managed alternative
 

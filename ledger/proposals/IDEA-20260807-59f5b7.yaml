@@ -1,0 +1,573 @@
+idea:
+  id: IDEA-20260807-59f5b7
+  question_id: RQ-EWALK-8fa147
+  added: '2026-08-07'
+  title: >-
+    THE NEGATION-QUOTIENT SPEEDUP THIS PROGRAM HAS ACTUALLY MEASURED IS A
+    CONDITIONAL-ON-SUCCESS NUMBER, AND CHARGING THE CENSORING MOVES IT THE
+    WRONG WAY AND REVERSES ITS SIZE TREND: a renewal-reward estimator applied
+    to the audited 16- and 18-bit artifacts gives a charged constant of AT
+    LEAST 1.0367 and 1.1025 against an ideal 0.8862, so the charged gain is AT
+    MOST 1.191 and 1.160 against an ideal sqrt(2) = 1.4142 -- and the larger
+    size is WORSE, which is the direction HEUR-RHO-2's size-independence
+    assumption forbids; this proposal builds the censoring-aware estimator,
+    re-measures under it, and decides whether the fully charged negation gain
+    is below sqrt(2), below the program's own baseline, or below 1.0
+  class: measurement
+
+  claim: >-
+    (A) THE DEFECT, AND IT IS ALREADY AUDITED, NOT ALLEGED. The staged artifact
+    inputs/h100_session/h040_rho_const.json reports, for a negation-quotient
+    rho walk with fruitless-cycle escape at 16 and 18 bits:
+      16 bits (p = 47977, N = 48341): plain const_mean 1.2345 (200/200
+        successes, 0 escapes); negation const_mean 0.9486, 183/200 successes,
+        17 runs terminated by `escape_overflow`, mean 13.015 escapes per run.
+      18 bits (p = 215573, N = 215077): plain const_mean 1.2790 (200/200);
+        negation const_mean 0.9426, 171/200 successes, 29 `escape_overflow`,
+        mean 23.51 escapes per run.
+    REVIEW-H100-20260717 correction C5 states the defect in the program's own
+    words: "The negation constants (0.949 / 0.943) are CONDITIONAL-ON-SUCCESS
+    estimates: 17/200 and 29/200 negation runs ended in escape_overflow and
+    were excluded. Censoring is reported in the artifact but not in the ledger
+    line." The plain-rho anchor is unaffected and its theory value 1.2533 lies
+    inside both CIs, so the instrument was working; what is wrong is the
+    ESTIMATOR, not the data.
+
+    (B) THE ARITHMETIC CONSEQUENCE, DERIVED AND LABELLED AS DERIVED. Under any
+    restart-on-overflow policy -- the only policy under which the walk is a
+    usable algorithm -- the expected cost per SOLVE is a renewal-reward
+    quantity:
+      E[cost per solve] = E[cost | success] / P(success)
+                          + E[cost consumed by a failed attempt] * (1-P)/P.
+    The second term is non-negative and the artifact does not let it be
+    computed (the per-run operation counts for overflowed runs are not
+    separable in the staged file), so what follows is a RIGOROUS LOWER BOUND on
+    the charge, obtained by dropping it:
+      charged_const >= conditional_const / P(success).
+      16 bits: >= 0.9486 / 0.915 = 1.0367.
+      18 bits: >= 0.9426 / 0.855 = 1.1025.
+    Both exceed the IDEAL negation constant 0.8862 = sqrt(pi)/2, and both
+    exceed 1.0. The implied charged gain against the plain arm measured in the
+    same artifact is therefore AT MOST
+      16 bits: 1.2345 / 1.0367 = 1.191.
+      18 bits: 1.2790 / 1.1025 = 1.160.
+    against an ideal sqrt(2) = 1.4142. EVERY NUMBER IN THIS PARAGRAPH IS
+    ARITHMETIC ON AUDITED PUBLISHED VALUES UNDER A STATED POLICY. None of it is
+    a measurement by this program, none of it is a run, and it is presented as
+    the motivation for a measurement rather than as one.
+
+    (C) THE SIZE TREND FLIPS, WHICH IS THE PART WORTH RUNNING. The UNCHARGED
+    ratios go 1.2345/0.9486 = 1.301 at 16 bits and 1.2790/0.9426 = 1.357 at 18
+    bits -- INCREASING with size, consistent with a size-independent constant
+    plus noise. The CHARGED bounds go 1.191 then 1.160 -- DECREASING with size,
+    because the censored fraction rose from 8.5 to 14.5 percent. If that
+    direction is real it contradicts HEUR-RHO-2 of H-RHO-bc6ea6 ("the fully
+    charged cost ratio ... is independent of N above a threshold size, so a
+    ratio measured at N ~ 2^32, 2^40 and 2^48 transfers to cryptographic N"),
+    and it contradicts it in the most consequential way: the quantity that
+    would transfer to cryptographic N is not the one being estimated. Two
+    readings, both testable:
+      READING 1 -- the censored fraction is a fixed property of the escape
+        budget and grows with N because the budget was held constant while
+        sqrt(N) grew. Then the fix is to scale the escape budget with sqrt(N)
+        and the size trend disappears. This is the boring, likely, and easily
+        checked reading, and confirming it is a real instrument result.
+      READING 2 -- the censored fraction grows with N even at a budget scaled
+        with sqrt(N), because the fruitless-cycle structure gets worse. Then
+        the negation gain DEGRADES with size, no constant transfers, and every
+        constant in the program's baseline convention is scoped to the size it
+        was measured at. This is the interesting reading and it would be a
+        finding about the baseline itself.
+    Distinguishing them costs one sweep of the escape budget and is the core of
+    the minimal test.
+
+    (D) THERE ALREADY EXISTS AN AUDITED MEASUREMENT IN WHICH THE NEGATION-CLASS
+    WALK IS FAR WORSE THAN PLAIN RHO. inputs/h100_session/h041_xonly_walk.json
+    measured an x-only (i.e. negation-class) walk WITHOUT fruitless-cycle
+    escape at 16 and 17 bits: useful_fraction 0.07 and 0.05, and
+    effective_const_per_solve 2.2988 and 3.2189. REVIEW-H100-20260717
+    correction C8 states: "'~2x worse than plain rho' undersells it: effective
+    constants 2.30 and 3.22*sqrt(N) are 1.83x and 2.57x the 1.2533 theory. All
+    other numbers (239-439 two-cycles vs null [0,2]; 5-7 percent useful
+    collisions) verify." So the existence question -- can the negation quotient
+    ever be a NET LOSS? -- is already answered YES for an unescaped
+    implementation, by an audited measurement, with a factor between 1.83 and
+    2.57 against it. The open question this proposal addresses is the ESCAPED
+    implementation under FULL CHARGING, which is the one the baseline
+    convention claims.
+
+    (E) WHAT IS BUILT, AND WHY IT IS A TOOLING CONTRIBUTION TO AN ALREADY
+    APPROVED EXPERIMENT. EXP-RHO-60da4f (approved 2026-08-06) has a stopping
+    rule: "a cell with more than 10 percent censoring is reported as unresolved
+    rather than being scored with the censored runs dropped, since dropping
+    them is exactly what produces a spurious win." That rule is correct and it
+    is also a RISK: the audited 18-bit cell censored at 14.5 percent, so an
+    experiment inheriting a similar escape budget could return a grid of
+    UNRESOLVED cells and spend 240 CPU-hours producing nothing scorable. A
+    censoring-aware renewal estimator with an interval -- which is standard
+    survival analysis, not a new idea -- converts those cells from unresolved
+    into bounded, and it is a few dozen lines. This proposal delivers it,
+    validated on planted data, before or alongside that experiment.
+
+  resource_label: >-
+    R3 (End(E) as a ring -- the unit group {+-1}). The measurement itself
+    consumes no resource beyond the automorphism it is calibrating.
+
+  admissibility: inadmissible_generic_group
+
+  admissibility_argument: >-
+    INADMISSIBLE AND DELIBERATELY SO. The negation map is an automorphism of E
+    applied to points of G; on a prime-order subgroup it acts as the scalar -1
+    (H-ENDO-001), and an oracle for it is Oracle D of KN-FIND-b7e091, which is
+    generic-group simulable and hence closed at exponent 1/2 (KN-TECH-005). No
+    exponent claim is made or possible. The value is entirely in calibrating
+    the CONSTANT that this program's baseline convention asserts
+    (0.886*sqrt(n), KN-TECH-006), because every other lane in GOAL-ENDO-001 and
+    in GOAL-ECDLP-001 charges against that constant and it currently rests on a
+    conditional-on-success estimate at 16 and 18 bits.
+
+  discriminated_from:
+    - >-
+      EXP-RHO-60da4f / H-RHO-bc6ea6. That contract measures net gain across an
+      escape-rule grid at 2^32/2^40/2^48 and pre-registers 1/(2r) and a
+      sub-1.35 gain. It DROPS heavily censored cells as unresolved. This
+      proposal does not re-run its grid: it supplies the ESTIMATOR that makes
+      those cells scorable, re-analyses the existing audited 16/18-bit data
+      under it, and tests the escape-budget-scaling reading that decides
+      HEUR-RHO-2. If the Coordinator prefers, this is naturally a Stage-0
+      addition to that experiment rather than a separate one, and this record
+      says so rather than manufacturing a duplicate.
+    - >-
+      IDEA-20260807-6355c6 (this batch), which varies |Aut| in {2, 4, 6} and
+      the step-table symmetry. This record fixes |Aut| = 2 and varies the
+      ESCAPE BUDGET and the ESTIMATOR. The two share the charging discipline
+      and nothing else.
+    - >-
+      CORR-20260806-2f98f4, which is a FABRICATED-STATISTIC correction: the
+      EXP-ECTD-001 driver's prose claimed a negation-fold implementation was
+      "measured" at "~2.5 percent degenerate collisions" and ">500x sqrt(N)"
+      when no such implementation existed anywhere in the tree. This record
+      cites NEITHER of those figures, asserts no measurement of its own, and
+      uses only numbers that REVIEW-H100-20260717 independently re-verified
+      against their artifacts. The correction is cited here precisely so that
+      the distinction between an audited staged number and an invented one is
+      explicit in the record that most closely resembles the one that was
+      corrected.
+    - >-
+      IDEA-20260806-37eab9, which derives the achievable band for
+      iteration-function design and names the negation sub-problem. That is a
+      design-space argument; this is an estimator and a re-analysis.
+    - >-
+      KN-TECH-006 and KN-TECH-018, which ASSERT the 0.886 convention and the
+      sqrt(2) factor. This proposal tests whether the program's own measured
+      support for that convention survives charging.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE ESCAPE-EVENT COUNTER of a single walk, followed as a counting process
+      in walk-time: the number of fruitless-cycle escapes executed up to step
+      t, together with the indicator that the escape budget was exhausted.
+    lossiness: >-
+      GENUINELY LOSSY. It discards the group element, the exponent pair, the
+      branch symbol and the class entirely, retaining one integer per walk.
+      From the escape counter nothing about the walk's position is
+      recoverable, so this is not a change of coordinates.
+    propagation: >-
+      PROPAGATES AS A COUNTING PROCESS, NOT AS A DETERMINISTIC MAP, and the
+      record says so rather than pretending otherwise: the increment at step t
+      is a deterministic function of the class at step t but not of the counter
+      itself, so the projection is compatible with the walk only in the weaker
+      sense that the counter's increments are measurable with respect to the
+      walk's own filtration. That is enough for the survival-analysis use --
+      censoring is a stopping time of that filtration, which is exactly the
+      condition a renewal-reward estimator needs -- and it is NOT enough to
+      call the counter a tracked object in the strong sense of
+      docs/inventor-protocol.md section 2. Disclosed here rather than
+      overclaimed.
+    survival_score: >-
+      Survives change of curve, of r, of DP granularity, of size, and of escape
+      rule (the counter is defined for any rule). Dies if the escape rule
+      depends on walk history, because then the stopping time is not adapted in
+      the way the estimator assumes -- which is the same memorylessness
+      constraint van Oorschot-Wiener parallelisation already imposes
+      (KN-TECH-006), so the two constraints coincide.
+
+  mechanism: >-
+    STEP 1 -- THE ESTIMATOR, WHICH IS STANDARD AND SHOULD BE STATED AS SUCH.
+    Treat each walk as one attempt of a renewal process with reward = solve.
+    Let c_i be the charged cost of attempt i and d_i in {0,1} the censoring
+    indicator. The per-solve charged cost is estimated by
+      Chat = (sum_i c_i) / (number of successes),
+    i.e. TOTAL cost over ALL attempts including failures, divided by successes.
+    This is the ratio estimator; its interval comes from a nonparametric
+    bootstrap over attempts. Note what it does: it charges every operation
+    actually performed, so a censored attempt costs what it cost and buys
+    nothing, which is what a real deployment pays. The conditional-on-success
+    mean is the special case obtained by deleting failed attempts, and the
+    difference between the two IS the quantity correction C5 identifies.
+    Report BOTH, always, side by side, never one alone.
+
+    STEP 2 -- PLANTED VALIDATION BEFORE ANY REAL NUMBER. Generate synthetic
+    attempt sets with a KNOWN per-solve cost and a KNOWN censoring fraction
+    swept over {0, 5, 10, 20, 40} percent. The estimator must recover the known
+    value within its interval at every censoring level, and the
+    conditional-on-success estimator must visibly FAIL to, by the predicted
+    factor 1/P. An estimator that cannot show the bias on planted data cannot
+    be trusted to measure it on real data.
+
+    STEP 3 -- RE-ANALYSIS OF THE EXISTING AUDITED DATA, WITH ITS LIMITS STATED.
+    Apply the lower bound conditional_const / P(success) to the h040 cells
+    (which is all the staged file supports, since per-run costs for censored
+    attempts are not separable) and record 1.0367 and 1.1025 as BOUNDS, marked
+    as arithmetic on published values under a restart policy. Do not report
+    them as measurements and do not report the full estimator on data that
+    cannot support it.
+
+    STEP 4 -- FRESH MEASUREMENT, WHICH IS WHERE THE ANSWER COMES FROM. Re-run
+    the negation-quotient walk in this program's own harness
+    (harness/toycurve.py, harness/rho.py extended with a class-quotient walk)
+    at three sizes, with the escape budget as the SWEPT VARIABLE:
+    budget in {8, 16, 32, 64, 128} escapes and, separately, budget scaled as
+    alpha*sqrt(N) for alpha in {0.001, 0.01, 0.1}. Measure censored fraction,
+    conditional constant, charged constant, and the charged gain against a
+    matched-seed un-quotiented arm.
+      READING 1 fires if the censored fraction is flat in N at fixed
+      alpha*sqrt(N) budget.
+      READING 2 fires if it grows in N even at scaled budget.
+
+    STEP 5 -- THE DECISION, PRE-REGISTERED. Report the maximum charged gain
+    over the budget sweep, per size, against three thresholds stated in
+    advance: 1.4142 (the ideal sqrt(2)), 1.0 (net loss), and the program's own
+    implicit claim that the baseline 0.886 is achieved (which requires charged
+    gain 1.4142 exactly). State which of the three the data supports, in those
+    words.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      grep -ril over ledger/, knowledge/, docs/, inputs/, experiments/ on
+      2026-08-07 for "censor", "escape_overflow", "conditional on success",
+      "renewal", "survival analysis", "Kaplan-Meier", "ratio estimator",
+      "restart". Records read in full: REVIEW-H100-20260717 (corrections C5 and
+      C8), inputs/h100_session/h040_rho_const.json,
+      inputs/h100_session/h041_xonly_walk.json, EXP-RHO-60da4f, H-RHO-bc6ea6,
+      CORR-20260806-2f98f4, KN-TECH-006, KN-TECH-018, KN-LIT-097.
+    results: >-
+      "censor": appears in EXP-RHO-60da4f's stopping_rules (the 10 percent
+      unresolved rule) and in REVIEW-H100-20260717 C5. "renewal",
+      "Kaplan-Meier", "survival analysis", "ratio estimator": ZERO hits across
+      ledger/, knowledge/ and docs/. No record in this repository computes a
+      charged per-solve cost from a censored attempt set, and no record states
+      the 1.0367 / 1.1025 bounds or the size-trend reversal. EXP-RHO-60da4f
+      handles censoring by DECLARING CELLS UNRESOLVED, which is correct and
+      conservative and is not an estimator.
+    verdict: >-
+      ADAPTATION. Renewal-reward and censoring-aware ratio estimation are
+      textbook statistics and nothing about them is claimed as new. What is new
+      to this program is (i) the observation that its only measured support for
+      the negation constant is conditional-on-success, (ii) the derived lower
+      bounds and the size-trend reversal they imply for HEUR-RHO-2, and (iii)
+      the estimator as a deliverable that unblocks an already-approved
+      experiment's heavily censored cells.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING, TWO PARTS.
+    (1) PLANTED-CENSORING NULL WITH AN EXPLICIT DECAY PARAMETER. Synthetic
+    attempt sets with known per-solve cost, censoring swept over
+    {0, 5, 10, 20, 40} percent. THE DECAY PARAMETER IS THE CENSORING FRACTION:
+    as it goes to 0 the gap between the charged and the conditional estimator
+    must GO TO ZERO, and at 40 percent it must be about 1/0.6 = 1.67. An
+    estimator whose two variants disagree at 0 percent censoring is broken; a
+    pair whose disagreement does NOT grow with the censoring fraction is
+    measuring something other than censoring and is the artifact tell.
+    (2) MATCHED-SEED UN-QUOTIENTED NULL. The charged gain is always
+    (charged cost of the un-quotiented arm) / (charged cost of the quotient
+    arm) with identical curve, table, seeds and budget, measured in the same
+    run -- never against a quoted literature constant. The 16/18-bit staged
+    artifact already provides the pattern: its plain arm had 0 escapes and
+    200/200 successes, so its plain constant needs no charging correction and
+    the entire correction falls on the quotient arm, which is exactly why the
+    comparison is the dangerous one.
+
+  assumptions:
+    - >-
+      A restart-on-overflow policy. Under a no-restart policy the algorithm
+      simply fails on some instances and has no finite expected cost, so the
+      charged quantity is undefined; the policy must be stated with every
+      number and is stated here.
+    - >-
+      The staged h040/h041 artifacts are external session outputs staged into
+      inputs/, independently audited by REVIEW-H100-20260717 against their own
+      JSON contents. They are NOT runs of this program's harness and carry no
+      manifest, git commit, or environment record. They are used here as a
+      prior expectation and as a source of realistic censoring rates, never as
+      evidence for a conclusion.
+    - >-
+      The consumed cost of censored attempts is non-negative, which is what
+      makes conditional_const / P(success) a rigorous LOWER bound on the
+      charged constant. No upper bound is claimed.
+    - >-
+      Costs in F_p multiplications with the curve model named, per the unit
+      discipline of IDEA-20260806-37eab9 section (E) and EXP-RHO-60da4f's
+      cost_unit block.
+    - >-
+      The generic bound KN-TECH-005 holds; the entire exercise concerns a
+      constant.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical, with one derived inequality
+      (charged >= conditional / P(success)) whose proof is one line and which
+      is stated in the claim rather than assumed. No theorem, asymptotic bound,
+      certificate family, reduction, or closure argument is proposed, so the
+      section-8 audits have no object. The baseline-reproduction discipline the
+      audits would supply is present anyway as the blocking matched-seed null
+      and the planted-censoring validation.
+
+  predictions:
+    - metric: >-
+        gap between the charged per-solve constant and the
+        conditional-on-success constant, on planted data
+      direction: higher
+      minimum_effect: >-
+        Equal to 1/P(success) within the bootstrap interval at every planted
+        censoring level, and exactly 0 at 0 percent censoring. This is a
+        known-answer test of the estimator and its failure halts the line.
+    - metric: >-
+        charged negation-quotient gain against the matched-seed un-quotiented
+        arm, maximised over the escape-budget sweep
+      direction: lower
+      minimum_effect: >-
+        Strictly below sqrt(2) = 1.4142 at every tested size. A measured value
+        at or above 1.4142 with all null controls passing refutes the shortfall
+        claim and means the negation map achieves its target under full
+        charging -- which would be a positive result for the baseline
+        convention and is recorded as such rather than as a disappointment.
+    - metric: >-
+        censored fraction as a function of N at a budget scaled as alpha*sqrt(N)
+      direction: different
+      minimum_effect: >-
+        READING 1 predicts flat within +-3 percentage points across three sizes.
+        READING 2 predicts a monotone increase of at least 5 percentage points
+        per size step. The two are pre-registered as mutually exclusive and the
+        outcome is recorded as one or the other, or as inconclusive if the
+        change is between 3 and 5 points.
+    - metric: >-
+        sign of the size trend in the charged gain
+      direction: different
+      minimum_effect: >-
+        The audited artifact implies a DECREASING charged gain (1.191 -> 1.160)
+        against an INCREASING uncharged one (1.301 -> 1.357). At least one of
+        those two directions must be reproduced at three sizes in this
+        program's own harness. If the charged trend is flat, HEUR-RHO-2
+        survives at m = 2 and that is a useful confirmation for
+        EXP-RHO-60da4f.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (minutes, zero compute): record the derived bounds 1.0367 and
+      1.1025 and the size-trend reversal, labelled as arithmetic on audited
+      published values under a restart policy.
+      STAGE 1 (hours, HARD GATE): implement the charged ratio estimator with a
+      bootstrap interval; validate it on planted data across the censoring
+      sweep; require the two estimators to agree at 0 percent censoring and to
+      differ by 1/P elsewhere.
+      STAGE 2 (hours, HARD GATE): extend harness/rho.py with a negation-class
+      quotient walk and a memoryless escape rule; reproduce the plain-rho
+      constant 1.2533 within a pre-registered band at three toy sizes; run the
+      no-escape positive control and confirm absorption.
+      STAGE 3 (hours): the escape-budget sweep at three sizes, fixed budget and
+      sqrt(N)-scaled budget, with the matched-seed un-quotiented null in the
+      same run.
+      STAGE 4 (minutes): report charged and conditional constants side by side,
+      the censored fraction per cell, and the pre-registered verdict against
+      1.4142 / 1.0.
+      THE CHEAPEST KILL IS STAGE 1: if the estimator cannot show the known bias
+      on planted data, nothing downstream is interpretable and the line stops
+      for the cost of an afternoon.
+    controls:
+      - planted-censoring synthetic sets with known per-solve cost (blocking)
+      - matched-seed un-quotiented arm, same curve/table/seeds/budget (blocking)
+      - plain-rho constant reproduction against 1.2533 at three sizes (blocking)
+      - no-escape positive control (must be absorbed)
+      - both estimators reported side by side on every cell, never one alone
+    required_metrics:
+      - charged per-solve constant with bootstrap interval, per cell
+      - conditional-on-success constant with CI, per cell
+      - censored fraction and total cost consumed by censored attempts
+      - escape count distribution per run, including its tail
+      - fully charged cost in F_p multiplications, curve model named
+      - charged gain against the matched-seed null, per cell
+      - fitted size trend of the charged gain across three sizes
+
+  falsification_conditions:
+    - >-
+      The estimator fails the planted-censoring known-answer test. Instrument
+      failure; nothing is reported and the line stops.
+    - >-
+      The harness cannot reproduce 1.2533 for plain rho within the
+      pre-registered band. Instrument failure; no gain may be reported.
+    - >-
+      The charged gain reaches or exceeds 1.4142 at all three sizes with null
+      controls passing. The shortfall claim is refuted; the negation map
+      achieves its target under full charging, and the baseline convention is
+      confirmed rather than corrected.
+    - >-
+      The censored fraction is flat in N at fixed budget (not scaled). Then the
+      size-trend reversal derived from the staged artifact was an artifact of
+      that session's budget choice, READING 1 fires, and the correct report is
+      that HEUR-RHO-2 is undisturbed at m = 2. This is the likely outcome and
+      is a genuine result, not a failure.
+    - >-
+      Crashes, timeouts or memory exhaustion. INFRASTRUCTURE outcome under
+      AGENTS.md rule 5.
+
+  confounders:
+    - >-
+      ESCAPE BUDGET AS A HIDDEN PARAMETER. The censored fraction is a function
+      of the budget, and the budget is a free implementation choice. Any
+      charged constant reported without its budget is meaningless, and
+      comparing two implementations at different budgets is comparing budgets.
+    - >-
+      RESTART POLICY. Restart-with-a-new-seed, restart-with-a-new-start-point
+      and continue-with-a-perturbed-step all have different charged costs. The
+      policy must be frozen and reported.
+    - >-
+      STAGED-ARTIFACT PROVENANCE. h040 and h041 are external session outputs
+      with no manifest, commit, or environment record. They motivate the
+      measurement; they cannot conclude it. Treating them as this program's
+      runs would repeat the class of defect CORR-20260806-2f98f4 records.
+    - >-
+      SMALL-N EFFECTS. At 16-18 bits the rho length distribution is
+      heavy-tailed and 200 runs give wide intervals; the audited CIs for the
+      negation arm (0.877-1.023 and 0.873-1.014) straddle 1.0, so even the
+      conditional constants are not sharply resolved there. Sample sizes must
+      be set from a power calculation, not inherited.
+    - >-
+      UNIT SUBSTITUTION. Step counts versus field multiplications; the escape
+      step is not the same cost as a walk step.
+
+  interpretation_limits:
+    - >-
+      ANY MEASURED EXCESS OVER sqrt(|Aut|) = sqrt(2) IS A SUSPECTED INSTRUMENT
+      ARTIFACT UNTIL THE MATCHED-SEED NULL AND THE PLANTED-CENSORING CONTROL
+      BOTH PASS (RQ-EWALK-8fa147 decision_target). This applies symmetrically:
+      a measured DEFICIT is equally suspect until the plain-rho reproduction
+      control passes.
+    - >-
+      The numbers in claim (B) are ARITHMETIC ON AUDITED PUBLISHED VALUES, not
+      measurements by this program, and must never be cited as measurements.
+    - >-
+      Constants only; the exponent is 1/2 (KN-TECH-005).
+    - >-
+      Toy scale (16-24 bits in pure Python). Nothing transfers to crypto scale;
+      the transfer question is exactly HEUR-RHO-2 and this proposal tests it at
+      toy sizes only, which is weaker than EXP-RHO-60da4f's 2^32-2^48 range.
+    - >-
+      Scoped to |Aut| = 2. Larger automorphism groups are IDEA-20260807-6355c6.
+    - >-
+      A confirmed baseline (READING 1, no size trend, charged gain near the
+      uncharged one) is a real result under docs/inventor-protocol.md section 3
+      and is not to be reported as a failed search.
+
+  reachability_gate: >-
+    NOT APPLICABLE IN THE MOVEMENT SENSE -- this proposal never leaves the
+    curve it starts on, uses only the negation automorphism which exists on
+    every curve with p > 3, and therefore has no isogeny-walk cost at all. The
+    gate is recorded rather than omitted because its triviality is itself the
+    point: |Aut| = 2 is universally available, which is why the negation
+    constant is baked into the program's baseline convention and why getting it
+    wrong is expensive across every lane.
+
+  target_complexity:
+    time_exponent: >-
+      1/2, unchanged. The measured object is the constant: ideal 0.8862 for the
+      quotient arm and 1.2533 for the plain arm, with the charged quotient
+      constant predicted at or above 1.0367 at the 16-bit cell by the derived
+      bound.
+    memory_exponent: >-
+      O(1) per processor plus the DP table; unchanged and not the subject.
+    best_known: >-
+      0.886*sqrt(n) fully charged parallel rho with DPs and negation
+      (KN-TECH-006, KN-TECH-018). This proposal tests whether that number is
+      achieved under charging; it does not propose to beat it.
+    hidden_overhead: >-
+      No o(1); no asymptotic claim. What hides and is disclosed: the escape
+      budget, the restart policy, and the censored attempts' consumed cost --
+      the last of which the staged artifact cannot supply, which is exactly why
+      only a lower bound is derived from it.
+    tradeoff_note: >-
+      The escape budget is itself a time/success-probability tradeoff knob and
+      is swept rather than fixed, so cells are compared on that surface. The
+      DP granularity is held fixed here to isolate the budget effect, and that
+      choice is a limitation rather than a design virtue.
+
+  dominated_by: >-
+    CHECKED ACROSS TIME, MEMORY AND DATA/QUERIES. As an ATTACK: none is
+    mounted, so dominated by every frontier row -- parallel rho with DPs at
+    0.886*sqrt(N) time and O(1) memory (KN-TECH-001, KN-TECH-006); the
+    automorphism-discounted CM variant (KN-TECH-018, KN-LIT-042); BSGS at
+    sqrt(N) time and sqrt(N) memory; kangaroo and the Galbraith-Ruprai
+    equivalence-class interval variant at a heuristic 1.36*sqrt(N)
+    (KN-LIT-7437). Data/queries: none consumed, so nothing is dominated there
+    either. As a MEASUREMENT: dominated by EXP-RHO-60da4f on scale
+    (2^32-2^48 versus toy), on escape-rule coverage (10 settings versus this
+    record's budget sweep), and on replication (16 seeds per cell). It
+    dominates that record on exactly one axis -- the estimator -- and the
+    honest framing is that this is a component that record should absorb rather
+    than a competitor to it.
+  sota_delta: >-
+    ZERO speedup against any baseline. As numbers: converts 2 audited
+    conditional-on-success constants (0.9486, 0.9426) into 2 rigorous charged
+    LOWER bounds (1.0367, 1.1025) and 2 charged gain UPPER bounds (1.191,
+    1.160) against an ideal 1.4142; identifies 1 size-trend reversal that
+    bears directly on HEUR-RHO-2; and delivers 1 estimator that converts
+    EXP-RHO-60da4f's heavily censored cells from `unresolved` to bounded, where
+    the audited prior for the censored fraction is 8.5 and 14.5 percent at 16
+    and 18 bits. It moves no exponent and no attack constant.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.95 that the estimator passes its planted known-answer test -- it is
+    textbook and the risk is a coding slip. 0.9 that the charged negation gain
+    comes out strictly below sqrt(2) at every tested size; the audited data
+    already implies at most 1.191 and 1.160 and the ideal is 1.4142. 0.35 that
+    READING 2 fires (censored fraction growing with N even at scaled budget),
+    which is the interesting branch; READING 1 is the likely one and confirming
+    it is still worth an afternoon because it would retire a live doubt about
+    HEUR-RHO-2 before 240 CPU-hours are spent on EXP-RHO-60da4f. 0.1 that any
+    cell shows a charged gain below 1.0 at |Aut| = 2 with a good escape rule --
+    that outcome is far more likely at |Aut| = 6 (IDEA-20260807-6355c6).
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json;
+    all 126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-EWALK-8fa147
+    - KN-TECH-001
+    - KN-TECH-005
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-FIND-b7e091
+    - KN-LIT-042
+    - KN-LIT-097
+    - KN-LIT-7437
+    - H-RHO-bc6ea6
+    - EXP-RHO-60da4f
+    - CORR-20260806-2f98f4
+    - IDEA-20260806-37eab9
+    - IDEA-20260807-ebcae6
+    - IDEA-20260807-6355c6
+    - ledger/REVIEW-H100-20260717.md
+    - inputs/h100_session/h040_rho_const.json
+    - inputs/h100_session/h041_xonly_walk.json

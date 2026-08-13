@@ -1,0 +1,352 @@
+idea:
+  id: IDEA-20260808-b8e2d4
+  question_id: RQ-ECDLP-002
+  added: '2026-08-08'
+  title: >-
+    FULL-POINT ORACLE FOR ALGEBRAIC CONSTRUCTION: an oracle that returns a
+    complete point (x, y) on E given a query in some auxiliary space (e.g., a
+    hash of the point, or an index into a sorted list) enables algebraic
+    construction of relations rather than search-based filtering; the mechanism
+    is structurally distinct from MITM because it constructs relations by
+    algebraic manipulation of oracle outputs, not by enumerating and filtering
+    candidates; predictions are falsifiable at toy scale and the obstruction
+    (if the mechanism fails) is named precisely
+  class: algorithm
+
+  claim: >-
+    (A) THE OBSTRUCTION THIS AVOIDS. H-XOR-d1a480 (rejected_scoped per
+    DEC-20260808-6a7ac4) and IDEA-20260808-a3f7c1 (y-coordinate oracle) both
+    address oracles that return PARTIAL information about a point (x-coordinate
+    membership, or y-coordinate given x). The MITM obstruction shows that
+    partial-information oracles used for filtering yield no advantage over
+    exhaustive search. This proposal uses a FULL-POINT oracle that returns a
+    complete point (x, y), enabling algebraic construction rather than
+    search-based filtering.
+
+    (B) THE PROPOSED MECHANISM. Let O_full : S -> E(F_p) be an oracle that,
+    given a query q in some auxiliary space S, returns a point P = (x, y) on
+    E(F_p). The auxiliary space S could be:
+      - A hash space: q = H(P) for some hash function H, and O_full inverts H.
+      - An index space: S = {1, 2, ..., N} and O_full(i) = [i]P for a fixed P.
+      - A coordinate space: S = F_p x F_p and O_full(x, y) = (x, y) if on E.
+    The algorithm uses O_full to CONSTRUCT relations algebraically:
+      STEP 1. Query O_full(q_1), O_full(q_2), ..., O_full(q_m) to obtain
+              points P_1, P_2, ..., P_m.
+      STEP 2. Compute R = a_1 P_1 + a_2 P_2 + ... + a_m P_m for chosen
+              coefficients a_i.
+      STEP 3. Check whether R decomposes over a factor base V (i.e., R is a
+              sum of m' points in V for some m' <= m).
+      STEP 4. If yes, record the relation.
+    THE KEY DIFFERENCE FROM MITM: this is not filtering candidates; it is
+    CONSTRUCTING a target R from oracle outputs and checking whether it has a
+    desired property. The oracle is used ALGEBRAICALLY, not as a filter.
+
+    (C) THE PREDICTION, PRE-REGISTERED AND FALSIFIABLE. Let Y_full be the yield
+    (relations found per oracle query) of the full-point oracle algorithm, and
+    Y_exhaust be the yield of exhaustive search at the same arity m and
+    factor-base size B. Then:
+      PREDICTION 1: Y_full > Y_exhaust by a factor that depends on the oracle's
+                    information content. If the oracle returns uniformly random
+                    points, Y_full / Y_exhaust ~ 1 (no advantage). If the oracle
+                    returns points with special structure (e.g., low-height
+                    points, or points in a subgroup), Y_full / Y_exhaust > 1.
+      PREDICTION 2: The advantage is MAXIMIZED when the oracle returns points
+                    that are ALREADY in the factor base V, because then every
+                    query directly contributes to a relation.
+      PREDICTION 3: The advantage VANISHES when the oracle returns uniformly
+                    random points, because algebraic construction from random
+                    points is no better than random search.
+    These predictions are MUTUALLY EXCLUSIVE with the MITM obstruction: if
+    Y_full = Y_exhaust for every oracle variant, the mechanism is wrong and the
+    record is superseded.
+
+    (D) WHY THIS IS NOT A RENAMED MITM. The MITM obstruction applies to
+    algorithms that FILTER candidates: they enumerate a space, use the oracle to
+    reject some candidates, and verify the rest. The full-point oracle algorithm
+    does not filter; it CONSTRUCTS. It queries the oracle m times to obtain m
+    points, computes a linear combination, and checks a property. The search
+    space is the oracle's domain S, not E(F_p)^m. The algorithm's cost is
+    O(m * C_oracle + C_check), not O(B^m * C_verify) as in MITM.
+
+    (E) THE SCOPE LIMIT, STATED BEFORE ANY MEASUREMENT. This is a TOY-SCALE
+    proposal. At p ~ 2^8 to 2^12, with B ~ 2^4 to 2^6 and m = 3, the algorithm
+    is feasible and the predictions are testable. No claim about cryptographic
+    parameters is made or implied. The honest ceiling is: "at toy scale, does a
+    full-point oracle used algebraically yield more relations than exhaustive
+    search?" If yes, the next question is whether the advantage scales; if no,
+    the mechanism is closed with a named obstruction.
+
+  mechanism: >-
+    STEP 1 (zero compute) -- STATE THE ALGORITHM PRECISELY. The full-point
+    oracle O_full : S -> E(F_p) returns a point P = (x, y) on E given a query
+    q in S. Three oracle variants are proposed:
+      VARIANT 1 (random): O_full returns a uniformly random point on E(F_p).
+      VARIANT 2 (factor-base): O_full returns a uniformly random point in V
+                               (the factor base).
+      VARIANT 3 (structured): O_full returns a point [i]P for i drawn from a
+                              structured set (e.g., smooth integers, or integers
+                              with small Hamming weight).
+    The algorithm draws m queries q_1, ..., q_m, obtains P_1, ..., P_m, chooses
+    coefficients a_1, ..., a_m (e.g., random, or all 1), computes
+    R = a_1 P_1 + ... + a_m P_m, and checks whether R decomposes over V at
+    arity m' <= m.
+
+    STEP 2 (zero compute) -- DERIVE THE PREDICTION. For VARIANT 1 (random),
+    each P_i is uniformly random, so R is uniformly random, and the probability
+    that R decomposes over V at arity m' is ~ B^{m'} / (m'! N). The yield per
+    oracle query is therefore ~ B^{m'} / (m'! N), which is the same as
+    exhaustive search at arity m'. So Y_full / Y_exhaust = 1 for VARIANT 1.
+    For VARIANT 2 (factor-base), each P_i is in V, so R is a sum of m points in
+    V, which decomposes over V at arity m with probability 1. So Y_full /
+    Y_exhaust = (m! N) / B^m for VARIANT 2, which is exponentially large in m.
+    For VARIANT 3 (structured), the yield depends on the structure; the
+    prediction is that Y_full / Y_exhaust is between 1 and the VARIANT 2 value,
+    depending on how much structure the oracle exploits.
+
+    STEP 3 (toy compute, <= 30 minutes) -- TEST THE PREDICTION. At p in
+    {101, 103, 107, 211}, B in {10, 20, 50}, m = 3, with 100 random targets per
+    cell, measure Y_full for each variant and compute the ratio Y_full /
+    Y_exhaust. The predictions are:
+      VARIANT 1: ratio = 1.0 +/- 0.2
+      VARIANT 2: ratio = (6 * N) / B^3 (exponentially large)
+      VARIANT 3: ratio between 1 and VARIANT 2
+    If VARIANT 1 yields ratio > 1.5, the instrument is broken. If VARIANT 2
+    yields ratio < 10, the instrument is broken. If VARIANT 3 yields ratio = 1,
+    the mechanism is closed.
+
+    STEP 4 (zero compute) -- STATE THE OBSTRUCTION IF THE PREDICTION FAILS. If
+    Y_full = Y_exhaust for every variant, the obstruction is: "algebraic
+    construction from oracle outputs yields no advantage over exhaustive search,
+    because the decomposition probability depends only on the SIZE of the factor
+    base, not on how its elements were chosen or constructed." This is the same
+    obstruction as the MITM case, applied to a different algorithm. The record
+    would then be closed with a named obstruction and forward guidance.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      grep -ril over ledger/proposals, ledger/hypotheses, knowledge/ for
+      "full-point oracle", "algebraic construction", "oracle algebraic",
+      performed 2026-08-08.
+    results: >-
+      Zero occurrences of "full-point oracle" as a technical term.
+      IDEA-20260807-7270d1 discusses x-oracle and y-oracle but not full-point.
+      IDEA-20260807-070d03 discusses factor-base membership but not full-point
+      construction. The algebraic use of an oracle (constructing relations by
+      linear combination of oracle outputs) is not named in any record.
+    verdict: >-
+      ADAPTATION. The full-point oracle is a standard object; what is proposed
+      as new is its use in algebraic construction rather than filtering, and the
+      specific prediction that VARIANT 2 yields an exponentially large advantage.
+      External novelty is not claimed and was not checked beyond the corpus.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING.
+    NULL OBJECT 1: VARIANT 1 (random oracle). This must yield Y_full = Y_exhaust
+    exactly, because random points provide no information. An instrument that
+    reports Y_full > Y_exhaust for VARIANT 1 is measuring an artifact.
+    NULL OBJECT 2: exhaustive search at arity m on the same instances. This is
+    the baseline, and it must match the committed data for H-XOR-d1a480's arm A.
+    DECAY PARAMETER: B/p over the ladder {2^-6, 2^-4, 2^-2, 2^-1}. For VARIANT
+    2, the ratio Y_full / Y_exhaust must GROW exponentially with B/p (since it
+    is ~ (m! N) / B^m). A ratio that does not grow indicates the oracle is not
+    providing the predicted advantage.
+
+  assumptions:
+    - >-
+      The curve E is a prime-field short-Weierstrass curve y^2 = x^3 + a x + b
+      with prime order subgroup G = <P> of order N ~ p.
+    - >-
+      The factor base V is a random subset of E(F_p) of size B, chosen
+      independently of the oracle queries.
+    - >-
+      The full-point oracle O_full is exact and returns the correct point. No
+      noise or error is assumed.
+    - >-
+      The decomposition check at arity m' is exact and exhaustive. No heuristic
+      or probabilistic test is used.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/measurement hypothesis at toy scale; not a proof,
+      asymptotic bound, or closure argument.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a random target R and a random factor base V of size B, the
+        probability that R decomposes over V at arity m is ~ B^m / (m! N),
+        assuming the subset sums of V behave like independent uniform elements
+        of Z/N.
+      rigorous_support: >-
+        The classical balls-in-bins / occupancy model for uniform independent
+        placements. The union bound gives an upper bound of B^m / (m! N) with no
+        independence assumption; the heuristic is that the bound is tight.
+      validation_plan: >-
+        Sample directly: at p in {101, 103, 107, 211}, B in {10, 20, 50}, m = 3,
+        measure the fraction of 100 random targets that decompose over V and
+        compare against B^3 / (6 N). Tail check: the largest B, where the
+        predicted probability is about 50/107 ~ 0.47 and a systematic deviation
+        would reveal dependence. Toy scale only and labelled as such.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS CLAIMED. The proposal is a toy-scale measurement of a
+      constant-factor ratio. The honest ceiling is: "at toy scale, a full-point
+      oracle used algebraically yields a factor that depends on the oracle's
+      information content." No claim about asymptotic complexity or
+      cryptographic parameters is made.
+    memory_exponent: >-
+      O(B) to store the factor base and O(m) working memory for the algebraic
+      construction. Not a cost-relevant quantity at toy scale.
+    best_known: >-
+      Pollard rho at p^{1/2} with O(1) memory (KN-TECH-001, KN-TECH-006); BSGS
+      at p^{1/2} time and memory (KN-TECH-031). Unmoved by this record.
+    hidden_overhead: >-
+      The proposal assumes the full-point oracle is FREE. If it must be
+      simulated (e.g., by exhaustive search over E(F_p)), the cost is O(N) per
+      query, which dominates. The advantage is an INFORMATION-CONTENT advantage
+      only if the oracle is cheap; if it is expensive, the advantage vanishes.
+    tradeoff_note: >-
+      Not applicable. The proposal is a constant-factor measurement, not a
+      tradeoff.
+
+  predictions:
+    - metric: Y_full / Y_exhaust for VARIANT 1 (random oracle)
+      direction: different
+      minimum_effect: >-
+        Predicted 1.0 +/- 0.2. A ratio > 1.5 falsifies the instrument; a ratio
+        < 0.8 indicates a bug.
+    - metric: Y_full / Y_exhaust for VARIANT 2 (factor-base oracle)
+      direction: higher
+      minimum_effect: >-
+        Predicted (6 * N) / B^3, which is exponentially large. At p = 101,
+        B = 10, this is ~ 600. A ratio < 10 indicates the oracle is not
+        providing the predicted advantage.
+    - metric: Y_full / Y_exhaust for VARIANT 3 (structured oracle)
+      direction: higher
+      minimum_effect: >-
+        Predicted between 1 and VARIANT 2, depending on the structure. The
+        exact value is not predicted; the proposal measures it.
+
+  minimal_test:
+    design: >-
+      STAGE 1 (toy compute, <= 30 minutes): at p in {101, 103, 107, 211},
+      B in {10, 20, 50}, m = 3, with 100 random targets per cell, measure
+      Y_full for each variant and compute the ratio Y_full / Y_exhaust.
+      STAGE 2 (toy compute, <= 30 minutes): run the null objects. VARIANT 1
+      must yield ratio = 1.0; exhaustive search must match committed data.
+      STAGE 3 (toy compute, <= 30 minutes): sweep B/p over {2^-6, 2^-4, 2^-2,
+      2^-1} and check that VARIANT 2's ratio grows exponentially.
+    controls:
+      - >-
+        VARIANT 1 (random oracle): ratio must be 1.0 +/- 0.2
+      - >-
+        Exhaustive search: must match committed data for H-XOR-d1a480 arm A
+      - >-
+        B/p ladder: VARIANT 2 ratio must grow exponentially
+      - >-
+        Factored group order, largest prime factor, and #E != p per curve
+        (KN-TECH-030, KN-TECH-033 hygiene)
+      - >-
+        Matched rho and BSGS on identical instances, in the same operation unit
+    required_metrics:
+      - Y_full for each variant per (p, B, m) cell
+      - Ratio Y_full / Y_exhaust with 95% CI for each variant
+      - Ratio as a function of B/p for VARIANT 2
+
+  falsification_conditions:
+    - >-
+      Y_full / Y_exhaust = 1.0 +/- 0.2 for every variant. The mechanism is
+      wrong; algebraic construction from oracle outputs provides no advantage.
+      The record is superseded with a named obstruction: "algebraic construction
+      yields no advantage over exhaustive search."
+    - >-
+      VARIANT 1 yields ratio > 1.5. The instrument is broken; the random oracle
+      should provide no advantage.
+    - >-
+      VARIANT 2 yields ratio < 10. The instrument is broken; the factor-base
+      oracle should provide an exponentially large advantage.
+    - >-
+      VARIANT 2's ratio does not grow with B/p. The prediction is wrong; the
+      mechanism needs refinement or is closed.
+
+  confounders:
+    - >-
+      ORACLE COST. The proposal assumes the full-point oracle is free. If it
+      must be simulated, the cost is O(N) per query, which dominates. The
+      advantage is an information-content advantage only if the oracle is cheap.
+    - >-
+      SMALL-p EFFECTS. At p ~ 100, the factor base B ~ 50 is a large fraction of
+      p, and finite-size effects may distort the ratio. Report the achieved B/p,
+      not the target.
+    - >-
+      DECOMPOSITION CHECK COST. The proposal assumes the decomposition check is
+      exact and exhaustive. If it is heuristic or probabilistic, the yield may be
+      inflated or deflated.
+
+  interpretation_limits:
+    - >-
+      Toy-scale only (7-8 bit prime fields); no claim about cryptographic-scale
+      parameters (AGENTS.md rule 7).
+    - >-
+      The proposal assumes a FREE full-point oracle. If the oracle must be
+      simulated, the cost dominates and the advantage vanishes. The proposal is
+      about the INFORMATION CONTENT of the oracle, not its implementation cost.
+    - >-
+      No asymptotic complexity claim is made. The honest ceiling is a
+      constant-factor measurement at toy scale.
+    - >-
+      The proposal is structurally distinct from H-XOR-d1a480 (MITM filtering)
+      and IDEA-20260808-a3f7c1 (y-coordinate oracle), but may be subject to the
+      same obstruction: "the oracle provides no information beyond what
+      exhaustive search already has." If the prediction fails, the obstruction
+      applies to all three.
+
+  dominated_by: >-
+    Dominated by every row of the prime-field frontier: rho at p^{1/2} with O(1)
+    memory (KN-TECH-001, KN-TECH-006), BSGS at p^{1/2} time and memory
+    (KN-TECH-031). This proposal occupies no point on the frontier and `null`
+    would be a fabrication. It is a toy-scale measurement of a constant-factor
+    ratio, not an attack.
+  sota_delta: >-
+    Zero speedup against any attack baseline. The proposal is a measurement of
+    whether a full-point oracle used algebraically yields an advantage over
+    exhaustive search at toy scale. If yes, the delta depends on the oracle
+    variant (VARIANT 2 yields an exponentially large factor); if no, the delta
+    is zero and the mechanism is closed.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.60 that VARIANT 2 yields the predicted exponentially large advantage,
+    because the derivation is elementary and the oracle directly provides points
+    in the factor base. 0.30 that VARIANT 3 yields a measurable advantage,
+    depending on the structure exploited. 0.10 that all variants yield ratio = 1,
+    indicating the mechanism is closed. Priority is MEDIUM because the proposal
+    is a cheap, falsifiable test of a structurally distinct mechanism, and both
+    outcomes (confirmation or refutation) are informative.
+
+  id_allocation_provenance: >-
+    python3 tools/allocate_id.py --next idea --date 20260808 (random token, no
+    state scanned), then --check IDEA-20260808-b8e2d4 returned
+    "well-formed and free across the union" before this file was written.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-08'
+  source_refs:
+    - RQ-ECDLP-002
+    - H-XOR-d1a480
+    - DEC-20260808-6a7ac4
+    - IDEA-20260808-a3f7c1
+    - IDEA-20260807-7270d1
+    - IDEA-20260807-070d03
+    - KN-TECH-001
+    - KN-TECH-006
+    - KN-TECH-030
+    - KN-TECH-031
+    - KN-TECH-033

@@ -1,0 +1,186 @@
+coordinator_decision:
+  id: DEC-20260809-de11f9
+  context: >-
+    EXP-ICINV-4d33aa version 2 (protocol_amendment v2, dispatched by
+    TASK-20260809-caa93e, discharging N10) executed. Version 1 had
+    terminated INVALID because its baseline-reproduction gate compared Arm
+    A0 against a committed p = 6007 run measured at different parameters
+    than the frozen contract's own grid. Amendment v2 change A1 required
+    re-measuring that baseline correctly, as a new EXP-ICINV-55c2d8 run,
+    before any gate comparison. That re-measurement ran. The gate still
+    failed, for a different and more consequential reason, and the run
+    terminated INVALID again.
+  decision: pause
+  target_ids:
+  - GOAL-ENDO-001
+  - BATCH-aa267f
+  - EXP-ICINV-4d33aa
+  - H-ICINV-6c7920
+  - RQ-ICINV-475b5e
+  - EXP-ICINV-55c2d8
+  rationale:
+  - >-
+    TERMINAL STATE INVALID, INDEPENDENTLY VERIFIED FROM THE RAW COMMITTED
+    ARTIFACT, NOT ACCEPTED ON THE EXECUTOR'S REPORT ALONE. Read directly from
+    experiments/EXP-ICINV-4d33aa/runs/RUN-ICINV-99f722/
+    decision-rule-evaluation.json: `terminal_state: INVALID`, from two
+    invalidations firing in the contract's order. (1) "Arm A0 failed the
+    baseline-reproduction control" at p = 6007, because
+    `every_row_in_band_1_3_to_3_6: False` -- rows fb = 4 and fb = 5 fall
+    below 1.3 in the reference run itself. (2) "fewer than two primes yield
+    a persistence verdict": p = 2003 was never run (SR3 halted stage 3
+    before reaching it, per the contract's per-prime execution order
+    [4001, 6007, 2003]) and p = 6007 has no Arm B statistic because SR3
+    fired before it could be computed. No OUTCOME state was reached.
+  - >-
+    CHANGE A1 WORKED EXACTLY AS DESIGNED, AND ITS OWN NUMBERS ARE
+    INDEPENDENTLY CONFIRMED. Read directly from
+    experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-f09176/raw-result.json:
+    n_targets = 400 over the frozen thirteen factor-base sizes
+    {4,5,6,7,8,9,10,11,12,13,15,18,22} -- the CORRECT grid, unlike version
+    1's mismatched T = 500 / eleven-size committed baseline. Arm A0
+    reproduces this new baseline at 13 of 13 rows exactly, max |delta| =
+    0.0, at both p = 4001 and p = 6007. The operating row (fb = 9,
+    density closest to 1/3!) reads 1.5787641552269556, inside +-0.25 of the
+    frozen 1.591 (delta -0.0122). Change A1 discharged the specific defect
+    CORR-20260807-14431d identified in version 1.
+  - >-
+    THE GATE FAILED FOR A DIFFERENT, MORE CONSEQUENTIAL REASON: THE
+    CORRECTLY RE-MEASURED REFERENCE ITSELF CROSSES THE BAND'S FLOOR. Two of
+    the thirteen rows in the new, correctly-parametrised p = 6007 baseline
+    -- fb = 4 (1.2315292605941532) and fb = 5 (1.1125313273888915), the two
+    LOWEST-density, hence noisiest, rows -- fall below 1.3. This is not a
+    parameter mismatch, a fabricated literal, or an implementation defect:
+    it is amendment v2's OWN standing caution (A5, filed 2026-08-07, BEFORE
+    this run existed) materialising exactly as warned. A5 recorded that
+    "[1.3, 3.6] is the outward-rounded hull of the committed rows
+    themselves -- floor slack 0.020397... any successor that keeps it must
+    expect legitimate sampling variation to cross it." That is what
+    happened, at the lowest-density end where sampling variance is largest.
+  - >-
+    NEITHER FAILURE BEARS ON H-ICINV-6c7920 OR EV-ENDO-10109d IN EITHER
+    DIRECTION. INVALID is an admissibility failure in the gate, not a
+    measurement of the mathematics. The Executor's amendment-mandated report
+    of this fact (per A1's forbidden clause: "if the re-measured baseline
+    itself falls outside [1.3, 3.6]... THAT IS A FINDING ABOUT EV-ENDO-10109d
+    AND MUST BE REPORTED AS ONE") is exactly what the run's own code did,
+    verified directly in decision-rule-evaluation.json's
+    `reference_self_check` block, which states the amendment's forbidden
+    clause and A5's caution verbatim and draws no conclusion. No band was
+    moved; no threshold was adjusted after the fact.
+  - >-
+    A6 IS SATISFIED FOR EVERYTHING THIS TASK PRODUCED, INDEPENDENTLY
+    RE-RUN BY THIS COORDINATOR, NOT TAKEN ON THE EXECUTOR'S WORD. The
+    unscoped `check_run_source_provenance.py --experiment EXP-ICINV-4d33aa
+    --strict` exits 1 (10 pinned, 19 unpinned) -- but every one of the 19
+    unpinned runs PREDATES this task and is a version-1 run this amendment
+    explicitly does not re-score. Scoped to this task's own commits
+    (`--since-commit fb56dcfc --strict`), it exits 0: 10 of 10 version-2
+    runs pinned, 9 of them from a fully clean tree. The A1 baseline under
+    EXP-ICINV-55c2d8 likewise scopes to 1 of 1 pinned. Every run this task
+    wrote binds its own code to a hash; nothing here is unpinned by this
+    task's own doing.
+  - >-
+    `decision: pause` FOR THIS LANE, NOT `refine` OR `reject_scoped`,
+    BECAUSE THE SAME GATE DESIGN IS LIKELY TO FAIL AGAIN FOR THE SAME
+    REASON. A5's own arithmetic (floor slack 0.020397 on a hull fitted to
+    one historical sample) means a third attempt, re-running the identical
+    row-by-row band-membership check across all thirteen density rows
+    including the two noisiest, has a materially non-trivial chance of
+    crossing the floor again at fb = 4 or fb = 5 on a fresh draw -- this is
+    not bad luck to be resampled away, it is the gate's design margin. A
+    third dispatch under the unchanged SR3 design would risk spending
+    another full budget (this one used 0.082 of 12 CPU-hours and 11 of 30
+    runs, cheaply, but a human reviewer's and Coordinator's attention is the
+    scarcer resource) to rediscover the same fact. This lane pauses, not
+    because the campaign lacks budget or the instrument failed a
+    two-directional control (pause conditions P1-P3 are not engaged), but
+    because dispatching a third attempt under an unchanged gate is not a
+    responsible use of the campaign's own stated rigor, and the redesign
+    question is squarely the user's to weigh in on before more compute is
+    spent.
+  evidence_refs:
+  - experiments/EXP-ICINV-4d33aa/runs/RUN-ICINV-99f722/decision-rule-evaluation.json
+  - experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-f09176/raw-result.json
+  - coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/execution/EXP-ICINV-4d33aa-v2/execution_report.md
+  - experiments/EXP-ICINV-4d33aa/amendments/v2.yaml
+  - ledger/corrections/CORR-20260807-14431d.yaml
+  limitations:
+  - >-
+    This Coordinator independently re-derived the terminal state, the A1
+    baseline's raw rows, and the check_run_source_provenance.py exit codes
+    directly from committed artifacts. It did NOT independently re-derive
+    the Arm C planted-signal detection (reported 13/13 at all three primes),
+    the NULL-R over-dispersion figures (9/13, 9/13, 4/13), the
+    variance-decomposition identity check (reported 351/351 cells, max
+    relative error 5.4e-9), or the T-scaling anomaly the Executor flagged
+    ("departs upward from linear on Arm A at both primes") -- these are
+    cited from the execution report as the Executor's own account, not
+    verified by a separate reviewing session or by this Coordinator from raw
+    data. No evidence record is written from this decision, so this
+    limitation gates nothing yet, but any future record citing those
+    secondary figures must say so.
+  - >-
+    Stage 3 at p = 2003 was never run (SR3 halted the per-prime sequence at
+    p = 6007 before it was reached). This is a missing measurement, not a
+    collapsed or persisting verdict, and is not evidence in any direction.
+  - >-
+    This decision does not itself constitute independent review of the
+    version-2 execution report; that dispatch is a future action if the
+    user elects to pursue this lane further, and is not required to record
+    this INVALID terminal state, which carries no evidential claim needing
+    adversarial scrutiny.
+  - >-
+    Toy scale throughout (p in {2003, 4001, 6007}), `claim_tier: toy`.
+    `sota_delta` is zero; nothing here is an attack-cost claim in any
+    direction.
+  next_actions:
+  - >-
+    N10-v3, PAUSED PENDING A GATE-DESIGN DECISION, NOT DISPATCHED BY THIS
+    DECISION. Before any third attempt at EXP-ICINV-4d33aa, the SR3
+    baseline-reproduction control needs to be reconsidered rather than
+    re-run unchanged: candidates include (a) restricting the literal
+    row-by-row band check to interior density rows away from the
+    lowest-density, highest-variance end, since the operating row (fb = 9)
+    and the contract's own prose reference (1.591) both passed cleanly at
+    delta near zero in this run; (b) replacing literal band membership with
+    a statistical comparison against the reference run's own estimated
+    sampling uncertainty rather than a fixed [1.3, 3.6] hull; (c) accepting
+    that a two-of-thirteen floor crossing at the noisiest rows, with the
+    operating row and every interior row passing, does not by itself
+    invalidate the underlying reproduction and revising SR3's own
+    all-thirteen-rows requirement accordingly. Any of these is a
+    protocol_amendment v3, requiring the same freeze-before-execution
+    discipline as v2, and is not undertaken by this decision.
+  - >-
+    N7 (carried, still open across four batches now). Re-dispatch the
+    RQ-CANL-63098f lane.
+  - >-
+    N11 (carried). The two_torsion_x lead at POOL_C R4 (R = 0.647), flagged
+    not claimed, needs a cheap control before any chase.
+  - >-
+    N12 IS CLOSED (DEC-20260809-4081cc / EV-INSTR-ffbb5a).
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      This is a scoped instrument-gate failure, toy scale, with no positive
+      or negative finding about isogeny structure. It refines the
+      campaign's own understanding of how tight a reproduction band can be
+      before ordinary resampling defeats it (a caution already recorded in
+      the amendment's own A5), rather than warranting a new corpus entry.
+  decided_by: coordinator
+  decided_at: '2026-08-09'
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one
+      model the session runs on. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.

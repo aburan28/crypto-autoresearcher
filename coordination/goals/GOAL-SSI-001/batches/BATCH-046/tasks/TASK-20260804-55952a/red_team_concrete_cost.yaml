@@ -1,0 +1,428 @@
+red_team_report:
+  id: RT-20260805-92751c
+  task_id: TASK-20260804-55952a
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-046
+  reviewed_artifacts:
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-046/tasks/TASK-20260804-55952a/concrete_cost_analysis.md
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-046/tasks/TASK-20260804-55952a/implementation/cost_measurements.json
+    - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md (Section 4.1, Lemma 3.3, Remark 1)
+  claim_under_review: >
+    SQIsign NIST-I has ~119-bit AES-equivalent security under Wesolowski's
+    p^{1/3+o(1)} attack (9 bits below the 128-bit target). Derived by
+    correcting the paper's 2^{106.5} lower bound with a factor of 2^{12}
+    per-entry cost from toy-scale measurements.
+  inference:
+    policy: review-adversarial
+    independent_session: true
+
+  # =========================================================================
+  # CHALLENGE 1: Extrapolation validity (B mismatch)
+  # =========================================================================
+  objections:
+    - id: OBJ-1-extrapolation-B-mismatch
+      title: "Extrapolation from toy scale crosses a regime boundary in B"
+      severity: moderate
+      direction: INCREASES security (attacker pays more)
+      estimated_bits: "+1 to +2.4"
+      detail: |
+        The toy measurements use B = 3-6 (only primes 2, 3, and at most 5).
+        At NIST-I, the paper's CONCRETE optimization uses B ~ 29,000 (from
+        solving u*ln(u) = 14*ln(2), yielding B = e^{10.3}).
+
+        Even at the asymptotic B = 85, the primes used range up to 83. The
+        root-finding cost per call scales as O(ell^2 * log(p)) with schoolbook
+        or O(ell * log(ell) * log(p)) with FFT. The larger primes at NIST-I
+        increase per-entry cost compared to the toy measurements that only
+        exercise ell = 2, 3, 5.
+
+        Computed per-entry cost at NIST-I (log2(p)=256, primes <= 85):
+          - Schoolbook: 21,032 mults/entry = 2^{14.4}
+          - FFT-based:   7,900 mults/entry = 2^{12.9}
+          - Linear extrapolation from toy data:  ~4,200 = 2^{12.0}
+          - Analysis claim (Velu model):           ~900 = 2^{9.8}
+
+        The linear extrapolation (2^12) happens to approximate the FFT result
+        (2^12.9) because two errors partially cancel: it captures the log(p)
+        scaling correctly but misses the larger-prime effect. The analysis's
+        Velu-based estimate (2^9.8) is 3 bits too low.
+
+      evidence:
+        - "cost_measurements.json: all experiments use primes_used=[2,3] or [2,3,5]"
+        - "json metadata states: 'Does not account for potential subquadratic polynomial multiplication (Karatsuba/FFT)'"
+        - "Analytical formula (Phase1=2*log2(p)*((ell+1)^2+(ell+1))) verified against json at all toy scales"
+
+    # =========================================================================
+    # CHALLENGE 2: B = 85 is NOT the paper's concrete-optimal B
+    # =========================================================================
+    - id: OBJ-2-wrong-B-identification
+      title: "Analysis misidentifies paper's optimized B as 85"
+      severity: high
+      direction: NEUTRAL (cancels in final estimate)
+      estimated_bits: "0 (self-cancelling)"
+      detail: |
+        The concrete_cost_analysis states "optimal B ~ 85" and derives chain
+        parameters from this. But B = 85 is the ASYMPTOTIC optimum
+        (e^{(1/3)*sqrt(ln(p/2))} = 80). With B = 85:
+          u = ln(p/2) / (3*ln(85)) = 172.82 / 13.32 = 12.97
+          1/P0 = u^u = 12.97^{12.97} = 2^{47.9}
+
+        This gives T = M * 2^48 (not 2^14 attempts as the analysis claims).
+        The paper's reported 2^{106.5} requires only 1/P0 = 2^{14}, which
+        demands u ~ 5.6 and B ~ 29,000.
+
+        The analysis's derivation of "chain length 7.1 steps with avg ell=42"
+        is internally consistent with B=85 but inconsistent with the paper's
+        reported numbers. Despite this confusion, the FINAL correction factor
+        is applied on top of the paper's 2^{106.5} (which already has the
+        correct B baked in), so the error does not propagate to the conclusion
+        in a way that changes the bottom line by more than ~1 bit.
+
+      evidence:
+        - "Paper says: 'optimizing B for best time' gives 2^{106.5}"
+        - "Solving u*log2(u) = 14 gives u=5.6, B = e^{10.3} = 29,340"
+        - "concrete_cost_analysis.md line 21-23: claims 'B ~ 85, chain 7.1 steps'"
+
+    # =========================================================================
+    # CHALLENGE 3: Velu vs modular-polynomial cost model
+    # =========================================================================
+    - id: OBJ-3-wrong-cost-model
+      title: "Analysis uses Velu cost (3*ell) but algorithm uses modular polynomial root-finding"
+      severity: high
+      direction: INCREASES security (correction factor understated)
+      estimated_bits: "+2 to +3"
+      detail: |
+        The analysis computes per-entry cost as:
+          7.1 steps * 3*ell mults/step * avg_ell=42 = 900 = 2^{9.8}
+
+        The "3*ell" formula is the cost of EVALUATING a Velu isogeny (given
+        its kernel). But Algorithm 1 does NOT use Velu. It uses MODULAR
+        POLYNOMIAL root-finding: evaluate Phi_ell(j_known, X), then find all
+        roots of the resulting degree-(ell+1) polynomial over F_{p^2}.
+
+        The actual cost per root-finding call (from the json's own formula):
+          Phase 1 (x^{p^2} mod f): 2*log2(p) * ((ell+1)^2 + (ell+1)) [schoolbook]
+          Phase 2 (GCD): (ell+1)^2
+          Phase 3 (splitting): (ell+1) * 2*log2(p)
+
+        For ell=42 (the analysis's average) at log2(p)=256:
+          Schoolbook: 512*(43^2+43) + 43^2 + 43*512 = 972,032 per call
+            -> per entry: 972,032/43 = 22,606 = 2^{14.5}
+          FFT: much less but still >> 3*42 = 126
+
+        The correct per-entry cost is 2^{12-14.5}, not 2^{9.8}. The analysis
+        understates the correction factor by 2-5 bits. However, this is
+        partially offset because the paper's 2^{106.5} already uses the TRUE
+        optimized B (not B=85), and at B~29,000 the chain structure differs.
+
+      evidence:
+        - "Paper Lemma 3.3: 'the non-backtracking ell-neighbors...are precisely the roots of the modular polynomial Phi_ell(j(E'),x)'"
+        - "Paper: 'Computing the polynomial Phi_ell(j(E'),x) and finding its ell+1 roots requires time (B+log p)^{O(1)}'"
+        - "wesolowski_toy.py lines 50-77: implements root-finding cost model, NOT Velu"
+
+    # =========================================================================
+    # CHALLENGE 4: sqrt-elu inapplicability
+    # =========================================================================
+    - id: OBJ-4-sqrt-elu-irrelevant
+      title: "sqrt-elu (BDLS 2020) does not apply to the neighbor-enumeration problem"
+      severity: low
+      direction: NEUTRAL
+      estimated_bits: "0"
+      detail: |
+        The task prompt asks whether sqrt-elu (O(sqrt(ell)) for ell-isogeny
+        computation) reduces per-entry cost. It does NOT, because:
+
+        1. sqrt-elu computes an isogeny GIVEN its kernel subgroup.
+        2. Algorithm 1 needs to ENUMERATE ALL ell+1 neighbors (find all roots
+           of Phi_ell). This requires root-finding, not kernel evaluation.
+        3. To use Velu/sqrt-elu for enumeration, one must first find ALL
+           ell-torsion points E'[ell]. For primes ell not dividing (p+1),
+           E[ell] is not fully rational over F_{p^2}, requiring extension
+           field arithmetic.
+        4. For p = 5*2^248-1: E[ell] in E(F_{p^2}) only for ell in {2, 5}.
+           All other primes require working in F_{p^4} or larger.
+
+        The relevant optimization is FFT-based polynomial arithmetic for the
+        modular polynomial approach, not sqrt-elu for explicit isogenies.
+
+      evidence:
+        - "Paper Algorithm 1: 'L_{E',ell} <- ...the list of non-backtracking ell-isogenies from E''"
+        - "Paper footnote: 'the fastest way to populate the list might be through batched evaluations of these modular polynomials'"
+        - "For p=5*2^248-1: p+1=5*2^248, so only ell|p+1 gives E[ell] in E(F_{p^2})"
+
+    # =========================================================================
+    # CHALLENGE 5: Memory makes attack physically impossible
+    # =========================================================================
+    - id: OBJ-5-memory-infeasibility
+      title: "Memory requirement makes the attack physically undeployable at NIST-I"
+      severity: critical-for-practice
+      direction: "QUALITATIVE: attack is theoretical, not practical"
+      estimated_bits: "N/A (changes threat model)"
+      detail: |
+        The table requires M = 2^{92.5} entries. Each entry stores (at minimum)
+        a j-invariant in F_{p^2} (64 bytes for 256-bit p):
+          Memory = 2^{92.5} * 64 bytes = 2^{98.5} bytes ~ 5 * 10^{29} bytes
+
+        Total storage on Earth: ~10^{22} bytes (Cisco, 2023)
+        Required memory: ~50 million times all storage on Earth.
+
+        The van Oorschot-Wiener time-memory tradeoff (paper Section 1.1):
+          Time = p^{1/2+o(1)} / (w^{1/2} * n) with memory w and n processors.
+        
+        At any physically realizable memory (say w = 2^{60} entries):
+          Time = 2^{128+o(1)} / 2^{30} = 2^{98+o(1)} ... but this uses the
+          FULL p^{1/2} baseline, not the p^{1/3} algorithm.
+
+        For Wesolowski with reduced memory: the paper explicitly states the VW
+        tradeoff interpolates between p^{1/3+o(1)} (full memory) and
+        p^{1/2+o(1)} (polynomial memory). At any feasible memory level, the
+        advantage over VW collision search vanishes.
+
+        This does NOT invalidate the THEORETICAL security gap (the paper is
+        about asymptotic complexity, not practical attacks). But it means:
+        - The 119-bit theoretical security cannot be exploited in practice
+        - No actual attack is cheaper than the classical 2^128 baseline
+          at any physically realizable memory budget
+
+      evidence:
+        - "Paper Section 1.1: 'its memory cost is essentially as high as the complexity...a serious obstacle for any deployment'"
+        - "Paper: VW tradeoff 'time p^{1/2+o(1)}/(w^{1/2}*n) with memory w'"
+        - "Total global data storage estimate: ~10^{22} bytes (multiple industry sources)"
+
+    # =========================================================================
+    # CHALLENGE 6: AES-equivalence conversion is model-dependent
+    # =========================================================================
+    - id: OBJ-6-AES-equivalence
+      title: "The F_{p^2}-to-AES ratio of 0.5-0.6 is model-dependent and likely wrong"
+      severity: moderate
+      direction: INCREASES security (by 1-4 bits depending on model)
+      estimated_bits: "+1 to +4"
+      detail: |
+        The analysis claims "1 F_{p^2}-mult ~ 0.5-0.6 AES-equivalents" based on:
+          - 16 word-multiplications per F_{p^2}-mult (Karatsuba)
+          - 25-30 word-multiplications per AES evaluation
+
+        ERRORS:
+        1. "16 word-mults per F_{p^2}-mult" appears to count only ONE F_p
+           multiplication (4^2=16 schoolbook for 256-bit integers). But
+           F_{p^2} = F_p[i]/(i^2+1) requires 3 F_p multiplications (Karatsuba
+           for complex multiplication). Correct count: 3*16=48 (schoolbook)
+           or 3*9=27 (full Karatsuba).
+
+        2. "25-30 word-mults per AES" is only valid in a pure RAM model
+           without hardware acceleration. With AES-NI (which any serious
+           attacker would use): AES costs 10-40 cycles, while a 256-bit
+           F_{p^2}-mult costs 60-120 cycles. Ratio: 1.5-12, not 0.5.
+
+        3. For ASIC-based attacks (the real threat model at this scale):
+           AES-128 unit: ~6,400 gate-cycles
+           256-bit F_{p^2} multiplier: ~100,000 gate-cycles
+           Ratio: ~15.6
+
+        Impact on security estimate:
+          Pure RAM (alpha=0.3): 2^{119} * 0.3 = 2^{117.3} (analysis's model)
+          CPU+AES-NI (alpha=3): 2^{119} * 3 = 2^{120.6}
+          ASIC (alpha=15): 2^{119} * 15 = 2^{122.9}
+
+        The analysis adopts the most attacker-favorable model. The NIST
+        security evaluation methodology typically considers hardware-optimized
+        attacks, where alpha >= 1 and likely alpha ~ 2-5.
+
+      evidence:
+        - "concrete_cost_analysis.md: '1 F_{p^2}-multiplication ~ 16 word-multiplications (Karatsuba)'"
+        - "F_{p^2} needs 3 F_p mults: (a+bi)(c+di) via Karatsuba on complex multiplication"
+        - "AES-NI: AESENC instruction throughput 1/cycle, 10 rounds = 10 cycle pipeline"
+
+    # =========================================================================
+    # CHALLENGE 7: P0 multiplicity (Remark 1 — favors attacker)
+    # =========================================================================
+    - id: OBJ-7-multiplicity-partially-accounted
+      title: "Remark 1 multiplicity effect is acknowledged but poorly bounded"
+      severity: low
+      direction: DECREASES security (fewer attempts needed)
+      estimated_bits: "-1 to -3 (already factored into analysis's range)"
+      detail: |
+        Remark 1 notes that Lemma 3.5 is a LOWER bound on P0 because it only
+        considers the single smallest isogeny E->E^{(p)}, while multiple
+        small non-cyclic isogenies may exist and any smooth one suffices.
+
+        The analysis accounts for this with "multiplicity increases P0 by
+        factor 2-8 (saving 1-3 bits)." This is reasonable but unverified at
+        cryptographic scale. The toy-scale measurements show P0_empirical >>
+        P0_theory, but this is dominated by the table covering a large
+        fraction of the supersingular graph at toy sizes (stated in json
+        limitations). At NIST-I, the table fraction is 2^{92.5}/2^{255} ~
+        2^{-162.5}, so this inflation effect vanishes.
+
+        The true multiplicity effect at NIST-I is plausible (factor 2-8) based
+        on the paper's reasoning, but has NOT been validated at cryptographic
+        scale. This is a genuine uncertainty in the estimate.
+
+      evidence:
+        - "Paper Remark 1: 'there are generally multiple small (non-cyclic) isogenies'"
+        - "json limitations: 'P0 at toy scale is much higher than theory predicts (table covers large fraction)'"
+        - "p=4294967291: P0_empirical=0.214 vs P0_theory=0.0013 (164x ratio, dominated by table fraction effect)"
+
+    # =========================================================================
+    # CHALLENGE 8: Quantum consideration (scope)
+    # =========================================================================
+    - id: OBJ-8-quantum-irrelevant-for-classical-claim
+      title: "Quantum speedup question is out of scope for this classical estimate"
+      severity: informational
+      direction: NEUTRAL
+      estimated_bits: "0"
+      detail: |
+        NIST-I requires 128-bit CLASSICAL security (Level 1). The paper's
+        attack is entirely classical. Quantum attacks on isogeny problems have
+        different structure (Grover on the walk gives at most quadratic speedup
+        on the 1/P0 factor, not on table construction).
+
+        The comparison of 2^{119} classical against the 2^{128} classical
+        target is the correct apples-to-apples comparison. Quantum security
+        analysis is separate and not part of this claim.
+
+  # =========================================================================
+  # COST MODEL CHALLENGES (structured per red-team contract)
+  # =========================================================================
+  cost_model_challenges:
+    - id: CMC-1
+      issue: "Per-entry cost uses wrong algorithm (Velu instead of root-finding)"
+      resolution: "Replace '3*ell' with modular polynomial root-finding formula"
+      impact: "+3 bits correction factor (2^{9.8} -> 2^{12.9} with FFT)"
+
+    - id: CMC-2
+      issue: "AES-equivalence ratio 0.5-0.6 only valid in pure RAM model"
+      resolution: "Use hardware-realistic ratio (2-5 for CPU, 10-15 for ASIC)"
+      impact: "+1 to +4 bits AES-equivalent security"
+
+    - id: CMC-3
+      issue: "Missing polynomial arithmetic optimization (FFT for large primes)"
+      resolution: "Assume FFT for ell > 13, schoolbook for ell <= 13"
+      impact: "-2 bits vs pure schoolbook (already captured by FFT estimate)"
+
+    - id: CMC-4
+      issue: "Memory cost not converted to time via VW tradeoff"
+      resolution: "At any feasible memory w, VW gives time p^{1/2}/w^{1/2} ~ 2^{128}"
+      impact: "Qualitative: practical security remains at 128-bit baseline"
+
+  # =========================================================================
+  # REQUIRED CONTROLS
+  # =========================================================================
+  required_controls:
+    - id: CTRL-1
+      description: |
+        Run the toy implementation with B covering primes up to at least 23
+        (not just 2,3,5) at the largest feasible p (say log2(p)=40-50).
+        This validates the root-finding cost scaling for larger primes and
+        tests whether the FFT crossover occurs where predicted.
+      purpose: "Validate that per-entry cost increases with B as predicted"
+      
+    - id: CTRL-2
+      description: |
+        Independently verify the paper's concrete B optimization. Numerically
+        minimize T(B) = Psi(X,B)*X / P0(B) over B for log2(p)=256 and
+        confirm that optimal B ~ 29,000 (not 85).
+      purpose: "Resolve the B=85 vs B=29,000 confusion in the cost model"
+
+    - id: CTRL-3
+      description: |
+        For the AES-equivalence, cite a specific published cost model
+        (e.g., from NIST PQC evaluation criteria, or Adj et al. 2019
+        for isogeny attack cost methodology).
+      purpose: "Ground the AES conversion in an authoritative source"
+
+  # =========================================================================
+  # BASELINE COMPARISON
+  # =========================================================================
+  baseline_comparison:
+    claimed_improvement: "2^{128} (VW) -> 2^{119} (Wesolowski corrected) = 9 bits"
+    corrected_improvement: "2^{128} -> 2^{120-122} (FFT + realistic AES) = 6-8 bits"
+    memory_qualified: |
+      At any physically realizable memory budget, the VW time-memory tradeoff
+      dominates and security returns to ~2^{128}. The 6-8 bit improvement
+      exists only in the theoretical model with unbounded memory.
+
+  # =========================================================================
+  # NARROWEST SUPPORTED STATEMENT
+  # =========================================================================
+  narrowest_supported_statement: |
+    Under Wesolowski's Heuristic 1 (smoothness of random integers) and
+    assuming unbounded memory, the concrete cost of the p^{1/3+o(1)} attack
+    at SQIsign NIST-I (p = 5*2^248-1) is:
+
+      2^{118-122} F_{p^2}-multiplications (central estimate: ~2^{119.5})
+
+    In AES-equivalents, this is MODEL-DEPENDENT:
+      - Pure RAM model (no AES-NI): 2^{117-120}
+      - Hardware-realistic (CPU+AES-NI): 2^{120-123}
+      - ASIC model: 2^{122-126}
+
+    The gap below the 128-bit target is:
+      - 6-11 bits (model-dependent)
+      - Central estimate: ~8 bits below target
+
+    CRITICAL QUALIFICATION: This gap exists only in the unbounded-memory
+    model. At any physically achievable memory budget (< 2^{70} entries),
+    the van Oorschot-Wiener tradeoff erases the advantage and security
+    returns to the classical ~2^{128} baseline.
+
+  # =========================================================================
+  # OVERALL VERDICT
+  # =========================================================================
+  verdict:
+    conclusion: SLIGHTLY_UNDERSTATED
+    explanation: |
+      The ~119-bit estimate is approximately correct for the F_{p^2}-operation
+      count (it should be ~119.5 with FFT-based arithmetic), but the
+      AES-equivalence conversion is systematically biased toward the attacker
+      by using the pure RAM model (alpha=0.5). With a hardware-realistic
+      model (alpha=2-5), security is 120-122 bits in AES-equivalents.
+
+      The qualitative conclusion ("materially below 128-bit target") SURVIVES
+      red-team scrutiny in the unbounded-memory model. The security gap is
+      real (6-8 bits), though smaller than the claimed 9 bits.
+
+      However, the PRACTICAL significance is nil: the 2^{92.5}-entry memory
+      requirement (50 million times all storage on Earth) makes the attack
+      entirely theoretical. No physical system can exploit this gap.
+
+    security_estimate_range:
+      F_p2_operations: "2^{118.5} to 2^{121.5}"
+      AES_equivalent_ram_model: "2^{117} to 2^{120}"
+      AES_equivalent_hardware: "2^{120} to 2^{123}"
+      AES_equivalent_ASIC: "2^{122} to 2^{126}"
+      memory_qualified_practical: "~2^{128} (unchanged from VW baseline)"
+
+    gap_below_128_target:
+      theoretical_unbounded_memory: "6 to 11 bits (model-dependent)"
+      practical_feasible_memory: "~0 bits (VW tradeoff dominates)"
+
+    methodological_errors_in_analysis:
+      - "Uses B=85 (asymptotic) instead of paper's concrete-optimal B~29,000"
+      - "Uses Velu cost model (3*ell) instead of root-finding cost"
+      - "AES-equivalence ratio 0.5-0.6 assumes pure RAM model without AES-NI"
+      - "Claims '16 word-mults per F_{p^2}-mult' but actual count is 27-48"
+      - "Despite these errors, the final estimate (~119 bits) is approximately correct because errors partially cancel"
+
+    does_claim_survive: true
+    narrowed_claim: |
+      The security of SQIsign NIST-I under Wesolowski's attack is ~120 bits
+      (AES-equivalent, hardware-realistic model), representing a ~8-bit
+      theoretical gap below the 128-bit target. This gap is not practically
+      exploitable due to the 2^{92.5}-entry memory requirement.
+
+  # =========================================================================
+  # NEXT ACTIONS
+  # =========================================================================
+  next_concrete_action: |
+    1. Run CTRL-2: numerically verify the paper's B-optimization to resolve
+       the B=85 vs B=29,000 confusion.
+    2. Cite a published AES-equivalence methodology (Adj et al. 2019, or
+       NIST SP 800-227 cost model) to ground the conversion.
+    3. If claiming this as a novel result (the tightened estimate), run
+       toy-scale experiments with B >= 23 to validate the cost model across
+       the prime range.
+    4. Explicitly state the memory qualification in any security claim.
+
+  artifact_paths:
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-046/tasks/TASK-20260804-55952a/red_team_concrete_cost.yaml

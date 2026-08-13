@@ -1,0 +1,273 @@
+schema: crypto.autoresearch.ecdlp.isogeny_transfer_certificate.v1
+status: successor_input_draft_pending_independent_review
+contract_version: transfer-certificate-v1
+purpose: >-
+  Define the exact independent certificate for a bounded-degree F_p isogeny
+  transfer of a public ECDLP instance. This contract separates class
+  reachability, kernel/map correctness, subgroup preservation, scalar replay,
+  inverse/dual replay, and charged cost. It is not a transfer result or an
+  ECDLP conclusion.
+source_binding:
+  required_paths:
+    - protocol_inputs/automorphism_census/instance_manifest_v4.yaml
+    - protocol_inputs/automorphism_census/prime_stream_contract_v1.yaml
+    - protocol_inputs/isogeny_transfer/candidate_manifest_v3.yaml
+    - protocol_inputs/isogeny_transfer/control_manifest_v3.yaml
+    - protocol_inputs/isogeny_transfer/transfer_certificate_contract_v1.yaml
+  bind_before: candidate_window_kernel_construction_and_target_solve
+  hash_algorithm: SHA-256
+  unspecified_certificate_or_source_hash: refusal_before_transfer
+curve_and_digest:
+  field: prime_p
+  required: p > 3
+  curve_model: y^2 = x^3 + a*x + b over F_p
+  coefficient_canonicalization: [a_mod_p, b_mod_p]
+  curve_digest:
+    object: {p: integer, a: integer, b: integer}
+    serialization: canonical_utf8_json_sorted_keys_lf
+    digest: SHA-256
+  point_encoding:
+    field_byte_width: ceil(field_bits / 8)
+    integer_encoding: unsigned_big_endian_fixed_width
+    infinity_encoding_hex: '00'
+    affine_encoding: '01 || x_bytes || y_bytes'
+    ordering: bytewise_lexicographic
+  nonsingularity: (4*a^3 + 27*b^2) mod p != 0
+  point_membership: y^2 mod p == (x^3 + a*x + b) mod p
+trace_and_order:
+  independent_trace_algorithm:
+    legendre_symbol:
+      chi_zero: 0
+      chi_nonzero: u^((p-1)/2) mod p == 1 -> 1, otherwise -1
+    trace: -sum_{x=0}^{p-1} chi(x^3 + a*x + b)
+    arithmetic: exact_integer_sum
+  order_formula: p + 1 - trace
+  required_fields:
+    - source_curve_digest
+    - target_curve_digest
+    - source_trace
+    - target_trace
+    - source_order
+    - target_order
+  checks:
+    - source_trace_recomputed_from_source_coefficients
+    - target_trace_recomputed_from_target_coefficients
+    - source_order_equals_p_plus_one_minus_source_trace
+    - target_order_equals_p_plus_one_minus_target_trace
+    - same_field_p
+    - same_trace_for_isogeny_class_admission
+  trace_or_order_mismatch: unreachable_refusal_or_invalid_receipt
+degree_boundary:
+  declared_degree_field: ell
+  allowed_odd_prime_degrees: [3, 5, 7, 11]
+  candidate_overlay_degrees: [2, 3, 4, 5, 7, 11]
+  odd_prime_predicate: ell > 2 and exact_prime(ell)
+  even_degree_policy:
+    2: unsupported_degree_refusal
+    4: unsupported_degree_refusal
+  unsupported_degree: refusal_before_kernel_or_map_construction
+  degree_must_not_be_inferred_from_kernel_length: true
+  gcd_subgroup_requirement: gcd(ell, N_subgroup) == 1
+kernel_contract:
+  representation:
+    generator: canonical_affine_point_Q_kernel
+    full_nonidentity_points: K_nonidentity
+    identity_point: O
+    complete_kernel: '[O] + K_nonidentity'
+    ordering: bytewise_point_encoding
+  exact_generator_checks:
+    - Q_kernel_on_source_curve
+    - Q_kernel_nonidentity
+    - ell_times_Q_kernel_equals_O
+    - no_proper_divisor_of_ell_annihilates_Q_kernel
+  closure_checks:
+    expected_nonidentity_count: ell - 1
+    derive_points: [j*Q_kernel for j in 1..ell-1]
+    require_distinct_encodings: true
+    require_negation_pair_for_every_nonidentity_point: true
+    require_full_point_coordinates_not_x_only: true
+    require_identity_present_in_complete_kernel: true
+    require_complete_kernel_digest: true
+  subgroup_intersection:
+    source_subgroup_order: N_subgroup
+    require_N_subgroup_prime: true
+    P_or_Q_in_kernel: kernel_intersection_refusal
+    nonidentity_kernel_point_N_multiple: must_not_be_O
+  kernel_order_or_closure_failure: invalid_receipt
+velu_odd_reference_path:
+  applicable_degrees: [3, 5, 7, 11]
+  pair_representatives:
+    select: minimum_bytewise_encoding_between_R_and_neg_R
+    set: S = one_representative_per_negation_pair
+  per_pair_values:
+    gx: (3*x_R^2 + a) mod p
+    gy: (-2*y_R) mod p
+    v_R: 2*gx mod p
+    u_R: gy^2 mod p
+  target_coefficients:
+    v: sum_R_in_S v_R mod p
+    w: sum_R_in_S (u_R + x_R*v_R) mod p
+    a_target: (a - 5*v) mod p
+    b_target: (b - 7*w) mod p
+  target_curve_checks:
+    - target_coefficients_canonical
+    - target_curve_nonsingular
+    - target_curve_digest_recomputed
+    - target_trace_and_order_recomputed
+  forward_map:
+    input: affine_point_T_not_in_kernel
+    d_R: inverse_mod_p(x_T - x_R)
+    X: x_T + sum_R_in_S(v_R*d_R + u_R*d_R^2) mod p
+    Y: y_T - sum_R_in_S(2*y_T*u_R*d_R^3 + y_T*v_R*d_R^2) mod p
+    output: (X, Y)
+    kernel_input: kernel_intersection_refusal
+    target_membership: required
+  independent_path_requirement: >-
+    The verifier must recompute target coefficients, pair values, and forward
+    images from serialized full kernel points without importing the producer's
+    target curve, map, or degree inference. A verifier that calls the forward
+    implementation to obtain its own expected values is not independent.
+dual_or_inverse_contract:
+  required: true
+  representation:
+    dual_curve_digest: source_curve_digest
+    dual_degree: ell
+    dual_kernel_points: complete_full_point_kernel_on_target
+    dual_map_digest: SHA-256
+    implementation_path: independent_reference_or_dual_formula
+  composition_checks:
+    forward_then_dual_on_P: dual(phi(P)) == [ell]P
+    forward_then_dual_on_Q: dual(phi(Q)) == [ell]Q
+    dual_then_forward_on_target_images: phi(dual(phi(P))) == [ell]*phi(P)
+    require_all_declared_compositions: true
+  no_forward_reuse: >-
+    The dual/inverse replay must not reuse the producer's forward image as its
+    expected output. It must recompute the dual kernel/map and serialize its
+    own digest and operation counts.
+  replay_failure: invalid_receipt
+subgroup_and_scalar_replay:
+  source_instance:
+    required_fields: [P, Q, N_subgroup, P_digest, Q_digest]
+    P_and_Q_on_source_curve: required
+    P_nonidentity: required
+    N_subgroup_prime: required
+    exact_P_order: [N_subgroup_times_P_is_O, no_proper_prime_factor_annihilates_P]
+    Q_order_divides_N: N_subgroup_times_Q_is_O
+  target_images:
+    phi_P_and_phi_Q_serialized: required
+    target_images_on_target_curve: required
+    exact_phi_P_order: [N_subgroup_times_phi_P_is_O, phi_P_nonidentity]
+    kernel_intersection_P_Q: false_required
+  scalar_fixture_boundary:
+    source_scalar_k: >-
+      k may be supplied only to the independent known-answer fixture and
+      verifier. It is never passed to candidate selection, target selection,
+      rho, or any solver path.
+    required_checks:
+      - '[k]P == Q'
+      - '[k]phi(P) == phi(Q)'
+      - '[k]dual(phi(P)) == [ell]*P'
+      - source_scalar_digest_recorded
+    solver_secret_access: forbidden
+    source_scalar_is_not_a_solve_result: true
+twist_and_orientation:
+  required_fields:
+    - source_j
+    - target_j
+    - source_twist_class_digest
+    - target_twist_class_digest
+    - orientation_digest
+  same_j_isomorphism_claim:
+    required_map: (x, y) -> (u^2*x, u^3*y) for u in F_p^*
+    checks: [u_nonzero, coefficient_relation, point_replay, map_digest]
+  different_j_isogeny_claim:
+    twist_merge: forbidden_without_explicit_isomorphism_certificate
+    orientation_merge: forbidden_without_explicit_public_certificate
+  missing_or_mismatched_twist_or_orientation: refusal
+certificate_transcript:
+  required_sections:
+    - source_binding
+    - candidate_key_and_window_binding
+    - source_and_target_curves
+    - trace_and_order_recomputation
+    - degree_and_gcd_checks
+    - complete_kernel
+    - forward_map
+    - dual_or_inverse_map
+    - subgroup_checks
+    - scalar_replay_fixture
+    - twist_and_orientation
+    - cost_accounting
+    - final_status
+  ordering: source_instance_then_degree_then_candidate_rank
+  digest: sha256(canonical_utf8_jsonl_with_lf_endings)
+  refusal_statuses:
+    - field_mismatch_unreachable_refusal
+    - trace_mismatch_unreachable_refusal
+    - unsupported_degree_refusal
+    - nonprime_degree_refusal
+    - gcd_subgroup_refusal
+    - incomplete_kernel_refusal
+    - kernel_intersection_refusal
+    - target_curve_invalid_refusal
+    - forward_map_failure
+    - target_membership_failure
+    - dual_replay_failure
+    - scalar_replay_failure
+    - twist_or_orientation_refusal
+    - missing_cost_receipt_invalid
+cost_accounting:
+  charge_stages:
+    - candidate_key_and_truncation
+    - field_and_trace_recomputation
+    - kernel_construction
+    - kernel_serialization
+    - target_coefficient_construction
+    - forward_map_evaluation
+    - dual_or_inverse_map_evaluation
+    - subgroup_and_gcd_checks
+    - scalar_replay
+    - certificate_serialization
+    - target_side_rho
+  required_fields:
+    - candidate_inventory_ops
+    - class_membership_filter_ops
+    - kernel_construction_ops
+    - kernel_closure_checks
+    - field_operations
+    - forward_map_ops
+    - inverse_or_dual_map_ops
+    - subgroup_checks
+    - scalar_replay_ops
+    - serialized_bytes
+    - peak_memory_bytes
+    - wall_time_ms
+  vectors:
+    one_shot_targets: [1]
+    amortized_targets: [1, 8, 64]
+    normalization: sqrt(N_subgroup)
+    raw_vector_before_normalization: true
+    refused_cell_has_no_zero_vector: true
+    no_scalar_aggregate_without_approved_price_table: true
+conformance_controls:
+  - id: C-ISO-REPLAY
+    expected: independent verifier and producer fixture agree byte-for-byte on certificate transcript
+  - id: C-ISO-KERNEL-MUTATION
+    expected: remove, duplicate, x-only, or reorder kernel data changes digest and is rejected
+  - id: C-ISO-POINT-MUTATION
+    expected: mutate P or Q and scalar/subgroup replay refuses before target solve
+  - id: C-ISO-DEGREE
+    expected: degree inferred from metadata or even-degree request is refused
+  - id: C-ISO-DUAL
+    expected: altered dual map or composition fails before interpretation
+  - id: C-ISO-TRACE
+    expected: target trace mutation is unreachable/refusal, never a transfer negative
+  - id: C-ISO-TWIST
+    expected: unverified twist/orientation merge is refused
+  - id: C-ISO-NO-FORWARD-VERIFIER
+    expected: verifier does not call producer forward functions to derive expected values
+claim_boundary: >-
+  Passing this contract establishes only deterministic transfer-certificate
+  and cost-accounting reproducibility for the declared toy-scale row. It does
+  not establish target availability beyond the row, a favorable transfer, an
+  ECDLP speedup, exponent movement, or a cryptographic-scale conclusion.

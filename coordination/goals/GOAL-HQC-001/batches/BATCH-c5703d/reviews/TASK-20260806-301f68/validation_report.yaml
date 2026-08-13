@@ -1,0 +1,820 @@
+validation_report:
+  id: TASK-20260806-301f68
+  role: validator
+  independent_session: true
+  goal: GOAL-HQC-001
+  batch: BATCH-c5703d
+  question: RQ-HQC-001
+  experiment: EXP-HQC-982268
+  reviews_task: TASK-20260806-dbadc8
+  reviews_artifacts:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-c5703d/tasks/TASK-20260806-dbadc8/repair_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-c5703d/tasks/TASK-20260806-dbadc8/amendment_v2.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-c5703d/tasks/TASK-20260806-dbadc8/calibration.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-c5703d/tasks/TASK-20260806-dbadc8/calibration_results.json
+  produced: '2026-08-06'
+
+  claim_tier: toy
+  claim_boundary: >-
+    HARD CEILING, INHERITED AND NOT MOVED. Nothing in this report is a statement about HQC, about
+    assumption A17 or A5, about any decoding-failure rate, or about any standardized HQC parameter
+    set. Every number below is about an INSTRUMENT and its decision rule. A repaired instrument is
+    not a result, and a validated repair of an instrument is not a result either. This report
+    changes no research status; only the Coordinator does that.
+
+  # ======================================================================
+  # 0. Freeze and scope verification
+  # ======================================================================
+  freeze_verification:
+    snapshot_commit: 3660b709
+    parent: 76103cab0c3758026921d7820d2b5b5013fb201c
+    receipt: coordination/goals/GOAL-HQC-001/batches/BATCH-c5703d/archives/TASK-20260806-60fa1a/snapshot-receipt.json
+    path_sha256_recomputed: ALL FOUR MATCH
+    detail:
+    - {file: amendment_v2.yaml,          sha256: 81e1337b97b7033b222faa9e50bf8b174053826183502633fa52de302fcd4a10, match: true}
+    - {file: calibration.py,             sha256: bc25835ef7490e10eb65687ae981b1a2005026a544019ac176925bf90cabcf98, match: true}
+    - {file: calibration_results.json,   sha256: 42c41022bca3d98b9248ff9e6f140797849feab4825ef46d1d3de0dd8052c628, match: true}
+    - {file: repair_report.md,           sha256: c9d019942b0fbc985c5dcd47c2a81862bb319bbfc8779bed2aff329cdf984e6f, match: true}
+    ordering: >-
+      CONFIRMED CORRECT. The snapshot was committed at 3660b709 BEFORE this review was dispatched.
+      `git diff --stat 76103cab 3660b709` shows exactly five files added and nothing modified.
+    frozen_artifacts_modified_by_this_task: NONE
+
+  scope_verification:
+    approved_contract_untouched: >-
+      CONFIRMED. experiments/EXP-HQC-982268/specification.yaml is unmodified: sha256
+      9b93108c0fd0dc907622225917edaf644cb50f4808b6c0c2af2228a457092958, last changed at cab9633e
+      (the batch-opening commit of BATCH-6fddee), not touched by 76103cab or 3660b709, and clean in
+      the working tree. The v2 amendment is inert: version 1 binds, including its unrepaired
+      INV-NULL.
+    no_log2_A_k_on_any_T_arm: >-
+      CONFIRMED BY SOURCE AUDIT. calibration.py's load_committed() reads exactly ten fields from
+      raw-result.json diagnostics_T -- q_hat, trials, p_hat, gamma_hat, gamma_hat_se_approx,
+      D3.cap, D3.max_w_etilde_observed, block_failure_counts, trials_per_core_second, tie_rate --
+      and three from null_M. It never reads a (T) S_histogram and never forms Var(S) on one. Every
+      call to log2_A_from_hist in the file (phase 7) is on an exact rational law constructed inside
+      calibration.py. The only (T) inputs are first moments, all of them chartered Stage-A
+      diagnostics already published in RUN-HQC-982268-STAGEA-a.
+    validator_own_compliance: >-
+      This review likewise computed no log2_A_k on any (T) arm. Its draws are from
+      S ~ Bin(n_e, q-hat) under the declared null, from the declared mixture alternative, or from
+      the exact rational laws published by the BATCH-003 oracle. It read q-hat, trials, p_hat,
+      gamma_hat, D3 and block_failure_counts only, and never a (T) S-histogram. All writes are
+      inside this review directory; working files were kept in the session scratchpad.
+
+  # ======================================================================
+  # 1. What this validator did, independently
+  # ======================================================================
+  method:
+    principle: >-
+      The headline claim under review is a CALIBRATION, and a rule asserted to be calibrated is not
+      calibrated. Nothing in the producer's calibration_results.json was accepted as a measurement.
+      Every size reported below was drawn afresh by this validator, from a re-implementation written
+      from the estimand's definition, under different seeds.
+    independent_reimplementation: >-
+      log2 Ahat_k = log2( sum_s C(s,k) H_s / (T C(n_e,k)) ) - k log2( sum_s s H_s / (T n_e) ),
+      written from the definition. Cross-checked three ways: (i) against
+      stage_a.log2_A_from_hist -- max |difference| EXACTLY 0.0 over 20 histograms spanning all four
+      parameter sets and k in {2,6,15,17,30}; (ii) against exact Fraction arithmetic -- max
+      |difference| 9.9e-14 bits, four orders below the narrowest interval half-width in the
+      amendment; (iii) the v1 jackknife re-implemented separately from stage_a.jackknife_log2_A.
+    seeds: >-
+      Master seeds 30168 (v2 size), 884411 (v1 size), 20260806991 / 5150221 (probes), 19660602
+      (MDE), 31415926 (PS-A sensitivity). All differ from the producer's 20260806.
+    draw_construction: >-
+      The producer's O(1)-in-T device is correct and this validator used it independently: for T
+      i.i.d. trials with S ~ Bin(n_e,q), the histogram over n_e+1 bins is EXACTLY Multinomial(T,pmf),
+      so a replicate at T = 1e8 is one multinomial draw. This is exact in distribution, not an
+      approximation. Verified by construction, not taken on trust.
+    environment: {python: 3.11.15, numpy: 2.4.6, platform: Linux-6.18.5-fc-v18-x86_64-with-glibc2.39}
+    budget: about 640 wall-seconds of computation across five independent runs on 4 cores.
+
+  # ======================================================================
+  # 2. INDEPENDENTLY MEASURED SIZE  (the deliverable the task asked for)
+  # ======================================================================
+  independently_measured_size:
+    rule: >-
+      INV-NULL v2: fire when log2 Ahat_k lies outside [c_lo, c_hi], the equal-tailed
+      0.135%/99.865% quantiles of the estimator's own null sampling distribution at
+      (n_e, q-hat, T). Nominal size 0.26998%.
+    protocol: >-
+      Per cell: 1,000,000 calibration draws to set MY OWN [c_lo,c_hi], then 1,000,000 INDEPENDENT
+      validation draws. Every cell of the producer's phase3 was re-measured, at Stage-A achieved T
+      (NULL-M q-hat) and at the contract Stage-B allocation ((T)-arm q-hat). Three sets of critical
+      values were scored on the same fresh validation draws: mine, the producer's unrounded JSON
+      values, and the values as TRANSCRIBED into amendment_v2.yaml.
+
+    headline_A_my_own_constants:
+      cells: 35 non-degenerate (<=10% undefined replicates) of 38 evaluable
+      measured_size_range: 0.256% to 0.282%
+      mean: 0.269%
+      verdict: >-
+        The producer's claimed range 0.252%-0.290% REPLICATES. The v2 rule is correctly sized
+        against the null law it declares.
+
+    headline_B_producer_unrounded_constants_on_my_draws:
+      measured_size_range: 0.259% to 0.283%
+      verdict: >-
+        The producer's frozen critical values themselves reproduce independently. My quantiles
+        differ from theirs by -0.90% to +1.55% (typically under 0.5%), which is ordinary Monte-Carlo
+        quantile noise at 1e6 draws.
+
+    headline_C_constants_AS_TRANSCRIBED_INTO_THE_AMENDMENT:
+      verdict: THREE CELLS FAIL. See finding VF-1.
+      rows:
+      - {set: PS-R1, k: 2, T: 1.0e8, frozen_as_written: '[-0.00005, +0.00005]',
+         measured_size: 0.00610, ci95: [0.00595, 0.00625], amendment_prints_beside_it: 0.00274,
+         ratio_to_nominal: 2.26, passes_amendment_band_0.002_0.004: false}
+      - {set: PS-R3, k: 2, T: 2.0e7, frozen_as_written: '[-0.00005, +0.00005]',
+         measured_size: 0.00419, ci95: [0.00407, 0.00432], amendment_prints_beside_it: 0.00262,
+         ratio_to_nominal: 1.55, passes_amendment_band_0.002_0.004: false}
+      - {set: PS-R5, k: 2, T: 2.0e7, frozen_as_written: '[-0.00002, +0.00002]',
+         measured_size: 0.00551, ci95: [0.00537, 0.00565], amendment_prints_beside_it: 0.00283,
+         ratio_to_nominal: 2.04, passes_amendment_band_0.002_0.004: false}
+      all_other_transcribed_cells: 0.259% to 0.283%, all inside the band.
+
+    full_per_cell_table_stage_B:
+      note: 'size_mine = my constants on my draws; size_prod = producer unrounded constants on my
+             draws; size_frozen = amendment-transcribed constants on my draws; n_val = 1e6.'
+      rows:
+      - {set: PS-A,  k: 2,  T: 1.0e8, size_mine: 0.00264, size_prod: 0.00259, size_frozen: 0.00259}
+      - {set: PS-A,  k: 3,  T: 1.0e8, size_mine: 0.00266, size_prod: 0.00263, size_frozen: 0.00263}
+      - {set: PS-A,  k: 4,  T: 1.0e8, size_mine: 0.00262, size_prod: 0.00255, size_frozen: 0.00255,
+         note: '81.7% undefined; amendment correctly declares NOT REACHED'}
+      - {set: PS-A,  k: 16, T: 1.0e8, evaluable: false, note: 'undefined on every replicate'}
+      - {set: PS-R1, k: 2,  T: 1.0e8, size_mine: 0.00270, size_prod: 0.00276, size_frozen: 0.00610}
+      - {set: PS-R1, k: 6,  T: 1.0e8, size_mine: 0.00269, size_prod: 0.00275, size_frozen: 0.00273}
+      - {set: PS-R1, k: 9,  T: 1.0e8, size_mine: 0.00266, size_prod: 0.00262, size_frozen: 0.00264}
+      - {set: PS-R1, k: 11, T: 1.0e8, size_mine: 0.00264, size_prod: 0.00277, size_frozen: 0.00278}
+      - {set: PS-R1, k: 14, T: 1.0e8, size_mine: 0.00265, size_prod: 0.00283, size_frozen: 0.00282}
+      - {set: PS-R1, k: 16, T: 1.0e8, size_mine: 0.00262, size_prod: 0.00268, size_frozen: 0.00268}
+      - {set: PS-R1, k: 18, T: 1.0e8, size_mine: 0.00268, size_prod: 0.00269, size_frozen: 0.00269}
+      - {set: PS-R3, k: 2,  T: 2.0e7, size_mine: 0.00263, size_prod: 0.00262, size_frozen: 0.00419}
+      - {set: PS-R3, k: 10, T: 2.0e7, size_mine: 0.00277, size_prod: 0.00282, size_frozen: 0.00283}
+      - {set: PS-R3, k: 17, T: 2.0e7, size_mine: 0.00261, size_prod: 0.00264, size_frozen: 0.00264}
+      - {set: PS-R3, k: 22, T: 2.0e7, size_mine: 0.00274, size_prod: 0.00274, size_frozen: 0.00274}
+      - {set: PS-R3, k: 25, T: 2.0e7, size_mine: 0.00276, size_prod: 0.00276, size_frozen: 0.00276}
+      - {set: PS-R5, k: 2,  T: 2.0e7, size_mine: 0.00269, size_prod: 0.00261, size_frozen: 0.00551}
+      - {set: PS-R5, k: 15, T: 2.0e7, size_mine: 0.00270, size_prod: 0.00268, size_frozen: 0.00268}
+      - {set: PS-R5, k: 30, T: 2.0e7, size_mine: 0.00261, size_prod: 0.00270, size_frozen: 0.00270}
+      - {set: PS-R5, k: 35, T: 2.0e7, size_mine: 0.00258, size_prod: 0.00264, size_frozen: 0.00264}
+
+    full_per_cell_table_stage_A_achieved_T:
+      rows:
+      - {set: PS-A,  k: 2,  T: 662268, size_mine: 0.00268, size_prod: 0.00269}
+      - {set: PS-A,  k: 3,  T: 662268, size_mine: 0.00279, size_prod: 0.00282, undefined_pct: 68.7}
+      - {set: PS-A,  k: 4,  T: 662268, size_mine: 0.00436, size_prod: 0.00291, undefined_pct: 99.9,
+         note: 'degenerate: 1375 finite replicates of 1e6; producer reports 0.00146 here'}
+      - {set: PS-R1, k: 2,  T: 497632, size_mine: 0.00263, size_prod: 0.00274}
+      - {set: PS-R1, k: 6,  T: 497632, size_mine: 0.00263, size_prod: 0.00269}
+      - {set: PS-R1, k: 9,  T: 497632, size_mine: 0.00272, size_prod: 0.00277}
+      - {set: PS-R1, k: 11, T: 497632, size_mine: 0.00273, size_prod: 0.00265}
+      - {set: PS-R1, k: 14, T: 497632, size_mine: 0.00274, size_prod: 0.00261}
+      - {set: PS-R1, k: 16, T: 497632, size_mine: 0.00276, size_prod: 0.00261}
+      - {set: PS-R1, k: 18, T: 497632, size_mine: 0.00277, size_prod: 0.00259}
+      - {set: PS-R3, k: 2,  T: 385732, size_mine: 0.00264, size_prod: 0.00271}
+      - {set: PS-R3, k: 10, T: 385732, size_mine: 0.00272, size_prod: 0.00282}
+      - {set: PS-R3, k: 17, T: 385732, size_mine: 0.00264, size_prod: 0.00268}
+      - {set: PS-R3, k: 22, T: 385732, size_mine: 0.00275, size_prod: 0.00272}
+      - {set: PS-R3, k: 25, T: 385732, size_mine: 0.00272, size_prod: 0.00264}
+      - {set: PS-R5, k: 2,  T: 239896, size_mine: 0.00256, size_prod: 0.00276}
+      - {set: PS-R5, k: 15, T: 239896, size_mine: 0.00266, size_prod: 0.00272}
+      - {set: PS-R5, k: 30, T: 239896, size_mine: 0.00280, size_prod: 0.00273}
+      - {set: PS-R5, k: 35, T: 239896, size_mine: 0.00282, size_prod: 0.00271}
+
+  independently_measured_size_of_the_v1_rule:
+    purpose: 'the defect R1 exists to repair; 20,000 replicates per cell, my own draws'
+    stage_A_NULL_M:
+      note: >-
+        Measured under BOTH batchings: stage_a.batch_hists (np.linspace, remainder spread one trial
+        per batch) and calibration.py's draw_batched (whole remainder into batch 0). See VF-8.
+      rows:
+      - {set: PS-A,  k: 2,  mine_stage_a_batching: 0.00335, mine_producer_batching: 0.00330, producer: 0.00310}
+      - {set: PS-A,  k: 3,  mine_stage_a_batching: 0.05031, mine_producer_batching: 0.03556, producer: 0.03372,
+         evaluable_replicates: '1113 / 1153 of 20000 (producer 1127) -- 94% undefined'}
+      - {set: PS-R1, k: 2,  mine_stage_a_batching: 0.00360, mine_producer_batching: 0.00340, producer: 0.00300, red_team: 0.003}
+      - {set: PS-R1, k: 6,  mine_stage_a_batching: 0.00340, mine_producer_batching: 0.00425, producer: 0.00300, red_team: 0.000}
+      - {set: PS-R1, k: 9,  mine_stage_a_batching: 0.00385, mine_producer_batching: 0.00355, producer: 0.00340, red_team: 0.007}
+      - {set: PS-R1, k: 11, mine_stage_a_batching: 0.00820, mine_producer_batching: 0.00730, producer: 0.00890, red_team: 0.013}
+      - {set: PS-R1, k: 14, mine_stage_a_batching: 0.03875, mine_producer_batching: 0.03765, producer: 0.03910, red_team: 0.053}
+      - {set: PS-R1, k: 16, mine_stage_a_batching: 0.08580, mine_producer_batching: 0.08415, producer: 0.08690, red_team: 0.077, note: 'k = m'}
+      - {set: PS-R1, k: 18, mine_stage_a_batching: 0.11205, mine_producer_batching: 0.11100, producer: 0.11080}
+      - {set: PS-R3, k: 2,  mine_stage_a_batching: 0.00285, mine_producer_batching: 0.00295, producer: 0.00330}
+      - {set: PS-R3, k: 10, mine_stage_a_batching: 0.00350, mine_producer_batching: 0.00305, producer: 0.00340}
+      - {set: PS-R3, k: 17, mine_stage_a_batching: 0.02000, mine_producer_batching: 0.01860, producer: 0.01710, red_team: 0.017, note: 'k = m'}
+      - {set: PS-R3, k: 22, mine_stage_a_batching: 0.09810, mine_producer_batching: 0.09990, producer: 0.09930, red_team: 0.087}
+      - {set: PS-R3, k: 25, mine_stage_a_batching: 0.23235, mine_producer_batching: 0.24015, producer: 0.23550, red_team: 0.210}
+      - {set: PS-R5, k: 2,  mine_stage_a_batching: 0.00240, mine_producer_batching: 0.00310, producer: 0.00320}
+      - {set: PS-R5, k: 15, mine_stage_a_batching: 0.00320, mine_producer_batching: 0.00375, producer: 0.00320}
+      - {set: PS-R5, k: 30, mine_stage_a_batching: 0.07775, mine_producer_batching: 0.07835, producer: 0.07760, red_team: 0.127,
+         ci95_mine: [0.0741, 0.0815], note: 'k = m -- THE OPEN-7 CELL'}
+      - {set: PS-R5, k: 35, mine_stage_a_batching: 0.17630, mine_producer_batching: 0.17905, producer: 0.18000}
+    stage_B_contract_allocation:
+      rows:
+      - {set: PS-A,  k: 2,  T: 1.0e8, mine: 0.00205, ci95: [0.00151, 0.00278], producer: 0.00375}
+      - {set: PS-A,  k: 16, T: 1.0e8, mine: null, note: 'zero evaluable replicates; consistent with producer'}
+      - {set: PS-R1, k: 2,  T: 1.0e8, mine: 0.00340, ci95: [0.00268, 0.00431], producer: 0.00240}
+      - {set: PS-R1, k: 16, T: 1.0e8, mine: 0.01825, ci95: [0.01649, 0.02020], producer: 0.01440,
+         ratio_to_nominal_mine: 6.8, note: 'k = m'}
+      - {set: PS-R3, k: 2,  T: 2.0e7, mine: 0.00260, ci95: [0.00198, 0.00341], producer: 0.00180}
+      - {set: PS-R3, k: 17, T: 2.0e7, mine: 0.00455, ci95: [0.00371, 0.00558], producer: 0.00450,
+         ratio_to_nominal_mine: 1.7, note: 'k = m'}
+      - {set: PS-R5, k: 2,  T: 2.0e7, mine: 0.00340, ci95: [0.00268, 0.00431], producer: 0.00285}
+      - {set: PS-R5, k: 30, T: 2.0e7, mine: 0.02195, ci95: [0.02001, 0.02407], producer: 0.02340,
+         ratio_to_nominal_mine: 8.1, note: 'k = m'}
+      verdict: >-
+        R1.2's forward-looking finding -- the mis-sizing SURVIVES to Stage B at the contracted
+        allocation -- is CONFIRMED and, at PS-R1, is slightly WORSE than the producer measured
+        (1.83% vs 1.44%; my CI [1.65,2.02] sits just above theirs [1.18,1.76], which had 6,666
+        replicates against my 20,000). The conclusion is unchanged: the v1 falsification criterion
+        is 6.8x and 8.1x over-sized at k = m at PS-R1 and PS-R5 at the allocation the contract funds.
+
+  # ======================================================================
+  # 3. Is the calibration circular?
+  # ======================================================================
+  circularity_audit:
+    question_1_is_A_k_equals_1_for_all_k_equivalent_to_binomial:
+      verdict: CONFIRMED, AND THE ARGUMENT IS EXACT, NOT NUMERICAL.
+      independent_check: >-
+        The matrix M[k][s] = C(s,k) on {0..n_e} is upper triangular with unit diagonal (C(s,k)=0 for
+        s<k, C(k,k)=1) for every n_e checked (10, 46, 90), hence unimodular and invertible over Q --
+        no numerical inversion is needed. A_k = 1 for k=1..n_e pins E[C(S,k)] = C(n_e,k) q^k for
+        every k, hence pins the pmf by back-substitution. I performed that back-substitution in EXACT
+        RATIONAL ARITHMETIC at n_e = 46, q = q-hat(PS-R1): max |pmf reconstructed - Bin| = EXACTLY 0.
+        The producer's 7.5e-15 is float noise on a statement that is exactly true; the claim is
+        stronger than they stated it.
+      caveat_the_producer_stated_and_it_is_correct: >-
+        The contract measures k <= k_max < n_e, so the rule tests a SUB-FAMILY. This is a POWER
+        limitation (a departure confined to unmeasured orders is missed), not a size limitation:
+        the null hypothesis itself is "A_k = 1 for all k", which is the point null Bin(n_e, q) with
+        q a nuisance parameter. The producer classified it correctly.
+    question_2_does_q_hat_make_the_rule_self_fulfilling:
+      verdict: NO, NOT IN THE SENSE ASKED -- BUT SEE VF-3.
+      reasoning: >-
+        The statistic log2 Ahat_k self-normalizes: it re-estimates q from the SAME histogram it
+        scores, so the plug-in q-hat does not enter as a location shift and cannot pull the observed
+        value toward the centre of the interval. q-hat enters only as the DISPERSION parameter of the
+        calibration null. Under any alternative that preserves the marginal q but breaks the joint
+        law -- which is exactly the alternative A17 failing describes -- the statistic still moves and
+        the rule still fires. Calibrating against the hypothesis under test is what a size
+        calculation IS; it is not circularity.
+      the_real_exposure: >-
+        The one genuine data dependence is the plug-in q-hat, and the size is STEEPLY sensitive to it
+        because V(n_e,q,k) falls steeply in q. Measured at the load-bearing cells with the producer's
+        own unrounded constants (n_val = 200,000 per point):
+      q_misspecification_measured:
+      - {set: PS-R1, k: 16, dq_rel: -0.02, size: 0.00516}
+      - {set: PS-R1, k: 16, dq_rel:  0.00, size: 0.00279}
+      - {set: PS-R1, k: 16, dq_rel: +0.02, size: 0.00128}
+      - {set: PS-R3, k: 17, dq_rel: -0.02, size: 0.00528}
+      - {set: PS-R3, k: 17, dq_rel:  0.00, size: 0.00242}
+      - {set: PS-R3, k: 17, dq_rel: +0.02, size: 0.00128}
+      - {set: PS-R5, k: 30, dq_rel: -0.02, size: 0.00633}
+      - {set: PS-R5, k: 30, dq_rel:  0.00, size: 0.00291}
+      - {set: PS-R5, k: 30, dq_rel: +0.02, size: 0.00123}
+      why_this_is_still_acceptable_at_PS_R1_R3_R5: >-
+        At those three sets the RELATIVE 3 SE(q-hat) is only 0.118%, 0.082% and 0.063%, two orders
+        below the +-2% shifts above. The producer's conclusion holds there. It does not hold at
+        PS-A: see VF-3.
+      note_on_the_producers_SE_bound_wording: >-
+        The amendment calls the independent-blocks SE(q-hat) "the bound". It is a LOWER bound, not an
+        upper one: Var(q-hat) = q(1-q)(1 + (n_e-1) rho) / (n_e T), and the alternative this
+        experiment exists to detect is rho > 0. I measured the inflation factor at log2 A_2 = 0.1
+        bits: 1.00 (PS-A), 1.34 (PS-R1), 1.69 (PS-R3), 2.35 (PS-R5). Even inflated, 3 SE stays under
+        0.16% relative at PS-R1/R3/R5, so nothing turns on it there -- but the word "bound" is wrong
+        and should be "the rho = 0 value".
+
+  # ======================================================================
+  # 4. Findings
+  # ======================================================================
+  findings:
+
+  - id: VF-1
+    severity: BLOCKING FOR THE AMENDMENT AS WRITTEN
+    title: >-
+      The frozen critical values as TRANSCRIBED into amendment_v2.yaml do not deliver the sizes
+      printed beside them at k = 2, and two of the three fail the amendment's own acceptance gate.
+    detail: >-
+      amendment_v2.yaml's frozen_critical_values_at_the_contract_allocations table -- which the
+      record explicitly says are "FROZEN BY THIS RECORD" and are therefore what binds at run time --
+      carries every constant rounded to five decimal places. At k = 2 the interval half-width is
+      2.2e-5 to 5.5e-5 bits, so five decimals truncate 4.8%-8.6% off each side. Measured on
+      1,000,000 fresh validation draws per cell: PS-R1 k=2 size 0.610% (printed: 0.274%), PS-R3 k=2
+      size 0.419% (printed: 0.262%), PS-R5 k=2 size 0.551% (printed: 0.283%). PS-R1 and PS-R5 are
+      2.0x-2.3x nominal; all three lie outside the amendment's own binding band [0.002, 0.004], so
+      the amendment's clause "a cell whose measured size lies outside [0.002,0.004] is reported as
+      CALIBRATION FAILED" would fail its own frozen constants. The producer's unrounded values in
+      calibration_results.json are correct; only the transcription is wrong. Required precision:
+      >= 6 decimals at PS-R1 k=2 and PS-R3 k=2, >= 7 at PS-R5 k=2.
+    consequence_if_unrepaired: >-
+      The amendment reports a measured size for a rule it does not state. Any run executing the
+      transcribed table would report CALIBRATION FAILED at k=2 at three of four sets and withhold
+      those (T) results -- a self-inflicted budget loss at the cheapest and best-conditioned order
+      in the whole design.
+    required_correction: >-
+      Either carry enough digits per cell (>= 7 everywhere is simplest), or -- better and what this
+      validator recommends -- make the amendment bind the PROCEDURE plus the recorded calibration
+      seed and n_cal, and require the constants to be re-derived deterministically at run time,
+      with the transcribed table demoted to a human-readable reference. The amendment already
+      specifies a seed scheme; it should be the authority, not the decimals.
+
+  - id: VF-2
+    severity: MATERIAL -- EVIDENTIARY, NOT ARITHMETICAL
+    title: >-
+      The headline "measured out-of-sample size 0.252%-0.290%" is very close to a tautology and
+      should not be presented as the evidence that the rule is calibrated.
+    detail: >-
+      The procedure is: draw n_cal from a law, set the empirical alpha/2 and 1-alpha/2 quantiles,
+      then draw n_val from THE SAME LAW and count exceedances. That measures Monte-Carlo error in a
+      quantile estimator and nothing else. I ran the identical procedure on a standard normal --
+      no estimator, no skew, no HQC, no instrument -- 200 independent times at n_cal = n_val = 1e6:
+      mean 0.27010%, SD 0.0067 pp, range 0.2476%-0.2894%, and 99.5% of the 200 repetitions land
+      INSIDE the producer's claimed band [0.252%, 0.290%]. The claimed band is what this procedure
+      returns for any continuous law.
+    what_the_check_DOES_establish: >-
+      Real but modest: that no cell's null law has atoms large enough to break empirical-quantile
+      calibration, and that the undefined-replicate accounting is consistent. That is worth having
+      and worth keeping as a run-time guard. It is not evidence about the estimator, the instrument,
+      or A17.
+    what_actually_establishes_the_repair: >-
+      The comparison against the v1 rule (0.30%-23.55% at Stage A, 1.83%/2.20% at Stage B versus
+      0.26%-0.28% for v2 on my own independent draws) is the real evidence, and it holds. The
+      amendment should lead with that contrast and demote the out-of-sample size to what it is: a
+      standing sanity guard.
+
+  - id: VF-3
+    severity: MATERIAL
+    title: >-
+      The plug-in q-hat sensitivity was never tested at PS-A -- the one set where the amended
+      success criterion (iv) actually delivers -- and at PS-A it fails.
+    detail: >-
+      calibration.py's q_sensitivity() is called only at k = m. PS-A's m = 16 is not evaluable at
+      Stage-B T, so PS-A's q_sensitivity block in calibration_results.json contains ZERO rows. The
+      amendment nonetheless concludes, without qualification, "The plug-in is not a material source
+      of error." PS-A is exactly where that is false: its (T) arm records 8,122 block failures in
+      total, so SE(q-hat)/q-hat = 1.110% and 3 SE = 3.329% -- 28x to 53x the relative uncertainty at
+      the three sets that WERE tested. Measured at PS-A on 400,000 validation draws per point, using
+      the producer's own unrounded constants:
+    measured:
+    - {set: PS-A, k: 2, se_multiple: -3, rel_shift: -0.0333, size: 0.00369, in_band: true}
+    - {set: PS-A, k: 2, se_multiple:  0, rel_shift:  0.0000, size: 0.00268, in_band: true}
+    - {set: PS-A, k: 2, se_multiple: +3, rel_shift: +0.0333, size: 0.00175, in_band: false}
+    - {set: PS-A, k: 3, se_multiple: -3, rel_shift: -0.0333, size: 0.00404, in_band: false}
+    - {set: PS-A, k: 3, se_multiple: -2, rel_shift: -0.0222, size: 0.00337, in_band: true}
+    - {set: PS-A, k: 3, se_multiple:  0, rel_shift:  0.0000, size: 0.00265, in_band: true}
+    - {set: PS-A, k: 3, se_multiple: +2, rel_shift: +0.0222, size: 0.00186, in_band: false}
+    - {set: PS-A, k: 3, se_multiple: +3, rel_shift: +0.0333, size: 0.00140, in_band: false}
+    consequence: >-
+      Amended criterion (iv) funds log2 Ahat_2 and log2 Ahat_3 at PS-A. At a q-hat error well inside
+      its own +-3 SE, the frozen PS-A intervals leave the amendment's binding [0.002, 0.004] band --
+      at k=3 already at +2 SE. This is not fatal to the design; it is a gap in the amendment's own
+      due diligence at the cell that matters most for what v2 promises to deliver.
+    required_correction: >-
+      Run q_sensitivity at every REPORTED k, not only k = m; state the PS-A result; and either widen
+      PS-A's frozen interval to be robust over q-hat +- 3 SE, or make PS-A's calibration a run-time
+      re-derivation at the Stage-B-realized q-hat (which has far more block failures behind it) with
+      the deviation recorded, rather than freezing on the Stage-A q-hat.
+
+  - id: VF-4
+    severity: MINOR -- REPORTING ACCURACY
+    title: '"0.252%-0.290% at every one of the 30 evaluable cells" is a selected subset.'
+    detail: >-
+      calibration_results.json phase3 marks 38 cells evaluable, not 30. One of them, PS-A k=4 at
+      Stage-A T, reports 0.146% on 1,373 finite replicates of 1,000,000. phase9 reports 0.231%
+      (PS-R5 k=30, T=2e7) and 0.307% (PS-A k=3, T=1e8) -- both quoted in the repair report's own R4.4
+      table and both outside the claimed range. Every one of these is consistent with Monte-Carlo
+      noise, so no conclusion moves; but the stated range is narrower than the artifact's own
+      contents, and 30 is not the count of evaluable cells.
+    required_correction: 'State the full range over all evaluable cells and the exclusion rule used.'
+
+  - id: VF-5
+    severity: MATERIAL -- ATTRIBUTION AND FRAMING
+    title: >-
+      R4.2 is a valuable REFINEMENT of OBJ-3, not a correction of it, and its headline compares an
+      SD ratio to a variance ratio.
+    detail: >-
+      The red team wrote: "V(n_e,q,k) as frozen in the contract understates the estimator's null
+      variance at this cell by (0.0744/0.0321)^2 ~ 5.4x" -- a VARIANCE ratio, about the frozen
+      instantiation. The repair report answers "the tabulated numbers understate by 1.78x-2.33x, not
+      5.4x" -- those are STANDARD-DEVIATION ratios. Squared they are 3.18x-5.43x, and PS-R5's is
+      exactly 5.4. The two measurements agree; the report's own later sentence ("the magnitude ...
+      is similar, 3.2x-5.4x, since T_prec ~ V") concedes this, but the headline does not.
+    what_I_independently_confirm: >-
+      The producer's DIAGNOSIS is right and is a real contribution. Recomputing the contract's own
+      variance formula at the modelled q_for_sizing reproduces the tabulated SEs to 0.3%: PS-A k=2
+      0.00918 vs 0.0092 (ratio 0.997), PS-A k=3 0.10831 vs 0.108 (1.003), PS-R1 k=16 0.03208 vs
+      0.0321 (0.999), PS-R3 k=17 0.00802 vs 0.008 (1.002), PS-R5 k=30 0.02589 vs 0.0259 (1.000). The
+      tabulated numbers are the formula evaluated at the wrong q, exactly as the producer says, and
+      the functional form is sound. The red team never asserted the functional form was wrong, and
+      the red team's own 5.4x carried a declared +-16% relative rider on an R = 20 SD estimate, which
+      brackets the true value.
+    required_correction: >-
+      Restate as "OBJ-3's magnitude is confirmed; its DIAGNOSIS is refined -- the defect is the q at
+      which the formula was instantiated, not the formula." Do not present the red team as wrong on
+      magnitude; the units differ.
+
+  - id: VF-6
+    severity: MINOR -- OVERSTATED FAILURE MODE
+    title: >-
+      CTRL-POSHOM's bullet "an off-by-one truncation window -> block 0 or block n_e-1 is special" is
+      not generally true.
+    detail: >-
+      The control's own derivation proves too much for this bullet. Ring-shift invariance makes EVERY
+      contiguous length-L window of Z_n carry the same law, so a truncation window that is merely
+      TRANSLATED by one coordinate leaves clause (a) and clause (b) both exactly satisfied and is
+      invisible to the control. The bullet is correct only for an off-by-one that SHORTENS or PADS a
+      block -- e.g. N not a multiple of L, or a final short block zero-filled. Similarly "a wrong ring
+      modulus n" is detected only when it forces a block to straddle a discontinuity, not merely when
+      n is wrong.
+    required_correction: >-
+      Qualify the bullet: the detectable class is "any defect that makes the block windows fail to be
+      congruent contiguous L-windows of Z_n, or makes F_j a position-dependent function", which
+      excludes a pure translation of the whole window.
+
+  - id: VF-7
+    severity: MINOR -- DIRECTION OF A STATED INEXACTNESS
+    title: >-
+      The independent-blocks reference for Q_raw is CONSERVATIVE, not merely inexact, and saying so
+      strengthens the producer's own "not a verdict" caveat.
+    detail: >-
+      I verified the producer's formula: E[sum_j (n_j - nbar)^2] = T (n_e-1)(v - cbar) with cbar the
+      mean pairwise covariance, so E[Q_raw] = (n_e-1)(1 - cbar/v) and the correctly scaled statistic
+      is Q* = Q_raw / (1 - cbar/v). Whenever blocks are POSITIVELY correlated -- the alternative the
+      experiment exists to detect -- Q* > Q_raw, so comparing the unscaled Q_raw against an
+      independent-blocks critical value can only FAIL to reject. "None of the four exceeds the
+      independent-blocks critical value" is therefore an understatement of the evidence, not an
+      overstatement. I recompute the observed values exactly from the committed per-block failure
+      counts: Q_raw = 55.7448 / 46.8807 / 48.8178 / 79.2735 and Q/(n_e-1) = 1.2388 / 1.0418 / 0.8876
+      / 0.8907, identical to the producer's phase6 to five decimals.
+    required_correction: 'State the direction of the inexactness alongside the "not a verdict" label.'
+
+  - id: VF-8
+    severity: MINOR -- REPRODUCIBILITY, NOT CORRECTNESS
+    title: 'calibration.py does not reproduce stage_a.py''s batching exactly.'
+    detail: >-
+      stage_a.batch_hists uses np.linspace(0,T,B+1).astype(int), which spreads the remainder one
+      trial per batch (sizes differ by at most 1). calibration.py's draw_batched puts the WHOLE
+      remainder in batch 0, giving batch 0 up to 8% more trials than the rest (PS-R5: 1295 vs 1199).
+      The comment "Exactly the law of stage_a.batch_hists" is therefore wrong. I measured every
+      Stage-A v1 cell under BOTH batchings: the only cell where it moves the answer materially is
+      PS-A k=3 (5.03% linspace vs 3.56% producer-batching), and that cell has 94% undefined
+      replicates. No conclusion changes. The v2 rule uses no batching at all, so it is unaffected.
+    required_correction: 'Fix the comment and the batching if calibration.py is ever re-run.'
+
+  # ======================================================================
+  # 5. The two items the producer flagged
+  # ======================================================================
+  adjudication_of_OPEN_7:
+    status: RESOLVED IN THE PRODUCER'S FAVOUR. The producer's number is right.
+    evidence: >-
+      Independently re-measured at 20,000 replicates with a different seed, a different
+      implementation, and BOTH batchings: PS-R5 NULL-M k = 30, T = 239,896, q = 0.4139887:
+      7.775% (stage_a linspace batching, 95% CI [7.41, 8.15]) and 7.835% (calibration.py batching).
+      The producer's 7.76% [7.40, 8.14] reproduces exactly. The red team's 12.7% (38/300) does not
+      reproduce and is not explained by batching, which was the leading structural candidate and
+      which I tested directly.
+    likely_mechanism_of_the_red_team_discrepancy: >-
+      OFFERED AS A HYPOTHESIS, NOT ESTABLISHED. Against a true 7.78%, 38/300 is a 3.2-sigma
+      excursion. That is unlikely for one independent cell but is entirely ordinary if the red team's
+      ten reported cells were scored on ONE shared set of 300 replicates, which makes the cells
+      correlated and lets a single unlucky draw set move several of them together -- and indeed
+      seven of their other nine cells also sit off my values, alternating in sign. I did not have
+      their probe code, so I cannot confirm this.
+    recommendation: >-
+      Retire OPEN-7 as an unexplained discrepancy and record it instead as a superseded measurement:
+      the red team's 300-draw estimate at this one cell is superseded by two independent
+      20,000-replicate measurements agreeing to within 0.08 pp. No conclusion in EV-HQC-75c05b moves
+      -- both numbers are 29x-47x nominal.
+
+  adjudication_of_OPEN_8:
+    status: >-
+      CONFIRMED AS A REAL DISCLOSURE SURFACE, AND THE PRODUCER'S HANDLING WAS CORRECT AND SHOULD BE
+      RECORDED AS SUCH.
+    the_arithmetic_verified: >-
+      With mubar_2 = E[C(S,2)]/C(n_e,2) and A_2 = mubar_2/q^2 on {0..n_e}:
+      A_2 = [Var(S) + (n_e q)^2 - n_e q] / (n_e (n_e - 1) q^2). RUN-HQC-982268-STAGEA-a archives the
+      (T) arms' full S-histograms as a chartered diagnostic. Var(S) is one line from them, so
+      log2 A_2 -- a primary Stage-B measurement -- is recoverable from a diagnostics-only
+      authorization. The producer identified this correctly and DID NOT COMPUTE IT, including where
+      the exact reference constant for its own new control required it (the constant cbar and A_2 are
+      bijective given q). It flagged the surface instead. That is the right call and it cost the
+      control an exact reference to make it.
+    what_this_validator_did: >-
+      I likewise did not compute it, for the same reason. I verified the algebraic identity
+      symbolically without instantiating it on any (T) histogram.
+    recommendation_for_the_Coordinator: >-
+      This needs a ruling, not an edit -- the archive is immutable and nothing improper happened. The
+      narrow question is whether a k=2 (T) measurement, once derivable from committed diagnostics,
+      may be taken outside the frozen Stage-B protocol. This validator's view: NO, and the reason is
+      pre-registration, not secrecy. The frozen prediction is tested at frozen orders under a frozen
+      rule; taking k=2 early, outside that rule, converts a pre-registered test into a look. The
+      cheapest clean resolution is to authorize k=2 explicitly as a Stage-B cell under the v2 frozen
+      interval (it is already the best-conditioned order in the design and the cheapest), and to
+      record in the amendment that the Stage-A archive contains its sufficient statistic and that no
+      one has evaluated it.
+
+  # ======================================================================
+  # 6. Per-repair verdicts
+  # ======================================================================
+  verdicts:
+
+    R1:
+      verdict: CONFIRMED, WITH ONE BLOCKING TRANSCRIPTION DEFECT AND ONE UNTESTED CELL
+      what_replicates: >-
+        (a) The v1 rule's mis-sizing: 17 of 18 Stage-A cells reproduce within Monte-Carlo error, and
+        the sole outlier (PS-A k=3, 94% undefined) is explained by the batching difference in VF-8.
+        (b) The forward-looking finding that the mis-sizing survives to Stage B: CONFIRMED and
+        slightly stronger than measured (PS-R1 k=16: my 1.83% vs their 1.44%; PS-R5 k=30: my 2.20%
+        vs their 2.34%; PS-R3 k=17: my 0.455% vs their 0.450%).
+        (c) The v2 rule's size against the null it declares: my own constants on my own draws give
+        0.256%-0.282% over 35 non-degenerate cells; their unrounded constants on my draws give
+        0.259%-0.283%. The producer's critical values reproduce to under 1.6%.
+        (d) The A17 <=> Binomial identity: exact, and exactly true, verified in rational arithmetic.
+        (e) The Wald-shape diagnosis (coupling and asymmetry) is the correct explanation and the
+        replacement is the right instrument for it.
+      what_does_not_hold: 'VF-1 (transcription), VF-2 (the evidence offered), VF-3 (PS-A), VF-4.'
+      is_it_calibrated: >-
+        YES, against the null law it declares, and I established that independently rather than
+        accepting it. The rule is sound. Two of its supporting claims are not.
+
+    R2:
+      verdict: >-
+        DESIGN CONFIRMED SOUND AND GENUINELY UPSTREAM-CAPABLE; NOT YET A CONTROL, BY THE PRODUCER'S
+        OWN ACCURATE ACCOUNT
+      is_CTRL_POSHOM_capable_of_failing_where_CTRL_BS_could_not:
+        answer: YES, STRUCTURALLY, AND THIS IS THE REPAIR'S REAL CONTENT.
+        reasoning: >-
+          I verified CTRL-BS's blindness at source: stage_a.py builds Fb[:,j] = np.roll(F[:,j],
+          -off[j]), a permutation of a column, so every per-block column sum survives exactly. I
+          confirmed q-hat^BS == q-hat^T on the committed record at all four sets (8,122 / 5,200,049 /
+          9,159,668 / 13,187,613 block failures, reconstructed from ctrl_BS block_marginals and
+          matching diagnostics_T q_hat * n_e * T to the unit). Both the numerator and the denominator
+          of Ahat_k^BS are built from the same F, so any upstream defect enters the control and the
+          controlled quantity identically and cancels. CTRL-POSHOM is different in kind: it is
+          evaluated on the (T) indicator matrix and its forced value comes from the RING, not from F.
+          A wrong F cannot cancel against a theorem. That is a real repair of a real structural
+          blindness.
+        the_forced_value_is_a_correct_theorem: >-
+          Verified. For s in Z_n, v -> X^s v is a bijection of each fixed-weight set, so
+          (X^s x, X^s y, X^s e, r_1, r_2) =d= (x, y, e, r_1, r_2) and X^s e'' =d= e''. With
+          n_e * L = N < n, block j's window is block 0's window shifted by the legal ring shift jL.
+          Clause (a) E[F_j] = q for all j, and clause (b) P[F_j = F_{j+d} = 1] depending only on d,
+          both follow exactly. Derived before any datum, as claimed.
+      was_the_refusal_to_compute_the_exact_constant_correct:
+        answer: YES, AND IT WAS THE HARDER CHOICE.
+        reasoning: >-
+          The refusal is not fastidiousness; it is forced. I verified the identity independently:
+          E[Q_raw] = (n_e-1)(1 - cbar/v) with cbar the mean pairwise covariance, and
+          A_2 = 1 + cbar/q^2, so cbar and A_2 determine each other given q. Evaluating the exact
+          reference constant on the (T) data IS the k = 2 measurement, which Stage A was not
+          authorized to take. The producer could have computed it quietly and reported a clean
+          pass/fail; it instead accepted a weaker deliverable and disclosed why. Under
+          docs/inventor-protocol.md section 3 and section 5 that is the correct behaviour and it
+          should be recorded as such.
+      does_the_inexactness_undermine_the_control:
+        answer: IT WEAKENS THE DEMONSTRATION, IN A DIRECTION THAT IS SAFE. See VF-7.
+        detail: >-
+          The independent-blocks reference is conservative under positive block correlation, so the
+          reported "none of the four exceeds the critical value" cannot be an artifact hiding a
+          heterogeneity signal -- the correctly scaled statistic would only be larger. The producer's
+          "SENSITIVITY DEMONSTRATION ONLY, not a verdict" label is accurate and adequate. The power
+          table is likewise conditional on independent blocks and is labelled as such. The exact
+          reference at Stage B is a whole-trial bootstrap, which needs no knowledge of cbar; that
+          route is correctly specified.
+      what_remains_unverified_and_is_correctly_declared: >-
+        Clause (b) -- the half of the control that touches the JOINT law and is the only
+        (T)-arm-only check by construction -- is entirely unevaluated, because no committed run
+        records pairwise-by-position counts. The amendment adds pair_counts_by_position.csv as a
+        required artifact, which is the right fix, but until a run produces it CTRL-POSHOM is a
+        first-moment control with a second-moment clause on paper. The producer says this plainly.
+      numbers_I_recomputed_exactly: >-
+        Q_raw = 55.7448 / 46.8807 / 48.8178 / 79.2735 and Q/(n_e-1) = 1.2388 / 1.0418 / 0.8876 /
+        0.8907 from the committed per-block failure counts -- identical to phase6 to five decimals.
+        The power tables in R2.3 match calibration_results.json phase6 row for row, including the
+        PS-A blindness at Stage-A T (power 0.029 at a 20% single-block bias).
+      defect: VF-6.
+
+    R3:
+      verdict: CONFIRMED IN FULL. Every number recomputed independently and exactly.
+      recomputed:
+      - {set: PS-A,  cap_minus_M_mean_in_M_sigma: 63.11, max_w_on_T_in_M_sigma: 4.00, D1_separation_SE: 135.42}
+      - {set: PS-R1, cap_minus_M_mean_in_M_sigma: 39.06, max_w_on_T_in_M_sigma: 4.20, D1_separation_SE: 132.08}
+      - {set: PS-R3, cap_minus_M_mean_in_M_sigma: 49.68, max_w_on_T_in_M_sigma: 4.07, D1_separation_SE: 106.02}
+      - {set: PS-R5, cap_minus_M_mean_in_M_sigma: 69.99, max_w_on_T_in_M_sigma: 4.14, D1_separation_SE: 78.77}
+      assessment: >-
+        The demotion of D3 from discriminator to hard support invariant is correct and the reasoning
+        generalizes: a discriminator must FORCE the side it rules out, and the alternative must
+        violate that forced value. D3 forces the (T) side and the (M) alternative sits 39-70 (M)sigma
+        INSIDE the cap, so it cannot fire on (M) at any reachable T. D1 forces the (M) side
+        (gamma = 1 exactly) and (T) sits 78.8-135.4 SE away with a working positive control
+        (gamma-hat on NULL-M: 1.000341 / 1.004460 / 0.998680 / 1.000812). Striking v1's "violated
+        with probability ~1 on (M)" is a correction of a false statement in an approved contract and
+        should be recorded as such.
+      the_negative_answer_is_the_right_deliverable: >-
+        R3 answers "no cheap probability-1 (T)-vs-(M) discriminator is available here" and says so
+        rather than padding. Under docs/inventor-protocol.md section 4 this meets the closure
+        standard: it names the obstruction (the two laws differ in DISPERSION, not location -- p-hat
+        matches the analytic p* to 5.2e-7-1.5e-5 by construction, and the largest w(etilde) seen on
+        (T) sits only 4.0-4.2 (M)sigma above the (M) mean, so any location-based detector is the
+        wrong shape and a support cap is the most extreme location-based detector there is), gives
+        the argument, and names what remains open (the sumset-membership test, correctly classified
+        as a hard combinatorial problem rather than a detector). The producer also correctly declines
+        to claim exhaustiveness. D6 is proposed, unrun, and honestly described as buying diagnostic
+        detail rather than separation.
+
+    R4:
+      verdict: ARITHMETIC CONFIRMED EXACTLY; DOMINANCE CLAIM CONFIRMED; THE OBJ-3 "CORRECTION" IS A
+        REFINEMENT, NOT A CORRECTION (VF-5).
+      allocation_arithmetic_recomputed_independently:
+      - {set: PS-A,  q_hat: 0.00033445, m: 16, s_90: 16, T_stab_m: 1.246e45, T_alloc: 1.0e8, k_max_at_alloc: 3}
+      - {set: PS-R1, q_hat: 0.19742737, m: 16, s_90: 25, T_stab_m: 1.452e8,  T_alloc: 1.0e8, shortfall: 1.452, k_max_at_alloc: 15}
+      - {set: PS-R3, q_hat: 0.31994629, m: 17, s_90: 33, T_stab_m: 1.000e6,  T_alloc: 2.0e7, margin: 20.0, k_max_at_alloc: 20}
+      - {set: PS-R5, q_hat: 0.41412035, m: 30, s_90: 60, T_stab_m: 2.554e7,  T_alloc: 2.0e7, shortfall: 1.277, k_max_at_alloc: 29}
+      note_on_the_inversion: >-
+        Confirmed. T_stab(PS-R1, 16) at the modelled q = 0.2306 is 2.915e7 (the contract's frozen
+        2.91e7); at the measured q-hat it is 1.452e8. The margin does not shrink from 3.4x to 2.9x --
+        it inverts to 0.69x. ST-4 is triggered at PS-R1 and PS-R5, and v1's success criterion (iv) is
+        unsatisfiable by arithmetic at two of its three sets. The v2 restatement -- report k_max and
+        declare k = m NOT REACHED under ST-4, a budget outcome and never a null result -- is the
+        correct handling under AGENTS.md rule 5.
+      dominance_claim_recomputed_independently:
+        method: >-
+          Fresh calibration (200,000 draws) plus fresh power measurement (50,000 draws per grid
+          point) against the same declared two-point common-mode mixture at eps = 0.05, MDE
+          interpolated at 80% power in log-effect space -- my own draws, my own seed.
+        rows:
+        - {set: PS-R3, k: 17, T: 1.0e6, core_seconds: 485,    mde80_mine: 0.354, mde80_producer: 0.355}
+        - {set: PS-R3, k: 17, T: 5.0e6, core_seconds: 2426,   mde80_mine: 0.164, mde80_producer: 0.165}
+        - {set: PS-R3, k: 17, T: 1.0e7, core_seconds: 4852,   mde80_mine: 0.092, mde80_producer: 0.092}
+        - {set: PS-R3, k: 17, T: 2.0e7, core_seconds: 9705,   mde80_mine: 0.077, mde80_producer: 0.077}
+        - {set: PS-R1, k: 16, T: 1.0e8, core_seconds: 39135,  mde80_mine: 0.422, mde80_producer: 0.427}
+        - {set: PS-R1, k: 16, T: 1.452e8, core_seconds: 56823, mde80_mine: 0.345, mde80_producer: 0.345}
+        - {set: PS-R1, k: 16, T: 1.0e9, core_seconds: 391346, mde80_mine: 0.128, mde80_producer: 0.127}
+        - {set: PS-R5, k: 30, T: 2.0e7, core_seconds: 13318,  mde80_mine: 0.383, mde80_producer: 0.557,
+           note: 'the one disagreement; see below'}
+        - {set: PS-R5, k: 30, T: 2.554e7, core_seconds: 17007, mde80_mine: 0.376, mde80_producer: 0.362}
+        - {set: PS-R5, k: 30, T: 1.0e8, core_seconds: 66590,  mde80_mine: 0.175, mde80_producer: 0.176}
+        - {set: PS-A,  k: 3,  T: 1.0e8, core_seconds: 60005,  mde80_mine: 0.689, mde80_producer: 0.688}
+        verdict: >-
+          PS-R3 AT k = m DOMINATES ON BOTH AXES AT ONCE, CONFIRMED WITHOUT INTERPOLATION: PS-R3 at
+          T = 1e7 costs 4,852 core-seconds and reaches MDE80 = 0.092 bits; PS-R1 at T = 1e9 costs
+          391,346 core-seconds and reaches only 0.128; PS-R5 at T = 1e8 costs 66,590 and reaches only
+          0.175. That is a strictly better detectable effect at 1/81 of PS-R1's cost and 1/14 of
+          PS-R5's. The scale-invariant figure of merit core-seconds x MDE80^2 recomputes to 41
+          (PS-R3, T=1e7), 2044 (PS-R5, T=1e8), 6454 (PS-R1, T=1e9), 28479 (PS-A k=3) -- matching the
+          producer's 41 / 2058 / 6284 / 28380.
+        the_one_disagreement: >-
+          At PS-R5 T = 2e7 I measure MDE80 = 0.383 against the producer's 0.557. Neither is reliable:
+          the power grid jumps from 0.03 at 0.2 bits to 0.85 at 0.4 bits, so the 80% crossing is
+          interpolated across a factor-2 gap. The producer's value is also internally inconsistent
+          with its own neighbour -- 0.557 -> 0.362 for a 1.28x increase in T implies a 1.54x
+          improvement where T^(-1/2) allows 1.13x. The dominance conclusion does not depend on this
+          row. RECOMMENDATION: refine the power grid near the crossing before any MDE number is
+          quoted downstream, or quote the figure of merit instead, which is stable.
+        scope_caution_the_amendment_should_carry: >-
+          MDE80 is compared ACROSS SETS at different orders (k = 17 at n_e = 56 versus k = 16 at
+          n_e = 46) and against ONE declared alternative family. "PS-R3 dominates" is literally true
+          on the two axes (core-seconds, MDE80 in bits at k = m) and does not by itself establish
+          that PS-R3 is the better test of A17, because the estimand differs. The producer does state
+          the scope narrowing -- PS-R1 is the only order-matched arm at HQC-1's shape, and anchoring
+          (iv) on PS-R3 anchors it on HQC-3's shape -- and retains ST-3. That disclosure must survive
+          into every downstream record, not only into this one.
+      cost_of_the_contract_as_written: >-
+        Recomputed at the measured throughputs (1502-2555 trials/core-second): 60,005 + 39,135 +
+        9,705 + 13,318 = 122,163 core-seconds against the contract's modelled 53,080, a factor 2.30.
+        Confirmed. That is at or past the declared 2x contingency and is what the campaign budget
+        must absorb.
+
+    R5:
+      verdict_on_the_specification: SOUND. The gate is the right gate and the coverage clause is the
+        right clause.
+      verdict_on_the_question_asked: >-
+        NO -- "specified but unverified" is NOT acceptable for a MANDATORY BLOCKING gate, and the
+        producer says so itself ("R5 is a specification change I wrote and could not independently
+        confirm"). A blocking gate whose passage rests on a citation is a gate that has never been
+        run in the configuration that binds. The producer's scope boundary was real (BATCH-003 was
+        outside its read scope) and stating it rather than papering over it was correct; but the
+        state it leaves behind cannot be admitted as-is, because the amendment would make a gate
+        mandatory on the strength of someone else's measurement of an earlier, differently-specified
+        check.
+      SO_I_RAN_IT: >-
+        This validator executed the proposed CTRL-ORACLE-v2 against the REAL oracle package at
+        coordination/goals/GOAL-HQC-001/batches/BATCH-003/tasks/TASK-20260803-6f50df/oracle_values.json,
+        exactly as specified: each configuration's exact rational law_of_S, scaled by the lcm of its
+        denominators to exact integer pseudo-counts, fed to stage_a.log2_A_from_hist -- the same
+        function the (T) analysis uses -- and compared against the exact rational log2 A_k.
+      result:
+        configurations: 13
+        cells: 40
+        max_abs_difference_bits: 7.105427357601002e-15
+        tolerance_required: 1.0e-12
+        cells_with_abs_log2_A_k_gt_1_bit: 12
+        required: 5
+        cells_with_log2_A_k_negative: 18
+        required: 5
+        range_bits: [-2.8514531759345054, 9.965784284662087]
+        coverage_clause_met: true
+        gate_passes: true
+        exemplars:
+        - {config: 'comonotone(n_e=8,p=1/10)', k: 4, exact: 9.965784, stage_a: 9.965784, diff: 0.0}
+        - {config: 'fixed_weight(N=20,w=6)|threshold(n2=4,t=1)', k: 3, exact: -2.851453, stage_a: -2.851453, diff: 0.0}
+        - {config: 'mixture_iid(p=1/8,1/2;lam=1/2)|threshold(n2=4,t=1)', k: 5, exact: 3.216740, stage_a: 3.216740, diff: 8.9e-16}
+        - {config: 'exactly_c(n_e=8,c=3)', k: 3, exact: -1.562242, stage_a: -1.562242, diff: 0.0}
+      consequence: >-
+        The gap is now CLOSED by this review, not by the producer and not by citation. CTRL-ORACLE-v2
+        as specified passes against the real oracle package, its coverage clause is satisfiable by
+        the package as it stands (40 cells exactly meets the >= 40 floor -- there is no slack, and
+        the amendment should say so), and the 1e-12 tolerance has nearly three orders of margin. The
+        red team's independent 40-cell / 1.2e-14 result also reproduces at the same order.
+      what_is_still_NOT_established: >-
+        Unchanged and correctly stated by the producer: this is an ESTIMATOR-ARITHMETIC gate only. It
+        says nothing about the fixed-weight sampler, the ring product, the truncation, the folded-WHT
+        decoder, or the calibrated interval -- and R1 shows the interval is where the trouble was.
+        The end-to-end CTRL-ORACLE (whole pipeline against an exact instance) remains unbuilt:
+        stage_a.decode_blocks is hard-wired to a size-128 WHT while the oracle's block models are
+        threshold(n2=4,t=1) and RM(1,2). That is OPEN-6 and it is the single largest remaining hole
+        in the instrument.
+      required_correction: >-
+        Replace evidence_that_this_gate_passes with this validator's run (TASK-20260806-301f68), cite
+        it as the verification of record, and add that the >= 40-cell floor is met with zero slack by
+        the current package, so any future reduction of the oracle configuration set breaks the gate.
+
+  # ======================================================================
+  # 7. Overall
+  # ======================================================================
+  overall_verdict:
+    status: ADMIT WITH REQUIRED CORRECTIONS
+    plain_statement: >-
+      The repair is real and it is largely right. All four diagnosed defects are genuine, the
+      replacement rule is the correct instrument for the defect it repairs, and it is correctly sized
+      against the null it declares -- which I established by drawing my own samples rather than by
+      reading theirs. The producer's numbers reproduce almost everywhere; where they do not, the
+      producer is right and an earlier reviewer was wrong (OPEN-7). The producer also declined a
+      measurement it was not authorized to take, at real cost to its own deliverable, and disclosed
+      why. That is the behaviour the contract is built to reward.
+    but: >-
+      Three things must be fixed before a Coordinator ledger archive amends the contract, and one of
+      them is blocking. VF-1: the frozen constants as transcribed do not deliver the sizes printed
+      beside them at k = 2, and two of three fail the amendment's own acceptance gate -- the record
+      would fail itself on execution. VF-3: the plug-in sensitivity was never tested at PS-A, the one
+      set where the amended success criterion actually delivers, and at PS-A it fails within its own
+      3 SE. VF-5: R4.2's headline compares an SD ratio to a variance ratio and presents a refinement
+      as a correction of the previous red team.
+    and_one_thing_about_the_evidence_rather_than_the_rule: >-
+      VF-2. The headline "measured out-of-sample size 0.252%-0.290%" is close to a tautology: the
+      identical procedure on a standard normal returns 0.2476%-0.2894% over 200 repetitions, with
+      99.5% of them inside the claimed band. The rule IS calibrated -- but that number is not what
+      establishes it, and the amendment leads with it. What establishes it is the contrast against
+      v1, which holds independently.
+    claim_tier_unchanged: >-
+      TOY. This review validates an instrument repair. It says nothing about HQC, about A17 or A5,
+      about any decoding-failure rate, or about any standardized parameter set, and nothing here may
+      be cited as if it did.
+    authority: >-
+      This report changes no research status. H-HQC-18d1b4 remains proposed; EXP-HQC-982268 remains
+      at version 1 with its unrepaired INV-NULL binding; the amendment remains inert. Only a
+      Coordinator ledger archive may amend the approved contract.
+
+  required_corrections_before_amendment:
+  - {id: VF-1, blocking: true,  action: 'Bind the calibration procedure and seed rather than transcribed decimals, or carry >= 7 decimal places on every frozen constant.'}
+  - {id: VF-3, blocking: true,  action: 'Run q_sensitivity at every reported k; state the PS-A result; make PS-A robust over q-hat +- 3 SE or re-derive at the Stage-B q-hat.'}
+  - {id: VF-5, blocking: false, action: 'Restate R4.2 as a refinement of OBJ-3''s diagnosis, not a correction of its magnitude. Fix the SD-vs-variance mismatch.'}
+  - {id: VF-2, blocking: false, action: 'Demote the out-of-sample size to a standing run-time guard; lead with the v1-vs-v2 contrast.'}
+  - {id: VF-4, blocking: false, action: 'State the full range over all evaluable cells and the exclusion rule.'}
+  - {id: VF-6, blocking: false, action: 'Qualify the off-by-one truncation bullet; a pure window translation is invisible to both clauses.'}
+  - {id: VF-7, blocking: false, action: 'State that the independent-blocks reference is conservative under positive block correlation.'}
+  - {id: VF-8, blocking: false, action: 'Fix calibration.py''s batching to match stage_a.batch_hists, and the comment that claims it already does.'}
+  - {id: R5,   blocking: false, action: 'Cite this validator''s run as the gate''s verification of record; note the >= 40-cell floor is met with zero slack.'}
+
+  recommendations_for_the_coordinator:
+  - >-
+      Rule on OPEN-8 before Stage B is scheduled. This validator's recommendation is to authorize
+      k = 2 explicitly as a Stage-B cell under the frozen v2 interval -- it is the cheapest and
+      best-conditioned order in the design -- rather than leaving a derivable primary measurement
+      sitting inside a diagnostics-only archive with no stated rule about it.
+  - >-
+      Retire OPEN-7. Two independent 20,000-replicate measurements agree to 0.08 pp; the red team's
+      300-draw estimate at that one cell is superseded, not unexplained.
+  - >-
+      The R4 allocation finding is the item with real budget consequence: at the measured q-hat, k = m
+      is out of reach at PS-R1 and PS-R5 at the funded allocation, and the contract as written costs
+      2.30x its modelled core-seconds. PS-R3 at T = 1e7 buys a strictly better detectable effect at
+      1/81 of PS-R1's cost -- but it anchors criterion (iv) on HQC-3's shape rather than HQC-1's, and
+      that narrowing must be carried in every downstream record, not just noted here.
+  - >-
+      OPEN-6 remains the largest hole and neither this batch nor this review closes it: no arm tests
+      the (T) joint law against a known answer, and the end-to-end CTRL-ORACLE cannot be built until
+      stage_a.decode_blocks accepts the oracle's block models. CTRL-POSHOM narrows the gap for
+      position-dependent defects only, and its clause (b) needs an artifact no committed run
+      produces.
+
+  artifacts_produced_by_this_review:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-c5703d/reviews/TASK-20260806-301f68/validation_report.yaml
+  reproduction: >-
+    All measurements were produced by scripts written in this session's scratchpad from the
+    definitions given in the "method" block above: an independent estimator re-implementation
+    cross-checked to 0.0 against stage_a.log2_A_from_hist and to 9.9e-14 bits against exact rational
+    arithmetic; multinomial histogram draws under S ~ Bin(n_e, q-hat); seeds 30168, 884411,
+    20260806991, 5150221, 19660602, 31415926. Every table above is a direct read-out of those runs.
+    No number in this report was copied from calibration_results.json except where explicitly
+    labelled "producer" for comparison.

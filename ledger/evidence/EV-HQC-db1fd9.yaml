@@ -1,0 +1,88 @@
+evidence:
+  id: EV-HQC-db1fd9
+  hypothesis_id: H-HQC-18d1b4
+  experiment_ids:
+  - EXP-HQC-982268
+  run_ids: []
+  run_ids_note: The planted-correlation control-arm artifacts are snapshot-committed at 8538964c under
+    coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/. Produced under a
+    coordination task card, not an experiments/*/runs/ manifest, the same convention EV-HQC-b71230 used
+    for PS-R3; cited here by path and hash.
+  type: empirical
+  direction: neutral
+  strength: preliminary
+  claim_tier: toy
+  certificate_refs: []
+  proof_status: derivation
+  proof_refs:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/reviews/TASK-20260806-21c8da/red_team_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/reviews/TASK-20260806-9f4b27/validation_report.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/design.md
+  observations:
+  - 'THE PLANTED-CORRELATION CONTROL ARM RECOVERED ITS OWN KNOWN ANSWER. TASK-20260806-e19f6c built an
+    instance whose true joint failure law was derived in closed form before any data was generated
+    (M_t ~ Uniform{17,18,19} failing blocks per trial, S_t = M_t exactly, n_e = 56, order-matched to
+    PS-R3), pushed it through measure.py''s actual estimator/jackknife code (direct sha256-pinned import,
+    not a reimplementation), and recovered log2_A_k within the pipeline''s own jackknife-SE interval at
+    all 17 tested cells (k = 2..18), including the k = m = 17 cell PS-R3 pre-specified. T = 1e7,
+    71.98 of 1800 authorized core-seconds used. The Validator independently re-derived the planted law
+    before consulting reported values and re-executed the full generator with separately-written
+    estimator code, reproducing every value bit-for-bit.'
+  - 'THE RED TEAM DEFEATED THE ARM ON THE EXACT DEFECT CLASS OPEN-6 NAMES, AND THIS IS THE LOAD-BEARING
+    FINDING. A standalone reimplementation of the arm''s block-partition/reduce machinery, injected with
+    the same V1 (off-by-one truncation) and V3 (last-block-window-read-early) defect classes this
+    campaign already used against CTRL-IDXMAP (BATCH-0a65c0), left every recovered log2_Ahat_k
+    bit-identical to the defect-free baseline at every reported k, over 500,000 verification trials.
+    This is not a power limitation: homogeneous 128-bit planted blocks under majority-threshold
+    reduction give a 64-vote margin no single boundary-bit shift can cross, so detection probability is
+    analytically 0 for this defect class at any T. Only the cruder V2 (interleaved partition, ~32 percent
+    block mismatch, a near-total data scramble unrelated to a subtle index bug) was caught.'
+  - 'ROOT CAUSE: the arm never invokes the real decoder. Its block-partition/reduce step is a from-scratch
+    majority-threshold reimplementation on homogeneous blocks, not stage_a.py''s actual decode_blocks
+    (WHT/Reed-Muller reduction) on heterogeneous, realistic bit content -- disclosed in design.md 3.2.1
+    but understated in comparison_report.md''s summary framing, which the Validator and Red Team both
+    flagged independently.'
+  - 'THIS IS THE FOURTH CONTROL THIS CAMPAIGN HAS FOUND STRUCTURALLY BLIND TO THE DEFECT CLASS IT WAS
+    BUILT TO CATCH, after CTRL-BS, CTRL-POSHOM, and CTRL-IDXMAP (all named in EV-HQC-b71230
+    unresolved_confounds). The pattern recurs: an invariance strong enough to force a control''s null
+    (here, block homogeneity forcing an all-0/all-128 sum) also blinds it to any defect sharing that
+    invariance.'
+  - 'The Validator additionally flagged an unreconciled discrepancy: run_manifest.yaml records 2
+    executions of the authorized command, comparison_report.md records 3, and the discarded run(s)''
+    raw output was not preserved. Both reviewers otherwise found the artifacts honest, reproducible, and
+    budget-compliant (ADMIT from both).'
+  inference: 'The MATCH result and the ADMIT verdicts establish that measure.py''s estimator/jackknife
+    code correctly recovers a known marginal S-histogram law from a correctly generated histogram, and
+    that this arm''s own generator/decoder round-trips correctly absent a defect or under gross (V2-class)
+    scrambling. That is a real but narrow finding about arithmetic and gross-scramble detection, not
+    about the subtle sampler defect OPEN-6 actually asks about. Because the red-team injection shows the
+    two realistic subtle defect classes are undetectable by this construction with certainty, at any
+    scale, this evidence record does not move EV-HQC-b71230''s standing in either direction: the PS-R3
+    -244.1-to--32.4 null-SD departure still cannot be distinguished from a subtly wrong sampler by any
+    evidence this campaign has produced to date. OPEN-6 remains fully open, not partially closed.'
+  boundaries:
+  - "Toy. One planted instance, one run, one seed family, no replication -- matching PS-R3's own declared
+    boundary. This is an instrument check, not a measurement of HQC: no statement about A17, HQC's
+    decoding-failure rate, or any standardized parameter set."
+  - This evidence record does not reopen, revise, or supersede EV-HQC-b71230, which stands exactly as
+    archived. It adds a new, independent instrument-trust finding alongside it.
+  - The V2-class detection (interleaved partition caught) provides weak evidence against a hypothesis of
+    the form "the real sampler has a gross, near-total scrambling defect" -- and only that narrow
+    sub-hypothesis, for whatever an unrun stage_a.py proxy is worth.
+  - H-HQC-18d1b4 is untouched by this record in either direction; it remains PROPOSED.
+  unresolved_confounds:
+  - 'OPEN-6 IS STILL FULLY OPEN. This was the campaign''s first attempt to close it and the attempt
+    failed on the exact defect class it targeted, for a structural (not statistical, not budget) reason:
+    homogeneous-block majority-threshold reduction cannot express a single-index boundary shift as a
+    detectable failure at any T. The named next control (red-team report section 8): a V2 planted arm
+    that imports stage_a.py''s real decode_blocks (sha256-pinned, read-only) and constructs planted
+    blocks with heterogeneous, decision-boundary-adjacent per-bit content, so a boundary-index defect has
+    a non-zero chance of manifesting as a decode error.'
+  - The run-count discrepancy (2 vs. 3 executions claimed across run_manifest.yaml and
+    comparison_report.md, discarded runs'' raw output unpreserved) is unreconciled. Both reviewers judged
+    it benign given deterministic seeding and full disclosure, but it was not independently audited
+    end-to-end.
+  - The V1/V3 blindness finding is itself scoped to this arm''s specific homogeneous-block, majority-
+    threshold construction; it does not establish that stage_a.py''s real WHT/Reed-Muller decoder shares
+    the same blindness, only that this proxy cannot speak to the question either way.
+  reviewed_by: coordinator

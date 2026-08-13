@@ -1,0 +1,862 @@
+validation_report:
+  id: VAL-20260807-a3f6c1
+  task_id: TASK-20260807-681e17
+  role: validator
+  scope_note: >-
+    NARROW, ENUMERATED SCOPE. This report validates EXACTLY the five checks C1-C5
+    named in the dispatch, on the completed execution of EXP-INSTR-85b102, and
+    NOTHING else. It is not a full-scope review of the run, the contract, the
+    hypothesis, or the batch. Everything outside C1-C5 is listed under
+    `limitations.not_checked` and must be treated as UNVERIFIED, not as passed.
+  experiment_id: EXP-INSTR-85b102
+  hypothesis_id: H-INSTR-fffbfb
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-aa267f
+  run_ids:
+    - RUN-INSTR-85b102-gates-b
+    - RUN-INSTR-85b102-poolA-c
+    - RUN-INSTR-85b102-poolB-b
+    - RUN-INSTR-85b102-poolC
+    - RUN-INSTR-85b102-poolD
+    - RUN-INSTR-85b102-scorecard-d
+    - RUN-INSTR-85b102-poolB          # invalid run, examined under C5
+  snapshot:
+    branch: claude/ecdlp-endomorphism-analysis-4m2w3z
+    head_at_validation_start: 2d75b6c5
+    head_at_validation_end: 3df506f3
+    head_movement_note: >-
+      HEAD advanced once during validation, by a concurrent agent, in commit
+      3df506f3 "file protocol_amendment v2 for EXP-ICINV-4d33aa (NOT approved)".
+      `git diff --stat 2d75b6c5 HEAD` shows it touched exactly one file,
+      experiments/EXP-ICINV-4d33aa/amendments/v2.yaml, which is outside this
+      experiment. No artifact under validation moved.
+    working_tree: >-
+      clean except for the untracked reviews/ directory this report is written
+      into. Every operative artifact validated below was confirmed committed via
+      `git ls-files --error-unmatch`; no working-tree-only receipt was accepted.
+    approval_commit_referenced_by_contract: 02487c1918fca88051b5ff3bf3248e648d9857a8
+
+  # ======================================================================
+  # C1 - the S1 zero-compute arithmetic gate
+  # ======================================================================
+  metric_recomputations:
+    - check_id: C1
+      name: S1 zero-compute arithmetic gate, independent full-precision re-derivation
+      verdict: passed
+      method: >-
+        Two independent derivations, neither reading the executor's code. (i)
+        Double-precision reconstruction from the committed per-class
+        (N, n, mean z, Var z) summaries read directly out of
+        experiments/EXP-ICINV-180a0d/runs/RUN-ICINV-p4001-a/raw-result.json,
+        computed in both the ascending-trace and the committed dict-insertion
+        order to expose any summation-order dependence. (ii) EXACT RATIONAL
+        arithmetic (python fractions.Fraction) over the 472 raw integer
+        two_torsion_x and full_liftable values in the same committed artifact,
+        which gives the mathematically exact value with no floating point at all.
+      inputs_used:
+        source_artifact: experiments/EXP-ICINV-180a0d/runs/RUN-ICINV-p4001-a/raw-result.json
+        per_class:
+          - {trace: -30, N: 4032, n: 138, mean_z: 1.9565217391304348, var_z: 1.0053951126626468}
+          - {trace: -18, N: 4020, n: 98,  mean_z: 1.8571428571428572, var_z: 0.9896907216494846}
+          - {trace: 18,  N: 3984, n: 98,  mean_z: 1.8571428571428572, var_z: 0.9896907216494846}
+          - {trace: 30,  N: 3972, n: 138, mean_z: 1.9565217391304348, var_z: 1.0053951126626468}
+      quantity_1:
+        name: mean_c Var(z_c)/4 (count units)
+        my_value_double_ascending_order: 0.24938572928901642
+        my_value_double_insertion_order: 0.24938572928901642
+        my_value_exact_rational: 76224/305647
+        my_value_exact_rational_as_float: 0.24938572928901642
+        committed_value: 0.24938572928898783
+        my_signed_residual: 2.858824288409778e-14
+        executor_reported_value: 0.24938572928901642
+        executor_reported_residual: 2.858824288409778e-14
+        tolerance: 1.0e-09
+        agreement: >-
+          BITWISE IDENTICAL to the executor's value under all three of my
+          derivations, including the exact-rational one. Residual is 2.86e-14,
+          i.e. 35000x inside the 1e-9 tolerance. GATE GENUINELY PASSED.
+      quantity_1_provenance_of_the_residual:
+        finding: >-
+          The 2.86e-14 residual is in the COMMITTED number, not in the
+          re-derivation. My exact rational value 76224/305647 rounds to
+          0.24938572928901642, which is the executor's value; the committed
+          0.24938572928898783 is 2.86e-14 BELOW the exact truth. The cause is
+          reconstructible: the committed run stores
+          mean_within_class_rate_variance = 1.557881769803647e-08 and derives
+          mean_within_class_count_variance from it by multiplying by W^2 =
+          4001^2 = 16008001, and that round-trip through rate units is where the
+          2.86e-14 enters. Re-running the committed code path
+          (statistics.variance on the raw full_liftable integers) also returns
+          0.24938572928901642, NOT the committed 0.24938572928898783. This is
+          benign and does not affect any verdict, but it means the residual is
+          correctly attributed to unit round-tripping in the committed artifact
+          rather than to any instability in the new module.
+      quantity_2:
+        name: closed-form free-permutation null mean (rate units)
+        derivation: >-
+          E[T_unw | one block] = mean over classes with n_c>=2 of the pooled
+          (n-1)-denominator sample variance = S2_Y, by the sampling-without-
+          replacement identity E[s^2] = S^2. S2_Y = (S2_N + S2_z + 2 Cov(N,z))/4
+          from Y = (N - 1 + z)/2. Rate units = count units / p^2.
+        my_intermediates:
+          pooled_n: 472
+          grand_mean_N: 4002            # exact
+          SS_N: 311904                  # exact integer
+          S2_N: 662.2165605095541
+          grand_mean_z: 1.9152542372881356
+          SS_z: 468.6101694915254
+          S2_z: 0.9949260498758502
+          Cov_N_z: 0                    # EXACTLY zero, confirmed in exact rational arithmetic
+          S2_Y_count_units: 165.8028716398575
+        my_value_rate_units: 1.0357500080107286e-05
+        my_value_exact_rational_check: >-
+          The exact-rational closed form and the exact-rational pooled sample
+          variance of the raw full_liftable values are IDENTICAL as rationals
+          (verified with Fraction equality), so the closed form is algebraically
+          right and not merely numerically close.
+        committed_value: 1.0357263552475702e-05
+        my_signed_difference: 2.365276315838261e-10
+        my_relative_residual: 2.2836884509643e-05
+        tolerance_relative: 1.0e-03
+        executor_reported_relative_residual: 2.2836884509643357e-05
+        agreement: >-
+          My S2_Y matches RUN-INSTR-85b102-gates-b/raw-result.json's
+          s1.S2_Y_count_units = 165.8028716398575 BITWISE, and my rate-units
+          value matches s1.rederived_null_mean_rate_units =
+          1.0357500080107286e-05 BITWISE. Relative residual against the committed
+          value is 2.28e-05, i.e. 44x inside the 1e-3 tolerance. GATE GENUINELY
+          PASSED.
+        residual_is_monte_carlo_not_error: >-
+          The committed 1.0357263552475702e-05 is an EMPIRICAL Monte-Carlo mean
+          from harness/exp_icinv.py::permutation_null over B = 1000 draws, not a
+          closed form. A 2.3e-05 relative gap between a closed form and a
+          1000-draw Monte-Carlo mean is ordinary sampling noise, and the contract
+          set the tolerance at 1e-3 for exactly that reason.
+      deciding_number: >-
+        T_obs residual +2.858824288409778e-14 against tolerance 1e-9, and null
+        mean relative residual +2.2836884509643e-05 against tolerance 1e-3. Both
+        pass by many orders of magnitude, and both of my independent derivations
+        (double from summaries, exact rational from raw integers) return the
+        executor's numbers bitwise.
+      consequence: >-
+        The withdrawal branch F1 was correctly NOT taken. The diagnosis under
+        test - that the committed 664x ratio is the group order plus the
+        2-torsion term - survives this gate. NOTE THE LIMIT: surviving a
+        consistency gate is not evidence FOR that diagnosis; it is only the
+        absence of the cheap arithmetic refutation the gate was built to look
+        for.
+      discrepancies_found:
+        - severity: cosmetic
+          where: execution_report.md section 5, prose intermediates
+          what: >-
+            The report prose states "SS_z = 468.6101762...". The run artifact
+            RUN-INSTR-85b102-gates-b/raw-result.json records
+            s1.SS_z = 468.6101694915254, which is what I independently compute
+            (468.61016949152546). The prose figure is wrong in its 8th
+            significant digit. The ARTIFACT is correct; the report transcription
+            is not. Nothing downstream uses SS_z directly, so no verdict moves.
+        - severity: cosmetic
+          where: RUN-INSTR-85b102-scorecard-d/prediction_scorecard.json, P1
+          what: >-
+            The S6 scorecard records closed_form_null_mean_count_units =
+            165.80287163985756 and rate 1.035750008010729e-05, which are 2 ulp
+            (5.7e-14 absolute, 3.4e-16 relative) away from the S1 gate artifact's
+            165.8028716398575 / 1.0357500080107286e-05 and from my exact value.
+            Cause is a different summation path (S6 recomputes from the POOL_A
+            measurement run; S1 computes from the committed summaries). The
+            tolerance is 1e-3 relative, so this is 12 orders of magnitude inside
+            it. Recorded because the report presents both figures without noting
+            they are not the same double.
+
+  # ======================================================================
+  # C2 - frozen-function immutability receipt (CTRL-FROZEN-DIFF)
+  # ======================================================================
+  artifact_checks:
+    - check_id: C2
+      name: eleven frozen functions in harness/exp_icinv.py, zero behavioural change vs approval commit 02487c19
+      verdict: passed
+      method: >-
+        FOUR independent lines, none of them reading the executor's receipt for
+        its answer. (1) Git blob identity of the four frozen files at the
+        approval commit, at HEAD, in the working tree, and at EVERY run's
+        recorded commit. (2) AST-level structural diff: each frozen function
+        re-parsed through ast.unparse to normalise formatting and comments, then
+        ast.dump compared, both with and without its docstring; plus a
+        whole-module normalised-AST comparison to catch module-level changes
+        that would move a frozen function's behaviour without touching its body.
+        (3) A behavioural probe: the approval-commit harness/ tree extracted with
+        `git archive` into a separate importable root, both revisions imported in
+        separate processes, all eleven functions executed on identical inputs and
+        their outputs compared. (4) A runtime-rebinding scan of the whole harness
+        package for monkeypatching of any frozen name, which byte-identity alone
+        would not rule out.
+      line_1_blob_identity:
+        approval_commit: 02487c1918fca88051b5ff3bf3248e648d9857a8
+        result: >-
+          harness/exp_icinv.py, harness/isogeny_class.py, harness/run_icinv.py
+          and harness/toycurve.py have IDENTICAL git blob ids at the approval
+          commit, at HEAD, and in the working tree. harness/runner.py is also
+          identical. `git diff --stat 02487c19 HEAD -- harness/` shows exactly
+          three ADDED files (run_blocknull.py, exp_icinv_fullgroup.py,
+          run_fullgroup.py) and ZERO modified lines in any existing file.
+        per_run_commit_check: >-
+          Every one of the 13 run directories records a reachable commit, and at
+          each of those commits all four frozen files carry the approval commit's
+          blob id. Checked commits: 02487c19 (gates, gates-b), f6697e97 (poolA),
+          7d7fefc4 (poolA-b), 9c37e4f7 (poolA-c, poolB-b), 9591caac (poolB),
+          e4b36a65 (poolC), 7cc34bea (poolD), 0bcae001 (scorecard, -b, -c),
+          56d2a915 (scorecard-d). This is stronger than the executor's own
+          receipt, which compares the working tree rather than the run's commit.
+        dirty_flag_audit: >-
+          manifest code.dirty is FALSE for all six operative runs (gates-b,
+          poolA-c, poolB-b, poolC, poolD, scorecard-d) and TRUE only for poolA,
+          poolA-b, poolB, scorecard-b, scorecard-c. This matches the execution
+          report's claim exactly. For the dirty runs the frozen-file content hash
+          recorded in their own receipts is still d5a89bb253dd1d40 for
+          exp_icinv.py, i.e. the frozen file was not among the dirty edits.
+      line_2_ast_diff:
+        functions_checked: 11
+        result: 11/11 IDENTICAL under both normalisations (with docstring, code-only)
+        whole_module_normalised_ast_identical: true
+        per_function_code_only_ast_sha256_prefix:
+          _targets: 9a79ff2ba2318dfd
+          targets_uniform: b704ddd1be84cee9
+          permutation_null: 1f6ddcb67e8a992d
+          binomial_null_verdict: 06fee382daf71e9b
+          exact_null_verdict: 15965bd0b60475c9
+          decomposition_rate_m2: 25308cadbe75b460
+          decomposition_rate_m3: 1bc1ee708f701636
+          liftable_density: 6551808e536b6b44
+          factor_base_fixed_size: 474c51ccb10eb48c
+          factor_base_window: 0e464a9f763e198d
+          two_torsion_x_count: 33e07f4bb3c0e1b7
+      line_3_behavioural_probe:
+        setup: >-
+          approval-commit harness/ extracted via
+          `git archive 02487c19 harness`, imported as a distinct root; working
+          tree imported separately; module __file__ asserted to come from the
+          intended root in each process.
+        outputs_compared: 15
+        outputs_identical: 15
+        includes_validator_own_inputs: >-
+          yes - beyond re-running the executor's declared probe I added
+          permutation_null on my own groups at two (iterations, seed) settings,
+          exact_null_verdict on a genuinely multi-valued input,
+          two_torsion_x_count at p=4001 on two real POOL_A curves, and
+          liftable_density over the full field at p=4001. All identical across
+          revisions.
+        executor_probe_values_independently_reproduced: >-
+          10 of the 11 declared probe rows reproduced BITWISE from my own
+          execution: factor_base_fixed_size(E,10)=[1,3,5,9,10,11,13,17,18,20];
+          factor_base_window(E,40) 16 values; liftable_density(E,40)=0.4;
+          two_torsion_x_count=1; _targets(E,5,12345)=[[49,40],[18,35],[62,14],
+          [5,21],[69,20]]; targets_uniform=[[57,50],[93,9],[20,93],[85,97],
+          [23,55]]; decomposition_rate_m2=[5,5]; decomposition_rate_m3=[3,5];
+          binomial_null_verdict full dataclass including
+          'chi2=1.47 df=4 accept=[0.45,11.13]'; exact_null_verdict full
+          dataclass. The receipt's probe numbers are therefore genuine measured
+          outputs, not asserted ones.
+        one_row_not_reproducible: >-
+          permutation_null(probe_groups,50,7) = [6.041666666666666,
+          5.9679166666666665, 0.54]. The receipt does not record what
+          `probe_groups` is, so a third party cannot reproduce this single row
+          from the receipt alone. Recorded as a minor artifact gap, not a
+          finding: the same function was probed on my own groups at both
+          revisions with identical results, and its source is AST-identical.
+      line_4_runtime_rebinding_scan:
+        result: >-
+          NONE FOUND. No `setattr`, no monkeypatch, and no assignment of the form
+          `exp_icinv.<frozen name> = ...` anywhere under harness/.
+          harness/run_blocknull.py imports the frozen module read-only
+          (`from . import exp_icinv as ex`). Byte-identity of a file does not by
+          itself exclude runtime rebinding, so this was checked separately.
+      receipt_hashes_independently_reproduced:
+        result: 11/11
+        method: >-
+          The receipt's normalisation is documented in run_blocknull.py: both
+          sides are `.strip()`ed before hashing, because inspect.getsource keeps
+          the trailing newline and ast.get_source_segment does not. Applying it,
+          sha256(inspect.getsource(fn).strip())[:16] on the working tree
+          reproduces all 11 `live=` values, and
+          sha256(ast.get_source_segment(approval_blob,fn).strip())[:16]
+          reproduces all 11 `base=` values. Without the documented normalisation
+          NONE of the 11 reproduce, so a reviewer who hashes naively will see a
+          spurious mismatch; the normalisation is disclosed in the module but not
+          in frozen_function_diff.txt itself.
+      d1_disclosure_corroborated: >-
+        The report's deviation D1 says the superseded RUN-INSTR-85b102-gates
+        emitted a receipt reporting 11/11 frozen functions CHANGED on a
+        newline-normalisation artifact. Independently confirmed: that run's
+        frozen_function_diff.txt contains ZERO 'UNCHANGED' rows while all twelve
+        other run receipts contain eleven. The disclosure is accurate and the
+        defective run is preserved, not deleted.
+      deciding_number: >-
+        11/11 frozen functions AST-identical (code-only and with-docstring),
+        whole-module AST identical, 15/15 behavioural outputs bitwise identical
+        across revisions, and 4/4 frozen files carrying the approval commit's
+        blob id at all 13 run commits. The immutability constraint HOLDS. The
+        four committed runs that depend on these functions are not undermined by
+        this contract's implementation.
+      caveat: >-
+        This establishes that the eleven functions did not change between the
+        approval commit and the runs. It does NOT establish that the committed
+        pre-existing behaviour is correct - the campaign's own CORR-20260807-a05e1e
+        and CORR-20260807-9f83be record that `_targets` is confounded and that
+        `targets_uniform` was itself corrected. Frozen means unchanged, not sound.
+
+  # ======================================================================
+  # C3 - null-object and size calibration
+  # ======================================================================
+  control_checks:
+    - check_id: C3
+      name: CTRL-NULLOBJ and CTRL-SIZE0 against the exact two-sided 99% Binomial(200,0.05) interval
+      verdict: passed_with_findings
+      part_a_exact_interval:
+        question: >-
+          Adjudicate the contract's guide "roughly 3 to 18" against the run's
+          claimed exact computation [3, 19].
+        my_independent_computation: >-
+          Exact binomial pmf/cdf for n=200, p0=1/20 in EXACT RATIONAL arithmetic
+          (fractions.Fraction with math.comb), no floating point and no scipy.
+        my_result: [3, 19]
+        robust_across_conventions: >-
+          [3,19] under ALL THREE standard conventions: the equal-tailed
+          acceptance region with strict inequality {k : P(X<=k) > 0.005 and
+          P(X>=k) > 0.005}; the same with non-strict inequality; and the
+          (0.005, 0.995) quantile pair.
+        deciding_numbers:
+          P_X_le_2: 0.00233629      # < 0.005, so 2 is outside
+          P_X_le_3: 0.00904838      # > 0.005, so 3 is the lower endpoint
+          P_X_ge_19: 0.00582356     # > 0.005, so 19 is INSIDE
+          P_X_ge_20: 0.00266458     # < 0.005, so 20 is outside
+          coverage_of_3_to_19: 0.99499913
+          coverage_of_3_to_18: 0.99184015
+          normal_approximation: 10 +- 2.5758*sqrt(9.5) = [2.0608, 17.9392]
+        adjudication: >-
+          THE RUN IS RIGHT AND THE CONTRACT'S GUIDE IS THE APPROXIMATION.
+          P(X>=19) = 0.00582 exceeds alpha/2 = 0.005, so 19 cannot be excluded
+          from an exact equal-tailed 99% region; [3,18] has an upper tail of
+          0.00582 and is therefore not a 99% equal-tailed region at all. The
+          contract itself labelled "roughly 3 to 18" a NORMAL-APPROXIMATION GUIDE
+          and made the binding requirement "the exact two-sided 99%
+          Binomial(200, 0.05) interval, computed and reported by the Executor",
+          so the executor followed the binding text. The definition string
+          recorded in controls.json ("{k : P(X<=k) > alpha/2 and P(X>=k) >
+          alpha/2}, exact binomial, no normal approximation") is the convention I
+          independently confirm.
+        permissiveness_audit: >-
+          [3,19] is WIDER at the top than the contract's guide [3,18], so it is
+          the more permissive choice and could in principle admit a cell the
+          guide would reject. It does not: the largest CTRL-NULLOBJ count
+          anywhere is 18 (POOL_A R0_FREE) and the largest CTRL-SIZE0 count
+          anywhere is 15 (POOL_C R1_TWIST). ZERO cells sit at 19. Every
+          non-degenerate verdict in the run is therefore unchanged under [3,18],
+          under [2,18], and under [3,19]. The discrepancy is real but moot.
+      part_b_cell_recount:
+        method: >-
+          Recounted directly from the four operative controls.json artifacts
+          (poolA-c, poolB-b, poolC, poolD), 7 rungs x 4 pools, using my own
+          interval [3,19] and the per-cell `degenerate` / `forced_by_degeneracy`
+          flags, not the report's prose.
+        ctrl_nullobj:
+          cells: 28
+          inside_interval: 28
+          run_claim: 28 of 28
+          verdict: CLAIM CONFIRMED EXACTLY
+          note: >-
+            CTRL-NULLOBJ is a live (non-forced) test at every rung including the
+            degenerate ones, because the blocking is computed from the curve's
+            TRUE N while the labels are synthetic, so the within-block
+            permutation is not the identity even at R5_PERCLASS. The tightest
+            cell is POOL_C R5_PERCLASS at exactly 3, the lower endpoint - inside
+            under the inclusive convention the artifact declares.
+        ctrl_size0:
+          run_claim: 16 of 16 non-degenerate cells inside, 12 of 12 degenerate cells at exactly 0
+          my_count: 17 of 17 non-degenerate cells inside, 11 of 11 degenerate cells at exactly 0
+          verdict: THE RUN MISCOUNTS THE SPLIT BY ONE, IN THE CONSERVATIVE DIRECTION
+          finding: >-
+            The execution report's section 8 summary says CTRL-SIZE0 is
+            calibrated at "every non-degenerate rung of every pool (16 of 16)"
+            and forced to zero at "every degenerate rung (12 of 12)". Counted
+            from controls.json the true split is 17 non-degenerate and 11
+            degenerate. The total 28 is right, and all 17 non-degenerate cells
+            ARE inside [3,19] and all 11 degenerate cells ARE exactly 0, so the
+            substantive claim holds for one MORE cell than the report claims.
+          the_miscounted_cell: >-
+            POOL_B R6_TWIST_AND_NBAND_w2. controls.json records it
+            `degenerate: false`, `forced_by_degeneracy: false`, 8 rejections,
+            inside the interval - and the report's OWN POOL_B table shows it
+            non-degenerate with Delta_max 4, 11 blocks, nuisance budget 0.586,
+            calibrated, power@0.8 = 1.000, delta* = 0.4. The summary paragraph
+            evidently treated R6 as degenerate at all four pools, which is true
+            at POOL_A, POOL_C and POOL_D but false at POOL_B. The report is
+            internally inconsistent with itself and with its own artifact.
+          admissibility_consequence: >-
+            NONE ADVERSE. The error understates the number of calibrated
+            non-degenerate cells; it does not admit an uncalibrated rung. No
+            non-degenerate rung anywhere in the study is outside [3,19], so the
+            contract's stopping rule "no result may be reported from a rung whose
+            size is not calibrated" is not violated at any rung that reports a
+            result.
+        degenerate_rungs_literal_status:
+          fact: >-
+            The 11 degenerate cells return exactly 0 rejections, which is
+            LITERALLY outside [3,19]. controls.json names them in its own
+            `uncalibrated_rungs` list (POOL_A: R3,R4,R5,R6; POOL_B: R4,R5;
+            POOL_C: R5,R6; POOL_D: R4,R5,R6 - eleven, matching my count and NOT
+            the report's twelve).
+          adjudication: >-
+            Defensible and correctly disclosed. At a degenerate rung the
+            within-block label permutation is the identity, so p_lower is exactly
+            1.0 in every replicate and 0 rejections is forced by construction,
+            not a calibration failure. The contract's own `degeneracy_rule`
+            excludes degenerate rungs from "the finest non-degenerate rung"
+            wherever a criterion uses that phrase. I verified that no operative
+            result is drawn from a degenerate rung: SC8 uses POOL_A R2, POOL_B
+            R3, POOL_C R4, POOL_D R3 and P8 uses POOL_B R3 and POOL_D R3 - all
+            five are non-degenerate and all five are inside [3,19]. The executor
+            reported the literal "outside the interval" fact beside its cause
+            rather than suppressing it, which is the correct handling.
+      internal_consistency_checks_i_ran:
+        - realized_size == rejections/replicates in 56/56 cells
+        - CTRL_SIZE0 rejections == CTRL_POWER delta=0 rejections in 28/28 cells, as the contract requires ("CTRL-SIZE0 is the delta=0 row of CTRL-POWER")
+        - every cell records replicates = 200 and level = 0.05; no replicate reduction anywhere
+        - control B = 1000 at every cell, consistent with deviation D12
+        - nullobj_functional = full_liftable at all four pools, consistent with deviation D9
+        - power@0.8 = 1.0 at all 17 non-degenerate cells and 0.0 at all 11 degenerate cells
+      not_verified:
+        - >-
+          The rejection COUNTS themselves could not be recomputed from raw
+          per-replicate data: controls.json stores only rejections, realized_size
+          and min/mean/max p_lower per cell, not the 200 per-replicate p_lower
+          values. Recomputation would require re-executing the control study,
+          which writes a new run directory under experiments/ and is therefore
+          outside my write scope. What I verified is the interval, the cell
+          classification, the counting, and cross-artifact consistency - not that
+          the 200 replicate draws were themselves generated as declared.
+      deciding_number: >-
+        Exact interval [3, 19] confirmed in exact rational arithmetic
+        (P(X>=19) = 0.00582 > 0.005 > 0.00266 = P(X>=20)); CTRL-NULLOBJ 28/28
+        inside, claim exact; CTRL-SIZE0 17/17 non-degenerate inside against a
+        claimed 16/16, an off-by-one miscount in the safe direction whose named
+        cell is POOL_B R6_TWIST_AND_NBAND_w2.
+
+  # ======================================================================
+  # C4 - the pre-registered contradiction of IDEA-20260807-34754f
+  # ======================================================================
+  preregistration_checks:
+    - check_id: C4
+      name: twist blocking moves the variance ratio ~7% and leaves p at the floor; POOL_D sign reversal
+      verdict: passed_with_findings
+      method: >-
+        Two independent layers. (i) An EXACT RATIONAL re-derivation of the
+        POOL-A closed-form null means at R0_FREE and R1_TWIST from the committed
+        per-curve data of RUN-ICINV-p4001-a alone - the same inputs the contract
+        used before any run - by forming Y = (N-1+z)/2 per curve, pooling the
+        twist blocks {30,-30} (276 curves) and {18,-18} (196 curves), and
+        computing E[T_unw | B] = mean over the four classes of its block's
+        (n_beta-1)-denominator sample variance. (ii) Recomputation of the ratio
+        movement and p-values from the four operative results.json ladder cells,
+        on BOTH ratio bases (closed-form and empirical Monte-Carlo null mean) and
+        BOTH statistics, rather than accepting the report's single column.
+      layer_1_exact_derivation_poolA:
+        S2_block_30_minus30: 226.0686166008    # 276 curves
+        S2_block_18_minus18: 81.6615384615     # 196 curves
+        T_obs_unweighted: 0.24938572928901642
+        E_T_pi_R0_FREE_exact: 165.8028716398575
+        E_T_pi_R1_TWIST_exact: 153.86507753116447
+        contract_frozen_R0_FREE: 165.8028717
+        contract_frozen_R1_TWIST: 153.8651
+        run_closed_form_R1_TWIST: 153.8650775311645
+        agreement: >-
+          My exact rational value 153.86507753116447 agrees with the run's
+          closed-form 153.8650775311645 to the last printed digit and with the
+          contract's frozen 153.8651 to its stated precision. THE
+          PRE-REGISTERED ARITHMETIC IS ITSELF CORRECT, not merely reproduced -
+          it is rederivable from committed numbers with no floating point.
+        one_over_R_free_exact: 664.8450659649
+        one_over_R_twist_exact: 616.9762719376
+        movement_exact: 7.199992%
+      layer_2_measured:
+        basis_note: >-
+          The execution report's section 11 table uses the CLOSED-FORM null mean
+          for its 1/R columns. I recomputed on both bases; the choice moves the
+          POOL_A movement by 0.006 percentage points and changes no conclusion.
+        POOL_A_full_liftable_unweighted:
+          one_over_R_free_closed_form: 664.8451
+          one_over_R_twist_closed_form: 616.9763
+          movement_closed_form: +7.2000%
+          movement_empirical: +7.1941%
+          report_claim: 7.20%
+          verdict: CONFIRMED
+        POOL_D_full_liftable_unweighted:
+          one_over_R_free_closed_form: 1997.4186
+          one_over_R_twist_closed_form: 2119.3679
+          movement_closed_form: -6.1053%
+          movement_empirical: -6.1072%
+          report_claim: -6.11%
+          verdict: SIGN REVERSAL CONFIRMED - the twist-blocked ratio is SMALLER than the free one at p = 6007
+        POOL_B_movement_unweighted: {closed_form: +28.8397%, empirical: +28.8412%, report_claim: 28.84%, verdict: CONFIRMED}
+        POOL_C_movement_unweighted: {closed_form: +53.5470%, empirical: +53.5141%, report_claim: 53.55%, verdict: CONFIRMED}
+      p_value_at_the_floor:
+        claim: p_lower pinned at 9.999e-05 at R1_TWIST at every pool
+        my_finding: >-
+          CONFIRMED AT EVERY POOL AND BOTH STATISTICS. p_lower =
+          9.999000099990002e-05 in all eight R1_TWIST cells, which is exactly
+          1/(1+B) = 1/10001 = 9.9990000999900015e-05 in double precision, and the
+          raw count r_lower = 0 in every one of them. The raw counts confirm the
+          declared estimator (1 + #{v <= T_obs})/(1 + B) was applied rather than
+          the value being asserted. p_lower is at the same floor at R0_FREE too,
+          so "the p-value stays at the floor" is confirmed as a NON-movement.
+      overall_adjudication: >-
+        THE PRE-REGISTERED CONTRADICTION IS CONFIRMED, NOT OVERSTATED. The
+        contract derived, before any run and from committed numbers, that twist
+        blocking would move the POOL-A variance ratio about 7% and leave the
+        p-value at the resolution floor; the measured movement is 7.20% and the
+        p-value is at the floor at all four pools. IDEA-20260807-34754f's
+        prediction 1 - that the stratified p-value on full-field liftable density
+        would rise above 0.05, honest prior 0.75 - is contradicted at every pool
+        and both primes, with the deciding number p_lower = 9.999e-05 and
+        r_lower = 0. The POOL_D sign reversal is real and out-of-sample.
+      findings:
+        - severity: reportable - column mislabel with a sign consequence
+          where: execution_report.md section 11 table
+          what: >-
+            The table is headed "Measured outcome, on `full_liftable`, unweighted
+            statistic", but its two nuisance-budget columns carry the WEIGHTED
+            `order` values, not unweighted ones. Verified: at POOL_A the weighted
+            `order` null means are 662.163039 (FREE) and 663.823038 (TWIST),
+            change +0.2507%, which is the reported "+0.25%"; the UNWEIGHTED
+            values are 662.187769 and 614.449050, change -7.2092%. At POOL_D the
+            weighted values give +0.3230% (the reported "+0.32%") while the
+            unweighted give +6.1267%. So within one row the ratio and p-value
+            columns are unweighted and the nuisance columns are weighted, and the
+            sign of the POOL_A nuisance change flips between them. Both sets of
+            numbers are individually correct and both are present in
+            results.json; the defect is the header, not the measurement. It
+            brushes the contract's own invalidation rule that comparisons
+            differing in statistic must be reported separately.
+          consequence: >-
+            Does not change any verdict in C4. It does mean a reader taking
+            section 11 at face value will attribute a weighted-statistic nuisance
+            movement to the unweighted statistic. Should be corrected in a
+            superseding record, not by editing the run artifacts.
+        - severity: cosmetic
+          where: execution_report.md section 11, POOL_A row
+          what: >-
+            "1/R FREE 664.845" and "1/R TWIST 616.976" are the closed-form-based
+            ratios; the empirical-null-mean ratios for the same cells are
+            664.8525 and 617.0226. The table does not say which basis it uses.
+            Immaterial (0.006 percentage points on the movement) but undeclared.
+      cross_checks_i_also_ran:
+        - >-
+          The report's explanation that POOL_B and POOL_C move further because
+          they pool traces whose negations are absent is arithmetically
+          consistent with the recorded pools: POOL_B has 5 twist pairs and 2
+          unpaired traces (90, 66); POOL_C has 2 twist pairs and 8 unpaired
+          traces. At POOL_C, R1_TWIST is therefore mostly a singleton partition,
+          which is why its movement (53.5%) is not comparable to POOL_A's.
+          Recorded by the executor as a caveat, correctly.
+        - >-
+          The `order` functional returns T_obs exactly 0.0 at R0_FREE and
+          R1_TWIST at all four pools and both statistics (bitwise 0.0), so the
+          nuisance-budget column is the pure residual within-block variance of N
+          as the contract defines it.
+      in_sample_status: >-
+        The POOL-A numbers are IN-SAMPLE by the contract's own
+        in_sample_disclosure and the run labels P2 IN-SAMPLE. The POOL_D reversal
+        is OUT-OF-SAMPLE. Both labels are correct as recorded.
+      deciding_number: >-
+        POOL_A movement +7.2000% (closed-form basis) against a pre-registered
+        ~7%, with p_lower = 9.999000099990002e-05 = 1/(1+B) and r_lower = 0;
+        POOL_D movement -6.1053%, sign reversed, out-of-sample. The exact
+        rational re-derivation of E[T|R1_TWIST] = 153.86507753116447 from
+        committed data alone confirms the pre-registration was arithmetic, not
+        hindsight.
+
+  # ======================================================================
+  # C5 - the D6 stopping-rule firing at RUN-INSTR-85b102-poolB
+  # ======================================================================
+  implementation_defect_checks:
+    - check_id: C5
+      name: D6 - R5_PERCLASS returned 1/(1+B) instead of exactly 1.0; disposition and repair
+      verdict: passed_with_findings
+      part_a_invalid_record:
+        verdict: CONFIRMED
+        manifest_path: experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB/manifest.yaml
+        recorded_fields:
+          valid: false
+          invalid_reason: >-
+            "R5_PERCLASS returned something other than exactly 1.0, or `order`
+            returned nonzero within-class variance: implementation defect, run
+            invalid rather than negative"
+          certificate: {kind: none, verified: true, verifier: no-claim}
+        finding: >-
+          The disposition is correct and explicit. The invalid_reason names the
+          contract's own stopping rule verbatim and states in its own text that
+          the run is "invalid rather than negative", which is exactly what
+          AGENTS.md rule 5 requires. The run directory is preserved intact, not
+          deleted or re-keyed.
+        symptom_confirmed_from_the_artifact: >-
+          RUN-INSTR-85b102-poolB/results.json contains 36 R5_PERCLASS cells, of
+          which EXACTLY THREE have p_lower != 1.0, and they are exactly the three
+          the report names: POOL_B|sumset_m3|R5_PERCLASS|unweighted,
+          POOL_B|sumset_eff_m3|R5_PERCLASS|unweighted and
+          POOL_B|decomp_rate_m2|R5_PERCLASS|unweighted. All three carry
+          p_lower = 9.999000099990002e-05 = 1/(1+B) with r_lower = 0, and in all
+          three T_obs sits ONE ULP BELOW a null that is a bitwise point mass -
+          e.g. sumset_m3 T_obs = 12135.777134392361 against
+          null_min = null_max = 12135.777134392365. That is the exact signature
+          of a summation-order difference, not of a statistical effect.
+        minor_note: >-
+          manifest `status` is `completed` while `valid` is false. That is the
+          committed harness/runner.py schema (validity is carried in
+          valid/invalid_reason, which is what AGENTS.md's artifact policy asks
+          for), and it is consistent across all 13 runs. Recorded so a reader
+          does not read `status: completed` as `usable`.
+      part_b_not_used_operationally:
+        verdict: CONFIRMED
+        evidence:
+          - >-
+            Zero exact-token references to "RUN-INSTR-85b102-poolB" (regex
+            excluding the "-b" successor) in any file of any of the six operative
+            run directories: gates-b, poolA-c, poolB-b, poolC, poolD,
+            scorecard-d.
+          - >-
+            The operative S6 emission RUN-INSTR-85b102-scorecard-d records its
+            input binding explicitly in manifest inputs.parameters.pool_run_ids:
+            POOL_A -> poolA-c, POOL_B -> poolB-b, POOL_C -> poolC,
+            POOL_D -> poolD, gates_run -> gates-b. The invalid run is not among
+            them.
+          - >-
+            The four references to the invalid run in execution_report.md are all
+            disclosure (run inventory row, dirty-tree list, deviation D6,
+            artifact-path list), never a source of a number.
+      part_c_repair_actually_fixes_the_symptom:
+        verdict: MECHANISM REPRODUCED AND REPAIR VERIFIED; EXACT ROOT-CAUSE ATTRIBUTION ONLY PARTLY CONFIRMED
+        what_i_did: >-
+          Loaded the invalid run's own per_curve.csv (1152 curves, POOL_B), built
+          the shipped _Layout for the R5_PERCLASS blocking (labels = trace,
+          blocks = trace), and ran the statistics kernel with the final
+          class-sum reverted to the pre-repair form `SS[:, ge2].sum(axis=1)`
+          against the shipped repair (explicit column-by-column accumulation),
+          at 1 row and at the module's real chunk size (CHUNK_ELEMENTS = 2400000,
+          _chunk_size(10000, 1152) = 2083 rows).
+        defect_reproduced:
+          functional: sumset_m3, unweighted, R5_PERCLASS - the first of the three named cells
+          one_row_value: 12135.777134392365
+          multi_row_value: 12135.777134392361
+          difference: 3.64e-12, exactly one ulp at that magnitude
+          rows_at_which_it_appears: 2, 4, 8, 16, 64, 256, 1024, 2083 - i.e. every row count above one
+          conclusion: >-
+            THE STATED MECHANISM IS REAL. A one-ulp, row-count-dependent value
+            for the within-class sum is reproducible in the current index
+            machinery the moment the final reduction is `.sum(axis=1)` over a
+            reduceat output, on the exact functional and rung that fired the
+            stopping rule.
+        repair_verified:
+          result: >-
+            With the shipped explicit column accumulation, sumset_m3's unweighted
+            statistic is 12135.777134392361 at 1 row, at 8 rows and at 2083 rows
+            - BITWISE IDENTICAL. The same holds for sumset_eff_m3,
+            decomp_rate_m2, sumset_m2, full_liftable and two_torsion_x. The
+            repair removes the row-count dependence.
+        self_check_adequacy:
+          question: >-
+            The shipped `observed_shape_invariance` compares 1 row against only
+            8 rows, while the defect appeared against a 2083-row chunk. Is 8
+            enough?
+          answer: >-
+            YES, VERIFIED BY EXPERIMENT. Under the defective kernel the value
+            diverges from the 1-row value at 2 rows already and stays diverged at
+            every larger row count including 2083. A 1-vs-8 comparison would have
+            caught this defect. The self-check is adequate for this failure mode.
+        delivered_artifacts_pass_the_forced_value_check:
+          R5_PERCLASS_cells_across_the_four_operative_runs: 144
+          p_lower_bitwise_equal_to_1.0: 144
+          violations: none
+          shape_invariance_checks_present: 1008
+          shape_invariance_checks_passing: 1008
+          order_cells: 56
+          order_T_obs_bitwise_equal_to_0.0: 56
+          note: >-
+            This independently confirms the report's P4 p-hat sub-clause
+            ("p_lower bitwise 1.0 in 144/144 cells, 4 pools x 18 functionals x 2
+            statistics") and the tail checks for `order`. Recomputed from
+            results.json, bitwise, not read from the report.
+        finding_root_cause_is_under_determined:
+          severity: reportable
+          what: >-
+            I could NOT reproduce the exact recorded ulp pair. The invalid run
+            recorded T_obs = 12135.777134392361 and null = 12135.777134392365 for
+            sumset_m3; my reproduction of the named defect gives the opposite
+            assignment (1-row = ...365, multi-row = ...361), which would have
+            driven p_lower to exactly 1.0 rather than to the floor. And for the
+            other two named functionals - sumset_eff_m3 and decomp_rate_m2 - NONE
+            of four kernel variants I tried (per-class sort on/off x final
+            reduction sum/loop) produces any row-count-dependent difference at
+            all, although both recorded a one-ulp T_obs/null gap. For
+            decomp_rate_m2 the recorded T_obs (0.00091840748712636539) matches
+            neither the vectorized nor the definitional path as they stand today.
+          why_it_cannot_be_settled: >-
+            RUN-INSTR-85b102-poolB was executed from a DIRTY TREE
+            (commit 9591caac, code.dirty: true), so the exact source that
+            produced the defect is not in git and is unrecoverable. This is the
+            same reproducibility gap the executor itself discloses as D17 for the
+            scorecard runs, and it applies here with more force because here the
+            uncommitted code is the object of the root-cause claim.
+          consequence: >-
+            The report states the root cause as settled fact ("Root cause,
+            entirely in the new module: _Layout.statistics ended with
+            SS[:, ge2].sum(axis=1); np.add.reduceat returns an array whose
+            contiguity depends on the row count ..."). On the surviving evidence
+            that is CORROBORATED FOR ONE of the three affected cells and NOT
+            INDEPENDENTLY CONFIRMED for the other two; a second contributing
+            difference (most plausibly whether the per-class sort of D13 was
+            present in the observed path, which by itself moves the last bit of
+            all three functionals) cannot be excluded. This does NOT weaken the
+            disposition - the run is invalid either way and is unused - and it
+            does NOT weaken the repair, which is verified directly on the
+            delivered artifacts. It weakens only the narrative certainty of the
+            root-cause attribution, and it should be stated as corroborated
+            rather than established.
+      deciding_number: >-
+        Three offending cells in the invalid run, all p_lower = 9.999e-05 with
+        r_lower = 0 and a one-ulp T_obs/null gap; the named mechanism reproduced
+        on sumset_m3 as a one-ulp divergence appearing at 2 rows and persisting
+        at 2083; the repair giving bitwise-identical values at 1, 8 and 2083
+        rows; and 144/144 R5_PERCLASS cells plus 1008/1008 shape-invariance
+        checks passing bitwise in the four operative runs.
+
+  # ======================================================================
+  # blocks required by agents/validator.md that do not apply here
+  # ======================================================================
+  heuristic_validation_checks:
+    - status: not_applicable_to_this_narrow_scope
+      note: >-
+        The contract sets `heuristic_under_test: null` deliberately and bears on
+        HEUR-INSTR-1 and HEUR-INSTR-2 jointly. HEUR-INSTR-1 is exercised through
+        CTRL-NULLOBJ and CTRL-SIZE0, whose calibration I did check under C3;
+        HEUR-INSTR-2 is exercised through CTRL-TWIST, which is OUTSIDE my five
+        checks and is NOT verified here. No Dickman-style distributional
+        prediction, no correspondence sampler and no substitute-sampling claim
+        appears in this contract - the classes are completely enumerated and the
+        contract states the non-applicability explicitly rather than omitting it.
+  cost_model_checks:
+    - status: not_applicable
+      note: >-
+        The contract declares tier TOY, sota_delta zero on every axis, and makes
+        no cost, exponent, speedup or scale claim. There is no cost table to
+        audit for unit honesty and no per-attempt-cost x inverse-success-
+        probability bookkeeping to check, because nothing here claims a success
+        probability. I confirmed only that the run's own scope statement asserts
+        no more than this; I did not audit the resource records, which are
+        outside my five checks.
+  proof_architecture_checks:
+    - status: not_applicable
+      note: >-
+        This is an instrument characterisation, not a proof-oriented proposal
+        under docs/inventor-protocol.md section 8. No proof_search_map is at
+        issue and none was checked.
+
+  # ======================================================================
+  # verdict
+  # ======================================================================
+  per_check_verdicts:
+    C1_s1_arithmetic_gate: passed
+    C2_frozen_function_immutability: passed
+    C3_nullobject_and_size_calibration: passed_with_findings
+    C4_preregistered_contradiction: passed_with_findings
+    C5_d6_stopping_rule: passed_with_findings
+  verdict: passed_with_findings
+  verdict_in_role_contract_vocabulary: passed
+  verdict_statement: >-
+    All five checks were reached and completed. Every deciding number the
+    dispatch named reproduces under independent re-execution, structural
+    diffing or full-precision recomputation. Three findings are recorded, none
+    of which reverses a check: an off-by-one cell miscount in the execution
+    report's size-calibration summary, in the conservative direction; a
+    statistic mislabel in the report's twist-blocking table whose nuisance
+    columns are weighted under an "unweighted statistic" header; and a
+    root-cause attribution for the D6 defect that is corroborated for one of
+    three affected cells rather than established for all three, because the
+    defective source was run from a dirty tree and is unrecoverable. The five
+    receipts are admissible within the scope checked.
+
+  # ======================================================================
+  # what this report does NOT do, and what it did not check
+  # ======================================================================
+  limitations:
+    authority_limits:
+      - This report changes no research status, writes no evidence record, and edits no raw artifact.
+      - >-
+        A passing report makes these five receipts ADMISSIBLE. It does NOT
+        support an ECDLP claim, does NOT demonstrate a speedup, does NOT
+        establish that NULL-C should be replaced or that it should be retained,
+        and does NOT authorize promotion or closure of GOAL-ENDO-001 or of any
+        hypothesis. Tier remains TOY and sota_delta remains zero on every axis.
+      - >-
+        C1 passing means the cheap arithmetic refutation of the "committed 664x
+        is the group order" diagnosis did not fire. That is the ABSENCE of a
+        refutation, not evidence for the diagnosis.
+      - >-
+        C2 passing means the eleven functions did not CHANGE. It does not mean
+        their behaviour is correct; CORR-20260807-a05e1e and CORR-20260807-9f83be
+        record that two of them were defective and one is still confounded.
+    not_checked:
+      - >-
+        THE CANONICAL ARTIFACT TELL WAS NOT CHECKED. docs/inventor-protocol.md
+        section 3 makes the decay of a quantity against the parameter meant to
+        destroy it the deciding test, and this contract's own
+        `what_non_decay_means` says so. The run reports NON-MONOTONE ratio
+        verdicts in 17/36 cells at POOL_A, 18/36 at POOL_B, 23/36 at POOL_C and
+        16/36 at POOL_D along the N ladder, and attributes most of them to Monte
+        Carlo noise near R = 1. I did not verify a single one of those counts,
+        the CTRL-NSURR surrogate curves they are read against, or the
+        attribution. This is the largest unchecked item and it is the one most
+        likely to matter.
+      - S0 pool freeze, class_census completeness at either prime, and the realized pool tables.
+      - S2 committed-fixture reproduction (all 11 fixtures) - only the two S1 fixtures were recomputed.
+      - S3 measurement - the per-curve functional values, CTRL-TWIST, and the liftable-count identity counts.
+      - CTRL-NSURR entirely, including whether the ESTIMATED slopes and their standard errors are right.
+      - CTRL-POWER beyond the delta=0 row - the power curves, delta*, and the two_class_block flagging.
+      - Whether the 200 replicate draws of any control were generated as the declared seed rule specifies; controls.json stores no per-replicate p-values, and re-running writes outside my write scope.
+      - The determinism_requirement (bit-for-bit reproduction of any arm from its declared tuple) - not exercised.
+      - Budget, timing, throughput and resource records, including the claimed 28000 permutations/second and the 0.97 CPU-hour total.
+      - Deviations D2-D5 and D7-D17 individually, except where they intersected C1-C5.
+      - SC1-SC8 as success criteria, and the P1-P8 scorecard other than P1, P2 and P4's p-hat sub-clause.
+      - The contract's own approval provenance and whether the user authorization it records actually occurred.
+      - Whether harness/run_blocknull.py implements the declared blocking, statistics and permutation semantics correctly in general; I exercised only _Layout.statistics and the frozen-function boundary.
+    method_limits:
+      - >-
+        For C5(c) I reconstructed a candidate pre-repair kernel because the real
+        one is unrecoverable. A reconstruction that reproduces the mechanism is
+        not proof that the reconstruction is what ran.
+      - >-
+        For C3 I verified the interval, the classification and the counting, not
+        the underlying draws.
+
+  artifact_paths:
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/reviews/validator-instr/validation_report.yaml
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/specification.yaml
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/execution/EXP-INSTR-85b102/execution_report.md
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-gates-b/raw-result.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-gates-b/frozen_function_diff.txt
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolA-c/results.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolA-c/controls.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB-b/results.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB-b/controls.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolC/controls.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolD/controls.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB/manifest.yaml
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB/results.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB/per_curve.csv
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-scorecard-d/prediction_scorecard.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-ICINV-180a0d/runs/RUN-ICINV-p4001-a/raw-result.json
+    - /home/user/crypto-autoresearcher/harness/exp_icinv.py
+    - /home/user/crypto-autoresearcher/harness/run_blocknull.py
+
+  handoff_note: >-
+    This report is written under the assigned write_scope only. It has NOT been
+    committed - the Validator does not commit in a shared worktree. Hand this
+    path to the Coordinator's ledger archive task for a durable commit.

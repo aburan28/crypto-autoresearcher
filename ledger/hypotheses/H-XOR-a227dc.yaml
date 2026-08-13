@@ -1,0 +1,185 @@
+hypothesis:
+  id: H-XOR-a227dc
+  question_id: RQ-ECDLP-002
+  proposal_source: >-
+    coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md
+    (the DEC-20260808-6a7ac4-mandated successor to the rejected H-XOR-d1a480;
+    see also ledger/evidence/EV-ECDLP-65b004.yaml).
+  statement: >-
+    Under a charged cost model (one field operation = one E.add as performed
+    by the frozen harness.toycurve add), the x-oracle-guided MITM arm reaches
+    the complete relation set with strictly fewer field operations than
+    exhaustive search and strictly fewer than a random-null MITM:
+    C_A > C_D > C_B per cell, where C is total field additions as counted by
+    the implementation.
+  mechanism: >-
+    Three arms run over the frozen machinery (factor base F of size
+    B = floor(p^b), complete MITM over the same pairs, m=3). Arm A enumerates
+    all |F|^3 triples at 2 adds each (lhs add + rhs add), so C_A ~ 2|F|^3 and
+    R_A = relations (triples summing to O). Arm B builds the right-half table
+    with |F|^2 adds, then for each left element performs one query; when the
+    query x matches x(P2+P3) of the table it verifies the candidate with 2
+    adds. With exact lookups over the same element set every relation triple
+    is found exactly once and no uninformative candidates are examined beyond
+    the genuine-match bucket, so C_B ~ |F|^2 + 2*R_B and R_B = R_A exactly.
+    Arm D (true null) uses the same table and the same query count Q, but
+    query values are drawn uniformly at random from F_p, so it verifies a
+    candidate only when a random value happens to collide with a table bucket
+    (chance level, expected ~ Q * (|distinct table keys| / p) * avg bucket
+    size); C_D ~ |F|^2 + 2*(#chance collisions). The charged unit is one
+    field operation = one E.add evaluation as performed by the frozen
+    harness.toycurve add; hash-table probing is excluded from the primary
+    charge (conservative for the oracle) and measured in secondary meters.
+    The oracle query itself is a free attribute accessor (the x-coordinate of
+    the stored element), so the genuine cost contrast lives in the
+    candidate-verification count, not the query value.
+  assumptions:
+    - >-
+      The charged unit is implementation-defined: one field operation = one
+      E.add as performed by the frozen harness.toycurve add. The claim is
+      about this unit only.
+    - >-
+      The oracle query is a free attribute accessor (x-coordinate of the
+      stored element), not a charged query; hash-table probing is excluded
+      from the primary charge and reported in secondary meters.
+    - >-
+      |F| counts the point entries in the implementation's points list
+      (approximately 2x the x-base size, since each x lifts to two points
+      mod +-1), identical to the frozen EXP-SEMAEV-f48dd1 machinery.
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical cost-model measurement hypothesis at toy scale; not a
+      proof, asymptotic bound, or closure argument.
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients: []
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: C_B vs C_D per cell (field adds)
+      direction: lower
+      minimum_effect: C_B < C_D in every cell (strict)
+    - metric: C_D vs C_A per cell (field adds)
+      direction: lower
+      minimum_effect: C_D < C_A in every cell (strict)
+    - metric: R_A = R_B >= R_D per cell (relation counts)
+      direction: different
+      minimum_effect: R_A = R_B exactly; R_D/R_B < 0.95 at B-equal query count
+  test_boundary:
+    instances:
+      - m=3, primes {101, 103, 107, 211}, b in {0.4, 0.5}, seeds 1-5
+    parameters:
+      claim_tier: toy
+      field_bits: 7-8
+      curve_rule: >-
+        Deterministic first nonsingular curve with 2m-1 = 5 point of order
+        >= 5, exactly harness.toycurve calls (identical to EXP-SEMAEV-f48dd1).
+      factor_base_rule: >-
+        Identical to EXP-SEMAEV-f48dd1: B = floor(p^b) x-coordinates,
+        deterministic selection of the first B on-curve x-coordinates in
+        [0, p) in increasing order.
+    implementation: >-
+      Implementation blob byte-identical to the frozen blob at its archived
+      sha256 (CTRL-BLOB gate); no reimplementation.
+    budget:
+      total_wall_clock_seconds: 3600
+      maximum_runs: 120
+  falsification_conditions:
+    - >-
+      F1: in any cell C_B >= C_A -> the oracle+MITM does not beat exhaustive
+      search in the charged model -> scoped rejection of this hypothesis.
+    - >-
+      F2: in any cell C_B >= C_D -> MITM structure alone reaches the same
+      point cheaper or equally; the oracle is the wrong carrier of the
+      benefit -> scoped rejection (close the lane with the honest
+      structure-vs-information breakdown).
+    - >-
+      F3: R_D/R_B >= 0.95 at the B-equal query count -> the null arm is not
+      discriminative; the oracle provides no information (near-null
+      convergence).
+  interpretation_limits:
+    - >-
+      Toy-scale only (m=3, 7-8 bit prime fields); no claim about
+      cryptographic-scale parameters and no crypto-scale extrapolation
+      (AGENTS.md rule 7).
+    - >-
+      The cost model is implementation-defined (one E.add as performed by the
+      frozen harness.toycurve add); a different cost unit could reorder the
+      arms.
+    - >-
+      Any subsequent "speedup" or operator derived from this run MUST be
+      defined as (C_A - C_B)/C_A under the declared accounting, live-operated,
+      with spread +/- measurement noise at n=8; toy amplitude only.
+    - >-
+      Y_A = Y_B is mechanical (structural) for any complete MITM with exact
+      lookups over the same factor base; the A-vs-B yield equality is a
+      machinery control (CTRL-YIELD-REF), not a new finding.
+  status: weakened
+  proposed_by: coordinator
+  status_note: >-
+    Current status: weakened, per DEC-20260809-5e91ac (a scoped weakening,
+    not a rejection -- see that decision's the_tension_and_how_it_is_resolved
+    block for why reject_scoped was withheld despite a derivation-tier
+    refutation artifact). Full transition history, including the original
+    proposed -> approved narrative, is in status_history below.
+  status_history:
+    - status: proposed
+      note: >-
+        Retroactively recorded. Proposed by the Coordinator from the design
+        draft coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/
+        TASK-20260808-8bff69/design_draft.md, the DEC-20260808-6a7ac4-
+        mandated cost-question successor to the rejected H-XOR-d1a480.
+    - status: approved
+      note: >-
+        PROMOTED proposed -> approved 2026-08-08 at the /design-experiment
+        approval gate (user-approved, Coordinator-frozen contract
+        EXP-XOR-7267e4). approved carried no evidential standing: it named
+        the contract whose test was authorized, exactly as H-XOR-d1a480's
+        predecessor convention records. Drafted by the Coordinator from the
+        design draft TASK-20260808-8bff69 (BATCH-bd36fe). Status was
+        approved in the contractual sense only; the switch to running
+        happened on Executor dispatch.
+    - status: running
+      note: >-
+        Executor dispatch via TASK-20260808-e6022f produced
+        RUN-XOR-7267e4-grid (2026-08-09), reaching 4 of 8 pre-registered
+        (p,b) cells (60 of 120 planned arm-runs) before the frozen
+        contract's own early-exit stopping rule triggered (F2 firing in
+        >= 2 of the first 4 cells; measured 4 of 4). A deliberate,
+        in-protocol partial completion, not a failure (AGENTS.md rule 5).
+    - status: analyzed
+      note: >-
+        This /review-evidence pass (2026-08-09): independent re-verification
+        of RUN-XOR-7267e4-grid directly from raw-result.json, a code-grounded
+        derivation for the measured candidates_verified_B=2*R_B pattern, and
+        the evidence record EV-XOR-d84f2b. See that record's observations/
+        inference/boundaries for the full analysis (experiments/EXP-XOR-7267e4/
+        analysis.md does not yet exist as a committed file; see
+        EV-XOR-d84f2b's proof_refs and DEC-20260809-5e91ac's limitations for
+        why, and the open action to create it).
+    - status: weakened
+      note: >-
+        Per DEC-20260809-5e91ac (decision: weaken), committed in the same
+        batch as this update. F2 (C_B >= C_D) fired in all 4 reached cells,
+        uniformly and by a wide margin (41%-45%), with a checkable,
+        code-grounded derivation for the mechanism (x-only hash key
+        colliding with the curve's +/-y involution, forcing a guaranteed
+        companion false-positive verification per genuine relation) -- real,
+        substantial damage to the central prediction (C_B<C_D). Held short
+        of reject_scoped because: only 4 of 8 pre-registered cells were
+        reached (the pre-registered tail check at the largest cell is
+        unresolved, at near-zero marginal cost to complete); the derivation
+        explains the mechanism generally but the C_B>C_D inequality itself
+        still rests on the measured relation density of the tested cells,
+        not a closed-form guarantee across untested parameters; and
+        specification.yaml's own mandatory reviewer+validator+red-team
+        passes for "the first charged-cost artifact in this lane" have not
+        yet occurred. The oracle's informational premise (R_D/R_B far below
+        the F3 near-null threshold) is confirmed, not contradicted -- the
+        cost translation specifically is what fails, for an identified
+        reason. Not a rejection of RQ-ECDLP-002, GOAL-ECDLP-001, or the
+        x-oracle mechanism generally; see DEC-20260809-5e91ac for the full
+        scope statement and next actions (complete the remaining 4 cells
+        under a protocol amendment; dispatch the mandatory independent
+        review).

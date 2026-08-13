@@ -1,0 +1,400 @@
+{
+  "schema": "crypto.autoresearch.dispatch_queue.v1",
+  "goal_id": "GOAL-HQC-001",
+  "batch_id": "BATCH-a5c525",
+  "objective": "Feasibility and cost analysis ONLY (no experiment execution authorized) for a real-sampler defect-injection experiment against EXP-HQC-982268's actual (T)-distribution generation path, per DEC-20260806-0995d5's next_action. The control-arm sub-line (V1, V2, V3) is closed; both reviewers converged that only a real-sampler test can further inform OPEN-6. This batch answers, with a grounded cost model rather than an estimate, whether such a test is affordable at any reasonable budget before the Coordinator commits campaign resources to it.",
+  "max_concurrent": 3,
+  "tasks": [
+    {
+      "id": "TASK-20260806-77443e",
+      "role": "executor",
+      "state": "queued",
+      "priority": 1,
+      "depends_on": [],
+      "review_required": true,
+      "title": "Cost model: real (T)-sampler defect-injection feasibility at HQC's reduced and standardized parameter sets",
+      "read_scope": [
+        "experiments/EXP-HQC-982268/specification.yaml",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/reviews/TASK-20260806-7008de/red_team_report.md",
+        "ledger/evidence/EV-HQC-163374.yaml",
+        "ledger/decisions/DEC-20260806-0995d5.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/cost_model.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/benchmark.py",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/benchmark_results.json",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/run_manifest.yaml"
+      ],
+      "budget": {
+        "wall_clock_seconds": 1800,
+        "runs_authorized": 1,
+        "core_seconds": 600
+      },
+      "handoff": {
+        "id": "TASK-20260806-77443e",
+        "from": "coordinator",
+        "to": "executor",
+        "objective": "Produce a grounded, benchmark-backed cost model for a real-sampler defect-injection experiment: inject the SAME boundary-index-shift defect class (V1/V3: off-by-one truncation, last-block-window-read-early) that all three control arms tested, but into stage_a.py's ACTUAL generation path -- CTRStream, fixed_weight_support (Floyd's algorithm), ring_mul_sparse/dense, decode_blocks -- running genuine (T)-distributed HQC-shaped instances through it, then measure whether measure.py's own joint-moment estimator detects the defect. DO NOT RUN THE FULL EXPERIMENT. Produce the cost model and a small empirical benchmark that grounds it.",
+        "uncertainty_reduced": "Whether a real-sampler defect-injection experiment is affordable within GOAL-HQC-001's remaining campaign budget (total_wall_clock_seconds: 10800, with roughly 6,500 seconds already drawn across BATCH-001 through BATCH-f8050e -- state your own precise running total from the goal record's batch_checkpoints rather than trusting this approximation) at any parameter set that would produce a statistically meaningful result, BEFORE the Coordinator commits to dispatching it.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py (CTRStream at line 171, fixed_weight_support at line 206 -- Floyd's algorithm, O(w) sequential SHA-256-backed draws per instance, NOT vectorizable across trials the way V1-V3's block-content generation was; ring_mul_sparse at line 236, decode_blocks at line 286)",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/ (measure.py and its PS-R3 measurement -- the actual parameter sets, T=1e7, and per-trial cost that produced EV-HQC-b71230, for comparison)",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/ (V3's measured natural detection rates, ~10.5 percent / ~20.1 percent -- use these, or the V2-batch Red Team's ~8.8 percent, as the working estimate of what detection-rate magnitude a real-sampler experiment should expect to find, for statistical-power sizing)",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/reviews/TASK-20260806-7008de/red_team_report.md (names the real-sampler path explicitly as the next informative step -- read its exact framing of what such an experiment would need to measure)"
+        ],
+        "constraints": [
+          "THIS IS A COST MODEL AND A SMALL CALIBRATION BENCHMARK, NOT THE EXPERIMENT. Do not sample a full (T)-distributed instance set at PS-R3's T=1e7 scale or anything close to it -- benchmark.py should measure per-instance wall-clock/core-seconds for the real generation path (fixed_weight_support + ring_mul + decode_blocks) at a SMALL sample size (hundreds to low thousands of instances, enough to get a stable per-instance timing estimate with its own uncertainty, not enough to itself constitute a measurement).",
+          "Measure per-instance cost SEPARATELY for each stage (fixed_weight_support sampling, ring multiplication, decode_blocks) so the cost model can show which stage dominates, and whether any admits partial vectorization (e.g. batching independent CTRStream draws, or numpy-izing parts of Floyd's algorithm) without changing its statistical properties.",
+          "State explicitly what defect injection into the real path would look like mechanically: where in the pipeline (CTRStream output, fixed_weight_support's returned indices, ring_mul_sparse's shift-XOR accumulation, or decode_blocks's own reshape) the same off-by-one/last-block-early perturbation would be applied, and confirm this is a small, local code change rather than requiring new machinery.",
+          "Derive the required T for a statistically meaningful defect-injection result at the real sampler's actual HQC-shaped n_e=56/n_2=128/dup=1 parameters, using the ~8.8-20 percent detection-rate range V1-V3 established as the working assumption, with an explicit power/precision target (e.g. a Wilson CI half-width you consider adequate) -- do not assume T=1e7 is required by default; derive it.",
+          "Produce a COST TABLE: (a) at PS-R3's reduced parameters (matching V1-V3's n_e=56 order), what T is achievable within various budget tranches (e.g. 500, 2000, 6500 remaining core-seconds), and (b) at HQC's standardized parameter sets (HQC-128/192/256, reading their n_e/w/n from the specification), what a full-scale real-sampler run would cost, even if wildly outside any affordable budget -- this second figure matters because DEC-20260806-2947ba's ORIGINAL resume-plan item (the extrapolation to standardized parameters) is still queued behind this work, and a real-sampler experiment might be the vehicle that finally supplies it if it is ever affordable.",
+          "GIVE AN EXPLICIT GO / NO-GO / PARTIAL-GO RECOMMENDATION with your reasoning, but do not decide it yourself -- that is the Coordinator's job in the ledger archive. Your job is to make the decision possible with real numbers.",
+          "FAIL-CLOSED as before: any self-integrity check must actually abort on a real mismatch.",
+          "YOU ARE THE EXECUTOR: OBSERVATIONS ONLY. Report the benchmark numbers and the derived cost table. Do NOT conclude anything about A17, HQC's DFR, or any standardized parameter set, and do not make the go/no-go decision. Claim tier stays toy.",
+          "Do not touch experiments/EXP-HQC-982268/specification.yaml, stage_a.py, measure.py, or any other task's directory. Write only under your own task directory. Only one run is authorized -- the calibration benchmark; report it once, honestly."
+        ],
+        "deliverables": [
+          "cost_model.md",
+          "benchmark.py",
+          "benchmark_results.json",
+          "run_manifest.yaml"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/"
+        ],
+        "archived_by": "TASK-20260806-f238a2",
+        "inference": {
+          "policy": "executor-implementation",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "cost_model.md exists with per-stage benchmark numbers, a derived required-T calculation with an explicit power target, and a two-part cost table (reduced-parameter budget tranches; standardized-parameter full-scale figure)",
+          "benchmark.py and benchmark_results.json exist and the benchmark is small (does not itself constitute a measurement)",
+          "An explicit statement of where in the real pipeline the defect injection would be applied",
+          "run_manifest.yaml carries command, git commit and dirty-tree state, environment, seeds, timings, validity status"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-f238a2",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 2,
+      "depends_on": [
+        "TASK-20260806-77443e"
+      ],
+      "review_required": false,
+      "title": "Snapshot the real-sampler cost model before review",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/archives/TASK-20260806-f238a2/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/archives/TASK-20260806-f238a2/snapshot-receipt.json"
+      ],
+      "budget": {
+        "wall_clock_seconds": 900,
+        "runs_authorized": 1
+      },
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260806-77443e"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": [
+          "EXP-HQC-982268"
+        ]
+      },
+      "handoff": {
+        "id": "TASK-20260806-f238a2",
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Freeze the cost-model artifacts before either review is dispatched.",
+        "uncertainty_reduced": "Whether reviewers read artifacts frozen by construction rather than by argument.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/"
+        ],
+        "constraints": [
+          "Runs alone.",
+          "Stage by exact pathspec.",
+          "This commit MUST precede both TASK-20260806-069687 and TASK-20260806-e13ecc."
+        ],
+        "deliverables": [
+          "snapshot-receipt.json"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/archives/TASK-20260806-f238a2/"
+        ],
+        "archived_by": "TASK-20260806-f238a2",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Commit reachable from HEAD with declared parent",
+          "Changes exactly the declared paths",
+          "Hashes match"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-069687",
+      "role": "validator",
+      "state": "queued",
+      "priority": 3,
+      "depends_on": [
+        "TASK-20260806-77443e",
+        "TASK-20260806-f238a2"
+      ],
+      "review_required": false,
+      "title": "Validate the real-sampler cost model's arithmetic and benchmark methodology",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py",
+        "experiments/EXP-HQC-982268/specification.yaml",
+        "ledger/evidence/EV-HQC-163374.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/reviews/TASK-20260806-069687/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/reviews/TASK-20260806-069687/validation_report.yaml"
+      ],
+      "budget": {
+        "wall_clock_seconds": 1200,
+        "runs_authorized": 1
+      },
+      "handoff": {
+        "id": "TASK-20260806-069687",
+        "from": "coordinator",
+        "to": "validator",
+        "objective": "Independently re-run or spot-check the benchmark, verify the required-T derivation's statistical reasoning, and check the two-part cost table's arithmetic against the raw benchmark numbers.",
+        "uncertainty_reduced": "Whether the cost model is trustworthy enough to base a go/no-go decision on real-sampler injection.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/"
+        ],
+        "constraints": [
+          "Independent session. Re-run at least a small piece of benchmark.py yourself (or an independent equivalent) and compare your own per-instance timing against the executor's, on this host.",
+          "Check the power/CI derivation for the required-T calculation independently -- recompute it from the stated detection-rate assumption and precision target.",
+          "Check the standardized-parameter extrapolation for arithmetic correctness and flag any hidden assumption (e.g. constant per-instance cost assumed across parameter sets without justification).",
+          "State an explicit ADMIT / DO-NOT-ADMIT verdict on the cost model's trustworthiness, and your own independent read on whether real-sampler injection looks affordable, marginal, or clearly infeasible at this campaign's remaining budget.",
+          "You verify; you do not change status or make the go/no-go call yourself."
+        ],
+        "deliverables": [
+          "validation_report.yaml"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/reviews/TASK-20260806-069687/"
+        ],
+        "archived_by": "TASK-20260806-d1b743",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 1200,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "An independent re-benchmark or spot-check on this host",
+          "An independently recomputed required-T / power derivation",
+          "An explicit ADMIT / DO-NOT-ADMIT verdict",
+          "An explicit affordability read (affordable / marginal / infeasible)"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-e13ecc",
+      "role": "red-team",
+      "state": "queued",
+      "priority": 3,
+      "depends_on": [
+        "TASK-20260806-77443e",
+        "TASK-20260806-f238a2"
+      ],
+      "review_required": false,
+      "title": "Red-team the real-sampler cost model: is it optimistic, and is real-sampler injection actually the right next move?",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/reviews/TASK-20260806-7008de/red_team_report.md",
+        "ledger/evidence/EV-HQC-163374.yaml",
+        "ledger/decisions/DEC-20260806-0995d5.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/reviews/TASK-20260806-e13ecc/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/reviews/TASK-20260806-e13ecc/red_team_report.md"
+      ],
+      "budget": {
+        "wall_clock_seconds": 1200,
+        "runs_authorized": 1
+      },
+      "handoff": {
+        "id": "TASK-20260806-e13ecc",
+        "from": "coordinator",
+        "to": "red-team",
+        "objective": "Attack the cost model's optimism and reconsider, on the basis of this batch's own numbers, whether the real-sampler experiment DEC-20260806-0995d5 named is actually the best use of remaining campaign budget -- or whether the campaign should instead consider its declared pause condition.",
+        "uncertainty_reduced": "Whether the recommended next step is genuinely the highest-value use of the remaining ~4,000-6,500 core-seconds of campaign budget, or whether this campaign has reached diminishing returns overall and an honest pause is the more defensible move.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/reviews/TASK-20260806-7008de/red_team_report.md"
+        ],
+        "constraints": [
+          "Independent session. Check for optimistic assumptions in the benchmark methodology (e.g. warm caches, unrepresentative small-scale timing not reflecting full-run overhead, an assumed detection rate that may not hold at the real sampler's actual bit-heterogeneity).",
+          "Consider explicitly: even if a real-sampler run is affordable, does the campaign's remaining budget allow BOTH that run AND the required independent review AND a possible repair-and-rerun cycle if the first attempt has defects (as every prior batch in this campaign has had at least one)? Or does naming it 'affordable' understate the true cost of getting an admissible result?",
+          "If you judge the real-sampler path is not worth pursuing at this budget, say so plainly and name PAUSE as the alternative, per this goal's own declared pause conditions -- do not recommend action for its own sake.",
+          "State an explicit ADMIT / DO-NOT-ADMIT verdict on the cost model as an artifact.",
+          "State your own explicit go / no-go / partial-go recommendation, independent of the executor's and Validator's.",
+          "Report any budget overrun rather than trimming it."
+        ],
+        "deliverables": [
+          "red_team_report.md"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/reviews/TASK-20260806-e13ecc/"
+        ],
+        "archived_by": "TASK-20260806-d1b743",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 1200,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "An assessment of benchmark optimism",
+          "An explicit ADMIT / DO-NOT-ADMIT verdict",
+          "An explicit go / no-go / partial-go recommendation, independent of the executor's"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-d1b743",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 4,
+      "depends_on": [
+        "TASK-20260806-069687",
+        "TASK-20260806-e13ecc",
+        "TASK-20260806-f238a2"
+      ],
+      "review_required": false,
+      "title": "Ledger archive: real-sampler cost-model evidence, go/no-go decision, and batch/goal checkpoint",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/archives/TASK-20260806-d1b743/",
+        "ledger/evidence/",
+        "ledger/decisions/",
+        "ledger/goals/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/archives/TASK-20260806-d1b743/ledger-receipt.json"
+      ],
+      "budget": {
+        "wall_clock_seconds": 900,
+        "runs_authorized": 1
+      },
+      "archive": {
+        "kind": "ledger",
+        "source_task_ids": [
+          "TASK-20260806-77443e",
+          "TASK-20260806-069687",
+          "TASK-20260806-e13ecc"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": []
+      },
+      "handoff": {
+        "id": "TASK-20260806-d1b743",
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Commit both independent reviews of the cost model plus a new evidence and decision record making the go/no-go call on real-sampler defect injection, then checkpoint GOAL-HQC-001 with exactly one next action.",
+        "uncertainty_reduced": "Whether GOAL-HQC-001's next batch should be a real-sampler injection experiment, a scaled-down version of one, or a pause on the declared budget condition.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/reviews/TASK-20260806-069687/",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/reviews/TASK-20260806-e13ecc/",
+          "ledger/evidence/EV-HQC-163374.yaml",
+          "ledger/decisions/DEC-20260806-0995d5.yaml"
+        ],
+        "constraints": [
+          "Runs alone.",
+          "Mint new EV-HQC-* and DEC-YYYYMMDD-* IDs with tools/allocate_id.py --next, --check each before use.",
+          "If either review finds the cost model unreliable, or if the Red Team recommends PAUSE, the decision must weigh that seriously rather than defaulting to GO.",
+          "If GO, the next action names a SPECIFIC, BUDGETED real-sampler injection task -- not an open-ended one -- scoped to whatever T the cost model and reviews support at the remaining budget.",
+          "If NO-GO or PARTIAL-GO, the decision states precisely why and either names a smaller feasible action or invokes the goal's own declared pause_conditions explicitly.",
+          "Claim tier stays toy regardless of outcome.",
+          "Update ledger/goals/GOAL-HQC-001.yaml: batch_checkpoints entry for BATCH-a5c525, latest_verified_commit, and exactly one next action."
+        ],
+        "deliverables": [
+          "ledger-receipt.json",
+          "a new EV-HQC-* evidence record",
+          "a new DEC-YYYYMMDD-* decision record",
+          "GOAL-HQC-001.yaml checkpoint"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/archives/TASK-20260806-d1b743/"
+        ],
+        "archived_by": "TASK-20260806-d1b743",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Commit verifies against git",
+          "Declared record IDs in filenames and record_ids",
+          "An explicit go/no-go/partial-go decision with rationale",
+          "GOAL-HQC-001.yaml checkpoint carries exactly one next action"
+        ]
+      }
+    }
+  ]
+}

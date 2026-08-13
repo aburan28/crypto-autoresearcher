@@ -1,0 +1,2043 @@
+{
+ "task_id": "TASK-20260806-0617ed",
+ "batch_id": "BATCH-f19c37",
+ "goal_id": "GOAL-MLKEM-005",
+ "governed_by": "DEC-20260806-00deff AM-2",
+ "claim_tier": "TOY",
+ "spec_sha256": "c547573c9167ca5a2d9c9359cadbc74287e82600c4a7e405f3b0b034650eec4c",
+ "spec_text": "\n## P3 -- the adjudication predicate, specified before it is run\n\n### 1. The statistic\n\nFor a `d x beta` orthonormal tail frame `Q`, write `P = Q Q^T` and\n\n```\nV(Q) = sum_{a=1}^{d} ( P_aa - beta/d )^2\n```\n\n`V` is a DETERMINISTIC scalar of the frame.  It requires no error draws, no\nquantile estimation and no Monte Carlo.  `trace(P) = beta` is forced, so `V` is\nthe sum of squared deviations of the diagonal of `P` from a mean it cannot\navoid; `V` is the second central moment of the coordinate-participation profile,\nscaled by `d`.\n\n### 2. Why THIS statistic, and not one chosen because it happened to separate\n\nThree facts, all exact, none fitted.\n\n**(a) `V` is the exact null-mean-known quantity.**  For a Haar-random rank-`beta`\nsubspace of `R^d`, `P_aa ~ Beta(beta/2, (d-beta)/2)` marginally, so\n\n```\nmu_0(d,beta) = E_Haar[V] = 2 * beta * (d - beta) / ( d * (d + 2) )      EXACT\n```\n\nThere is no reference arm to draw and no constant to fit.\n\n**(b) `V` exhausts the second-order content of `P`.**  The error law the goal\nmeasures against (CBD_{eta=2}) is iid across coordinates and sign-symmetric, so\nany admissible statistic is a function of `P` invariant under signed permutation\nof coordinates -- a rotation-invariant function of `Q` alone is constant and\ntherefore useless.  At second order in the entries of `P` there are exactly two\nsigned-permutation invariants, `sum_a P_aa^2` and `sum_{a!=b} P_ab^2`, and they\nare not independent:\n\n```\nsum_{a,b} P_ab^2 = trace(P^2) = beta        (P is a projector)\n=> sum_{a!=b} P_ab^2 = beta - sum_a P_aa^2 = beta - beta^2/d - V\n```\n\nThe off-diagonal energy is an AFFINE FUNCTION of `V` with no freedom.  `V` is\ntherefore not one statistic among many at this order; it is the only one.\n\n**(c) `V` is the exact sufficient statistic for the incumbent instrument's own\nsignal.**  For iid coordinates of unit variance and fourth moment `mu_4`, and\nany symmetric `A`, `Var(e^T A e) = (mu_4 - 3) sum_a A_aa^2 + 2 trace(A^2)`.\nWith `A = P`,\n\n```\nVar(e^T P e) = 2*beta + (mu_4 - 3) * ( V + beta^2/d )\n```\n\n`beta`, `d` and `mu_4` are fixed by the cell, so the ONLY frame-dependent term\nis `V`.  The incumbent `T2` statistic `R = ||Q^T e||^2 / ||e||^2` is a\n`2^20`-sample estimator of a tail quantile whose leading frame dependence is\nthis variance.  `T2` estimates `V` noisily; `P3` computes it.\n\n### 3. The verdict rule\n\nFix `n` frames of an arm `A`.  Compute `V_i` for each, then\n\n```\nVbar_A = mean_i V_i\ns_A    = sd_i V_i          (ddof = 1)\nSE_A   = s_A / sqrt(n)\nz_A    = ( Vbar_A - mu_0(d,beta) ) / SE_A\n```\n\n* **DEPARTURE** when `z_A >= GATE_K`.\n* **AGREEMENT_UPPER_BOUND** otherwise.  The verdict is then reported as an\n  UPPER BOUND and never as an absence:\n  `excess_A <= (Vbar_A - mu_0) + GATE_K * SE_A`, and the arm is described as\n  \"no departure resolved above a floor of `FLOOR_A`\", never as \"no departure\".\n\n`GATE_K = 4.0`.  This constant is INHERITED VERBATIM from the incumbent\ninstrument frozen by DEC-20260805-4823db (`b2a.py:GATE_K = 4.0`).  It was not\nchosen by this task and is not tuned to this data.  `mu_0` is a theorem.  There\nis no other parameter.\n\nThe rule is ONE-SIDED (`z >= GATE_K`, not `|z|`).  Coordinate confinement can\nonly raise the dispersion of the participation profile above the Haar value; a\nsignificantly NEGATIVE `z` is an instrument fault, not a finding, and is\nreported as `ANOMALY_BELOW_NULL`.\n\n### 4. The detection floor, declared in the statistic's own units\n\n```\nFLOOR_A = GATE_K * SE_A = 4 * s_A / sqrt(n)          [units of V]\n```\n\n`FLOOR_A` is reported for EVERY arm, positive verdict or negative.  Every\nAGREEMENT verdict this predicate emits is an upper bound at `FLOOR_A` and is\nlabelled as such in `separation.json` and in the report.  This is the field\nDEC-20260806-00deff makes mandatory, and it is why the incumbent's \"absent below\ngate\" is not a sentence this predicate can produce.\n\nThe floor scales as `1/sqrt(n)` and is a property of the arm's own between-frame\ndispersion, not of the predicate.  At `n = 8` committed frames the realized\nfloors are reported per cell in `separation.json`.\n\n### 5. The separation demonstration required by AM-2\n\nFor the Haar null arm `H` and any real-lattice arm `A` in the same cell,\n\n```\nSE_diff = sqrt( SE_A^2 + SE_H^2 )\nz_diff  = ( Vbar_A - Vbar_H ) / SE_diff\n```\n\nAM-2 is met if `verdict(A) != verdict(H)` in at least one cell, with `z_diff`\nreported.  The Haar arm is NOT needed by the predicate itself -- `mu_0` is\nexact -- so its role here is (i) the AM-2 comparison and (ii) an implementation\ncheck: `Vbar_H` must agree with `mu_0`.\n\n### 6. Two out-of-sample anchors, both with values fixed before measurement\n\n* **Exact point prediction.**  A frame that is a coordinate selector onto a\n  `beta`-subset has `P_aa in {0,1}` and therefore\n  `V_aligned(d,beta) = beta * (1 - beta/d)` EXACTLY.  The graded family at\n  `t = 0` is that frame.  Predicted `V` at `(100,30)` is `21.000000`, at\n  `(100,40)` `24.000000`, at `(140,30)` `23.571429`, at `(140,40)` `28.571429`.\n  A predicate whose statistic is what it claims must reproduce these to\n  floating-point precision.  This is a falsification test, not a fit.\n* **Independent-seed null.**  The graded family at `t = 1` is a Haar frame drawn\n  from the `seed_graded` family, which is DISJOINT from the `seed_haar` family\n  the demonstration uses.  `P3` must return AGREEMENT there.  These frames were\n  not used to construct anything in this task.\n\n### 7. What P3 cannot do, stated now rather than after\n\n`P3` sees the coordinate-participation profile and nothing else.  A tail frame\nwhose relationship to the coordinate basis is Haar-like in `V` but structured in\nsome other invariant -- a third-order diagonal moment, an off-diagonal pattern\nof fixed total energy, alignment with a secret direction -- is INVISIBLE to\n`P3` at any `n`.  An `AGREEMENT` verdict from `P3` is a statement about `V` at\nthe stated floor.  It is not a statement that the frame is Haar.\n",
+ "started_utc": "2026-08-06T12:10:28Z",
+ "error_draws_used": 0,
+ "new_seeds_introduced": 0,
+ "data_provenance": "Every frame regenerated bit-exactly from the seed scheme committed in BATCH-436ddd/tasks/TASK-20260806-09ec68/b2a_results.json:seed_scheme (itself identical to BATCH-a51f91 for basis and Haar seeds). No new lattice, no new arm, no new seed, no error draw.",
+ "committed_source_sha256": "4d36ca96ea15da25f092bbf680f278ed1515d3feee2e0df0e78f41bac4e875fa",
+ "committed_seed_scheme": {
+  "fplll_basis_seed": "700000 + d*1000 + beta*10 + i  (identical to BATCH-a51f91)",
+  "numpy_cbd_error_seed": "20260805 + d  (identical to BATCH-a51f91)",
+  "numpy_haar_seed": "900000 + d*1000 + betap*10 + j  (identical to BATCH-a51f91 at betap = beta)",
+  "numpy_graded_seed": "500000 + d*1000 + betap*10 + j  (new)",
+  "numpy_gauss_error_seed": "20260806 + d  (new)"
+ },
+ "regeneration_check": {
+  "bases_checked": 32,
+  "fields_per_basis": 6,
+  "max_relative_deviation_vs_committed": 0.0,
+  "verified": true,
+  "per_basis": [
+   {
+    "tag": "d100_b30_i0",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d100_b30_i1",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 8.881784197001252e-16
+   },
+   {
+    "tag": "d100_b30_i2",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 8.881784197001252e-16
+   },
+   {
+    "tag": "d100_b30_i3",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 9.992007221626409e-16
+   },
+   {
+    "tag": "d100_b30_i4",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 6.661338147750939e-16
+   },
+   {
+    "tag": "d100_b30_i5",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d100_b30_i6",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 8.881784197001252e-16
+   },
+   {
+    "tag": "d100_b30_i7",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 8.881784197001252e-16
+   },
+   {
+    "tag": "d100_b40_i0",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d100_b40_i1",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d100_b40_i2",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d100_b40_i3",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.7763568394002505e-15
+   },
+   {
+    "tag": "d100_b40_i4",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d100_b40_i5",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.2212453270876722e-15
+   },
+   {
+    "tag": "d100_b40_i6",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.2212453270876722e-15
+   },
+   {
+    "tag": "d100_b40_i7",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.2212453270876722e-15
+   },
+   {
+    "tag": "d140_b30_i0",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d140_b30_i1",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d140_b30_i2",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 9.992007221626409e-16
+   },
+   {
+    "tag": "d140_b30_i3",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 8.881784197001252e-16
+   },
+   {
+    "tag": "d140_b30_i4",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.3322676295501878e-15
+   },
+   {
+    "tag": "d140_b30_i5",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.2212453270876722e-15
+   },
+   {
+    "tag": "d140_b30_i6",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d140_b30_i7",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.2212453270876722e-15
+   },
+   {
+    "tag": "d140_b40_i0",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d140_b40_i1",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d140_b40_i2",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d140_b40_i3",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d140_b40_i4",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.1102230246251565e-15
+   },
+   {
+    "tag": "d140_b40_i5",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 7.771561172376096e-16
+   },
+   {
+    "tag": "d140_b40_i6",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 1.5543122344752192e-15
+   },
+   {
+    "tag": "d140_b40_i7",
+    "b0_norm_raw_rel_dev": 0.0,
+    "b0_norm_lll_rel_dev": 0.0,
+    "b0_norm_rel_dev": 0.0,
+    "gso_log2_slope_raw_rel_dev": 0.0,
+    "gso_log2_slope_lll_rel_dev": 0.0,
+    "gso_log2_slope_per_index_rel_dev": 0.0,
+    "Q_orthonormality_max_abs_dev": 8.881784197001252e-16
+   }
+  ]
+ },
+ "cells": {
+  "d100_b30": {
+   "d": 100,
+   "beta": 30,
+   "k": 50,
+   "q": 3329,
+   "mu0_haar_exact": 0.4117647058823529,
+   "V_aligned_exact_prediction": 21.0,
+   "V_aligned_measured_graded_t0": 20.999999999999993,
+   "V_aligned_max_abs_error": 7.105427357601002e-15,
+   "haar_null_mean_vs_mu0_abs_error": 0.005749218236485443,
+   "float32_cast_max_rel_dev_on_V": 2.74943623824847e-08,
+   "arms": {
+    "unreduced": {
+     "n_frames": 8,
+     "V_mean": 9.362793530879452,
+     "V_sd": 0.08070430363254363,
+     "V_se": 0.02853328018475486,
+     "mu0_haar_exact": 0.4117647058823529,
+     "excess_over_mu0": 8.951028824997099,
+     "z_vs_exact_null": 313.7048655828773,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.11413312073901943,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      9.357087853239205,
+      9.33405521366695,
+      9.358930852273014,
+      9.379015455234354,
+      9.44705266139761,
+      9.317381571985118,
+      9.486989540765897,
+      9.221835098473468
+     ]
+    },
+    "lll_only": {
+     "n_frames": 8,
+     "V_mean": 0.607498733741924,
+     "V_sd": 0.07884494755661127,
+     "V_se": 0.02787589853978877,
+     "mu0_haar_exact": 0.4117647058823529,
+     "excess_over_mu0": 0.19573402785957106,
+     "z_vs_exact_null": 7.0216221938169765,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.11150359415915508,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      0.6194031067421993,
+      0.51092925468474,
+      0.6259478889135774,
+      0.6217645231818356,
+      0.5409436269803978,
+      0.7039513210200545,
+      0.7173394801218288,
+      0.5197106682907584
+     ]
+    },
+    "real_bkz": {
+     "n_frames": 8,
+     "V_mean": 0.37594491091625004,
+     "V_sd": 0.04884792796190549,
+     "V_se": 0.01727035055438767,
+     "mu0_haar_exact": 0.4117647058823529,
+     "excess_over_mu0": -0.03581979496610288,
+     "z_vs_exact_null": -2.0740629932959047,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.06908140221755069,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 2,
+     "V_per_frame": [
+      0.40359573004974447,
+      0.3420794999126712,
+      0.3258958576279162,
+      0.369634963962383,
+      0.30688957112984644,
+      0.3879526446133559,
+      0.4452223544025653,
+      0.42628866563151785
+     ],
+     "upper_bound_on_excess_V_units": 0.033261607251447806,
+     "reported_as": "no departure resolved above a floor of 0.069081 V-units; this is an UPPER BOUND, not an absence"
+    },
+    "haar_null": {
+     "n_frames": 8,
+     "V_mean": 0.4060154876458675,
+     "V_sd": 0.06133799055175806,
+     "V_se": 0.021686254531752252,
+     "mu0_haar_exact": 0.4117647058823529,
+     "excess_over_mu0": -0.005749218236485443,
+     "z_vs_exact_null": -0.26510886091775965,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.08674501812700901,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 4,
+     "V_per_frame": [
+      0.4464517590630995,
+      0.4154920668741102,
+      0.39106822645313727,
+      0.491184507798755,
+      0.3638157497556551,
+      0.3085165059286054,
+      0.3626180500319595,
+      0.46897703526161777
+     ],
+     "upper_bound_on_excess_V_units": 0.08099579989052356,
+     "reported_as": "no departure resolved above a floor of 0.086745 V-units; this is an UPPER BOUND, not an absence"
+    },
+    "graded_t0.00": {
+     "n_frames": 8,
+     "V_mean": 20.999999999999993,
+     "V_sd": 1.89900533991096e-15,
+     "V_se": 6.713997766802521e-16,
+     "mu0_haar_exact": 0.4117647058823529,
+     "excess_over_mu0": 20.58823529411764,
+     "z_vs_exact_null": 3.0664644239109716e+16,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 2.6855991067210084e-15,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      20.999999999999993,
+      20.999999999999993,
+      20.999999999999993,
+      20.999999999999993,
+      20.999999999999996,
+      20.999999999999993,
+      20.999999999999996,
+      20.999999999999993
+     ]
+    },
+    "graded_t1.00": {
+     "n_frames": 8,
+     "V_mean": 0.41461724984298903,
+     "V_sd": 0.03833686717427929,
+     "V_se": 0.01355412937419042,
+     "mu0_haar_exact": 0.4117647058823529,
+     "excess_over_mu0": 0.0028525439606361114,
+     "z_vs_exact_null": 0.21045571293335041,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.05421651749676168,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 5,
+     "V_per_frame": [
+      0.4691782830118298,
+      0.45373567479104004,
+      0.4174997360626495,
+      0.3431388453076899,
+      0.39674387230184505,
+      0.4157772969644189,
+      0.42283266135084363,
+      0.39803162895359556
+     ],
+     "upper_bound_on_excess_V_units": 0.05706906145739779,
+     "reported_as": "no departure resolved above a floor of 0.054217 V-units; this is an UPPER BOUND, not an absence"
+    }
+   },
+   "separations_vs_haar_null": {
+    "unreduced_vs_haar_null": {
+     "delta_V": 8.956778043233586,
+     "SE_of_difference": 0.03583910871823781,
+     "separation_in_SE": 249.9163166598409,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.2014832460960565,
+     "SE_of_difference": 0.035317974956338344,
+     "separation_in_SE": 5.7048357485144345,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": -0.030070576729617438,
+     "SE_of_difference": 0.027722890251331726,
+     "separation_in_SE": -1.084684044737108,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    },
+    "graded_t0.00_vs_haar_null": {
+     "delta_V": 20.593984512354126,
+     "SE_of_difference": 0.021686254531752252,
+     "separation_in_SE": 949.6330720549802,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "graded_t1.00_vs_haar_null": {
+     "delta_V": 0.008601762197121554,
+     "SE_of_difference": 0.025573581264817735,
+     "separation_in_SE": 0.3363534464746723,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    }
+   }
+  },
+  "d100_b40": {
+   "d": 100,
+   "beta": 40,
+   "k": 50,
+   "q": 3329,
+   "mu0_haar_exact": 0.47058823529411764,
+   "V_aligned_exact_prediction": 24.0,
+   "V_aligned_measured_graded_t0": 24.0,
+   "V_aligned_max_abs_error": 3.552713678800501e-15,
+   "haar_null_mean_vs_mu0_abs_error": 0.012671848488627013,
+   "float32_cast_max_rel_dev_on_V": 1.1525740495297584e-08,
+   "arms": {
+    "unreduced": {
+     "n_frames": 8,
+     "V_mean": 16.244627653831333,
+     "V_sd": 0.048314025682518316,
+     "V_se": 0.017081587593264856,
+     "mu0_haar_exact": 0.47058823529411764,
+     "excess_over_mu0": 15.774039418537216,
+     "z_vs_exact_null": 923.4527723147235,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.06832635037305942,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      16.231607514103338,
+      16.184446396198574,
+      16.26231563146159,
+      16.240516041463216,
+      16.19257203567972,
+      16.240171738801536,
+      16.26564769516071,
+      16.339744177782002
+     ]
+    },
+    "lll_only": {
+     "n_frames": 8,
+     "V_mean": 0.7437224296537471,
+     "V_sd": 0.1405732624166727,
+     "V_se": 0.04970015355417265,
+     "mu0_haar_exact": 0.47058823529411764,
+     "excess_over_mu0": 0.2731341943596295,
+     "z_vs_exact_null": 5.495640854749394,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.1988006142166906,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      0.7997078161681678,
+      0.7603768197911969,
+      0.6037996906690372,
+      0.790066602408651,
+      0.9926491800463834,
+      0.814593823386667,
+      0.6220620599598321,
+      0.5665234448000422
+     ]
+    },
+    "real_bkz": {
+     "n_frames": 8,
+     "V_mean": 0.5024839013918271,
+     "V_sd": 0.05436739497216719,
+     "V_se": 0.019221776830133413,
+     "mu0_haar_exact": 0.47058823529411764,
+     "excess_over_mu0": 0.03189566609770944,
+     "z_vs_exact_null": 1.6593505574212861,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.07688710732053365,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 5,
+     "V_per_frame": [
+      0.44882418199272733,
+      0.5435560613863922,
+      0.5382030288752218,
+      0.4665445154309083,
+      0.5807457050364203,
+      0.4253014603321891,
+      0.5348631687247524,
+      0.4818330893560052
+     ],
+     "upper_bound_on_excess_V_units": 0.10878277341824309,
+     "reported_as": "no departure resolved above a floor of 0.076887 V-units; this is an UPPER BOUND, not an absence"
+    },
+    "haar_null": {
+     "n_frames": 8,
+     "V_mean": 0.4579163868054906,
+     "V_sd": 0.05869978260119647,
+     "V_se": 0.020753507165741068,
+     "mu0_haar_exact": 0.47058823529411764,
+     "excess_over_mu0": -0.012671848488627013,
+     "z_vs_exact_null": -0.6105882917729258,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.08301402866296427,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 5,
+     "V_per_frame": [
+      0.3949413205114084,
+      0.5015995510940799,
+      0.3481713672643876,
+      0.47333839308865144,
+      0.4779929386113409,
+      0.4764258385954643,
+      0.5300965995336708,
+      0.4607650857449218
+     ],
+     "upper_bound_on_excess_V_units": 0.07034218017433726,
+     "reported_as": "no departure resolved above a floor of 0.083014 V-units; this is an UPPER BOUND, not an absence"
+    },
+    "graded_t0.00": {
+     "n_frames": 8,
+     "V_mean": 24.0,
+     "V_sd": 3.289173732570388e-15,
+     "V_se": 1.1628985254005945e-15,
+     "mu0_haar_exact": 0.47058823529411764,
+     "excess_over_mu0": 23.529411764705884,
+     "z_vs_exact_null": 2.023341783549041e+16,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 4.651594101602378e-15,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      24.000000000000004,
+      24.0,
+      24.000000000000004,
+      24.0,
+      24.000000000000004,
+      24.000000000000004,
+      24.000000000000004,
+      24.000000000000004
+     ]
+    },
+    "graded_t1.00": {
+     "n_frames": 8,
+     "V_mean": 0.471101489954343,
+     "V_sd": 0.049391025371750115,
+     "V_se": 0.017462364485060663,
+     "mu0_haar_exact": 0.47058823529411764,
+     "excess_over_mu0": 0.0005132546602253374,
+     "z_vs_exact_null": 0.029392048291308724,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.06984945794024265,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 3,
+     "V_per_frame": [
+      0.4359461808437408,
+      0.5193436322584344,
+      0.4376805459215507,
+      0.43705217847855155,
+      0.42225112126986014,
+      0.5620594373240209,
+      0.46140047766037173,
+      0.49307834587821386
+     ],
+     "upper_bound_on_excess_V_units": 0.07036271260046799,
+     "reported_as": "no departure resolved above a floor of 0.069849 V-units; this is an UPPER BOUND, not an absence"
+    }
+   },
+   "separations_vs_haar_null": {
+    "unreduced_vs_haar_null": {
+     "delta_V": 15.786711267025844,
+     "SE_of_difference": 0.02687914980770124,
+     "separation_in_SE": 587.321823047496,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.2858060428482565,
+     "SE_of_difference": 0.05385919905630612,
+     "separation_in_SE": 5.306540903986815,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.044567514586336454,
+     "SE_of_difference": 0.02828753725911677,
+     "separation_in_SE": 1.5755176627110874,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    },
+    "graded_t0.00_vs_haar_null": {
+     "delta_V": 23.54208361319451,
+     "SE_of_difference": 0.020753507165741068,
+     "separation_in_SE": 1134.3665157500077,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "graded_t1.00_vs_haar_null": {
+     "delta_V": 0.01318510314885235,
+     "SE_of_difference": 0.027122725399332085,
+     "separation_in_SE": 0.48612751685997757,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    }
+   }
+  },
+  "d140_b30": {
+   "d": 140,
+   "beta": 30,
+   "k": 70,
+   "q": 3329,
+   "mu0_haar_exact": 0.3319919517102616,
+   "V_aligned_exact_prediction": 23.57142857142857,
+   "V_aligned_measured_graded_t0": 23.57142857142857,
+   "V_aligned_max_abs_error": 3.552713678800501e-15,
+   "haar_null_mean_vs_mu0_abs_error": 0.010118160614308536,
+   "float32_cast_max_rel_dev_on_V": 1.682333818993708e-08,
+   "arms": {
+    "unreduced": {
+     "n_frames": 8,
+     "V_mean": 6.750435256127651,
+     "V_sd": 0.05218189508022784,
+     "V_se": 0.01844908593319702,
+     "mu0_haar_exact": 0.3319919517102616,
+     "excess_over_mu0": 6.41844330441739,
+     "z_vs_exact_null": 347.90034192795076,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.07379634373278808,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      6.756837169623644,
+      6.721773188457064,
+      6.713155596787926,
+      6.735300361121886,
+      6.861661914883066,
+      6.698102535632992,
+      6.7842554980348595,
+      6.732395784479772
+     ]
+    },
+    "lll_only": {
+     "n_frames": 8,
+     "V_mean": 0.7556749395746969,
+     "V_sd": 0.11513202586933032,
+     "V_se": 0.04070531811197424,
+     "mu0_haar_exact": 0.3319919517102616,
+     "excess_over_mu0": 0.4236829878644353,
+     "z_vs_exact_null": 10.408541377786234,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.16282127244789696,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      0.8678670586742268,
+      0.6737145964168407,
+      0.7393315815849562,
+      0.9521665301909251,
+      0.5852029544216235,
+      0.7339006291093852,
+      0.6970710787363117,
+      0.7961450874633058
+     ]
+    },
+    "real_bkz": {
+     "n_frames": 8,
+     "V_mean": 0.47041498967587136,
+     "V_sd": 0.06144925804650756,
+     "V_se": 0.021725593531783757,
+     "mu0_haar_exact": 0.3319919517102616,
+     "excess_over_mu0": 0.13842303796560979,
+     "z_vs_exact_null": 6.3714272184601946,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.08690237412713503,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      0.46628047539458783,
+      0.3888120354961636,
+      0.48334953580158435,
+      0.5924229215920241,
+      0.41816988420724605,
+      0.4507682848564082,
+      0.5075441943535266,
+      0.45597258570543026
+     ]
+    },
+    "haar_null": {
+     "n_frames": 8,
+     "V_mean": 0.32187379109595304,
+     "V_sd": 0.045741171979015824,
+     "V_se": 0.016171946442891088,
+     "mu0_haar_exact": 0.3319919517102616,
+     "excess_over_mu0": -0.010118160614308536,
+     "z_vs_exact_null": -0.6256612739869855,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.06468778577156435,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 4,
+     "V_per_frame": [
+      0.39218015652025356,
+      0.33221648412530325,
+      0.36639854617419804,
+      0.28460418671123056,
+      0.3160067080516462,
+      0.24737779081760958,
+      0.30061267153473303,
+      0.33559378483264996
+     ],
+     "upper_bound_on_excess_V_units": 0.054569625157255816,
+     "reported_as": "no departure resolved above a floor of 0.064688 V-units; this is an UPPER BOUND, not an absence"
+    },
+    "graded_t0.00": {
+     "n_frames": 8,
+     "V_mean": 23.57142857142857,
+     "V_sd": 2.325797050801189e-15,
+     "V_se": 8.222934331425969e-16,
+     "mu0_haar_exact": 0.3319919517102616,
+     "excess_over_mu0": 23.239436619718308,
+     "z_vs_exact_null": 2.8261731984047444e+16,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 3.2891737325703876e-15,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      23.57142857142857,
+      23.571428571428573,
+      23.571428571428573,
+      23.57142857142857,
+      23.571428571428573,
+      23.57142857142857,
+      23.57142857142857,
+      23.57142857142857
+     ]
+    },
+    "graded_t1.00": {
+     "n_frames": 8,
+     "V_mean": 0.31216153499266613,
+     "V_sd": 0.04638618628697838,
+     "V_se": 0.016399993438452425,
+     "mu0_haar_exact": 0.3319919517102616,
+     "excess_over_mu0": -0.019830416717595445,
+     "z_vs_exact_null": -1.2091722348558895,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.0655999737538097,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 3,
+     "V_per_frame": [
+      0.3282649362817388,
+      0.36056287065681336,
+      0.2597633016709385,
+      0.3676947262662542,
+      0.27416682989340996,
+      0.32241739153537646,
+      0.24592175043986209,
+      0.338500473196936
+     ],
+     "upper_bound_on_excess_V_units": 0.045769557036214256,
+     "reported_as": "no departure resolved above a floor of 0.065600 V-units; this is an UPPER BOUND, not an absence"
+    }
+   },
+   "separations_vs_haar_null": {
+    "unreduced_vs_haar_null": {
+     "delta_V": 6.428561465031698,
+     "SE_of_difference": 0.02453366306775704,
+     "separation_in_SE": 262.03023361319117,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.43380114847874385,
+     "SE_of_difference": 0.043800168656624554,
+     "separation_in_SE": 9.904097673220571,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.14854119857991832,
+     "SE_of_difference": 0.027083819266492344,
+     "separation_in_SE": 5.484499697710325,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "graded_t0.00_vs_haar_null": {
+     "delta_V": 23.249554780332616,
+     "SE_of_difference": 0.016171946442891088,
+     "separation_in_SE": 1437.6472777989395,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "graded_t1.00_vs_haar_null": {
+     "delta_V": -0.00971225610328691,
+     "SE_of_difference": 0.023032404054571038,
+     "separation_in_SE": -0.42167791431044316,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    }
+   }
+  },
+  "d140_b40": {
+   "d": 140,
+   "beta": 40,
+   "k": 70,
+   "q": 3329,
+   "mu0_haar_exact": 0.4024144869215292,
+   "V_aligned_exact_prediction": 28.571428571428573,
+   "V_aligned_measured_graded_t0": 28.57142857142857,
+   "V_aligned_max_abs_error": 7.105427357601002e-15,
+   "haar_null_mean_vs_mu0_abs_error": 0.021297133150113556,
+   "float32_cast_max_rel_dev_on_V": 1.7051563374497832e-08,
+   "arms": {
+    "unreduced": {
+     "n_frames": 8,
+     "V_mean": 11.807462119567314,
+     "V_sd": 0.05512425596248397,
+     "V_se": 0.019489367599467695,
+     "mu0_haar_exact": 0.4024144869215292,
+     "excess_over_mu0": 11.405047632645784,
+     "z_vs_exact_null": 585.1933149928008,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.07795747039787078,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      11.896355921498436,
+      11.822963368754703,
+      11.811027991612846,
+      11.798926487589782,
+      11.808672153799947,
+      11.797105436904602,
+      11.828877190363801,
+      11.695768406014388
+     ]
+    },
+    "lll_only": {
+     "n_frames": 8,
+     "V_mean": 1.1174621584353632,
+     "V_sd": 0.15612838387261294,
+     "V_se": 0.055199719486010504,
+     "mu0_haar_exact": 0.4024144869215292,
+     "excess_over_mu0": 0.7150476715138341,
+     "z_vs_exact_null": 12.95382799354717,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.22079887794404202,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      1.394151827403248,
+      1.0419185098865613,
+      1.205192050821268,
+      0.9692152952793153,
+      1.251005918184507,
+      0.9260834109123135,
+      1.0559699236032207,
+      1.0961603313924717
+     ]
+    },
+    "real_bkz": {
+     "n_frames": 8,
+     "V_mean": 0.5134727888486705,
+     "V_sd": 0.048030012727527854,
+     "V_se": 0.016981173850055563,
+     "mu0_haar_exact": 0.4024144869215292,
+     "excess_over_mu0": 0.11105830192714133,
+     "z_vs_exact_null": 6.540083913384937,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.06792469540022225,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      0.5020455861980341,
+      0.4542058097749062,
+      0.45838607655894403,
+      0.5639196709877239,
+      0.5680384961370213,
+      0.5666538919890051,
+      0.4800233561566756,
+      0.5145094229870545
+     ]
+    },
+    "haar_null": {
+     "n_frames": 8,
+     "V_mean": 0.38111735377141565,
+     "V_sd": 0.0339418630203311,
+     "V_se": 0.012000260753890515,
+     "mu0_haar_exact": 0.4024144869215292,
+     "excess_over_mu0": -0.021297133150113556,
+     "z_vs_exact_null": -1.774722532025729,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.04800104301556206,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 2,
+     "V_per_frame": [
+      0.4064725377140108,
+      0.39375549307453395,
+      0.3782144996009378,
+      0.3566866724366673,
+      0.35319465180971155,
+      0.3574913170744006,
+      0.35421925991936165,
+      0.4489043985417015
+     ],
+     "upper_bound_on_excess_V_units": 0.026703909865448502,
+     "reported_as": "no departure resolved above a floor of 0.048001 V-units; this is an UPPER BOUND, not an absence"
+    },
+    "graded_t0.00": {
+     "n_frames": 8,
+     "V_mean": 28.57142857142857,
+     "V_sd": 3.289173732570388e-15,
+     "V_se": 1.1628985254005945e-15,
+     "mu0_haar_exact": 0.4024144869215292,
+     "excess_over_mu0": 28.16901408450704,
+     "z_vs_exact_null": 2.422310585938992e+16,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 4.651594101602378e-15,
+     "verdict": "DEPARTURE",
+     "frames_with_positive_excess": 8,
+     "V_per_frame": [
+      28.57142857142857,
+      28.571428571428577,
+      28.57142857142857,
+      28.571428571428566,
+      28.571428571428573,
+      28.57142857142857,
+      28.57142857142857,
+      28.57142857142857
+     ]
+    },
+    "graded_t1.00": {
+     "n_frames": 8,
+     "V_mean": 0.3943275876708285,
+     "V_sd": 0.051655538421083225,
+     "V_se": 0.018262990751695095,
+     "mu0_haar_exact": 0.4024144869215292,
+     "excess_over_mu0": -0.008086899250700719,
+     "z_vs_exact_null": -0.4428025705455787,
+     "gate_k": 4.0,
+     "detection_floor_V_units": 0.07305196300678038,
+     "verdict": "AGREEMENT_UPPER_BOUND",
+     "frames_with_positive_excess": 3,
+     "V_per_frame": [
+      0.37600558822960756,
+      0.3183748635079313,
+      0.44321983273781307,
+      0.3950602788812825,
+      0.4267405599490629,
+      0.36605432569427515,
+      0.47586904730018187,
+      0.3532962050664735
+     ],
+     "upper_bound_on_excess_V_units": 0.06496506375607966,
+     "reported_as": "no departure resolved above a floor of 0.073052 V-units; this is an UPPER BOUND, not an absence"
+    }
+   },
+   "separations_vs_haar_null": {
+    "unreduced_vs_haar_null": {
+     "delta_V": 11.426344765795898,
+     "SE_of_difference": 0.022887588505313226,
+     "separation_in_SE": 499.2376004638206,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.7363448046639476,
+     "SE_of_difference": 0.056489072301601946,
+     "separation_in_SE": 13.035172550409646,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.1323554350772549,
+     "SE_of_difference": 0.02079342500616904,
+     "separation_in_SE": 6.365254162697458,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "graded_t0.00_vs_haar_null": {
+     "delta_V": 28.190311217657154,
+     "SE_of_difference": 0.012000260753890515,
+     "separation_in_SE": 2349.1415558214253,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "graded_t1.00_vs_haar_null": {
+     "delta_V": 0.013210233899412838,
+     "SE_of_difference": 0.021852759307645006,
+     "separation_in_SE": 0.6045110236852949,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    }
+   }
+  }
+ },
+ "held_out_window_sweep": {
+  "d100_bkzblock30_window50": {
+   "lll_only": {
+    "n_frames": 8,
+    "V_mean": 0.7836694936301829,
+    "V_sd": 0.08683141931532619,
+    "V_se": 0.030699542708959852,
+    "mu0_haar_exact": 0.49019607843137253,
+    "excess_over_mu0": 0.2934734151988104,
+    "z_vs_exact_null": 9.559537025714665,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.12279817083583941,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     0.7050034526935135,
+     0.8180555802017273,
+     0.8725291672212596,
+     0.8533435412947604,
+     0.7193213202557944,
+     0.8643477921270413,
+     0.8004776466356947,
+     0.6362774486116719
+    ]
+   },
+   "real_bkz": {
+    "n_frames": 8,
+    "V_mean": 0.4646500852280617,
+    "V_sd": 0.046324310634300654,
+    "V_se": 0.016378117091653044,
+    "mu0_haar_exact": 0.49019607843137253,
+    "excess_over_mu0": -0.0255459932033108,
+    "z_vs_exact_null": -1.5597637420928003,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.06551246836661218,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 3,
+    "V_per_frame": [
+     0.5039347441236649,
+     0.4420150424559665,
+     0.4063013620205924,
+     0.5328402059053945,
+     0.42409918084223347,
+     0.4290163366076918,
+     0.5090241661369376,
+     0.4699696437320126
+    ],
+    "upper_bound_on_excess_V_units": 0.039966475163301374,
+    "reported_as": "no departure resolved above a floor of 0.065512 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "haar_null": {
+    "n_frames": 8,
+    "V_mean": 0.42719370111462507,
+    "V_sd": 0.05410863865706577,
+    "V_se": 0.019130292657591884,
+    "mu0_haar_exact": 0.49019607843137253,
+    "excess_over_mu0": -0.06300237731674746,
+    "z_vs_exact_null": -3.293330554028136,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.07652117063036754,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 1,
+    "V_per_frame": [
+     0.3639965468223834,
+     0.5426240667637622,
+     0.4368204353511025,
+     0.40678347615411886,
+     0.4197690123310465,
+     0.4453960066039872,
+     0.37967191237003867,
+     0.42248815252056104
+    ],
+    "upper_bound_on_excess_V_units": 0.013518793313620076,
+    "reported_as": "no departure resolved above a floor of 0.076521 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "seps": {
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.35647579251555783,
+     "SE_of_difference": 0.03617222718750345,
+     "separation_in_SE": 9.854958354311973,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.03745638411343666,
+     "SE_of_difference": 0.025183542575122578,
+     "separation_in_SE": 1.4873357869213262,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    }
+   }
+  },
+  "d100_bkzblock30_window60": {
+   "lll_only": {
+    "n_frames": 8,
+    "V_mean": 0.7075164746489626,
+    "V_sd": 0.06520152384987482,
+    "V_se": 0.023052219828971446,
+    "mu0_haar_exact": 0.47058823529411764,
+    "excess_over_mu0": 0.23692823935484497,
+    "z_vs_exact_null": 10.27789258963597,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.09220887931588578,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     0.7162019194066878,
+     0.7241675045361087,
+     0.7565603659538471,
+     0.7052140662573733,
+     0.6751309288838682,
+     0.765485359018338,
+     0.7530714540942691,
+     0.5643001990412088
+    ]
+   },
+   "real_bkz": {
+    "n_frames": 8,
+    "V_mean": 0.4955130611279772,
+    "V_sd": 0.044330045693585875,
+    "V_se": 0.015673037960122038,
+    "mu0_haar_exact": 0.47058823529411764,
+    "excess_over_mu0": 0.024924825833859576,
+    "z_vs_exact_null": 1.59029958947828,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.06269215184048815,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 5,
+    "V_per_frame": [
+     0.5098541144777857,
+     0.4459718168525637,
+     0.4550888929575872,
+     0.5631203125477857,
+     0.5169598450216661,
+     0.4506265615653141,
+     0.48024398986915995,
+     0.5422389557319554
+    ],
+    "upper_bound_on_excess_V_units": 0.08761697767434773,
+    "reported_as": "no departure resolved above a floor of 0.062692 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "haar_null": {
+    "n_frames": 8,
+    "V_mean": 0.4569211289997106,
+    "V_sd": 0.09437941366141092,
+    "V_se": 0.03336816170219697,
+    "mu0_haar_exact": 0.47058823529411764,
+    "excess_over_mu0": -0.013667106294407039,
+    "z_vs_exact_null": -0.409585233264654,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.13347264680878787,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 4,
+    "V_per_frame": [
+     0.3512282772806945,
+     0.41170707999607736,
+     0.4290239914525727,
+     0.32221764828485117,
+     0.5456366657584948,
+     0.47133776001524336,
+     0.5639211261832241,
+     0.5602964830265269
+    ],
+    "upper_bound_on_excess_V_units": 0.11980554051438083,
+    "reported_as": "no departure resolved above a floor of 0.133473 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "seps": {
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.250595345649252,
+     "SE_of_difference": 0.04055661542125019,
+     "separation_in_SE": 6.178901839968361,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.038591932128266615,
+     "SE_of_difference": 0.036865679625952795,
+     "separation_in_SE": 1.0468254625936306,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    }
+   }
+  },
+  "d100_bkzblock40_window50": {
+   "lll_only": {
+    "n_frames": 8,
+    "V_mean": 0.7773736079471704,
+    "V_sd": 0.1410029926456068,
+    "V_se": 0.04985208613365273,
+    "mu0_haar_exact": 0.49019607843137253,
+    "excess_over_mu0": 0.28717752951579784,
+    "z_vs_exact_null": 5.760592019075771,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.19940834453461093,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     0.7988380764343043,
+     0.7495286686384963,
+     0.7934198895024422,
+     0.8179124824854106,
+     1.063656293538586,
+     0.7635439341714914,
+     0.6463179265720755,
+     0.5857715922345564
+    ]
+   },
+   "real_bkz": {
+    "n_frames": 8,
+    "V_mean": 0.5414589782254463,
+    "V_sd": 0.06262626576777279,
+    "V_se": 0.022141728602391542,
+    "mu0_haar_exact": 0.49019607843137253,
+    "excess_over_mu0": 0.05126289979407378,
+    "z_vs_exact_null": 2.315216698507308,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.08856691440956617,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 7,
+    "V_per_frame": [
+     0.5086671698493704,
+     0.550615984851796,
+     0.5786546325468611,
+     0.523327565630294,
+     0.6549028272617613,
+     0.5716518268285515,
+     0.4957178781404799,
+     0.44813394069445645
+    ],
+    "upper_bound_on_excess_V_units": 0.13982981420363993,
+    "reported_as": "no departure resolved above a floor of 0.088567 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "haar_null": {
+    "n_frames": 8,
+    "V_mean": 0.42719370111462507,
+    "V_sd": 0.05410863865706577,
+    "V_se": 0.019130292657591884,
+    "mu0_haar_exact": 0.49019607843137253,
+    "excess_over_mu0": -0.06300237731674746,
+    "z_vs_exact_null": -3.293330554028136,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.07652117063036754,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 1,
+    "V_per_frame": [
+     0.3639965468223834,
+     0.5426240667637622,
+     0.4368204353511025,
+     0.40678347615411886,
+     0.4197690123310465,
+     0.4453960066039872,
+     0.37967191237003867,
+     0.42248815252056104
+    ],
+    "upper_bound_on_excess_V_units": 0.013518793313620076,
+    "reported_as": "no departure resolved above a floor of 0.076521 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "seps": {
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.3501799068325453,
+     "SE_of_difference": 0.053396615895038184,
+     "separation_in_SE": 6.558091762236291,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.11426527711082124,
+     "SE_of_difference": 0.02926130965399665,
+     "separation_in_SE": 3.9049953150410115,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    }
+   }
+  },
+  "d100_bkzblock40_window60": {
+   "lll_only": {
+    "n_frames": 8,
+    "V_mean": 0.7497373576955234,
+    "V_sd": 0.15215994722048365,
+    "V_se": 0.053796665252295574,
+    "mu0_haar_exact": 0.47058823529411764,
+    "excess_over_mu0": 0.27914912240140577,
+    "z_vs_exact_null": 5.1889670315483745,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.2151866610091823,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     0.8006278093783041,
+     0.6656680006592135,
+     0.8048935595542016,
+     0.7172647295843453,
+     1.0322940294481087,
+     0.8299268020723014,
+     0.5719617560414418,
+     0.5752621748262705
+    ]
+   },
+   "real_bkz": {
+    "n_frames": 8,
+    "V_mean": 0.49595898222945645,
+    "V_sd": 0.03372359040352886,
+    "V_se": 0.011923089730146417,
+    "mu0_haar_exact": 0.47058823529411764,
+    "excess_over_mu0": 0.025370746935338806,
+    "z_vs_exact_null": 2.127866812172959,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.04769235892058567,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 6,
+    "V_per_frame": [
+     0.5093453678839472,
+     0.49120964282439217,
+     0.49280081156325567,
+     0.5568091590076109,
+     0.5140339494581244,
+     0.4497218600545324,
+     0.49753421583570095,
+     0.45621685120808786
+    ],
+    "upper_bound_on_excess_V_units": 0.07306310585592447,
+    "reported_as": "no departure resolved above a floor of 0.047692 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "haar_null": {
+    "n_frames": 8,
+    "V_mean": 0.4569211289997106,
+    "V_sd": 0.09437941366141092,
+    "V_se": 0.03336816170219697,
+    "mu0_haar_exact": 0.47058823529411764,
+    "excess_over_mu0": -0.013667106294407039,
+    "z_vs_exact_null": -0.409585233264654,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.13347264680878787,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 4,
+    "V_per_frame": [
+     0.3512282772806945,
+     0.41170707999607736,
+     0.4290239914525727,
+     0.32221764828485117,
+     0.5456366657584948,
+     0.47133776001524336,
+     0.5639211261832241,
+     0.5602964830265269
+    ],
+    "upper_bound_on_excess_V_units": 0.11980554051438083,
+    "reported_as": "no departure resolved above a floor of 0.133473 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "seps": {
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.2928162286958128,
+     "SE_of_difference": 0.06330493983609423,
+     "separation_in_SE": 4.62548782850054,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.039037853229745845,
+     "SE_of_difference": 0.03543436586277632,
+     "separation_in_SE": 1.1016947045397807,
+     "verdict_arm": "AGREEMENT_UPPER_BOUND",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": false
+    }
+   }
+  },
+  "d140_bkzblock30_window50": {
+   "lll_only": {
+    "n_frames": 8,
+    "V_mean": 1.3737982742002424,
+    "V_sd": 0.2375434441637085,
+    "V_se": 0.08398429009728314,
+    "mu0_haar_exact": 0.45271629778672035,
+    "excess_over_mu0": 0.9210819764135221,
+    "z_vs_exact_null": 10.96731275988149,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.33593716038913257,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     1.3169812769163791,
+     1.2477986004355577,
+     1.4479816405998212,
+     1.6533121876113526,
+     1.0480866983463428,
+     1.7690891653220824,
+     1.2312130033664486,
+     1.2759236210039537
+    ]
+   },
+   "real_bkz": {
+    "n_frames": 8,
+    "V_mean": 0.7134408715173235,
+    "V_sd": 0.11854768141018311,
+    "V_se": 0.041912934709541445,
+    "mu0_haar_exact": 0.45271629778672035,
+    "excess_over_mu0": 0.26072457373060315,
+    "z_vs_exact_null": 6.2206231927550855,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.16765173883816578,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     0.768901210698594,
+     0.6040194272538261,
+     0.7716006714090613,
+     0.9466108879347181,
+     0.5659822164172843,
+     0.7033138244108545,
+     0.6570285846923818,
+     0.6900701493218679
+    ]
+   },
+   "haar_null": {
+    "n_frames": 8,
+    "V_mean": 0.42760824476319537,
+    "V_sd": 0.03878506646533282,
+    "V_se": 0.013712591753203898,
+    "mu0_haar_exact": 0.45271629778672035,
+    "excess_over_mu0": -0.02510805302352498,
+    "z_vs_exact_null": -1.8310216970951951,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.05485036701281559,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 2,
+    "V_per_frame": [
+     0.44214820750757566,
+     0.41561196657310095,
+     0.3932549123162862,
+     0.39162638617798184,
+     0.3948189647983179,
+     0.42023739414369227,
+     0.4623024844055147,
+     0.5008656421830935
+    ],
+    "upper_bound_on_excess_V_units": 0.029742313989290614,
+    "reported_as": "no departure resolved above a floor of 0.054850 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "seps": {
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.946190029437047,
+     "SE_of_difference": 0.085096393318017,
+     "separation_in_SE": 11.119037982032964,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.2858326267541281,
+     "SE_of_difference": 0.044099084668010054,
+     "separation_in_SE": 6.481599990248191,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    }
+   }
+  },
+  "d140_bkzblock30_window60": {
+   "lll_only": {
+    "n_frames": 8,
+    "V_mean": 1.6267772825033453,
+    "V_sd": 0.28216861749405947,
+    "V_se": 0.09976167143404126,
+    "mu0_haar_exact": 0.482897384305835,
+    "excess_over_mu0": 1.1438798981975102,
+    "z_vs_exact_null": 11.466126035727072,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.39904668573616503,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     1.6629399228346675,
+     1.605719759073362,
+     1.789310178859201,
+     1.8641164608781078,
+     1.2275610774734944,
+     2.078457692118439,
+     1.4029665998881122,
+     1.3831465689013793
+    ]
+   },
+   "real_bkz": {
+    "n_frames": 8,
+    "V_mean": 0.815572101522698,
+    "V_sd": 0.13788211869409708,
+    "V_se": 0.04874869056648223,
+    "mu0_haar_exact": 0.482897384305835,
+    "excess_over_mu0": 0.332674717216863,
+    "z_vs_exact_null": 6.8242800647777315,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.19499476226592893,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     0.8331276074304697,
+     0.7160232826486557,
+     0.9197518926002258,
+     1.0818928814091007,
+     0.6248143881993424,
+     0.797623918753758,
+     0.7513072085386414,
+     0.8000356326013904
+    ]
+   },
+   "haar_null": {
+    "n_frames": 8,
+    "V_mean": 0.5316771299073307,
+    "V_sd": 0.03470767146681194,
+    "V_se": 0.012271014926688783,
+    "mu0_haar_exact": 0.482897384305835,
+    "excess_over_mu0": 0.04877974560149573,
+    "z_vs_exact_null": 3.9752005757406796,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.04908405970675513,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 7,
+    "V_per_frame": [
+     0.5284624785631808,
+     0.5351627315556287,
+     0.5750218644749625,
+     0.4679311824228971,
+     0.5389699616518366,
+     0.5122103890521471,
+     0.520318828428452,
+     0.575339603109541
+    ],
+    "upper_bound_on_excess_V_units": 0.09786380530825087,
+    "reported_as": "no departure resolved above a floor of 0.049084 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "seps": {
+    "lll_only_vs_haar_null": {
+     "delta_V": 1.0951001525960145,
+     "SE_of_difference": 0.10051352592882523,
+     "separation_in_SE": 10.895052605869854,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.28389497161536725,
+     "SE_of_difference": 0.05026940062580469,
+     "separation_in_SE": 5.647470789011875,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    }
+   }
+  },
+  "d140_bkzblock40_window50": {
+   "lll_only": {
+    "n_frames": 8,
+    "V_mean": 1.3359084365823342,
+    "V_sd": 0.24047868037330863,
+    "V_se": 0.08502205281137942,
+    "mu0_haar_exact": 0.45271629778672035,
+    "excess_over_mu0": 0.8831921387956139,
+    "z_vs_exact_null": 10.387800689251375,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.3400882112455177,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     1.8075413991676883,
+     1.2385044739767515,
+     1.3362230569267899,
+     1.1909812709182295,
+     1.568670515457941,
+     1.093337433861413,
+     1.140260131080715,
+     1.3117492112691447
+    ]
+   },
+   "real_bkz": {
+    "n_frames": 8,
+    "V_mean": 0.6203072455497873,
+    "V_sd": 0.05253864850921669,
+    "V_se": 0.01857521731762181,
+    "mu0_haar_exact": 0.45271629778672035,
+    "excess_over_mu0": 0.167590947763067,
+    "z_vs_exact_null": 9.022287324955169,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.07430086927048724,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     0.6403229970379305,
+     0.5390360460472167,
+     0.5642617801164084,
+     0.7116807032717519,
+     0.6370908514199514,
+     0.605674654069408,
+     0.6370875118815171,
+     0.6273034205541153
+    ]
+   },
+   "haar_null": {
+    "n_frames": 8,
+    "V_mean": 0.42760824476319537,
+    "V_sd": 0.03878506646533282,
+    "V_se": 0.013712591753203898,
+    "mu0_haar_exact": 0.45271629778672035,
+    "excess_over_mu0": -0.02510805302352498,
+    "z_vs_exact_null": -1.8310216970951951,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.05485036701281559,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 2,
+    "V_per_frame": [
+     0.44214820750757566,
+     0.41561196657310095,
+     0.3932549123162862,
+     0.39162638617798184,
+     0.3948189647983179,
+     0.42023739414369227,
+     0.4623024844055147,
+     0.5008656421830935
+    ],
+    "upper_bound_on_excess_V_units": 0.029742313989290614,
+    "reported_as": "no departure resolved above a floor of 0.054850 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "seps": {
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.9083001918191388,
+     "SE_of_difference": 0.08612075613260155,
+     "separation_in_SE": 10.546820912958706,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.19269900078659197,
+     "SE_of_difference": 0.023088392559615593,
+     "separation_in_SE": 8.346141910444036,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    }
+   }
+  },
+  "d140_bkzblock40_window60": {
+   "lll_only": {
+    "n_frames": 8,
+    "V_mean": 1.4766635121839236,
+    "V_sd": 0.2593495743289493,
+    "V_se": 0.09169392135292229,
+    "mu0_haar_exact": 0.482897384305835,
+    "excess_over_mu0": 0.9937661278780885,
+    "z_vs_exact_null": 10.837862676339963,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.36677568541168915,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     2.056599215517867,
+     1.28152857564854,
+     1.4977678451249021,
+     1.3309293554887422,
+     1.5939938606796806,
+     1.382489141794105,
+     1.2576171841997046,
+     1.4123829190178472
+    ]
+   },
+   "real_bkz": {
+    "n_frames": 8,
+    "V_mean": 0.6933060906145196,
+    "V_sd": 0.07234128111652913,
+    "V_se": 0.02557650521861004,
+    "mu0_haar_exact": 0.482897384305835,
+    "excess_over_mu0": 0.21040870630868463,
+    "z_vs_exact_null": 8.22664021179823,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.10230602087444016,
+    "verdict": "DEPARTURE",
+    "frames_with_positive_excess": 8,
+    "V_per_frame": [
+     0.6958231850981037,
+     0.5808947285769483,
+     0.6628745392835589,
+     0.7747611033788795,
+     0.7921505822315527,
+     0.653031071702689,
+     0.7436405301085478,
+     0.6432729845358769
+    ]
+   },
+   "haar_null": {
+    "n_frames": 8,
+    "V_mean": 0.5316771299073307,
+    "V_sd": 0.03470767146681194,
+    "V_se": 0.012271014926688783,
+    "mu0_haar_exact": 0.482897384305835,
+    "excess_over_mu0": 0.04877974560149573,
+    "z_vs_exact_null": 3.9752005757406796,
+    "gate_k": 4.0,
+    "detection_floor_V_units": 0.04908405970675513,
+    "verdict": "AGREEMENT_UPPER_BOUND",
+    "frames_with_positive_excess": 7,
+    "V_per_frame": [
+     0.5284624785631808,
+     0.5351627315556287,
+     0.5750218644749625,
+     0.4679311824228971,
+     0.5389699616518366,
+     0.5122103890521471,
+     0.520318828428452,
+     0.575339603109541
+    ],
+    "upper_bound_on_excess_V_units": 0.09786380530825087,
+    "reported_as": "no departure resolved above a floor of 0.049084 V-units; this is an UPPER BOUND, not an absence"
+   },
+   "seps": {
+    "lll_only_vs_haar_null": {
+     "delta_V": 0.9449863822765928,
+     "SE_of_difference": 0.0925113669794524,
+     "separation_in_SE": 10.214813737283578,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    },
+    "real_bkz_vs_haar_null": {
+     "delta_V": 0.1616289607071889,
+     "SE_of_difference": 0.0283678590402696,
+     "separation_in_SE": 5.697608708424153,
+     "verdict_arm": "DEPARTURE",
+     "verdict_haar_null": "AGREEMENT_UPPER_BOUND",
+     "verdicts_differ": true
+    }
+   }
+  }
+ },
+ "AM2_admissibility": {
+  "requirement": "different verdicts on the Haar null arm and the real arm in at least one cell, separation stated in SE of the difference, on already-committed data",
+  "cells_with_differing_verdicts": [
+   "d100_b30",
+   "d100_b40",
+   "d140_b30",
+   "d140_b40"
+  ],
+  "met": true,
+  "all_differing_verdicts": [
+   {
+    "cell": "d100_b30",
+    "comparison": "unreduced_vs_haar_null",
+    "separation_in_SE": 249.9163166598409,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d100_b30",
+    "comparison": "lll_only_vs_haar_null",
+    "separation_in_SE": 5.7048357485144345,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d100_b30",
+    "comparison": "graded_t0.00_vs_haar_null",
+    "separation_in_SE": 949.6330720549802,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d100_b40",
+    "comparison": "unreduced_vs_haar_null",
+    "separation_in_SE": 587.321823047496,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d100_b40",
+    "comparison": "lll_only_vs_haar_null",
+    "separation_in_SE": 5.306540903986815,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d100_b40",
+    "comparison": "graded_t0.00_vs_haar_null",
+    "separation_in_SE": 1134.3665157500077,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d140_b30",
+    "comparison": "unreduced_vs_haar_null",
+    "separation_in_SE": 262.03023361319117,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d140_b30",
+    "comparison": "lll_only_vs_haar_null",
+    "separation_in_SE": 9.904097673220571,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d140_b30",
+    "comparison": "real_bkz_vs_haar_null",
+    "separation_in_SE": 5.484499697710325,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d140_b30",
+    "comparison": "graded_t0.00_vs_haar_null",
+    "separation_in_SE": 1437.6472777989395,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d140_b40",
+    "comparison": "unreduced_vs_haar_null",
+    "separation_in_SE": 499.2376004638206,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d140_b40",
+    "comparison": "lll_only_vs_haar_null",
+    "separation_in_SE": 13.035172550409646,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d140_b40",
+    "comparison": "real_bkz_vs_haar_null",
+    "separation_in_SE": 6.365254162697458,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   },
+   {
+    "cell": "d140_b40",
+    "comparison": "graded_t0.00_vs_haar_null",
+    "separation_in_SE": 2349.1415558214253,
+    "verdict_arm": "DEPARTURE",
+    "verdict_haar_null": "AGREEMENT_UPPER_BOUND"
+   }
+  ]
+ },
+ "detection_floors_V_units": {
+  "d100_b30": {
+   "unreduced": 0.11413312073901943,
+   "lll_only": 0.11150359415915508,
+   "real_bkz": 0.06908140221755069,
+   "haar_null": 0.08674501812700901,
+   "graded_t0.00": 2.6855991067210084e-15,
+   "graded_t1.00": 0.05421651749676168
+  },
+  "d100_b40": {
+   "unreduced": 0.06832635037305942,
+   "lll_only": 0.1988006142166906,
+   "real_bkz": 0.07688710732053365,
+   "haar_null": 0.08301402866296427,
+   "graded_t0.00": 4.651594101602378e-15,
+   "graded_t1.00": 0.06984945794024265
+  },
+  "d140_b30": {
+   "unreduced": 0.07379634373278808,
+   "lll_only": 0.16282127244789696,
+   "real_bkz": 0.08690237412713503,
+   "haar_null": 0.06468778577156435,
+   "graded_t0.00": 3.2891737325703876e-15,
+   "graded_t1.00": 0.0655999737538097
+  },
+  "d140_b40": {
+   "unreduced": 0.07795747039787078,
+   "lll_only": 0.22079887794404202,
+   "real_bkz": 0.06792469540022225,
+   "haar_null": 0.04800104301556206,
+   "graded_t0.00": 4.651594101602378e-15,
+   "graded_t1.00": 0.07305196300678038
+  }
+ },
+ "timings": {
+  "reduction_wall_seconds": 272.99,
+  "reduction_cpu_core_seconds": 1032.11,
+  "total_wall_seconds": 273.05,
+  "total_cpu_core_seconds": 1032.18
+ },
+ "finished_utc": "2026-08-06T12:15:01Z",
+ "peak_rss_gb": 0.089,
+ "environment": {
+  "python": "3.11.15",
+  "platform": "Linux-6.18.5-fc-v18-x86_64-with-glibc2.39",
+  "numpy": "2.4.6",
+  "fpylll": "0.6.4"
+ }
+}

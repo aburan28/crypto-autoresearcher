@@ -14,8 +14,11 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+
+import yaml
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -94,6 +97,26 @@ class CommandTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             task(track="not-a-track")
 
+    def test_forbidden_model_is_rejected_at_task_construction(self) -> None:
+        with self.assertRaisesRegex(ValueError, "forbidden by cost policy"):
+            task(model="amazon-BeDrOcK/us.example-model")
+
+    def test_forbidden_yaml_model_is_rejected_before_external_runner(self) -> None:
+        document = {
+            "harbor_suite": {
+                "name": "forbidden-target-fixture",
+                "tasks": [{
+                    "id": "forbidden-1", "track": "algorithmic", "problem": "0",
+                    "agent": "codex", "model": "amazon-bedrock/example",
+                }],
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.yaml"
+            path.write_text(yaml.safe_dump(document), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "forbidden by cost policy"):
+                harbor.load_suite(path)
+
 
 class ParseTests(unittest.TestCase):
     def test_score_is_rescaled_from_0_100_to_0_1(self) -> None:
@@ -163,6 +186,23 @@ class RunTests(unittest.TestCase):
                              probe_result=ALL_PRESENT, runner=_timeout)
         self.assertFalse(r.passed)
         self.assertEqual(r.stop_reason, "harness_timeout")
+
+    def test_mutated_forbidden_target_never_reaches_external_runner(self) -> None:
+        for field in ("agent", "model"):
+            with self.subTest(field=field):
+                candidate = task()
+                setattr(candidate, field, "Amazon-BeDrOcK/example")
+                calls = []
+
+                def forbidden_runner(*args, **kwargs):
+                    calls.append((args, kwargs))
+                    raise AssertionError("forbidden target reached Harbor runner")
+
+                with self.assertRaisesRegex(ValueError, "forbidden by cost policy"):
+                    harbor.run_trial(
+                        candidate, 0, probe_result=ALL_PRESENT,
+                        runner=forbidden_runner)
+                self.assertEqual(calls, [])
 
 
 class SuiteTests(unittest.TestCase):

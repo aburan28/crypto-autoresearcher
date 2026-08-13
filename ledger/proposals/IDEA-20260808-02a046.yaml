@@ -1,0 +1,218 @@
+idea:
+  id: IDEA-20260808-02a046
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  title: Replace the union bound in the FORS multi-target argument with the EXACT coverage
+    generating function - the ratio of the two is the proof's slack in bits, computable in
+    closed form at all six FIPS 205 sets, and it converts directly into signature bytes.
+  class: theory
+  claim: 'The FORS layer''s multi-target security is governed by the probability that a fresh
+    digest''s k tree-indices are ALL covered by the union of the indices revealed across q
+    signatures. The standard argument bounds this by a union/independence step. CLAIM - the
+    exact probability is a closed-form expectation over the occupancy vector of q*k balls
+    in k*2^a bins, expressible as a product of per-tree factors ONLY IF the trees are independent,
+    and the exact expression is the expectation of the product over j from 1 to k of (C_j
+    / 2^a), where C_j is the number of distinct indices revealed in tree j - a quantity whose
+    k-fold product does NOT factor because the C_j share the same q signatures. The exact
+    value is computable by a generating-function or Poissonisation argument in O(k*q) arithmetic.
+    TWO OUTCOMES, BOTH pre-registered: the exact value is within a factor 2 of the bound at
+    every FIPS 205 set, in which case the FORS bound is TIGHT and there is no parameter slack
+    to recover; or it is smaller by a factor 2^d with d at least 1, in which case the parameters
+    carry d bits of unneeded conservatism and the record reports the (k, a) pair that would
+    preserve the claimed category at a SMALLER SIGNATURE, in bytes.'
+  mechanism: 'SLH-DSA''s binding cost is signature size, and signature size is driven by k
+    (the number of FORS trees, each contributing an authentication path of a*n bytes). Any
+    tightening of the FORS bound therefore converts directly into bytes. The looseness candidate
+    is specific: the k indices come from ONE digest and the q revealed sets come from the
+    SAME q signatures, so the k per-tree coverage events are positively correlated through
+    the shared signature budget. A union or independence step ignores that correlation. Positive
+    correlation makes the true coverage probability LARGER than the independent product (which
+    would favour the attacker) or smaller depending on the direction of the dependence - and
+    determining the SIGN is itself the first deliverable, because getting it backwards is
+    the way this analysis fails.'
+  why_not_a_renamed_known_approach: Nearest known method - the ITSR (interleaved target subset
+    resilience) bound used in the SPHINCS+/SLH-DSA analyses (recalled_unverified as the standard
+    route). That is the object; this record recomputes its central probability EXACTLY rather
+    than bounding it. Nearest internal record - IDEA-20260805-fbe36a, which identifies the
+    k-th moment of the FORS-key-pair collision count as the carrying quantity. THE DIFFERENCE
+    IS EXPLICIT - that record tracks a MOMENT of a collision count; this one tracks the EXACT
+    COVERAGE PROBABILITY including the cross-tree correlation induced by the shared signature
+    budget, which a moment computation of a single statistic does not capture. Also nearest
+    is IDEA-20260805-705614 (the ITSR quantifier audit), which asks whether the bound's quantifier
+    order is right; this asks whether its VALUE is right. LOSSY-PROJECTION TEST - the tracked
+    object is the per-tree occupancy vector, a projection of the full transcript that discards
+    WHICH signatures revealed which indices and keeps only how many distinct indices each
+    tree has. Compatible with the attack's operations because coverage depends on the revealed
+    SET only through its per-tree cardinalities. Genuinely lossy. PASSES.
+  predictions:
+  - observable: sign of the cross-tree correlation
+    metric: exact coverage probability minus the independent product
+    predicted: to be derived and PRE-REGISTERED before numerics; getting the sign wrong is
+      the primary failure mode and is called out in advance
+  - observable: ratio of bound to exact at each of the six FIPS 205 parameter sets, at q =
+      2^64 signatures
+    metric: bits, log2 of the ratio
+    predicted: a specific number per set; the record is informative whether it is 0 or 20
+  - observable: sensitivity to q
+    metric: ratio at q = 2^20, 2^40, 2^64
+    predicted: monotone in q; a non-monotone ratio indicates an arithmetic error and voids
+      the computation
+  - observable: signature-size consequence
+    metric: bytes, at the (k, a) pair that preserves the claimed category under the exact
+      analysis
+    predicted: reported as a number and as zero if the bound is tight - the negative outcome
+      is a first-class deliverable here
+  - observable: toy-scale check
+    metric: simulated coverage frequency versus the closed form at small (k, a, q)
+    predicted: agreement within Monte Carlo error; disagreement kills the closed form
+  minimal_test: Derivation plus exact arithmetic plus a toy simulation. (1) Derive the exact
+    coverage probability by Poissonisation and de-Poissonisation, and PRE-REGISTER the sign
+    of the correlation. (2) Evaluate at the six FIPS 205 sets in exact rational arithmetic
+    (numpy plus fractions), reporting bits of slack. (3) Simulate at toy parameters (a = 4..6,
+    k = 4..8, q up to 2^16) and compare frequencies against the closed form. (4) Invert to
+    the minimal (k, a) preserving the claimed category and report the byte delta. Explicitly
+    NOT an attack; explicitly a proof-side measurement.
+  controls:
+  - Toy Monte Carlo against the closed form, with the simulation written by a session that
+    did not derive the formula.
+  - Recovery of the independent product as a special case when the q signatures are forced
+    to be disjoint by construction - a baseline-embedding fixture.
+  - Monotonicity in q as a decay/sanity control.
+  - Exact rational arithmetic, since the quantities are ratios of astronomically small numbers
+    and floating point silently produces zeros.
+  confounders:
+  - The FORS index derivation's exact form (how many bits per tree, whether the k indices
+    can repeat a tree) changes the combinatorics; it must be pinned from FIPS 205 text.
+  - The bound in the literature may already be the exact expression, in which case the slack
+    is 0 by construction and the record's value is confirmatory - stated in advance as an
+    acceptable outcome.
+  - Conflating slack in the FORS layer with slack in the whole scheme; the hypertree and WOTS+
+    layers have their own terms and the total is not the FORS term.
+  falsification_conditions:
+  - Toy simulation disagrees with the closed form - the derivation is wrong.
+  - The ratio is within a factor 2 at every set - the bound is tight and no parameter slack
+    exists in this term; a clean negative and a real answer to GOAL-SLHDSA-001's question.
+  - The correlation sign comes out favouring the ATTACKER - then the exact analysis WEAKENS
+    rather than strengthens the parameters, which must be reported prominently and immediately,
+    and is the one outcome with security-relevant consequences.
+  interpretation_limits: A proof-side measurement, at the FORS layer only, under a random-oracle
+    idealisation of the digest split. It says nothing about the hash function itself, nothing
+    about the other layers, and it is not an attack. Any parameter recommendation is arithmetic
+    under a stated model, never a standards proposal.
+  assumptions:
+  - FIPS 205's FORS index derivation is obtainable as primary text.
+  - The multi-target proof's structure (which term is the union bound) is obtainable; if not,
+    the record degrades to computing the exact probability and comparing against the parameter
+    set's implied target, which is still informative.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: FOR ALL FIPS 205 sets, the digest-to-index map is modelled as a random oracle,
+      so the q revealed index sets are q independent uniform draws of k indices.
+    rigorous_ingredient: This is the SAME idealisation the scheme's own proof makes, so the
+      record inherits rather than adds an assumption - stated explicitly so the inheritance
+      is visible.
+    distribution_imitated: balls-in-bins occupancy with k*2^a bins and q*k balls.
+    validation_route: TOY, LABELLED. Instantiate the derivation with a truncated hash and
+      measure the empirical index distribution (shared with A1-08's HA-1, so one toy instrument
+      serves both records). Never crypto-scale.
+    tail_checks: Report per-tree maximum occupancy against the predicted extreme-value curve;
+      coverage attacks live in the upper tail of the occupancy.
+  - id: HA-2
+    statement: de-Poissonisation error is O(1/sqrt(q)) and does not affect the reported bits
+      at q at least 2^20.
+    rigorous_ingredient: Standard Poissonisation error bounds for occupancy statistics, applied
+      with explicit constants rather than asymptotically.
+    distribution_imitated: not applicable - an approximation-error assumption.
+    validation_route: compare the Poissonised closed form against exact dynamic-programming
+      evaluation at small q where both are computable.
+    tail_checks: report the largest discrepancy over the tested q range, not the typical one.
+  target_complexity:
+    time_exponent: No attack, no attack exponent. The claimed quantity is d, the bits of slack
+      in the FORS term, and the deliverable is d as a number at each of the six parameter
+      sets. d = 0 is a complete and useful answer.
+    memory_exponent: Negligible - O(k*q) exact-rational arithmetic with q entering only through
+      a summation index, not a table.
+    best_known_baseline: the FIPS 205 parameter sets themselves, whose (k, a) encode the bound
+      the designers used.
+    hidden_overhead_disclosure: The analysis is exact WITHIN the random-oracle idealisation
+      it inherits; the real hash's deviation from that idealisation is not modelled and is
+      not claimed to be small.
+    time_memory_tradeoff: not applicable.
+  sota_delta: Defender-side. If d is at least 1 the scheme's most painful parameter (signature
+    size) has measurable headroom; if d = 0 the program has a real, cheap, archived answer
+    to GOAL-SLHDSA-001's central question, which its own completion criteria explicitly admit,
+    including the outcome that the margin is comfortable.
+  dominated_by: IDEA-20260805-fbe36a (the k-th moment object) is the nearest row and dominates
+    on directness for collision-type statistics while missing the cross-tree correlation this
+    record targets; IDEA-20260805-705614 dominates on the quantifier question and says nothing
+    about the value; IDEA-20260801-009 measures slack as a ratio at TOY sets while this computes
+    it exactly at the DEPLOYED sets. None dominates on the exact deployed-parameter value,
+    which is why this record exists. Checked all five RQ-SLHDSA-001 proposals and H-SLHDSA-3a403a.
+  estimated_cost: Implementation LOW-MEDIUM (Poissonisation derivation is the delicate part);
+    compute LOW; one producer slot plus one validator slot for the independently written simulation.
+  recommended_priority: medium
+  honest_prior_of_survival: Closed form matching toy simulation - 0.7. d at least 1 bit at
+    some parameter set - 0.4. d at least 3 bits - 0.15 (standards parameters are usually chosen
+    against the exact analysis, so I expect tightness). The correlation sign favouring the
+    attacker - 0.1, and it is the outcome I have pre-committed to report first if it occurs.
+    Determinate answer either way - 0.85.
+  novelty_status: unverified
+  novelty_class: speculative
+  novelty_screen: EXISTING_PROPOSALS.txt lines 68 (IDEA-20260801-009, toy-scale slack ratio),
+    174 (IDEA-20260805-705614, quantifier audit), 192 (IDEA-20260805-88ecef, memory), 257
+    (IDEA-20260805-fbe36a, k-th moment), 413 (IDEA-20260807-c4f1fc, the hash-assumption targeting
+    question); EXISTING_HYPOTHESES.txt H-SLHDSA-3a403a; CATALOGUE_TITLES.txt (none); REJECTED_TITLES.txt,
+    DEFERRED_TITLES.txt, KNOWLEDGE_BARRIERS.txt (none). EXTERNAL LITERATURE NOT SCREENED.
+  discriminated_from: IDEA-20260805-fbe36a - a moment of a collision count; this is the exact
+    coverage probability with cross-tree correlation. IDEA-20260801-009 - toy parameter sets
+    and a ratio; this is deployed parameter sets and a closed form. IDEA-20260805-705614 -
+    quantifier order; this is the value.
+  source_refs:
+  - ref: FIPS 205 (SLH-DSA) parameter sets and FORS index derivation
+    status: named_but_not_read_this_session
+  - ref: ITSR-style multi-target analysis of the FORS layer
+    status: recalled_unverified
+  - ref: IDEA-20260805-fbe36a, IDEA-20260805-705614, IDEA-20260801-009
+    status: internal_committed
+  proof_search_map:
+    bottleneck: The union/independence step in the FORS multi-target argument - the only place
+      in the FORS term where a bound replaces an exactly computable quantity.
+    baseline_embedding:
+      parameter_slice: q signatures forced disjoint by construction, which must reproduce
+        the independent product exactly.
+      reproduction_check: symbolic, frozen before numerics.
+    observation_collision:
+      observable: the coverage probability.
+      distinct_preimage_search: Two parameter sets with the same coverage probability but
+        different (k, a) are expected and are informative - they are exactly the pairs among
+        which a signature-size optimisation can choose.
+    constructive_transforms:
+    - transform: specialization_pack
+      proposed_object: the per-tree occupancy vector and its Poissonisation
+      predicted_gain: An exact value in place of a bound, in O(k*q) arithmetic.
+    quantifier_order: FOR ALL six FIPS 205 parameter sets and FOR ALL q in a stated range,
+      THERE EXISTS an exactly computable P_cov(q, k, a) such that the FORS multi-target advantage
+      equals P_cov up to the inherited random-oracle idealisation. Note the inheritance -
+      the idealisation is the scheme's own, not an extra assumption introduced here.
+    method_ceiling:
+      strongest_certifiable_claim: '"within the random-oracle idealisation, the FORS coverage
+        term equals P_cov exactly, and the deployed bound exceeds it by d bits." It can never
+        say anything about the concrete hash function.'
+      nearby_object_control: A parameter set with k = 1 has no cross-tree correlation at all,
+        so the exact value must coincide with the independent product there - a free internal
+        consistency check.
+    proof_obligations:
+    - claim: exact coverage probability derivation
+      responsibility: correctness
+    - claim: independent product recovered on disjoint signatures
+      responsibility: baseline
+    - claim: de-Poissonisation error
+      responsibility: strictness
+    - claim: bits of slack at deployed sets
+      responsibility: size
+    - claim: FORS-layer-only scope stated wherever d is quoted
+      responsibility: scope
+    not_applicable_reason: null

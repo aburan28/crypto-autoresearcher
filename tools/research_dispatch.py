@@ -15,6 +15,29 @@ from typing import Any, Protocol, Sequence
 
 SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
 PLAN_SCHEMA = "crypto.autoresearch.dispatch_plan.v1"
+
+# Hard ceiling on queue.max_concurrent. REMOVED (None = uncapped) on the
+# user's EXPLICIT DIRECTION of 2026-08-05: "remove the concurrent limit from
+# the code rules." Previously fixed at 3. THE AUTHORIZATION IS THE USER'S AND
+# IT IS NOT A COORDINATOR SELF-GRANT, same footing as the maximum_batches
+# amendment on GOAL-AES-003's campaign_budget.
+#
+# What this does NOT relax: a queue must still declare a positive integer
+# max_concurrent; write_scope conflict detection and archive-must-run-alone
+# isolation are unaffected; nothing here waives per-task budgets or the
+# review requirement on claim-changing results.
+#
+# The risk this ceiling existed to bound is on the record, not removed by
+# removing the check: GOAL-AES-003 BATCH-002 ran three producers on a 4-core
+# machine against the goal's own instruction that a batch wait rather than
+# run degraded, load average reached 13, one producer's entire first segment
+# produced zero numbers and another lost five of eight trials to timeouts
+# (DEC-20260802-b226fb budget_accounting). A queue that raises
+# max_concurrent above the machine's real headroom will reproduce that
+# failure; the Coordinator dispatching it is responsible for sizing it to
+# the environment, the same way sizing was always the Coordinator's job
+# within the old ceiling.
+MAX_CONCURRENT_CEILING: int | None = None
 ROLES = {
     "coordinator",
     "executor",
@@ -27,6 +50,8 @@ INDEPENDENT_REVIEW_ROLES = {"reviewer", "validator", "red-team"}
 TERMINAL_STATES = {"completed", "failed", "invalid", "cancelled"}
 STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
+ARCHIVE_BINDING_MODES = {"commit", "content_first"}
+FAILURE_PROVENANCE_ARCHIVE_KIND = "terminal_failure_provenance_archive"
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
@@ -125,6 +150,84 @@ def scope_overlaps(left: str, right: str) -> bool:
 
 def is_archive(task: dict[str, Any]) -> bool:
     return "archive" in task
+
+
+def _completed_failure_successor_exists(
+    failed_id: str,
+    task: dict[str, Any],
+    by_id: dict[str, dict[str, Any]],
+) -> bool:
+    """Return whether an archived failed task has a completed successor chain."""
+
+    source_ids = set(task["archive"]["source_task_ids"])
+    frontier = [failed_id]
+    visited: set[str] = set()
+    while frontier:
+        predecessor = frontier.pop()
+        if predecessor in visited:
+            continue
+        visited.add(predecessor)
+        for candidate in by_id.values():
+            if (
+                candidate["id"] in source_ids
+                and candidate.get("supersedes_failed_task") == predecessor
+            ):
+                if (
+                    candidate["state"] == "completed"
+                    and candidate["role"] in INDEPENDENT_REVIEW_ROLES
+                ):
+                    return True
+                frontier.append(candidate["id"])
+    return False
+
+
+def _failure_provenance_dependencies(
+    task: dict[str, Any], by_id: dict[str, dict[str, Any]]
+) -> set[str]:
+    """Return terminal failures an isolated archive may preserve without unblocking work."""
+
+    exception = task.get("dispatch_exception")
+    if not isinstance(exception, dict) or exception.get("kind") != FAILURE_PROVENANCE_ARCHIVE_KIND:
+        return set()
+    if not is_archive(task) or task["archive"]["kind"] != "ledger":
+        raise DispatchError(
+            f"task {task['id']} may use {FAILURE_PROVENANCE_ARCHIVE_KIND} only on a ledger archive"
+        )
+    if task["role"] != "coordinator":
+        raise DispatchError(f"failure-provenance archive {task['id']} must be coordinator-owned")
+    if (
+        exception.get("scientific_effect") != "none"
+        or exception.get("failed_tasks_reclassified_completed") is not False
+        or exception.get("successor_review_completed_independently") is not True
+    ):
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} has an invalid dispatch_exception boundary"
+        )
+    failed = {
+        dependency
+        for dependency in task["depends_on"]
+        if by_id[dependency]["state"] in {"failed", "invalid", "cancelled"}
+    }
+    if not failed:
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} must name a terminal failed dependency"
+        )
+    source_ids = set(task["archive"]["source_task_ids"])
+    if not failed.issubset(source_ids):
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} may exempt only archived source tasks"
+        )
+    missing_successors = sorted(
+        dependency
+        for dependency in failed
+        if not _completed_failure_successor_exists(dependency, task, by_id)
+    )
+    if missing_successors:
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} lacks a completed independent successor "
+            f"for {missing_successors}"
+        )
+    return failed
 
 
 def assert_acyclic(graph: dict[str, list[str]]) -> None:
@@ -246,6 +349,15 @@ def validate_archive_shape(task: dict[str, Any], location: str) -> None:
             raise DispatchError(f"{location}.archive.{field} is required")
     if archive["kind"] not in ARCHIVE_KINDS:
         raise DispatchError(f"{location}.archive.kind must be snapshot or ledger")
+    # Legacy archives are commit-bound.  `content_first` is intentionally
+    # opt-in: it is for source packages committed before their archive task
+    # ran, where one exact changed-path commit cannot express intact custody.
+    # Never infer this from a failed commit-scope check.
+    binding_mode = archive.get("binding_mode", "commit")
+    if binding_mode not in ARCHIVE_BINDING_MODES:
+        raise DispatchError(
+            f"{location}.archive.binding_mode must be commit or content_first"
+        )
     require_text_list(archive, "source_task_ids", f"{location}.archive")
     if len(archive["source_task_ids"]) != len(set(archive["source_task_ids"])):
         raise DispatchError(f"{location}.archive.source_task_ids contains duplicates")
@@ -355,8 +467,12 @@ def validate_queue(
     if "goal_id" in queue:
         require_text(queue, "goal_id", "queue")
     maximum = queue.get("max_concurrent")
-    if not isinstance(maximum, int) or isinstance(maximum, bool) or not 1 <= maximum <= 3:
-        raise DispatchError("queue.max_concurrent must be an integer 1..3")
+    if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum < 1:
+        raise DispatchError("queue.max_concurrent must be a positive integer")
+    if MAX_CONCURRENT_CEILING is not None and maximum > MAX_CONCURRENT_CEILING:
+        raise DispatchError(
+            f"queue.max_concurrent must be an integer 1..{MAX_CONCURRENT_CEILING}"
+        )
     tasks = queue.get("tasks")
     if not isinstance(tasks, list) or not tasks:
         raise DispatchError("queue.tasks must be a nonempty list")
@@ -496,11 +612,7 @@ def validate_queue(
 
     for task in tasks:
         if task["state"] == "running":
-            incomplete = [
-                dependency
-                for dependency in task["depends_on"]
-                if by_id[dependency]["state"] != "completed"
-            ]
+            incomplete = blockers(task, by_id)
             if incomplete:
                 raise DispatchError(
                     f"running task {task['id']} has incomplete dependencies {incomplete}"
@@ -527,9 +639,10 @@ def validate_queue(
 
 def blockers(task: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> list[str]:
     output: list[str] = []
+    preserved_failures = _failure_provenance_dependencies(task, by_id)
     for dependency in task["depends_on"]:
         state = by_id[dependency]["state"]
-        if state != "completed":
+        if state != "completed" and dependency not in preserved_failures:
             output.append(f"dependency_not_completed:{dependency}:{state}")
     if task["state"] == "blocked":
         output.append("task_marked_blocked")
@@ -673,7 +786,13 @@ def select(
             if task["state"] in TERMINAL_STATES
         ],
         "gates": {
-            "concurrency_cap_respected": len(selected) <= queue["max_concurrent"] <= 3,
+            "concurrency_cap_respected": (
+                len(selected) <= queue["max_concurrent"]
+                and (
+                    MAX_CONCURRENT_CEILING is None
+                    or queue["max_concurrent"] <= MAX_CONCURRENT_CEILING
+                )
+            ),
             "all_selected_dependencies_completed": all(
                 not blockers(task, by_id) for task in selected
             ),
@@ -709,8 +828,7 @@ def select(
                 if is_archive(task)
             ),
             "terminal_noncompleted_tasks_do_not_unblock_successors": all(
-                all(by_id[dependency]["state"] == "completed"
-                    for dependency in task["depends_on"])
+                not blockers(task, by_id)
                 for task in selected
             ),
             "claim_relevant_tasks_have_independent_review": all(
@@ -724,6 +842,12 @@ def select(
             ),
         },
     }
+    # Keep declared and legacy content-only bindings visible in the canonical
+    # plan (and therefore its digest), rather than adding them only during CLI
+    # rendering after the plan has been hashed.
+    content_only = getattr(repository_verifier, "content_only_archives", None)
+    if content_only:
+        plan["content_only_archives"] = content_only
     plan["plan_sha256"] = digest(plan)
     return plan
 
@@ -851,7 +975,13 @@ class GitRepositoryVerifier:
         return paths
 
     def _verify_content_only(
-        self, task_id: str, archive: dict[str, Any], reason: str
+        self,
+        task_id: str,
+        archive: dict[str, Any],
+        reason: str,
+        *,
+        expected_paths: Sequence[str] | None = None,
+        allow_generated_skip: bool = True,
     ) -> None:
         """Verify an archive against CONTENT when its commit binding is gone.
 
@@ -877,6 +1007,11 @@ class GitRepositoryVerifier:
                 f"archive task {task_id} commit binding is unverifiable ({reason}) and it "
                 f"declares no path_sha256 to fall back on"
             )
+        if expected_paths is not None and set(hashes) != set(expected_paths):
+            raise DispatchError(
+                f"archive task {task_id} declared content_first binding must provide "
+                "path_sha256 for every archive and source artifact"
+            )
         skipped: list[str] = []
         for path in sorted(hashes):
             # Read the COMMITTED content at HEAD, not the working tree. A dirty
@@ -888,7 +1023,7 @@ class GitRepositoryVerifier:
                 ["git", "-C", str(self.repo_root), "show", f"HEAD:{path}"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
             if blob.returncode != 0:
-                if _is_generated_path(path):
+                if allow_generated_skip and _is_generated_path(path):
                     # The archive bound a generated artifact that this repository
                     # has since stopped tracking (.gitignore). The binding cannot
                     # be checked and its absence is policy, not corruption.
@@ -900,7 +1035,7 @@ class GitRepositoryVerifier:
                 )
             observed = hashlib.sha256(blob.stdout).hexdigest()
             if observed != hashes[path]:
-                if _is_generated_path(path):
+                if allow_generated_skip and _is_generated_path(path):
                     skipped.append(path)
                     continue
                 raise DispatchError(
@@ -918,9 +1053,15 @@ class GitRepositoryVerifier:
         declared_commit = archive["commit_sha"]
         if not isinstance(declared_commit, str):
             raise DispatchError(f"completed archive task {task_id} requires archive.commit_sha")
+        binding_mode = archive.get("binding_mode", "commit")
         try:
             commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
         except DispatchError:
+            if binding_mode == "content_first":
+                raise DispatchError(
+                    f"archive task {task_id} declared content_first binding requires "
+                    "archive.commit_sha to resolve to a commit"
+                )
             self._verify_content_only(
                 task_id, archive, f"commit {declared_commit} does not resolve")
             return
@@ -935,6 +1076,11 @@ class GitRepositoryVerifier:
         except OSError as error:
             raise DispatchError(f"unable to execute git for archive verification: {error}") from error
         if ancestor.returncode == 1:
+            if binding_mode == "content_first":
+                raise DispatchError(
+                    f"archive task {task_id} declared content_first binding requires "
+                    "archive.commit_sha to be an ancestor of HEAD"
+                )
             self._verify_content_only(
                 task_id, archive, f"commit {commit_sha[:12]} is not an ancestor of HEAD")
             return
@@ -961,6 +1107,32 @@ class GitRepositoryVerifier:
                 raise DispatchError(
                     f"archive task {task_id} parent_sha does not match first parent {parents[0]}"
                 )
+
+        if binding_mode == "content_first":
+            # This mode deliberately binds every declared artifact byte at HEAD
+            # instead of insisting that one commit changed the entire source
+            # package. A real, reachable commit, its declared parent, and the
+            # archival message IDs remain mandatory.
+            self._verify_content_only(
+                task_id,
+                archive,
+                "declared content_first binding mode",
+                expected_paths=expected_paths,
+                allow_generated_skip=False,
+            )
+            message = self._run(["log", "-1", "--format=%B", commit_sha]).decode(
+                "utf-8", "replace"
+            )
+            missing_ids = [
+                identifier
+                for identifier in [task_id, *archive["record_ids"]]
+                if identifier not in message
+            ]
+            if missing_ids:
+                raise DispatchError(
+                    f"archive task {task_id} commit message is missing IDs {missing_ids}"
+                )
+            return
 
         actual_paths = self._changed_paths(commit_sha, task_id)
         expected = set(expected_paths)
@@ -1115,8 +1287,6 @@ def main() -> int:
         enforce_reconciliation_document_authority(queue)
         verifier = GitRepositoryVerifier(repo_root)
         plan = select(queue, repository_verifier=verifier)
-        if verifier.content_only_archives:
-            plan["content_only_archives"] = verifier.content_only_archives
     except (OSError, json.JSONDecodeError, DispatchError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2

@@ -1,0 +1,757 @@
+idea:
+  id: IDEA-20260807-a127ab
+  question_id: RQ-MTGT-2cabee
+  added: '2026-08-07'
+  title: >-
+    THE PREPROCESSING TABLE IS A GROUP OBJECT, SO IT TRANSPORTS EXACTLY AND
+    ALMOST FOR FREE: one Bernstein-Lange cube-root table built on one curve
+    serves every curve in the F_p-isogeny class, with per-curve advice falling
+    from M*N^{1/3} bits to N^{1/3} bits, because the cheaper of the two transport
+    modes moves the TWO TARGET POINTS rather than the S TABLE ENTRIES and
+    therefore costs O(L*ell^3) field operations INDEPENDENT of S -- and the
+    result is exactly ON the S*T^2 = N frontier, never below it, so it is a
+    multi-CURVE amortisation with a quantitatively ZERO attack delta
+  class: algorithm
+
+  claim: >-
+    (A) THE OBJECT AND WHY IT TRANSPORTS. A discrete-log preprocessing table on
+    (E, P) is a finite set A = {(R_1, r_1), ..., (R_S, r_S)} subset of G x Z/N
+    with R_i = [r_i]P. Its ONLY defining property is the pairing of a group
+    element with its logarithm. Let phi: E -> E' be an F_p-rational isogeny of
+    degree d with gcd(d, N) = 1. By the transport theorem T1
+    (analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md section 3),
+    phi restricted to G is an injective group homomorphism, phi(P) has order N,
+    and phi([r]P) = [r]phi(P). Therefore
+      phi_*(A) := {(phi(R_1), r_1), ..., (phi(R_S), r_S)}
+    is a preprocessing table on (E', phi(P)) with THE SAME SCALARS. Not
+    approximately, not statistically: entrywise, exactly, with a per-entry
+    certificate [r_i]phi(P) == phi(R_i) that a validator re-checks without the
+    solver. Transport of a preprocessing table is a THEOREM, not a measurement.
+
+    (B) THE COST, CHARGED IN THE FULL MODEL, WITH MEMORY BESIDE TIME. Write the
+    baseline as Bernstein-Lange's cube-root precomputation (INDOCRYPT 2012;
+    figures RELAYED FROM THE ABSTRACT, see assumptions): in a group of order
+    ell, a table of size ell^{1/3} precomputed with 1.24*ell^{2/3}
+    multiplications gives online cost 1.77*ell^{1/3} multiplications. Hence
+    S = N^{1/3} elements of memory, T = 1.77*N^{1/3} time, S*T^2 = 3.13*N -- ON
+    the Corrigan-Gibbs--Kogan frontier S*T^2 = Omega~(N) (KN-LIT-013,
+    KN-TECH-005), which KN-LIT-013 records as essentially tight.
+    Let phi be a composition of L prime-degree steps of degrees ell_1..ell_L,
+    ell = max_j ell_j. Two costs must be separated and the literature routinely
+    conflates them:
+      C_build  -- CONSTRUCTING the isogeny (finding the neighbour, then the
+                  kernel polynomial). In the ordinary F_p setting the ell-torsion
+                  is generally NOT F_p-rational, so a kernel generator is not
+                  cheaply sampleable and the applicable model is O(ell^3) per
+                  step via modular polynomials, improvable toward O(ell^2) by
+                  Elkies-style methods -- NOT O(sqrt(ell)). This caveat is
+                  recorded verbatim in research/JMV004_branch_a_scouting_20260726.md
+                  and is labelled there as SCOUTING, not evidence; it is cited
+                  here as a cost-model caveat and nothing more.
+                  C_build = O(L * ell^3) field operations, paid ONCE.
+      c_eval   -- EVALUATING an already-constructed isogeny at one point. Velu's
+                  formulas construct and evaluate a degree-ell isogeny at about
+                  6*ell field operations (KN-LIT-780, relaying Adj--Chi-Dominguez
+                  2020); square-root Velu (Bernstein--De Feo--Leroux--Smith 2020,
+                  same source) reduces evaluation to O~(sqrt(ell)).
+                  c_eval = sum_j 6*ell_j <= 6*L*ell field operations, PER POINT.
+
+    (C) THE TWO TRANSPORT MODES, AND WHY MODE B IS THE ONE THAT MATTERS.
+      MODE A -- PUSH THE TABLE. Transport all S entries:
+          cost_A = C_build + S * c_eval = O(L*ell^3) + 6*L*ell*N^{1/3}.
+        Rebuilding a native table on E' costs 1.24*N^{2/3} multiplications.
+        TRANSPORT WINS IFF  6*L*ell*N^{1/3} + O(L*ell^3) < 1.24*N^{2/3},
+        i.e. (dropping the build term) iff L*ell < 0.207*N^{1/3}.
+        At N = 2^256: N^{1/3} = 2^{85.3}, so Mode A wins for any L*ell < 2^{83};
+        a GRH-small generator set has ell = O(log^2 p) ~ 2^{16} and a mixing walk
+        has L = O(log p) ~ 2^8, so L*ell ~ 2^{24} and Mode A wins by ~2^{59}.
+        At N = 2^{40} (a size this program can actually reach in a toy proxy):
+        N^{1/3} = 2^{13.3}, 0.207*N^{1/3} = 2^{11}, so Mode A wins only while
+        L*ell < 2^{11}. THE WIN IS ASYMPTOTIC AND IT IS SMALL AT TOY SCALE --
+        stated here so no toy run is over-read.
+      MODE B -- PULL THE TARGET. Do not move the table at all. Given a target
+        (E', P', Q') on a classmate, apply the DUAL isogeny phi-hat: E' -> E to
+        the TWO points. By T1 applied to phi-hat, phi-hat(P') and phi-hat(Q')
+        lie in G, and if P' = phi(P) then phi-hat(P') = [d]P with gcd(d,N) = 1,
+        so [d]P is another generator of G and phi-hat(Q') = [k]phi-hat(P') with
+        THE SAME k. Cost:
+          cost_B = C_build + 2 * c_eval = O(L*ell^3) + 12*L*ell,
+        INDEPENDENT OF S. Mode B dominates Mode A whenever S > 2, i.e. always.
+        At N = 2^256 with ell ~ 2^{16}, L ~ 2^8: cost_B ~ 2^{56} field
+        operations, against an online phase of 1.77*N^{1/3} ~ 2^{86} group
+        operations ~ 2^{89} field operations. THE TRANSPORT OVERHEAD IS 2^{-33}
+        OF THE ONLINE PHASE.
+
+    (D) WHAT IS ACTUALLY BOUGHT, STATED AS A LEDGER WITH NO ROUNDING UP.
+      BOUGHT: for M curves of one class, total advice falls from M*N^{1/3}
+        elements to N^{1/3} elements plus O(L*log p) bits of path description.
+        Per-target online time rises by an additive O(L*ell^3) field operations,
+        which is o(1) relative to 1.77*N^{1/3} for ell = polylog(p).
+        So the FAMILY of M curves is attacked at S*T^2 = N*(1+o(1)) instead of
+        the M*N that M separately-preprocessed groups would cost. That is a
+        factor-M reduction in the advice-time product OF THE FAMILY.
+      NOT BOUGHT, AND THIS IS THE HEADLINE: ZERO speedup against any single
+        instance. For M = 1 the construction is exactly Bernstein-Lange and the
+        frontier point is unchanged. The exponent 1/3 does not move, the memory
+        exponent 1/3 does not move, and rho at 0.886*sqrt(N) with O(1) memory
+        (KN-TECH-001, KN-TECH-006) is untouched. This proposal claims NO ATTACK
+        IMPROVEMENT and the correct sota_delta is zero.
+
+    (E) WHY THIS IS NOT WHAT EXP-ISADV-001 MEASURED, AND WHY THAT PRIOR NEGATIVE
+    MUST NOT BE CITED AGAINST IT. experiments/EXP-ISADV-001/advice_transfer.py
+    was read in full for this record. It groups curves by #E(F_p) to obtain a
+    class (correct), picks a generator on each member INDEPENDENTLY via
+    first_point() (line 99 and line 111), and then asks whether x-coordinates of
+    multiples of one member's generator land in an x-coordinate advice set built
+    from a DIFFERENT member's generator. IT NEVER CONSTRUCTS OR EVALUATES AN
+    ISOGENY -- the string "isogeny" appears in the docstring and in the class-
+    finding helper's comment, and nowhere in the computation. There is no
+    generator correspondence and no map. What that script measured is therefore
+    precisely the NULL OBJECT of the present question: a size-matched random
+    relabelling. Its reported result (research_directions_20260718.md section
+    9.1: cross-curve transfer indistinguishable from baseline at p = 101, 211,
+    431) is the CORRECT and EXPECTED null outcome and is fully consistent with
+    this proposal. The scoped negative recorded in outputs/prior_proposals_digest.md
+    ("A2 weakened ... scoped negative on transfer") is a negative on
+    UNTRANSPORTED relabelling, not on transport.
+
+  resource_label: >-
+    R8 primary (multi-instance / preprocessing structure: the model contains M
+    distinct encoded groups, not one), R4 secondary (the isogeny graph supplies
+    the efficiently computable identification between those encodings).
+
+  admissibility: admissible
+
+  admissibility_argument: >-
+    The filter in DECOMPOSITION.md section 2 closes a lane whose ONLY use of phi
+    is to apply it to points of G. This proposal does apply phi to points of G --
+    and that use, taken alone, is indeed worth nothing: on a SINGLE instance
+    phi|_G is an isomorphism onto a different group, contributes no new
+    congruence, and is covered by H-ENDO-001 and by the sibling lane record
+    IDEA-20260807-5cabfc (vertical transport closure). The advantage claimed
+    here does not come from that use. It comes from the MODEL: the preprocessing
+    model with M encoded groups charges advice per group, and the generic version
+    of that model draws M INDEPENDENT encodings. An F_p-isogeny class supplies M
+    encodings that are efficiently inter-convertible in polylog(p) per point.
+    That inter-convertibility is not group-operation output on any one group; it
+    is a relation BETWEEN groups, which is exactly resource R8 with R4 as the
+    supplier. A generic-group simulator for the single-group model can simulate
+    phi|_G (it is a relabelling), but a simulator for the M-group model cannot
+    manufacture the cross-encoding map without being handed it, which is the
+    formal content of the escape. Consistent with that, the escape yields
+    strictly zero speedup on any single instance: an admissible resource that
+    buys nothing against the deployed threat model is the honest outcome here,
+    and it is recorded as such rather than dressed up.
+
+  discriminated_from:
+    - >-
+      EXP-ISADV-001 / experiments/EXP-ISADV-001/advice_transfer.py -- reads no
+      isogeny, applies no map, and measures the null object of this question.
+      Cited above in claim (E). This record does not contradict its result; it
+      identifies what that result was a result ABOUT.
+    - >-
+      IDEA-20260807-5cabfc (lane L2, RQ-VOLC-f6253b) -- "every attack-cost
+      functional that factors through the abstract triple (G, P, Q) is constant
+      across volcano levels". That record closes SINGLE-INSTANCE functionals.
+      A preprocessing table is not a functional of one instance: its accounting
+      spans M curves and M targets, and the quantity that moves here (advice per
+      curve) is not a function of (G, P, Q) at all. The two records agree; this
+      one lives in the part of the space 5cabfc explicitly does not cover.
+    - >-
+      H-MTIC-001 / IDEA-20260726-001 -- the multi-target index-calculus crossover
+      on ONE fixed curve, charged against S*T^2 = Omega~(N). That is the
+      single-curve version of the accounting used here. This record changes the
+      curve, not the algorithm, and does not test, support or weaken H-MTIC-001.
+    - >-
+      KN-TECH-082 -- LWE hybrid attacks amortising one offline lattice reduction
+      across instances generated by coefficient isometries (KN-LIT-7663). Same
+      SHAPE (a symmetry generates many instances sharing one preprocessing),
+      different object, and that entry states explicitly it "does not bear on the
+      ECDLP". Recorded as an acknowledged structural analogy, not as support.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE (POINT, SCALAR) PAIR SET A subset G x Z/N -- the preprocessing table
+      stripped of every field-level attribute. Followed as the instance moves
+      along an isogeny path E_1 -> E_2 -> ... -> E_L.
+    lossiness: >-
+      GENUINELY LOSSY. A forgets the curve equation (a, b), the j-invariant, the
+      x- and y-coordinates as field elements, the point encoding, the
+      distinguished-point predicate, the endomorphism ring and the volcano level.
+      It retains only "which group element carries which logarithm".
+    propagation: >-
+      LOSSY-PROJECTION TEST, RUN HERE AND PASSED, ALGEBRAICALLY AND AT ZERO
+      COMPUTE. What A discards is discarded COMPATIBLY with the target's
+      operations: phi is a group homomorphism, so the retained part propagates
+      deterministically by (R, r) -> (phi(R), r), and the discarded field-level
+      data is never needed to compute the propagation. The projection is not a
+      change of coordinates because the map G -> G' is genuinely non-invertible
+      on E as a whole (phi has a kernel of size d off G) and because A cannot
+      be reconstructed from phi_*(A) without phi. Contrast the FAILING case,
+      recorded here as the boundary of the test: the distinguished-point
+      predicate is also a lossy projection, but what IT discards (the encoding)
+      is exactly what determines its propagation, so it does NOT propagate
+      deterministically -- see IDEA-20260807-e0ddc6.
+    survival_score: >-
+      Survives an arbitrary number of isogeny steps of degree coprime to N, with
+      no degradation, because each step is an injective homomorphism on G. Dies
+      only at gcd(deg phi, N) != 1, i.e. at the degree-N quotient E -> E/G,
+      which annihilates the instance. Survives a change of curve model, a change
+      of field representation and a change of solver. Does NOT survive the
+      question "is this point distinguished / in the factor-base box", which is
+      not a question about A.
+
+  mechanism: >-
+    STEP 1 -- CLASS AND PATH. Enumerate a toy F_p-isogeny class by trace
+    (the method already in advice_transfer.py find_isogeny_class, which is
+    correct as far as it goes), restricted to prime-order members. For each
+    ordered pair (E_i, E_j) in the class, construct an explicit F_p-rational
+    isogeny path: at toy scale, by brute-force search over rational subgroups of
+    small prime order ell and Velu's formulas, recording (ell_1..ell_L) and the
+    rational maps.
+    STEP 2 -- CERTIFY T1 BEFORE MEASURING ANYTHING. For each constructed phi,
+    verify: (i) phi(P) != O and [N]phi(P) == O; (ii) phi(Q) == [k]phi(P) for the
+    known toy k; (iii) gcd(deg phi, N) == 1. A failure here is an instrument
+    failure and halts the line (AGENTS.md rule 5), never a mathematical result.
+    STEP 3 -- BUILD ONE TABLE. On E_1, build a Bernstein-Lange-style table of S
+    known-log distinguished points, S swept over {N^{1/4}, N^{1/3}, N^{2/5}}.
+    Record build cost in group operations AND in bytes of storage.
+    STEP 4 -- MODE A. Transport all S entries by phi and re-certify EVERY entry
+    ([r_i]phi(P) == phi(R_i)). Record: number of entries surviving certification
+    (predicted S, i.e. 100%), field operations spent, wall clock.
+    STEP 5 -- MODE B. For targets generated on E_j, pull back by phi-hat and
+    solve on E_1 with the single table. Record field operations for the pullback
+    and group operations for the online phase, separately, and the recovered k
+    certified against the ORIGINAL instance on E_j.
+    STEP 6 -- REBUILD CONTROL. Build a native table on E_j from scratch and
+    solve the same targets. Record the same quantities. The comparison
+    cost_A vs cost_B vs cost_rebuild is the deliverable, plotted against the
+    predicted crossover L*ell = 0.207*N^{1/3}.
+    STEP 7 -- FRONTIER PLACEMENT. For every arm, plot the measured (S, T) point
+    against S*T^2 = N and against matched rho at 0.886*sqrt(N) and matched BSGS.
+    A point below the frontier is a falsification of the expected outcome and
+    triggers AGENTS.md rule 12, not a promotion.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Run 2026-08-07 against the working tree. Commands:
+      (1) grep -ril "preprocessing\|precomputation" knowledge/ ledger/ docs/ analysis/
+      (2) grep -rn "Bernstein-Lange\|Corrigan-Gibbs\|Lee-Cheon-Hong\|Mihailescu" --glob '!research_digest/**' .
+      (3) grep -rn "transport.{0,60}(table|advice|preprocess)" -i ledger/
+      (4) grep -rn "ISADV" .
+      (5) grep -ril "isogeny\|velu" harness/
+      (6) web search for the Bernstein-Lange cube-root precomputation figures.
+    results: >-
+      (2) returned Corrigan-Gibbs--Kogan in 20+ records, all as a LOWER-BOUND
+      reference (KN-TECH-005, KN-LIT-013, H-IC-001, H-MTIC-001, H-SCR-002,
+      H-REPL-6c431d, IDEA-20260726-001/004, IDEA-20260727-005/006/007,
+      IDEA-20260731-013, IDEA-20260802-003/005/006/007, IDEA-20260806-3b91c7/94676a,
+      EV-IC-002); zero hits construct a preprocessing table. "Mihailescu" returns
+      ZERO hits in knowledge/ and appears only in DECOMPOSITION.md line 246 and in
+      pre-ledger inputs/ scratch as "Mihalcik"; the corpus has NO record for either
+      and this proposal therefore does not cite them.
+      (3) returned exactly two content hits, neither about isogeny transport of a
+      table (IDEA-20260805-72ec9a "query transport" in an unrelated cost split;
+      IDEA-20260802-002 "will not transport" about a lookup-table projection).
+      (4) returned EXP-ISADV-001, which has NO contract.md, NO specification.yaml
+      and NO ledger experiment record (confirmed by ideas/catalogue-20260805/SCREENING.md
+      line 175), only advice_transfer.py and smoke_results.json -- and the script
+      applies no isogeny (claim (E)).
+      (5) returned ZERO isogeny or Velu code anywhere under harness/.
+      (6) returned the Bernstein-Lange abstract figures quoted in claim (B).
+    verdict: >-
+      ADAPTATION. The transport theorem T1 is elementary and is already stated in
+      DECOMPOSITION.md; Bernstein-Lange preprocessing and the CGK frontier are
+      published; Velu and sqrt-Velu are published. NOTHING mathematical here is
+      new. What is new to THIS PROGRAM is (i) the explicit two-mode cost
+      comparison with the crossover L*ell < 0.207*N^{1/3} computed, (ii) the
+      identification of Mode B (pull the target) as strictly dominant, and
+      (iii) the finding that the program's only prior "advice transfer" artifact
+      measured the null and not the treatment. No claim of novelty against the
+      external literature is made and a Stage-0 external check is part of the
+      design.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING. THE NULL IS A RANDOMLY RELABELLED TABLE OF IDENTICAL
+    SIZE: replace phi|_G by a uniformly random bijection sigma: G -> G' and form
+    {(sigma(R_i), r_i)}. Under the null the certification rate must equal the
+    chance rate 1/N (a random pairing is right by accident), against 100% for
+    true transport. SECOND NULL: a SCALAR SHUFFLE -- keep phi but permute the
+    r_i, which must also certify at 1/N. THIRD NULL, and the one that matters
+    for the COST claim: a curve E'' of the SAME ORDER N but a DIFFERENT trace
+    (hence a different isogeny class), where no F_p-isogeny exists and Mode B is
+    unavailable; the pipeline must report "no path" rather than silently
+    producing one.
+    DECAY PARAMETER: alpha, the fraction of table entries transported by the true
+    phi with the remaining 1 - alpha relabelled at random. Certification rate
+    must be AFFINE in alpha with slope 1 and intercept 1/N. A retention that
+    fails to fall as alpha decreases is the canonical artifact tell
+    (docs/inventor-protocol.md, controls before belief) and voids the run set.
+
+  assumptions:
+    - >-
+      The Bernstein-Lange figures (table ell^{1/3}, precomputation 1.24*ell^{2/3}
+      multiplications, online 1.77*ell^{1/3} multiplications, "Computing Small
+      Discrete Logarithms Faster", INDOCRYPT 2012) are RELAYED FROM THE PAPER'S
+      ABSTRACT retrieved by web search on 2026-08-07. The paper was NOT read and
+      there is NO KN-LIT record for it in this corpus. Confidence: reported. If
+      the constants differ the exponents do not, and every conclusion here is
+      stated at exponent level for exactly that reason.
+    - >-
+      The Velu cost "about 6*ell field operations to construct and evaluate a
+      degree-ell isogeny" and the sqrt-Velu O~(sqrt(ell)) evaluation cost are
+      relayed from KN-LIT-780, itself a 2026-07-24 bulk-seeding entry marked
+      "not verified here". Confidence: reported.
+    - >-
+      The O(ell^3) per-step construction model for ordinary F_p curves whose
+      ell-torsion is not rational is taken from
+      research/JMV004_branch_a_scouting_20260726.md, which is EXPLICITLY LABELLED
+      SCOUTING, not evidence, with no run record and no validation. It is used
+      here as a conservative cost-model caveat. If the true model is O(ell^2) or
+      O(sqrt(ell)) the conclusions strengthen, never weaken.
+    - >-
+      gcd(deg phi, N) = 1. For an ell-isogeny with ell a small prime and N a
+      large prime this is automatic; the record states it because it is the exact
+      point where T1 fails.
+    - >-
+      Toy scale (p up to ~32 bits) cannot exhibit the asymptotic crossover, since
+      0.207*N^{1/3} is only ~2^{11} at N = 2^{40}. Every toy number is a
+      correctness and instrument check, NEVER a crypto-scale validation
+      (AGENTS.md rule 7).
+
+  proof_search_map:
+    bottleneck: >-
+      C_build, the cost of CONSTRUCTING the isogeny path between two SPECIFIED
+      classmates. Everything else in the scheme is linear-time bookkeeping. This
+      is the exact step on which the whole proposal's concrete standing turns and
+      it is the step the reachability gate below prices.
+    baseline_embedding:
+      parameter_slice: >-
+        M = 1, L = 0 (no transport). The scheme must degenerate EXACTLY to
+        Bernstein-Lange single-curve preprocessing with S = N^{1/3},
+        T = 1.77*N^{1/3}.
+      reproduction_check: >-
+        Measured (S, T) at M = 1 must reproduce the measured single-curve
+        preprocessing point of the same harness to within the harness's own
+        run-to-run spread. If the M = 1 slice does NOT reproduce the baseline,
+        the multi-curve numbers are not comparable to anything and the line
+        halts. This is the audit that catches an accidental advantage smuggled
+        in by a different table construction.
+    observation_collision:
+      observable: >-
+        The pair (S_total, T) for a family of M curves.
+      distinct_preimage_search: >-
+        REQUIRED. Find a NON-ISOGENOUS construction achieving the same
+        (S_total, T): M curves of the same order N in DIFFERENT classes, with
+        the attacker given, as free advice, an oracle for the group isomorphisms
+        between them. That construction achieves the identical observable while
+        consuming no isogeny structure. Its existence proves that the observable
+        measures "the encodings are efficiently identified", NOT "the curves are
+        isogenous" -- which bounds every conclusion drawn from it and must be
+        stated in the same sentence as any reported amortisation.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "advice about a curve" by "advice about a group", and the
+          isogeny class by the equivalence relation "efficiently isomorphic
+          encoding". The M-curve preprocessing problem collapses to the
+          1-group preprocessing problem plus a conversion cost.
+        predicted_gain: >-
+          Factor M in the family advice-time product; factor 1 (exactly nothing)
+          in the single-instance attack cost. Both halves are the claim.
+      - transform: cost_reallocation
+        proposed_object: >-
+          Move C_build from the online phase to the offline phase, licensed
+          whenever the set of target curves is published in advance. Since
+          M * p^{1/4+o(1)} << p^{2/3} for M < p^{5/12}, path-finding is FREE
+          relative to the table build.
+        predicted_gain: >-
+          Removes the reachability gate entirely in the non-adaptive threat
+          model, and leaves it binding only against an adaptive adversary who
+          learns the target curve online.
+    quantifier_order: >-
+      INTENDED: FORALL F_p-isogeny classes C, FORALL finite subsets
+      {E_1..E_M} of C with prime subgroup order N, EXISTS advice A of size
+      N^{1/3} elements and EXISTS a family of paths {phi_i: E_i -> E_1} such
+      that FORALL targets (E_i, P_i, Q_i), the online phase recovers k in
+      1.77*N^{1/3} group operations plus O(L*ell^3) field operations.
+      The DANGEROUS weaker reading, NOT claimed: FORALL targets EXISTS advice --
+      which would let the advice depend on the target and is vacuous. The audit
+      obligation is that A is fixed before any target is seen; the
+      non-interference receipt of H-MTIC-001 (content-hash equality of the table
+      under permuted and withheld targets) is the exact instrument and is
+      REQUIRED here.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For M curves in one F_p-isogeny class, total advice N^{1/3} plus
+        per-target online 1.77*N^{1/3} + O(L*ell^3) suffices." It can NEVER
+        certify a single-instance speedup, can never certify anything below
+        S*T^2 = N, and says nothing about rho. Any summary dropping "for M
+        curves in one class" is overclaiming under AGENTS.md rule 4.
+      nearby_object_control: >-
+        M curves of the same order N drawn from DIFFERENT isogeny classes. The
+        method must FAIL there -- no path exists, Mode B is unavailable, and the
+        advice must revert to M*N^{1/3}. A pipeline that reports an amortisation
+        for non-isogenous curves has not identified the load-bearing structure
+        and every number it produced is void.
+    proof_obligations:
+      - claim: phi|_G is injective and phi(Q) = [k]phi(P) when gcd(deg phi, N) = 1.
+        responsibility: correctness
+      - claim: phi_*(A) is a valid preprocessing table for (E', phi(P)) with the same scalars.
+        responsibility: correctness
+      - claim: Mode B costs C_build + 2*c_eval, independent of S.
+        responsibility: runtime
+      - claim: The transported scheme's (S, T) satisfies S*T^2 >= N, i.e. it does NOT breach the frontier.
+        responsibility: soundness
+      - claim: Every recovered k is certified against the ORIGINAL instance on E_j, not the pulled-back one.
+        responsibility: soundness
+      - claim: The M = 1 slice reproduces single-curve Bernstein-Lange.
+        responsibility: baseline
+      - claim: Every reported figure names M, L, ell and the scale.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        fraction of transported table entries passing the certificate
+        [r_i]phi(P) == phi(R_i)
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 1.000 (S of S entries) for true transport, at every tested
+        (p, class, ell, S). Anything below 1.000 with gcd(deg phi, N) = 1 is an
+        implementation error, not a mathematical finding. Null arm (random
+        relabelling) must be at 1/N, i.e. 0 successes at every toy size.
+        A gap of less than 0.999 between the arms voids the instrument.
+    - metric: >-
+        ratio cost_B / cost_rebuild = (C_build + 2*c_eval) / (1.24*N^{2/3})
+      direction: lower
+      minimum_effect: >-
+        Below 1 at every tested size, and DECREASING in N with fitted slope
+        consistent with -2/3 in log-log against N once C_build is held fixed by
+        holding ell fixed. A ratio that does not decrease with N falsifies the
+        cost model even though the transport theorem stands.
+    - metric: >-
+        ratio cost_A / cost_rebuild, swept across L*ell around the predicted
+        crossover 0.207*N^{1/3}
+      direction: different
+      minimum_effect: >-
+        The measured crossover must lie within a factor 4 of 0.207*N^{1/3}.
+        Outside that band the O(ell) Velu evaluation model is wrong for this
+        setting and the Mode A arithmetic must be redone before it is reported.
+    - metric: >-
+        measured frontier product S_total * T^2 for the M-curve family
+      direction: higher
+      minimum_effect: >-
+        >= N at every tested cell. PREDICTED OUTCOME IS EXACTLY ON THE FRONTIER,
+        not below. A measured product strictly below N is the falsifier, is not
+        promoted on Executor authority, and requires review-breakthrough
+        scrutiny (AGENTS.md rule 12).
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, HARD GATE): the lossy-projection test in
+      object_first_candidate and the arithmetic in claim (B)/(C). Both are
+      algebraic and already written. If a reviewer finds that phi_*(A) is not a
+      valid table, the proposal ends without any run.
+      STAGE 1 (minutes): on one toy class at p ~ 2^{10}, construct one explicit
+      ell = 2 or 3 isogeny and run the T1 certificate (Step 2). This is the
+      CHEAPEST VALID DISCRIMINATOR of the whole lane: it separates "transport
+      preserves the table" from "transport destroys the table" with S = 8
+      entries and a handful of field operations, and it is the exact measurement
+      EXP-ISADV-001 never made.
+      STAGE 2 (minutes): the three null arms and the alpha sweep.
+      STAGE 3 (hours): the S sweep, the Mode A / Mode B / rebuild cost
+      comparison, and the frontier plot, at p in {2^{16}, 2^{20}, 2^{24}}.
+      STAGE 4 (zero compute): the non-isogenous nearby-object control and the
+      M = 1 baseline reproduction.
+    controls:
+      - random-relabelling null of identical size (certification must be 1/N)
+      - scalar-shuffle null (certification must be 1/N)
+      - alpha dose-response sweep, affine with slope 1
+      - same-order different-class curves (path must not be found)
+      - matched Pollard rho with distinguished points on every instance
+      - matched BSGS on every instance
+      - M = 1 degeneracy check against single-curve preprocessing
+    required_metrics:
+      - per-entry certificate pass count, per arm
+      - field operations for C_build and for c_eval, counted separately
+      - group operations for table build, online phase, and verification
+      - peak stored entries and bytes, per arm
+      - measured (S, T) and the product S*T^2, per cell
+      - matched rho and BSGS group operations on the identical instances
+      - wall clock and peak memory, per run
+
+  falsification_conditions:
+    - >-
+      Any transported entry fails its certificate with gcd(deg phi, N) = 1.
+      T1 would be false, which contradicts an elementary theorem; the honest
+      disposition is suspected implementation error requiring independent
+      replication before it is reported as anything else.
+    - >-
+      The random-relabelling null certifies above 1/N. Instrument broken;
+      nothing is reported and the run set is INVALID, not negative.
+    - >-
+      The alpha sweep is not affine with slope 1. The retention metric is not
+      measuring what it claims and every downstream number is void.
+    - >-
+      cost_B does not scale independently of S. Mode B's whole advantage is that
+      independence; a measured S-dependence refutes the cost model.
+    - >-
+      The measured family product S_total*T^2 falls below N. This CONTRADICTS
+      the expected outcome, would be a non-generic signal in the multi-group
+      preprocessing model, and requires review-breakthrough review (AGENTS.md
+      rule 12) before any claim.
+    - >-
+      Toy sizes are too small to resolve the Mode A crossover within budget.
+      That is an INFRASTRUCTURE outcome (AGENTS.md rule 5), recorded as such,
+      and is not evidence about the cost model.
+
+  confounders:
+    - >-
+      C_build/c_eval conflation. The single most likely error in this lane is
+      charging isogeny CONSTRUCTION per point instead of once. The protocol
+      counts them in separate registers and reports both.
+    - >-
+      Field operations versus group operations. Transport is priced in field
+      operations, the online phase in group operations. A conversion factor must
+      be measured per bit size on the same machine, and every conclusion must be
+      checked to survive a factor-2 perturbation of it (the H-MTIC-001 HEUR-001
+      dual-accounting audit is the precedent and is adopted here).
+    - >-
+      Toy classes are tiny. At p ~ 2^{10} an isogeny class may have 3-6
+      prime-order members, so M is small and the factor-M amortisation is
+      invisible. The M-dependence must be read from the ARITHMETIC, not
+      extrapolated from toy M.
+    - >-
+      Storage accounting. A table entry is a point plus a scalar; whether it is
+      stored as (x, y, r), as (x, sign, r), or as a truncated distinguished-point
+      hash changes S by a small constant and the frontier product by its square.
+      The encoding must be frozen before Stage 3 and reported with every number.
+    - >-
+      Path length inflation. A brute-force toy path search may return a much
+      longer path than necessary, inflating C_build and making transport look
+      worse than it is. Shortest-path search within the enumerated class is
+      required and L must be reported.
+
+  interpretation_limits:
+    - >-
+      ZERO speedup against any single-instance attack. This record must never be
+      summarised as an ECDLP improvement.
+    - >-
+      The amortisation is across CURVES. The cost model that matters for a
+      deployed system charges per TARGET on ONE curve, where this buys nothing.
+      Whether the multi-curve threat model exists at all is a separate question
+      and is deliberately NOT assumed here (see IDEA-20260807-e41559).
+    - >-
+      Everything runnable in this program is toy scale and is capped at
+      claim_tier: toy. The asymptotic statements in claim (B)/(C) are arithmetic,
+      not measurements, and are labelled as such.
+    - >-
+      The result is stated for tables whose value is the (point, scalar) pairing.
+      It says NOTHING about preprocessing whose value is field-level -- Semaev
+      factor bases, distinguished-point stores, x-coordinate index structures --
+      which is exactly the dichotomy of IDEA-20260807-e0ddc6.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For an ordinary F_p-isogeny class with class number h ~ p^{1/2}, an
+        explicit isogeny path between two SPECIFIED members can be constructed in
+        p^{1/4+o(1)} field operations, by claw-finding on the Cl(O)-action with
+        GRH-small generator primes ell = O(log^2 p) and per-step construction
+        cost polylog(p).
+      rigorous_support: >-
+        The p^{1/4} half is the standard claw-finding cost on a set of size
+        h ~ p^{1/2}, which is rigorous given a rapid mixer; the mixing is the
+        GRH-conditional Jao-Miller-Venkatesan expander statement cited but not
+        proved in DECOMPOSITION.md T5. The classical distribution theorem it
+        imitates is the birthday/claw bound for two random walks on a Cayley
+        graph with spectral gap bounded away from zero. The polylog per-step
+        half is NOT rigorous in this setting: JMV004 scouting records that the
+        proven spectral separation is VACUOUS at 2^256 for small delta and that
+        the applicable per-step model may be O(ell^3), giving concrete
+        path-finding at 2^{96}-2^{112} against an online phase of ~2^{89} field
+        operations. So H1 holds ASYMPTOTICALLY (1/4 < 1/3) and FAILS CONCRETELY
+        at 256 bits under the conservative per-step model. That split is
+        disclosed here rather than resolved.
+      validation_plan: >-
+        Sample: for toy classes at p in {2^{16}, 2^{20}, 2^{24}} with the class
+        fully enumerable, measure the ACTUAL number of isogeny steps needed to
+        connect random specified pairs by bidirectional search, and compare the
+        empirical distribution against the sqrt(h) claw prediction, including a
+        tail check on the worst-connected pair in each class. Comparison
+        distribution: claw-finding on a random Cayley graph of the same degree
+        and order, which is the null that separates "the class mixes" from "the
+        search is just a birthday search on a set of size h". LABELLED TOY SCALE.
+        No crypto-scale claim about path-finding is made or licensed here.
+    - id: H2
+      statement: >-
+        In the non-adaptive threat model, where the set {E_1..E_M} of target
+        curves is published before the attack, C_build is a PREPROCESSING cost
+        and is dominated by the table build whenever M < p^{5/12}.
+      rigorous_support: >-
+        Arithmetic: M * p^{1/4+o(1)} < p^{2/3} iff M < p^{5/12-o(1)}. Rigorous
+        GIVEN H1. The classical pattern imitated is the standard non-uniform /
+        advice accounting of Corrigan-Gibbs--Kogan (KN-LIT-013), whose offline
+        phase is unbounded (recorded in EV-IC-002) -- under that convention
+        C_build is charged at literally zero, which is why this record
+        deliberately ALSO reports the Bernstein-Lange convention where
+        preprocessing time is charged, and reports both.
+      validation_plan: >-
+        No sampling needed; this is an accounting identity conditional on H1.
+        The validation route is an audit: recompute M*p^{1/4} vs p^{2/3} at the
+        declared parameter sets and confirm the crossover exponent 5/12, and
+        check that no reported figure silently uses the CGK zero-cost offline
+        convention while comparing against a Bernstein-Lange charged figure.
+
+  reachability_gate: >-
+    T5 INSTANTIATED FOR L13, WITH THE ANSWER SPLIT BY THREAT MODEL, WHICH IS THE
+    POINT.
+    (i) IS A GOOD OBJECT REACHABLE? The lane does NOT need to reach a curve with
+    a rare good property, so the hard half of T5 -- goodness identifiable only by
+    a global address -- does not arise. It needs to reach a SPECIFIED curve,
+    namely the one the target lives on (Mode B) or the one the table lives on
+    (Mode A). That is the vectorization problem.
+    (ii) AT WHAT COST? Classically, claw-finding on Cl(O) with h ~ p^{1/2} gives
+    p^{1/4+o(1)} steps (H1). Since 1/4 < 1/3, PATH-FINDING IS ASYMPTOTICALLY
+    CHEAPER THAN THE N^{1/3} ONLINE PHASE IT SERVES, so the gate PASSES
+    asymptotically. CONCRETELY at p = 2^{256}, with the conservative O(ell^3)
+    per-step model and ell = O(log^2 p) ~ 2^{16}, path-finding costs
+    2^{64} * 2^{48} = 2^{112} field operations against an online phase of
+    ~2^{89}, so THE GATE FAILS CONCRETELY BY 2^{23} in the adaptive model.
+    Under the Elkies O(ell^2) model it fails by 2^{7}; under an O(sqrt(ell))
+    model it passes. THE VERDICT IS ENTIRELY DETERMINED BY THE PER-STEP MODEL,
+    exactly as JMV004 scouting found for the JMV reduction, and this record
+    reports the range rather than picking the favourable row.
+    (iii) THE THREAT-MODEL SPLIT THAT DISSOLVES THE GATE. If the target curves
+    are PUBLISHED IN ADVANCE (the only realistic case, since a deployed system's
+    curve is a public parameter), C_build moves entirely into preprocessing, is
+    dominated by the table build for M < p^{5/12} (H2), and the gate does not
+    bind at all. The gate binds ONLY against an adversary who learns the target
+    curve online, which is not a deployment this record can name.
+
+  target_complexity:
+    time_exponent: >-
+      ONLINE: 1/3 in N, unchanged from Bernstein-Lange, plus an additive
+      O(L*ell^3) field operations that is o(N^{1/3}) for ell = polylog(p).
+      No exponent moves. PREPROCESSING: 2/3 in N for the single table, plus
+      M*p^{1/4+o(1)} for the paths, which is dominated for M < p^{5/12}.
+    memory_exponent: >-
+      1/3 in N for the single table, and -- this is the only quantity that
+      changes -- 1/3 TOTAL for the whole M-curve family instead of 1/3 PER
+      CURVE. In exponent terms the family memory falls from
+      log_N(M) + 1/3 to 1/3. Peak online memory is unchanged at N^{1/3}.
+    best_known: >-
+      Single instance: parallel Pollard rho with distinguished points at
+      0.886*sqrt(N) group operations and O(1) memory (KN-TECH-001, KN-TECH-006),
+      automorphism-discounted by at most sqrt(6) on CM curves (KN-TECH-018);
+      BSGS at sqrt(N) time and sqrt(N) memory (KN-TECH-031) whose FULL cost is
+      N^{2/3+o(1)} (KN-TECH-035, Wiener KN-LIT-094). With advice:
+      Bernstein-Lange at S = T = N^{1/3}, on the CGK frontier S*T^2 = Omega~(N)
+      (KN-LIT-013, KN-TECH-005). Multi-target on one curve: Kuhn-Struik at
+      sqrt(M*N), with a matching tight generic lower bound reported in
+      KN-LIT-4091. THIS PROPOSAL BEATS NONE OF THEM.
+    hidden_overhead: >-
+      Three things hide, and all three are disclosed. (1) The o(1) in
+      p^{1/4+o(1)} for path-finding contains the GRH-conditional mixing constant,
+      which JMV004 scouting found VACUOUS at 2^256 for small delta -- a
+      superpolynomial-looking concrete cost hiding in an asymptotically benign
+      exponent. (2) The O(ell^3) per-step construction is polylog only because
+      ell is polylog; if the class requires large-ell steps the term is not
+      benign. (3) The CGK convention charges the offline phase at ZERO
+      (EV-IC-002), so any figure quoted in that convention silently hides
+      1.24*N^{2/3} + M*p^{1/4}. Every number here is reported in BOTH
+      conventions.
+    tradeoff_note: >-
+      The scheme moves ALONG the known S*T^2 = N curve and off it in no
+      direction. That is stated plainly because the brief requires it: a
+      tradeoff that merely moves along the frontier is NOT an improvement. What
+      changes is not the curve but the DENOMINATOR of the memory axis -- one
+      table for M curves rather than M tables. Parallelization position: the
+      online phase is a walk and parallelizes exactly as van Oorschot-Wiener
+      does; the table is read-mostly and shared, so under Wiener full-cost
+      accounting (KN-TECH-035) the shared table is charged once as hardware
+      occupied over time, which is where the factor-M saving is actually
+      realized and where it should be measured.
+
+  dominated_by: >-
+    CHECKED ACROSS TIME, MEMORY AND DATA/QUERIES, ROW BY ROW.
+    - Parallel rho with distinguished points, 0.886*sqrt(N) time, O(1) memory
+      (KN-TECH-001, KN-TECH-006): DOMINATES this proposal on MEMORY by N^{1/3}
+      at every M. Not dominated by this proposal on time for M = 1.
+    - Automorphism-discounted rho on CM curves (KN-TECH-018): same, with a
+      further constant <= sqrt(6).
+    - BSGS, sqrt(N) time and memory (KN-TECH-031): dominated by this proposal on
+      both axes for M = 1 (N^{1/3} < N^{1/2} on both), and its full cost
+      N^{2/3+o(1)} (KN-TECH-035) is worse still. This is the ONE row this
+      proposal beats, and it beats it only because Bernstein-Lange already does.
+    - Bernstein-Lange preprocessing, S = T = N^{1/3}: TIES exactly at M = 1.
+      This proposal IS that algorithm at M = 1.
+    - Kuhn-Struik multi-target rho, sqrt(M*N) total, negligible memory: for M
+      targets on ONE curve it dominates this proposal on memory always, and on
+      time whenever M > N^{1/3} (since M*N^{1/3} > sqrt(M*N) iff M > N^{1/3}).
+    - Corrigan-Gibbs--Kogan lower bound S*T^2 = Omega~(N): this proposal sits ON
+      it, not below it.
+    NOT DOMINATED, and this is the entire and only delta: on the M-CURVE FAMILY
+    advice axis, where every listed row costs M*N^{1/3} advice or M*sqrt(N) time
+    and this proposal costs N^{1/3} advice. No row of the frontier addresses
+    that axis, because no row was ever asked to.
+  sota_delta: >-
+    ZERO speedup against every attack baseline on every single instance,
+    quantitatively: time exponent 1/3 vs 1/3 (Bernstein-Lange), 1/3 vs 1/2 (rho)
+    but at memory 1/3 vs 0 which is the whole reason rho is the baseline;
+    frontier product 3.13*N vs the Omega~(N) bound, i.e. a factor 3.13 ABOVE the
+    bound. The nonzero delta is confined to one axis: family advice for M curves
+    in one class falls from M*N^{1/3} to N^{1/3} + O(L*log p) bits, a factor
+    exactly M, at an additive online cost of O(L*ell^3) field operations which is
+    2^{-33} of the online phase at p = 2^{256} for ell ~ 2^{16}, L ~ 2^8.
+    Deployed relevance of that axis: currently zero known instances (see
+    IDEA-20260807-e41559).
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.99 that the transport theorem and the certificate arm hold exactly -- it is
+    elementary algebra and the only risk is an implementation bug. 0.90 that the
+    Mode B cost independence from S reproduces. 0.60 that the Mode A crossover
+    lands within a factor 4 of 0.207*N^{1/3} at toy scale, where the constants
+    are not asymptotic. 0.02 that the family frontier product ever measures below
+    N, and that outcome would be a measurement error before it was anything
+    else. ~0.00 that any of it produces an attack improvement: the honest
+    expected headline is "one table serves the class, exactly, cheaply, and it
+    buys nothing anyone can use", which is a real result under
+    docs/inventor-protocol.md section 4 and is filed as one.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json;
+    all 126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-MTGT-2cabee
+    - KN-TECH-001
+    - KN-TECH-005
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-TECH-031
+    - KN-TECH-035
+    - KN-TECH-056
+    - KN-TECH-080
+    - KN-TECH-082
+    - KN-LIT-013
+    - KN-LIT-780
+    - KN-LIT-4091
+    - KN-FIND-b7e091
+    - H-ENDO-001
+    - H-MTIC-001
+    - IDEA-20260726-001
+    - IDEA-20260807-5cabfc
+    - EV-IC-002

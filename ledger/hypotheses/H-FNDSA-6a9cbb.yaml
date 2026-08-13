@@ -1,0 +1,643 @@
+hypothesis:
+  id: H-FNDSA-6a9cbb
+  question_id: RQ-FNDSA-001
+
+  statement: >-
+    SCOPE: the Klein / GPV randomized-nearest-plane sampler family, of which
+    FN-DSA's ffSampling is claimed (RECALLED, UNVERIFIED) to be the fast
+    recursive form, in EXACT ARITHMETIC with EXACT one-dimensional leaf
+    samplers; parameter sets FN-DSA-512 and FN-DSA-1024 at the constants read
+    in Stage 0; empirical validation at toy widths only. CLAIM TIER: toy for
+    every measured quantity, derivation for the closed forms and conditional
+    on Stage 0. NO ATTACK IS CLAIMED, NO EXPONENT MOVES, AND NO STATEMENT IS
+    MADE ABOUT ANY DEPLOYED IMPLEMENTATION.
+    THE CLAIM. The output distribution of such a sampler is NOT the ideal
+    discrete Gaussian over the lattice coset -- the failure is exact, not
+    approximate, and its size is a closed form. Specifically:
+    (A) P(v) / D(v) = rho_sigma,c(Lambda) / product over leaves of
+        Z_i(c_i(v)), where Z_i(c) = sum over z in Z of
+        exp(-(z - c)^2 / (2 sigma_i^2)) and sigma_i = sigma / ||b~_i||;
+    (B) by Poisson summation the log-density deviation is
+        L(v) = const - 2 sum over leaves of eps_i cos(2 pi c_i(v)) + O(eps^2)
+        with eps_i = exp(-2 pi^2 sigma_i^2), and L is the Neyman-Pearson
+        optimal distinguishing statistic;
+    (C) under HEUR-FN-1 the per-signature Kullback-Leibler divergence is
+        sum over leaves of eps_i^2, hence d eps_0^2 when every leaf sits at
+        the floor, so the information-theoretic signature floor for this
+        channel is N_LLR = 1 / (d eps_0^2);
+    (D) at the RECALLED constants the FORCED VALUES ARE eps_0 = 2^-46.500,
+        KL = 2^-83.000, N_LLR = 2^83.00 for FN-DSA-512 (d = 1024) and
+        eps_0 = 2^-48.000, KL = 2^-85.000, N_LLR = 2^85.00 for FN-DSA-1024
+        (d = 2048);
+    (E) the per-leaf relative density error at which N_LLR falls to the
+        design query bound q_s = 2^64 is eps_crit = sqrt(2^-64 / d) =
+        2^-37.000 and 2^-37.500, SO THE MARGIN BETWEEN THE EXACT-ARITHMETIC
+        DEFECT AND THE CRITICAL DEFECT IS 9.50 AND 10.50 BITS;
+    (F) the key-acceptance rule ||B||_GS <= 1.17 sqrt(q) is EXACTLY the
+        condition sigma_i >= sigma_min at every leaf, because
+        sigma = 1.17 sqrt(q) sigma_min -- an identity whose numerical
+        residual at the recalled constants is below 1e-6 relative and which
+        Stage 0 must confirm against primary text.
+    IF ANY OF (A) THROUGH (F) FAILS, THE FAILURE IS THE DELIVERABLE. (F)
+    failing is the live weak-key finding; (D) or (E) failing means the
+    recalled constants are wrong; (A) failing means the standardized sampler
+    is not Klein-family and the hypothesis is void as a statement about
+    FN-DSA and survives only as a statement about the Klein family.
+    WHAT THE HYPOTHESIS EXPLICITLY DOES NOT CLAIM: that 2^83 is an attack
+    cost. L is not attacker-computable, because c_i(v) requires the secret
+    Gram-Schmidt frame. 2^83 is a FLOOR on any distinguisher's sample
+    complexity through this channel and the gap between that floor and the
+    best trapdoor-free statistic is left OPEN and named as the successor
+    question.
+
+  mechanism: >-
+    DERIVED IN-RECORD. No FN-DSA, FALCON or FIPS text has been read by this
+    program; every scheme constant is a Stage-0 input, not an authority.
+
+    THE IDENTITY (A). Klein's sampler processes Gram-Schmidt directions in
+    order, forming c_i = <c, b~_i> / <b~_i, b~_i>, setting
+    sigma_i = sigma / ||b~_i||, drawing z_i from D_{Z, sigma_i, c_i}, and
+    updating the target. Its output probability is the product over i of
+    exp(-(z_i - c_i)^2 / (2 sigma_i^2)) / Z_i(c_i). The NUMERATORS multiply
+    to exactly rho_sigma,c(v) because the squared distance decomposes
+    orthogonally along the Gram-Schmidt frame and
+    (z_i - c_i)^2 / sigma_i^2 = (z_i - c_i)^2 ||b~_i||^2 / sigma^2. The
+    DENOMINATORS depend on c_i, which depends on the draws already made.
+    Hence P is proportional to rho_sigma,c(v) divided by a v-dependent
+    quantity, and equals D if and only if that quantity is constant. IT IS
+    NOT. This is an identity and requires no heuristic.
+
+    THE EXPANSION (B). For any width s,
+    Z_s(c) = s sqrt(2 pi) sum over k in Z of exp(-2 pi^2 s^2 k^2)
+    exp(2 pi i k c) by Poisson summation on the Gaussian, which is its own
+    Fourier transform. With eps = exp(-2 pi^2 s^2), the k = 0 term is 1, the
+    k = plus or minus 1 terms give 2 eps cos(2 pi c), and k = plus or minus 2
+    contribute eps^4. Taking logarithms and summing over leaves gives
+    L(v) = const - 2 sum eps_i cos(2 pi c_i) + O(eps^2). The Neyman-Pearson
+    lemma makes L the optimal statistic by definition, so no better
+    distinguisher through this channel exists -- which is why (C) is a floor
+    and not an estimate.
+
+    THE COST BOOKKEEPING (C), IN PER-ATTEMPT-COST TIMES INVERSE-SUCCESS FORM.
+    Under HEUR-FN-1 the c_i are near-uniform and near-independent, so
+    E[cos(2 pi c_i)] is near 0 and E[cos^2] is near 1/2. Then
+    Var(L) = 4 sum eps_i^2 * (1/2) = 2 sum eps_i^2 and
+    KL(P || D) = Var(L)/2 + O(eps^3) = sum eps_i^2. Under HEUR-FN-2 an
+    optimal distinguisher needs N = Theta(1/KL) samples. Per-attempt cost is
+    one signature query plus O(1) work to accumulate a running sum; inverse
+    success probability is 1/(N KL); total Theta(1/KL) queries, Theta(1/KL)
+    work, O(1) MEMORY. Memory is charged explicitly and is minimal, which is
+    a real Pareto fact about this channel and the reason it dominates the
+    moment channel of H-FNDSA-58b464 on every axis.
+
+    THE ARITHMETIC (D) AND (E). At sigma_min = 1.277833697,
+    2 pi^2 sigma_min^2 = 32.231344, eps_0 = 1.004859e-14 = 2^-46.500; with
+    d = 2n = 1024, KL = 1.0340e-25 = 2^-83.000 and N_LLR = 2^83.00. At
+    sigma_min = 1.298280334, eps_0 = 3.552714e-15 = 2^-48.000; with d = 2048,
+    KL = 2.5849e-26 = 2^-85.000 and N_LLR = 2^85.00. Inverting for
+    d eps^2 = 2^-64 gives eps_crit = 2^-37.000 and 2^-37.500. That the first
+    two land on exact half-integer and integer powers of two is itself a
+    prediction about how sigma_min was chosen and is checkable in Stage 0.
+
+    THE FLOOR IDENTITY (F). sigma_i = sigma / ||b~_i|| >= sigma / ||B||_GS,
+    so a rejection rule ||B||_GS <= 1.17 sqrt(q) enforces
+    sigma_i >= sigma / (1.17 sqrt(q)) at EVERY leaf. If
+    sigma = 1.17 sqrt(q) sigma_min the floor is exactly sigma_min and the
+    design is tight. Ideation-session evaluation, PURE PYTHON ON THIS MACHINE
+    AND OUTSIDE THE HARNESS -- re-run in-harness before citing:
+    1.17 * sqrt(12289) * 1.277833697 = 165.736617, against a RECALLED
+    FN-DSA-512 signature sigma of 165.736617183. Six-decimal agreement
+    between two independently recalled constants under a derived identity is
+    strong internal evidence that the recall is faithful; it is not a
+    citation and does not replace Stage 0.
+
+    THE RESIDUAL, WHICH IS WHY THIS IS NOT A CLOSURE. L is not
+    attacker-computable. Recovering c_i(v) from a signature requires the
+    Gram-Schmidt frame. So the hypothesis certifies a floor and leaves open
+    exactly one question, stated here as the successor: does there exist a
+    statistic computable from public data alone that captures a constant
+    fraction of KL? If yes, the channel's practical cost approaches 2^83 and
+    the 9.5-bit margin becomes the whole security story; if no, the channel
+    is dead by an unquantified further margin and the campaign should move to
+    the precision channel. Neither answer is asserted here.
+
+  assumptions:
+    - >-
+      FROZEN CONSTANTS AND DEFINITIONS, fixed before any evaluation and
+      forming the complete parameter set of the hypothesis.
+      (1) The Gaussian convention is rho_s(x) = exp(-x^2 / (2 s^2)); every
+          formula below is stated in it and mixing conventions is the single
+          most likely source of a wrong exponent.
+      (2) eps(s) = exp(-2 pi^2 s^2).
+      (3) Z_s(c) = sum over z in Z of exp(-(z - c)^2 / (2 s^2))
+                 = s sqrt(2 pi) (1 + 2 sum over k >= 1 of
+                   eps(s)^{k^2} cos(2 pi k c)).
+      (4) d = 2n leaves; sigma_i = sigma / ||b~_i||; eps_i = eps(sigma_i).
+      (5) KL = sum over i of eps_i^2; N_LLR = 1 / KL; when all leaves sit at
+          the floor, KL = d eps_0^2 with eps_0 = eps(sigma_min).
+      (6) eps_crit(q_s) = sqrt(1 / (d q_s)); the design value is q_s = 2^64.
+      (7) The recalled parameter table, TO BE REPLACED IN STAGE 0:
+          q = 12289; n = 512 with sigma_min = 1.277833697,
+          sigma = 165.736617183; n = 1024 with sigma_min = 1.298280334,
+          sigma approximately 168.38857; key acceptance ||B||_GS <= 1.17 sqrt(q).
+      NO OTHER DEGREE OF FREEDOM EXISTS. Any change to (1) through (6) after
+      any measured value has been seen requires a versioned amendment and is
+      never an edit.
+    - >-
+      BASELINE-REPRODUCTION AUDIT, RUN BEFORE THIS RECORD WAS WRITTEN, AND IT
+      PASSED ON THE RECALLED CONSTANTS. Clause (7)'s two independently
+      recalled quantities satisfy the derived identity
+      sigma = 1.17 sqrt(q) sigma_min to a relative residual below 2e-9. This
+      is the cheap pre-compute check that the mechanism reconstructs the
+      actual design rather than an invented one. It is EVIDENCE ABOUT THE
+      RECALL, not about FN-DSA, and Stage 0 must repeat it against primary
+      text before any conclusion is drawn.
+    - >-
+      THE TOY LADDER MEASURES THE LAW, NOT THE STANDARDIZED VALUE. At
+      sigma_min the amplitude is 2e-14, at or below the resolution of
+      double-precision empirical estimation. The empirical arm therefore runs
+      at sigma in {0.45, 0.50, 0.55, 0.60, 0.65, 0.70} where the derived
+      amplitudes are 3.673436e-2, 1.438377e-2, 5.102812e-3, 1.640149e-3,
+      4.776327e-4, 1.260206e-4, and the standardized value is reached BY
+      DERIVATION ONLY. Any attempt to measure at sigma_min in double
+      arithmetic would measure the arithmetic and is forbidden by the paired
+      contract.
+    - >-
+      INSTRUMENT LINEAGE: NONE. Area FNDSA holds zero experiments, zero runs
+      and zero evidence records. There is no prior instrument to inherit and
+      no prior calibration to cite; every control in the paired contract must
+      establish itself.
+
+  proof_search_map:
+    bottleneck: >-
+      The single step at which the trapdoor can enter the output distribution
+      of an exact-arithmetic Klein sampler. If that step is the leaf
+      normalizer and nothing else, then the entire distributional attack
+      surface of the design (as opposed to of an implementation) is a
+      closed-form quantity, and computing it settles where the remaining
+      campaign budget should go. Every alternative distributional attack on
+      this scheme must either pass through this step or be a statement about
+      finite precision.
+    baseline_embedding:
+      parameter_slice: >-
+        The one-dimensional case d = 1 with a fixed center, which is exactly
+        the classical statement that the discrete Gaussian's normalizer is a
+        Jacobi theta value with the stated Fourier expansion. It reproduces
+        the textbook smoothing-parameter bound: eta_eps(Z) is characterized
+        by the same first Fourier coefficient, so the standard justification
+        for choosing sigma_min IS this expansion evaluated at a target eps.
+      reproduction_check: >-
+        SYMBOLIC PLUS FROZEN FIXTURE, AND THE FIXTURE WAS EVALUATED DURING
+        IDEATION. The closed form 1 + 2 eps cos(2 pi c) was compared against
+        direct summation of the theta series at c in {0, 0.125, 0.25, 0.5}
+        and sigma in {0.5, 0.6, 0.7, 0.8}; the relative discrepancy fell as
+        2.07e-3, 3.83e-5, 3.07e-7, 1.08e-9 across the four widths, which is
+        the O(eps^2) rate the derivation predicts and is therefore a check on
+        the derivation and not merely on the arithmetic. A curve resembling
+        the baseline would not be an embedding; these are exact identities
+        against directly summed values.
+    observation_collision:
+      observable: >-
+        The scalar L(v) = -2 sum over leaves of eps_i cos(2 pi c_i(v)), and
+        its distributional summary KL = sum eps_i^2.
+      distinct_preimage_search: >-
+        A COLLISION EXISTS AND IT IS THE HYPOTHESIS'S MAIN LIMITATION, STATED
+        HERE RATHER THAN DISCOVERED LATER. KL depends on the secret only
+        through the MULTISET of Gram-Schmidt norms {||b~_i||}. Two distinct
+        NTRU trapdoors with the same Gram-Schmidt norm multiset but different
+        frames produce IDENTICAL KL and identical distributions of L. The
+        observable is therefore not identifying for the trapdoor; at best it
+        identifies the norm profile, which is 2n real numbers and not a key.
+        SEPARATING CONDITION: none is proposed, and the honest consequence is
+        that this channel supports a DISTINGUISHER, not a key recovery, and
+        the hypothesis says only that. A second collision, weaker but worth
+        recording: the ideal distribution D and the true output P agree
+        exactly in all one-dimensional coordinate marginals to O(eps), so any
+        marginal-based observable collides between them and cannot separate
+        the pair -- which is precisely why the whole-signature
+        goodness-of-fit route analysed in IDEA-20260805-4a6dc7 has no power.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the question "is the output distribution exact" (an
+          inequality between two intractable measures on Z^{2n}) with the
+          question "is the product of leaf normalizers constant in v" (an
+          exact equality condition on a product of one-dimensional theta
+          values). Encoding: the Klein identity. Completeness: every Klein
+          output is covered. Soundness: the equivalence is exact, not
+          approximate. Transfer: the reduction holds for any
+          randomized-nearest-plane sampler regardless of the recursion used
+          to compute the centers, so it covers ffSampling if and only if
+          ffSampling reproduces Klein's output law -- which is Stage 0's job
+          to confirm and is the reduction's one open obligation. Cost loss:
+          none; the reduction is free.
+        predicted_gain: >-
+          Converts an unmeasurable statement into a closed form with five
+          numbers, at zero compute, and produces eps_crit -- a threshold that
+          every later precision analysis in this campaign can be compared
+          against.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable KL fixed and vary the forgotten structure: two
+          trapdoors with matched Gram-Schmidt norm multisets and different
+          frames. Ask whether any intrinsic invariant inside this channel
+          distinguishes them.
+        predicted_gain: >-
+          None to an attacker, which is the finding: the fibre is large, so
+          the channel cannot be a key-recovery channel and any record
+          claiming otherwise is overreaching. The gain is a named boundary on
+          what the whole distributional lane can deliver.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER: FOR ALL accepted keys and FOR ALL messages,
+      THERE EXISTS a closed form -- the single expression sum over i of
+      eps(sigma / ||b~_i||)^2, with no parameter fitted to any measurement --
+      such that the per-signature Kullback-Leibler divergence of the sampler's
+      output from the ideal equals it to O(eps^3). The witness (the closed
+      form) may NOT depend on the key, the message, the seed, or the
+      parameter set: it is one formula and its arguments are the public
+      dimension and the key's own Gram-Schmidt norms.
+      THE WEAKER ORDER -- FOR ALL keys THERE EXISTS a constant fitting that
+      key -- is trivially satisfiable, is NOT claimed, and is not admissible
+      as a result.
+      THE QUANTIFIER TRAP BEING HUNTED, AND IT FIRES AGAINST THE ATTACKER
+      RATHER THAN AGAINST THE HYPOTHESIS: the optimal statistic L is indexed
+      by the instance, since c_i(v) depends on the key. An adversary must
+      exhibit ONE statistic that works FOR ALL keys without knowing them,
+      while the derivation supplies only a family indexed by the key. The
+      order matters, it is the reason 2^83 is a floor and not a cost, and no
+      record derived from this hypothesis may quietly exchange the two.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a closed form for the per-signature divergence of an
+        exact-arithmetic Klein-family sampler from the ideal coset Gaussian,
+        with its numerical value at two parameter sets conditional on the
+        Stage-0 constants, and an information-theoretic floor on any
+        distinguisher through that channel. It CANNOT certify: that FN-DSA is
+        secure; that no distributional attack exists; that any implementation
+        achieves the exact-arithmetic bound; that the floor is attainable;
+        or anything at all about timing, precision, or the recursion. Writing
+        it up as if it could would be the premature-closure failure mode this
+        program treats as symmetric with overclaiming.
+      nearby_object_control: >-
+        TWO, both required arms of the paired contract.
+        (i) THE OBJECT WHERE THE CONCLUSION FAILS: the CONTINUOUS Gaussian
+        leaf sampler at the same widths. Its normalizer is exactly
+        s sqrt(2 pi), independent of c by translation invariance, so the
+        derived deviation is IDENTICALLY ZERO and every harmonic vanishes. A
+        method that reports a nonzero first harmonic there is measuring its
+        own apparatus; a method that reports the same value there as on the
+        discrete sampler has not identified the load-bearing structure, which
+        is discreteness.
+        (ii) THE OBJECT WHERE THE CONCLUSION IS ENORMOUS: the discrete leaf
+        sampler at sigma = 0.45, where the derived first-harmonic amplitude
+        is 3.673436e-2 and the derived mean bias at c = 0.25 is -4.673880e-2.
+        The instrument must recover both to within 5 per cent. Between them
+        the six-rung ladder gives a graded control whose derived decay is
+        exp(-2 pi^2 sigma^2); a measured decay slower than that is the
+        canonical artifact tell.
+    proof_obligations:
+      - claim: >-
+          The Klein identity (A) holds for the sampler the standard actually
+          specifies, i.e. ffSampling reproduces Klein's output law.
+        responsibility: interface
+      - claim: >-
+          Z_s(c) = s sqrt(2 pi) (1 + 2 eps cos(2 pi c) + O(eps^4)), verified
+          against direct summation at every ladder width.
+        responsibility: correctness
+      - claim: >-
+          KL = sum eps_i^2 under HEUR-FN-1, with the coherent and incoherent
+          extremes both reported rather than one.
+        responsibility: success_probability
+      - claim: >-
+          The arithmetic yielding 2^-46.500, 2^-83.000, 2^83.00, 2^-37.000
+          and their n = 1024 counterparts is reproducible from the Stage-0
+          constants.
+        responsibility: runtime
+      - claim: >-
+          sigma = 1.17 sqrt(q) sigma_min against primary text, and
+          ||b~_i|| <= ||B||_GS for every leaf of every accepted key.
+        responsibility: baseline
+      - claim: >-
+          Nothing here is an attack cost; L is not attacker-computable and
+          every citation must carry that qualifier.
+        responsibility: scope
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. NO COMPLEXITY IMPROVEMENT IS CLAIMED. This is a
+    closed-form characterization of a design residue, plus an
+    information-theoretic floor. It makes no signature easier to forge, no
+    key easier to recover, and moves no exponent. dominated_by and sota_delta
+    for the underlying proposal are recorded in IDEA-20260805-2bbfb2; on every
+    attack axis the delta is zero.
+
+  heuristic_assumptions:
+    - id: HEUR-FN-1
+      formal_statement: >-
+        FOR ALL accepted keys, FOR ALL leaves i and all distinct pairs (i, j),
+        under a uniformly random message hash the leaf-center fractional
+        parts satisfy |E[cos(2 pi c_i)]| <= 2^-20 and
+        |E[cos(2 pi c_i) cos(2 pi c_j)]| <= 2^-20, so that
+        Var(L) = 2 sum eps_i^2 + O(2^-20 (sum eps_i)^2).
+      random_model_justification: >-
+        PARTIAL, AND THE GAP IS NAMED. The root center is uniform on the
+        ambient torus because the message hash is, which gives the marginal
+        at the top of the recursion. Each subsequent center is an affine
+        image of a residual target whose distribution is a discrete Gaussian
+        at width above the smoothing parameter, and above smoothing such a
+        distribution is near-uniform modulo one -- that is the standard
+        smoothing argument and it supports the MARGINAL claim. JOINT
+        INDEPENDENCE IS NOT SUPPORTED and is the real gap. The failure
+        direction is UNSAFE: fully coherent centers replace
+        Var(L) = 2 sum eps_i^2 by up to 4 (sum eps_i)^2, raising KL by a
+        factor of order d / 2 and LOWERING N_LLR by about 9 bits at n = 512
+        and 10 bits at n = 1024. The floor is therefore reported as a RANGE,
+        not a point, whenever the measurement is unavailable.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FNDSA-52dcc7]
+      falsification_condition: >-
+        MEASURED AND REPORTED BEFORE ANY DERIVED FLOOR IS REPORTED. In a toy
+        recursive sampler at n in {8, 16, 32} over at least 10^6 messages,
+        report the maximum single-leaf |E[cos]| and the maximum pairwise
+        |E[cos cos]|. If either exceeds 2^-10, HEUR-FN-1 is refuted at the
+        tested dimension, the point value of N_LLR is withdrawn, and only the
+        coherent-incoherent range may be quoted. Reporting a single N_LLR
+        after such a measurement would be a misstatement of the evidence.
+    - id: HEUR-FN-2
+      formal_statement: >-
+        For distributions at small Kullback-Leibler divergence KL with
+        bounded log-likelihood ratio, the sample complexity of an optimal
+        distinguisher at constant advantage is Theta(1 / KL).
+      random_model_justification: >-
+        Standard, and the regime here is benign because |L| is bounded by
+        2 sum eps_i, so the log-likelihood ratio has no heavy tail and the
+        Gaussian approximation to its sum is accurate. No claim finer than one
+        bit rests on the hidden constant, and the record states results to the
+        bit rather than to the factor.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FNDSA-52dcc7]
+      falsification_condition: >-
+        On the six-rung ladder, measure the number of leaf samples needed to
+        reach a fixed distinguishing advantage and check that it follows
+        1 / KL across the rungs. If the measured law has a different exponent
+        in eps, the conversion from divergence to signature count -- which is
+        the conversion the entire goal depends on -- is wrong and must be
+        restated from the measurement rather than from the heuristic.
+
+  structural_ingredients:
+    - description: >-
+        Poisson summation applied to the Gaussian, giving the theta
+        transformation and the Fourier expansion of the discrete Gaussian's
+        normalizer.
+      citation: >-
+        Classical; DERIVED IN-RECORD and numerically confirmed against direct
+        summation at four widths during ideation. NO CITATION IS ASSERTED and
+        none is needed: the identity is self-checking.
+      role: converts the intractable normalizer into an explicit harmonic series
+    - description: >-
+        Klein's randomized nearest-plane sampler and the GPV framework's
+        trapdoor-independence argument above the smoothing parameter.
+      citation: >-
+        RECALLED, UNVERIFIED. The output-probability identity used here was
+        re-derived from scratch in this record and does not rest on any
+        retrieved source; the ATTRIBUTION is recalled and is a Stage-0
+        reading task.
+      role: supplies the identity (A) that makes the normalizer the only entry point
+    - description: >-
+        The Neyman-Pearson lemma, used to certify that the log-likelihood
+        ratio is the optimal statistic and hence that (C) is a floor.
+      citation: Classical; used as a definition of optimality, not as an authority.
+      role: upgrades an estimate into a lower bound on sample complexity
+
+  reduction_chain:
+    core_problem: >-
+      Quantify, in closed form, the deviation of an exact-arithmetic
+      Klein-family sampler's output from the ideal discrete Gaussian over the
+      lattice coset, and convert that deviation into a signature count.
+    corollaries:
+      - >-
+        A pre-registered threshold eps_crit for every later precision analysis
+        in this campaign: any implementation-induced per-leaf relative density
+        error above 2^-37.000 at FN-DSA-512 brings the distinguishing floor
+        inside the design query bound.
+      - >-
+        A named separation against the moment channel of H-FNDSA-58b464:
+        2^83.00 against 2^161.98 in signature count and O(1) against O(n^2)
+        in memory, so the moment channel is Pareto-dominated on every axis.
+    corollaries_note: >-
+      DELIBERATELY SHORT, AND ONE NON-COROLLARY IS RECORDED EXPLICITLY. There
+      is NO reduction from this hypothesis to any statement about FN-DSA's
+      security, about any implementation, or about key recovery. In
+      particular RQ-FNDSA-001's target "the deviation-size to
+      required-signature-count curve for trapdoor recovery" is only PARTLY
+      served: this hypothesis supplies the curve for DISTINGUISHING, and the
+      step from distinguishing to trapdoor recovery is not taken and not
+      claimed. Any citation of N_LLR toward a recovery cost must carry that
+      gap explicitly.
+
+  predictions:
+    - metric: >-
+        G1 -- reconstruction identity residual
+        |1.17 sqrt(q) sigma_min - sigma| / sigma at the Stage-0 constants,
+        both parameter sets
+      direction: lower
+      minimum_effect: >-
+        Below 1e-6. Pre-run value at the recalled constants: below 2e-9 at
+        n = 512. A residual above 1e-3 refutes the reconstruction of the
+        design rationale and makes the weak-key arm live rather than closed.
+    - metric: >-
+        G2 -- eps_0 = exp(-2 pi^2 sigma_min^2) at the Stage-0 sigma_min
+      direction: different
+      minimum_effect: >-
+        EXACTLY 2^-46.500 at n = 512 and 2^-48.000 at n = 1024, tolerance
+        0.05 in the exponent. NO PARAMETER IS FITTED TO THESE.
+    - metric: >-
+        G3 -- N_LLR = 1 / (d eps_0^2)
+      direction: different
+      minimum_effect: >-
+        2^83.00 and 2^85.00, tolerance 1 bit.
+    - metric: >-
+        G4 -- eps_crit = sqrt(2^-64 / d) and the margin eps_crit / eps_0
+      direction: different
+      minimum_effect: >-
+        2^-37.000 and 2^-37.500, margins EXACTLY 9.50 and 10.50 bits,
+        tolerance 0.1 bit.
+    - metric: >-
+        G5 -- ladder first-harmonic amplitude, measured against the derived
+        2 eps(sigma) at sigma in {0.45, 0.50, 0.55, 0.60, 0.65, 0.70}
+      direction: lower
+      minimum_effect: >-
+        Measured amplitudes within 5 per cent of 3.673436e-2, 1.438377e-2,
+        5.102812e-3, 1.640149e-3, 4.776327e-4, 1.260206e-4, AND the sequence
+        strictly decreasing, AND the ratio between adjacent rungs within 10
+        per cent of the derived exp(-2 pi^2 (sigma_{k+1}^2 - sigma_k^2)). A
+        quantity that fails to decay at the derived rate is an artifact.
+    - metric: >-
+        G6 -- continuous-Gaussian null arm first-harmonic amplitude at every
+        ladder rung
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 within sampling noise 3 / sqrt(N). The forced value is zero
+        by translation invariance and the arm CAN FAIL through an estimator
+        bug, a biased random source, or a wrongly implemented statistic.
+    - metric: >-
+        G7 -- weak-key count: over 200 toy NTRU-shaped keys at n in
+        {8, 16, 32} passing a two-extreme acceptance check, the number with
+        some interior Gram-Schmidt norm above 1.17 sqrt(q)
+      direction: lower
+      minimum_effect: >-
+        PREDICTED 0 out of 200. THIS CONTROL CAN FAIL AND ITS FAILURE IS THE
+        MOST VALUABLE OUTCOME AVAILABLE: sigma_i dropping from 1.278 to 1.100
+        raises the per-leaf amplitude from 2^-45.5 to 2^-33.5, twelve bits,
+        and to 2^-27.5 at sigma_i = 1.0, which would put the channel inside
+        the query bound. Any count above 0 is routed to rule 12.
+    - metric: >-
+        G8 -- HEUR-FN-1 harmonic moments, reported BEFORE any derived floor
+      direction: lower
+      minimum_effect: >-
+        Maximum single-leaf |E[cos(2 pi c_i)]| and maximum pairwise
+        |E[cos cos]| both below 2^-10 at 10^6 messages. Above 2^-5, the point
+        value of N_LLR is withdrawn and only the range is reportable.
+
+  test_boundary:
+    instances:
+      - >-
+        One-dimensional discrete Gaussian leaf samplers at widths
+        {0.45, 0.50, 0.55, 0.60, 0.65, 0.70}, plus continuous-Gaussian null
+        arms at the same widths.
+      - >-
+        Toy NTRU-shaped bases at n in {8, 16, 32} over a small modulus, for
+        the Gram-Schmidt enforcement audit and the center-uniformity
+        diagnostic ONLY. No toy signature is a statement about FN-DSA.
+      - >-
+        The standardized parameter sets FN-DSA-512 and FN-DSA-1024 enter BY
+        DERIVATION ONLY, through the closed form evaluated at Stage-0
+        constants. NO EMPIRICAL MEASUREMENT AT THOSE PARAMETERS IS IN SCOPE
+        and none may be reported.
+    parameters:
+      gaussian_convention: "rho_s(x) = exp(-x^2 / (2 s^2))"
+      leaf_widths: [0.45, 0.50, 0.55, 0.60, 0.65, 0.70]
+      toy_n: [8, 16, 32]
+      derived_parameter_sets: ["FN-DSA-512 (d = 1024)", "FN-DSA-1024 (d = 2048)"]
+      recalled_sigma_min: {n512: 1.277833697, n1024: 1.298280334}
+      recalled_q: 12289
+      recalled_key_acceptance: "||B||_GS <= 1.17 sqrt(q)"
+      design_query_bound: "q_s = 2^64"
+      field: "real arithmetic; reference computations in exact rational and 80-digit decimal"
+    implementation: >-
+      Pure Python 3.11 plus numpy, which was observed present at version
+      2.4.6 in this container during ideation (OUTSIDE THE HARNESS; the
+      executor must re-verify and record the result in the run manifest).
+      scipy and sympy were observed ABSENT and the design uses neither;
+      normal quantiles are hard-coded and exact references use fractions and
+      decimal from the standard library. If a needed dependency is missing at
+      execution time that is an infrastructure outcome and never mathematical
+      evidence.
+    budget:
+      stage0_wall_clock_seconds: 3600
+      stage1_wall_clock_seconds: 300
+      stage1_compute: "closed-form arithmetic only; no sampling"
+      stage2_wall_clock_seconds: 2400
+      stage3_wall_clock_seconds: 1800
+      maximum_memory_gb: 4
+
+  falsification_conditions:
+    - >-
+      F1 (ZERO COMPUTE, PRIMARY) -- Stage 0 shows the standardized sampler is
+      not a randomized-nearest-plane sampler, so identity (A) does not apply.
+      The hypothesis is void as a statement about FN-DSA and survives only as
+      a statement about the Klein family. Cost of being wrong: one reading
+      session.
+    - >-
+      F2 (ZERO COMPUTE) -- the Stage-0 constants do not satisfy
+      sigma = 1.17 sqrt(q) sigma_min. Clause (F) is false, the floor on
+      sigma_i is not sigma_min, and every number in (D) and (E) must be
+      recomputed against the true floor.
+    - >-
+      F3 -- the recomputed eps_0, KL, N_LLR or eps_crit differ from the
+      stated values by more than the stated tolerances at the Stage-0
+      constants. The arithmetic is wrong.
+    - >-
+      F4 -- the ladder's measured first-harmonic amplitude does not follow
+      exp(-2 pi^2 sigma^2) across six rungs. The Poisson expansion does not
+      describe this object and the derivation fails between (A) and (B).
+    - >-
+      F5 -- the continuous-Gaussian null arm shows a nonzero first harmonic.
+      The instrument is broken and NO result of any sign may be reported.
+    - >-
+      F6 -- the positive control at sigma = 0.45 does not recover its derived
+      amplitude to within 5 per cent. The instrument is insensitive and no
+      negative may be reported.
+    - >-
+      F7 (NOT A FALSIFICATION OF THE CLOSED FORM, PRE-REGISTERED HERE) --
+      HEUR-FN-1 fails at the tested toy dimension. The honest reading is
+      FIRST that toy dimension does not model n = 512 center correlation, and
+      only SECOND that the heuristic is false. This ordering is fixed before
+      any measurement and may not be selected afterwards.
+    - >-
+      F8 (THE PLANNED NEGATIVE, WHICH IS A DELIVERABLE) -- every clause holds
+      and the conclusion is that the exact-arithmetic channel is 9.5 bits out
+      of reach. The batch has NOT finished unless it also emits the successor
+      statement: the three residual channels (finite precision, the recursion,
+      the base sampler's table) with eps_crit as the threshold each must
+      cross, and the open question of whether a trapdoor-free statistic
+      captures a constant fraction of KL. A negative without that statement
+      is a fatigue report, not a closure.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER TOY for every measurement; DERIVATION TIER for the closed
+      forms, conditional on Stage 0. Neither may be raised by any downstream
+      citation. A derivation evaluated at standardized constants is NOT a
+      crypto-scale measurement of a standardized algorithm, and AGENTS.md
+      rule 7 binds harder here, not less, because the algorithm is being
+      standardized.
+    - >-
+      N_LLR IS A FLOOR ON A DISTINGUISHER, NOT AN ATTACK COST AND NOT A
+      RECOVERY COST. The optimal statistic requires the trapdoor. Writing
+      "an attack in 2^83 signatures" would be false.
+    - >-
+      NOTHING HERE ADDRESSES: finite-precision arithmetic, any integer-only
+      reformulation, the base sampler's table, the recursion's own error,
+      timing, or any implementation. Those are the residual channels and they
+      are where the 9.5-bit margin can actually be consumed.
+    - >-
+      NO STATUS CHANGE is proposed or implied for IDEA-20260801-010 or for
+      any other record. This hypothesis is `proposed` and nothing more.
+    - >-
+      If G7 fires, the resulting claim concerns a standardized algorithm and
+      is automatically routed to independent review-breakthrough at max
+      effort under AGENTS.md rule 12 before it leaves this program.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/goals/GOAL-FNDSA-001.yaml
+    - ledger/questions/RQ-FNDSA-001.yaml
+    - ledger/proposals/IDEA-20260805-2bbfb2.yaml
+    - ledger/proposals/IDEA-20260805-4a6dc7.yaml
+    - ledger/proposals/IDEA-20260805-637a3b.yaml
+    - ledger/proposals/IDEA-20260801-010.yaml
+    - ledger/hypotheses/H-FNDSA-58b464.yaml
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - docs/claims-and-verification.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to one model.
+      Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; no
+      `python3 -m orchestration.adapter doctor --probe` was run.

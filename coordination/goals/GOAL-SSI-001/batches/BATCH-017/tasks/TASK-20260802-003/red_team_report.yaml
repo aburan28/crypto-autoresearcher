@@ -1,0 +1,451 @@
+red_team_report:
+  task_id: TASK-20260802-003
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-017
+  reviewed_artifacts:
+    - idea_screen.yaml (hash e3002cbc72)
+    - mechanism_notes.md (hash 3ca0869121)
+  snapshot_provenance:
+    commit: f6cd27b25
+    archive_task: TASK-20260802-002
+    receipt_status: pending_post_commit
+    files_verified_at_commit: true
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-opus-4-6-v1
+    model_verified: false
+    independent_session: true
+    fallback_used: false
+  verdict: PASS_WITH_OBJECTIONS
+  summary: >-
+    The idea screen is honest about its own status (unverified ideation,
+    toy_or_derivation_only evidence class, no break/completion/security claim)
+    and correctly excludes the SIDH/SIKE torsion-image regime. However, several
+    candidates are underspecified slogans rather than testable mechanisms, the
+    Pareto ranking has defensible gaps, and the selected gate (SSI-S1) carries
+    a critical underspecification that could render any experimental outcome
+    unfalsifiable. The screen passes for ideation-stage work with the
+    objections below binding on any experiment dispatch.
+
+  candidates:
+    - id: SSI-O1
+      verdict: conditional
+      objections:
+        - title: Orientation source unspecified
+          detail: >-
+            The mechanism says "CGL or SQIsign-adjacent public curve carries a
+            certified small endomorphism/orientation tag" but names no concrete
+            scheme or parameter set where such a tag is actually public. CGL
+            hashes do not expose orientation; SQIsign's endomorphism ring IS
+            the secret. The candidate is attacking a hypothetical scheme that
+            may not exist in deployment. This is acknowledged in scope_limits
+            but insufficiently: if no deployed curve publishes an orientation
+            tag, the candidate is vacuous against real systems.
+        - title: Quotient definition missing
+          detail: >-
+            "Run a collision search on the induced quotient" — what quotient?
+            The mechanism does not define the equivalence relation, its
+            compatibility with the walk function, or whether the quotient graph
+            is connected. Without this, the "prediction" that quotient volume
+            drops is untestable because there is no quotient to measure.
+        - title: Tag-preserving null is underspecified
+          detail: >-
+            "Independently randomized labels that preserve degree and tag
+            frequency" — preserving tag frequency does not preserve the
+            algebraic relationship between the tag and the graph structure. The
+            null could be too weak (always showing artifact) or too strong
+            (always killing signal). Need: a null that preserves graph-theoretic
+            structure but severs the algebraic correlation with isogeny degree.
+      cheapest_falsification: >-
+        Before any experiment: name one concrete supersingular curve at a
+        deployed parameter size where the orientation tag is public knowledge,
+        define the quotient graph formally, and show the quotient has fewer
+        vertices than the original. If no such curve exists, the candidate
+        is vacuous. If the quotient exists, compute its size for p ~ 2^20
+        toy graphs and compare to a random relabeling null.
+
+    - id: SSI-O2
+      verdict: conditional
+      objections:
+        - title: Canonicalization undefined
+          detail: >-
+            "Use a known low-degree endomorphism to canonicalize path fragments"
+            — canonicalization requires a well-defined canonical representative
+            within each orbit. For endomorphisms of degree d, the orbit structure
+            on the isogeny graph is not necessarily free or even regular. The
+            mechanism asserts canonicalization exists without defining it or
+            proving it is efficiently computable.
+        - title: Incompatibility with VW walk function
+          detail: >-
+            VW walks use a seeded hash h(j(E)) to select next steps.
+            Canonicalization maps E to a canonical representative E_c in its
+            orbit. But after canonicalization, the walk from E_c may diverge from
+            the walk from E — breaking the collision property that VW depends on.
+            The mechanism does not address how canonicalization composes with the
+            walk hash without destroying collision paths.
+        - title: Free-action assumption unchecked
+          detail: >-
+            The prediction says "only if the action is free on the tested
+            component" — for supersingular curves with extra automorphisms
+            (j=0, j=1728) the action is not free. More importantly, for small
+            endomorphism degree d, the induced action on the (l+1)-regular
+            isogeny graph has a complex orbit structure that is not generically
+            free. This should be the FIRST thing checked, not a prediction
+            contingency.
+        - title: Dominated_by is empty but claim is weaker than Wesolowski
+          detail: >-
+            SSI-O2 sets dominated_by to empty, implying it is on the Pareto
+            frontier. But Wesolowski 2026 already achieves p^{1/3+o(1)} in the
+            F_{p^2} regime using endomorphism structure (Deuring correspondence).
+            If SSI-O2 cannot beat p^{1/3+o(1)}, it IS dominated by Wesolowski's
+            algorithm on the time axis. The screen should state whether it aims
+            to compete with Wesolowski or only with VW (which Wesolowski already
+            beats).
+      cheapest_falsification: >-
+        Define the endomorphism orbit structure on the 2-isogeny graph for a
+        toy p with known End(E). Compute: (a) are orbits regular? (b) can you
+        canonicalize in poly(log p)? (c) does a canonical VW walk still produce
+        collisions? If (c) fails, the mechanism is dead. If (a) fails, the
+        state-count reduction disappears.
+
+    - id: SSI-Q1
+      verdict: conditional
+      objections:
+        - title: Testability requires quantum hardware or exact classical simulation
+          detail: >-
+            The Kuperberg sieve is a quantum algorithm. "Small CSIDH-like class
+            groups and simulated action oracles" can be classically simulated
+            only for very small groups (class number < 2^20 or so). The stated
+            budget (1800s, 8GB) may suffice for a toy classical simulation, but
+            it cannot validate the quantum sieve behavior that the mechanism
+            targets. The falsification criteria ("weighted and uniform sieves
+            have indistinguishable query/memory curves") require running actual
+            Kuperberg sieves, which is a quantum computation.
+        - title: Correlation mechanism is a slogan
+          detail: >-
+            "Exploit a measurable nonuniformity in CSIDH ideal-class action
+            costs or short-relation frequencies to bias a Kuperberg-style
+            hidden-shift sieve" — this describes a hope, not a mechanism. WHICH
+            nonuniformity? The ideal-class group of CSIDH is cyclic; action
+            costs vary with the ideal norm, but the hidden-shift oracle queries
+            the action, not the cost. How does knowing that [l_3] is cheaper
+            than [l_7] help the sieve combine labels? The information-theoretic
+            path from cost-nonuniformity to sieve-speedup is completely missing.
+        - title: Classical cost model for quantum sieve undefined
+          detail: >-
+            "Quantum: Kuperberg/sieve circuit depth, width, and repetitions" —
+            this is a resource category, not a cost model. Without specifying
+            how quantum resources are counted (T-gate count? logical qubits?
+            circuit depth with error correction?), the "charged costs" in the
+            falsification criteria are undefined.
+      cheapest_falsification: >-
+        Write down the explicit information-theoretic argument for how action-cost
+        nonuniformity enters the sieve combination step. If it cannot be stated
+        as a formal reduction (nonuniform costs => biased labels => fewer
+        combinations), the mechanism is vacuous. This is a paper exercise, no
+        code needed.
+
+    - id: SSI-Q2
+      verdict: conditional
+      objections:
+        - title: Quantum walk on relation vectors is not novel
+          detail: >-
+            Quantum walks for hidden-shift problems have been studied extensively
+            (Childs-van Dam 2007, Jeffery-Magniez-de Wolf 2014). The proposal to
+            "apply a reversible quantum walk over relation vectors to prepare a
+            lower-collision-entropy sample distribution" needs to state what is
+            new relative to existing quantum-walk approaches to abelian
+            hidden-shift. If this is Kuperberg + quantum walk preprocessing,
+            that combination should be compared to Regev's subexponential
+            algorithm and Kuperberg's second algorithm (2011).
+        - title: Spectral gap assumption is the entire problem
+          detail: >-
+            The predictions say "any sieve improvement requires demonstrable
+            spectral gap." The spectral gap of the Cayley graph of the CSIDH
+            class group (which IS the relation graph) is itself an open problem.
+            Proving it has a spectral gap is essentially proving rapid mixing of
+            a random walk on the class group, which is a major open question in
+            algebraic number theory. The candidate outsources its hardest
+            prerequisite to the predictions section.
+        - title: Dominated_by is empty but no mechanism for exponent improvement
+          detail: >-
+            Like SSI-O2, this claims Pareto non-dominance. But with "no
+            exponent improvement predicted" and only a "subconstant query
+            factor" possible, it is dominated by Kuperberg's second algorithm
+            (2011) which already achieves 2^{O(sqrt(log p))} with polynomial
+            quantum memory. If SSI-Q2 cannot beat that, it is not on the frontier.
+      cheapest_falsification: >-
+        State the exact Cayley graph (generators, group order) and compute or
+        bound its spectral gap for CSIDH-512's class group. If the spectral gap
+        is unknown and cannot be estimated, the mechanism has no testable
+        prediction. Alternatively: for a toy cyclic group of order ~2^20, run
+        the proposed walk classically and measure whether collision entropy
+        actually decreases vs. uniform sampling.
+
+    - id: SSI-S1
+      verdict: conditional
+      objections:
+        - title: Statistic is not named
+          detail: >-
+            The mechanism says "test whether adaptive challenge/response
+            transcripts expose a statistic correlated with secret ideal norm or
+            path length." But WHICH statistic? The entire scientific content of
+            this candidate is "look for leakage" — the choice of statistic IS
+            the research. Preregistering a specific statistic before looking at
+            data is exactly the right procedure (and the stop_rules enforce it),
+            but the idea screen should name at least one concrete candidate
+            statistic to show the mechanism is not vacuous.
+        - title: Simulator construction is the hard part
+          detail: >-
+            "Using a simulator that matches the complete output shape and
+            timing-independent distribution" — building a perfect simulator for
+            SQIsign is itself a non-trivial task. The security proof of SQIsign
+            constructs one, but it is a proof-of-knowledge simulator (rewinding
+            the prover), not a standalone transcript generator. If the experiment
+            uses an imperfect simulator, any detected "leakage" might be
+            simulator deficiency rather than protocol leakage.
+        - title: Toy SQIsign implementation may not reflect protocol
+          detail: >-
+            "Reference SQIsign transcript generator or formal toy analogue" —
+            SQIsign's security relies on the hardness of endomorphism-ring
+            computation. A "toy analogue" operating over small curves where
+            End(E) is easily computable changes the security landscape entirely.
+            Leakage found in a toy implementation where the secret is trivially
+            recoverable anyway carries no information about the deployed scheme.
+        - title: Selected as cheapest gate but budget may be spent on simulator calibration
+          detail: >-
+            The budget is 1800s wall-clock, 3 runs. But the stop_rules say
+            "Stop if simulator calibration fails shape/timing parity." If
+            building a proper simulator consumes the budget, the experiment
+            produces no falsification — only a statement that the simulator
+            could not be built. This is not a scientific outcome of the
+            transcript-leakage hypothesis; it is an infrastructure failure. The
+            budget should separately allocate simulator construction vs.
+            statistical testing.
+      cheapest_falsification: >-
+        Name one concrete statistic (e.g., "distribution of challenge response
+        degree modulo small primes" or "timing residual after subtracting
+        public-field-dependent baseline") and one concrete SQIsign toy
+        parameter set. Run the statistic on: (a) real transcripts, (b) a
+        simulator that outputs random isogenies of matching degree distribution,
+        (c) reshuffled real transcripts (permute secret keys across
+        transcripts). If (a) = (b) = (c), the statistic finds nothing. If
+        (a) differs from (b) but (a) = (c), the leakage is public-metadata,
+        not secret-correlated. This requires naming the statistic FIRST.
+
+  pareto_ranking_challenge:
+    title: Ranking is partially dishonest and internally inconsistent
+    detail: >-
+      1. SSI-O2 claims dominated_by=[] but operates in the same regime as
+      Wesolowski 2026 (p^{1/3+o(1)}), which already exploits endomorphism
+      structure. If SSI-O2 cannot improve on p^{1/3}, it is dominated by
+      Wesolowski on time and by VW on memory. The non-dominance claim requires
+      stating that SSI-O2 targets a DIFFERENT cost axis (e.g., memory-efficient
+      endomorphism exploitation where Wesolowski's table is too large).
+
+      2. SSI-Q2 claims dominated_by=[] but acknowledges "no exponent improvement
+      predicted." Kuperberg 2011 already achieves 2^{O(sqrt(log p))} with
+      polynomial quantum memory. A subconstant query factor that does not change
+      the exponent is dominated on the asymptotic axis. SSI-Q2 should state
+      dominated_by=[Kuperberg-2011] unless it claims a concrete-cost advantage
+      at specific parameter sizes.
+
+      3. SSI-O1 dominated_by=[SSI-O2] is probably correct given that SSI-O2
+      subsumes orientation exploitation with canonicalization.
+
+      4. SSI-Q1 dominated_by=[SSI-Q2] is questionable. SSI-Q2 requires a
+      spectral gap that may not exist; if it does not exist, SSI-Q2 is vacuous
+      and cannot dominate anything. Dominance should be conditional on SSI-Q2's
+      prerequisites being satisfiable.
+
+      5. SSI-S1 claims dominated_by=[] — this is the only defensible empty
+      dominance because it is in a different lane (leakage detection vs.
+      key recovery) and has different cost axes (sample complexity vs.
+      compute time). Accepted.
+
+  selected_gate_challenge:
+    title: SSI-S1 cheapness is an artifact of underspecification
+    detail: >-
+      SSI-S1 is selected as "cheapest decisive gate" but its apparent cheapness
+      comes from not yet having defined:
+      (a) which statistic to test,
+      (b) which simulator to use,
+      (c) which SQIsign parameter set or toy analogue.
+
+      Any experiment that actually specifies these may discover that:
+      - Building a proper simulator is expensive (potentially the budget)
+      - The statistic search space is large (multiple testing correction needed)
+      - The toy parameter set is so small that "leakage" is trivial
+
+      A truly cheap decisive gate would be: take the published SQIsign
+      reference implementation, generate 10000 transcripts, compute the
+      empirical distribution of response isogeny degree, and compare to the
+      theoretical uniform distribution. THAT is concrete and cheap. The
+      current SSI-S1 is a meta-instruction ("find leakage") dressed as an
+      experiment.
+
+      Additionally, SSI-O1's quotient-existence check (purely algebraic: does
+      the orientation induce a graph quotient with fewer vertices?) could be
+      cheaper than SSI-S1 if it admits a paper-only falsification. The ranking
+      of "cheapest" is not across all candidates.
+
+  scope_and_novelty:
+    title: Limited genuine novelty; mostly recombination of known approaches
+    detail: >-
+      1. SSI-O1/O2: Orientation-conditioned walk searches are a natural
+      generalization of known results on CM curves and have been considered in
+      the isogeny community (Colò-Kohel 2019, Onuki 2021 on oriented
+      supersingular isogeny problems). The screen does not cite these or
+      differentiate from them. The genuinely novel element would be a concrete
+      quotient construction that is NOT just "oriented SIDH" in disguise — but
+      that construction is not provided.
+
+      2. SSI-Q1/Q2: Quantum walk preprocessing for hidden-shift is standard
+      (the entire Kuperberg line). The purportedly novel element is exploiting
+      action-cost nonuniformity, but no formal mechanism connecting cost to
+      sieve efficiency is provided.
+
+      3. SSI-S1: Transcript leakage analysis is standard security analysis.
+      The novelty would be in identifying a SPECIFIC statistic that leaks —
+      which is not done. As stated, "look for leakage in transcripts" is the
+      definition of cryptanalysis, not a novel mechanism.
+
+      None of the candidates identify a genuinely new structural ingredient
+      in the sense of target-result-profile A4. The screen is closer to a
+      survey of open directions than a set of testable novel mechanisms.
+
+  hidden_costs:
+    title: Multiple uncharged or underspecified resources
+    detail: >-
+      1. SSI-O1/O2: "Preprocessing: endomorphism computation" — computing
+      End(E) for a random supersingular curve IS the hard problem (equivalent
+      to isogeny path-finding under GRH). If the candidate assumes End(E) is
+      known, it is assuming the problem is already solved. The preprocessing
+      cost is potentially p^{1/3+o(1)} (Wesolowski) or p^{1/2} (VW). This
+      must be explicitly charged or the candidate must specify which curves
+      have known End(E) without having solved the problem.
+
+      2. SSI-O1/O2: "tag certification" — what is the cost of verifying an
+      orientation tag? If it requires computing an isogeny or checking a
+      kernel polynomial, the per-step cost may dominate the walk itself.
+
+      3. SSI-Q1/Q2: Oracle costs are stated as "one charged action evaluation
+      per query" but the quantum overhead (error correction, T-gate
+      decomposition, reversibility) is not bounded. A single CSIDH action
+      evaluation requires hundreds of isogeny computations; making this
+      reversible for a quantum walk multiplies the cost significantly.
+
+      4. SSI-S1: The cost of building a true simulator is not charged against
+      the experiment budget. If simulator construction is itself a research
+      problem, the "cheap gate" is not cheap.
+
+      5. General: None of the candidates charge the cost of FAILING. If VW
+      takes p^{1/2} steps, and the proposed method takes p^{1/2 - epsilon}
+      steps but fails with probability (1 - p^{-epsilon}), the expected total
+      cost is HIGHER. Per-attempt cost times inverse success probability must
+      be bounded.
+
+  torsion_image_check:
+    title: No torsion-image dependence detected
+    detail: >-
+      None of the five candidates rely on published torsion images. SSI-O1/O2
+      use orientation/endomorphism tags which are distinct from SIDH's
+      E[N]-image auxiliary data. SSI-Q1/Q2 target CSIDH which has no torsion
+      images by construction. SSI-S1 targets transcripts, not kernel
+      generators. The screen correctly excludes the SIDH/SIKE broken regime.
+      PASS on this criterion.
+
+  quantum_testability:
+    title: Q1 and Q2 are not classically testable at the mechanism level
+    detail: >-
+      Both SSI-Q1 and SSI-Q2 propose mechanisms whose predictions are about
+      quantum sieve behavior. Classical simulation of Kuperberg sieves is
+      feasible only for tiny groups (class number < ~2^15 for exact
+      simulation). The stated budget (1800s, 8GB classical) can run a toy
+      classical simulation but CANNOT validate:
+      - Whether quantum walk preprocessing actually reduces collision entropy
+        (SSI-Q2)
+      - Whether cost-biased label weighting helps sieve combination (SSI-Q1)
+
+      The ONLY classically testable predictions are:
+      - Whether CSIDH action costs are nonuniform (trivially yes)
+      - Whether relation-vector distributions have exploitable structure
+
+      But these are necessary conditions, not sufficient. The quantum step
+      that converts structure into speedup is untestable without quantum
+      hardware. The candidates should honestly state that classical
+      experiments can only test PREREQUISITES, not the full mechanism.
+
+  overall_assessment: >-
+    The screen is an honest piece of ideation that correctly:
+    (a) labels everything "unverified",
+    (b) excludes the broken SIDH regime,
+    (c) acknowledges no exponent improvement is predicted,
+    (d) cites the correct VW baseline from KN-TECH-057.
+
+    However, as a set of mechanisms for experimental dispatch, it has
+    significant weaknesses:
+
+    1. NO candidate identifies a genuinely new structural ingredient (A4 of
+       target-result-profile). They are all "apply known technique X to
+       setting Y" without the enabling new mathematical fact.
+
+    2. The Pareto ranking is locally correct (O1 < O2, Q1 < Q2) but globally
+       dishonest: O2 and Q2 claim non-dominance without positioning against
+       Wesolowski 2026 and Kuperberg 2011 respectively.
+
+    3. The selected gate (SSI-S1) is a research QUESTION ("does SQIsign leak?")
+       dressed as an experiment. It needs: a named statistic, a concrete
+       simulator, and a concrete parameter set before it is dispatchable.
+
+    4. SSI-O1/O2 have an uncharged preprocessing oracle (endomorphism
+       computation = solving the target problem). This must be reconciled.
+
+    5. SSI-Q1/Q2 are honest about being quantum but the classical
+       testability is more limited than acknowledged.
+
+    The screen should PASS to the next stage (experiment design) ONLY with
+    the binding requirement that SSI-S1's experiment contract must name the
+    statistic, simulator construction method, and parameter set before
+    approval. Without these, the experiment is unfalsifiable.
+
+  required_controls_for_dispatch:
+    - id: RT-CTRL-001
+      control: >-
+        SSI-S1 experiment contract must preregister: (1) the exact statistic
+        being tested, (2) the simulator construction method with calibration
+        acceptance criteria, (3) the SQIsign parameter set or toy-analogue
+        specification, (4) the effect-size threshold. All four before any
+        transcript is generated.
+      pass_condition: >-
+        EXP-SSI-017-S1 contract contains these four elements and cannot
+        be approved without them.
+    - id: RT-CTRL-002
+      control: >-
+        SSI-O1/O2 must specify which curves have publicly known endomorphism
+        rings WITHOUT having solved the isogeny-path problem. Candidates:
+        curves with CM by small discriminant, or curves at known places in
+        the Bruhat-Tits tree. The preprocessing cost must be charged.
+      pass_condition: >-
+        Any SSI-O experiment names concrete curves and charges endomorphism
+        computation at its actual cost.
+    - id: RT-CTRL-003
+      control: >-
+        SSI-O2 and SSI-Q2 Pareto claims must be reconciled with Wesolowski
+        2026 (p^{1/3+o(1)}) and Kuperberg 2011 (2^{O(sqrt(log p))}) before
+        the dominated_by field is accepted as honest.
+      pass_condition: >-
+        Each candidate either demonstrates a cost-axis advantage over the
+        stated baseline or sets dominated_by to name it.
+    - id: RT-CTRL-004
+      control: >-
+        SSI-Q1/Q2 experiment designs must explicitly separate classically
+        testable prerequisites from quantum-mechanism predictions and must
+        not claim that classical toy-simulation validates the quantum
+        speedup claim.
+      pass_condition: >-
+        Experiment contract states which predictions are classically
+        falsifiable and which require quantum resources.
+
+  artifact_paths:
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260802-003/red_team_report.yaml

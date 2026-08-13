@@ -14,6 +14,15 @@ Use this skill for a persistent research program, not an unbounded prompt. It
 continuously narrows uncertainty while preserving every theory, run, review,
 and ledger transition as committed evidence.
 
+The loop below runs indefinitely: each batch is bounded, the sequence of
+batches is not. Finishing a batch is a checkpoint, never an exit — do not stop
+to ask whether to continue, and do not treat a quiet batch as a reason to wind
+down. The campaign ends only at a committed terminal status (see "Completion
+and pause"), and when it does, control returns to
+`/launch-research-harness` step 9, which selects the next goal. Indefinite
+operation adds no urgency and removes no gate: every batch still archives,
+reviews, and scopes its claims exactly as before.
+
 ## Launch or resume
 
 1. Read `AGENTS.md`, `CLAUDE.md`, `docs/task-lifecycle.md`,
@@ -45,13 +54,30 @@ and ledger transition as committed evidence.
 
 For every batch, run this sequence:
 
-1. Render the dispatch plan. Start at most three non-archive tasks with
-   disjoint write scopes.
+1. Render the dispatch plan. Start at most the queue's declared
+   `max_concurrent` non-archive tasks with disjoint write scopes, **each in a
+   subagent** — never in this session. Choose the subagent from the task's
+   (`role`, `inference.policy`) pair using the table in
+   `.claude/skills/launch-research-harness/SKILL.md` step 6; each agent carries
+   the reasoning effort its policy calibrates (`executor-mechanical` low →
+   `executor` medium → `coordinator`/`idea-generator` high →
+   `validator`/`red-team` xhigh → the `-breakthrough` review pair max).
+   Launch them in one message so they run concurrently. The
+   tooling's fixed ceiling of three was removed on explicit user direction
+   (2026-08-05); size `max_concurrent` to the environment's real headroom —
+   see `.claude/skills/launch-research-harness/SKILL.md`'s "Concurrency" note.
 2. When a producer reaches a terminal result, run its Coordinator-only
    `snapshot` archive task alone. Its Git receipt must verify before a
    Validator, Reviewer, or Red Team reads the result.
-3. Run the required independent review tasks. Treat receipt validity,
-   mathematical interpretation, and baseline comparison as separate checks.
+3. Run the required independent review tasks, each as a FRESH subagent call
+   rather than a continuation of the producer's session — a continuation
+   carries the producer's context and is not an independent session. A claimed
+   breakthrough, a proposed closure, or a result contradicting prior validated
+   evidence routes to the `review-breakthrough` tier
+   (`validator-breakthrough` / `red-team-breakthrough`, effort max), which is
+   `degradable: false`: if it cannot be served, pause the goal rather than
+   review it at a lower tier. Treat receipt validity, mathematical
+   interpretation, and baseline comparison as separate checks.
 4. Run the Coordinator-only `ledger` archive task alone. It commits exact
    review reports, analysis, evidence, decision, hypothesis status, and any
    knowledge update; its Git diff, parent, record IDs, and file hashes must
@@ -59,10 +85,26 @@ For every batch, run this sequence:
 5. In that same ledger commit, update the `GOAL-*` record with the batch,
    decision, latest verified commit, and exactly one next action. Rerank the
    remaining hypotheses only after this committed checkpoint.
-6. Generate the next bounded batch and continue while the goal remains
+6. Generate the next bounded batch and return to step 1 while the goal remains
    `active`. Preserve failed, invalid, deferred, and anomalous tasks as scoped
    evidence and route them to a repair, replication, or new positive search
    direction.
+
+The loop has no batch count. Iterate until the goal takes a committed terminal
+status or the campaign budget is exhausted — and an exhausted budget is a
+`paused` checkpoint with a resume action, handed back to the launcher, not a
+conclusion about the science.
+
+**When a batch has nothing ready.** An empty ready set means the queue needs
+work, not that the campaign is over. In order: run the goal's recorded
+`next_action`; failing that, dispatch the highest-ranked open hypothesis under
+the goal; failing that, dispatch a replication or a control run for the
+weakest-supported live claim; failing that, run `/propose-ideas` on the bound
+`RQ-*` to refill the candidate pool. Only when none of these yields a ranked,
+justified task do you record the goal as `paused` with that finding as its
+resume action. Never dispatch a task you cannot rank ahead of doing nothing —
+under a loop that never stops, make-work is the standing temptation, and it
+costs budget while producing evidence nobody asked for.
 
 ## Branch and PR hygiene
 
@@ -136,6 +178,11 @@ candidate, empty queue, timeout, or temporary lack of a promising idea does not
 complete the goal: record the narrowest result and add the next concrete action
 instead.
 
+Both terminal statuses return control to `/launch-research-harness` step 8,
+which picks up the next goal. Because the run continues either way, there is no
+incentive to reach for `completed` — an honest `paused` with a resume action
+costs the harness nothing.
+
 ### Closure quorum (AGENTS.md rule 13) — SUSPENDED
 
 The three-model quorum is **not currently required**. Close a goal on the
@@ -172,7 +219,7 @@ three distinct models cannot be resolved, the goal does not close.
 
 ## Output after each batch
 
-Report:
+Report the following, then start the next batch without waiting:
 
 - goal ID and active/paused/completed status;
 - completed task IDs and verified commit IDs;
@@ -186,6 +233,8 @@ Report:
   `main` merged into it;
 - the exact next action and why it reduces the remaining uncertainty.
 
-Never call a passing validator, a snapshot commit, or a toy result a
-cryptanalytic improvement. The ledger archive makes work durable; it does not
-upgrade the strength or scope of the evidence.
+Never call a passing validator or a snapshot commit a cryptanalytic
+improvement. A small-instance result may be an improvement when its mechanism,
+scope, and transfer assumptions are stated and supported by the cited
+artifacts. The ledger archive makes work durable; it does not by itself upgrade
+the evidence.

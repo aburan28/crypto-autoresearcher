@@ -1,0 +1,716 @@
+hypothesis:
+  id: H-MLKEM-0c0a6e
+  question_id: RQ-MLKEM-003
+  goal_id: GOAL-MLKEM-004
+  source_idea: IDEA-20260805-5a4409
+
+  statement: >-
+    SCOPE: toy LWE instances at sieved dimension m + k_lat in {40, 50, 60},
+    q in {127, 257}, centred-binomial secret and rounded-Gaussian error as in
+    GOAL-MLKEM-004's archived instances, FFT block k_fft in {2, 3, 4},
+    k_enum = 0, FFT modulus p chosen so that D = p^{k_fft} spans load factors
+    lambda = N/D in {0.25, 1, 4, 16}, one instrument lineage (KN-TECH-14efa5),
+    at least three independent instances per cell. CLAIM TIER toy. NO ATTACK, NO
+    EXPONENT, NO STATEMENT ABOUT FIPS 203.
+    THE HYPOTHESIS IS IN THREE PARTS, ORDERED SO THAT EACH LATER PART IS
+    UNREADABLE UNTIL THE EARLIER ONE PASSES.
+    (P1, an identity, unconditional) For the dual-FFT distinguisher's table
+    T[u] = sum_{i : u_i = u} exp(2 pi i z_i / q) over u in Z_p^{k_fft}, the
+    computed candidate scores satisfy
+    sum_{s'} |That(s')|^2 = D * sum_u |T[u]|^2 exactly, and
+    sum_u |T[u]|^2 = N + C with C the collision energy
+    sum_u sum_{i != j in bin u} cos(2 pi (z_i - z_j)/q). Measured Parseval
+    residual below 1e-12 on every arm.
+    (P2, a forced value) The independence structure that MATZOV.Nf embodies --
+    one coherent candidate of amplitude N*abar and D-1 exchangeable wrong
+    candidates of energy N -- forces C_forced = (N^2 abar^2 - N)/D. On a matched
+    null constructed to satisfy that structure by design, the departure
+    delta := (C_measured - C_forced)/N has expectation exactly 0 and a closed-form
+    standard deviation (HEUR-PAR-2), and the measured delta_null lies inside its
+    pre-derived band; on a graded duplicate-injection control at fraction f, the
+    measured delta equals f with slope in [0.8, 1.2] and is monotone across five
+    points.
+    (P3, the measurement, no value predicted) On the real sieve arm delta is
+    resolved at the pre-registered resolution 3*sd_pred, and the corresponding
+    correction to MATZOV.Nf is N_required = N_Nf * (1 + delta), reported in bits
+    as log2(1 + delta) with its sign, at each cell, together with the un-forced
+    residual D_eff = exp(max_wrong^2 / (N (1 + delta))) which this hypothesis
+    explicitly does NOT claim to settle.
+    IF NO CANDIDATE CELL IS IN REGIME, or if P2's controls fail, the deliverable
+    is a NAMED SCOPED NEGATIVE with its exact boundary and its successor, not a
+    measurement.
+
+  mechanism: >-
+    DERIVED IN-RECORD. The estimator source was READ this session from a clone
+    at commit 3e48ef421ec256afddb3e7d2249a77eab6e9ba12, the pin
+    tools/sage_free_estimator/README.md records as the commit EXP-MLKEM-015 used.
+    estimator/lwe_dual.py class MATZOV, transcribed verbatim:
+
+      k_lat = params.n - k_fft - k_enum                                  # L540
+      lsigma_s = ( Xe.stddev**(m/(m+k_lat)) * (Xs.stddev*q)**(k_lat/(m+k_lat))
+                   * sqrt(4/3) * sqrt(beta_sieve/2/pi/e)
+                   * deltaf(beta_bkz)**(m+k_lat-beta_sieve) )            # L543-549
+      N = ( exp(4*(lsigma_s*pi/params.q)**2)
+            * exp(k_fft/3.0*(params.Xs.stddev*pi/p)**2)
+            * (k_enum*cls.Hf(params.Xs) + k_fft*log(p) + log(1/mu)) )    # L552-556
+      mu = 0.5                                                            # L539
+
+    THE MATZOV PAPER ITSELF HAS NOT BEEN READ. Every sentence below about what
+    the MODEL assumes is an inference from this code and is labelled as such;
+    replacing those inferences with quotations from the primary text is stage 0
+    of EXP-MLKEM-a131e4 and is a completion gate, not an aspiration.
+
+    GEOMETRY. LWE row convention A in Z_q^{m x n}, b = A s + e mod q. Line 540
+    makes k_lat + k_fft + k_enum = n an identity and the sieved lattice has
+    dimension m + k_lat. Partition A = [A_lat | A_fft], s = (s_lat, s_fft),
+    k_enum = 0, k_lat = n - k_fft. Sieve
+        L' = { (x, y_lat) in Z^m x Z^{k_lat} : y_lat = A_lat^T x mod q }.
+    Per vector define w_i = A_fft^T x_i mod q (unconstrained), z_i = x_i . b
+    mod q, u_i = round(p w_i / q) mod p in Z_p^{k_fft}. The exact identity
+        x_i . b = y_lat,i . s_lat + w_i . s_fft + x_i . e   (mod q)
+    is the attack's basis: y_lat,i is short because it was sieved, s_lat is small,
+    so the first term is small; x_i . e is small; the second is the
+    candidate-dependent phase. THIS GEOMETRY IS NOT THE ONE GOAL-MLKEM-004
+    MEASURED IN -- all six of its batches sieved the full d = m + n lattice,
+    which is why BATCH-f75059 correctly proved the admissible (k_enum, k_fft)
+    set empty for that design. See IDEA-20260805-bb7668.
+
+    P1, THE IDENTITY. Characters of G = Z_p^{k_fft} are orthogonal, so for ANY
+    table T and D = p^{k_fft},
+        sum_{s' in G} |That(s')|^2 = D * sum_{u in G} |T[u]|^2.            (I)
+    Expanding the right side over pool indices, with B_u the bin-u index set,
+        sum_u |T[u]|^2 = sum_u | sum_{i in B_u} e^{2 pi i z_i / q} |^2
+                       = N + C,                                            (II)
+        C := sum_u sum_{i != j in B_u} cos(2 pi (z_i - z_j)/q).
+    (I) and (II) are unconditional: no lattice property, no distribution, no
+    independence. They hold for the real arm, for every null, and for every
+    control, which is why the Parseval residual is a known-answer control that
+    CAN FAIL only through implementation error.
+
+    P2, THE FORCED VALUE. Nf's N is exactly abar^{-2} * L with
+    abar = exp(-2 (lsigma_s pi/q)^2) and L = k_enum*Hf + k_fft*log(p) +
+    log(1/mu). That is the classical bookkeeping "signal N*abar must exceed the
+    maximum of D exchangeable mean-zero scores of variance N/2" and contains no
+    covariance term. Under that structure the total energy is
+    (N abar)^2 + (D-1) N, so (I) and (II) FORCE
+        C_forced = (N^2 abar^2 - N)/D.                                     (III)
+    Define delta := (C_measured - C_forced)/N. The mean wrong-candidate energy is
+    then N(1 + delta D/(D-1)), and repeating Nf's own inequality with the
+    measured variance gives
+        N_required = N_Nf * (1 + delta).                                   (IV)
+    (IV) is Nf's own algebra with one modelled number replaced by a measured one.
+    Its sign is unambiguous and monotone: delta > 0 means Nf UNDERSTATES the
+    sample requirement; delta < 0 means it overstates it. There is no grid, no
+    interpolation and no sensitivity curve, which is what DEV-5 denied to every
+    observable of GOAL-MLKEM-004 (EV-MLKEM-2cd08b: "NO OPERATIONAL DIRECTION
+    EXISTS, IN EITHER SENSE, ANYWHERE IN THIS CAMPAIGN").
+
+    WHERE A REAL DEPARTURE COULD COME FROM, AND WHERE A FALSE ONE COULD.
+    (a) COLLISION EXCESS: w_i = A_fft^T x_i mod q is a q-ary linear image of a
+    SHORT x_i drawn from a pairwise-reduced pool, so the bin occupancy need not be
+    multinomial. This is the same physical quantity the batch-6 red team located
+    by ablation -- "the ALIGNMENT between the pool's Gram matrix and the candidate
+    phase matrix" (EV-MLKEM-2cd08b) -- reached here in closed form and predicted
+    rather than discovered.
+    (b) SKIRT LEAKAGE: candidates near s_fft in the bin lattice are partially
+    coherent. Their energy is inside (I)'s left side but outside (III)'s
+    (N abar)^2 term, so (III) attributes it to wrong candidates and biases delta
+    UPWARD. Nf charges the skirt as an inflation of N through
+    exp(k_fft/3 (sigma_s pi/p)^2), not as an energy entry. The contract therefore
+    reports delta with and without a declared coherent neighbourhood excised, and
+    the difference IS the skirt, measured directly against that factor for the
+    first time in this corpus.
+    (c) ROUNDING DEPENDENCE: u_i is a deterministic function of w_i, so rounding
+    errors are not independent of the phases. Isolated by a p | q arm where the
+    rounding is exact.
+
+    THE METHOD CEILING, STATED BEFORE THE RUN RATHER THAN FOUND IN REVIEW.
+    Parseval fixes the SECOND MOMENT across candidates. The union bound consumes
+    the MAXIMUM, and at fixed second moment positive dependence lowers the
+    expected maximum by an amount (I) does not determine. So delta is the FORCED
+    part of the across-candidate structure and D_eff is the FREE part. Six batches
+    of GOAL-MLKEM-004 pursued quantities whose forcing was demonstrated only by
+    reviewers, one batch at a time (EV-MLKEM-b43de0, -ba6c25, -d777f0, -2cd08b).
+    This record's contribution is to compute the forcing first and to name the
+    residual it does not settle.
+
+    COST BOOKKEEPING. Per cell: one sieve of dimension m + k_lat (the campaign's
+    own instrument record: bgj1 dim 70 in 335.2 s, gauss_sieve dim 50 in 0.94 s);
+    one O(N) complex accumulation and one O(D) squaring for the primary metric;
+    one O(D log D) FFT for the known-answer control. Inverse success probability
+    is 1: the measurement is deterministic given the pool. Replication is over
+    instances and seeds, not retries.
+
+  assumptions:
+    - >-
+      FROZEN DEFINITIONS, fixed before any evaluation and part of the contract.
+      (1) k_enum = 0, k_lat = n - k_fft, sieved lattice dimension d' = m + k_lat,
+          beta_sieve = d' (so deltaf's exponent is 0 and beta_bkz is provably
+          inert, reproducing BATCH-f75059's KA-5).
+      (2) u_i = round(p * w_i / q) mod p componentwise, w_i = A_fft^T x_i mod q
+          taken in [0, q).
+      (3) z_i = (x_i . b) mod q, taken in [0, q).
+      (4) T[u] = sum_{i : u_i = u} exp(2 pi i z_i / q); D = p^{k_fft}.
+      (5) C = sum_u |T[u]|^2 - N, computed by bin accumulation, NOT by pair
+          enumeration; the pair form is used once at a small cell as a
+          cross-check.
+      (6) abar = (1/N) sum_i cos(2 pi (y_lat,i . s_lat + x_i . e)/q), MEASURED on
+          the pool, not taken from Nf. Nf's own abar is reported beside it.
+      (7) C_forced = (N^2 abar^2 - N)/D with abar from (6).
+      (8) delta = (C - C_forced)/N.
+      (9) The coherent neighbourhood excised in the second reading of delta is
+          the set of s' within Hamming-ball radius 1 and componentwise offset at
+          most 1 of s_fft's bin representative, declared here and not tuned.
+      NO OTHER DEGREE OF FREEDOM EXISTS. Any change to (1)-(9) after any number
+      has been observed requires a versioned amendment marked exploratory_only
+      and is never an edit.
+    - >-
+      The MATZOV paper is NOT READ. Every attribution of an assumption to the
+      published analysis is an inference from the pinned code. If stage 0 obtains
+      the paper and the paper differs, the result is a statement about the pinned
+      estimator only, and every downstream sentence must say which object it is
+      about.
+    - >-
+      Ducas-Pulles (KN-LIT-111) is NOT READ. KN-OPEN-016 reports that they
+      confirm the heuristics' failure experimentally including a "waterfall-floor"
+      phenomenon. IF THEY ALREADY MEASURE THIS QUANTITY, THIS HYPOTHESIS IS
+      DOMINATED AND MUST BE WITHDRAWN. Stage 0 is designed to find that out
+      before any compute is spent.
+    - >-
+      Instrument availability is not assumed. Verified this session: numpy 2.4.6
+      imports in the base interpreter; fpylll, g6k and estimator do NOT. Every
+      stage needing a sieve is an infrastructure request under AGENTS.md rule 3
+      and must rebuild per KN-TECH-14efa5 and record the rebuild in its receipt.
+      A rebuild failure is infrastructure signal and never evidence about the
+      mathematics.
+
+  proof_search_map:
+    bottleneck: >-
+      The step at which MATZOV.Nf converts a modelled per-candidate variance into
+      a required sample count: line 556's additive log-term, which is a union
+      bound over D exchangeable candidates with variance N/2 and no covariance
+      term. Every dual-attack cost figure this program has cited passes through
+      that step. If the variance is wrong by a factor 1+delta, every such figure
+      is wrong by log2(1+delta) bits on its T_table term, and no improvement to
+      sieving, to the length model, or to the FFT changes that.
+    baseline_embedding:
+      parameter_slice: >-
+        k_fft = 1, p = q (no modulus switching, no rounding), and a synthetic
+        pool with u_i drawn uniformly and z_i = u_i s_fft + xi_i. In this slice
+        every assumption of the model holds by construction and the model's own
+        prediction is exact, so the slice reproduces the baseline EXACTLY rather
+        than approximately.
+      reproduction_check: >-
+        SYMBOLIC PLUS FIXTURE. Symbolic: (I) and (II) are proved from character
+        orthogonality and (III) follows from the model's two-term energy split;
+        both derivations are written out and checked. Fixture: on the synthetic
+        slice the measured C must equal (III) within the closed-form sd of
+        HEUR-PAR-2, and the Parseval residual must be below 1e-12. A curve that
+        merely resembles the prediction is not a reproduction; these are exact
+        identities and a pre-derived interval.
+    observation_collision:
+      observable: >-
+        The pair (C, abar), equivalently delta, computed from the bin indices and
+        phases alone.
+      distinct_preimage_search: >-
+        A COLLISION EXISTS, IT IS EXHIBITED DELIBERATELY, AND IT IS THE REASON
+        THE CONTROLS ARE BUILT AS THEY ARE. Two ground-truth objects on opposite
+        sides of the conclusion share the observable exactly: (a) a real sieve
+        pool whose bin occupancy happens to be multinomial, and (b) the synthetic
+        NULL-U pool, which has no lattice, no sieve and no dual family at all.
+        Both give delta = 0. Therefore delta = 0 licenses ONLY "the second moment
+        matches the model at this cell", and NEVER "the pool has no structure" --
+        the distinction GOAL-MLKEM-004's batch-6 review made about its own
+        rejected null ("the package's own membership certificate IS the statement
+        that y is a deterministic function of x, so OUTSIDE_LOW licenses only
+        'not the ablated object'"). A second collision, in the other direction:
+        duplicate injection at fraction f and a genuine occupancy bias of the
+        same magnitude both give delta = f, so a non-zero delta does not identify
+        its cause. The separating condition is the ROWPERM-style arm that
+        preserves occupancy while destroying phase alignment, and it is a
+        required arm rather than a suggestion.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Move the question from "are the candidate scores independent" (a
+          distributional statement with no exact form) into the group algebra of
+          Z_p^{k_fft}, where it becomes the exact equality
+          sum_{s'}|That|^2 = D sum_u |T[u]|^2 and the model's content reduces to a
+          single number C.
+        predicted_gain: >-
+          The encoding is exact (the distinguisher IS the DFT), completeness and
+          soundness are trivial (invertible transform), and the transfer
+          obligation is the only real one: the map from delta to bits is (IV),
+          which holds only inside Nf's own bookkeeping and is declared as such.
+          The gain is that the forced part of the observable is computed before
+          the run instead of being discovered in review.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold delta fixed and vary the forgotten structure: real sieve pool,
+          non-sieve BKZ pool of matched norms, random-lattice-point pool of
+          matched norms, and the synthetic uniform pool. The intrinsic invariant
+          proposed to distinguish them is the bin-occupancy chi-square against
+          multinomial, computed separately from delta.
+        predicted_gain: >-
+          If delta is identical across all four at matched norms, delta is not
+          about sieving and the headline must say so. This is the nearby-object
+          control that batch 4 of GOAL-MLKEM-004 discovered it needed only after
+          its deciding check returned neither named outcome (EV-MLKEM-ba6c25).
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER. P1: FOR ALL tables T over Z_p^{k_fft}, the identity
+      holds -- no existential, no instance dependence, and this is the strongest
+      quantifier in the record. P2: THERE EXISTS one closed form (III), fixed and
+      parameter-free before evaluation, such that FOR ALL cells in the declared
+      boundary and FOR ALL admissible seeds, the matched null's measured delta
+      lies in its pre-derived band. The witness (III) may NOT depend on the cell,
+      the seed, the pool or the arm. THE WEAKER ORDER -- for all cells there
+      exists a forced value -- is trivially satisfiable and is explicitly NOT
+      claimed. P3: FOR EACH cell, a delta and a sign are reported; NO uniform
+      statement over cells is claimed, and in particular no statement of the form
+      "for all dimensions delta has sign sigma" may be made from this experiment.
+      The extrapolation to FIPS 203 dimensions would require exactly such a
+      uniform statement and is therefore forbidden except as HEUR-PAR-3, by name.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a measured, signed, toy-tier correction factor (1 + delta) to
+        MATZOV.Nf's modelled wrong-candidate variance, at three sieved dimensions
+        at or below 60, one modulus family, one sieve algorithm, k_fft <= 4, with
+        at least three instances per cell -- together with the statement that the
+        correction is exact within Nf's own bookkeeping and says nothing about
+        the maximum of dependent scores. It cannot certify that the independence
+        heuristic holds or fails, cannot move any exponent, cannot bound any
+        attack at cryptographic scale, and cannot close KN-OPEN-016, whose
+        question is a primal/dual comparison in a single named cost convention.
+      nearby_object_control: >-
+        THE NON-SIEVE DUAL FAMILY AT MATCHED NORMS, and it is mandatory. Batch 4
+        of GOAL-MLKEM-004 found a valid non-sieve BKZ dual family separating at
+        5.4311 against the sieve's 1.2704 on that campaign's own observable, and
+        a family NOT in the lattice at all separating at 12.1507
+        (EV-MLKEM-ba6c25). The hoped-for conclusion "delta measures a property of
+        sieve output" FAILS on those objects if delta is equal there. A method
+        that cannot hold the pair apart has not identified the load-bearing
+        structure, and the contract requires the comparison to be reported in the
+        headline rather than in a limitation. A second nearby object, free: the
+        archived full-dual pool of BATCH-f75059, where y is short in every
+        coordinate so the bins collapse and delta must be large and positive.
+    proof_obligations:
+      - claim: >-
+          sum_{s'} |That|^2 = D sum_u |T[u]|^2 and sum_u |T[u]|^2 = N + C, for
+          any T.
+        responsibility: correctness
+      - claim: >-
+          C_forced = (N^2 abar^2 - N)/D is what the model asserts, derived from
+          the read source lines 552-556 and not from the unread paper.
+        responsibility: baseline
+      - claim: >-
+          N_required = N_Nf (1 + delta) follows from Nf's own inequality with the
+          measured variance substituted, and from nothing else.
+        responsibility: strictness
+      - claim: >-
+          The matched null satisfies the model's structure BY CONSTRUCTION, so
+          its forced delta is 0 and its band is derived, not fitted.
+        responsibility: correctness
+      - claim: >-
+          The graded positive control's forced value is delta = f exactly,
+          because an exact duplicate pair contributes cos(0) twice.
+        responsibility: feasibility
+      - claim: >-
+          The bin/phase pair is computed from the certified dual vectors by
+          integer arithmetic independent of the sieve, with the membership
+          certificate re-verified as batch 1 did.
+        responsibility: interface
+      - claim: >-
+          Parseval decides the second moment and NOT the maximum; D_eff is
+          reported and not claimed.
+        responsibility: scope
+      - claim: >-
+          Nothing here transfers to FIPS 203 dimensions except through HEUR-PAR-3,
+          by name, with its own falsification.
+        responsibility: scope
+    not_applicable_reason: null
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. THERE IS NO COMPLEXITY CLAIM. This is a measurement of one
+    input to an existing cost function. A measured delta changes that function's
+    sample count by the constant factor (1 + delta); it makes no system easier to
+    solve, implements no attack, and moves no exponent. sota_delta is zero on
+    every attack axis (time, memory, data, queries, advice) and dominated_by is
+    carried on the source idea IDEA-20260805-5a4409, where the frontier rows
+    actually checked are listed.
+
+  heuristic_assumptions:
+    - id: HEUR-PAR-1
+      formal_statement: >-
+        FOR ALL cells in the declared boundary, the quantity abar defined in
+        assumption (6) is the correct amplitude to use in (III): that is, the
+        coherent part of the table is concentrated at the single candidate s_fft
+        up to the declared neighbourhood of assumption (9), and no further
+        coherent structure exists elsewhere in G.
+      random_model_justification: >-
+        Under the model, coherence requires w_i . (s_fft - s') to be small mod q
+        for most i, which for w_i near-uniform in Z_q^{k_fft} happens only at
+        s' = s_fft and its immediate bin neighbours. This is a statement about
+        the model, not about the world, and it is exactly what could fail if the
+        pool's w-distribution is biased -- which is one of the two mechanisms the
+        hypothesis exists to detect.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-a131e4]
+      falsification_condition: >-
+        The measured energy profile over G shows a coherent excess outside the
+        declared neighbourhood exceeding 3 * sd_pred at any cell. Then (III) is
+        mis-attributing energy, delta as defined is not the model's departure,
+        and the correct object is the full energy profile rather than a single
+        number. This is measured and reported BEFORE delta is interpreted.
+    - id: HEUR-PAR-2
+      formal_statement: >-
+        Under the matched null NULL-U (u_i iid uniform on Z_p^{k_fft}; phases
+        z_i = u_i . s_fft + xi_i with xi_i resampled from the measured real-arm
+        residual phase distribution), C has mean (N^2 abar^2 - N)/D and variance
+        Var(C) = 2 * E[P] * (1 - abar^4)/2 + O(N^3/D^2), where E[P] = N(N-1)/D is
+        the expected number of ordered colliding pairs. Consequently
+        sd_pred(delta) = sqrt(Var(C))/N.
+      random_model_justification: >-
+        Multinomial occupancy of N balls in D bins gives E[P] = N(N-1)/D exactly;
+        the per-pair cosine has mean abar^2 and variance bounded by 1/2 under the
+        null's phase model; pair-overlap terms contribute at order N^3/D^2. THE
+        LEADING FORM IS DERIVED HERE AND THE O(N^3/D^2) TERM IS NOT: it is
+        bounded numerically at each cell rather than argued, which is why the
+        acceptance band is stated at 2 sd and the real-arm resolution at 3 sd.
+        THIS IS THE WEAKEST LINK IN THE RECORD and is labelled as such rather
+        than smoothed over.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-a131e4]
+      falsification_condition: >-
+        The empirical sd of delta over >= 16 NULL-U draws differs from
+        sd_pred(delta) by more than a factor of 2 at any cell. Then the band is
+        wrong, every verdict computed from it is void, and the correct procedure
+        is to use the EMPIRICAL null distribution and to report that the closed
+        form failed. Cost of being wrong: one recomputation, no compute.
+    - id: HEUR-PAR-3
+      formal_statement: >-
+        SCALE TRANSFER. For fixed (k_fft, p, lambda, secret and error laws),
+        delta viewed as a function of the sieved dimension m + k_lat converges as
+        that dimension grows, so that its value at FIPS 203 dimensions may be
+        estimated by extrapolating a trend measured over at least three
+        dimensions.
+      random_model_justification: >-
+        NONE OFFERED. This is the heuristic EV-MLKEM-2cd08b records as "OPEN and
+        never tested" (H-SCALE-1), whose test went unmet for three consecutive
+        batches and is named as the successor's first task in DEC-20260805-0b3e11
+        NA-1. It is numbered here so that no sentence about FIPS 203 can be
+        written without invoking it by name and carrying its uncertainty.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-a131e4]
+      falsification_condition: >-
+        The measured delta is non-monotone in dimension across the three cells,
+        or its cell-to-cell change does not shrink. HEUR-PAR-3 is then refuted
+        over the tested range and NO extrapolation of any kind may be reported.
+        That outcome is a deliverable, not a failure.
+    - id: HEUR-PAR-4
+      formal_statement: >-
+        The rounding errors p*w_i/q - round(p*w_i/q) are exchangeable across i and
+        independent of s_fft, which is the assumption whose form gives Nf's factor
+        exp(k_fft/3 (sigma_s pi/p)^2).
+      random_model_justification: >-
+        RECONSTRUCTED FROM THE CODE'S ALGEBRA, NOT READ FROM THE PAPER: uniform
+        rounding error of variance 1/12 per coordinate, k_fft coordinates, phase
+        variance k_fft (2 pi sigma_s/p)^2/12 = k_fft (pi sigma_s/p)^2/3, and N
+        proportional to the exponential of the phase variance. The reconstruction
+        is itself a claim to be checked at stage 0.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-a131e4]
+      falsification_condition: >-
+        The p | q arm, in which the rounding is exact and the factor must be
+        inert, shows a delta differing from the p not dividing q arm by more than
+        3 sd_pred at matched D. Then rounding dependence, not collision
+        structure, carries the departure, and delta must be reported decomposed
+        rather than as a single number.
+
+  structural_ingredients:
+    - description: >-
+        Character orthogonality / Plancherel on the finite abelian group
+        Z_p^{k_fft}; the fast Fourier transform over that group as used by the
+        dual attack's own distinguisher.
+      citation: >-
+        Elementary and derived in this record. NO EXTERNAL CITATION IS ASSERTED.
+        The FFT trick's attribution to Guo-Johansson (AC:GuoJoh21) and MATZOV
+        2022 is taken from estimator/lwe_dual.py's own reference comments, which
+        WERE read; the papers themselves were NOT.
+      role: supplies the exact energy identity that forces the second moment
+    - description: >-
+        MATZOV.Nf's closed-form sample count, in the exact form transcribed in
+        `mechanism`.
+      citation: >-
+        estimator/lwe_dual.py lines 526-564 at commit
+        3e48ef421ec256afddb3e7d2249a77eab6e9ba12, READ this session; the pin is
+        recorded in tools/sage_free_estimator/README.md as the commit
+        EXP-MLKEM-015 used.
+      role: supplies the forced value (III) and the bit-conversion (IV)
+    - description: >-
+        The g6k/fpylll/passagemath instrument and its rebuild recipe.
+      citation: knowledge/techniques/KN-TECH-14efa5.md
+      role: produces the real sieve pool; unavailable in the base interpreter
+
+  reduction_chain:
+    core_problem: >-
+      Measure the departure of the across-candidate second moment of the
+      dual-FFT distinguisher's score vector from the value MATZOV.Nf's
+      independence structure forces, at toy dimensions, and express it as a
+      signed correction to Nf's sample count.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. There is no reduction from this measurement to any
+      statement about FIPS 203 parameters, about ML-KEM's security categories, or
+      about whether the dual attack beats the primal attack. KN-OPEN-016 asks the
+      last of those and is NOT closed, narrowed or advanced by a toy-dimension
+      second-moment measurement. Any citation of this hypothesis toward a
+      crypto-scale cost must carry HEUR-PAR-3 by name and its unmet status.
+
+  predictions:
+    - metric: >-
+        G1 - Parseval residual: |sum_{s'}|That(s')|^2 / D - sum_u |T[u]|^2|
+        divided by sum_u |T[u]|^2, on every arm of every cell
+      direction: lower
+      minimum_effect: >-
+        Below 1e-12 in double precision. Predicted value is 0; this is an
+        identity. It is the first gate and a failure voids the package.
+    - metric: >-
+        G2 - matched-null departure: mean delta over >= 16 NULL-U draws per cell
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 as the forced value, with acceptance |mean delta_null| <=
+        2 * sd_pred(delta_null) from HEUR-PAR-2 evaluated at that cell's own
+        (N, D, abar) BEFORE the real arm is read. The null CAN fail; a failure is
+        a finding about the model, pre-registered as such.
+    - metric: >-
+        G3 - graded positive control: measured delta at duplication fractions
+        f in {0, 0.02, 0.05, 0.10, 0.20}
+      direction: higher
+      minimum_effect: >-
+        FORCED VALUE delta = f exactly. Acceptance: least-squares slope in
+        [0.8, 1.2], monotone non-decreasing across all five points, and the f = 0
+        point inside G2's band. IF G3 FAILS, THE INSTRUMENT IS BROKEN AND NO
+        NEGATIVE RESULT MAY BE REPORTED FROM ANY ARM.
+    - metric: >-
+        G4 - null-band calibration across the load-factor ladder:
+        mean delta_null at lambda = N/D in {0.25, 1, 4, 16}
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 at every lambda, within 2 sd_pred at each. A monotone drift in
+        lambda is an estimator bias; it must be corrected before the real arm is
+        read, and it is the audit that decides whether the projection is lossy in
+        the regime where the statistic has content.
+    - metric: >-
+        G5 - real-arm departure: delta on the certified sieve pool, per cell,
+        over >= 3 independent instances
+      direction: different
+      minimum_effect: >-
+        NO VALUE PREDICTED, BY DESIGN. What is pre-registered is the resolution
+        (|delta| must exceed 3 sd_pred to be called resolved) and the three
+        admissible reportable outcomes: AGREEMENT (unresolved, which
+        GOAL-MLKEM-004's scope_discipline declares as publishable as departure),
+        delta > 0 (Nf understates N), delta < 0 (Nf overstates it). The bit
+        statement is log2(1 + delta) and nothing more.
+    - metric: >-
+        G6 - nearby-object separation: |delta_sieve - delta_nonsieve| at matched
+        norms, for the BKZ-row family and the random-lattice-point family
+      direction: different
+      minimum_effect: >-
+        Reported with its sign and its uncertainty; no target asserted. If it is
+        below 3 sd_pred, the headline must state that delta is not a property of
+        sieve output.
+    - metric: >-
+        G7 - skirt energy: (energy in the declared coherent neighbourhood minus
+        |That(s_fft)|^2)/N, against Nf's exp(k_fft/3 (sigma_s pi/p)^2)
+      direction: different
+      minimum_effect: >-
+        Same sign, and within a factor of 2, if the factor's reconstructed
+        derivation (HEUR-PAR-4) is right. First measurement of that factor in
+        this corpus; batch 2 recorded it as "identically 1 and untestable" in the
+        campaign's geometry.
+    - metric: >-
+        G8 - D_eff = exp(max over wrong candidates of score^2 / (N (1 + delta))),
+        reported with its spread
+      direction: lower
+      minimum_effect: >-
+        NO FORCED VALUE EXISTS AND NONE IS CLAIMED. Under the independence
+        structure D_eff = D. This is the residual the energy identity does not
+        determine; naming it before the run is what prevents it from being
+        pursued for three batches and then shown forced.
+
+  test_boundary:
+    instances:
+      - >-
+        Toy LWE, row convention, A uniform in Z_q^{m x n}, secret centred
+        binomial eta = 2, error rounded Gaussian sigma = 2, matching
+        GOAL-MLKEM-004's archived instance family so that the only deliberate
+        difference from that campaign is the geometry.
+      - >-
+        Sieved dual lattice L' = {(x, y_lat) : y_lat = A_lat^T x mod q} of
+        dimension d' = m + k_lat in {40, 50, 60}, with beta_sieve = d'.
+      - >-
+        Synthetic pools for every control arm: NULL-U, duplicate-injected,
+        occupancy-preserving row-permuted, and matched-norm non-sieve families.
+      - >-
+        The archived full-dual pool at
+        coordination/goals/GOAL-MLKEM-004/batches/BATCH-f75059/tasks/TASK-20260803-5f11b7/vectors.json
+        as a free positive control only. Its geometry is the wrong one and no
+        comparison against Nf is made from it.
+    parameters:
+      m_values: [30, 35, 40]
+      k_fft_values: [2, 3, 4]
+      k_enum: 0
+      q_values: [127, 257]
+      p_rule: >-
+        p chosen per cell so that D = p^{k_fft} realises lambda = N/D in
+        {0.25, 1, 4, 16}; at least one cell uses p dividing q so that the
+        rounding is exact (HEUR-PAR-4's arm).
+      sieved_dimension_values: [40, 50, 60]
+      instances_per_cell: 3
+      null_draws_per_cell: 16
+      duplication_fractions: [0.0, 0.02, 0.05, 0.10, 0.20]
+      planted_none: true
+    implementation: >-
+      Instance construction, dual-basis construction, certificate verification
+      and all statistics in pure numpy with integer arithmetic for the
+      certificate; sieving by g6k bgj1 through the KN-TECH-14efa5 rebuild;
+      MATZOV.Nf evaluated through the pinned estimator under
+      tools/sage_free_estimator with its exact-equality known-answer control
+      re-passed first. THIS RECORD'S AUTHOR HAS NO EXECUTED RUN AND NO
+      INSTRUMENT: numpy 2.4.6 imports here, fpylll, g6k and estimator do not.
+      Paths and sha256 values are recorded by the Executor at setup.
+    budget:
+      stage0_wall_clock_seconds: 10800
+      stage0_compute: "zero; reading and algebra"
+      stage1_wall_clock_seconds: 1800
+      stage1_compute: "numpy on archived data; no sieve"
+      stage2_3_4_wall_clock_seconds_ceiling: 14400
+      total_cpu_hours_ceiling: 6
+      maximum_memory_gb: 16
+      stage_note: >-
+        Stages 2 to 4 are NOT authorized by this record. Only the Coordinator
+        approves an experiment (AGENTS.md rule 1), and GOAL-MLKEM-004 is
+        closed_at_budget with next_action NONE; opening a successor is recorded
+        there as a user decision. Nothing here overrides either.
+
+  falsification_conditions:
+    - >-
+      F1 (ZERO COMPUTE, THE PRIMARY FALSIFIER). Stage 0 finds that Ducas-Pulles
+      already measure this quantity, or that MATZOV's Nf carries a covariance
+      term the pinned code drops. In the first case the hypothesis is dominated
+      and is withdrawn; in the second the finding is that this program has been
+      auditing a defective instrument for two campaigns, which is larger than the
+      hypothesis and is routed accordingly. Either way the cost of being wrong is
+      three hours of reading.
+    - >-
+      F2. The Parseval residual exceeds 1e-12 on any arm. Implementation defect;
+      nothing is reportable.
+    - >-
+      F3. G3's graded positive control does not fire, or its slope leaves
+      [0.8, 1.2], or it is non-monotone. The estimator does not measure collision
+      energy; NO NEGATIVE RESULT MAY BE REPORTED.
+    - >-
+      F4. G2's matched null falls outside its pre-derived band. (III) is not the
+      forced value; the record must identify which of HEUR-PAR-1 and HEUR-PAR-4
+      accounts for it and restate the object.
+    - >-
+      F5. HEUR-PAR-2's closed-form sd differs from the empirical null sd by more
+      than a factor of 2. Every band-based verdict is void; the empirical null
+      distribution is used and the closed form is reported as failed.
+    - >-
+      F6. No cell is in regime: the correct candidate is not the argmax of the
+      score in the un-ablated arm at a rate of at least 0.9. Then the toy scale
+      cannot host this comparison, which would be the first NAMED OBSTRUCTION in
+      this lane -- DEC-20260805-0b3e11 was explicit that GOAL-MLKEM-004 had none
+      -- and it must be reported as such with its exact boundary, not as a
+      failure of the design.
+    - >-
+      F7 (THE PLANNED NEGATIVE). delta is unresolved at every cell. The second
+      moment of the independence structure is then VALIDATED at the tested
+      parameters. GOAL-MLKEM-004's scope_discipline states that "agreement is as
+      publishable as departure" and that "this goal's symmetric failure mode
+      would be needing the model to be wrong". A batch that reaches F7 and does
+      NOT emit the agreement statement, with its exact boundary and with D_eff's
+      residual named as the remaining question, HAS NOT FINISHED.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy, and no downstream citation may raise it. NO ML-KEM BREAK,
+      no security proof, no FIPS 203 parameter set affected or cleared, no
+      exponent moved, no attack implemented, no cost reduced.
+    - >-
+      PARSEVAL DECIDES THE ENERGY AND NOT THE MAXIMUM. Any sentence of the form
+      "the union bound is wrong by a factor" requires D_eff, which is measured
+      here and NOT settled here. Every citation of (IV) must carry this sentence.
+    - >-
+      A delta measured at sieved dimension at most 60 with q at most 257 is not a
+      statement about dimension 512 to 1024 at q = 3329. The only bridge is
+      HEUR-PAR-3, which is UNVALIDATED, and whose own falsification condition may
+      forbid any extrapolation at all.
+    - >-
+      This hypothesis does not adjudicate CORR-20260805-527ffc's open dispute
+      over which decision closed GOAL-MLKEM-004, does not propose reopening that
+      goal, and does not propose any status change to any existing record.
+      Opening a successor goal is recorded in DEC-20260805-0b3e11 NA-1 as a user
+      decision.
+    - >-
+      Rule 12 is UNMET and UNWAIVED and is inherited through GOAL-MLKEM-004's
+      standing_blocker. No result from this hypothesis may be recorded as
+      correcting EV-MLKEM-015 or any predecessor record, and the two owed
+      knowledge promotions remain blocked.
+    - >-
+      INSTRUMENT FINDING VERSUS OBJECT FINDING. delta at the null and delta at the
+      real arm answer different questions; the first prices the estimator and the
+      second measures the pool. A record that reports the second without the first
+      having passed is inadmissible.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-5a4409.yaml
+    - ledger/proposals/IDEA-20260805-bb7668.yaml
+    - ledger/proposals/IDEA-20260805-a102ec.yaml
+    - ledger/questions/RQ-MLKEM-003.yaml
+    - ledger/goals/GOAL-MLKEM-004.yaml
+    - ledger/decisions/DEC-20260805-0b3e11.yaml
+    - ledger/evidence/EV-MLKEM-2cd08b.yaml
+    - ledger/evidence/EV-MLKEM-50901f.yaml
+    - ledger/evidence/EV-MLKEM-ba6c25.yaml
+    - knowledge/open-problems/KN-OPEN-016.md
+    - knowledge/techniques/KN-TECH-14efa5.md
+    - tools/sage_free_estimator/README.md
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-f75059/tasks/TASK-20260803-5f11b7/wellposedness.md
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-f75059/tasks/TASK-20260803-5f11b7/compare.py
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-e53ce2/measure_scores.py
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - docs/target-result-profile.md
+
+  external_source_status:
+    read_this_session:
+      - "estimator/lwe_dual.py (class MATZOV, lines 496-690) and estimator/lwe.py docstring, at commit 3e48ef421ec256afddb3e7d2249a77eab6e9ba12"
+    not_read:
+      - "MATZOV 2022 report -- NOT READ, relayed via the estimator's own reference comments"
+      - "Guo-Johansson AC:GuoJoh21 -- NOT READ, relayed"
+      - "Ducas-Pulles KN-LIT-111 -- NOT READ, relayed via KN-OPEN-016"
+      - "Carrier-Meyer-Hilfiger-Shen-Tillich KN-LIT-7617 -- NOT READ, relayed via KN-OPEN-016"
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to one model.
+      Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; `python3 -m
+      orchestration.adapter doctor --probe` was not run.

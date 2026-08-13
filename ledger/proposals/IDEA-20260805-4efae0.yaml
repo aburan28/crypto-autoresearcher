@@ -1,0 +1,457 @@
+idea:
+  id: IDEA-20260805-4efae0
+  question_id: RQ-XEDN-004
+  added: '2026-08-05'
+  title: >-
+    The falsification criterion of H-XEDN-005 lies outside the image of the
+    instrument that was supposed to test it, and the p=31 "density block" is
+    unidentifiable from coefficient growth
+  class: identifiability_audit
+
+  claim: >-
+    H-XEDN-005 is falsified, by its own stated condition, if "any verified
+    shortest relation has infinity-norm >= 4". The primary instrument named in
+    EXP-XEDN-006 and EXP-XEDN-007 -- the group-law short search
+    `shortest_relation_group_law` in
+    experiments/EXP-XEDN-007/implementation/run_census.sage -- cannot emit that
+    value. Read directly: its signature is
+    `shortest_relation_group_law(E, pts, coeff_bound=3, max_support=3)`; its
+    support-2 and support-3 loops draw coefficients from
+    `product([c for c in range(-coeff_bound, coeff_bound+1) if c != 0],
+    repeat=supp)`, i.e. from {-3,-2,-1,1,2,3}; and its only support-4 branch
+    draws from `product([-1, 1], repeat=4)`. Its image is therefore contained
+    in {1,2,3} at support <= 3, in {1} at support 4, and in {None} everywhere
+    else. The one other path that could in principle return a larger value --
+    the height-Gram LLL route `shortest_relation(G)` -- is declared "diagnostic
+    only" by both contracts, and in fact contributes nothing at all: on every
+    one of the 14 relation-bearing configurations in the committed archives,
+    `max_abs_coeff_gram` is null and `corank` is 0, so the Gram never found a
+    kernel to search. Consequently P(reported max_|coeff| >= 4) = 0 identically,
+    for every input, on every surface, at every prime, in every degree window.
+    A second and equally decisive consequence: a surface whose true shortest
+    relation has support >= 5, or infinity-norm >= 4, is recorded not as a
+    falsification but as `skip_reason: no_relation_in_observed_span` -- the
+    same label as a surface with no relation at all. The p = 31 cell that
+    KN-FIND-010 calls "a free-x relation-density obstruction, not an observed
+    coefficient blow-up" is therefore not identified: both readings produce the
+    identical observable, and the record picks one.
+
+  object_first_candidate:
+    tracked_object: >-
+      The IMAGE SET of the measurement operator -- the set of values the
+      primary metric can take as a function of the code alone, with the input
+      quantified away. Followed through the computation: hypothesis
+      falsification condition -> contract success/falsification criteria ->
+      the executed search function's coefficient alphabet and support ceiling
+      -> the set of reachable outputs -> the intersection of that set with the
+      falsification region. When the intersection is empty, the experiment
+      cannot fail, and everything downstream of it is a statement about the
+      apparatus.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: xedni calculus, free-x enumeration,
+      Mordell-Weil rank theory, function-field lifting, specialisation
+      verification, index calculus, and every mathematical family in which the
+      XEDN lane has been working. This proposal deliberately does not look at
+      the curves at all. It looks only at the operator. Program-wide precedent
+      that this lens is productive and under-used here: the corpus's own
+      catalogue of controls that pass without being able to fail
+      (KN-TECH-1a5b7e) and the AES falsified-hint control whose null returns
+      the empty set by construction (EV-AES-d33b1c, EV-AES-d8a13e) -- both
+      NOT READ in full by this session, cited as pointers to records, not as
+      authorities.
+    newness_score: >-
+      Genuinely new IN THIS LANE. Nothing in EXP-XEDN-001..007, the five
+      EV-XEDN records, DEC-20260730-001/002, KN-FIND-010/011, the validation
+      task TASK-20260730-012, or the red-team task TASK-20260730-013 states the
+      instrument's reachable output set. The red team's recorded objection was
+      about SPARSITY (n_rel = 2 at p = 31), which is a statement about the
+      number of measurements, not about the range of the measurement. As a
+      technique the move is not new at all, and the record says so.
+    testability_score: >-
+      Maximal. The primary claim is settled by reading forty lines of committed
+      source, and is confirmed or refuted by running that exact function on
+      synthetic inputs with a planted relation of known infinity-norm. No
+      elliptic curve, no Sage (which is absent from this container -- verified
+      this session), no F_p(t) arithmetic.
+    survival_score: >-
+      The object -- the image set -- is invariant under every input, which is
+      exactly what makes the audit decisive and also exactly what bounds its
+      value: it says nothing about the mathematics, only about what was
+      measured.
+
+  mechanism: >-
+    DERIVED BY READING COMMITTED SOURCE AND COMMITTED RESULTS. Every quoted
+    identifier below is from
+    experiments/EXP-XEDN-007/implementation/run_census.sage or from
+    experiments/EXP-XEDN-00{6,7}/runs/RUN-XEDN-00{6,7}-MAIN/raw-result.json,
+    both re-read in this session.
+
+    (A) THE COEFFICIENT ALPHABET. `shortest_relation_group_law` has default
+    parameters coeff_bound = 3 and max_support = 3, and `analyze_surface` calls
+    it as `shortest_relation_group_law(E, pts)` with no overrides. The loop
+    `for supp in range(2, max_support + 1)` therefore ranges over supp in
+    {2,3}, drawing coefficient tuples from {-3..-1, 1..3}^supp. A separate
+    branch, guarded by `if n <= 24`, sweeps `combinations(range(n), 4)` with
+    `product([-1, 1], repeat=4)`. There is no other search. Hence:
+        image(support 2) subset {1,2,3};
+        image(support 3) subset {1,2,3};
+        image(support 4) = {1};
+        image(support >= 5) = {} (the search never forms such a combination).
+    The reported metric is `max_abs_coeff`, set to the group-law value when it
+    is not None. So the reachable output set of the PRIMARY metric is
+    {1, 2, 3, None}. The falsification region {4, 5, 6, ...} is disjoint from
+    it.
+
+    (B) THE DIAGNOSTIC PATH CONTRIBUTES NOTHING. `height_gram(pts)` builds
+    G[i,i] = h_naive(P_i) and G[i,j] = (h_naive(P_i + P_j) - h_naive(P_i) -
+    h_naive(P_j))/2 where `h_naive(P) = max(deg num x, deg den x)`. The naive
+    degree is not a quadratic form on MW/tors -- only the canonical height is
+    -- so G is not a Gram matrix of any bilinear pairing and its kernel has no
+    meaning. The archive shows the consequence rather than merely predicting
+    it: over the 14 relation-bearing configurations, `corank` is 0 on 14 of 14
+    and `max_abs_coeff_gram` is null on 14 of 14, while a group-law relation
+    was simultaneously verified on all 14. A genuine positive-definite Gram
+    matrix of s vectors satisfying a nontrivial relation MUST have rank <= s-1
+    and corank >= 1. The archive therefore contains, on its own face, an
+    internal contradiction that no record notes. (The repair -- use
+    hhat(P) = lim deg_t x(nP)/n^2 -- is IDEA-20260805-68c69a.)
+
+    (C) THE CONFOUND. `analyze_surface` sets
+    `rec["skip_reason"] = "no_relation_in_observed_span"` whenever
+    `maxc is None` on an otherwise eligible surface. By (A), `maxc is None`
+    holds in three disjoint circumstances that the record cannot distinguish:
+    (i) no relation exists among the enumerated slots; (ii) a relation exists
+    with support >= 5; (iii) a relation exists at support <= 3 with
+    infinity-norm >= 4. Cases (ii) and (iii) are exactly the falsification of
+    H-XEDN-005, and they are labelled as case (i). EXP-XEDN-006 at p = 31
+    reports 48 surfaces analysed, 2 eligible, 0 with a verified relation;
+    KN-FIND-010 reads that as case (i) verbatim ("a free-x relation-density
+    obstruction, not an observed coefficient blow-up"). EXP-XEDN-007 then
+    densified and found 2 relations, both at infinity-norm 1, and
+    DEC-20260730-002 recorded support_scoped. The densification changed the
+    number of measurements; it did not change the image set, so it could not
+    have resolved (i) against (ii)/(iii) even in principle.
+
+    (D) WHAT AN HONEST INSTRUMENT WOULD DO. Three changes, each cheap and each
+    testable: raise coeff_bound until the returned value is strictly inside the
+    searched range (a returned value equal to the bound is a censored
+    observation and must be reported as such); raise max_support past 4 with
+    the same rule; and replace h_naive by the canonical height so the Gram
+    kernel is the actual relation module and LLL can search it without an
+    exhaustive product. The audit's job is not to make those changes -- it is
+    to measure the RECOVERY CURVE of the existing instrument against planted
+    relations of known infinity-norm and support, so that every existing
+    EV-XEDN statement can be re-read with its instrument's sensitivity
+    attached.
+
+    (E) WHY THIS IS NOT A CLOSURE. Nothing here shows the coefficient bound is
+    false, and nothing here shows the p = 31 cell has a large-coefficient
+    relation. It shows that the executed protocol could not have found one. The
+    named obstruction is the instrument's image set; the argument is (A)-(C);
+    the forward guidance is (D) plus the redirection in
+    IDEA-20260805-5a9d2c and IDEA-20260805-5bf632.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      No external literature is used or needed. The entire argument is over
+      committed in-repository source and committed run artifacts, all of which
+      were read in this session. No citation is asserted.
+    - >-
+      IN-CORPUS, NOT READ IN FULL, relayed via the session angle brief:
+      KN-TECH-1a5b7e is said to catalogue controls that pass without being able
+      to fail, and EV-AES-d33b1c / EV-AES-d8a13e are said to record a
+      falsified-hint control returning the empty set. These are pointers to
+      records to be checked, not authorities, and the audit does not depend on
+      them.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      (surface, enumerated slot set, true shortest relation) --> the value the
+      executed search reports. The projection is the measurement operator
+      itself.
+    what_is_discarded: >-
+      Everything about the true relation except its membership in the searched
+      region {support <= 3, |c| <= 3} union {support 4, |c| = 1}. Outside that
+      region the projection collapses the entire preimage to the single symbol
+      None, which is also the image of "no relation exists".
+    why_genuinely_lossy: >-
+      Extremely lossy, and the loss is not compatible with the target's
+      operations in the sense the inventor protocol requires: the retained part
+      does NOT propagate deterministically to the conclusion, because two
+      ground-truth states with opposite verdicts (no relation; a relation with
+      infinity-norm 5) map to the same observable. That is an observation
+      collision in the strict sense of inventor-protocol section 8 audit 2, and
+      it is a direct falsifier of identifiability unless an additional
+      condition separates the preimages. No such condition exists in either
+      contract.
+    is_it_only_a_change_of_coordinates: >-
+      No. Both failure modes were checked and the MIRROR one fires twice over:
+      the reported statistic is constant across all 14 archived instances
+      (comparator spread 0), and the falsification region is unreachable
+      (image and falsification region are disjoint). The (Delta,Pi) failure --
+      a projection that discards nothing -- does not apply here; the opposite
+      does.
+
+  assumptions:
+    - >-
+      That the archived run_census.sage is the code that produced the archived
+      results. Checked to the extent possible: the run manifests record
+      experiment_id EXP-XEDN-007, hypothesis_id H-XEDN-005 and a git commit,
+      and the implementation directory is committed alongside the runs. Not
+      independently re-executed, because Sage is absent from this container --
+      which is itself a finding the contract must record rather than route
+      around (AGENTS.md rule 5: an absent dependency is infrastructure signal).
+    - >-
+      That `analyze_surface` is called with default arguments throughout. Read
+      directly in the archived source; no override appears.
+
+  proof_search_map_note: >-
+    The paired hypothesis H-XEDN-58867e carries the filled four-audit
+    proof_search_map, including the observation-collision audit that is the
+    core of this proposal.
+
+  predictions:
+    - metric: >-
+        instrument_image_set: the set of distinct non-None values returned by
+        the archived `shortest_relation_group_law` over an adversarial sweep of
+        synthetic inputs designed to make it return a large value
+      direction: different
+      minimum_effect: >-
+        EXACTLY {1, 2, 3}. Derived before any run by reading the source. Any
+        returned value >= 4 falsifies this proposal outright and is the most
+        useful possible outcome.
+    - metric: >-
+        recovery_rate(k, s): fraction of planted relations of infinity-norm k
+        and support s that the archived search returns correctly, for
+        k in {1,2,3,4,5,6} and s in {2,3,4,5,6}
+      direction: different
+      minimum_effect: >-
+        A pre-registered table, derived from the source before any run:
+        recovery = 1 for (s <= 3, k <= 3); recovery = 1 for (s = 4, k = 1);
+        recovery = 0 for every (s = 4, k >= 2); recovery = 0 for every s >= 5;
+        recovery = 0 for every k >= 4. Any single cell disagreeing with that
+        table means the source was misread and this record must be corrected.
+    - metric: >-
+        gram_corank_on_relation_bearing_configurations, re-extracted from the
+        two committed raw-result.json files
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 on all 14, with `max_abs_coeff_gram` null on all 14, against
+        a mathematically required corank >= 1 for any genuine positive-definite
+        Gram matrix of a relation-bearing configuration. If the re-extraction
+        shows corank >= 1 anywhere, the internal-contradiction claim is wrong
+        and must be withdrawn.
+    - metric: >-
+        p31_confound_resolution: on the 46 EXP-XEDN-006 p=31 surfaces that were
+        eligible-or-analysed and returned no relation, the number for which an
+        UNBOUNDED relation search over the same committed slot lists finds a
+        relation of support >= 5 or infinity-norm >= 4
+      direction: different
+      minimum_effect: >-
+        No pre-registered value is asserted, because this is the quantity
+        nobody has measured and inventing a number for it would be a
+        fabrication. What IS pre-registered is the disposition: any count > 0
+        falsifies H-XEDN-005 at p = 31 by its own stated condition, and a count
+        of 0 converts KN-FIND-010's density reading from an assumption into a
+        measurement -- which is a first-class deliverable and the reason both
+        outcomes are worth the run.
+
+  minimal_test:
+    design: >-
+      Three stages, cheapest first, stage 1 able to end the line.
+      STAGE 1 (zero compute, one hour): read `shortest_relation_group_law`,
+      `shortest_relation`, `height_gram` and `analyze_surface` line by line and
+      write down the image set and the skip_reason preimages. If the image set
+      turns out to include 4, STOP: this proposal is refuted at zero cost.
+      STAGE 2 (pure Python, seconds): reimplement the archived search verbatim
+      against an abstract finite abelian group (no curves) and run the planted
+      recovery ladder above. Report the full recovery table and the
+      monotonicity in k and in s.
+      STAGE 3 (pure Python, minutes): take the committed slot lists out of the
+      two raw-result.json files and re-run an UNBOUNDED integer relation search
+      over the specialised fibre images of those slots -- which requires only
+      F_p point arithmetic, not F_p(t) -- to resolve the p = 31 confound.
+      Specialisation is exactly what EXP-XEDN-006/007 already used as their
+      verification step, so this uses the same evidence standard in the
+      opposite direction.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value pre-derived, CAN fail). A slot
+        set of the same size drawn from a random abelian group of comparable
+        order with NO planted relation. Forced value: the archived search
+        returns None. It can fail: with n slots and coefficient alphabet of
+        size 6, the expected number of spurious support-3 relations in a group
+        of order M is about C(n,3)*6^3/M, which for n = 6 and M ~ p^2 = 961 is
+        about 4.5 -- NOT negligible at p = 31, so the null has real content and
+        may well fire. That number is derived here, before the run, and if the
+        measured spurious rate departs from it the counting model is wrong.
+      - >-
+        POSITIVE CONTROL (the effect MUST appear). A planted relation of
+        support 3 and infinity-norm exactly 2, and another of support 3 and
+        infinity-norm exactly 3. The archived search MUST return 2 and 3
+        respectively. If it does not, it cannot even reach its own declared
+        ceiling, no negative may be reported from any arm, and the finding
+        becomes an outright implementation defect rather than a design ceiling.
+      - >-
+        GRADED CONTROL, >= 3 interior points, monotonicity reported. The full
+        recovery table over k = 1..6 at fixed support 3, and over s = 2..6 at
+        fixed infinity-norm 1. The prediction is a STEP function with the step
+        between k = 3 and k = 4, and between s = 4 and s = 5. A smooth decay
+        instead of a step means the search is failing for a reason other than
+        its declared bounds and the diagnosis must change.
+      - >-
+        ORDERING CONTROL. The recovery table is computed and committed before
+        the p = 31 archive arm of stage 3 is looked at, so the confound
+        resolution is read against a frozen sensitivity curve.
+      - >-
+        INFRASTRUCTURE CONTROL. Sage is absent; the archived implementation
+        cannot be executed here. The reimplementation used in stage 2 must be
+        checked to reproduce the archived search's behaviour on the 14 archived
+        configurations' recorded slot lists and coefficient vectors. If it does
+        not reproduce them, stage 2 measures a different instrument and must
+        say so.
+    required_metrics:
+      - the image set, stated as a set, with the source lines that determine it
+      - the full recovery table by (k, s) with seeds
+      - the spurious-relation rate of the null against its derived expectation
+      - per-configuration corank and max_abs_coeff_gram, re-extracted
+      - the p=31 unbounded-search outcome per surface, with the specialisation verification retained
+
+  falsification_conditions:
+    - >-
+      The archived search returns any value >= 4 on any input. The image-set
+      claim is wrong and this proposal is withdrawn.
+    - >-
+      The archived search fails to return 2 or 3 on the planted positive
+      controls. The diagnosis changes from "declared ceiling" to
+      "implementation defect", and no conclusion about the ceiling may be
+      drawn.
+    - >-
+      Re-extraction shows corank >= 1 on any relation-bearing configuration.
+      The internal-contradiction claim in mechanism (B) is wrong.
+    - >-
+      The archived source turns out not to be the code that produced the
+      archived results (e.g. a differing committed variant is found). The whole
+      audit is then aimed at the wrong artifact and must be redone.
+
+  confounders:
+    - >-
+      READING VERSUS EXECUTION. The image-set claim rests on reading source
+      that cannot be executed in this container. A misread is possible and
+      stage 2's reimplementation-fidelity check exists to catch it. Until that
+      check passes, every statement here is labelled as source-reading, not
+      measurement.
+    - >-
+      SPURIOUS RELATIONS AT SMALL p. At p = 31 the specialised fibres are tiny,
+      so a "verified" relation may be a coincidence rather than a
+      function-field identity. The archived pipeline does check the relation
+      over F_p(t) (`generic_relation_is_O`) as well as by specialisation, which
+      mitigates this -- but the stage-3 unbounded search must apply the same
+      generic check, or it will manufacture falsifications.
+    - >-
+      SELECTION. Stage 3 looks only at surfaces that returned no relation. That
+      is the right population for the confound but a biased one for anything
+      else, and no other conclusion may be drawn from it.
+    - >-
+      AUTHORSHIP ASYMMETRY. Auditing a completed goal is cheap and reads as
+      rigour. The positive controls and the pre-registered recovery table exist
+      so that a negative outcome for the instrument costs something to reach,
+      and so that a clean bill of health is equally reportable.
+
+  interpretation_limits:
+    - >-
+      No status change to GOAL-XEDN-003, H-XEDN-005, DEC-20260730-001/002,
+      EV-XEDN-005/006, KN-FIND-010 or KN-FIND-011 is proposed, implied, or
+      permitted by this record. Only the Coordinator may change a status, and
+      the correct vehicle for a disagreement with a committed record is a
+      superseding record, never an edit.
+    - >-
+      A confirmed image-set finding does NOT show that H-XEDN-005 is false. It
+      shows that the executed test could not have falsified it. Those are
+      different statements and conflating them would repeat the error being
+      audited.
+    - >-
+      Toy scale, one lane, one instrument lineage. Nothing here transfers to
+      any other goal's instruments without the same reading being performed on
+      them -- though the reading is cheap and the program-wide census of
+      controls that cannot fail is an obvious successor.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        None is load-bearing for the primary claim. The image-set statement is
+        a property of a committed program text, established by reading it, not
+        a distributional or asymptotic assumption.
+      rigorous_support: >-
+        Direct: the coefficient alphabets are literal Python range and list
+        expressions with constant bounds, and `analyze_surface` supplies no
+        overrides.
+      validation_plan: >-
+        Stage 2's adversarial sweep, whose only purpose is to try to make the
+        function return 4.
+    - id: H2
+      statement: >-
+        The expected number of spurious support-3 relations among n randomly
+        chosen elements of an abelian group of order M, under the coefficient
+        alphabet {-3..-1,1..3}, is approximately C(n,3) * 6^3 / M.
+      rigorous_support: >-
+        Elementary counting under a uniformity assumption on the group
+        elements, which is exactly the assumption a null object is supposed to
+        instantiate; it is not claimed to hold for the curve-derived slots.
+      validation_plan: >-
+        Measure the spurious rate directly in stage 2's null arm across at
+        least 1000 draws per (n, M) cell and compare to the formula; report the
+        ratio, not the raw count.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. NO EXPONENT MOVED, NONE CLAIMED. This is an instrument audit of a
+      toy-scale census and it is labelled as one.
+    memory_exponent: n/a.
+    best_known: >-
+      Pollard rho for the ECDLP, untouched.
+    hidden_overhead: n/a.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    n/a (no result claimed). Rows checked across time, memory and data/queries
+    before writing that: no algorithm and no cost point is proposed, so no
+    Pareto row applies. On the question of whether the XEDN instrument's
+    sensitivity has already been characterised, the following were read and
+    none does so: EXP-XEDN-006/specification.yaml,
+    EXP-XEDN-007/specification.yaml, EV-XEDN-005, EV-XEDN-006,
+    DEC-20260730-001, DEC-20260730-002, KN-FIND-010, KN-FIND-011,
+    GOAL-XEDN-003.yaml (including its three attestation rationales, which
+    address scope and sparsity but not sensitivity), and both
+    raw-result.json files. Absence of a search result is not evidence of
+    absence; the knowledge index was not queried.
+  sota_delta: >-
+    No attack; evidentiary contribution only. Quantitatively: it attaches a
+    sensitivity curve to 5 evidence records, 2 decisions, 2 knowledge findings
+    and 1 completed goal, and it converts one currently unidentified
+    observable (the p = 31 zero-relation cell, 46 surfaces) into a measured
+    one. Cost: two of the three stages are pen-and-paper or seconds of pure
+    Python.
+
+  estimated_cost:
+    implementation: low
+    compute: very low
+  recommended_priority: high
+  honest_prior_of_survival: 0.92
+  honest_prior_of_survival_reasoning: >-
+    0.92 that the image-set claim is confirmed. It is that high because the
+    bounds are literal constants in committed source that was read directly in
+    this session, because `analyze_surface` passes no overrides, and because
+    the archive is exactly consistent with the claim (14 of 14 relations at
+    infinity-norm 1, 13 at support 3 and 1 at support 4 with a {-1,+1}-only
+    sweep at support 4, and zero contributions from the Gram path). It is not
+    higher because the code cannot be executed in this container to confirm the
+    reading, because a differing committed variant of the implementation could
+    exist that this session did not find, and because a reading error in a
+    forty-line function is an ordinary event. Separately, only about 0.35 that
+    the stage-3 confound resolution finds a large-coefficient or high-support
+    relation at p = 31 -- the lattice argument of IDEA-20260805-5a9d2c predicts
+    it should not, at these slot counts -- but the measurement is worth having
+    in either direction and its cost is minutes.

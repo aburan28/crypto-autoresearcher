@@ -1,0 +1,143 @@
+coordinator_decision:
+  id: DEC-20260804-73977c
+  context: >-
+    BATCH-713991 executed the campaign's last untested specificity: whether the
+    round-5 yoyo excess (15.63x in BATCH-002, arm A1) is AES-S-box-specific.
+    Producer TASK-20260804-f5e58b ran the RANK 2 true-hint positive control
+    (PASS: {1:4} with true bytes present vs BATCH-003's {0:4}) and RANK 3
+    (7 arms at N=2^32 with AES and two random bijective S-boxes: 59/58/51 hits
+    vs null expectation 4.0; controls 3/4/2/4 all within [0,12]). All pins pass;
+    an independent Validator recomputed every count from raw receipts with no
+    disagreement; a Red Team challenged the interpretation. Snapshot committed
+    at 6ff55eacd.
+  decision: expand
+  decision_note: >-
+    The measured facts stand: the round-5 yoyo excess is NOT attributable to the
+    AES table's specific values — two independent uniform random bijective
+    S-boxes reproduce it (58, 51 hits vs AES 59), all controls pass, and the
+    Validator independently recomputed every count. That is the narrow claim,
+    and it is supported at toy tier. What is NOT supported is the label
+    "S-BOX-INDEPENDENT" as the Red Team correctly showed: the pre-registered
+    rule distinguishes signal-above-null from no-signal and cannot resolve a
+    2-3x attenuation, and independence within {AES, uniform random bijection}
+    licenses nothing about "any S-box" (identity/affine/single-monomial classes
+    remain untested). This batch also surfaced two integrity items: RANK 1's
+    (TASK-20260804-d7d0ec) completion is unsupported by its stamp stream (data
+    validated, stamps end before any run section), and the RANK 3 budget
+    amendment 2400->3600s that the producer stamped as "Coordinator-approved"
+    has no ledger record — this decision supplies that approval retroactively
+    and explicitly. Next action is the Red Team's cheapest discriminating arm:
+    the identity/affine S-box, whose expected count is computable in advance
+    (exactly 2^(32-nullity) per word under an affine cipher) and which decides
+    whether ANY nonlinearity is required for the excess.
+  target_ids:
+    - GOAL-AES-003
+    - RQ-AES-003
+    - EV-AES-048545
+    - TASK-20260804-f5e58b
+    - TASK-20260804-d7d0ec
+    - TASK-20260804-91d27e
+    - TASK-20260804-fa4906
+  evidence_refs:
+    - EV-AES-048545
+  rationale:
+    - id: D-1
+      text: >-
+        RANK 3 arms are valid, deterministic, and honestly recorded: Validator
+        recomputed all 7 excess factors, Poisson bounds, and trial-accounting
+        identities (trivial+nontrivial=trials, histogram sums) with zero
+        disagreement; pins re-verified from scratch including an independent
+        AES implementation.
+    - id: D-2
+      text: >-
+        The RANK 3 verdict must be stated at the resolution the pre-registered
+        rule actually has. "The excess is robust to uniform random bijective
+        substitution" is supported. "S-BOX-INDEPENDENT" without a linear/affine
+        control overstates the evidence; the Red Team's power analysis
+        (resolves only relative attenuation >= 0.53 at 80% power) pins the
+        boundary.
+    - id: D-3
+      text: >-
+        RANK 1 completion is unsupported: budget_stamps.jsonl ends at
+        preregistration_written with no run-section or finish stamp, and
+        RESULTS.json lacks completion_gate/halted_on_budget. The snapshot
+        receipt already bound those artifacts with completion NOT asserted.
+        The measurement content itself validates; what is missing is the
+        completion stamp stream. A repair task must add the missing stamps
+        (or a superseding record) before RANK 1 is treated as complete; this
+        decision does not treat it as complete.
+    - id: D-4
+      text: >-
+        Budget amendment ratification: the RANK 3 execution window 2400s ->
+        3600s stamped by the producer (start 2026-08-06T05:41:02Z, binding stop
+        06:41:02Z) is hereby approved by the Coordinator with this decision, so
+        the batch's budget accounting is a supported claim. The original window
+        (03:42:49Z -> 04:22:49Z) expired with zero measurements and no run was
+        claimed under it; the producer recorded that honestly in
+        budget_stamps.jsonl before the amended window began.
+    - id: D-5
+      text: >-
+        Next experiment is the identity/affine S-box arm: with an affine cipher
+        the per-word zero-probability is exactly 2^(32-nullity) for a 32x32
+        GF(2) matrix, so the expected count is computable BEFORE running. A
+        count inside the observed [40,70] band upgrades the claim to "no
+        nonlinearity required"; a count near the algebraic prediction (~4)
+        narrows the claim to "independence among nonlinear bijections" and the
+        immediately following pure-inversion arm decides the rest. Cost: one
+        2^32 arm at the measured ~255s rate plus re-pin.
+    - id: D-6
+      text: >-
+        BATCH-b41ba9 EXECUTED the D-5 experiment. The pre-registered algebraic
+        prediction was E[W>=1] per trial = 1.0 exactly (word maps ranks 32,0,0,0;
+        independently reproduced by the Validator from scratch), frozen excess_E
+        = 2^30; the measured arm returned W_ge1_nontrivial = 4294967296 = 2^32
+        with excess 2^30, ratio 1.0000000000002 to the frozen value. The r=5
+        yoyo excess therefore requires NO S-box nonlinearity: an affine cipher
+        with the identity table reproduces it in its most extreme form (W=3 on
+        every nontrivial trial). The D-5 band logic was built for E~4; the
+        actual E was computable and was computed, and the pre-committed reading
+        is unambiguous (count at E, not at 4). Combined with the BATCH-713991
+        random-sbox arms (58/51/59) and the controls, the excess's driver is the
+        SPN round structure interacting with the swap-diagonal geometry, not the
+        substitution function. Toy-tier scope stands; no claim about AES at any
+        scale.
+    - id: D-7
+      text: >-
+        RANK-1 stamp-gap repair resolution: the repair assessment
+        (TASK-20260806-7a980b, validated) enumerates 20 missing stamp events,
+        every one reconstructable at bounded precision (19) or exactly (1) from
+        mtimes, raw-file structure, and the budget window — no event requires
+        point-time fabrication (rule 9). This decision ADOPTS the dual-device
+        repair: (i) an amended successor stampset file recording the 19 bounded
+        events with per-event basis, and (ii) a superseding completion record
+        carrying the completion gate (M20) that the immutable RESULTS.json
+        cannot hold. Neither device edits any TASK-20260804-d7d0ec file (rule
+        4). The repair task itself is dispatched next; completion of
+        TASK-20260804-d7d0ec remains UNSUPPORTED until the repair is committed
+        and reviewed.
+    - id: D-8
+      text: >-
+        Integrity records from BATCH-b41ba9: (i) the first repair session
+        claimed written deliverables that did not exist on disk (empty
+        write_scope) — recorded as an execution failure and re-dispatched; the
+        resumed session wrote and verified real files. (ii) The original task
+        prompt named master seed 424242301 in one bullet while the mandated
+        command carried 189001301; the executor executed the command verbatim
+        and recorded the discrepancy in three places; the classification is
+        seed-immune (the affine outcome is deterministic over all seeds). (iii)
+        A one-digit typo in the snapshot receipt narrative ("189101301") is
+        acknowledged here; it affects no record — the run receipts carry the
+        correct seed.
+  status_change: null
+  hypothesis_id: null
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      EV-AES-048545 is toy-tier scope evidence. The boundary question is now
+      resolved (NO nonlinearity required, D-6), but the finding is a negative
+      scope result on a toy SPN with no asymptotic claim and no adjudicable
+      reference; promotion to knowledge is deferred until the RANK-1 repair
+      lands and the batch closes with its claims committed.
+  decided_by: coordinator
+  recorded_by_task: TASK-20260804-0e75d5
+  archived_by: TASK-20260804-0e75d5

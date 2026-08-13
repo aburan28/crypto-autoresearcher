@@ -1,0 +1,198 @@
+idea:
+  id: IDEA-20260807-ba5eda
+  question_id: RQ-SQISIGN-001
+  title: >-
+    The SQIsign verification accept-fibre |A(pk,m)|: count the kernel of the
+    verifier on the published encoding, close the M_chl malleability
+    question, and price strong unforgeability at exactly the hint's speed
+    benefit
+  class: measurement
+  added: '2026-08-07'
+
+  claim: >-
+    The accept-fibre A(pk,m) = {s : Verify(pk,m,s)=1} for a fixed honestly
+    signed (pk,m) has a cardinality that a byte-budget completeness
+    certificate (IDEA-20260805-244f78) says nothing about, and that
+    cardinality is the strong-unforgeability (SUF) content of the SQIsign
+    v2.0.1 encoding. Decomposing the published fields: (1) the two hint
+    bytes (hint_aux, hint_chl) are two-valued -- H-SQISIGN-c0488f section C
+    records that Algorithm 2.2 TorsionBasisFromHint(A,e,h) with h=0 re-runs
+    TorsionBasisToHint and recovers the correct basis, so for every hint
+    whose true value h_true != 0, both h_true and 0 verify identically; (2)
+    the M_chl generator base-change orbit that would naively be
+    2^{4(e_rsp-2)} COLLAPSES TO THE IDENTITY U=I, because the aux basis
+    (P_aux, Q_aux) is the deterministic basis of E_aux, is not encoded, and
+    is reconstructed independently by the verifier -- any U != I replaces it
+    with a non-deterministic pair the verifier would reject; this negative
+    is stated exactly, not left as an open question. The surviving
+    prediction is |A(pk,m)| = 2^{#{hint bytes with h_true != 0}}, generically
+    4 (E[|A|] ~ 3.938 given Pr[h_true=0] ~ 2^-7), i.e. exactly 2 bits of
+    encoding malleability at every parameter set. EUF-CMA is untouched; bit-
+    string uniqueness is not. The repair has an exact, priced cost: rejecting
+    a non-canonical hint costs one TorsionBasisToHint call per hint -- exactly
+    the work the hint exists to save. Strong unforgeability costs precisely
+    the hint's speed benefit, to the operation.
+
+  mechanism: >-
+    A model verifier is built as a 40-line field-list evaluator: each
+    published field of Section 4.6's encoding is marked pinned / free /
+    two-valued from the read algorithms, and |A| is the product of the
+    two-valued fields' multiplicities. hint_aux and hint_chl are two-valued
+    by Algorithm 2.2's h=0 fallback (H-SQISIGN-c0488f section C, already
+    derived and cited here rather than re-derived). The M_chl axis is
+    analysed and found closed: Algorithm 4.9 lines 24-26 check isotropy of
+    ((4P_chl,4P_aux),(4Q_chl,4Q_aux)); the aux components are the
+    deterministic basis of E_aux and are not encoded, so any generator
+    base-change U in GL_2(Z/2^e) that would preserve the kernel must act on
+    the aux side too, replacing (P_aux,Q_aux) with a pair the verifier's
+    independent reconstruction rejects unless U=I. chl, r_rsp, n_bt, E_aux
+    are pinned/consumed by the verification equation (Stage 0 confirms per
+    field). The model's output is validated against an external known-answer
+    gate before any SQIsign number is read.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      IN-CORPUS, DIRECT DEPENDENCY. H-SQISIGN-c0488f section C: hint_pk =
+      g(A_pk) for a public g via Algorithm 2.2's h=0 fallback, already
+      derived there for the public-key hint; this entry extends the same
+      mechanism to the per-signature hint_aux/hint_chl fields and turns it
+      into a cardinality count rather than an information-theoretic zero.
+    - >-
+      IN-CORPUS, NEAREST PRIOR ART. IDEA-20260805-244f78 (byte-budget
+      completeness certificate) proves the field list sums to
+      SIGNATURE_BYTES but says nothing about how many bit-strings the
+      verifier accepts; this entry takes a complete inventory as given and
+      counts the kernel of the verification predicate on it, a quantity the
+      byte budget constrains in no way.
+    - >-
+      READ, EXTERNAL. SQIsign v2.0.1 specification (2025-07-07), Algorithms
+      2.1, 2.2, 4.9, as re-quoted from a filed source per H-SQISIGN-c0488f's
+      external_source_note; not re-fetched by this proposal, cited via the
+      hypothesis that already read it.
+
+  assumptions:
+    - >-
+      That the Algorithm 4.9 lines 24-26 isotropy check, as recorded in
+      H-SQISIGN-c0488f, is the complete verification predicate over the hint
+      and M_chl fields, with no additional check elsewhere in Algorithm 4.9
+      constraining them further.
+    - >-
+      That the aux basis (P_aux, Q_aux) is reconstructed by the verifier
+      independently of any signature field, so a base-change U != I is
+      detectable rather than silently absorbed.
+    - >-
+      That the model verifier faithfully implements the read algorithms; this
+      is exactly the risk the external known-answer gate is designed to
+      catch before any SQIsign-side number is trusted.
+
+  predictions:
+    - metric: "|A(pk,m)| per parameter set, with its per-field decomposition"
+      direction: different
+      minimum_effect: >-
+        Generically 4 (both hint bytes two-valued), E[|A|] ~ 3.938 given
+        Pr[h_true=0] ~ 2^-7; exactly 1 if Algorithm 4.9 is found to recompute
+        and reject a non-canonical hint (the more likely single-value
+        outcome per the catalogue entry's own falsifier ranking).
+    - metric: known-answer control counter output on ECDSA
+      direction: different
+      minimum_effect: >-
+        Exactly |A|=1 with low-s enforced and exactly |A|=2 without,
+        BEFORE any SQIsign number may be read; any other output is broken
+        instrumentation.
+
+  minimal_test:
+    design: >-
+      (1) Stage 0 gate: re-quote Algorithms 2.1, 2.2 and 4.9 from a filed
+      source and reconstruct the byte budget; must land within 1 byte of the
+      independently reported 212 (H-SQISIGN-c0488f section A byte inventory)
+      or the field list is incomplete and the entry halts. (2) Build the
+      model verifier: mark each field pinned/free/two-valued and multiply
+      out |A|. (3) Known-answer gate, run first: point the identical counter
+      at ECDSA with low-s enforced (expect |A|=1) and without (expect |A|=2,
+      classical (r,+-s) malleability); a counter that does not return exactly
+      1 and 2 is broken instrumentation and no SQIsign number may be
+      reported. (4) Report |A| per parameter set with the per-field
+      decomposition.
+    controls:
+      - >-
+        External known-answer gate on ECDSA with/without low-s enforcement,
+        producing |A|=1 and |A|=2 exactly, run before any SQIsign arm is
+        read.
+      - >-
+        Byte-budget reconstruction gate against the independently reported
+        212-byte inventory, within 1 byte.
+    required_metrics:
+      - "|A| per parameter set with per-field pinned/free/two-valued decomposition"
+      - ECDSA known-answer counter outputs (both arms)
+      - byte-budget reconciliation residual
+
+  falsification_conditions:
+    - >-
+      (F1a) Algorithm 4.9 recomputes each hint and rejects on mismatch: the
+      hint axis contributes factor 1, |A|=1, the encoding is canonical and
+      the entry closes as a clean, fully usable negative -- the more likely
+      outcome per the catalogue entry's own assessment.
+    - >-
+      (F1b) The model verifier's |A| disagrees with a directly enumerated
+      |A| on a toy encoding: the model is not the verifier and the count is
+      void.
+    - >-
+      (F1c) The M_chl collapse argument is wrong because the aux basis is
+      also signer-chosen: the orbit re-opens to 2^{4(e_rsp-2)}, which must
+      then be reported together with the reason it is not itself a forgery
+      (same kernel implies same map implies no new message).
+
+  confounders:
+    - >-
+      A retry-index model error in Pr[h_true=0] ~ 2^-7 would shift E[|A|]
+      without changing the exact-|A| gate outcomes; reported separately from
+      the exact-count claim.
+    - >-
+      Extraction fidelity of the re-quoted algorithm text, inherited as a
+      risk from H-SQISIGN-c0488f's own extraction-damage disclosure.
+
+  interpretation_limits:
+    - >-
+      Ceiling: medium. This is a documentary/arithmetic statement about a
+      published, shipped wire format, with no attack, no exponent, and no
+      security claim; |A| > 1 is a statement about bit-strings, not about
+      unforgeability of messages.
+    - >-
+      The M_chl malleability orbit that would have been the headline finding
+      is already shown, by a two-line argument carried in this record, to
+      collapse to U=I; this must not be restated as an open question in any
+      downstream citation. The surviving, exactly priced claim is the hint
+      axis and its repair cost.
+    - >-
+      No statement about EUF-CMA, key recovery, or any hardness assumption
+      follows from any outcome here.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The isotropy check of Algorithm 4.9 lines 24-26 together with the
+        deterministic, unencoded aux basis is the complete constraint set
+        governing M_chl and hint_aux/hint_chl acceptance.
+      rigorous_support: >-
+        Direct reading of the cited algorithm lines, carried from
+        H-SQISIGN-c0488f section E's pairing derivation and section C's
+        hint-determinism argument.
+      validation_plan: >-
+        Stage 0 re-quotation gate and the external ECDSA known-answer gate,
+        both run before any SQIsign-side count is trusted.
+
+  estimated_cost:
+    implementation: low
+    compute: >-
+      Seconds; no isogeny arithmetic, no memory beyond the field table, no
+      preprocessing, no oracle queries, no data. Human cost is the binding
+      resource: one careful reading of three algorithms, charged as 3x the
+      reading because nothing is amortised across parameter sets.
+  recommended_priority: medium
+
+  review_refs: []
+  disposition: proposed
+  recorded_by: coordinator
+  recorded_at: '2026-08-07'

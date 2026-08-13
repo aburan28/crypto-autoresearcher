@@ -1,0 +1,968 @@
+red_team_report:
+  id: RT-20260808-5e244e
+  task_id: TASK-20260808-breakthrough-review     # no separate handoff id was supplied; the dispatching message is the task
+  role: red-team
+  review_class: review-breakthrough              # AGENTS.md rule 12
+  status: COMPLETE                               # all of B1-B5 reached; nothing marked not_reached
+  verdict: >-
+    B1 UPHELD. B2 CONTROL VOID. B3 EXCLUSION SET FLATTERS THE RESULT. B4 NOT A
+    BUG AND NOT A FINDING. B5 ONE EVIDENCE RECORD PERMITTED, FOR THE B1 FINDING
+    ONLY, AT STRENGTH `replicated` AND `claim_tier: toy`. No evidence record may
+    be written from CTRL-VALUESHUFFLE at any strength.
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-aa267f
+  experiment_id: EXP-INSTR-85b102
+  hypothesis_id: H-INSTR-fffbfb
+  recorded_at: '2026-08-08'
+
+  scope_note: >-
+    AGENTS.md rule 12 review of the EXP-INSTR-85b102 non-monotonicity line:
+    execution report -> validator-instr -> RT-20260807-743198 ->
+    CORR-20260807-732541 -> amendment v2 (CTRL-VALUESHUFFLE) -> the two
+    valueshuffle runs -> CORR-20260807-f551a5 -> the N-coupled-excluded
+    re-analysis. The question adjudicated is whether an evidence record may be
+    written from this line, at what strength, and scoped to what. TIER TOY,
+    p in {4001, 6007}. `sota_delta` zero on every axis; nothing here bears on
+    ECDLP cost, and this report asserts nothing about it.
+
+  snapshot_reviewed:
+    branch: claude/ecdlp-endomorphism-analysis-4m2w3z
+    head_at_review_start: c9157cef
+    worktree_clean_at_review_start: true
+    artifacts_are_committed: true
+    method: >-
+      Every number below was recomputed by this reviewer, in a scratchpad,
+      from the committed artifacts. Where I re-derived a quantity I
+      re-implemented it from the specification's own formulas rather than
+      importing the harness, so an error in harness/run_blocknull.py or
+      harness/ctrl_valueshuffle.py would show as a disagreement. Nothing was
+      committed, no research status changed, no raw artifact edited.
+
+  # ======================================================================
+  # B1  Is "the non-monotonicity is not Monte-Carlo noise" correct?
+  # ======================================================================
+  B1_monte_carlo_attribution:
+    verdict: CORRECT - the refutation holds, and holds under my independent re-derivation
+    what_I_did: >-
+      (a) Re-implemented the verdict rule (`all(b >= a - 1e-12)` over the
+      defined R values along R0_FREE, R2, R3, R4, R5) and ran it on
+      `variance_ratio_R_empirical` and on `variance_ratio_R_closed_form` in all
+      144 cells of the four operative pool runs' results.json.
+      (b) Cross-checked my restated rule against the committed boolean
+      `monotonicity[f|stat].ratio_rises_monotonically_along_N_ladder` as a hard
+      assert in every cell.
+      (c) Independently re-derived the closed-form null mean itself from
+      per_curve.csv + rung_table.json, using the specification's formulas
+      (E[T_unw|B] = mean_c S2_block(c); E[T_w|B] = sum_c (n_c-1) S2_block(c) /
+      (n-K); S2_beta the (n_beta-1)-denominator pooled sample variance), with
+      no harness import, so that "the closed form has zero MC error" is not
+      taken on the harness's word.
+      (d) Recomputed the adjacent-pair reversal inventory and its combined-MC-
+      standard-error magnitudes.
+    deciding_numbers:
+      non_monotone_empirical: 74 of 144        # POOL_A 17, POOL_B 18, POOL_C 23, POOL_D 16
+      non_monotone_exact_closed_form: 74 of 144
+      cells_agreeing_cell_for_cell: 144 of 144
+      restated_rule_vs_committed_boolean: 144 of 144 (assert, no exceptions)
+      independent_closed_form_re_derivation: >-
+        720 (pool, functional, rung, statistic) closed-form values re-derived
+        from per_curve.csv with no harness import; maximum relative deviation
+        from the committed value 5.91e-16 (weighted) and 6.54e-16
+        (unweighted). T_obs re-derived independently in every cell and agrees
+        to < 1e-9 relative. THE CLOSED FORM IS ARITHMETICALLY CORRECT, so
+        "it carries zero Monte-Carlo error" is not merely asserted.
+      type_A_reversals: 59
+      type_A_exceeding_3_combined_MC_sigma: 55
+      expectation_under_the_most_generous_noise_hypothesis: 0.080
+      type_A_MC_sigma_median: 22.69
+      type_A_MC_sigma_max: 80.0
+      type_B_reversals: 56
+      type_B_in_null_sd: "min 0.0060, median 0.461, max 1.20; 0 of 56 exceed 2 null sd"
+    why_the_refutation_is_structurally_unavoidable: >-
+      R(rung) = T_obs / E[T_pi | rung]. T_obs does not depend on the rung, and
+      E[T_pi | rung] has an exact closed form which is applicable at every
+      ladder rung because N = p + 1 - t is injective in the trace, so an N band
+      never splits a class. The ENTIRE ladder sequence is therefore a
+      deterministic function of (values, labels, blocks). The Monte-Carlo study
+      only estimates it, to a median relative precision of 5.8e-05, while the
+      reversals are of median relative size 1.83e-03 - a factor of ~30. There
+      was never a version of "Monte-Carlo noise" that could have explained a
+      deterministic quantity's ordering. I confirm RT-20260807-743198 and
+      CORR-20260807-732541 on this point without reservation.
+    minor_discrepancies_found_in_the_prior_review:
+      - >-
+        RT-20260807-743198 reports the type-B median as 0.492 null sd; I get
+        0.461. Count (56), maximum (1.20) and the "0 of 56 above 2 null sd"
+        all reproduce exactly. Immaterial to any conclusion; recorded because a
+        review that reproduces everything is less useful than one that says
+        where it did not.
+    NEW_DEFECT_IN_THE_SAME_SENTENCE_THAT_NEITHER_PRIOR_REVIEW_CAUGHT:
+      severity: minor_but_it_is_the_same_sentence
+      what: >-
+        The execution report's sentence has TWO clauses. The causal clause
+        ("the ordering is Monte-Carlo noise") is refuted by RT-20260807-743198.
+        The DESCRIPTIVE clause - "Most non-monotone cells are functionals whose
+        R is already within ~0.5 % of 1 at the free rung" - is ALSO false, and
+        it was never checked. Of the 74 non-monotone cells, only 21 (28%) have
+        |R_free - 1| < 0.005. The median |R_free - 1| over the 74 is 0.0155,
+        about three times the stated ~0.5 %. Even at a 0.05 tolerance -
+        ten times the stated one - only 55 of 74 qualify.
+      consequence: >-
+        CORR-20260807-732541 records the attribution as refuted but leaves the
+        descriptive clause standing as though it were an accurate description
+        of the numbers. It is not. Any correction that supersedes this sentence
+        must supersede BOTH clauses, and the deciding number for the second is
+        21 of 74 at the report's own stated tolerance.
+    scope_limit_on_B1: >-
+      Establishing that the cause is not Monte-Carlo error establishes nothing
+      about whether the phenomenon is meaningful. Both the prior Red Team and
+      the Coordinator say this explicitly and both are right to.
+
+  # ======================================================================
+  # B2  Is CTRL-VALUESHUFFLE a valid null object at all?
+  # ======================================================================
+  B2_valueshuffle_validity:
+    verdict: >-
+      NO. The shuffle preserves everything it says it preserves, but the
+      statistic it feeds is invariant to everything the shuffle was supposed to
+      interrogate. The circularity is NOT confined to four functionals and is
+      not 33.2 % of the effect: it is the whole statistic. CTRL-VALUESHUFFLE
+      measures value-to-N-band association and nothing else, which is the exact
+      contamination EXP-INSTR-85b102 was written to remove.
+
+    what_the_shuffle_does_preserve_verified: >-
+      Confirmed, and this part is sound. A permutation preserves the value
+      multiset bitwise; labels, class sizes, (trace, N) and the block
+      assignment at every rung are never touched by the shuffle code
+      (harness/ctrl_valueshuffle.py::shuffled_values permutes only the value
+      vector). The committed run asserts this per replicate:
+      `invariants_all_hold: true` in 200 of 200 records and
+      `geometry_violations: []`. Because labels and blocks are unchanged and
+      every class lies inside one block, `closed_form_null_mean` remains EXACT
+      under a shuffled multiset - this is a property of the label/block
+      geometry, not of the values, so shuffling cannot break it. I verified the
+      applicability flag holds at every rung in my own re-implementation. No
+      objection here.
+
+    THE_INVARIANCE_THAT_VOIDS_THE_CONTROL:
+      the_arithmetic: >-
+        The type-A residue indicator for a cell is `not rises(R over the
+        non-degenerate rungs)` with R(rung) = T_obs / E[T_pi | rung]. T_obs is
+        the SAME number at every rung, so for T_obs > 0 the verdict is exactly
+        "is the sequence E[T_pi | rung] non-increasing?" - the numerator
+        cancels out of the ORDERING entirely. And
+        E[T_unw | rung] = mean over classes of S2_block(c),
+        E[T_w | rung] = sum_c (n_c - 1) S2_block(c) / (n - K),
+        where S2_beta is the pooled sample variance of the values inside block
+        beta. THAT DEPENDS ONLY ON THE MULTISET OF VALUES INSIDE EACH BLOCK,
+        the class sizes, and the class-to-block map. It does not depend on
+        which class inside a block holds which value, and it does not depend on
+        which curve holds which value.
+      corollary: >-
+        The realized ladder at all four pools is a genuinely NESTED refinement
+        sequence (I checked all 16 adjacent rung pairs at the four pools: every
+        one is a refinement). Therefore the value multisets of the FINEST
+        NON-DEGENERATE blocks determine every coarser rung's null mean too. The
+        residue statistic is a function of the finest-N-band value multisets
+        alone.
+      the_two_controls_that_demonstrate_it:
+        control_1_within_class_shuffle:
+          construction: >-
+            Permute each functional's values WITHIN each isogeny class.
+            Preserves the block multiset at every rung (classes are inside
+            blocks by the coarsening invariant), destroys the curve-to-value
+            assignment completely.
+          result: "residue = 50 in 30 of 30 replicates. Variance exactly zero."
+        control_2_within_finest_nondegenerate_block_shuffle:
+          construction: >-
+            Permute each functional's values WITHIN each block of the finest
+            non-degenerate rung (R2 at POOL_A, R3 at POOL_B and POOL_D, R4 at
+            POOL_C). This preserves the value-to-N-band association exactly and
+            randomizes which CLASS inside the band gets which value - i.e. it
+            is the properly matched conditional null for the question the
+            amendment says CTRL-VALUESHUFFLE answers.
+          result: "residue = 50 in 30 of 30 replicates. Variance exactly zero."
+          consequence: >-
+            Under the correctly matched null the observed statistic is a point
+            mass at the observed value: two-sided empirical p = 1.0, terminal
+            state CONTROLLED_NULL by the amendment's own rule. The statistic
+            carries ZERO information about class-level or curve-level structure.
+      what_this_falsifies_in_the_record:
+        - >-
+          AMENDMENT v2 `state_2_STRUCTURE_PRESENT.meaning` says "The reversal
+          pattern depends on WHICH curve carries which value, not merely on the
+          blocking geometry." THAT SENTENCE IS FALSE AS ARITHMETIC. Deciding
+          number: 30 of 30 within-band shuffles return exactly 50. The pattern
+          depends only on which N-BAND carries which value.
+        - >-
+          CORR-20260807-f551a5 finding 2 says 33.2 % of the effect is
+          mechanically forced by the control destroying value-N association.
+          The correct figure is 100 %. `order`, `full_liftable` and
+          `liftable_density` at W = p are only the functionals whose N-coupling
+          is EXACT; the statistic is a measure of N-band coupling for every
+          functional in the frame. The Coordinator found the right defect and
+          then bounded it by the wrong quantity.
+
+    THE_NEARBY_OBJECT_ATTACK_the_deciding_number:
+      construction: >-
+        Replace every real functional at every pool by a PURE-N SURROGATE:
+        y_i = slope_f * N_{c(i)} + sqrt(v_f) * eps_i, eps iid standard normal,
+        v_f the measured pooled within-class variance of that functional,
+        slope_f the size-weighted OLS slope of class mean on N. This is exactly
+        the CTRL-NSURR object the version-1 contract already defines. It
+        contains, by construction, NO arithmetic content whatsoever beyond the
+        group order plus matched noise.
+      result:
+        replicates: 60
+        residue_min: 39
+        residue_median: 48
+        residue_max: 56
+        observed_real_data: 50
+        committed_valueshuffle_null_min: 89
+        replicates_below_the_null_minimum: "60 of 60"
+      reading: >-
+        A pure-N surrogate reproduces the observed residue (median 48 against
+        an observed 50) and lands below the entire CTRL-VALUESHUFFLE null
+        support in 60 of 60 draws. CTRL-VALUESHUFFLE therefore returns terminal
+        state STRUCTURE_PRESENT on an object built to contain nothing but the
+        group order. It has no power to distinguish the real functionals from
+        the group order, which is the one distinction the whole contract
+        exists to make.
+
+    A_DEEPER_CIRCULARITY_NEITHER_PRIOR_REVIEW_NAMED:
+      claim: >-
+        CTRL-VALUESHUFFLE's null distribution IS the campaign's own discarded
+        free null, NULL-C. Uniformly permuting the VALUES across the pool with
+        labels fixed, and uniformly permuting the LABELS across the pool with
+        values fixed, induce the SAME distribution on the assignment
+        "class c receives value multiset S_c" - both are uniform over ordered
+        set-partitions of the value multiset into the given class sizes. That
+        is precisely `harness/exp_icinv.py::permutation_null` at rung R0_FREE.
+      why_it_matters: >-
+        EXP-INSTR-85b102's stated objective (specification.yaml `objective`) is
+        to decide whether NULL-C "can be replaced by a blocked permutation that
+        removes the group-order contamination it currently reports as
+        structure". Amendment v2 then adopts that same contaminated free null
+        as the reference distribution for a new statistic. The version-1 runs
+        had ALREADY rejected exchangeability of values across the pool at the
+        resolution floor (p_lower = 9.999e-05) for `full_liftable`,
+        `liftable_density` at W = p, and several sum-set columns. So
+        CTRL-VALUESHUFFLE re-tests, with a coarser statistic, a hypothesis this
+        campaign had already rejected many times over. Its outcome was
+        determined before a replicate was drawn - not by 33 %, but entirely.
+      the_control_the_amendment_should_have_used: >-
+        The blocked permutation the contract itself designed: shuffle within
+        the blocks of the finest non-degenerate rung. That is control_2 above,
+        and it returns a point mass, which is the honest answer - the residue
+        statistic is not a test of anything the ladder was built to test.
+
+    other_properties_the_shuffle_destroys_that_prior_findings_depend_on:
+      - >-
+        CTRL-TWIST / HEUR-INSTR-2. The version-1 finding is that every pooled
+        {t,-t} pair has an IDENTICAL sorted `two_torsion_x` multiset. The
+        shuffle destroys that exact multiset equality in every replicate. This
+        is not used by the residue statistic, so it is not an additional defect
+        in the p-value - but any future re-use of the shuffled ensemble as a
+        general-purpose null for this campaign would silently break a
+        heuristic the campaign has separately validated, and the amendment does
+        not say so.
+      - >-
+        The liftable-count identity full_liftable = (order - 1 +
+        two_torsion_x)/2, which the contract checks per curve and which held
+        3512/3512 times across the four pools, is destroyed by the shuffle:
+        each functional is permuted INDEPENDENTLY, so the three columns no
+        longer describe the same curve. Again harmless for this statistic
+        (each cell uses one column), and again undeclared.
+
+    what_survives_of_the_control:
+      - >-
+        The SR-B1 reproduction gate is genuinely sound and genuinely useful.
+        Three derivations of the observed 50 (committed empirical ratio,
+        committed closed-form ratio, and a full recomputation from
+        per_curve.csv through the same code path the replicates use) all
+        return 50, per pool 10/10/16/14. I independently reproduce 50 and
+        10/10/16/14 from my own pipeline. The observed value is not
+        mis-transcribed.
+      - >-
+        The run's engineering is clean: 200/200 replicates, invariants asserted
+        per replicate, zero geometry violations, 55.5 s wall against a 3600 s
+        budget, clean tree, per-file sha256 source pins. Nothing here is an
+        execution defect. The defect is in the design of the comparison.
+
+  # ======================================================================
+  # B3  Does the N-coupled-excluded re-analysis survive? Is the exclusion right?
+  # ======================================================================
+  B3_exclusion_set:
+    verdict: >-
+      The re-analysis's ARITHMETIC is correct and I reproduce it. Its CHOICE OF
+      EXCLUSION SET is not the right correction and it does flatter the result:
+      the Coordinator excluded exactly the four functionals whose N-coupling is
+      near-perfect (R^2 >= 0.9994), which is the WEAKEST defensible exclusion
+      available. A modestly stronger and equally defensible exclusion flips the
+      terminal state from STRUCTURE_PRESENT to CONTROLLED_NULL.
+    what_I_did: >-
+      I redrew the value-shuffle null myself, 300 replicates, retaining the
+      full 144-cell residue bitmap per replicate so any exclusion set can be
+      scored without a new draw. My redraw reproduces the committed null
+      (min 89, median 108, max 121, mean 107.51, sd 5.18, against the committed
+      min 89 / median 108 / max 123 / mean 107.635 / sd 5.632). I then computed
+      two coupling measures per (pool, functional): R^2 between the per-curve
+      value and N, and eta^2 of the value against the FINEST NON-DEGENERATE
+      N-BAND partition - the second being the exactly relevant one, since B2
+      establishes the statistic is a function of the finest-band value
+      multisets alone. My R^2 strata reproduce RT-20260807-743198 item 3g's
+      cell counts exactly (24 cells at R^2 >= 0.5, 32 at >= 0.2, 52 at >= 0.05,
+      40 with defined R^2 below 0.01).
+    THE_SENSITIVITY_TABLE_the_deciding_numbers:
+      note: >-
+        "cells" = retained cells; p is the amendment's own two-sided empirical
+        p-value; the floor at 300 replicates is 1/301 = 0.0033.
+      by_R2_with_N:
+        - {exclude: none,          cells: 144, observed: 50, null_median: 108.0, obs_minus_median: -58.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "R^2 >= 0.5  (== the Coordinator's four functionals, exactly)", cells: 120, observed: 50, null_median: 89.0, obs_minus_median: -39.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "R^2 >= 0.2", cells: 112, observed: 46, null_median: 82.0, obs_minus_median: -36.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "R^2 >= 0.1", cells: 106, observed: 46, null_median: 77.0, obs_minus_median: -31.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "R^2 >= 0.05", cells: 92, observed: 46, null_median: 66.0, obs_minus_median: -20.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "R^2 >= 0.02", cells: 68, observed: 45, null_median: 48.0, obs_minus_median: -3.0, p: 0.4518, state: CONTROLLED_NULL}
+        - {exclude: "R^2 >= 0.01", cells: 46, observed: 33, null_median: 31.0, obs_minus_median: +2.0, p: 0.6047, state: CONTROLLED_NULL}
+        - {exclude: "R^2 >= 0.001", cells: 20, observed: 12, null_median: 11.0, obs_minus_median: +1.0, p: 0.8007, state: CONTROLLED_NULL}
+      by_eta2_against_the_finest_N_band_the_relevant_coupling:
+        - {exclude: none,           cells: 144, observed: 50, null_median: 108.0, obs_minus_median: -58.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "eta^2 >= 0.5", cells: 120, observed: 50, null_median: 89.0, obs_minus_median: -39.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "eta^2 >= 0.2", cells: 110, observed: 46, null_median: 80.0, obs_minus_median: -34.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "eta^2 >= 0.1", cells: 104, observed: 46, null_median: 76.0, obs_minus_median: -30.0, p: 0.0033, state: STRUCTURE_PRESENT}
+        - {exclude: "eta^2 >= 0.05", cells: 82, observed: 45, null_median: 57.0, obs_minus_median: -12.0, p: 0.0066, state: STRUCTURE_PRESENT}
+        - {exclude: "eta^2 >= 0.02", cells: 60, observed: 40, null_median: 41.0, obs_minus_median: -1.0, p: 0.8870, state: CONTROLLED_NULL}
+        - {exclude: "eta^2 >= 0.01", cells: 34, observed: 24, null_median: 20.0, obs_minus_median: +4.0, p: 0.1960, state: CONTROLLED_NULL}
+    the_artifact_tell_applied: >-
+      docs/inventor-protocol.md section 3 asks what the reported quantity
+      should do as the parameter meant to destroy it increases. Here that
+      parameter is the N-band coupling of the retained cells. The gap
+      (observed - null median) decays monotonically and CROSSES ZERO as
+      coupling is stripped: -58, -39, -36, -31, -20, -3, +2, +1 on the R^2
+      ladder, and -58, -39, -34, -30, -12, -1, +4 on the eta^2 ladder. A signal
+      that dies exactly when its suspected confound is removed, and then
+      changes sign, is a CONTROLLED NULL. It is not a finding.
+    is_the_Coordinator_exclusion_defensible: >-
+      It is defensible in DIRECTION and indefensible as a STOPPING POINT. The
+      four excluded functionals are exactly the R^2 >= 0.9994 stratum;
+      `liftable_density_W2000` sits at R^2 = 0.49, `liftable_density_W1000` and
+      `W3003` at 0.22-0.23, `liftable_density_W500` at 0.10 - all still heavily
+      N-coupled, all retained, and all with observed residue at or near zero.
+      RT-20260807-743198's own required control RC-4 asks for "a declared
+      minimum R^2 against N", i.e. a THRESHOLD; the re-analysis silently sets
+      that threshold at ~0.99, which is the one value that maximises the
+      surviving effect. Nothing in the record justifies that placement, and the
+      re-analysis does not report the sensitivity.
+    what_survives_of_the_re_analysis:
+      - >-
+        Its arithmetic. Observed unchanged at 50 (the four excluded functionals
+        have observed residue 0), null moving to min 71 / median 89 / max 102 -
+        I get min 74 / median 89 / max 101 on my own 300-replicate redraw,
+        consistent. The statement "the effect survives removal of its circular
+        component" is true of the component the Coordinator identified.
+      - >-
+        Its three carried-forward caveats are all correct and should be kept:
+        the direction is inverted relative to the state name, p = 1/201 is a
+        resolution floor and not an estimate, and the m = 3 localization stays
+        withdrawn.
+    what_does_not_survive: >-
+      The conclusion. "The effect survives removal of its circular component"
+      is true only for the 33.2 % component the Coordinator named. B2 shows the
+      circular component is 100 % of the statistic, and this section shows the
+      measured separation is a monotone function of how much N-coupling the
+      analyst chooses to leave in the frame.
+
+  # ======================================================================
+  # B4  The observed value lies below the ENTIRE null support. Bug or real?
+  # ======================================================================
+  B4_below_null_support:
+    verdict: >-
+      NOT A BUG. The arithmetic is right, the observed and the null come from
+      the same code path and the same 144-cell frame, and I reproduce both from
+      an independent implementation. It is also NOT EVIDENCE OF STRUCTURE. The
+      null distribution is very nearly a CONSTANT OF THE LADDER GEOMETRY that
+      barely depends on the data at all, so "observed below the null support"
+      is the expected reading for any value vector with any N-band structure -
+      including one containing nothing but the group order.
+    bug_hypotheses_tested_and_eliminated:
+      different_code_paths: >-
+        ELIMINATED. The observed value's derivation D3 in the reproduction gate
+        is the identity replicate: it calls the same `ladder_cells` on the
+        unshuffled values that every replicate calls on shuffled values
+        (harness/ctrl_valueshuffle.py::reproduction_gate). Independently, D1
+        and D2 read the committed results.json ratios. All three return 50 with
+        per-pool 10/10/16/14. My own re-implementation, written from the
+        specification formulas with no harness import, also returns 50 with
+        per-pool 10/10/16/14.
+      frame_mismatch: >-
+        ELIMINATED. Observed and every one of the 200 committed replicates
+        report `cells_full: 144`, `cells_comparable: 138`, `cells_vacuous: 6`.
+        The six vacuous cells are `s3_support` at POOL_A, POOL_B and POOL_D,
+        where the functional is pool-constant, so shuffling it changes nothing
+        and it stays vacuous in the null too. The frames are identical.
+      closed_form_drift_under_the_shuffle: >-
+        ELIMINATED. `closed_form_applicability` is a property of the
+        label/block geometry, which the shuffle does not touch; the committed
+        run asserts `invariants_all_hold: true` in 200 of 200 replicates with
+        `geometry_violations: []`, and my re-implementation asserts every class
+        lies inside one block at every rung.
+      tolerance_asymmetry: >-
+        CHECKED, MINOR. The verdict rule `all(b >= a - 1e-12)` scores exact
+        ties as rises, which favours the observed data (which has ties, e.g.
+        `order` with T_obs bitwise 0 giving R = 0 at every non-degenerate rung)
+        over the shuffled data (which has none). Of the 94 observed monotone
+        cells, 80 rise strictly in at least one step and 14 are all-tie or
+        vacuous. So the tie asymmetry accounts for at most 14 of the 58-cell
+        gap and does not explain it.
+    WHY_IT_LIES_BELOW_THE_SUPPORT_the_deciding_numbers:
+      the_null_is_a_design_constant: >-
+        Under a free value shuffle every block-pooled variance concentrates on
+        the same pool variance, so the sequence E[T_pi | rung] is flat plus
+        O(1/sqrt(n_beta)) noise and each adjacent comparison is a near coin
+        flip. The residue probability per cell should therefore be
+        1 - 2^-(number of adjacent comparisons), which is fixed by the ladder
+        geometry alone.
+      measured_against_that_prediction:
+        POOL_A: {comparisons_per_cell: 1, null_residue_rate: 0.546, coin_flip_prediction: 0.500}
+        POOL_B: {comparisons_per_cell: 2, null_residue_rate: 0.764, coin_flip_prediction: 0.750}
+        POOL_C: {comparisons_per_cell: 3, null_residue_rate: 0.907, coin_flip_prediction: 0.875}
+        POOL_D: {comparisons_per_cell: 2, null_residue_rate: 0.769, coin_flip_prediction: 0.750}
+        total_null_mean: 107.5
+        coin_flip_prediction_for_the_total: 103.5
+        null_sd_measured: 5.18
+        independent_bernoulli_prediction_for_the_sd: 4.63
+      reading: >-
+        96 % of the null's location and ~90 % of its spread are predicted
+        WITHOUT LOOKING AT THE DATA, from the number of non-degenerate rungs
+        per pool. The "null distribution" is a yardstick, not a null object of
+        the same shape as the observation. Comparing a data-dependent count
+        against it is guaranteed to separate for any functional set with
+        appreciable between-band structure - and the version-1 runs had already
+        established, at p_lower = 9.999e-05, that this functional set has
+        exactly that.
+      the_control_that_settles_it: >-
+        The pure-N surrogate of B2: 60 of 60 replicates land below the
+        committed null minimum of 89, median 48 against the observed 50. An
+        object built to contain nothing but the group order plus matched noise
+        is indistinguishable from the real data under this control.
+    honest_statement_of_what_below_support_means_here: >-
+      It means the observed residue count is 50 and a free-shuffle null of the
+      same frame produces at least 89. Both numbers are correct. Neither is
+      surprising once B2's invariance is known, and the conjunction is not
+      evidence about isogeny classes, endomorphisms, or anything arithmetic
+      beyond N.
+
+  # ======================================================================
+  # B5  The strongest scoped statement, and the strength
+  # ======================================================================
+  B5_strongest_supported_statement:
+    evidence_record_permitted: YES, BUT ONLY FOR THE B1 FINDING AND ITS NAMED OBSTRUCTION
+    strength: replicated
+    claim_tier: toy
+    direction_relative_to_H_INSTR_fffbfb: weakens (the instrument's interpretive clause, not its calibration)
+    proof_status: derivation
+    why_replicated_and_not_preliminary: >-
+      The permitted claim is a DETERMINISTIC recount over committed artifacts,
+      not a statistical estimate. It has been derived independently three
+      times - RT-20260807-743198, the Coordinator's own re-implementation in
+      CORR-20260807-732541, and this review from the specification's formulas
+      with no harness import - and it holds at four pools and two primes, of
+      which POOL_C (independent trace selection) and POOL_D (p = 6007) are the
+      ones that carry the replication, POOL_A being nested inside POOL_B.
+      The closed form itself was verified arithmetically correct here to
+      6.5e-16 relative in 720 cells, so the "zero Monte-Carlo error" premise is
+      established rather than assumed.
+    why_not_stronger: >-
+      Not `strong`: the claim rests on one experiment's artifacts at two toy
+      primes and its generality beyond this ladder and this functional list is
+      untested. Not `replicated` for anything downstream of CTRL-VALUESHUFFLE:
+      that control is void as a test of class-level structure (B2), so its
+      outcome is not evidence at ANY strength.
+
+    THE_SENTENCE_I_WOULD_PERMIT: >-
+      On the four operative runs of EXP-INSTR-85b102
+      (RUN-INSTR-85b102-poolA-c, -poolB-b, -poolC, -poolD; p in {4001, 6007};
+      claim_tier toy, sota_delta zero on every axis), the 74-of-144
+      non-monotone ratio verdicts along the N ladder are NOT Monte-Carlo error
+      - re-running the contract's own verdict rule on the exact,
+      zero-Monte-Carlo closed-form null mean returns the identical 74 cells
+      with 144 of 144 agreeing, and 55 of the 59 non-degenerate-to-
+      non-degenerate reversals exceed three combined Monte-Carlo standard
+      errors against an expectation of 0.08 - and whether a cell reverses is
+      governed by the functional's coupling to the group order, monotone in 24
+      of 24 cells whose functional is an exact or affine function of N and
+      non-monotone in 74 of 120 others (Fisher exact one-sided 2.6e-09), so
+      Delta_max(N) does not order the null means of functionals the N-blocking
+      does not act on and the contract's `what_non_decay_means` clause fires by
+      construction on them; this says nothing about isogeny-class structure,
+      endomorphism rings, or ECDLP cost.
+
+    SENTENCES_I_WOULD_REFUSE:
+      - sentence: >-
+          "The ladder's non-monotonicity is not a pure artifact of N-band
+          blocking geometry acting on an arbitrary value multiset."
+        refused_because: >-
+          The statistic that produced this is invariant to everything except
+          which N-BAND holds which value. Deciding numbers: a within-class
+          shuffle and a within-finest-band shuffle each return the observed 50
+          in 30 of 30 replicates (variance exactly zero), and a pure-N
+          surrogate containing no arithmetic content beyond the group order
+          lands below the committed null minimum of 89 in 60 of 60 replicates
+          with median 48 against the observed 50.
+      - sentence: '"The effect survives removal of its circular component."'
+        refused_because: >-
+          It survives removal of the component the Coordinator named (4
+          functionals, R^2 >= 0.9994). It does not survive removal of the
+          circularity itself: excluding every cell with eta^2 >= 0.02 against
+          the finest N-band leaves observed 40 against a null median of 41,
+          two-sided p = 0.887, terminal state CONTROLLED_NULL.
+      - sentence: >-
+          "Terminal state STRUCTURE_PRESENT" quoted as a result, in any
+          formulation, with or without its direction.
+        refused_because: >-
+          The amendment's own definition of that state - "the reversal pattern
+          depends on WHICH curve carries which value" - is false as arithmetic.
+          Quoting the state with its direction and its 33.2 % caveat, as
+          CORR-20260807-f551a5 requires, is still quoting a state whose defining
+          proposition is false.
+      - sentence: >-
+          "Three candidate explanations have been eliminated and none has been
+          confirmed."
+        refused_because: >-
+          One has been eliminated (Monte-Carlo noise). The second - a pure
+          artifact of blocking geometry on an arbitrary value multiset - has
+          NOT been eliminated; the control that was supposed to eliminate it
+          cannot distinguish it from a pure-N surrogate. The third, the m = 3
+          localization, was never established, so its withdrawal is not an
+          elimination of an explanation. The honest count is one.
+      - sentence: >-
+          Anything reading the observed value's position below the null support
+          as evidence of arithmetic structure, at any strength, in any record.
+        refused_because: B4. The null is a design constant, not a null object.
+      - sentence: >-
+          Any statement about isogeny-class invariance, endomorphism structure,
+          H-STR-002, H-ENDO-001, KN-FIND-b7e091, RQ-ICINV-475b5e, or ECDLP cost.
+        refused_because: >-
+          Already correctly disclaimed by every record in this chain. I found
+          NO scope inflation anywhere in the chain and say so plainly; this
+          entry exists to keep it that way.
+
+    the_one_live_object_this_run_actually_flags:
+      note: >-
+        Recorded because AGENTS.md rule 8 requires it and because it is
+        strictly better posed than the residue count, NOT as a finding.
+      what: >-
+        The version-1 BLOCKED conditional test - the instrument the contract
+        was actually built to provide - is already committed at B = 10000 for
+        every cell. At the finest non-degenerate rung, weighted statistic, the
+        m = 3 family says nothing at any pool (`sumset_m3` p_lower = 0.7786 /
+        0.7303 / 0.5724 / 0.06919 and R = 0.997-1.003 at POOL_A/B/C/D), which
+        is a stronger and cheaper disposal of the withdrawn localization than
+        CTRL-VALUESHUFFLE gave. The one functional that survives the finest
+        N-band blocking is `two_torsion_x`: p_lower = 9.999e-05 (the resolution
+        floor) with R = 0.647 at POOL_C R4_NBAND_w4 and R = 0.912 at POOL_D
+        R3_NBAND_w3, at two pools including the second prime.
+      why_it_is_not_a_finding: >-
+        `two_torsion_x` is the functional whose class-level structure is
+        arithmetically forced - the campaign's own CTRL-TWIST verifies the
+        sorted two_torsion_x multiset is IDENTICAL across every pooled
+        {t,-t} pair, and class size is the weighted class number of
+        D = t^2 - 4p, which the contract itself flags as correlated with the
+        2-torsion structure (POOL_C's CTRL-SELECTION rationale). A between-class
+        effect here is expected arithmetic. The execution report records the
+        POOL_D case in section 12 item 1; the POOL_C case, which is the
+        stronger of the two, is NOT recorded anywhere I could find.
+      also_recorded: >-
+        CTRL-NSURR does NOT supply an independent matched null for N-uncoupled
+        functionals. For `two_torsion_x` at POOL_C the fitted slope is -0.00339
+        with standard error 0.00412, so the surrogate degenerates to pure
+        within-class noise, R_surrogate = 0.924, and the excess E = 0.457
+        merely restates R_functional = 0.422. Over all 455 committed
+        (pool, functional, rung) CTRL-NSURR cells the excess has median exactly
+        1.0000 and only 12 cells with |E - 1| > 0.05. The campaign therefore has
+        NO matched null for its N-uncoupled functionals other than the blocked
+        permutation itself.
+
+  # ======================================================================
+  # required red_team_report blocks
+  # ======================================================================
+  claim_under_review: >-
+    That the EXP-INSTR-85b102 ladder's non-monotonicity is not Monte-Carlo
+    noise (CORR-20260807-732541) and, per amendment v2's CTRL-VALUESHUFFLE run,
+    terminal state STRUCTURE_PRESENT at two-sided p = 1/201, an effect the
+    Coordinator's N-coupled-excluded re-analysis reports as surviving removal of
+    its circular arm - and whether an evidence record may be written from that.
+
+  objections:
+    - id: OBJ-A
+      severity: fatal_to_the_control
+      target: experiments/EXP-INSTR-85b102/amendments/v2.yaml, CTRL-VALUESHUFFLE
+      objection: >-
+        The type-A residue statistic is a function of the value multisets
+        inside the finest non-degenerate N-bands and nothing else. It is
+        exactly invariant to which class, and to which curve, inside a band
+        holds which value. Deciding numbers: a within-class shuffle returns the
+        observed 50 in 30 of 30 replicates, and a within-finest-band shuffle
+        returns 50 in 30 of 30 replicates - variance exactly zero under the
+        correctly matched conditional null, i.e. two-sided p = 1.0 and terminal
+        state CONTROLLED_NULL by the amendment's own rule.
+      what_would_change_my_mind: >-
+        A demonstration that the realized ladder is not a nested refinement
+        sequence at some pool, which would break the reduction of the whole
+        sequence to the finest bands. I checked all 16 adjacent rung pairs at
+        the four pools; every one is a refinement.
+    - id: OBJ-B
+      severity: fatal_to_the_control
+      target: the same, and CORR-20260807-f551a5 finding 2's magnitude
+      objection: >-
+        The circular component is 100 %, not 33.2 %. A pure-N surrogate -
+        every functional replaced by slope*N + matched within-class Gaussian
+        noise, i.e. the version-1 CTRL-NSURR object, containing no arithmetic
+        content beyond the group order - produces residue median 48 against the
+        observed 50 and falls below the committed null minimum of 89 in 60 of
+        60 replicates. The control cannot distinguish the real data from the
+        group order, which is the one distinction EXP-INSTR-85b102 exists to
+        make.
+    - id: OBJ-C
+      severity: major
+      target: the amendment's choice of reference distribution
+      objection: >-
+        Uniformly permuting VALUES across the pool and uniformly permuting
+        LABELS across the pool induce the same distribution on the
+        class-to-value-multiset assignment. CTRL-VALUESHUFFLE's null therefore
+        IS NULL-C, the free label permutation, which this contract's own
+        `objective` describes as reporting group-order contamination as
+        structure. The amendment adopts the contaminated null it was written to
+        replace, and version 1 had already rejected that null at p_lower =
+        9.999e-05 for several of these functionals. The outcome was determined
+        before a replicate was drawn.
+    - id: OBJ-D
+      severity: major
+      target: coordination/.../analysis/valueshuffle-ncoupled-excluded.md
+      objection: >-
+        The exclusion set is the weakest defensible one (R^2 >= 0.9994) and its
+        sensitivity is not reported. Excluding cells with eta^2 >= 0.02 against
+        the finest N-band gives observed 40 against null median 41, p = 0.887,
+        CONTROLLED_NULL. The gap decays monotonically and changes sign as
+        N-coupling is stripped: -58, -39, -34, -30, -12, -1, +4. That is the
+        canonical artifact tell of docs/inventor-protocol.md section 3.
+    - id: OBJ-E
+      severity: minor_but_it_is_the_corrected_sentence
+      target: execution_report.md section 12 item 3, descriptive clause
+      objection: >-
+        "Most non-monotone cells are functionals whose R is already within
+        ~0.5 % of 1 at the free rung" is false: 21 of 74 (28 %) at the stated
+        tolerance, median |R_free - 1| = 0.0155. CORR-20260807-732541 supersedes
+        only the causal clause and leaves this one standing.
+    - id: OBJ-F
+      severity: process
+      target: the campaign's control-design obligations
+      objection: >-
+        CORR-20260807-f551a5 correctly adds "a control that destroys an
+        association must be checked against every finding that association
+        explains". That is necessary and not sufficient. The check that was
+        missing here is cheaper and more general: BEFORE drawing a null, compute
+        what the test statistic is invariant to, and confirm the null actually
+        varies the thing under test. One within-class shuffle - 30 replicates,
+        seconds - would have returned a variance of exactly zero and stopped the
+        control before it ran. This is the campaign's fourth instance of the
+        same pattern its own CORR-20260807-732541 names: the decisive evidence
+        was obtainable in seconds and nobody computed it.
+    - id: OBJ-G
+      severity: minor
+      target: RT-20260807-743198 OBJ-3 and run_blocknull.py:1551-1552
+      objection: >-
+        The vacuous `all([])` -> True defect is still unfixed and is now load
+        bearing in a second place: it puts 6 always-monotone cells into the
+        144-cell frame of BOTH the observed value and the null, where they
+        inflate the apparent agreement of the frames. Direction is conservative;
+        it does not change any verdict here. Confirmed present: 6 vacuous cells,
+        `s3_support` at POOL_A, POOL_B and POOL_D, in the observed and in all
+        200 committed replicates.
+
+  required_controls:
+    - id: RC-A
+      name: statistic-invariance precheck (mandatory before any future null draw)
+      priority: 1
+      spec: >-
+        For any proposed null object, first enumerate what the test statistic is
+        invariant to, and verify by direct replicate that the null actually
+        varies the quantity under test. Concretely here: a within-class shuffle
+        and a within-finest-block shuffle, 30 replicates each. Both return the
+        observed value with zero variance, which is the disqualifying answer.
+      cost: seconds; no re-measurement, reads committed per_curve.csv only
+      already_run: >-
+        YES, by this review. 30 of 30 and 30 of 30 replicates return exactly 50.
+    - id: RC-B
+      name: nearby-object control - the pure-N surrogate
+      priority: 1
+      spec: >-
+        Score any proposed "structure" statistic on the version-1 CTRL-NSURR
+        object (slope*N + matched within-class noise) before believing it. If
+        the statistic fires there, it is measuring the group order.
+      cost: under a minute; closed form only
+      already_run: "YES, by this review. 60 of 60 replicates below the null minimum."
+    - id: RC-C
+      name: exclusion-threshold sensitivity, always reported
+      priority: 2
+      spec: >-
+        Any re-analysis that excludes cells by a coupling criterion reports the
+        full threshold sweep, not one threshold. Report eta^2 against the finest
+        non-degenerate block, which is the coupling the statistic actually sees,
+        beside R^2 against N.
+      cost: negligible; both tables are in this report
+    - id: RC-D
+      name: RT-20260807-743198's RC-2 and RC-3, still open
+      priority: 2
+      spec: >-
+        The standing empirical-vs-closed-form verdict assertion and the
+        non-vacuous verdict guard remain unimplemented. They are cheap, they are
+        already agreed, and RC-3 now affects two artifacts rather than one.
+
+  counterexample_or_mutation: >-
+    Two mutations, each decisive on its own and each already executed here.
+    (1) INVARIANCE MUTATION: replace the free shuffle by a shuffle within the
+    blocks of the finest non-degenerate rung - preserving exactly the
+    value-to-N-band association and randomizing everything else. The statistic
+    returns 50 in 30 of 30 replicates. Under the amendment's own decision rule
+    that is p = 1.0, terminal state CONTROLLED_NULL.
+    (2) NEARBY-OBJECT MUTATION: replace the real functionals by a pure-N
+    surrogate. The statistic returns median 48, below the null minimum of 89 in
+    60 of 60 replicates, i.e. STRUCTURE_PRESENT on an object with no arithmetic
+    content. A control that fires identically on the real data and on the group
+    order discriminates nothing.
+
+  baseline_comparison:
+    applicable: false
+    statement: >-
+      NOT APPLICABLE, and stated rather than omitted. This is an instrument
+      diagnostic at p in {4001, 6007}. No discrete logarithm is computed, no
+      relation is collected, no algorithm is proposed, so there is no regime in
+      which parallel Pollard rho (0.886*sqrt(N) time, O(1) memory,
+      KN-TECH-001/KN-TECH-006), BSGS (sqrt(N) time and memory), or the
+      automorphism-discounted CM variant (KN-TECH-018) is a comparator. I
+      checked that the chain makes no cost, exponent, memory or query claim
+      anywhere; it does not.
+    dominated_by: >-
+      Not applicable because no method and no cost claim is made - NOT null
+      after checking a frontier. There is no axis (time, memory, data/queries)
+      on which anything in this chain competes with any frontier row, so no row
+      was compared and none needed to be. Recording the reason rather than a
+      bare null, per the operating rule that an unchecked null is a fabrication.
+    sota_delta: zero on every axis (time, memory, data/queries)
+
+  heuristic_challenges:
+    - >-
+      The contract sets `heuristic_under_test: null`, but an UNNUMBERED
+      assumption carries the whole interpretation and is now falsified twice
+      over: that E[T_pi | rung] is monotone in Delta_max(N). RT-20260807-743198
+      established it fails in 50 of 144 cells by exact computation; this review
+      adds the mechanism in closed form - E[T_pi | rung] is a block-pooled
+      variance, so refinement moves it in a direction fixed by the realized
+      block composition, with no monotone tendency in Delta_max for a functional
+      the bands do not separate. Under the exemplar profile an assumption that
+      carries a clause's interpretation must be explicit, numbered and given a
+      justification; this one is none of the three.
+    - >-
+      A SECOND unnumbered assumption entered with amendment v2 and is the one
+      that voids the control: that a uniform value shuffle is a null object "of
+      the same shape" for the residue statistic. Same shape requires preserving
+      what is not under test. It preserves the value multiset, the class sizes
+      and the block geometry, and destroys the value-to-N-band association -
+      which is the only thing the statistic can see. The amendment states the
+      first three and never states the fourth.
+    - >-
+      No random-model transfer question arises - nothing here samples a
+      structured object against a random-integer model. Recorded as
+      non-applicable rather than omitted.
+
+  cost_model_challenges:
+    - >-
+      Not applicable to any mathematical claim, since none is made. One costing
+      observation stands and is correct in RT-20260807-743198: the decisive
+      quantity has an exact closed form at ~0.6 ms per call, so the version-1
+      study's Monte-Carlo permutations were not needed for the null MEAN at all.
+      Per KN-LIT-7593 the eliminating invariant's own cost is charged here - it
+      is the closed form, measured, and it is smaller than what it replaces by
+      about the factor B = 10000.
+    - >-
+      A second, cheaper elimination was available and was not taken: the
+      invariance precheck of RC-A costs seconds and would have avoided the
+      55.5 CPU-seconds of CTRL-VALUESHUFFLE entirely - not because the compute
+      was expensive, but because the compute produced a number that then cost
+      two correction records and this review to dispose of. The expensive
+      resource in this campaign is review capacity, not CPU.
+
+  reduction_and_scope_challenges:
+    - >-
+      NO SCOPE INFLATION FOUND ANYWHERE IN THIS CHAIN, and that is worth saying
+      plainly after seven objections. Every record - the execution report's
+      section 16, RT-20260807-743198, both corrections, the amendment, and the
+      re-analysis - carries claim_tier toy, sota_delta zero, and an explicit
+      disclaimer of RQ-ICINV-475b5e, H-STR-002, H-ENDO-001 and KN-FIND-b7e091.
+      The defects found here are internal to an instrument diagnostic and do
+      not leak into a broader claim at any point.
+    - >-
+      No corollary in this chain rests on a cited reduction, so there is no
+      reduction instantiation to check. Recorded rather than omitted.
+    - >-
+      SYMMETRICALLY: this report must not be inflated either. Finding
+      CTRL-VALUESHUFFLE void is a finding about one control, not a finding that
+      the ladder has no structure to find, and not a closure of RQ-INSTR-f8faa0.
+      The version-1 blocked conditional test still rejects at the resolution
+      floor for `two_torsion_x` at two pools including the second prime, and
+      that remains open.
+
+  proof_architecture_challenges:
+    - >-
+      NEARBY-OBJECT AUDIT: FAILED, and this is the decisive one. The nearby
+      object for which the desired conclusion is false is a functional carrying
+      only the group order. CTRL-VALUESHUFFLE returns the same terminal state on
+      it, in 60 of 60 draws.
+    - >-
+      COMPOSITIONAL-INVARIANT AUDIT: FAILED. Deleting one component of the
+      claimed invariant - the value-to-N-band assignment - while keeping every
+      other component the control declares (multiset, class sizes, block
+      geometry, closed-form exactness) collapses the statistic to a constant.
+      The first step that fails is the very first: the statistic never depended
+      on the components the control preserves.
+    - >-
+      METHOD-CEILING AUDIT: FAILED. The largest claim the residue statistic can
+      support under ideal tuning is a statement about how values distribute
+      across N-bands. It cannot reach a statement about classes, curves, or
+      arithmetic, so the headline fails before any question of replicate count
+      or power arises.
+    - >-
+      QUANTIFIER-ORDER AUDIT: PASSED, and creditably. The decision rule, the
+      observed value 50, the m = 3 indicator and the two-sided p-value form
+      were all frozen in amendment v2 and committed BEFORE any replicate was
+      drawn (commit 02b1e5db precedes 2d8d1f64), and the amendment declares
+      itself `confirmatory_status: exploratory_only` with the honest reason.
+      The failure here is not a witness chosen after the fact.
+
+  narrowest_supported_statement: >-
+    See B5's THE_SENTENCE_I_WOULD_PERMIT. In one line: on
+    EXP-INSTR-85b102's four operative runs at p in {4001, 6007}, the ladder's
+    74-of-144 non-monotone verdicts are deterministic rather than Monte-Carlo,
+    and are governed by the functional's coupling to the group order, so
+    Delta_max(N) is not a decay parameter for functionals the N-blocking does
+    not act on. Everything CTRL-VALUESHUFFLE was run to decide remains
+    UNDECIDED, and the control as designed cannot decide it.
+
+  next_concrete_action: >-
+    ONE ACTION, ZERO COMPUTE: file a correction against
+    experiments/EXP-INSTR-85b102/amendments/v2.yaml, the CTRL-VALUESHUFFLE runs
+    and coordination/.../analysis/valueshuffle-ncoupled-excluded.md recording
+    that the type-A residue statistic is invariant to everything the control
+    randomizes except the value-to-N-band assignment, with the three deciding
+    numbers (within-band shuffle 30/30 -> exactly 50; pure-N surrogate 60/60
+    below the null minimum 89, median 48; eta^2 >= 0.02 exclusion -> observed 40
+    vs null median 41, p = 0.887), superseding the terminal state
+    STRUCTURE_PRESENT as UNINTERPRETABLE rather than as inverted-but-surviving,
+    and recording that CORR-20260807-f551a5's 33.2 % is 100 %. In the SAME
+    record, supersede the descriptive clause of execution report section 12
+    item 3 (21 of 74, not "most"). THEN, and only then, one evidence record may
+    be written for the B1 finding at strength `replicated`, claim_tier `toy`,
+    citing EXP-INSTR-85b102, the four operative run ids, RT-20260807-743198,
+    CORR-20260807-732541 and this report. Do NOT commission a replacement
+    value-shuffle control: the campaign's remaining open question at these pools
+    is already answered by the committed version-1 blocked conditional test,
+    which is the instrument the contract built and which nobody has read
+    functional-by-functional.
+
+  authority_limits:
+    - This report changes no research status, writes no evidence record, edits no raw artifact, and commits nothing.
+    - >-
+      It is written under the assigned write_scope only. Hand this path to the
+      Coordinator's ledger archive task for a durable commit; the Red Team does
+      not commit in a shared worktree.
+    - >-
+      Finding a control void is not finding the underlying phenomenon absent.
+      The disposition of the 50/144 residue is UNDETERMINED and this review does
+      not close it; what it closes is the claim that CTRL-VALUESHUFFLE
+      determined it.
+    - >-
+      Nothing here weakens the two Validators' passed checks, the S1/S2 gates,
+      the frozen-function receipt, the CTRL-NULLOBJ 28/28 size calibration, the
+      D6 stopping-rule disposition, or the pre-registered contradiction of
+      IDEA-20260807-34754f. All stand exactly as recorded.
+    - >-
+      A negative verdict on this control is not a statement that the lane is
+      dead. Per docs/inventor-protocol.md section 4 the named obstruction is
+      stated (Delta_max does not order the null means of N-uncoupled
+      functionals; the residue statistic sees only N-band assignment) and the
+      forward guidance names what remains open (the version-1 blocked
+      conditional test's `two_torsion_x` rejection at POOL_C and POOL_D).
+
+  reproduction:
+    note: >-
+      Every number in this report was computed by this reviewer from the
+      committed artifacts. Scripts were written in a session scratchpad and are
+      NOT research artifacts; each is short enough to restate. The operations,
+      in order: (1) re-implement the verdict rule and run it on both ratio
+      fields in all 144 cells of the four operative results.json, asserting
+      agreement with the committed boolean; (2) re-derive T_obs and the
+      closed-form null mean from per_curve.csv + rung_table.json using the
+      specification's formulas with no harness import, and compare to the
+      committed values in 720 cells; (3) rebuild the residue pipeline
+      independently and confirm the observed 50 and per-pool 10/10/16/14;
+      (4) test ladder nestedness at all 16 adjacent rung pairs; (5) run 30
+      within-class and 30 within-finest-block shuffles; (6) run 300 free
+      shuffles retaining the full cell bitmap and confirm the committed null;
+      (7) run 60 pure-N surrogate replicates; (8) compute R^2(value, N) and
+      eta^2(value, finest band) per (pool, functional) and sweep exclusion
+      thresholds; (9) recompute the 24/24 vs 74/120 contingency and its Fisher
+      exact p-value; (10) read the committed CTRL-NSURR excess over 455 cells
+      and the blocked p_lower at the finest non-degenerate rung.
+    nothing_fabricated: >-
+      No command, output, timing or statistic here is asserted without having
+      been computed in this session. Where a conclusion is not reachable from
+      the committed data it is marked UNDETERMINED rather than guessed. My
+      free-shuffle redraw uses my own seeds and so reproduces the committed null
+      distributionally (min 89, median 108, max 121, mean 107.51, sd 5.18
+      against the committed min 89, median 108, max 123, mean 107.635, sd
+      5.632), not bit-for-bit; that is stated rather than presented as exact
+      agreement.
+
+  artifact_paths:
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/reviews/breakthrough/report.yaml
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/specification.yaml
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/amendments/v2.yaml
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/execution/EXP-INSTR-85b102/execution_report.md
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/reviews/validator-instr/validation_report.yaml
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/reviews/red-team-nonmonotonicity/report.yaml
+    - /home/user/crypto-autoresearcher/ledger/corrections/CORR-20260807-732541.yaml
+    - /home/user/crypto-autoresearcher/ledger/corrections/CORR-20260807-f551a5.yaml
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/analysis/valueshuffle-ncoupled-excluded.md
+    - /home/user/crypto-autoresearcher/harness/run_blocknull.py
+    - /home/user/crypto-autoresearcher/harness/ctrl_valueshuffle.py
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolA-c/
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB-b/
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolC/
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolD/
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-valueshuffle/
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-valueshuffle-gate/
+
+  inference:
+    requested_policy: review-breakthrough
+    resolved_model_id: claude-opus-5
+    reasoning_effort: max
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one model
+      the session runs on. Recorded, never silently substituted (AGENTS.md rule
+      11). NOTE FOR THE COORDINATOR: AGENTS.md rule 12 says review-breakthrough
+      "may never be degraded - no amendment or permission runs it on a backend
+      that cannot reach max". This session is an independent context on the same
+      resolved model as the Coordinator and the prior Red Team, so
+      "independent" here means independent context and a fresh adversarial
+      reading, NOT independent judgement from a different model. That is a
+      limitation of the deployed harness, it is recorded rather than concealed,
+      and any downstream record must carry it.
+    independent_session: true
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.

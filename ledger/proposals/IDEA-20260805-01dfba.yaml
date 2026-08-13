@@ -1,0 +1,474 @@
+idea:
+  id: IDEA-20260805-01dfba
+  question_id: RQ-AES-002
+  added: '2026-08-05'
+  title: >-
+    The two-implementation certificate gate has, in this container, one
+    implementation and possibly zero: a verifier-independence audit of
+    GOAL-AES-002's C1/C4 re-verification path, whose cheapest gate has already
+    failed
+  class: control
+
+  claim: >-
+    GOAL-AES-002 completion criterion C1, criterion C4, and RQ-AES-002
+    claim_tier_ceiling R7 all require that a claimed full-round key recovery be
+    re-verified by the run wrapper under BOTH pycryptodome AND the openssl CLI,
+    and RQ-AES-002's specification-pinning constraint requires the same pair for
+    the FIPS-197 ground truth. In the container this session measured,
+    `python3 -c "import Crypto"` raises ModuleNotFoundError: pycryptodome is not
+    installed. The obvious substitution -- the `cryptography` package, which IS
+    installed at 41.0.7 -- would not restore independence, because independence
+    of two verifiers is a property of their FAULT SETS and not of their API
+    surfaces: two Python-visible bindings to one libcrypto have fault
+    correlation 1 on every libcrypto-resident fault, and the pair would pass
+    every known-answer test while catching zero of the faults the pair exists to
+    catch. The audit therefore has two deliverables, and BOTH are useful:
+    either the dependency gap is an infrastructure request that is filed and
+    named as such (AGENTS.md rule 5: never a mathematical result), or the
+    campaign's independence claim is re-founded on a verifier derived from the
+    FIPS-197 DEFINITION rather than from any tabulated or vendored
+    implementation -- for which this session has already exhibited the
+    construction. Nothing here asserts anything about AES at any round count.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE VERIFICATION PATH ITSELF: the byte-level route from a claimed
+      (key, plaintext, ciphertext) triple to an ACCEPT verdict, followed through
+      every layer at which a fault could be shared -- Python wrapper, Python
+      extension module, dynamically linked libcrypto, CPU AES-NI path, and the
+      S-box / round-constant tables baked into each. The observable is not
+      "does the verifier accept" but "does the PAIR of verifiers DISAGREE when a
+      fault is planted at layer L", as a function of L.
+    established_families_off_limits: >-
+      All thirteen families named in RQ-AES-002
+      objects_declared_off_limits_as_the_primary_lens are off-limits as the
+      primary lens here, and none is used: differential and truncated
+      differential; linear and multidimensional linear; integral / square /
+      division property; impossible differential; meet-in-the-middle and
+      Demirci-Selcuk; boomerang and retracing boomerang; biclique; algebraic
+      (XSL-family) and Groebner; yoyo; mixture differential / exchange;
+      subspace trail; partial sums as a cost reorganisation. This proposal is
+      not cryptanalysis at all -- it audits the instrument that would adjudicate
+      cryptanalysis -- and it is filed under RQ-AES-002 because its failure mode
+      is the one that would silently void a C1 or C4 verdict.
+    newness_score: >-
+      The technique (mutation testing of a verifier pair) is elementary and
+      certainly known in software engineering; this program already holds it as
+      KN-FIND-029, which records five false-green escapes across three repairs
+      of one mutation control and whose practice rules the GOAL-AES-002 record
+      adopts verbatim under instrument_inheritance. What is new is the
+      application to THIS gate, and the observation -- which no committed record
+      in this repository contains -- that the gate's declared implementation
+      pair is not installed and that its obvious substitute is not independent.
+      Novelty against the external literature is UNRESOLVABLE in this
+      environment and is claimed in neither direction.
+    testability_score: >-
+      Maximal, and the cheapest gate has ALREADY RETURNED: one import statement.
+      Every remaining stage is seconds of shell.
+    survival_score: >-
+      The object survives to the full round count trivially, because verifying a
+      key costs one AES encryption at any round count. That asymmetry --
+      RQ-AES-002 motivation's "third motivation" -- is the campaign's strongest
+      epistemic asset, and it is exactly what this audit protects.
+
+  mechanism: >-
+    DERIVED AND, WHERE MARKED, SESSION-MEASURED. Every measurement below was
+    taken by this ideation session on this machine OUTSIDE the harness and is
+    labelled SESSION-MEASURED; each is a CANDIDATE TO RE-RUN IN-HARNESS, never a
+    run record, and the experiment re-takes all of them under a receipt.
+
+    (1) THE GATE AS WRITTEN. RQ-AES-002 claim_tier_ceiling R7 opens the `crypto`
+    tier through exactly one door: "the recovered key reproduces the exact
+    target ciphertexts under BOTH pycryptodome and the openssl CLI, re-computed
+    by the wrapper and not by the attack code". GOAL-AES-002 C1 repeats it, C4
+    makes the Validator check it, and the specification-pinning constraint
+    requires the same pair for FIPS-197 ground truth. The pair is therefore
+    load-bearing four times over.
+
+    (2) SESSION-MEASURED CONTAINER STATE. `python3 -c "import Crypto"` ->
+    ModuleNotFoundError: No module named 'Crypto'. `pip list` shows
+    `cryptography 41.0.7` and no pycryptodome. `openssl version` ->
+    OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13). `gcc` is present and a
+    program using `_mm_aesenc_si128` COMPILES WITH -maes AND RUNS. `numpy` is
+    present at 2.4.6. Cores: 4. Memory: 15 GB total, ~14 GB available. THE LAST
+    THREE FACTS ALSO BEAR DIRECTLY ON THE NAMED CONTRADICTION RQ-AES-002 records
+    in its resource-envelope constraint (RQ-AES-001 records gcc 13.3.0 with
+    -maes available; GOAL-AES-001's next_action records that neither numpy nor a
+    C program is installed). This session's measurement agrees with the FORMER
+    and not with the latter. That is a datum for the rank-3 measured-envelope
+    receipt, it is not that receipt, and it does not resolve the contradiction
+    by assertion -- the receipt does, under a task card, with a machine-readable
+    artifact.
+
+    (3) WHY THE OBVIOUS SUBSTITUTION IS NOT A SUBSTITUTION. Independence of two
+    verifiers is not a property of their import paths. Model a verifier as a
+    function V: (K,P,C) -> {accept, reject} realised by a stack of layers
+    L_1..L_m (wrapper, extension module, shared library, CPU instruction path,
+    constant tables). Let F be a fault planted at layer L. The pair (V_1,V_2)
+    detects F only if F is present in exactly one of the two stacks. If V_1 and
+    V_2 share layer L, then for every fault F resident at L,
+    Pr[detect] = 0 EXACTLY -- not small, zero, because both stacks compute the
+    same wrong answer and agree. `cryptography` is a binding over OpenSSL's
+    libcrypto (RECALLED, UNVERIFIED for this specific build; establishing it, or
+    refuting it, is stage 1 of the experiment). The openssl CLI is a front end
+    over the same libcrypto. If both statements hold for this build, then the
+    substituted pair shares layers 3, 4 and 5, and its detection probability for
+    every libcrypto-resident or AES-NI-resident fault is exactly 0 while its
+    known-answer-test pass rate is exactly 1. THAT IS THE SIGNATURE OF A CONTROL
+    THAT CANNOT FAIL, catalogued in this repository as KN-TECH-1a5b7e and as
+    KN-FIND-029's evasion class.
+
+    (4) THE FORCED VALUE THAT SEPARATES THE TWO HYPOTHESES. Let M be a planted
+    single-bit mutation and let c(M) be the pair's catch indicator. Partition
+    mutations by resident layer. A GENUINELY independent pair has c(M) = 1 for
+    every M resident in either stack. A pair sharing libcrypto has c(M) = 0 for
+    every M resident at or below libcrypto and c(M) = 1 only for M resident in
+    the Python wrapper above it. So the measurement "catch rate on
+    shared-layer mutations" is forced to 0 under sharing and to 1 under
+    independence, with no intermediate value available. This is a two-valued
+    forced observable and it is why the audit is decisive rather than
+    suggestive.
+
+    (5) THE REPAIR, AND THE FACT THAT IT IS ALREADY IN HAND. A third verifier
+    that shares NO layer below the Python interpreter can be derived from
+    FIPS-197's DEFINITION rather than from any table: the S-box is the composite
+    of inversion in GF(2^8) with modulus x^8+x^4+x^3+x+1 (0x11b), taking 0 to 0,
+    followed by the fixed GF(2)-affine map with constant 0x63. SESSION-COMPUTED
+    on this machine, outside the harness: building the S-box that way and
+    checking three FIPS-197 known bytes gives S(0x00)=0x63, S(0x01)=0x7c,
+    S(0x53)=0xed, all matching. A SECOND, INDEPENDENT AND MUCH SHARPER CHECK ON
+    THE SAME OBJECT, also SESSION-COMPUTED: the univariate interpolation
+    polynomial of that S-box over GF(2^8) has EXACTLY 9 nonzero coefficients, at
+    exponents {0, 127, 191, 223, 239, 247, 251, 253, 254}, which is precisely
+    {0} union {255 - 2^k : k = 0..7} -- the signature forced by
+    S = (GF(2)-affine) o (x -> x^254), since the affine map is a linearized
+    polynomial sum c_k y^{2^k} plus a constant and y = x^{-1} = x^{254} gives
+    exponents (-2^k) mod 255 = 255 - 2^k. A tabulated S-box with ANY single byte
+    altered cannot satisfy that 9-term identity, so the identity is a
+    definition-level integrity check on the table, obtainable without trusting
+    any implementation. This is the constructive half of the audit and it costs
+    minutes.
+
+    (6) WHAT THE AUDIT CANNOT DO, STATED SO IT IS NOT OVERSOLD. It cannot
+    establish that any verifier is correct; correctness is not testable from
+    inside the stack being tested, which is KN-FIND-029's own irreducible
+    finding (the evasion class is not closable by an in-process instrument). It
+    can establish that a declared pair is or is not layer-disjoint, and it can
+    raise the number of independent layers from one to two. The residual --
+    that a fault could be planted in the Python interpreter or the CPU beneath
+    all three -- is DECLARED OUT of the threat model on the stated ground that
+    no in-container instrument can address it, and that declaration must be
+    written into any certificate relying on the instrument (KN-FIND-029 practice
+    rule, adopted by GOAL-AES-002 instrument_inheritance).
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      NO PRIMARY SOURCE WAS READ FOR THIS RECORD AND NONE IS CITED. FIPS-197 is
+      NOT cited from a read document. Every structural statement about AES used
+      above is either derived here (the S-box exponent identity) or pinned
+      operationally by local computation, which is the only grounding
+      RQ-AES-002's provenance block permits.
+    - >-
+      "`cryptography` is a binding over OpenSSL libcrypto" is RECALLED,
+      UNVERIFIED. It is the hypothesis the audit tests, not a premise it
+      assumes; stage 1 of the paired experiment resolves it by measurement
+      (linkage inspection and version-string agreement), and a refutation of it
+      would be a GOOD outcome, because it would mean the substituted pair is
+      independent after all.
+    - >-
+      KN-FIND-029 (internal, committed, read) supplies the practice rules this
+      proposal is built to satisfy: a green states its covered cells or states
+      nothing; a repair is proved by execution, never by reading the new task
+      set; coverage escapes are closed BY CONSTRUCTION from the module's own
+      declared parameter domain; the evasion class is declared out of the threat
+      model on a stated ground and that declaration is written into any
+      certificate relying on the instrument; a null control must ISOLATE the
+      property it names.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full verification stack (interpreter, extension modules, shared library,
+      CPU path, constant tables, of two verifiers) --> the single bit
+      "the two verifiers disagree on this input".
+    what_is_discarded: >-
+      Everything except one bit per input. All internal state, all timing, all
+      intermediate round values, the identity of the failing layer.
+    why_genuinely_lossy: >-
+      Extremely lossy: the fibre over "agree" contains every stack pair that is
+      correct AND every stack pair that is identically wrong. That fibre is
+      exactly the failure this audit exists to detect, which is why the RAW
+      agreement bit is worthless and the proposal does not use it.
+    why_compatible_with_the_operations: >-
+      The disagreement bit is compatible with the operation that matters
+      (composition of layers) only in the trivial direction: agreement
+      propagates, disagreement does not localise. The audit therefore does NOT
+      measure the agreement bit on natural inputs; it measures the agreement bit
+      UNDER PLANTED MUTATIONS INDEXED BY LAYER, which restores compatibility by
+      making the layer an explicit independent variable.
+    is_it_only_a_change_of_coordinates: >-
+      NEITHER FAILURE, AND BOTH WERE CHECKED. It is not the KN-LIT-7595 /
+      (Delta,Pi) = (x xor y, x*y) failure -- nothing is recoverable from one
+      bit, so no change of coordinates is in question. It IS at risk of the
+      MIRROR failure (constant across instances, zero comparator spread): on
+      natural inputs the bit is identically "agree" for every correct pair AND
+      for every identically-wrong pair, so its spread is zero and it discriminates
+      nothing. THE CHECK RETURNED: mirror failure present for the naive
+      observable, and the proposal is built around repairing it by planting
+      mutations, which is the only way to give the comparator spread. The
+      repaired observable (catch rate as a function of resident layer) is forced
+      to 0 or 1 with nothing in between, which is the maximum spread available.
+
+  assumptions:
+    - >-
+      That the container state measured by this session is the state a dispatched
+      task will see. NOT ASSUMED SAFE: the experiment re-measures it as stage 0
+      and records the result whether or not it agrees with this record.
+    - >-
+      That "re-verified by the run wrapper with the attack code excluded from the
+      verification path" means the wrapper recomputes the ciphertext, which is
+      how RQ-AES-002 R7 states it.
+
+  predictions:
+    - metric: >-
+        import_pycryptodome: whether `import Crypto` succeeds in the dispatched
+        task's interpreter
+      direction: different
+      minimum_effect: >-
+        PREDICTED FAILURE (ModuleNotFoundError), on the SESSION-MEASURED value.
+        If it SUCCEEDS in the harness, this proposal's headline premise is
+        FALSIFIED, the gate as written is satisfiable, and the correct record is
+        a one-line note plus the layer-disjointness question below, which
+        survives either way. That outcome costs one import and would be the
+        cheapest possible refutation.
+    - metric: >-
+        shared_layer_mutation_catch_rate: fraction of planted single-bit
+        mutations RESIDENT IN THE SHARED LAYER that produce a disagreement
+        between the two declared verifiers, over N = 32 planted mutations
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0/32 if the two verifiers share libcrypto; EXACTLY 32/32 if they
+        do not. No intermediate value is admissible under the mechanism, so any
+        intermediate reading falsifies the mechanism's layer model and must be
+        reported as such rather than rounded to the nearer endpoint.
+    - metric: >-
+        wrapper_layer_mutation_catch_rate: same, for mutations resident ABOVE the
+        shared layer (in one verifier's Python wrapper only)
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 32/32. THIS IS THE POSITIVE CONTROL AND IT MUST FIRE. If it does
+        not, the mutation harness is broken and NO conclusion of any kind,
+        positive or negative, may be drawn from the other two metrics.
+    - metric: >-
+        sbox_nine_term_identity: number of nonzero coefficients of the univariate
+        GF(2^8) interpolation polynomial of the S-box used by each verifier
+      direction: different
+      minimum_effect: >-
+        EXACTLY 9, at exponents {0} union {255 - 2^k : k = 0..7}, for every
+        verifier that implements FIPS-197 AES. Derived above; SESSION-COMPUTED
+        confirmation on a from-definition construction. Any verifier whose
+        effective S-box misses this is mutated or is not AES, and the identity
+        detects a single altered table byte with certainty.
+    - metric: >-
+        independent_layer_count: number of layers not shared by the two verifiers
+        the campaign finally declares
+      direction: higher
+      minimum_effect: >-
+        At least 2 (Python-level implementation and libcrypto), which is the
+        minimum consistent with the word "independent" in C1 and C4. Currently
+        UNKNOWN and possibly 0; that is the audit's subject.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, each able to terminate the audit. STAGE 0
+      (one shell line, seconds): re-measure `import Crypto`, `pip list`,
+      `openssl version`, and the presence of gcc/-maes/numpy under a receipt.
+      If pycryptodome is present, the headline premise is falsified and the
+      audit continues at stage 2 only. STAGE 1 (minutes, zero cryptanalysis):
+      establish by measurement whether the two candidate verifiers share
+      libcrypto -- linkage inspection of the extension module, agreement of
+      reported library version strings, and a controlled experiment in which one
+      stack is pointed at a modified library while the other is not. STAGE 2
+      (minutes): build the from-definition verifier, check the FIPS-197 known
+      answers, and check the 9-term S-box interpolation identity on every
+      verifier's effective S-box. STAGE 3 (under an hour): the mutation matrix
+      -- 32 mutations per resident layer, catch rate reported per layer, with
+      the positive control read FIRST.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE, AND IT CAN FAIL: a pair of verifiers that
+        is KNOWN dependent by construction -- the openssl CLI invoked twice
+        through two different Python subprocess wrappers. FORCED VALUE DERIVED
+        BEFORE THE RUN: shared-layer catch rate EXACTLY 0/32, known-answer pass
+        rate EXACTLY 1. If this pair catches ANY shared-layer mutation, the
+        mutation harness is planting faults that are not actually shared, the
+        layer model is wrong, and the whole audit must be redesigned.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: the pair
+        (from-definition pure-Python AES, openssl CLI). These share no layer
+        below the interpreter. FORCED VALUE: catch rate EXACTLY 32/32 on
+        mutations resident in EITHER stack. If it is not 32/32, the instrument
+        is broken and NO negative result may be reported at all.
+      - >-
+        GRADED CONTROL, >= 3 INTERIOR POINTS, MONOTONICITY REPORTED: plant
+        mutations at four resident depths -- (i) Python wrapper of verifier A
+        only, (ii) Python wrapper shared by both, (iii) libcrypto, (iv) the
+        constant tables compiled into the pure-Python verifier. Catch rate must
+        be monotone non-increasing in "depth of sharing". A non-monotone profile
+        localises an artifact in the mutation harness rather than leaving "the
+        verifiers disagree sometimes".
+      - >-
+        VERDICT-ON-THE-NULL-FIRST. The frozen decision rule is executed on the
+        known-dependent pair BEFORE the declared campaign pair is looked at. If
+        it emits the same label on both, the rule discriminates nothing and is
+        rewritten before the real arm is read.
+      - >-
+        ARCHIVE CHECK (zero compute). List every archived measurement of this
+        observable in this repository. KN-FIND-029 records five false-green
+        escapes across three repairs of one mutation control and is the nearest
+        prior; it is an instrument finding about a DIFFERENT instrument, so it
+        constrains practice but supplies no measurement of THIS pair. Recorded
+        as unavailable rather than claimed as a passed check.
+    required_metrics:
+      - the exact shell commands and their exit codes and stdout, verbatim
+      - per-layer catch rate with the mutation list and how each mutation was planted
+      - linkage evidence for each verifier, or an explicit statement that linkage could not be determined
+      - the 9-term interpolation identity result per verifier, with the coefficient list
+      - the final declared verifier set with its independent_layer_count and its declared-out-of-threat-model residual
+
+  falsification_conditions:
+    - >-
+      pycryptodome imports in the dispatched task. The headline premise is wrong
+      and is withdrawn; the layer-disjointness question survives and is still
+      worth answering, but this record's framing must be superseded.
+    - >-
+      The two candidate verifiers are measured NOT to share libcrypto. The
+      independence objection is wrong at the tested layer and the audit reports
+      a clean pass, which is a real and welcome result.
+    - >-
+      The positive control fails (catch rate < 32/32 on the layer-disjoint pair).
+      Nothing negative may be reported; the outcome is an instrument defect.
+    - >-
+      An intermediate shared-layer catch rate (strictly between 0 and 32). The
+      two-valued layer model is falsified and the mechanism must be rewritten
+      before any verdict.
+
+  confounders:
+    - >-
+      A mutation may be planted in a code path the known-answer test never
+      exercises, so a catch rate of 0 could mean "shared layer" OR "dead code".
+      Mitigation, declared pre-run: every planted mutation is first shown to
+      change the output of a SINGLE-VERIFIER run before it is used in the pair
+      comparison. A mutation that does not change any single-verifier output is
+      discarded from the matrix and the discard is recorded with its reason.
+    - >-
+      Read-only or protected system libraries may make libcrypto mutation
+      impossible in-container, in which case the shared-layer arm cannot be run
+      at all. THAT IS AN INFRASTRUCTURE OUTCOME (AGENTS.md rule 5) and is
+      reported as coverage not achieved, never as a catch rate of 0.
+    - >-
+      SESSION-MEASURED VALUES ARE NOT HARNESS MEASUREMENTS. Every figure in this
+      record taken outside the harness is labelled and is re-taken in stage 0.
+      A discrepancy between this record and stage 0 is reported, not reconciled.
+
+  interpretation_limits:
+    - >-
+      NOTHING HERE IS A STATEMENT ABOUT AES AT ANY ROUND COUNT. No distinguisher,
+      no key recovery, no cost, no barrier about the cipher. The subject is the
+      campaign's verification instrument.
+    - >-
+      A clean pass licenses exactly one sentence: "the declared verifier pair is
+      layer-disjoint above the interpreter, on the tested mutation set, in this
+      container". It licenses no claim that either verifier is correct.
+    - >-
+      A failure is an INFRASTRUCTURE finding and pause condition P3 material. It
+      is never negative mathematical evidence, and it does not weaken any
+      committed AES record.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING ON THE MATHEMATICS. The only algebraic content is the
+        derived identity that the FIPS-197 S-box has exactly 9 nonzero univariate
+        interpolation coefficients over GF(2^8), at exponents
+        {0} union {255 - 2^k}, which follows from S = A o (x -> x^254) with A a
+        GF(2)-affine map (hence a linearized polynomial plus a constant) and is
+        proved, not assumed.
+      rigorous_support: >-
+        A(y) = c + sum_{k=0}^{7} c_k y^{2^k} for a GF(2)-affine A on GF(2^8);
+        substituting y = x^{254} and reducing exponents mod 255 gives
+        (x^{254})^{2^k} = x^{254 * 2^k mod 255} = x^{(-2^k) mod 255} =
+        x^{255 - 2^k}. Nine terms, one of which is the constant. Confirmed
+        SESSION-COMPUTED by exact interpolation and exact re-evaluation at all
+        256 points.
+      validation_plan: >-
+        Recompute the interpolation in-harness from each verifier's effective
+        S-box and report the coefficient list. Not a distributional claim and not
+        presented as one.
+    - id: H2
+      statement: >-
+        LAYER MODEL. A verifier is a stack of layers, and a fault resident in a
+        layer shared by two verifiers produces identical outputs from both, hence
+        catch probability exactly 0.
+      rigorous_support: >-
+        Immediate from determinism of the shared computation: identical inputs to
+        an identical faulty layer give identical outputs, so the comparison
+        cannot separate them. This is why the audit is decisive rather than
+        statistical.
+      validation_plan: >-
+        The known-dependent null pair tests the model directly: it must read
+        exactly 0. An intermediate reading refutes H2.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit. No algorithm is proposed and NO EXPONENT IS MOVED. The
+      audit's subject is whether the campaign can adjudicate an exponent claim at
+      all, not what the exponent is.
+    memory_exponent: n/a.
+    best_known: >-
+      Not applicable. The definitional reference for RQ-AES-002 is exhaustive key
+      search at the stated key size under the frozen cost model CM-1; the
+      published-state-of-the-art comparison is UNADJUDICABLE in this environment
+      and is asserted in neither direction.
+    hidden_overhead: >-
+      The audit's own cost, measured in minutes of shell, is the entire overhead.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    "unresolvable in this environment: no primary source reachable; every
+    recalled frontier row is unverified-from-memory". Set to this string and
+    NEVER to null, per RQ-AES-002 claim_tier_ceiling R5. Rows nevertheless
+    checked INSIDE this repository, and listed as the rule requires: the AES
+    evidence records EV-AES-001..005, EV-AES-d33b1c and EV-AES-d8a13e; the AES
+    knowledge entries KN-FIND-028, KN-FIND-029, KN-TECH-069/070/071/074/075/079;
+    the proposal ledger (no prior idea on RQ-AES-002); and this repository's
+    experiment index (no experiment with an AES-prefixed id exists). None
+    contains a measurement of verifier-pair independence for this gate. Absence
+    of a search result is not evidence that the check was never made elsewhere
+    (AGENTS.md knowledge-retrieval policy).
+  sota_delta: >-
+    DEFINITIONAL-REFERENCE DELTA: ZERO. This proposal claims no attack, no
+    speedup and no margin of any kind against exhaustive key search at any key
+    size under CM-1, and the published-state-of-the-art comparison is
+    UNADJUDICABLE in this environment and is asserted in neither direction
+    (R5 clause, stated in the same sentence as required). Quantitatively the
+    contribution is evidentiary: it changes the number of independent
+    verification layers backing every future C1 or C4 verdict from a currently
+    unmeasured value -- possibly 0 -- to a measured one.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.85 that the audit forces a change to the campaign's declared verification
+    protocol. It is not higher because the whole objection could evaporate on a
+    single measurement: if the harness's interpreter differs from the one this
+    session measured, or if `cryptography` in this build does not link libcrypto,
+    the gate may be satisfiable as written and the correct outcome is a short
+    clean-pass note. It is not lower because the cheapest gate has ALREADY
+    RETURNED FAILURE -- `import Crypto` raises ModuleNotFoundError here -- and
+    because the substitution that would be reached for first is exactly the one
+    the layer argument rules out. Separately: 0.98 that the audit reaches a
+    decisive reading, since stage 0 is one shell line and stage 2 is minutes.
