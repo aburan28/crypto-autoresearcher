@@ -1,0 +1,556 @@
+red_team_report:
+  id: RT-20260803-bc2f41
+  task_id: TASK-20260803-bc2f41
+  role: red-team
+  goal_id: GOAL-MLKEM-004
+  batch_id: BATCH-d2a728
+  independent_session: true
+
+  model_provenance:
+    requested_policy: review-adversarial
+    requested_policy_alias_on_card: red-team-adversarial
+    reasoning_effort: xhigh
+    runtime: cursor_cloud_agent
+    runtime_model_label: GPT-5.6 Sol
+    resolved_model_id: null
+    fallback_allowed: true
+    fallback_used: true
+    fallback_reason: >-
+      prior session terminated on Anthropic usage limit; re-dispatched on a
+      different backend that still meets the policy's xhigh reasoning
+      requirement
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      python3 -m orchestration.adapter doctor --probe resolved no usable
+      backend: provider keys were unset and the local endpoint refused
+      connection. The runtime label above is session-provided and is not an
+      adapter-verified resolved model id.
+
+  reviewed_snapshot:
+    commit_sha: 8cc51677f7202e9f9b85efdf834860254798abf4
+    parent_sha: abc344ac0745f2e115464a5391624da0b96744b1
+    reachable_from_head: true
+    worktree_artifacts_equal_snapshot: true
+    declared_hashes_recomputed: true
+    reviewed_package: >-
+      coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-e53ce2
+    missing_prior_session_artifacts: >-
+      rt_analysis.py through rt_analysis5.py and their .out files were absent
+      from this checkout, so none was re-run. The final validator report
+      described by the task prompt was also not present when first requested;
+      a mutable working-tree early draft appeared later and was not treated as
+      durable evidence. These are infrastructure/session-state limitations,
+      not mathematical evidence.
+
+  verdict: blocking_objections
+  verdict_scope: >-
+    This verdict blocks batch 2 from comparing these full-secret marginal
+    scores directly with MATZOV.Nf or treating 17,919 rows from one database as
+    17,919 independent samples. It does not block archiving batch 1 as a
+    reproducible, reduced-dimension measurement of an adjacent full-secret
+    score primitive. It records no finding about ML-KEM, no security result,
+    and no status change.
+
+  claim_under_review: >-
+    Whether batch 1 measured the random object and aggregate statistic assumed
+    by MATZOV.Nf closely enough that batch 2 can test agreement or departure
+    from that law, with a null capable of distinguishing sieve-specific
+    dependence from candidate-class and common-input artifacts.
+
+  objections:
+    - id: OBJ-1
+      severity: blocking
+      title: >-
+        Object mismatch: a full-secret cosine table is not the split
+        enumeration-plus-FFT statistic costed by MATZOV.Nf.
+      argument: >-
+        At pinned lattice-estimator commit 3e48ef421ec2, MATZOV.Nf explicitly
+        sets k_lat = n-k_fft-k_enum, takes k_enum, k_fft and FFT modulus p as
+        inputs, and its caller samples vectors in dimension m+k_lat before
+        charging enumeration and an FFT. Batch 1 instead sieves dimension
+        m+n=60 and scores 33 hand-picked complete vectors s' with
+        cos(2*pi*(x.b-y.s')/q). It has no guessed block, no p-ary FFT bins, no
+        exact wrong-bin population, and no maximum-over-bins decision event.
+        The correct-secret marginal is a useful primitive, but it is not the
+        object whose tail and union law determine Nf. A direct Nf comparison
+        would compare X with a model of Y.
+      concrete_repair: >-
+        Freeze one reduced MATZOV parameter tuple
+        (m,k_lat,k_enum,k_fft,p,beta,beta_sieve); build the corresponding
+        m+k_lat lattice; split the known secret into lattice, enumerated and FFT
+        blocks; execute the exact enumeration and p-ary FFT score table; and
+        emit the correct bin, every wrong bin, the maximum wrong bin, and the
+        decision event over independent instances.
+      cheapest_check: >-
+        On a tiny fully enumerable instance, compute the same split score table
+        once by direct enumeration and once by the intended FFT. Require
+        bit-for-bit equality of every bin, the correct-bin label, the
+        maximum-wrong-bin value, and the hypothesis count before invoking Nf.
+
+    - id: OBJ-2
+      severity: blocking
+      title: >-
+        The archive is a marginal histogram from one coupled sieve database,
+        not an independence experiment.
+      argument: >-
+        The central assumption concerns dependence among contributions to an
+        aggregate and its competing bins. One database and one error vector do
+        not provide repeated realizations of that aggregate. I reconstructed X
+        and resampled 4,096 independent rounded-Gaussian errors at sigma=2. For
+        the current full-secret correct score, the aggregate variance was
+        404.184690 times the sum-of-marginal-variances prediction. That is not a
+        sieve finding: an independently signed-and-coordinate-permuted X
+        population preserving every row's exact norm and coefficient multiset
+        gave 402.371705. The matching nearby-object result is a controlled
+        null, showing that the apparent dependence is dominated here by the
+        shared low-dimensional error input, not identified as sieve-specific.
+        Treating vector rows as independent would therefore be wrong, while
+        treating this variance ratio as a departure from Nf would also be
+        wrong.
+      parameter_that_should_destroy_it: >-
+        The sieve-specific excess ratio, actual population divided by a
+        matched-direction null, should tend to one as dimension and mixing
+        increase if no sieve dependence remains. The absolute ratio need not
+        tend to one until common radial error fluctuations are conditioned out.
+        Batch 1 varies sigma, not dimension or population geometry, so its
+        decay sweep does not exercise this prediction.
+      cheapest_check: >-
+        Reuse one emitted vector database, draw many independent error vectors,
+        and compare aggregate variance with a norm-matched independently
+        randomized-direction population; then repeat at a second dimension.
+        Cluster on database/instance, never on vector row.
+
+    - id: OBJ-3
+      severity: high
+      title: >-
+        The uniform-b null tests target linkage, but its mixed-class rank hides
+        a mechanically forced candidate-prior offset.
+      argument: >-
+        Replacing b by uniform is a valid paired null for the narrow question
+        "does the named secret remain linked to the target?" It does not test
+        the vector-population independence assumed by Nf. Moreover, uniform,
+        centered-binomial and near-miss candidates are not exchangeable. From
+        the archived phases I recovered every y. For a random CBD(eta=2)
+        candidate c, the exact conditional class mean is
+        mean_i cos(2*pi*u_i/q)*product_j cos(pi*y_ij/q)^4; it is
+        +0.008567389 on this null. For a uniform candidate it is exactly zero
+        because no y row is zero mod q. The offset is mostly the fixed
+        population's c=0 baseline +0.010190260 passed through the CBD
+        characteristic weight 0.853672505. Randomly re-pairing phase and y
+        gives the same value within 0.843 standard deviations, and uniformly
+        translating the CBD class places the unshifted value only 1.880
+        standard deviations from the translation distribution. Thus the
+        qualitative D7 class offset is mechanically explained by candidate
+        Fourier mass against one fixed target/population. It is not residual
+        LWE signal and not identified as a g6k artifact. The producer's overall
+        rank 18/33 pools incomparable classes and cannot certify the null.
+      independent_judgement_on_validator_D7: >-
+        The reported +0.008655, +0.000026 and "about 52 sigma" could not be
+        checked because the final validator artifact and inherited scripts
+        were absent. My exact population calculation gives +0.008567389 and
+        0, confirming the class effect but not those numbers or that sigma
+        interpretation. A large candidate-resampling z-score would only prove
+        that the two deliberately different priors have different conditional
+        means; it would not be evidence that a null target contains structure.
+      cheapest_check: >-
+        With the same null target and vectors, add an independent uniform
+        translation r in Z_q^n to the whole CBD candidate cloud and repeat over
+        many r. Report ranks only within one candidate class. A class mean
+        centered at zero over translations, as in my 4,096-translation control,
+        identifies the original offset as an origin/prior artifact.
+
+    - id: OBJ-4
+      severity: blocking
+      title: >-
+        No pre-registered statistic or equivalence region can return
+        "agreement with Nf".
+      argument: >-
+        Means, ranks, a sigma sweep and post-hoc observations can find
+        differences, but none is tied to the exact success/advantage event in
+        Nf and none has an acceptance margin. "Failure to reject" would
+        therefore be called agreement without power, while any interesting
+        discrepancy could be called departure. This violates the goal's
+        symmetric-failure guard.
+      cheapest_check: >-
+        Before opening Nf outputs, freeze one statistic: at N=Nf for the exact
+        split tuple, the empirical probability that the correct FFT bin exceeds
+        the maximum wrong bin. Freeze the law-predicted value, an equivalence
+        margin, cluster-level confidence interval, and power calculation.
+        Agreement requires the whole confidence interval inside the margin;
+        overlap alone is not agreement.
+
+    - id: OBJ-5
+      severity: high
+      title: >-
+        The highlighted near-miss and wrong-class observations are construction
+        effects, not evidence about sieve output.
+      argument: >-
+        For s'=s+e_j, the phase shift is exactly -y_j; short vectors force y_j
+        small relative to q, so +0.424960 near-miss versus +0.427375 correct is
+        expected. For an independent CBD wrong candidate, s-s' remains small
+        and its characteristic function preserves positive low-frequency bias,
+        giving the analytically predicted class mean +0.288132 versus the
+        observed eight-candidate mean +0.290615. A uniform candidate makes
+        y.(s-s') uniform mod q for nonzero y, so its population mean is zero.
+        The different means and spreads follow from deliberately different
+        candidate priors and shared construction; they do not diagnose sieve
+        correlations.
+      cheapest_check: >-
+        For each candidate class, publish the analytic conditional mean from
+        the recovered y population and compare the empirical class mean only
+        with its own prediction. Do not pool classes or use cross-class ranks.
+
+    - id: OBJ-6
+      severity: high
+      title: >-
+        One instance, one database seed, one algorithm and one dimension cannot
+        support a statistical departure claim.
+      argument: >-
+        The independent sampling unit is at least an instance/database, not a
+        vector row. At n_cluster=1 there is no estimate of instance variance,
+        sieve-seed variance, tail calibration, false-decision probability, or
+        effective sample size. No p-value or confidence interval over the
+        target population is available.
+      minimum_replication_before_belief: >-
+        As an administrative floor, use at least 30 independently generated
+        A,s,e instances per parameter cell and two independent sieve seeds per
+        instance (60 databases), with a pre-registered cluster-level power
+        calculation allowed to raise that count. Hold out one additional
+        dimension as a replication cell. This is a minimum design, not a claim
+        that 30 has adequate power for every effect or extreme tail.
+      cheapest_check: >-
+        First run five independent A instances with two sieve seeds each as a
+        variance-components pilot. If between-instance or between-sieve
+        variance is non-negligible, the current row-wise error bars are
+        invalid and the power calculation must use those cluster variances.
+
+    - id: OBJ-7
+      severity: high
+      title: >-
+        q=127, d=60 is a circular phase regime, and the reported x-dot-e
+        statistic was wrapped without saying so.
+      argument: >-
+        measure_scores.py stores center_mod(X.e,q) under the name
+        x_dot_e_main. The reported range [-63,63] is therefore mechanically
+        bounded. Reconstructing X shows the unwrapped range is [-104,102] with
+        sd 26.234721, while the stored wrapped value has sd 25.632809; 265 of
+        17,919 values (1.478877%) wrap. The reported 76.69% below q/4
+        reproduces only for the wrapped phase. The wrap rate is not enormous,
+        so this alone does not invalidate the toy run, but it proves q changes
+        the phase tails and candidate Fourier response. No transfer to
+        q=3329 or dimensions in the hundreds has been justified.
+      parameter_that_should_destroy_it: >-
+        At fixed X and error scale, increasing q must drive the wrap fraction
+        to zero and the correct score toward one. To test the model rather than
+        that trivial trend, sweep q and sigma while holding the model's
+        normalized phase width fixed; the standardized score law should then
+        remain stable if the assumed scaling is right.
+      cheapest_check: >-
+        Emit unwrapped X.e and wrap_count, then rerun one matched normalized
+        phase-width cell at a larger prime q. Treat any q effect separately
+        from a sieve-correlation effect.
+
+    - id: OBJ-8
+      severity: medium
+      title: >-
+        Omitting x and y is a serious transparency defect, but the claim that
+        membership is unauditable in principle is false for this archive.
+      argument: >-
+        rank(A^T mod 127)=25 does make y alone vacuous. It is not all the archive
+        contains. Candidate phase differences have rank 25 and recover every y;
+        the eight target phases add eight independent equations in x. Together
+        with A^T x=y they have rank 33 in 35 unknowns. Enumerating the two free
+        residues subject to the emitted norm2_x recovered a unique centered x
+        for every one of 17,919 rows. All reconstructed vectors satisfy
+        X*A-Y=0 mod q, all emitted target/candidate phases, and all norm records.
+        Thus the producer's zero-violation membership claim is independently
+        auditable here, albeit accidentally and opaquely. Direct vector
+        emission is still required; future candidate sets may not span and
+        reconstruct them.
+      cheapest_check: >-
+        Emit integer X and Y, basis coefficients, and a hash over the
+        index-aligned rows. The direct congruence check then replaces an
+        accidental inverse problem.
+
+  required_controls:
+    - id: CTRL-1
+      control: >-
+        Exact toy equivalence between direct enumeration and the split
+        enumeration-plus-FFT implementation.
+      pass_condition: Every bin and the decision event match bit-for-bit.
+    - id: CTRL-2
+      control: >-
+        Pre-registered correct-bin-versus-maximum-wrong-bin agreement statistic
+        with equivalence margin and cluster-level power.
+      pass_condition: >-
+        The full confidence interval lies within the frozen agreement margin.
+    - id: CTRL-3
+      control: >-
+        Repeated independent errors and independent databases, compared with a
+        norm-matched direction-randomized nearby object.
+      pass_condition: >-
+        Any claimed sieve-specific excess is separated from and exceeds the
+        matched-null effect under cluster-level uncertainty.
+    - id: CTRL-4
+      control: Uniform translations of each nonuniform candidate class.
+      pass_condition: >-
+        Null class means center at zero and nominal ranks are calibrated within
+        class; no pooled cross-class rank is used.
+    - id: CTRL-5
+      control: Emit X,Y and unwrapped X.e, with direct membership verification.
+      pass_condition: Zero congruence, phase, norm and row-hash mismatches.
+    - id: CTRL-6
+      control: >-
+        Multi-instance/multi-sieve replication with one held-out dimension and
+        one larger-q normalized-width cell.
+      pass_condition: >-
+        The pre-registered conclusion replicates at the cluster level and is
+        reported only for tested cells.
+
+  counterexample_or_mutation:
+    cheapest: >-
+      Uniformly translate the CBD candidate cloud on the existing uniform-b
+      null. It requires no new sieve and directly removes the privileged
+      origin while preserving the class's internal shape.
+    run_here: true
+    result: >-
+      Across 4,096 translations (seed 2026081301), class means had mean
+      -0.000037631 and sd 0.004577971; the unshifted +0.008567389 was 1.879658
+      sd from that distribution and 6.4453125% of translations were at least
+      as extreme in absolute value.
+    interpretation: >-
+      The D7-type offset is not exceptional under candidate translation. This
+      clears no Nf comparison; it identifies the cheapest local artifact route.
+
+  baseline_comparison:
+    pollard_rho: not_applicable; this batch makes no ECDLP claim
+    bsgs: not_applicable; this batch makes no ECDLP claim
+    closest_specialized_baseline: >-
+      The exact MATZOV split enumeration-plus-FFT statistic at the same reduced
+      tuple, with the Ducas-Pulles dependence objection as the falsification
+      target. Batch 1 did not implement this baseline.
+    dominated_by: n/a (no attack or performance result claimed)
+    pareto_axes_checked: >-
+      No time-memory-data/query Pareto claim is made. The measured 19-second toy
+      run is instrument execution, not an attack cost and not a speedup.
+    sota_delta: no attack; measurement-design contribution only
+
+  heuristic_challenges:
+    - id: HC-1
+      challenge: >-
+        The implicit transfer from a full-secret marginal at (d,q)=(60,127) to
+        the split FFT aggregate is unnumbered and unsupported.
+      required_resolution: >-
+        Replace transfer by exact implementation at reduced scale; any later
+        dimension/q extrapolation must be a separately numbered heuristic with
+        uncertainty and a scale-validation plan.
+    - id: HC-2
+      challenge: >-
+        Vector rows from one g6k database are implicitly available as
+        independent observations, but no mixing or effective-sample argument is
+        stated.
+      required_resolution: >-
+        Estimate dependence using independent target and database clusters,
+        with the matched nearby-object control.
+    - id: HC-3
+      challenge: >-
+        Agreement is not operationalized, creating a one-sided design that can
+        always report an interesting departure.
+      required_resolution: Freeze an equivalence test before model output is opened.
+
+  cost_model_challenges:
+    - id: CM-1
+      challenge: >-
+        Current N=17,919 is a database size, not a calibrated effective sample
+        count for Nf. No map from database rows to independent FFT score
+        contributions or total success probability exists.
+    - id: CM-2
+      challenge: >-
+        Per-vector means cannot determine the maximum-wrong-bin tail across
+        approximately exp(k_enum*H)*p^k_fft hypotheses, which is the bracket
+        where Nf's independence assumption matters.
+    - id: CM-3
+      challenge: >-
+        No time, memory, precomputation, enumeration/FFT, repetition, or
+        per-attempt-times-inverse-success cost is claimed in batch 1. Batch 2
+        must not infer any of them from this histogram.
+
+  reduction_and_scope_challenges:
+    - No ML-KEM break, security proof, or affected/cleared FIPS 203 parameter set follows.
+    - Reduced dimension 60 and q=127 are not cryptographic-scale validation.
+    - No status change to EV-MLKEM-011/013/015/017/018/019/020/021/af61e7 or any KN-* entry is authorized.
+    - AGENTS.md rule 12 remains unmet and unwaived.
+    - Failure of this measurement design would not close the dual-sieve lane; it would name an instrument/object mismatch and redirect to the exact split FFT object.
+
+  proof_architecture_challenges:
+    - id: PAC-1
+      attack: observation_collision
+      result: >-
+        The full-secret marginal and even its large shared-error variance can
+        look the same for the actual X population and a signed-permuted
+        norm-matched nearby object. The missing separator is the exact FFT-bin
+        aggregate plus an actual-versus-null excess statistic.
+    - id: PAC-2
+      attack: quantifier_order
+      result: >-
+        The archive establishes existence of one instance/seed with these
+        scores. A law claim quantifies over the instance and database
+        distribution; vector rows cannot be substituted for those outer draws.
+    - id: PAC-3
+      attack: method_ceiling
+      result: >-
+        Under ideal post-processing, this archive can support a joint
+        full-secret score table for one database and eight targets. It cannot
+        recover the distribution of the maximum FFT wrong bin over independent
+        instances, so its ceiling does not reach an Nf agreement/departure
+        conclusion.
+    - id: PAC-4
+      attack: nearby_object
+      result: >-
+        The matched signed-coordinate-permutation population reproduced the
+        404-fold variance inflation almost exactly (402-fold). Matching is a
+        controlled null, not corroboration.
+
+  quantitative_claims:
+    - claim_id: Q01
+      claim: Snapshot commit, parent, reachability, worktree identity, and six declared producer hashes.
+      status: reproduced
+      my_value: >-
+        commit 8cc51677f7202e9f9b85efdf834860254798abf4; parent
+        abc344ac0745f2e115464a5391624da0b96744b1; all six sha256 values
+        matched the archive receipt and git diff against the snapshot was empty.
+    - claim_id: Q02
+      claim: m=35, n=25, d=60, q=127, N=17919 and candidate counts 1/16/8/8.
+      status: reproduced
+      my_value: Directly parsed from raw_scores.json; candidate matrix shape was 33 by 25.
+    - claim_id: Q03
+      claim: MAIN group means/spreads and near-miss comparison in report sections 4.3 and 5.
+      status: reproduced
+      my_value: >-
+        correct 0.427375248; uniform mean 0.003852458 sd 0.006056076;
+        CBD mean 0.290615127 sd 0.023960290; near-miss mean 0.424960348
+        sd 0.001083285, range 0.423492450 to 0.426723784.
+    - claim_id: Q04
+      claim: NULL group means/spreads and rank in report section 4.1.
+      status: reproduced
+      my_value: >-
+        nominal 0.003297795, rank 18/33; uniform mean 0.001121211 sd
+        0.005035300; CBD mean 0.008283203 sd 0.002156639; near-miss
+        mean 0.003365180 sd 0.000856888.
+    - claim_id: Q05
+      claim: Decay correct means, wrong means and ranks.
+      status: reproduced
+      my_value: >-
+        sigma 0.5: 0.949239764/0.002925867 rank 1/5; sigma 1:
+        0.841150399/0.003311377 rank 1/5; MAIN sigma 2:
+        0.427375248/0.180820097 rank 1/33 over its deliberately mixed wrong
+        pool; sigma 4: 0.018270934/-0.000436008 rank 1/5; sigma 8:
+        0.004641033/0.003168578 rank 3/5; sigma 16:
+        -0.003712118/-0.000214976 rank 4/5; uniform error:
+        0.008976983/0.003230569 rank 1/5.
+    - claim_id: Q06
+      claim: Every emitted rounded cosine agrees with cos(2*pi*t/127).
+      status: reproduced
+      my_value: >-
+        1,290,168 emitted cosine values checked; zero exceeded the 5.000001e-7
+        rounding tolerance.
+    - claim_id: Q07
+      claim: Producer's x-dot-e range/sd/fraction describe unwrapped X.e.
+      status: not_reproduced
+      reason: >-
+        The script stores center_mod(X.e,q). Wrapped values reproduce:
+        range [-63,63], population sd 25.632809482, fraction
+        abs(.)<q/4 = 0.766895474. Reconstructed unwrapped X.e has range
+        [-104,102], sd 26.234720875 and fraction 0.766616441; 265/17,919
+        values wrap.
+    - claim_id: Q08
+      claim: Lattice membership is unauditable in principle because x is omitted and rank(A^T)=25.
+      status: not_reproduced
+      reason: >-
+        rank(A^T)=25 reproduced, but candidate differences also have rank 25
+        and recover Y. A^T plus eight target equations has rank 33; norm2_x
+        resolves the two free residues uniquely for all 17,919 vectors. Zero
+        membership, phase or norm mismatches remained.
+    - claim_id: Q09
+      claim: Validator D7 reports CBD +0.008655 versus uniform +0.000026, about 52 sigma.
+      status: unable_to_check
+      reason: >-
+        The final validator report and inherited analysis scripts were absent.
+        Its statistic and sigma denominator could not be inspected or re-run.
+    - claim_id: Q10
+      claim: Exact candidate-population null offset derived independently here.
+      status: reproduced
+      my_value: >-
+        CBD(eta=2) conditional expectation 0.008567388975; uniform-Zq
+        expectation 0 because all 17,919 Y rows are nonzero; c=0 baseline
+        0.010190259760; mean CBD characteristic weight 0.853672504984;
+        product 0.008699144575.
+    - claim_id: Q11
+      claim: Random pairing and translation controls for the D7-type offset.
+      status: reproduced
+      my_value: >-
+        4,096 y/phase pairing permutations, seed 2026081304: mean
+        0.008700036696, sd 0.000157433092, actual z=-0.842566.
+        4,096 uniform candidate translations, seed 2026081301: mean
+        -0.000037631008, sd 0.004577971474, unshifted z=1.879658,
+        two-sided empirical tail fraction 0.064453125.
+    - claim_id: Q12
+      claim: Analytic CBD candidate means explain the MAIN wrong-class observation.
+      status: reproduced
+      my_value: >-
+        Exact conditional CBD population mean 0.288132147 versus the observed
+        eight-candidate mean 0.290615127; uniform population mean exactly 0.
+    - claim_id: Q13
+      claim: Shared-error variance inflation on actual and nearby-object vector populations.
+      status: reproduced
+      my_value: >-
+        4,096 errors, seed 2026081302. Actual X: aggregate sd 0.088546436132
+        versus independent-row sd 0.004404343235, design effect 404.184690,
+        nominal-N/design-effect 44.333693. Signed-permuted X, seed
+        2026081303: aggregate sd 0.088332494672 versus 0.004403589011,
+        design effect 402.371705, quotient 44.533450. This is an exploratory
+        controlled null for the full-secret score, not an Nf comparison.
+    - claim_id: Q14
+      claim: Recovered Y and X dimensions/norm consistency.
+      status: reproduced
+      my_value: >-
+        Candidate-difference rank 25; recovered Y phase mismatches 0 and Y norm
+        mismatches 0; max abs(Y)=10. Combined x system rank 33; all 17,919
+        rows had exactly one norm-matching centered solution; max abs(X)=10.
+    - claim_id: Q15
+      claim: The five inherited rt_analysis scripts and matching outputs reproduce.
+      status: unable_to_check
+      reason: >-
+        No rt_analysis.py through rt_analysis5.py or matching .out existed in
+        the assigned task path in this checkout. Nothing from them is cited.
+    - claim_id: Q16
+      claim: Local /tmp/sagevenv and /tmp/lattice-estimator instruments are available as described.
+      status: unable_to_check
+      reason: >-
+        Both paths were absent in this VM. No sieve was re-run. The pinned
+        lwe_dual.py source was instead read at the exact commit through
+        raw.githubusercontent.com; no Nf numerical comparison was performed.
+
+  narrowest_supported_statement: >-
+    Snapshot 8cc51677 contains reproducible raw phases and cosine scores for
+    17,919 bgj1_sieve vectors from one d=60, q=127 q-ary lattice database,
+    scored against complete secret candidates on one LWE target, one uniform-b
+    target and a coarse error sweep. The arithmetic summaries reproduce, and
+    the omitted vectors can in fact be reconstructed uniquely from this
+    archive. The measurement establishes a full-secret toy score table. It
+    does not yet measure MATZOV's split FFT-bin object, does not estimate
+    independence at the instance/database level, and has no pre-registered
+    route to declare agreement with Nf.
+
+  next_concrete_action: >-
+    Do not compare the current table with Nf. First replace batch 2's measured
+    object with an exact reduced-parameter split enumeration-plus-FFT
+    implementation and pass the direct-enumeration bit-equality control; then
+    freeze the correct-bin-versus-maximum-wrong-bin equivalence statistic and
+    replicate it over independent instance/database clusters.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-bc2f41/report.yaml
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-bc2f41/notes.md
