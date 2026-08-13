@@ -46,7 +46,8 @@ review, and synthesis.
      every heuristic is explicit, numbered, and given a random-model
      justification (rigorous bound + classical distribution theorem); the
      justification is argued to transfer to the structured object at hand;
-     validation evidence is at the claimed scale, not toy scale; o(1)/polylog
+     validation evidence states its tested scale and any transfer assumptions;
+     o(1)/polylog
      overheads and memory costs are reported and do not silently erase the
      headline exponent at standardized sizes; total expected cost is
      per-attempt cost × inverse success probability; corollaries via cited
@@ -107,14 +108,13 @@ pulls in `main` and surfaces the decision as a PR:
 ## Rules
 
 - Only the coordinator subagent changes hypothesis status.
-- Claims must be scoped to the tested curves, bit sizes, solver, parameters,
-  and budget. Toy-scale results never become crypto-scale claims; this
-  applies symmetrically to heuristic-validation experiments, whose sample
-  scale must match the scale of the claim they support.
+- Claims must state the tested curves, bit sizes, solver, parameters, budget,
+  and any transfer or extrapolation assumptions. This applies symmetrically to
+  heuristic-validation experiments; a scale mismatch is an assumption to
+  review, not an automatic prohibition.
 - Conditional results stay conditional. A `support` or `expand` decision on a
-  heuristic-dependent claim names the heuristic and its validation evidence
-  (experiment IDs) in the decision record; an unvalidated or toy-scale-only
-  heuristic caps evidence strength below `strong` and blocks `support`.
+  heuristic-dependent claim names the heuristic, transfer assumptions, and
+  validation evidence (experiment IDs) in the decision record.
 - Surprising or high-impact results get `replicate`, not `support`, on first
   observation. Symmetrically, rejecting a theory deserves the same
   skepticism as confirming one: `reject_scoped` requires a checkable

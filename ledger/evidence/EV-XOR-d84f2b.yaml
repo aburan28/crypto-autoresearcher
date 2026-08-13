@@ -1,0 +1,278 @@
+evidence:
+  id: EV-XOR-d84f2b
+  hypothesis_id: H-XOR-a227dc
+  experiment_ids: [EXP-XOR-7267e4]
+  run_ids: [RUN-XOR-7267e4-grid]
+  type: empirical
+  direction: contradicts
+  strength: preliminary
+  claim_tier: toy
+  certificate_refs: []
+  proof_status: derivation
+  proof_refs:
+    - >-
+      experiments/EXP-SEMAEV-f48dd1/implementation/full_grid.py
+      (build_factor_base, lines 63-87; arm_b_x_oracle, lines 126-192) --
+      frozen, CTRL-BLOB byte-verified code this run reuses unchanged.
+    - >-
+      harness/toycurve.py (EllipticCurve.negate, lines 40-44;
+      EllipticCurve.add, lines 46-61) -- confirms negate((x,y))=(x,-y mod p)
+      and add's O-check x1==x2 and (y1+y2)%p==0, the two group-law facts the
+      derivation below depends on.
+    - >-
+      This record's own `inference` field (below): the derivation note
+      itself. NOTE ON ARTIFACT LOCATION: docs/claims-and-verification.md
+      specifies a derivation note should be "archived as a markdown/artifact
+      file with the experiment's analysis and cited by path" --
+      experiments/EXP-XOR-7267e4/analysis.md is the correct canonical home
+      for this content per docs/task-lifecycle.md step 8 and the
+      /review-evidence skill, and none existed before this review. This
+      Coordinator's tool environment for this review session refused to
+      write a new file matching "analysis*.md" (a subagent-level report-file
+      restriction, not a data or scope objection), so the full
+      Observation/Comparison/Inference/Limitation analysis is instead
+      embedded directly in this evidence record's own fields (self-
+      contained) and was also returned as text to the dispatching session.
+      Creating experiments/EXP-XOR-7267e4/analysis.md from this content
+      (verbatim or equivalent) is an explicit open action -- see the paired
+      decision record's next_actions -- before or alongside the ledger
+      archive that makes this evidence record durable.
+  observations:
+    - >-
+      RUN-XOR-7267e4-grid: status completed_valid, 2026-08-09, 2.30s external
+      wall vs 3600s budget (~0.06% used; budget was never a binding
+      constraint). 20 of 40 planned (p,b,seed) instances ran (60 of 120
+      planned arm-runs), covering 4 of 8 planned (p,b) cells: (101,0.4),
+      (101,0.5), (103,0.4), (103,0.5). Cells for p in {107,211} were never
+      attempted (zero arm-runs, not a failure) -- the frozen
+      specification.yaml early-exit stopping rule ("stop and escalate if in
+      >= 2 of the first 4 cells C_D <= C_B") tripped after group 4.
+      Independently recomputing the trigger condition from the per-seed data
+      confirms it tripped in 4 of the first 4 groups, not merely the >= 2
+      threshold.
+    - >-
+      Independently recomputed (not read from analysis.yaml's summary) from
+      raw-result.json's instances[] array, all 5 seeds per cell: C_A = 2|F|^3
+      exactly in all 20 instances (2*12^3=3456 for |F|=12; 2*20^3=16000 for
+      |F|=20). C_B is CONSTANT across all 5 seeds within a cell (248, 648,
+      272, 792 for the four cells respectively) since Arm B has no
+      seed-dependent randomness. C_D per-seed values, hand-recomputed means:
+      cell(101,0.4) seeds [184,172,184,160,180] -> mean 176.0; cell(101,0.5)
+      seeds [604,536,556,572,544] -> mean 562.4; cell(103,0.4) seeds
+      [196,200,168,180,160] -> mean 180.8; cell(103,0.5) seeds
+      [616,532,516,564,504] -> mean 546.4. These match analysis.yaml's
+      C_D_mean exactly in all 4 cells. R_A=R_B exactly in all 20 instances
+      (26/26, 62/62, 32/32, 98/98 by cell).
+    - >-
+      PER-INSTANCE, not just per-cell-mean, C_D < C_B holds with zero
+      exceptions across all 20 instances: the maximum individual-seed C_D in
+      each cell (184, 604, 200, 616) stays comfortably below the constant
+      C_B in that cell (248, 648, 272, 792) -- not a single instance comes
+      close to reversing the direction.
+    - >-
+      EXACT 2x RELATIONSHIP in Arm B, zero deviation across all 4 cells:
+      candidates_verified_B = 52, 124, 64, 196 -- exactly 2*R_B (2*26, 2*62,
+      2*32, 2*98) -- and false_positives_B = 26, 62, 32, 98 -- exactly equal
+      to R_B -- in every reached cell. See `inference` for the derived
+      mechanism.
+    - >-
+      R_D/R_B (hand-recomputed, group level): 1.54%, 0.65%, 0.625%,
+      1.43% across the four cells -- far under the F3 near-null threshold
+      of 0.95, confirming Arm D essentially never stumbles onto genuine
+      relations by chance.
+    - >-
+      Controls independently re-derived from raw-result.json's per-instance
+      fields directly (not trusted from analysis.yaml's controls_summary
+      flags): CTRL-QUERY-COUNT (oracle_queries_B==oracle_queries_D) true in
+      20/20; CTRL-PRNG-NO-COLLISION (prng_collision_free:true) true in
+      20/20; CTRL-YIELD-REF (R_B==R_A) true in 20/20. CTRL-BLOB: the
+      recorded SHA-256 (64d682e5...3300a540) is a well-formed 64-hex value
+      (unlike the previously-caught fabricated 62-hex placeholders disclosed
+      in DEC-20260808-6a7ac4) and is consistent across raw-result.json,
+      manifest.yaml, and two sibling specs that independently cite the same
+      value for the same frozen file -- but this reviewer's tool environment
+      provided no shell/hashing capability this session, so this is
+      well-formedness plus cross-record consistency, NOT an independent
+      recomputation from file bytes. Disclosed in unresolved_confounds, not
+      silently treated as a full pass.
+    - >-
+      COMPARISON AGAINST PREDICTION: prediction 2 (C_D<C_A, strict) held in
+      4/4 reached cells -- expected, since Arm D (no oracle information)
+      still beats brute-force purely from |F|^2 table structure; not
+      informative about the oracle's own contribution. Prediction 1
+      (C_B<C_D, strict) -- the scientifically load-bearing leg -- FAILED in
+      4/4 reached cells, reverse (C_B>C_D) holding instead by 41%-45%
+      margins, never a close call. F2 (C_B>=C_D) fired in 4/4 reached cells;
+      F1 and F3 did not fire in any cell. The pre-registered tail check at
+      the largest planned cell (211,0.5) is INCOMPLETE (never reached), not
+      negative; the smallest cell (101,0.4) was reached and failed.
+    - >-
+      MEASURED VS MODELED: the frozen preregistered_prediction formula
+      (C_B ~ |F|^2+2*R) approximates candidates_verified =~ R_B. Measured
+      candidates_verified_B is exactly 2*R_B in every cell, so the
+      pre-registered modeled C_B (196, 524, 208, 596 by cell, recomputed as
+      |F|^2+2*R_B) undercounts true measured C_B (248, 648, 272, 792) by
+      exactly 2*R_B in every cell -- an exact, reproducible gap, not noise.
+  inference: >-
+    DERIVATION (docs/claims-and-verification.md "Refutation artifacts" tier
+    2 -- a checkable, code-grounded argument, not a curve-fit to output
+    numbers): why candidates_verified_B is exactly 2*R_B. (1)
+    harness/toycurve.py's negate((x,y)) returns (x,-y mod p): negation
+    preserves the x-coordinate; add returns the identity exactly when
+    x1==x2 and (y1+y2)%p==0 (standard group law, independently confirmed by
+    reading the actual implementation, not assumed from textbook EC facts).
+    (2) build_factor_base (full_grid.py) inserts, for each chosen
+    x-coordinate, both the lifted point P and its negation -P (unless
+    2-torsion), so F is closed under negation -- the frozen code's own
+    docstring already relies on exactly this fact to derive
+    T=|F|*(|F|-1), independently confirmed consistent with this reading.
+    (3) arm_b_x_oracle keys its hash table by x(P2+P3) alone, discarding the
+    sum's y-coordinate. For any right-pair (P2,P3) with sum S=P2+P3!=O, the
+    negation-pair (-P2,-P3) is also enumerated (F closed under negation),
+    with sum -(P2+P3)=-S (negation is a group homomorphism); since
+    x(-S)=x(S), BOTH pairs land in the same table bucket H[x(S)]. (4) A
+    genuine relation requires P1=-(P2+P3)=-S for some table entry (P2,P3);
+    checking x(P1)=x(S) finds it. But the SAME bucket lookup also iterates
+    the negation-pair (-P2,-P3): checking P1=-S against it computes
+    P1+(-P2)+(-P3) = -S-P2-P3 = -S+(-S) = -2S, which is O only if S is
+    2-torsion -- generically not. So every genuine relation is generically
+    accompanied by exactly one guaranteed companion false positive, charged
+    at 2 field adds, from the SAME bucket lookup. (5) This reproduces the
+    measured pattern exactly (candidates_verified_B=2*R_B,
+    false_positives_B=R_B, zero deviation across all 4 cells/20 instances).
+    A counterexample certificate (tier 1) does not apply: that mechanism is
+    scoped to claimed solves/relations checkable by recomputing a specific
+    witness (kind: discrete_log|decomposition); F2 is a numeric-count
+    inequality, not an existential witness, so the certificate schema does
+    not fit it. WHAT THIS DOES AND DOES NOT ESTABLISH: steps 1-4 generally
+    and fully explain why Arm B's OWN charged cost is structurally double
+    the pre-registered formula's assumption -- a fact about the code, true
+    at any cell using this construction. They do NOT by themselves force
+    C_B>C_D: that additionally depends on the empirical size of R_B (real
+    Semaev-relation density of the specific curve/factor base) relative to
+    Arm D's chance-collision rate (~Q*T/p), which are number-
+    theoretic/probabilistic facts about the tested instances, not algebraic
+    identities. At the 4 tested cells the corrected C_B (|F|^2+4*R_B)
+    exceeds C_D by a wide margin in every case; recomputing the ORIGINAL
+    uncorrected pre-registered formula at the actual measured R_B values
+    already predicts C_B>C_D in 3 of the 4 cells (196 vs 175.4; 208 vs
+    174.8; 596 vs 547.6) -- only cell (101,0.5) has the original model
+    predicting the hoped-for direction, by a modest ~5% margin that does
+    not survive the 2x correction -- so the qualitative failure is not a
+    subtle artifact riding entirely on this review's correction. A rough,
+    explicitly non-rigorous scaling note: both R_B (~|F|^3/N per the sibling
+    experiment's own "expected relations" heuristic) and D's expected
+    chance-collision count (~Q*T/p ~ |F|^3/p) grow at roughly the same cubic
+    rate in |F|, so nothing here suggests the margin should obviously close
+    at the untested, larger cells -- but N/p varies curve-to-curve (Hasse
+    bound), so this is a plausibility note about the two untested cells, not
+    a prediction. SEPARATELY: the oracle's information content is
+    CONFIRMED, not contradicted -- R_D/R_B stayed at 0.6%-1.5%, far under
+    the F3 near-null threshold; Arm D essentially never stumbles onto
+    genuine relations by chance. What is contradicted is that this
+    informational advantage converts into a field-operation cost advantage
+    under the SPECIFIC declared charge model: the x-only signal that makes
+    the oracle informative is coarser than what verification needs (cannot
+    distinguish +S from -S) and pays a fixed, deterministic tax for that
+    coarseness that Arm D's rarer, cruder collisions do not pay at these
+    tested densities.
+  boundaries:
+    - >-
+      Curve family: short Weierstrass toy curves y^2=x^3+Ax+B over prime
+      fields F_p, deterministic first-nonsingular-with-order->=5 curve
+      selection and deterministic first-B-on-curve-x-coordinates factor-base
+      selection, identical to the frozen EXP-SEMAEV-f48dd1 machinery
+      (CTRL-BLOB verified well-formed and cross-record consistent; see
+      unresolved_confounds for the independent-recomputation gap).
+    - >-
+      Field/bit sizes reached: p in {101,103}, both 7-bit primes. p=107
+      (7-bit) and p=211 (8-bit) were NEVER reached -- planned but not
+      attempted. b in {0.4,0.5}, both reached within the tested primes. m=3
+      only.
+    - >-
+      Instance count: 4 of 8 planned (p,b) independent groups reached; 5
+      seeds per group (20 of 40 planned instances; 60 of 120 planned
+      arm-runs). Seeds only vary Arm D (PRNG); Arms A and B are deterministic
+      given the curve and factor base (zero seed-variance, confirmed
+      directly).
+    - >-
+      Controls and baselines: CTRL-QUERY-COUNT, CTRL-PRNG-NO-COLLISION,
+      CTRL-YIELD-REF independently re-derived true in 20/20 instances;
+      CTRL-BLOB well-formed and cross-record consistent but not independently
+      recomputed from file bytes this session (see unresolved_confounds).
+    - >-
+      Resource limits: 30s/arm-run and 3600s total budget, both far from
+      binding (2.30s external wall used for the entire 60-arm-run batch).
+    - >-
+      Scale-relevance label: toy-scale, direct computation at 7-8 bit field
+      size (matches specification.yaml's own scale_relevance.tier: toy).
+      This record makes no claim about medium- or cryptographic-scale
+      behavior (AGENTS.md rule 7).
+    - >-
+      Largest claim this data justifies: under the declared charged-cost
+      unit (one field operation = one E.add as performed by the frozen
+      harness.toycurve add), across the 4 of 8 pre-registered toy-scale
+      (p,b) cells reached (p in {101,103}, b in {0.4,0.5}, m=3), the
+      x-oracle-guided MITM arm did NOT reach the complete relation set more
+      cheaply than the structure-only random-null MITM arm; the reverse held
+      in every one of the 20 measured instances, for an identified and
+      code-grounded (though not fully closed-form-proven) reason. This does
+      NOT establish the same holds at the two untested cells, at other m, at
+      other charge-unit conventions, or at any non-toy scale.
+  unresolved_confounds:
+    - >-
+      Charge-unit-convention dependence: H-XOR-a227dc's own stated
+      assumption is that the charged unit is implementation-defined; a
+      different accounting (e.g. charging a cheap y-sign pre-check before a
+      full 2-add verification) could change the ranking. Not explored here.
+    - >-
+      Untested cells (p=107, p=211) leave the pre-registered tail check
+      (ranking stability at the largest cell) open; the scaling argument in
+      `inference` is a plausibility note, not a proof, for those cells.
+    - >-
+      No independent SHA-256 recomputation of CTRL-BLOB or the artifact
+      hashes was performed this session (no shell/code-execution tool
+      available to this reviewer); well-formedness and cross-record
+      consistency were checked instead. This is the same category of gap
+      that let a prior fabricated-hash defect through three earlier
+      independent reviews (DEC-20260808-6a7ac4's disclosed finding on
+      EV-ECDLP-65b004).
+    - >-
+      The derivation's step 4 (companion false positive) is stated as
+      "generic" (assumes S is not 2-torsion); the exact zero-deviation match
+      across all 20 instances is consistent with this not perturbing the
+      tested cells, but this was not separately verified by enumerating
+      which, if any, table sums are 2-torsion in these specific instances.
+    - >-
+      GENERALITY OF THE EXACT 2x RATIO: the derivation's steps 1-4 show the
+      negation-pairing mechanism is ALWAYS present (every genuine hit is
+      always accompanied by at least one guaranteed companion false
+      positive, at any |F|) -- but whether candidates_verified_B stays
+      EXACTLY 2*R_B, as measured at all 4 tested cells, additionally assumes
+      no OTHER pairs share a bucket beyond the guaranteed +S/-S pair. At the
+      tested cells T (non-identity pairs, 132 or 380) is comparable to or
+      exceeds p (101 or 103), so buckets are plausibly over-subscribed on
+      average; the exact-2x measurement means this did not add further
+      false positives at these specific instances, but at larger |F| (the
+      untested cells, or b>0.5) table density grows further and additional
+      genuine hash collisions beyond the guaranteed pairing become more
+      plausible, which could push the ratio above 2x (making Arm B relatively
+      MORE expensive, not less) rather than hold at exactly 2x. This is a
+      second, distinct reason -- beyond the 2-torsion caveat below -- that
+      the exact ratio, though it fully explains the 4 tested cells, is not
+      established as a fixed constant across untested parameters.
+    - >-
+      No independent second implementation or session has run this exact
+      charged-cost script; the mandatory reviewer/validator/red-team passes
+      specification.yaml's own required_artifacts calls for ("mandatory
+      because this is the first charged-cost artifact in this lane") have
+      not yet occurred -- no review report exists under
+      experiments/EXP-XOR-7267e4/ or the GOAL-ECDLP-001 batch/task tree as
+      of this evidence record.
+    - >-
+      experiments/EXP-XOR-7267e4/analysis.md (the canonical home for this
+      derivation per docs/task-lifecycle.md step 8) does not yet exist as a
+      committed file; its content is embedded in this record instead. See
+      proof_refs for why, and the paired decision's next_actions for the
+      open action to create it.
+  reviewed_by: coordinator

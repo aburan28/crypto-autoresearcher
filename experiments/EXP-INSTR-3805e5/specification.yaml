@@ -1,0 +1,267 @@
+experiment:
+  id: EXP-INSTR-3805e5
+  hypothesis_id: null
+  derived_from_idea: IDEA-20260807-a4f5c5
+  question_id: RQ-INSTR-f8faa0
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-cb71b5
+  version: 1
+  title: 'FAULT-INJECTION TESTING OF THE CERTIFICATE AND RUN-RECORD PIPELINE: the campaign''s certificate
+    discipline has never been exercised, because every run it has produced carries kind "none"; an
+    enumerated mutation suite is proposed together with five concrete defects read in the committed
+    source, including a duplicated _inference_block that makes the adapter path dead code, a discrete_log
+    verifier whose expected schema differs from the documented one, and an unguarded verifier call
+    that burns a run id and leaves an empty directory'
+  status: draft
+  objective: "(A) THE CERTIFICATE DISCIPLINE IS UNTESTED IN THIS CAMPAIGN, AS A MATTER OF RECORD.\
+    \ docs/claims-and-verification.md requires that every run claiming a solve or a relation emit\
+    \ a certificate and that the run wrapper re-verify it with code independent of the solver, refusing\
+    \ completed_valid on failure. Both committed runs of GOAL-ENDO-001 -- RUN-INSTR-p4001-a and RUN-ICINV-p4001-a\
+    \ -- record certificate {kind: none, verified: true, verifier: no-claim}, which is correct for\
+    \ pure measurement runs and means the verification path has executed zero times in this campaign.\
+    \ A discipline whose enforcement code has never run on a real certificate is a policy, not a control.\
+    \ The first lane to emit a real certificate will be the first test of it, and that is the wrong\
+    \ time to discover a defect.\n(B) FIVE CONCRETE DEFECTS, READ IN THE COMMITTED SOURCE ON 2026-08-07\
+    \ AND STATED AS RE-VERIFIABLE CLAIMS. The harness is being edited concurrently -- one file changed\
+    \ under this session between two reads -- so each item below is a PREDICTION about the tree at\
+    \ execution time, to be confirmed or refuted, not an assertion about the tree now.\n  D1. harness/runner.py\
+    \ DEFINES _inference_block TWICE. The first definition\n    (near line 58) imports orchestration.adapter.manifest.block_from_env\
+    \ and\n    records the resolved model, with a fallback that records the adapter error.\n    The\
+    \ second (near line 221) returns a hard-coded dict with\n    requested_policy \"executor-terra\"\
+    \ and resolved_model_id\n    \"none (deterministic harness execution)\". In Python the second\
+    \ binding wins,\n    so the adapter path is unreachable dead code and every manifest records the\n\
+    \    hard-coded block regardless of AUTORESEARCH_POLICY or AUTORESEARCH_BACKEND.\n    CONSISTENT\
+    \ WITH THE EVIDENCE: both committed manifests show exactly the\n    hard-coded block. CONSEQUENCE:\
+    \ an agent-driven run cannot record which model\n    was in its loop, which is an AGENTS.md artifact-policy\
+    \ item\n    (\"requested model policy, backend, and resolved runtime model identifier\")\n   \
+    \ and is silently unsatisfiable today. This is a bookkeeping defect, not a\n    mathematical one,\
+    \ and is reported as such.\n  D2. SCHEMA DRIFT IN THE discrete_log VERIFIER. harness/runner.py::_verify\
+    \ does\n    st = cert[\"statement\"]; c = st[\"curve\"]; and builds\n    EllipticCurve(c[\"p\"\
+    ], c[\"a\"], c[\"b\"]). docs/claims-and-verification.md's\n    documented schema places curve_id\
+    \ BESIDE statement and gives statement as\n    {P, Q, k} (plus target/summands for decomposition)\
+    \ with NO statement.curve\n    key. A certificate authored from the documentation therefore raises\
+    \ KeyError\n    rather than failing verification. The code is internally consistent --\n    harness/semaev.py::_find_decomposition\
+    \ writes \"curve\" inside statement -- so\n    the drift is between code and document, and either\
+    \ could be the one to move.\n  D3. THE VERIFIER CALL IS UNGUARDED AND THE RUN DIRECTORY IS ALREADY\
+    \ CREATED.\n    write_run calls os.makedirs(run_dir) and only afterwards calls\n    _verify(cert).\
+    \ Any exception in _verify -- D2's KeyError, a malformed point,\n    a non-integer k -- propagates\
+    \ with the directory already created and no\n    manifest written. The FileExistsError guard at\
+    \ the top then refuses a retry\n    under the same run id. So a malformed certificate PERMANENTLY\
+    \ BURNS a run id\n    and leaves an empty immutable directory, and the incident is\n    indistinguishable\
+    \ from an infrastructure crash -- which AGENTS.md rule 5\n    correctly says is not negative evidence,\
+    \ and which is exactly why a wrong\n    certificate must never be able to disguise itself as one.\n\
+    \  D4. THE discrete_log VERIFIER OMITS THREE CHECKS. It computes\n    E.mul(k, P) == Q and nothing\
+    \ else. It does not check that P is on the curve,\n    that Q is on the curve, or that P has the\
+    \ claimed order. Two degenerate\n    acceptances follow immediately: k = 0 with P = Q = None (the\
+    \ point at\n    infinity) verifies, because mul(0, None) is None; and a P not on E is\n    accepted\
+    \ because the group-law formulas in harness/toycurve.py compute\n    regardless of membership.\
+    \ Neither is a plausible honest output, which is the\n    point -- a fault-injection suite exists\
+    \ to catch implausible ones.\n  D5. THE decomposition VERIFIER DOES NOT CHECK THE TARGET OR THE\
+    \ FACTOR BASE.\n    verify_decomposition_certificate checks every summand is on the curve and\n\
+    \    that they sum to the target, but never checks the target is on the curve and\n    never checks\
+    \ the summands belong to the declared factor base. For the\n    campaign's current use this may\
+    \ be acceptable; it must be a stated scope\n    limit of the certificate rather than an unexamined\
+    \ gap, because \"R\n    decomposes over the factor base V\" and \"R is a sum of two curve points\"\
+    \ are\n    very different claims and only the first has index-calculus content.\n\n(C) THE MUTATION\
+    \ SUITE, WHICH IS THE ACTUAL EXPERIMENT. Fault injection is the positive control for a verifier:\
+    \ a verifier that rejects nothing cannot support any claim of correctness. Sixteen planted faults,\
+    \ each with a declared expected disposition, run through the REAL write_run path into a temporary\
+    \ output root:\n  MUST BECOME completed_invalid (certificate failed independent verification):\n\
+    \    F1  discrete_log with k replaced by k + 1\n    F2  discrete_log with Q replaced by a different\
+    \ curve point\n    F3  discrete_log with P off the curve (D4's second degenerate case)\n    F4\
+    \  discrete_log with P = Q = None and k = 0 (D4's first)\n    F5  discrete_log with the curve's\
+    \ b altered so P is no longer on it\n    F6  decomposition with one summand negated\n    F7  decomposition\
+    \ with a summand off the curve\n    F8  decomposition with the target off the curve (D5)\n   \
+    \ F9  decomposition with a summand outside the declared factor base (D5)\n    F10 isogeny_transport\
+    \ with a target curve of a different trace\n        (IDEA-20260807-257001)\n  MUST BE ACCEPTED,\
+    \ because they are valid claims that merely look odd:\n    F11 discrete_log with k replaced by\
+    \ k + N (same scalar mod N)\n    F12 decomposition with the summands listed in the opposite order\n\
+    \    F13 isogeny_transport with both images negated (the invariance class of\n        IDEA-20260807-257001\
+    \ section B2)\n  MUST BE RECORDED AS A VALID NEGATIVE OBSERVATION, NOT AS INVALID:\n    F14 a\
+    \ run that searched and found nothing, emitting kind \"none\" -- status\n        completed, valid\
+    \ true. This is the distinction\n        docs/claims-and-verification.md draws between invalid_measurement\
+    \ and\n        negative_observation and it has never been exercised.\n  MUST FAIL SAFELY RATHER\
+    \ THAN CRASH:\n    F15 a certificate authored per the DOCUMENTED schema (D2). Expected today:\n\
+    \        KeyError and a burned run id (D3). Required after repair: a clean\n        completed_invalid\
+    \ with reason \"unknown or malformed certificate schema\".\n    F16 a certificate with kind \"\
+    isogeny_transport\" before that kind is\n        registered. Expected: the existing unknown-kind\
+    \ path returning\n        (False, \"unknown-kind:...\") and hence completed_invalid, which is\
+    \ the\n        correct behaviour and is the one branch of _verify that already fails\n       \
+    \ safely.\nF1 through F13 are the two-directional control the lane requires: F1-F10 are the planted\
+    \ signals the verifier must detect, F11-F13 are the matched nulls it must not fire on.\n(D) WHY\
+    \ EACH OUTCOME IS INFORMATIVE. If every MUST-REJECT fault is rejected, the verifier is validated\
+    \ at the tier the suite covers and the campaign may cite it. If any is accepted, the exact fault\
+    \ is a named hole with a reproduction. If any MUST-ACCEPT case is rejected, the verifier is over-strict,\
+    \ which is a different defect and would make honest runs fail. If F14 is recorded as invalid,\
+    \ the program's most important epistemic distinction -- a valid run that found nothing versus\
+    \ a run whose claim is wrong -- is not implemented, and every negative result in the corpus inherits\
+    \ the ambiguity. There is no outcome in which the suite tells us nothing."
+  resource_label: 'audit: consumes no resource'
+  admissibility: admissible
+  admissibility_argument: No oracle, no attack, no resource. This is infrastructure verification of
+    the evidence chain every lane's claims travel through. It is admissible trivially, and the more
+    interesting point is that it is the one lane whose failure would invalidate results in every other
+    lane simultaneously.
+  reachability_gate: 'NOT APPLICABLE, and stated rather than omitted: no movement between curves,
+    no walk, no search. F10 and F13 CONSTRUCT a transport in order to mutate it, but the transport
+    is a fixture rather than a step of any algorithm, and T5 is untouched.'
+  inputs:
+    procedure: 'STAGE 0 (minutes, zero risk): Step 1''s five source checks. No execution of the wrapper,
+      no files written. This alone settles D1 through D5 and is the cheapest part of the record. STAGE
+      1 (an hour): build the sixteen faults from one honest toy instance and run them through write_run
+      with out_root pointed at a scratch directory. STAGE 2 (minutes): the d-sweep decay test on k
+      -> k + d. STAGE 3 (minutes): tabulate the sixteen dispositions and freeze the vector as a regression
+      fixture. STAGE 4 (separate, and NOT part of the measurement): propose repairs as a recorded
+      amendment, since changing the wrapper changes the object of measurement. THE CHEAPEST VALID
+      DISCRIMINATOR IS STAGE 0: it costs no execution, writes nothing, and either confirms or refutes
+      every defect claim in this record.'
+    mechanism: 'STEP 1 -- CONFIRM OR REFUTE D1 THROUGH D5 AGAINST THE TREE AT EXECUTION TIME, each
+      by a one-line check, and record the commit. D1: does inspect.getsource(runner._inference_block)
+      show the hard-coded body? D2: compare the key set _verify reads against the documented schema.
+      D3: does write_run call makedirs before _verify? D4 and D5: read the check lists. Any item that
+      does not reproduce is withdrawn from the record rather than defended.
+
+      STEP 2 -- BUILD THE SUITE AGAINST THE REAL write_run, using its out_root parameter so nothing
+      is written under experiments/. Every fault is generated from a genuine toy instance produced
+      by harness/toycurve.py::generate_instance, then mutated, so the honest baseline and the fault
+      differ in exactly one field.
+
+      STEP 3 -- RUN AND TABULATE. For each fault: expected disposition, observed disposition, observed
+      invalid_reason, and whether an exception escaped. An escaped exception is its own category and
+      is the D3 signature.
+
+      STEP 4 -- PROPOSE THE MINIMAL REPAIRS AS A SEPARATE ARTIFACT, not as part of the measurement.
+      The measurement is what the wrapper does today; the repairs are a change to the object of measurement
+      and belong in their own recorded amendment, exactly as DEC-20260727-009''s alternatives_considered
+      explains for the line-451 IndexError.
+
+      STEP 5 -- FREEZE THE VECTOR AS A REGRESSION FIXTURE, so that any later change to runner.py or
+      the certificate schema is checked against it automatically. The fixture is the durable deliverable;
+      the first run of it is only the first reading.'
+    instrument: harness/isogeny_class.py, harness/exp_icinv.py and the lane runners under harness/;
+      pure Python with sympy and numpy, no Sage
+  controls:
+  - the unmutated certificate, which must be accepted
+  - MUST-ACCEPT faults F11 through F13 as the matched null
+  - F14, the honest negative observation
+  - F16, the unknown-kind path, which is the one branch known to fail safely and therefore acts as
+    a positive control for the failure path itself
+  - the d-sweep, whose rejection rate must be identically 1
+  - 'NULL OBJECT (from the proposal): MANDATORY AND EXPLICIT: the MUST-ACCEPT block F11 through F13
+    IS the matched null. A verifier that rejects a certificate differing from a valid one only by
+    k -> k + N, by summand order, or by negating both transported images is firing on a null and cannot
+    support a positive result -- a wrongly rejected honest run would be recorded as invalid_measurement
+    and would silently remove real evidence. SECOND NULL: the unmutated certificate itself, run through
+    the same path, which must be accepted. DECAY PARAMETER: the SIZE of the injected perturbation.
+    Sweep k -> k + d for d = 1, 2, 4, ..., N/2 and confirm the rejection rate is identically 1 at
+    every d and is 1 only at d not congruent to 0 mod N. A rejection rate that DECAYS as d grows would
+    mean the verifier is doing an approximate comparison somewhere, which for exact integer arithmetic
+    would be a serious defect; a rejection rate that fails to reach 1 at small d would mean the verifier
+    is insensitive near the truth, which is where a real solver bug would live. Both tails are gates.'
+  independent_variables: []
+  metrics:
+    primary:
+    - reproduction status of D1 through D5, with commit
+    - expected versus observed disposition per fault, with invalid_reason
+    - whether an exception escaped, per fault
+    - whether a run directory was left without a manifest, per fault
+    secondary:
+    - rejection rate versus perturbation size d
+    - the frozen sixteen-coordinate regression vector
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: number of D1 through D5 that reproduce against the tree at execution time
+    formula: At least four of five. D1 is near certain given both committed manifests show the hard-coded
+      block; D3 is a direct reading of write_run's statement order. Any that does not reproduce is
+      withdrawn, and a withdrawal is reported as prominently as a confirmation.
+    source: pre-registered in IDEA-20260807-a4f5c5 before any run under this contract; never tuned
+      to data
+  scale_relevance:
+    tier: toy
+    justification: 'Toy scale only: p up to ~2^17 for full isogeny-class enumeration (which is O(p^2))
+      and up to ~2^20 for single-curve work. Evidence from any run under this contract is capped at
+      claim_tier: toy and may not be presented as crypto-scale validation (AGENTS.md rule 7).'
+    correspondence: null
+  tail_checks:
+  - CONCURRENT EDITS. harness/exp_icinv.py changed under this session between two reads on 2026-08-07.
+    Every source-based claim must be re-verified against the tree at execution time and the commit
+    recorded with the result, or the record is measuring a tree that no longer exists.
+  - TESTING THE WRAPPER WITH THE WRAPPER. The suite runs faults through write_run itself, which is
+    correct -- the whole point is the real path -- but means a defect in write_run could mask a defect
+    in _verify. The escaped-exception column and the empty-directory column are what separate them.
+  - WRITING INTO experiments/. If out_root is mis-set, the suite creates immutable run records for
+    fabricated faults, which would be a serious contamination of the evidence store. The suite must
+    assert its out_root is a scratch path before the first write, and that assertion is part of the
+    contract.
+  - D1 IS BOOKKEEPING, NOT MATHEMATICS. It affects what a manifest records about inference provenance
+    and affects no measured number. It is reported in that register and must not be presented as casting
+    doubt on any measurement.
+  - SUITE COMPLETENESS. Sixteen faults is not exhaustive; a verifier can pass every test in a finite
+    suite and still be wrong. The vector is a regression fixture and a floor, never a proof of verifier
+    correctness, and the record says so rather than implying coverage.
+  replication:
+    seeds:
+    - 20260807
+    - 20260808
+    - 20260809
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first.
+  - 'Stop immediately if the instrument fails its two-directional control (EXP-INSTR-2d32ba): measurements
+    taken with a failed instrument are attempted_and_inconclusive, never evidence.'
+  - Stop and escalate to an independent review-adversarial session if any arm appears to exceed the
+    automorphism-discounted rho baseline (GOAL-ENDO-001 pause condition P3).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'An isogeny-class enumeration whose Hurwitz-Kronecker census fails makes the run invalid: a variance
+    measured over an incomplete class is meaningless.'
+  - Any claimed solve or relation whose certificate fails independent re-verification makes the run
+    completed_invalid.
+  success_criterion: At least four of five. D1 is near certain given both committed manifests show
+    the hard-coded block; D3 is a direct reading of write_run's statement order. Any that does not
+    reproduce is withdrawn, and a withdrawal is reported as prominently as a confirmation.
+  falsification_criterion:
+  - D1 does not reproduce -- only one _inference_block exists, or the adapter one is second. The inference-recording
+    claim is withdrawn.
+  - D2 does not reproduce -- the documented schema and _verify agree. Withdrawn.
+  - All ten MUST-REJECT faults are cleanly rejected. The verifier is stronger than this record reads
+    it to be; the suite becomes a regression fixture with no defects to report, which is a good outcome
+    and is reported as such.
+  - Any MUST-ACCEPT fault is rejected. A different and more serious defect than the ones predicted,
+    because it silently destroys honest evidence.
+  - The d-sweep shows a rejection rate below 1 anywhere. Exact integer comparison is failing somewhere
+    and everything downstream of the verifier is suspect.
+  - F14 is recorded as invalid. The program's negative-evidence distinction is not implemented and
+    every negative record in the corpus inherits the ambiguity.
+  required_artifacts:
+  - manifest.yaml with command, commit, dirty-tree state, environment
+  - raw-result.json with every per-curve measurement, not just summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - certificates for every claimed solve or relation
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval required before execution; this contract is machine-derived from the proposal
+    and is NOT approved.
+  - If the proposal is proof-oriented, a proof_search_map is required before implementation or expensive
+    experiments (KN-TECH-080).
+  - If admissibility is inadmissible_generic_group, this contract is a RECORDED CLOSURE and must not
+    be executed as an attack; it may be executed only as a baseline calibration, and its evidence
+    record must say so.
+  derivation_provenance:
+    tool: tools/derive_experiment_contracts.py
+    source_record: IDEA-20260807-a4f5c5
+    note: Fields are rendered from the proposal, never invented. A null field means the proposal did
+      not supply it.
+  derivation_gaps: []
+  hypothesis_id_note: 'No hypothesis exists for this contract and none is invented. GOAL-ENDO-001
+    carries no active hypothesis: BATCH-cb71b5 generated a proposal corpus, and a proposal is not
+    a hypothesis. This contract is DRAFT and NOT APPROVED; the /design-experiment step that mints
+    a specified hypothesis from the parent IDEA has not been run. The field is explicitly null rather
+    than absent so a reader cannot mistake it for an overlooked one.'

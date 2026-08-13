@@ -1,0 +1,156 @@
+idea:
+  id: IDEA-20260808-5e257f
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-RELN-001
+  goal_id: GOAL-RELN-001
+  title: The frozen p_exist/p_solve instrument measures a CENSORED BINARY and throws away
+    the only informative quantity it computes - replace the success bit by the ordinal "degree
+    reached before the budget expired", which is uncensored, monotone, and turns every timed-out
+    cell from a discarded run into a one-sided bound
+  class: measurement
+  claim: 'GOAL-RELN-001''s protocol separates an oracle metric p_exist (does a decomposition
+    exist) from a charged solver metric p_solve (did the algebraic solver find it within budget),
+    feeds p_solve to ICEX, and treats the difference as a solver-quality gap. p_solve is a
+    BINARY outcome under a wall budget, so every cell that exhausts the budget contributes
+    a censored observation, and the estimator''s variance is maximal exactly where the interesting
+    cells are. CLAIM: the quantity D_reached - the largest Macaulay degree at which the solver
+    completed a full graded reduction before the budget expired - is (i) recorded or recoverable
+    in every run including censored ones, (ii) monotone in the budget, so a censored run yields
+    the one-sided bound d_solve > D_reached rather than nothing, and (iii) sufficient for
+    the ICEX input, because by E2-02 what ICEX needs is theta, the exponent of the oracle
+    cost in B, and theta is estimated from d_solve, not from a success rate. CONSEQUENCE:
+    p_solve is not merely noisy, it is the wrong functional - it is a thresholded transform
+    of D_reached at the budget, and thresholding a monotone variable at a budget discards
+    the ordering. Estimating theta from right-censored D_reached by standard survival regression
+    uses every cell, including the ones the current protocol maps to TIMEOUT_CENSORED and
+    discards or charges as failures.'
+  mechanism: 'The decisive structural fact is monotonicity: a degree-graded solver visits
+    degrees in increasing order, so the set of degrees completed at any moment is an interval
+    starting at 1, and the observation is interval-censored rather than missing. That is exactly
+    the setting where survival methods (Kaplan-Meier for the marginal, Cox or a parametric
+    AFT model for the B-dependence) are consistent and a binary success-rate estimator is
+    not. The programme has already recognised the charging half of this problem - IDEA-20260805-45bf55
+    audits how censored attempts are CHARGED - without recognising the estimation half, which
+    is that the observable itself should change.'
+  why_not_a_renamed_known_approach: Nearest in-corpus record is IDEA-20260805-45bf55, which
+    is about the accounting convention for TIMEOUT_CENSORED attempts (should a censored attempt
+    be charged, and at what cost). This record does not touch charging; it changes what is
+    measured, from a bit to an ordinal, and imports the standard right-censored estimator
+    for it. Nearest general method is survival analysis, entirely classical; what is not standard
+    is noticing that a Groebner budget produces textbook right-censoring on a monotone ordinal
+    and that the lane is currently binarising it away.
+  predictions:
+  - observable: estimator variance for theta at fixed compute
+    metric: width of the CI for the fitted exponent theta from (a) p_solve logistic fit, (b)
+      censored D_reached regression
+    predicted: (b) strictly narrower at every cell count, with the gap widening as the censoring
+      fraction rises; at a censoring fraction above about one half the binary estimator should
+      be effectively uninformative while the ordinal one still identifies theta. If the two
+      CIs are comparable, the record's premise is wrong and the current instrument is fine.
+  - observable: number of usable cells
+    metric: fraction of runs contributing to the estimate
+    predicted: 100 per cent for (b) versus (1 - censoring fraction) for (a). This is a forced
+      arithmetic consequence, not an empirical hope.
+  - observable: p_exist minus p_solve
+    metric: the gap the goal treats as solver quality
+    predicted: Under the ordinal instrument the gap decomposes into a budget component and
+      a genuine-failure component, and the record predicts the budget component dominates
+      at the cells the goal cares about. If the genuine component dominates, the solver really
+      is failing on solvable instances and that is a different and more interesting finding.
+  minimal_test: No new mathematics and no new solver. (1) Re-analyse any existing run set
+    that recorded per-degree progress, extracting D_reached per cell. (2) Fit theta by both
+    estimators on the same data and compare CIs. (3) If no existing run set records per-degree
+    progress, the finding is that the lane's instrument does not emit its own most informative
+    variable, which is reportable at zero compute and is exactly parallel to IDEA-20260806-7ea402's
+    stage-1 outcome. (4) Specify the logging change (one integer per attempt) for future batteries.
+  controls:
+  - SYNTHETIC CENSORING CONTROL: take an uncensored toy run set, artificially impose budgets
+      at several levels, and check the censored estimator recovers the known theta while the
+      binary estimator degrades as the budget tightens. This control can fail and is the whole
+      validity argument.
+  - MONOTONICITY CHECK: D_reached must be non-decreasing in the budget for the same instance
+      and seed; a violation means the solver is not degree-graded and the whole framing is
+      inapplicable to it.
+  - NULL INSTANCE ARM: instances with NO decomposition must still yield a D_reached, and the
+      estimator must not confuse "no solution" with "not enough budget" - the two are different
+      events and must be separately coded.
+  confounders:
+  - A real F5 with degree falls does not visit degrees in a clean increasing order, breaking
+    the interval-censoring model; the monotonicity check detects this and it is a genuine
+    limitation, not a nuisance.
+  - Memory exhaustion is not the same censoring mechanism as time exhaustion and must be coded separately (AGENTS rule 5: infrastructure
+      failure is not evidence).
+  - D_reached depends on implementation as much as on the system; comparisons are only valid
+    within one frozen solver lineage.
+  falsification_conditions:
+  - The censored estimator's CI is not narrower than the binary one on synthetic data with
+    known theta. The premise fails.
+  - Monotonicity fails for the solver in use. The model does not apply and the record must
+    be restated for that solver.
+  - Existing artifacts do record per-degree progress and the re-analysis changes nothing.
+    The instrument was already adequate and the record is a null.
+  interpretation_limits: Purely an instrument record. It changes no claim, produces no attack,
+    and cannot make a negative result positive - it can only make an underpowered measurement
+    powered. Toy tier. It does not repair the binary-versus-prime-field scope mismatch that
+    IDEA-20260805-0d2a21 records.
+  assumptions:
+  - The solver is degree-graded within a frozen lineage.
+  - Budgets are declared before the run and are not adapted to observed progress.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The oracle cost is a power law in B, D_trial = Theta(B^theta), so log D_reached
+      is approximately affine in log B and theta is identifiable from right-censored observations
+      by a parametric AFT fit.
+    rigorous_ingredient: Right-censored maximum-likelihood estimation is consistent under
+      correct model specification - a theorem. Only the power-law specification is heuristic,
+      and it is the same specification E2-02 requires.
+    distribution_imitated: The accelerated-failure-time family, standard for monotone durations
+      with covariates.
+    validation_route: Fit on synthetic data generated from a known theta with imposed censoring
+      at several levels and check coverage of the nominal CI at >= 200 replicates per level.
+      Then report a lack-of-fit statistic on the real data. TOY SCALE.
+    tail_checks: Report the fraction of cells censored at each B; if censoring is near-total
+      at the largest B the fit is extrapolating and must say so rather than quote a CI.
+  target_complexity:
+    time_exponent: No attack exponent. The record improves the precision with which theta
+      is estimated; theta itself is E2-02's input.
+    memory_exponent: Unchanged; one extra integer logged per attempt.
+    best_known_baseline: The current binary p_solve estimator frozen in the GOAL-RELN-001
+      protocol.
+    hidden_overhead_disclosure: A power-law specification is an assumption; if theta drifts
+      with B the AFT fit will report a lack of fit rather than a wrong number, provided the
+      statistic is reported, which is why it is mandatory here.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: 'Zero on attack axes. Deliverable: every censored cell converted from a discarded
+    or mis-charged observation into a one-sided bound, i.e. a strictly larger effective sample
+    at identical compute, with the CI-width comparison as the quantitative claim.'
+  dominated_by: n/a (no result claimed). Attack frontier checked (rho, BSGS, VW, S T^2 = Omega~(N),
+    sqrt(TN)); untouched. On the narrow axis of "estimator efficiency for a censored monotone
+    observable", right-censored ML is the textbook incumbent and this record is an application
+    of it, not an improvement on it - stated so no efficiency novelty is implied.
+  estimated_cost: Implementation low; compute zero for the re-analysis, low for synthetic
+    validation.
+  recommended_priority: medium
+  honest_prior_of_survival: 0.9 that the censored estimator is more efficient (a theorem-backed
+    expectation). 0.4 that existing artifacts already contain D_reached; if they do not, the
+    record's immediate value is the logging change plus the finding that the lane discards
+    its own informative variable.
+  novelty_status: screened
+  novelty_class: adaptation
+  novelty_screen: GOAL-RELN-001.yaml in full; RQ-RELN-001.yaml in full; EXISTING_HYPOTHESES
+    H-RELN-66c079, H-RELN-96e3ba, H-RELN-f697be at statement level; EXISTING_PROPOSALS titles
+    IDEA-20260805-4ddd8c, -5ac0a2, -96cb3d, -a25f11, -061f97, -45bf55, -a2e95b; KNOWLEDGE_BARRIERS;
+    CATALOGUE_TITLES. Nothing in the corpus proposes an ordinal replacement for p_solve. WEB
+    SEARCH UNAVAILABLE.
+  discriminated_from: IDEA-20260805-45bf55 concerns how censored attempts are CHARGED in the
+    cost accounting; this concerns what is OBSERVED and how theta is estimated - the two are
+    compatible and could be adopted together. IDEA-20260805-96cb3d concerns the p_exist/p_solve
+    separation itself and whether the difference should be fed to ICEX; this record accepts
+    the separation and repairs the measurement of the second term. IDEA-20260805-a25f11 is
+    the exact mean-yield identity (a p_exist-side statement) and is orthogonal.
+  source_refs:
+  - ledger/goals/GOAL-RELN-001.yaml
+  - ledger/questions/RQ-RELN-001.yaml
+  - knowledge/findings/KN-FIND-007.md

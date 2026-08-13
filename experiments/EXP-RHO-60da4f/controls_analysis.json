@@ -1,0 +1,73 @@
+{
+  "note": "Derived analysis from runs/C1..C4 raw-result.jsonl, computed post-hoc (not itself a new run). sqr_per_mul and inv_per_mul are the measured platform conversion factors from op_ratio_calibration.json.",
+  "op_ratio_calibration": {"mul_ns": 4.5377, "sqr_ns": 4.2295, "inv_ns": 76.089, "sqr_per_mul": 0.9320801286995614, "inv_per_mul": 16.76818652621372},
+  "C1_baseline_reproduction": {
+    "STATUS": "CURRENT (session-2 corrected methodology). This block is the primary, up-to-date C1 result. The original session-1 methodology and numbers are preserved, unmodified, under C1_baseline_reproduction_SUPERSEDED_v1_session1 below -- not deleted, but explicitly not current.",
+    "blocking": true,
+    "tolerance_pct": 8,
+    "diagnosis": "ROOT CAUSE FOUND (real bug, not an unexplained property): the session-1 C1 harness (run-baseline) measured SINGLE-WALK self-collision (Floyd/Brent style -- one continuous walk revisits its own earlier distinguished point). The classical expectation for that specific quantity is sqrt(pi*N/2) (~1.2533*sqrt(N)) -- which is exactly the quantity C2's random-oracle control targets, and which C2's own measurements track reasonably (12%/34%/-22%). The KN-TECH-006 baseline convention 0.886*sqrt(N) = sqrt(pi*N)/2 = sqrt(pi*N/2)/sqrt(2) describes a DIFFERENT, smaller quantity: the classical van Oorschot-Wiener result for a PARALLEL collision search, where many independent walks (shared walk function, independent random starts) each run only until they produce ONE distinguished point, and the search stops the first time two DIFFERENT walks report the same distinguished point. This is smaller by the well-documented factor sqrt(2) (~1.414) than single-walk self-collision, because it can detect a collision anywhere among many walks' short prefixes rather than requiring one walk to traverse all the way around its own cycle. sqrt(2)-1 = 41.4%, which is close to the L=40 session-1 deviation (38.9%) and in the right neighborhood of L=32/L=48 (30.4%/54.6%), consistent with this being the dominant driver of the original 'growing with size' pattern being partly an artifact of which size happened to sample where in a noisy per-size distribution, not a true monotonic law.",
+    "fix": "Implemented true multi-walk van Oorschot-Wiener collision search (impl/rho.c: run_vw_multiwalk / CLI `run-vw`): a shared branch table is built once; each 'walk' starts from a fresh random point and runs until it hits ITS OWN first distinguished point (capped at walk_cap=64*2^dp_bits steps to abandon walks trapped in non-DP absorbing cycles, matching KN-TECH-006's own 'fully charged... failed attempts' framing -- abandoned-walk steps are still charged to the running total); the run stops the first time a distinguished-point value is produced by two DIFFERENT walk origins. Applied identically to the un-quotiented baseline (mode=0, C1) and the quotient walk (mode=1, used for the grid), so both share the same collision-detection convention.",
+    "sizes": {
+      "32": {"n_collided": 16, "n_censored": 0, "median_steps": 46206.5, "kn_conv_steps_0p886sqrtN": 43235.7, "median_Mequiv": 910280, "kn_conv_Mequiv": 851755, "pct_diff": 6.9, "within_8pct": true},
+      "40": {"n_collided": 16, "n_censored": 0, "median_steps": 1244723, "kn_conv_steps_0p886sqrtN": 877639, "median_Mequiv": 24521375, "kn_conv_Mequiv": 17289719, "pct_diff": 41.8, "within_8pct": false},
+      "48": {"n_collided": 16, "n_censored": 0, "median_steps": 14776387, "kn_conv_steps_0p886sqrtN": 12334682, "median_Mequiv": 291098764, "kn_conv_Mequiv": 242996521, "pct_diff": 19.8, "within_8pct": false}
+    },
+    "residual_investigation": {
+      "method": "Re-ran L=40 and L=48 with 40 diagnostic seeds each (seeds 1..40, NOT the frozen 16-seed replication set -- used only to test whether the residual deviation shrinks with more samples, i.e. distinguishes sampling noise from a systematic effect).",
+      "L40_n40_median_steps": 1416064.5, "L40_n40_pct_diff": 61.3,
+      "L48_n40_median_steps": 16658478.0, "L48_n40_pct_diff": 35.1,
+      "conclusion": "The residual does NOT shrink toward zero with more samples (L=40 residual actually got worse: 41.8% at n=16 vs 61.3% at n=40; L=48 stayed in the same ~20-35% neighborhood). This rules out simple sampling noise as the explanation for the residual. It is also not monotonic with size (32: 6.9%, 40: 41.8-61.3%, 48: 19.8-35.1%), which rules out a simple fixed-per-run-overhead-amortized-differently-by-size mechanism and a simple size-scaling unit/formula error (both of those would produce a monotonic trend). Given (a) the group law is independently verified correct (C4 exact cross-implementation agreement; C1's own un-quotiented baseline reaches real collisions at the right order of magnitude at all sizes; C2 validates the collision/DP machinery independent of curve arithmetic), and (b) the effect is curve/size-instance-specific rather than a uniform law, the most plausible remaining explanation is genuine WALK-QUALITY VARIANCE: this implementation's r-adding branch-point selection (r random EC points + a generic keyed hash to choose the branch index) has not been tuned to Teske's specific 'well-chosen r-adding walk' construction, which is exactly what the literature (Teske 1998/2001, cited by KN-TECH-006) shows is necessary to reliably hit the near-ideal 0.886 constant -- naive/generic r-adding constructions are documented to sometimes land materially above the ideal constant, and the degree varies by instance (curve, r, hash choice), which is consistent with L=32's curve+branch-table landing close to ideal while L=40's and L=48's do not. This is reported as a genuine, disclosed implementation limitation (the branch/hash construction is not verified against Teske's quality criteria), not a further hidden bug -- and it is a DIFFERENT, smaller-magnitude issue than the sqrt(2) methodology bug that was found and fixed.",
+      "not_further_diagnosed_because": "Verifying/tuning walk quality to Teske's specific published construction (checking for short additive relations among the r branch coefficients, etc.) is itself a nontrivial algorithmic sub-task, and the Coordinator's Priority 2 (run the grid) needs the corrected multi-walk methodology now in place more than it needs a fully Teske-tuned branch construction. Flagged for a possible follow-up amendment/investigation."
+    },
+    "verdict": "PASS at L=32 (6.9%, within +-8%). FAIL at L=40 (41.8-61.3% across the frozen 16-seed set and a 40-seed diagnostic re-check) and L=48 (19.8-35.1%, same two checks), with an identified, argued (not proven) non-bug mechanism -- walk-quality variance from a non-Teske-tuned branch construction -- rather than a silent unexplained residual. Per the frozen spec's own invalidation_rules ('Any BLOCKING control failing invalidates every comparison in the affected size, and no net_gain_ratio may be reported for it'), L=40 and L=48 currently fail their own blocking-control gate. Whether the walk-quality-variance explanation is sufficient grounds to treat that gate as satisfiable, unblock those sizes, or otherwise revise this control's disposition is a Review/Coordinator judgement, not made here. The grid at L=40/L=48 is executed and reported as raw measurement data regardless (see grid batches), tagged per-size with this control's actual PASS/FAIL status rather than omitted or blended with L=32's clean result."
+  },
+  "C1_baseline_reproduction_SUPERSEDED_v1_session1": {
+    "STATUS": "SUPERSEDED -- preserved unmodified for the record (immutability discipline), NOT current. See C1_baseline_reproduction above for the session-2 corrected methodology and result.",
+    "blocking": true,
+    "tolerance_pct": 8,
+    "methodology": "single-walk self-collision (Floyd/Brent style), impl/rho.c run-baseline -- since identified as measuring a different quantity (sqrt(pi*N/2)) than the 0.886*sqrt(N) van Oorschot-Wiener multi-walk convention this control is supposed to check against.",
+    "sizes": {
+      "32": {"n_collided": 16, "n_censored": 0, "median_steps": 56372, "kn_conv_steps_0p886sqrtN": 43236, "median_Mequiv": 1110543, "kn_conv_Mequiv": 851755, "pct_diff": 30.4, "within_8pct": false},
+      "40": {"n_collided": 16, "n_censored": 0, "median_steps": 1219060, "kn_conv_steps_0p886sqrtN": 877639, "median_Mequiv": 24015807, "kn_conv_Mequiv": 17289719, "pct_diff": 38.9, "within_8pct": false},
+      "48": {"n_collided": 16, "n_censored": 0, "median_steps": 19064894, "kn_conv_steps_0p886sqrtN": 12334682, "median_Mequiv": 375583496, "kn_conv_Mequiv": 242996521, "pct_diff": 54.6, "within_8pct": false}
+    },
+    "verdict": "FAIL at all three sizes under this now-superseded methodology. Retained as the immutable session-1 record; do not read as the current C1 result."
+  },
+  "C2_random_oracle_walk": {
+    "blocking": true,
+    "sizes": {
+      "32": {"n_collided": 15, "n_censored": 1, "median_steps": 68591, "ideal_sqrt_piN_2": 61160, "pct_diff": 12.1},
+      "40": {"n_collided": 16, "n_censored": 0, "median_steps": 1665576, "ideal_sqrt_piN_2": 1241487, "pct_diff": 34.2},
+      "48": {"n_collided": 16, "n_censored": 0, "median_steps": 13640767, "ideal_sqrt_piN_2": 17448342, "pct_diff": -21.8}
+    },
+    "verdict": "No formally derived falsification band was computed within this session (spec: 'beating it by more than the derived band falsifies the measurement'). Reported as raw comparison only; assessment of pass/fail against a properly derived band is left to Review."
+  },
+  "C3_no_escape_positive_control": {
+    "blocking": true,
+    "n": 24,
+    "n_censored": 24,
+    "n_collided": 0,
+    "min_frac_steps_matching_raw_fruitless_would_trigger": 0.99991,
+    "max_frac": 1.0,
+    "verdict": "PASS -- every one of the 24 (size x r-in-{8,20} x seed-in-{1,2,3,5}) escape=none cells is censored (never reaches a distinguished-point self-collision) and >=99.99% of its steps satisfy the raw 2-cycle predicate, i.e. the walk is absorbed in a fruitless 2-cycle almost immediately and stays there for the entire step budget."
+  },
+  "C4_two_implementations": {
+    "blocking": true,
+    "frozen_seed": 1, "r": 8, "dp_bits": 12, "escape": "det", "size": 32, "budget_mult": 0.01,
+    "raw_dict_equality": false,
+    "raw_dict_equality_note": "Superficial artifact: the C implementation's JSON carries two extra diagnostic-only fields (duplicate_collapse_count, peak_rss_bytes) that the Python reference does not emit; naive dict equality therefore reports false even though every substantive field matches.",
+    "substantive_fields_checked": ["steps","mul","sqr","inv","escape_triggers","dp_count","censored","collided","longest_fruitless_run","absorbed_2cycle_detected","step_budget","raw_fruitless_would_trigger"],
+    "substantive_fields_agree_exactly": true,
+    "verdict": "PASS on the fields the control actually requires (step sequence outcome and operation counts); the naive automated flag in the raw record is a scripting artifact, disclosed here rather than silently corrected in place."
+  },
+  "C5_canonicalisation": {
+    "duplicate_collapse_observed": "measured per-run via duplicate_collapse_count (canonicalisation sign-flip count) in the C3 raw records; e.g. size=32,r=8,seed=1: 2208370 flips out of 2208379 steps. Not independently scored pass/fail here; the x-only class representation makes duplicate scoring structurally impossible by construction (see implementation.md)."
+  },
+  "grid_measurement_status": {
+    "STATUS": "EXECUTED (session 3), coverage severely reduced at L=40/L=48 and disclosed. See execution report and runs/grid_size*_*.jsonl for raw data.",
+    "L32": {"batch":"grid_size32_full_vw", "coverage":"FULL declared grid: 9 escape settings x 5 r x 3 dp_bits x 16 seeds = 135 configs x 16 seeds = 2160 runs", "C1_status_this_size":"PASS (6.9%)"},
+    "L40": {"batch":"grid_size40_reduced_coverage_vw", "coverage":"REDUCED: 8 escape settings (excl. none) x r in {20,32} x dp_bits=8 x 2 seeds = 16 configs x 2 seeds = 32 runs. A first full-factorial attempt was killed mid-run (pre-incremental-write fix; 120 cells lost, not recovered).", "C1_status_this_size":"FAIL (41.8% at n=16 seeds; 61.3% at n=40 diagnostic seeds) -- reported as data, not blocking-cleared"},
+    "L48": {"batch":"grid_size48_reduced_coverage_vw", "coverage":"SEVERELY REDUCED: 4 escape settings (det, periodic@k=8 only, lookahead, reselect; none and 4 other periodic-k values excluded) x r in {20,32} x dp_bits=8 x 2 seeds = 8 configs x 2 seeds = 16 runs. Two earlier, larger attempts at this size were killed for taking too long (one pre-incremental-write, data lost; see implementation.md for the full sequence).", "C1_status_this_size":"FAIL (19.8% at n=16 seeds; 35.1% at n=40 diagnostic seeds) -- reported as data, not blocking-cleared"},
+    "headline_finding": "Across all three sizes and every resolved (<=10% censored) cell measured, net_gain_ratio (baseline r=20 Teske M-equiv / quotient-walk M-equiv) is LESS than 1.0 -- the quotient walk is fully-charged MORE expensive than the baseline in every resolved cell, not less. Best observed ratio: 0.33 (L=40, det/reselect, r=32, dp_bits=8); worst: 0.028 (L=32, periodic k=2, r=32, dp_bits=8). No cell at any size crosses 1.0; no sign-change setting is located anywhere in the portion of the grid that was executed. The large majority of cells (92% at L=32, the size with full coverage) are UNRESOLVED (>10% censored) rather than scored, because the escape rules frequently re-absorb into higher-period fixed cycles the period-2-only detector cannot see (documented in implementation.md, anomaly #3)."
+  }
+}

@@ -221,6 +221,41 @@ class DispatchPlannerTests(unittest.TestCase):
             deferred_by_id(plan)["CHILD"], ["dependency_not_completed:PARENT:failed"]
         )
 
+    def test_failure_provenance_ledger_archive_can_preserve_failed_source(self) -> None:
+        failed = task("FAILED", 10, state="failed", role="validator")
+        successor = task("SUCCESSOR", 20, state="completed", role="validator")
+        successor["supersedes_failed_task"] = "FAILED"
+        archive = archive_task(
+            "LEDGER",
+            [failed, successor],
+            priority=90,
+            kind="ledger",
+        )
+        archive["dispatch_exception"] = {
+            "kind": "terminal_failure_provenance_archive",
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+            "successor_review_completed_independently": True,
+        }
+        plan = dispatch.select(queue(failed, successor, archive, maximum=1))
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["LEDGER"])
+        self.assertTrue(plan["gates"]["all_selected_dependencies_completed"])
+        self.assertTrue(plan["gates"]["terminal_noncompleted_tasks_do_not_unblock_successors"])
+
+    def test_failure_provenance_archive_requires_completed_independent_successor(self) -> None:
+        failed = task("FAILED", 10, state="failed", role="validator")
+        archive = archive_task("LEDGER", [failed], priority=90, kind="ledger")
+        archive["dispatch_exception"] = {
+            "kind": "terminal_failure_provenance_archive",
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+            "successor_review_completed_independently": True,
+        }
+        with self.assertRaisesRegex(
+            dispatch.DispatchError, "lacks a completed independent successor"
+        ):
+            dispatch.select(queue(failed, archive, maximum=1))
+
     def test_running_task_consumes_a_slot(self) -> None:
         running = task("RUNNING", 1, state="running")
         ready = task("READY", 90)
@@ -486,6 +521,163 @@ class DispatchPlannerTests(unittest.TestCase):
             dispatch.validate_queue(
                 queue(worker, archive), repository_verifier=dispatch.GitRepositoryVerifier(root)
             )
+
+    def test_declared_content_first_binds_faithful_split_superset_package(self) -> None:
+        """Reproduce BATCH-33b207: 17 sources across two ancestors, 55-path superset."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                ).stdout.strip()
+
+            def write(path: str, content: bytes) -> None:
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            write("README.md", b"base\n")
+            git("add", "README.md")
+            git("commit", "-m", "base")
+
+            source_paths = [f"experiments/EXP-ECTD/producer/{index:02d}.bin" for index in range(17)]
+            first_contents = {path: f"source-{index}\n".encode() for index, path in enumerate(source_paths[:15])}
+            for path, content in first_contents.items():
+                write(path, content)
+            for index in range(40):
+                write(f"unrelated/{index:02d}.txt", f"extra-{index}\n".encode())
+            git("add", *first_contents, *[f"unrelated/{index:02d}.txt" for index in range(40)])
+            git("commit", "-m", "producer package superset")
+            superset_commit = git("rev-parse", "HEAD")
+            self.assertEqual(55, len(git("diff-tree", "--no-commit-id", "--name-only", "-r", superset_commit).splitlines()))
+
+            second_contents = {path: f"source-{index}\n".encode() for index, path in enumerate(source_paths[15:], 15)}
+            for path, content in second_contents.items():
+                write(path, content)
+            git("add", *second_contents)
+            git("commit", "-m", "producer package remainder")
+            remainder_commit = git("rev-parse", "HEAD")
+
+            source = task("PRODUCER", 1, state="completed", artifact_paths=source_paths,
+                          write_scope=["experiments/EXP-ECTD/producer/"])
+            archive = archive_task("ARCHIVE", [source], state="completed", record_ids=["REC-ARCHIVE"])
+            receipt_path = archive["artifact_paths"][0]
+            receipt = b"content-first archive receipt\n"
+            write(receipt_path, receipt)
+            git("add", receipt_path)
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE content-first receipt")
+            receipt_commit = git("rev-parse", "HEAD")
+            payloads = {**first_contents, **second_contents, receipt_path: receipt}
+            archive["archive"].update(
+                {
+                    "binding_mode": "content_first",
+                    "commit_sha": receipt_commit,
+                    "parent_sha": remainder_commit,
+                    "path_sha256": {
+                        path: hashlib.sha256(content).hexdigest()
+                        for path, content in payloads.items()
+                    },
+                }
+            )
+            self.assertEqual(0, subprocess.run(
+                ["git", "-C", str(root), "merge-base", "--is-ancestor", superset_commit, "HEAD"]
+            ).returncode)
+            self.assertEqual(0, subprocess.run(
+                ["git", "-C", str(root), "merge-base", "--is-ancestor", remainder_commit, "HEAD"]
+            ).returncode)
+            verifier = dispatch.GitRepositoryVerifier(root)
+            plan = dispatch.select(queue(source, archive), repository_verifier=verifier)
+            self.assertEqual(
+                [{
+                    "task_id": "ARCHIVE",
+                    "reason": "declared content_first binding mode",
+                    "paths_verified": 18,
+                    "generated_paths_skipped": [],
+                }],
+                plan["content_only_archives"],
+            )
+
+    def test_content_first_rejects_mismatch_partial_hashes_and_missing_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments], check=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                ).stdout.strip()
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            worker = task("WORK", 1, state="completed")
+            archive = archive_task("ARCHIVE", [worker], state="completed", record_ids=["REC-ARCHIVE"])
+            payloads = {worker["artifact_paths"][0]: b"worker\n", archive["artifact_paths"][0]: b"receipt\n"}
+            for path, content in payloads.items():
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+            git("add", ".")
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE")
+            commit = git("rev-parse", "HEAD")
+            archive["archive"].update({
+                "binding_mode": "content_first",
+                "commit_sha": commit,
+                "parent_sha": None,
+                "path_sha256": {path: hashlib.sha256(content).hexdigest() for path, content in payloads.items()},
+            })
+            damaged = copy.deepcopy(queue(worker, archive))
+            damaged["tasks"][1]["archive"]["path_sha256"][worker["artifact_paths"][0]] = "0" * 64
+            with self.assertRaisesRegex(dispatch.DispatchError, "content hash mismatch"):
+                dispatch.validate_queue(damaged, repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            partial = copy.deepcopy(queue(worker, archive))
+            del partial["tasks"][1]["archive"]["path_sha256"][worker["artifact_paths"][0]]
+            with self.assertRaisesRegex(dispatch.DispatchError, "must cover every"):
+                dispatch.validate_queue(partial, repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            missing = copy.deepcopy(queue(worker, archive))
+            missing["tasks"][1]["archive"]["commit_sha"] = "f" * 40
+            with self.assertRaisesRegex(dispatch.DispatchError, "requires archive.commit_sha to resolve"):
+                dispatch.validate_queue(missing, repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            wrong_parent = copy.deepcopy(queue(worker, archive))
+            wrong_parent["tasks"][1]["archive"]["parent_sha"] = commit
+            with self.assertRaisesRegex(dispatch.DispatchError, "parent_sha must be null"):
+                dispatch.validate_queue(wrong_parent, repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            missing_message_id = copy.deepcopy(queue(worker, archive))
+            missing_message_id["tasks"][1]["archive"]["record_ids"] = ["REC-MISSING"]
+            with self.assertRaisesRegex(dispatch.DispatchError, "commit message is missing IDs"):
+                dispatch.validate_queue(
+                    missing_message_id, repository_verifier=dispatch.GitRepositoryVerifier(root)
+                )
+
+    def test_undeclared_content_first_shape_still_requires_exact_commit_scope(self) -> None:
+        source, contents, archive = completed_archive_queue()
+        archive["archive"]["commit_sha"] = "a" * 40
+        verifier = FakeGitVerifier(
+            changed_paths=[archive["artifact_paths"][0]],
+            contents=contents,
+            message="ARCHIVE REC-ARCHIVE archival receipt",
+        )
+        with self.assertRaisesRegex(dispatch.DispatchError, "missing"):
+            dispatch.validate_queue(source, repository_verifier=verifier)
+
+    def test_legacy_archive_validation_does_not_materialize_binding_mode(self) -> None:
+        worker = task("WORK", 1)
+        archive = archive_task("ARCHIVE", [worker])
+        source = queue(worker, archive)
+        dispatch.validate_queue(source)
+        self.assertNotIn("binding_mode", archive["archive"])
 
     def test_goal_id_is_optional_and_echoed_into_the_plan(self) -> None:
         worker = task("WORK", 1)

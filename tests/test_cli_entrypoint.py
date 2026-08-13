@@ -142,10 +142,22 @@ def test_console_scripts_are_declared():
     manifest = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
     scripts = manifest["project"]["scripts"]
     assert scripts["autoresearch"] == "orchestration.cli:main"
-    for name in ("autoresearch-adapter", "autoresearch-agent", "autoresearch-eval"):
+    for name in (
+        "autoresearch-adapter",
+        "autoresearch-agent",
+        "autoresearch-eval",
+        "autoresearch-campaign-mcp",
+    ):
         assert name in scripts
     packaged = set(manifest["tool"]["setuptools"]["packages"])
-    assert {"orchestration", "orchestration.eval", "harness"} <= packaged
+    assert {
+        "orchestration",
+        "orchestration.campaign",
+        "orchestration.eval",
+        "orchestration.knowledge",
+        "orchestration.routing",
+        "harness",
+    } <= packaged
 
 
 def test_agent_extra_matches_the_requirements_file():

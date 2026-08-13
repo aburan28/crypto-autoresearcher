@@ -1,0 +1,97 @@
+implementation_note:
+  task_id: TASK-20260811-a3eb96
+  objective: >-
+    Implement the explicitly declared content-first archive-binding mode and
+    faithfully test the BATCH-33b207 split/superset topology.
+  status: completed_observations_only
+  changes:
+    - >-
+      Added archive.binding_mode with legacy default commit and explicit
+      content_first opt-in. The mode is never inferred from a commit-scope
+      failure.
+    - >-
+      Content-first requires archive.commit_sha to resolve and be an ancestor
+      of HEAD; its declared parent must match first-parent/root semantics and
+      its commit message must retain the task and record IDs. It requires hashes
+      for every expected archive and source path, and verifies every such
+      committed HEAD blob without generated-path skipping. The only relaxed
+      check is exact changed-path equality for one commit.
+    - >-
+      Declared content-first verification is appended to content_only_archives
+      before the canonical plan hash is computed; this preserves visible,
+      digest-bound reporting.
+    - >-
+      Added an actual temporary-Git regression fixture with 17 source paths,
+      15 paths plus 40 unrelated paths in a 55-path ancestor commit, two
+      remaining source paths in a second ancestor commit, and a later archive
+      receipt commit. The fixture verifies all 18 expected path hashes.
+  invariants_reverified:
+    review_chain: >-
+      Unchanged. test_claim_relevant_task_requires_snapshot_then_ledger_review_chain
+      and test_claim_relevant_task_accepts_snapshot_review_and_ledger_chain passed.
+    exactly_once_assignment: >-
+      Unchanged. test_rejects_unarchived_and_multiply_archived_workers passed.
+    coordinator_archive_ownership: >-
+      Unchanged. test_archive_must_be_coordinator_direct_and_cover_source_artifacts passed.
+    undeclared_archive_commit_scope: >-
+      Unchanged. test_undeclared_content_first_shape_still_requires_exact_commit_scope
+      passed; absence of binding_mode retains the exact changed-path verifier.
+  negative_checks:
+    - fatal content hash mismatch passed
+    - partial path_sha256 coverage rejected
+    - nonexistent declared content-first commit rejected
+    - content-first parent mismatch rejected
+    - content-first commit missing a required message ID rejected
+    - undeclared archive still required exact commit scope
+    - legacy validation leaves an absent binding_mode absent
+  commands:
+    - command: >-
+        python3 /Users/adamburan/.codex/plugins/cache/crypto-autoresearcher/
+        crypto-autoresearcher-harness/0.2.0+codex.20260808-peer-mcp-optin/scripts/preflight.py
+        --repo /private/tmp/wt-ectd-content-first.mIwhBg --runtime codex --doctor
+      outcome: >-
+        Exit 1: generated bindings, authority bindings, dependencies, and role
+        bindings passed; doctor reported no usable configured API backend.
+    - command: python3 -m unittest tools/test_research_dispatch.py -v
+      outcome: Exit 0; 36 tests ran in 1.364s; OK.
+    - command: python3 -m py_compile tools/research_dispatch.py tools/test_research_dispatch.py
+      outcome: Exit 0; no output.
+    - command: >-
+        python3 tools/research_dispatch.py
+        coordination/goals/GOAL-ECTD-001/batches/BATCH-33b207/tooling/content-first-binding/dispatch_queue.json
+        --output /tmp/ectd-content-first-plan.json --report /tmp/ectd-content-first-plan.md
+        --repo-root .
+      outcome: Exit 0; stdout and stderr were both empty.
+    - command: git diff --check
+      outcome: Exit 0; no output.
+  provenance:
+    git_head_before_changes: 069e6cfc9
+    requested_policy: executor-implementation
+    resolved_model_id: gpt-5.6-terra
+    reasoning_effort: medium
+    provider: OpenAI
+    session: fresh executor session; independent_session_required was false
+    fallback_used: false
+    degraded_used: false
+    model_verified: false
+    model_verified_reason: >-
+      The required harness doctor found no usable configured API backend in this
+      worktree. The authenticated native Codex session provenance was supplied
+      by the task launcher, but no adapter probe receipt was available here.
+  protocol_deviations:
+    - >-
+      No scientific experiment was run. The doctor configuration limitation is
+      recorded as an operational condition, not as research evidence.
+  completion_gates:
+    explicit_mode_only: passed
+    faithful_split_superset_fixture: passed
+    required_negative_tests: passed
+    invariant_tests: passed
+    visible_content_only_reporting: passed
+    prevention_finding_only: passed
+    protected_paths_unchanged: passed
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+    scientific_interpretation: none

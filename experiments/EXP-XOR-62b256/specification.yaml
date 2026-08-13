@@ -1,0 +1,118 @@
+experiment:
+  id: EXP-XOR-62b256
+  hypothesis_id: H-XOR-56cc0a
+  version: 1
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-08-08'
+  frozen: true
+  title: Coverage-matched uniform-query MITM null with fully charged cost
+  objective: >-
+    Test whether the x-oracle's measured toy-scale cost advantage survives a
+    fair comparison to an identically shaped MITM null at matched unique
+    relation coverage, with every query and verification charged.
+  source_decision: DEC-20260808-6a7ac4
+  supersedes_design_only:
+    historical_pr: 242
+    historical_experiment_id: EXP-XOR-7267e4
+    reason: >-
+      The unmerged historical contract used a one-query Arm D and compared
+      costs without matching relation coverage. This new ID is a versioned
+      successor; the historical draft is not edited or executed.
+  implementation:
+    path: experiments/EXP-XOR-62b256/implementation/arm_d_cost.py
+    sha256: c8c8e7df68f9d761a5caed663e8d3448765a1ea2cc779e76a626adc0a7a6caf7
+    baseline_path: experiments/EXP-SEMAEV-f48dd1/implementation/full_grid.py
+    baseline_sha256: 64d682e56e28472987ebd319f6250a09620c566ab7a881701d53acce3300a540
+  parameters:
+    primes: [101, 103, 107, 211]
+    b_values: [0.4, 0.5]
+    arity_m: 3
+    seeds: [1, 2, 3, 4, 5]
+    kappa_add_equivalents_per_query: 1
+    q_grid_rule:
+      q_1: 1
+      q_50: ceil(log(1-0.50) / log(1-1/p))
+      q_90: ceil(log(1-0.90) / log(1-1/p))
+  charge_model:
+    definitions:
+      N: number of point entries in the factor base
+      n_x: size of the right-table bucket at field key x
+      T: sum_x n_x, the total non-identity right-table population
+      q: independent uniform field queries per source point in Arm D
+      kappa: one E.add-equivalent charged per query in both B and D
+    arm_a: C_A = 2*N^3
+    arm_b: C_B = N^2 + kappa*N + 2*candidates_B
+    arm_d_expected_candidates: E[V_D(q)] = q*N*T/p
+    arm_d: C_D(q) = N^2 + kappa*q*N + 2*V_D(q)
+    arm_d_unique_coverage: 1-(1-1/p)^q
+    q1_recall: approximately 1/p
+    primary_normalization: charged cost per unique valid relation recovered
+    memory: >-
+      B and D share the identical right table. The run records N^2 table
+      insertions, T stored candidate pairs, and distinct bucket count; no
+      memory advantage is inferred from equal structure.
+  metrics:
+    - charged_cost
+    - unique_valid_relations
+    - cost_per_unique_relation
+    - measured_unique_coverage
+    - predicted_unique_coverage
+    - candidates_verified
+    - predicted_candidate_verifications
+    - wall_clock_seconds
+    - table_total_bucket_size
+  controls:
+    - id: CTRL-BLOB
+      pass: both frozen implementation hashes match before computation
+    - id: CTRL-A-B
+      pass: Arm A and Arm B relation counts are exactly equal in every cell
+    - id: CTRL-QUERY
+      pass: every D record has exactly q*N queries
+    - id: CTRL-SEED
+      pass: deterministic rerun reproduces raw-result.json byte-for-byte
+    - id: CTRL-NEARBY
+      pass: q=1 is retained as the nearby low-information object
+  success_criterion: >-
+    The single bounded run completes all eight cells and all five seeds, all
+    controls pass, and it reports the preregistered q=1, q50, and q90 metrics
+    without changing q after seeing results.
+  falsification_criterion: >-
+    The hypothesis is falsified within this toy boundary if Arm D's charged
+    cost per unique recovered relation is no larger than Arm B's in any q50
+    or q90 cell. A control failure, timeout, or implementation failure makes
+    the run invalid and is not mathematical evidence.
+  budget:
+    wall_clock_seconds: 900
+    memory_gb: 2
+    maximum_runs: 1
+  stopping_rules:
+    - stop at 900 seconds or 2 GiB and record infrastructure failure
+    - do not add cells, seeds, or q values after observing output
+    - stop immediately on either frozen hash mismatch
+  proof_search_map:
+    applicable: false
+    reason: >-
+      This is an empirical toy measurement, not a theorem, asymptotic bound,
+      certificate family, reduction, or closure argument.
+  dominated_by: Pollard rho at exponent 1/2
+  sota_delta:
+    time_exponent: 0
+    memory_exponent: 0
+    note: toy constant-factor instrument only
+  claim_ceiling: toy
+  required_artifacts:
+    - command.txt
+    - environment.json
+    - stdout.log
+    - stderr.log
+    - raw-result.json
+    - analysis.yaml
+    - manifest.yaml
+    - execution-report.yaml
+  inference:
+    requested_policy: executor-implementation
+    runtime: codex_native
+    no_bedrock: true
+    resolved_model_id: null
+    model_verified: false

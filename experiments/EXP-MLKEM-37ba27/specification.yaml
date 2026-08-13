@@ -1,0 +1,308 @@
+experiment:
+  id: EXP-MLKEM-37ba27
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-MLKEM-34e22e
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    Review-required contract: exact binomial block-budget tail for
+    SampleNTT, a fixed-3-block vs reference comparison at FIPS 203
+    parameters, and two analytically bracketing degenerate acceptance-bound
+    gates
+
+  objective: >-
+    If separately approved, frozen and authorized: (1) compute the exact
+    binomial tail P(Bin(112k, 0.812744) >= 256) for k in {3, 4} and confirm
+    it against the closed-form prediction; (2) run the reference SampleNTT
+    implementation and record its empirical block-consumption histogram
+    against the binomial-tail prediction as a calibration check; (3) compare
+    a reference implementation against a mutated fixed-3-block variant over
+    N = 138/62/35 key generations (99% power) at ML-KEM-512/768/1024,
+    comparing Â or, black-box, ek; (4) run the two degenerate acceptance-bound
+    gates (4096 and 2048) as pre-treatment calibration. This contract is an
+    instrument design and a pre-execution declaration. No run has happened.
+
+  what_this_is_not:
+    - Not an attack on ML-KEM, not a key recovery, not a solve, and not a certificate of any kind.
+    - Not a claim that any named production implementation uses a fixed block budget; no production implementation is named anywhere in this contract.
+    - Not a security estimate and not a revision of any published cost row.
+    - Not an approval, a freezing, an execution authorization, a run, an observation, or evidence.
+    - Not a timing or side-channel measurement of any kind; the observable is the accept/reject outcome of the sampler, read from its output matrix or public key.
+
+  claim_ceiling:
+    tier: control
+    exact_scope_a_run_could_support: >-
+      CONTROL ONLY. A completed run could support, at most: (1) that the
+      exact binomial tail matches its closed form to machine precision (a
+      pure arithmetic check, not an empirical one); (2) that a reference
+      implementation's empirical block-consumption histogram matches the
+      binomial-tail prediction within a chi-squared interval; (3) that a
+      synthetic fixed-3-block variant is distinguishable from the reference
+      at the predicted detection rate over N key generations; (4) that the
+      two degenerate acceptance-bound gates read exactly 0 and exactly 1.
+      NOTHING ELSE. In particular no outcome may be quoted as a defect
+      finding against any named implementation or as evidence about any
+      deployed build's sampler.
+
+  inputs:
+    xof_and_sampler:
+      block_bytes: 168
+      groups_per_block: 56
+      candidates_per_group: 2
+      candidates_per_block: 112
+      standard_acceptance_bound_q: 3329
+      standard_acceptance_probability: 0.812744140625
+      source: inputs/MLKEM-DUAL-SOURCES-20260802/fips203
+    fixed_budget_variant:
+      blocks_squeezed: 3
+      candidates_drawn: 336
+      construction: >-
+        A mutated SampleNTT that squeezes exactly 3 XOF blocks (336
+        candidates) and accepts the first 256 that pass < acceptance_bound,
+        regardless of whether 256 acceptances were reached, rather than
+        looping until 256 are accepted.
+    degenerate_gates:
+      gate_a_accept_everything: {acceptance_bound: 4096, predicted_detection_rate: 0.0}
+      gate_b_p_half: {acceptance_bound: 2048, predicted_detection_rate: 1.0}
+    parameter_sets:
+      ML-KEM-512: {k_squared: 4, n_key_generations_99pct: 138}
+      ML-KEM-768: {k_squared: 9, n_key_generations_99pct: 62}
+      ML-KEM-1024: {k_squared: 16, n_key_generations_99pct: 35}
+    comparison_channel:
+      a_visible_variant: "compares the full matrix Â per matrix entry (i,j); this is the channel the detection-power table above is computed for"
+      black_box_variant: "compares ek only; costs nothing extra, needs no internal access, but loses per-entry resolution and its own detection-power table must be recomputed upward before use"
+    seeds:
+      master_seed: 3329100
+      domain: "EXP-MLKEM-37ba27/v1"
+      seed_derivation_rule: >-
+        ASCII bytes of domain || "|" || label || "|" || decimal(parameter_set)
+        || "|" || decimal(trial_index), hashed with SHA-256; digest integers
+        interpreted big-endian unsigned. Labels are exactly one of
+        {"keygen-seed", "gate-a-seed", "gate-b-seed"}. This rule reproduces
+        every instance bit-for-bit from
+        (master_seed, domain, label, parameter_set, trial_index) and
+        nothing else.
+
+  arms_and_controls:
+    treatment: >-
+      The reference-vs-fixed-3-block comparison over N = 138/62/35 key
+      generations at ML-KEM-512/768/1024, using the Â-visible channel.
+    measured_null: >-
+      GATE a (acceptance bound 4096). FORCED VALUE DERIVED BEFORE THE RUN:
+      detection rate EXACTLY 0.000000, because 3 blocks (336 candidates)
+      always exceed 256 when every candidate is accepted. THIS NULL CAN
+      FAIL if the harness is measuring something other than the block
+      budget.
+    positive_control: >-
+      GATE b (acceptance bound 2048, p = 0.5). FORCED VALUE: detection rate
+      EXACTLY 1.000000 on every entry, since P(3 blocks suffice) = 6.5e-23
+      at p = 0.5. MUST fire, or the comparison instrument cannot see the
+      effect it is built to detect.
+    calibration_control: >-
+      The reference sampler's own empirical block-consumption histogram at
+      the standard acceptance bound (q = 3329), which must match the
+      binomial-tail closed form within a chi-squared interval BEFORE the
+      fixed-3-block comparison is interpreted (HEUR-MLKEM-34e22e-1's
+      validation check).
+    ordering_control: >-
+      Both degenerate gates and the calibration control are generated,
+      counted, and hash-committed BEFORE the standard-acceptance-bound
+      treatment comparison is read. If either degenerate gate misses its
+      exact value, the treatment arm is not interpreted.
+    comparability_policy: >-
+      No detection rate or block-consumption figure from this contract may
+      be compared with any figure from any other EXP-MLKEM-* record or from
+      any external estimator; the binomial-tail formula is self-contained
+      arithmetic and the empirical checks are compared only against it.
+
+  stages_cheapest_first:
+    - id: stage-1-exact-arithmetic
+      cost: "zero compute, seconds; closed-form evaluation only"
+      content: >-
+        Evaluate P(Bin(336, 0.812744) >= 256) and P(Bin(448, 0.812744) >= 256)
+        to machine precision and confirm they match 0.9916723075 and
+        1 - 2.22e-32 respectively; derive the per-key-generation detection
+        probabilities and the N-for-99%-power figures for all three
+        parameter sets.
+      can_terminate_run: true
+      termination_rule: >-
+        A mismatch between the closed-form evaluation and the stated
+        prediction halts the package here; it is a pure arithmetic check and
+        any failure is a specification or transcription error, not a result.
+    - id: stage-2-degenerate-gates
+      cost: "seconds to minutes; no key generation needed if computed analytically, minutes if run empirically"
+      content: >-
+        Run GATE a and GATE b (or confirm their forced values analytically
+        if run empirically) as pre-treatment calibration.
+      can_terminate_run: true
+      termination_rule: >-
+        Either gate missing its exact value halts the package here as an
+        instrument defect.
+    - id: stage-3-calibration
+      cost: "minutes; one reference sampler run, standard acceptance bound"
+      content: >-
+        Record the reference sampler's empirical block-consumption
+        histogram and compare it to the binomial-tail closed form.
+      can_terminate_run: true
+      termination_rule: >-
+        A departure from the closed form by more than the declared
+        chi-squared interval halts the package: HEUR-MLKEM-34e22e-1's
+        falsification condition fires and the acceptance model is void until
+        repaired.
+    - id: stage-4-detection-comparison
+      cost: "seconds; N = 138/62/35 key generations, a few hundred total"
+      content: >-
+        Run the reference-vs-fixed-3-block comparison over the declared N
+        at each parameter set, on the Â-visible channel, and separately
+        report the black-box (ek) channel with its own recomputed N.
+      can_terminate_run: false
+      termination_rule: >-
+        A budget, memory, or wall-clock ceiling truncation is reported as
+        coverage achieved at fewer than the declared N, not as a completed
+        detection-power run.
+
+  metrics:
+    primary:
+      - "binomial_tail_exact_match: closed-form P(short) at k=3 and k=4, against 0.0083276925 and 2.22e-32."
+      - "reference_histogram_chi_squared: goodness-of-fit statistic of the empirical block-consumption histogram against the binomial prediction."
+      - "detection_rate_gate_a: measured detection rate under acceptance bound 4096, against forced value 0."
+      - "detection_rate_gate_b: measured detection rate under acceptance bound 2048, against forced value 1."
+      - "detection_rate_standard: measured P(>=1 wrong entry) per key generation at the standard acceptance bound, against 0.032897/0.072501/0.125236."
+    secondary:
+      - "black_box (ek) channel detection rate and its recomputed required N, for comparison against the Â-visible channel."
+      - "per-entry wrong-block-count distribution, for a qualitative check against the binomial shape."
+
+  heuristic_under_test: HEUR-MLKEM-34e22e-1
+
+  preregistered_prediction:
+    quantity: >-
+      (i) the exact binomial tail at k=3 and k=4; (ii) the reference
+      histogram's agreement with the binomial prediction; (iii) the two
+      degenerate-gate detection rates; (iv) the standard-acceptance-bound
+      detection rate per key generation.
+    formula: >-
+      (i) P(short|3 blocks) = 0.0083276925; P(short|4 blocks) = 2.22e-32.
+      (ii) agreement within a chi-squared interval computed at the declared
+      sample size, reported not assumed.
+      (iii) gate a: exactly 0.000000; gate b: exactly 1.000000.
+      (iv) 0.032897 / 0.072501 / 0.125236 at ML-KEM-512/768/1024, each
+      requiring 138/62/35 key generations for 99% detection power.
+    source: >-
+      All derived in H-MLKEM-34e22e (statement conjunct C1 and gates a, b)
+      and independently re-verified by the idea-catalogue red-team pass
+      (ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md section 4c,
+      item 3). NO EXTERNAL SOURCE IS CITED beyond FIPS 203 itself, already
+      pinned in this repository's inputs; the binomial arithmetic is
+      elementary and requires no citation.
+
+  scale_relevance:
+    tier: control
+    justification: >-
+      This is a generator-power result over exact binomial arithmetic and a
+      reference implementation at actual FIPS 203 parameters, not an attack
+      or a security measurement; the tier is control because a null result
+      (no implementation in the audited neighbourhood uses a fixed block
+      budget) certifies nothing about any implementation beyond the tested
+      comparison, and no production implementation is named.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Per-parameter-set consistency: the required-N figures (138, 62, 35)
+      must each independently reproduce the stated per-key-generation
+      detection probability (0.032897, 0.072501, 0.125236) via the standard
+      99%-power formula 1 - (1 - p_entry)^N with p_entry = P(short) computed
+      from the exact binomial tail, not assumed as a round number.
+
+  replication:
+    seeds: [3329100, 3329101, 3329102]
+    independent_instances: 3
+    interpretation: >-
+      The binomial-tail arithmetic is deterministic and exact and must be
+      seed-INDEPENDENT. The empirical calibration (reference histogram) and
+      the detection-power comparison are stochastic and are repeated across
+      3 seeds to report their own sampling variability, distinct from the
+      exact closed-form quantities they are checked against.
+
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 1
+    maximum_memory_gb: 2
+    maximum_runs: 3
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, and authorized.
+    - Stop the whole package on a mismatch between the closed-form binomial evaluation and its stated prediction.
+    - Stop before stage 4 is interpreted if either degenerate gate misses its exact value.
+    - Stop before stage 4 is interpreted if the reference-histogram calibration check fails its chi-squared interval.
+    - Stop at the first budget, memory, or wall-clock ceiling and record coverage achieved rather than truncating silently.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any change to the acceptance-bound values, the block-budget value, or the N figures after any number has been observed.
+    - Any reporting of the black-box (ek) channel's detection rate under the Â-visible channel's N without recomputing N for the lower-resolution channel.
+    - Citation of a prior session's transcript in place of a control executed in this run.
+
+  success_criterion: >-
+    This contract has no current success outcome because it is not
+    authorized for execution. IF a separately approved, frozen successor is
+    executed, its only positive disposition is: the closed-form binomial
+    evaluation matches its stated prediction exactly; both degenerate gates
+    read their exact forced values; the reference histogram calibration
+    passes its chi-squared interval; and the standard-acceptance-bound
+    detection rate over the declared N matches the predicted per-key-
+    generation probabilities within a declared binomial interval. THAT
+    DISPOSITION ESTABLISHES NO DEFECT FINDING AGAINST ANY NAMED
+    IMPLEMENTATION AND NO SECURITY CLAIM.
+
+  falsification_criterion: >-
+    H-MLKEM-34e22e is falsified, in whole or in the named part, by any of:
+    (F10-a) the measured P(short at 3 blocks) departs from 0.0083276925 by
+    more than its binomial interval over 10^4 entries -- the acceptance
+    model is wrong (wrong candidate packing, wrong block rate, or a
+    non-standard XOF rate) and the whole table is void;
+    (F10-b) either degenerate gate misses its exact value -- instrument
+    failure, no disposition drawn from any other cell;
+    (F10-c) no implementation in the audited neighbourhood uses a fixed
+    block budget -- record the class as empty in that neighbourhood, never
+    paraphrased as evidence that samplers are correct.
+    An infrastructure truncation of the key-generation sweep is NOT a
+    falsification; it is a coverage outcome.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition: a review_required draft. No run, no
+      observation, no evidence, no inference.
+    future_complete_readout: >-
+      Only after separate approval, freezing, authorization, and valid
+      execution; scoped control-tier only, naming no production
+      implementation unless a specific future contract explicitly adds one
+      under its own approval.
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, or missing dependency is recorded as INFRASTRUCTURE
+      SIGNAL and is NEVER negative mathematical evidence against
+      H-MLKEM-34e22e or against any ML-KEM proposition (AGENTS.md rule 5).
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification with a freeze receipt binding its SHA-256.
+    - The stage-1 exact-arithmetic evaluation, with full-precision output.
+    - The stage-2 degenerate-gate logs.
+    - The stage-3 calibration histogram and its chi-squared statistic.
+    - Raw per-key-generation records: (parameter_set, seed, entry index, blocks consumed, correct/wrong), one JSON object per line, keys sorted, UTF-8.
+    - Manifest, environment, exact argv, stdout, stderr, timestamps, and resource measurements.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the binomial-tail derivation and the two degenerate-gate predictions before any compute is authorized.
+    - Independent review confirms the N-for-99%-power derivation at all three parameter sets.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is
+    not approved and only the Coordinator may approve it (AGENTS.md rule 1).

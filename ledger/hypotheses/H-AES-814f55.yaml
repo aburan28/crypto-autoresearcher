@@ -1,0 +1,136 @@
+hypothesis:
+  id: H-AES-814f55
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  source_idea_id: IDEA-20260807-812fd2
+
+  statement: >-
+    SCOPE: GHASH/AES-GCM's output combiner, reduced-round, toy/medium tier.
+    NO FORGERY, NO AUTHENTICATION BREAK, NO WEAK-KEY CLAIM. GHASH's digest
+    Sigma_c C_c * H^(n-c) is GF(2^128)-linear with key-derived, block-
+    position-dependent weights, not the constant-coefficient affine combiner
+    A2-4's near-forced identity covers. A weighted aggregate over a balanced
+    round-3 byte-value multiset vanishes for every value distribution IFF the
+    weight function is constant on each level set of the byte-value map.
+    THE GENUINELY UNDETERMINED PART, AND THE SOLE SUBJECT OF THIS
+    HYPOTHESIS'S SUCCESS CRITERION: which class of combiner (weight-constant-
+    on-fibres vs not) the measured behavior falls into — never a restatement
+    of A2-4's affine identity, which is used here and not tested. Predicted:
+    (i) H=1 forced -> r=4 balance visible in digest alone, 16/16 exactly;
+    (ii) random H -> digest uniform, 0/16, null probability 2^-128; (iii) the
+    threshold is sharp in the WEIGHT PARTITION, not in H's algebraic size: a
+    <=2-valued weight sequence on even-size blocks restores transfer, an
+    all-distinct-weight sequence destroys it; (iv) consequently a reduced-
+    round set-aggregate property of AES does not become a tag-only
+    distinguisher on AES-GCM, and A2-4's block-by-block transfer stops at
+    GHASH.
+
+  mechanism: >-
+    Full derivation: ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A2.md lines
+    765-834. H=1 collapses GHASH to plain XOR of all blocks (free known-
+    answer gate). The discriminator identified is the partition induced by
+    the weights on the round-3 level sets, not H itself.
+
+  assumptions:
+    - >-
+      A2-4's affine-combiner identity (near-forced algebraic consequence per
+      the red team's own analysis) is USED and NOT re-tested by this
+      hypothesis; the success criterion is entirely about the weight-
+      partition class, never the affine identity.
+    - >-
+      Round-3 level sets are only approximately uniform below coset dimension
+      32; the 2-valued weight arm may sit in a grey zone, which is reported
+      as a grey zone and never as "absent" (risk band high_risk).
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical/derivational entry: the fibre-constancy vanishing condition
+      is an exact algebraic fact re-derivable in advance; the open content is
+      measured, not proof-searched.
+
+  rerandomization: null
+  asymptotic_claim: null
+
+  heuristic_assumptions:
+    - id: HEUR-AES-814f55-1
+      formal_statement: >-
+        A weighted GF(2^128)-linear aggregate over a balanced round-r
+        multiset vanishes for every value distribution iff the weight
+        function is constant on each level set of the byte-value map at that
+        round.
+      random_model_justification: >-
+        Exact algebraic identity (Sigma_v v * (Sigma_{c: value(c)=v} w_c) = 0
+        for all v iff weights constant on fibres), not a distributional
+        claim; holds for any weighted digest, not only GHASH (ceiling medium
+        for this part).
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-8a112d]
+      falsification_condition: >-
+        F9-c: the 2-valued-weight arm behaves like the all-distinct arm ->
+        fibre-constancy is not the right condition, projection at wrong
+        granularity.
+
+  structural_ingredients: []
+
+  reduction_chain:
+    core_problem: >-
+      Whether GHASH's key-derived position-dependent weighting destroys the
+      block-by-block set-aggregate transfer that A2-4's affine-combiner
+      identity licenses for constant-coefficient combiners.
+    corollaries: []
+
+  predictions:
+    - metric: "H=1 weighted digest vs unweighted aggregate agreement"
+      direction: different
+      minimum_effect: "bit-for-bit equality in 100% of trials (known-answer gate a)"
+    - metric: "r=3 column-coset unweighted aggregate at H=1 (known-answer gate b)"
+      direction: lower
+      minimum_effect: "exactly zero; if not, neither reading may be reported"
+    - metric: "random-H digest all-zero read rate"
+      direction: lower
+      minimum_effect: "consistent with 2^-128 per trial (F9-b: exceeding a 2^-128-consistent fraction falsifies prediction iv)"
+    - metric: "2-valued weight arm vs all-distinct weight arm transfer behavior"
+      direction: different
+      minimum_effect: "2-valued restores transfer, all-distinct destroys it (F9-c)"
+    - metric: "decay control at r=10"
+      direction: different
+      minimum_effect: "uniform in every arm"
+
+  test_boundary:
+    instances:
+      - "A2-5's counter coset, reused"
+    parameters:
+      cipher: "AES-GCM, C1 reduced-round convention"
+      round_counts: [3, 4, 5, 10]
+      weight_arms: ["H=1", "H=x", "random H", "2-valued weight sequence", "all-distinct weight sequence"]
+    implementation: "software carry-less multiplication, ~15-40 cycles/block"
+    budget:
+      total_compute: "5 weight arms x 4 round counts, ~30-45 minutes on 4 cores"
+      maximum_memory_gb: 1
+
+  falsification_conditions:
+    - "F9-a: H=1 arm does not reproduce unweighted balance -> collapse misstated or field arithmetic wrong."
+    - "F9-b: random-H arm reads all-zero above a 2^-128-consistent fraction -> weighting does not destroy the aggregate, prediction (iv) dead."
+    - "F9-c: 2-valued-weight arm behaves like all-distinct arm -> fibre-constancy is the wrong condition."
+    - "F9-d: gate (b) fails -> nothing may be reported."
+
+  interpretation_limits:
+    - >-
+      A MODE/COMPONENT result about GHASH/AES-GCM, not a statement about AES.
+      No forgery, no authentication break, no weak-key claim; H=1 is an
+      instrument setting only.
+    - "Ceiling medium for the algebraic fibre-constancy condition; toy for each measured arm."
+    - >-
+      No status change to A2-4's affine-combiner identity or any prior
+      knowledge entry is proposed or implied.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260807-812fd2.yaml
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A2.md
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/INDEX.md
+    - ledger/questions/RQ-AES-001.yaml
+    - ledger/goals/GOAL-AES-001.yaml
+    - ledger/hypotheses/H-AES-ecf3ad.yaml

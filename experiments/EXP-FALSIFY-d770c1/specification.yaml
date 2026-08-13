@@ -1,0 +1,226 @@
+experiment:
+  id: EXP-FALSIFY-d770c1
+  hypothesis_id: H-FALSIFY-40538b
+  question_id: RQ-FALSIFY-a2c501
+  goal_id: null
+  version: 1
+  title: >-
+    Adversarial falsification of load-bearing knowledge-corpus findings:
+    machine-checking derivation-only claims and re-deriving the empirical
+    tables that are their only support
+  status: completed
+  claim_tier: toy
+  confirmatory_status: confirmatory
+
+  objective: >-
+    Treat the knowledge corpus as untrusted. For findings whose recorded
+    confidence is `proved` / `established` but whose `proof_status` is
+    `derivation` -- an argument nobody has machine-checked -- construct the
+    cheapest decisive arithmetic test that a FALSE claim must fail, run it, and
+    report the outcome whichever way it falls. Two findings are tested here in
+    full; the remaining pre-registered protocols are in
+    docs/falsification-program.md.
+
+  motivation: >-
+    58 findings are in knowledge/findings. 24 carry proof_status: derivation.
+    No computer-algebra system is installed in this harness (no sympy, numpy,
+    sage, pari, flint), so no derivation-tier finding in this corpus has ever
+    been checked by anything other than the reasoning that produced it. That is
+    a single, uncontrolled point of failure across a quarter of the corpus, and
+    it is cheap to attack: the claims are arithmetic, and standard-library
+    integer arithmetic is exact.
+
+  targets:
+    - finding: KN-FIND-a1f3c2
+      recorded_confidence: derivation
+      recorded_proof_status: derivation
+      claim: >-
+        The monodromy of the m-th Semaev summation polynomial as a cover in x_1
+        is exactly C_2^(m-2) for EVERY non-singular prime-field curve E/F_p
+        (p > 3) and EVERY m >= 3, hence there is no exceptional locus and
+        KN-OPEN-009 is closed negatively.
+      why_vulnerable: >-
+        The recorded proof sketch establishes the group "for generic
+        parameters" and the finding then quantifies over EVERY curve. Generic
+        is not every: an exceptional locus is by definition where genericity
+        fails, so as written the argument assumes the conclusion. This is a
+        quantifier-order defect of exactly the kind the inventor-protocol
+        Section 8 audit exists to catch.
+      falsifier: >-
+        C_2^(m-2) acting simply transitively on 2^(m-2) sheets is a REGULAR
+        (Galois) cover. Every unramified specialisation of a Galois cover
+        factors into irreducible factors of EQUAL degree, that degree being the
+        order of the Frobenius element, and every non-identity element of
+        C_2^(m-2) has order 2. Admissible factorisation shapes are therefore
+        exactly [1]*2^(m-2) and [2]*2^(m-3). A single specialisation factoring
+        as [1,3], [3,5], [8] or [1,1,2] refutes the claim outright.
+
+    - finding: KN-FIND-c7d31e
+      recorded_confidence: proved
+      recorded_evidence_level: theorem
+      claim: >-
+        BKK Speedup Theorem: gamma_m = (m+1)/2^m and speedup >= (m+1)/2, with a
+        verification table at p=1009 whose empirical gamma EXCEEDS the
+        theoretical value in all four rows, the excess attributed to "EC group
+        law gives ~0.1 bonus in gamma above the theoretical floor".
+      why_vulnerable: >-
+        A systematic excess over a value the same record derives as an EQUALITY,
+        attributed to an unmodelled mechanism, and non-monotone in m
+        (+0.11, +0.16, +0.04, +0.08), is the canonical artifact tell named in
+        docs/inventor-protocol.md. Either the model is wrong or the table
+        measures a different quantity than the theorem predicts.
+      falsifier: >-
+        Separate the two estimands. The theorem predicts per-DECOMPOSITION
+        retention. If the excess is instead per-TARGET success -- at least one
+        of a target's several decompositions being visible -- then a purely
+        combinatorial null object carrying k decompositions and NO elliptic
+        curve reproduces the reported numbers, and the "EC group law bonus"
+        attribution is falsified without touching the algebra.
+
+  method:
+    - Implement F_p polynomial arithmetic, distinct-degree factorisation,
+      Sylvester resultants and Lagrange interpolation in the standard library
+      (falsify/fp.py).
+    - Implement curve arithmetic and Semaev S3/S4/S5 by iterated resultant
+      (falsify/ec.py). Every resultant asserts full nominal degree and returns
+      None on a degree drop, so interpolation never mixes normalisations.
+    - Every probe ships a null object and a positive control; a measurement
+      whose controls fail is not reported (falsify/probes.py).
+    - Driver falsify/run_all.py, fixed seed 20260808.
+
+  controls:
+    required: true
+    null_objects:
+      - id: NULL-MONO
+        description: >-
+          Minimal polynomial of +-s_1 +- ... +- s_k with s_i^2 = d_i in F_p,
+          built by iterated resultant. Its splitting field is a compositum of
+          at most k quadratic extensions, so its Galois group embeds in C_2^k
+          and has exponent 2 -- the same group the finding asserts. A correct
+          pipeline reports ONLY admissible shapes on it.
+        falsifies_if: >-
+          Any violation here means the factorisation pipeline manufactures
+          violations and NO Semaev measurement may be believed.
+      - id: NULL-BKK
+        description: >-
+          A target carrying k i.i.d. decompositions, with no elliptic curve
+          anywhere in the object.
+        falsifies_if: >-
+          If this reproduces the reported empirical excess, that excess is not
+          evidence of an elliptic-curve group-law effect.
+    positive_controls:
+      - id: POS-SEMAEV
+        description: >-
+          S_m must vanish on the x-coordinates of m points genuinely summing to
+          O. Any failure means the constructed polynomial is not the summation
+          polynomial and the whole probe is void.
+
+  metrics:
+    primary:
+      - monodromy: count of specialisations whose factorisation shape is
+          inadmissible for C_2^(m-2), out of usable specialisations
+      - bkk: per-decomposition retention and per-target success, measured
+          separately, each against the theoretical (m+1)/2^m
+    secondary:
+      - mean decomposition multiplicity as a function of factor-base size B
+      - null-object false-violation counts
+
+  success_criterion: >-
+    Per target finding, decided before execution and not adjustable afterwards.
+    KN-FIND-a1f3c2 is REFUTED if one or more usable specialisations factor into
+    a shape inadmissible for C_2^(m-2), with the null object at zero false
+    violations and the positive control at zero failures; it is NOT REFUTED
+    WITHIN SCOPE if zero such shapes appear under passing controls. A run whose
+    null object reports any false violation is VOID and reports nothing in
+    either direction. KN-FIND-c7d31e's verification section is REFUTED if the
+    per-decomposition retention measured on a real curve matches (m+1)/2^m while
+    the reported table does not, AND a null object containing no elliptic curve
+    reproduces the reported values; its theorem is separately CONFIRMED if
+    simulation of its own model reproduces (m+1)/2^m to |error| < 0.01.
+    A recorded exponent is UNIDENTIFIABLE, and therefore withdrawn rather than
+    contradicted, if the within-parameter replicate spread equals or exceeds the
+    across-parameter variation being fitted.
+
+  budget:
+    wall_clock_seconds: 5400
+    memory_gb: 2
+    maximum_runs: 1
+
+  stopping_rule: >-
+    Fixed sweep: primes 11..103, fixed trial counts, seed 20260808. No adaptive
+    extension, no re-seeding on an unwelcome outcome.
+
+  preregistered_prediction:
+    monodromy: >-
+      If KN-FIND-a1f3c2 is true, violations = 0 at every m. If the claim holds
+      only generically, violations appear on the curves where independence of
+      the quadratic extensions fails.
+    bkk: >-
+      If the theorem's model is right, per-decomposition retention equals
+      (m+1)/2^m. If the "EC group law bonus" is real, the null object CANNOT
+      reproduce the reported table.
+
+  required_artifacts:
+    - falsify/ (implementation)
+    - runs/RUN-FALSIFY-d770c1-001/raw-result.json
+    - runs/RUN-FALSIFY-d770c1-001/stdout.log
+    - runs/RUN-FALSIFY-d770c1-001/manifest.yaml
+    - runs/RUN-FALSIFY-d770c1-002/manifest.yaml
+
+  result:
+    monodromy_m4:
+      controls: null-object 0 false violations; positive control 0 failures
+      violations: 0
+      verdict: claim_survives
+    monodromy_m5:
+      controls: null-object 0 false violations; positive control 0 failures
+      violations: 0
+      verdict: claim_survives
+    monodromy_harness_note: >-
+      A FIRST, UNCONTROLLED version of this probe reported a 28% violation rate
+      at m=5 including shapes [1,7], [3,5] and [8], which would have refuted the
+      finding decisively. Every one of those violations was an artifact of the
+      probe: the intermediate resultant S4(x1,x2,x3,X) drops degree in X at some
+      interpolation nodes, the Sylvester matrix silently shrinks, and
+      interpolating across the two normalisations yields a polynomial that is
+      not the summation polynomial. Enforcing full nominal degree at every node
+      removed all 128 violations. The null object -- which was clean throughout
+      -- is what proves the factorisation code was never at fault.
+    bkk_theorem_identity: >-
+      Reproduced exactly. Simulation of the theorem's own i.i.d. model matches
+      (m+1)/2^m to |error| <= 0.003 at m = 2,3,4,5.
+    bkk_causal_attribution: >-
+      FALSIFIED. On the real curve at p=1009 the per-decomposition retention is
+      0.5000 against a theoretical 0.5000 at m=3, error 0.0000, across
+      B in {10,16,24,32,40}. The elliptic-curve group law contributes NOTHING to
+      gamma. The claimed "~0.1 bonus" does not exist as a group-law effect.
+    bkk_estimand_mismatch: >-
+      CONFIRMED. Per-TARGET success at the same measurements runs
+      0.642 -> 0.608 -> 0.774 -> 0.952 -> 1.000 as B runs 10 -> 40, tracking mean
+      decomposition multiplicity 1.49 -> 11.11. The purely combinatorial null
+      object, with no elliptic curve, brackets every reported table value at
+      multiplicity between 1 and 2. The reported table is a per-target
+      measurement compared against a per-decomposition prediction.
+    bkk_consequence: >-
+      The theorem's algebra stands. Its verification table does not verify it:
+      it measures a different estimand, and that estimand is not a constant --
+      it is driven to 1.000 by raising B alone, at fixed m. Any speedup number
+      quoted from the empirical column is therefore B-dependent and cannot be
+      carried to N=2^256 as "guaranteed >= 2.5-3.0x". The defensible number is
+      the theorem's own (m+1)/2, for which the table supplies no support.
+
+  scope_limits: >-
+    Toy scale throughout: primes 11..103 for the monodromy sweep, p=1009 for the
+    BKK curve measurement, m in {4,5} and {3,4} respectively. The monodromy
+    result is a non-refutation over the sampled specialisations, NOT a proof of
+    the finding: absence of a counterexample at these primes leaves the
+    quantifier-order defect in the recorded proof sketch untouched, and a
+    counterexample locus of density below ~1/300 would not have been seen. The
+    BKK result bounds what the finding's own table can support and asserts
+    nothing about crypto-scale speedups either way.
+
+  authority_note: >-
+    This experiment records evidence only. It changes no hypothesis status and
+    supersedes no finding: under AGENTS.md rule 1 and CLAUDE.md rule 1 only the
+    Coordinator may do that. EV-FALSIFY-2a5e46 is filed for Coordinator review
+    with a proposed correction to KN-FIND-c7d31e's verification section.

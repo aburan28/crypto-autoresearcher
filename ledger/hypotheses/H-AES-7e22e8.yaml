@@ -1,0 +1,129 @@
+hypothesis:
+  id: H-AES-7e22e8
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  source_idea_id: IDEA-20260807-7e16ac
+
+  statement: >-
+    SCOPE: AES-GCM/AES-CTR's counter byte placement (bytes 12-15 = column 3
+    under the pinned column-major layout), reduced-round, toy tier. NO ATTACK,
+    NO KEY RECOVERY, NO FULL-ROUND OR DEPLOYED-AES CLAIM. Under ShiftRows
+    index arithmetic, the column-3 coset a real GCM counter delivers reaches
+    full active-column diffusion exactly one round earlier than REF-C's
+    diagonal coset D_0 at the same data cost. Predicted: (i) the full 2^32
+    column coset balances exactly through r=3 (16/16) and is dead at r=4
+    (0/16), one round earlier than REF-C's diagonal 16/16-through-r=4; (ii) on
+    a dimension ladder d in {8,16,24,30,31,32} the column-coset depth is
+    non-decreasing in d, saturating by d=24; (iii) the largest set-aggregate
+    depth available to a ciphertext-only GCM adversary is the d=30 column
+    reading, moving to d=31 with the tag-mask block and no further, under
+    GCM's own 2^32-2 message limit.
+
+  mechanism: >-
+    With SR(x)[t][c] = x[t][(c+t) mod 4], D_0 = {0,5,10,15} maps under
+    ShiftRows onto column 0, so after round 1 exactly one column is fully
+    active. GCM fixes the counter in column 3; ShiftRows sends column 3 to
+    one byte in each of the four columns, so MixColumns makes all four
+    columns fully active after round 1 — one round further along in
+    diffusion than the diagonal coset. GCM's 2^32-2 plaintext-block limit
+    caps the largest aligned (GF(2)-coset) run at 2^30; the missing element
+    of the aligned 2^31 run is counter 0, whose block E_K(J_0) is the tag
+    mask and is recoverable from any known-plaintext message with its tag,
+    restoring 2^31 at the cost of one recovered block, never 2^32 inside
+    GCM's own limit. Full derivation: ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A2.md
+    lines 465-509.
+
+  assumptions:
+    - >-
+      The pinned column-major state layout (state[t][c] = byte[4c+t]) and the
+      pinned final-round convention (no final MixColumns) used throughout
+      GOAL-AES-001's harness.
+    - >-
+      REF-C's diagonal-coset measurement (MEAS-GOAL-AES-002-002) is
+      reproduced bit-for-bit in the same binary before any column reading is
+      believed (known-answer gate).
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/derivational entry: the ShiftRows index-arithmetic
+      argument is re-checkable in seconds by hand and the remaining content is
+      a measured integral-balance sweep, not a proof-search object.
+
+  rerandomization: null
+  asymptotic_claim: null
+
+  heuristic_assumptions:
+    - id: HEUR-AES-7e22e8-1
+      formal_statement: >-
+        The column-coset depth ladder is non-decreasing in coset dimension d
+        because balance needs only even multiplicities, not uniform ones,
+        across d in {8,16,24,30,31,32}.
+      random_model_justification: >-
+        Structural, not distributional: derived from the integral-balance
+        algebra of the column coset, re-derivable in advance from the same
+        ShiftRows/MixColumns index arithmetic as the r=3/r=4 prediction.
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-7ecc87]
+      falsification_condition: >-
+        The d-ladder showing depth DECREASING with d (F5-c in the source
+        entry) — instrument failure, since balance cannot get worse with a
+        larger even-multiplicity set.
+
+  structural_ingredients: []
+
+  reduction_chain:
+    core_problem: >-
+      Whether AES-GCM's actual counter byte placement changes the reduced-
+      round integral depth relative to the diagonal coset REF-C measures.
+    corollaries: []
+
+  predictions:
+    - metric: "column-coset balance at r=3 (16/16 trials)"
+      direction: different
+      minimum_effect: "exact 16/16 required; any deviation voids the arm"
+    - metric: "column-coset death at r=4 (0/16 trials)"
+      direction: lower
+      minimum_effect: "exact 0/16 required, full-entropy accumulators"
+    - metric: "d-ladder depth monotonicity across d in {8,16,24,30,31,32}"
+      direction: higher
+      minimum_effect: "non-decreasing; saturating by d=24"
+    - metric: "row-position-set sibling null (F5-b)"
+      direction: different
+      minimum_effect: >-
+        the row arm {0,1,2,3} must NOT behave identically to the column arm,
+        or the attribution to 'column' specifically is withdrawn
+
+  test_boundary:
+    instances:
+      - "GOAL-AES-001 harness aes_reduced.py, FIPS-197-pinned"
+    parameters:
+      cipher: "AES, C1 reduced-round convention"
+      round_counts: [3, 4, 5, 10]
+      position_sets: ["diagonal D_0 (baseline)", "column 3 (GCM placement)", "row {0,1,2,3} (sibling null)", "PRP control"]
+      dimension_ladder_d: [8, 16, 24, 30, 31, 32]
+    implementation: "AES-NI C path per A2-5's minimal_test, 53s per (position set, d, r) cell"
+    budget:
+      total_compute: "~2^34 AES evaluations, ~4 minutes on 4 cores"
+      maximum_memory_gb: 1
+
+  falsification_conditions:
+    - "F5-a: the column arm balances through r=4 -> the one-round deficit is wrong, withdraw."
+    - "F5-b: the row arm behaves identically to the column arm -> 'column' is not load-bearing, attribution withdrawn."
+    - "F5-c: the d-ladder shows depth decreasing with d -> instrument failure."
+    - "F5-d: the diagonal gate fails to reproduce REF-C -> nothing may be reported."
+
+  interpretation_limits:
+    - >-
+      A MODE result about AES-GCM/AES-CTR byte placement, not a statement
+      about AES the block cipher; no attack is exhibited.
+    - "Ceiling toy, scoped to tested rounds, keys, seeds and position sets."
+    - "No comparison to published cryptanalysis in either direction."
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260807-7e16ac.yaml
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A2.md
+    - ledger/questions/RQ-AES-001.yaml
+    - ledger/goals/GOAL-AES-001.yaml
