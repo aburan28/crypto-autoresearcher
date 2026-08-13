@@ -97,6 +97,46 @@ never written) stay unallocated to any record; they are simply not used.
 `next_action` is `DEC-20260813-1aae44`'s. This batch does not touch either
 field — it never reached a ledger archive and makes no state-transition claim.
 
+## A second, separate process defect: the frozen prereg was edited post-notarization
+
+Commit `582fcdccd` ("Fix PREREG-4 frozen s_c^fib path and close
+termination-clause gap"), authored by a Cursor Agent session and pushed
+directly to this same branch, **edits `TASK-20260813-61dab8/prereg.md`
+in place** — after `TASK-20260813-30cdca` had already notarized it at
+`e40098f4f`. This batch's own `dispatch_queue.json` states the rule this
+violates explicitly, twice: *"Do NOT edit prereg.md. It is frozen; a
+correction is a superseding record under a new identifier."* Recorded
+plainly rather than silently accepted or silently reverted:
+
+- The two changes are, on their face, genuine bug fixes (a JSON path that
+  named a nonexistent key; a termination-clause gap between the
+  `CONFIRMS`/`UNDERMINES` branches for an intermediate `D_route_independent`
+  value) — this note does not dispute their content.
+- **The correct mechanism for either fix was a new, superseding
+  pre-registration under a new identifier**, exactly as this batch's own
+  rule states, never an in-place edit of the notarized file. Editing it
+  destroys the notarization property this batch was built around: that
+  `prereg.md` FIRST APPEARS, unchanged, at the notarizing commit, and cannot
+  have moved under the measurement it governs.
+- Whether `TASK-20260813-415c21`'s lead producer consumed the original or
+  the edited text is not established here and is not investigated further:
+  the batch is cancelled and superseded regardless, so nothing turns on it.
+  This is recorded as a standalone integrity finding about the branch, not
+  as a defect in the producer's own (also cancelled, also unreviewed)
+  result.
+- This is the **third** distinct concurrency failure this branch has now
+  shown in one session (batch-level duplication with `BATCH-6e08fe`; a
+  stale-assumption cancellation note; now an in-place edit of a file another
+  session had already frozen) — all on the identical branch name
+  `cursor/launch-mlkem-harness-78fd`, meaning multiple agent sessions were
+  writing to the same branch concurrently, not merely reading the same
+  `main`. This is a sharper instance of the "many agents, many worktrees"
+  hazard `AGENTS.md`/`CLAUDE.md` already name: those documents assume
+  collisions are discovered at a *merge* into a shared branch; here the
+  collision was between two sessions both holding write access to the
+  *same* branch, which no merge-time check catches, since there is no merge
+  — only a race on who pushes next.
+
 ## Process lesson
 
 This is the second instance in one session of the same concurrency pattern
