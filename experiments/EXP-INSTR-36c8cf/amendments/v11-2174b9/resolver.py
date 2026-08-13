@@ -19,7 +19,7 @@ import json
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType, SimpleNamespace
 from typing import Any, Callable, Protocol, Sequence
@@ -306,7 +306,14 @@ class DiagnosticCollector:
         try:
             return action()
         except ResolutionFailure as exc:
-            self.merge_nested(phase, exc)
+            try:
+                self.merge_nested(phase, exc)
+            except Exception as merge_exc:
+                self.add(
+                    "UNRESOLVED_CONTRADICTION",
+                    f"nested diagnostic merge failed: {type(merge_exc).__name__}: {merge_exc}",
+                    f"{phase}:nested",
+                )
         except Exception as exc:
             self.add(default_code, f"{type(exc).__name__}: {exc}", phase)
         return None
@@ -474,10 +481,10 @@ def _nested_failure_is_well_formed(value: Any) -> bool:
         return False
     if value.code not in PRIORITY_BY_CODE or not isinstance(value.detail, str) or not value.detail:
         return False
-    if not isinstance(value.diagnostics, list):
+    if type(value.diagnostics) is not list:
         return False
     for row in value.diagnostics:
-        if not isinstance(row, dict):
+        if type(row) is not dict:
             return False
         code = row.get("code")
         if code not in PRIORITY_BY_CODE:
@@ -498,13 +505,18 @@ def _normalize_public_controls(
 ) -> tuple[tuple[str, ...], FaultFixture | None]:
     """Collector-first normalization for every public control argument."""
 
+    # Snapshot exactly once, from an exact built-in container, so validation and
+    # the value carried forward are the same immutable tuple.
+    snapshot: tuple[Any, ...] = ()
+    if type(strategies) in (list, tuple):
+        snapshot = tuple(strategies)
     valid_strategies = (
-        isinstance(strategies, (list, tuple))
-        and bool(strategies)
-        and all(type(item) is str and item in {"latest_entry", "ordered_entry"} for item in strategies)
+        type(strategies) in (list, tuple)
+        and bool(snapshot)
+        and all(type(item) is str and item in {"latest_entry", "ordered_entry"} for item in snapshot)
     )
     if valid_strategies:
-        normalized_strategies = tuple(strategies)
+        normalized_strategies = snapshot
     else:
         collector.add(
             "ECOMP_LATEST_ONLY",
@@ -530,7 +542,17 @@ def _normalize_public_controls(
             )
         )
         if fixture_valid:
-            normalized_fixture = fault_fixture
+            # Rebuild the nested failure over exact built-in containers so no
+            # later traversal re-enters caller-owned code.
+            nested = fault_fixture.nested_failure
+            if nested is not None:
+                rebuilt = ResolutionFailure(
+                    nested.code,
+                    nested.detail,
+                    [dict(row) for row in nested.diagnostics],
+                )
+                nested = rebuilt
+            normalized_fixture = replace(fault_fixture, nested_failure=nested)
     if not fixture_valid:
         collector.add(
             "TYPE_COERCION",
