@@ -1,15 +1,8 @@
 #!/usr/bin/env python3
-"""Independent recomputation from raw_scores.json only.
-
-This script intentionally does not read results.json.  It verifies seeded
-instance/candidate/target generation, serialized score arrays, all array
-lengths, report-table statistics, modular ranks, and what can be recovered
-about the omitted (x,y) vectors from the phase table.
-"""
+"""Independent raw-only metric, seed, score, and recoverability checks."""
 
 import argparse
 import json
-import math
 from pathlib import Path
 
 import numpy as np
@@ -61,32 +54,28 @@ def inverse_mod(matrix, q):
     n, m = a.shape
     if n != m:
         raise ValueError("matrix must be square")
-    aug = np.concatenate([a.copy(), np.eye(n, dtype=np.int64)], axis=1)
-    r = 0
+    aug = np.concatenate([a, np.eye(n, dtype=np.int64)], axis=1)
     for c in range(n):
-        pivot = next((i for i in range(r, n) if aug[i, c] % q), None)
+        pivot = next((i for i in range(c, n) if aug[i, c] % q), None)
         if pivot is None:
-            raise ValueError("matrix is singular")
-        if pivot != r:
-            aug[[r, pivot]] = aug[[pivot, r]]
-        aug[r] = (aug[r] * pow(int(aug[r, c]), -1, q)) % q
+            raise ValueError("singular matrix")
+        if pivot != c:
+            aug[[c, pivot]] = aug[[pivot, c]]
+        aug[c] = (aug[c] * pow(int(aug[c, c]), -1, q)) % q
         for i in range(n):
-            if i != r and aug[i, c]:
-                aug[i] = (aug[i] - aug[i, c] * aug[r]) % q
-        r += 1
-    if not np.array_equal(aug[:, :n], np.eye(n, dtype=np.int64)):
-        raise AssertionError("inverse reduction failed")
+            if i != c and aug[i, c]:
+                aug[i] = (aug[i] - aug[i, c] * aug[c]) % q
     return aug[:, n:]
 
 
-def group_summary(means, indices):
-    x = np.asarray([means[i] for i in indices], dtype=np.float64)
+def summary(values):
+    x = np.asarray(values, dtype=np.float64)
     return {
         "n": int(len(x)),
         "mean": float(x.mean()),
         "min": float(x.min()),
         "max": float(x.max()),
-        "sd_ddof1": float(x.std(ddof=1)) if len(x) > 1 else None,
+        "sd_ddof1": float(x.std(ddof=1)),
     }
 
 
@@ -94,336 +83,196 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("raw_scores", type=Path)
     args = ap.parse_args()
-    with args.raw_scores.open() as f:
-        raw = json.load(f)
-
+    raw = json.loads(args.raw_scores.read_text())
     p = raw["parameters"]
-    m, n, d, q, n_vectors = (
-        int(p["m"]),
-        int(p["n"]),
-        int(p["d"]),
-        int(p["q"]),
-        int(p["n_sieve_vectors"]),
-    )
-    a = np.asarray(raw["A"], dtype=np.int64)
-    secret = np.asarray(raw["secret"], dtype=np.int64)
-    candidates = np.asarray([c["vector"] for c in raw["candidates"]], dtype=np.int64)
+    m, n, d, q, N = (int(p[k]) for k in ("m", "n", "d", "q", "n_sieve_vectors"))
+    A = np.asarray(raw["A"], dtype=np.int64)
+    s = np.asarray(raw["secret"], dtype=np.int64)
+    C = np.asarray([c["vector"] for c in raw["candidates"]], dtype=np.int64)
     labels = [c["label"] for c in raw["candidates"]]
     types = [c["type"] for c in raw["candidates"]]
     targets = raw["targets"]
-
-    # Reconstruct every numpy-generated value from the recorded seeds.
     seeds = p["seeds"]
-    rng_inst = np.random.default_rng(int(seeds["instance"]))
-    a_re = rng_inst.integers(0, q, size=(m, n), dtype=np.int64)
-    s_re = centered_binomial(rng_inst, 2, n)
-    e_main_re = rounded_gaussian(rng_inst, 2.0, m)
-    b_main_re = (a_re @ s_re + e_main_re) % q
 
-    rng_cand = np.random.default_rng(int(seeds["candidates"]))
-    c_re = [s_re.copy()]
-    c_re.extend(rng_cand.integers(0, q, size=n, dtype=np.int64) for _ in range(16))
-    c_re.extend(centered_binomial(rng_cand, 2, n) for _ in range(8))
+    # Exact seeded input reconstruction.
+    rng = np.random.default_rng(int(seeds["instance"]))
+    A2 = rng.integers(0, q, size=(m, n), dtype=np.int64)
+    s2 = centered_binomial(rng, 2, n)
+    e2 = rounded_gaussian(rng, 2.0, m)
+    rngc = np.random.default_rng(int(seeds["candidates"]))
+    C2 = [s2.copy()]
+    C2 += [rngc.integers(0, q, size=n, dtype=np.int64) for _ in range(16)]
+    C2 += [centered_binomial(rngc, 2, n) for _ in range(8)]
     for i in range(8):
-        c = s_re.copy()
+        c = s2.copy()
         c[i] += 1
-        c_re.append(c)
-    c_re = np.asarray(c_re, dtype=np.int64)
-
-    rng_null = np.random.default_rng(int(seeds["null_target"]))
-    b_null_re = rng_null.integers(0, q, size=m, dtype=np.int64)
-
-    rng_decay = np.random.default_rng(int(seeds["decay_errors"]))
-    decay_error_re = {}
-    for sigma in [0.5, 1.0, 4.0, 8.0, 16.0]:
-        decay_error_re[f"DECAY_sigma{sigma:g}"] = rounded_gaussian(rng_decay, sigma, m)
-    decay_error_re["DECAY_uniform_error"] = center_mod(
-        rng_decay.integers(0, q, size=m, dtype=np.int64), q
-    )
-
-    seeded_checks = {
-        "A": bool(np.array_equal(a, a_re)),
-        "secret": bool(np.array_equal(secret, s_re)),
-        "main_error": bool(
-            np.array_equal(
-                np.asarray(targets[0]["error_vector"], dtype=np.int64), e_main_re
-            )
-        ),
-        "main_b": bool(
-            np.array_equal(np.asarray(targets[0]["b"], dtype=np.int64), b_main_re)
-        ),
-        "candidates": bool(np.array_equal(candidates, c_re)),
-        "null_b": bool(
-            np.array_equal(np.asarray(targets[1]["b"], dtype=np.int64), b_null_re)
-        ),
+        C2.append(c)
+    rngn = np.random.default_rng(int(seeds["null_target"]))
+    bnull = rngn.integers(0, q, size=m, dtype=np.int64)
+    seed_checks = {
+        "A": np.array_equal(A, A2),
+        "secret": np.array_equal(s, s2),
+        "main_error": np.array_equal(targets[0]["error_vector"], e2),
+        "main_b": np.array_equal(targets[0]["b"], (A2 @ s2 + e2) % q),
+        "candidates": np.array_equal(C, np.asarray(C2)),
+        "null_b": np.array_equal(targets[1]["b"], bnull),
     }
+    rngd = np.random.default_rng(int(seeds["decay_errors"]))
+    expected_errors = {}
+    for sigma in (0.5, 1.0, 4.0, 8.0, 16.0):
+        expected_errors[f"DECAY_sigma{sigma:g}"] = rounded_gaussian(rngd, sigma, m)
+    expected_errors["DECAY_uniform_error"] = center_mod(
+        rngd.integers(0, q, size=m, dtype=np.int64), q
+    )
     for tg in targets[2:]:
-        name = tg["name"]
-        expected_e = decay_error_re[name]
-        seeded_checks[f"{name}_error"] = bool(
-            np.array_equal(np.asarray(tg["error_vector"], dtype=np.int64), expected_e)
-        )
-        seeded_checks[f"{name}_b"] = bool(
-            np.array_equal(
-                np.asarray(tg["b"], dtype=np.int64),
-                (a @ secret + expected_e) % q,
-            )
-        )
+        e = expected_errors[tg["name"]]
+        seed_checks[tg["name"] + "_error"] = np.array_equal(tg["error_vector"], e)
+        seed_checks[tg["name"] + "_b"] = np.array_equal(tg["b"], (A @ s + e) % q)
 
-    # Exhaustively verify emitted array lengths and serialized cosine values.
+    # Raw lengths, score serialization, candidate means, and ranks.
     length_failures = []
-    phase_arrays = 0
-    score_arrays = 0
-    score_value_count = 0
-    max_serialized_cosine_error = 0.0
-    serialized_cosine_mismatches = 0
-    target_data = {}
+    phase_arrays = score_arrays = score_values = score_mismatches = 0
+    max_score_error = 0.0
+    phase = {}
+    metrics = {}
     for tg in targets:
-        per = sorted(tg["per_candidate"], key=lambda x: int(x["candidate_index"]))
         by_index = {}
-        for item in per:
+        for item in tg["per_candidate"]:
             ci = int(item["candidate_index"])
             t = np.asarray(item["phases_t"], dtype=np.int64)
             by_index[ci] = t
             phase_arrays += 1
-            if len(t) != n_vectors:
-                length_failures.append(f"{tg['name']}:phase:{ci}:{len(t)}")
+            if len(t) != N:
+                length_failures.append([tg["name"], "phase", ci, len(t)])
             if "scores_cos" in item:
-                observed = np.asarray(item["scores_cos"], dtype=np.float64)
-                expected = np.round(np.cos(2.0 * np.pi * t / q), 6)
+                got = np.asarray(item["scores_cos"], dtype=np.float64)
+                want = np.round(np.cos(2 * np.pi * t / q), 6)
                 score_arrays += 1
-                score_value_count += len(observed)
-                if len(observed) != n_vectors:
-                    length_failures.append(
-                        f"{tg['name']}:score:{ci}:{len(observed)}"
-                    )
-                if len(observed):
-                    max_serialized_cosine_error = max(
-                        max_serialized_cosine_error,
-                        float(np.max(np.abs(observed - expected))),
-                    )
-                    serialized_cosine_mismatches += int(
-                        np.count_nonzero(observed != expected)
-                    )
-        target_data[tg["name"]] = by_index
-
+                score_values += len(got)
+                if len(got) != N:
+                    length_failures.append([tg["name"], "score", ci, len(got)])
+                score_mismatches += int(np.count_nonzero(got != want))
+                max_score_error = max(max_score_error, float(np.max(np.abs(got - want))))
+        phase[tg["name"]] = by_index
+        means = {i: float(np.cos(2 * np.pi * t / q).mean()) for i, t in by_index.items()}
+        metrics[tg["name"]] = {
+            "correct_mean": means[0],
+            "wrong_mean": float(np.mean([v for i, v in means.items() if i])),
+            "rank": 1 + sum(v > means[0] for i, v in means.items() if i),
+            "candidate_means": {labels[i]: v for i, v in means.items()},
+        }
     for key, values in raw["per_vector"].items():
-        if isinstance(values, list) and len(values) != n_vectors:
-            length_failures.append(f"per_vector:{key}:{len(values)}")
+        if isinstance(values, list) and len(values) != N:
+            length_failures.append(["per_vector", key, len(values)])
 
-    # Recompute all target means and ranks from integer phases, never serialized
-    # scores and never results.json.
-    target_metrics = {}
-    for tg in targets:
-        by_index = target_data[tg["name"]]
-        ordered_indices = sorted(by_index)
-        means = {
-            ci: float(np.cos(2.0 * np.pi * by_index[ci] / q).mean())
-            for ci in ordered_indices
-        }
-        correct = means[0]
-        rank = 1 + sum(means[ci] > correct for ci in ordered_indices if ci != 0)
-        target_metrics[tg["name"]] = {
-            "n_candidates": len(ordered_indices),
-            "correct_mean": correct,
-            "rank": int(rank),
-            "wrong_mean": float(
-                np.mean([means[i] for i in ordered_indices if i != 0])
-            ),
-            "candidate_means": {labels[i]: means[i] for i in ordered_indices},
-        }
-
-    main_means = {
-        i: target_metrics["MAIN_lwe_sigma2"]["candidate_means"][labels[i]]
-        for i in range(len(candidates))
+    main = {i: metrics["MAIN_lwe_sigma2"]["candidate_means"][labels[i]] for i in range(33)}
+    null = {i: metrics["NULL_uniform_target"]["candidate_means"][labels[i]] for i in range(33)}
+    groups = {"uniform": range(1, 17), "centered_binomial": range(17, 25), "near_miss": range(25, 33)}
+    tables = {
+        "main": {k: summary([main[i] for i in v]) for k, v in groups.items()},
+        "null": {k: summary([null[i] for i in v]) for k, v in groups.items()},
     }
-    null_means = {
-        i: target_metrics["NULL_uniform_target"]["candidate_means"][labels[i]]
-        for i in range(len(candidates))
-    }
-    groups = {
-        "uniform": list(range(1, 17)),
-        "centered_binomial": list(range(17, 25)),
-        "near_miss": list(range(25, 33)),
-    }
-    report_tables = {
-        "main": {name: group_summary(main_means, idx) for name, idx in groups.items()},
-        "null": {name: group_summary(null_means, idx) for name, idx in groups.items()},
-    }
-    null_wrong = np.asarray([null_means[i] for i in range(1, 33)])
-    report_tables["null_nominal_z_wrong_sd"] = float(
-        (null_means[0] - null_wrong.mean()) / null_wrong.std(ddof=1)
+    wrong_null = np.asarray([null[i] for i in range(1, 33)])
+    tables["null_nominal_z_wrong_sd"] = float(
+        (null[0] - wrong_null.mean()) / wrong_null.std(ddof=1)
     )
-
-    x_dot_e = np.asarray(raw["per_vector"]["x_dot_e_main"], dtype=np.int64)
-    report_tables["x_dot_e_main"] = {
-        "sd_ddof0": float(x_dot_e.std()),
-        "min": int(x_dot_e.min()),
-        "max": int(x_dot_e.max()),
-        "fraction_abs_lt_q_over_4": float(np.mean(np.abs(x_dot_e) < q / 4.0)),
-        "main_correct_phase_equal": bool(
-            np.array_equal(target_data["MAIN_lwe_sigma2"][0], x_dot_e)
-        ),
+    xdot = np.asarray(raw["per_vector"]["x_dot_e_main"], dtype=np.int64)
+    tables["x_dot_e_main"] = {
+        "sd_ddof0": float(xdot.std()),
+        "min": int(xdot.min()),
+        "max": int(xdot.max()),
+        "fraction_abs_lt_q_over_4": float(np.mean(np.abs(xdot) < q / 4)),
+        "main_correct_phase_equal": np.array_equal(phase["MAIN_lwe_sigma2"][0], xdot),
     }
-    report_tables["error_main"] = {
-        "sd_ddof0": float(e_main_re.std()),
-        "infinity_norm": int(np.max(np.abs(e_main_re))),
+    normv = np.asarray(raw["per_vector"]["norm2_v"], dtype=np.int64)
+    normx = np.asarray(raw["per_vector"]["norm2_x"], dtype=np.int64)
+    normy = np.asarray(raw["per_vector"]["norm2_y"], dtype=np.int64)
+    tables["norm2_v"] = {
+        "min": int(normv.min()),
+        "median": float(np.median(normv)),
+        "max": int(normv.max()),
+        "equals_x_plus_y_all": np.array_equal(normv, normx + normy),
     }
-    norm2_v = np.asarray(raw["per_vector"]["norm2_v"], dtype=np.int64)
-    norm2_x = np.asarray(raw["per_vector"]["norm2_x"], dtype=np.int64)
-    norm2_y = np.asarray(raw["per_vector"]["norm2_y"], dtype=np.int64)
-    report_tables["norm2_v"] = {
-        "min": int(norm2_v.min()),
-        "median": float(np.median(norm2_v)),
-        "max": int(norm2_v.max()),
-        "equals_x_plus_y_all": bool(np.array_equal(norm2_v, norm2_x + norm2_y)),
-    }
-
-    finite_decay_names = [
-        "DECAY_sigma0.5",
-        "DECAY_sigma1",
-        "MAIN_lwe_sigma2",
-        "DECAY_sigma4",
-        "DECAY_sigma8",
-        "DECAY_sigma16",
+    order = [
+        "DECAY_sigma0.5", "DECAY_sigma1", "MAIN_lwe_sigma2",
+        "DECAY_sigma4", "DECAY_sigma8", "DECAY_sigma16", "DECAY_uniform_error",
     ]
-    finite_decay_means = [
-        target_metrics[name]["correct_mean"] for name in finite_decay_names
-    ]
-    report_tables["decay"] = {
-        "target_order": finite_decay_names + ["DECAY_uniform_error"],
-        "correct_means": finite_decay_means
-        + [target_metrics["DECAY_uniform_error"]["correct_mean"]],
+    correct_decay = [metrics[k]["correct_mean"] for k in order]
+    tables["decay"] = {
+        "target_order": order,
+        "correct_means": correct_decay,
         "wrong_means": [
-            target_metrics["DECAY_sigma0.5"]["wrong_mean"],
-            target_metrics["DECAY_sigma1"]["wrong_mean"],
-            report_tables["main"]["uniform"]["mean"],
-            target_metrics["DECAY_sigma4"]["wrong_mean"],
-            target_metrics["DECAY_sigma8"]["wrong_mean"],
-            target_metrics["DECAY_sigma16"]["wrong_mean"],
-            target_metrics["DECAY_uniform_error"]["wrong_mean"],
+            metrics[order[0]]["wrong_mean"], metrics[order[1]]["wrong_mean"],
+            tables["main"]["uniform"]["mean"], metrics[order[3]]["wrong_mean"],
+            metrics[order[4]]["wrong_mean"], metrics[order[5]]["wrong_mean"],
+            metrics[order[6]]["wrong_mean"],
         ],
-        "ranks": [
-            target_metrics[name]["rank"]
-            for name in finite_decay_names + ["DECAY_uniform_error"]
-        ],
-        "strictly_monotone_over_finite_sigma": bool(
-            all(a0 > a1 for a0, a1 in zip(finite_decay_means, finite_decay_means[1:]))
+        "ranks": [metrics[k]["rank"] for k in order],
+        "strictly_monotone_over_finite_sigma": all(
+            x > y for x, y in zip(correct_decay[:6], correct_decay[1:6])
         ),
     }
 
-    # Recover y mod q from phase differences across the 33 candidates.
-    # D_j y = -(t_j-t_0), where D_j = candidate_j-candidate_0.
-    diff_candidates = (candidates[1:] - candidates[0]) % q
-    _, pivot_candidate_rows = rref_mod(diff_candidates.T, q)
-    selected = pivot_candidate_rows[:n]
-    d_square = diff_candidates[selected]
-    d_inverse = inverse_mod(d_square, q)
-    main_t = target_data["MAIN_lwe_sigma2"]
-    rhs_main = np.asarray(
-        [-(main_t[j + 1] - main_t[0]) for j in selected], dtype=np.int64
+    # Recover y from candidate phase differences.
+    D = (C[1:] - C[0]) % q
+    _, pivot_rows = rref_mod(D.T, q)
+    selected = pivot_rows[:n]
+    rhs = np.asarray(
+        [-(phase["MAIN_lwe_sigma2"][j + 1] - phase["MAIN_lwe_sigma2"][0]) for j in selected]
     ) % q
-    y_mod = (d_inverse @ rhs_main).T % q
-    all_main_rhs = np.asarray(
-        [-(main_t[j] - main_t[0]) for j in range(1, len(candidates))],
-        dtype=np.int64,
-    ) % q
-    main_phase_difference_failures = int(
-        np.count_nonzero((diff_candidates @ y_mod.T) % q != all_main_rhs)
-    )
-
-    cross_target_y_failures = 0
-    recovered_xb = {}
+    ymod = (inverse_mod(D[selected], q) @ rhs).T % q
+    phase_failures = 0
     for tg in targets:
-        by_index = target_data[tg["name"]]
-        for ci, phases in by_index.items():
-            expected_delta = (y_mod @ (candidates[ci] - candidates[0])) % q
-            observed_delta = (by_index[0] - phases) % q
-            cross_target_y_failures += int(
-                np.count_nonzero(expected_delta != observed_delta)
+        by = phase[tg["name"]]
+        for ci, t in by.items():
+            phase_failures += int(
+                np.count_nonzero((by[0] - t) % q != (ymod @ (C[ci] - C[0])) % q)
             )
-        recovered_xb[tg["name"]] = (
-            by_index[0] + y_mod @ candidates[0]
-        ) % q
+    ycenter = center_mod(ymod, q)
+    ynorm_match = np.sum(ycenter * ycenter, axis=1) == normy
+    brows = np.asarray([tg["b"] for tg in targets], dtype=np.int64)
 
-    y_center = center_mod(y_mod, q)
-    y_norm_match = np.sum(y_center * y_center, axis=1) == norm2_y
-
-    # Ranks quantify what the omitted vectors leave falsifiable.
-    a_transpose_rank = rank_mod(a.T, q)
-    b_rows = np.asarray([tg["b"] for tg in targets], dtype=np.int64)
-    b_row_rank = rank_mod(b_rows, q)
-    x_observation_matrix = np.vstack([a.T, b_rows])
-    x_observation_rank = rank_mod(x_observation_matrix, q)
-
-    output = {
-        "input": str(args.raw_scores),
+    out = {
         "parameters": {
-            "m": m,
-            "n": n,
-            "d": d,
-            "q": q,
-            "N": n_vectors,
-            "A_shape": list(a.shape),
-            "candidate_count": len(candidates),
+            "m": m, "n": n, "d": d, "q": q, "N": N, "A_shape": list(A.shape),
+            "candidate_count": len(C),
             "candidate_class_counts": {
                 "correct": types.count("correct_secret"),
                 "uniform_Zq": types.count("uniform_Zq"),
                 "centered_binomial_eta2": types.count("centered_binomial_eta2"),
                 "near_miss": sum(t.startswith("correct_secret_plus_1") for t in types),
             },
-            "secret_min": int(secret.min()),
-            "secret_max": int(secret.max()),
+            "secret_min": int(s.min()), "secret_max": int(s.max()),
         },
         "seeded_reconstruction": {
-            "checks": seeded_checks,
-            "all_pass": bool(all(seeded_checks.values())),
+            "checks": {k: bool(v) for k, v in seed_checks.items()},
+            "all_pass": bool(all(seed_checks.values())),
         },
         "array_and_score_checks": {
             "phase_arrays_checked": phase_arrays,
             "score_arrays_checked": score_arrays,
-            "serialized_score_values_checked": score_value_count,
-            "serialized_cosine_mismatches_at_6dp": serialized_cosine_mismatches,
-            "max_serialized_cosine_error": max_serialized_cosine_error,
+            "serialized_score_values_checked": score_values,
+            "serialized_cosine_mismatches_at_6dp": score_mismatches,
+            "max_serialized_cosine_error": max_score_error,
             "length_failures": length_failures,
         },
-        "report_tables": report_tables,
-        "target_metrics": target_metrics,
+        "report_tables": tables,
+        "target_metrics": metrics,
         "recoverability_and_certificate": {
-            "rank_A_transpose_mod_q": a_transpose_rank,
-            "A_transpose_surjective_to_Zq_n": bool(a_transpose_rank == n),
-            "rank_candidate_difference_matrix_mod_q": rank_mod(diff_candidates, q),
-            "selected_independent_candidate_rows": [int(x + 1) for x in selected],
-            "y_mod_q_recovered_for_all_vectors": bool(
-                main_phase_difference_failures == 0
-                and cross_target_y_failures == 0
-            ),
-            "main_phase_difference_failures": main_phase_difference_failures,
-            "cross_target_phase_difference_failures": cross_target_y_failures,
-            "centered_y_norm_matches_archived_norm2_y_count": int(
-                np.count_nonzero(y_norm_match)
-            ),
-            "centered_y_norm_mismatch_count": int(
-                np.count_nonzero(~y_norm_match)
-            ),
-            "max_abs_centered_y": int(np.max(np.abs(y_center))),
-            "rank_archived_b_rows_mod_q": b_row_rank,
-            "rank_combined_A_transpose_and_b_rows_mod_q": x_observation_rank,
-            "x_residue_linear_nullity": int(m - x_observation_rank),
-            "interpretation": (
-                "The phase table determines y modulo q, and the tiny archived "
-                "norm determines its centered integer lift. It supplies only "
-                f"{b_row_rank} target equations for the {m} x coordinates. "
-                "Even after imposing A^T x=y, the combined linear system has "
-                f"nullity {m - x_observation_rank}; x is not emitted or uniquely "
-                "recoverable by these linear observations. Because A^T has full "
-                "row rank, arbitrary y residues have some x preimage, so "
-                "membership is not independently falsifiable without x (or a "
-                "binding reconstruction artifact)."
-            ),
+            "rank_A_transpose_mod_q": rank_mod(A.T, q),
+            "A_transpose_surjective_to_Zq_n": rank_mod(A.T, q) == n,
+            "rank_candidate_difference_matrix_mod_q": rank_mod(D, q),
+            "y_mod_q_recovered_for_all_vectors": phase_failures == 0,
+            "cross_target_phase_difference_failures": phase_failures,
+            "centered_y_norm_matches_archived_norm2_y_count": int(ynorm_match.sum()),
+            "centered_y_norm_mismatch_count": int((~ynorm_match).sum()),
+            "max_abs_centered_y": int(np.abs(ycenter).max()),
+            "rank_archived_b_rows_mod_q": rank_mod(brows, q),
+            "rank_combined_A_transpose_and_b_rows_mod_q": rank_mod(np.vstack([A.T, brows]), q),
+            "x_residue_linear_nullity": m - rank_mod(np.vstack([A.T, brows]), q),
         },
     }
-    print(json.dumps(output, indent=2, sort_keys=True))
+    print(json.dumps(out, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

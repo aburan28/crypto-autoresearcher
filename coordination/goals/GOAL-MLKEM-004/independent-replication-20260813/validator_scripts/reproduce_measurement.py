@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rebuild the vector population in memory and compare it to archived raw data.
 
-Run with the Coordinator-rebuilt /tmp/sagevenv.  This validator script writes
+Run with the Coordinator-rebuilt /tmp/sagevenv. This validator script writes
 no measurement artifacts: it independently reconstructs the seeded basis,
 LLL and g6k population, verifies membership on the in-memory (x,y) vectors,
 and compares all norms and phase arrays to raw_scores.json.

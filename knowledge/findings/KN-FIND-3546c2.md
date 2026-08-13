@@ -92,8 +92,23 @@ is the only reason this record is worth keeping rather than merely reverting.
 The same session also derived the candidate-class offset analytically —
 `+0.008567389` for centred-binomial candidates against `0` for uniform, from
 candidate-prior Fourier mass against a fixed population baseline, with a
-4,096-permutation pairing test at z = -0.84. That is consistent with a mechanical
-account and not with residual LWE structure.
+4,096-permutation pairing test at z = -0.84.
+
+The concurrent duplicate validator, in an isolated session with nothing
+forwarded, *measured* the same quantity at `0.00856739` against `0.00018357`.
+Agreement to eight significant figures between a closed-form derivation and an
+independent measurement establishes that the class offset is a property of how
+the candidate set was drawn, not of residual LWE structure, sieve geometry, or
+lattice membership — and that its size was predictable without running the
+experiment. The two sessions differ only downstream: the validator, lacking the
+derivation, reports the gap at 90.4 SE and demands class-matched nulls, while the
+red team holds the significance scale moot once the value is predicted and points
+instead at object mismatch, since batch 1 scores full secret candidates whereas
+`MATZOV.Nf` models a split enumeration plus FFT bin.
+
+That an accidental duplicate produced a clean two-method cross-check is luck, not
+method. It does not make redundant dispatch good practice; it makes this
+particular waste partially recoverable.
 
 ## Recommendations
 

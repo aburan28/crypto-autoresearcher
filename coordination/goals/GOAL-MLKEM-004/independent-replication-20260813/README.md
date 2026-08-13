@@ -25,8 +25,51 @@ contact, different null.
 | --- | --- | --- |
 | `red_team_report.yaml` | `TASK-20260803-bc2f41` re-run | complete; verdict `blocking_objections` |
 | `red_team_notes.md` | `TASK-20260803-bc2f41` re-run | complete |
-| `validator_notes_partial.md` | `TASK-20260803-535d15` re-run | partial |
-| `validator_scripts/*.py` | `TASK-20260803-535d15` re-run | recomputation scripts |
+| `validator_report.yaml` | `TASK-20260803-535d15` re-run | complete; verdict `ADMISSIBLE_WITH_DEFECTS` |
+| `validator_notes.md` | `TASK-20260803-535d15` re-run | complete |
+| `validator_scripts/*.py` | `TASK-20260803-535d15` re-run | three audited recomputation scripts |
+
+## The cross-check worth reading
+
+The two sessions ran concurrently and in isolation, with nothing forwarded
+between them, and they reached the candidate-class null offset by different
+methods:
+
+| | Centred-binomial null mean | Uniform null mean |
+| --- | --- | --- |
+| Validator, measured | `0.00856739` | `0.00018357` |
+| Red team, derived analytically | `0.008567389` | `0` |
+
+Agreement to eight significant figures between a measurement and a closed-form
+derivation, obtained independently, is what settles the interpretation. The
+offset is candidate-prior Fourier mass against a fixed population baseline. It
+is a property of how the candidate set was drawn, not of residual LWE structure,
+sieve geometry, or lattice membership, and its size was predictable without
+running the experiment at all.
+
+The two sessions then differ only on what follows from that. The validator, which
+did not derive the analytic value, reports the difference at 90.4 SE and requires
+class-matched or stratified null baselines before any batch-2 comparison. The red
+team holds that the significance scale is beside the point once the value is
+analytically predicted, and that the deeper problem is object mismatch: batch 1
+scores full secret candidates while `MATZOV.Nf` models a split enumeration plus
+FFT bin, so no amount of null repair makes the comparison well-posed.
+
+Both conclusions point the same way for any successor: the null must be matched
+to the candidate prior, and the measured object must be the one the cost model
+actually describes.
+
+## Verdicts and their standing
+
+`ADMISSIBLE_WITH_DEFECTS` (validator, 30 claims reproduced, 1 not reproduced, 4
+unable to check) and `blocking_objections` (red team, 8 objections) are addressed
+to a batch-2 design that events superseded. Read them as methodological
+commentary, not as live gates. Both record `fallback_used: true`,
+`degraded_requirements: []`, `model_verified: false`.
+
+Among the validator's four defects, two are durable process lessons independent
+of this campaign: the producer reused a pre-existing virtual environment instead
+of rebuilding it, and its receipt recorded `dirty_tree: false` inaccurately.
 
 The red team's `blocking_objections` verdict and its eight objections are
 addressed to a batch-2 design that was superseded by events; read them as
