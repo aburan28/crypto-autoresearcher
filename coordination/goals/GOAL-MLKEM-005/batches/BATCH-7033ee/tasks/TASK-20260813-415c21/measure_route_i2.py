@@ -591,6 +591,13 @@ def route_i2_reduce(B0, lattice_label, time_cap, node_cap=ENUM_NODE_CAP,
                 B, mu, r, Bstar = B_trial, mu2, r2, Bstar2
                 diag["insertions"] += 1
                 any_insert = True
+            if diag["time_cap_hit"]:
+                break
+        if diag["time_cap_hit"]:
+            # A sweep aborted by the wall-clock cap is a TRUNCATED search, not
+            # a fixed point: no insertion in a partial sweep says nothing about
+            # convergence, so leave converged False.
+            break
         if not any_insert:
             diag["converged"] = True
             break
@@ -854,6 +861,32 @@ def main():
                 print("    %-4s i=%d EXCEPTION -- %s" % (lat, i, reason))
                 continue
             vdiag = diagnostic_violation(Bred, lat, time_cap=DIAG_TIME_CAP[lat])
+            # PREREG-4 2.4: a basis whose reduction or whose own violation
+            # diagnostic was cut short by a time cap cannot be reported as a
+            # comparison value -- it is UNCOVERED2 with the reason.
+            capped = []
+            if diag["time_cap_hit"]:
+                capped.append("reduction hit the %.0fs per-basis time cap "
+                              "(converged=%s, sweeps=%d)"
+                              % (REDUCE_TIME_CAP[lat], diag["converged"],
+                                 diag["outer_sweeps_done"]))
+            if vdiag["n_indices_time_skipped"]:
+                capped.append("violation diagnostic hit the %.0fs time cap "
+                              "(%d of %d indices unchecked)"
+                              % (DIAG_TIME_CAP[lat],
+                                 vdiag["n_indices_time_skipped"], d))
+            if capped:
+                reason = "TIME_CAP: " + "; ".join(capped)
+                uncovered_bases[(lat, i)] = reason
+                profiles[(lat, i)] = None
+                reduction_diag[lat].append(
+                    {"basis": i, "status": "TIME_CAPPED", "reason": reason,
+                     "reduce_diag": diag,
+                     "violation_diag": {k2: v2 for k2, v2 in vdiag.items()
+                                        if k2 != "per_index"},
+                     "violation_per_index": vdiag["per_index"]})
+                print("    %-4s i=%d TIME_CAPPED -- %s" % (lat, i, reason))
+                continue
             profiles[(lat, i)] = r
             entry = {"basis": i, "status": "OK", "reduce_diag": diag,
                      "violation_diag": {k2: v2 for k2, v2 in vdiag.items()
@@ -1016,6 +1049,7 @@ def main():
     threshold_eps = 1e-8
     threshold_frac = 0.10
     undermines_cells = []
+    confirmation_regime = None
     for k2 in covered2_cells:
         entry = per_cell[k2]
         d_ri = entry["D_route_independent"]
@@ -1050,32 +1084,34 @@ def main():
                         "and prevents T-INDEP-CONFIRMS from being read over "
                         "the whole COVERED2 set.'")
     else:
+        # PREREG-4 2.6: T-INDEP-CONFIRMS is the EXACT COMPLEMENT of
+        # T-INDEP-UNDERMINES -- no outcome falls between the two. The only
+        # thing the below-epsilon/above-epsilon split decides is which
+        # confirmation regime is reported.
         all_near_eps = all(per_cell[k2]["D_route_independent"] <= threshold_eps
                            for k2 in covered2_cells)
-        if all_near_eps:
-            suffix = "-PARTIAL" if len(covered2_cells) < 18 else ""
-            branch = "T-INDEP-CONFIRMS" + suffix
-            branch_quote = ("PREREG-4 2.6: 'FIRES WHEN COVERED2 is non-empty "
-                            "and, over COVERED2, D_route_independent stays at "
-                            "or near machine epsilon (operationally: every "
-                            "cell's D_route_independent <= 1e-8) ... MEANS: "
-                            "the EXCEEDS verdicts BATCH-fbb639 reported survive "
-                            "independent verification at the cells checked.'")
-        else:
-            # non-empty COVERED2, no UNDERMINES condition fired anywhere, but
-            # not every cell is at-or-near machine epsilon either -- report
-            # the exact state rather than force one of the two named branches.
-            branch = "AMBIGUOUS-NEITHER-THRESHOLD-MET"
-            branch_quote = ("PREREG-4 2.6 defines exactly three branches by "
-                            "the stated operational thresholds; this run's "
-                            "measured D_route_independent values are reported "
-                            "here so the Coordinator/reviewers can read off "
-                            "the branch under the frozen clause rather than "
-                            "have this script silently round to one.")
+        suffix = "-PARTIAL" if len(covered2_cells) < 18 else ""
+        branch = "T-INDEP-CONFIRMS" + suffix
+        confirmation_regime = ("at or near machine epsilon" if all_near_eps
+                               else "below the dispersion threshold but above "
+                                    "machine epsilon")
+        branch_quote = ("PREREG-4 2.6: 'FIRES WHEN COVERED2 is non-empty and "
+                        "T-INDEP-UNDERMINES's condition fires at no covered "
+                        "cell -- i.e., stated operationally and as the exact "
+                        "complement of that branch so that no outcome falls "
+                        "between the two ... and must state which regime the "
+                        "confirmation is in: at or near machine epsilon ... or "
+                        "below the dispersion threshold but above machine "
+                        "epsilon ... the second is a genuine and expected "
+                        "outcome for a from-scratch reduction at d <= 40, it "
+                        "fires this same branch, and it is reported as the "
+                        "weaker of the two readings.' Regime here: %s."
+                        % confirmation_regime)
 
     RES["R-B-OUT-4_termination_branch"] = {
         "branch": branch,
         "quoted_clause": branch_quote,
+        "confirmation_regime": confirmation_regime,
         "n_covered2": len(covered2_cells),
         "n_total_cells": 18,
         "threshold_eps_used": threshold_eps,
