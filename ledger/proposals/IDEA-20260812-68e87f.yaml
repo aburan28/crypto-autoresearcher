@@ -1,0 +1,341 @@
+idea:
+  id: IDEA-20260812-68e87f
+  question_id: RQ-ECDLP-002
+  sub_goal_id: SG-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  added: '2026-08-12'
+  title: >-
+    Instrumented within-class ECDLP cost census on a P-256-shaped ordinary
+    isogeny class: compute every Velu isogeny out of the base curve, transfer
+    the DLP instance with re-verified certificates, and measure whether ANY
+    class member solves cheaper once the walk is charged -- separating the
+    group-operation count (predicted class-invariant) from the per-operation
+    field cost (predicted to vary by a small, bounded constant factor).
+  class: measurement
+
+  claim: >-
+    The closure of the isogeny-transfer direction for P-256-like curves
+    (EV-ECDLP-b3e847, DEC-20260807-d4f2a9) rests on four named obstructions.
+    Three are proven. The fourth -- "within-class uniformity", the claim that
+    no curve in an ordinary F_p-isogeny class has lower DLP cost than any
+    other -- is EMPIRICAL, not proven: the red team
+    (TASK-20260807-d8bb19-redteam) recorded it as "an absence-of-evidence
+    claim" and recommended scoping the closure to the three proven
+    obstructions until it is measured. The toy-scale test that would settle it
+    (IDEA-20260807-0afbab, minimal_test) has never been run in this harness.
+
+    This proposal runs it, and sharpens it on the one axis the prior work left
+    unmeasured. Prior in-harness and imported work screened neighbors
+    STRUCTURALLY (ISO-EXP-A counted anomalous / special-j / supersingular
+    neighbors; ISO-EXP-A2 metered the m=3 Semaev system; EXP-ISO-001 metered
+    Semaev d_reg and decomposition yield). None of them MEASURED AN ACTUAL
+    SOLVE. No record in this repository reports the end-to-end cost of solving
+    the same DLP instance on every member of a complete isogeny class.
+
+    Two quantities are conflated by the phrase "same DLP difficulty" and this
+    census separates them:
+
+    (A) GROUP-OPERATION COUNT to solve. Predicted strictly class-invariant.
+        By Tate/Honda-Tate every member has the same order N, so Pollard rho
+        costs 0.886*sqrt(N) group operations on all of them. This leg is a
+        POSITIVE CONTROL on the instrument, not a discovery: if the census
+        reports a member solving in materially fewer group operations, the
+        first hypothesis is an instrument bug, not a break.
+
+    (B) FIELD COST PER GROUP OPERATION. Predicted to vary, by a small bounded
+        constant factor, and NOT previously measured. Class members have
+        different Weierstrass coefficients, and a curve y^2 = x^3 + a*x + b
+        admits the fast a = -3 Jacobian model iff a/(-3) is a fourth power in
+        F_p -- true for a proper subset of the class. So the cheapest member
+        is cheaper than the dearest by a real, measurable, small factor.
+
+    The honest total is (A) x (B) plus the charged walk. The prediction is that
+    it is never better than the base curve by more than a small constant, and
+    that the walk cost erases even that at any scale that matters. The point of
+    the census is that this is currently ASSERTED and would become MEASURED.
+
+  mechanism: >-
+    (1) Fix a toy prime p and a base curve E_0/F_p chosen to be P-256-SHAPED:
+        ordinary, prime group order N (hence no rational 2-torsion, hence no
+        Montgomery or Edwards model anywhere in the class), a = -3 model,
+        conductor f = 1 so the volcano is FLAT exactly as P-256's is
+        (established by ISO-EXP-001 in inputs/refs/research/).
+    (2) Enumerate the COMPLETE F_p-isogeny class of E_0 up to F_p-isomorphism
+        by breadth-first walk over ell-isogenies for ell in a declared set,
+        computing each isogeny explicitly by Velu's formulas. Record the walk:
+        degrees, kernel generators, j-invariants, and the isomorphism class of
+        each vertex.
+    (3) Certify every edge. For isogeny phi: E -> E', check phi(P) lies on E',
+        check phi is a group homomorphism on sampled points, and check
+        #E'(F_p) = N. An edge that fails any check is discarded and reported,
+        never repaired.
+    (4) Transfer one fixed DLP instance (P, Q = [k]P) on E_0 to every member
+        via the composed walk isogeny, and solve INDEPENDENTLY on each member
+        with the same rho implementation and the same seed schedule.
+    (5) Re-verify each solve with a certificate: the recovered k' must satisfy
+        [k']P = Q on E_0 after pulling back, checked by code that does not
+        share state with the solver (docs/claims-and-verification.md).
+    (6) Report, per member: group operations to solve; field multiplications
+        per group operation; whether the a = -3 model is reachable; wall-clock;
+        and the walk cost in group operations charged to reach that member.
+
+  novelty_status: known_in_substance
+  novelty_note: >-
+    The mathematics is not novel and this proposal does not claim it is.
+    Order-invariance under F_p-isogeny is Tate's theorem; the a = -3 fourth-power
+    criterion is standard; the closure it audits is already recorded. The
+    contribution is INSTRUMENTAL: converting an asserted obstruction into a
+    measured one with certificates, and putting a number on a constant factor
+    that the record currently leaves unquantified. A measurement whose expected
+    result is null is still worth running when a recorded closure leans on it
+    and a reviewer has formally objected that it is unverified.
+
+  avoids_tate_obstruction: true
+  avoids_tate_obstruction_reason: >-
+    The census operates entirely within one isogeny class (fixed trace t) and
+    makes no attempt to cross classes. It does not evade the Tate obstruction;
+    it MEASURES the consequence Tate predicts, and uses that prediction as the
+    positive control that validates the instrument.
+
+  assumptions:
+    - >-
+      Velu isogeny computation over a toy prime field is exact; correctness is
+      enforced per edge by certificate, not assumed.
+    - >-
+      Pollard rho step counts on a fixed instance are a random variable; the
+      census therefore compares distributions over seeds, never single runs.
+    - >-
+      Field-multiplication counts are obtained by instrumenting the field
+      arithmetic, not by timing. Wall-clock is reported as secondary and is
+      never the basis of a cost claim.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        Pollard rho step counts on a fixed prime-order instance, over
+        independent seeds, concentrate around 0.886*sqrt(N) with the standard
+        birthday-problem spread, uniformly across curves of the same order.
+      rigorous_support: >-
+        The 0.886*sqrt(N) expectation is the standard birthday bound for rho
+        under the random-function idealization of the walk; it is a heuristic
+        about the walk function, not a theorem about the curve.
+      validation_plan: >-
+        The control curves (same p, DIFFERENT trace, hence different N)
+        calibrate the spread: their step counts must track their own
+        sqrt(N_control) with the same relative dispersion. If the dispersion
+        differs between class members and controls, the walk function is not
+        behaving as a random function on some curve and the instrument, not the
+        mathematics, is the finding.
+
+  predictions:
+    - metric: group_operations_to_solve, across class members
+      direction: different
+      minimum_effect: >-
+        NO member differs from the class median by more than the seed-induced
+        control band. Predicted effect size: zero. Any member outside the band
+        is triaged as an instrument defect before it is treated as a result.
+    - metric: field_multiplications_per_group_operation, across class members
+      direction: different
+      minimum_effect: >-
+        A nonzero but small spread, driven by a = -3 model reachability.
+        Predicted best-to-worst ratio strictly below 1.5x, and predicted
+        NOT to correlate with j-invariant beyond that model criterion.
+    - metric: charged_end_to_end_cost (walk + solve), across class members
+      direction: different
+      minimum_effect: >-
+        No member is cheaper than the base curve after the walk is charged.
+        Predicted effect size: zero improvement.
+    - metric: montgomery_or_edwards_model_reachable, across class members
+      direction: different
+      minimum_effect: >-
+        Zero members, for every class member, because N is prime and odd so no
+        member has rational 2-torsion. This is a cheap structural check that
+        confirms an assertion in the imported reference document.
+
+  minimal_test:
+    design: >-
+      One complete isogeny class of a P-256-shaped toy curve, plus matched
+      random controls at the same p with different trace. Every member gets the
+      same DLP instance (transferred and certified), the same rho
+      implementation, and the same seed schedule. Report the three metrics above
+      as distributions, not point estimates.
+    controls:
+      - >-
+        NULL OBJECT: random curves at the same p with DIFFERENT trace. Their
+        solve costs must track their own sqrt(N), which establishes that the
+        instrument can detect a cost difference at all. A census in which
+        nothing ever differs is indistinguishable from a broken meter without
+        this control.
+      - >-
+        POSITIVE CONTROL: the class-invariance of the group-operation count is
+        itself predicted by Tate. It is used to validate the instrument.
+      - >-
+        SEED CONTROL: the same curve re-solved under different seeds bounds the
+        within-curve dispersion, which is the band every between-curve claim
+        must clear.
+      - >-
+        DEGENERATE CONTROL: if the class happens to contain a j = 0 or j = 1728
+        member, it is reported separately and excluded from the generic band,
+        since its automorphism group gives a known constant-factor rho discount
+        (KN-TECH-018) that is not a within-class effect.
+    required_metrics:
+      - group_operations_to_solve (per member, per seed)
+      - field_multiplications_per_group_operation (per member)
+      - charged_end_to_end_cost including walk (per member)
+      - a_minus_3_model_reachable (per member, boolean)
+      - certificate_verified (per member, boolean; a member without a verified
+        certificate contributes no cost datum)
+
+  falsification_conditions:
+    - >-
+      A class member solves in materially fewer GROUP OPERATIONS than the class
+      median, outside the seed control band, with a verified certificate, and
+      the result survives re-run under fresh seeds. This would contradict
+      order-invariance and is the only outcome that would reopen the closed
+      direction. Expected not to occur; if it occurs, the instrument is
+      suspected first.
+    - >-
+      The per-operation field cost spread exceeds 1.5x best-to-worst, or
+      correlates with something other than a = -3 model reachability. This
+      would not break ECDLP but would falsify the specific constant-factor
+      model this proposal asserts.
+    - >-
+      Any class member is found to admit a Montgomery or Edwards model. This
+      would contradict the prime-order / no-2-torsion argument recorded in the
+      imported reference document and would mean that argument is wrong.
+
+  confounders:
+    - >-
+      Toy scale: a small class has few members and limited statistical power.
+      The design fixes this by enumerating the class COMPLETELY rather than
+      sampling it, and by replicating over seeds rather than over members.
+    - >-
+      Wall-clock timing is confounded by implementation quality and machine
+      state. This is why field-multiplication counts, not seconds, carry the
+      per-operation claim.
+    - >-
+      An implementation that shares state between solver and certificate
+      checker could confirm its own error. The checker is required to be
+      independent.
+
+  interpretation_limits:
+    - >-
+      Toy scale only. Nothing here is evidence about P-256 itself; P-256 is the
+      SHAPE the toy curve is built to imitate (ordinary, prime order, flat
+      volcano, a = -3), not the object measured. Evidence is capped at
+      claim_tier toy.
+    - >-
+      A null result does not prove within-class uniformity. It upgrades
+      obstruction 4 of EV-ECDLP-b3e847 from asserted to measured-at-toy-scale,
+      which is exactly what the red team asked for and no more.
+    - >-
+      The constant-factor leg, even if it comes out nonzero, is a constant
+      factor. It changes no exponent and is not a speedup claim against ECDLP.
+
+  dominated_by: >-
+    Pollard rho at exponent 1/2. This proposal proposes NO algorithm and claims
+    no improvement over rho. Its deliverable is a measurement of an assertion,
+    and its own best case is a small constant factor that the charged walk
+    erases.
+  sota_delta:
+    time_exponent: not_applicable
+    memory_exponent: not_applicable
+    data_or_query_exponent: not_applicable
+    note: >-
+      No exponent is claimed, moved, or contested. The expected result is null
+      on every exponent axis by construction: the census measures a quantity
+      that Tate's theorem already fixes, in order to confirm the instrument and
+      to quantify the one residual constant.
+
+  target_complexity:
+    time_exponent: 1/2 (unchanged; this is a measurement, not an algorithm)
+    memory_exponent: 0
+    best_known: 1/2 (Pollard rho)
+    hidden_overhead: >-
+      The isogeny walk to reach a member is charged explicitly in the
+      end-to-end metric rather than treated as free preprocessing. Galbraith
+      2024 makes the bridge cheap for a flat volcano, which is precisely why
+      charging it honestly matters: cheap is not zero.
+    tradeoff_note: none
+
+  estimated_cost:
+    implementation: >-
+      low-to-moderate. Velu isogenies, rho with instrumented field arithmetic,
+      and a certificate checker. Sage or a pure-Python field with an operation
+      counter both suffice at toy scale.
+    compute: >-
+      low. Toy primes with enumerable classes; the budget is dominated by
+      replication over seeds, not by any single solve.
+
+  recommended_priority: medium
+
+  proof_search_map:
+    bottleneck: >-
+      Obstruction 4 of EV-ECDLP-b3e847: "all curves in an ordinary isogeny class
+      have the same DLP complexity". Its removal would reopen SG-ECDLP-002. It
+      is currently supported by "no known algorithm depends on j", which is an
+      absence-of-evidence claim, not a proof.
+    baseline_embedding:
+      parameter_slice: >-
+        Ordinary prime-field curves with prime order N and conductor f = 1, the
+        exact slice P-256 occupies.
+      reproduction_check: >-
+        The group-operation count on the base curve must reproduce
+        0.886*sqrt(N) within the seed band before any comparison is believed.
+        This is a frozen regression fixture, not a post-hoc fit.
+    observation_collision:
+      observable: >-
+        The pair (group operations to solve, field multiplications per group
+        operation) as a function of the class member.
+      distinct_preimage_search: >-
+        Search the class for two members with equal order N but genuinely
+        different solve cost. Tate predicts the first coordinate cannot differ.
+        If two members differ in the FIRST coordinate, the observable is not the
+        class invariant it is assumed to be. If they differ only in the second,
+        the difference is a group-law constant and is reported as such.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The fiber of the cost observable over the isogeny class: the set of
+          members sharing a given measured cost.
+        predicted_gain: >-
+          None. The predicted fiber is the whole class on the group-operation
+          coordinate, which is the null result. The value of naming the fiber is
+          that it makes "uniform" a measurable statement rather than a slogan.
+    quantifier_order: >-
+      FOR ALL members E' of the F_p-isogeny class of E_0, DOES THERE EXIST a
+      solve on E' costing materially fewer charged operations than the solve on
+      E_0? Predicted answer: NO, for every member, with the walk charged. Note
+      the order: this is not "does there exist a class containing a cheap
+      member" -- the class is fixed first, by the base curve, exactly as an
+      attacker targeting P-256 would find it fixed.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At toy scale, with certificates, on a complete enumerated class: no
+        member of a P-256-shaped isogeny class solves cheaper in group
+        operations, and the per-operation field-cost spread is bounded by the
+        measured ratio. That is the ceiling. It is a toy-scale empirical
+        statement and cannot be promoted to a theorem about P-256.
+      nearby_object_control: >-
+        The different-trace random curves. They are the nearest objects that
+        SHOULD differ in cost, and a census that cannot see their difference has
+        not earned its null.
+    proof_obligations:
+      - claim: Group-operation count is class-invariant
+        responsibility: baseline
+      - claim: Per-operation field cost varies only by the a = -3 criterion
+        responsibility: correctness
+      - claim: The walk cost is charged and not hidden in preprocessing
+        responsibility: runtime
+      - claim: Every reported solve carries an independently re-verified certificate
+        responsibility: correctness
+      - claim: The instrument can detect a real cost difference when one exists
+        responsibility: feasibility
+
+  scope: >-
+    Ordinary prime-field curves with prime order and flat volcano, at toy scale,
+    enumerated completely within one F_p-isogeny class. Supersingular curves,
+    extension fields, and cross-class transfer are out of scope: the first is a
+    different problem, the second and third are already closed by proven
+    obstructions in EV-ECDLP-b3e847. No live key, wallet, or deployed system is
+    involved at any point.

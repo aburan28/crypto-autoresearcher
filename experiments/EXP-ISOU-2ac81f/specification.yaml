@@ -1,0 +1,306 @@
+experiment:
+  id: EXP-ISOU-2ac81f
+  hypothesis_id: H-ISOU-c5bfea
+  version: 1
+  title: >-
+    Complete-class ECDLP cost census on a P-256-shaped ordinary isogeny class:
+    explicit Velu isogenies, certificate-carrying DLP transfer, and separated
+    measurement of group-operation count versus per-operation field cost, with
+    the walk charged.
+  status: review_required
+  objective: >-
+    Convert obstruction 4 of EV-ECDLP-b3e847 ("within-class uniformity") from an
+    asserted absence-of-evidence claim into a measured, certificate-carrying
+    toy-scale result, and put a number on the one within-class constant factor
+    that is currently unquantified.
+
+    The experiment answers three separated questions on a complete F_p-isogeny
+    class of a P-256-shaped toy curve:
+      Q1 Does the GROUP-OPERATION count to solve a fixed transferred DLP
+         instance vary across class members? (Tate says no; this is the
+         instrument's positive control.)
+      Q2 Does the FIELD COST PER group operation vary across members? (The
+         a = -3 fourth-power criterion says yes, by a small constant; nobody has
+         measured it here.)
+      Q3 Is any member cheaper END-TO-END than the base curve once the isogeny
+         walk that reaches it is charged? (Predicted no.)
+
+    Prior work screened neighbors structurally (ISO-EXP-A, ISO-EXP-A2 in
+    inputs/refs/research/; EXP-ISO-001 in this ledger) but no record in this
+    repository measures an actual solve on every member of a complete class.
+    That gap is this contract's entire reason to exist. The expected result is
+    null on Q1 and Q3, and small-but-nonzero on Q2.
+
+  inputs:
+    base_curve:
+      shape_target: >-
+        P-256-shaped: ordinary, PRIME group order N, CM conductor f = 1 (flat
+        volcano, as ISO-EXP-001 established for P-256), and an a = -3 model.
+        Selected by search over toy primes; the selection script, its seed, and
+        the rejection log are recorded artifacts.
+      prime_bits: [20, 24]
+      recorded_at_freeze: >-
+        The concrete (p, a, b, N, t, f) tuple is fixed by the Executor's
+        selection run and frozen into the run manifest BEFORE any solve. It is
+        not chosen after seeing cost data.
+    dlp_instance: >-
+      One instance (P, Q = [k]P) with P a generator of the prime-order group and
+      k drawn from the declared seed. The SAME instance, transferred, is used on
+      every member. k is recorded in the manifest: this is a benchmark, not a
+      challenge, and hiding it would prevent certificate checking.
+    isogeny_degrees: [2, 3, 5, 7, 11, 13]
+    class_enumeration: >-
+      Breadth-first walk from the base curve over ell-isogenies for the degrees
+      above, computing each isogeny explicitly by Velu's formulas, deduplicating
+      vertices by F_p-isomorphism class (not by j-invariant alone: twists share
+      j and must not be merged). The walk terminates when no new vertex appears;
+      the class is required to be COMPLETE, and a walk that does not close is
+      reported as incomplete rather than presented as a census.
+    null_objects: >-
+      At least 8 random curves at the same p with DIFFERENT trace (hence
+      different order), generated from a declared seed.
+
+  controls:
+    - name: null_object_different_trace
+      role: >-
+        MANDATORY. Random same-p, different-trace curves. Their solve costs must
+        track their own 0.886*sqrt(N_control) and must be distinguishable from
+        the class members' costs. If this control shows no detectable
+        difference, the meter cannot see a real cost difference and NO null
+        result from Q1 or Q3 may be reported as evidence.
+    - name: positive_control_tate_invariance
+      role: >-
+        The predicted invariance of the group-operation count across the class
+        is itself the theorem-backed expectation. Reproducing it validates the
+        instrument; failing to reproduce it indicts the instrument first.
+    - name: seed_dispersion_band
+      role: >-
+        The base curve re-solved under all 16 seeds establishes the within-curve
+        dispersion band. Every between-member claim must clear this band. The
+        band is computed and frozen BEFORE between-member comparison.
+    - name: bsgs_cross_check
+      role: >-
+        On the smallest instance, BSGS solves independently of rho and must
+        return the same k. Cross-validates the transferred instance and the
+        certificate path against a solver with no shared walk logic.
+    - name: special_j_segregation
+      role: >-
+        Any j = 0 or j = 1728 member is reported SEPARATELY and excluded from
+        the generic band: its automorphism group gives a known constant-factor
+        rho discount (KN-TECH-018) which is an automorphism effect, not a
+        within-class effect, and merging the two would manufacture a false
+        positive.
+    - name: model_normalization
+      role: >-
+        Q1 is measured with ALL members forced to a single common coordinate
+        system, so the group-operation count cannot be contaminated by model
+        choice. Q2 is measured separately with each member in its own cheapest
+        reachable model. Mixing these two is the primary way this census could
+        report a fake speedup.
+
+  independent_variables:
+    - class membership (base curve, class member, different-trace null object)
+    - isogeny walk degree and path length from the base curve
+    - Weierstrass model reachable per member (a = -3 reachable or not)
+    - rho seed
+    - prime size (20-bit, 24-bit)
+
+  metrics:
+    primary:
+      - name: group_operations_to_solve
+        definition: >-
+          Count of elliptic-curve group operations (adds + doublings) performed
+          by the solver until the certificate-verified solve, per member per
+          seed, in the COMMON coordinate system. Counted by instrumentation,
+          not estimated.
+      - name: field_multiplications_per_group_operation
+        definition: >-
+          Instrumented F_p multiplication and squaring counts divided by group
+          operations, per member, in that member's CHEAPEST reachable model.
+      - name: charged_end_to_end_cost
+        definition: >-
+          Walk cost to reach the member (isogeny evaluations, converted to field
+          multiplications) plus that member's solve cost, compared against the
+          base curve's solve cost alone. The walk is never free preprocessing.
+    secondary:
+      - name: a_minus_3_model_reachable
+        definition: boolean per member; a/(-3) a fourth power in F_p
+      - name: montgomery_or_edwards_model_reachable
+        definition: >-
+          boolean per member; predicted false everywhere because N is prime and
+          odd so no member has rational 2-torsion
+      - name: j_invariant, isomorphism_class_id, walk_path
+        definition: structural identification of each vertex
+      - name: certificate_verified
+        definition: >-
+          boolean per member. A member whose certificate does not verify
+          contributes NO cost datum; it is reported as a defect.
+      - name: wall_clock_seconds
+        definition: >-
+          reported for transparency only; never the basis of a cost claim
+
+  heuristic_under_test: HEUR-ISOU-1
+
+  preregistered_prediction:
+    quantity: >-
+      (1) group_operations_to_solve, per member, relative to the class median;
+      (2) best-to-worst ratio of field_multiplications_per_group_operation
+      across the class; (3) charged_end_to_end_cost of every member relative to
+      the base curve's solve.
+    formula: >-
+      (1) E[steps] = 0.886*sqrt(N), IDENTICAL for every class member because N
+      is a class invariant (Tate); predicted between-member effect exactly zero,
+      all observed variation confined to the seed dispersion band.
+      (2) ratio strictly in the open interval (1.0, 1.5), split by the criterion
+      "a/(-3) is a fourth power in F_p".
+      (3) charged cost of every member >= base-curve solve cost; predicted
+      improvement exactly zero.
+    source: >-
+      (1) Tate 1966 (order is an F_p-isogeny-class invariant) with Pollard 1978
+      (birthday expectation for rho). (2) Standard Jacobian-coordinate operation
+      counts for the a = -3 doubling, IEEE P1363. (3) EV-ECDLP-b3e847
+      obstruction set, plus Galbraith 2024 (ePrint 2024/924) for the cheap-bridge
+      cost that is charged rather than assumed free.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Toy primes at 20 and 24 bits, chosen so the isogeny class can be
+      enumerated COMPLETELY and every member solved exactly. P-256 is imitated
+      in SHAPE (ordinary, prime order, flat volcano, a = -3), not approached in
+      SIZE. No result transfers to P-256 and none is claimed to. The two prime
+      sizes exist so the findings are not single-scale artifacts.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      The single cheapest member observed on the group-operation axis is checked
+      against the seed dispersion band explicitly: if it sits outside, it is
+      re-run under 16 FRESH seeds before any statement is made about it.
+    - >-
+      The single cheapest member on the per-operation axis is checked against
+      its a = -3 reachability. A cheapest member that does NOT have the a = -3
+      model falsifies the stated constant-factor model and must be reported.
+    - >-
+      The largest observed walk cost is compared against the smallest observed
+      solve saving, to confirm the walk dominates rather than assuming it.
+
+  replication:
+    seeds: [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597]
+    independent_instances: 2
+
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 2
+    maximum_memory_gb: 8
+    maximum_runs: 4
+    maximum_workers: 1
+
+  stopping_rules:
+    - >-
+      Stop a run at the wall-clock budget. A censored solve is recorded as
+      censored with its step count at cutoff; it is NEVER recorded as a slow
+      curve and NEVER as negative mathematical evidence (AGENTS.md rule 5).
+    - >-
+      Stop the census when the class walk closes (no new isomorphism classes)
+      and every member has either a verified certificate or a recorded defect.
+    - >-
+      If the null-object control fails to distinguish different-trace curves,
+      STOP and report an instrument failure. Do not report Q1 or Q3 results from
+      that run.
+
+  invalidation_rules:
+    - >-
+      Any solver result without an independently re-verified certificate
+      invalidates that member's cost datum.
+    - >-
+      A certificate checker sharing state or code paths with the solver
+      invalidates the whole run: self-confirmation is not verification.
+    - >-
+      An incomplete class walk invalidates every "no member is cheaper" claim,
+      which is a statement about a complete class or nothing.
+    - >-
+      Comparing group-operation counts across members in DIFFERENT coordinate
+      systems invalidates Q1.
+    - >-
+      Post-hoc adjustment of the preregistered prediction, the base curve, or
+      the seed band after seeing cost data invalidates the run.
+    - >-
+      Timeouts, crashes, and infrastructure failures invalidate the affected
+      run and are reported as infrastructure signals, never as evidence.
+
+  success_criterion: >-
+    The census is SUCCESSFUL as a measurement (independently of which way it
+    comes out) when all of the following hold: the class walk closed; every
+    member carries a verified certificate; the base curve reproduced
+    0.886*sqrt(N) within the seed band; the null-object control demonstrably
+    distinguished different-trace curves; and all three primary metrics are
+    reported per member with their bands.
+
+    Under the predicted outcome this yields: obstruction 4 of EV-ECDLP-b3e847
+    upgraded from asserted to measured-at-toy-scale, and the within-class
+    constant factor quantified with a stated best-to-worst ratio. Note that
+    this success criterion is deliberately about the QUALITY OF THE
+    MEASUREMENT, not about the direction of the result. A clean null is a
+    successful run.
+
+  falsification_criterion: >-
+    The hypothesis is falsified if ANY of the following is observed with a
+    verified certificate and survives re-run under fresh seeds:
+      (F1) a class member solves in materially fewer GROUP OPERATIONS than the
+           class median, outside the seed dispersion band -- this contradicts
+           order-invariance, is the only outcome that would reopen
+           SG-ECDLP-002, and is triaged as an instrument defect FIRST;
+      (F2) the per-operation field-cost best-to-worst ratio is >= 1.5, or the
+           spread does not track a = -3 reachability -- refutes the stated
+           constant-factor model without touching any exponent;
+      (F3) any member admits a Montgomery or Edwards model -- refutes the
+           prime-order / no-2-torsion argument the hypothesis relies on;
+      (F4) some member is cheaper END-TO-END than the base curve after the walk
+           is charged.
+
+  required_artifacts:
+    - base curve selection log, including rejected candidates and the seed
+    - >-
+      complete class enumeration: vertices with j-invariant, isomorphism class
+      id, Weierstrass coefficients, walk path and degrees
+    - every Velu isogeny with its kernel generator and edge certificate
+    - the frozen DLP instance and its transfer to each member
+    - per-member, per-seed solve records with instrumented operation counts
+    - independent certificate verification output for every claimed solve
+    - null-object control records and the seed dispersion band, both frozen
+      before between-member comparison
+    - >-
+      defect log: failed edges, censored solves, unverified certificates
+    - run manifest with the resolved inference block and environment
+
+  assigned_to: executor
+  approved_by: null
+
+  approval_note: >-
+    NOT APPROVED. Under AGENTS.md rule 1 only the Coordinator approves an
+    experiment, and approval is the gate that authorizes execution and spends
+    compute. This contract was authored by the top-level session and is filed at
+    status review_required. The Coordinator must review it, approve or revise
+    it, and issue the TASK-* handoff before any Executor implementation or run.
+
+  related_records:
+    supersedes: none
+    audits: >-
+      EV-ECDLP-b3e847 obstruction 4 (within-class uniformity), recorded as
+      empirical rather than proven by TASK-20260807-d8bb19-redteam.
+    runs_the_unrun_test_of: IDEA-20260807-0afbab (minimal_test, never executed)
+    distinct_from:
+      - >-
+        EXP-ISO-001 / H-ISO-001 (rejected_scoped): metered Semaev d_reg and
+        decomposition yield on neighbors. Algebraic index-calculus axis; no
+        solve was measured.
+      - >-
+        ISO-EXP-A, ISO-EXP-A2 (inputs/refs/research/, imported lab notebook):
+        structural neighbor screen and gated Semaev meter. Neither measured
+        group-operation or per-operation solve cost across a complete class.
+      - >-
+        RQ-EWALK-8fa147: automorphism-quotient rho speedup bounded by
+        sqrt(|Aut|). That is an Aut effect on one curve; this is a between-member
+        effect across a class, and the two are segregated by the
+        special_j_segregation control.
