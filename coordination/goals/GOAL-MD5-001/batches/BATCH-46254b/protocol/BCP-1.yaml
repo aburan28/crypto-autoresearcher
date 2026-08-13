@@ -145,7 +145,7 @@ blind_calibration_protocol:
           before or during encoding authorship."
       how_it_is_used: >-
         A true value on authoring_session_read_quarantined_payload makes the
-        run CONSUMPTION (INV-2) regardless of what the run's input manifest
+        run CONSUMPTION (INV-4) regardless of what the run's input manifest
         contains, because the contamination channel is authorship of the
         encoding itself, not merely the solver process's runtime inputs.
       honesty_mechanism_not_technical_control: >-
@@ -170,8 +170,10 @@ blind_calibration_protocol:
         is recorded false; (3) the four fixed_before_acquisition fields were
         declared before dispatch and unchanged at completion; (4) any claimed
         collision certificate is the literal pair format below, independently
-        re-verified by the run wrapper using the SECOND pinned implementation
-        (not the one, if any, the solver used internally).
+        re-verified by the run wrapper using BOTH pinned implementations from
+        TASK-20260810-3e0793 (never the solver's own internal digest
+        computation, and never only one of the two — see independence_rule
+        and INV-5).
       outcomes_both_score: >-
         A REDISCOVERY run may still fail to find anything within its
         wall-clock ceiling. Per failed_search_rule (e) and
@@ -397,7 +399,12 @@ blind_calibration_protocol:
           and date quarantined. TASK-20260810-bde128 and its snapshot
           TASK-20260810-5c819b are responsible for creating and staging this
           manifest; BCP-1 fixes only its required shape (path, sha256,
-          source_kn_lit_id, quarantined_at) here, not its content.
+          source_kn_lit_id, quarantined_at, and
+          pre_registered_expected_answer_digest — the gate field defined in
+          firewall.expected_answer_digest, carried per entry) here, not its
+          content. pre_registered_expected_answer_digest is a DISTINCT field
+          from the entry's file-level sha256: it is the sha256 of the
+          canonical serialization of the payload, not of the file as stored.
       corpus_exclusion_is_structural_not_only_declared: >-
         CHECKED, NOT MERELY DECLARED: kb/src/crypto_kb/ingest/repo_corpus.py's
         staging rules (STAGING_RULES, read at
@@ -530,11 +537,22 @@ blind_calibration_protocol:
     - id: INV-8
       condition: >-
         The run reports a rediscovered characteristic or pair without a
-        wall-clock ceiling halt AND without a certificate, or reports success
-        with certificate.verified absent or false — i.e. any state other than
-        "verified pair" or "truthful halt" is invalid, matching
+        certificate, or reports success with certificate.verified absent or
+        false — i.e. any state other than "verified pair" or "truthful halt"
+        is invalid. "Truthful halt" here is failed_search_rule's full sense:
+        reaching the wall-clock ceiling, crashing, or otherwise halting
+        without a certified pair, truthfully reported as a budget outcome, is
+        a valid negative_observation and is NOT INV-8. Matching
         failed_search_rule and docs/claims-and-verification.md's rule that a
         failed certificate makes the run invalid_measurement, not a result.
+    - id: INV-9
+      condition: >-
+        The run's raw output or reasoning trace (wherever captured) quotes or
+        closely paraphrases the quarantined payload's specific values (message
+        words, chaining-value deltas, bit conditions) without those values
+        being independently derived within the run's own recorded search
+        trace. This is CONSUMPTION (blind_scoring_rule.consumption clause 3)
+        and is recorded invalid, never a weaker pass.
 
   # ===================================================================
   # RESIDUAL RISK
@@ -596,8 +614,8 @@ blind_calibration_protocol:
       variant that BCP-1's blind calibration search uses against standard
       MD5, under the same fixed_before_acquisition and invalidity_conditions
       rules (a variant run has no quarantined payload to consume, so INV-2,
-      INV-4, and INV-6 are vacuously satisfied for it, but INV-1, INV-3, INV-5,
-      and INV-8 apply unchanged).
+      INV-4, INV-6, and INV-9 are vacuously satisfied for it, but INV-1,
+      INV-3, INV-5, and INV-8 apply unchanged).
     discriminator_logic: >-
       Success (a verified rediscovered pair) against the variant, at
       comparable cost to any success against genuine MD5, is evidence of
