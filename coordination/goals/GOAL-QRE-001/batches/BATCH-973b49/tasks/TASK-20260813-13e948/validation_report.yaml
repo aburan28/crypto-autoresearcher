@@ -1,0 +1,864 @@
+validation_report:
+  id: VAL-20260814-0646f4
+  task_id: TASK-20260813-13e948
+  goal_id: GOAL-QRE-001
+  batch_id: BATCH-973b49
+  question_id: RQ-QRE-6dba8c
+  role: validator
+  reviewed_task_ids:
+  - TASK-20260813-c99166      # producer, arithmetic-layer package
+  - TASK-20260813-884e20      # coordinator snapshot that bound it
+  run_ids: []                 # producer recorded runs R1-R4 inside execution_report.yaml; no RUN-* ledger ids exist
+  independence:
+    fresh_independent_session: true
+    produced_any_reviewed_artifact: false
+    read_source: >-
+      Committed snapshot d931391c216a0439ed54fd48dbcc745f96c1195b only. Every
+      hash, every source file and every artifact was read with `git show
+      d931391c2:<path>`, not from the working tree. No producer assertion was
+      accepted in place of a check the handoff asked me to perform myself.
+    wrote_outside_write_scope: false
+    committed_anything: false
+    changed_any_status_or_raw_artifact: false
+
+  verdict: passed
+
+  verdict_scope: >-
+    This verdict means the package is ADMISSIBLE EVIDENCE: its hashes bind, its
+    numbers recompute, its convention is complete enough that an independent
+    party can reproduce the counts (I did, from scratch), and it contains no
+    prohibited statement. It does NOT assert that the counting convention is
+    the right one, that the constructions are good ones, that the counts are
+    competitive with any published construction, or that anything follows about
+    RSA-2048 or 256-bit ECDLP security. The package itself claims none of
+    those. Five findings are recorded below; none changes a reported number.
+
+  # =====================================================================
+  # CHECK 1 -- RECEIPT INTEGRITY
+  # =====================================================================
+  check_1_receipt_integrity:
+    finding: PASS
+    declared_hashes_total: 17
+    declared_hashes_reverified: 17
+    mismatches: 0
+    method: >-
+      sha256 of the blob returned by `git show d931391c2:<path>` for each of the
+      17 entries in snapshot-receipt.json path_sha256, compared with the declared
+      value. Committed blobs, not working-tree files.
+    parent_check:
+      recorded_parent: 5fa40e21de534100449eb03506e3d4840df8b869
+      actual_parent_of_d931391c2: 5fa40e21de534100449eb03506e3d4840df8b869
+      match: true
+    commit_sha_null: >-
+      Correct and self-explained. The receipt is committed inside the commit it
+      describes, so it cannot carry that commit's sha, and its own path is
+      absent from path_sha256 because a file cannot contain its own final
+      digest. Both facts are stated in the receipt and in the commit message.
+    scope_check:
+      paths_changed_by_d931391c2: 18
+      accounted_for: >-
+        the 17 declared files plus the receipt itself. No path outside the
+        producer's exclusive write scope was touched. The only other file under
+        the batch directory, dispatch_queue.json, was added by the parent commit
+        5fa40e21d and is correctly not declared here.
+    tree_state:
+      head_equals_snapshot: true
+      working_tree_clean: true
+    frozen_contract:
+      path: ledger/handoffs/TASK-20260813-c99166.yaml
+      present: true
+      committed_at_parent_5fa40e21d: true
+      note: >-
+        The producer's contract was committed BEFORE the artifacts were
+        snapshotted, so the approved objective, constraints, deliverables,
+        write scope and budget are fixed independently of the package. The
+        four declared deliverables in the receipt match the four artifact_paths
+        in that contract exactly.
+    zero_byte_artifacts_explained: >-
+      Three declared files hash to e3b0c442...b855, the sha256 of the empty
+      string: logs/check_artifacts_stderr.log, logs/counts_stderr.log,
+      logs/validation_stderr.log. Empty stderr is consistent with the recorded
+      exit_code 0 for all four runs, and I reproduced empty stderr on my own
+      rebuild of both scripts.
+
+  # =====================================================================
+  # CHECK 2 -- SIMULATED EQUALS COUNTED  (the load-bearing check)
+  # =====================================================================
+  check_2_simulated_equals_counted:
+    finding: PASS
+    verified_by: reading the code and running stronger checks, not by trusting the claim
+    mechanism_as_read:
+      single_builder: >-
+        src/circuits.py contains exactly one set of builder functions. The
+        Machine.run flag is consulted in exactly TWO places in the whole file:
+        free() (the dirty-ancilla guard) and _emit() (execute the gate or not).
+        No builder function anywhere reads m.run, m.bits, or m.read().
+      no_data_dependent_control_flow: >-
+        I enumerated every branch in every builder. All of them are on classical
+        or structural parameters: bits of a classical constant c / M / const,
+        `sign > 0`, `i < n-1`, `ch == "1"` (bits of p-2), `cout is not None`, and
+        register lengths. There is no branch on a simulated bit value anywhere.
+        The emitted gate stream is therefore a pure function of the structural
+        parameters and is identical in counting and simulating mode by
+        construction, not by coincidence.
+      counting_path_is_the_production_path: >-
+        run_validation.py imports count_modexp and count_point_add FROM
+        run_counts.py -- the same two functions that produce every row of
+        counts.json. The "counting mode" tally in validation.json therefore
+        comes from the production counter, not from a reimplementation of it.
+        Both counters construct a Machine(run=False) and run the builder; neither
+        contains a formula, a table, a cache, or a memo.
+      validated_configs_are_reported_rows: >-
+        I checked config by config. All 9 modexp (n, N) validation
+        configurations and all 13 EC (n, p) validation configurations are also
+        rows of counts.json. The tally-equality check therefore binds the rows
+        that are reported, not a separate parallel set of parameters.
+    searched_for_divergence_paths:
+      result: >-
+        No path found by which the counted circuit and the simulated circuit
+        could differ. Specifically ABSENT from the package: any `if run:` in a
+        builder, any simulate-only or count-only code path, any simplified or
+        idealised variant used for simulation, any cached or memoised count, any
+        analytic shortcut inside count_modexp / count_point_add, and any place
+        where a counts.json number originates in a formula rather than in an
+        enumeration (the algebraic forms in counts.json are cross-checks against
+        the enumeration, and I recomputed both independently).
+      asymmetry_noted: >-
+        The one deliberate mode asymmetry -- free() raises DirtyAncilla only when
+        run=True -- makes simulation strictly STRONGER than counting rather than
+        different from it, and an exception aborts loudly rather than diverging
+        silently.
+    my_stronger_checks:
+    - id: P1
+      name: ordered gate-stream identity (strictly stronger than the producer's check)
+      description: >-
+        The producer compares three integer totals. I instrumented Machine._emit
+        to record the ORDERED stream of emitted operations including qubit
+        indices, built each circuit twice (run=False and run=True) and compared
+        the streams element by element.
+      configurations: 9
+      detail: >-
+        modexp (n,N,a) = (4,15,7), (5,21,2), (6,55,3), (8,247,3);
+        point_add (n,p) = (4,13), (6,61), (8,251), (10,1021), (12,4093).
+        Largest stream compared: 1,879,060 operations.
+      result: >-
+        Streams IDENTICAL at all 9, including qubit indices; counts equal; peak
+        qubits equal; and for point_add the simulated output equalled the
+        independently computed chord-formula result at all 5.
+    - id: P2
+      name: is the tally data-independent?
+      why: >-
+        run_validation.py overwrites run_counts each iteration, so it stores only
+        the LAST input's tally per configuration. If the tally varied with the
+        input, one comparison per configuration would be unsound.
+      result: >-
+        Safe. 5 different exponents at modexp n=6 gave 1 distinct tally; 5
+        different curve points at point_add n=8 p=251 gave 1 distinct tally.
+        Consistent with the absence of data-dependent branching established
+        above.
+    - id: P3
+      name: independent re-enumeration of counts.json rows
+      result: >-
+        I rebuilt the circuits from the committed source and counted them myself.
+        11 modexp rows (n <= 20) and 20 EC rows (n <= 13) reproduce toffoli,
+        cnot, x, peak_qubits, io_qubits and Hamming weight w EXACTLY. Zero
+        mismatches.
+    - id: P5
+      name: NEGATIVE CONTROL -- count-preserving mutation (a control the producer did not run)
+      why: >-
+        D-2 is one anecdote. Per docs/inventor-protocol.md section 3 a check is
+        not evidence until it has been shown capable of failing, so I built the
+        null object: a defect of exactly the D-2 family, deliberately introduced.
+      method: >-
+        I copied circuits.py to an isolated directory and reversed the MAJ loop
+        order in the ripple adder -- a mutation that changes the function while
+        preserving the number of X, CNOT and CCX gates exactly. The repository
+        file was not touched.
+      result: >-
+        The mutant's counting-mode tally was BIT-IDENTICAL to the genuine
+        circuit's -- {x: 640, cnot: 7264, ccx: 3360}, peak qubits 30 -- yet the
+        simulation caught it at 16 of 16 exponents (DirtyAncilla). This
+        establishes two things at once.
+      establishes_1: >-
+        The blocking simulation genuinely discriminates against count-invisible
+        defects. The D-2 family is detectable by this harness as a matter of
+        demonstrated capability, not just of one historical anecdote.
+      establishes_2: >-
+        IMPORTANT SCOPE POINT. The tally-equality check ALONE is not a
+        correctness check: it remained true on the broken circuit. What
+        "simulated equals counted" proves is circuit IDENTITY. Correctness rests
+        entirely on the separate functional-output and ancilla checks. The
+        producer's wording is defensible, but a reader could over-read
+        "the simulated circuit is the counted circuit by measurement" as a
+        correctness result, and it is not one.
+    other_defects_of_the_D2_family_found: 1
+    see: findings D-V2 below
+
+  # =====================================================================
+  # CHECK 3 -- CONVENTION COMPLETENESS
+  # =====================================================================
+  check_3_convention_completeness:
+    finding: PASS
+    question_asked: >-
+      Is PREREGISTRATION.md complete enough that an independent party could
+      reproduce the counts?
+    answer: >-
+      Yes, and the strongest available proof is that an independent party did.
+      See reproduction_from_scratch below.
+    required_elements:
+    - element: gate set
+      clause: 1
+      complete: true
+      detail: >-
+        Exactly X, CNOT, CCX. Explicitly excludes multi-controlled gates with
+        more than two controls, any CSWAP primitive (a controlled swap is
+        expanded to CNOT/CCX/CNOT and pays its 1 Toffoli), and relative-phase or
+        measurement-assisted constructions. Names the three reported metrics.
+    - element: T-from-Toffoli ratio and its derivation
+      clause: 2
+      complete: true
+      detail: >-
+        T = 7 x Toffoli, declared DERIVED with the justification obligation
+        accepted in advance, plus a pre-committed falsification branch ("if it
+        fails, the T column is reported as not derived and left empty") and an
+        explicit statement that it is an upper bound, not an optimum.
+    - element: ancilla accounting
+      clause: 3
+      complete: true
+      detail: >-
+        Clean ancillas only, all returned to |0>, peak_qubits and
+        ancilla_qubits = peak - io defined, no qubit/gate tradeoff claimed. One
+        overstatement in this clause -- see finding D-V2.
+    - element: uncomputation policy
+      clause: 4
+      complete: true
+      detail: >-
+        Uncompute by running the inverse circuit; uncomputation gates counted in
+        full on the same footing; no measurement-based uncomputation, no free
+        deallocation, no garbage output, no measurement anywhere.
+    - element: what one modexp includes and excludes
+      clause: 5
+      complete: true
+      detail: >-
+        INCLUDES all 2n controlled modular multiplications by a^(2^j) mod N, all
+        uncomputation, all constant loading, all comparison/reduction logic.
+        EXCLUDES the QFT, the Hadamard layer, phase estimation, measurement, and
+        all error-correction and routing overhead. Register widths (2n exponent,
+        n target initialised to 1) and the classical status of N and a are fixed.
+    - element: what one point addition includes and excludes
+      clause: 6
+      complete: true
+      detail: >-
+        INCLUDES the two constant coordinate subtractions, the modular
+        inversions, the modular multiplications and every uncomputation needed to
+        return all ancillas, naming the uncomputation of the inverse and of the
+        slope lambda. EXCLUDES the QFT/phase-estimation layer, measurement, error
+        correction, routing and any exceptional-case branch. Declares the domain
+        of correctness in advance.
+    - element: sub-circuit constructions fixed in advance
+      clause: 7
+      complete: true
+      detail: >-
+        All six named and specified before counting, "so the count is not chosen
+        after seeing it", including the advance declaration that the Fermat
+        inverter's length depends on w(p-2) and that EC counts must therefore be
+        reported twice.
+    reproduction_from_scratch:
+      exercised: true
+      method: >-
+        I extracted the five src files from the committed tree at d931391c2 into
+        an isolated scratch directory and re-ran run_counts.py and
+        run_validation.py there. The repository artifacts were NEVER written to;
+        both scripts write counts.json / validation.json next to their source, so
+        running them in place would have overwritten raw artifacts.
+      counts_json: >-
+        REBUILT. Structural diff against the committed artifact: 0 differing
+        leaves once the timing fields (seconds, wall_clock_seconds) are excluded.
+        The timing fields did move (committed 0.003/0.006/0.009/0.016 vs rebuilt
+        0.004/0.011/0.011/0.014), which is what proves this was a genuine re-run
+        and not a copy.
+      validation_json: >-
+        REBUILT. 0 differing leaves excluding timing fields; timing fields moved.
+      stdout_logs: >-
+        logs/counts_stdout.log (53 lines) and logs/validation_stdout.log (26
+        lines) both reproduce line for line modulo timings.
+      derive_identities: >-
+        Re-ran src/derive_identities.py: stdout is BYTE-IDENTICAL to the
+        committed logs/derive_identities.json, including
+        max_abs_deviation_from_toffoli = 3.1401849173675503e-16 and
+        point_identity_instances_checked = 311472.
+      conclusion: >-
+        The reproducibility pointer is exercised, not asserted. Every artifact I
+        could rebuild, I rebuilt, and it matched.
+    t_ratio_derivation:
+      genuinely_derived: true
+      circuit_recounted_by_me: 7 T/Tdg gates, 6 CNOT, 2 H
+      producer_check: >-
+        The 8x8 unitary is multiplied out and compared with the Toffoli
+        permutation matrix; max deviation 3.14e-16 against a declared tolerance
+        of 1e-12. The check is real and it passes.
+      my_independent_exact_check: >-
+        I redid it in GENUINELY exact arithmetic, over Z[zeta_8] with Fraction
+        coefficients (1/sqrt2 = (zeta - zeta^3)/2, zeta^4 = -1, no floating point
+        anywhere), multiplying the same 15-gate sequence out and comparing with
+        the Toffoli permutation. The matrices are EXACTLY equal. The constant 7
+        stands, independently of the producer's method.
+      but_see: finding D-V1 -- counts.json misdescribes the producer's method as "exact"
+    point_addition_identities:
+      derived_not_cited: true
+      detail: >-
+        x3 - x2 = lam^2 - u - 3*x2 and y3 + y2 = -lam*(x3 - x2) are re-derived
+        from the affine chord formula and checked over 311,472 instances across
+        12 primes and all nonsingular short Weierstrass curves sampled; the
+        checker also re-verifies that (x3,y3) lies on the curve. I re-ran it and
+        got the same 311,472.
+    every_constant_derived:
+      confirmed: true
+      detail: >-
+        counts.json subcircuit_closed_forms enumerates every constant that
+        appears in the two headline forms -- 2n (ripple adder), 10(n+1) (modular
+        addition), 4(n+1) (modular doubling), 20n^2+10n-8 (quantum x quantum
+        modular multiplication), 2(b+w-2)(20n^2+10n-8) (Fermat inversion),
+        20n^2+25n (controlled modular multiplication) -- and compares each with
+        an exact enumeration of the built sub-circuit at n = 4..12. all_match is
+        true and I re-enumerated a superset of these rows myself. No constant is
+        imported from any publication, consistent with the handoff constraint
+        that no paper is filed for this goal.
+
+  # =====================================================================
+  # CHECK 4 -- PROHIBITION COMPLIANCE  (GOAL-QRE-001 completion criterion 5)
+  # =====================================================================
+  check_4_prohibition_compliance:
+    finding: PASS
+    scope_of_my_sweep:
+      files_swept: 17
+      includes_src: true      # all 5 files
+      includes_logs: true     # all 7 files
+      source: committed blobs at d931391c2
+      patterns: >-
+        30+ vocabulary patterns (timeline, forecast, arriv*, predict, projection,
+        years away, decade, roadmap, deadline, horizon, q-day, harvest now,
+        cryptographically relevant, CRQC, migrat*, policy, recommend, advice,
+        advis*, guidance, urgen*, threat, imminent, near-term, likelihood,
+        probability, "when a/any/the quantum|machine", future, soon, "by 19xx/20xx")
+        PLUS ISO date patterns, prose date patterns, month names, and every
+        4-digit year-like number. Date patterns were included deliberately
+        because the producer's own scanner has none.
+    result_forecast_timeline_policy: >-
+      ZERO. No forecast, no timeline, no arrival probability, no migration
+      statement and no policy recommendation appears in any of the 17 files.
+    every_vocabulary_hit_accounted_for:
+    - category: the artifacts' own "contains no date/timeline/..." disclaimers
+      files: [PREREGISTRATION.md, counts.json, validation.json, execution_report.yaml]
+      verdict: admissible -- a negation of the prohibited claim, not the claim
+    - category: the FORBIDDEN literal list inside src/check_artifacts.py
+      detail: >-
+        The strings "q-day", "threat horizon", "harvest now", "years away",
+        "decade", "roadmap", "deadline", "prediction" appear as the scanner's own
+        search vocabulary.
+      verdict: admissible -- a scanner's word list is not an assertion
+    - category: logs/check_artifacts.json echoing those contexts back as scan output
+      verdict: admissible -- quoted context in a scan report
+    - category: two benign technical uses
+      detail: >-
+        the section heading "## 4. Uncomputation policy" in PREREGISTRATION.md,
+        and "not statements about the arrival of any machine" in the scan note.
+      verdict: admissible
+    year_like_numbers:
+      distinct_values: 15
+      genuine_years: 0
+      itemised: >-
+        2048 = the bit width n of the RSA shape; 2039 and 2027 = 11-bit primes p
+        (confirming the handoff's note -- 2039 is a prime modulus, not a year);
+        2092 = a Toffoli count (20n^2+10n-8 at n=10); 2021 = an 11-bit RSA-shape
+        modulus N; 2049 = the alternate modulus in the constant-independence
+        check; 2038, 2026, 2061 = a curve constant B and an affine-point count;
+        2149, 2117, 2085, 2053 = peak-qubit and ancilla-qubit counts at n=32;
+        2181 = a quadratic-fit value. I traced each to its JSON key.
+    genuine_dates_present:
+    - token: '20260813'
+      where: record identifiers TASK-20260813-c99166 / -884e20 / -13e948 / -312e93
+      verdict: >-
+        required provenance under the AGENTS.md artifact policy and the ID
+        convention. Declared by the producer in dates_present_and_why. Note it is
+        also reused as the RNG seed (SEED = 20260813), which is disclosed in
+        PREREGISTRATION clause 10 and in the execution report's seeds block.
+    - token: 'Mar  3 2026'
+      where: >-
+        the CPython build stamp 'CPython 3.11.15 (main, Mar  3 2026, 09:26:23)'
+        in execution_report.yaml environment
+      verdict: >-
+        required environment provenance under the AGENTS.md artifact policy.
+        Declared. Not a statement about any machine's arrival.
+    iso_dates_found: 0
+    self_audit_is_not_the_check: >-
+      Confirmed by doing my own. See finding D-V3: the producer's C6 covers only
+      4 of the 17 files and contains no date pattern at all, so it could not have
+      established this criterion by itself. The criterion is met on the evidence
+      -- but it is met by this sweep, not by C6.
+
+  # =====================================================================
+  # ALSO VERIFIED (bear on whether the counts mean anything)
+  # =====================================================================
+  metric_recomputations:
+  - metric: modular exponentiation Toffoli closed form
+    reported: 40n^3 + 50n^2
+    my_method: evaluated the polynomial myself at every width and differenced against counts.json
+    widths_checked: 17
+    fit_widths: [4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20]
+    holdout_widths: [24, 32, 48, 64, 96, 128]
+    residuals_nonzero: 0
+    result: >-
+      CONFIRMED. All 17 residuals exactly zero, including all 6 held out. The
+      producer's claim of exactly zero residuals at 17 modexp widths including 6
+      held out is accurate.
+  - metric: modular exponentiation peak qubits
+    reported: 6n + 6
+    residuals_nonzero: 0
+    result: CONFIRMED at all 17 widths. io_qubits = 3n at all 17.
+  - metric: EC point addition exact Toffoli closed form
+    reported: (8(b + w - 2) + 5)(20n^2 + 10n - 8) + 50(n + 1) + 2n
+    where: n = bitlength(p), b = bitlength(p-2), w = Hamming weight of p-2
+    pairs_checked: 32
+    residuals_nonzero: 0
+    result: >-
+      CONFIRMED. All 32 (n, p) pairs, n in {4..14, 15, 16, 20, 24, 32} with two
+      primes each, residual exactly zero. b = n at every row.
+  - metric: EC cubic in n alone -- the NEGATIVE result
+    reported: 320n^3 - 220n^2 - 266n + 202, residuals NOT zero
+    result: >-
+      CONFIRMED, exactly as stated. I recomputed the residuals on the primary
+      ladder: non-zero at exactly four widths -- n=8 (p=251, w=6, -10816,
+      -7.89%), n=11 (p=2039, w=9, -20176, -5.36%), n=15 (p=32749, w=13, -37136,
+      -3.75%), n=32 (p=4294967291, w=30, -166336, -1.65%). The producer's
+      "up to -7.9% at n = 8, 11, 15, 32" is precise.
+    is_the_limitation_buried: >-
+      NO. It is stated in four places and, decisively, it was PRE-REGISTERED.
+      (1) counts.json toffoli_fit_in_n_alone.note: "Residuals here are NOT zero
+      and are not expected to be: the count depends on the Hamming weight of p-2,
+      so no function of n alone can be exact." (2) the residuals array itself
+      carries a per-row relative_residual. (3) execution_report observation 4
+      names all four widths and the -7.9% figure. (4) PREREGISTRATION clause 7,
+      frozen before counting, REQUIRED in advance that EC counts be reported
+      twice and that the n-alone residuals "are expected to be non-zero and are
+      reported, not hidden." Reporting a non-zero residual you pre-committed to
+      reporting is the honest case, not a buried one.
+  - metric: headline n=2048 (RSA shape)
+    label_present: true
+    label_value: evaluated_from_closed_form
+    label_accurate: true
+    my_recomputation: >-
+      343,807,098,880 Toffoli, 2,406,649,692,160 T, 12,294 peak qubits. All
+      three reproduce exactly from 40n^3+50n^2, 7x that, and 6n+6.
+  - metric: headline n=256 (256-bit prime field, ONE point addition)
+    label_present: true
+    label_value: evaluated_from_closed_form
+    label_accurate: true
+    my_recomputation: >-
+      5,301,692,426 Toffoli and 37,111,846,982 T. I independently verified
+      p = 2^256 - 189 is prime and that no prime lies strictly between it and
+      2^256, so "largest prime below 2^256" is correct; and I recomputed b = 256
+      and w = 250 from p-2. Both figures reproduce exactly.
+    labelling_assessment: >-
+      Present, accurate and consistently applied. counts.json measurement_status
+      defines evaluated_from_closed_form as "closed form evaluated at a width too
+      large to enumerate here; arithmetic, not a measurement". Both entries carry
+      a caveat naming the enumeration ceiling, disclaiming optimality, and (for
+      EC) naming the un-derived Euclid-style inverter that would change the
+      number. Deviation D-3 says the same in the execution report. Neither figure
+      is presented as a measurement anywhere I could find.
+  - metric: T = 7 x Toffoli consistency
+    result: CONFIRMED in every row of counts.json and validation.json. Zero violations.
+  - metric: total simulated circuit instances
+    reported: 17045
+    result: CONFIRMED by resumming the component and full-circuit entries.
+  - metric: component and full-circuit pass counts
+    result: >-
+      CONFIRMED. 26 component checks, 0 failed; 22 full-circuit configurations
+      (9 modexp + 13 EC), 0 failed, 0 input failures.
+
+  control_checks:
+  - control: negative control on the validation harness (mine, not the producer's)
+    type: count-preserving mutation of the builder
+    passed: true
+    detail: see check_2 P5 -- the harness caught a defect with a bit-identical gate tally
+  - control: constant-independence of the modexp Toffoli count
+    source: producer, re-read by me
+    detail: >-
+      At n=8 and n=12 two different (N, a) pairs give identical Toffoli counts and
+      different CNOT counts. This is what makes a validated configuration's
+      Toffoli count transfer to the counts.json row at the same n. CNOT and X are
+      correctly reported per row and explicitly NOT fitted.
+  - control: exhaustive input coverage where feasible
+    detail: >-
+      modexp n=4 and n=5 exhaustive over all 2^(2n) exponents; EC exhaustive over
+      the whole declared domain up to n=7. Seeded random samples above, seed
+      20260813 recorded in the manifest and in each entry.
+  - control: end-of-circuit global ancilla zero-check
+    detail: >-
+      Independent of the allocator guard, run_validation re-checks that every
+      qubit outside the declared I/O registers is 0 at the end of every modexp and
+      point_add instance. I confirmed this reads live final bit values and is
+      non-vacuous -- it is the check that actually establishes ancilla
+      cleanliness end to end, and the one that fires under my mutation.
+  - control: validation coverage EXTENDED BY ME beyond the producer's envelope
+    detail: >-
+      I simulated two widths the producer counted but never simulated.
+      modexp n=14 (N=14351, a=3), 3 random exponents: 3/3 correct output,
+      exponent register preserved, all ancillas clean, and the run-mode tally
+      equals the counts.json row exactly. point_add n=13 (p=8191): output equals
+      the independently computed chord-formula result, all ancillas clean, tally
+      equals the counts.json row exactly. New evidence, not the producer's.
+
+  # =====================================================================
+  # FINDINGS
+  # =====================================================================
+  defects_found:
+  - id: D-V1
+    severity: low
+    class: claim accuracy (method misdescribed; substance correct)
+    where: counts.json -> t_count_rule.derivation
+    statement: >-
+      counts.json says the 8x8 unitary is multiplied out "in exact complex
+      arithmetic". It is not. src/derive_identities.py uses cmath and Python
+      complex, i.e. IEEE-754 double pairs. The reported residual of 3.14e-16 is
+      itself the proof: exact arithmetic returns 0, and a floating-point
+      accumulation of 15 gate applications returns something of order 1e-16.
+    mitigating: >-
+      PREREGISTRATION clause 2 is honest -- it says "to numerical tolerance
+      1e-12", which is what was done. Only counts.json overstates it. And the
+      SUBSTANCE survives: I redid the check in genuinely exact arithmetic over
+      Z[zeta_8] with Fractions and the product matrix equals the Toffoli
+      permutation exactly, so the constant 7 is correct and is genuinely derived
+      rather than cited.
+    effect_on_reported_numbers: none
+    recommended_handling: >-
+      Coordinator's call. A superseding correction record, never an edit to the
+      committed artifact.
+  - id: D-V2
+    severity: low
+    class: >-
+      overstated mechanism claim; also the ONE other defect of the D-2 family I
+      found, which the handoff asked me to look for
+    where: PREREGISTRATION.md clause 3, and validation.json ancilla_check
+    statement: >-
+      The DirtyAncilla guard is VACUOUS inside capture(). I demonstrated this
+      directly: freeing a qubit that a gate has set to 1 raises DirtyAncilla at
+      top level, and raises NOTHING inside m.capture(...). The cause is that
+      _emit buffers rather than executes while _rec is non-empty, so self.bits is
+      stale and free()'s guard `self.run and self.bits[q] != 0` can never fire.
+    consequence: >-
+      In point_add BOTH mod_inv blocks execute wholly under capture, and every
+      primitive implemented via m.inverse(...) -- sub, mod_sub, mod_hlv,
+      mod_sub_const -- frees its scratch under capture. So PREREGISTRATION clause
+      3's claim that cleanliness is "enforced mechanically ... so every
+      validation run that passes has also proved ancilla cleanliness for that
+      input" is not accurate for those regions.
+    mitigating: >-
+      Substantial, and I verified it rather than assuming it. run_validation.py
+      independently re-checks at the END of every modexp and point_add instance
+      that every qubit outside the declared I/O registers is 0, reading live final
+      bit values. That check is non-vacuous, it is what fired under my P5
+      mutation, and it does establish end-of-circuit ancilla cleanliness. The
+      design is also defensible on the merits -- inside a capture no gate
+      executes, so an intra-capture free is a structural event whose cleanliness
+      is a property of the replayed stream. What is wrong is the mechanism claim,
+      not the conclusion.
+    effect_on_reported_numbers: none
+    note: >-
+      This is a claim-accuracy defect, not a counting defect. The conclusion "all
+      ancillas returned to |0> at end of circuit" is supported by the other check.
+  - id: D-V3
+    severity: low
+    class: self-audit coverage gap; completion-gate evidence overstates its own reach
+    where: src/check_artifacts.py check C6, cited by execution_report.yaml completion_gate
+    statement: >-
+      C6 scans exactly 4 of the 17 files -- PREREGISTRATION.md, counts.json,
+      validation.json, execution_report.yaml. It never scans any of the 5 src/ or
+      7 logs/ files (13 files unscanned). Its FORBIDDEN list is vocabulary-only
+      and contains no date pattern at all, so an ISO date, a prose date or a bare
+      year would pass C6 silently. execution_report.yaml nonetheless cites
+      "logs/check_artifacts.json check C6" as the evidence for the gate "no date,
+      timeline, arrival probability or policy statement IN ANY ARTIFACT".
+    effect_on_reported_numbers: none
+    resolution: >-
+      Immaterial to the outcome here because my own sweep covered all 17 files
+      with date patterns included and found nothing. But criterion 5 is
+      discharged by this report's sweep, not by C6, and the completion-gate
+      evidence line should not be read as though it were.
+  - id: D-V4
+    severity: low
+    class: stated rule is procedural, not mechanised
+    where: PREREGISTRATION clause 9; validation.json summary.blocking_rule; run_counts.py
+    statement: >-
+      "Validation is BLOCKING -- a width that fails simulation has its count
+      withheld" is a policy, not a mechanism. run_counts.py never reads
+      validation.json and nothing in the code would withhold a count if a width
+      had failed. The two scripts are independent.
+    effect_on_reported_numbers: none
+    why_immaterial_here: >-
+      Zero failures occurred, so nothing needed withholding. And the widths where
+      the rule could matter most -- modexp n=14..128, EC n=13..32 -- are never
+      simulated at all, so no blocking rule could apply to them in any case. The
+      package is explicit about that (execution_report observation 7).
+  - id: D-V5
+    severity: moderate
+    class: required artifact-policy field missing from the run record
+    where: execution_report.yaml
+    statement: >-
+      The run record carries NO inference / model-provenance block. AGENTS.md
+      "Artifact policy" requires each run to retain the requested model policy,
+      backend and resolved runtime model identifier; model provenance and whether
+      that identifier has been probe-verified; reasoning effort; whether fallback
+      was used; and any degraded requirements. The handoff declares
+      inference.policy: executor-implementation, but the run record records none
+      of the resolved values. grep for inference|requested_policy|resolved_model|
+      model_verified|reasoning_effort|fallback|degraded|backend returns nothing.
+    not_substituted_by: >-
+      The snapshot receipt does carry an inference block, but that is the
+      Coordinator's own provenance for the snapshot task, not the producer's for
+      the run.
+    effect_on_reported_numbers: >-
+      None. This package is deterministic Python over integer lists with one
+      recorded seed, and I rebuilt every artifact from scratch byte-for-byte
+      modulo timings. Which model wrote the code does not change what the code
+      computes. The gap is nonetheless a required-field omission in a run record.
+    recommended_handling: >-
+      Coordinator's call at the ledger-archive step. Recording it in the evidence
+      record would close it without touching the immutable artifact.
+
+  # =====================================================================
+  # LIMITATIONS AND WHAT I DID NOT VERIFY  (explicit, per the handoff)
+  # =====================================================================
+  limitations:
+  - >-
+    PRE-REGISTRATION FREEZE ORDER IS NOT INDEPENDENTLY VERIFIABLE. PREREGISTRATION.md
+    is ABSENT from the declared freeze commit 5fa40e21d and first appears in the
+    snapshot commit d931391c2 together with the source it claims to precede, so
+    git cannot separate them. The claim rests on the producer's assertion. Three
+    pieces of circumstantial evidence support it and I record them as
+    circumstantial, not as proof: (a) clause 6 declares a domain (x1 != x2)
+    NARROWER than the construction actually needs, with the extra condition
+    x3 != x2 recorded as deviation D-1 rather than edited into the frozen file --
+    a document written afterwards would have stated the correct domain; (b)
+    clause 7 predicted the w-dependence of the EC count and mandated in advance
+    the dual reporting that in fact occurred, including the non-zero residuals;
+    (c) clause 2 pre-committed a falsification branch for the T ratio. The
+    package would be strengthened by a future producer committing the
+    pre-registration in its own commit before writing any source.
+  - >-
+    THE VALIDATED ENVELOPE IS STRICTLY SMALLER THAN THE COUNTED ENVELOPE.
+    Simulation covers modexp n in {4,5,6,7,8,9,10,12} and EC n in {4..12}.
+    Counted but not simulated by the producer: modexp n in {14,16,20,24,32,48,64,
+    96,128}; EC n in {13,14,15,16,20,24,32}. I extended this by one width in each
+    family (modexp n=14, EC n=13). Above those, the evidence is that the closed
+    form reproduces the producer's enumeration and that I reproduced the
+    enumeration myself to modexp n=20 and EC n=13 -- not that the circuit was
+    executed. The package states this accurately in execution_report observation
+    7 and does not overclaim it.
+  - >-
+    CLASSICAL SIMULATION ESTABLISHES THE PERMUTATION, NOT THE FULL QUANTUM
+    BEHAVIOUR. The runner executes on a classical bit vector. For a circuit built
+    only from X, CNOT and CCX the permutation on computational basis states does
+    determine the unitary, so this gap is narrower than it sounds -- but I did not
+    verify any phase behaviour, and the package claims none.
+  - >-
+    THE COUNTS ARE THE COST OF THESE CONSTRUCTIONS UNDER THIS CONVENTION, AND ARE
+    UPPER BOUNDS. Fermat inversion (with its quadratic ancilla footprint) and
+    T = 7 x Toffoli are both declared as chosen-and-derived rather than optimal,
+    and could_not_be_derived lists exactly what was deliberately not imported: a
+    Euclid/Kaliski inverter, any sub-7-T Toffoli decomposition, T-depth/T-width
+    and measurement-assisted variants. Nothing here is a claim about the cheapest
+    possible modular exponentiation or point addition.
+  - >-
+    NO COMPARISON WITH ANY PUBLISHED TOTAL, correctly, since no primary
+    resource-estimation source is filed as KN-LIT for this goal. Noted for the
+    Coordinator only: RQ-QRE-6dba8c's first constraint says no pipeline output is
+    recorded before two such papers are filed, while GOAL-QRE-001's next_action
+    explicitly scopes this task as needing no acquisition. I read that as a
+    Coordinator scoping decision rather than a violation -- the package produces
+    an arithmetic-layer count and makes no pipeline claim and no comparison -- and
+    I flag the tension rather than resolving it, because resolving it is not the
+    Validator's authority.
+  - >-
+    THIS PACKAGE BEARS ON GOAL-QRE-001 COMPLETION CRITERION 2 AND, FOR ITS OWN
+    ARTIFACTS, CRITERION 5. It says nothing about criteria 1, 3, 4 or 6.
+
+  not_verified:
+  - >-
+    Correctness of the enumeration above modexp n=20 and EC n=13. I re-enumerated
+    11 modexp rows and 20 EC rows independently; I did not re-run the enumeration
+    at modexp n=128 (about 8.5e7 Toffoli, prohibitive in interpreted Python within
+    budget) nor at EC n in {14,15,16,20,24,32} beyond n=13.
+  - >-
+    Simulation at any width above modexp n=14 / EC n=13. Infeasible in principle
+    at the headline widths and not claimed by anyone.
+  - >-
+    That the n=2048 and n=256 figures describe a circuit anyone built. They are
+    closed-form evaluations, correctly labelled as such; I recomputed the
+    arithmetic and verified the labels, nothing more.
+  - >-
+    Optimality or competitiveness of either construction against any published
+    construction. Out of scope and not claimed.
+  - >-
+    The producer's runs_attempted_and_superseded narrative -- two earlier
+    run_counts.py invocations at narrower ladders, one earlier run_validation.py,
+    and three failed development runs including the D-2 discovery. No artifacts
+    for those runs exist in the package. I treat it as a disclosure, which is the
+    right thing for it to be, and verified none of it. D-2 itself I did not need
+    to take on trust: I reproduced a defect of that family myself (P5).
+  - >-
+    The reported wall-clock and memory figures. My own rebuild took comparable
+    time (counts about 145 s, validation about 60 s against the reported 144.3 s
+    and 60.6 s), but I did not instrument memory and the report itself states
+    peak process memory was "not instrumented".
+  - >-
+    Whether the counting convention is the RIGHT convention, and whether Fermat
+    inversion is a defensible choice for this purpose. Those are interpretation
+    questions belonging to the Red Team task TASK-20260813-312e93 and to the
+    Coordinator, not to the Validator.
+  - >-
+    Anything about the classical hardness of ECDLP. Per GOAL-QRE-001
+    non_duplication, nothing in this package may be cited for or against any
+    classical claim.
+
+  heuristic_validation_checks:
+  - status: not_applicable
+    reason: >-
+      This task validates no heuristic in the sense of docs/target-result-profile.md.
+      There is no probabilistic prediction, no distribution to compare against, no
+      correspondence substituting for direct sampling. The randomness present is
+      confined to selecting WHICH inputs to simulate (seed 20260813, recorded in
+      the manifest and in each entry), and every circuit is deterministic. The
+      analogous obligation -- a pre-registered prediction independent of the data
+      -- is discharged by PREREGISTRATION clause 7 fixing every sub-circuit and
+      predicting the w-dependence before any count, and I confirmed the predicted
+      form reproduces every enumerated point.
+  cost_model_checks:
+  - check: cost unit declared
+    result: PASS
+    detail: >-
+      Units are declared and unambiguous throughout: Toffoli gates, T gates,
+      X gates, CNOT gates, peak qubits, ancilla qubits. counts.json gate_set names
+      the gate set and measurement_status distinguishes enumerated from
+      closed_form from evaluated_from_closed_form.
+  - check: memory reported alongside time
+    result: PASS
+    detail: >-
+      Qubit counts are reported beside gate counts at every row -- peak_qubits,
+      io_qubits, ancilla_qubits -- with their own closed forms (6n+6 for modexp,
+      quadratic for EC) and their own residuals. The quadratic ancilla footprint
+      of the Fermat inverter is stated as a declared property of the construction
+      in advance (PREREGISTRATION clause 7) and again in could_not_be_derived.
+  - check: optimistic assumptions flagged
+    result: PASS
+    detail: >-
+      T = 7 x Toffoli is declared an upper bound, not an optimum, with the
+      explicit note that smaller-T constructions are recalled to exist and are
+      deliberately neither used nor cited. The EC count is declared the cost of
+      THIS inverter and an upper bound. Excluded overheads (QFT, phase estimation,
+      measurement, error correction, routing, exceptional cases) are enumerated in
+      advance rather than discovered later.
+  - check: per-attempt cost x inverse success probability
+    result: not_applicable
+    detail: >-
+      No success probability enters an arithmetic-layer gate count; these circuits
+      are deterministic and succeed by construction on their declared domain.
+      There is no expected-cost bookkeeping to check, and correctly none is
+      claimed.
+  proof_architecture_checks:
+  - check: baseline fixture / exact reproduction rather than close numerical fit
+    result: PASS
+    detail: >-
+      Every closed form is checked by EXACT rational arithmetic (Fraction
+      interpolation, integer residuals), not by a numerical fit. I recomputed all
+      17 modexp and all 32 EC residuals in exact integer arithmetic myself and got
+      exactly zero. The one place a float appears -- the T-ratio unitary check --
+      is the one place a discrepancy shows (finding D-V1), and I closed it with an
+      exact check over Z[zeta_8].
+  - check: strictness / improvement claim
+    result: not_applicable
+    detail: >-
+      No improvement over anything is claimed. There is no baseline in the
+      package, deliberately, because no resource-estimation paper is filed.
+  - check: bounded search bound to its enumerated scope
+    result: PASS
+    detail: >-
+      Every reported quantity names its exact scope: the width ladder, the fit vs
+      holdout split, the specific moduli, primes, curve constants and points, the
+      declared domain of correctness, and which widths were simulated versus only
+      counted. Nothing is stated as holding beyond what was enumerated.
+
+  artifact_checks:
+  - artifact: PREREGISTRATION.md
+    present: true
+    hash_verified: true
+    parses: true
+    finding: complete on all five required convention elements; freeze order not git-verifiable
+  - artifact: counts.json
+    present: true
+    hash_verified: true
+    parses: true
+    finding: every number recomputed; rebuilt from scratch with 0 differing leaves; one wording defect D-V1
+  - artifact: validation.json
+    present: true
+    hash_verified: true
+    parses: true
+    finding: 22 configurations, all pass; rebuilt from scratch with 0 differing leaves
+  - artifact: execution_report.yaml
+    present: true
+    hash_verified: true
+    parses: true
+    finding: accurate against the artifacts on every observation I checked; missing inference block (D-V5)
+  - artifact: src/circuits.py
+    present: true
+    hash_verified: true
+    finding: single builder confirmed by reading; no divergence path found; capture guard gap D-V2
+  - artifact: src/run_counts.py
+    present: true
+    hash_verified: true
+    finding: counters build and enumerate; no formula, cache or shortcut
+  - artifact: src/run_validation.py
+    present: true
+    hash_verified: true
+    finding: imports the production counters; tally comparison is genuine, not trivially true
+  - artifact: src/derive_identities.py
+    present: true
+    hash_verified: true
+    finding: re-ran, byte-identical output; float not exact arithmetic (D-V1)
+  - artifact: src/check_artifacts.py
+    present: true
+    hash_verified: true
+    finding: C6 covers 4 of 17 files and no date patterns (D-V3)
+  - artifact: logs/ (7 files)
+    present: true
+    hash_verified: true
+    finding: >-
+      stdout logs reproduce line for line modulo timings; three stderr logs are
+      empty, consistent with exit_code 0; derive_identities.json byte-identical to
+      my re-run; check_artifacts.json records passed true, 0 checks failed, 22
+      cross-artifact matches, scanning 4 artifacts
+
+  budget_accounting:
+    wall_clock_budget_seconds: 1800
+    memory_budget_gb: 2
+    maximum_runs: 10
+    runs_executed: 9
+    runs_detail: >-
+      1 git/hash verification, 1 recomputation of all residuals and headline
+      figures, 1 adversarial probe suite (stream identity, data-independence,
+      re-enumeration, capture-guard, mutation control), 1 derivation re-run plus
+      extended validation, 2 prohibition sweeps, 1 from-scratch rebuild of both
+      artifacts, 1 rebuild diff, 1 contract and provenance check.
+    budget_exhausted: false
+    infrastructure_failures: none
+
+  next_step_owner: coordinator
+  next_step: >-
+    Hand this report to the ledger archive task TASK-20260813-654347. This
+    Validator makes no status change, writes no evidence or decision record, and
+    commits nothing. The Red Team task TASK-20260813-312e93 remains open and owns
+    the interpretation questions this report deliberately does not touch.
+
+  artifact_paths:
+  - coordination/goals/GOAL-QRE-001/batches/BATCH-973b49/tasks/TASK-20260813-13e948/validation_report.yaml
