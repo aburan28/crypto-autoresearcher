@@ -1,0 +1,426 @@
+# FILED under experiments/EXP-MLKEM-42ea04/specification.yaml. EXP-MLKEM-42ea04
+# was minted (tools/allocate_id.py --next experiment --area MLKEM, --check'd)
+# and two-scope verified (0 hits, worktree and 25 most-recently-updated
+# remote branches) by the orchestrating session before filing. A four-agent
+# independent review plus a Coordinator ruling (approve_with_required_revisions,
+# twelve named revisions, all applied and re-verified) reviewed the draft
+# before filing -- see this batch's own notarizing archive receipt. status
+# stays `review_required`; approved_by stays null. APPROVAL (the gate that
+# authorizes execution and spends compute, per .claude/skills/design-experiment/
+# SKILL.md step 4 and AGENTS.md rule 1) is a separate, later Coordinator act,
+# not performed by this filing.
+#
+# Experiment-class note (SKILL.md "Experiment class patterns"): this
+# protocol is a HYBRID of the two first-class patterns, and both are
+# applied rather than one chosen over the other, argued below rather than
+# asserted.
+#   - HEURISTIC-VALIDATION shape applies to C1 (HEUR-MLKEM-7d9bcc-1/2/3)
+#     and to C2 (HEUR-MLKEM-7d9bcc-4/5): each is a numbered, formally
+#     stated heuristic with a pre-registered prediction (the Beta/chi-square
+#     curves; the Beta extreme-value asymptotic rate), a stated sample-size
+#     justification derived from the smallest resolvable tail separation,
+#     a predefined comparison metric with tail checks, and controls
+#     (synthetic NULL-2 for the sampler/metric; NULL-1/NULL-3 as
+#     nearby-object/null-object controls; a second scale, n in {64,128},
+#     so the comparison is not scale-specific).
+#   - COST-MODEL-MEASUREMENT shape applies to C1's own bit-savings readout
+#     (implied_bit_saving): it is a measured-vs-modeled number (measured
+#     rho distribution and p(beta); modeled Delta-beta conversion via the
+#     2016 estimate), carries explicit optimistic-assumption disclosure
+#     (the GSA/2016-estimate conversion; the O(d^2) selection-cost
+#     assumption), and states a materiality threshold rather than a bare
+#     prediction test. It is NOT applied in its full standardized-
+#     parameter-set form (no NIST-I/III/V table is produced here -- this
+#     protocol is toy-scale throughout, disclosed as such in every field
+#     below) -- fields load-bearing at standardized parameter sets
+#     (memory_exponent, time_memory_tradeoff, affected_scope/safe_scope)
+#     are populated at the ASYMPTOTIC/STRUCTURAL level only (unchanged from
+#     the source idea's own target_complexity), never as a concrete-cost
+#     table this toy measurement cannot honestly produce.
+experiment:
+  id: EXP-MLKEM-42ea04
+  hypothesis_id: H-MLKEM-7d9bcc
+  goal_id: GOAL-MLKEM-005
+  version: 1
+  title: >-
+    Real-BKZ measurement of the projected-error left tail against the
+    Beta/chi-square law (C1) and the order-statistic/combinatorial-floor
+    test (C2), at ML-KEM-shaped toy parameters
+  status: review_required
+  frozen: false
+  approved_by: null
+  claim_tier: toy
+  objective: >-
+    Decide, at n in {64, 128} (d in {256, 512}), whether the left tail of
+    the squared projected-error ratio R = ||pi_{d-beta}(t)||^2 / ||e||^2,
+    under a single shared BKZ-beta-reduced basis and real ML-KEM CBD/FIPS
+    203-compression noise, matches the frozen-norm Beta(beta/2,
+    (d-beta)/2) law (C1), and whether that law's own order-statistic
+    consequences (the running-minimum trajectory, and the exact
+    finite-alphabet floor at toy dimension) hold up to the reachable
+    sampling scale or break down against a combinatorial floor first (C2).
+    Discharges GOAL-MLKEM-005's completion criterion C3. Does not attempt
+    key recovery, does not run at ML-KEM standardized scale (n = 256), and
+    does not itself compute GOAL-MLKEM-005's completion criterion C1 (a
+    separate, later arithmetic act over this experiment's own C3 output).
+
+  source_refs:
+    proposal: ledger/proposals/IDEA-20260805-3d71ca.yaml
+    proposal_companion: ledger/proposals/IDEA-20260814-8f8f45.yaml
+    proposal_optional_covariate: ledger/proposals/IDEA-20260814-137f68.yaml
+    hypothesis: ledger/hypotheses/H-MLKEM-7d9bcc.yaml
+    prereg: coordination/goals/GOAL-MLKEM-005/batches/BATCH-3b9962/tasks/TASK-20260814-dfaa60/prereg.md
+    proof_architecture_audit: coordination/goals/GOAL-MLKEM-005/batches/BATCH-3b9962/tasks/TASK-20260814-dfaa60/proof_architecture_audit.md
+    goal: ledger/goals/GOAL-MLKEM-005.yaml
+    prior_precedent_no_reduction_above_d40: ledger/evidence/EV-MLKEM-5aa471.yaml
+
+  inputs:
+    arithmetic:
+      q: 3329
+      ring: Z_q[X]/(X^n+1), n in {64, 128}
+      module_rank_k: 2
+      d: 2*n*k, in {256, 512}
+    instance_generation:
+      cbd_samplers: real, eta1 = 3 (secret/r), eta2 = 2 (e1/e2)
+      compression: real FIPS 203 Compress_d/Decompress_d, d_u = 10, d_v = 4
+        (ML-KEM-512/768 parameters; coordinate-wise, independent of n)
+      seed_policy: >-
+        Deterministic, derived per (n, beta, draw_index, purpose) exactly as
+        EXP-MLKEM-007's own convention
+        (SHA256('EXP-MLKEM-42ea04|n=<n>|beta=<beta>|draw=<i>|<purpose>') ->
+        random.Random); purposes: public_matrix_A, secret_s, error_e1_e2,
+        target_generation, null1_uniform, null2_gaussian, null3_ephemeral_<j>,
+        sens_lambda_<l>.
+    lattice_reduction:
+      library: fpylll (version pinned and reported fresh by the lead, per
+        prereg.md section 1 point 1 -- no prior use of fpylll for
+        beta > 30 exists in this goal)
+      method: BKZ.reduction, block_size = beta, beta in {40, 55, 70}
+      one_basis_per_draw: true
+      draws_per_cleared_cell: ">= 8 (KN-TECH-1a5b7e mode 5 requirement)"
+    target_generation:
+      count_per_draw: "2^20 to 2^22 (Stage-0-budget-dependent; see prereg.md section 6.3)"
+      method: real ML-KEM encryption routine, batched Babai nearest-plane via BLAS
+    toy_floor_subcell:
+      d_values: [8, 12, 16, 20]
+      method: exhaustive search, with certified branch-and-bound fallback if
+        exhaustive search is infeasible at the chosen d (never a silent
+        approximation presented as exact)
+    charged_work_model:
+      includes: [bkz_reduction_wallclock_and_flops, cbd_and_compression_sampling,
+        batched_babai_flops, target_generation, decode_subsample_attempts,
+        exact_floor_search, null1_null2_null3_generation, sens_generation]
+      excludes: [any_ml_kem_n256_instance, any_key_recovery_attempt,
+        any_decryption_failure_or_timing_measurement]
+
+  controls:
+    - id: CTRL-STAGE0-FEASIBILITY
+      method: >-
+        One basis reduced per (n, beta) cell before any full-grid commitment;
+        wall-clock, memory, tours, and delta recorded (prereg.md
+        section 2).
+      pass_condition: >-
+        Cell completes within PER_BASIS_FEASIBILITY_CAP = 3600s; a cell that
+        does not is dropped and reported NOT_COMPUTED, never silently
+        retried at a different parameter.
+    - id: CTRL-BATCHED-BABAI-EXACTNESS
+      method: >-
+        Batched (BLAS/numpy) Babai nearest-plane compared against scalar
+        Babai on hand-checkable small instances before any timing or
+        comparative measurement (prereg.md section 1 point 3).
+      pass_condition: Exact agreement on every check.
+    - id: CTRL-NULL-1-UNIFORM-TARGETS
+      method: Replace ciphertext targets with uniform points of Z_q^d.
+      pass_condition: >-
+        FORCED VALUE, computed before the run: E[||pi(t)||^2] = (1/12) sum
+        ||b*_i||^2 for i > d-beta, relative per-coordinate variance 4/5.
+        A different, computable, nonzero-spread tail; can fail.
+    - id: CTRL-NULL-2-GAUSSIAN-MATCHED-VARIANCE
+      method: >-
+        Replace CBD errors with a discretised Gaussian of matched
+        per-coordinate variance; run FIRST, before any real-arm reading.
+      pass_condition: >-
+        C1: measured tail MUST match Model A exactly (forced by
+        construction). C2: trajectory MUST show no deceleration and no
+        brute-force floor above the Beta prediction. Failure of either half
+        invalidates the corresponding conjunct's real-arm reading at that
+        cell (T-PROJNOISE-INSTRUMENT-MISCALIBRATED).
+    - id: CTRL-NULL-3-EPHEMERAL-SCOPED
+      method: >-
+        Fresh key AND fresh basis per target, at a PROTOCOL-SCOPED
+        M_null3 = 64 draws per cleared cell (prereg.md section 3.4 --
+        a deliberate, flagged amendment to the source idea's literal
+        "fresh basis per [2^20-2^22] target" text, which is computationally
+        intractable; see proof_architecture_audit.md section 3).
+      pass_condition: >-
+        Best-of-M_null3 effect must be statistically indistinguishable from
+        the M=1 baseline and materially below the real arm's own headline
+        effect scaled by log2(M_null3)/log2(M); a comparable gain fires
+        T-PROJNOISE-HARNESS-ARTIFACT and voids the real-arm C1 finding at
+        that cell.
+    - id: CTRL-SENS-GRADED-SENSITIVITY
+      method: >-
+        Scale planted error by lambda in {0.5, 0.75, 1.0, 1.5, 2.0} at fixed
+        basis and candidate set.
+      pass_condition: >-
+        rho moves linearly and monotonically; d(median rho)/d(lambda) within
+        10% of 1.0 across all five points, scored against NULL-2.
+    - id: CTRL-COMP-REPLICATION
+      method: ">= 8 independent draws of every generated comparator ensemble."
+      pass_condition: >-
+        Interval reported, never a single draw; leave-one-out false-positive
+        rate of an n-draw min/max interval (2/n) derived before the run.
+    - id: CTRL-TOY-FLOOR-FEASIBILITY-SWEEP
+      method: >-
+        Exhaustive-search wall-clock reported at increasing toy d in
+        {8, 12, 16, 20} before committing to a specific d for the headline
+        floor number.
+      pass_condition: >-
+        The chosen d is the largest that completes within
+        TOY_FLOOR_FEASIBILITY_CAP = 900s; if even d=8 does not complete,
+        recorded NOT COMPUTED: infeasible within budget (C2-F3).
+    - id: CTRL-M1-SINGLE-TARGET-BASELINE
+      method: >-
+        At M = 1 the selection step is vacuous; measured decode-success rate
+        over independent (basis, target) pairs must equal the pinned
+        estimator's own primal_bdd amplification p(beta) within the sampling
+        interval.
+      pass_condition: >-
+        Match within interval; mismatch invalidates the whole measurement
+        before the multi-target arm is read (C1's frozen regression
+        fixture).
+
+  independent_variables:
+    - ring_dimension_n: [64, 128]
+    - beta: [40, 55, 70]
+    - arm: [real_cbd, null1_uniform, null2_gaussian, null3_ephemeral_scoped, sens_lambda]
+    - draw_index: ">= 8 per cleared (n, beta) cell, matched across arms where applicable"
+    - m_target_count: [2^10, 2^14, 2^18, 2^20, 2^22 (budget-permitting)]
+
+  metrics:
+    primary:
+      - id: c1_left_tail_kolmogorov_distance
+        definition: >-
+          Kolmogorov distance between the empirical CDF of R and each of
+          Model A and Model B, over the body and separately in the lower
+          2^-10 and 2^-18 tails.
+        decision_use: C1 per-cell adjudication (prereg.md section 4.2)
+      - id: c1_implied_bit_saving
+        definition: >-
+          log2(T_BKZ(beta_1)/p(beta_1) / (T_BKZ(beta_M) + M*O(d^2))) under
+          the GSA/2016-estimate conversion, MEASURED p(beta) and MODELED
+          Delta-beta clearly labeled and never mixed in one column.
+        decision_use: >-
+          Two separate thresholds, not one -- corrected from an earlier
+          draft which attributed both to C1-F1: C1-F1 (ledger/hypotheses/H-MLKEM-7d9bcc.yaml
+          falsification_conditions) closes the mechanism as a curiosity
+          below 2 bits; the >= 5 bits materiality gate for commissioning a
+          follow-up is a SEPARATE threshold, stated in ledger/hypotheses/H-MLKEM-7d9bcc.yaml's
+          own `predictions` entry for `implied_bit_saving`
+          (`minimum_effect` field) and in its `statement` field, not in
+          falsification_conditions.
+      - id: c1_selection_efficiency_spearman
+        definition: Spearman correlation between rho(t) and decode success, >= 10^4 targets.
+        decision_use: C1-F2 falsification gate (|rho_s| < 0.2).
+      - id: c2_deceleration_ratio
+        definition: >-
+          Ratio of measured local decay slope of R_min(M) at the largest
+          reached M decade to the closed-form Beta extreme-value asymptotic
+          slope at the same M.
+        decision_use: C2 per-cell floor adjudication (prereg.md section 4.2)
+      - id: c2_exact_floor_vs_beta_prediction
+        definition: >-
+          r_min(B) at the toy sub-cell, exactly, versus the Beta law's own
+          predicted quantile at M = (2*eta+1)^d.
+        decision_use: C2-FLOOR-CONFIRMED / C2-NO-FLOOR adjudication.
+    secondary:
+      - between_basis_vs_within_basis_variance_decomposition_of_rho
+      - null1_uniform_tail_shape_and_spread
+      - null2_forced_value_agreement
+      - null3_scoped_best_of_m_null3_effect_size
+      - sens_median_rho_slope_vs_lambda
+      - measured_p_beta_per_cell
+      - root_hermite_factor_delta_measured_per_basis
+      - per_target_babai_wallclock_and_flop_count
+      - c3_gsa_fidelity_spearman_and_ci  # optional covariate, section 3.3
+      - stage0_per_cell_wallclock_memory_tours
+
+  heuristic_under_test: null
+  # Five heuristics under test (HEUR-MLKEM-7d9bcc-1 through -5); no single
+  # id captures the experiment, which validates all five jointly. See
+  # ledger/hypotheses/H-MLKEM-7d9bcc.yaml heuristic_assumptions for the full list.
+
+  preregistered_prediction:
+    quantity: >-
+      C1: the empirical left-tail exponent -ln P[rho <= x] of R, compared
+      against Model A (chi-square) and Model B (Beta) curves. C2: the local
+      decay-rate ratio of R_min(M), compared against the Beta extreme-value
+      asymptotic slope; and the exact toy-cell r_min(B), compared against
+      the Beta law's own predicted quantile at M = (2*eta+1)^d.
+    formula: >-
+      Model A: P[chi^2_beta/beta <= x] ~ exp(-(beta/2)(x - 1 - ln x)). Model
+      B: R ~ Beta(beta/2, (d-beta)/2). Beta extreme-value asymptotic rate:
+      the classical order-statistic tail of a Beta(a,b) distribution.
+    source: >-
+      IDEA-20260805-3d71ca (Model A/B derivation); IDEA-20260814-8f8f45
+      (Beta extreme-value comparator); the underlying random-subspace
+      projection theorem (elementary, not independently re-cited).
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      n in {64, 128}, beta <= 70; toy per docs/claims-and-verification.md's
+      mechanical field-bit-size rule (q = 3329, 12 bits). Any statement at
+      ML-KEM parameters (n = 256) is an explicit extrapolation, not tested
+      here. This is the FIRST batch in this goal's RQ-MLKEM-001 history to
+      use real BKZ reduction rather than a closed-form estimator readout or
+      a d <= 40 toy cell.
+    correspondence: null
+      # No correspondence/sampling shortcut is used to reach a larger scale;
+      # every instance is directly generated at its stated n.
+
+  tail_checks:
+    - >-
+      C1: single smallest rho among 2^20 draws must lie within the Beta
+      model's own predicted interval for the minimum of 2^20 iid draws,
+      reported pass/fail with the interval stated first.
+    - >-
+      C1: empirical-to-predicted tail quantile ratio at 2^-10 and 2^-18,
+      separately from the body Kolmogorov distance.
+    - >-
+      C2: residuals of the deceleration fit at increasing M, checked for
+      systematic (not noise) departure, distinguishing "not yet in the
+      asymptotic regime" (HEUR-MLKEM-7d9bcc-5's own falsification route)
+      from "the object itself decelerates."
+
+  replication:
+    seeds: "deterministic, derived per (n, beta, draw_index, arm, purpose); see inputs.instance_generation.seed_policy"
+    independent_instances: ">= 8 per cleared (n, beta) cell (up to 6 cells)"
+
+  budget:
+    wall_clock_seconds_per_run: 14400
+      # Stage-1 per-basis reduction cap (prereg.md section 6.3);
+      # exceeds the templates/research-records.md 600s floor by design,
+      # per this record's own justification: real BKZ-beta reduction at
+      # d in {256,512}, the first such workload in this goal, cannot be
+      # sized to a sub-tool-window budget without either truncating the
+      # reduction (invalidating the measurement) or silently violating the
+      # cap. A single RUN-* record here corresponds to one checkpointed,
+      # self-resuming script invocation (matching this program's own
+      # src/h012c_block_m4ri.py precedent for work exceeding one Claude
+      # Code tool call's ~600s ceiling), not to one bounded tool call.
+    total_cpu_hours: 576
+      # CORRECTED FROM AN EARLIER DRAFT (194): the honest worst-case ceiling
+      # must include the scoped NULL-3 control's own 384 additional BKZ
+      # reductions (6 cells x 64 draws), not just the main arm's 48 -- see
+      # prereg.md section 6.1-6.2 for the full corrected derivation.
+      # 691,200s (main arm) + 1,382,400s (NULL-3) = 2,073,600s = 576 hours.
+    maximum_memory_gb: 16
+    maximum_runs: 16
+      # Stage 0 (1) + Stage 1 per-cell measurement runs (up to 6, one per
+      # cleared cell, each internally checkpointed across its own >= 8
+      # draws) + control runs if dispatched separately (NULL-1/2/3, SENS;
+      # up to 4) + toy-floor arm (1) + analysis/adjudication (1) + margin
+      # for a repair run per this program's own established convention
+      # (up to 3 spare).
+    maximum_workers: 1
+      # No parallel.verify_determinism precedent exists for this lattice
+      # code; not declared > 1 per templates/research-records.md's own
+      # gating rule.
+
+  stopping_rules:
+    - >-
+      Stop Stage 0 at PER_BASIS_FEASIBILITY_CAP = 3600s per cell; a cell
+      exceeding it is dropped, not retried at a different beta/dimension.
+    - >-
+      Stop the toy-floor feasibility sweep at TOY_FLOOR_FEASIBILITY_CAP =
+      900s per d; use the largest d that cleared.
+    - >-
+      Stop any single Stage-1 basis reduction at PER_BASIS_STAGE1_CAP =
+      14400s; a reduction exceeding it is recorded NOT_COMPUTED for that
+      draw, contributing to the < 8-draws NODATA floor (prereg.md
+      section 4.3 item 1) rather than being silently extended.
+    - >-
+      Stop the whole experiment at the outer wall-clock ceiling of 2073600s
+      (corrected from an earlier draft's 700000s, which omitted NULL-3's own
+      worst-case cost -- see budget.total_cpu_hours above and prereg.md
+      section 6.1-6.2); if reached before every cleared cell's >= 8 draws
+      complete, the LATER dispatching Coordinator session chooses explicitly
+      between reducing draws-per-cell (floor 4 for the main arm, floor 8 for
+      NULL-3) or dropping the highest-beta cell(s), per prereg.md section
+      6.3's own stop rule -- never a silent M
+      truncation below 2^20.
+    - >-
+      Stop before any n = 256 (standardized ML-KEM) instance, any key- or
+      message-recovery attempt, and any reduction above d = 512 anywhere in
+      this experiment.
+    - >-
+      Stop NULL-2 and CTRL-BATCHED-BABAI-EXACTNESS FIRST, before any real-arm
+      data is read; a control failure blocks interpretation of the
+      corresponding conjunct at that cell.
+
+  invalidation_rules:
+    - Any run lacks its exact command, commit and dirty state, environment
+      (including fpylll version), timestamps, resource use, stdout, stderr,
+      raw result, summary, or inference metadata.
+    - CTRL-BATCHED-BABAI-EXACTNESS fails at any checked instance.
+    - CTRL-NULL-2-GAUSSIAN-MATCHED-VARIANCE fails its forced-value check for
+      either conjunct at a given cell (voids that conjunct at that cell only).
+    - CTRL-M1-SINGLE-TARGET-BASELINE fails (measured p(beta) departs from
+      the pinned estimator's own amplification beyond the sampling interval).
+    - Fewer than 8 draws complete at a cell without an explicit, recorded
+      Coordinator choice under the section-6.3 stop rule to accept a lower,
+      stated floor (never below 4).
+    - The exact/certified-gap floor search at the toy sub-cell reports a
+      value without stating whether it is exact or a certified gap.
+    - Real ML-KEM CBD/compression parameters are substituted by any
+      non-FIPS-203-conforming approximation without it being labeled NULL-2.
+    - A toy-tier result is described as a standardized-ML-KEM improvement,
+      an attack, or an estimator-level conclusion.
+    - A crash, timeout, or resource exhaustion at any single draw or cell is
+      interpreted as evidence for or against C1 or C2 beyond the
+      infrastructure-signal routing of prereg.md section 4.3 item 1.
+
+  success_criterion: >-
+    All controls (CTRL-BATCHED-BABAI-EXACTNESS, CTRL-NULL-2 for both
+    conjuncts, CTRL-M1-SINGLE-TARGET-BASELINE) pass at every cleared cell;
+    at least one (n, beta) cell clears Stage 0 and produces >= 8 complete
+    draws; C1 and C2 are each adjudicated per prereg.md section 4.2 at
+    every such cell; the termination state (prereg.md section 4.3) is
+    uniquely determined under its frozen precedence and reported with the
+    per-cell detail it depends on. H-MLKEM-7d9bcc is then advanced to
+    `analyzed` (not automatically `supported` -- see AGENTS.md rule 1 and
+    the target-result-profile promotion gates, neither of which this toy,
+    non-exponent-targeting measurement is attempting to clear) within the
+    toy boundary only.
+  falsification_criterion: >-
+    C1 is falsified at the tested cells under C1-F1 through C1-F5
+    (ledger/hypotheses/H-MLKEM-7d9bcc.yaml falsification_conditions); C2 is falsified under
+    C2-F1 through C2-F3. T-PROJNOISE-NODATA,
+    T-PROJNOISE-INSTRUMENT-MISCALIBRATED, and T-PROJNOISE-HARNESS-ARTIFACT
+    falsify nothing about C1 or C2 -- they are infrastructure or instrument
+    signal, routed per AGENTS.md rule 5, at the affected scope only.
+
+  required_artifacts:
+    - experiments/EXP-MLKEM-42ea04/implementation.md
+    - experiments/EXP-MLKEM-42ea04/implementation/bkz_reduction.py
+    - experiments/EXP-MLKEM-42ea04/implementation/cbd_and_compression.py
+    - experiments/EXP-MLKEM-42ea04/implementation/batched_babai.py
+    - experiments/EXP-MLKEM-42ea04/implementation/controls.py
+    - experiments/EXP-MLKEM-42ea04/implementation/run_experiment.py
+    - experiments/EXP-MLKEM-42ea04/analysis/stage0_feasibility_report.json
+    - experiments/EXP-MLKEM-42ea04/analysis/tail_law_report.json
+    - experiments/EXP-MLKEM-42ea04/analysis/floor_test_report.json
+    - experiments/EXP-MLKEM-42ea04/analysis/termination_state.json
+    - experiments/EXP-MLKEM-42ea04/analysis/gsa_covariate_report.json
+      # only if IDEA-20260814-137f68 is included; otherwise recorded absent
+      # with a stated reason, not silently omitted
+    - experiments/EXP-MLKEM-42ea04/runs/  # per-run manifest/command/environment/raw/summary/stdout/stderr, one set per RUN-MLKEM-PENDING-NNN
+    - experiments/EXP-MLKEM-42ea04/execution-report.yaml
+
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: null
+    fallback_used: false
+    authorization_ref: null
