@@ -11,6 +11,7 @@ import os
 import random
 
 import pytest
+import sympy
 
 from harness import rho, semaev
 from harness.runner import RunResult, curve_id, write_run
@@ -66,6 +67,57 @@ def test_summation_polynomial_vanishing_identity():
         assert semaev.s3_eval(2, 3, A[0], B[0], C[0], 101) == 0
         checked += 1
     assert checked > 20
+
+
+def test_s4_has_exact_support_degree_and_frozen_witness():
+    x4 = sympy.symbols("x4")
+    s4 = semaev.s4_expr(2, 3)
+
+    assert s4.free_symbols == {semaev.x1, semaev.x2, semaev.x3, x4}
+    assert semaev._t not in s4.free_symbols
+    assert sympy.Poly(
+        s4, semaev.x1, semaev.x2, semaev.x3, x4
+    ).total_degree() == 12
+    witness = {
+        semaev.x1: 1,
+        semaev.x2: 3,
+        semaev.x3: 5,
+        x4: 41,
+    }
+    assert int(s4.subs(witness)) % 101 == 0
+
+
+def test_factor_base_legacy_and_target_subgroup_scopes():
+    inst = generate_instance(seed=1, field_bits=6)
+    E = inst.curve()
+    expected_legacy = [34, 4, 25, 40, 30]
+    expected_subgroup = {12, 13, 18, 24, 33}
+
+    assert inst.n == 11
+    assert E.order() // inst.n == 5
+    assert semaev.build_factor_base(inst, 5) == expected_legacy
+    assert semaev.build_factor_base(
+        inst, 5, scope="full_curve"
+    ) == expected_legacy
+
+    subgroup_base = semaev.build_factor_base(
+        inst, 5, scope="target_subgroup"
+    )
+    assert subgroup_base == semaev.build_factor_base(
+        inst, 5, scope="target_subgroup"
+    )
+    assert len(subgroup_base) == 5
+    assert len(set(subgroup_base)) == 5
+    assert set(subgroup_base) == expected_subgroup
+    for x in subgroup_base:
+        canonical_lift = E.lift_x(x)
+        assert canonical_lift is not None
+        assert E.mul(inst.n, canonical_lift) is None
+
+    with pytest.raises(ValueError):
+        semaev.build_factor_base(inst, 6, scope="target_subgroup")
+    with pytest.raises(ValueError):
+        semaev.build_factor_base(inst, 5, scope="unknown")
 
 
 def test_decomposition_certificate_verifies_independently():
