@@ -151,6 +151,11 @@ hypothesis:
                                 # into an algorithm; never fabricate citations
     - description: null
       citation: null
+      provenance: recalled | retrieved | kb | internal
+                                # how this citation is known; see "Citation
+                                # provenance". A `recalled` ingredient is a
+                                # pointer for the reviewer, not support
+      verified_by: null         # required unless provenance is `recalled`
       role: null                # e.g. degree bound, distribution law, mixing time
   reduction_chain:
     core_problem: null          # problem the core result solves directly
@@ -314,6 +319,27 @@ evidence:
   inference: null
   boundaries: []
   unresolved_confounds: []
+  obstruction:                  # required when direction is weakens|contradicts,
+                                # and on any record closing a lane. A narrative
+                                # obstruction is a fatigue report (AGENTS.md
+                                # "Closure standard"); this block is what makes
+                                # it a measurement other work can reuse.
+    statement: null             # what blocks the approach, as a claim about the
+                                # OBJECT, not about the attempt. "Semaev degree
+                                # grows 2^{n-1} in the summation index", not
+                                # "we could not make descent work"
+    quantity: null              # the measured quantity making the block concrete
+    value: null                 # its measured value WITH UNITS and error bars
+    measured_by: []             # RUN-*/EXP-* IDs the value is read from
+    scope: null                 # parameters over which the value was measured;
+                                # the obstruction is claimed nowhere else
+    resource_check:             # never omitted: an obstruction is a datum, and
+                                # a datum can be an asset under another theory
+      examined: null            # true|false — has the reversal been considered
+      reading: null             # the theory under which this block is a
+                                # RESOURCE, or an explicit statement that the
+                                # check ran and found none
+      spawned_ids: []           # IDEA-*/H-* records that took it as a resource
   reviewed_by: coordinator
 ```
 
@@ -321,6 +347,57 @@ evidence:
 `docs/claims-and-verification.md`. The tier describes the tested evidence;
 records must state their parameters, scope, and transfer assumptions, and any
 claimed solve must reference a `verified: true` certificate.
+
+`obstruction` exists because a negative result's reusable content is the
+*number* it measured, not the verdict it reached. An obstruction recorded as
+prose is unusable by any later reader: it cannot be compared, re-scoped, or
+inverted. Recorded as a quantity over a stated scope, it becomes an object the
+program can act on — including by reading it the other way round.
+`resource_check` forces that second reading at the moment the cost of taking it
+is lowest, and `tools/obstruction_registry.py` re-poses the question to every
+open obstruction at each rerank. Neither is a claim: `examined: true` with
+`reading` recording that no resource was found is a complete, honest answer.
+
+## Citation provenance
+
+Any record field naming an external work — `structural_ingredients[].citation`,
+`heuristic_assumptions[].supporting_results`, a `literature` evidence record, a
+novelty argument — carries how the agent came to know it:
+
+```yaml
+citations:
+  - ref: null                   # arXiv id, DOI, KN-LIT-* id, or internal record ID
+    provenance: recalled | retrieved | kb | internal
+                                # recalled  — from the model's own knowledge; no
+                                #             agent opened it in this program
+                                # retrieved — an agent fetched and read the source
+                                # kb        — resolved through the crypto-kb index
+                                #             to a corpus record
+                                # internal  — this program's own committed record
+    claim: null                 # what the work is being relied on FOR — the
+                                # specific theorem, bound, or statement
+    verified_by: null           # TASK-*/agent that read the source and confirmed
+                                # `claim`. Required unless provenance is
+                                # `recalled`, where it is null by definition.
+```
+
+**A `recalled` citation is a pointer, never a citation.** It tells a reviewer
+where to look; it does not support anything. It may not back a
+`coordinator_decision`, may not discharge a
+`heuristic_assumptions[].supporting_results` entry, and may not support
+`novelty_status: known` or `adaptation` — both of which assert what the
+literature contains. An idea whose only literature is recalled is
+`novelty_status: unverified`, which is the honest default and not a defect.
+Promotion is by a *new* record in which an agent that actually read the source
+marks the entry `retrieved` or `kb` and names itself in `verified_by` — never
+by editing the original, which is immutable.
+
+Recalled references are wanted, not merely tolerated: naming the nearest work
+you can remember, hedged and marked, is how a reviewer finds the paper that
+settles the claim. Rule 9 forbids fabricating citations; this field is how a
+half-remembered one is stated without becoming a fabricated one. An agent with
+no retrieval access states `provenance: recalled` and hedges in `claim`; the
+failure is an unmarked recollection presented as a checked source.
 
 ## Focused campaign claim
 

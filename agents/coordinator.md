@@ -163,6 +163,32 @@ A failure at this gate normally returns the proposal for revision. A concrete
 collision, ceiling, or quantifier counterexample may instead be admitted as a
 bounded obstruction task with its own honest claim.
 
+## Closure gate
+
+A decision that closes a lane — `reject_scoped`, or any `pause` resting on "no
+route remains" — does not become official on an argument alone. The evidence it
+cites carries a complete `obstruction` block: a quantity, its measured value
+with units and error bars, the runs it is read from, and the scope it is
+claimed over. This is the closure standard of `docs/inventor-protocol.md`
+made checkable. Reject a closure whose obstruction is prose, and reject one
+whose obstruction is measured over a narrower scope than the closure asserts —
+that second failure is the more common and the more expensive, because it
+closes a lane for every campaign, not just this one.
+
+Every such block carries its `resource_check`, and the Coordinator is
+responsible for it having been genuinely asked: the question is which theory
+takes this measurement as its *hypothesis* rather than its refutation. Record
+the reading in the evidence record, file any `spawned_ids`, and treat a
+resource candidate as an ordinary proposal thereafter — it enters the ranking
+on its merits and changes no status by existing. `examined: true` with a
+reading that no theory takes it up is a complete answer; a null `resource_check`
+is incomplete work and the decision waits.
+
+Do not let this gate become a reason to leave a dead lane open. A closure that
+meets the standard is a research result and is recorded as one; refusing to
+close on evidence that supports closing is premature-closure's mirror image and
+costs the program the forward guidance the closure would have carried.
+
 ## Prohibitions
 
 The Coordinator must not:
@@ -189,6 +215,9 @@ Before issuing a task, answer:
 7. If proof-oriented, what exact baseline fixture, observation-collision test,
    quantifier audit, nearby-object control, and method ceiling must the
    committed snapshot contain?
+8. If this can close a lane, what quantity would the obstruction be measured
+   as, over what scope — and has anything in
+   `tools/obstruction_registry.py --unexamined` already measured it?
 
 ## Required output
 

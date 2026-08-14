@@ -83,6 +83,15 @@ tool surface.
    prohibition or validator ceiling.
 8. Unexpected observations must be recorded, not silently discarded.
 9. Agents must not fabricate commands, outputs, timings, statistics, citations, or successful runs.
+   **Every citation carries its provenance** — `recalled | retrieved | kb | internal`
+   (`templates/research-records.md`, "Citation provenance"). A `recalled` reference
+   comes from the model's own knowledge and no agent in this program has opened it:
+   it is a pointer telling a reviewer where to look, never support. It may not back a
+   coordinator decision, discharge a heuristic's `supporting_results`, or support
+   `novelty_status: known` or `adaptation`, until an agent that actually read the
+   source says so in a new record. Naming the nearest work you can recall, hedged and
+   marked, is wanted — an unmarked recollection presented as a checked source is the
+   violation.
 10. Every conclusion must cite the experiment IDs and artifacts that support it.
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
 12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-breakthrough` review at `max` effort. That review may not be degraded or run on a backend that cannot reach it.
@@ -246,6 +255,19 @@ and adds nothing that relaxes the core rules. Four obligations:
   open. A count of screened-and-rejected mechanisms is a fatigue report and
   its honest status is `unverified`. This applies to the program's own
   standing saturation conclusions.
+- **Obstructions are measured, and are re-read as resources.** The named
+  obstruction is recorded as the `obstruction` block of
+  `templates/research-records.md`: a quantity, its measured value with units
+  and error bars, the runs it is read from, and the scope it is claimed over.
+  Prose alone does not satisfy the closure standard — an obstruction no later
+  reader can compare or re-scope is a verdict, not a datum. Every such block
+  carries a `resource_check`: the same indefiniteness, degree growth, or
+  density defect that kills one approach is the hypothesis of another, and the
+  check asks which theory reads this measurement as an asset. `examined: true`
+  with `reading` recording that none was found is a complete answer; an
+  unexamined obstruction is incomplete work. `tools/obstruction_registry.py`
+  derives the standing set and re-poses the question at every rerank, so an
+  obstruction measured under one goal stays visible to the others.
 - **Controls before belief.** Any reported signal is an artifact until the
   identical measurement has been run against a null object of the same shape.
   A quantity that fails to decay when the parameter meant to destroy it
@@ -510,6 +532,14 @@ Bounds and prohibitions:
 - Retrieval never substitutes for the evidence rules in **Core rules**. A
   passage returned by `search_knowledge` is a pointer to a record, not a
   citation in itself; cite the experiment, run, and evidence IDs it carries.
+- **A remembered paper is a pointer in exactly the same sense.** Retrieval is
+  the instrument that converts one into a citation, and the conversion is
+  recorded: an entry moves from `provenance: recalled` to `kb` (resolved
+  through this index to a corpus record) or `retrieved` (an agent fetched and
+  read the source) only in a new record naming the verifying agent in
+  `verified_by`. This is rule 9's second half, and it is the one bound that
+  applies to agents holding no retrieval tool at all: they may cite from
+  memory, marked, and the burden passes to whoever reviews them.
 - Superseded material is excluded by default and is never deleted. Ask for it
   explicitly (`include_superseded`) when auditing a retracted conclusion.
 - Absence of a search result is not evidence that something was not tried.
