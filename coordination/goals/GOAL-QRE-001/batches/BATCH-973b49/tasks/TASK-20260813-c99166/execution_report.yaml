@@ -1,0 +1,334 @@
+execution_report:
+  task_id: TASK-20260813-c99166
+  goal_id: GOAL-QRE-001
+  batch_id: BATCH-973b49
+  question_id: RQ-QRE-6dba8c
+  role: executor
+  frozen_contract_path: ledger/handoffs/TASK-20260813-c99166.yaml
+  write_scope: coordination/goals/GOAL-QRE-001/batches/BATCH-973b49/tasks/TASK-20260813-c99166/
+  status: completed
+  outcome_class: observation
+  summary: >-
+    Two reversible circuits were constructed from an X/CNOT/CCX gate set,
+    counted by exact enumeration over a ladder of bit widths, and validated by
+    classically simulating the identical gate stream at small widths. Every
+    constant in both reported closed forms is derived from the construction
+    and re-checked against the enumeration; none is taken from any
+    publication. Observations only: no interpretation, no comparison against
+    any published total (none is filed), no status change.
+
+  provenance:
+    git_commit_at_start: 5fa40e21de534100449eb03506e3d4840df8b869
+    working_tree_at_start: clean
+    working_tree_at_end: >-
+      dirty only by this task's own untracked artifact directory
+      (coordination/goals/GOAL-QRE-001/batches/BATCH-973b49/tasks/); no
+      tracked file was modified, and nothing was committed. The Coordinator
+      snapshot task TASK-20260813-884e20 commits these artifacts.
+    preregistration_frozen_before_any_count: true
+    preregistration_freeze_evidence: >-
+      PREREGISTRATION.md was written and its convention fixed before
+      src/circuits.py, src/run_counts.py and src/run_validation.py existed;
+      it records the same commit and clean-tree state above.
+
+  environment:
+    python: 'CPython 3.11.15 (main, Mar  3 2026, 09:26:23) [GCC 13.3.0]'
+    platform: Linux 6.18.5-fc-v20 x86_64
+    third_party_dependencies: none
+    dependency_note: >-
+      numpy is not installed in this environment; it was not needed. The
+      8x8 unitary check for the T-per-Toffoli ratio uses Python's built-in
+      complex arithmetic. This is recorded as an environment fact, not as a
+      blocked step.
+    cpu_cores_available: 4
+    memory_available_gb: 15
+    peak_process_memory: not instrumented; all runs are single-process Python
+      over integer lists and stayed far below the 4 GB cap (largest structure
+      is one captured gate list for the Fermat chain)
+  seeds:
+    validation_sampling_seed: 20260813
+    randomness_sources: >-
+      one, random.Random(20260813) in src/run_validation.py, used only to
+      choose which exponents and which curve points are tested. Circuit
+      construction and counting are fully deterministic and use no randomness.
+      All moduli, primes, bases and curve constants are selected by fixed
+      deterministic rules recorded in src/run_counts.py and stored in the
+      artifacts.
+
+  runs:
+    - run: R1-derivations
+      command: python3 src/derive_identities.py
+      purpose: >-
+        derive, rather than cite, (i) the two algebraic identities the in-place
+        point addition depends on and (ii) the T-per-Toffoli ratio
+      exit_code: 0
+      wall_clock_seconds: 2.3
+      outcome: completed_valid
+      artifacts: [logs/derive_identities.json, logs/derive_identities_time.log]
+      result: >-
+        311472 point-addition identity instances checked over 12 primes and all
+        nonsingular short Weierstrass curves sampled, zero mismatches; the
+        exhibited Clifford+T circuit with exactly 7 T/Tdg gates reproduces the
+        Toffoli permutation matrix with maximum absolute deviation 3.14e-16
+        against a declared tolerance of 1e-12.
+    - run: R2-counts
+      command: python3 src/run_counts.py
+      purpose: exact enumerated counts vs n for both circuits plus closed forms
+      exit_code: 0
+      wall_clock_seconds: 144.3
+      outcome: completed_valid
+      artifacts: [counts.json, logs/counts_stdout.log, logs/counts_stderr.log]
+    - run: R3-validation
+      command: python3 src/run_validation.py
+      purpose: blocking classical simulation of the identical circuits
+      exit_code: 0
+      wall_clock_seconds: 60.6
+      outcome: completed_valid
+      artifacts:
+        [validation.json, logs/validation_stdout.log, logs/validation_stderr.log]
+    - run: R4-audit
+      command: python3 src/check_artifacts.py
+      purpose: cross-artifact consistency and prohibition audit
+      exit_code: 0
+      wall_clock_seconds: 0.03
+      outcome: completed_valid
+      artifacts: [logs/check_artifacts.json]
+      result: >-
+        all six checks pass; 22 cross-artifact count matches; every
+        prohibition-scan hit lies inside an explicit "this artifact contains
+        no ..." disclaimer.
+  runs_attempted_and_superseded:
+    - >-
+      Two earlier invocations of src/run_counts.py were made during
+      development, at narrower ladders (modexp to n=48, EC to n=16). Their
+      numbers agree exactly with the final run at every shared width; they
+      were superseded solely to widen the ladder and to make the
+      enumeration-ceiling wording in counts.json computed rather than
+      hard-coded. One earlier invocation of src/run_validation.py at narrower
+      input coverage likewise passed at every configuration it tested. No run
+      was discarded for producing an unwelcome result, and no result changed.
+    - >-
+      Three development runs failed before any count was produced, all
+      implementation errors and none a measurement: (a) a scratch smoke-test
+      script released input registers as if they were ancillas and hit the
+      allocator's cleanliness guard -- a defect in the test script, not in a
+      circuit; (b) the first end-to-end point-addition simulation, deviation
+      D-2, the one genuine circuit defect; (c) src/run_counts.py raised
+      ValueError from a sub-circuit table entry that chose a multiplier not
+      coprime to its modulus -- a driver defect, fixed by selecting the
+      multiplier with the same coprimality rule used elsewhere. None of the
+      three produced a count.
+
+  certificate:
+    kind: none
+    reason: >-
+      This is a pure measurement (gate-counting) task. It claims no
+      discrete-log solve and no factor-base relation, so no solution
+      certificate applies. The analogue of certificate discipline here is the
+      blocking simulation in validation.json, where an independent check of
+      the circuit's output value and of ancilla cleanliness is applied to the
+      same gate stream that is counted.
+
+  budget_accounting:
+    wall_clock_budget_seconds: 3000
+    wall_clock_used_seconds_measured: 207.2
+    wall_clock_note: >-
+      sum of the four reported runs; agent-side wall clock including
+      development and superseded runs is larger but remained within budget,
+      and no run was terminated by a timeout.
+    memory_budget_gb: 4
+    memory_exceeded: false
+    maximum_runs: 40
+    runs_executed: 4 reported plus 5 superseded development runs plus 1
+      reproduction re-run of each of R2 and R3 = 11
+    budget_exhausted: false
+
+  deviations:
+    - id: D-1
+      kind: declared-domain refinement
+      description: >-
+        PREREGISTRATION clause 6 declares the point-addition domain as
+        x1 != x2. The construction additionally requires x3 != x2 (equivalently
+        P != -2Q), because it uncomputes the slope lambda through a second
+        modular inversion of (x3 - x2). The frozen clause was NOT edited. The
+        refinement is recorded here, restated in counts.json
+        (circuit_b_ec_point_addition.declared_domain) and in validation.json,
+        and inputs violating it are excluded from validation and counted in
+        validation.json as excluded_by_declared_domain.
+      effect_on_counts: none; the gate count does not depend on the input value
+    - id: D-2
+      kind: implementation defect found and fixed BEFORE any count was produced
+      description: >-
+        The first end-to-end simulation of the point addition failed with a
+        DirtyAncilla error. Cause: a register that must stay live across a
+        captured-and-replayed block (the slope register) was allocated after
+        the capture, so it aliased qubits the replayed block writes to. Fixed
+        by allocating every long-lived register before the capture; the fix is
+        commented at the site in src/circuits.py. Recorded because it is the
+        clearest evidence in this package that the blocking simulation is load
+        bearing: the defect is invisible to gate counting and was caught only
+        by executing the identical circuit.
+      effect_on_reported_counts: >-
+        none; no count was produced before the fix, and every reported count
+        comes from the fixed construction, which validates at every declared
+        width.
+    - id: D-3
+      kind: scope note on the enumeration ceiling
+      description: >-
+        Counts are enumerated gate-by-gate up to n=128 (modular
+        exponentiation) and n=32 (point addition). The values reported at
+        n=2048 and n=256 are the derived closed forms evaluated at those
+        widths, labelled evaluated_from_closed_form in counts.json, and are
+        arithmetic rather than measurements. They are not validated by
+        simulation at those widths and are not claimed to be.
+
+  could_not_be_derived:
+    - >-
+      A Euclid/Kaliski-style reversible modular inverter. The point addition
+      uses Fermat inversion (x^(p-2) mod p) instead. Consequence, stated in the
+      artifacts: the EC Toffoli count is the cost of THIS inverter and is an
+      upper bound for a point addition, and its ancilla footprint is quadratic
+      in n (2n^2 + 4n + 5 qubits on the fitted ladder) rather than linear.
+      Deriving a linear-ancilla inverter is a separate construction task and
+      was not attempted here.
+    - >-
+      Any Toffoli decomposition with fewer than 7 T gates. Such constructions
+      are recalled to exist but this task may not import a constant it has not
+      derived, so none is used and none is cited. T = 7 * Toffoli is therefore
+      an upper bound under the frozen convention, not an optimum.
+    - >-
+      T-depth, T-width, measurement-and-feedforward and catalysed
+      constructions. Not derived, not counted, not claimed.
+    - >-
+      Any comparison with a published total. No resource-estimation paper is
+      filed for this goal, so none exists to compare against; that comparison
+      is out of this task's scope by constraint.
+
+  observations:
+    - >-
+      Under the frozen convention the modular exponentiation circuit
+      (RSA shape, n-bit modulus, 2n-bit exponent register) costs exactly
+      Toffoli(n) = 40n^3 + 50n^2 and T(n) = 280n^3 + 350n^2, with peak qubits
+      6n + 6. Enumerated at 17 widths from n=4 to n=128; all residuals against
+      the closed form are exactly zero, including at the six held-out widths
+      not used to fit it.
+    - >-
+      The modular-exponentiation Toffoli and T counts are independent of the
+      modulus and base: at n=8 and n=12 two different (N, a) pairs give
+      identical Toffoli counts and different CNOT counts. CNOT and X counts
+      depend on the Hamming weights of the classical constants and are
+      therefore reported per row rather than fitted.
+    - >-
+      Under the same convention the in-place elliptic-curve point addition
+      (classical constant point, short Weierstrass curve over F_p) costs
+      exactly Toffoli(n,b,w) = (8(b+w-2)+5)(20n^2+10n-8) + 50(n+1) + 2n, where
+      n = bitlength(p), b = bitlength(p-2) and w = the Hamming weight of p-2.
+      Enumerated at 32 (n, p) pairs from n=4 to n=32; residuals against this
+      form are exactly zero at every one.
+    - >-
+      Because the count depends on w, no function of n alone is exact for the
+      point addition. The cubic fitted over the largest-prime-per-width ladder
+      is 320n^3 - 220n^2 - 266n + 202, whose residuals are zero at most ladder
+      widths and non-zero at n=8, 11, 15 and 32 (relative residual up to about
+      -7.9%), exactly where w departs from n-1. Both forms are reported.
+    - >-
+      Every one of the 26 component checks and all 22 full-circuit
+      configurations passed, covering 17045 simulated circuit instances. In
+      every configuration the gate tally recorded while simulating equals the
+      gate tally recorded while counting, so the simulated circuit is the
+      counted circuit by measurement rather than by assertion.
+    - >-
+      Validated widths: modular exponentiation n = 4, 5, 6, 7, 8, 9, 10, 12
+      (exhaustive over all 2^(2n) exponents at n=4 and n=5, seeded random
+      samples above); point addition n = 4, 5, 6, 7, 8, 9, 10, 11, 12
+      (exhaustive over the whole declared domain up to n=7, seeded random
+      samples above). No width failed, so no count is withheld.
+    - >-
+      Widths counted but not simulated: modular exponentiation n = 14, 16, 20,
+      24, 32, 48, 64, 96, 128; point addition n = 13, 14, 15, 16, 20, 24, 32.
+      These are enumerations of the same construction that validates below
+      them, not independently validated measurements.
+    - >-
+      Evaluated from the closed forms at the shapes named in the objective:
+      RSA-2048 shape (n=2048) gives 343,807,098,880 Toffoli, 2,406,649,692,160
+      T and 12,294 qubits; the 256-bit prime-field shape gives 5,301,692,426
+      Toffoli and 37,111,846,982 T for ONE point addition, for the largest
+      prime below 2^256 (w = 250) computed here. Both are labelled
+      evaluated_from_closed_form and neither is a measurement.
+
+  interpretation: >-
+    None offered. Whether these counts support or undermine anything is a
+    Reviewer, Validator, Red Team and Coordinator judgement. No hypothesis or
+    goal status is changed by this task and no evidence or decision record is
+    written by it.
+
+  prohibition_compliance:
+    statement: >-
+      No artifact of this task contains a date, timeline, arrival probability,
+      forecast, migration guidance or policy recommendation, or any statement
+      about when any machine might exist. The admissible form is used
+      throughout: under this stated convention the circuit costs X(n).
+    mechanical_check: src/check_artifacts.py check C6, output logs/check_artifacts.json
+    dates_present_and_why: >-
+      Dates occur only inside record identifiers (TASK-20260813-c99166,
+      GOAL-QRE-001, BATCH-973b49) and as the Python build stamp in the
+      recorded environment. Both are required provenance under the AGENTS.md
+      artifact policy and neither is a statement about any machine.
+
+  completion_gate:
+    - gate: counting convention pre-registered before any count
+      met: true
+      evidence: PREREGISTRATION.md, frozen at a clean tree before any source file existed
+    - gate: classical simulation passes at every declared small bit width, per circuit
+      met: true
+      evidence: validation.json summary; 0 failures across 26 component checks
+        and 22 full-circuit configurations
+    - gate: counts reported as functions of n with residuals
+      met: true
+      evidence: counts.json toffoli_closed_form (residuals at 17 widths, all
+        zero, six held out) and toffoli_closed_form_in_n_b_w plus
+        toffoli_fit_in_n_alone (residuals at 16 widths, reported non-zero
+        where they are non-zero)
+    - gate: every constant derived, none cited
+      met: true
+      evidence: counts.json subcircuit_closed_forms (every constant in the two
+        headline forms enumerated and matched), derive_identities.py for the
+        T ratio and the point-addition identities, could_not_be_derived above
+        for what was deliberately not imported
+    - gate: no date, timeline, arrival probability or policy statement in any artifact
+      met: true
+      evidence: logs/check_artifacts.json check C6
+    - gate: raw data and summaries agree
+      met: true
+      evidence: logs/check_artifacts.json checks C1-C5, 22 cross-artifact matches
+    - gate: result reproduces from the recorded command and revision
+      met: true
+      evidence: >-
+        verified, not asserted: counts.json and validation.json were saved,
+        both scripts re-run from this directory at commit
+        5fa40e21de534100449eb03506e3d4840df8b869 with seed 20260813, and the
+        regenerated artifacts compared field-by-field with the saved copies.
+        They are identical apart from the recorded per-run timing fields
+        ("seconds", "wall_clock_seconds"). The reported artifacts are the
+        second, reproducing run.
+
+  artifacts:
+    - coordination/goals/GOAL-QRE-001/batches/BATCH-973b49/tasks/TASK-20260813-c99166/PREREGISTRATION.md
+    - coordination/goals/GOAL-QRE-001/batches/BATCH-973b49/tasks/TASK-20260813-c99166/counts.json
+    - coordination/goals/GOAL-QRE-001/batches/BATCH-973b49/tasks/TASK-20260813-c99166/validation.json
+    - coordination/goals/GOAL-QRE-001/batches/BATCH-973b49/tasks/TASK-20260813-c99166/execution_report.yaml
+  supporting_artifacts:
+    - .../TASK-20260813-c99166/src/circuits.py
+    - .../TASK-20260813-c99166/src/derive_identities.py
+    - .../TASK-20260813-c99166/src/run_counts.py
+    - .../TASK-20260813-c99166/src/run_validation.py
+    - .../TASK-20260813-c99166/src/check_artifacts.py
+    - .../TASK-20260813-c99166/logs/counts_stdout.log
+    - .../TASK-20260813-c99166/logs/counts_stderr.log
+    - .../TASK-20260813-c99166/logs/validation_stdout.log
+    - .../TASK-20260813-c99166/logs/validation_stderr.log
+    - .../TASK-20260813-c99166/logs/check_artifacts.json
+  next_step_owner: coordinator
+  next_step: >-
+    snapshot archive TASK-20260813-884e20, then the independent Validator
+    (TASK-20260813-13e948) and Red Team (TASK-20260813-312e93) sessions.
