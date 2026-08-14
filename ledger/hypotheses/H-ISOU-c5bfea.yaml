@@ -1,0 +1,221 @@
+hypothesis:
+  id: H-ISOU-c5bfea
+  question_id: RQ-ECDLP-002
+  sub_goal_id: SG-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  idea_id: IDEA-20260812-68e87f
+  statement: >-
+    In the complete F_p-isogeny class of a P-256-shaped toy curve (ordinary,
+    prime order N, conductor f = 1, a = -3 model), the number of group
+    operations required to solve a fixed transferred DLP instance is invariant
+    across every class member up to the seed-induced control band, while the
+    field cost PER group operation varies across members by a bounded constant
+    factor determined by reachability of the a = -3 Jacobian model; and no
+    member is cheaper end-to-end than the base curve once the isogeny walk that
+    reaches it is charged.
+  mechanism: >-
+    By Tate/Honda-Tate, F_p-isogenous curves share the Frobenius trace and hence
+    the group order N, so Pollard rho's expected 0.886*sqrt(N) group operations
+    is fixed across the class: the FIRST leg is predicted invariant for a
+    theorem-backed reason and functions as a positive control on the meter.
+
+    What is NOT fixed by the trace is the Weierstrass model. A curve
+    y^2 = x^3 + a*x + b admits an isomorphic model with a = -3, whose Jacobian
+    doubling saves field multiplications, exactly when a/(-3) is a fourth power
+    in F_p. That criterion depends on the individual member, not on the class,
+    so the SECOND leg is predicted to vary -- by a small constant factor, and
+    only through this criterion. Because N is prime and odd, no member has
+    rational 2-torsion, so no member admits a Montgomery or Edwards model; the
+    constant-factor lever available inside the class is therefore bounded by the
+    a = -3 saving alone.
+
+    The THIRD leg charges the walk. Reaching a member costs explicit Velu
+    isogeny evaluations, and the end-to-end comparison is (walk + solve) against
+    the base curve's solve alone. A cheap bridge is not a free bridge.
+  assumptions:
+    - Velu isogeny computation over the toy field is exact and every edge is
+      certificate-checked rather than trusted.
+    - Rho step counts are random variables compared as distributions over seeds,
+      never as single-run point estimates.
+    - Per-operation cost is measured by instrumented field-multiplication counts;
+      wall-clock is secondary and never carries a cost claim.
+    - The class is enumerated completely up to F_p-isomorphism, so "no member is
+      cheaper" is a statement about all of it, not about a sample of it.
+  proof_search_map:
+    bottleneck: >-
+      Obstruction 4 of EV-ECDLP-b3e847 ("within-class uniformity"), the one leg
+      of the SG-ECDLP-002 closure that the red team recorded as empirical rather
+      than proven. Removing it would reopen the isogeny-transfer direction.
+    baseline_embedding:
+      parameter_slice: >-
+        Ordinary prime-field curves, prime order N, conductor f = 1 -- the slice
+        P-256 occupies (ISO-EXP-001 established P-256's flat volcano).
+      reproduction_check: >-
+        The base curve's measured group-operation count must reproduce
+        0.886*sqrt(N) within the seed band, recorded as a frozen fixture before
+        any between-member comparison is read.
+    observation_collision:
+      observable: >-
+        The pair (group operations to solve, field multiplications per group
+        operation) indexed by class member.
+      distinct_preimage_search: >-
+        Look for two members of the same class whose first coordinate differs
+        beyond the control band. Tate predicts none exists. A difference in the
+        second coordinate alone is a group-law constant, reported as such and
+        never as a DLP weakness.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The fiber of the measured cost observable over the isogeny class.
+        predicted_gain: >-
+          None. The predicted fiber is the entire class on the group-operation
+          coordinate. Naming it converts "uniform" from an assertion into a
+          measured quantity with a stated band.
+    quantifier_order: >-
+      FOR ALL members E' of the fixed F_p-isogeny class of E_0, DOES THERE EXIST
+      a charged solve on E' cheaper than the solve on E_0? Predicted: NO for
+      every member. The class is fixed FIRST by the base curve, mirroring an
+      attacker who is handed P-256 and cannot choose its class.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A toy-scale, certificate-carrying, complete-class statement: no member
+        solves cheaper in group operations, and the per-operation spread is
+        bounded by the measured best-to-worst ratio. It does not promote to a
+        theorem about P-256 and is not evidence about P-256's own security.
+      nearby_object_control: >-
+        Same-p, different-trace random curves: the nearest objects that SHOULD
+        differ in cost. A census blind to their difference has not earned a null.
+    proof_obligations:
+      - claim: Group-operation count is invariant across the class
+        responsibility: baseline
+      - claim: Per-operation field cost varies only via the a = -3 criterion
+        responsibility: correctness
+      - claim: The isogeny walk is charged, not treated as free preprocessing
+        responsibility: runtime
+      - claim: Every reported solve carries an independently re-verified certificate
+        responsibility: correctness
+      - claim: The instrument detects a genuine cost difference when one exists
+        responsibility: feasibility
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-ISOU-1
+      formal_statement: >-
+        For a fixed prime-order instance (P, Q) on a curve of order N, Pollard
+        rho with the stated walk function terminates after a number of steps
+        whose mean over independent seeds is 0.886*sqrt(N)*(1 + o(1)), with
+        birthday-problem dispersion, and this holds uniformly over curves of
+        equal order regardless of j-invariant or Weierstrass model.
+      random_model_justification: >-
+        The 0.886*sqrt(N) figure is the birthday bound under the idealization
+        that the rho walk behaves as a random function on the group. This is an
+        assumption about the WALK, not about the curve; the uniformity clause is
+        precisely the part this experiment tests rather than assumes.
+      supporting_results:
+        - description: Birthday-bound expectation for Pollard rho on a cyclic group of order N
+          citation: Pollard 1978, Monte Carlo methods for index computation (mod p)
+          role: expected step count
+        - description: F_p-isogenous curves have equal group order (equal Frobenius trace)
+          citation: Tate 1966, Endomorphisms of abelian varieties over finite fields
+          role: class invariance of N
+      validation_experiment_ids: [EXP-ISOU-2ac81f]
+      falsification_condition: >-
+        Class members and different-trace controls show materially different
+        relative dispersion in step count under matched seed schedules, which
+        would mean the walk is not acting as a random function on some curve and
+        the meter, not the mathematics, is the finding.
+  structural_ingredients:
+    - description: >-
+        Tate's theorem: two elliptic curves over F_p are F_p-isogenous iff they
+        have the same number of points, so group order is a class invariant.
+      citation: Tate 1966, Endomorphisms of abelian varieties over finite fields
+      role: fixes the predicted invariance of the group-operation count
+    - description: >-
+        Velu's formulas for the explicit quotient of an elliptic curve by a
+        finite subgroup, giving the isogeny and its codomain.
+      citation: Velu 1971, Isogenies entre courbes elliptiques
+      role: constructs every edge of the walk explicitly and checkably
+    - description: >-
+        Kohel's isogeny-volcano structure for ordinary curves; conductor f = 1
+        gives a flat (single-level) volcano.
+      citation: Kohel 1996, Endomorphism rings of elliptic curves over finite fields
+      role: justifies choosing an f = 1 base curve to imitate P-256's shape
+    - description: >-
+        The a = -3 Jacobian-coordinate doubling saving, available exactly when
+        a/(-3) is a fourth power in F_p.
+      citation: IEEE P1363 / standard Jacobian-coordinate arithmetic
+      role: the only within-class constant-factor lever predicted to exist
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: group_operations_to_solve, spread across class members
+      direction: different
+      minimum_effect: >-
+        Zero. No member's median differs from the class median by more than the
+        seed-induced control band established on the base curve. A member
+        outside the band is triaged as an instrument defect before it is read as
+        a result.
+    - metric: field_multiplications_per_group_operation, best-to-worst ratio
+      direction: different
+      minimum_effect: >-
+        Strictly greater than 1.0 (some spread exists) and strictly below 1.5,
+        with the split explained by a = -3 model reachability.
+    - metric: charged_end_to_end_cost (walk + solve) versus base-curve solve
+      direction: different
+      minimum_effect: >-
+        Zero improvement. No member is cheaper than the base curve once the walk
+        that reaches it is charged.
+    - metric: montgomery_or_edwards_model_reachable, count over class members
+      direction: different
+      minimum_effect: >-
+        Exactly zero members, because N is prime and odd so no member carries
+        rational 2-torsion.
+  test_boundary:
+    instances:
+      - one P-256-shaped toy base curve E_0 (ordinary, prime N, f = 1, a = -3)
+      - the complete F_p-isogeny class of E_0 up to F_p-isomorphism
+      - at least 8 same-p different-trace random curves as null objects
+    parameters:
+      isogeny_degrees: [2, 3, 5, 7, 11, 13]
+      prime_bits: [20, 24]
+      seeds_per_curve: 16
+      solver: Pollard rho with distinguished points, matched implementation across curves
+      secondary_solver: BSGS as an independent cross-check on the smallest instance
+    implementation: experiments/EXP-ISOU-2ac81f/ (written by the Executor on approval)
+    budget:
+      maximum_runs: 4
+      wall_clock_seconds_per_run: 600
+  falsification_conditions:
+    - >-
+      A class member solves in materially fewer group operations than the class
+      median, outside the control band, with a verified certificate, reproduced
+      under fresh seeds. This contradicts order-invariance and would reopen the
+      closed direction. The instrument is suspected first.
+    - >-
+      The per-operation field-cost ratio exceeds 1.5x best-to-worst, or the
+      spread fails to track a = -3 model reachability. This refutes the specific
+      constant-factor model stated here without touching any exponent.
+    - >-
+      Any class member admits a Montgomery or Edwards model, refuting the
+      prime-order / no-2-torsion argument this hypothesis relies on.
+    - >-
+      The different-trace null objects show no detectable cost difference from
+      the class members, which would mean the meter cannot see a real difference
+      and NO null result from this experiment may be believed.
+  interpretation_limits:
+    - >-
+      Toy scale; claim_tier toy. P-256 is the SHAPE imitated, not the object
+      measured. Nothing here is evidence about the security of P-256 itself.
+    - >-
+      A null result does not prove within-class uniformity. It upgrades
+      obstruction 4 of EV-ECDLP-b3e847 from asserted to measured-at-toy-scale --
+      exactly the evidentiary step the red team requested, and no more.
+    - >-
+      The constant-factor leg is a constant factor. It moves no exponent and is
+      not a speedup claim against ECDLP.
+    - >-
+      Timeouts, crashes, and infrastructure failures are never negative
+      mathematical evidence (AGENTS.md rule 5).
+  status: proposed
+  proposed_by: top-level session (author), pending Coordinator specification
