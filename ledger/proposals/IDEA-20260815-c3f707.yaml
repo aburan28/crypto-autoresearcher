@@ -1,0 +1,328 @@
+idea:
+  id: IDEA-20260815-c3f707
+  question_id: RQ-RELN-001
+  added: '2026-08-15'
+  title: >-
+    CHARGE THE FAILURES: every published P(decomp) in this lane is a per-
+    attempt success rate, but an index calculus pays for FAILED attempts
+    too, and the quantity the exponent actually consumes is the expected
+    cost per ACCEPTED relation -- which no record in the lane has ever
+    computed
+  class: cost-model
+
+  claim: >-
+    A relation-collection stage does not consume P(decomp); it consumes
+    EXPECTED WORK PER ACCEPTED RELATION, which is (cost of one attempt) /
+    P(decomp) plus the cost of the rerandomization that produces each fresh
+    attempt. Those are different quantities and they diverge exactly where
+    it matters: as the factor base shrinks, P(decomp) falls and the per-
+    relation cost rises superlinearly, while the linear-algebra cost falls.
+    THE OPTIMUM IS SET BY THE RATIO, NOT BY EITHER TERM, and this lane has
+    been measuring only the numerator's reciprocal. This record defines and
+    measures the charged per-relation cost including failed attempts and
+    rerandomization, and locates the base size that minimises it -- which is
+    the only base size at which an honest ICEX comparison can be run.
+
+  mechanism: >-
+    STAGE 1: instrument the attempt procedure to record cost per attempt,
+    success or failure, and the cost of producing each fresh randomized
+    instance separately -- three counters that the lane currently collapses
+    into one. STAGE 2: sweep base size and compute expected charged cost per
+    accepted relation at each. STAGE 3: add the sparse linear-algebra cost
+    at each base size from the lane's existing model, and locate the joint
+    optimum. STAGE 4: report the optimum's location and, critically, the
+    SENSITIVITY of the ICEX exponent to it -- if the exponent barely moves
+    across a wide range of base sizes, the optimum's precise location does
+    not matter and the lane can stop refining it, which would itself be a
+    useful and budget-saving result.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Grep for 'rerandomization cost' (0), 'charged', 'per accepted
+      relation', 'failed attempt', 'full cost accounting'; plus a read of
+      GOAL-RELN-001 and GOAL-ICEX-001's full-charging constraint.
+    results: >-
+      GOAL-ICEX-001's constraints demand full charging including
+      preprocessing, relations, linear algebra, descent, memory and
+      multitarget, so the PRINCIPLE is established program policy. But
+      'rerandomization cost' returns zero, and no RELN record separates
+      attempt cost, failure cost and rerandomization cost into distinct
+      counters or locates a joint optimum.
+    verdict: >-
+      ADAPTATION. Full-cost accounting is this program's declared standard
+      and this record applies it to a quantity the lane has been reporting
+      unadjusted. Nothing methodological is new; the delta is that the
+      charged quantity has not actually been computed.
+
+  object_first_candidate:
+    tracked_object: >-
+      EXPECTED CHARGED COST PER ACCEPTED RELATION, replacing per-attempt
+      success probability as the lane's reported quantity.
+    lossiness: >-
+      Reporting P(decomp) alone is the lossy projection under audit: it
+      discards attempt cost, failure cost and rerandomization cost, all of
+      which the exponent consumes.
+    propagation: >-
+      Not applicable; cost accounting.
+    survival_score: >-
+      Survives wherever the three costs can be separately instrumented. It
+      fails if rerandomization is entangled with attempt generation in the
+      implementation, which Stage 1 must determine and, if so, report as
+      an instrumentation limit rather than estimate around.
+
+  null_object_control: >-
+    NULL 1 -- RANDOM-SET FACTOR BASE at matched size, giving the charged
+    cost under birthday-only supply, which is the reference any algebraic
+    base must beat. NULL 2 -- A DELIBERATELY EXPENSIVE rerandomization, to
+    confirm the counters actually respond to the cost they claim to measure.
+    NULL 3 -- ZERO-COST rerandomization (reuse the same instance), which
+    must show a LOWER charged cost and confirms the counter is wired
+    through; a charged cost insensitive to rerandomization cost means the
+    instrumentation is not measuring what it claims.
+
+  discriminated_from:
+    - >-
+        The existing RELN protocol. NOT A REPLACEMENT: it measures
+        P(decomp); this converts that measurement into the quantity the
+        exponent consumes. It is a post-processing and instrumentation
+        layer on the same runs and should share their artifacts rather
+        than re-running them.
+    - >-
+        IDEA-20260727-002 (yield-charged descent cost). CLOSE NEIGHBOUR:
+        that record charges DESCENT yield; this charges RELATION
+        COLLECTION. Both are full-cost-accounting records in the same
+        campaign and they must use one cost model or their outputs cannot
+        be added -- that shared model is a coordination obligation this
+        record flags explicitly.
+    - >-
+        GOAL-ICEX-001's aggregate comparison. UPSTREAM OF IT: this
+        produces one of the inputs ICEX aggregates and does not itself
+        perform the comparison, which ICEX's own decision reserves.
+
+  assumptions:
+    - >-
+        Attempt, failure and rerandomization costs are separately
+        instrumentable. Stage 1 checks this; if not, the record reports a
+        combined counter and states plainly that the decomposition into
+        three is unavailable rather than estimating a split.
+    - >-
+        The lane's existing sparse linear-algebra cost model is admissible
+        as the second term. IT IS INHERITED, NOT VALIDATED HERE, and if it
+        is wrong the located optimum moves; the sensitivity analysis of
+        Stage 4 is the defence.
+    - >-
+        Wall clock is an acceptable cost proxy at toy scale. It is
+        machine-dependent, so the reported quantity must be the RATIO
+        across base sizes rather than absolute seconds.
+
+  predictions:
+    - metric: >-
+        charged cost response to a deliberately expensive
+        rerandomization
+      direction: higher
+      minimum_effect: >-
+        FORCED TO RISE. An unchanged charged cost means the counter is
+        not wired through and voids every number in the run.
+    - metric: >-
+        charged cost per accepted relation as base size falls
+      direction: higher
+      minimum_effect: >-
+        PREDICTED TO RISE SUPERLINEARLY as P(decomp) falls. A linear or
+        flat response would contradict the basic supply model and is
+        more interesting than the predicted outcome.
+    - metric: >-
+        location of the joint optimum with linear algebra included
+      direction: different
+      minimum_effect: >-
+        Reported as a base size with an interval, never as a point
+        estimate.
+    - metric: >-
+        sensitivity of the ICEX exponent to the optimum's location
+      direction: different
+      minimum_effect: >-
+        If the exponent varies less than its own confidence interval
+        across a factor-of-four range in base size, the lane should stop
+        refining the optimum and say so -- a budget-saving negative that
+        is a legitimate deliverable.
+
+  minimal_test:
+    design: >-
+      Re-analysis of EXISTING RELN attempt logs if they retain per-attempt
+      outcomes, plus a small instrumented re-run if they do not. The
+      cheapest version of this record consumes runs the lane has already
+      paid for, and Stage 1's first task is to determine which case
+      applies.
+    controls:
+      - >-
+          Random-set factor base at matched size.
+      - >-
+          Deliberately expensive rerandomization, which must raise the
+          charged cost.
+      - >-
+          Zero-cost rerandomization, which must lower it.
+      - >-
+          One shared cost model with IDEA-20260727-002, recorded
+          explicitly.
+      - >-
+          Ratios reported rather than absolute wall clock.
+    required_metrics:
+      - >-
+          Attempt cost, failure cost and rerandomization cost as three
+          separate counters.
+      - >-
+          Charged cost per accepted relation per base size, with
+          intervals.
+      - >-
+          Joint optimum location with linear algebra included.
+      - >-
+          Exponent sensitivity across the base-size range.
+      - >-
+          Artifact manifest with hashes and rebuild receipt.
+
+  falsification_conditions:
+    - >-
+        Charged cost does not respond to rerandomization cost.
+        Instrumentation not wired; all numbers void.
+    - >-
+        The three costs cannot be separated. Report the combined counter
+        and withdraw the decomposition claim.
+    - >-
+        Charged cost is flat in base size. Contradicts the supply model;
+        investigate before reporting an optimum.
+    - >-
+        The exponent is insensitive across the whole tested range. The
+        optimum does not matter; report and stop refining it.
+
+  confounders:
+    - >-
+        WALL-CLOCK PORTABILITY. Absolute times are machine-specific and
+        the optimum's location can shift with the implementation. Only
+        ratios and trends are reportable.
+    - >-
+        INHERITED LINEAR-ALGEBRA MODEL. The second term is not validated
+        here and a wrong model relocates the optimum silently; the
+        sensitivity analysis is the only defence and must be reported
+        alongside the optimum, never separately.
+    - >-
+        IMPLEMENTATION IMMATURITY. An unoptimised attempt procedure
+        inflates attempt cost uniformly and shifts the optimum toward
+        larger bases, in the direction that flatters index calculus.
+    - >-
+        DOUBLE COUNTING with IDEA-20260727-002 if the two records charge
+        overlapping stages under different models -- the specific
+        coordination failure that would make the ICEX aggregate wrong in a
+        way nobody notices.
+
+  interpretation_limits:
+    - >-
+        Produces a cost input, not a comparison; the ICEX exponent
+        decision remains ICEX's.
+    - >-
+        Toy scale only; the located optimum is a toy optimum and does not
+        transfer.
+    - >-
+        Wall-clock based and therefore machine-scoped; only ratios are
+        portable.
+    - >-
+        Inherits the lane's linear-algebra model and is no better than it.
+
+  heuristic_assumptions:
+    - id: HEUR-RELN-CHG-1
+      statement: >-
+        Expected charged cost per accepted relation equals (mean attempt
+        cost + mean rerandomization cost) divided by P(decomp), with the
+        attempts independent and identically distributed at fixed base
+        size.
+      rigorous_support: >-
+        The rigorous ingredient is Wald's identity for the expected
+        number of Bernoulli trials to first success, which gives the 1/P
+        factor exactly. The distributional ingredient is the i.i.d.
+        assumption across attempts. THE GAP, AND WHY THIS IS A
+        HEURISTIC: if P(decomp | target) is heavy-tailed -- the question
+        the SIBLING record in this batch measures -- then attempts are
+        NOT identically distributed across targets and this formula
+        understates the true expected cost, possibly badly. The two
+        records must therefore be read together and this one's formula
+        is provisional on the other's finding.
+      falsification_condition: >-
+        Measured charged cost diverging from the formula by more than
+        estimator noise, particularly on low-P targets.
+      validation_plan: >-
+        SAMPLE: >= 2 base sizes x >= 100 targets, comparing measured
+        total cost per accepted relation against the formula's
+        prediction from separately measured components. TAIL CHECK: the
+        divergence restricted to the lowest-P decile of targets, which
+        is where the i.i.d. assumption fails first. TRANSFER ASSUMPTION:
+        none claimed beyond the tested base sizes.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED. The record produces one input to an
+      exponent comparison it does not perform. Its own cost is a re-
+      analysis of existing logs where available, plus a bounded
+      instrumented re-run.
+    memory_exponent: >-
+      Negligible; log post-processing.
+    best_known: >-
+      The incumbent is the lane's unadjusted P(decomp), which is not a
+      cost and cannot be compared against rho directly. Against rho itself
+      no claim is made.
+    hidden_overhead: >-
+      The rerandomization cost is the term most likely to be omitted and
+      is exactly the one that grows as the base shrinks, so omitting it
+      biases the located optimum toward small bases -- the direction that
+      flatters index calculus. That asymmetry is why it gets its own
+      counter.
+    tradeoff_note: >-
+      Small factor base: cheap linear algebra, expensive relations. Large
+      base: the reverse. The record's whole content is locating where the
+      product is minimised under honest charging.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed). As a
+    cost model: dominated by nothing in this program on the charged-per-
+    relation axis because the quantity has not been computed here; but the
+    ACCOUNTING METHOD is entirely standard and dominated by the general
+    full-cost-accounting literature, which this record applies rather than
+    extends. Not null on any axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: the conversion of the lane's
+    reported P(decomp) into the quantity an exponent actually consumes;
+    three separated cost counters where the lane has one; a located joint
+    optimum with linear algebra included; and an exponent-sensitivity number
+    that may show the optimum does not need refining at all, which would
+    save the campaign budget.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.6 that existing RELN logs retain enough per-attempt detail to avoid a
+    re-run, which is the difference between a cheap record and a moderate
+    one. 0.85 that the three counters can be separated in a fresh
+    instrumented run. 0.9 that charged cost rises superlinearly as the base
+    shrinks, which is close to forced by the supply model. 0.45 that the
+    exponent turns out insensitive across a wide base-size range, which
+    would be a genuinely useful budget-saving negative and is the outcome I
+    would most like to see.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-RELN-001
+    - KN-OPEN-001
+    - GOAL-RELN-001
+    - GOAL-ICEX-001
+    - IDEA-20260727-002
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".
