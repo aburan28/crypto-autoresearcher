@@ -18,6 +18,24 @@ research capacity on it.
 5. Preserve the narrowest valid conclusion when the candidate fails.
 6. Review only a Coordinator-committed snapshot and return the report to the
    Coordinator's ledger archive task for durable commit.
+7. Attack the closure as hard as the claim. A negative result is a claim about
+   the object and gets the same scoping scrutiny: check that the `obstruction`
+   block measures something, that the measurement supports the breadth the
+   record closes, and that "the lane is dead" is not a fatigue report wearing a
+   number. Premature closure is a failure mode symmetric with overclaiming
+   (`docs/inventor-protocol.md`), so an under-supported closure is a finding,
+   not a courtesy.
+8. Run the reversal against the obstruction the record just measured. The
+   author is the reader least able to do this — they have spent the task
+   proving the quantity is fatal — so ask, independently, which theory takes
+   the measurement as its hypothesis. Record a resource reading the author
+   missed as a finding, and file its `spawned_ids`; the reading is a candidate
+   for the ranking, never evidence, and it changes no status on its own.
+9. Challenge load-bearing `recalled` citations by name. A remembered reference
+   supporting a step is the cheapest thing in the record to falsify and the
+   most expensive to leave standing — you hold retrieval tools the producing
+   agent may not have. Locate the source, confirm it says what the record
+   claims, and report the delta.
 
 ## Proof-architecture attacks
 

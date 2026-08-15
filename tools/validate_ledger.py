@@ -209,6 +209,93 @@ def field_is_satisfied(body: dict, field: str) -> bool:
 TIER_ORDER = {"toy": 0, "medium": 1, "crypto": 2}
 PROOF_STATUSES = {"certificate", "derivation", "empirical_only",
                   "not_applicable"}
+
+# Both blocks below are OPTIONAL and checked only when present, which is what
+# lets them land without a baseline entry: the baseline is prune-only, so a
+# newly-required field on immutable records could never be grandfathered and
+# would fail `main` forever. Absence is reported as schema debt instead --
+# `tools/obstruction_registry.py --debt` for the obstruction backlog. What is
+# enforced is that a record CLAIMING the new schema completes it.
+CITATION_PROVENANCE = {"recalled", "retrieved", "kb", "internal"}
+
+# `recalled` means no agent in this program opened the source. Such a reference
+# is a pointer for a reviewer, never support (AGENTS.md rule 9), so these two
+# record shapes may not rest on one. No committed record carries a provenance
+# field at all, so this can be a hard error from the start: it fires only on
+# records written against the new schema.
+PROVENANCE_ASSERTS_LITERATURE = {"known", "adaptation"}
+
+OBSTRUCTION_REQUIRED = ["statement", "quantity", "value", "scope"]
+
+def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
+    """Validate `citations` and hypothesis `structural_ingredients` entries."""
+    groups = [("citations", body.get("citations"))]
+    if rec_type == "hypothesis":
+        groups.append(("structural_ingredients",
+                       body.get("structural_ingredients")))
+    for field, entries in groups:
+        if entries is None:
+            continue
+        if not isinstance(entries, list):
+            ctx.err(path, f"{field} must be a list")
+            continue
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict) or "provenance" not in entry:
+                continue          # pre-schema entry; reported as debt, not error
+            where = f"{field}[{index}]"
+            provenance = entry.get("provenance")
+            if provenance not in CITATION_PROVENANCE:
+                ctx.err(path, f"{where}.provenance must be "
+                              f"recalled|retrieved|kb|internal")
+                continue
+            if provenance == "recalled":
+                if rec_type == "coordinator_decision":
+                    ctx.err(path, f"{where} is provenance 'recalled'; a "
+                                  f"remembered source may not back a decision "
+                                  f"(AGENTS.md rule 9)")
+                if (rec_type == "idea" and body.get("novelty_status")
+                        in PROVENANCE_ASSERTS_LITERATURE):
+                    ctx.err(path, f"{where} is provenance 'recalled' but "
+                                  f"novelty_status is "
+                                  f"'{body.get('novelty_status')}'; use "
+                                  f"'unverified' until the source is read")
+            elif not str(entry.get("verified_by") or "").strip():
+                ctx.err(path, f"{where}.provenance is '{provenance}' and "
+                              f"requires verified_by naming the agent that "
+                              f"read the source")
+
+
+def check_obstruction(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate an `obstruction` block: a measurement, not a verdict."""
+    block = body.get("obstruction")
+    if block is None:
+        return
+    if not isinstance(block, dict):
+        ctx.err(path, "obstruction must be a mapping")
+        return
+    for field in OBSTRUCTION_REQUIRED:
+        if not str(block.get(field) or "").strip():
+            ctx.err(path, f"obstruction.{field} is required; an obstruction "
+                          f"recorded as prose is a verdict, not a datum")
+    measured_by = block.get("measured_by")
+    if not isinstance(measured_by, list) or not measured_by:
+        ctx.err(path, "obstruction.measured_by must be a nonempty list of "
+                      "RUN-*/EXP-* IDs the value is read from")
+    check = block.get("resource_check")
+    if not isinstance(check, dict):
+        ctx.err(path, "obstruction.resource_check is required (inventor "
+                      "protocol section 4); an unexamined obstruction asserts "
+                      "only that nobody looked")
+        return
+    if check.get("examined") is not True:
+        ctx.err(path, "obstruction.resource_check.examined must be true; the "
+                      "reversal is checked when the object is still loaded")
+    if not str(check.get("reading") or "").strip():
+        ctx.err(path, "obstruction.resource_check.reading is required; name "
+                      "the theory taking this measurement as its hypothesis, "
+                      "or state that the check found none")
+    if not isinstance(check.get("spawned_ids", []), list):
+        ctx.err(path, "obstruction.resource_check.spawned_ids must be a list")
 KNOWLEDGE_TYPES = {
     "literature": ("literature", "KN-LIT-"),
     "technique": ("techniques", "KN-TECH-"),
@@ -329,6 +416,9 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
                           "empirical_only|not_applicable")
         if not isinstance(body.get("proof_refs"), list):
             ctx.err(path, "proof_refs must be a list")
+    check_citations(path, body, rec_type, ctx)
+    if rec_type in ("evidence", "coordinator_decision"):
+        check_obstruction(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
         promotion = body["knowledge_promotion"]
         if not isinstance(promotion, dict):
