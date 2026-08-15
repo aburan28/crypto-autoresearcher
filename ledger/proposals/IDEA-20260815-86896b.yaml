@@ -1,0 +1,241 @@
+idea:
+  id: IDEA-20260815-86896b
+  question_id: RQ-ECDSA-87625f
+  added: '2026-08-15'
+  title: >-
+    DETERMINISTIC ECDSA REMOVES THE NONCE GENERATOR AND REPLACES IT WITH A
+    HASH OF THE MESSAGE AND KEY: measure whether that trade actually
+    eliminates the leakage class it was introduced to eliminate
+  class: measurement
+
+  claim: >-
+    RFC 6979 deterministic nonces were introduced because bad randomness
+    caused key recovery. The nonce becomes a deterministic function of
+    message and key, which removes generator bias and introduces a different
+    exposure: identical messages give identical nonces, and fault injection
+    during signing becomes far more damaging. Whether the trade is net
+    favourable against the leakage classes this program tracks is
+    measurable.
+
+  mechanism: >-
+    For each leakage class the program tracks -- generator bias, partial
+    nonce leakage, repeated nonce, fault during signing -- construct the
+    attack against random-nonce and deterministic-nonce ECDSA and compare
+    success conditions.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Grep 'deterministic', 'RFC 6979', 'nonce'; read of GOAL-ECDSA-001.
+    results: >-
+      Nonce leakage is heavily represented; no record compares random and
+      deterministic nonce generation across the full leakage-class set.
+    verdict: >-
+      ADAPTATION. The tradeoff is discussed in the deterministic-signature
+      literature; the contribution is measuring it against this program's
+      own leakage-class inventory.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE SUCCESS CONDITION of each leakage-class attack, under random
+      versus deterministic nonces.
+    lossiness: >-
+      Reducing a scheme choice to one verdict discards the per-class
+      picture, which is where the trade actually lives.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while both variants are implementable and each attack class
+      is constructible; classes that cannot be constructed against one
+      variant are reported rather than scored.
+
+  null_object_control: >-
+    NULL 1 -- no leakage, where no attack may succeed against either
+    variant. NULL 2 -- the repeated-nonce class against random nonces, which
+    must succeed and calibrates the harness against a textbook case.
+
+  discriminated_from:
+    - >-
+        The bias-shape record in this series, which varies leakage shape
+        against random nonces; this varies the nonce generation itself.
+    - >-
+        The HNP embedding record, which varies the attack's lattice
+        construction; this varies what the signature scheme provides to
+        attack.
+
+  assumptions:
+    - >-
+        Both nonce variants are implementable in the same harness so
+        attacks are comparable.
+    - >-
+        Fault injection during signing is simulable at the level the
+        attack requires, which is where this comparison is most likely to
+        be unfair to the deterministic variant if the simulation is
+        unrealistic.
+
+  predictions:
+    - metric: >-
+        no-leakage null
+      direction: different
+      minimum_effect: >-
+        FORCED no success against either variant.
+    - metric: >-
+        repeated-nonce calibration
+      direction: different
+      minimum_effect: >-
+        FORCED success against random nonces; calibrates the harness on
+        a textbook case.
+    - metric: >-
+        per-class success condition, random versus deterministic
+      direction: different
+      minimum_effect: >-
+        The measurement; the deterministic variant should close the
+        generator-bias class and open the fault class.
+    - metric: >-
+        classes constructible against only one variant
+      direction: different
+      minimum_effect: >-
+        Reported explicitly, since an unconstructible attack is not a
+        safe one.
+
+  minimal_test:
+    design: >-
+      Four leakage classes, both nonce variants, both nulls.
+    controls:
+      - >-
+          No-leakage null.
+      - >-
+          Repeated-nonce calibration on random nonces.
+      - >-
+          Fault simulation realism stated explicitly, since it drives
+          the deterministic variant's worst case.
+      - >-
+          Classes constructible against only one variant reported rather
+          than scored.
+    required_metrics:
+      - >-
+          Success condition per class per variant.
+      - >-
+          Calibration outcome.
+      - >-
+          List of classes constructible against only one variant.
+      - >-
+          Fault-simulation model, stated.
+
+  falsification_conditions:
+    - >-
+        A null misbehaves. Harness wrong.
+    - >-
+        Deterministic nonces close generator bias and open nothing new at
+        the tested fault realism. The trade is favourable against this
+        class set, which is worth establishing with measurements.
+    - >-
+        The fault class is materially worse against deterministic nonces.
+        The trade is conditional on fault resistance, which deployment
+        guidance should say and often does not.
+    - >-
+        Fault injection cannot be simulated realistically. The comparison
+        covers only the other classes and must say so rather than declare
+        the trade favourable.
+
+  confounders:
+    - >-
+        FAULT-SIMULATION REALISM: the deterministic variant's main
+        exposure is faults, and an unrealistic fault model would make the
+        trade look better or worse than it is; this is the record's
+        central fairness risk.
+    - >-
+        CLASS-SET COMPLETENESS: the comparison binds the four tracked
+        classes and a class nobody tracks could reverse the verdict.
+
+  interpretation_limits:
+    - >-
+        Compares two published schemes against a fixed class set; proposes
+        no new attack.
+    - >-
+        Scoped to the tracked leakage classes and the stated fault model.
+    - >-
+        A favourable trade binds the tested classes, not all possible
+        exposures.
+
+  heuristic_assumptions:
+    - id: HEUR-ECDSA-DET-1
+      statement: >-
+        The leakage classes this program tracks cover the exposures
+        relevant to choosing between random and deterministic nonces.
+      rigorous_support: >-
+        Rigorous ingredient: nonce-based key recovery requires either
+        nonce reuse, nonce bias, or partial nonce knowledge, and those
+        three are exhaustive for attacks operating on the signature
+        equation alone. THE GAP: fault attacks do not operate on the
+        signature equation alone -- they change the computation -- so
+        the exhaustiveness argument does not cover the class where
+        deterministic nonces are most exposed, which is precisely the
+        class the comparison hinges on.
+      falsification_condition: >-
+        A key-recovery route against either variant that fits none of
+        the tracked classes.
+      validation_plan: >-
+        SAMPLE: all four classes against both variants. TAIL CHECK: any
+        recovery route found outside the class set, which measures the
+        coverage gap directly. TRANSFER: none beyond the tracked
+        classes.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is attack runs per class per variant.
+    memory_exponent: >-
+      Lattice-dominated for the partial-leakage classes.
+    best_known: >-
+      Incumbents are the published deterministic-signature analyses and
+      the nonce-leakage attack literature; both are used and neither is
+      improved.
+    hidden_overhead: >-
+      Fault simulation realism is the dominant hidden term and determines
+      whether the comparison is fair to the deterministic variant.
+    tradeoff_note: >-
+      Deterministic nonces trade generator risk for fault risk; the record
+      measures both sides against a fixed class set rather than arguing
+      the trade.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As attacks: dominated by the published
+    literature on both sides. As a per-class comparison against this
+    program's tracked classes: none exists here. Not null on any axis.
+  sota_delta: >-
+    No attack novelty, no exponent. Content delivered: per-leakage-class
+    success conditions for random versus deterministic ECDSA nonces, with a
+    textbook calibration case and an explicit statement of the fault-
+    simulation model that drives the deterministic variant's worst case.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.9 that both variants and three of four classes are implementable. 0.4
+    that fault injection can be simulated realistically enough for the
+    comparison to be fair, which is the binding risk. 0.7 that the trade is
+    favourable on the non-fault classes, which is the expected and less
+    interesting half.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-ECDSA-87625f
+    - GOAL-ECDSA-001
+    - KN-OPEN-011
+    - KN-OPEN-018
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".
