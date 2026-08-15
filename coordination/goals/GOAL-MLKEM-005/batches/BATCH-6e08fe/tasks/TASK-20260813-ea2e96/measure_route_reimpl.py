@@ -330,15 +330,11 @@ def enumerate_svp(mu, sqn, n, time_cap):
         for j in range(i + 1, n):
             center -= u[j] * mu[j, i]
         c0 = round(center)
-        # Zig-zag away from the center in order of increasing |u_i - center|;
-        # the first step must go toward the center's fractional side, else the
-        # pruning break below can discard a nearer coefficient.
-        sgn = 1 if center >= c0 else -1
         offset = 0
         tried = 0
         max_try = 4000
         while tried < max_try:
-            ui = c0 - sgn * offset
+            ui = c0 + offset
             l = ui - center
             add = l * l * sqn[i]
             new_tail = tail_norm + add
