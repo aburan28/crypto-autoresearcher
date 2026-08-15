@@ -1,0 +1,484 @@
+# FILED under ledger/hypotheses/H-MLKEM-36f511.yaml by TASK-20260814-1b47ba
+# (GOAL-QALG-001 BATCH-dbf57a), converting ledger/proposals/IDEA-20260813-02479f.yaml
+# per docs/task-lifecycle.md step 3 and .claude/skills/design-experiment/SKILL.md.
+# H-MLKEM-36f511 and EXP-MLKEM-12d9b8 were pre-allocated by this batch's own
+# dispatch_queue.json (coordination/goals/GOAL-QALG-001/batches/BATCH-dbf57a/
+# dispatch_queue.json) rather than minted fresh by this filing session, which has
+# no Bash/git tool; the driving session is responsible for the commit and any
+# collision check.
+hypothesis:
+  id: H-MLKEM-36f511
+  question_id: RQ-QALG-457b41
+  goal_id: GOAL-QALG-001
+  source_idea: IDEA-20260813-02479f
+
+  statement: >-
+    CLAIM TIER: derivation. This is a closed-form arithmetic/symbolic result
+    over ML-KEM's own exact standardized parameters (k in {2,3,4}, q = 3329,
+    eta1/eta2 per FIPS 203) and Simon 2026's own explicitly stated constants
+    (Q = k*n^(c+1), c >= 12, faulty-sample tolerance 1/O(log n)) -- not an
+    empirical measurement, not a lattice-reduction run, and not a
+    toy/medium/crypto-tier claim in the sense of docs/claims-and-verification.md
+    (that taxonomy describes TESTED SCALE of a run; this hypothesis produces no
+    run at all, only an exact evaluation). NO ML-KEM BREAK IS CLAIMED, NOTHING
+    HERE TOUCHES KEY RECOVERY, and this hypothesis depends throughout on an
+    external, UNVERIFIED preprint claim (Simon 2026, KN-LIT-e204ab, self-labelled
+    "[Preliminary Draft]" with every substantive lemma marked "(Sketch)" --
+    treated as unverified in every use below, never as an established theorem).
+
+    STATEMENT. Standard, publicly-computable linear self-reduction from
+    ML-KEM's actual k in {2,3,4} real Module-LWE public-key rows -- generating
+    a "virtual" sample as a bounded-coefficient combination of up to k real
+    rows plus fresh public randomness -- CANNOT supply anywhere near Simon
+    2026's own required Q = k*n^(c+1) (c >= 12) sample count within the
+    noise/faulty-sample-rate budget that algorithm's own stated theorem
+    requires, at ML-KEM's actual (non-asymptotic) parameters. This predicts
+    the DCP-route family (KN-TECH-d1bc4f) is UNREALIZABLE against a single,
+    standard ML-KEM public key via this specific, standard sample-generation
+    mechanism, independent of whether Simon's Lemma 3 (audited separately by
+    IDEA-20260813-4aecda) is itself eventually verified or refuted -- a
+    closure that would hold even in a world where the rest of the DCP paper
+    turns out to be entirely correct. The opposite verdict (self-reduction
+    noise growth stays inside budget) is an equally legitimate, fully
+    specified outcome and is not dispreferred by this record; see
+    falsification_conditions.
+
+    This hypothesis is a pure ACCESS-MODEL / INTERFACE audit (KN-TECH-080
+    vocabulary): it checks whether the abstract algorithm's assumed input
+    interface (an idealized independent-faulty-sample oracle) is actually
+    instantiable from the concrete object under attack (one bounded ML-KEM
+    public key) -- independent of whether the algorithm, once given that
+    interface, would actually work. It does not test Lemma 3's correctness
+    (IDEA-20260813-4aecda / a future hypothesis, not this one) and it does not
+    test the base reduction's own noise rate (IDEA-20260813-0cf345 / a future
+    hypothesis, not this one).
+
+  mechanism: >-
+    Self-reduction: a "virtual" MLWE-shaped sample is built as
+    v = sum_{i in S} c_i * (a_i, b_i), for S a subset of size m <= k of the
+    real rows and c_i small bounded public coefficients (e.g. in {-1,0,1} or
+    CBD-bounded), optionally blinded by fresh public randomness. By variance
+    additivity for independent CBD(eta)-distributed error coordinates
+    (HEUR-MLKEM-36f511-1 below), Var(sum c_i e_i) = sum c_i^2 * Var(e_i),
+    which grows with the number and magnitude of combined terms. Because only
+    k in {2,3,4} REAL rows exist, the number of DISTINCT low-variance
+    combinations achievable this way is combinatorially bounded (at most
+    roughly (2B+1)^k for coefficient magnitude bound B and m <= k terms) --
+    this bound, not an assumed rate, is what must be compared against
+    Q = k*n^(c+1) at ML-KEM's actual n.
+
+    A SEPARATE, LOAD-BEARING GAP THIS DESIGN TASK IDENTIFIES (not named, in
+    this precise form, by IDEA-20260813-02479f's own text): Simon's algorithm
+    tolerates a "faulty sample RATE" of 1/O(log n) -- a discrete, all-or-
+    nothing corruption probability in his own DCP formalization ("with
+    probability 1/a(n) the sample is a random bit and random value instead of
+    the correct superposition"), not a continuous LWE noise VARIANCE.
+    KN-TECH-d1bc4f states the connection for REGEV'S OWN reduction
+    construction: "Regev's reduction converts a(n)-approximate lattice
+    problems into DCP instances with faulty-sample rate 1/a(n)" -- i.e. for a
+    FIXED target approximation factor a(n), Regev's reduction's own internal
+    sampler produces DCP instances at faulty rate exactly 1/a(n). This
+    hypothesis's own hoped-for chain (self-reduction noise variance -> an
+    effective a(n) -> a required DCP faulty rate 1/a(n) -> comparison against
+    Simon's 1/O(log n) tolerance) requires INSTANTIATING Regev's reduction
+    using ML-KEM's own k real MLWE rows as a stand-in for the a(n)-SVP oracle
+    the reduction assumes, and self-reduction is the standard classical device
+    for doing so from a bounded set of real samples -- but the EXACT formula
+    converting a given noise-variance inflation into the corresponding a(n)
+    (equivalently, into a corresponding faulty rate) is not stated in
+    KN-LIT-21383c's summary, KN-LIT-e204ab, or KN-TECH-d1bc4f, and Regev 2004's
+    and BKSW's full derivations are not staged in this repository's inputs/
+    (only inputs/DCP-SIMON-2026/paper_extracted_text.txt is available, and it
+    states the reduction's EXISTENCE and its DCP group-order parameterization,
+    not the internal noise-to-a(n) conversion formula). This gap is made the
+    explicit, gating first stage of EXP-MLKEM-12d9b8 rather than silently
+    assumed away in either direction; see that contract's stage-0 and its
+    three-way (not binary) decidable outcome.
+
+  assumptions:
+    - >-
+      "One public key" is the realistic passive-attacker model this RQ's own
+      constraints require (matched cost accounting against the best known
+      QUANTUM attack against a single target key, per RQ-QALG-457b41); a
+      multi-key-compromise model is out of scope.
+    - >-
+      PARTIALLY RESOLVED BY THIS DESIGN TASK, DIRECTLY FROM SIMON'S OWN SOURCE
+      TEXT (inputs/DCP-SIMON-2026/paper_extracted_text.txt, pages 1-3, not
+      merely from KN-LIT-21383c's own flagged-as-unverified summary): Simon's
+      "n" is LITERALLY the dimension of the SVP/LWE lattice the reduction
+      operates over -- "p(n)-SVP is the problem of finding a non-zero vector
+      in an n-dimensional lattice" -- and the DCP group order is 2N ~ 2^(n+1)
+      directly (post-BKSW; Regev's original reduction had a quadratic blow-up,
+      N ~ 2^(n^2), which BKSW's improvement removes). This resolves the
+      LITERAL DEFINITION of n, superseding KN-LIT-21383c's own "should be
+      checked against the original before use" flag for this specific
+      question. NOT resolved, and explicitly out of scope for this design
+      task and for this specific hypothesis: whether n := k*256 (ML-KEM's
+      module rank times ring degree, "unrolling" the structured Module-LWE
+      instance into an n-coordinate object) is a legitimate way to count "the
+      lattice dimension" for BKSW's reduction, which is stated for
+      unstructured LWE, not Module-LWE -- KN-OPEN-8a5965's own Q2 names this
+      bridge ("Unstructured LWE vs Module-LWE... whether the claimed DCP
+      algorithm applies through that structure is unaddressed") as fully
+      open. n := k*256 is adopted here as an EXPLICIT, DISCLOSED, UNVERIFIED
+      WORKING DEFINITION for this arithmetic exercise only, exactly matching
+      IDEA-20260813-02479f's own second assumption -- never as an established
+      fact, and every numeric output in EXP-MLKEM-12d9b8 must carry this
+      caveat with it.
+    - >-
+      Standard (not adversarially weakened) linear self-reduction is the
+      sample-generation mechanism under test; a not-yet-published cleverer
+      technique (e.g. IDEA-20260813-8aa6ea's Galois-orbit mechanism) is
+      explicitly out of scope and named as an open direction, not ruled out.
+
+  proof_search_map:
+    not_applicable_reason: null
+    bottleneck: >-
+      Whether the noise/faulty-rate cost of generating Simon's required
+      Q = k*n^(c+1), c >= 12 virtual samples via standard linear self-
+      reduction from ML-KEM's actual k in {2,3,4} real rows stays within, or
+      catastrophically exceeds, the 1/O(log n) tolerance the algorithm needs
+      -- independent of whether Lemma 3 (IDEA-20260813-4aecda) or the base
+      reduction's noise rate (IDEA-20260813-0cf345) are separately favorable.
+    baseline_embedding:
+      parameter_slice: >-
+        m = 1 (each virtual sample IS one of the k real rows, no combination)
+        reproduces the original, unmodified oracle-model assumption exactly:
+        each of only k in {2,3,4} samples, independently faulty at whatever
+        base rate the un-self-reduced reduction gives, nowhere near Q. This
+        is the fixed reference point every self-reduction variant (m > 1) is
+        compared against.
+      reproduction_check: >-
+        Symbolic check (EXP-MLKEM-12d9b8 stage 1) that the noise-variance
+        formula at m = 1 reduces EXACTLY to ML-KEM's own base CBD(eta)
+        variance with no inflation term, and that m = 2 (two independent
+        unit-coefficient CBD(eta) terms) gives exactly 2*(eta/2) = eta,
+        matching the CBD distribution's own convolution property -- both
+        verifiable by hand before the general-m formula is trusted at the
+        astronomically larger m implied by reaching Q.
+    observation_collision:
+      observable: >-
+        The pair (number of distinct virtual samples generated, resulting
+        noise variance and/or effective a(n)/faulty-rate per virtual sample).
+      distinct_preimage_search: >-
+        Search for a combining strategy (choice of m <= k and coefficient
+        bound B) achieving a large distinct sample count while keeping
+        variance growth sub-linear in the count, by exploiting CBD(eta)'s or
+        the module ring's structure (overlaps in spirit with, but is computed
+        independently of, IDEA-20260813-8aa6ea's Galois-orbit mechanism). If
+        no such strategy exists under plain variance-additivity, the
+        (count, variance) pair is dominated by a simple, no-slack trade-off
+        and the closure below follows from arithmetic alone -- EXP-MLKEM-12d9b8
+        stage 3 computes the combinatorial ceiling explicitly rather than
+        asserting it.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          A target-specific measure: noise variance (and, pending stage 0's
+          conversion chain, effective faulty rate) of a virtual sample built
+          from m <= k real rows with bounded public coefficients, evaluated
+          up to the m/B needed to approach Q = k*n^(c+1) distinct virtual
+          samples, accounting for the true combinatorial ceiling on distinct
+          combinations available from only k in {2,3,4} real rows.
+        predicted_gain: >-
+          Not a speed gain -- a closure-scale measurement. The predicted
+          (not yet confirmed) severity, given k is only 2-4 and Q needs to
+          reach roughly n^13 with n in the hundreds (Q on the order of 10^36
+          or larger under the k := 256*rank working definition), is that no
+          combinatorially available self-reduction strategy can supply
+          anywhere near Q distinct, low-variance virtual samples -- shown by
+          the actual arithmetic, not asserted.
+    quantifier_order: >-
+      Simon's theorem states: for all n, THERE EXISTS a sample-generation
+      procedure supplying Q = k*n^(c+1) independent-enough faulty samples such
+      that the algorithm succeeds. This hypothesis checks whether that
+      existential clause is satisfiable AT ALL from a single bounded ML-KEM
+      key's k real rows via standard linear self-reduction -- if no such
+      procedure exists at ML-KEM's actual, non-asymptotic n (under the
+      disclosed n := k*256 working definition), the existential clause fails
+      for THIS specific concrete instantiation, regardless of the asymptotic
+      theorem's truth for an idealized oracle.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At best, whether STANDARD linear self-reduction from k in {2,3,4}
+        real rows can or cannot realistically approach Q = k*n^(c+1) virtual
+        samples within Simon's own noise/faulty-rate budget at ML-KEM's
+        actual n -- never that NO conceivable sample-generation technique
+        could ever do so (a cleverer, not-yet-published technique is
+        explicitly out of scope and named as an open direction).
+      nearby_object_control: >-
+        The DEGENERATE case Q <= k (no self-reduction needed, using only the
+        k real rows directly) is trivially realizable; this hypothesis's
+        finding is informative only to the extent it establishes how far past
+        that trivial floor the actual required Q sits, and by what
+        multiplicative noise/faulty-rate cost factor.
+    proof_obligations:
+      - claim: >-
+          The noise-variance formula reduces to ML-KEM's base CBD(eta)
+          variance at m = 1 with no inflation, and to 2*(eta/2) = eta at
+          m = 2 with unit coefficients.
+        responsibility: baseline
+      - claim: >-
+          PARTIALLY DISCHARGED BY THIS DESIGN TASK: the literal definition of
+          Simon's "n" (the SVP/LWE lattice dimension the reduction operates
+          over) is pinned from the primary source
+          (inputs/DCP-SIMON-2026/paper_extracted_text.txt), not guessed. NOT
+          discharged: whether n := k*256 legitimately counts "the lattice
+          dimension" for ML-KEM's actual Module-LWE structure under BKSW's
+          (unstructured-LWE) reduction -- carried forward as an explicit,
+          disclosed working assumption, never resolved as fact by this record.
+        responsibility: correctness
+      - claim: >-
+          NOT YET PERFORMED (named here, gating EXP-MLKEM-12d9b8 stage 0): the
+          exact conversion chain from self-reduction-induced noise variance to
+          an effective approximation factor a(n) to a required DCP faulty
+          rate 1/a(n), comparable against Simon's stated 1/O(log n) tolerance.
+          KN-TECH-d1bc4f states this relationship only for Regev's OWN
+          reduction construction at a fixed target a(n), not as a general
+          noise-variance-to-faulty-rate formula; Regev 2004's and BKSW's full
+          derivations are not staged in this repository. This is a genuine,
+          previously unflagged gap in IDEA-20260813-02479f's own mechanism
+          text, not an omission of this filing.
+        responsibility: correctness
+      - claim: >-
+          The combinatorial ceiling on distinct low-variance combinations
+          available from k in {2,3,4} rows is computed explicitly, not
+          asserted.
+        responsibility: size
+      - claim: >-
+          The final verdict (realizable / unrealizable / not computable from
+          available sources, at each standardized ML-KEM level) is reported
+          with its exact numeric margin where computable, never only a
+          qualitative label.
+        responsibility: scope
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  # No exponent-improvement claim of any kind: this hypothesis measures an
+  # access-model realizability gap, not an algorithm's runtime or a lattice
+  # hardness exponent. Disclosed explicitly per CLAUDE.md's exponent-targeting
+  # bias -- this is not that kind of result, and is in this goal's portfolio
+  # because it is the cheapest gate on whether the DCP-route family is even
+  # reachable against ML-KEM, not because it targets an exponent itself.
+
+  heuristic_assumptions:
+    - id: HEUR-MLKEM-36f511-1
+      formal_statement: >-
+        The noise variance of a linear self-reduction virtual sample, built as
+        a bounded-coefficient combination of m <= k real MLWE samples plus
+        fresh public randomness, grows as the sum of the individual combined-
+        term variances: Var(sum_i c_i * e_i) = sum_i c_i^2 * Var(e_i), for
+        independent e_i ~ CBD(eta) (Var = eta/2 exactly).
+      random_model_justification: >-
+        A direct, elementary, EXACT consequence of variance additivity for
+        independent random variables (a finite instance of the property, not
+        an asymptotic approximation), applied to ML-KEM's own CBD(eta)-
+        distributed error coordinates, whose variance eta/2 is exactly known.
+        This is a proven identity, not a random-model conjecture; the only
+        open content is whether it is the CORRECT model for what "noise" means
+        in Simon's DCP faulty-rate sense, which is the separate, not-yet-
+        performed conversion-chain gap named in proof_search_map above.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-12d9b8]
+      falsification_condition: >-
+        The formula does not reduce exactly to eta/2 at m = 1 or to eta at
+        m = 2 with unit coefficients -- falsifies the baseline embedding and
+        blocks any further conclusion until corrected (EXP-MLKEM-12d9b8
+        stage 1, can_terminate_run: true).
+
+  structural_ingredients:
+    - description: >-
+        Variance additivity for sums of independent random variables, applied
+        to ML-KEM's CBD(eta) error coordinates (Var(CBD(eta)) = eta/2 exactly).
+      citation: >-
+        Elementary probability identity; not a fabricated external citation.
+        Used exactly as stated in IDEA-20260813-02479f's own mechanism.
+      role: >-
+        Supplies the exact, non-heuristic half of HEUR-MLKEM-36f511-1; the
+        open content is confined to the conversion-chain gap named above.
+    - description: >-
+        Regev's a(n)-SVP-to-DCP reduction and its faulty-sample-rate
+        parameterization (1/a(n)), as stated in KN-TECH-d1bc4f, with the
+        quadratic dimension blow-up removed by BKSW (KN-LIT-4706), per
+        inputs/DCP-SIMON-2026/paper_extracted_text.txt's own recap.
+      citation: KN-LIT-21383c (Regev 2004); KN-TECH-d1bc4f; inputs/DCP-SIMON-2026/paper_extracted_text.txt.
+      role: >-
+        Names the OBJECT (a(n), faulty rate 1/a(n)) EXP-MLKEM-12d9b8's stage 0
+        must connect self-reduction noise variance to; the exact conversion
+        formula itself is NOT supplied by this citation and is the named gap.
+
+  reduction_chain:
+    core_problem: >-
+      Can standard linear self-reduction from ML-KEM's k in {2,3,4} real
+      Module-LWE public-key rows materialize anywhere near Simon 2026's
+      required Q = k*n^(c+1) virtual samples within that algorithm's own
+      stated noise/faulty-rate budget, at ML-KEM's actual, non-asymptotic
+      parameters?
+    corollaries: []
+    # No downstream problem is claimed reached by a published reduction; this
+    # hypothesis terminates at the access-model verdict itself, disclosed
+    # explicitly rather than left implicit.
+
+  predictions:
+    - metric: n_to_lattice_dimension_correspondence
+      direction: different
+      minimum_effect: >-
+        A pinned, source-cited definition of Simon's "n" (DONE by this design
+        task: the SVP/LWE lattice dimension, DCP group order 2N ~ 2^(n+1)
+        post-BKSW) plus an explicitly disclosed, unverified working
+        substitution n := k*256 for ML-KEM's actual module dimension.
+    - metric: required_virtual_sample_count_q
+      direction: different
+      minimum_effect: >-
+        The exact numeric value of Q = k*n^(c+1) at ML-KEM-512/768/1024's
+        pinned n (under the disclosed working definition), at Simon's own
+        stated minimal c = 12, with a sensitivity sweep over c > 12.
+    - metric: self_reduction_noise_variance_at_required_q
+      direction: higher
+      minimum_effect: >-
+        The noise variance per virtual sample when approaching the required Q
+        from k in {2,3,4} real rows via standard linear self-reduction;
+        "higher" because variance-additivity guarantees growth with the
+        number/magnitude of combined terms -- the open question is the exact
+        numeric severity and, pending stage 0, its translation into an
+        effective faulty rate, not the direction.
+    - metric: realizability_verdict
+      direction: different
+      minimum_effect: >-
+        A three-way verdict (realizable within budget / unrealizable /
+        not computable from currently available sources) at each of
+        ML-KEM-512/768/1024, with an exact numeric margin wherever computable,
+        and a sensitivity range over c.
+
+  test_boundary:
+    instances:
+      - >-
+        ML-KEM-512 (k = 2), ML-KEM-768 (k = 3), ML-KEM-1024 (k = 4); FIPS 203
+        standardized q = 3329, eta1/eta2 per level (512: eta1=3, eta2=2;
+        768/1024: eta1=2, eta2=2); n := k*256 as the explicit, disclosed,
+        unverified working definition of Simon's lattice dimension for this
+        arithmetic exercise (see assumptions above).
+      - >-
+        Simon 2026's own stated constants: Q = k*n^(c+1), c >= 12 (minimal
+        stated value, with a sensitivity sweep c in {12, 13, 15, 20}), k > c
+        (paper's own condition on its internal parameter, distinct from
+        ML-KEM's module rank -- both use the symbol k; EXP-MLKEM-12d9b8 must
+        keep these visibly distinct throughout), faulty-rate tolerance
+        1/O(log n).
+      - >-
+        NOT IN SCOPE: Simon's Lemma 3 correctness (IDEA-20260813-4aecda); the
+        base reduction's own noise rate absent self-reduction
+        (IDEA-20260813-0cf345); any HQC or CSIDH instance
+        (GOAL-QALG-001 non_duplication); any real ML-KEM implementation,
+        lattice software, or quantum simulation.
+    parameters:
+      k: [2, 3, 4]
+      q: 3329
+      eta1: {k2: 3, k3: 2, k4: 2}
+      eta2: 2
+      n_working_definition: "k*256"
+      c: [12, 13, 15, 20]
+    implementation: >-
+      Closed-form symbolic/numeric arithmetic evaluation only; no ML-KEM
+      implementation, no lattice software, no quantum simulation. Full staging
+      in experiments/EXP-MLKEM-12d9b8/specification.yaml.
+    budget: {}
+    # Populated in experiments/EXP-MLKEM-12d9b8/specification.yaml, not duplicated here.
+
+  falsification_conditions:
+    - >-
+      F1: the noise-variance formula does not reduce to the base CBD(eta)
+      variance at m = 1, or to eta at m = 2 with unit coefficients -- falsifies
+      this hypothesis's own baseline embedding and blocks any further
+      conclusion until corrected.
+    - >-
+      F2: the realizability verdict is "realizable within budget" (noise/
+      faulty-rate cost stays inside 1/O(log n) even at the required Q) at any
+      standardized level, robustly across the sensitivity range over c -- this
+      REFUTES this hypothesis's own predicted severity and means the sample-
+      access-model obstruction is NOT what closes this route at that level,
+      redirecting remaining scrutiny fully onto IDEA-20260813-4aecda (Lemma 3)
+      and IDEA-20260813-0cf345 (base reduction noise rate).
+    - >-
+      F3 (does NOT falsify -- confirms the predicted severity): the
+      realizability verdict is "unrealizable" (cost exceeds budget by an
+      overwhelming margin) at all three standardized levels, robustly -- a
+      positive finding for this hypothesis, recorded as a named, scoped
+      closure of the concrete-attack-reach question (Q2) for standard self-
+      reduction specifically, independent of Q1's (Lemma 3's) resolution.
+    - >-
+      F4: stage 0's noise-variance-to-faulty-rate conversion chain cannot be
+      derived or sourced within EXP-MLKEM-12d9b8's stage-0 budget -- this is
+      NOT a falsification of the hypothesis and NOT a realizability verdict of
+      either kind; it is reported as "NOT COMPUTED: conversion chain
+      unavailable from available sources," an honest infrastructure/
+      derivation-availability outcome (AGENTS.md rule 5), and the run stops
+      there without defaulting to either verdict.
+
+  interpretation_limits:
+    - >-
+      This hypothesis audits only STANDARD linear self-reduction as the
+      sample-generation mechanism; a not-yet-published cleverer technique
+      (possibly exploiting Galois-orbit structure per IDEA-20260813-8aa6ea, or
+      some other public symmetry) is explicitly out of scope and named as an
+      open direction, not ruled out.
+    - >-
+      A closure finding here applies specifically to the standard-self-
+      reduction access model at ML-KEM's three standardized levels under the
+      disclosed n := k*256 working definition; it does not close the
+      possibility that some future, differently-shaped noise-tolerant DCP
+      algorithm with a much smaller required Q could still be realizable.
+    - >-
+      Results here do not transfer to RQ-QALG-122b59 (HQC) or RQ-QALG-74bf20
+      (CSIDH) per GOAL-QALG-001's own non_duplication note; those schemes have
+      different public-key structures and different sample-access models
+      entirely.
+    - >-
+      Realizability of the sample-access model is a NECESSARY, not sufficient,
+      condition for any concrete attack; it is silent on Lemma 3's correctness
+      (KN-LIT-e204ab, UNVERIFIED throughout) and on the base reduction's own
+      noise rate.
+    - >-
+      Every numeric output in this line depends on Simon 2026's own claim
+      being taken at face value for the purpose of the arithmetic (its
+      stated Q formula, its stated tolerance, its stated k>c condition); this
+      hypothesis makes NO assertion that Simon's underlying algorithm is
+      correct, and a favorable (realizable) verdict here would say nothing
+      about whether the rest of the paper survives scrutiny (KN-OPEN-8a5965).
+
+  status: proposed
+  status_note: >-
+    UNCHANGED FROM proposed BY THIS FILING (TASK-20260814-1b47ba), matching
+    this program's established precedent for exactly this design step
+    (H-MLKEM-7d9bcc's own status_note; H-CSIDH-3eaede's sibling design task
+    TASK-20260814-bdf473 in this same batch, which states the identical
+    rule explicitly: "the hypothesis moves past proposed only after a run
+    and review, not at specification time"). This task's own objective text
+    ("convert IDEA-20260813-02479f into a specified hypothesis... with an
+    explicit test boundary and distinguishable outcomes") is satisfied by
+    this record's CONTENT (docs/task-lifecycle.md step 3's own readiness
+    test -- an explicit test boundary and a distinguishable, never-defaulted
+    three-way realizability verdict, both present above), not by advancing
+    the `status` field itself; moving `status` to `specified` is reserved,
+    by this program's own precedent, for after TASK-20260814-11516e's
+    independent red-team review and this batch's ledger archive
+    (TASK-20260814-5870c1), which is a separate, later Coordinator act. This
+    is NOT a claim that the paired experiment contract is unapproved --
+    EXP-MLKEM-12d9b8 IS approved and frozen by this same filing task; only
+    the HYPOTHESIS's own status label is held at `proposed` pending
+    independent review, and only the paired handoff's DISPATCH remains held
+    (see ledger/handoffs/TASK-20260814-807901.yaml's own notice).
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260813-02479f.yaml
+    - ledger/goals/GOAL-QALG-001.yaml
+    - ledger/goals/GOAL-QALG-001/checkpoints/BATCH-d4b33f.yaml
+    - ledger/questions/RQ-QALG-457b41.yaml
+    - knowledge/literature/KN-LIT-e204ab.md
+    - knowledge/literature/KN-LIT-21383c.md
+    - knowledge/open-problems/KN-OPEN-8a5965.md
+    - knowledge/techniques/KN-TECH-d1bc4f.md
+    - inputs/DCP-SIMON-2026/paper_extracted_text.txt
+    - experiments/EXP-MLKEM-12d9b8/specification.yaml
