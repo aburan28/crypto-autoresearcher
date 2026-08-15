@@ -227,6 +227,84 @@ PROVENANCE_ASSERTS_LITERATURE = {"known", "adaptation"}
 
 OBSTRUCTION_REQUIRED = ["statement", "quantity", "value", "scope"]
 
+# `review_plan` on a handoff follows the same optional-when-present rule. What
+# this checks is the plan's INTERNAL consistency, which is all a single record
+# can show: whether the reviewers honoured it is cross-checked against their
+# attestations by `tools/check_review_independence.py`, which needs the reports
+# and so cannot run here.
+REVIEW_VERDICTS = {"holds", "breaks", "inconclusive"}
+
+
+def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate a `review_plan` block on a handoff."""
+    plan = body.get("review_plan")
+    if plan is None:
+        return
+    if not isinstance(plan, dict):
+        ctx.err(path, "review_plan must be a mapping")
+        return
+    for field in ("claim_under_review", "coordinator_prior"):
+        if not str(plan.get(field) or "").strip():
+            ctx.err(path, f"review_plan.{field} is required; the prior is "
+                          f"recorded before the round so concurrence can be "
+                          f"told apart from agreement with the Coordinator")
+    joints = plan.get("joints")
+    if not isinstance(joints, list) or not joints:
+        ctx.err(path, "review_plan.joints must be a nonempty list; a review "
+                      "with no named load-bearing step cannot show coverage")
+    else:
+        seen: dict[str, int] = {}
+        for index, entry in enumerate(joints):
+            if not isinstance(entry, dict):
+                ctx.err(path, f"review_plan.joints[{index}] must be a mapping")
+                continue
+            name = str(entry.get("joint") or "").strip()
+            if not name:
+                ctx.err(path, f"review_plan.joints[{index}].joint is empty")
+            else:
+                seen[name] = seen.get(name, 0) + 1
+            if not str(entry.get("assigned_to") or "").strip():
+                ctx.err(path, f"review_plan.joints[{index}] has no "
+                              f"assigned_to; an unowned joint is the coverage "
+                              f"gap this plan exists to make visible")
+            if not str(entry.get("attack_plan") or "").strip():
+                ctx.err(path, f"review_plan.joints[{index}] has no "
+                              f"attack_plan; a worked attack returns a result "
+                              f"either way, 'review this' returns an opinion")
+        for name, count in seen.items():
+            if count > 1:
+                ctx.err(path, f"review_plan joint '{name}' is listed {count} "
+                              f"times; one joint, one owner")
+    blindness = plan.get("blindness")
+    if blindness is not None:
+        if not isinstance(blindness, dict):
+            ctx.err(path, "review_plan.blindness must be a mapping")
+        elif (blindness.get("lifted_for")
+                and not str(blindness.get("rationale") or "").strip()):
+            ctx.err(path, "review_plan.blindness.lifted_for is nonempty and "
+                          "requires a rationale; blindness is lifted on "
+                          "purpose, never drifted out of")
+    control = plan.get("proves_too_much")
+    if not isinstance(control, dict) or not (control.get("objects") or []):
+        ctx.err(path, "review_plan.proves_too_much.objects is required; the "
+                      "argument is run against objects where its conclusion is "
+                      "known false, as controls-before-belief for an argument")
+    elif not str(control.get("failure_signature") or "").strip():
+        ctx.err(path, "review_plan.proves_too_much.failure_signature is "
+                      "required; state what the argument must do on a "
+                      "known-false object or the control cannot fail")
+    rederivation = plan.get("blind_rederivation")
+    if isinstance(rederivation, dict) and rederivation.get("required"):
+        for field in ("quantity", "assigned_to"):
+            if not str(rederivation.get(field) or "").strip():
+                ctx.err(path, f"review_plan.blind_rederivation.{field} is "
+                              f"required when required is true")
+        if not (rederivation.get("blind_from") or []):
+            ctx.err(path, "review_plan.blind_rederivation.blind_from is "
+                          "required; name the producer's implementation, notes "
+                          "and report, or the independence is not checkable")
+
+
 def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
     """Validate `citations` and hypothesis `structural_ingredients` entries."""
     groups = [("citations", body.get("citations"))]
@@ -419,6 +497,8 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     check_citations(path, body, rec_type, ctx)
     if rec_type in ("evidence", "coordinator_decision"):
         check_obstruction(path, body, ctx)
+    if rec_type == "handoff":
+        check_review_plan(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
         promotion = body["knowledge_promotion"]
         if not isinstance(promotion, dict):
