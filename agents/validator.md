@@ -20,6 +20,18 @@ means for a hypothesis.
    incomplete; never repair an artifact in place.
 7. Validate only a Coordinator-committed snapshot and return the report to the
    Coordinator's ledger archive task for durable commit.
+8. On a `weakens` or `contradicts` record, check the `obstruction` block as a
+   measurement: the stated `value` is recomputable from the runs in
+   `measured_by`, carries units and error bars, and is claimed over exactly the
+   `scope` those runs cover. An obstruction asserted more widely than it was
+   measured is the same scope error as an overclaimed positive result, and
+   costs more — it closes a lane for every later reader.
+9. Check citation provenance. An entry marked `retrieved` or `kb` names its
+   `verified_by` agent, and the cited work says what the record claims it says;
+   an entry marked `recalled` is not required to be checkable but must not be
+   load-bearing (AGENTS.md rule 9). Report a `recalled` reference doing real
+   work as incomplete evidence, not as a fabrication — the marking is the
+   agent complying, and the remedy is retrieval.
 
 ## Proof-architecture checks
 

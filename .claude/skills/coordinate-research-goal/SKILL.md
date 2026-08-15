@@ -85,6 +85,21 @@ For every batch, run this sequence:
 5. In that same ledger commit, update the `GOAL-*` record with the batch,
    decision, latest verified commit, and exactly one next action. Rerank the
    remaining hypotheses only after this committed checkpoint.
+
+   **Read the obstruction registry before you rerank.** Run
+   `python3 tools/obstruction_registry.py --unexamined`. For each entry, ask
+   the reversal question: which theory takes this measurement as its
+   *hypothesis* rather than its refutation? A form that is indefinite blocks
+   every argument needing positivity and is the premise of the operator theory
+   built for indefinite forms; a degree that grows blocks elimination and
+   bounds the object it grows in. The registry crosses goals deliberately —
+   the reversal that matters is usually not available to the session that
+   measured the obstruction, and arrives later against a theory nobody had in
+   hand at the time. A candidate that survives this question enters the
+   ranking as an ordinary hypothesis with its own record; it gets no priority
+   for having come from here. "No theory takes it up" is a complete answer,
+   and belongs in that record's `resource_check.reading` so the next rerank
+   does not re-ask it blind.
 6. Generate the next bounded batch and return to step 1 while the goal remains
    `active`. Preserve failed, invalid, deferred, and anomalous tasks as scoped
    evidence and route them to a repair, replication, or new positive search

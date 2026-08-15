@@ -59,7 +59,16 @@ review, and synthesis.
      with direction, strength (per the hierarchy in
      `docs/evidence-and-reproducibility.md`), `claim_tier` (never exceeding
      what the runs' parameters allow), `certificate_refs`,
-     `proof_status`/`proof_refs`, boundaries, and unresolved confounds;
+     `proof_status`/`proof_refs`, boundaries, and unresolved confounds. When
+     the direction is `weakens` or `contradicts`, fill the `obstruction` block:
+     the quantity that blocks the approach, its measured value with units and
+     error bars, the runs it is read from, and the scope those runs cover — a
+     verdict serves this review, a measurement serves every later reader. Then
+     fill its `resource_check`, which asks which theory takes that measurement
+     as its *hypothesis* rather than its refutation. Ask it here because the
+     object is still loaded and the scope is already written down;
+     `examined: true` recording that no theory takes it up is a complete
+     answer, and a null check blocks the decision;
    - record the `coordinator_decision` in `ledger/decisions/` choosing one
      transition: replicate | expand | refine | support | weaken |
      reject_scoped | inconclusive | pause, with rationale, evidence refs,
