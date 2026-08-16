@@ -1,0 +1,211 @@
+experiment:
+  id: EXP-LATDUAL-89afec
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-725f05; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-725f05
+  question_id: RQ-MLKEM-003
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure a dual distinguisher's success curve against a nested dual-vector budget at small
+    LWE parameters, with a per-instance indicator matrix, a churn statistic, precision and pool-quality
+    ablations, and a b-uniform null
+  objective: 'The run reduces one uncertainty: whether this pipeline''s success probability plateaus
+    below one as the dual-vector budget grows, and if so whether the plateau is a property of the
+    instances or of the instrument. Stated as parts: (i) does the b-uniform null stay at chance across
+    the entire budget grid, which is the precondition for reading anything; (ii) what is P(success
+    | N) on the signal arm across a geometric budget grid built from nested prefixes of a single per-instance
+    pool, with binomial intervals; (iii) if a plateau exists, does it survive doubling the fixed-point
+    precision and extending the pool by longer reduction, and is the churn between consecutive large
+    budgets low enough for the plateau to be instance-borne. The run is not asked whether the dual
+    attack beats the primal attack, is not asked to reproduce anything reported elsewhere, and is
+    not asked anything about ML-KEM. A run that reaches P(success) = 1 everywhere is a complete run
+    reporting a measured absence of any floor in the reachable band, which is a usable obstruction
+    for anyone proposing to study one at those parameters.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: at the tested (q, n, m, k_fft,
+      secret and error laws, reduction routine, pool construction, precision, seed set), the measured
+      success curve had the reported shape and any plateau had the reported level, churn and ablation
+      behaviour, with the b-uniform null flat at chance. WHAT DOES NOT FOLLOW: nothing about ML-KEM-512/768/1024
+      or FIPS 203; nothing about whether the dual attack beats the primal attack anywhere; no identification
+      of an observed plateau with any externally reported phenomenon; no security consequence; and
+      no claim that a floor absent in the band is absent at larger n, since the band is set by the
+      reducer and not by the mathematics.'
+  inputs:
+    procedure: 'STAGE 0 (cost: 0 compute). Freeze grid, seed schedule, pool size, precision, nesting
+      order and the churn definition. STAGE 1 (cost: high, dominant). Pool construction: per seed,
+      exact-integer q-ary dual lattice reduction producing at least 512 vectors, sorted by norm and
+      recorded with exact coordinates. STAGE 2 (cost: medium). Scoring at each N over pool prefixes;
+      record success bit and margin per cell. STAGE 3 (cost: low). Null arm through the identical
+      pool and code path with b uniform. STAGE 4 (cost: low). Column means, binomial intervals, plateau
+      detection, churn statistic. STAGE 5 (cost: medium). Precision ablation: rescore the two largest
+      N at doubled fixed-point precision. STAGE 6 (cost: high). Pool ablation: extend the pool by
+      a longer reduction on a subsample and rescore. STAGE 7 (cost: low). Positive control (zero error)
+      and pool-order shuffle control. STAGE 8 (cost: low). Emit immutable run records through harness/runner.py
+      with seeds and the inference block.'
+    instrument: 'Python 3.11 standard library only. Verified in this environment: numpy, fpylll and
+      Sage are all absent, and none is used. Exact integer arithmetic for the dual lattice and the
+      reduction; fractions.Fraction for Gram-Schmidt; a precomputed integer cosine table at stated
+      bit precision for scoring; random.Random seeded per run. Run records, seeds and the inference
+      block are emitted through harness/runner.py in the existing run-record format. No estimator,
+      no external solver and no network access are on the critical path.'
+    parameters: q in {97, 257, 769}; n in {24, 32, 40, 48}; m in {2n, 3n}; centered binomial eta in
+      {2, 3}; k_fft in {1, 2}; pool size 512 per instance, extended to 1024 on a 20-seed subsample
+      for the pool ablation; N grid {8, 16, 32, 64, 128, 256, 512}; 120 seeds per grid point; fixed-point
+      cosine precision 32 bits, doubled to 64 for the precision ablation.
+  controls:
+  - b-uniform null arm through the identical pool and code path, in the same invocation.
+  - Doubled fixed-point precision rescore of the plateau region.
+  - Extended-pool arm with vectors from a longer reduction, testing reduction-quality saturation.
+  - Zero-error positive control where success must be attained at the smallest N.
+  - 'Pool-order shuffle control: rescore with the pool prefix chosen at random rather than by norm,
+    confirming that the nesting order is what produces monotonicity.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The b-uniform null, in the same invocation from the same seed stream:
+    identical A, identical dual-vector pool, identical scoring, but b drawn uniformly at random and
+    a nominal secret drawn independently. The null must show P(success | N) flat at the chance level
+    1/q^{k_fft} across the entire N grid, with no plateau above chance, and a churn statistic consistent
+    with independent coin flips. If the null exhibits a plateau above chance, the pipeline manufactures
+    apparent success without a planted secret and every signal-arm curve is an artifact, recorded
+    as a controlled null under inventor-protocol section 3. This null is what makes the observation
+    meaningful: a floor is only interesting if the same code shows no floor when there is nothing
+    to find.'
+  independent_variables:
+  - dual-vector budget N
+  - lattice dimension n
+  - modulus q
+  - k_fft
+  - fixed-point precision
+  metrics:
+    primary:
+    - P(success | N) with binomial intervals, signal arm
+    - P(success | N), null arm
+    - churn statistic between consecutive large N
+    - plateau level and onset budget
+    secondary:
+    - success margin per cell
+    - pool vector norms per instance
+    - plateau shift under each ablation
+    - wall clock and peak memory per instance
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The plateau level L = P(success | N_max) with its binomial interval, the churn statistic
+      C between N_max/2 and N_max, and the plateau shifts under the precision and pool ablations -
+      all reported beside the null arm's curve.
+    formula: 'L = (1/S) * sum over seeds i of X[i][N_max], with a Wilson interval at 95 percent. C
+      = |{i : X[i][N_max] = 1 and X[i][N_max/2] = 1}| / |{i : X[i][N_max] = 1}|. A plateau is declared
+      present when L < 0.9 and L - P(success | N_max/2) < 0.05 with both intervals excluding a larger
+      gap. It is declared instance-borne only when additionally C >= 0.85 and both ablation shifts
+      are below 0.05. The null arm''s predicted curve is the constant chance level 1/q^{k_fft} at
+      every N.'
+    source: Pre-registered in the parent proposal IDEA-20260816-725f05 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at q <= 769, n <= 48, k_fft <= 2, pool size <= 1024, with exhaustive candidate
+      enumeration and retained ground truth. These parameters are forced by requiring exact success
+      determination and full enumeration simultaneously. The transfer assumption is stated as none:
+      no plateau level, onset budget or churn value is projected beyond the tested grid, and in particular
+      the absence of a plateau within a band whose ceiling is set by a pure-Python reducer is reported
+      as an absence within that band and never as an absence in general. Nothing is transferred to
+      ML-KEM or FIPS 203 parameters.'
+    correspondence: null
+  tail_checks:
+  - Smallest N, where both arms should sit at chance and be indistinguishable.
+  - Largest N, where the plateau is read and where pool exhaustion could masquerade as a floor.
+  - The k_fft = 1 corner, where the chance level is large and the dynamic range is smallest.
+  - Instances that never succeed at any N, examined individually for pool-norm anomalies.
+  - The doubled-precision rescore's own extremes, where a cell flips from failure to success.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Stop a grid point at 120 seeds or 8 wall-clock hours, reporting achieved counts with intervals.
+  - Halt and report an instrument defect if the null arm exceeds chance by more than its interval
+    at any N.
+  - Stop the pool ablation at 20 seeds, and report its shift as an indicative rather than a primary
+    number.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The null arm sits at chance across the entire budget grid within its intervals,
+    and P(success | N) is reported at all seven budgets on the signal arm with Wilson intervals of
+    width at most 0.12, together with the churn statistic and both ablation shifts - whatever shape
+    the curve turns out to have.
+  falsification_criterion:
+  - 'Null arm above chance at any N: no signal-arm number is interpretable.'
+  - 'Zero-error positive control fails: the scoring code is wrong and the run is void.'
+  - 'Plateau shift exceeds 0.05 under either ablation: the plateau is an instrument artifact, reported
+    with the responsible mechanism named.'
+  - 'Curve reaches 1.0 at every grid point: no floor in the reachable band, reported as a measured
+    absence.'
+  - 'Pool-order shuffle produces a monotone curve indistinguishable from the norm-ordered one: the
+    nesting is not doing what the design assumes and the budget axis is not what it claims to be.'
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-725f05
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - Whether a pool of 512 vectors reduced in pure Python is short enough for the success curve to
+    leave chance at all is unknown before the run; a Coordinator may want a pilot before approving
+    the full grid.
+  - The plateau-detection rule is stated with thresholds but those thresholds are chosen, not derived,
+    and a Coordinator must either derive or explicitly own them.
+  - The relationship between this pipeline's floor, if any, and the phenomenon named in KN-OPEN-016
+    is undefined and must remain so in any evidence record.
+  - Whether the pool ablation at 20 seeds carries enough power to move a verdict is undetermined.

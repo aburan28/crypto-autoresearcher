@@ -1,0 +1,218 @@
+experiment:
+  id: EXP-LATDUAL-65c31b
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-b824af; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-b824af
+  question_id: RQ-MLKEM-003
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the paired ratio of required BKZ blocksizes for primal recovery between matched structured
+    and unstructured LWE instances at toy dimensions, with a ring-deleted null forced to unity
+  objective: 'The run reduces one uncertainty: how large the module-structure discount is when measured
+    as a dimensionless per-pair ratio rather than quoted as a model-relative bit figure. Stated as
+    parts: (i) does the ring-deleted null, which preserves the entry multiset and destroys only the
+    negacyclic structure, return a ratio whose interval contains 1, which is the precondition for
+    attributing anything to the ring; (ii) at each grid point, what is the paired median D between
+    the structured arm and the matched unstructured arm, with a paired bootstrap interval and an explicit
+    censoring map, reported both naively and under an interval-censored estimator; (iii) does median
+    D drift with dimension across the grid, addressing KN-OPEN-026''s Q2 within the reachable band.
+    The run is not asked for a bit figure, is not asked whether any parameter set is affected, and
+    is not asked to reproduce any relayed number. A run returning D = 1 within a narrow interval at
+    every grid point is a complete run: it measures that this observable detects no discount at these
+    parameters, which is a usable obstruction and a bound on the effect''s size in blocksize units.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: at the tested (q, n, d, k,
+      m, secret and error laws, embedding factor, blocksize ceiling, seed set), the paired median
+      blocksize ratio between matched structured and unstructured instances was D with the stated
+      interval and censoring, and the ring-deleted null returned a ratio whose interval contained
+      1. WHAT DOES NOT FOLLOW: no bit-security figure of any kind, since no cost model is applied
+      anywhere in this contract; nothing about ML-KEM-512/768/1024, Kyber, Dilithium or any FHE parameter
+      set; no claim that a discount measured here persists at deployed dimensions; no statement about
+      what the sources KN-OPEN-026 relays report; and no claim about discounts realised through mechanisms
+      this observable is blind to, notably faster reduction at fixed blocksize.'
+  inputs:
+    procedure: 'STAGE 0 (cost: 0 compute, ~3h human). Freeze the generator, the embedding factor,
+      the blocksize schedule and ceiling, the censoring rule, the monotonicity check protocol and
+      the seed schedule. STAGE 1 (cost: low). Matched-triple generation per seed: structured, NULL
+      1 unstructured, NULL 2 ring-deleted, all sharing s and e. STAGE 2 (cost: high, dominant). Progressive
+      BKZ plus Babai on every instance, recording beta* or censoring and the exact-match flag. STAGE
+      3 (cost: low). Paired ratio computation and bootstrap intervals, naive and interval-censored.
+      STAGE 4 (cost: low). Monotonicity check on a subsample by continuing past first success. STAGE
+      5 (cost: medium). Independent-secret secondary condition on a subsample. STAGE 6 (cost: low).
+      Zero-error positive control in all three arms. STAGE 7 (cost: low). Drift regression of median
+      D against n with interval. STAGE 8 (cost: low). Emit immutable run records through harness/runner.py
+      with seeds and the inference block.'
+    instrument: Python 3.11 standard library only; numpy, fpylll and Sage are absent from this environment
+      and none is used. Exact-integer q-ary primal embedding construction; fractions.Fraction Gram-Schmidt;
+      progressive BKZ with integer enumeration inside each block; Babai nearest-plane decoding; exact
+      componentwise comparison of the recovered vector against the retained secret. Bootstrap and
+      the interval-censored estimator implemented directly in pure Python. Seeds and run records through
+      harness/runner.py.
+    parameters: q in {769, 3329}; cyclotomic degree d in {8, 16, 32}; module rank k with n = k*d and
+      n in {24, 32, 40, 48, 56, 64}; m = 2n; secret and error from a centered binomial with eta =
+      2; blocksize schedule 2, 4, ..., up to a ceiling of 24 at n <= 48 and 30 at n > 48; 60 seeds
+      per grid point; independent-secret secondary condition on 20 seeds per grid point.
+  controls:
+  - 'NULL 1: matched unstructured instance, identical n, q, s, e, sample count, uniform public matrix;
+    the denominator of D.'
+  - 'NULL 2: ring-deleted structured instance with entry multiset preserved by a seeded within-block
+    permutation.'
+  - 'Independent-secret condition: a secondary run with s and e drawn independently per arm, to check
+    the pairing is not producing the effect.'
+  - 'Monotonicity check: continue reduction past the first success on a subsample and confirm recovery
+    does not un-succeed.'
+  - Positive control with error e identically zero, where beta* must be minimal in both arms; failure
+    indicts the recovery code.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls, both executed in the same invocation as the signal arm from
+    the same seed stream. NULL 1, the matched unstructured instance: identical n, q, s, e and sample
+    count, differing only in that the rotation matrix is replaced by a uniform matrix. This is the
+    denominator of D. NULL 2, the ring-deleted structured instance: the structured matrix''s entries
+    are permuted within each rotation block by a seeded permutation, preserving the exact entry multiset
+    and destroying the negacyclic structure. NULL 2 must show D indistinguishable from 1 against NULL
+    1. If NULL 2 shows a discount, the measured effect is a property of the entry multiset or block
+    layout rather than of the ring, and the signal arm''s D is an artifact recorded as a controlled
+    null under inventor-protocol section 3.'
+  independent_variables:
+  - arm (structured, matched unstructured, ring-deleted)
+  - lattice dimension n
+  - cyclotomic degree d at fixed n
+  - modulus q
+  - secret pairing (shared versus independent)
+  metrics:
+    primary:
+    - beta* or censoring flag per instance
+    - paired ratio D per seed
+    - median D with paired bootstrap interval per grid point
+    - median D for the ring-deleted null against the unstructured arm
+    secondary:
+    - censoring rate per arm per grid point
+    - root-Hermite factor achieved at beta*
+    - monotonicity violation count
+    - Babai residual norm at the blocksize preceding beta*
+    - wall clock and peak memory per instance
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The paired median of D = beta*(NULL 1) / beta*(structured) at each grid point, with
+      a paired bootstrap interval and an explicit censoring-adjusted variant, and the same quantity
+      with NULL 2 in place of the structured arm, which is predicted to be 1.
+    formula: 'For seed i, D_i = beta*_i(unstructured) / beta*_i(structured), both from the same seed''s
+      matched pair. The reported statistic is median_i D_i with a 2000-resample paired bootstrap interval,
+      computed twice: once discarding censored pairs, and once with a Turnbull-style interval-censored
+      estimator over pairs where at least one arm is censored, with both reported side by side and
+      their difference treated as a bound on the censoring''s influence. The null prediction is median_i
+      D_i(NULL 2 versus NULL 1) = 1 with its interval containing 1.'
+    source: Pre-registered in the parent proposal IDEA-20260816-b824af before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at n in {24, 32, 40, 48, 56, 64}, d in {8, 16, 32}, q in {769, 3329}, blocksize
+      ceiling at most 30, in pure Python with neither numpy nor fpylll present. These are toy parameters
+      chosen because exact recovery against retained ground truth is required and is only observable
+      here. The transfer assumption is stated as: none is made. The slope of D against n is reported
+      strictly as a within-range slope with its interval, no value of D is projected to ML-KEM-512/768/1024
+      or to any FHE parameter set, and a discount measured here is not a bit-security figure and is
+      not converted into one.'
+    correspondence: null
+  tail_checks:
+  - The smallest grid point, where beta* should be small and censoring near zero, verifying the observable
+    exists at all.
+  - The largest grid point, where censoring dominates and the censored estimator must be reported
+    instead of the naive median.
+  - Seeds whose structured instance has an anomalously short secret, checked separately so instance-hardness
+    tails are not read as a ring effect.
+  - The d = 8, k = 8 corner versus the d = 32, k = 2 corner at equal n, separating ring degree from
+    module rank at fixed dimension.
+  - Pairs where the two arms censor asymmetrically, examined individually.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 10800
+    total_cpu_hours: 12.0
+    maximum_memory_gb: 8
+    maximum_runs: 60
+  stopping_rules:
+  - Stop a grid point at 60 seeds or 8 wall-clock hours, whichever first, reporting the achieved seed
+    count with its interval.
+  - Abandon a grid point and report it as censored if more than 80 percent of pairs hit the blocksize
+    ceiling in both arms.
+  - Halt and report a generator defect if NULL 2's D interval excludes 1 at any grid point.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: At a minimum of three grid points, median D is reported with a paired bootstrap
+    interval of width at most 0.15 and a censoring rate below 0.4, and NULL 2's D interval contains
+    1 at every grid point where the signal arm's D is reported.
+  falsification_criterion:
+  - 'NULL 2''s D interval excludes 1: the effect tracks entry multiset or block layout, not the ring.'
+  - 'Censoring exceeds 80 percent in both arms at every grid point: reachability floor reported instead
+    of a discount.'
+  - 'Zero-error positive control fails in any arm: the recovery code is wrong and every beta* is void.'
+  - 'Monotonicity violations exceed 5 percent: beta* is not well defined as implemented.'
+  - 'Median D interval contains 1 at every grid point: no discount is measurable by this observable
+    at these parameters.'
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-b824af
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The Coordinator must decide whether the shared-secret pairing or the independent-secret condition
+    is the primary arm; the draft runs both without deriving which is the correct matched comparison.
+  - The embedding factor is stated as identical across arms but its value is not derived, and it interacts
+    with beta*.
+  - Whether the entry may report a slope of D against n at all, given a six-point grid with heterogeneous
+    censoring, is a claim-tier decision.
+  - The relationship, if any, between this dimensionless D and the bit figures KN-OPEN-026 relays
+    is not derived here and must not be asserted at review.
