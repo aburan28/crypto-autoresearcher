@@ -126,7 +126,7 @@ matching hazard from the other direction: two writers over one `cairn.jsonl`
 fork a hash-linked log, both appending entries claiming the same predecessor.
 
 **cairn enforces this at write time**, which is better than this program's own
-concurrency story and better than cairn's own documentation claims (§10).
+concurrency story and better than cairn's own documentation claims (§11).
 `Ledger::open_exclusive_with` takes an OS lock and refuses rather than
 proceeding — a lock that silently does nothing being worse than no lock,
 "because it reads as a guarantee". `cairn-mcp` uses it. Verified: a second
@@ -328,7 +328,173 @@ than protocol change:
 - It does not resolve control-plane primacy, closure quorum, or any V4 question.
   Those are Stage 4 and Stage 4 is not planned.
 
-## 9. What to decide first
+## 9. Task claiming, abandonment, and reputation
+
+Two questions came up that deserve a real answer rather than a bolt-on: how
+does an agent claim a piece of work, what happens when it does not finish, and
+would a reputation feature help. They turn out to have different answers on
+each side of the bridge, because the two systems solve mutual exclusion
+differently — one by refusing to need it, one by needing it and not yet
+handling failure.
+
+### 9.1 A cairn objective is never claimed, and that is not a gap
+
+The instinct — "let an agent reserve an objective so two agents don't
+duplicate work, and free the reservation if it doesn't finish" — reproduces a
+design cairn's own `partition.rs` argues against by name:
+
+> The reflex when thousands of nodes must avoid duplicating work is to build a
+> dispatcher... Here they are adversarial and a dispatcher is a single point of
+> censorship, a liveness bottleneck, and a thing that must itself be replicated
+> and agreed on. None of that is necessary, because work assignment does not
+> need agreement.
+
+A reservation needs an expiry, and an expiry is exactly the surface the user's
+question is worried about: claim something, sit on it, and either the timeout
+is short enough to be useless against real work or long enough to be a free
+denial-of-service against anyone who wanted the same objective. cairn's actual
+answer is not a better expiry — it is removing the reservation:
+
+- **Nothing is ever held.** `score_candidate` is free and records nothing;
+  `submit_claim` either wins the frontier or mints zero. There is no state
+  called "claimed" for an objective to get stuck in, so there is nothing to
+  free — the failure mode the question is worried about is structurally
+  absent, not handled well.
+- **Duplication is cheap and self-correcting**, not free but bounded: two
+  agents attempting the same objective waste at most one of their own attempts,
+  never each other's. Confirmed in §11: eve's verbatim copy of alice's claim
+  settles `accept`, `reward 0` — a wasted submission, not a blocked one.
+  Abandoning an attempt costs the abandoner their own sunk compute and nobody
+  else anything.
+- **`work_assignment` is the one place cairn *does* divide work**, and it does
+  it by recomputing a pure function of `(epoch beacon, node_id, objective_id)`
+  rather than by handing out tickets. There is nothing to reclaim because
+  nothing was issued — every node can compute every other node's assignment,
+  which is what makes "did you search your region" checkable after the fact
+  instead of enforced before it.
+
+So: **do not build a claim system for cairn objectives.** If duplicate-effort
+waste across this program's own worktrees becomes a real cost (it is not, yet
+— see §11, everything checked here ran in seconds), the fix is a courtesy
+broadcast over `tools/agent_bus.py` — "attempting sha256:1e919c4c" — same as
+every other cross-session signal in this repo: **a pointer, never a
+permission**, purely advisory, ignorable, and needing no expiry because
+ignoring a stale one costs nothing.
+
+### 9.2 `research_dispatch.py` claims for a real reason, and the release path is missing
+
+The Coordinator's own dispatch queue is the opposite case, and conflating it
+with cairn's would be the mistake. A `TASK-*` card in state `running` holds an
+**exclusive `write_scope`** — `conflicts()` refuses to admit any other task
+whose scope overlaps it — because two producers really can corrupt one
+`experiments/EXP-*/runs/` directory by writing to it at once, in a way no
+verifier downstream would catch as anything other than a bad run. This is
+mutual exclusion over a filesystem, not attempt-diversity over a search space,
+and cairn's "don't reserve anything" answer does not transfer: the queue must
+reserve, because the resource really is exclusive.
+
+Checked directly (`tools/research_dispatch.py`, full text, `grep -n
+"timeout\|stale\|expire\|lease\|heartbeat"`): a task record has `id`, `role`,
+`state`, `depends_on`, `read_scope`, `write_scope`, `artifact_paths`,
+`priority`, `review_required` — **no timestamp field at all**. `state` is the
+entire temporal model. `docs/dynamic-subagent-dispatch.md` confirms the
+intended mechanism is manual: *"The Coordinator records a terminal task
+state..."* — a human or Coordinator session notices a task is done and says
+so. Nothing notices a task that is not going to finish.
+
+**This is a real gap, not a hypothetical one, and this environment produces
+its failure mode routinely.** This session's own system prompt states
+containers are reclaimed after inactivity or when a session ends — an Executor
+holding a `running` task whose container is reclaimed mid-run leaves that
+task's `write_scope` permanently exclusive against every future queue, with no
+record that anything went wrong. `conflicts()` and the `running`-overlap check
+in `research_dispatch.py` both iterate every task literally in state
+`"running"`, forever, with no age check.
+
+The fix does not need inventing: `orchestration/campaign/lease.py` already
+solves the identical problem one layer up (controller leases over a whole
+campaign) with `acquired_at` / `renewed_at` / `expires_at` and a strictly
+increasing `epoch` fencing token so a late owner can never renew a lease a
+newer controller has taken over. Task #2 in this session's tracked work is to
+give `TASK-*` cards the same three fields, so a `running` task past its TTL
+reverts to `queued` (dependencies and `write_scope` re-checked exactly as on
+first dispatch) instead of squatting. This is orthogonal to the cairn bridge
+and worth doing regardless of whether any of the rest of this plan proceeds.
+
+### 9.3 Reputation: the wall it has to be built behind, then what is left
+
+cairn's own docs already ran this experiment and recorded the failure mode by
+name, in a different market on the same ledger. `docs/agent-market.md`:
+
+> **No protocol payment may ever be a function of P2P trade volume.** The
+> moment a fee rebate, a reputation score that pays, a ranking that pays, or
+> any issuance keys off "how much has this agent traded", the buyer stops
+> being a disinterested oracle: a sybil pair can trade a worthless good back
+> and forth at any price for free, because the money returns to the same
+> operator.
+
+Generalized, not reworded: **any protocol-enforced benefit keyed to a
+reputation score is a sybil pair away from being free.** Higher reputation
+buying a lower canary rate, priority in `work_assignment`, better citation
+weight, or faster settlement all reduce to the identical attack — one operator
+runs two identities, trades reputation between them or simply lets the older
+one coast, and collects the discount. `docs/proving-it.md` names the specific
+reason this is not covered by the sybil-resistance the network already has:
+stake-weighted rewards are invariant to splitting because *stake* is
+conserved when divided — reputation is not stake, has no conservation law
+handed to it for free, and "each of those is a channel the model does not
+have" is written about exactly this shape of addition.
+
+**incumbency is the same failure wearing a fairness costume.** A reputation
+score defined as a cumulative total — total settled, total citations received
+— does not need a sybil attack to compound: it rewards tenure by construction,
+and `docs/design/citation-flow-dilution.md` already measured a structurally
+similar compounding effect for citation flow itself (an early, unweighted
+ancestor's share leaks as later contributors slice their own submissions) and
+did not accept "smaller" as good enough — it kept asking whether the leak
+*converges* under load, because a bounded leak and an unbounded one are
+different findings wearing the same percentage. A reputation design deserves
+the same discipline: measure whether an incumbent's score keeps growing
+relative to a skilled newcomer's under a simulated population, not assert
+fairness from the formula's shape.
+
+So, if this is built at all, it is built as **a reader-side view, computed
+from the log, paying and gating nothing** — the same posture `knowledge.rs`
+already takes for replication standing:
+
+> This module computes what to make of it, under a `ConfidencePolicy` the
+> *reader* chooses... Nothing here is written to the log, nothing here moves
+> money, and nothing here can change a settled payout. If that ever stops
+> being true, the popularity contest is back.
+
+Concretely, three constraints, none of them optional:
+
+1. **Windowed or decaying, never cumulative.** A score over the trailing N
+   settled epochs (or exponentially decayed) reflects sustained current
+   contribution; a lifetime total reflects mostly how long ago someone
+   started. This is the direct answer to "doesn't make incumbents super
+   powerful" — it is the one knob that determines whether reputation is a
+   measurement or a moat.
+2. **Bound to a signed identity, never a nickname.** `src/records.rs`
+   normalizes submitter case specifically because "the same key could hold two
+   reputations" is already a named failure mode in this codebase for the
+   simplest possible version of the attack (case-folding one key into two
+   strings). An unsigned nickname reputation is free to fork at will and
+   measures nothing.
+3. **Advisory only, and said so wherever it is shown.** Visible in
+   `list_objectives` or an agent's own dashboard as a hint for *human or agent
+   judgement calls outside consensus* — who to ask for a second opinion, whose
+   decomposition looks worth building on — never as an input to `submit_claim`,
+   `work_assignment`, canary rate, or settlement order.
+
+This belongs in `distributed-researcher` as a `docs/design/reputation.md`
+note in the existing "describes a system that does not exist yet" register —
+not implemented here, and not implemented by this program reading cairn's log
+and inventing its own scoring either, since a reputation view that only this
+program trusts is not a shared fact the network can audit. Flagged as future
+work; not scheduled into any stage above.
+
+## 10. What to decide first
 
 Three decisions gate the rest, and only the first blocks Stage 0:
 
@@ -348,7 +514,11 @@ Three decisions gate the rest, and only the first blocks Stage 0:
    `work_assignment`, whose `node_id` wants to be stable and to equal the
    submitter.
 
-## 10. What was checked before this was written
+None of §9 blocks Stage 0 either: the `TASK-*` lease fix is independent
+maintenance on this program's own dispatcher, and the reputation note is
+explicitly deferred, not scheduled.
+
+## 11. What was checked before this was written
 
 Every claim in §1 and §4 was run rather than read, against `decb9b3` built from
 source. `cargo test --all-targets`: **1396 passed, 0 failed, 1 ignored.**
