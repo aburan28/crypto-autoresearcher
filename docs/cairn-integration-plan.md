@@ -122,11 +122,23 @@ nothing" objective is the one cairn names as paying for not looking.
 
 `CLAUDE.md` describes N worktrees writing shared state, and every rule in it
 exists because a writer read state it had no reason to read. cairn has the
-matching hazard from the other direction: **one writer per log, unenforced at
-write time.** Two servers over one `cairn.jsonl` fork it silently; `audit`
-catches it afterwards, the write does not.
+matching hazard from the other direction: two writers over one `cairn.jsonl`
+fork a hash-linked log, both appending entries claiming the same predecessor.
 
-So: **the log is never in the repository tree.**
+**cairn enforces this at write time**, which is better than this program's own
+concurrency story and better than cairn's own documentation claims (§10).
+`Ledger::open_exclusive_with` takes an OS lock and refuses rather than
+proceeding — a lock that silently does nothing being worse than no lock,
+"because it reads as a guarantee". `cairn-mcp` uses it. Verified: a second
+server on a held log exits 2 with
+
+> another process is already writing …. Two writers fork a hash-linked log —
+> both would append entries claiming the same predecessor. Stop the other
+> process, or give this one its own `--log`
+
+So the failure mode is a loud refusal at startup, not a silent fork found later
+by `audit`. The operational rule is unchanged and now cheap to hold:
+**the log is never in the repository tree.**
 
 - Path `${CAIRN_LOG:-$HOME/.cairn/$(basename "$worktree").jsonl}`, one per
   worktree, resolved by a wrapper (§7) rather than written into `.mcp.json`,
@@ -178,10 +190,16 @@ by both.
 - **Authority split, and it falls out of cairn's own tool surface:** minting and
   funding an objective is CLI-only (`cairn post`, `cairn fund`) and belongs to
   the Coordinator, because funding is the approval decision. The MCP server
-  exposes no posting tool at all — the only writing tool an agent has is
-  `submit_claim`. The Executor gets `score_candidate` (free, records nothing,
-  the inner-loop fitness signal) and `submit_claim`. Validator and Red Team get
-  read tools plus the ability to author `relations`.
+  exposes no posting tool at all — of its nine tools the only one that writes is
+  `submit_claim`, and a test asserts exactly that. The Executor gets
+  `score_candidate` (free, records nothing, the inner-loop fitness signal) and
+  `submit_claim`. Validator and Red Team get read tools plus the ability to
+  author `relations`.
+- **Submitters are signed from the start.** `cairn-mcp --identity <key>` signs
+  both the commitment and the reveal, and the signing key's public half becomes
+  the submitter — so a node's claims are provably its own and nobody else can
+  wear the name. Give each role-and-worktree its own identity; an unsigned
+  server warns that its submitter "authenticates nothing".
 - `/run-experiment` gains: score before claiming, always. `/design-experiment`
   gains: a falsification criterion that cannot be written as a runnable checker
   is a criterion this program should notice it cannot test.
@@ -199,8 +217,20 @@ partial progress pays and holding a result back gains nothing.
 The reason to want this is not the payouts. It is that `frontier_status`
 mechanizes `dominated_by` and `sota_delta`: the inventor protocol asks every
 deliverable to state honestly what dominates it, and today that is a discipline
-a reviewer has to enforce. Under a ratchet it is refused at submission — every
-submission must cite the frontier holder, improvement or not.
+a reviewer has to enforce. Under a ratchet it is refused at submission.
+
+The rule is worth stating exactly, because its error message is narrower than
+its behaviour. **On an objective with a `ratchet` block, once a frontier
+exists, every reveal must cite the frontier holder — improvement or not.** It is
+an admission rule checked at reveal time (a submitter can only cite what was
+public when they built, so a frontier that advanced while their commitment was
+sealed cannot be held against them). Verified: a *worse* artifact, 10 against a
+frontier of 20, revealed with no citation, is refused — though it is refused
+with the words "an improvement must cite the frontier it improves on", which is
+the rule describing itself too narrowly. **A non-ratchet objective has no
+frontier and no citation requirement**, so pass/fail experiment objectives get
+none of this; that is a reason to prefer ratchet shapes for measurement work,
+not an oversight to work around.
 
 *Exit:* a ratchet objective with at least three claims from at least two
 sessions, and a rerank that reads `frontier_status` instead of a hand-maintained
@@ -276,12 +306,13 @@ than protocol change:
   no cairn example covers it.
 - A worked `replay`-kind bundle whose `reproducible_fields` are a run manifest's
   fields, as the reference for Stage 1's V2 objectives.
-- Confirm the submitter story: `require_signed_submitter` plus
-  `cairn identity` makes a node's claims provably its own, but **the MCP server
-  does not sign yet** — a signed submission is a CLI call today. Either that
-  limitation is accepted for Stage 1 (nickname submitters, unauthenticated
-  exactly as now) or signing lands in the server first. It is a stated known
-  limit in `docs/agents.md`, not a surprise.
+- **`docs/agents.md` "Known limits" is stale in two places, and both mislead in
+  the same direction** — they understate what is built, so a reader plans around
+  a problem that is already solved. It says the MCP server "does not sign yet";
+  `cairn-mcp --identity` signs both halves of a submission and has tests for it.
+  It says one-writer-per-log is "unenforced at write time" with "no file lock";
+  `Ledger::open_exclusive_with` takes one and `cairn-mcp` calls it. Both cost
+  this plan a wrong paragraph before they were checked against the code.
 
 ## 8. What this does not buy
 
@@ -310,6 +341,41 @@ Three decisions gate the rest, and only the first blocks Stage 0:
    demand. Until there is a funder who is not this program, `reward` is a
    priority signal, and the honest thing is to say so in the objectives rather
    than to imply a market that does not exist.
-3. **Signed submitters at Stage 1, or nicknames?** Signing means the CLI path;
-   nicknames mean the MCP path and authenticate nothing. Both are defensible;
-   picking silently is not.
+3. **One identity per what?** Signing is not a tradeoff — `cairn-mcp --identity`
+   signs, so there is no CLI-versus-MCP choice to make and Stage 1 should sign
+   from the first submission. What remains is a naming decision with no default:
+   one key per worktree, per role, or per goal. Per-worktree matches
+   `work_assignment`, whose `node_id` wants to be stable and to equal the
+   submitter.
+
+## 10. What was checked before this was written
+
+Every claim in §1 and §4 was run rather than read, against `decb9b3` built from
+source. `cargo test --all-targets`: **1396 passed, 0 failed, 1 ignored.**
+
+| claim | how it was checked | result |
+|---|---|---|
+| certificate path works | posted `examples/ecdlp`, scored the shipped `k` | `accept: verified: k*G = Q`, checker pinned by sha256 |
+| a wrong witness is caught | flipped the last hex digit of `k` | `reject: k*G does not equal the target point Q` |
+| `score_candidate` records nothing | same two calls | "Nothing was recorded. This was a local check." |
+| replay maps to a run manifest | replay objective over a script printing `{solving_degree, relation_count}` | `accept: replay reproduced 2 declared field(s)` |
+| a fabricated measurement is caught | claimed degree 5, script prints 7 | `reject: replay disagrees with the claim` |
+| **timings cannot back a claim** | declared `wall_clock_seconds` reproducible | `invalid_spec: machine-dependent fields cannot be reproducible` |
+| `unavailable` ≠ `reject` (§4b) | scored a `lean` objective with no Lean on PATH | `unavailable: 'lean' not on PATH` + "Do not treat it as a rejection" |
+| editing a checker forks the objective | changed one hex digit of `checker_sha256` | `sha256:26dfd158…` → `sha256:172b6878…` |
+| two writers are refused (§5) | second `cairn-mcp` on a held log | exit 2, "another process is already writing" |
+| MCP surface is 9 tools, one writer | `tools/list` | the 9 named in §7; `no_tool_can_write_a_verdict_or_move_a_frontier` asserts exactly one |
+| MCP signs | `cairn-mcp --help`, `claim.signed_with` | `--identity` present, signs commitment and reveal |
+| duplicate earns zero | `scripts/ratchet-demo.sh` | eve's verbatim copy: `accept`, `reward 0`, "does not improve" |
+| ratchet telescopes and citation flows | same | 300000 + 400000 + 400000 = pool; alice ends at 442857 > her direct 300000 |
+| uncited submission refused | worse artifact, no `--cites`, live frontier | `refused: … must cite the frontier` |
+| `audit` re-verifies | same run | "log verified: chain intact, every settled claim re-verified" |
+| nothing-up-my-sleeve derivation (§4c) | `tools/nums.py verify` on `nums-50` | 10/10 checks, incl. "G is the hash of its seed" |
+| `sealed` is refused | posted `confidentiality: "sealed"` | `requires zero-knowledge verification, which is not implemented` |
+| **no `replay` example exists** | every objective kind under `examples/` | 26 certificate, 22 evaluator, 2 lean, 2 statistical, **0 replay** |
+| **no factor-base checker exists** | searched for decomposition/summand checkers | only tensor decomposition (matrix-multiply), nothing for ECDLP relations |
+
+The two gaps in §7 are confirmed gaps, and everything Stage 0 and Stage 1 depend
+on is confirmed present. One id caveat found the hard way: an objective's id is
+the digest of its record, **not** the ledger entry's `hash` field — reading the
+wrong one gets "unknown objective". Use `list_objectives`.
