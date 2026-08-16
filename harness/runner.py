@@ -243,6 +243,77 @@ def _verify(cert: dict) -> tuple[bool, str]:
     return False, f"unknown-kind:{kind}"
 
 
+def _cairn_cross_check(cert: dict, verified: bool) -> dict | None:
+    """Stage 0 (docs/cairn-integration-plan.md): re-score a certificate through
+    cairn's sandboxed verifier, a second independent implementation in a
+    different repository, language, process, and OS jail.
+
+    Opt-in and never a new hard dependency -- returns a `not_attempted` block
+    rather than running at all when `tools/cairn_bridge.CAIRN_MCP_BIN` is
+    unset, so a machine with no cairn build behaves exactly as before this
+    existed. Returns None only when the certificate kind is not one Stage 0
+    covers (`cairn_bridge.SUPPORTED_KINDS`) -- nothing to cross-check, so
+    nothing is recorded, same as `_verify` returning "no-claim" for
+    `kind: none`.
+
+    Raises RuntimeError on a genuine disagreement: cairn's checker and this
+    module's own independent recomputation reaching opposite conclusions
+    about the same witness means one of the two implementations has a bug,
+    and that is worth refusing the run over rather than silently recording
+    -- the plan's invariant (a), and the same severity class as the
+    unpinnable-source refusal just above this function's caller. cairn
+    answering `unavailable` is never treated as a disagreement (invariant
+    b): it is cairn saying it could not check, not that it checked and
+    disagreed, and is recorded as data exactly like any other verdict.
+    """
+    # `tools/` is deliberately NOT among pyproject.toml's installed packages
+    # (it is repo-root-relative tooling, not redistributable library code --
+    # see that file's own comment on why `harness` and `tools` differ here),
+    # so `import tools` is not guaranteed to resolve from ambient sys.path:
+    # this module is routinely invoked as `python3 harness/<script>.py`,
+    # which puts `harness/` on sys.path[0], not REPO. Insert REPO explicitly
+    # rather than assume, the same defensive step cairn_bridge.py takes for
+    # its own sibling imports.
+    if REPO not in sys.path:
+        sys.path.insert(0, REPO)
+    from tools import cairn_bridge
+
+    if cert.get("kind") not in cairn_bridge.SUPPORTED_KINDS:
+        return None
+    if not cairn_bridge.available():
+        return {"status": "not_attempted", "reason": f"{cairn_bridge.ENV_BIN} not set"}
+    try:
+        verdict = cairn_bridge.score_certificate(cert)
+    except cairn_bridge.CairnUnavailableError as exc:
+        # A bridge-level failure (binary present but unreachable, timeout,
+        # unparseable response) is the same "says nothing about the
+        # artifact" case as cairn's own `unavailable` verdict -- recorded,
+        # never treated as agreement OR disagreement.
+        return {"status": "not_attempted", "reason": str(exc)}
+
+    block = {
+        "status": verdict.status,
+        "detail": verdict.detail,
+        "objective_id": verdict.objective_id,
+        "checker_sha256": verdict.checker_sha256,
+    }
+    if verdict.status == "accept" and not verified:
+        raise RuntimeError(
+            f"cairn disagreement: this module's independent recomputation rejected the "
+            f"certificate but cairn's sandboxed checker accepted it "
+            f"({verdict.objective_id}, checker {verdict.checker_sha256}): {verdict.detail}. "
+            f"Two independent implementations disagreeing about a witness means one of "
+            f"them has a bug; refusing to write a run that cannot say which.")
+    if verdict.status == "reject" and verified:
+        raise RuntimeError(
+            f"cairn disagreement: this module's independent recomputation accepted the "
+            f"certificate but cairn's sandboxed checker rejected it "
+            f"({verdict.objective_id}, checker {verdict.checker_sha256}): {verdict.detail}. "
+            f"Two independent implementations disagreeing about a witness means one of "
+            f"them has a bug; refusing to write a run that cannot say which.")
+    return block
+
+
 def write_run(exp_id: str, exp_area: str, result: RunResult, *,
               status: str, command: str, started: float, finished: float,
               out_root: str | None = None) -> str:
@@ -275,16 +346,25 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
             f"A manifest that cannot bind its own code to a hash is not a "
             f"reproduction package (GOAL-ENDO-001 N6).")
 
-    os.makedirs(run_dir)
-    ru = resource.getrusage(resource.RUSAGE_SELF)
-    # ru_maxrss is KB on Linux, bytes on macOS.
-    peak_rss = ru.ru_maxrss * (1024 if platform.system() == "Linux" else 1)
-
+    # Also BEFORE makedirs, same reasoning: a cairn disagreement is a wrapper-
+    # level integrity alarm, not a research outcome, and refusing after
+    # creating the run directory would leave the same empty-RUN-id hazard the
+    # comment above this one exists to avoid. An ordinary failed certificate
+    # (both checkers agree it does not verify) is NOT refused here -- that is
+    # `completed_invalid` below, a legitimate recorded result.
     cert = dict(result.certificate)
     verified, verifier = _verify(cert)
     cert["verified"] = verified
     cert["verifier"] = verifier
     cert["verifier_commit"] = commit
+    cairn_cross_check = _cairn_cross_check(cert, verified)
+    if cairn_cross_check is not None:
+        cert["cairn_cross_check"] = cairn_cross_check
+
+    os.makedirs(run_dir)
+    ru = resource.getrusage(resource.RUSAGE_SELF)
+    # ru_maxrss is KB on Linux, bytes on macOS.
+    peak_rss = ru.ru_maxrss * (1024 if platform.system() == "Linux" else 1)
 
     final_status = status
     valid = result.valid
@@ -322,7 +402,9 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
                 "invalid_reason": invalid_reason,
                 "certificate": {"kind": cert.get("kind"),
                                 "verified": cert.get("verified"),
-                                "verifier": cert.get("verifier")},
+                                "verifier": cert.get("verifier"),
+                                **({"cairn_cross_check": cairn_cross_check}
+                                   if cairn_cross_check is not None else {})},
             },
             "artifacts": {
                 "command": "command.txt",
