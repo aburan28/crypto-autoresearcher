@@ -1,0 +1,210 @@
+experiment:
+  id: EXP-RSAPI-9f4c97
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-7d747d; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-7d747d
+  question_id: RQ-RSA-d46f02
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Vary only the lattice reduction implementation, precision, delta and block size on a fixed
+    construction and fixed instance set, and measure how much of the reported achievable leaked fraction
+    moves, against an exact-rational reference arm.
+  objective: 'The one uncertainty a run reduces is how much of any reach number this bucket produces
+    belongs to the mathematics and how much to the software that produced the short vector. Concretely:
+    (i) whether the reducer is deterministic under a pinned configuration, established by a repeat
+    arm that must agree exactly, since without determinism no marginal effect across the configuration
+    grid is attributable to the parameter that changed; (ii) what the spread of r_hat is across a
+    declared grid of precision, delta and block size at two modulus sizes and two dimensions, with
+    each arm''s signed deviation from an exact-rational, precision-free reference computed on the
+    identical paired instances; (iii) whether that spread is above or below the resolution floor at
+    which the stagewise ablation in this bucket reports construction-stage effects, which decides
+    whether those rankings can be read at all without a reducer arm attached. A run also produces
+    the pinning recommendation the rest of the bucket needs: one configuration, recorded in every
+    manifest, justified by measurement rather than by convenience.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: medium
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: for this construction,
+      these instances, these two modulus sizes, these two dimensions and this pinned library version,
+      the measured movement of the 90-percent-success leaked fraction across a declared reducer configuration
+      grid, with signed deviations from an exact-rational arm and with achieved short-vector norms
+      recorded. WHAT DOES NOT FOLLOW: no statement that any implementation is incorrect or defective;
+      no general claim about lattice software; no claim about configurations, versions, sizes or dimensions
+      outside the grid; no attack, speedup or security consequence; and no licence to ignore the reducer
+      at sizes larger than those tested even if the spread is null here.'
+  inputs:
+    procedure: 'STAGE 0 (zero compute): declare the construction, the instance set, the reducer grid
+      including the exact-rational arm, the pinned library version, seeds and the success threshold.
+      STAGE 1 (minutes): repeat arm - run one configuration twice on the same instances and seed;
+      GATE on exact agreement. STAGE 2 (minutes): unreduced-basis null across all u; GATE on universal
+      failure. STAGE 3 (CPU-hours): measure r_hat for every configuration at n = 256, dimension 16,
+      on 60 paired seeded instances. STAGE 4 (CPU-hours to CPU-days): exact-rational arm at the same
+      cell, with a raised cap if needed and the raise recorded. STAGE 5 (CPU-hours): cross the grid
+      with n = 1024 and dimension 32 at reduced sample size, to locate the precision-versus-block-size
+      crossover. STAGE 6 (minutes): re-measure entry two''s no-op resolution floor at this cell, so
+      the comparison is like for like. STAGE 7 (zero compute): report spreads, marginal effects, signed
+      deviations and the pinning recommendation.'
+    instrument: Python 3.11. fpylll 0.6.4 with precision, delta and block size exposed as explicit
+      parameters, via the wheels-only route recorded in KN-TECH-14efa5, with the exact version pinned
+      in every manifest. A pure-Python exact-rational LLL over python-flint or gmpy2 rationals as
+      the precision-free reference arm. python-flint or gmpy2 for exact determinants and verification
+      by exact division. harness/runner.py for manifests, seeds and the inference block; harness/run.py
+      as the bounded-run wrapper. No Sage.
+    parameters: 'Modulus bit-length n in {256, 1024} with balanced primes. Lattice dimension in {16,
+      32}. Reducer configurations: plain LLL at three precision levels (default, doubled, halved),
+      delta at two levels, block-reduced at two block sizes, and one exact-rational arm. 60 paired
+      known-answer instances per configuration at n = 256, reduced to 24 at n = 1024. Leaked fraction
+      u bisected over at most 9 values per configuration. Per-instance wall-clock cap 900 seconds
+      for floating-point arms and 7200 seconds for the exact-rational arm, with the raise recorded;
+      memory cap 16 GB.'
+  controls:
+  - Exact-rational reduction arm with no floating point at all, as the precision-free reference corner.
+  - Unreduced-basis null, which must never recover.
+  - 'Repeat arm: identical configuration and seed run twice, which must agree exactly.'
+  - Paired instances shared by every configuration.
+  - Achieved first-vector norm recorded per arm, so that equal r_hat produced by unequal bases is
+    visible rather than hidden.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical grid runs against a null in which the reduction step
+    is replaced by an operation that cannot solve anything - returning the input basis unreduced -
+    with everything else identical. Every configuration in the null must fail at every u, confirming
+    that the measured r_hat values are produced by reduction rather than by the read-off, the verification,
+    or the instance generator. A second control is the repeat arm: the SAME configuration run twice
+    on the same instances with the same seed, which must produce identical r_hat exactly, since any
+    difference there is nondeterminism that would masquerade as a configuration effect throughout
+    the grid.'
+  independent_variables:
+  - floating-point precision
+  - reduction delta
+  - block size
+  - arithmetic kind (floating point versus exact rational)
+  - modulus bit-length and dimension (crossover stage only)
+  metrics:
+    primary:
+    - r_hat per configuration with exact binomial interval
+    - spread of r_hat across the configuration grid
+    - signed deviation of each configuration from the exact-rational arm
+    - re-measured no-op resolution floor at this cell
+    secondary:
+    - achieved norms of the first three basis vectors per configuration
+    - reduction wall time and peak resident memory per configuration
+    - repeat-arm agreement indicator
+    - count of instances hitting the cap per configuration
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The reducer-attributable spread S = max over configurations of r_hat minus min over
+      configurations of r_hat, measured on identical paired instances at fixed construction, dimension
+      and modulus size.
+    formula: S(n = 1024, dimension 32) >= 0.01 in u and S(n = 256, dimension 16) < 0.01 in u. Every
+      floating-point configuration satisfies r_hat <= r_hat(exact rational) + f, where f is the re-measured
+      no-op resolution floor from STAGE 6. The repeat arm satisfies r_hat difference exactly zero.
+    source: Pre-registered in the parent proposal IDEA-20260816-7d747d before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: medium
+    justification: 'Two modulus sizes, 256 and 1024 bits, and two lattice dimensions, 16 and 32, with
+      the exact-rational reference arm confined to the smaller cell where it can complete. Ground
+      truth is exact by construction at both sizes. The only transfer assumption is inside the contract:
+      that the crossover between precision-driven and block-size-driven spread, located on a two-by-two
+      grid, indicates a direction rather than a law. NO EXTRAPOLATION to larger sizes is made, and
+      the contract explicitly states that a null spread at these sizes does not license ignoring the
+      reducer at larger ones.'
+    correspondence: null
+  tail_checks:
+  - Instances where two configurations disagree on success, listed individually with their achieved
+    norms
+  - Maximum as well as median wall time for the exact-rational arm
+  - Distribution of the ratio of first-vector norm to the Howgrave-Graham bound per configuration
+  - Configuration arms whose cap-hit count exceeds ten percent of instances, reported separately
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Stop at the STAGE 1 gate if the repeat arm disagrees with itself
+  - Stop at the STAGE 2 gate if the unreduced-basis null recovers anywhere
+  - Halt the exact-rational arm at its raised cap and report the cell as having no reference corner
+    rather than substituting a proxy
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A run succeeds if the repeat arm agrees exactly, the unreduced null fails universally,
+    r_hat is reported with exact binomial intervals for every configuration that completed, the exact-rational
+    arm completes at the smaller cell, and the spread is stated alongside a re-measured resolution
+    floor.
+  falsification_criterion:
+  - Repeat-arm disagreement voids all marginal effects
+  - Any unreduced-basis null recovery voids the run and casts doubt on the read-off used elsewhere
+    in the bucket
+  - A floating-point arm exceeding the exact-rational arm beyond the floor refutes the signed prediction
+  - Spread below the floor at both cells refutes the entry's central claim, which is a clean and useful
+    negative for the bucket
+  - Exact-rational arm failing to complete removes the reference corner and limits the run to relative
+    comparisons only
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-7d747d
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The construction must be filed as a KN-LIT entry from primary text before approval, per RQ-RSA-d46f02's
+    constraints.
+  - Whether an exact-rational LLL completes at dimension 16 with 256-bit-modulus entries inside any
+    acceptable cap is unmeasured; a one-instance pilot should fix this before the contract is authorised.
+  - The precision levels are described relatively (default, doubled, halved) and must be written as
+    absolute values against the pinned library version.
+  - The no-op resolution floor is imported from the stagewise-ablation contract and must be re-measured
+    at this cell; if that contract has not run, the comparison in the prereg formula has no value
+    for f.
