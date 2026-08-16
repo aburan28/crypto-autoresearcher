@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -33,6 +34,21 @@ def handoff() -> dict[str, Any]:
     }
 
 
+def lease(
+    owner: str = "executor-1",
+    *,
+    acquired_at: str = "2026-08-16T00:00:00+00:00",
+    expires_at: str = "2026-08-16T01:00:00+00:00",
+    epoch: int = 1,
+) -> dict[str, Any]:
+    return {
+        "owner": owner,
+        "acquired_at": acquired_at,
+        "expires_at": expires_at,
+        "epoch": epoch,
+    }
+
+
 def task(
     identifier: str,
     priority: int,
@@ -44,9 +60,10 @@ def task(
     read_scope: list[str] | None = None,
     write_scope: list[str] | None = None,
     artifact_paths: list[str] | None = None,
+    task_lease: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     default_scope = f"coordination/tasks/{identifier}/"
-    return {
+    result = {
         "id": identifier,
         "title": identifier,
         "role": role,
@@ -59,6 +76,9 @@ def task(
         "artifact_paths": artifact_paths or [f"coordination/tasks/{identifier}/report.json"],
         "handoff": handoff(),
     }
+    if task_lease is not None:
+        result["lease"] = task_lease
+    return result
 
 
 def archive_task(
@@ -702,6 +722,149 @@ class DispatchPlannerTests(unittest.TestCase):
         first = dispatch.select(copy.deepcopy(source))
         second = dispatch.select(copy.deepcopy(source))
         self.assertEqual(first["plan_sha256"], second["plan_sha256"])
+
+
+class LeaseTests(unittest.TestCase):
+    """A `running` task's optional lease, and what expiry does and does not do."""
+
+    def test_lease_is_optional_and_never_expires_without_now(self) -> None:
+        # Every task record written before this field existed has no lease.
+        # That must keep behaving exactly as it always did: a running task
+        # with no lease -- or one with a lease nobody asked to check -- is
+        # never reclaimed, `--now` omitted or not.
+        running = task("RUNNING", 1, state="running")
+        ready = task("READY", 1, write_scope=["coordination/tasks/RUNNING/"],
+                     artifact_paths=["coordination/tasks/RUNNING/other.json"])
+        archive = archive_task("ARCHIVE", [running, ready])
+        plan = dispatch.select(queue(running, ready, archive, maximum=2))
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["RUNNING"])
+        self.assertEqual(deferred_by_id(plan)["READY"], ["write_scope_conflict:RUNNING"])
+        self.assertEqual(plan["expired_leases"], [])
+
+        leased = task("RUNNING", 1, state="running", task_lease=lease())
+        plan_with_lease_but_no_now = dispatch.select(
+            queue(leased, ready, archive, maximum=2)
+        )
+        self.assertEqual(
+            [item["id"] for item in plan_with_lease_but_no_now["dispatches"]], ["RUNNING"]
+        )
+        self.assertEqual(plan_with_lease_but_no_now["expired_leases"], [])
+
+    def test_expired_lease_frees_the_write_scope_for_a_queued_successor(self) -> None:
+        stale = task(
+            "STALE", 1, state="running",
+            write_scope=["coordination/tasks/STALE/"],
+            artifact_paths=["coordination/tasks/STALE/report.json"],
+            task_lease=lease(
+                owner="executor-1",
+                acquired_at="2026-08-16T00:00:00+00:00",
+                expires_at="2026-08-16T01:00:00+00:00",
+            ),
+        )
+        successor = task(
+            "SUCCESSOR", 1,
+            write_scope=["coordination/tasks/STALE/"],
+            artifact_paths=["coordination/tasks/STALE/retry-report.json"],
+        )
+        archive = archive_task("ARCHIVE", [stale, successor])
+        source = queue(stale, successor, archive, maximum=2)
+
+        before_expiry = dispatch.select(
+            copy.deepcopy(source), now=datetime.fromisoformat("2026-08-16T00:30:00+00:00")
+        )
+        self.assertEqual(
+            [item["id"] for item in before_expiry["dispatches"]], ["STALE"]
+        )
+        self.assertEqual(
+            deferred_by_id(before_expiry)["SUCCESSOR"], ["write_scope_conflict:STALE"]
+        )
+        self.assertEqual(before_expiry["expired_leases"], [])
+
+        after_expiry = dispatch.select(
+            copy.deepcopy(source), now=datetime.fromisoformat("2026-08-16T02:00:00+00:00")
+        )
+        dispatched_ids = [item["id"] for item in after_expiry["dispatches"]]
+        self.assertIn("SUCCESSOR", dispatched_ids)
+        self.assertNotIn("STALE", dispatched_ids)
+        self.assertEqual(
+            [item["id"] for item in after_expiry["expired_leases"]], ["STALE"]
+        )
+        self.assertEqual(after_expiry["expired_leases"][0]["owner"], "executor-1")
+
+        # The source record is untouched -- STALE is still "running" in the
+        # queue this plan was computed from. Reverting it to queued is a
+        # Coordinator decision, made once, not redrawn on every dispatch run.
+        self.assertEqual(
+            next(t for t in source["tasks"] if t["id"] == "STALE")["state"], "running"
+        )
+
+    def test_expiry_is_a_boundary_not_a_race(self) -> None:
+        stale = task("STALE", 1, state="running", task_lease=lease(
+            expires_at="2026-08-16T01:00:00+00:00"
+        ))
+        archive = archive_task("ARCHIVE", [stale])
+        exactly_at_expiry = dispatch.select(
+            queue(stale, archive, maximum=1),
+            now=datetime.fromisoformat("2026-08-16T01:00:00+00:00"),
+        )
+        self.assertEqual(
+            [item["id"] for item in exactly_at_expiry["expired_leases"]], ["STALE"]
+        )
+
+    def test_two_running_leases_still_cannot_overlap(self) -> None:
+        # A lease changes what happens after expiry. It does not relax the
+        # existing rule that two tasks cannot BOTH claim to be running over
+        # the same scope right now, expired or not -- that invariant is
+        # unconditional and stays that way.
+        first = task(
+            "FIRST", 1, state="running", write_scope=["coordination/live/"],
+            artifact_paths=["coordination/live/first.json"], task_lease=lease(owner="a"),
+        )
+        second = task(
+            "SECOND", 1, state="running", write_scope=["coordination/live/report/"],
+            artifact_paths=["coordination/live/report/second.json"], task_lease=lease(owner="b"),
+        )
+        archive = archive_task("ARCHIVE", [first, second])
+        with self.assertRaisesRegex(dispatch.DispatchError, "overlapping write scopes"):
+            dispatch.validate_queue(queue(first, second, archive))
+
+    def test_rejects_lease_on_a_non_running_task(self) -> None:
+        stale_flag = task("QUEUED", 1, state="queued", task_lease=lease())
+        with self.assertRaisesRegex(dispatch.DispatchError, 'lease is set but state is not "running"'):
+            dispatch.validate_queue(queue(stale_flag))
+
+    def test_rejects_malformed_lease_fields(self) -> None:
+        missing_owner = task("A", 1, state="running", task_lease={
+            "acquired_at": "2026-08-16T00:00:00+00:00",
+            "expires_at": "2026-08-16T01:00:00+00:00",
+            "epoch": 1,
+        })
+        with self.assertRaisesRegex(dispatch.DispatchError, "lease.owner"):
+            dispatch.validate_queue(queue(missing_owner))
+
+        bad_epoch = task("A", 1, state="running", task_lease=lease(epoch=0))
+        with self.assertRaisesRegex(dispatch.DispatchError, "lease.epoch"):
+            dispatch.validate_queue(queue(bad_epoch))
+
+        backwards = task("A", 1, state="running", task_lease=lease(
+            acquired_at="2026-08-16T02:00:00+00:00",
+            expires_at="2026-08-16T01:00:00+00:00",
+        ))
+        with self.assertRaisesRegex(dispatch.DispatchError, "expires_at must be after"):
+            dispatch.validate_queue(queue(backwards))
+
+        naive = task("A", 1, state="running", task_lease=lease(
+            acquired_at="2026-08-16T00:00:00", expires_at="2026-08-16T01:00:00",
+        ))
+        with self.assertRaisesRegex(dispatch.DispatchError, "explicit UTC offset"):
+            dispatch.validate_queue(queue(naive))
+
+    def test_cli_now_flag_is_optional_and_explicit(self) -> None:
+        # The CLI is the only place a clock may enter. Confirms parse_timestamp
+        # accepts the CLI's own --now shape (a bare 'Z' offset), which the ISO
+        # library used elsewhere in this module does not accept unmodified.
+        parsed = dispatch.parse_timestamp("2026-08-16T00:00:00Z", "--now")
+        self.assertEqual(parsed.isoformat(), "2026-08-16T00:00:00+00:00")
 
 
 class InferencePolicyTests(unittest.TestCase):

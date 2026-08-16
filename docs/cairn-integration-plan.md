@@ -413,13 +413,24 @@ in `research_dispatch.py` both iterate every task literally in state
 
 The fix does not need inventing: `orchestration/campaign/lease.py` already
 solves the identical problem one layer up (controller leases over a whole
-campaign) with `acquired_at` / `renewed_at` / `expires_at` and a strictly
-increasing `epoch` fencing token so a late owner can never renew a lease a
-newer controller has taken over. Task #2 in this session's tracked work is to
-give `TASK-*` cards the same three fields, so a `running` task past its TTL
-reverts to `queued` (dependencies and `write_scope` re-checked exactly as on
-first dispatch) instead of squatting. This is orthogonal to the cairn bridge
-and worth doing regardless of whether any of the rest of this plan proceeds.
+campaign) with `acquired_at`/`expires_at` and a strictly increasing `epoch`
+fencing token so a late owner can never renew a lease a newer controller has
+taken over. **Implemented** in this session: `TASK-*` cards get an optional
+`lease: {owner, acquired_at, expires_at, epoch}` block, opt-in and backward
+compatible — every task written before this field existed, and every task
+whose author does not set one, behaves exactly as before and never expires.
+`select()` takes an explicit `now` (never sampled internally, so a plan stays
+a pure function of its inputs); a `running` task whose lease is past `now`
+stops being treated as holding its `write_scope`, so a queued successor over
+the same scope is admitted in the same dispatch call. It does **not**
+rewrite the stale task back to `queued` in the source record — the plan
+surfaces it in a new `expired_leases` list instead, and the Coordinator still
+records the actual terminal state once, deliberately, the same way a
+correction supersedes rather than an inference gets redrawn on every
+dispatch run. `tools/research_dispatch.py` `validate_lease`/`lease_is_expired`/
+`select(..., now=...)`, with tests in `tools/test_research_dispatch.py`
+(`LeaseTests`). Orthogonal to the cairn bridge and merged independently of
+whether any of the rest of this plan proceeds.
 
 ### 9.3 Reputation: the wall it has to be built behind, then what is left
 
