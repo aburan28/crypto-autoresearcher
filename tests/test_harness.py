@@ -272,3 +272,107 @@ def test_write_run_refuses_when_executed_source_cannot_be_pinned(tmp_path):
                       command="pytest", started=1.0, finished=2.0, out_root=out)
     # And it must not leave a half-written run directory behind.
     assert not os.path.exists(os.path.join(out, "runs", "RUN-SEMAEV-n6-refuse-b8-s13"))
+
+
+def _discrete_log_result(run_suffix, seed=7, wrong_k=False):
+    inst = generate_instance(seed=seed, field_bits=8)
+    res = rho.solve(inst)
+    k = res.k + 1 if wrong_k else res.k
+    return RunResult(
+        run_suffix=run_suffix, curve_id=curve_id(inst.p, inst.a, inst.b, 8), seed=seed,
+        parameters={"field_bits": 8}, metrics={"group_operations": res.group_operations},
+        certificate={"kind": "discrete_log",
+                     "statement": {"curve": {"p": inst.p, "a": inst.a, "b": inst.b},
+                                   "P": list(inst.P), "Q": list(inst.Q), "k": k}},
+        stdout="ok\n")
+
+
+def test_cairn_cross_check_absent_for_kind_none():
+    """Stage 0 (docs/cairn-integration-plan.md) touches nothing when there is
+    no certificate to re-check -- same contract as `_verify` returning
+    "no-claim", covered above by test_run_wrapper_omits_optional_metadata_by_default
+    for the sibling optional blocks."""
+    from harness.runner import _cairn_cross_check
+    assert _cairn_cross_check({"kind": "none"}, verified=True) is None
+
+
+def test_cairn_cross_check_recorded_when_it_agrees(tmp_path):
+    from unittest.mock import patch
+    from tools import cairn_bridge
+
+    rr = _discrete_log_result("cairn-agree-b8-s7")
+    fake_verdict = cairn_bridge.CairnVerdict(
+        status="accept", detail="verified: fake but agreeing",
+        objective_id="sha256:" + "a" * 64, checker_sha256="deadbeef")
+    with patch.object(cairn_bridge, "available", return_value=True), \
+         patch.object(cairn_bridge, "score_certificate", return_value=fake_verdict):
+        run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                            command="pytest", started=1.0, finished=2.0, out_root=str(tmp_path))
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
+    cross_check = manifest["result"]["certificate"]["cairn_cross_check"]
+    assert cross_check["status"] == "accept"
+    assert cross_check["objective_id"] == fake_verdict.objective_id
+
+
+def test_cairn_disagreement_refuses_and_leaves_no_run_directory(tmp_path):
+    """The same severity class as the N6 provenance refusal above: two
+    independent implementations disagreeing about a witness means one of
+    them has a bug, so the run is refused rather than recorded with a
+    quietly-noted anomaly."""
+    from unittest.mock import patch
+    from tools import cairn_bridge
+
+    rr = _discrete_log_result("cairn-disagree-b8-s7")  # internal check: verified True
+    fake_verdict = cairn_bridge.CairnVerdict(
+        status="reject", detail="mocked disagreement",
+        objective_id="sha256:" + "b" * 64, checker_sha256="deadbeef")
+    out = str(tmp_path)
+    with patch.object(cairn_bridge, "available", return_value=True), \
+         patch.object(cairn_bridge, "score_certificate", return_value=fake_verdict):
+        with pytest.raises(RuntimeError, match="cairn disagreement"):
+            write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                      command="pytest", started=1.0, finished=2.0, out_root=out)
+    assert not os.path.exists(os.path.join(out, "runs", "RUN-SEMAEV-cairn-disagree-b8-s7"))
+
+
+def test_cairn_unavailable_is_additive_never_a_new_hard_dependency(tmp_path):
+    """A machine with no cairn build must behave exactly as it did before
+    Stage 0 existed: the run writes normally, and the manifest says so
+    rather than omitting the field."""
+    from unittest.mock import patch
+    from tools import cairn_bridge
+
+    rr = _discrete_log_result("cairn-absent-b8-s7")
+    with patch.object(cairn_bridge, "available", return_value=False):
+        run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                            command="pytest", started=1.0, finished=2.0, out_root=str(tmp_path))
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
+    assert manifest["status"] == "completed_valid"
+    cross_check = manifest["result"]["certificate"]["cairn_cross_check"]
+    assert cross_check["status"] == "not_attempted"
+
+
+def test_cairn_bridge_failure_is_not_attempted_not_a_crash(tmp_path):
+    """A reachable-but-broken bridge (timeout, unparseable response) is the
+    same "says nothing about the artifact" case as cairn's own `unavailable`
+    verdict -- recorded, never crashes the run and never counts as either
+    agreement or disagreement."""
+    from unittest.mock import patch
+    from tools import cairn_bridge
+
+    rr = _discrete_log_result("cairn-broken-b8-s7")
+    with patch.object(cairn_bridge, "available", return_value=True), \
+         patch.object(cairn_bridge, "score_certificate",
+                       side_effect=cairn_bridge.CairnUnavailableError("mocked timeout")):
+        run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                            command="pytest", started=1.0, finished=2.0, out_root=str(tmp_path))
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
+    cross_check = manifest["result"]["certificate"]["cairn_cross_check"]
+    assert cross_check["status"] == "not_attempted"
+    assert "mocked timeout" in cross_check["reason"]
