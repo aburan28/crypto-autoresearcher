@@ -52,13 +52,54 @@ and a program that labelled its toy results `crypto` would be worse. But it does
 mean the corpus is overwhelmingly *scoping* work: measurements that bound what a
 direction could be, rather than results about deployed objects.
 
-The strongest committed content is negative-space work done well: the
-canonical-lift closure (target-independence is a two-line counting argument, and
-it applies to four separate point-lifting routes), the group-law rigidity
-theorem with its four named escapes, the degree-of-regularity ladder, the AES
-r=5→r=6 measured death with its null controls. Each of these is a named
-obstruction with an argument, which is the `docs/inventor-protocol.md` §4
-standard — not a fatigue report.
+### 2.1 What is established
+
+The strongest committed content is negative-space work done well — theorems and
+measurements that bound a direction rather than attacks that advance one. On
+prime-field ECDLP:
+
+- **Decomposition-yield conservation** (`KN-FIND-007`): summed over targets the
+  yield is `C(B+m-1, m)` exactly, so factor-base geometry *redistributes* yield
+  and cannot create it.
+- **Semaev summation-cover monodromy** is `(Z/2)^{m-2}` universally — every
+  curve, field and characteristic, arithmetic equal to geometric, with no
+  exceptional locus (`KN-FIND-a8990a`, `KN-FIND-a1f3c2`, `KN-FIND-c41ea9`). On
+  the factor-base locus the fibre splits completely at every `m`, so a
+  Chebotarev-style census is constant exactly where relation search lives.
+- **Newton polytopes of target-sectioned Semaev systems are box-saturated at
+  `m ≤ 6`**, making BKK a proved constant — `(m+1)/2`, about 3.3× at
+  cryptographic scale — and never an exponent.
+- **ECDLP cost is invariant across an `F_p`-isogeny class** up to transport
+  cost, with a proved zero-variance family; the surface/anomalous/MOV route is
+  closed unconditionally by the Tate isogeny theorem.
+- **Exact lossy propagation on a prime-order subgroup is impossible**: every
+  exactly-propagating projection is injective or constant. This is the group-law
+  rigidity theorem, and its four named escapes are what the taxonomy work since
+  has been navigating.
+- **Augmented oracles are GGM-simulable** (`KN-FIND-002`): jet and endomorphism
+  oracles at `O(1)` overhead, elliptic-net and incidence oracles at non-constant
+  overhead — closing those families at exponent 1/2.
+
+Adjacent lanes produced real findings too: a genuine wolfSSL ML-KEM
+ciphertext-comparison defect, found and closed; a 93–117 bit dynamic-range
+deficit in archived `Pwrong` data; an anti-correlated HQC block-failure law; and
+a corrected concrete cost interval for the Wesolowski `p^{1/3+o(1)}`
+endomorphism-ring attack, which is memory-infeasible at `2^92.5` entries.
+
+### 2.2 What the program's own instruments refuted
+
+x-oracle MITM yield gains; Elkies factor-base augmentation; structured, AP and
+endomorphism-invariant factor bases; the xedni and canonical-lift routes
+(`alpha = 3` exactly, and CM moves height in the *defender's* direction);
+fixed-curve preprocessing amortization; learned models on point coordinates;
+belief propagation on the double-and-add graph (the graph is a chain, hence a
+tree, so BP is exact and carries no gain); subresultant state collapse; and
+roughly 700 archived cross-field algorithm transplants, whose common failure is
+that the imported transform consumes the source-labelled object it was supposed
+to produce.
+
+Each of these is a named obstruction with an argument, which is the
+`docs/inventor-protocol.md` §4 standard — not a fatigue report.
 
 ## 3. The binding constraint is execution, not ideation
 
@@ -67,10 +108,18 @@ standard — not a fatigue report.
 are concentrated, with `EXP-IC-001` (748), `EXP-REPL-1d1287` (373),
 `EXP-FCP-002` (144) and `EXP-MTBK-306bdb` (95) accounting for over half.
 
-The `ideas/` tree is the sharper version of the same fact: 366 canonically
-rejected records plus 293 pre-ID drafts, 97 retired contracts, 12 active
-contracts — and, by its own README, **zero experiments ever ran from any of
-them**.
+Proposal `status` is the same fact stated in one field: of 920 proposals, 638
+are `proposed`, 280 carry no status at all, and **2 are `selected`**.
+
+The `ideas/` tree is the sharper version again: 366 canonically rejected records
+plus 293 pre-ID drafts, 97 retired contracts, 12 active contracts — and, by its
+own README, **zero experiments ever ran from any of them**.
+
+A related pattern the survey names is *instrument recursion*: campaigns that
+spent dozens of batches repairing protocols which never executed (INSTR v4–v12,
+ECTD v3–v7, seven SYC successors), leaving roughly 60 evidence records whose
+strength is `protocol_integrity_only`. Effort was spent, and what it bought was
+a better-specified contract rather than a measurement.
 
 **This bears directly on the batch filed alongside this review.** Adding 300
 proposals raises the proposal-to-completion ratio, and it is worth saying so in
@@ -169,8 +218,12 @@ corpus-wide, all Dickman-family.
 
 **Reversals nobody has taken.** `docs/inventor-protocol.md` §4 requires an
 obstruction to be read twice — as a block *and* as a resource — and the
-`resource_check` field exists for exactly that. No committed record carries a
-populated one. The survey named specific candidates: the elliptic-net oracle
+`obstruction` / `resource_check` fields exist for exactly that. **Zero of the
+416 parsing evidence records carry an `obstruction` block at all**, so zero
+carry a `resource_check`; and zero `COST-*` concrete-cost records exist
+anywhere in the ledger. The machinery designed to convert a measured obstruction
+into the next hypothesis has never been used once. The survey named specific
+candidates: the elliptic-net oracle
 measured GGM-simulable at `O(log N)` overhead (a lower bound for non-constant
 simulation overhead is open); the x-oracle's `oracle_marginal_ratio = 3.754` read
 as a query-redirection primitive rather than a defect; the canonical-height floor
@@ -193,8 +246,17 @@ not defects on their own — a directory can hold artifacts — but a contract-l
 experiment directory is indistinguishable from a lost contract without opening
 each one.
 
-Neither is a research finding and neither is fixed here: repairing an immutable
-record requires a superseding record under Coordinator authority
+**The literature corpus knows less than its metadata claims.** Of 7852 entries,
+**7481 carry `citation_verified: read`** — and **7427 point at a `downloads/`
+tree that does not exist in this checkout**. This is already recorded as
+`KN-OPEN-3f7a21` (which counted 7457 of 7666 when it was written; the corpus has
+grown since). It matters beyond bookkeeping: `citation_verified: read` is the
+marking that would let a record support `novelty_status: known` or `adaptation`,
+and 254 proposals carry `adaptation` today. The template shape is visible too —
+the survey reports 7420 of the entries sharing one of six relevance paragraphs.
+
+None of these is a research finding and none is fixed here: repairing an
+immutable record requires a superseding record under Coordinator authority
 (AGENTS.md rule 2), not an edit.
 
 ## 8. Scope of this review
