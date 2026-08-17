@@ -243,21 +243,46 @@ def test_resolves_to_a_concrete_model_on_the_default_backend(cfg):
     assert resolution.reasoning_effort == "high"
 
 
+def _pin_zai_review_below_floor(cfg):
+    """Force the zai review-adversarial binding below the policy's effort floor.
+
+    The degradation tests exercise the adapter's recorded-downgrade path, which
+    only exists when the bound ceiling is below the required xhigh. The
+    operator is free to bind any model, so these tests pin their own fixture
+    instead of assuming a live binding. Returns the original for restoration.
+    """
+    original = cfg.binding_table["zai"]["review-adversarial"]
+    pinned = deepcopy(original)
+    caps = dict(pinned.get("capabilities") or {})
+    caps["max_reasoning_effort"] = "high"
+    pinned["capabilities"] = caps
+    cfg.binding_table["zai"]["review-adversarial"] = pinned
+    return original
+
+
 def test_unmet_requirement_is_refused_without_permission(cfg):
-    with pytest.raises(resolver_module.ResolutionError) as excinfo:
-        adapter.resolve(cfg, "review-adversarial", backend="zai",
-                        independent_session=True, env={})
-    assert "reasoning_effort" in str(excinfo.value)
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        with pytest.raises(resolver_module.ResolutionError) as excinfo:
+            adapter.resolve(cfg, "review-adversarial", backend="zai",
+                            independent_session=True, env={})
+        assert "reasoning_effort" in str(excinfo.value)
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_degraded_resolution_is_permitted_only_explicitly_and_is_recorded(cfg):
-    resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
-                                 independent_session=True, degraded_allowed=True,
-                                 env={})
-    assert resolution.fallback_used is True
-    assert resolution.degraded_requirements, "a downgrade must be recorded"
-    assert resolution.requested_reasoning_effort == "xhigh"
-    assert resolution.reasoning_effort == "high"     # never overstated
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
+                                     independent_session=True, degraded_allowed=True,
+                                     env={})
+        assert resolution.fallback_used is True
+        assert resolution.degraded_requirements, "a downgrade must be recorded"
+        assert resolution.requested_reasoning_effort == "xhigh"
+        assert resolution.reasoning_effort == "high"     # never overstated
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_unbound_model_cannot_be_waved_through(cfg):
@@ -676,10 +701,14 @@ def test_breakthrough_review_still_requires_an_independent_session(cfg):
 
 def test_ordinary_review_remains_degradable_with_a_signed_amendment(cfg):
     """The distinction only means something if the lower tier still bends."""
-    resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
-                                 independent_session=True, degraded_allowed=True,
-                                 env={})
-    assert resolution.degraded_requirements
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
+                                     independent_session=True, degraded_allowed=True,
+                                     env={})
+        assert resolution.degraded_requirements
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_max_effort_reaches_the_wire(cfg):
