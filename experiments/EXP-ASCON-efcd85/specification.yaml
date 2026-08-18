@@ -1,0 +1,218 @@
+experiment:
+  id: EXP-ASCON-efcd85
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-50e103; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-50e103
+  question_id: RQ-ASCON-2dfd8b
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure difference-diffusion saturation depth for initialization-constant pairs across the
+    whole constant class, against Hamming-distance-matched random state pairs and a random-S-box null
+    permutation in the same invocation
+  objective: 'The one uncertainty a run reduces is at what round depth a difference introduced solely
+    by a change of initialization constants stops being distinguishable, by three declared statistics,
+    from an ordinary difference. Concretely: (i) what is the saturation depth T, defined as the smallest
+    round depth at which relative Hamming weight, per-position propagation rate and difference-matrix
+    rank all lie inside declared tolerance bands, measured over all constant pairs at Hamming distance
+    1 and 2 and sampled pairs at higher distances, and reported per IV-word placement and per background
+    state; (ii) how does T compare against the same statistic computed on Hamming-distance-matched
+    random state pairs, which is what separates a constant-specific effect from a geometric one; (iii)
+    how does T compare against the same measurement on a null permutation with a randomly drawn S-box,
+    which is what separates a property of the design from a property of the state size and linear
+    layer. The experiment does not require the specific standardized constants to be known, by construction,
+    and asserts nothing about any published result.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable claim is: for the pinned implementation,
+      at IV-word placement W and background state B, the saturation depth for constant-pair differences
+      was T under the declared statistics and tolerance bands, against T_random for matched-distance
+      random pairs and T_null for the random-S-box permutation. WHAT DOES NOT FOLLOW: that a difference
+      above depth T carries no structure -- the statistics are necessary conditions only; that any
+      published property is or is not IV-sensitive; that the standardized constants specifically behave
+      like the class average; that anything here bears on the security of Ascon or any deployed device.'
+  inputs:
+    procedure: 'STAGE 0 (human time, blocking or partially waivable): pin the permutation and the
+      IV-word placement, or declare the placements to sweep. STAGE 1 (half a day): implement the permutation
+      in numpy over packed 64-bit words, plus a reference implementation for cross-checking; run the
+      test-vector gate. STAGE 2 (minutes of CPU): enumerate all IV-word constant pairs at Hamming
+      distance 1 and 2, sample 10000 at each distance from 3 to 32, and evaluate both states at depths
+      0..12, recording differences. STAGE 3 (minutes): compute the three saturation statistics per
+      depth and derive T per condition. STAGE 4 (minutes, same invocation): repeat the whole pipeline
+      for matched-Hamming-distance random state pairs, for random differences confined to the same
+      word, and for the random-S-box null permutation. STAGE 5 (minutes): run the zeroed-round-constant
+      structural check and the depth-0 control. STAGE 6 (minutes): sweep three background states and
+      the plausible IV-word placements, then emit T tables, statistic curves, seeds and evaluation
+      counts to the run record.'
+    instrument: Python 3.11 with numpy for packed-word permutation evaluation and for GF(2) rank via
+      bitwise Gaussian elimination; a reference pure-Python permutation for cross-checking; pytest
+      for the test-vector gate and tail checks; harness/runner.py for the manifest, deterministic
+      seeds and the inference block. No Sage, no computer algebra system, no solver.
+    parameters: 'State 320 bits. Depths 0..12, extended to the specification''s maximum defined round
+      count if pinned. Constant pairs: exhaustive at Hamming distance 1 and 2 within the IV word,
+      10000 sampled pairs at each distance 3..32. Random-pair arm matched per-sample on Hamming distance.
+      Rank statistic computed at a fixed 512 pairs per depth to avoid trivial saturation. Three background
+      states for the non-IV positions, including the all-zero case labelled separately. Plausible
+      IV-word placements swept if not pinned, expected between 1 and 5. Tolerance bands declared and
+      frozen before the run.'
+  controls:
+  - Matched-Hamming-distance random state pair arm, identical pipeline, same invocation, seeds recorded.
+  - Random-S-box null permutation arm on the same IV pairs, isolating design from geometry.
+  - Zeroed-round-constant structural check, confirming constants cancel in the difference as the propagation
+    analysis asserts.
+  - Depth-0 control, where the difference must equal the constant XOR exactly and nothing else.
+  - IV-word placement sweep, so a T value cannot be an artifact of one assumed placement.
+  - Fixed-remainder sweep at three values of the non-IV positions, so T is not an artifact of one
+    background state.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): PAIRS OF RANDOM INITIAL STATES at MATCHED HAMMING DISTANCE, drawn from
+    a recorded seed and run through the IDENTICAL pipeline in the SAME invocation, plus a NULL PERMUTATION
+    arm (identical linear layer and constants, randomly drawn S-box) run on the same IV pairs. For
+    the reading insensitive-above-T to hold, the IV arm''s saturation depth must be at most the matched-distance
+    random arm''s; if IV pairs saturate systematically later, the reading is inverted and that is
+    the finding. For the measurement to reflect the design rather than the state geometry, the null-permutation
+    arm must saturate at a different depth than the signal; if the two coincide, the record is a controlled
+    null and T is a property of the state size and linear layer, not of the design.'
+  independent_variables:
+  - round depth r (0..12 or the pinned maximum)
+  - constant-pair Hamming distance (1..32)
+  - arm (IV constant pairs / matched random state pairs / same-word random differences / random-S-box
+    null permutation)
+  - IV-word placement
+  - background state for non-IV positions
+  metrics:
+    primary:
+    - saturation depth T per arm and per condition
+    - relative Hamming weight of the difference per depth, with dispersion
+    - per-position difference propagation rate per depth
+    - GF(2) rank of the difference matrix per depth at fixed pair count
+    secondary:
+    - T as a function of constant-pair Hamming distance
+    - zeroed-round-constant check result at depth 1
+    - depth-0 control result
+    - reference-versus-numpy cross-check agreement rate
+    - pairs evaluated and wall-clock per condition
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: T, the saturation depth, and the two derived gaps T - T_random and T - T_null.
+    formula: 'T = min { r : |w(r) - 0.5| < eps_w AND max over positions |p_i(r) - 0.5| < eps_p AND
+      rank(r) >= 320 - eps_r }, where w(r) is the mean relative Hamming weight of the depth-r difference
+      over the pair sample, p_i(r) is the estimated propagation rate at position i, rank(r) is the
+      GF(2) rank of 512 collected depth-r differences, and eps_w, eps_p, eps_r are declared and frozen
+      before the run. Predicted: T - T_random equals 0, with both signs declared reportable in advance
+      and no magnitude pre-committed; T - T_null nonzero by at least 1 at some placement, with T -
+      T_null identically 0 recorded as a controlled null.'
+    source: Pre-registered in the parent proposal IDEA-20260816-50e103 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The tested object is the full-size state and the full initialization depth, so
+      nothing about the permutation is scaled down; what is sampled is the constant class, exhaustively
+      at low Hamming distance and by sampling above it, with the sampling boundary declared. The transfer
+      assumption is explicit: a threshold measured over the class applies to any specific constant
+      pair only insofar as that pair is typical of its Hamming-distance stratum, and the dispersion
+      of T within each stratum is reported precisely so that a reader can judge whether a specific
+      pair could be atypical. No extrapolation beyond the swept depths or the declared statistics
+      is offered.'
+    correspondence: null
+  tail_checks:
+  - Depth 0, where the difference must equal the constant XOR exactly.
+  - Hamming distance 1 constant pairs, the hardest case for diffusion and the one where T should be
+    largest.
+  - The all-zero background state, reported separately since degenerate backgrounds can behave atypically
+    through the nonlinear layer.
+  - Maximum tested Hamming distance, where the initial difference is already high weight and T should
+    be smallest or zero.
+  - The full round count, confirming that all arms have saturated by the end of initialization and
+    that no arm is still unsaturated at the last measured depth.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt before any sweep if the permutation fails a declared test vector or the reference and numpy
+    implementations disagree.
+  - Halt and report an instrument defect if the depth-0 control or the zeroed-constant check fails.
+  - Stop at the declared pair counts; do not extend sampling after seeing T, since post-hoc extension
+    would let the tolerance bands be met by sample size rather than by diffusion.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The test-vector gate and both structural controls pass, T is reported per arm
+    and per condition with its dispersion, the three statistics agree on T to within one round across
+    the class, and the two gaps T - T_random and T - T_null are tabulated with the IV-word placement
+    and background state stated for each.
+  falsification_criterion:
+  - T - T_null is identically zero at every placement, forcing a controlled-null record.
+  - T increases systematically with constant-pair Hamming distance.
+  - The depth-0 control or the zeroed-round-constant check fails.
+  - The three saturation statistics disagree about T by more than one round across the class.
+  - T varies qualitatively across the three background states.
+  - The permutation fails a declared test vector, or the two implementations disagree.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-50e103
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The IV-word placement is not pinned in this environment; a Coordinator must either file the specification
+    as a KN-LIT entry or ratify the placement sweep, noting the RQ constraint against designing experiments
+    before both documents are filed.
+  - The tolerance bands eps_w, eps_p and eps_r are judgement calls that must be frozen by the Coordinator
+    before the run, since choosing them afterwards manufactures T.
+  - Whether the same-word random-difference arm is sufficient to separate geometric from constant-specific
+    effects, or whether a stronger position-matched control is required, needs a Coordinator ruling.
+  - The eighteen-plus diffusion-family proposals were seen by filename only and must be read to confirm
+    none already occupies this measurement.

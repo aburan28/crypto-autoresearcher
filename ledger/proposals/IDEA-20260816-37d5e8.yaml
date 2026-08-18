@@ -1,0 +1,253 @@
+idea:
+  id: IDEA-20260816-37d5e8
+  question_id: RQ-QRE-6dba8c
+  added: '2026-08-16'
+  title: A per-call circuit score is quoted downstream as if cost were additive across calls, but
+    composition reuses ancillas and re-routes registers; measure the non-additivity directly by building
+    k-fold compositions of one fixed reversible point addition and reporting where Toffoli count is
+    additive and peak width is not.
+  class: measurement
+  claim: '(A) Resource statements in this bucket are per-call: a point-addition circuit is scored
+    once, and any downstream use multiplies that score by the number of calls. Multiplication is correct
+    only if cost is additive under composition, and additivity is a property of the resource axis,
+    not of the circuit. (B) The claim is that the two axes the imported ALECF score multiplies behave
+    oppositely under composition, and that this is measurable rather than arguable. Toffoli count
+    is expected to be exactly additive, since composing k copies emits k times the gates, up to whatever
+    inter-call glue the interface requires. Peak live-qubit width is expected to be strictly sub-additive,
+    since ancillas freed by call i are available to call i plus 1, so k calls do not need k times
+    the ancillas. If both hold, then the product score is neither additive nor sub-additive but something
+    in between, and multiplying a per-call product score by k overstates one factor while understating
+    nothing, in a direction and by an amount that can be measured. (C) The claim is that the residual,
+    defined as the measured k-fold cost minus k times the single-call cost, is a first-class quantity
+    per axis, and that its behaviour in k (linear, constant, or saturating) is the useful deliverable,
+    because a saturating residual means a per-call score is asymptotically honest while a linear residual
+    means it is not. (D) The claim is that this is cheap to measure exactly at toy scale in a classical
+    interpreter, with no error-correction model and no hardware, and that the measurement is a property
+    of the interface the benchmark declares. (E) WHAT IS NOT CLAIMED: no claim about how many calls
+    any algorithm makes, no reference to any published composition, no claim that any downstream record
+    in this program multiplied a score incorrectly, no attack, speedup or feasibility statement. The
+    deliverable is a residual per axis as a function of k, at toy width.'
+  mechanism: 'STAGE 1: fix the composition. Define k-fold composition under the benchmark''s declared
+    interface: the target registers are overwritten in place and the offset is supplied per call,
+    so composing k calls means chaining k circuits on the same target registers with k offsets. STAGE
+    2: build. Emit the composed circuit for k from 1 to 8 by instantiating the same point-addition
+    builder k times into one gate list with a shared ancilla pool, and separately emit the naive disjoint
+    composition in which each call gets a private ancilla pool, which is the additive reference. STAGE
+    3: validity-gate everything. Each composed circuit must compute the k-fold sum, verified against
+    harness/toycurve.py''s independent recomputation, and must restore every ancilla. STAGE 4: measure.
+    Record Toffoli count, peak live-qubit width, ancilla lifetime integral and depth for the shared-pool
+    and disjoint-pool compositions at each k. STAGE 5: compute residuals per axis as measured minus
+    k times the single-call value, and fit the residual''s dependence on k to linear, constant and
+    saturating forms, reporting which fits and with what error. STAGE 6: run the null arm, k-fold
+    composition of a random reversible circuit with the same interface shape and ancilla inventory,
+    so that generic ancilla reuse is measured and the point-addition-specific part is the excess.
+    STAGE 7: report residuals, fits, and the null-adjusted excess.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-QRE-6dba8c in full and the titles and claim openings of its ten proposals. Read
+      experiments/EXP-ALECF-001/source/README.md for the interface and scoring definitions. Grepped
+      ledger/proposals/ for 'composition', 'additive', 'per-call', 'amortiz' and 'reuse'. Read docs/inventor-protocol.md
+      section 6, the validation ladder, whose step 2 requires running an entire pipeline on a scaled-down
+      instance rather than extrapolating, which is the discipline this contract instantiates for composition.
+    results: IDEA-20260809-5a36f3 costs RSA and ECDLP under one pipeline because they are normally
+      compared across papers with different assumptions; that is a comparability contract across problem
+      families, not a measurement of composition non-additivity within one circuit family. IDEA-20260809-593de3
+      counts the modular-arithmetic layer with classical validation and does not compose. IDEA-20260809-61bedf
+      concerns reporting space-time volume for headline estimates. No proposal was found that measures
+      additivity of a resource axis under composition. Inventor-protocol section 6 step 2 explicitly
+      names the skipped step as running the whole pipeline on a scaled-down instance, which supports
+      this contract's design but is a program-wide discipline rather than a competing record.
+    verdict: 'UNVERIFIED. Amortization of ancilla cost under composition is a standard consideration
+      outside this repository and nothing is asserted about its published treatment. What is claimed
+      new is the specific measurement: per-axis residuals of k-fold composition against the additive
+      reference, with their functional form in k fitted rather than assumed, under the interface this
+      bucket''s benchmark declares, and with a matched random-circuit composition null. Assembled
+      from known parts: reversible circuit composition, ancilla pooling, and residual fitting.'
+  object_first_candidate:
+    tracked_object: 'The composition residual vector: for each resource axis a, the quantity r_a(k)
+      equal to cost_a(k-fold composed circuit) minus k times cost_a(single call). The object is followed
+      as k increases, and its functional form in k is the structure of interest.'
+    lossiness: 'The projection from a composed circuit to its residual vector discards the gate list,
+      the offsets, the intermediate points, and the absolute costs, keeping only the deviation from
+      additivity per axis. That is a strong discard and it is compatible with the target operation,
+      composition, because composition is exactly the operation under which additivity is or is not
+      preserved. The retained part propagates deterministically in a way that is predictable per axis:
+      for a purely additive axis the residual is identically zero for all k regardless of the circuit,
+      so any nonzero residual on such an axis is diagnostic of interface glue rather than of the circuit;
+      for peak width the residual is bounded below by minus (k minus 1) times the single-call ancilla
+      count and above by zero under perfect reuse, and those bounds are the frame the measurement
+      lands inside.'
+    propagation: 'One step of the target operation is appending one more call to the composition.
+      Acting on the residual vector: on the Toffoli axis it adds exactly the glue gates required to
+      re-route registers and supply the next offset, so the Toffoli residual grows by a constant per
+      step, giving a linear residual whose slope IS the interface tax. On the peak-width axis it adds
+      nothing at all once the ancilla pool is large enough to serve one call, since the pool is reused,
+      so the width residual grows by minus the single-call ancilla count per step, that is linearly
+      negative, until it saturates when the pool''s size stops being the binding constraint. The two
+      axes therefore have residuals of opposite sign and both linear in k over the tested range, which
+      is the concrete prediction the fit tests.'
+    survival_score: The residual structure survives as long as the ancilla pool can be reused across
+      calls, and dissolves at the point where a call's output must be retained for a later call, since
+      a retained intermediate cannot be freed and the sub-additivity of width disappears. At the tested
+      composition, which chains additions on the same target registers, nothing must be retained,
+      so the structure should survive to the largest k tested. The concrete survival number is the
+      value of k at which the width residual departs from linearity, and if no departure is seen by
+      k equal to 8, the honest statement is that the structure survives at least 8 steps and the dissolution
+      point was not reached within budget.
+  null_object_control: The null object is a random straight-line reversible circuit with the same
+    register shape, the same ancilla inventory and the same gate count as the single point addition,
+    composed k-fold under the identical interface and ancilla-pooling rules. The identical residual
+    measurement and fitting runs on it in the same invocation. For the signal arm to mean anything,
+    the null must show a width residual of comparable magnitude, since generic ancilla reuse is generic;
+    the informative comparison is therefore the Toffoli residual, where the null must show a SMALLER
+    glue cost if the point-addition interface tax is specific to point addition. If the null's Toffoli
+    residual matches, then the glue cost is a property of the interface and register shape alone,
+    which is a legitimate and reportable finding but a different one from the claimed result.
+  discriminated_from:
+  - 'IDEA-20260809-5a36f3 (cost RSA and ECDLP under one pipeline): a cross-family comparability contract;
+    this measures additivity of resource axes under composition within one circuit family and never
+    compares problem families.'
+  - 'IDEA-20260809-593de3 (count the modular-arithmetic layer, validate classically): counts one call;
+    this measures the deviation from k times that count.'
+  - 'The uncomputation-trace contract elsewhere in this batch: varies scheduling within a single call
+    and tracks the live-qubit trace; this holds the schedule fixed and varies the number of composed
+    calls, tracking a residual vector in k.'
+  - 'The classicality-dividend contract elsewhere in this batch: varies the operand labelling within
+    a single call; this varies call count with the labelling fixed.'
+  assumptions:
+  - Composition under the declared interface means chaining in-place overwrites on shared target registers
+    with per-call offsets, which is the reading the committed README supports; a different composition
+    semantics would give different residuals and the reading is stated.
+  - An ancilla pool shared across calls is the natural composed implementation and the disjoint-pool
+    version is the correct additive reference; both are built rather than assumed.
+  - k up to 8 is enough to distinguish linear from saturating residuals at toy width; if it is not,
+    the result is a statement that the forms are not separable in the tested range.
+  - Every composed circuit computes the k-fold sum, verified independently by harness/toycurve.py
+    rather than by the circuit's own arithmetic.
+  predictions:
+  - metric: Toffoli residual r_T(k) fitted slope, gates of glue per additional call
+    direction: higher
+    minimum_effect: 1
+  - metric: peak-width residual r_Q(k) at k equal to 8, as a fraction of 8 times the single-call peak
+      width
+    direction: lower
+    minimum_effect: -0.3
+  - metric: coefficient of determination of the best-fitting functional form for r_Q(k) among linear,
+      constant and saturating
+    direction: higher
+    minimum_effect: 0.9
+  - metric: difference between the measured Toffoli residual slope and the random-circuit null's slope
+    direction: different
+    minimum_effect: No pre-commitment to a magnitude or sign. The glue cost depends on register-routing
+      details that are fixed by the interface rather than by the arithmetic, so the null could plausibly
+      match the signal exactly, and predicting otherwise would be a guess.
+  minimal_test:
+    design: 'One prime, one circuit, eight compositions. Fix a 13-bit prime and one reversible affine
+      point-addition builder. Emit two families: the shared-ancilla-pool composition for k from 1
+      to 8, and the disjoint-pool composition for the same k as the additive reference. Validity-gate
+      every member by simulating on 1024 random starting points and k random offsets, verifying the
+      result against harness/toycurve.py''s independent k-fold sum, and requiring full ancilla restoration.
+      Record Toffoli count, peak live-qubit width, ancilla lifetime integral and depth for both families.
+      Compute r_a(k) per axis and fit linear, constant and saturating forms by least squares, reporting
+      the winner and its coefficient of determination. In the same invocation, do all of this for
+      the random-circuit null. The discriminating outputs are three numbers: the Toffoli residual
+      slope, the sign and magnitude of the width residual at k equal to 8, and the null comparison
+      on the Toffoli slope. Compute is minutes on one core.'
+    controls:
+    - Disjoint-ancilla-pool composition as the explicit additive reference, built rather than computed
+      by multiplication.
+    - Random-circuit null composed under the identical interface and pooling rules, in the same invocation.
+    - Independent verification of every composed circuit's output against harness/toycurve.py rather
+      than against the circuit's own arithmetic.
+    - Ancilla-restoration gate on every composed circuit at every k.
+    - 'A k equal to 1 identity check: the residual must be exactly zero on every axis at k equal to
+      1, by definition, as an instrument check on the residual code.'
+    required_metrics:
+    - Toffoli count per (family, k)
+    - peak live-qubit width per (family, k)
+    - ancilla lifetime integral per (family, k)
+    - depth per (family, k)
+    - per-axis residual r_a(k)
+    - best-fitting functional form and its coefficient of determination per axis
+    - null-arm residual slope per axis
+    - validity-gate pass indicator per composed circuit
+  falsification_conditions:
+  - The residual at k equal to 1 is nonzero on any axis, falsifying the instrument.
+  - The Toffoli residual is exactly zero for all k, meaning composition costs no glue and the interface
+    tax is nil, which closes the question in the additive direction.
+  - The peak-width residual is zero for all k, meaning no ancilla reuse occurs and width is additive
+    too.
+  - No functional form among linear, constant and saturating fits any axis with coefficient of determination
+    above 0.9, meaning the residual's behaviour in k is not captured by the fitted family.
+  - A composed circuit fails independent verification against harness/toycurve.py, voiding that k.
+  confounders:
+  - The glue cost depends entirely on how register routing is implemented, so the Toffoli residual
+    slope may measure the author's routing rather than an intrinsic interface tax; the random-circuit
+    null exists precisely to bound this and may absorb the whole effect.
+  - At toy width the ancilla pool is small, so saturation of the width residual may occur at k equal
+    to 2 or 3 and be indistinguishable from a constant.
+  - Choosing offsets at random means some composed sums may hit exceptional inputs, which would fail
+    verification for reasons unrelated to composition; generic offsets are used and the exclusion
+    is recorded.
+  - Ancilla pooling policy is a free choice, and an aggressive pooling policy makes width sub-additive
+    by construction, so the policy must be declared and held fixed across the signal and null arms.
+  interpretation_limits:
+  - Residuals measured at 13-bit width with k up to 8 say nothing quantitative about 256-bit circuits
+    or about large call counts.
+  - A nonzero Toffoli residual does not mean any downstream record in this program multiplied a score
+    incorrectly; no such record is examined.
+  - The result is scoped to the composition semantics declared here, and a different composition,
+    for instance one retaining intermediates, would have different and possibly opposite residuals.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement is of composition residuals for
+      toy reversible circuits.
+    memory_exponent: No attack memory exponent is claimed. Peak widths measured are properties of
+      toy composed circuits.
+    best_known: The incumbent is the standing practice of quoting a per-call circuit score and treating
+      downstream cost as proportional to call count, instantiated by the imported ALECF per-call product
+      score. This contract does not replace that practice; it measures the residual it incurs on each
+      axis at toy scale.
+    hidden_overhead: The hidden cost is the ancilla-pooling policy, which is a free parameter that
+      can manufacture any degree of sub-additivity and must therefore be declared and held identical
+      across arms; a reader who takes the width residual without the policy has been given a number
+      that means nothing. Engineering time hides in the independent verification of k-fold sums, which
+      is easy at k equal to 1 and fiddly at k equal to 8 because the offsets must be tracked exactly.
+  dominated_by: n/a (no result claimed). I checked the committed frontier for this bucket, the two
+    ALECF resource points (1316081, 1152) and (1423723, 1141), and this contract produces only toy-width
+    composed circuits, which enter no row of it. No attack or algorithm is proposed, so there is no
+    time/memory/data frontier on which it could be dominated.
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a pair of residual
+    functions r_T(k) and r_Q(k) at toy width, quantities with no incumbent value anywhere in this
+    repository, so no comparison to a state of the art is available or claimed.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Part (B), that Toffoli count is additive up to glue while peak width
+    is strictly sub-additive: 0.8, since it follows from how ancilla pools work, with the risk that
+    the chosen pooling policy makes width additive by accident. That the Toffoli residual slope is
+    at least 1 gate per call: 0.85, since some routing is unavoidable under an in-place interface.
+    Part (C), that the residual''s functional form in k is separable among linear, constant and saturating
+    with a fit above 0.9: 0.6, because at k up to 8 and toy width the forms may be indistinguishable.
+    That the null''s Toffoli slope differs from the signal''s: 0.35, and I expect it may well match,
+    which would be the honest and useful negative.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-QRE-6dba8c
+  - RQ-ALECF-001
+  - EXP-ALECF-001
+  - EXP-ALECF-003
+  - EV-ALECF-001
+  - IDEA-20260809-5a36f3
+  - IDEA-20260809-593de3
+  - docs/inventor-protocol.md
+  - harness/toycurve.py
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ALECF-0d2ef0

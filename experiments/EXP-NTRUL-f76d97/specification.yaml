@@ -1,0 +1,214 @@
+experiment:
+  id: EXP-NTRUL-f76d97
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-00b29e; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-00b29e
+  question_id: RQ-NTRU-9015ee
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Carry fixed NTRU secrets down a modulus-switching ladder with exact error accounting and
+    compare their density-signature curve against a freshly resampled curve, with a matched independent-plant
+    arm
+  objective: 'The uncertainty reduced is whether a q-sweep of NTRU density measures the lattice''s
+    geometry or the key population, two things every resampled sweep mixes irretrievably. (i) Can
+    a fixed secret be transported down a modulus ladder with the rounding error computed exactly rather
+    than bounded, verified by a ratio-one forced null that must reproduce the instance and by an independent
+    recomputation of the residual at every rung, without which no curve is trustworthy; (ii) how many
+    rungs does the transported instance survive before the plant''s norm growth destroys the comparison,
+    and does the measured survival match the value computable in advance from the secret''s norm and
+    the ladder ratio, this being a forced-value check on the whole accounting; (iii) does the transport
+    curve''s density-signature crossing diverge from the resampled curve''s, by how much relative
+    to the resample spread, and does the divergence exceed that of a matched independent-plant control
+    carried down the identical ladder, which is the only way to attribute a divergence to ring structure
+    rather than to modulus switching itself. The negative branch is explicitly valuable: agreement
+    licenses every resampled sweep this goal plans and removes a confound from all of them at the
+    cost of one cheap run.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'Maximal supportable claim: at the tested n, starting modulus,
+      ladder ratio and secret distribution, transported and resampled density-signature curves differ
+      by D log2 units at rung r with the reported CI, the matched independent-plant control differs
+      by D'', and the transported plant''s norm grows as measured. What does NOT follow: any statement
+      about attacks or about modulus switching''s usefulness for anything; any statement about NTRU
+      security; any conclusion about parameters outside the tested grid; and no claim that the density
+      signature used is itself validated, since it is not, which is why a companion contract measures
+      exactly that.'
+  inputs:
+    procedure: 'STAGE 0, cost minutes: implement modulus switching with exact residual recomputation
+      and the ratio-one forced null; gate everything on the null reproducing the instance exactly.
+      STAGE 1, cost minutes: implement the exact rounding-error and transported-plant-norm computation,
+      cross-checked against an independent residual recomputation at every rung. STAGE 2, cost tens
+      of minutes: transport 200 NTRU keys from 2^20 down a ratio-two ladder, computing the envelope
+      crossing at every rung until the plant''s norm has doubled. STAGE 3, cost tens of minutes: resample
+      200 fresh keys at each rung''s modulus and compute the same crossing. STAGE 4, cost tens of
+      minutes: repeat STAGES 2 and 3 on the matched independent-plant arm. STAGE 5, cost minutes:
+      single-jump arm to the final modulus for 200 keys per arm, checking schedule independence. STAGE
+      6, cost minutes: report per-rung transport-minus-resample differences with bootstrap CIs, the
+      decomposition into determinant and plant-norm contributions, and the NTRU-versus-control comparison.'
+    instrument: 'Pure Python 3 with exact integer arithmetic; the covolume envelope code is shared
+      with the companion contract in this batch so that the two are commensurable by construction,
+      and its exactness checks are inherited. Modulus switching and residual recomputation implemented
+      in a new harness/ module, with the residual recomputed by a second independent routine at every
+      rung. harness/runner.py for wrapping and manifests. No Sage, no lattice-reduction library, no
+      estimator: this contract touches none of them.'
+    parameters: n = 32, ring Z[x]/(x^n - 1), ternary fixed weight at round(2n/3). Starting modulus
+      2^20, ladder ratio 2, rungs continued until the transported plant's norm has doubled, expected
+      around 5 to 8 rungs. 200 keys per arm for the transport curve and 200 fresh keys per rung for
+      the resample curve. Two arms, NTRU and matched independent-plant. Single-jump arm at 200 keys
+      per arm. Secondary cell at n = 48 and starting modulus 2^24 if budget allows.
+  controls:
+  - Matched independent-plant lattice transported down the identical ladder in the same invocation.
+  - Ratio-one forced null, required to reproduce the instance exactly and give zero divergence.
+  - Single-jump arm, transporting directly to the final modulus, to check that the ladder schedule
+    does not create the effect.
+  - Exact rounding-error computation per rung, cross-checked against the residual g' minus f h' modulo
+    q' recomputed independently.
+  - Plant-norm growth reported at every rung so that divergence can be decomposed into determinant
+    and norm contributions.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The matched independent-plant lattice, transported down the identical
+    ladder by the identical code path in the same invocation: same dimension, determinant, modulus
+    schedule, planted rank and per-vector norm, differing only in that the plant is n independent
+    vectors rather than an orbit. If the transport-versus-resample divergence is the same on this
+    arm, the divergence is a property of the transport map and not of ring structure, and the honest
+    record is a controlled null. A second forced null: transport with ratio exactly 1 must reproduce
+    the original instance bit for bit and must give zero divergence, gating the transport implementation
+    before any ladder is run.'
+  independent_variables:
+  - ladder rung, equivalently log2 q'
+  - curve type in {transport, resample}
+  - arm in {NTRU, matched independent-plant}
+  - schedule in {ratio-two ladder, single jump}
+  metrics:
+    primary:
+    - envelope crossing abscissa per key and rung, both curves
+    - transport minus median-resample difference with CI, per rung and arm
+    - transported plant norm per rung
+    - exact rounding error norm per rung
+    - rungs survived before plant-norm doubling, measured versus computed
+    secondary:
+    - determinant versus plant-norm decomposition of the crossing shift
+    - single-jump versus ladder agreement at the final modulus
+    - residual recomputation disagreement count, which must be zero
+    - norm-distribution drift of the transported population relative to fresh keys
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The per-rung difference between the transport curve's envelope crossing abscissa and
+      the median of the resample curve's, on the NTRU arm, and the same quantity on the matched independent-plant
+      arm.
+    formula: 'h'' = round((q''/q) * h) mod q''; transported plant (f, g'') with g'' = balanced_rep(f
+      h'' mod q''); error e = g'' - (q''/q) g measured exactly; crossing abscissa from the companion
+      envelope formula. Predicted forced values: divergence exactly 0 at ratio 1; rungs to plant-norm
+      doubling equal to the value computed from ||f|| and the ratio, within one rung. Predicted comparative
+      value: |divergence(NTRU) - divergence(control)| >= 0.5 log2 q if ring structure is implicated,
+      with the negative branch equally reportable.'
+    source: Pre-registered in the parent proposal IDEA-20260816-00b29e before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: n = 32 and optionally 48, lattice dimensions 64 and 96, starting moduli 2^20 and
+      2^24. These are chosen so that the ladder has enough rungs to form a curve before the plant's
+      norm growth ends it. No extrapolation to larger n or to deployed moduli is performed; the transfer
+      assumption that would be needed, that the sampling-versus-geometry split behaves the same at
+      larger n, is explicitly not made and is named as the obvious follow-up.
+    correspondence: null
+  tail_checks:
+  - The last surviving rung, where the plant's norm has grown most and the divergence is most likely
+    to be a norm artifact.
+  - Keys with unusually large ||f||, which lose rungs fastest and would otherwise silently drop out
+    of later rungs and bias the transport curve.
+  - The first rung, where rounding is mildest and any divergence is hardest to attribute to error
+    growth.
+  - Instances where balanced representation of g' straddles the modulus boundary, which can produce
+    large jumps in norm and must be counted.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop the ladder for an instance once its transported plant's norm has doubled; continuing past
+    that is recorded but excluded from the primary statistic.
+  - Abort if the ratio-one forced null gives nonzero divergence.
+  - Abort if the independent residual recomputation disagrees at any rung.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: Forced null passes, residual recomputation agrees everywhere, the measured rung
+    count matches the computed one within one rung, and per-rung transport-minus-resample differences
+    are reported with CIs for both arms whatever their values.
+  falsification_criterion:
+  - Nonzero divergence at ratio one, invalidating the transport.
+  - Transport and resample curves agreeing within the resample spread at every rung, a clean negative
+    licensing resampled sweeps.
+  - Matched control showing equal divergence, recording a controlled null.
+  - Measured versus computed rung count disagreeing by more than one, invalidating the error accounting.
+  - Single-jump and ladder arms disagreeing at the final modulus, meaning the schedule created the
+    effect.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-00b29e
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The density signature this contract measures is the covolume envelope from the companion contract,
+    which is itself unvalidated; the Coordinator must decide whether to sequence that contract first
+    or to accept a conditional result.
+  - The exact form of the error term e and its first-order additivity in the plant norm needs to be
+    written out and checked symbolically before approval.
+  - Whether to hold the transported population's norm distribution comparable to the fresh population,
+    and if so how, is unresolved; the contract currently reports the drift instead of correcting it.
+  - The ladder ratio of two is a convention; whether a finer ratio changes the divergence is untested
+    and should be either justified or added as an arm.

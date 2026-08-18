@@ -1,0 +1,220 @@
+idea:
+  id: IDEA-20260815-f11674
+  question_id: RQ-TECDSA-8d340d
+  added: '2026-08-15'
+  title: >-
+    PRESIGNATURE REUSE IS THE ONE THRESHOLD-ECDSA FAILURE THAT DEPLOYMENTS
+    ACTUALLY HIT: measure how many reuses of a single presignature are
+    needed for extraction, per protocol variant
+  class: measurement
+
+  claim: >-
+    Presignatures are cached for latency, and reuse is an operational
+    failure rather than a cryptographic subtlety. The published warnings say
+    reuse is fatal without saying how fatal. The number of reuses to
+    extraction, per variant, is what an operator needs to know and it is
+    measurable.
+
+  mechanism: >-
+    For each protocol variant, reuse a single presignature across increasing
+    numbers of signatures and attempt key extraction after each, recording
+    the first count at which extraction succeeds with a verified
+    certificate.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Read of GOAL-TECDSA-001; grep 'presignature' (4), 'nonce reuse',
+      'reuse count'.
+    results: >-
+      Presignature reuse appears as a warning; no record measures the
+      extraction threshold per variant.
+    verdict: >-
+      UNVERIFIED here; the algebra of nonce reuse is classical and the
+      per-variant thresholds may well be published, making the stage-one
+      literature check blocking.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE NUMBER OF PRESIGNATURE REUSES required for key extraction, per
+      protocol variant.
+    lossiness: >-
+      A single threshold discards partial-information states, so partial
+      recovery is recorded as a distinct outcome rather than folded into
+      failure.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while variants are implementable; variants whose
+      presignature structure differs fundamentally are reported separately
+      rather than compared on one axis.
+
+  null_object_control: >-
+    NULL 1 -- no reuse, where extraction must fail at every sample size.
+    NULL 2 -- a variant where reuse is claimed harmless, which must not
+    extract; if it does, that claim is wrong.
+
+  discriminated_from:
+    - >-
+        Published nonce-reuse analyses for plain ECDSA, where two
+        signatures on one nonce suffice; threshold variants differ and the
+        threshold is the question.
+    - >-
+        The countermeasure-harness record in this series, which tests
+        mitigations against published classes; this one measures an
+        operational failure's threshold.
+
+  assumptions:
+    - >-
+        Variants are implementable with presignature caching exposed.
+    - >-
+        Extraction attempts are complete enough that failure means the
+        threshold is not reached rather than that the attempt was weak.
+
+  predictions:
+    - metric: >-
+        no-reuse null
+      direction: different
+      minimum_effect: >-
+        FORCED: no extraction at any sample size.
+    - metric: >-
+        reuse count at first successful extraction, per variant
+      direction: different
+      minimum_effect: >-
+        The measurement, with a verified key certificate at the
+        successful count.
+    - metric: >-
+        partial-information states below the threshold
+      direction: different
+      minimum_effect: >-
+        Recorded as a distinct outcome; partial recovery below the full
+        threshold is operationally relevant and would otherwise be
+        invisible.
+
+  minimal_test:
+    design: >-
+      Two variants, reuse counts one through eight, with the no-reuse null
+      and verified certificates on success.
+    controls:
+      - >-
+          No-reuse null.
+      - >-
+          Verified key certificate on every claimed extraction.
+      - >-
+          Partial-recovery states recorded separately from failure.
+    required_metrics:
+      - >-
+          Reuse count at first extraction, per variant.
+      - >-
+          Certificate verification per success.
+      - >-
+          Partial-information outcomes per count.
+
+  falsification_conditions:
+    - >-
+        The no-reuse null extracts. Harness broken; all results void.
+    - >-
+        A claimed extraction's certificate does not verify. Not an
+        extraction.
+    - >-
+        A variant claimed reuse-safe extracts. That claim is wrong and
+        needs review before disclosure.
+    - >-
+        No extraction at any tested count for a variant. Its threshold
+        exceeds the tested range, which is reported as a bound rather than
+        as safety.
+
+  confounders:
+    - >-
+        ATTEMPT STRENGTH: a failure at a given reuse count may reflect a
+        weak extraction attempt rather than a real threshold, so the
+        attempt method must be stated and its completeness argued.
+    - >-
+        VARIANT FIDELITY: presignature semantics differ across variants
+        and an inaccurate implementation would measure the implementation,
+        not the protocol.
+
+  interpretation_limits:
+    - >-
+        Measures published failure modes; proposes no new attack.
+    - >-
+        Scoped to the implemented variants and reuse counts.
+    - >-
+        A bound rather than a threshold when no extraction occurs in
+        range.
+
+  heuristic_assumptions:
+    - id: HEUR-TECDSA-REUSE-1
+      statement: >-
+        Extraction difficulty is monotone in the reuse count, so the
+        first successful count is a genuine threshold.
+      rigorous_support: >-
+        Rigorous ingredient: each additional reuse adds an equation in
+        the same unknowns, so the system can only become more
+        determined. THE GAP: monotonicity holds for the algebraic
+        system, not necessarily for the solver's success, and a solver
+        can fail at a higher count for numerical or search reasons.
+      falsification_condition: >-
+        Extraction succeeding at a lower reuse count than at a higher
+        one, for the same variant.
+      validation_plan: >-
+        SAMPLE: every reuse count from one to eight, >= 10 independent
+        trials each. COMPARISON: success rate as a function of count,
+        checked for monotonicity. TAIL CHECK: any non-monotone pair,
+        reported as a solver artifact. TRANSFER: none beyond the tested
+        variants.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is protocol executions plus one extraction
+      attempt per count.
+    memory_exponent: >-
+      Extraction working set; modest.
+    best_known: >-
+      Incumbents are the published threshold-ECDSA analyses, which warn
+      about reuse without quantifying the threshold.
+    hidden_overhead: >-
+      Extraction-attempt completeness is the dominant hidden term and
+      determines whether a negative means anything.
+    tradeoff_note: >-
+      More reuse counts and trials buys a firmer threshold and costs
+      executions; the plan fixes both before looking.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As attacks: dominated by the published
+    nonce-reuse literature. As a per-variant threshold measurement: none
+    exists here. Not null on any axis.
+  sota_delta: >-
+    No attack novelty, no exponent. Content delivered: a measured
+    presignature-reuse extraction threshold per protocol variant with
+    verified certificates, plus partial-recovery states below the threshold
+    that operational guidance currently ignores.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.75 that two variants are faithfully implementable. 0.9 that the no-
+    reuse null behaves. 0.85 that a threshold is found within eight reuses
+    for at least one variant. 0.1 that a variant claimed reuse-safe turns
+    out not to be.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-TECDSA-8d340d
+    - GOAL-TECDSA-001
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

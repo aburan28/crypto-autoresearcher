@@ -1,0 +1,288 @@
+idea:
+  id: IDEA-20260816-504122
+  question_id: RQ-ARGON-141710
+  added: '2026-08-16'
+  title: 'Parallelism is the one deployed parameter nobody varies: at fixed total memory, compute
+    exactly the native longest path and the maximum antichain width of the full multi-lane reference
+    DAG as p sweeps, and check whether depth falls as 1/p or is held up by the cross-lane edges the
+    segment structure permits.'
+  class: measurement
+  claim: '(A) At fixed total memory m and fixed passes t, increasing the parallelism parameter p divides
+    memory into p lanes of q = m/p blocks each. The per-lane chain then has length t*q - 1 = t*m/p
+    - 1, so the naive expectation is that the graph''s longest path -- its native depth, before any
+    node is removed -- shrinks exactly as 1/p. Depth is the quantity every depth-robustness argument
+    is built on top of, and it is being changed by a parameter that deployments set once from a table
+    and never sweep. (B) The claim is that the true depth of the FULL multi-lane graph is not t*m/p
+    - 1, because cross-lane reference edges from finished segments in other lanes stitch lanes together,
+    and a path may descend one lane, cross at a segment boundary, and continue in another. The measured
+    longest path is therefore predicted to fall more slowly than 1/p, and the deliverable is the exact
+    exponent alpha in depth proportional to p to the minus alpha, fitted over a p sweep at fixed m,
+    for each of the three variants. (C) It is further claimed that the maximum antichain width --
+    the largest set of mutually unordered blocks, computable exactly on a DAG by a min-flow argument,
+    and the natural companion to depth -- rises correspondingly, and that the product of depth and
+    width relative to the node count is a compact summary of how much genuine sequentiality p costs.
+    (D) WHAT IS NOT CLAIMED: no claim that any p is unsafe or preferable, no claim about depth-robustness
+    under node removal, which is a strictly harder quantity and a different lane, and no claim about
+    attacker advantage. Native depth is a lower bound on sequential time for any evaluator and says
+    nothing by itself about memory tradeoffs. A slower-than-1/p decay is not a security property;
+    it is a structural fact about the graph that any later depth-robustness argument must take as
+    input rather than assume. (E) The named way the cost model flatters the defender: an AT charge
+    that treats m and t as the cost-bearing parameters and p as a performance knob credits the defender
+    with sequentiality that the parameter table lets deployments divide by four without noticing.'
+  mechanism: 'STAGE 1: construct the FULL multi-lane reference DAG -- all p lanes, all t passes, all
+    four slices per pass -- directly from KN-LIT-7f3c21, including the cross-lane candidate targets
+    that the RFC permits from finished segments of other lanes. This is the object every other proposal
+    in this lane has explicitly excluded by working at p=1, and constructing it is the main implementation
+    cost. STAGE 2: compute the exact longest path by a linear-time DP in topological order, which
+    for this graph is simply increasing block index within the RFC''s own generation order. STAGE
+    3: compute the exact maximum antichain by Dilworth''s theorem via a bipartite matching or min-flow
+    formulation on the transitive closure -- and here the honest note is that the transitive closure
+    of a DAG on t*m nodes is the expensive part, so this metric is computed only at the smaller cells
+    and a declared lower bound from a level decomposition is reported at the larger ones, labelled
+    as a bound rather than a value. STAGE 4: sweep p over powers of two at fixed total m and fixed
+    t, for all three variants, and fit alpha. STAGE 5: run two nulls in the same invocation: a lanes-only
+    null with every cross-lane edge deleted, whose depth must be exactly t*m/p - 1 by construction
+    and which therefore validates the DP, and a window-matched uniform null which keeps the cross-lane
+    opportunity structure but randomizes targets within it. STAGE 6: check the structural tell --
+    alpha must be between 0 and 1 by construction, and an alpha outside that range is a bug in the
+    graph builder rather than a discovery.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril for antichain, parallelism, lane, cross-lane, longest path across ledger/proposals/,
+      ledger/hypotheses/ and knowledge/; grep -l RQ-ARGON-141710 ledger/proposals/*.yaml and read
+      all ten titles and classes, with IDEA-20260809-b9e9cc read as the nearest neighbour; read H-ARGON-ef2f0b's
+      test_boundary and assumptions blocks in full, particularly the single-lane construction assumption;
+      read EV-ARGON-209ece.
+    results: 'IDEA-20260809-b9e9cc, class mechanism, under this same question, is titled: parallelism
+      splits the graph into lanes with limited cross-lane dependency -- measure what that does to
+      depth robustness at deployed p. That is the nearest record by a wide margin and it targets DEPTH
+      ROBUSTNESS, that is, the size of a node-removal set, which is the heuristic-approximated quantity
+      the whole 318db8 / EXP-ARGON-2608c2 lane is built on. The term antichain hits IDEA-20260816-b3a6f0
+      and IDEA-20260816-cdbe94, both under other questions and in this same batch, and KN-FIND-982fdf.
+      H-ARGON-ef2f0b''s assumptions block contains an explicit named transfer assumption that its
+      p=1 construction is not the induced single-lane subgraph of a real p=4 run, and states that
+      cross-lane edges can only ADD bridging routes -- so the multi-lane object is acknowledged as
+      unbuilt and its effect asserted directionally but never measured.'
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature on parallel memory-hard function
+      graphs. Within this repository, what is claimed new is measuring EXACT native depth and antichain
+      width on the FULL multi-lane graph, a graph no record here has yet constructed, and fitting
+      the decay exponent alpha over a p sweep at fixed total memory. What is assembled from known
+      parts: longest path on a DAG is a linear-time textbook DP, Dilworth''s theorem and the min-flow
+      antichain computation are classical, and IDEA-20260809-b9e9cc already owns the observation that
+      p changes lane connectivity. The discriminating difference from b9e9cc is that this record removes
+      no nodes, uses no approximation heuristic, and reports two exactly computable quantities instead
+      of one heuristically bounded one.'
+  object_first_candidate:
+    tracked_object: 'The full multi-lane block dependency DAG, followed through the computation as
+      two exact scalar functionals: the longest path from any source to any sink, and the maximum
+      antichain width, both as functions of p at fixed t and total m.'
+    lossiness: 'The projection from the evaluation to the graph discards all block contents; the projection
+      from the graph to (depth, width) discards essentially everything else -- which lanes the path
+      traverses, where it crosses, the whole topology. It is severely lossy, and that is the point:
+      depth is the single quantity any sequentiality argument rests on, and reducing a graph on millions
+      of nodes to one integer is what makes the p sweep interpretable. What survives is deterministic:
+      depth propagates through the graph by a single max-plus recursion with no interaction beyond
+      the edges themselves. For Argon2i the whole projection is a function of parameters alone; for
+      Argon2d it is input-dependent and multiple input draws are required, inheriting the variance
+      issue that the companion input-ensemble record in this batch treats directly.'
+    propagation: 'One step of the target operation appends block j in lane l with two incoming edges:
+      the chain predecessor within the lane, and one reference target drawn from the candidate window,
+      which for a multi-lane run may lie in a FINISHED segment of another lane. Depth propagates by
+      d(j) = 1 + max(d(chain predecessor), d(reference target)). The chain term alone forces d to
+      increase by one every step within a lane, giving the 1/p floor; the reference term can only
+      raise d, and raises it materially only when the reference reaches into another lane at a point
+      already deeper than the local chain. So one step either does nothing to the decay exponent or
+      lifts it, and alpha below 1 is exactly the accumulated effect of the lifting steps -- a quantity
+      that is a sum over steps and therefore measurable as a profile along the computation, not only
+      as an endpoint.'
+    survival_score: 'The depth functional is defined and exact at every node of the graph, for every
+      p, with no dissolution. What dissolves as p grows is the DISTINGUISHABILITY from the lanes-only
+      null: at p=1 the two coincide trivially, and at large p the cross-lane structure is either doing
+      something to depth or it is not. The concrete statement of survival is the largest p at which
+      the real graph''s depth exceeds the lanes-only null''s depth by more than a declared margin,
+      and reporting that p is the honest form of this axis.'
+  null_object_control: 'NULL ONE, the lanes-only graph: identical construction with every cross-lane
+    reference edge deleted and replaced by an intra-lane edge drawn from the intra-lane portion of
+    the same window. Its depth is exactly t*m/p - 1 by construction, a forced value, so it validates
+    the longest-path DP at every p before any real number is trusted. NULL TWO, the window-matched
+    uniform graph: identical candidate windows, including their cross-lane portions, with targets
+    drawn uniformly within them, which preserves the OPPORTUNITY to cross lanes and destroys the RFC
+    offset transform. For the signal arm to mean anything, null one must return the forced value exactly
+    at every p, and the real arm''s alpha must differ from null two''s alpha by more than the spread
+    over declared repeated draws. If the real and null-two alphas agree, the correct record is a controlled
+    null: the decay of depth with p is set by the window and segment structure alone, and the offset
+    transform contributes nothing to it -- a reusable measured obstruction against attributing multi-lane
+    depth behaviour to the indexing rule.'
+  discriminated_from:
+  - IDEA-20260809-b9e9cc measures depth ROBUSTNESS -- node-removal-set size -- as a function of p,
+    using the same greedy heuristic whose approximation ratio is unknown and which IDEA-20260809-bcf891
+    exists to calibrate. This record removes no nodes and uses no heuristic; both its primary quantities
+    are exact, and native depth is a strictly weaker and strictly cheaper object that b9e9cc's harder
+    question takes as an input.
+  - H-ARGON-ef2f0b and EXP-ARGON-2608c2 work exclusively at p=1 and name the multi-lane graph as an
+    explicit unbuilt transfer assumption. This record builds that graph, so it directly measures the
+    assumption those records declare rather than inheriting it.
+  - IDEA-20260809-ac98b5 draws a frontier in (t, m, p) where the tradeoff attack stops paying. That
+    frontier requires an implemented attack; this record implements none and reports two topological
+    quantities that any such frontier would need as input.
+  - A parallel-speedup benchmark. No wall clock, no threads, and no machine appear; p is a graph-construction
+    parameter here and the deliverable is an exponent fitted to exact integer graph measurements.
+  - IDEA-20260816-b3a6f0 and IDEA-20260816-cdbe94, which use the word antichain under other research
+    questions in this same batch and share no object with the Argon2 dependency graph.
+  assumptions:
+  - KN-LIT-7f3c21's description of lanes, four slices per pass, segment synchronization, and the rule
+    permitting reference targets in finished segments of other lanes is accurate; this specific multi-lane
+    rule was NOT among the C1-C7 claims independently spot-checked per EV-ARGON-209ece and must be
+    re-read before construction.
+  - Longest path is a meaningful sequentiality proxy for this graph, in the sense that the RFC's generation
+    order is a valid topological order, which it is by construction since every edge points backward
+    in index.
+  - Exact maximum antichain is computable within budget at the smaller cells; at larger cells a level-decomposition
+    lower bound is reported and labelled as a bound, never as a value.
+  - Multiple input draws are required for the data-dependent variants, and the number is inherited
+    from the companion input-ensemble contract rather than chosen here.
+  - Total m is held fixed while p sweeps, which is the deployment-relevant comparison; holding q fixed
+    instead is a different and also legitimate sweep, and reporting only one of them is a stated choice.
+  predictions:
+  - metric: fitted alpha in native depth proportional to p to the minus alpha, at fixed total m and
+      t, for the real graph
+    direction: lower
+    minimum_effect: alpha at most 0.9, that is, depth decays strictly more slowly than 1/p, with the
+      fit performed over at least five values of p
+  - metric: native depth of the lanes-only null at each p
+    direction: different
+    minimum_effect: exactly t*m/p - 1, a forced value; any deviation halts the run as a builder bug
+  - metric: maximum antichain width at fixed total m, as p increases
+    direction: higher
+    minimum_effect: 'REFUSAL TO PRE-COMMIT on magnitude: width and depth are linked by the node count
+      but not rigidly, and inventing a number here would be a guess. The pre-committed statement is
+      directional and relational -- width must rise as depth falls, and the product of depth and width
+      must remain below the node count at every p, which is a consistency check rather than a discovery.'
+  - metric: difference in fitted alpha between the real graph and the window-matched uniform null
+    direction: different
+    minimum_effect: at least 0.05 in absolute terms and outside the spread over ten independent null
+      draws
+  minimal_test:
+    design: Fix total m at 16384 blocks and t at 1 and 3. Sweep p over {1, 2, 4, 8, 16, 32}, which
+      covers the RFC recommended value of 4 and brackets it by two binary orders in each direction.
+      Build the full multi-lane graph for each (variant, t, p) cell and compute exact longest path
+      by a single linear-time DP in generation order. Compute exact maximum antichain at p in {1,
+      2, 4} where the transitive closure is affordable, and a level-decomposition lower bound at all
+      p. In the same invocation build and measure the lanes-only null, whose depth must hit the forced
+      value exactly, and ten draws of the window-matched uniform null. Fit alpha by least squares
+      in log-log for the real arm and each null draw. Report alpha with its fit residuals, the depth
+      table, the width table with bounds clearly labelled, and the largest p at which the real graph's
+      depth exceeds the lanes-only null by more than one percent. The longest-path computation is
+      linear in t*m per cell, so the whole sweep is minutes; the antichain computation is the only
+      expensive part and it is deliberately confined to three cells.
+    controls:
+    - Lanes-only null with the forced depth value t*m/p - 1, validating the longest-path DP at every
+      p.
+    - Window-matched uniform null preserving cross-lane opportunity and destroying the offset transform,
+      in ten independent draws.
+    - p=1 cell, where the real graph, the lanes-only null and the existing p=1 lane records must all
+      agree on depth, cross-validating this builder against the rest of the lane.
+    - Consistency check that depth times width never exceeds the node count, which any correct pair
+      of computations must satisfy.
+    - alpha confined to [0,1] by construction, checked as an artifact detector rather than reported
+      as a finding.
+    required_metrics:
+    - exact native longest path per (variant, t, p) cell
+    - fitted alpha with residuals for the real arm and each null draw
+    - exact maximum antichain at the affordable cells and a labelled level-decomposition lower bound
+      elsewhere
+    - lanes-only null depth against its forced value
+    - largest p at which real depth exceeds lanes-only depth by more than one percent
+    - depth times width against node count
+  falsification_conditions:
+  - Fitted alpha equals 1.0 within fit error at every t and variant, meaning cross-lane edges contribute
+    nothing to depth and the central prediction is wrong.
+  - The lanes-only null returns any depth other than t*m/p - 1, which halts the run as a graph-builder
+    defect.
+  - The real arm's alpha lies inside the spread of the ten window-matched uniform null draws, reporting
+    the decay as a property of window and segment structure alone.
+  - alpha falls outside [0,1], which is impossible for a correct construction and indicates a builder
+    bug.
+  - Depth times width exceeds the node count at any cell, indicating one of the two computations is
+    wrong.
+  confounders:
+  - The precise multi-lane candidate-window rule is the load-bearing detail of the whole construction
+    and was not among the independently verified C1-C7 claims; a misread here silently determines
+    alpha.
+  - Holding total m fixed while p sweeps also changes q, so lane length and cross-lane opportunity
+    move together and the fitted alpha confounds them; the lanes-only null separates them, which is
+    why it is required rather than optional.
+  - For Argon2d the graph is input-dependent, so a single-draw alpha is a sample; the number of draws
+    is inherited from the companion input-ensemble contract and must not be set to one.
+  - At large p the lanes become short and boundary effects at pass and slice edges dominate a growing
+    fraction of the graph, which can bend the log-log fit for reasons unrelated to cross-lane structure.
+  - Least-squares fitting in log-log space weights the small-p cells heavily; the fit must be reported
+    with residuals and with an alternative fit over the large-p half.
+  interpretation_limits:
+  - Native depth is a lower bound on sequential evaluation time and is not a depth-robustness statement;
+    a graph can have large native depth and still be cheap to shatter.
+  - Nothing here says any p is safe, unsafe, preferable or deprecated, and the contract forbids any
+    such statement.
+  - Toy total memory only; the fitted alpha is a property of the tested m and may not hold at recommended
+    m, and no extrapolation is performed.
+  - The antichain values are exact at only three cells and are lower bounds elsewhere; a bound must
+    never be reported as a value in any downstream use.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The longest-path measurement is O(t*m) per cell;
+      the exact antichain computation is polynomial but with a transitive-closure cost that confines
+      it to the smallest cells, which is stated rather than hidden.
+    memory_exponent: No attack exponent is claimed for any adversary. The measurement holds the edge
+      list, O(t*m) integers, plus a transitive closure at the three smallest cells only.
+    best_known: Inside this repository the incumbent is IDEA-20260809-b9e9cc's proposed depth-robustness-versus-p
+      measurement, which is unstarted, and H-ARGON-ef2f0b's explicit p=1 restriction with its directional
+      assertion that cross-lane edges can only add bridging routes. Externally the incumbent is the
+      asymptotic depth-robustness framing that the RFC's parameter rationale rests on, about whose
+      published content nothing is asserted here.
+    hidden_overhead: 'The multi-lane graph builder is the hidden cost and it is large: getting slice
+      boundaries, segment finish conditions and the cross-lane eligibility rule exactly right is where
+      every implementation of this will go wrong, and the lanes-only null''s forced value is the only
+      thing that will catch it. Second, the exact antichain computation looks cheap in the write-up
+      and is the reason the sweep cannot be extended.'
+  dominated_by: 'n/a (no result claimed). Pareto check performed rather than asserted: all ten proposals
+    under RQ-ARGON-141710 were enumerated and read by title and class, EV-ARGON-209ece is a proposal
+    review containing no measurement, and experiments/EXP-ARGON-2608c2/runs/ is empty, so no row exists
+    on any time, memory or data/query frontier under this question. The nearest record, IDEA-20260809-b9e9cc,
+    is a proposal with no measurement and therefore occupies no frontier row either.'
+  sota_delta: No attack; measurement contribution only. Against the incumbent framing the delta is
+    that the depth of the multi-lane graph is currently an assumption -- H-ARGON-ef2f0b asserts a
+    direction for cross-lane edges without measuring one -- and this record replaces the assumption
+    with an exact integer per cell and a fitted exponent with residuals. There is no speed or memory
+    number to compare because no attack is proposed on either side.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the multi-lane builder can be made correct and validated by the
+    lanes-only forced value: moderate, around 0.6 -- this is the hardest construction in the lane
+    and the RFC''s segment rules are easy to misread, which is exactly why the forced-value null is
+    mandatory rather than nice to have. That alpha comes in strictly below 0.9: moderate-high, around
+    0.65, since any cross-lane edge that reaches a deeper node lifts depth and there are many opportunities.
+    That the real arm separates from the window-matched uniform null by 0.05 in alpha: low, around
+    0.3 -- the cross-lane opportunity structure, not the offset transform, is the plausible driver,
+    and a null-matches-signal outcome here is a clean and useful obstruction. That the exact antichain
+    is affordable at p in {1,2,4}: around 0.7.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ARGON-141710
+  - GOAL-ARGON-001
+  - KN-LIT-7f3c21
+  - H-ARGON-ef2f0b
+  - IDEA-20260809-b9e9cc
+  - IDEA-20260809-ac98b5
+  - IDEA-20260809-bcf891
+  - EV-ARGON-209ece
+  - experiments/EXP-ARGON-2608c2/specification.yaml
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ARGON-864e88

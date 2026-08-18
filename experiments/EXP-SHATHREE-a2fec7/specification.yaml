@@ -1,0 +1,215 @@
+experiment:
+  id: EXP-SHATHREE-a2fec7
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-a54b82; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-a54b82
+  question_id: RQ-SHATHREE-cd2cb2
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Exact GF(2) computation of z-translation equivariance for each Keccak-f[1600] step, of the
+    per-round iota asymmetry injection, and of the resulting active-chi-row curve, against random-constant
+    nulls
+  objective: The one uncertainty a run reduces is whether Keccak-f[1600] admits an exactly computable,
+    search-free per-round symmetry-decay curve with enough dynamic range to be a candidate frontier
+    predictor, or whether the object saturates or vanishes immediately. (i) It determines, deterministically
+    and without sampling for the linear steps, whether theta, rho and pi commute with cyclic z-translation
+    tau_t for every t dividing 64, and establishes by exhaustive-over-random evaluation whether chi
+    does and iota does not; this converts the informal statement 'iota is the only symmetry breaker'
+    from an assertion into a checked fact of this repository, with the exact failure vector recorded.
+    (ii) It computes the 24 injection vectors eps_i = RC_i XOR tau_32 RC_i, their Hamming weights
+    and z-supports, which are forced values determined entirely by the standard and require no search,
+    no solver and no heuristic; these are the numbers a later cost model would consume. (iii) It produces
+    the active-chi-row, Hamming-weight and z-support curves over rounds 1-12 under three declared
+    chi treatments, together with the empirical null distributions of the same curves under 1000 random
+    constant schedules of matched support shape and 1000 of unmatched shape, so that any apparent
+    structure in the standard's curve is read against a control rather than against intuition. The
+    run reduces uncertainty about the OBJECT, not about SHA-3's security.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''for Keccak-f[1600] as transcribed
+      from FIPS 202 and validated against hashlib, steps theta/rho/pi/chi commute with tau_t for t
+      | 64 and iota does not; the injected asymmetry per round has the following exact weights; and
+      the linear-surrogate active-row curve over rounds 1-12 takes the following values, which do
+      (or do not) separate from a matched random-constant null.'' What does NOT follow: any statement
+      about the reachable round count of any attack, any statement about full 24-round SHA-3, SHAKE
+      or any deployed use, any claim that active rows are the correct cost unit, and any claim that
+      a birthday crossing is the operative frontier criterion.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~2h human, minutes CPU). Transcribe Keccak-f[1600] from FIPS 202 in
+      pure Python with lanes as 64-bit ints; validate the full 24-round permutation by reconstructing
+      sha3_224/256/384/512 and shake128/256 digests for the empty string, a 1-byte message, a rate-boundary
+      message and a 3-block message, and require bit-equality with hashlib. Abort the run on any mismatch.
+      STAGE 1 (cost: minutes CPU). Build L = pi.rho.theta as a 1600x1600 GF(2) matrix by applying
+      the composed map to each of 1600 unit vectors. Build tau_t as a permutation matrix for t in
+      {1,2,4,8,16,32}. Check L.tau_t == tau_t.L exactly. STAGE 2 (cost: minutes CPU). Evaluate chi(tau_t
+      A) XOR tau_t chi(A) and iota_i(tau_t A) XOR tau_t iota_i(A) on 10^4 uniform random A per t per
+      i; record every failure vector. STAGE 3 (cost: seconds CPU). Compute eps_i = RC_i XOR tau_32
+      RC_i for i = 0..23; record weight and z-support. STAGE 4 (cost: minutes CPU). Iterate the deviation
+      recursion for r = 1..12 under the three declared chi treatments; record the three curve statistics.
+      STAGE 5 (cost: ~1h CPU). Repeat stages 3-4 for 1000 NULL-A and 1000 NULL-B constant schedules
+      in the same process, emitting the null distributions. STAGE 6 (cost: ~1h human). Re-run stages
+      1 and 3 under the alternate x+5y lane layout and require bit-identical output; emit the run
+      manifest.'
+    instrument: Python 3.11; pure-Python Keccak-f[1600] written from FIPS 202 with 64-bit int lanes;
+      hashlib (CPython's bundled XKCP-derived implementation) as the independent cross-check; numpy
+      uint8 bit-packed arrays with a hand-written GF(2) matrix multiply and rank routine for L; no
+      Sage, no external CAS. Run manifests, seeds and the inference block via harness/runner.py; identifiers
+      via tools/allocate_id.py.
+    parameters: 'State 5x5x64 = 1600 bits. Translations t in {1, 2, 4, 8, 16, 32}. Round constants:
+      the 24 FIPS 202 values, plus 1000 NULL-A schedules (each 24 constants with support drawn uniformly
+      from subsets of {z = 0,1,3,7,15,31,63}) and 1000 NULL-B schedules (each 24 constants uniform
+      on GF(2)^64). Equivariance sampling: 10^4 random states per step per t, seeds 1..10^4 from a
+      declared PCG64 stream. Deviation curves over rounds r = 1..12. Chi treatments: {identity-on-differences,
+      one-bit-per-active-row expansion, exact 5-bit difference set}.'
+  controls:
+  - 'NULL-A: same support shape, random constant values, 1000 draws, identical code path.'
+  - 'NULL-B: fully random lane-(0,0) constants, 1000 draws.'
+  - 'Zero-constant control: all RC_i set to zero, which must give an identically zero deviation curve
+    for all rounds -- a hard correctness check on the whole pipeline.'
+  - 'Single-constant isolation: inject eps only at round 0 and zero thereafter, to separate the fresh-injection
+    contribution from the propagated contribution.'
+  - 'Independent-implementation control: recompute L and the round-0 deviation with a second, differently-written
+    state layout (x+5y lane ordering versus [x][y] array) and require bit-identical output.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls, both executed in the same invocation as the signal arm by
+    the same code path with only the constant array swapped. NULL-A: 24 round constants drawn uniformly
+    at random from the same 7-bit support set {z = 2^j - 1}, 1000 independent draws. NULL-B: 24 constants
+    drawn uniformly from all of GF(2)^64 in lane (0,0), 1000 draws. For the signal arm to mean anything,
+    the FIPS 202 curve must fall outside the central 90 percent of the NULL-A distribution on at least
+    one of the three reported statistics at some round r <= 8. If the FIPS curve is indistinguishable
+    from NULL-A, the recorded result is a controlled null: the decay is a property of the linear layer
+    and the support shape, and the specific standard constants carry no information about it.'
+  independent_variables:
+  - translation parameter t in {1,2,4,8,16,32}
+  - round index r in 1..12
+  - chi treatment in {identity, expansion, exact}
+  - constant schedule arm in {FIPS, NULL-A, NULL-B, zero}
+  metrics:
+    primary:
+    - equivariance failure count and failure vector per step per t
+    - Hamming weight of eps_i for i = 0..23
+    - active chi row count per round
+    - Hamming weight of D_r per round
+    - z-support size of D_r per round
+    secondary:
+    - rank of L and of L restricted to the image of the deviation map
+    - wall-clock per stage
+    - position of the FIPS curve within the NULL-A empirical quantiles
+    - bit-equality outcome of the alternate-layout recomputation
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The Hamming weight w_i of the round-i asymmetry injection eps_i = RC_i XOR tau_32 RC_i,
+      and the round index R_160 at which the active-chi-row count under the expansion treatment first
+      exceeds 160.
+    formula: 'w_i = 2 * |{z in {0,1,3,7,15} : RC_i[z] = 1}| + 2 * [RC_i[31] != RC_i[63]], where RC_i[z]
+      is the z-th bit of the round constant and [.] is the indicator. This is forced because the RC
+      support set {0,1,3,7,15,31,63} contains exactly one pair whose difference is 32 mod 64, namely
+      (31,63); every other support element z has z+32 outside the support. Predicted consequence:
+      w_i is even for every i and w_i <= 12. R_160 is predicted to satisfy R_160 <= 8, with no prediction
+      of its exact value.'
+    source: Pre-registered in the parent proposal IDEA-20260816-a54b82 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The computation is performed on the FULL Keccak-f[1600] state at full width, so
+      there is no scale reduction in the permutation. It is labelled toy because it evaluates a linear
+      surrogate and envelopes rather than a real attack, and because the round range 1-12 is chosen
+      for dynamic range rather than for any security-relevant threshold. Transfer assumption stated
+      explicitly: NOTHING is transferred to 24 rounds; the curve is reported over the rounds computed
+      and nowhere else.'
+    correspondence: null
+  tail_checks:
+  - Verify the zero-constant arm yields an identically zero deviation at every round -- a nonzero
+    result voids the run.
+  - Verify eps_i weights are even for all 24 rounds as the prereg formula forces; an odd weight indicates
+    a transcription or endianness error.
+  - Verify that at t = 64 (the identity translation) the deviation is identically zero by construction.
+  - Verify that the sum over t | 64 of dim S_t matches 25 * sum of gcd(t,64), as an independent arithmetic
+    check on the subspace code.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Abort immediately if stage 0 hashlib validation fails on any digest size.
+  - Abort the null arms after 1000 draws each regardless of separation observed; no adaptive extension.
+  - Cap total wall clock at 4 hours; a timeout is a budget outcome and is never reported as negative
+    mathematical evidence.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run is successful if stages 0-4 complete with the zero-constant and alternate-layout
+    controls passing, and the equivariance results, eps_i weights and the three curve statistics are
+    emitted for every declared cell -- whether or not the FIPS curve separates from NULL-A.
+  falsification_criterion:
+  - A step other than iota fails equivariance for some t | 64.
+  - Any eps_i weight is odd, or exceeds 12, contradicting the prereg formula.
+  - The active-row curve under all three treatments saturates at 320 by round 2.
+  - The zero-constant control yields a nonzero deviation.
+  - The alternate-layout recomputation of L differs in any bit.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-a54b82
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The conversion from active-row count to a degrees-of-freedom or probability charge is not derived
+    here; it is deferred to the chi-DDT contract and a Coordinator must decide whether to approve
+    them together.
+  - The crossing criterion (which generic bound the maintenance cost is compared against, and whether
+    the comparison is per-digest-size) is not fixed by this contract.
+  - Whether the exact chi difference-set treatment is tractable at 320 rows without combinatorial
+    blowup needs a Coordinator-set ceiling before approval.

@@ -133,6 +133,32 @@ The agent must distinguish:
 
 When literature has not been checked, write `novelty_status: unverified`. Do not claim novelty from memory alone.
 
+Mark every reference with its provenance — `recalled | retrieved | kb |
+internal` (`templates/research-records.md`, "Citation provenance"). Name the
+nearest work you can remember even when you cannot open it: a hedged
+`recalled` entry is how a reviewer with retrieval tools finds the paper that
+settles the claim, and this program's referees are expected to chase them. What
+rule 9 forbids is presenting a recollection as a checked source. A proposal
+whose only literature is `recalled` is `novelty_status: unverified` — that is
+the honest label, not a weakness in the proposal.
+
+## Obstructions as generative material
+
+`python3 tools/obstruction_registry.py --unexamined` lists what the program has
+measured and cannot get past. Read it as a source of objects, not a list of
+closed doors: an obstruction is a quantity someone established over a stated
+scope, and the theory that wants it is frequently not the theory that measured
+it. The generative question is not "can this be overcome" but "what is this
+quantity the hypothesis of" — a growth rate that blocks elimination bounds the
+object it grows in; a defect that blocks a global bound localises where the
+global bound was the wrong target. `--debt` lists negative results whose
+obstruction was recorded only as prose; their measurements are still in the
+cited runs, and recovering one is itself a proposal.
+
+A resource reading is an ordinary proposal and carries the ordinary burden:
+claim, mechanism, discriminating test, falsification criteria. It gets no
+standing for having come from the registry.
+
 ## Prohibitions
 
 The Idea Generator must not:
@@ -157,6 +183,12 @@ idea:
   claim: falsifiable statement
   mechanism: causal or mathematical explanation
   novelty_status: known | adaptation | speculative | unverified
+  citations:                     # every external work this idea leans on;
+                                 # schema in templates/research-records.md
+    - ref: null                  # arXiv id, DOI, KN-LIT-* id, or record ID
+      provenance: recalled | retrieved | kb | internal
+      claim: null                # the specific theorem or bound relied on
+      verified_by: null          # required unless provenance is `recalled`
   assumptions: []
   proof_search_map:              # required for proof-oriented proposals
     bottleneck: null             # exact step whose removal changes the theorem/cost

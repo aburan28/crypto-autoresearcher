@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-FHEX-484181
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-6fae7b; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-6fae7b
+  question_id: RQ-FHE-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the decryption-noise variance conditioned on each of the fully enumerated plaintexts
+    at a tiny plaintext modulus, before and after modulus switching, against a label-permutation reference
+    for the spread statistic.
+  objective: The one uncertainty a run reduces is whether the message-independence idealisation in
+    a levelled scheme's noise analysis leaves a measurable residual, and which operation carries it.
+    (i) It builds the correct reference distribution for the spread statistic by permuting plaintext
+    labels across pooled noise vectors at matched class sizes, since with finitely many seeds per
+    plaintext the observed spread exceeds one even under exact independence and no analytic reference
+    is trustworthy at these class sizes. (ii) It measures the conditional variance for every one of
+    the enumerated plaintexts, so the estimate is exhaustive over the conditioning variable and no
+    plaintext-sampling assumption enters. (iii) It attributes any measured spread to a specific operation
+    by rerunning with modulus switching disabled, with multiplication replaced by addition, and with
+    both, so the deliverable is a mechanism rather than a bare effect. A run also settles whether
+    any dependence tracks a coarse plaintext feature such as Hamming weight, which is what would make
+    it predictable rather than merely present.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: at N=8, t=2, this modulus
+      chain, this fixed secret and this circuit, the decryption-noise variance conditioned on plaintext
+      has the measured values across all 256 plaintexts, its spread does or does not exceed the 99th
+      percentile of the label-permutation reference, and the attribution arms locate or fail to locate
+      the effect at modulus switching. What does NOT follow: no leak, no adversary advantage, no invalidation
+      of any noise bound, and no recommendation to change any scheme. In the tested setting nothing
+      is released to anyone: the noise is an internal quantity the experimenter computes with the
+      secret in hand, so a measured dependence is a statement about a modelling idealisation and cannot
+      be restated as an information leak.'
+  inputs:
+    procedure: 'STAGE 0 (hours implementation, reusing the entry-1 exact instrument): assert exact
+      noise recovery on every ciphertext. STAGE 1 (under one core-hour): enumerate all 256 plaintexts
+      crossed with 4096 encryption randomness seeds at a fixed secret, run encrypt then modulus switch,
+      record every exact noise polynomial and its per-class sample variance. STAGE 2 (core-hours):
+      build the label-permutation reference by permuting the 256 labels across the pooled 1048576
+      vectors 1000 times and recomputing the spread each time; record the 1st, 50th and 99th percentiles.
+      STAGE 3 (minutes): the fixed-message second null, all encryptions carrying one message with
+      labels assigned arbitrarily. STAGE 4 (core-hours): attribution arms with switching disabled,
+      with multiplication replaced by addition, and with both. STAGE 5 (core-hours): secret-averaged
+      arm over 32 secrets. STAGE 6 (minutes): Spearman correlations of the conditional variance against
+      plaintext Hamming weight and integer value; seed-count sweep at 1024 and 4096; manifest emission.'
+    instrument: Python 3 with arbitrary-precision integers for all ring arithmetic and exact noise
+      recovery, reusing the audited exact toy scheme from the first contract in this bucket so that
+      the noise polynomial is checked against an independent decryption path on every ciphertext;
+      numpy for the variance and permutation bookkeeping only, with the spread statistic computed
+      twice by independent code paths. Spearman correlation implemented directly. Deterministic seeding
+      and run manifests through harness/runner.py conventions. No Sage, no external FHE library.
+    parameters: 'Ring degree N = 8. Plaintext modulus t = 2, giving 256 enumerated plaintexts. Modulus
+      chain: two 30-bit primes, one switch. Secret: one fixed uniform ternary secret in the base arm;
+      32 secrets in the averaged arm. Error sigma = 3.2. Encryption randomness seeds per plaintext:
+      4096 in the base arm, 1024 in the sweep arm, equal across classes and enforced. Rounding rule
+      at the switch: round to nearest, declared. Permutations for the reference: 1000. Attribution
+      arms: switching disabled; multiplication replaced by addition; both. Independent seedings: 3.'
+  controls:
+  - Label-permutation reference distribution at matched class sizes and sample counts, in the same
+    invocation.
+  - Fixed-message second null, where all encryptions carry the same message and labels are assigned
+    arbitrarily.
+  - 'Operation-attribution arms: switching disabled, multiplication replaced by addition, and both.'
+  - Secret-averaged arm over 32 secrets, to check that the base measurement's single secret is not
+    special.
+  - Seed-count sweep at 1024 and 4096 per plaintext, exposing the reference distribution's dependence
+    on sample count.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Null arm: the identical conditional-variance computation with plaintext
+    labels randomly permuted across the recorded noise vectors, repeated 1000 times to build the reference
+    distribution of the spread statistic under exact message-independence at the same sample count
+    and the same class sizes. This is the only correct reference, because with finitely many seeds
+    per plaintext the observed spread is strictly greater than one even under perfect independence.
+    For the signal arm to mean anything the observed spread must exceed the 99th percentile of the
+    permutation reference. A second null replaces the message-carrying encryptions by encryptions
+    of a fixed message with the label assigned arbitrarily, which must sit inside the reference distribution;
+    if it does not, the pipeline is leaking label information and no result is usable.'
+  independent_variables:
+  - plaintext (all 256 enumerated)
+  - operation arm (switch present, switch disabled, multiplication replaced by addition, both)
+  - seeds per plaintext (1024 versus 4096)
+  - secret arm (fixed versus 32-secret average)
+  metrics:
+    primary:
+    - conditional variance Var(e|m) for every enumerated plaintext
+    - spread, defined as the largest over the smallest conditional variance
+    - 1st, 50th and 99th percentiles of the label-permutation reference for the spread
+    - spread in each attribution arm
+    secondary:
+    - conditional mean of the noise given plaintext, since a dependence in the mean would be invisible
+      to a variance statistic
+    - Spearman correlation of Var(e|m) with plaintext Hamming weight and with integer value
+    - spread in the fixed-message second null
+    - agreement between the two independent spread computations
+    - narrowing of the reference distribution between 1024 and 4096 seeds
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The spread of the conditional noise variance across the enumerated plaintexts, compared
+      with the 99th percentile of the label-permutation reference, in each operation arm.
+    formula: spread = max_m Var(e|m) / min_m Var(e|m), with Var(e|m) the sample variance of the exact
+      decryption noise over the seeds for plaintext m; reference = the empirical distribution of the
+      same statistic over 1000 random permutations of plaintext labels across the pooled noise vectors
+      at identical class sizes. Predicted spread exceeds the reference's 99th percentile in the switch-present
+      arm; predicted spread inside the reference in the addition-only, switch-disabled arm; predicted
+      the fixed-message null inside the reference in every arm.
+    source: Pre-registered in the parent proposal IDEA-20260816-6fae7b before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'N = 8 and t = 2 are chosen so that the conditioning variable, the plaintext, is
+      enumerated in full at 256 values with 4096 seeds each, which removes every sampling assumption
+      from the conditioning and is not possible at any larger plaintext modulus. The measured spread
+      depends on the ratio of the message-determined rounding residual to the accumulated message-independent
+      noise, and that ratio is entirely different at deployed plaintext moduli and chain lengths,
+      so no numerical value transfers and none is claimed. The one qualitative statement the run supports
+      beyond its own parameters is the attribution: which operation carries the dependence is a structural
+      property of the rounding rule, and the contract states that even this is claimed only for the
+      declared round-to-nearest convention.'
+    correspondence: null
+  tail_checks:
+  - Report the full 256-value conditional-variance profile, not only its extremes, since a spread
+    driven by one outlier class and one driven by a smooth trend are different findings.
+  - Report the conditional variance restricted to the largest-magnitude noise realisations within
+    each class, since the bound-relevant regime is the tail.
+  - Report the reference's full distribution rather than percentiles alone, and compare against the
+    maximum observed permutation spread as well as the 99th percentile.
+  - Report the conditional mean profile alongside the variance profile, so a mean-only dependence
+    is not missed.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Stop and report the pipeline as leaking label information, invalidating the run, if the fixed-message
+    second null falls outside the reference.
+  - Halt the permutation reference at 1000 permutations and report its Monte Carlo error.
+  - Abort as instrument failure if the exact noise-recovery assertion fails on any ciphertext, or
+    if the two independent spread computations disagree.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A spread exceeding the 99th percentile of the label-permutation reference in
+    the switch-present arm, inside the reference in the addition-only switch-disabled arm, with the
+    fixed-message null inside the reference throughout and the result reproduced across all three
+    independent seedings.
+  falsification_criterion:
+  - Spread inside the reference in every arm including switch-present, refuting the stated mechanism
+    at these parameters.
+  - Fixed-message second null outside the reference, meaning the pipeline leaks label information.
+  - Spread as large with switching disabled as with it enabled, so the attribution fails.
+  - Spread not reproducible across the three independent seedings.
+  - The reference distribution fails to narrow as seeds per plaintext rise from 1024 to 4096, indicating
+    an error in its construction.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-6fae7b
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The Coordinator must declare the rounding rule at the modulus switch, since round-to-nearest and
+    floor give different message-dependent residuals and the whole mechanism is a property of that
+    choice.
+  - Whether plaintext classes at t=2, N=8 are exchangeable enough for a label permutation to be a
+    valid reference is asserted rather than derived; the fixed-message null checks it only partially
+    and a stronger argument or a different reference may be required.
+  - The RQ-FHE-001 primary-source constraint must be ruled on, although this contract measures only
+    the scheme's own arithmetic and cites no attack claim.
+  - The step from a measured conditional-variance spread to any statement about a noise bound is not
+    derived and must be declared out of scope in the approved contract, so that no reader supplies
+    it.
