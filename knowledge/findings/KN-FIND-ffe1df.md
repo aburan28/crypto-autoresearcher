@@ -305,8 +305,21 @@ popcount / digit-sum / `x([2]P)` / target-dependent `h_Q`, and include a
 **planted `θ = p^{-1/9}` dlog mixture calibrated to sit at `M·T ≈ 1`** — which is
 the sensitivity the `P2` control never established. ~10 minutes. The claim is
 refuted if any cheap family's 95% CI on `α(G−1)` excludes `<= 0` while the nulls
-decay. **This is the correct next action for the (O2) line and it has not been
-run.**
+decay. **RUN.** See `analysis/o2-sum-compatible-filters/reviews/RT-EXP-1-RESULT.md`.
+Outcome: **no attack signal for any cheap filter**, including the two the
+coverage table listed as uncovered (target-dependent `h_Q`, `x([2]P)`) — all
+decay indistinguishably from the SHA null over a 125x range in `p` at
+`M = N^{1/3}`, the `j = 2` operating point. `popcount` and `digitsum` **tripped
+the refutation criterion** (`alpha = +0.125` and `+0.495`, CIs excluding 0) and
+are **both false positives**: the matched-marginal shuffle reproduces them
+exactly (`+0.135`, `+0.537`), so they are entirely the free marginal-bias floor.
+The instrument passes its own sensitivity test — `P2` collapses `20.0122 ->
+1.0030` under that shuffle, and the planted `theta = p^{-1/9}` mixture separates
+from the null where `Lambda` could not.
+
+**This does NOT close the hole.** Lemma 5 is a PROOF gap and no theorem here
+bounds `max_c pi_c`; eight toy primes are not a bound. It lowers the probability
+that the gap conceals an attack. `j = 2` remains UNPROVED.
 
 ## Promotion-gate status
 
