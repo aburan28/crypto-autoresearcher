@@ -1,0 +1,260 @@
+idea:
+  id: IDEA-20260816-2f344d
+  question_id: RQ-NTRU-9015ee
+  added: '2026-08-16'
+  title: 'Quantify the coordinate budget before any cross-ring comparison is believed: compute the
+    distortion between coefficient and canonical embeddings for each candidate NTRU ring to certified
+    precision, and declare that any measured cross-ring difference below that budget is a change of
+    coordinates rather than a structural effect'
+  class: representation
+  claim: '(A) Every norm, profile and density this goal measures is computed in coefficient coordinates.
+    The ring''s own geometry lives in the canonical embedding, and the two are related by the Vandermonde
+    matrix of the defining polynomial''s complex roots. For a cyclotomic ring that matrix is a scaled
+    isometry, so the two coordinate systems agree up to a global scale and nothing is at stake. For
+    an irreducible of prime degree with a large Galois group, which is the shape the deployed NTRU
+    Prime variant uses, the matrix is not an isometry and its singular values spread.
+
+    (B) The claim is that this spread is a computable budget. Define kappa as the ratio of the largest
+    to smallest singular value of the normalised Vandermonde matrix. Then any quantity computed in
+    coefficient coordinates and compared across two rings carries an ambiguity of up to log kappa
+    in the relevant units, and a measured cross-ring difference smaller than that budget cannot be
+    attributed to structure, because a difference of that size is produced by the choice of coordinates
+    alone.
+
+    (C) The deliverable is a table of kappa, computed to certified precision by isolating the polynomial''s
+    roots with interval arithmetic so that the reported value has rigorous error bounds rather than
+    floating-point hope, for every ring this goal contemplates: x to the n minus one, the relevant
+    cyclotomics, and prime-degree irreducibles of the deployed shape. The cyclotomic entries serve
+    as the null, where kappa must come out exactly one within the certified interval, which validates
+    the pipeline.
+
+    (D) What is NOT claimed: no attack and no security consequence; kappa is a property of a polynomial
+    and nothing else. It is not claimed that any measured cross-ring difference in this program is
+    in fact a coordinate artifact, because no such measurement exists yet; the entry supplies the
+    budget in advance. It is not claimed that the canonical embedding is the correct geometry for
+    NTRU, which is a genuine question this entry does not settle; the claim is only that a comparison
+    across rings computed in one coordinate system carries a stated ambiguity relative to the other.'
+  mechanism: 'Stage 1: for a given defining polynomial, isolate all complex roots with rigorous interval
+    arithmetic, so that each root comes with a certified enclosure. This is the step that makes kappa
+    a certified quantity rather than a numerical one, and it is implementable with exact rational
+    arithmetic plus a standard root-isolation strategy without any external library.
+
+    Stage 2: form the normalised Vandermonde matrix over the enclosures, compute enclosures for its
+    singular values by a method that respects intervals, and report kappa as a certified interval
+    rather than a point.
+
+    Stage 3: validate on the null. For cyclotomic polynomials the roots are roots of unity, the Vandermonde
+    is a scaled discrete Fourier matrix, and kappa is exactly one. The pipeline must return an interval
+    containing one and excluding anything else at the working precision. Failure here means the pipeline
+    is wrong and no other row is admissible.
+
+    Stage 4: compute the table across the candidate rings, and additionally report the full singular-value
+    spectrum rather than only its extremes, because a spectrum with one outlier and a spectrum uniformly
+    spread give the same kappa but very different practical ambiguity, and reporting only kappa would
+    hide that.
+
+    Stage 5: convert to a usable budget. For each quantity this goal measures in coefficient coordinates,
+    state how the log kappa ambiguity enters it, which for a norm ratio is directly and for a covolume
+    of a rank-k sublattice is with a factor k. Emit the per-quantity budget as the deliverable rather
+    than kappa alone, since kappa in the abstract is not actionable.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-NTRU-9015ee, noting its explicit statement that NTRU Prime uses a large-Galois-group
+      irreducible with prime degree and inert modulus. Read all nine of its proposals by title and
+      class, with IDEA-20260809-263751 read closely as the ring-shape proposal this budget would constrain.
+      grep -ril 'canonical embedding', 'coefficient embedding', 'Vandermonde', 'condition number',
+      'distortion' over ledger/proposals/ and ledger/hypotheses/. Read KN-OPEN-026 for whether embedding
+      choice appears among its confounders.
+    results: No proposal under RQ-NTRU-9015ee mentions the canonical embedding or a Vandermonde distortion;
+      all measurements are implicitly in coefficient coordinates. IDEA-20260809-263751 proposes measuring
+      the transition on a different ring shape, which is exactly the comparison that would inherit
+      this budget, and does not mention the coordinate question. KN-OPEN-026 lists cost-model incomparability,
+      via KN-TECH-040, as its standing warning but does not raise embedding choice. No hit for 'Vandermonde'
+      or 'canonical embedding' in ledger/proposals/ on this screen.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature; the relationship between
+      coefficient and canonical embeddings is standard and the distortion is certainly discussed somewhere
+      outside this repository. What is claimed new relative to this repository is the computation
+      of that distortion as a certified interval for the specific rings this goal will compare, and
+      its conversion into a per-quantity ambiguity budget that a cross-ring measurement must exceed
+      before it is interpreted structurally. Assembled from known parts: interval root isolation,
+      Vandermonde singular values, and the cyclotomic case as a forced-value null.'
+  object_first_candidate:
+    tracked_object: The certified singular-value spectrum of the normalised Vandermonde matrix of
+      a defining polynomial, reduced for reporting to kappa and to the full spectrum shape. Followed
+      through the operation of changing the defining polynomial within the candidate set.
+    lossiness: 'Lossy when reduced to kappa, which discards the entire spectrum shape, the roots''
+      locations and the polynomial itself; the entry mitigates this by retaining the full spectrum
+      in the artifacts and by stating that kappa alone hides the difference between a single outlier
+      and a uniform spread. Honesty requires a further admission: the map from coefficient to canonical
+      coordinates is itself a linear isomorphism and therefore loses nothing as a map, so the *transformation*
+      is a change of coordinates, exactly the situation the lossy-projection test warns about. What
+      is genuinely lossy is the tracked object, the spectrum, which is a projection of the polynomial.
+      The entry''s value comes precisely from naming a change of coordinates as such and measuring
+      how large it is, which is the opposite of mistaking one for a new object.'
+    propagation: 'One step of the target operation is a change of defining polynomial within the candidate
+      set, which relocates the roots and reshapes the spectrum. Under it kappa moves discontinuously
+      and there is no smooth propagation law, which is stated plainly: this object does not evolve,
+      it is tabulated. What does propagate is the budget''s effect on a derived quantity, where the
+      log kappa ambiguity enters a rank-k covolume with a factor k and a norm ratio with a factor
+      one, and those propagation rules are derived symbolically rather than measured.'
+    survival_score: 'Survives as an exact certified computation to any degree where root isolation
+      with rigorous enclosures is affordable, which for a degree-761 polynomial with small coefficients
+      is expected to be feasible but is not assumed and is measured as part of the run. It has no
+      dissolution point as a statement, since it is a property of a polynomial. Concretely: certified
+      at degree up to at least 128 with confidence, and reported as attempted-and-timed at degree
+      761.'
+  null_object_control: 'The cyclotomic forced null: for every cyclotomic polynomial in the candidate
+    set the pipeline must return a certified interval for kappa containing one and of width below
+    a declared tolerance, because the Vandermonde of roots of unity is a scaled unitary matrix. This
+    is a genuine null object of the same shape, a polynomial of the same degree run through the identical
+    measurement, with a value forced by mathematics rather than by expectation. If the pipeline reports
+    kappa away from one for a cyclotomic, every other entry in the table is void. A second null in
+    the opposite direction: a deliberately badly conditioned polynomial with clustered roots, for
+    which kappa must be large, confirming the pipeline can detect distortion at all rather than merely
+    reporting one.'
+  discriminated_from:
+  - IDEA-20260809-263751 measures whether a transition exponent transfers across ring shapes; this
+    entry computes the coordinate ambiguity that any such cross-ring comparison inherits, so it bounds
+    the interpretation of that proposal's result without duplicating any part of its measurement.
+  - The CRT idempotent entry in this batch also concerns ring shape but works with factorisation modulo
+    q, an arithmetic property; kappa is an archimedean property of the polynomial's complex roots,
+    and the two are independent, which is why both are needed for a cross-ring comparison.
+  - KN-TECH-040's warning as relayed in KN-OPEN-026 is about incomparability of estimator cost models;
+    this is about incomparability of geometric coordinates and applies even when a single instrument
+    is used throughout.
+  - A generic numerical conditioning check would report a floating-point condition number; the content
+    here is that the value is certified by interval arithmetic, so it can bound a claim rather than
+    merely describe a computation.
+  - The profile basis-dependence entry in this batch measures instability of a measurement across
+    presentations of one lattice; this measures a systematic distortion between coordinate systems
+    across different rings, which is a bias rather than a variance and does not shrink with more budget.
+  assumptions:
+  - Rigorous root isolation with interval arithmetic is implementable in pure Python at the degrees
+    required, which is checked at the largest degree before the table is compiled rather than assumed.
+  - The normalised Vandermonde is the right object, that is, that the canonical embedding is defined
+    with the conventional normalisation; the convention is declared explicitly because a different
+    normalisation changes kappa by a global factor and would make the table incomparable with anyone
+    else's.
+  - The per-quantity propagation rules, factor one for norm ratios and factor k for rank-k covolumes,
+    are derived symbolically and checked on a synthetic example rather than asserted.
+  - The candidate ring set is the one this goal will actually compare; if a comparison is later made
+    on a ring outside the set, its budget is unknown and the contract says so.
+  predictions:
+  - metric: certified kappa for every cyclotomic polynomial in the candidate set
+    direction: different
+    minimum_effect: forced value exactly 1, with the certified interval required to contain 1 and
+      have width below 1e-9
+  - metric: certified kappa for a prime-degree irreducible of the deployed shape at degree 61
+    direction: higher
+    minimum_effect: 1.5
+  - metric: certified kappa for the deliberately clustered-root control
+    direction: higher
+    minimum_effect: 100
+  - metric: width of the certified interval for kappa at degree 128
+    direction: lower
+    minimum_effect: 0.01
+  minimal_test:
+    design: 'Entirely analytic, no lattice and no modulus. Assemble the candidate set: three cyclotomic
+      polynomials as the forced null, x^n minus one for two values of n, three prime-degree irreducibles
+      of the deployed shape at degrees 31, 61 and 127, and one deliberately clustered-root polynomial
+      as the opposite null. For each, isolate all complex roots with rigorous enclosures, form the
+      normalised Vandermonde over the enclosures, and compute certified enclosures for its extreme
+      singular values, reporting kappa as an interval and the full spectrum as an artifact. Gate the
+      run on the cyclotomic entries returning intervals containing one with width below the declared
+      tolerance and on the clustered control returning a large kappa. Then emit the per-quantity budget
+      table by applying the symbolically derived propagation rules. Total compute is minutes at moderate
+      degree; the degree-761 attempt is run separately with a time cap and reported as attempted rather
+      than folded into the table if it does not complete.'
+    controls:
+    - Cyclotomic forced null, kappa exactly one, gating the pipeline.
+    - Clustered-root polynomial control, kappa large, confirming the pipeline can detect distortion.
+    - Certified intervals throughout rather than floating-point values, so that every number carries
+      a rigorous bound.
+    - Independent verification of root enclosures by evaluating the polynomial at the enclosure endpoints
+      and checking sign or modulus conditions.
+    - Symbolic derivation of the per-quantity propagation rules checked against a synthetic example
+      with a known answer.
+    required_metrics:
+    - certified interval for kappa per polynomial
+    - full certified singular-value spectrum per polynomial
+    - interval width per entry
+    - per-quantity ambiguity budget after applying propagation rules
+    - root-enclosure verification results
+    - wall-clock and achieved degree for the large-degree attempt
+  falsification_conditions:
+  - A cyclotomic entry returning an interval excluding one, invalidating the pipeline and voiding
+    the table.
+  - The clustered-root control returning a small kappa, meaning the pipeline cannot detect distortion.
+  - Certified intervals so wide that kappa is not resolved to better than a factor of two, in which
+    case the budget is unusable and the entry reports that as its result.
+  - Root enclosures failing their independent verification, invalidating the affected entries.
+  - kappa within 1.05 of one for every non-cyclotomic candidate, which would refute the premise that
+    coordinate choice matters for these rings and would be a clean, useful negative licensing cross-ring
+    comparison without a budget.
+  confounders:
+  - Normalisation convention for the canonical embedding changes kappa by a global factor and would
+    make a cross-comparison meaningless if two entries used different conventions; one convention
+    is declared and applied uniformly.
+  - Root isolation precision affects interval width, so an apparently large kappa could be an artifact
+    of loose enclosures; the width is reported alongside every value for exactly this reason.
+  - Polynomials of different degrees are not directly comparable in kappa, since the Vandermonde's
+    size changes; degree-matched comparisons are the only ones the table permits and it says so.
+  - The deployed-shape polynomials must be actual instances of that shape, and if the shape is misremembered
+    the table describes a different ring; the polynomial is therefore printed in full in the artifact
+    so a reader can check it.
+  interpretation_limits:
+  - kappa bounds a coordinate ambiguity; it does not say which coordinate system is the right one
+    for NTRU, which this entry does not settle.
+  - A cross-ring difference exceeding the budget is not thereby structural; exceeding the budget is
+    necessary, not sufficient.
+  - The table is scoped to the declared candidate polynomials; a ring outside the set has an unknown
+    budget.
+  target_complexity:
+    time_exponent: No attack exponent claimed. The computation is polynomial in the degree, dominated
+      by certified root isolation and by interval singular-value enclosure.
+    memory_exponent: No attack memory exponent claimed; memory is quadratic in the degree for the
+      Vandermonde.
+    best_known: There is no incumbent coordinate budget in this repository, and cross-ring comparisons
+      here are currently made in coefficient coordinates without one. That absence is what the entry
+      addresses.
+    hidden_overhead: Certified interval arithmetic on singular values is much harder than the floating-point
+      version, and the hidden cost is that a naive implementation produces intervals so wide that
+      the budget is vacuous; the entry treats that outcome as a reportable result rather than as a
+      failure to be hidden. The convention declaration is a second hidden cost, small but load-bearing.
+  dominated_by: 'n/a (no result claimed). Frontier check across time, memory and data: no attack quantity
+    is produced. Against other in-repository confounder quantifications there is nothing comparable,
+    since none exist for geometric coordinates; the cost-model warning in KN-TECH-040 addresses a
+    different axis and neither dominates the other.'
+  sota_delta: No attack; confounder-quantification contribution only. The delta is that a cross-ring
+    comparison in this goal would carry a certified ambiguity floor, where at present it would carry
+    none and any measured difference would be interpreted at face value.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the cyclotomic forced null passes with tight intervals: 0.75, with
+    the risk entirely in the interval singular-value machinery rather than in the mathematics. That
+    the clustered-root control returns a large kappa: 0.9. That certified intervals are tight enough
+    at degree 128 for the budget to be usable: 0.5, and this is the entry''s real uncertainty, since
+    rigorous singular-value enclosures degrade quickly with size. That at least one deployed-shape
+    candidate has kappa above 1.5, making the budget material: 0.55. That the degree-761 attempt completes
+    within a bounded budget: 0.3. Joint prior for a usable, material table at moderate degree: about
+    0.3.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-NTRU-9015ee
+  - KN-OPEN-026
+  - KN-TECH-040
+  - IDEA-20260809-263751
+  - IDEA-20260809-24eec3
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-NTRUL-b69f49

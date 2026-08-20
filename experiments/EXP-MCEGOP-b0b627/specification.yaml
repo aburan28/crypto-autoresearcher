@@ -1,0 +1,222 @@
+experiment:
+  id: EXP-MCEGOP-b0b627
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-e36836; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-e36836
+  question_id: RQ-MCEQ-fcb504
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: 'Calibration of a hull-plus-weight-enumerator coordinate-signature equivalence tester on
+    random binary codes: false-positive, false-negative and stall rates across a prescribed hull-dimension
+    sweep, with permuted-copy positives and a randomised-signature null'
+  objective: 'This contract reduces one uncertainty: what the error profile of an invariant-based
+    permutation-equivalence tester actually is on random inputs, so that any later claim about a technique
+    being ''blocked'' has a baseline to be blocked relative to. Stated in parts: (i) THE THREE RATES
+    -- the false-positive rate on independently drawn code pairs, the false-negative rate on permuted
+    copies, and the stall rate from coordinate signature collisions, each measured per (n, k, hull
+    dimension) cell with confidence intervals rather than asserted. (ii) THE USABLE BAND -- the interval
+    of hull dimensions over which the instrument works, bounded below by the stall rate crossing 0.05
+    and above by the enumeration cost of the hull exceeding budget. Below the band the invariant carries
+    no information because every coordinate looks alike; above it the computation is unaffordable.
+    Locating both ends is the deliverable, and either end being absent at the tested sizes is itself
+    a result. (iii) INVARIANT VERSUS PROCEDURE -- how much of the matcher''s success is due to the
+    hull signature and how much to the matching procedure, isolated by running the identical matcher
+    on random integer vectors of the same shape. That third part exists because a matcher that succeeds
+    on random signatures is measuring its own tie-breaking, and no amount of positive-control success
+    would reveal it. Nothing in this contract touches Goppa codes, McEliece parameters, or any external
+    text; the inputs are random binary codes generated locally.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A completed run could support exactly this: that this program''s
+      hull-signature equivalence tester, on random binary codes at the tested (n, k, h) cells with
+      the frozen tie-breaking policy, exhibited the measured false-positive, false-negative and stall
+      rates with the reported intervals, and that its usable hull-dimension band at those sizes was
+      the reported interval. What does NOT follow: nothing about any published equivalence-testing
+      algorithm, whose content this program has not read and does not assert; nothing about whether
+      matrix code equivalence is hard or easy; nothing about Classic McEliece or binary Goppa parameter
+      security, which RQ-MCEQ-fcb504 places out of scope; and no claim that the measured band persists
+      at larger n, since the stall rate depends on n through collision counting.'
+  inputs:
+    procedure: 'STAGE 0 (cost: minutes). Freeze the signature definition, the matcher, the tie-breaking
+      and branching policy, the cells and the seeds. STAGE 1 (cost: minutes). Implement hull computation
+      over GF(2) and validate it on hand-checkable codes: the repetition code, a self-dual code of
+      small length, and a random code whose hull is computed twice by two different routes. STAGE
+      2 (cost: minutes per cell). Construct 200 codes per (n, k, h) by extending a random self-orthogonal
+      seed of dimension h; MEASURE the realised hull dimension and discard mismatches, recording the
+      discard rate. STAGE 3 (cost: minutes per cell). Compute all n signatures per code by enumerating
+      the hull''s 2^h codewords and shortening at each coordinate. STAGE 4 (cost: minutes). Build
+      200 positive pairs and 200 negative pairs per cell; run the matcher; verify every declared match
+      by applying the induced permutation and comparing row spaces. STAGE 5 (cost: minutes). Run the
+      randomised-signature null with the identical matcher. STAGE 6 (cost: seconds). Compute the three
+      rates with Wilson intervals per cell and locate the usable band. STAGE 7 (cost: minutes). Emit
+      raw per-pair outcomes, not only rates. Total budget 3 CPU-hours.'
+    instrument: Python 3.11 standard library only (numpy absent, verified). New module implementing
+      GF(2) linear algebra over Python-int rows, hull computation by intersecting a code with its
+      dual via stacked elimination, weight enumerators by direct codeword enumeration over the hull,
+      and a signature matcher with a frozen greedy-plus-bounded-branching policy. Shares the GF(2)
+      elimination primitives with harness/goppa_toy.py from proposal 1 but does not depend on the
+      Goppa construction, so it can run first. Driven through harness/runner.py with domain-separated
+      random.Random seeds. No Sage, no external package, no network.
+    parameters: 'n in {24, 32, 48}; k = n/2 in each case (12, 16, 24); prescribed hull dimension h
+      in {0, 1, 2, 4, 6, 8, 12}, subject to h <= k. 200 codes per (n, k, h) cell, giving 200 positive
+      pairs and 200 negative pairs per cell; 21 cells maximum, 4200 codes. Matcher branching bounded
+      at 1000 explored bijections per pair, after which the pair is recorded as a stall rather than
+      as either outcome. Randomised-signature null: 200 pairs per cell with signatures drawn uniformly
+      from the empirical signature alphabet of that cell. Hull enumeration capped at 2^12 codewords.'
+  controls:
+  - 'Positive control: permuted copies, where the correct answer is always ''equivalent'' and any
+    miss is a bug.'
+  - 'Negative null: independently drawn codes at matched (n, k, h), same invocation.'
+  - 'Randomised-signature null: the identical matcher run on random integer vectors of the same shape,
+    isolating the matcher''s own contribution.'
+  - 'Realised-hull verification: the constructed hull dimension is measured after construction, never
+    assumed from the seed.'
+  - Direct verification of every declared match by applying the induced permutation and comparing
+    row spaces, so that 'declared' and 'verified' rates are both reported.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The null arm is built into the design and executes in the same invocation
+    as the signal arm: for every positive pair (C, pi(C)) a negative pair (C, C'') is drawn with C''
+    an independently sampled random code of the same (n, k) and the same prescribed hull dimension
+    h, and the identical signature computation and matcher are run on it. For the instrument to mean
+    anything the null must show a false-positive rate near zero -- specifically, that independently
+    drawn codes are declared equivalent at a rate consistent with the multiset-collision probability
+    and, crucially, that any declared match FAILS the direct verification step. A false-positive rate
+    indistinguishable from the true-positive rate means the signature carries no information at that
+    hull dimension, and the honest report is the rate, not a verdict. A second null, matched on hull
+    dimension but with signatures replaced by random integer vectors of the same shape, isolates how
+    much of the matcher''s success comes from the signature and how much from the matching procedure
+    itself.'
+  independent_variables:
+  - n
+  - prescribed hull dimension h
+  - pair type (positive permuted copy | negative independent | randomised-signature null)
+  metrics:
+    primary:
+    - false-positive rate with Wilson interval
+    - false-negative rate
+    - stall rate
+    - number of distinct signatures per code
+    secondary:
+    - realised-hull discard rate
+    - mean explored bijections per pair
+    - wall-clock per cell
+    - hull enumeration cost
+    - count of declared matches failing direct verification
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The three rates per (n, k, h) cell, and the hull dimension at which the stall rate first
+      falls below 0.05.
+    formula: 'sig_C(j) = the weight enumerator vector of Hull(C) shortened at coordinate j, where
+      Hull(C) = C intersect C-perp. StallRate(n,k,h) = fraction of codes with |{sig_C(j)}| < n, i.e.
+      at least one repeated signature. FPR = fraction of negative pairs declared equivalent AND passing
+      direct verification (which should be zero) plus those declared but failing verification, reported
+      separately. FNR = fraction of positive pairs not declared equivalent; pre-registered at exactly
+      0. h* = min{h : StallRate < 0.05}, not pre-committed to a value.'
+    source: Pre-registered in the parent proposal IDEA-20260816-e36836 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'n <= 48, k = n/2, hull dimension <= 12: small enough that hull enumeration is
+      exhaustive and every declared match is verified directly rather than trusted. No extrapolation
+      to larger n is offered, and the reason is explicit: the stall rate is a collision statistic
+      and depends on n, so the measured band is a property of the tested sizes. The transfer assumption
+      to the two-sided matrix-code action is REFUSED outright -- this contract measures the permutation
+      case only, and supplying that baseline is its entire purpose.'
+    correspondence: null
+  tail_checks:
+  - The h = 0 cell must show a stall rate of exactly 1.0; anything else is a bug and is checked before
+    any other cell is read.
+  - Cells where the realised-hull discard rate exceeds 0.5 are reported as construction failures rather
+    than as measurements.
+  - Any negative pair declared equivalent AND passing direct verification is inspected individually,
+    since it would be a genuine accidental equivalence and is interesting in its own right.
+  - The largest h cell is checked for enumeration-cost blow-up rather than assumed affordable.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop and report if the permuted-copy positive control shows any false negative at any cell.
+  - Cap total wall-clock at 3 CPU-hours; report unreached cells rather than shrinking the sweep.
+  - Abort a cell whose realised-hull discard rate exceeds 0.9, recording the prescribed h as unconstructible
+    at that (n,k).
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: All three rates are reported with Wilson intervals for every constructible (n,
+    k, h) cell, the permuted-copy positive control shows zero false negatives, every declared match
+    is verified directly, and the randomised-signature null is reported beside the real-signature
+    arm at every cell.
+  falsification_criterion:
+  - Any false negative on a permuted-copy pair.
+  - Stall rate below 1.0 at h = 0.
+  - Realised hull dimension mismatching the prescription in a majority of constructions.
+  - Randomised-signature null false-positive rate as low as the real-signature arm's at any cell.
+  - A declared match that passes direct verification on a negative pair at a rate above the accidental-equivalence
+    bound.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-e36836
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The matcher's tie-breaking and branching policy must be frozen by the Coordinator; all three reported
+    rates depend on it and it cannot be tuned after seeing results.
+  - Whether the prescribed-hull construction yields an acceptable ensemble needs a Coordinator ruling,
+    since the alternative -- rejection sampling from uniform random codes -- is infeasible at h >=
+    4 and would give a different, more natural ensemble.
+  - The relationship, if any, between this permutation-case baseline and the two-sided matrix-code
+    action is NOT established here and must not be assumed by any deliverable citing this contract.

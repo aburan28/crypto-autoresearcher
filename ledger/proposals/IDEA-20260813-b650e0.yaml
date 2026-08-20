@@ -1,0 +1,372 @@
+idea:
+  id: IDEA-20260813-b650e0
+  question_id: RQ-QALG-74bf20
+  goal_id: GOAL-QALG-001
+  added: '2026-08-13'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    Decoherence-tolerant classical-memory-assisted sieve: does Kuperberg's
+    combination step require full quantum coherence across the whole
+    candidate list, or does it decompose into locally-coherent
+    sub-computations a classical bookkeeping layer can stitch together?
+  class: representation
+
+  claim: >-
+    RQ-QALG-74bf20 explicitly lists "reduces the quantum-memory exponent at
+    fixed time" as an in-scope mechanism class. This proposal asks whether
+    Kuperberg's sieve's correctness genuinely requires simultaneous quantum
+    coherence across its ENTIRE current-round candidate list, or whether the
+    computation decomposes into LOCALLY coherent sub-trees whose outputs can
+    be measured and recorded CLASSICALLY between rounds, with the classical
+    record used to select/reconstruct which quantum sub-computation to run
+    next -- trading quantum memory for classical memory plus a bounded
+    number of repeated quantum sub-computations, in the spirit of van
+    Oorschot-Wiener's time-memory interpolation (target-result-profile.md
+    A8) but as a genuinely proposed MECHANISM for this specific recursive
+    structure, not merely a citation of the generic tradeoff.
+
+  mechanism: >-
+    Kuperberg's sieve, naively implemented, holds the entire current-round
+    list of L coherent qubit-pair states simultaneously (exactly what the
+    collimation c-sieve variant, KN-LIT-127, already targets for reduction
+    via a different internal technique). This proposal's candidate
+    mechanism is different: rather than reducing L directly, it asks
+    whether the combination step (pairing states within a bucket) can be
+    restructured as a sequence of independent small sub-computations --
+    process the list in classically-recorded batches of size b << L,
+    running each batch's combination sub-tree to completion (fully coherent
+    within the batch, using only O(b) quantum memory), measuring the
+    batch's output label(s) and recording them classically, then discarding
+    that batch's quantum register entirely before starting the next batch
+    -- and asks whether the union of all batches' classically-recorded
+    outputs, fed into the next round in the same batched fashion,
+    reproduces (in success-probability distribution, not necessarily
+    deterministically) the same final recovery of d that the fully-coherent
+    O(L)-qubit implementation achieves, possibly at the cost of needing more
+    total batches/repetitions.
+
+  established_families_declared_off_limits: >-
+    Per docs/inventor-protocol.md section 1: the collimation c-sieve's own
+    internal quantum-memory reduction technique (KN-LIT-127, Peikert's
+    generalization) is the declared established family for "reduce quantum
+    memory at fixed time" and is NOT what this proposal modifies -- this
+    proposal's delta is a different axis: converting QUANTUM memory into
+    CLASSICAL memory via inter-batch measurement/decoherence, which the
+    c-sieve (a fully-coherent technique achieving its memory reduction by a
+    different internal combinatorial trick, per KN-TECH-051's description
+    of it as achieving "exponentially less quantum memory... offering more
+    parameter tradeoffs") does not itself claim to do via classical
+    off-loading. Generic time-memory interpolation (van Oorschot-Wiener,
+    cited by the exemplar profile's A8) is likewise declared off-limits as a
+    CITATION-ONLY move; this proposal's job is to determine whether the
+    analogous mechanism is even structurally possible for Kuperberg's
+    specific recursive combination step, which vOW's classical
+    collision-search context does not settle.
+
+  novelty_status: unverified
+  novelty_screen: >-
+    crypto-kb MCP was unavailable and WebSearch failed on every attempt this
+    session (see retrieval-screen.yaml). Corpus grep found no KN-* entry
+    proposing an inter-batch decoherence/classical-recombination
+    restructuring of Kuperberg's sieve; KN-LIT-127/KN-TECH-051 describe
+    ONLY the c-sieve's own internal (fully-coherent) memory-reduction
+    technique, not this classical-offload axis. Novelty is unverified given
+    the incomplete screening this session could perform.
+
+  assumptions:
+    - >-
+      Peikert's classical-simulator methodology (KN-LIT-127) is a valid
+      precedent instrument for studying this sieve's intermediate behavior
+      without quantum hardware, at toy scale.
+
+  proof_search_map:
+    bottleneck: >-
+      Whether Kuperberg's sieve's overall success probability is a function
+      that FACTORS across independently measurable batches (permitting the
+      proposed decoherence-tolerant restructuring) or whether it depends on
+      a GLOBAL interference term across the whole current-round list that
+      inter-batch measurement destroys -- the same obstruction class the
+      Regev-erasure background material (KN-TECH-d1bc4f) flags generally:
+      "the b_i registers remain entangled... and must be erased... without
+      disturbing the phase relationship," applied here not to the original
+      sample's b register but to the sieve's own intermediate combined
+      states across rounds.
+    baseline_embedding:
+      parameter_slice: >-
+        Kuperberg's sieve run with the naive fully-coherent O(L)
+        implementation, and separately the collimation c-sieve's own
+        reduced-memory implementation (KN-LIT-127), are both exact
+        old-method boundaries this proposal must reproduce (at least
+        symbolically or via Peikert's cited classical-simulator methodology)
+        before claiming any further reduction.
+      reproduction_check: >-
+        Not performed this session. Required before Coordinator approval:
+        obtain (independently, per this RQ's baseline-reproduction
+        constraint) the c-sieve's own stated memory exponent as a function
+        of N, to have an exact existing-best-case memory figure this
+        proposal's batched variant must beat, not merely improve on the
+        naive O(L) baseline (beating the naive baseline alone would not
+        establish anything the c-sieve hasn't already achieved).
+    observation_collision:
+      observable: The final measured bits of d recovered by the sieve.
+      distinct_preimage_search: >-
+        At toy scale, construct two distinct shift values d, d' whose
+        intermediate combined-state distributions, when restricted to what a
+        single batch's classical measurement can record, produce IDENTICAL
+        classically-recorded batch-output distributions across all batches
+        -- if such a collision exists, the batched/decohered variant cannot
+        distinguish d from d' regardless of how many batches or repetitions
+        are used, a direct, decisive falsifier reachable by toy-scale exact
+        computation.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          A batch-size parameter b, realized as a specialization of the
+          fully-coherent sieve to O(b)-qubit sub-computations, with charges
+          (repetition counts, classical storage) added only over PROVED-
+          DISJOINT batches -- batches whose measurement outcomes are shown,
+          not assumed, to be independent enough that their classical record
+          can be recombined without re-running the coherent computation.
+        predicted_gain: >-
+          IF the success-probability-factoring property holds, predicted
+          gain is a genuine quantum-memory exponent reduction from O(L) to
+          O(b) at the same time exponent, with L/b as the classical-memory
+          and repetition-count overhead -- an interpolation curve directly
+          analogous to van Oorschot-Wiener's, but for this structure,
+          derived rather than cited.
+    quantifier_order: >-
+      Kuperberg's claim: for all N, the sieve as originally specified
+      succeeds with the stated probability using O(L) coherent quantum
+      memory. This proposal's claim, if favorable: for all N, for all batch
+      sizes b in some range, a batched variant succeeds with a comparable
+      probability (possibly requiring more total repetitions) using only
+      O(b) coherent quantum memory. The critical quantifier check: does the
+      success-probability-factoring property actually hold UNIFORMLY across
+      b, or does it fail exactly at the boundary between "b large enough
+      that batches still capture the needed correlation" and "b small
+      enough to matter for memory" -- i.e. is there a nontrivial b in the
+      useful range at all, or does the property only hold vacuously at b=L
+      (no gain) or fail entirely for b<L (no useful batching possible).
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At best, a genuine quantum-memory-exponent reduction at fixed time,
+        matching RQ-QALG-74bf20's own explicitly in-scope mechanism class --
+        a real target-class candidate IF the factoring property holds for a
+        useful range of b. At worst, per the Regev-erasure-obstruction
+        analogy, the property fails entirely (the sieve's cross-round
+        correlations are exactly the kind of entangled structure that
+        resists premature measurement, mirroring why Regev's own original
+        construction needed an oracle rather than direct measurement to
+        erase entangled registers) -- a clean, well-motivated closure with a
+        named obstruction directly analogous to a well-established one in
+        the adjacent DCP literature (KN-TECH-d1bc4f).
+      nearby_object_control: >-
+        Apply the identical batched-measurement construction to a toy sieve
+        instance (N=2^10..2^16) at batch sizes b covering the full range
+        from b=2 (maximal decoherence, minimal quantum memory) to b=L (no
+        decoherence, the baseline), and measure empirical success
+        probability versus b directly, comparing against the naive
+        prediction (success probability degrades smoothly/polynomially with
+        decreasing b, per the validation ladder's step-2 discipline) versus
+        a cliff pattern (success probability collapses sharply below some
+        threshold b*, indicating the factoring property fails discretely
+        rather than gracefully).
+    proof_obligations:
+      - claim: The sieve's success probability, as a function of batch size b, is characterized exactly at toy scale (not assumed to factor).
+        responsibility: success_probability
+      - claim: >-
+          If a useful range of b exists, the classical bookkeeping needed to
+          recombine batch outputs is itself boundable at cost o(the claimed
+          quantum-memory savings), else the "savings" merely relocates cost
+          rather than reducing it.
+        responsibility: memory
+      - claim: The batched variant's total TIME (including any added repetitions) does not exceed the baseline's time by more than a constant factor, per the RQ's "at fixed time" scope requirement.
+        responsibility: runtime
+    not_applicable_reason: null
+
+  predictions:
+    - metric: sieve success probability as a function of batch size b, toy scale N=2^10..2^16, holding total repetitions fixed
+      direction: lower
+      minimum_effect: >-
+        any statistically resolvable difference between the graceful-
+        degradation and cliff-degradation hypotheses, at the toy scale
+        tested, with the cliff threshold b* (if one exists) recorded
+        explicitly. The honest a-priori prediction, per the Regev-erasure-
+        obstruction analogy, is a SHARP (cliff-like) degradation rather than
+        a graceful one, since the sieve's cross-round phase relationships
+        are plausibly exactly the kind of entangled structure that resists
+        premature measurement -- stated as the predicted, not hoped-for,
+        outcome.
+
+  minimal_test:
+    design: >-
+      Toy-scale (N=2^10..2^16) exact or near-exact classical simulation
+      (Peikert's classical-simulator methodology, KN-LIT-127, as precedent
+      instrument) of Kuperberg's sieve, modified to insert measurement/
+      decoherence at batch boundaries of size b, sweeping b from 2 to L, and
+      recording end-to-end success probability at fixed total sample/
+      repetition budget, compared against the fully-coherent baseline (b=L)
+      and the c-sieve's own published reduced-memory approach if
+      reproducible at this toy scale.
+    controls:
+      - Fully-coherent baseline (b=L), exact reproduction of Kuperberg's own sieve at this toy size.
+      - The c-sieve's own reduced-memory technique (KN-LIT-127) reproduced at the same toy size, as the existing best-known memory-reduction comparator this proposal must beat, not merely the naive baseline.
+      - >-
+        A null: batches whose boundaries are chosen ADVERSARIALLY to
+        maximize cross-batch correlation loss (a worst-case decoherence
+        pattern), to bound the worst-case success-probability degradation as
+        a sanity check on the b-sweep's generality.
+    required_metrics:
+      - success probability versus b, at fixed repetition budget, compared against both the fully-coherent and c-sieve baselines
+      - classical memory required to record and recombine batch outputs, versus b
+      - total time (including repetitions needed to restore success probability, if degraded) versus b, to check the "at fixed time" scope requirement
+      - >-
+        cliff threshold b* (if any), with a tail-consistency check comparing
+        the smallest b at which success probability remains within a stated
+        tolerance of baseline against the toy-scale trend extrapolated to
+        larger N
+
+  falsification_conditions:
+    - >-
+      Success probability collapses sharply (cliff pattern) at any b < L,
+      i.e. no useful batching range exists -- a clean, decisive closure with
+      the named obstruction (cross-round entanglement resists premature
+      measurement, directly analogous to the Regev-erasure obstruction in
+      KN-TECH-d1bc4f).
+    - >-
+      A useful range of b exists but the classical bookkeeping cost to
+      recombine batches grows FASTER than the quantum-memory savings (e.g.
+      requiring storage or recombination work scaling with L rather than
+      staying proportional to L/b) -- closes the proposal on cost-relocation
+      grounds even if the success-probability property holds.
+    - >-
+      The batched variant, even where success probability holds, requires a
+      TIME increase (repetition count) that violates the "at fixed time"
+      scope RQ-QALG-74bf20 requires -- reclassifies any surviving result as
+      a genuine time-memory TRADEOFF (still useful, matching the exemplar's
+      A8 tradeoff discipline) rather than a pure memory-exponent reduction.
+
+  confounders:
+    - >-
+      Toy-scale success-probability measurements at small N may not reveal
+      a cliff that only emerges at larger N (or vice versa, a toy-scale
+      cliff that softens at scale) -- the tail-consistency check above is
+      designed to catch this but cannot fully rule it out without
+      larger-scale testing this program cannot afford; any positive finding
+      must be reported as toy-scale only, per RQ-QALG-74bf20's own
+      toy-instance constraint.
+    - >-
+      The c-sieve (KN-LIT-127) may already achieve, via its own internal
+      technique, a memory reduction that this proposal's batching approach
+      cannot beat or even match -- the reproduction_check above is designed
+      to catch this, but until performed, any apparent gain over the NAIVE
+      baseline alone is not yet a gain over the actual best-known method.
+
+  interpretation_limits:
+    - No claim about CSIDH's security level, regardless of outcome.
+    - A toy-scale success-probability curve, cliff or graceful, is hypothesis-generating only.
+    - >-
+      If the cliff-pattern closure is confirmed, it does not rule out OTHER
+      decoherence-tolerant restructurings (e.g. batching along a different
+      axis, or a genuinely different classical-quantum hybrid architecture)
+      -- forward guidance per docs/inventor-protocol.md section 4, not a
+      blanket claim that no quantum-memory reduction beyond the c-sieve's
+      own is possible.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a uniformly random toy dihedral hidden-shift instance, the
+        sieve's success probability as a function of batch size b, measured
+        at toy scale (N=2^10..2^16), extrapolates smoothly (no
+        discontinuous jump) to larger N within the same qualitative regime
+        (cliff-or-graceful), so that a toy-scale finding of "cliff at
+        b*(N)" or "graceful degradation" is informative about the
+        qualitative behavior at CSIDH-relevant N even though the exact
+        numeric threshold b* is not.
+      rigorous_support: >-
+        No independent rigorous bound is available in this corpus to
+        compose with a classical distribution theorem in the Wesolowski A2
+        sense; this is explicitly the WEAKEST-JUSTIFIED heuristic in this
+        proposal, resting only on the general expectation that entanglement-
+        obstruction phenomena (well-documented in the adjacent Regev/Simon
+        DCP literature, KN-TECH-d1bc4f) tend to be qualitatively
+        scale-invariant, a plausibility argument, not a proof.
+      validation_plan: >-
+        Repeat the b-sweep at successively larger toy N (up to the largest
+        exactly-simulable size available), and check whether the
+        qualitative pattern (cliff versus graceful) and the ratio
+        b*(N)/L(N), if a cliff is found, stabilizes or drifts systematically
+        as N grows -- a drifting ratio would directly flag H1 as unsafe to
+        extrapolate, which must be reported plainly rather than smoothed
+        over.
+
+  target_complexity:
+    time_exponent: >-
+      2^{O(sqrt(log N))}, unchanged from Kuperberg's baseline, UNLESS the
+      falsification conditions above force a repetition-count increase, in
+      which case the time exponent's CONSTANT (not form) increases -- to be
+      reported honestly as a tradeoff, not a pure gain, if that occurs.
+    memory_exponent: >-
+      Claimed, conditional on the factoring property holding for a useful
+      b: O(b) quantum memory, b << L, at the same time exponent -- a genuine
+      quantum-memory-exponent reduction if it survives the audits above,
+      directly answering RQ-QALG-74bf20's explicitly in-scope "reduces the
+      quantum-memory exponent at fixed time" mechanism class; classical
+      memory increases to O(L) or O(L/b) depending on the recombination
+      strategy, reported alongside any quantum-memory claim per the
+      exemplar's A8 memory-honesty discipline.
+    best_known: >-
+      Naive fully-coherent Kuperberg sieve at O(L) quantum memory
+      (KN-LIT-2c8264); collimation c-sieve (KN-LIT-127) at an exponentially
+      smaller quantum-memory figure via its own internal technique -- this
+      is the actual best-known comparator this proposal must beat, per the
+      baseline_embedding.reproduction_check above, not the naive O(L)
+      figure.
+    hidden_overhead: >-
+      Any surviving gain must be checked against whether it merely
+      relocates cost into classical memory and/or repetition count rather
+      than genuinely reducing total resource use, per the falsification
+      conditions; the target-result-profile's A8 memory-honesty and
+      time-memory-tradeoff disclosure requirements apply in full here.
+    tradeoff_note: >-
+      If the pure "same time, less quantum memory" claim fails but a
+      genuine TIME-MEMORY interpolation (more classical memory and/or more
+      repetitions for less quantum memory) survives, this proposal should be
+      RECLASSIFIED as a van-Oorschot-Wiener-style tradeoff result for this
+      specific structure -- explicitly anticipated here as the more likely
+      positive outcome than a free memory reduction at fixed time.
+
+  estimated_cost:
+    implementation: medium
+    compute: low-medium
+
+  recommended_priority: medium-high
+
+  dominated_by: >-
+    The collimation c-sieve (Peikert 2020, KN-LIT-127; Kuperberg's own
+    collimation technique) dominates this proposal on the memory axis as of
+    this session, since it is an EXISTING, already-analyzed memory-reduction
+    technique this proposal has not yet been shown to match or beat
+    (reproduction_check above is required and not yet performed); the naive
+    fully-coherent sieve (KN-LIT-2c8264) remains the time-axis comparator.
+    No frontier row is dominated by this unimplemented proposal.
+
+  sota_delta: >-
+    0x / no measured improvement; no experiment run. The proposal's own
+    a-priori prediction (stated in `predictions` above) is that a cliff
+    pattern is MORE LIKELY than a graceful one, meaning the honest expected
+    outcome, absent the minimal test, leans toward closure rather than a
+    positive quantum-memory result -- stated plainly rather than presented
+    as an open positive claim.
+
+  source_refs:
+    - RQ-QALG-74bf20
+    - GOAL-QALG-001
+    - KN-LIT-2c8264
+    - KN-LIT-127
+    - KN-TECH-051
+    - KN-TECH-d1bc4f
+    - KN-LIT-21383c
+    - KN-LIT-e204ab

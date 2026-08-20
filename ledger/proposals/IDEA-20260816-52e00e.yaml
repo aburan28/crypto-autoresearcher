@@ -1,0 +1,270 @@
+idea:
+  id: IDEA-20260816-52e00e
+  question_id: RQ-AEADC-8db132
+  added: '2026-08-16'
+  title: 'The nonce is not always the nonce: audit the mode-level derivation that turns a variable-length
+    nonce into an initial state, and grade the collision rate of that derived state as a function
+    of the mix of nonce lengths a policy permits, with the compression step replaced by an ideal function'
+  class: mechanism
+  claim: '(A) Several AEAD modes accept nonces of more than one length and handle them by two different
+    code paths: a fixed-length nonce is placed directly into the initial state, while a nonce of any
+    other length is first compressed through a derivation step. That branch is a mode-level object
+    -- it exists in the composition, not in the block cipher -- and it means the mode''s effective
+    nonce space is not one space but a union of a direct-injection image and a compressed image, which
+    can overlap. (B) The measurable quantity is the collision rate of the derived initial state as
+    a function of the MIX of nonce lengths a policy permits: a policy that emits only default-length
+    nonces has one collision rate, a policy that emits a fraction f of non-default-length nonces has
+    another, and the claim is that the rate is a smooth, measurable function of f with a shape the
+    two-path structure predicts, including cross-path collisions between a directly injected nonce
+    and a compressed one that no single-path analysis sees. (C) The compression step is replaced by
+    a seeded ideal function, so the measurement is about the BRANCH and the derived-state space, not
+    about the compressing primitive; a real compressing function is run in one arm, and any divergence
+    is reported as a property of that function and explicitly handed to RQ-POLYMAC-7c89e4''s territory
+    rather than claimed here. (D) NOT CLAIMED: no attack, no forgery, no key recovery and no security
+    consequence; no assertion that any deployment permits non-default nonce lengths or that any named
+    mode''s branch behaves as modelled, since the derivation convention audited here is a declared
+    model; no claim that a derived-state collision has any consequence beyond being a collision, which
+    is a statement about a map; and nothing about published analyses. A flat rate in f is a usable
+    measured obstruction: it would say the two-path structure does not measurably change the derived-state
+    collision rate at these parameters, and would name the mix range over which that was checked.'
+  mechanism: 'STAGE 1, zero compute: write the two-path derivation as an explicit total map from a
+    variable-length nonce to a fixed-width initial state, with the direct-injection path, its padding
+    rule, and the compression path all specified; identify by hand the three collision classes --
+    direct-direct, compressed-compressed, and cross-path -- and derive the expected rate of each in
+    closed form under an ideal compression function. Record with a file hash. STAGE 2: implement the
+    derivation at a reduced state width with a seeded ideal function on the compression path, so the
+    derived-state space is enumerable. STAGE 3: for each of a sweep of policies parameterised by f,
+    the fraction of non-default-length nonces, sample a population of nonces from the policy, derive
+    their initial states, and count collisions exactly, broken out by class. STAGE 4: fit the total
+    collision rate against f and compare each class rate against its closed-form prediction from stage
+    1. STAGE 5: run the null arm, in which the derivation is replaced by a single seeded random map
+    applied to all nonces regardless of length, removing the branch entirely; its rate must be the
+    pure birthday rate for the state width and must not depend on f at all. STAGE 6: run one policy
+    with a real compressing function in place of the ideal one and report any divergence separately.
+    Refutation: a rate independent of f, or a null arm that reproduces the branch arm''s f-dependence.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Read RQ-AEADC-8db132 in full and RQ-POLYMAC-7c89e4 in full, paying attention to the boundary
+      the batch directive draws between the mode and the MAC. Grepped ledger/proposals/, ledger/hypotheses/
+      and knowledge/ for: nonce-misuse, nonce reuse, GCM, SIV, aead, key commitment, partitioning
+      oracle. Grepped ledger/proposals/ and knowledge/ for: canonicaliz, length encoding, injectiv,
+      ideal permutation, ideal cipher. Read the title, class and claim head of all eight proposals
+      under RQ-AEADC-8db132 and IDEA-20260809-47a08e in full. Read docs/inventor-protocol.md sections
+      1-5 and 8.'
+    results: 'No proposal in the corpus mentions a variable-length nonce path or a nonce-derivation
+      branch. The eight AEADC proposals are all commitment work: IDEA-20260809-313546, 3a5c29, 33f26f,
+      3da508, 439aa8, 4719b8, 47a08e, 44b750. RQ-POLYMAC-7c89e4 names the nonce-misuse cliff explicitly,
+      but as authentication-key recovery under repeated nonces for GHASH and Poly1305 -- a MAC-key
+      object, not a nonce-derivation branch, and its record contains no numbers at all by deliberate
+      policy. The keystream-difference entry elsewhere in this batch grades what a REPEATED nonce
+      costs; this entry grades how often the mode derives the same initial state from DISTINCT nonces,
+      which is a different map and a different failure route. Nothing in knowledge/ was found that
+      audits a nonce-length branch.'
+    verdict: 'UNVERIFIED. Variable-length nonce handling is a well-known feature of some deployed
+      mode specifications and nothing is asserted here about its published analysis; the derivation
+      convention audited is declared as an internal model precisely so that no attribution or specification
+      claim is made. What is claimed new is internal: no record in this repository treats the nonce-derivation
+      branch as an object, and none grades a derived-state collision rate against a nonce-length policy
+      mix. Assembled from known parts: birthday counting on a fixed-width state, the ideal-function
+      substitution this bucket''s directive requires, class decomposition of collisions, and the null-object
+      discipline of inventor-protocol section 3.'
+  object_first_candidate:
+    tracked_object: 'The derived initial state: the fixed-width value that the mode places at the
+      head of its keystream and authentication computation, carried together with the label of the
+      path that produced it and the length of the nonce it came from, so that every collision can
+      be attributed to a class.'
+    lossiness: 'Genuinely lossy. A variable-length nonce carries an unbounded amount of information
+      and the derived state is fixed-width, so the map discards everything beyond the state width;
+      the tracked object keeps only the derived value plus a path label and a length tag. That discard
+      is compatible with the mode''s operation because the mode never consults the nonce again after
+      derivation -- the derived state is the entire interface between the nonce and the rest of the
+      composition -- which is exactly what makes a derived-state collision the whole of the observable
+      consequence, and what makes the object''s fibre structure the right thing to count. The retained
+      part propagates deterministically: the mode is a function of the derived state alone from that
+      point on.'
+    propagation: One step of the target operation is admitting one more nonce from the policy. It
+      acts on the tracked object by adding one derived state to the population, creating collision
+      opportunities with every state already present, and the class of any new collision depends on
+      the path labels of the two states involved. The cross-path class is the one that grows only
+      when the policy mixes lengths, which is why the whole rate is a function of the mix rather than
+      of the population size alone -- and it is the structural feature that a single-path analysis
+      cannot see.
+    survival_score: The class decomposition survives until the derived-state space saturates, at which
+      point every new nonce collides and the path labels carry no information. Survival is reported
+      concretely as the largest population size, at each state width, for which the cross-path collision
+      count remains below one tenth of the total collision count; beyond that the object has dissolved
+      into generic birthday behaviour and the branch is no longer measurable. Tested at state widths
+      16, 20 and 24 bits with populations up to 2^13.
+  null_object_control: 'A branchless null, executed in the same invocation over the identical nonce
+    populations: the derivation is replaced by a single seeded random map applied to every nonce regardless
+    of length, so there is exactly one path and no cross-path class exists. For the branch arm to
+    mean anything, the null must show a collision rate equal to the closed-form birthday rate for
+    the state width and population, and crucially it must show NO dependence on f, since the branchless
+    map cannot see nonce length. If the null''s rate varies with f, the sampler is correlating nonce
+    length with something else and the whole sweep is confounded. A second control is the single-length
+    policy at f equal to zero and at f equal to one, each of which must reproduce the corresponding
+    single-path closed-form rate.'
+  discriminated_from:
+  - The keystream-difference entry in this batch grades what a repeated nonce costs once it has been
+    repeated. This grades how often the mode derives an identical state from DISTINCT nonces under
+    a length-mixing policy; one is about reuse, the other about the derivation map, and neither number
+    is obtainable from the other.
+  - RQ-POLYMAC-7c89e4's nonce-misuse target measures authentication-key recovery cost for GHASH and
+    Poly1305. The compression step here is an ideal function by design, the authenticator is not evaluated
+    at all, and any divergence found with a real compressing function is explicitly handed to that
+    question rather than claimed here.
+  - IDEA-20260809-3a5c29 collides on nonce or associated data while the key is committed, using certificates
+    under two keys. This has one key, constructs no certificate, and counts collisions in a derivation
+    map.
+  - The length-encoding audit in this batch enumerates a map from two integers to a length block exhaustively.
+    This samples a map from variable-length nonces to a fixed-width state and reports a rate with
+    class decomposition; one is exhaustive and unkeyed, the other statistical and keyed.
+  - A generic birthday-bound calculation on the state width. That calculation is the null arm here,
+    not the result; the contribution is the cross-path class and its dependence on the policy mix,
+    or the measured absence of both.
+  assumptions:
+  - The two-path derivation as specified in stage 1 is a faithful model of a branch shape that mode
+    families use; it is declared as a model and is not identified with any named mode.
+  - An ideal function on the compression path isolates the branch from the compressing primitive,
+    which is checked by the real-function arm rather than assumed.
+  - Reduced state widths of 16 to 24 bits preserve the class structure, since the decomposition into
+    direct, compressed and cross-path classes is combinatorial and independent of width.
+  - Nonce lengths within a policy are drawn independently of nonce content, so that f varies the mix
+    and nothing else; the null arm tests exactly this.
+  - The population sizes tested reach the regime where collisions occur at a countable rate, which
+    is verified by the closed-form birthday prediction before the sweep.
+  predictions:
+  - metric: total derived-state collision rate at fixed population, as a function of the non-default-length
+      fraction f
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit a magnitude: the direction and size depend on
+      whether the direct-injection image is smaller than, equal to, or larger than the compressed
+      image at the declared padding rule, which the Coordinator has not yet fixed; committing a number
+      before that rule is fixed would be a fabricated prediction'
+  - metric: cross-path collision count at f = 0.5, relative to zero
+    direction: higher
+    minimum_effect: 1
+  - metric: cross-path collision count at f = 0 and at f = 1
+    direction: different
+    minimum_effect: 0
+  - metric: dependence of the branchless null arm's collision rate on f
+    direction: different
+    minimum_effect: 0
+  - metric: absolute difference between measured per-class rates and their stage-1 closed-form predictions,
+      in relative terms
+    direction: lower
+    minimum_effect: 0.2
+  minimal_test:
+    design: 'One process, three arms, minutes to an hour. Implement the two-path derivation at state
+      width 20 bits with a seeded ideal function on the compression path and a declared padding rule
+      on the direct path. Fix a nonce policy family parameterised by f in {0, 0.1, 0.25, 0.5, 0.75,
+      0.9, 1.0}, where f is the fraction of nonces drawn at a non-default length. For each f and each
+      population size in {2^8, 2^10, 2^12}, draw 100 independent nonce populations, derive every state,
+      and count collisions exactly, tagging each by class from the path labels. In the same invocation
+      and over the identical populations, run the branchless null. Then run f = 0.5 with a real compressing
+      function. The discriminating comparisons are: cross-path count against its required zero at
+      the endpoints, total rate against f in the branch arm versus its required flatness in the null
+      arm, and each class rate against its stage-1 closed form. Cost is under an hour on one core
+      at these widths.'
+    controls:
+    - Branchless null arm over the identical nonce populations in the same invocation, whose rate
+      must be flat in f.
+    - Endpoint controls at f = 0 and f = 1, each of which must reproduce its single-path closed-form
+      rate and must show zero cross-path collisions by construction.
+    - Stage-1 closed-form predictions for all three collision classes, hashed before the sweep.
+    - Real-function arm on the compression path at one f, with any divergence reported as a compressing-function
+      property and handed to RQ-POLYMAC-7c89e4.
+    - 'Nonce sampler audit: measured length distribution per policy compared against its declared
+      f.'
+    required_metrics:
+    - total derived-state collision count and rate per (f, population, width) cell
+    - 'collision count broken out by class: direct-direct, compressed-compressed, cross-path'
+    - branchless null collision rate per matched cell
+    - relative deviation of each measured class rate from its closed-form prediction
+    - largest population at which cross-path collisions remain below one tenth of the total
+    - measured versus declared nonce-length distribution per policy
+  falsification_conditions:
+  - The total collision rate is independent of f across the whole sweep, which retires the graded
+    framing at these parameters and is itself the measured obstruction.
+  - Cross-path collisions appear at f = 0 or f = 1, which is impossible by construction and means
+    the path labelling is wrong.
+  - The branchless null arm shows dependence on f, meaning the nonce sampler correlates length with
+    content and the sweep is confounded.
+  - A measured class rate deviates from its closed-form prediction by more than the declared relative
+    tolerance, falsifying the stage-1 derivation.
+  - The measured nonce-length distribution disagrees with the declared f, voiding the policy parameterisation.
+  - Cross-path collisions never exceed zero at any f, which would mean the two images do not overlap
+    at all under the declared padding rule -- a clean structural result that closes this direction
+    within the tested scope.
+  confounders:
+  - The padding rule on the direct-injection path decides whether the two images overlap at all, and
+    a rule chosen carelessly can force or forbid cross-path collisions independently of any interesting
+    structure.
+  - 'Population size and f interact: at large populations the generic birthday rate swamps the cross-path
+    class and the branch becomes unmeasurable, which the survival metric tracks.'
+  - A nonce sampler that ties length to content would manufacture f-dependence in any arm, which is
+    precisely what the branchless null detects.
+  - Reduced state width compresses the whole collision structure; the width sweep is what separates
+    a class effect from a width effect.
+  - A real compressing function may itself have structure that mimics or masks the branch effect,
+    which is why it is confined to one arm and its divergence is not claimed here.
+  interpretation_limits:
+  - A derived-state collision is a statement about a map, not a forgery and not a security consequence;
+    no consequence is asserted or implied.
+  - All rates are properties of the declared derivation model at the tested state widths and populations,
+    and transfer to no named mode without a separate mapping argument.
+  - Nothing here says that any deployment permits non-default nonce lengths, and no such inference
+    is licensed.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The instrument costs O(population) derivations plus
+      O(population) hash-table insertions per cell.
+    memory_exponent: No attack exponent is claimed. Memory is linear in the population size held for
+      one cell.
+    best_known: The incumbent is the generic birthday estimate for a fixed-width state, computed in
+      stage 1 and used here as the null arm. This record does not beat it; it asks whether a two-path
+      branch measurably departs from it as a policy mixes nonce lengths, and the honest expectation
+      is a small effect or none.
+    hidden_overhead: 'The human cost is the padding rule and the policy definition: both silently
+      determine whether the two images can overlap at all, and getting either wrong makes the sweep
+      measure the declaration rather than the branch. Lower-order compute hides in the exact class
+      tagging, which requires carrying a path label with every derived state.'
+  dominated_by: n/a (no result claimed). No attack, so no time, memory or query frontier row exists.
+    Checked against all four targets of RQ-AEADC-8db132, all eight of its proposals, all four targets
+    of RQ-POLYMAC-7c89e4, and the other entries in this batch; the nearest neighbours are the keystream-difference
+    entry, which grades reuse rather than derivation, and POLYMAC's nonce-misuse target, which is
+    a MAC-key object. Neither dominates this and this dominates neither.
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative deliverable is
+    a collision-rate surface over (policy mix, population, state width) with a three-way class decomposition
+    and closed-form predictions for each class, where the corpus holds no measurement of any nonce-derivation
+    branch.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'By part. That the class decomposition can be measured cleanly with path
+    labels: about 0.95, since it is bookkeeping. That the branchless null is flat in f: about 0.9,
+    and a failure there would be a sampler bug rather than a finding. That cross-path collisions occur
+    at all at f = 0.5: about 0.55, entirely conditional on the padding rule the Coordinator fixes,
+    since a rule that reserves a distinguishing bit makes the two images disjoint and the answer becomes
+    a clean structural zero. That the total rate shows a measurable dependence on f beyond the sampling
+    noise: about 0.4. That every class rate matches its closed form within the declared tolerance:
+    about 0.7, with deviations most likely at the smallest state width.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-AEADC-8db132
+  - RQ-POLYMAC-7c89e4
+  - IDEA-20260809-3a5c29
+  - IDEA-20260809-313546
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  - harness/run_blocknull.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-AEADC-483ad0

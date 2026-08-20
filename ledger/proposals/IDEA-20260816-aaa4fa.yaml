@@ -1,0 +1,253 @@
+idea:
+  id: IDEA-20260816-aaa4fa
+  question_id: RQ-FNDSA-001
+  added: '2026-08-16'
+  title: Coarsen the cumulative-distribution-table index of a lattice Gaussian base sampler to a granularity
+    g, treat floor(index/g) as the entire observation, and measure exactly how many bits about the
+    sampler's secret-dependent CENTER leak per sample as a function of g -- with an exact-center null
+    that must leak zero.
+  class: representation
+  claim: '(A) THE OBSERVATION IS A GRANULARITY, NOT A CHANNEL. Table-driven samplers read a cumulative-distribution
+    table at an index determined by the sample being produced. An observer with resolution g sees
+    floor(index / g) and nothing else: not the value, not the time, not the table contents. Granularity
+    g is a single integer that parameterises the entire assumed observation, and sweeping it produces
+    a curve rather than a yes-or-no. (B) THE SECRET IS THE CENTER. For a base sampler alone the index
+    carries no secret, because the sampler is centred at zero with a fixed width. In a nearest-plane
+    lattice sampler the per-level center c depends on the secret basis, and the sample''s distribution
+    shifts with c. The tracked object is therefore the pair (center, bucket sequence), and the measurable
+    is I(c ; buckets) in bits per sample at each g. (C) THE CLAIM. That quantity is exactly computable
+    at small dimension and small width, because the sampler''s support is finite and the bucket map
+    is deterministic: the joint distribution of (c, bucket) can be written down and summed, with no
+    sampling error at all. The deliverable is I(c ; bucket) as a function of g, plus the number of
+    samples at which the accumulated information reaches one bit about c. (D) WHAT IS NOT CLAIMED.
+    This is a SIMULATED observation. The environment has no cache, no timing, and no physical measurement
+    of any kind in this experiment; g is a dial, not a measured cache-line width, and no value of
+    g is claimed to correspond to any real microarchitecture. No attack, no trapdoor recovery, no
+    statement about FN-DSA at standardized parameters, and no statement about what any published sampler
+    does. (E) WHY THE COARSENING IS THE POINT. A record that says ''the sampler is vulnerable to cache
+    attacks'' is not falsifiable. A record that says ''at granularity g=8 the index bucket carries
+    X bits per sample about the coset center at these parameters'' is. The contribution is turning
+    the assumption into a dial with a curve attached.'
+  mechanism: 'STAGE 1: implement a table-driven discrete Gaussian sampler with an explicit cumulative-distribution
+    table, in Python, with the index recorded per sample by direct instrumentation of the lookup rather
+    than by inference. STAGE 2: fix a small lattice dimension d in {2, 4} and a small width so the
+    nearest-plane recursion''s support, truncated at a stated number of standard deviations, is enumerable
+    exactly. STAGE 3: for each center c on a fine grid over one fundamental period, compute the exact
+    distribution over table indices, then push it forward through the bucket map b = floor(index/g).
+    STAGE 4: form the exact joint over (c, b) with c uniform on the grid, and compute I(c ; b) in
+    closed form by summation. STAGE 5: sweep g over powers of two and report the curve; compute the
+    accumulated information over m independent samples under the model''s independence and report
+    the m at which it reaches one bit. STAGE 6: run the null -- the identical computation with c pinned
+    to a fixed public constant while a fictitious label is drawn independently -- which must return
+    exactly zero, and a second null with g equal to the full table size, where every index falls in
+    one bucket and the information must be exactly zero by construction.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-FNDSA-001 in full. Grepped ledger/proposals/ and knowledge/ for 'CDT' (IDEA-20260805-2bbfb2,
+      IDEA-20260816-0e6599, IDEA-20260805-4a6dc7, plus KN-LIT-1533, KN-LIT-6340, KN-LIT-3690), 'cache
+      line' (IDEA-20260807-5f24d7 and KN-LIT-2468), 'granularity' (seven proposals), 'rejection sampl',
+      'constant-time'. Read titles of IDEA-20260816-0e6599 and IDEA-20260805-2bbfb2, the two nearest
+      FN-DSA sampler proposals. Checked ledger/hypotheses/ for H-FNDSA-58b464 and H-FNDSA-6a9cbb.
+    results: Two existing FN-DSA sampler proposals are close in subject and far in object. IDEA-20260816-0e6599
+      replaces sampled goodness-of-fit with exhaustive enumeration at dimensions 2, 4 and 8, computing
+      total variation between a p-bit-mantissa implementation and exact rational arithmetic with mantissa
+      width as the swept variable -- an EXACTNESS question with no observation model at all. IDEA-20260805-2bbfb2
+      derives a closed-form leaf-normalizer theta defect of 2 exp(-2 pi^2 sigma_min^2), again about
+      the output distribution rather than about what an observer sees. 'cache line' hits only IDEA-20260807-5f24d7,
+      which is about MOV transfer cost and representation size, an unrelated use of the phrase. No
+      record was found that treats a table index at a swept observation granularity as the object.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature. Assembled from known parts:
+      table-index observation as the shape of a cache-style assumption is standard folklore, and exhaustive
+      enumeration of a small-support sampler is already this repository''s method in IDEA-20260816-0e6599.
+      Claimed new only within this repository: making the observation GRANULARITY the swept independent
+      variable and computing the exact mutual information between the coset center and the observed
+      bucket as a curve in g, with an exact-center null.'
+  object_first_candidate:
+    tracked_object: The bucket sequence b_1..b_d = floor(index_i / g), one per level of the nearest-plane
+      recursion, followed together with the center vector c that the secret basis induces. The object
+      is the pair, and the measurement is the exact mutual information between its two components.
+    lossiness: 'Genuinely lossy, and the lossiness is the dial. At granularity g the map index ->
+      floor(index/g) discards exactly log2(g) bits of the index, and the index itself already discards
+      everything about the sampler''s internal randomness beyond which table cell was reached. At
+      g equal to the table size the projection is total and the object is a constant, which is one
+      of the two nulls. The retained part propagates because the nearest-plane recursion is level-by-level:
+      the center at level i depends on the samples already drawn at levels above it, so the bucket
+      sequence is generated by a Markov chain whose state is the partial sum, and the projection commutes
+      with that chain in the sense that the bucket at level i is a deterministic function of the index
+      at level i alone.'
+    propagation: 'One level of the nearest-plane recursion acts on the tracked object by: computing
+      c_i from the secret basis and the already-drawn coordinates, drawing a sample from the table
+      centred near c_i, emitting the index, and appending floor(index/g) to the bucket sequence. Each
+      step therefore multiplies the joint distribution by a transition kernel that is exactly computable
+      at the tested dimensions, and one step of coarsening -- doubling g -- acts on the bucket alphabet
+      by merging adjacent symbols in pairs, which is a fixed deterministic map on the observation
+      and lets the whole g-curve be computed from one joint over indices.'
+    survival_score: Stated as the largest granularity g at which I(c ; b) per sample still exceeds
+      0.01 bits -- the coarsening beyond which the object dissolves -- and, complementarily, as the
+      number of samples m needed to accumulate one bit about c at each g. Both are read off the same
+      exactly computed curve, and the second is the more useful because it converts a per-sample quantity
+      into a signature count, which is the unit RQ-FNDSA-001 already thinks in.
+  null_object_control: 'Two nulls, both computed in the same invocation by the same code. (i) EXACT-CENTER
+    NULL: c pinned to a fixed public constant for every sample, with an independent fictitious label
+    drawn and I(label ; b) computed by the identical routine. Since the buckets are then independent
+    of the label, the value must be exactly zero, and any nonzero result exposes a bias in the mutual-information
+    summation or in the c-grid marginal. (ii) TOTAL-COARSENING NULL: g set to the full table size
+    so every index maps to one bucket, where I(c ; b) is exactly zero by construction. Both must return
+    zero to numerical tolerance 1e-12 for any point on the g-curve to be reportable. A third check
+    runs the signal arm at g=1, the finest granularity, which should give the maximum of the curve
+    and bounds every coarser value from above.'
+  discriminated_from:
+  - 'IDEA-20260816-0e6599 (exhaustive enumeration of Klein sampler output at d in {2,4,8}, total variation
+    between p-bit mantissa and exact rational arithmetic, mantissa width swept): shares enumeration
+    and dimension, but its object is the OUTPUT DISTRIBUTION''s exactness and its swept variable is
+    arithmetic precision; this object is an OBSERVER''S VIEW of an internal index and its swept variable
+    is observation granularity. A perfectly exact sampler can still have a fully informative index
+    bucket, and a wildly inexact one can have an uninformative one, so the two measurements are independent.'
+  - 'IDEA-20260805-2bbfb2 (leaf-normalizer theta defect with the closed form 2 exp(-2 pi^2 sigma_min^2),
+    converting the deviation-to-signature-count curve into a derivation): same lane, but its quantity
+    is a distributional defect present even in exact arithmetic, with no observer anywhere in the
+    argument.'
+  - 'The FN-DSA rounding-bit proposal elsewhere in this batch: that object is a per-level control-flow
+    bit, this object is a per-level memory index at a swept resolution; they would be observed by
+    different assumed adversaries and their curves are not substitutes.'
+  - IDEA-20260807-5f24d7, the only record in the corpus containing the phrase 'cache line', which
+    uses it in a completely unrelated MOV-transfer representation-size argument.
+  - 'Any real cache-timing measurement: none is made, g is a dial rather than a measured cache-line
+    width, and the record grades its claim accordingly.'
+  assumptions:
+  - An observer who learns floor(index/g) per table lookup is ASSUMED; this environment makes no cache,
+    timing or physical measurement and cannot establish that such an observer exists.
+  - g is a free parameter and is NOT claimed to equal any real cache-line width divided by any real
+    element size.
+  - The sampler's support truncated at the stated number of standard deviations captures all but a
+    negligible mass, and that mass is bounded explicitly rather than ignored.
+  - Levels of the nearest-plane recursion are treated as conditionally independent given the partial
+    sums, which is the recursion's own structure and not an extra approximation.
+  - The center grid is fine enough that the discretised I(c ; b) approximates the continuous-center
+    value; the run reports the grid-refinement sensitivity rather than assuming convergence.
+  predictions:
+  - metric: I(c ; b) in bits per sample at the total-coarsening null (g equal to table size)
+    direction: lower
+    minimum_effect: forced value exactly 0, by construction
+  - metric: I(label ; b) at the exact-center null
+    direction: lower
+    minimum_effect: forced value exactly 0 to tolerance 1e-12
+  - metric: I(c ; b) as g doubles across the sweep
+    direction: lower
+    minimum_effect: 'forced: non-increasing in g, because coarsening is a deterministic function of
+      the observation and the data-processing inequality applies; any increase is a computational
+      fault'
+  - metric: number of samples m to accumulate one bit about c at g=8, d=2
+    direction: different
+    minimum_effect: 'no pre-commitment: this is the quantity the computation exists to produce, and
+      pre-committing it would make the run confirmatory'
+  minimal_test:
+    design: 'Take d=1 first -- a single one-dimensional table-driven sampler with a center parameter
+      -- where the joint over (c, index) is a small matrix and everything is checkable by hand. Grid
+      c over 64 points in one period, truncate the table at 6 standard deviations, and compute I(c
+      ; b) exactly for g in {1, 2, 4, 8, 16, table size}. Run both nulls in the same call. This is
+      milliseconds of compute and settles the three things that decide whether the d=2 and d=4 versions
+      are worth building: whether the data-processing monotonicity in g actually holds numerically,
+      whether both nulls return exactly zero, and whether the curve at realistic g has a value far
+      enough from zero to matter. If I(c ; b) at g=8 is 1e-4 bits, the assumed observation carries
+      almost nothing at these widths and that is the reportable measured obstruction, at essentially
+      no cost.'
+    controls:
+    - Exact-center null with an independent fictitious label.
+    - Total-coarsening null at g equal to the table size.
+    - Finest-granularity reference at g=1, which upper-bounds the whole curve.
+    - 'Grid-refinement control: c grid doubled from 64 to 128 points, with the change in I reported
+      as a convergence diagnostic.'
+    - 'Truncation-mass control: the probability mass outside the truncated support computed and reported,
+      so the neglected tail is a number rather than an assumption.'
+    - 'Index-recording fidelity: the recorded index is compared against a direct recomputation from
+      the sampler''s internal state on 10000 samples.'
+    required_metrics:
+    - I(c ; b) in bits per sample at each g
+    - samples-to-one-bit m at each g
+    - both null values
+    - grid-refinement change in I between 64 and 128 center points
+    - truncated tail mass
+    - bucket alphabet size at each g
+  falsification_conditions:
+  - Either null returns a nonzero value beyond 1e-12.
+  - I(c ; b) increases with g anywhere in the sweep, violating the data-processing inequality and
+    indicating a computational fault.
+  - I(c ; b) at g=1 is exceeded at any coarser g.
+  - Grid refinement from 64 to 128 center points changes I by more than 10 percent, showing the discretised
+    center is not converged and no value is reportable.
+  - Index-recording fidelity check finds any mismatch against direct recomputation.
+  confounders:
+  - A center grid that is coarse relative to the sampler width inflates I by treating distinguishable
+    centers as a small alphabet.
+  - Truncating the table support removes exactly the tail where a coarse bucket would be most informative,
+    biasing I downward by an amount the tail-mass control bounds but does not correct.
+  - Bucket boundaries aligned to the table's center create an artificial symmetry that changes I at
+    small g.
+  - Treating levels as independent when accumulating to m samples ignores the recursion's coupling
+    and overstates accumulation.
+  - The choice of a uniform prior on c is an assumption; a secret basis induces a different center
+    distribution and would give a different number.
+  interpretation_limits:
+  - g is a dial. No value of g is claimed to correspond to a real cache line, and nothing here demonstrates
+    any real observer.
+  - Bits per sample about a discretised center are not bits about the trapdoor; the bridge from center
+    information to basis recovery is not built here.
+  - Results at d in {1, 2, 4} and small widths do not transfer to FN-DSA's standardized dimensions,
+    and no such transfer is attempted.
+  - An exactly computed number under an assumed observation remains conditional on that assumption
+    at every citation.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The computation is O(|c grid| * |support|) per level,
+      polynomial and small at the tested parameters.
+    memory_exponent: No attack exponent is claimed. The joint table is |c grid| by |bucket alphabet|,
+      at most a few hundred by a few hundred.
+    best_known: Within this repository the incumbents in this lane are IDEA-20260816-0e6599's exhaustive
+      mantissa-width total-variation computation and IDEA-20260805-2bbfb2's closed-form theta defect,
+      both measuring output-distribution exactness. For an OBSERVATION-granularity quantity the incumbent
+      is nothing; the portfolio survey found no contract measuring any cache-style channel anywhere.
+    hidden_overhead: 'The center grid hides the whole difficulty: I(c ; b) is a property of a prior
+      on c that the experiment chooses, and a uniform grid is convenient rather than justified. The
+      human cost is that a reader will want to convert g into a cache-line width, and the record must
+      refuse that conversion every time it is cited, which is a durable maintenance burden on the
+      result.'
+  dominated_by: 'n/a (no result claimed). No attack cost is produced and no time/memory/data frontier
+    row applies; all three axes were considered and none is populated. Not null: the frontier question
+    does not arise. The nearest cost-bearing object in this lane would be a deviation-to-signature-count
+    curve of the kind RQ-FNDSA-001 names as a target, to which this contributes an observation-side
+    input and not a cost.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: produces I(c ;
+    b) in bits per sample as an exact function of a swept granularity g, together with a samples-to-one-bit
+    figure at each g, where the current corpus state is a qualitative assumption that table-driven
+    samplers leak through memory access. No attack time, memory or signature count is claimed to change.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the exact computation is correct and both nulls return zero: 0.85,
+    because the objects are small matrices and the nulls are structurally forced. That monotonicity
+    in g holds numerically: 0.95, since it follows from the data-processing inequality and a violation
+    would be a bug. That I(c ; b) at a realistic coarse granularity is large enough to be interesting
+    rather than vanishing: 0.45, because coarse buckets over a narrow table may simply not separate
+    nearby centers. That the resulting curve is later used to qualify a leakage assumption in an FN-DSA
+    record rather than filed unused: 0.3, since the gap between a dial and a real cache line is exactly
+    the gap this bucket exists to state honestly, and honest statement of it discourages citation.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FNDSA-001
+  - IDEA-20260816-0e6599
+  - IDEA-20260805-2bbfb2
+  - H-FNDSA-58b464
+  - H-FNDSA-6a9cbb
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/runner.py
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SIDECH-f0e5d2

@@ -1,0 +1,231 @@
+idea:
+  id: IDEA-20260816-ec9a47
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: The step from a noise variance to a noise infinity-norm assumes the N coefficients of the
+    noise polynomial behave like independent draws; measure the eigenvalue spectrum of their covariance
+    matrix in the DFT basis after each homomorphic operation and report how far from white it is.
+  class: representation
+  claim: '(A) Every parameter derivation that starts from a variance and ends at a decryption-correctness
+    condition passes through a step of the form: the noise polynomial has N coefficients of variance
+    v, therefore its infinity norm is at most c*sqrt(v)*sqrt(log N) or c*sqrt(v)*sqrt(N) with high
+    probability. That step is a statement that the coefficient vector is close to white, i.e. that
+    the eigenvalue spectrum of its covariance matrix is flat. Negacyclic convolution with a fixed
+    operand is a structured linear map, so after one multiplication by a ciphertext whose noise is
+    fixed, the output covariance is Sigma_out = C * Sigma_in * C^T with C the negacyclic circulant
+    of that operand, and C is diagonalised by the same transform for every operand. The claim is that
+    the tracked object should therefore be the eigenvalue spectrum of the coefficient covariance in
+    that fixed basis, that this spectrum is exactly computable at toy degrees, and that its flatness
+    index, defined as the ratio of the largest to the mean eigenvalue, is the quantity the variance-to-infinity-norm
+    step depends on. (B) The claim is that the flatness index is measurable exhaustively at N in {8,16,32}
+    and that its evolution under multiplication, relinearization and modulus switching is separable,
+    i.e. each operation has an identifiable effect on it. (C) NOT CLAIMED: that any tail bound in
+    use is wrong, that any parameter set is misderived, that a non-flat spectrum implies a larger
+    infinity norm than assumed, or anything about security. A non-flat spectrum with a smaller effective
+    dimension can make the infinity norm smaller, not larger, and the direction is a measurement outcome
+    rather than a prediction of harm.'
+  mechanism: 'STAGE 1 fixes the basis: the negacyclic ring Z_q[X]/(X^N+1) has all its multiplication
+    operators simultaneously diagonalised by the transform sending X to the primitive 2N-th roots
+    of unity, so the covariance of any noise vector can be written in one fixed basis independent
+    of which operand multiplied it. STAGE 2 computes the exact empirical covariance of the noise coefficient
+    vector over an exhaustive enumeration of secrets and randomness at each level of a fixed circuit,
+    then rotates it into that basis and extracts the eigenvalue spectrum. STAGE 3 forms the flatness
+    index (largest eigenvalue divided by mean eigenvalue) and the effective rank (the exponential
+    of the entropy of the normalised spectrum), per level and per operation type. STAGE 4 runs the
+    identical pipeline on a white null: vectors of i.i.d. coefficients with matched total variance,
+    for which the flatness index has a known finite-sample distribution that is measured rather than
+    assumed. STAGE 5 separates operations by running three circuits that differ in exactly one operation
+    type each, so the marginal effect of relinearization and of modulus switching on flatness is read
+    off directly. Refutation is a flatness index indistinguishable from the white null at every level
+    in every circuit, which would say the coefficient vector is white enough that the step is unstressed
+    at these degrees, and that is a clean measured obstruction to the whole framing.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -ril 'canonical embedding' and 'variance model' and 'sub-gaussian|subgaussian'
+      over ledger/proposals/, ledger/hypotheses/ and knowledge/; grep -rl 'RQ-FHE-001' ledger/proposals/;
+      ls experiments/ | grep -i fhe; and read IDEA-20260816-2f344d, IDEA-20260808-e7ba81, KN-TECH-082,
+      RQ-FHE-001.
+    results: The nearest hit is IDEA-20260816-2f344d, attached to RQ-NTRU-9015ee, which computes the
+      distortion between coefficient and canonical embeddings for NTRU rings and declares a coordinate
+      budget below which cross-ring differences are a change of coordinates; that is a deterministic
+      distortion constant of a ring, not an empirical covariance spectrum of an evolving noise vector,
+      and it is a different scheme with no homomorphic operations. IDEA-20260808-e7ba81 (RQ-FNDSA-001)
+      uses a spiked-covariance framing for FN-DSA sampler exactness; that is a single-population top-eigenvalue
+      detection problem on signature outputs with a signature-count phase transition, not a per-operation
+      flatness trajectory. 'sub-Gaussian' hits IDEA-20260811-4a55dd, IDEA-20260807-692e9b, IDEA-20260808-d21021
+      and IDEA-20260811-5e58dc, none FHE-related. No proposal in ledger/proposals/ measures a noise
+      covariance spectrum in a ring basis, and no experiments/EXP-FHE-* exists.
+    verdict: 'UNVERIFIED. This program cannot read external literature and asserts nothing about what
+      it contains; the diagonalisation of negacyclic multiplication is textbook and the covariance-spectrum
+      view of a tail bound is standard statistics. What is claimed new is internal and modest: the
+      corpus''s only embedding-distortion record (IDEA-20260816-2f344d) treats a fixed ring constant
+      rather than an evolving empirical covariance, and no record anywhere tracks the flatness of
+      an FHE noise vector through operations. The parts are assembled: fixed diagonalising basis,
+      empirical covariance, effective rank, white null.'
+  object_first_candidate:
+    tracked_object: The eigenvalue spectrum of the empirical covariance matrix of the noise coefficient
+      vector, expressed in the fixed basis that diagonalises every negacyclic multiplication operator,
+      summarised by the flatness index (max eigenvalue over mean eigenvalue) and the effective rank.
+    lossiness: 'Genuinely lossy. The full object is an N-by-N covariance matrix, i.e. N(N+1)/2 numbers,
+      plus all higher moments of the noise distribution; the spectrum retains N numbers and the summary
+      retains two. Discarded: the eigenvectors entirely, all higher moments, the mean, and any dependence
+      on the plaintext. The eigenvectors are exactly what can be discarded compatibly, because in
+      this ring every multiplication operator is diagonal in the fixed basis, so the eigenbasis does
+      not move under the operation being tracked and carrying it would be carrying a constant. The
+      retained spectrum therefore propagates deterministically under multiplication by a fixed operand:
+      eigenvalues are multiplied coordinatewise by the squared magnitudes of that operand''s transform.
+      That is the sense in which this is a projection and not a coordinate change.'
+    propagation: 'Multiplication by a ciphertext with transform coefficients (a_1..a_N) maps the eigenvalue
+      vector (l_1..l_N) to (|a_1|^2 l_1, .., |a_N|^2 l_N), plus the additive contributions of the
+      cross terms and of relinearization noise, which are themselves spectra. Modulus switching scales
+      the whole spectrum and adds a rounding spectrum whose flatness is a property of the rounding,
+      not of the input. So one step is: coordinatewise multiply, then add two known spectra. Flatness
+      therefore degrades multiplicatively when the operand''s transform magnitudes are themselves
+      uneven, and is restored additively by the fresh terms.'
+    survival_score: Flatness is expected to degrade fastest in the first one or two multiplications
+      and then be pulled back toward white by additive relinearization noise, so the object is expected
+      to carry information for 2 to 4 levels and then to saturate at a level-independent flatness
+      set by the ratio of inherited to fresh noise. It dissolves when relinearization noise dominates,
+      and locating that crossover is the concrete deliverable.
+  null_object_control: 'White null: vectors with i.i.d. coefficients of matched total variance, of
+    the same length and the same sample count, pushed through the identical covariance estimation,
+    rotation and eigenvalue extraction in the same invocation. Because an empirical covariance from
+    a finite sample is never exactly flat, the white null defines the flatness index that mere sampling
+    produces at this dimension and sample size. For the signal arm to mean anything the measured flatness
+    index must exceed the white null''s by the pre-committed margin; if the two coincide at every
+    level the recorded outcome is a controlled null and the variance-to-infinity-norm step is unstressed
+    by this construction at these degrees.'
+  discriminated_from:
+  - IDEA-20260816-2f344d (RQ-NTRU-9015ee) computes a fixed embedding-distortion constant per ring
+    as a comparison budget; this measures an empirical, evolving covariance spectrum of a noise vector
+    under homomorphic operations, in a scheme it does not consider.
+  - IDEA-20260808-e7ba81 (RQ-FNDSA-001) is spiked-covariance detection with a sample-count phase transition
+    for a signature sampler; here there is no detection problem, no adversary, and the quantity of
+    interest is flatness across levels rather than a top eigenvalue against a null hypothesis of purity.
+  - Entry 2 of this bucket measures a CROSS-covariance between two different vectors (factor and product);
+    this measures the WITHIN-vector covariance of one noise polynomial, a different object with a
+    different null.
+  - KN-TECH-082's independence heuristic is attack-side, concerning guessing and decoding stages,
+    not a tail-bound step in a parameter derivation.
+  - 'A goodness-of-fit test on the marginal noise distribution: that tests one coordinate''s shape;
+    this tests the joint second-moment structure across coordinates and is insensitive to the marginal
+    shape by construction.'
+  assumptions:
+  - The empirical covariance from the enumeration is a usable estimate at these dimensions, with the
+    finite-sample bias absorbed by the white null rather than corrected analytically.
+  - The transform diagonalising negacyclic multiplication exists over the chosen prime, which requires
+    q congruent to 1 mod 2N and is checked rather than assumed.
+  - Flatness index and effective rank are adequate summaries of a spectrum; the full spectrum is reported
+    so this can be re-examined.
+  - The three single-operation-difference circuits differ in exactly one operation, which is an implementation
+    property that must be asserted in code.
+  predictions:
+  - metric: flatness index after one homomorphic multiplication, signal arm
+    direction: higher
+    minimum_effect: 1.5x the white null's flatness index at the same dimension and sample count
+  - metric: flatness index at the deepest level
+    direction: lower
+    minimum_effect: at least 30 percent below the level-1 value, i.e. relinearization noise measurably
+      re-whitens
+  - metric: effective rank after one multiplication
+    direction: lower
+    minimum_effect: at most 0.8 * N
+  - metric: marginal effect of modulus switching on flatness
+    direction: different
+    minimum_effect: 'refusal to pre-commit: whether rounding noise is flatter or less flat than the
+      inherited spectrum depends on the rounding rule, and pre-committing a sign before fixing that
+      rule would be arbitrary'
+  minimal_test:
+    design: At N=8, single 20-bit prime with q = 1 mod 16, t=2, exhaustively enumerate all 6561 ternary
+      secrets crossed with 64 randomness seeds, run a depth-2 circuit, and at each of the three states
+      (fresh, after multiplication, after relinearization) form the exact empirical covariance of
+      the noise coefficient vector, rotate to the fixed diagonalising basis, and extract all 8 eigenvalues.
+      Report the flatness index and effective rank at each state, and the same three numbers for a
+      white null with matched total variance and matched sample count, computed by the same code path
+      in the same invocation. This discriminates because the whole question is whether one multiplication
+      measurably de-whitens the noise vector relative to what finite sampling alone produces; if it
+      does not at N=8 with an exhaustive enumeration, no larger degree is going to rescue the framing,
+      and the negative is a clean measured statement. Cost is minutes.
+    controls:
+    - White null with matched total variance and matched sample count, same invocation.
+    - Fresh-encryption baseline state, where the noise is i.i.d. by construction and the measured
+      flatness must reproduce the white null; this is an instrument check.
+    - Three single-operation-difference circuits to attribute flatness change to multiplication, relinearization
+      and modulus switching separately.
+    - 'Permutation control: randomly permute the coefficient indices before estimating covariance,
+      which destroys ring structure while preserving marginals.'
+    - Two independent enumeration seedings, with the spectra compared before pooling.
+    required_metrics:
+    - full eigenvalue spectrum of the noise covariance in the fixed basis, per state
+    - flatness index (max over mean eigenvalue), per state
+    - effective rank (exponential of spectral entropy), per state
+    - the same three quantities for the white null and the permutation control
+    - total noise variance per state, to confirm the null matched it
+    - sample count and exhaustiveness flag
+  falsification_conditions:
+  - Signal flatness index within the white null's sampling spread at every state and every degree.
+  - Fresh-encryption baseline flatness differs from the white null, which means the instrument is
+    biased and no downstream number is interpretable.
+  - Permutation control reproduces the signal flatness, meaning the effect does not come from ring
+    structure.
+  - Spectra are not reproducible across independent enumeration seedings.
+  - The chosen prime does not admit the diagonalising transform, so the fixed basis does not exist
+    and the object must be restated.
+  confounders:
+  - Finite-sample bias in the empirical covariance grows sharply as the sample count approaches the
+    dimension; the white null absorbs it only if the sample counts are matched exactly.
+  - Small N makes the flatness index a maximum over few eigenvalues and therefore noisy.
+  - Modular wraparound at a small prime induces artificial correlations in the coefficient vector.
+  - Fixing the relinearization key across the enumeration turns key-switching noise into a deterministic
+    offset that will itself look non-flat.
+  - Enumerating secrets but fixing plaintexts confounds secret-induced and message-induced structure.
+  interpretation_limits:
+  - A flatness index at N=8 says nothing about N=8192, where the sample-count-to-dimension ratio and
+    the tail bound's regime are both different.
+  - A non-flat spectrum does not imply the infinity norm is larger than a bound assumes; it can be
+    smaller, and the direction is not asserted here.
+  - The result concerns the second moment only and is blind to any non-Gaussian structure in the noise.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Estimation costs O(S * R * N^2) for the covariances
+      plus O(N^3) per eigendecomposition, negligible at these degrees.
+    memory_exponent: No attack memory exponent is claimed. O(N^2) per covariance matrix.
+    best_known: The incumbent is the variance-to-infinity-norm step as stated in whichever noise analysis
+      the Coordinator selects, applied with its assumed whiteness. This proposal does not replace
+      that step and offers no alternative bound; it measures the flatness the step presumes.
+    hidden_overhead: The finite-sample bias of covariance estimation is the hidden term and it is
+      the same size as the effect at small N; the human cost is in matching the null's sample count
+      exactly, which is easy to get wrong and fatal when wrong.
+  dominated_by: 'n/a (no result claimed). Checked: no FHE experiment directory exists in this repository
+    and the contract emits no attack cost, so there is no frontier row across time, memory or data/queries
+    that it could be compared against.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a dimensionless flatness
+    index against a measured sampling floor.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the fresh-encryption baseline reproduces the white null, i.e. the
+    instrument is unbiased: 0.8. That one multiplication de-whitens by the pre-committed 1.5x factor
+    at N=8: 0.55, since the operand''s transform magnitudes are themselves fairly even for small ternary
+    operands and the effect may be small. That relinearization measurably re-whitens by 30 percent:
+    0.6. That the permutation control separates cleanly: 0.7. That any number transfers to cryptographic
+    degrees: 0.1, and no transfer is claimed.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-OPEN-026
+  - KN-TECH-082
+  - IDEA-20260816-2f344d
+  - IDEA-20260808-e7ba81
+  - IDEA-20260807-a06996
+  - docs/inventor-protocol.md
+  - AGENTS.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-e14a38

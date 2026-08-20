@@ -11,6 +11,7 @@ import os
 import random
 
 import pytest
+import sympy
 
 from harness import rho, semaev
 from harness.runner import RunResult, curve_id, write_run
@@ -66,6 +67,57 @@ def test_summation_polynomial_vanishing_identity():
         assert semaev.s3_eval(2, 3, A[0], B[0], C[0], 101) == 0
         checked += 1
     assert checked > 20
+
+
+def test_s4_has_exact_support_degree_and_frozen_witness():
+    x4 = sympy.symbols("x4")
+    s4 = semaev.s4_expr(2, 3)
+
+    assert s4.free_symbols == {semaev.x1, semaev.x2, semaev.x3, x4}
+    assert semaev._t not in s4.free_symbols
+    assert sympy.Poly(
+        s4, semaev.x1, semaev.x2, semaev.x3, x4
+    ).total_degree() == 12
+    witness = {
+        semaev.x1: 1,
+        semaev.x2: 3,
+        semaev.x3: 5,
+        x4: 41,
+    }
+    assert int(s4.subs(witness)) % 101 == 0
+
+
+def test_factor_base_legacy_and_target_subgroup_scopes():
+    inst = generate_instance(seed=1, field_bits=6)
+    E = inst.curve()
+    expected_legacy = [34, 4, 25, 40, 30]
+    expected_subgroup = {12, 13, 18, 24, 33}
+
+    assert inst.n == 11
+    assert E.order() // inst.n == 5
+    assert semaev.build_factor_base(inst, 5) == expected_legacy
+    assert semaev.build_factor_base(
+        inst, 5, scope="full_curve"
+    ) == expected_legacy
+
+    subgroup_base = semaev.build_factor_base(
+        inst, 5, scope="target_subgroup"
+    )
+    assert subgroup_base == semaev.build_factor_base(
+        inst, 5, scope="target_subgroup"
+    )
+    assert len(subgroup_base) == 5
+    assert len(set(subgroup_base)) == 5
+    assert set(subgroup_base) == expected_subgroup
+    for x in subgroup_base:
+        canonical_lift = E.lift_x(x)
+        assert canonical_lift is not None
+        assert E.mul(inst.n, canonical_lift) is None
+
+    with pytest.raises(ValueError):
+        semaev.build_factor_base(inst, 6, scope="target_subgroup")
+    with pytest.raises(ValueError):
+        semaev.build_factor_base(inst, 5, scope="unknown")
 
 
 def test_decomposition_certificate_verifies_independently():
@@ -272,3 +324,107 @@ def test_write_run_refuses_when_executed_source_cannot_be_pinned(tmp_path):
                       command="pytest", started=1.0, finished=2.0, out_root=out)
     # And it must not leave a half-written run directory behind.
     assert not os.path.exists(os.path.join(out, "runs", "RUN-SEMAEV-n6-refuse-b8-s13"))
+
+
+def _discrete_log_result(run_suffix, seed=7, wrong_k=False):
+    inst = generate_instance(seed=seed, field_bits=8)
+    res = rho.solve(inst)
+    k = res.k + 1 if wrong_k else res.k
+    return RunResult(
+        run_suffix=run_suffix, curve_id=curve_id(inst.p, inst.a, inst.b, 8), seed=seed,
+        parameters={"field_bits": 8}, metrics={"group_operations": res.group_operations},
+        certificate={"kind": "discrete_log",
+                     "statement": {"curve": {"p": inst.p, "a": inst.a, "b": inst.b},
+                                   "P": list(inst.P), "Q": list(inst.Q), "k": k}},
+        stdout="ok\n")
+
+
+def test_cairn_cross_check_absent_for_kind_none():
+    """Stage 0 (docs/cairn-integration-plan.md) touches nothing when there is
+    no certificate to re-check -- same contract as `_verify` returning
+    "no-claim", covered above by test_run_wrapper_omits_optional_metadata_by_default
+    for the sibling optional blocks."""
+    from harness.runner import _cairn_cross_check
+    assert _cairn_cross_check({"kind": "none"}, verified=True) is None
+
+
+def test_cairn_cross_check_recorded_when_it_agrees(tmp_path):
+    from unittest.mock import patch
+    from tools import cairn_bridge
+
+    rr = _discrete_log_result("cairn-agree-b8-s7")
+    fake_verdict = cairn_bridge.CairnVerdict(
+        status="accept", detail="verified: fake but agreeing",
+        objective_id="sha256:" + "a" * 64, checker_sha256="deadbeef")
+    with patch.object(cairn_bridge, "available", return_value=True), \
+         patch.object(cairn_bridge, "score_certificate", return_value=fake_verdict):
+        run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                            command="pytest", started=1.0, finished=2.0, out_root=str(tmp_path))
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
+    cross_check = manifest["result"]["certificate"]["cairn_cross_check"]
+    assert cross_check["status"] == "accept"
+    assert cross_check["objective_id"] == fake_verdict.objective_id
+
+
+def test_cairn_disagreement_refuses_and_leaves_no_run_directory(tmp_path):
+    """The same severity class as the N6 provenance refusal above: two
+    independent implementations disagreeing about a witness means one of
+    them has a bug, so the run is refused rather than recorded with a
+    quietly-noted anomaly."""
+    from unittest.mock import patch
+    from tools import cairn_bridge
+
+    rr = _discrete_log_result("cairn-disagree-b8-s7")  # internal check: verified True
+    fake_verdict = cairn_bridge.CairnVerdict(
+        status="reject", detail="mocked disagreement",
+        objective_id="sha256:" + "b" * 64, checker_sha256="deadbeef")
+    out = str(tmp_path)
+    with patch.object(cairn_bridge, "available", return_value=True), \
+         patch.object(cairn_bridge, "score_certificate", return_value=fake_verdict):
+        with pytest.raises(RuntimeError, match="cairn disagreement"):
+            write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                      command="pytest", started=1.0, finished=2.0, out_root=out)
+    assert not os.path.exists(os.path.join(out, "runs", "RUN-SEMAEV-cairn-disagree-b8-s7"))
+
+
+def test_cairn_unavailable_is_additive_never_a_new_hard_dependency(tmp_path):
+    """A machine with no cairn build must behave exactly as it did before
+    Stage 0 existed: the run writes normally, and the manifest says so
+    rather than omitting the field."""
+    from unittest.mock import patch
+    from tools import cairn_bridge
+
+    rr = _discrete_log_result("cairn-absent-b8-s7")
+    with patch.object(cairn_bridge, "available", return_value=False):
+        run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                            command="pytest", started=1.0, finished=2.0, out_root=str(tmp_path))
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
+    assert manifest["status"] == "completed_valid"
+    cross_check = manifest["result"]["certificate"]["cairn_cross_check"]
+    assert cross_check["status"] == "not_attempted"
+
+
+def test_cairn_bridge_failure_is_not_attempted_not_a_crash(tmp_path):
+    """A reachable-but-broken bridge (timeout, unparseable response) is the
+    same "says nothing about the artifact" case as cairn's own `unavailable`
+    verdict -- recorded, never crashes the run and never counts as either
+    agreement or disagreement."""
+    from unittest.mock import patch
+    from tools import cairn_bridge
+
+    rr = _discrete_log_result("cairn-broken-b8-s7")
+    with patch.object(cairn_bridge, "available", return_value=True), \
+         patch.object(cairn_bridge, "score_certificate",
+                       side_effect=cairn_bridge.CairnUnavailableError("mocked timeout")):
+        run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                            command="pytest", started=1.0, finished=2.0, out_root=str(tmp_path))
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
+    cross_check = manifest["result"]["certificate"]["cairn_cross_check"]
+    assert cross_check["status"] == "not_attempted"
+    assert "mocked timeout" in cross_check["reason"]
