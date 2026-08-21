@@ -1,0 +1,416 @@
+idea:
+  id: IDEA-20260813-b8091d
+  question_id: RQ-UOV-001
+  added: '2026-08-13'
+  title: >-
+    COUNT THE EQUIVALENT KEYS BEFORE TRUSTING THE SEARCH SPACE: every UOV public
+    map has a stabiliser, so the number of DISTINCT oil spaces per key is a
+    multiplier on any search-based attack's success probability -- and if the
+    published model assumes one oil space per key while the true count grows
+    with a parameter, its cost is overstated by exactly that factor
+  class: measurement
+
+  claim: >-
+    (A) THE QUANTITY. For a UOV public map P, define N_oil(P) as the number of
+    distinct o-dimensional subspaces O with P_i|_O = 0 for all i. The trapdoor
+    guarantees N_oil >= 1. A search-based attack that samples candidate
+    subspaces succeeds on ANY of them, so its expected work is inversely
+    proportional to N_oil. If a complexity model implicitly assumes N_oil = 1
+    while the true value is larger -- or grows with q, v or m -- the model
+    overstates the attacker's cost by that factor, uniformly, at every parameter
+    set.
+
+    (B) WHY THIS IS NOT OBVIOUSLY ONE. Two distinct sources of multiplicity, and
+    they behave differently:
+      E1 EQUIVALENT KEYS. The set of (S, T) transformations mapping one UOV
+         private key to another with the same public map forms a group, and the
+         literature on equivalent keys for oil-and-vinegar schemes is
+         long-standing. Its orbits do not necessarily correspond to distinct oil
+         SPACES -- many equivalent keys can share one oil space -- so the
+         equivalent-key count is an UPPER bound on N_oil and not the quantity
+         itself. Conflating the two is the specific error this record guards
+         against.
+      E2 ACCIDENTAL OIL SPACES. Beyond the planted one, a random map of UOV
+         shape may admit further common totally singular o-subspaces by chance.
+         Their expected number is the Gaussian binomial [n choose o]_q times
+         q^{-m*o(o+1)/2} (the same count IDEA-20260813-ca165e derives), which is
+         far below 1 at deployed shapes -- so E2 should contribute nothing, and
+         that is a PREDICTION with an exact value rather than an assumption.
+    So the honest expectation is N_oil = 1 exactly at deployed shapes, with E1
+    contributing multiplicity in the private key rather than in the oil space,
+    and E2 contributing nothing. The record's value is that this is CHECKABLE and
+    currently unchecked, and that the two ways it could be wrong have different
+    consequences.
+
+    (C) THE CLAIM. At toy (q, v, m) the exact value of N_oil is computable by
+    exhaustive enumeration. Measure it, compare against the E2 prediction, and
+    check its dependence on each parameter. Then read the published model and
+    determine whether it charges a division by N_oil. Three outcomes, all
+    reportable:
+      N_oil = 1 everywhere and the model assumes 1: the model is right on this
+        axis and the check is a controlled confirmation that closes the question.
+      N_oil = 1 everywhere and the model divides by something else: a
+        transcription or modelling error worth a correction record.
+      N_oil > 1 with a pattern in (q, v, m): the model's cost is overstated by
+        that factor, and the factor's growth law is the deliverable.
+
+    (D) THE ONE PLACE IT COULD BITE HARDEST. Compressed / seed-based key
+    variants fix part of the key layout to a value derived from a seed. Any such
+    fixing constrains the map, and a constrained map can have MORE symmetry than
+    a generic one. So N_oil should be measured separately for plain and
+    compressed shapes; RQ-UOV-001's second flank is exactly whether compression
+    changes the model, and this is a cheap, sharp instance of that question.
+
+    (E) WHAT THIS IS NOT. NOT an attack, NOT a claim that UOV's model is wrong,
+    and NOT a statement about deployed parameters -- exhaustive enumeration is
+    only possible at toy shapes and RQ-UOV-001.claim_tier_ceiling caps the claim
+    accordingly.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-74349c (key compression and oil-space entropy through seed
+      expansion). That tracks how much entropy the seed expansion leaves in the
+      oil space. This record counts how many oil spaces a FIXED public map
+      admits. Entropy of the generator versus multiplicity of the solution set:
+      different quantities, and (D) is where they meet.
+    - >-
+      IDEA-20260805-19990a, which derives the forced signature count
+      1 + ceil(o/k) for oil-space recovery under a repeated vinegar seed. That
+      is about how many signatures an attacker needs; this is about how many
+      targets satisfy the attacker's search predicate.
+    - >-
+      IDEA-20260813-ca165e (this batch), which derives the Gaussian-binomial
+      joint count. This record consumes that count as its E2 prediction and
+      cites it rather than re-deriving it.
+    - >-
+      "equivalent key" returns 2 hits repository-wide and ZERO among the 14
+      RQ-UOV-001 proposals; "stabilizer" returns 3 repository-wide and none in
+      the UOV set.
+
+  object_first_candidate:
+    tracked_object: >-
+      N_oil(P), the count of distinct oil spaces of a public map, together with
+      the stabiliser group of P acting on them.
+    lossiness: >-
+      A whole key collapses to one integer. Lossy, and deliberately so: the
+      integer is exactly the factor that multiplies an attack's success
+      probability, which is the only thing the cost model needs from it.
+    propagation: >-
+      N_oil is invariant under the change of basis that hides the oil space, so
+      it is a genuine invariant of the public map rather than of a
+      representation. That is what makes it a legitimate thing for a cost model
+      to depend on.
+    survival_score: >-
+      Survives every equivalence the attacker's search is invariant under, which
+      is why it is the right multiplicity to charge.
+
+  mechanism: >-
+    STEP 0 -- ACQUISITION GATE. Read, from primary text, whether the published
+    complexity model divides by an oil-space multiplicity and what it assumes
+    that multiplicity to be. Without that reading the measurement has nothing to
+    be compared against. Halt at Stage 0 if unobtainable, per
+    RQ-UOV-001.constraints and the wall IDEA-20260807-f73d98 documents.
+    STEP 1 -- SEPARATE E1 FROM E2 EXPLICITLY. Compute the equivalent-key
+    stabiliser and, separately, enumerate oil spaces. Report both, and report
+    the map from one to the other. The record's central methodological point is
+    that these are different numbers and that only the second divides the
+    attack's work.
+    STEP 2 -- EXHAUSTIVE ENUMERATION at toy shapes: for each generated key,
+    enumerate ALL common totally singular o-subspaces, not just the planted one.
+    Exhaustive rather than sampled, so N_oil is exact and a value of 1 is a
+    measurement rather than a failure to find more.
+    STEP 3 -- PARAMETER DEPENDENCE. Sweep q, v and m separately and fit N_oil's
+    dependence on each. A multiplicity that grows in any of them is the outcome
+    with cost-model consequences.
+    STEP 4 -- COMPRESSED SHAPES. Repeat for the compressed key layout, if Stage 0
+    yields its specification, and report the two side by side. This is (D) and
+    is the half most likely to be interesting.
+
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      grep -ril for "equivalent key", "stabilizer", "stabiliser", "multiplicity",
+      "orbit", "number of oil spaces" over ledger/proposals and knowledge/,
+      2026-08-13 at 8e230f800, plus a sweep of the 14 RQ-UOV-001 proposals.
+    results: >-
+      "equivalent key": 2 files repository-wide, none among the UOV set.
+      "stabilizer": 3, none among the UOV set. No record counts oil-space
+      multiplicity or asks whether the cost model charges it.
+    verdict: >-
+      UNVERIFIED. Equivalent keys for oil-and-vinegar schemes are a
+      long-standing topic in the published literature and NOTHING about their
+      existence is claimed as new; this program has not read that literature and
+      no novelty against it is claimed. What is claimed is that this corpus has
+      no oil-space multiplicity count, and that the distinction between
+      equivalent-key count and oil-space count -- which is where the quantity
+      gets misused -- is unstated here. Stage 0 may find the published model
+      already handles it; that would be the useful, cheap answer.
+
+  null_object_control: >-
+    (1) RANDOM-MAP NULL: enumerate common totally singular o-subspaces for maps
+    of identical shape with NO planted oil space. The E2 prediction says this
+    count is essentially always 0 at the shapes tested; measuring it confirms the
+    enumerator is not manufacturing spaces. A non-zero random count means the
+    enumerator's predicate is wrong.
+    (2) PLANTED POSITIVE CONTROL, BLOCKING: the enumerator must find the planted
+    oil space in every generated key. An enumerator that misses planted spaces
+    cannot be trusted to report N_oil = 1.
+    (3) SEEDED-MULTIPLICITY POSITIVE CONTROL, BLOCKING: construct a map with TWO
+    deliberately planted oil spaces and require the enumerator to return exactly
+    2. Without it, a uniform measurement of N_oil = 1 is indistinguishable from
+    an enumerator that can only ever find one.
+
+  assumptions:
+    - >-
+      The oil space is defined by total singularity of every component, per the
+      standard trapdoor. UNVERIFIED against the Round-3 specification; Stage 0
+      checks, and a different trapdoor definition changes the predicate being
+      enumerated.
+    - >-
+      Toy shapes where the Gaussian binomial [n choose o]_q is small enough for
+      exhaustive subspace enumeration. This caps the grid hard and is the
+      binding constraint.
+    - >-
+      The attack model of interest is search-based over candidate subspaces, so
+      that multiplicity divides work. A model that is not search-based would not
+      charge N_oil and the record's cost-model claim would not apply to it --
+      stated because it bounds which models the conclusion touches.
+
+  proof_search_map:
+    bottleneck: >-
+      Exhaustive subspace enumeration, whose cost is the Gaussian binomial and
+      which determines the largest reachable (q, n, o). Everything else is
+      bookkeeping.
+    baseline_embedding:
+      parameter_slice: >-
+        A single generated key at the smallest toy shape, where every subspace
+        can be checked by hand.
+      reproduction_check: >-
+        Exhaustive hand check at that shape: the enumerator's N_oil must equal
+        the hand count exactly, and the planted space must be among those found.
+    observation_collision:
+      observable: N_oil(P)
+      distinct_preimage_search: >-
+        Required and expected to succeed trivially: many distinct keys share
+        N_oil = 1. That collision is total and uninformative, which is the point
+        -- N_oil is a coarse statistic and the record uses it only as a
+        multiplier, never as a key-distinguishing invariant. Stating this
+        prevents the number being over-read as a distinguisher.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          The pair (equivalent-key stabiliser order, N_oil) rather than either
+          alone, preserving the distinction between multiplicity in the private
+          key and multiplicity in the solution set.
+        predicted_gain: >-
+          Prevents the standard conflation, which is the specific way this
+          quantity gets mis-charged in a cost model.
+    quantifier_order: >-
+      The cost consequence, stated with its quantifiers: FOR ALL public maps P
+      at a given parameter set, IF a search-based attack samples candidate
+      subspaces uniformly, THEN its expected work is divided by N_oil(P). The
+      dependence of N_oil on P is what the measurement estimates; a model that
+      uses a single N_oil for all P is assuming the distribution is
+      concentrated, and that assumption is itself measured here rather than
+      inherited.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At these toy shapes, N_oil is exactly this multiset, and the published
+        model does or does not charge it." NEVER a statement about deployed
+        multiplicity, which is not enumerable.
+      nearby_object_control: >-
+        The two-planted-space construction, where N_oil must be 2. A method
+        returning 1 there cannot measure multiplicity and every N_oil = 1 it
+        reports is uninformative.
+    proof_obligations:
+      - claim: The enumerator finds the planted oil space in every key.
+        responsibility: correctness
+      - claim: The enumerator returns exactly 2 on the two-planted construction.
+        responsibility: success_probability
+      - claim: Random maps of the same shape yield essentially no oil spaces.
+        responsibility: baseline
+      - claim: Equivalent-key count and N_oil are reported as distinct numbers.
+        responsibility: interface
+      - claim: Whether the published model charges a multiplicity.
+        responsibility: scope
+
+  predictions:
+    - metric: N_oil over honestly generated toy UOV keys
+      direction: different
+      minimum_effect: >-
+        Predicted exactly 1 for essentially every key at every toy shape. Any
+        key with N_oil > 1, reproduced under a re-run with a different
+        enumeration order, is a material finding and its parameter cell is the
+        deliverable.
+    - metric: >-
+        count of common totally singular o-subspaces for random maps of matched
+        shape
+      direction: different
+      minimum_effect: >-
+        Essentially 0, matching the Gaussian-binomial prediction within its
+        stated envelope. A non-zero rate means either the prediction or the
+        enumerator is wrong; both halt the run.
+    - metric: N_oil for compressed versus plain key layouts
+      direction: different
+      minimum_effect: >-
+        Predicted identical. A higher multiplicity for compressed layouts is
+        precisely RQ-UOV-001's second flank and would be the record's most
+        valuable outcome.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, HARD GATE): read whether the published model
+      charges an oil-space multiplicity; file the source. Halt if unobtainable.
+      STAGE 1 (minutes, HARD GATE): planted positive control and the
+      two-planted-space control at the smallest shape, plus the hand check.
+      STAGE 2 (minutes to hours): exhaustive enumeration of N_oil across the toy
+      grid for honest keys.
+      STAGE 3: the random-map null on the identical enumerator.
+      STAGE 4: sweep q, v, m separately; fit the dependence; repeat for the
+      compressed layout if its specification was obtained.
+      STAGE 5 (zero compute): report equivalent-key stabiliser order and N_oil
+      as two separate numbers with the map between them.
+    controls:
+      - planted oil space, must always be found (BLOCKING)
+      - two planted oil spaces, must return exactly 2 (BLOCKING)
+      - random maps of matched shape, must return essentially none
+      - hand check at the smallest shape
+    required_metrics:
+      - N_oil per key, exact, per toy cell
+      - equivalent-key stabiliser order per key, reported separately
+      - random-map subspace count on the identical enumerator
+      - N_oil for compressed versus plain layouts
+      - Gaussian binomial size per cell, and the largest shape reached
+
+  falsification_conditions:
+    - >-
+      The two-planted-space control returns 1. The enumerator cannot count
+      multiplicity; every N_oil it reports is uninformative and nothing is
+      reported.
+    - >-
+      The planted space is missed in any key. Instrument failure; halt.
+    - >-
+      Random maps yield oil spaces at a measurable rate. Either the E2 count or
+      the enumerator's predicate is wrong; halt and resolve before any UOV
+      number is read.
+    - >-
+      N_oil > 1 with a parameter pattern. The model's cost is overstated by that
+      factor if it assumes 1; escalate to a correction record with the growth
+      law rather than reporting it as a curiosity.
+
+  confounders:
+    - >-
+      CONFLATING EQUIVALENT KEYS WITH OIL SPACES. The dominant risk. Many
+      equivalent private keys can share one oil space, so the equivalent-key
+      count is an upper bound and using it as the multiplier would overstate the
+      attacker's advantage. Reported as two separate numbers for this reason.
+    - >-
+      Enumeration order artifacts. An enumerator that stops at the first space
+      found reports 1 by construction; the exhaustive requirement exists to
+      prevent that and is checked by the two-planted control.
+    - >-
+      Toy-shape degeneracy. At small o the Gaussian binomial is small and
+      accidental spaces are far more likely than at deployed shapes, biasing
+      N_oil upward exactly where it is measurable. The E2 prediction is computed
+      per cell so this bias is visible rather than absorbed.
+
+  interpretation_limits:
+    - >-
+      Toy tier. Deployed multiplicity is not enumerable and no value measured
+      here transfers; what would transfer is a growth law, and a law fitted on a
+      small grid is weak evidence.
+    - >-
+      The cost consequence applies only to search-based attack models that
+      sample candidate subspaces. Other model shapes are untouched.
+    - >-
+      N_oil = 1 everywhere is a controlled confirmation and closes the question
+      on this axis; it is not a failed experiment.
+
+  heuristic_assumptions:
+    - id: HEUR-UOVEQ-1
+      statement: >-
+        For a UOV public map at shape (q, n, o, m), the expected number of
+        common totally singular o-subspaces BEYOND the planted one is
+        [n choose o]_q * q^{-m*o(o+1)/2}, and this is far below 1 at every shape
+        of interest, so N_oil = 1 with overwhelming probability.
+      rigorous_support: >-
+        Rigorous: the Gaussian binomial counts o-subspaces exactly and
+        o(o+1)/2 is the exact number of singularity conditions per component.
+        Heuristic: independence of those conditions, the same assumption
+        IDEA-20260813-ca165e's HEUR-UOVW-1 makes, and it is stated here as a
+        shared dependency so that a failure refutes both records together rather
+        than one silently.
+      validation_plan: >-
+        Exhaustive enumeration at toy shapes where the Gaussian binomial is
+        fully enumerable, giving an exact count with no sampling error. Compare
+        the empirical distribution of accidental-space counts against the
+        predicted expectation, checking variance as well as mean since
+        independence fails in the variance first. Tail check: the maximum
+        accidental count observed against the predicted tail. Toy scale only and
+        labelled so; the deployed-shape value is not measurable by this route
+        and is not claimed.
+
+  target_complexity:
+    time_exponent: >-
+      NOT AN EXPONENT PROPOSAL. If N_oil > 1 with a growth law, the consequence
+      is a constant or sub-exponential FACTOR by which a published cost is
+      overstated, not a new exponent. Any such factor would need its own record
+      with matched baselines under RQ-UOV-001.constraints.
+    memory_exponent: >-
+      Exhaustive subspace enumeration is memory-dominant and caps the grid; the
+      Gaussian binomial is reported per cell so the wall is documented.
+    best_known: >-
+      Intersection attack, Kipnis-Shamir, reconciliation, per RQ-UOV-001.targets.
+      Unchanged; this record charges a multiplier against whichever is used, it
+      does not improve any of them.
+    hidden_overhead: >-
+      The measurement's reach hides in the Gaussian binomial: only very small
+      shapes are enumerable, so a fitted growth law rests on few points and the
+      record says so rather than extrapolating it.
+    tradeoff_note: Not applicable; no algorithm produced.
+
+  dominated_by: >-
+    As an ATTACK: mounts none; dominated on every axis by the RQ-UOV-001.targets
+    baselines.
+    As a CALIBRATION contribution: dominated by IDEA-20260801-014 and
+    IDEA-20260805-ca92fd on directness, since both measure quantities the model
+    predicts outright while this one measures a multiplier the model may not
+    even reference. Dominates them on nothing except coverage of an axis neither
+    touches. Honestly the smallest of the three, and it is filed because it is
+    cheap and its compressed-layout half (D) sits on RQ-UOV-001's second flank.
+  sota_delta: >-
+    Zero speedup. Deliverable as numbers: an exact N_oil multiset per toy cell
+    against an exact Gaussian-binomial prediction; two quantities (equivalent-key
+    stabiliser order, oil-space count) reported separately where the literature
+    convention invites conflating them; a two-planted-space positive control
+    without which a uniform N_oil = 1 is not a measurement; and a plain-versus-
+    compressed comparison on RQ-UOV-001's declared second flank.
+
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: low
+
+  honest_prior_of_survival: >-
+    0.9 that N_oil = 1 uniformly, making this a controlled confirmation that
+    closes one axis cheaply. 0.07 that compressed layouts show higher
+    multiplicity, which is the branch worth the record. 0.03 that plain keys do.
+    Priority is low precisely because the expected outcome is confirmation; it is
+    filed because the check is cheap, currently absent, and sits on a flank
+    RQ-UOV-001 names explicitly.
+
+  id_allocation_provenance: >-
+    python3 tools/allocate_id.py --next idea --date 20260813, then --check
+    IDEA-20260813-b8091d confirmed free before use.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-13'
+  source_refs:
+    - RQ-UOV-001
+    - IDEA-20260805-74349c
+    - IDEA-20260805-19990a
+    - IDEA-20260813-ca165e
+    - IDEA-20260807-f73d98
+    - KN-TECH-053
+    - KN-TECH-056
