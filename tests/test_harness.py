@@ -419,7 +419,7 @@ def test_cairn_bridge_failure_is_not_attempted_not_a_crash(tmp_path):
     rr = _discrete_log_result("cairn-broken-b8-s7")
     with patch.object(cairn_bridge, "available", return_value=True), \
          patch.object(cairn_bridge, "score_certificate",
-                       side_effect=cairn_bridge.CairnUnavailableError("mocked timeout")):
+                      side_effect=cairn_bridge.CairnUnavailableError("mocked timeout")):
         run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
                             command="pytest", started=1.0, finished=2.0, out_root=str(tmp_path))
     import yaml
@@ -428,3 +428,192 @@ def test_cairn_bridge_failure_is_not_attempted_not_a_crash(tmp_path):
     cross_check = manifest["result"]["certificate"]["cairn_cross_check"]
     assert cross_check["status"] == "not_attempted"
     assert "mocked timeout" in cross_check["reason"]
+
+
+# --- GOAL-MD5-001 F-6(a): md5_collision_pair pin-mechanism tests ------------
+# DEC-20260820-32bf19 F-2(2), landed by TASK-20260821-f5f96a (BATCH-1f30fe).
+# The md5_collision_pair certificate kind (BCP-2 collision_certificate_format)
+# is exercised here on KNOWN-FALSE objects through the PRODUCTION path --
+# write_run's own _verify dispatch, not a re-implementation of the checks --
+# and the pin-mechanism distinctness assertion (BCP-2
+# pin_mechanism_requirement, INV-13) is exercised with the REAL pinned
+# registry and with ALIASED registries that must be detected as not distinct.
+
+_MD5_BLOCK_A = "00" * 64          # one 512-bit block, hex-encoded
+_MD5_BLOCK_B = "01" * 64          # a different 512-bit block, hex-encoded
+
+
+def _md5_hex(data: bytes) -> str:
+    import hashlib
+    return hashlib.md5(data, usedforsecurity=False).hexdigest()
+
+
+def _md5_pair_result(run_suffix, m1_hex, m2_hex, digest_hex,
+                     verified_by=None):
+    """A RunResult carrying an md5_collision_pair certificate, ready for the
+    production write_run path. `verified_by` (when given) is a SOLVER-
+    SUPPLIED value at the certificate's top level (a sibling of `statement`,
+    per the BCP-2 schema) that the wrapper must clear (BCP-2's J5 fix)."""
+    statement = {"messages": [m1_hex, m2_hex], "digest": digest_hex,
+                 "implementations": ["IMPL-1", "IMPL-3"]}
+    certificate = {"kind": "md5_collision_pair", "statement": statement}
+    if verified_by is not None:
+        certificate["verified_by"] = verified_by
+    return RunResult(
+        run_suffix=run_suffix, curve_id="MD5", seed=0,
+        parameters={"kind": "md5_collision_pair"}, metrics={},
+        certificate=certificate,
+        stdout="ok\n")
+
+
+def _read_run(out_root, run_id):
+    import yaml, json
+    run_dir = os.path.join(out_root, "runs", run_id)
+    manifest = yaml.safe_load(
+        open(os.path.join(run_dir, "manifest.yaml")))["run"]
+    raw = json.load(open(os.path.join(run_dir, "raw-result.json")))
+    return manifest, raw
+
+
+def test_md5_collision_pair_noncolliding_pair_fails_with_named_checks(tmp_path):
+    """Known-false object 1: two distinct blocks whose digests differ. The
+    claimed digest is the TRUE digest of m1, so exactly the two m2 checks
+    must fail and be named; the run is completed_invalid, not a result."""
+    digest = _md5_hex(bytes.fromhex(_MD5_BLOCK_A))
+    rr = _md5_pair_result("md5pair-nocoll-s0", _MD5_BLOCK_A, _MD5_BLOCK_B, digest)
+    out = str(tmp_path)
+    run_id = write_run("EXP-MDFIVE-001", "MDFIVE", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+    manifest, raw = _read_run(out, run_id)
+    cert = manifest["result"]["certificate"]
+    assert manifest["status"] == "completed_invalid"
+    assert manifest["result"]["valid"] is False
+    assert cert["verified"] is False
+    assert cert["failing_checks"] == ["digest_mismatch_impl1_m2",
+                                      "digest_mismatch_impl3_m2"]
+    # The pin-mechanism block is recorded at run time with the real registry.
+    assert raw["certificate"]["pin_mechanism"]["distinct"] is True
+
+
+def test_md5_collision_pair_tampered_digest_fails_with_named_checks(tmp_path):
+    """Known-false object 2: a tampered claimed digest (one hex digit
+    flipped). All four pinned-implementation digests mismatch and each is
+    named."""
+    digest = _md5_hex(bytes.fromhex(_MD5_BLOCK_A))
+    tampered = ("0" if digest[0] != "0" else "1") + digest[1:]
+    rr = _md5_pair_result("md5pair-tamper-s0", _MD5_BLOCK_A, _MD5_BLOCK_B, tampered)
+    out = str(tmp_path)
+    run_id = write_run("EXP-MDFIVE-001", "MDFIVE", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+    manifest, _ = _read_run(out, run_id)
+    cert = manifest["result"]["certificate"]
+    assert manifest["status"] == "completed_invalid"
+    assert cert["verified"] is False
+    assert cert["failing_checks"] == [
+        "digest_mismatch_impl1_m1", "digest_mismatch_impl1_m2",
+        "digest_mismatch_impl3_m1", "digest_mismatch_impl3_m2"]
+
+
+def test_md5_collision_pair_identical_messages_fail_m1_equals_m2(tmp_path):
+    """Known-false object 3: m1 == m2 with the TRUE digest claimed. All four
+    digests agree, so the ONLY failing check must be m1_equals_m2 -- a
+    collision certificate for identical messages is not a collision."""
+    digest = _md5_hex(bytes.fromhex(_MD5_BLOCK_A))
+    rr = _md5_pair_result("md5pair-same-s0", _MD5_BLOCK_A, _MD5_BLOCK_A, digest)
+    out = str(tmp_path)
+    run_id = write_run("EXP-MDFIVE-001", "MDFIVE", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+    manifest, raw = _read_run(out, run_id)
+    cert = manifest["result"]["certificate"]
+    assert manifest["status"] == "completed_invalid"
+    assert cert["verified"] is False
+    assert cert["failing_checks"] == ["m1_equals_m2"]
+    # Even a failing certificate carries the run-time pin-mechanism record.
+    assert raw["certificate"]["pin_mechanism"]["distinct"] is True
+
+
+def test_md5_pin_mechanism_real_registry_is_distinct():
+    """The REAL pinned registry (IMPL-1 hashlib/OpenSSL vs IMPL-3 _md5/
+    CPython) must be distinct at the mechanism level: distinct module files
+    and distinct runtime types, probed through the runner's own callables."""
+    from harness import runner
+
+    record, distinct = runner._md5_pin_mechanism(runner._MD5_IMPL_FUNCS)
+    assert distinct is True
+    f1, f3 = record["IMPL-1"]["module_file"], record["IMPL-3"]["module_file"]
+    t1, t3 = record["IMPL-1"]["runtime_type"], record["IMPL-3"]["runtime_type"]
+    assert f1 and f3 and f1 != f3
+    assert t1 != t3
+    # The mechanism, not the names: IMPL-1 resolves into the OpenSSL-backed
+    # _hashlib extension, IMPL-3 into CPython's standalone _md5 extension.
+    assert "_hashlib" in os.path.basename(f1)
+    assert os.path.basename(f3).startswith("_md5")
+    assert t1.startswith("_hashlib.")
+    assert t3.startswith("_md5.")
+
+
+def test_md5_pin_mechanism_real_registry_library_linkage_distinct():
+    """Library linkage (BCP-2 pin_mechanism_requirement, third axis): the
+    IMPL-1 extension links a crypto library (libcrypto); the IMPL-3
+    extension links no crypto library (libSystem only). Checked with
+    otool -L on the resolved module files -- Darwin only, where the pin was
+    made; on other platforms the linkage axis is not re-checked here."""
+    import platform
+    import shutil
+    import subprocess
+
+    from harness import runner
+
+    record, distinct = runner._md5_pin_mechanism(runner._MD5_IMPL_FUNCS)
+    assert distinct is True
+    if platform.system() != "Darwin" or shutil.which("otool") is None:
+        import pytest
+        pytest.skip("otool -L linkage check is Darwin-only; the pin's "
+                    "linkage determination was made on Darwin")
+    linkage = {}
+    for impl_id in runner.PINNED_MD5_IMPLEMENTATIONS:
+        out = subprocess.run(["otool", "-L", record[impl_id]["module_file"]],
+                             capture_output=True, text=True).stdout
+        linkage[impl_id] = out
+    assert "libcrypto" in linkage["IMPL-1"]
+    assert "libcrypto" not in linkage["IMPL-3"]
+    assert "libSystem" in linkage["IMPL-3"]
+
+
+def test_md5_pin_mechanism_aliased_registry_is_detected_not_distinct():
+    """An ALIASED registry -- both slots pointing at one implementation's
+    code path -- must be detected as NOT distinct. This is the edit BCP-2's
+    pin_mechanism_requirement exists to catch: the names would still read
+    IMPL-1/IMPL-3, but the mechanism (module file + runtime type) does not."""
+    from harness import runner
+
+    for aliased in (
+        {"IMPL-1": runner._md5_impl1_hash, "IMPL-3": runner._md5_impl1_hash},
+        {"IMPL-1": runner._md5_impl3_hash, "IMPL-3": runner._md5_impl3_hash},
+    ):
+        record, distinct = runner._md5_pin_mechanism(aliased)
+        assert distinct is False
+        assert record["IMPL-1"]["module_file"] == record["IMPL-3"]["module_file"]
+        assert record["IMPL-1"]["runtime_type"] == record["IMPL-3"]["runtime_type"]
+
+
+def test_md5_collision_pair_verified_by_is_wrapper_populated(tmp_path):
+    """BCP-2's J5 fix: any solver-provided verified_by is CLEARED and
+    replaced exclusively with the wrapper's own recomputation, per pinned
+    implementation. The solver's value must not survive into the record."""
+    digest = _md5_hex(bytes.fromhex(_MD5_BLOCK_A))
+    solver_claim = [{"implementation": "SOLVER-CLAIMED",
+                     "computed_digest_m1": "0" * 32,
+                     "computed_digest_m2": "0" * 32}]
+    rr = _md5_pair_result("md5pair-vby-s0", _MD5_BLOCK_A, _MD5_BLOCK_A, digest,
+                          verified_by=solver_claim)
+    out = str(tmp_path)
+    run_id = write_run("EXP-MDFIVE-001", "MDFIVE", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+    import json
+    _, raw = _read_run(out, run_id)
+    verified_by = raw["certificate"]["verified_by"]
+    assert [e["implementation"] for e in verified_by] == ["IMPL-1", "IMPL-3"]
+    assert all(e["computed_digest_m1"] == digest and e["computed_digest_m2"] == digest
+               for e in verified_by)
+    assert "SOLVER-CLAIMED" not in json.dumps(raw)
