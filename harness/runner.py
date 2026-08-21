@@ -12,6 +12,12 @@ solver (the certificate discipline, docs/claims-and-verification.md); a failed
 certificate makes the run invalid_measurement rather than a result. Run
 directories are never overwritten -- the wrapper refuses to clobber an existing
 RUN id.
+
+The md5_collision_pair certificate kind (BCP-2 collision_certificate_format,
+superseding BCP-1 section (c), GOAL-MD5-001) is verified here with the two
+pinned independent MD5 implementations, and new runs written through
+run_wrapped() carry wrapper-measured wall_seconds rather than
+caller-supplied timing (DEC-20260810-1163ec F-4(b) and (e)).
 """
 from __future__ import annotations
 
@@ -23,6 +29,7 @@ import resource
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
@@ -224,6 +231,202 @@ class RunResult:
     cost_model: dict | None = None
 
 
+# ---------------------------------------------------------------------------
+# md5_collision_pair certificate kind (BCP-1 section (c), GOAL-MD5-001;
+# DEC-20260810-1163ec F-4(b)).
+#
+# The pinned independent implementation pair from
+# coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/tasks/
+# TASK-20260810-3e0793/implementation-pin.yaml:
+#
+#   IMPL-1  hashlib.md5   OpenSSL libcrypto via _hashlib
+#   IMPL-3  _md5.md5      CPython standalone C MD5, links libSystem only
+#
+# They are DISTINCT imports with distinct HASH object types and must never be
+# aliased to one another: the independence rule (BCP-1
+# collision_certificate_format.independence_rule, INV-5) exists precisely
+# because hashlib.md5 and `openssl dgst` share one libcrypto MD5 and are NOT
+# independent of each other.
+# ---------------------------------------------------------------------------
+
+PINNED_MD5_IMPLEMENTATIONS = ("IMPL-1", "IMPL-3")
+
+_HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
+
+
+def _is_hex(s: object) -> bool:
+    return (isinstance(s, str) and len(s) > 0 and len(s) % 2 == 0
+            and all(c in _HEX_DIGITS for c in s))
+
+
+def _md5_impl1_hash(data: bytes):
+    """IMPL-1 hash object: hashlib.md5 (OpenSSL libcrypto via _hashlib).
+
+    usedforsecurity=False: this is certificate re-verification, not a
+    security operation; the flag is the portable form (the pin's own
+    throughput measurement used it) and selects no different backend.
+    Returns the hash OBJECT (not a hex string) so the pin-mechanism check
+    can inspect the runtime type of the object this code path produces.
+    """
+    return hashlib.md5(data, usedforsecurity=False)
+
+
+def _md5_impl3_hash(data: bytes):
+    """IMPL-3 hash object: CPython standalone C MD5 (libSystem only, NOT
+    libcrypto).
+
+    Imported lazily: in this build the extension is a top-level module
+    (lib-dynload/_md5.cpython-312-darwin.so -- the exact .so the pin's
+    `path` field names). A build without it must fail loudly here, at the
+    point a certificate actually needs it, not at import time of this whole
+    module. Returns the hash OBJECT (not a hex string) for the same reason
+    as IMPL-1.
+    """
+    import _md5
+    return _md5.md5(data)
+
+
+# The registry maps each pinned name to the code path that computes its
+# digests. The pin-mechanism check probes THESE SAME callables, so an edit
+# that aliases one entry to the other's code path is detected (distinct
+# runtime types / module files), not merely relabeled.
+_MD5_IMPL_FUNCS = {
+    "IMPL-1": _md5_impl1_hash,
+    "IMPL-3": _md5_impl3_hash,
+}
+
+
+def _md5_pin_mechanism(impls: dict) -> tuple[dict, bool]:
+    """BCP-2 pin_mechanism_requirement: record the MECHANISM of the pin at
+    run time, not just the names.
+
+    A name-based pin ("IMPL-1", "IMPL-3") stops nothing: a future edit
+    could alias the second import to the first code path and the names
+    would still read IMPL-1/IMPL-3. The import path, the runtime type, and
+    the library linkage are the mechanism; the names are labels. Returns
+    (record, distinct): per implementation, the module file its import
+    resolved to and the runtime type of the hash object it produces;
+    `distinct` is the distinctness assertion (the two module files differ
+    AND the two runtime types differ).
+    """
+    import sys
+    probe = b"pin-mechanism-probe"
+    record: dict[str, dict] = {}
+    for impl_id in PINNED_MD5_IMPLEMENTATIONS:
+        h = impls[impl_id](probe)
+        t = type(h)
+        mod = sys.modules.get(t.__module__)
+        record[impl_id] = {
+            "module_file": getattr(mod, "__file__", None),
+            "runtime_type": f"{t.__module__}.{t.__name__}",
+        }
+    files = [record[i]["module_file"] for i in PINNED_MD5_IMPLEMENTATIONS]
+    types = [record[i]["runtime_type"] for i in PINNED_MD5_IMPLEMENTATIONS]
+    distinct = (len(set(files)) == len(PINNED_MD5_IMPLEMENTATIONS)
+                and len(set(types)) == len(PINNED_MD5_IMPLEMENTATIONS))
+    return record, distinct
+
+
+def _verify_md5_collision_pair(cert: dict,
+                               impls: dict | None = None) -> tuple[bool, list[str]]:
+    """Verify an md5_collision_pair certificate (BCP-2 section
+    collision_certificate_format, superseding BCP-1 section (c)).
+
+    Schema (field names fixed by BCP-2 to match TASK-20260820-e4405b's
+    card; BCP-2 landed during this task and is implemented here, flagged
+    in the self-test report):
+
+        {"kind": "md5_collision_pair",
+         "statement": {"messages": [m1_hex, m2_hex],
+                       "digest": <hex, the claimed common MD5 output>,
+                       "implementations": ["IMPL-1", "IMPL-3"]}}
+
+    Rule: MD5(m1) and MD5(m2) are computed with BOTH pinned implementations
+    (four digests). verified is True only if m1 != m2 AND all four digests
+    equal the claimed digest. Otherwise verified is False and every failing
+    check is named, as applicable: m1_equals_m2 / digest_mismatch_impl1_m1 /
+    digest_mismatch_impl1_m2 / digest_mismatch_impl3_m1 /
+    digest_mismatch_impl3_m2 / implementations_disagree. Structural
+    failures (malformed fields, wrong implementation list) are named
+    separately: missing_statement / invalid_messages / invalid_hex:<field> /
+    implementations_not_pinned_pair. A pin-mechanism distinctness failure
+    (BCP-2, INV-13) is named pinned_pair_not_distinct.
+
+    verified_by is WRAPPER-POPULATED ONLY (BCP-2's J5 fix): any
+    solver-provided verified_by is cleared and replaced exclusively with
+    the wrapper's own recomputation, per implementation. pin_mechanism is
+    recorded at run time (module files, runtime types, distinctness).
+
+    `impls` is a test seam for logic-level coverage only (the self-test
+    suite passes mock implementations through it); the production dispatch
+    in `_verify` never passes it, so the pinned pair is what verifies, and
+    the pin-mechanism distinctness assertion applies to the pinned pair.
+    """
+    pinned = impls is None or impls is _MD5_IMPL_FUNCS
+    impls = impls or _MD5_IMPL_FUNCS
+    st = cert.get("statement")
+    if not isinstance(st, dict):
+        return False, ["missing_statement"]
+    messages = st.get("messages")
+    digest = st.get("digest")
+    implementations = st.get("implementations")
+
+    if not (isinstance(messages, list) and len(messages) == 2):
+        return False, ["invalid_messages"]
+    if not _is_hex(messages[0]) or not _is_hex(messages[1]):
+        return False, ["invalid_hex:messages"]
+    if not _is_hex(digest):
+        return False, ["invalid_hex:digest"]
+    if (not isinstance(implementations, list) or len(implementations) != 2
+            or set(implementations) != set(PINNED_MD5_IMPLEMENTATIONS)):
+        return False, ["implementations_not_pinned_pair"]
+
+    m1 = bytes.fromhex(messages[0])
+    m2 = bytes.fromhex(messages[1])
+    claimed = digest.lower()
+
+    failures: list[str] = []
+
+    # BCP-2 pin_mechanism_requirement: the pin is a mechanism, not a name.
+    # Checked before any digest is trusted; a failure makes the certificate
+    # verified: false (INV-13) and the run invalid.
+    if pinned:
+        pin, pin_distinct = _md5_pin_mechanism(impls)
+        cert["pin_mechanism"] = {**pin, "distinct": pin_distinct}
+        if not pin_distinct:
+            failures.append("pinned_pair_not_distinct")
+
+    if m1 == m2:
+        failures.append("m1_equals_m2")
+
+    computed = {
+        "impl1_m1": impls["IMPL-1"](m1).hexdigest(),
+        "impl1_m2": impls["IMPL-1"](m2).hexdigest(),
+        "impl3_m1": impls["IMPL-3"](m1).hexdigest(),
+        "impl3_m2": impls["IMPL-3"](m2).hexdigest(),
+    }
+    for name in ("impl1_m1", "impl1_m2", "impl3_m1", "impl3_m2"):
+        if computed[name] != claimed:
+            failures.append(f"digest_mismatch_{name}")
+    if (computed["impl1_m1"] != computed["impl3_m1"]
+            or computed["impl1_m2"] != computed["impl3_m2"]):
+        failures.append("implementations_disagree")
+
+    # WRAPPER-POPULATED ONLY (BCP-2's J5 fix): this assignment clears any
+    # solver-provided verified_by and replaces it exclusively with the
+    # wrapper's own recomputation. Lands in raw-result.json with the
+    # certificate.
+    cert["verified_by"] = [
+        {"implementation": "IMPL-1",
+         "computed_digest_m1": computed["impl1_m1"],
+         "computed_digest_m2": computed["impl1_m2"]},
+        {"implementation": "IMPL-3",
+         "computed_digest_m1": computed["impl3_m1"],
+         "computed_digest_m2": computed["impl3_m2"]},
+    ]
+    return (not failures), failures
+
+
 # Certificate verifiers, keyed by kind. Each is INDEPENDENT of any solver.
 def _verify(cert: dict) -> tuple[bool, str]:
     from .semaev import verify_decomposition_certificate
@@ -240,6 +443,11 @@ def _verify(cert: dict) -> tuple[bool, str]:
         E = EllipticCurve(c["p"], c["a"], c["b"])
         P, Q, k = tuple(st["P"]), tuple(st["Q"]), int(st["k"])
         return E.mul(k, P) == Q, "independent-recompute"
+    if kind == "md5_collision_pair":
+        verified, failures = _verify_md5_collision_pair(cert)
+        if failures:
+            cert["failing_checks"] = failures
+        return verified, "independent-recompute"
     return False, f"unknown-kind:{kind}"
 
 
@@ -316,7 +524,9 @@ def _cairn_cross_check(cert: dict, verified: bool) -> dict | None:
 
 def write_run(exp_id: str, exp_area: str, result: RunResult, *,
               status: str, command: str, started: float, finished: float,
-              out_root: str | None = None) -> str:
+              out_root: str | None = None,
+              wall_seconds: float | None = None,
+              timing_source: str | None = None) -> str:
     run_id = f"RUN-{exp_area}-{result.run_suffix}"
     root = out_root or os.path.join(REPO, "experiments", exp_id)
     run_dir = os.path.join(root, "runs", run_id)
@@ -369,7 +579,8 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
     final_status = status
     valid = result.valid
     invalid_reason = result.invalid_reason
-    if cert.get("kind") in ("discrete_log", "decomposition") and not verified:
+    if cert.get("kind") in ("discrete_log", "decomposition",
+                            "md5_collision_pair") and not verified:
         final_status = "completed_invalid"
         valid = False
         invalid_reason = "certificate failed independent verification"
@@ -389,10 +600,21 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
                 "seed": result.seed,
                 "parameters": result.parameters,
             },
+            # wall_seconds: for NEW runs the wrapper measures it itself
+            # (run_wrapped passes its monotonic-clock delta plus
+            # timing_source="wrapper"); caller-supplied started/finished are
+            # no longer trusted for new runs. When wall_seconds is None the
+            # legacy formula below is byte-identical to the pre-change
+            # behavior, so existing callers and existing records are
+            # unaffected (DEC-20260810-1163ec F-4(e)).
             "timing": {
                 "started_at": _iso(started),
                 "finished_at": _iso(finished),
-                "wall_seconds": round(finished - started, 6),
+                "wall_seconds": (round(wall_seconds, 6)
+                                 if wall_seconds is not None
+                                 else round(finished - started, 6)),
+                **({"timing_source": timing_source}
+                   if timing_source is not None else {}),
             },
             "resources": {"peak_rss_bytes": peak_rss,
                           "cpu_seconds": round(ru.ru_utime + ru.ru_stime, 6)},
@@ -403,6 +625,8 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
                 "certificate": {"kind": cert.get("kind"),
                                 "verified": cert.get("verified"),
                                 "verifier": cert.get("verifier"),
+                                **({"failing_checks": cert["failing_checks"]}
+                                   if cert.get("failing_checks") else {}),
                                 **({"cairn_cross_check": cairn_cross_check}
                                    if cairn_cross_check is not None else {})},
             },
@@ -434,6 +658,34 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
            json.dumps({"metrics": result.metrics, "certificate": cert,
                        "raw": result.raw}, indent=2, sort_keys=True, default=str))
     return run_id
+
+
+def run_wrapped(exp_id: str, exp_area: str, fn: Callable[[], RunResult], *,
+                status: str, command: str,
+                out_root: str | None = None) -> str:
+    """New-run entry point: the wrapper measures wall time itself.
+
+    DEC-20260810-1163ec F-4(e) / BCP-1 (d): wall_seconds must be
+    wrapper-measured, not caller-reported. `fn` is the experiment's run
+    function and must return a RunResult; the wrapper brackets the call
+    with a monotonic clock and writes that measurement into
+    run.timing.wall_seconds (with timing_source: wrapper). Callers of this
+    entry point have NO started/finished parameters to supply, so a
+    fabricated caller bracket can no longer land in the record. The legacy
+    write_run signature is retained unchanged for existing callers and for
+    reading existing records, but its caller-supplied timing is not trusted
+    for new runs.
+    """
+    started_wall = time.time()
+    t0 = time.monotonic()
+    result = fn()
+    t1 = time.monotonic()
+    finished_wall = time.time()
+    return write_run(exp_id, exp_area, result,
+                     status=status, command=command,
+                     started=started_wall, finished=finished_wall,
+                     out_root=out_root,
+                     wall_seconds=t1 - t0, timing_source="wrapper")
 
 
 def _iso(ts: float) -> str:
