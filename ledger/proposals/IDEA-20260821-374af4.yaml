@@ -1,0 +1,602 @@
+idea:
+  id: IDEA-20260821-374af4
+  question_id: RQ-MLKEM-003
+  added: '2026-08-21'
+  title: >-
+    The dimensions-for-free discount is the one input to ML-KEM's committed bit counts that is
+    a curve fitted at blocksize 60-90 and then evaluated at blocksize 400-900, and the two
+    published laws for it disagree by more dimensions than the entire margin of ML-KEM-1024:
+    track the MINIMUM LIFTED NORM AS A FUNCTION OF LIFT DEPTH over the sieve pool, measure the
+    achievable free-dimension count directly at blocksizes the instrument can reach, and report
+    which law the measurement follows and in which direction the estimator errs
+  class: measurement
+  claim: >-
+    (A) WHAT IS LOAD-BEARING AND UNMEASURED. EV-MLKEM-020 records, as a reproduced observation
+    under lattice-estimator commit 3e48ef421ec256afddb3e7d2249a77eab6e9ba12, that primal_bdd /
+    RC.MATZOV costs 140.1994731076207 / 200.9587149140538 / 270.7236234535225 bits at the three
+    FIPS 203 parameter sets against NIST classical cutoffs 143 / 207 / 272, i.e. undercuts of
+    +2.800527 / +6.041285 / +1.276377 bits; and that the effective sieve dimensions are
+    bkz 353.197381 / 557.152930 / 792.144373 and svp 385.084530 / 590.132012 / 825.235330,
+    with the validator confirming programmatically that "RC.MATZOV genuinely executes the d4f
+    path". The word EFFECTIVE is the whole point: those dimensions are already net of a
+    dimensions-for-free (d4f) subtraction. The core-SVP charge is 2^(0.292 * effective
+    dimension), so under that same convention a shift of D dimensions in the d4f rule moves the
+    reported cost by 0.292*D bits. Inverting the committed margins gives the exact size of the
+    d4f error that would erase each undercut: 9.59 dimensions for ML-KEM-512, 20.69 for
+    ML-KEM-768, and 4.37 for ML-KEM-1024 (arithmetic derivation from the committed numbers, not
+    a measurement).
+    (B) THE TWO PUBLISHED LAWS DISAGREE BY MORE THAN THAT AT ML-KEM BLOCKSIZES. Two d4f rules
+    are in circulation. The g6k implementation default, read verbatim from
+    g6k/algorithms/bkz.py at master, is `def default_dim4free_fun(blocksize): return
+    int(11.5 + 0.075*blocksize)`, with the docstring "Return expected number of dimensions for
+    free, from exact-SVP experiments" - a two-parameter linear fit to experiments in the
+    blocksize range where exact SVP is checkable, i.e. tens, not hundreds. The asymptotic law
+    of KN-LIT-105 (Ducas, ePrint 2017/999) is d = Theta(n / log n), concretely
+    n*ln(4/3)/ln(n/(2*pi*e)) in the form this program has recorded. These two are not the same
+    function and they diverge. ILLUSTRATIVE DERIVATION, NOT A MEASUREMENT, at two stated
+    hypothetical blocksizes chosen only to show the scale (the actual blocksizes must be read
+    from the pinned estimator run, not from this record): at beta = 421 the linear law gives
+    43.075 free dimensions and the asymptotic law 37.79, a gap of 5.28 dimensions = 1.54
+    core-SVP bits; at beta = 875 the linear law gives 77.125 and the asymptotic law 63.95, a gap
+    of 13.17 dimensions = 3.85 bits. ML-KEM-1024's committed undercut is 1.276377 bits. THE
+    CHOICE BETWEEN TWO PUBLISHED CONVENTIONS FOR ONE UNMEASURED QUANTITY IS THEREFORE LARGER
+    THAN THE MARGIN THE LANE IS ARGUING ABOUT, AND THE PROGRAM HAS NEVER MEASURED IT.
+    (C) THE CLAIM PROPER, FALSIFIABLE. At blocksizes beta in [55, 90] on ML-KEM-shaped q-ary
+    bases (q = 3329), the MEASURED achievable free-dimension count f_meas(beta) - the largest f
+    such that a sieve run in the projected sublattice of dimension beta - f, followed by Babai
+    lifting of every pool vector back to the full block, still returns a vector of norm at most
+    the target - departs from at least one of the two published laws by at least 1.5 dimensions,
+    with a sign that is stable across seeds. Which law it follows, and the SIGN of the residual,
+    is the deliverable. Positive residual against the estimator's law means the estimator is
+    charging too much and the committed 140.2 / 201.0 / 270.7 figures are OVERSTATED; negative
+    means they are UNDERSTATED. Both are results and the design cannot avoid producing one.
+    (D) WHAT IS NOT CLAIMED. No attack, no break, no exponent moved, no statement about FIPS 203
+    security. Measurements at beta <= 90 are toy scale and say nothing about beta ~ 400-900
+    except through numbered heuristic H1 below, whose whole content is that the extrapolation is
+    an assumption. A measurement that agrees with both laws inside error is a real and reportable
+    outcome that closes nothing.
+  mechanism: >-
+    STAGE 0 - ARITHMETIC, NO COMPUTE, DONE FIRST AND FROZEN. Read from the pinned
+    lattice-estimator the exact (beta, eta, d4f) triple it uses for each FIPS 203 set, so the
+    illustrative blocksizes in the claim are replaced by the real ones. Tabulate both published
+    d4f laws at those blocksizes and record the signed gap in dimensions and, at 0.292 bits per
+    dimension, in bits. This alone is under an hour and is a complete deliverable if the sieve
+    legs cannot be run.
+    STAGE 1 - INSTRUMENT. Rebuild the GOAL-MLKEM-004 instrument per KN-TECH-14efa5
+    (passagemath-standard 10.8.7 + fpylll 0.6.4 + g6k 0.1.2) and record the rebuild in the
+    receipt. That goal's committed instrument block already reports g6k bgj1 at dimension 70,
+    q = 3329, producing a database of 75511 vectors in 335.2 s, and gauss_sieve at dimension 50
+    producing 4075 vectors in 0.94 s, so the achievable dimension range is known from committed
+    execution rather than guessed.
+    STAGE 2 - THE TRACKED OBJECT. For each blocksize beta and each seed, build a q-ary basis,
+    BKZ-preprocess it, then for lift depth f = 0, 1, 2, ... run the sieve in the projected
+    sublattice of dimension beta - f, and for every vector v in the resulting pool compute the
+    Babai lift of v back to the full beta-block and record the resulting norm. Retain ONLY
+    m(f) = min over the pool of the lifted norm. The curve f -> m(f) is the object. f_meas(beta)
+    is the largest f with m(f) <= tau * gh(beta), for a success radius tau declared in Stage 0
+    and never revised.
+    STAGE 3 - THE COMPARISON. Fit f_meas(beta) over the measured range and report (i) the signed
+    residual against 11.5 + 0.075*beta, (ii) the signed residual against
+    beta*ln(4/3)/ln(beta/(2*pi*e)), (iii) whether the two residuals have opposite signs, which
+    is the case that says the truth lies between the conventions, and (iv) the extrapolated gap
+    at the estimator's actual blocksizes under H1, stated as an extrapolation.
+    STAGE 4 - WHY THIS DISCRIMINATES. Two explanations of the d4f discount are live in the
+    literature and both are represented by a law in current use. Explanation 1: d4f is set by the
+    sub-exponential asymptotic n/log n and the linear fit is a local approximation that
+    over-credits at large beta. Explanation 2: d4f is genuinely near-linear in the computable
+    range and the asymptotic constant is not yet operative. The two make OPPOSITE predictions
+    about the sign of d(f_meas)/d(beta) minus 0.075 in the measured window, and the measurement
+    reads that sign directly. A third outcome - f_meas below BOTH laws - is possible and is
+    pre-declared as its own branch, meaning the discount is over-credited by every convention in
+    use and every committed bit count in this lane is understated.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX IS UNAVAILABLE THIS SESSION (configured with an
+      in-memory Qdrant; it answers nothing and says so only in its startup log), so no `kb`
+      provenance is claimed anywhere in this record. Retrieval instrument was grep plus web.
+      Commands actually run from /home/user/crypto-autoresearcher, with counts as returned:
+      `grep -ril "dimensions for free|dimensions-for-free" ledger/proposals/` -> 3 files
+      (IDEA-20260808-dd4d30, IDEA-20260805-a102ec, IDEA-20260808-5a748c), in all three as a
+      named convention inherited by a readout, never as a tracked or measured object;
+      `grep -ri "d4f" ledger/proposals/` -> matches only inside hexadecimal record tokens
+      (KN-FIND-d4f820, DEC-20260807-d4f2a9, EXP-FALCON-cad4fe, EXP-ECDSA-dad4fd), i.e. ZERO
+      proposals use the term; `grep -ril "progressive.?BKZ|BKZ simulator|BKZ tour|tour schedul"
+      ledger/proposals/` -> 10 files, of which 4 are RQ-MLKEM-003 (fdc8e8, b824af, bd7f26,
+      08eda1, f7c912) and none concerns d4f; `grep -rn "question_id: RQ-MLKEM" ledger/proposals/`
+      -> 21 distinct RQ-MLKEM-003 proposals, whose full title list was read in this session.
+      Read in full: ledger/questions/RQ-MLKEM-003.yaml, ledger/goals/GOAL-MLKEM-004.yaml,
+      ledger/proposals/IDEA-20260807-8fbc86.yaml (lines 1-120),
+      knowledge/literature/KN-LIT-105.md, knowledge/techniques/KN-TECH-1a5b7e.md,
+      docs/inventor-protocol.md, docs/target-result-profile.md; read selectively
+      ledger/evidence/EV-MLKEM-020.yaml lines 100-169 and 466-505.
+      WEB (all fetched this session, 2026-08-21): WebSearch 'lattice sieving "dimensions for
+      free" measured discount g6k blocksize 2025' (9 links returned); WebFetch
+      https://raw.githubusercontent.com/fplll/g6k/master/g6k/algorithms/bkz.py -> returned the
+      verbatim `default_dim4free_fun` body quoted in the claim; WebFetch
+      https://raw.githubusercontent.com/fplll/g6k/master/g6k/utils/util.py -> no dim4free
+      function present (recorded because it is a negative fetch and the first place I looked);
+      WebFetch https://eprint.iacr.org/2017/1228 (Herold-Kirshanova-Laarhoven, used by the
+      sibling proposal 46c09f, checked here for a d4f statement - none in the abstract).
+    results: >-
+      NO record in ledger/proposals, ledger/hypotheses, ledger/evidence or knowledge/ measures,
+      fits, or tracks the dimensions-for-free count. KN-LIT-105 (Ducas, ePrint 2017/999) is in
+      the corpus with citation_verified: read and states d = Theta(n/log n), but it is cited by
+      no proposal as an object and its "Not verified here" section says the Theta(n/log n)
+      analysis was not re-derived and the speedup not reproduced. The nearest in-lane records
+      are: IDEA-20260805-f7c912, which measures the block-size-to-root-Hermite map delta(beta)
+      by running real reduction - a DIFFERENT scalar summary of a DIFFERENT object (the profile's
+      first Gram-Schmidt norm, not the number of dimensions a sieve can skip);
+      IDEA-20260807-8fbc86, which fits (c_T, c_M) from wall-time and peak database size and
+      whose own confounder list warns that "g6k's database size is not the same quantity as the
+      asymptotic memory in c_M" - it measures the COST of a sieve call, not the DIMENSION at
+      which the call is made; and IDEA-20260805-fc6361, whose saturation-ball census counts
+      lattice points inside a ball at fixed dimension. None of the three can produce f_meas.
+      EV-MLKEM-020 mentions d4f twice - confirming the estimator executes the d4f path, and
+      reporting that "the estimator's own floored-d4f convention moves it by < 0.2%" - but that
+      sensitivity is on c*, the memory-charge critical exponent, NOT on the bit count, and
+      changing the FLOORING of a fixed law is not the same as changing the LAW.
+    verdict: >-
+      UNVERIFIED. Two citations here are retrieved and re-readable (the g6k source line, the
+      eprint abstracts); the rest is recalled and flagged. Nothing is asserted about what the
+      external literature does or does not already contain: measuring d4f empirically is
+      certainly done inside the sieving community, and this record does not claim otherwise.
+      CLAIMED NEW RELATIVE TO THIS REPOSITORY: (i) naming f_meas as a tracked object at all,
+      (ii) the observation that two published d4f laws differ at ML-KEM blocksizes by more
+      dimensions than the committed margins tolerate, and (iii) the inversion of the committed
+      margins into a required-d4f-error in dimensions (9.59 / 20.69 / 4.37). ASSEMBLED FROM
+      KNOWN PARTS: the instrument is GOAL-MLKEM-004's, the estimator numbers are EV-MLKEM-020's,
+      the lifting construction is Ducas's, and the linear fit is g6k's.
+  object_first_candidate:
+    established_families_off_limits: >-
+      This lane's mined families are declared off-limits as the primary lens: dual-attack score
+      geometry (six batches of GOAL-MLKEM-004 and eight in-lane proposals), estimator-arithmetic
+      differencing (twelve batches of GOAL-MLKEM-003), and the module-structure discount (four
+      in-lane proposals). None of them is used here. The lens is the SVP oracle's own dimension.
+    tracked_object: >-
+      m(f) = min over the sieve pool of || Babai-lift of v into the full beta-block ||, as a
+      function of the lift depth f. One real number per (beta, f, seed). f_meas(beta) is the
+      largest f at which m(f) still clears the declared success radius.
+    lossiness: >-
+      LOSSY, hard, and in a direction compatible with the target operation. The full state is
+      the pool: about 2^(0.2075*(beta-f)) vectors each of dimension beta-f, i.e. GOAL-MLKEM-004
+      committed 75511 vectors at dimension 70. The projection retains ONE scalar per lift depth
+      and discards which vector achieved it, all other vectors, all coefficient data and the
+      whole geometry of the pool. This is not a change of coordinates: from m(f) one cannot
+      reconstruct even a single pool vector, let alone the pool, and pools with wildly different
+      geometry give identical m(f). Compatibility with the operation is the non-trivial part and
+      is exactly what makes the object work: Babai lifting is applied vector-wise, so the minimum
+      over the lifted pool is determined by the pool as a set without reference to the order in
+      which the sieve produced it, and increasing f by one composes one more rounding step onto
+      every lift. What is discarded (identity, ordering, all non-minimal vectors) is discarded
+      compatibly because the SVP oracle's downstream consumer - the BKZ tour - uses only the
+      shortest lifted vector it is handed.
+    propagation: >-
+      One step is f -> f+1: sieve one dimension lower, lift one dimension further. The
+      propagation law is deterministic given the basis and the pool, and monotone in one
+      direction only - m(f) is non-decreasing in f in expectation, because a deeper lift adds a
+      rounding error term and removes a dimension of sieving. That monotonicity is a CHEAP
+      INTERNAL FALSIFIER: if the measured m(f) is not monotone up to noise, the lifting
+      implementation is wrong and no f_meas is reportable.
+    survival_score: >-
+      Survives to the point where m(f) crosses the success radius, and that crossing IS the
+      quantity of interest, so the object is designed to dissolve exactly where the answer lives.
+      Beyond f_meas the object is uninformative: m(f) grows and carries no further structure.
+      Reported as: the number of lift depths over which m(f) stays below the radius, at each
+      beta, which is f_meas(beta) itself.
+  null_object_control: >-
+    Written against the six load-bearing lines of KN-TECH-1a5b7e's checklist.
+    OBJECT REMOVED: sieving. NULL-A, the non-sieve pool of matched size and matched norm
+    profile. Generate a pool of lattice vectors in the same projected sublattice by random
+    integer combinations followed by Babai rounding against the same reduced basis, resampled
+    until its norm multiset matches the real sieve pool's decile-by-decile, then run the
+    IDENTICAL lifting and minimisation code path. OBJECT PRESERVED: dimension, basis, norm
+    distribution, pool cardinality, lifting code, success radius.
+    CAN THIS NULL FAIL: YES, and the failure direction is pre-declared. If NULL-A returns the
+    same f_meas as the sieve pool, then the free dimensions come from the norm distribution and
+    the pool size alone, sieving contributes nothing to the discount, and the entire d4f
+    literature's attribution to sieving is not readable from this instrument - a strong negative
+    that would be reported as the headline.
+    FORCED VALUE DERIVATION, done before the run: a pool of K vectors whose lifted norms were
+    independent draws from a fixed law would have E[m(f)] falling like the K-th order statistic,
+    so f_meas would grow like log K / (rate). Since K = 2^(0.2075*(beta-f)) is itself set by the
+    dimension, part of any observed growth of f_meas in beta is FORCED by pool size alone. The
+    forced component is computed in closed form in Stage 0 and subtracted before any residual
+    against a published law is read. If the whole measured f_meas equals the forced component,
+    the measurement is about pool cardinality and not about the sieve.
+    COMPARATOR N_DRAWS: NULL-A is a generated comparator, so it is drawn at least 8 times per
+    (beta, f) cell and reported as an interval, per KN-TECH-1a5b7e mode 5. A residual read
+    against a single draw is not reportable.
+    MAXIMAL REMOVAL CONTROL: at f = 0 no lifting occurs, so m(0) must equal the pool minimum
+    exactly, bitwise. If it does not, the lifting path is broken.
+    VERDICT ON THE NULL ARM FIRST: the frozen decision rule (which of the three branches - above
+    both laws, between them, below both - the residual falls in) is emitted on NULL-A before the
+    real arm is looked at. Same branch on both arms means the rule discriminates nothing.
+  discriminated_from:
+  - >-
+    IDEA-20260805-f7c912 measures delta(beta), the root-Hermite factor, by running real
+    reduction. That is a property of the OUTPUT BASIS PROFILE at a given blocksize. f_meas is a
+    property of how far the SVP ORACLE'S DIMENSION can be reduced below the blocksize. The two
+    enter the estimator at different places - delta sets which beta is needed, d4f sets what that
+    beta costs - and either could be right while the other is wrong. Running f7c912 would not
+    produce f_meas and running this would not produce delta.
+  - >-
+    IDEA-20260807-8fbc86 fits (c_T, c_M) from wall-time and peak database size versus dimension.
+    It measures the cost of a sieve call AT a dimension. This measures WHICH dimension the call
+    is made at. Multiplying its answer by the wrong dimension gives the wrong bit count no matter
+    how well c_T is fitted, which is precisely why the two are complementary rather than
+    duplicative. Its own confounder list already concedes that its database-size proxy is not the
+    asymptotic memory quantity.
+  - >-
+    IDEA-20260805-fc6361 censuses lattice points inside the saturation ball at fixed dimension,
+    against the forced value (4/3)^(d/2). That is a static count in one lattice at one dimension.
+    f_meas is a threshold in the lift-depth parameter and is undefined without the lifting map,
+    which fc6361 never applies.
+  - >-
+    IDEA-20260816-70e41d locates the enumeration/sieving crossover as a curve over a memory
+    price. d4f moves the sieve leg of that crossover but the crossover is not measured here and
+    no memory price appears anywhere in this record.
+  - >-
+    IDEA-20260816-08eda1 (Fourier support of the FFT score landscape) and every other dual-attack
+    record in this lane concern the distinguisher. This record never scores a candidate and never
+    touches a dual lattice; primal_bdd's SVP call is the only object.
+  citations:
+  - ref: 'g6k master, g6k/algorithms/bkz.py, function default_dim4free_fun'
+    provenance: retrieved
+    claim: >-
+      Verbatim: "def default_dim4free_fun(blocksize): ... return int(11.5 + 0.075*blocksize)",
+      docstring "Return expected number of dimensions for free, from exact-SVP experiments."
+      Used as the default dim4free across the naive, pump-n-jump and slide BKZ tours.
+    verified_by: idea-generator@2026-08-21
+  - ref: 'KN-LIT-105 (Ducas, "Shortest Vector from Lattice Sieving: a Few Dimensions for Free",
+      ePrint 2017/999, EUROCRYPT 2018)'
+    provenance: internal
+    claim: >-
+      Corpus entry, citation_verified: read. States d = Theta(n / log n) dimensions come for
+      free; the entry's own "Not verified here" section records that the analysis was not
+      re-derived here and the factor-of-10 speedup not reproduced.
+    verified_by: knowledge/literature/KN-LIT-105.md
+  - ref: 'Concrete form d = n*ln(4/3)/ln(n/(2*pi*e)) for the dimensions-for-free count'
+    provenance: recalled
+    claim: >-
+      The closed form commonly attributed to the same paper and used by cost estimators. NOT
+      fetched or verified in this session. Stage 0 must confirm the exact expression the pinned
+      lattice-estimator implements before any residual is computed against it; if the estimator
+      uses a different expression, every number in part (B) of the claim is void and must be
+      recomputed.
+    verified_by: null
+  - ref: EV-MLKEM-020 (committed evidence record, this repository)
+    provenance: internal
+    claim: >-
+      Observations block: primal_bdd/RC.MATZOV = 140.1994731076207 / 200.9587149140538 /
+      270.7236234535225 bits at the three FIPS 203 sets against cutoffs 143 / 207 / 272, margins
+      +2.800527 / +6.041285 / +1.276377; effective sieve dimensions bkz 353.197381 / 557.152930 /
+      792.144373 and svp 385.084530 / 590.132012 / 825.235330; RC.MATZOV verified to execute the
+      d4f path; estimator commit 3e48ef421ec256afddb3e7d2249a77eab6e9ba12.
+    verified_by: ledger/evidence/EV-MLKEM-020.yaml
+  - ref: GOAL-MLKEM-004 instrument block (KN-TECH-14efa5)
+    provenance: internal
+    claim: >-
+      verified_by_execution: g6k dim 70 qary q=3329 bgj1 -> db 75511 vectors (335.2 s); g6k dim
+      50 gauss_sieve -> db 4075 (0.94 s); fpylll dim 60 BKZ-30 x4 -> ||b0|| 160.4 -> 130.3
+      (0.3 s). Instrument is ephemeral and must be rebuilt per batch.
+    verified_by: ledger/goals/GOAL-MLKEM-004.yaml
+  - ref: 'BDGL16 sieve exponents 2^{0.292n+o(n)} time, 2^{0.2075n+o(n)} memory'
+    provenance: recalled
+    claim: >-
+      The core-SVP time constant 0.292 used throughout this record to convert dimensions to
+      bits. NOT verified in this session. If it is wrong the conversion factor changes but the
+      structure of the claim does not.
+    verified_by: null
+  assumptions:
+  - The pinned lattice-estimator's d4f implementation can be read from source and pinned in
+    Stage 0; if it cannot, the arithmetic leg is not executable and the record says so.
+  - The GOAL-MLKEM-004 instrument can be rebuilt; its own reproducibility_warning says it will
+    not survive session end, and a failed rebuild is an infrastructure failure under AGENTS.md
+    rule 5, never negative evidence.
+  - Blocksizes 55-90 are reachable within budget on this instrument, which the committed dim-70
+    bgj1 timing of 335.2 s makes plausible but does not establish for the lifting-augmented
+    variant.
+  - The success radius tau is declared before any data exists and never revised; a tau chosen
+    after seeing m(f) would set f_meas to whatever is wanted.
+  proof_search_map:
+    bottleneck: >-
+      Not a proof. The bottleneck in the COST CHAIN, which is what this record targets, is the
+      map beta -> effective sieve dimension. Everything downstream (the 0.292 exponent, the
+      memory charge, the category comparison) is applied to that number.
+    baseline_embedding:
+      parameter_slice: >-
+        f = 0 reproduces the no-d4f baseline exactly: the sieve runs at full blocksize and m(0)
+        is the pool minimum. This is the exact old-method boundary.
+      reproduction_check: >-
+        Bitwise: m(0) must equal min over pool of ||v|| computed by an independent code path.
+        A frozen fixture at beta = 60, one seed, is stored and re-checked on every rebuild.
+    observation_collision:
+      observable: f_meas(beta), a single integer per (beta, seed).
+      distinct_preimage_search: >-
+        COLLISION FOUND AND IT IS THE POINT OF NULL-A: a non-sieve pool with matched cardinality
+        and matched norm multiset is a distinct preimage that may yield the same f_meas. The
+        design does not assume it does not; it measures it. If the collision is real, f_meas
+        does not identify "sieving" and the interpretation is restricted to "pool of this size
+        and norm profile", which is stated as the scope in that branch.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: >-
+        Replace the quoted d4f convention by the measured threshold f_meas, moving the estimator
+        input from a fitted formula to an observed quantity with an error bar.
+      predicted_gain: >-
+        A signed correction of size 0.292 * (f_meas - f_law) bits per parameter set, with the
+        sign unknown before the run. Committed margins are 2.80 / 6.04 / 1.28 bits, so a
+        correction of 5-14 dimensions is decision-relevant at every set.
+    quantifier_order: >-
+      FOR ALL beta in [55, 90] and FOR ALL seeds in the declared set, THERE EXISTS a lift depth
+      f_meas(beta, seed) such that m(f) <= tau*gh(beta) for all f <= f_meas and m(f) > tau*gh(beta)
+      for f = f_meas + 1. The claim is then about the seed-averaged f_meas. NOTE THE ORDER
+      CAREFULLY: nothing here is claimed uniformly in beta beyond the measured window, and H1 is
+      the only bridge to beta ~ 400-900.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At blocksizes 55-90, on ML-KEM-shaped q-ary bases with q = 3329 and this sieve, the
+        achievable free-dimension count is F(beta) +/- e." Nothing about FIPS 203 blocksizes,
+        nothing about other lattice families, nothing about other sieves.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion fails is a lattice with an unusually
+        flat Gram-Schmidt profile (e.g. a random unimodular-transformed cube), where lifting
+        succeeds far deeper because there is no q-ary shape to fight. Running the same
+        measurement there must give a materially different f_meas; if it gives the same one, the
+        instrument is reading a property of the lifting code and not of the lattice.
+    proof_obligations:
+    - claim: m(0) equals the pool minimum bitwise.
+      responsibility: baseline
+    - claim: m(f) is non-decreasing in f up to noise.
+      responsibility: correctness
+    - claim: The pool-cardinality-forced component of f_meas is computed and subtracted.
+      responsibility: strictness
+    - claim: NULL-A is drawn at least 8 times and reported as an interval.
+      responsibility: success_probability
+    - claim: No statement is made about beta > 90 except through H1.
+      responsibility: scope
+    not_applicable_reason: null
+  predictions:
+  - metric: 'signed residual f_meas(beta) - (11.5 + 0.075*beta), averaged over seeds, in dimensions'
+    direction: different
+    minimum_effect: 1.5
+  - metric: 'signed residual f_meas(beta) - beta*ln(4/3)/ln(beta/(2*pi*e)), in dimensions'
+    direction: different
+    minimum_effect: 1.5
+  - metric: 'f_meas(sieve pool) - f_meas(NULL-A matched non-sieve pool), in dimensions'
+    direction: higher
+    minimum_effect: 1.0
+  - metric: 'fitted slope d(f_meas)/d(beta) over the measured window'
+    direction: different
+    minimum_effect: '0.02 away from 0.075, i.e. an interval excluding the linear law''s slope'
+  - metric: 'implied bit correction 0.292 * (f_meas - f_estimator_law) extrapolated to the
+      estimator''s actual blocksizes under H1'
+    direction: different
+    minimum_effect: '1.276377 bits, i.e. the committed ML-KEM-1024 margin - below that the
+      correction cannot flip any category verdict and is reported as such'
+  minimal_test:
+    design: >-
+      TWO LEGS, AND LEG 1 IS A COMPLETE DELIVERABLE ON ITS OWN.
+      LEG 1, ARITHMETIC, under one hour of single-core compute and no sieve: read the pinned
+      lattice-estimator's d4f implementation and the (beta, eta) it selects for each FIPS 203
+      set; tabulate both published laws at those blocksizes; report the signed gap in dimensions
+      and in bits at 0.292 bits/dimension; compare against the committed margins +2.800527 /
+      +6.041285 / +1.276377. Outcome is a single table with a sign per parameter set. If the two
+      laws agree within 4.37/0.292 = 1 dimension at every FIPS blocksize, the convention question
+      is settled negatively and Leg 2 is not worth running - that is a clean, cheap, negative
+      stopping rule.
+      LEG 2, MEASUREMENT: rebuild the instrument; beta in {55, 60, 65, 70, 75, 80, 85, 90}; three
+      seeds per beta; for each, sweep f upward from 0 until m(f) crosses tau*gh(beta); record
+      f_meas. Run NULL-A at 8 draws per cell. Emit the frozen three-branch rule on NULL-A first,
+      then on the real arm. Report f_meas with intervals, both signed residuals, the slope fit,
+      and the forced pool-cardinality component subtracted.
+      WHY THIS IS THE CHEAPEST VALID DISCRIMINATOR: the two competing explanations differ in the
+      SIGN of a slope inside the measured window, so no extrapolation is needed to separate them
+      and the smallest blocksizes carry as much discriminating weight as the largest.
+    controls:
+    - 'NULL-A: matched-size, matched-norm-profile non-sieve pool, 8+ draws, identical lifting
+      code path, verdict emitted on it before the real arm'
+    - 'f = 0 bitwise regression against an independent pool-minimum computation'
+    - 'monotonicity gate on m(f); non-monotone means the lifting path is broken and nothing is
+      reported'
+    - 'forced-value subtraction: the pool-cardinality-driven component of f_meas, derived in
+      closed form in Stage 0'
+    - 'flat-profile nearby-object control (random unimodular basis) to check f_meas is reading
+      the lattice and not the lifting code'
+    - 'instrument rebuild receipt reproducing the committed dim-70 bgj1 database size of 75511
+      vectors before any new measurement is trusted'
+    required_metrics:
+    - f_meas(beta, seed) with per-beta interval over seeds
+    - m(f) curve, full, for at least one (beta, seed) per blocksize, archived
+    - signed residual against each of the two published laws, with interval
+    - NULL-A f_meas interval over >= 8 draws
+    - fitted slope d(f_meas)/d(beta) with confidence interval
+    - forced pool-cardinality component and the residual after subtraction
+    - the Leg 1 table of law-vs-law gaps in dimensions and bits at the estimator's actual blocksizes
+    - wall-time and peak RSS per cell, and the rebuild receipt
+  falsification_conditions:
+  - 'Both residuals are within 1.5 dimensions of zero across the whole window: the two laws agree
+    with measurement and with each other where it can be checked, the convention question is
+    empirically empty in this range, and the extrapolation gap at FIPS blocksizes is reported as
+    the only remaining uncertainty. This is a negative and it is the outcome I would bet on
+    second-most.'
+  - 'NULL-A returns the same f_meas as the sieve pool within its interval: the discount is a
+    property of pool size and norm profile, not of sieving, and no statement about sieve-derived
+    free dimensions is reportable from this instrument.'
+  - 'm(f) is not monotone in f: the lifting implementation is wrong; no f_meas is reported and
+    the batch reports an implementation defect.'
+  - 'The measured f_meas equals the forced pool-cardinality component within error: the
+    measurement is about cardinality and the object dissolves.'
+  - 'The flat-profile nearby object returns the same f_meas as the q-ary lattices: the
+    instrument reads the lifting code rather than the lattice and the object is void.'
+  - 'Leg 1 shows the two laws differ by less than 1 dimension at the estimator''s actual
+    blocksizes: the premise of the whole record is wrong and it is withdrawn at zero compute
+    cost.'
+  confounders:
+  - >-
+    Preprocessing quality. f_meas depends on how well the block was reduced before the sieve.
+    Two runs at the same beta with different preprocessing give different f_meas. Preprocessing
+    must be pinned exactly and recorded, and the sweep must include one deliberately
+    under-preprocessed cell to expose the sensitivity.
+  - >-
+    The success radius tau. f_meas is defined relative to it and moves with it. Declared before
+    the run; the report includes f_meas at three declared tau values so the reader sees the
+    dependence rather than one hidden choice.
+  - >-
+    Pool cardinality is not a free variable: g6k sets the database size from a formula in the
+    dimension, so lowering the sieve dimension by f also shrinks the pool, and the two effects
+    on m(f) act in the same direction. This is the forced component and is why it must be
+    subtracted rather than argued away.
+  - >-
+    Sieve kernel. bgj1, bdgl, gauss and hk3 do not produce the same pool. f_meas is scoped to
+    the kernel used and at least two kernels must be run or the number is about one kernel.
+  - >-
+    q-ary structure at small beta. Below the point where the q-vectors are eliminated, the block
+    is not a generic lattice and f_meas may reflect the q-ary shape. The fit must exclude the
+    range where this bites and must say where that range ends.
+  - >-
+    Hardware and BLAS configuration change wall-time but not f_meas; f_meas is dimensionless,
+    which is one of the reasons this object is preferable to a timing-based one.
+  interpretation_limits:
+  - Blocksizes 55-90 are toy scale. Nothing here is a statement about FIPS 203 parameter sets,
+    which need beta of order 400-900. The only bridge is heuristic H1 and it is an assumption.
+  - A signed correction to a cost-model input is not an attack, a break, a speedup or a security
+    claim, and it does not change the status of EV-MLKEM-020 or any other record.
+  - The number is a property of this sieve implementation, this preprocessing, this lattice
+    family and this success radius. It is not a universal constant.
+  - >-
+      If the correction points toward LOWER attack cost, that is still not a break: it would move
+      an estimate that already sits within a few bits of a category boundary, and the direction of
+      movement must be reported without adjectives.
+  - AGENTS.md rule 12 is UNMET and inherited from GOAL-MLKEM-003/004. Nothing here may be
+    recorded as correcting EV-MLKEM-015, EV-MLKEM-020 or any predecessor record.
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      (EXTRAPOLATION) Let f_meas(beta) be the seed-mean achievable free-dimension count measured
+      on ML-KEM-shaped q-ary bases with q = 3329 for beta in [55, 90], with the sieve kernel and
+      preprocessing pinned. H1 asserts that the SIGN of the residual
+      r(beta) = f_meas(beta) - f_law(beta) is constant for all beta in [55, B] with B the
+      estimator's largest selected blocksize (of order 900), for each of the two candidate laws
+      f_law. H1 asserts NOTHING about the magnitude of r beyond the measured window.
+    rigorous_support: >-
+      The rigorous part is Ducas's d = Theta(n/log n) (KN-LIT-105), which fixes the asymptotic
+      growth class but not the constant and not the finite-beta behaviour. The classical
+      distribution statement H1 imitates is the extreme-value law for the minimum of a large
+      sample: with K = 2^(0.2075*(beta-f)) pool vectors whose lifted norms are treated as
+      independent draws from a fixed law, m(f) concentrates around the K-th order statistic, so
+      f_meas inherits a log K / rate growth. H1 is the assertion that the residual between the
+      empirical curve and the fitted law does not change sign as beta leaves the measurable
+      window - the same kind of assumption as "this integer behaves like a uniformly random
+      integer of its size", and it is weaker than assuming the magnitude extrapolates.
+    validation_plan: >-
+      SAMPLE: f_meas at beta = 55, 60, 65, 70, 75, 80, 85, 90, three seeds each, two sieve
+      kernels, three tau values. SCALE: chosen because GOAL-MLKEM-004's committed instrument
+      block records bgj1 at dimension 70 completing in 335.2 s, so the top of the window is
+      within an order of magnitude of a measured runtime. COMPARISON DISTRIBUTION: the residual
+      r(beta) against zero, and against the closed-form forced order-statistic curve derived in
+      Stage 0. TAIL CHECK: the sign of r at the two largest reachable blocksizes taken alone must
+      agree with the sign of r fitted over the whole window; if the largest-beta cells disagree
+      with the fit, H1 is reported as UNSUPPORTED at the top of its own window, which is a
+      stronger negative than any extrapolation argument. TRANSFER ASSUMPTION, STATED: nothing
+      validates H1 above beta = 90 and no sampling shortcut analogous to the Deuring
+      correspondence exists for this quantity; unlike the isogeny exemplar, there is no way to
+      sample f_meas at cryptographic blocksizes, and that is the honest limit of this design.
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED. What is claimed is a signed correction to the DIMENSION at
+      which the core-SVP exponent is evaluated: the cost convention is 2^(0.292 * (beta - f)),
+      so a correction of D dimensions is a factor 2^(0.292*D) in the estimated attack time. At
+      D = 5 that is 1.46 bits; at D = 13 it is 3.80 bits. The measurement's own cost is
+      O(sum over f of pool(beta-f) * beta) lift operations per (beta, seed) cell.
+    memory_exponent: >-
+      NO ATTACK MEMORY EXPONENT IS CLAIMED. d4f reduces the sieve dimension, so it also reduces
+      the memory charge 2^(0.2075*(beta-f)) by 0.2075*D bits in the same direction as the time
+      correction - a fact worth reporting because it means the correction does NOT cancel between
+      time and memory and moves memory-charged margins by 0.2075/0.292 = 71% as much as
+      free-memory ones. The measurement's own peak memory is the sieve pool: the committed
+      dim-70 figure is 75511 vectors, so a dim-90 pool is about 2^(0.2075*20) = 17.4x larger.
+    best_known: >-
+      There is no incumbent MEASUREMENT of f_meas in this repository - the grep returned zero
+      proposals using the term. The incumbent CONVENTIONS are the two published laws, and the
+      estimator's is executed inside the committed EV-MLKEM-020 numbers. Externally, empirical
+      d4f behaviour is certainly studied in the sieving literature (the g6k default is described
+      in its own docstring as coming "from exact-SVP experiments"), so this is a re-measurement
+      in a new setting, not a first measurement, and is labelled `adaptation` in spirit even
+      though the overall novelty_status is unverified.
+    hidden_overhead: >-
+      Three honest disclosures. (i) The 0.292 conversion is itself an asymptotic constant with an
+      unbounded o(n); EV-MLKEM-020's own record notes "THE o(1) IN 2^(0.2075n + o(n)) IS
+      UNBOUNDED HERE", and the same applies to the time exponent. Converting dimensions to bits
+      at 0.292 is a convention-internal statement, not a physical one. (ii) f_meas is measured
+      with a specific preprocessing and a specific kernel; the convention-vs-measurement gap this
+      record hunts could be partly a kernel-choice gap. (iii) The window 55-90 is roughly one
+      sixth to one tenth of the blocksizes that matter, which is a larger extrapolation ratio
+      than the exemplar profile's validation experiments enjoy.
+    tradeoff_note: >-
+      d4f is the rare cost-model input that moves time and memory in the SAME direction, so it
+      does not trade off - it shifts the whole (time, memory) point along the sieve's own
+      exponent ray with slope 0.2075/0.292. This is directly relevant to IDEA-20260816-70e41d's
+      memory-priced crossover and to the frontier geometry of the sibling record
+      IDEA-20260821-46c09f, and the Leg 1 table should be handed to both.
+  dominated_by: >-
+    n/a (no attack result claimed), and this is stated after checking rather than asserted. There
+    is no attack cost triple here to place on any frontier: nothing is solved, nothing is
+    recovered, no query is made. On the MEASUREMENT axis, the frontier rows I checked inside this
+    repository are IDEA-20260805-f7c912 (delta(beta) by real reduction), IDEA-20260807-8fbc86
+    ((c_T, c_M) by wall-time and peak database size), IDEA-20260805-fc6361 (saturation-ball
+    census) and the six committed GOAL-MLKEM-004 batches (EV-MLKEM-da9e3b, -50901f, -b43de0,
+    -ba6c25, -d777f0, -2cd08b); none computes f_meas or any monotone function of it, so none
+    dominates. Externally I did not verify whether a published empirical d4f curve at these
+    blocksizes exists; if it does it dominates Leg 2 outright and Leg 1 is unaffected. Writing
+    `null` here without that caveat would be a fabrication under AGENTS.md rule 5.
+  sota_delta: >-
+    No attack; measurement contribution only. Quantitatively: the repository currently holds ZERO
+    values, zero bounds and zero null floors for the achievable free-dimension count, while
+    holding three committed bit counts (140.1994731076207 / 200.9587149140538 /
+    270.7236234535225) that are computed at dimensions already net of that count. The delta is
+    the creation of a first measured value with a null floor, plus a zero-compute table
+    quantifying how much of those three numbers is convention choice. Against the committed
+    margins (2.800527 / 6.041285 / 1.276377 bits) the illustrative law-vs-law gap of 1.54-3.85
+    bits is of the same order or larger, which is the entire reason to run it.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    By part. (i) That Leg 1 is executable, i.e. the pinned estimator's d4f expression and
+    selected blocksizes can be read from source: ~0.9. (ii) That the two published laws differ by
+    more than 4.37 dimensions at ML-KEM-1024's blocksize, so the convention question is live:
+    ~0.75, and this is the load-bearing part - my own arithmetic says 13.17 dimensions at
+    beta = 875 but the real blocksize and the estimator's real expression may both differ.
+    (iii) That the instrument rebuilds: ~0.7, given GOAL-MLKEM-004's explicit
+    reproducibility_warning and its own pause condition for exactly this. (iv) That Leg 2 returns
+    a residual exceeding 1.5 dimensions against at least one law: ~0.55. (v) That NULL-A separates
+    from the sieve arm, licensing the word "sieve" in the interpretation: ~0.5 - I would bet
+    against this one most readily, because GOAL-MLKEM-004's whole history is non-sieve ensembles
+    reproducing sieve effects, and I expect pool cardinality to carry much of f_meas.
+    (vi) That the batch produces a defensible number or a defensible bound: ~0.85.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+  - RQ-MLKEM-003
+  - GOAL-MLKEM-003
+  - GOAL-MLKEM-004
+  - EV-MLKEM-020
+  - KN-LIT-105
+  - KN-TECH-14efa5
+  - KN-TECH-1a5b7e
+  - IDEA-20260805-f7c912
+  - IDEA-20260807-8fbc86
+  - IDEA-20260805-fc6361
+  - IDEA-20260816-70e41d
+  - docs/inventor-protocol.md
+  - docs/target-result-profile.md
+  - docs/claims-and-verification.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py
+    --next idea --date 20260821 (random 6-hex token, no state scanned), each id then verified
+    free with --check before assignment. No identifier was chosen by looking for the next free
+    number (CLAUDE.md, Conventions).
