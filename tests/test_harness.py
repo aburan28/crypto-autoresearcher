@@ -617,3 +617,73 @@ def test_md5_collision_pair_verified_by_is_wrapper_populated(tmp_path):
     assert all(e["computed_digest_m1"] == digest and e["computed_digest_m2"] == digest
                for e in verified_by)
     assert "SOLVER-CLAIMED" not in json.dumps(raw)
+
+
+# ---------------------------------------------------------------------------
+# harness/run_md4_ceiling.py (GOAL-MD5-001 BATCH-af29f6 TASK-20260821-de817d,
+# EXP-MDFIVE-88f7d1). Additive only. These are the two audit-1 correctness
+# gates the frozen contract requires to pass BEFORE any statistical run is
+# trusted: the RFC 1320 published test vectors, and HEUR-H2's deterministic
+# backward-inversion regression fixture.
+# ---------------------------------------------------------------------------
+
+def test_rfc1320_md4_vectors():
+    """The standalone MD4 core (no hashlib) must reproduce every published
+    RFC 1320 Appendix A.5 test vector exactly."""
+    from harness.run_md4_ceiling import check_rfc1320_vectors
+
+    result = check_rfc1320_vectors()
+    assert result["all_ok"] is True, result
+    assert len(result["vectors"]) == 7
+
+
+def test_h2_backward_inversion_regression_fixture_md4_and_md5():
+    """HEUR-H2 (H-MDFIVE-bf7767): forward_step/backward_step composition
+    must be an exact identity on every sampled tuple for BOTH primitives'
+    Round-1 conventions (MD4: no trailing '+= b'; MD5: with it) -- a single
+    failure invalidates all downstream MITM search results."""
+    from harness.run_md4_ceiling import h2_regression_fixture
+
+    for mode in ("md4", "md5"):
+        result = h2_regression_fixture(seed=8975317, n=10000, mode=mode)
+        assert result["all_ok"] is True, (mode, result["failures"][:3])
+        assert result["n"] == 10000
+
+
+def test_md4_forward_backward_step_add_b_convention():
+    """Regression pin for the specific bug this module's first draft hit:
+    MD4's Round-1 operation (RFC 1320 sec 3.4, "[abcd k s]" notation) has NO
+    trailing '+= b' term, unlike MD5's RFC 1321 FF/GG/HH/II macros. Using
+    MD5's formula for MD4 fails every RFC 1320 A.5 vector -- this test pins
+    the two conventions directly against a hand-computed example so a future
+    edit that re-merges them is caught immediately, not just via the vector
+    self-test."""
+    from harness.run_md4_ceiling import (MD4_ADD_B, MD5_ADD_B, _IV,
+                                         backward_step, forward_step)
+
+    assert MD4_ADD_B is False
+    assert MD5_ADD_B is True
+    state = _IV
+    xk, s, t = 0x11223344, 7, 0
+    md4_next = forward_step(state, xk, s, t, add_b=False)
+    md5_next = forward_step(state, xk, s, t, add_b=True)
+    assert md4_next != md5_next
+    assert backward_step(md4_next, xk, s, t, add_b=False) == state
+    assert backward_step(md5_next, xk, s, t, add_b=True) == state
+
+
+def test_md4_ceiling_brute_force_control_result_sets_equal():
+    """The correctness control this contract requires before any k1=k2=10
+    search result is trusted (invalidation_rules): the MITM hash-table
+    search's result set must be IDENTICAL to the naive all-pairs search's
+    result set on the fully brute-forceable k1=k2=6 subset."""
+    from harness.run_md4_ceiling import (fixed_word_generation,
+                                         generate_target, mitm_search,
+                                         naive_all_pairs_search)
+
+    fixed = fixed_word_generation(seed=20260821, free_bits=6)
+    target = generate_target(8975316, fixed, "md4", free_bits=6)
+    mitm = mitm_search(fixed, target, "md4", 6, 6, 6, 20)
+    naive = naive_all_pairs_search(fixed, target, "md4", 6, 6, 20)
+    assert sorted(mitm["solutions"]) == sorted(naive["solutions"])
+    assert mitm["solutions"], "control target must be reachable in-window"
