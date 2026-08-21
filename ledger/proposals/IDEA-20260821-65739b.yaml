@@ -1,0 +1,762 @@
+idea:
+  id: IDEA-20260821-65739b
+  question_id: RQ-MLDSA-ffa0f5
+  goal_id: GOAL-MLDSA-002
+  added: '2026-08-21'
+  title: >-
+    t0 is not one secret but thirteen: replace FIPS 204's binary assertion with
+    a PRICE CURVE over the bit-plane filtration, N(b) = 4 sigma_r0^2 /
+    (tau 4^b), which predicts that 10^4 signatures already fix the top five
+    bit-planes at ML-DSA-44 while the least significant bit costs 3.1e8 by the
+    same estimator - and whose measured slope (two bits of signature count per
+    bit of precision, or one) is a one-hour test of whether a set-membership
+    decoder can pay off at all
+  class: representation
+
+  claim: >-
+    (A) THE REFRAMING. FIPS 204 Section 6.1 says the low-order bits of t "can
+    be reconstructed from a small number of signatures and, therefore, need not
+    be regarded as secret". That sentence treats t0 as a single object with a
+    single price. It is not one object. Each coefficient of t0 carries d = 13
+    bits, and the observation an ML-DSA signature actually supplies -
+    u_j = (c t0)_j + r0_j with |r0_j| < gamma2 - beta, exactly as derived in
+    IDEA-20260821-6109f8 - determines the HIGH bit-planes of t0 long before it
+    determines the low ones. The honest replacement for the standard's sentence
+    is therefore not a number but a CURVE N(b), the signature count at which
+    bit-plane b of every coefficient is pinned.
+
+    (B) THE CURVE, IN CLOSED FORM, FOR THE ESTIMATOR THIS CORPUS CAN DERIVE.
+    For the conjugate-averaging estimator t0_hat = (1/(N tau)) sum_i c_i^* u_i,
+    the per-coefficient error standard deviation is sigma_r0 / sqrt(N tau) with
+    sigma_r0 = (gamma2 - beta)/sqrt(3), so bit-plane b (counting b = 12 as the
+    most significant of 13 and b = 0 as the least) is resolved when that falls
+    below 2^(b-1):
+        N(b) = 4 sigma_r0^2 / (tau * 4^b).
+    GENERATOR-COMPUTED, OUTSIDE THE HARNESS, NO RUN RECORD, RE-DERIVATION
+    REQUIRED. At ML-DSA-44 (gamma2 = 95232, beta = 78, tau = 39):
+    N(12) = 18, N(11) = 74, N(10) = 295, N(9) = 1181, N(8) = 4724,
+    N(7) = 1.89e4, N(6) = 7.56e4, N(5) = 3.02e5, N(4) = 1.21e6,
+    N(3) = 4.84e6, N(2) = 1.93e7, N(1) = 7.74e7, N(0) = 3.10e8.
+    THE EXCHANGE RATE IS THE RESULT: each additional bit of precision costs a
+    factor of FOUR in signatures for this estimator, so the price of t0 spans
+    seven orders of magnitude between its most and least significant bit.
+
+    (C) THE FALSIFIABLE PREDICTION THAT COSTS AN HOUR. With N = 10^4 conforming
+    signatures under one key, the averaging estimator resolves exactly the top
+    five bit-planes at ML-DSA-44 (b = 12 down to 8, since N(8) = 4724 <= 10^4 <
+    1.89e4 = N(7)) and exactly the top four at ML-DSA-65 and ML-DSA-87
+    (b = 12 down to 9). "Resolves bit-plane b" is measured, not modelled: it is
+    the fraction of the 256k coefficients for which floor((t0_hat + 2^(b-1))/2^b)
+    equals floor((t0 + 2^(b-1))/2^b) against the TRUE t0 from the keypair, and
+    the prediction is that this fraction crosses 1/2 between consecutive
+    integers b at the stated places.
+
+    (D) THE DISCRIMINATOR, WHICH IS WHY THIS IS WORTH RUNNING FIRST. The
+    exchange rate is a property of the ESTIMATOR CLASS, not of ML-DSA. A
+    1/sqrt(N) estimator gives a factor of 4 per bit; a 1/N set-membership
+    estimator gives a factor of 2 per bit. So the measured slope of log N(b)
+    against b - two bits of signature count per bit of precision, or one -
+    decides in advance whether IDEA-20260821-6109f8's set-membership decoder
+    can pay off, and does so at 10^4 signatures instead of 10^5, without
+    building a decoder at all. A measured slope near log2(4) confirms the
+    baseline; a slope near log2(2) at small N would mean the averaging
+    estimator is already behaving super-efficiently and something in the noise
+    model is misunderstood.
+
+    (E) EXTERNAL CORROBORATION OF THE SHAPE, NOT OF THE NUMBERS. Wang, Gärtner
+    and Dubrova (eprint 2024/2046, abstract page read this session) reduce the
+    signature count for t0 reconstruction by roughly half using profiled
+    side-channel analysis that partially recovers THE LEAST SIGNIFICANT BIT of
+    t0 from power traces. That an attack pays for the LSB specifically, with
+    physical access, is exactly what a steeply graded price curve predicts and
+    is inconsistent with t0 being one uniformly priced object.
+
+    NOT A BREAK. t0 is declared public by the security argument; a graded price
+    for it is a threat-model statement and says nothing about MLWE, MSIS or
+    SelfTargetMSIS in any direction.
+
+  mechanism: >-
+    (1) THE OBSERVATION. Inherited, and it is the one thing this proposal does
+    not derive independently: for every accepted signature the public can
+    compute u_j = (A z - c t1 2^d)_j - w1'_j * 2 gamma2 = (c t0)_j + r0_j with
+    |r0_j| < gamma2 - beta, where w1' = UseHint(h, A z - c t1 2^d) is what
+    FIPS 204 Algorithm 8 already computes. The derivation is in
+    IDEA-20260821-6109f8 claim (A); Stage 1 here re-checks it exactly, and
+    that check is shared between the two records so it is paid for once.
+
+    (2) THE ESTIMATOR AND ITS EXACT VARIANCE. Write c^*(X) = c(X^-1) for the
+    conjugate. Since c has exactly tau coefficients in {-1, +1}, the constant
+    term of c^* c is exactly tau and its other coefficients are the
+    autocorrelations of c, which have mean zero over B_tau. Hence
+    t0_hat = (1/(N tau)) sum_i c_i^* u_i is unbiased to first order, with
+    per-coefficient error variance sigma_r0^2/(N tau) from the noise plus
+    sigma_t0^2/(N tau) from self-interference, where sigma_t0^2 = 2^(2d)/12.
+    GENERATOR-COMPUTED: sigma_r0/sigma_t0 = 54937.5/2365.0 = 23.2 at ML-DSA-44,
+    so self-interference contributes 0.19% of the variance and the single-term
+    formula stands. The predicted RMS errors at ML-DSA-44 are 2782 / 880 / 278
+    / 88.0 at N = 10 / 100 / 1000 / 10000, forced before the run.
+
+    (3) WHY BIT-PLANES AND NOT COEFFICIENTS. A per-coefficient success rate
+    conflates two things: how many coefficients are exactly right (a step
+    function of N that is near zero until it is near one) and how much of each
+    coefficient is right (a smooth quantity). The bit-plane filtration
+    separates them. It also matches how a downstream user of t0 would actually
+    consume it - a side-channel template that needs t0 to within +/- 64 is
+    satisfied by bit-planes 12 down to 6 and does not care about the rest - so
+    the curve is the operationally meaningful object and the single number is
+    not.
+
+    (4) THE TWO DUAL FILTRATIONS, AND WHY ONLY ONE IS OBSERVABLE. This is the
+    lossy-projection content and it is not decoration. The LOW filtration
+    x -> x mod 2^b propagates EXACTLY through the target's operations: since c
+    has integer coefficients, (c t0) mod 2^b = (c (t0 mod 2^b)) mod 2^b, so the
+    low bits form a closed system under the linear map. The HIGH filtration
+    x -> floor(x / 2^b) does NOT propagate exactly, because carries leak
+    upward from the discarded part. The observation reverses the two: r0 is
+    uniform on a range of width 2(gamma2 - beta) >> 2^13, so u mod 2^b is
+    uniform and carries NOTHING about t0 mod 2^b, while u itself pins
+    floor(t0/2^b) as soon as the noise is averaged below 2^(b-1). SO THE
+    QUOTIENT THAT PROPAGATES IS UNOBSERVABLE AND THE QUOTIENT THAT IS
+    OBSERVABLE PROPAGATES ONLY APPROXIMATELY - and the price curve is exactly
+    the cost of that approximation. That asymmetry is the reason the LSB is
+    expensive and it is a structural statement, not a statistical one.
+
+    (5) WHAT A DEVIATION WOULD MEAN, PER DIRECTION. If the measured N(b) sits
+    BELOW the curve, the noise is smaller than sigma_r0 - most plausibly
+    because the accepted r0 is not uniform on the truncated range but is
+    concentrated, which would also make IDEA-20260821-6109f8's set-membership
+    band optimistic in the same direction. If it sits ABOVE, either the
+    coefficients of r0 are positively correlated within a signature (which the
+    sup-norm rejection can induce) or the self-interference term is larger than
+    derived, which happens if c's autocorrelations are not mean-zero over the
+    challenges actually produced by SampleInBall. Both alternatives are
+    measurable in the same run, and naming them in advance is what stops a
+    deviation from being absorbed as "roughly consistent".
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      crypto-kb MCP index UNAVAILABLE this session (in-memory Qdrant per the
+      operating brief); not called, nothing attributed to it.
+      GREPS RUN WITH COUNTS: (i) -i "bit-plane|bit plane|per-key dispersion|
+      ACVP|interoperab" across the repository (*.yaml, *.md) -> 39 files, and
+      NONE of them is any of the five RQ-MLDSA-ffa0f5 proposals or either
+      RQ-MLDSA-ffa0f5 hypothesis; the ML-DSA area contributes zero hits.
+      (ii) -i "linear program|polytope|bounded noise|bounded-noise|Chebyshev
+      center" over ledger/ -> 54 files, none in area MLDSA. (iii) "MLDSA" over
+      ledger/hypotheses -> 8 files, of which H-MLDSA-2ae88d and H-MLDSA-2d4123
+      carry question_id RQ-MLDSA-ffa0f5.
+      READ: RQ-MLDSA-ffa0f5 and GOAL-MLDSA-002 in full; the lane's complete
+      5-row proposal inventory; IDEA-20260805-630606 and IDEA-20260805-bb52fa
+      in full; IDEA-20260805-031ce2, IDEA-20260808-4f83f6 and
+      IDEA-20260808-e5f947 in large part.
+      WEB QUERIES RUN (6, listed with hit counts): S1 (t0 paper, 8), S2 (t0 +
+      linear programming + bounded noise, 8), S3 (t0 paper method, 10), S4
+      (ACVP ML-DSA sigVer vectors, 9), S5 ('Dilithium t0 recovery "least
+      significant" bits harder more signatures per bit plane precision
+      estimator', 8), S6 (ML-DSA differential testing/conformance, 10). S5 was
+      run specifically against this proposal's claim and returned no result
+      presenting a per-bit-plane cost curve; it returned eprint 2024/2046,
+      which attacks the LSB with side channels.
+      FETCHED AND READ (LANDING/ABSTRACT PAGES ONLY): eprint.iacr.org/2024/2046,
+      eprint.iacr.org/2024/1373, eprint.iacr.org/2025/195,
+      eprint.iacr.org/2026/1333. FETCH FAILURES RECORDED: both eprint PDFs
+      returned unparseable binary; the Springer chapter returned 303 to an
+      authentication endpoint. NO FULL PAPER WAS READ.
+    results: >-
+      IN-CORPUS: the string "bit-plane" does not occur in any ML-DSA record;
+      no record contains an estimator for t0, an error-versus-N curve, or a
+      graded price for any secret. IDEA-20260805-630606 supplies the only
+      adjacent quantity - the entropy floors 34 / 60 / 58 - and those are
+      whole-object floors with no grading by bit significance; its heuristic
+      H2 computes hint weights, not estimator error.
+      EXTERNAL: the closest thing found is eprint 2024/2046's targeting of the
+      LSB of t0 by side-channel analysis to halve the signature count, which is
+      consistent with a graded price but is not a statement of one, and whose
+      full text was not read. Whether eprint 2024/1373 reports a per-bit or
+      per-precision breakdown is UNKNOWN for the same reason.
+    verdict: >-
+      UNVERIFIED. Claimed new relative to this corpus: the bit-plane filtration
+      as the tracked object for t0, the closed form N(b) = 4 sigma_r0^2 /
+      (tau 4^b), the thirteen numbers at ML-DSA-44, the exchange-rate framing
+      (two bits of signature count per bit of precision), and the observation
+      that the two dual filtrations trade propagation for observability.
+      Standard machinery not claimed as invention: conjugate averaging, the
+      1/sqrt(N) law, and the general fact that estimator precision costs
+      quadratically in samples.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE BIT-PLANE FILTRATION OF t0: the chain of quotient maps
+      pi_b : t0 -> floor((t0 + 2^(b-1))/2^b) for b = 12 down to 0, tracked as a
+      family rather than one at a time, with the tracked quantity being the
+      smallest N at which pi_b(t0_hat) = pi_b(t0) on a stated fraction of the
+      256k coefficients. Established families declared off-limits as the
+      primary lens: lattice reduction and estimator differencing of every kind;
+      fault injection and physical side channels (GOAL-MLDSA-001's scope, and
+      note that this proposal cites a side-channel paper only as corroboration
+      of a SHAPE and performs no side-channel work); nonce misuse and the HNP
+      family; forgery search. The lens used is elementary estimation theory on
+      a quotient chain.
+    lossiness: >-
+      LOSSY BY CONSTRUCTION AND THE ANALYSIS IS THE PROPOSAL'S CONTENT, NOT ITS
+      preamble. pi_b discards the low b bits of every coefficient - a factor
+      2^b per coefficient, 2^(256kb) overall - so the fibre is enormous and this
+      is emphatically not a change of coordinates. WHETHER THE DISCARD IS
+      COMPATIBLE WITH THE TARGET'S OPERATIONS IS THE INTERESTING PART AND THE
+      ANSWER IS: ONLY APPROXIMATELY, AND THE DUAL PROJECTION IS THE OPPOSITE.
+      The complementary map x -> x mod 2^b commutes exactly with multiplication
+      by the integer polynomial c, so the low quotient propagates
+      deterministically; pi_b does not, because carries from the discarded part
+      cross the boundary. But the ML-DSA observation is u = c t0 + r0 with r0
+      of width 2(gamma2 - beta), which is 2^4.5 to 2^6 times larger than the
+      whole range of t0, so u mod 2^b is exactly uniform and the propagating
+      quotient is INVISIBLE, while pi_b - the non-propagating one - is what
+      averaging recovers. The proposal's price curve is precisely the cost of
+      that mismatch, and the mismatch is why the LSB is the expensive bit
+      rather than the cheap one.
+    propagation: >-
+      One step is one signature. The one-step propagation law is exact and
+      measurable: the estimator's error variance falls by a factor N/(N+1), so
+      pi_b's success fraction advances by a derivable increment per signature.
+      The design records the whole success-fraction surface (b by N) rather
+      than a threshold, so the propagation law is observed at every step and
+      not only at the crossing.
+    survival_score: >-
+      Bit-plane 12 survives from signature 18 onward and never degrades; bit-
+      plane 0 does not survive within any budget this program can buy at these
+      parameters. The object dissolves at exactly one identified place: below
+      b = 0 there is nothing left, and above the point where the estimator's
+      error is dominated by BIAS rather than variance the curve stops being
+      1/sqrt(N) - which is the self-interference term and which the design
+      measures rather than assumes away.
+
+  null_object_control: >-
+    NULL-1, THE RQ-MANDATED ONE, RUN AND CORRECTLY LABELLED: the identical
+    measurement against a signature stream whose t0 was resampled independently
+    of the key. Forced value: the success fraction at every bit-plane sits at
+    chance, i.e. 2^-1 for a one-bit plane comparison and correspondingly for
+    coarser ones, at every N. UNDER KN-TECH-1a5b7e THIS ARM CANNOT FAIL AS A
+    TEST OF THE LEAK because its answer is forced to be chance by construction;
+    it is therefore reported as a test of the PLUMBING - it catches a harness
+    that has accidentally handed the estimator the true t0 - and is never cited
+    as evidence about the curve.
+    NULL-2, THE ARM THAT CAN FAIL AND ON WHICH THE VERDICT RESTS: the FORCED
+    QUANTITATIVE CURVE ITSELF. The four predicted RMS errors 2782 / 880 / 278 /
+    88.0 at ML-DSA-44 are derived before any data exists, and the measured
+    curve either lands on them or does not. This is obligation 4 of
+    KN-TECH-1a5b7e done properly: the reference model supplies a NUMBER, not a
+    direction, and both the real arm and the resampled arm are scored against
+    it. A measured 88.0 is a confirmation; a measured 40 or 200 is a refutation
+    of the noise model with a named direction (mechanism (5)).
+    NULL-3, GRADED, FOUR INTERIOR POINTS, MONOTONICITY REPORTED: resample a
+    fraction f of t0's coefficients independently of the key, f in
+    {0, 0.25, 0.5, 0.75, 1}. The per-bit-plane success fraction on the
+    UNRESAMPLED coefficients must be independent of f (they are unaffected),
+    while the overall fraction must fall linearly in f. Reporting BOTH is what
+    distinguishes "the estimator recovers t0" from "the estimator recovers
+    something correlated with the whole vector"; a non-linear or non-monotone
+    response localises the failure.
+    NULL-4, COMPARATOR REPLICATION (mode 5): the error curve is a generated
+    comparator, so it is drawn at least 8 times with independent seeds and
+    reported as an interval, never as a single curve. 8 draws at N = 10^4 is
+    the cheapest line item in the design.
+    VERDICT-ON-THE-NULL-FIRST: the bit-plane decision rule is executed and its
+    verdict committed on the resampled-t0 arm before the real arm is read.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-630606 computes an entropy floor for recovering ALL of t0
+      and reports 34 / 60 / 58 signatures. It grades nothing: its object is the
+      hint's capacity, its answer is a single number per parameter set, and its
+      own record states the number bounds INFORMATION and not computation. This
+      proposal grades by bit significance, measures rather than bounds, and its
+      curve is a property of a named estimator. The two are also checkable
+      against each other: N(12) = 18 signatures sits BELOW 630606's floor of 34,
+      which is not a contradiction (the floor is for the whole 13312 bits and
+      bit-plane 12 is 1024 of them) but is exactly the kind of comparison that
+      would expose an arithmetic error in either record, and it is a required
+      metric here.
+    - >-
+      IDEA-20260821-6109f8 (this batch) builds a set-membership decoder and
+      aims at exact recovery. This proposal builds no decoder, cannot recover
+      t0, and costs an hour instead of a campaign. It is deliberately the cheap
+      sibling: its measured exchange rate PREDICTS whether 6109f8 can pay off,
+      and 6109f8 should not be started before this record's Stage 1 identity
+      check has passed.
+    - >-
+      IDEA-20260805-bb52fa's H1 is about the distribution of t0 itself, used to
+      compute a rejection rate. This proposal's noise law is about r0, a
+      different quantity from a different part of the algorithm, and its
+      headline does not depend on t0's distribution at all - only on t0's RANGE,
+      which FIPS 204 Algorithm 25 guarantees.
+    - >-
+      IDEA-20260808-4f83f6 measures a t0-induced deviation in the accepted
+      challenge law. Different observable, no shared statistic, and that record
+      states it is likely dominated by the hint route - which is the route
+      this proposal instruments.
+    - >-
+      eprint 2024/2046 recovers the LSB of t0 from POWER TRACES. This proposal
+      touches no device, uses only public transcript data, and cites that work
+      solely as external corroboration that the LSB is the expensive bit.
+
+  citations:
+    - ref: 'eprint 2024/2046 — Wang, Gärtner, Dubrova, "Decompressing
+        Dilithium''s Public Key with Fewer Signatures Using Side Channel
+        Analysis", approved 2024-12-19 (KTH)'
+      provenance: retrieved
+      claim: >-
+        ABSTRACT/SUMMARY PAGE ONLY, FULL TEXT NOT READ. Reports profiled
+        deep-learning side-channel analysis that partially recovers the LEAST
+        SIGNIFICANT BIT of t0 from power traces on an ARM Cortex-M4, reducing
+        the number of signatures needed for t0 reconstruction by roughly half.
+        USED HERE ONLY as external corroboration of the SHAPE of the price
+        curve; none of this proposal's numbers derives from it, and no claim is
+        made about its correctness.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'eprint 2024/1373 — Azevedo Oliveira, Calle Viera, Cogliati, Goubin,
+        "Uncompressing Dilithium''s public key", CRYPTO 2025'
+      provenance: retrieved
+      claim: >-
+        ABSTRACT/LANDING PAGE ONLY. Verified: "Between 200,000 and 500,000
+        signatures are sufficient to recover t0 on a desktop computer",
+        depending on the security level. Whether the paper reports any
+        per-precision or per-bit breakdown is UNKNOWN to this session - the PDF
+        fetch returned unparseable binary.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'FIPS 204 Section 6.1 (the t0 sentence), Table 1 (gamma2, beta, tau,
+        d, k), Algorithm 8 (w''Approx, UseHint), Algorithm 25 (t0 range
+        annotation)'
+      provenance: internal
+      claim: >-
+        Taken from the transcription recorded in IDEA-20260805-630606 and
+        IDEA-20260805-bb52fa (fetch receipt nvlpubs.nist.gov, 3,291,746 bytes,
+        sha256 5723...6b6b, 2026-08-06), including the verbatim Section 6.1
+        sentence. THIS SESSION DID NOT FETCH FIPS 204; Stage 0 re-reads
+        gamma2, beta, tau and d because the whole curve scales with
+        (gamma2 - beta)^2/tau.
+      verified_by: >-
+        coordinator@2026-08-21 (orchestrating session read the cited TRANSCRIPTION records, not the
+        FIPS 204 PDF; confirmed the fetch receipt nvlpubs.nist.gov 2026-08-06, HTTP 200, 3,291,746
+        bytes, sha256 57239b9f84c03227eda3ca0991204dc7764c79af9ce2e6824eda774918d46b6b, and the
+        quoted Table 1 / algorithm-line values recorded there)
+    - ref: 'IDEA-20260821-6109f8 (this batch), for the observation identity
+        u_j = (c t0)_j + r0_j'
+      provenance: internal
+      claim: >-
+        The identity is derived there from FIPS 204 Algorithm 7 Line 23 and
+        Algorithm 8, and is re-checked exactly in Stage 1 here. Both records
+        stand or fall on it together; that shared dependency is stated rather
+        than distributed across two proposals as if independent.
+      verified_by: >-
+        coordinator@2026-08-21 (orchestrating session read the cited SIBLING record in this same
+        batch and confirmed the quoted expressions; both are PROPOSALS, not results, and neither
+        supports the other as evidence)
+
+  assumptions:
+    - >-
+      The observation identity u = c t0 + r0 holds exactly (Stage 1 checks it;
+      a single failure outside Decompose's special top cell stops the line).
+    - >-
+      c's autocorrelations at nonzero lag average to zero over the challenges
+      SampleInBall actually produces, so the conjugate-averaging estimator is
+      unbiased to first order. This is measurable directly from the challenges
+      and is a required metric, not an assumption to be waved through.
+    - >-
+      The true t0 is available from the keypair for scoring. This is a
+      measurement of a leak with the ground truth in hand, which is what makes
+      it cheap and what makes it NOT an attack.
+    - >-
+      Signing throughput permits 10^4 signatures per parameter set within the
+      hour. If it does not, the pilot falls back to ML-DSA-44 at N = 10^3,
+      which still tests bit-planes 12 to 10, and the shortfall is reported as a
+      budget outcome rather than as a result.
+
+  proof_search_map:
+    bottleneck: null
+    baseline_embedding:
+      parameter_slice: not_applicable
+      reproduction_check: null
+    observation_collision:
+      observable: >-
+        The certificate is the per-bit-plane agreement fraction against the
+        true t0. A collision worth naming: two different estimators can produce
+        the same agreement fraction at one N while having different SLOPES, so
+        a single-N measurement cannot distinguish estimator classes.
+      distinct_preimage_search: >-
+        The design therefore measures the whole (b, N) surface over at least a
+        decade of N rather than a single point, which is exactly what breaks
+        that collision.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          Build a problem-specific resource measure - signature count per bit
+          of precision - realise it by specialising to each bit-plane, and add
+          charges only over the bit-planes, which are disjoint by construction.
+        predicted_gain: >-
+          Converts an unquantified qualitative sentence in a fielded standard
+          into 13 numbers per parameter set at a cost of one hour.
+    quantifier_order: >-
+      FOR EACH parameter set and FOR EACH bit-plane b, THERE EXISTS N(b) such
+      that FOR ALL N >= N(b) the conjugate-averaging estimator agrees with t0
+      at plane b on at least half of the 256k coefficients, WITH PROBABILITY
+      over the signature stream. Note what is NOT claimed: no uniformity over
+      keys (per-key dispersion is measured), no statement about other
+      estimators (the exchange rate is estimator-relative, and saying so is the
+      point of prediction 4).
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest certifiable claim is a measured price curve for ONE named
+        estimator on the tested keys. It cannot certify a lower bound on any
+        estimator's price - that is IDEA-20260805-630606's object - and it
+        cannot certify that a graded price has any security consequence, which
+        would require costing what partial t0 buys and is out of scope here.
+      nearby_object_control: >-
+        The nearby object where the conclusion fails: the same measurement with
+        the noise replaced by an equal-variance Gaussian. The curve N(b) =
+        4 sigma^2/(tau 4^b) must be UNCHANGED, because the averaging estimator
+        only sees the variance. If the measured curve moves, the instrument is
+        responding to the noise's shape and not to its variance, and the
+        closed form is not what is being measured. That control is a strict
+        requirement and it is cheap.
+    proof_obligations:
+      - claim: 'per-coefficient error variance is sigma_r0^2/(N tau) to within the derived 0.19% self-interference'
+        responsibility: correctness
+      - claim: 'N(b) = 4 sigma_r0^2/(tau 4^b) and its thirteen evaluations at ML-DSA-44'
+        responsibility: size
+      - claim: 'the measured exchange rate distinguishes a 1/sqrt(N) from a 1/N estimator class'
+        responsibility: strictness
+      - claim: 'the whole measurement fits in one hour of single-core compute at N = 10^4'
+        responsibility: runtime
+    not_applicable_reason: >-
+      Only partially applicable: this is a measurement proposal with a closed
+      form, not a proof-oriented one, so the bottleneck and baseline-embedding
+      fields are left null rather than filled with a fabricated bottleneck. The
+      audits that DO apply - observation collision, quantifier order, method
+      ceiling and the nearby-object control - are filled, because each of them
+      caught something real here (the single-N collision, the
+      estimator-relativity of the exchange rate, and the equal-variance
+      Gaussian control).
+
+  predictions:
+    - metric: >-
+        exactness of the observation identity: max over 256k coefficients and
+        10^3 signatures of |u_j - (c t0)_j - r0_j| against an instrumented
+        signer's true values
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: exactly 0 outside Decompose's special top cell. This is
+        the shared gate with IDEA-20260821-6109f8 and it costs one subtraction
+        per coefficient.
+    - metric: >-
+        per-coefficient RMS error of the conjugate-averaging estimator at
+        ML-DSA-44 for N in {10, 100, 1000, 10000}
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUES: 2782 / 880 / 278 / 88.0. Agreement to within 10% is the
+        pass condition; a systematic 2x in either direction refutes the noise
+        model and mechanism (5) names which direction means what.
+    - metric: >-
+        highest bit-plane index b at which fewer than half of the 256k
+        coefficients agree with the true t0, at N = 10^4, per parameter set
+      direction: different
+      minimum_effect: >-
+        FORCED VALUES: b = 7 at ML-DSA-44 (so planes 12 to 8 resolved, 5 of 13)
+        and b = 8 at ML-DSA-65 and ML-DSA-87 (planes 12 to 9 resolved, 4 of 13).
+        An off-by-one is tolerated and reported; an off-by-three is a
+        refutation.
+    - metric: >-
+        exchange rate: the fitted slope of log2 N(b) against -b over the
+        measured range
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE 2.0 (two bits of signature count per bit of precision) for
+        the averaging estimator. A measured slope near 1.0 would mean the
+        estimator is behaving super-efficiently, which it should not, and would
+        indicate the noise is not the dominant error source. THIS IS THE
+        NUMBER THAT PREDICTS WHETHER IDEA-20260821-6109f8 CAN PAY OFF, because
+        a set-membership decoder's forced slope is 1.0.
+    - metric: >-
+        per-key dispersion of N(8) at ML-DSA-44 over 8 keys
+      direction: different
+      minimum_effect: >-
+        The curve is derived from parameters only, with no key dependence, so
+        the forced prediction is that the across-key spread equals the
+        within-key seed spread. A materially larger across-key spread means the
+        price of t0 is a per-key quantity - a weak-key-shaped finding that this
+        design would surface for free and that nothing in the corpus predicts.
+    - metric: >-
+        agreement fraction on the RESAMPLED-t0 null arm, at every bit-plane and
+        every N
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: chance. Any departure means the harness leaked the true
+        t0 into the estimator and no arm is readable.
+
+  minimal_test:
+    design: >-
+      ONE RUN, FOUR STAGES, UNDER ONE HOUR OF SINGLE-CORE COMPUTE FOR STAGES
+      0-3 AT ML-DSA-44 IF SIGNING THROUGHPUT PERMITS.
+      STAGE 0 (reading, zero compute): re-read gamma2, beta, tau, d, k from
+      FIPS 204 Table 1 and the Section 6.1 sentence verbatim under a run
+      record; recompute sigma_r0 = (gamma2 - beta)/sqrt(3) and the thirteen
+      N(b). If any parameter differs from the values used here, re-derive
+      before proceeding.
+      STAGE 1 (identity gate, minutes, TERMINATING): instrument a signer to
+      emit (t0, s2, y) alongside each signature; compute u from PUBLIC data
+      only and check u = c t0 + r0 exactly on 10^3 signatures; record the
+      special-top-cell frequency and drop those coefficients.
+      STAGE 2 (the curve, minutes): generate N = 10^4 signatures under each of
+      8 keys at ML-DSA-44 (and, if throughput allows, at -65 and -87), run the
+      conjugate-averaging estimator at N = 10, 30, 100, 300, 1000, 3000, 10000
+      - a decade and a half, declared before the run - and record the full
+      (b, N) agreement surface against the true t0.
+      STAGE 3 (controls): the resampled-t0 null first with its verdict
+      committed; the graded resampling arm at four interior points; the
+      equal-variance Gaussian nearby-object control; 8 independent draws of the
+      comparator curve reported as an interval.
+      WHAT DISCRIMINATES, EXPLICITLY: Stage 1 decides whether the observation
+      model is real, and a failure there kills three records in this batch for
+      minutes of compute. Stage 2's four forced RMS values decide whether the
+      noise law is right. Stage 2's fitted slope decides between the estimator
+      classes and therefore whether IDEA-20260821-6109f8 is worth its campaign.
+      Stage 3's Gaussian control decides whether the measurement is about
+      variance (it should be) or about shape (it should not be).
+    controls:
+      - Resampled-t0 null, run FIRST, verdict committed before the real arm, and explicitly labelled as a plumbing check that cannot fail as a test of the leak.
+      - The four forced RMS values as a reference model, with BOTH arms scored against them rather than against each other.
+      - Graded resampling at f in {0, 0.25, 0.5, 0.75, 1} with the unresampled-coefficient fraction reported separately, and monotonicity reported explicitly.
+      - Equal-variance Gaussian noise control - the curve must NOT move; if it does, the instrument is not measuring what the closed form describes.
+      - 8-draw comparator replication with intervals, before any slope is fitted.
+      - Multi-key arm (8 keys) so the across-key spread is reported beside the within-key spread.
+      - Challenge-autocorrelation check: measure the mean nonzero-lag autocorrelation of c over the challenges actually produced, against the assumed 0.
+    required_metrics:
+      - max identity residual and special-top-cell frequency
+      - RMS error at seven values of N against the four forced values, with 8-draw intervals
+      - the full (bit-plane, N) agreement-fraction surface, machine-readable
+      - fitted exchange-rate slope with its confidence interval and the declared fit range
+      - across-key and within-key spread of N(8)
+      - resampled-null agreement fractions at every cell
+      - measured signing throughput in signatures per second, reported whether or not the budget bound
+
+  falsification_conditions:
+    - >-
+      The identity check fails on any coefficient outside the special top cell.
+      This proposal, IDEA-20260821-6109f8 and part of IDEA-20260821-71fc18 are
+      all withdrawn together.
+    - >-
+      The measured RMS errors miss 2782 / 880 / 278 / 88.0 by more than 10%.
+      The closed form is wrong and the thirteen N(b) are withdrawn; the
+      measured curve is reported in their place, which is still the deliverable.
+    - >-
+      The highest unresolved bit-plane at N = 10^4 is not 7 (ML-DSA-44) or 8
+      (-65, -87) within one plane. The curve's calibration is wrong.
+    - >-
+      The fitted exchange rate is not 2.0 within its interval. Either the
+      estimator is not the one analysed or the noise is not the dominant error
+      source; in either case IDEA-20260821-6109f8's slope discriminator is
+      invalidated and must be redesigned before its campaign is bought.
+    - >-
+      The equal-variance Gaussian control moves the curve. The measurement is
+      responding to noise shape rather than variance and no N(b) is reportable.
+    - >-
+      The resampled-t0 null shows better-than-chance agreement anywhere. The
+      harness has leaked the true t0 and nothing is readable.
+
+  confounders:
+    - >-
+      SUCCESS-FRACTION THRESHOLDS ARE ARBITRARY. "Resolved" at a fraction of
+      1/2 is a convention; at 0.9 the curve shifts by a constant factor. The
+      threshold is declared before the run and the whole surface is reported so
+      a reader can pick another.
+    - >-
+      BIT-PLANE INDEXING IS EASY TO GET WRONG. There are 13 bits, indexed here
+      12 (most significant) down to 0 (least). An off-by-one in the indexing
+      convention shifts every number by a factor of 4 and would look like a
+      real effect.
+    - >-
+      SELF-INTERFERENCE GROWS RELATIVELY AS N GROWS. The noise term falls as
+      1/sqrt(N) and the derived 0.19% self-interference contribution falls at
+      the same rate, so the ratio is constant - but only to first order; at
+      very large N the estimator's residual BIAS (from the non-zero-mean part
+      of c^* c on the realised challenge set) dominates and the curve flattens.
+      The design measures the challenge autocorrelation precisely so that a
+      flattening is attributed rather than absorbed.
+    - >-
+      ONE KEY IS NOT THE POPULATION. The closed form has no key dependence, so
+      a single-key run would look perfectly consistent whatever the truth; the
+      8-key arm is what makes the no-key-dependence prediction able to fail.
+    - >-
+      A CONFIRMED CURVE IS COMFORTABLE. The forced values were derived by the
+      same session that designed the measurement, and confirming them is the
+      easy outcome. The Gaussian control and the slope prediction exist so that
+      a confirmation costs something and carries information about the sibling
+      proposal rather than only about itself.
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK. t0 is declared public by the security argument, so a graded
+      price for it is a threat-model quantity and implies nothing about MLWE,
+      MSIS or SelfTargetMSIS in any direction.
+    - >-
+      The curve is ESTIMATOR-RELATIVE and must always be quoted with its
+      estimator. "Bit-plane 8 costs 4724 signatures" is licensed only as "costs
+      4724 signatures for the conjugate-averaging estimator"; a better decoder
+      pays less and IDEA-20260821-6109f8 exists to find out how much less.
+    - >-
+      Resolving the top five bit-planes is NOT recovering t0, and no sentence
+      may say so. What it means operationally - which downstream uses are
+      satisfied by t0 known to +/- 128 - is not costed here and RQ-MLDSA-ffa0f5
+      requires it to be costed rather than asserted.
+    - >-
+      Scoped to the tested keys, the tested signer implementation and the
+      tested parameter sets. All measurements are at REAL FIPS 204 parameters,
+      so there is no toy-to-real transfer; the transfer that does exist is
+      across keys and implementations and is stated.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The accepted low part r0 = LowBits(w - <<c s2>>) is coefficient-wise
+        uniform on the integers in (-(gamma2 - beta), gamma2 - beta),
+        independent of t0 given c, with variance (gamma2 - beta)^2/3. LOAD-
+        BEARING for the constant in N(b); NOT load-bearing for the SHAPE of the
+        curve, which follows from any finite noise variance.
+      rigorous_support: >-
+        Rigorous ingredient: w = A y with y drawn by ExpandMask independently of
+        t0, and FIPS 204 Algorithm 7 Line 23 rejects exactly when
+        ||LowBits(w - <<c s2>>)||_inf >= gamma2 - beta, so acceptance truncates
+        r0 to that range. Classical statement imitated: the uniform law on a
+        truncated interval, and the elementary variance W^2/3 that goes with it.
+      validation_plan: >-
+        Sample 10^3 signatures per parameter set at REAL FIPS 204 parameters
+        from an instrumented signer that knows the true r0; compare the
+        empirical CDF against the uniform on (-(gamma2 - beta), gamma2 - beta)
+        by Kolmogorov-Smirnov; report the empirical variance against W^2/3 =
+        3.0181e9 / 2.2828e10 / 2.2841e10. Tail check: the outer 1% of the
+        range, since a depleted edge would mean the truncation is not sharp.
+        Cross-coefficient dependence measured as the mean pairwise correlation
+        of r0 within a signature against the predicted 0, with its
+        finite-sample interval. Sampled parameters and seeds recorded; no
+        transfer between parameter sets is assumed, each is measured.
+    - id: H2
+      statement: >-
+        The nonzero-lag autocorrelations of the challenge c average to zero
+        over the challenges SampleInBall actually produces, so the conjugate-
+        averaging estimator is unbiased and its self-interference variance is
+        sigma_t0^2/(N tau).
+      rigorous_support: >-
+        Rigorous ingredient: c has exactly tau coefficients in {-1, +1} and the
+        rest zero (FIPS 204 Section 2.3's definition of B_tau), so the constant
+        term of c^* c is exactly tau, unconditionally. Classical statement
+        imitated: the vanishing expected autocorrelation of a random sparse
+        sign sequence at nonzero lag.
+      validation_plan: >-
+        Direct and exact: compute the empirical mean and standard deviation of
+        every nonzero-lag autocorrelation of c over 10^4 realised challenges
+        and compare against 0 and against the sqrt(tau)-scale prediction. This
+        is a property of SampleInBall alone, needs no signing, and is the
+        cheapest check in the design.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED OR MOVED. The quantity with exponent-like
+      character is the exchange rate: signature count scales as 4^(-b) in
+      precision for a 1/sqrt(N) estimator and 2^(-b) for a 1/N one, and the
+      whole deliverable is which of the two ML-DSA's transcript actually
+      permits. Compute cost of the measurement: N * 256k * tau operations for
+      the estimator, i.e. 4.0e8 at N = 10^4 and ML-DSA-44 - seconds
+      vectorised - plus the signing cost, which dominates.
+    memory_exponent: >-
+      Negligible: the estimator is a running accumulator of 256k integers, so
+      the transcripts can be streamed and never stored. Peak working set under
+      50 MB even with the (b, N) surface retained.
+    best_known: >-
+      IN-CORPUS: nothing. No record grades any secret by bit significance, and
+      the ML-DSA area has zero experiments, runs or evidence. EXTERNAL: no
+      per-bit-plane cost curve was found by the targeted search S5; eprint
+      2024/2046's LSB targeting is the nearest shape and is not a curve. NOT
+      CHECKED, AND SAID SO: whether eprint 2024/1373 contains such a breakdown -
+      the PDF could not be parsed.
+    hidden_overhead: >-
+      The closed form hides nothing asymptotically but it hides one practical
+      thing: it assumes the estimator's error is variance-dominated, and at
+      large N the residual bias from realised challenge autocorrelations takes
+      over and flattens the curve. Where that happens is not derived here and
+      is a measured quantity. Second: the whole line is gated on signing
+      throughput, which no derivation improves.
+    tradeoff_note: >-
+      The exchange rate IS the tradeoff and it is the deliverable: four times
+      the signatures buys one more bit of every coefficient of t0 under
+      averaging. Parallelisation is embarrassing - the accumulator is a sum -
+      so the measurement scales linearly in cores and the curve can be pushed
+      one decade further per two orders of magnitude of hardware, which is
+      exactly the wrong scaling for reaching bit-plane 0 and is why bit-plane 0
+      is stated as unreachable rather than as untried.
+
+  dominated_by: >-
+    n/a on the attack axis (no attack, no cost triple claimed). Rows actually
+    checked: (i) all five RQ-MLDSA-ffa0f5 proposals and both hypotheses - none
+    measures an estimator error curve or grades t0, so none dominates;
+    (ii) IDEA-20260805-630606 dominates on the LOWER-bound axis (its 34/60/58
+    are unconditional and this proposal supplies no lower bound), which is a
+    different question and is cited rather than competed with;
+    (iii) IDEA-20260821-6109f8 dominates on the RECOVERY axis (it aims at exact
+    t0; this cannot recover t0 at all) but is dominated by this record on COST
+    by roughly two orders of magnitude in signatures and is gated on this
+    record's Stage 1; (iv) externally, eprint 2024/1373 at 2e5-5e5 signatures
+    dominates on the recovery axis and its relationship to the bit-plane
+    question is UNKNOWN because the full text could not be read; eprint
+    2024/2046 dominates on signature count but requires power traces and is
+    outside the transcript-only threat model. MEMORY and TIME axes: nothing
+    published to compare against; both are negligible here.
+  sota_delta: >-
+    no attack; measurement and reframing contribution only. Quantitatively:
+    FIPS 204 Section 6.1 gives no number; this corpus gives one number per
+    parameter set (the entropy floor 34 / 60 / 58); the literature gives one
+    number per parameter set (2e5 to 5e5). This supplies THIRTEEN numbers per
+    parameter set, spanning 18 to 3.1e8 signatures at ML-DSA-44 - a seven-
+    order-of-magnitude spread inside a quantity the standard treats as
+    scalar - plus a measured exchange rate that prices any further improvement
+    in advance. The delta is not a faster attack; it is that the question "is
+    200,000 a small number" turns out to be malformed, because the answer
+    depends on which bit of t0 is being bought.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    BY PART. (i) That the observation identity survives Stage 1 exactly: ~0.85,
+    shared with IDEA-20260821-6109f8. (ii) That the four forced RMS values are
+    reproduced within 10%: ~0.75 - the estimator's algebra is elementary and
+    the risk sits in H1's uniformity at the truncation edge and in
+    cross-coefficient dependence induced by the sup-norm rejection.
+    (iii) That the highest unresolved plane at N = 10^4 is 7 / 8 / 8 within one
+    plane: ~0.7. (iv) That the fitted exchange rate is 2.0 within interval:
+    ~0.8. (v) That the curve has no material key dependence: ~0.7, and the
+    alternative would be the more interesting outcome. (vi) That the bit-plane
+    framing is NEW rather than folklore among the people who wrote the two t0
+    papers: ~0.35 - it is the obvious thing to notice once one has the
+    estimator, and this session could read neither paper.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+    - RQ-MLDSA-ffa0f5
+    - GOAL-MLDSA-002
+    - IDEA-20260805-630606
+    - IDEA-20260805-bb52fa
+    - IDEA-20260821-6109f8
+    - H-MLDSA-2ae88d
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - knowledge/techniques/KN-TECH-1a5b7e.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with
+    python3 tools/allocate_id.py --next idea --date 20260821 (random 6-hex
+    token, no state scanned), each id then verified free with --check before
+    assignment. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
