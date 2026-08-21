@@ -324,7 +324,63 @@ handoff:
     memory_gb: null
     maximum_runs: null
   completion_gate: []
+  review_plan: null               # required when this handoff opens a
+                                  # claim-changing review round
 ```
+
+## Review architecture
+
+Independence is a property of how a review was *set up*, and it is spent the
+moment the setup stops being declared. Every claim-changing review round — one
+that can move a hypothesis status, close a lane, or support a headline claim —
+runs under a `review_plan` written by the Coordinator **before any reviewer
+runs** (`templates/research-records.md`). Five obligations:
+
+- **The Coordinator records its prior first.** What it expects the review to
+  find goes in the plan, before any report returns. "Three reviewers concurred"
+  and "three reviewers concurred with what the Coordinator already believed"
+  are different findings and only a pre-recorded prior separates them. A prior
+  the review overturns is one of the most informative results the program can
+  produce, and it is unrecoverable if written afterwards.
+- **Joints are enumerated and owned.** The claim's load-bearing steps are named
+  and each is assigned to exactly one reviewer, with a *worked* attack plan —
+  what to build, compute, or vary, and where the Coordinator thinks it breaks.
+  Reviewers told only to "review this" converge on whatever is most legible, so
+  their agreement measures shared taste rather than coverage. One owner per
+  joint buys coverage; an unowned joint is visible before the round instead of
+  after the claim ships.
+- **Blindness within a round is declared, and lifting it is deliberate.**
+  Reviewers may not read each other's reports; each attests to what it read. A
+  later hardening round may legitimately let a reviewer see earlier verdicts —
+  that is `blindness.lifted_for` with a rationale, never drift.
+- **Proves-too-much is a required control.** The argument is run against
+  objects for which its conclusion is KNOWN FALSE. This is "controls before
+  belief" applied to an argument rather than a measurement: a null object
+  detects an artifactual signal, a known-false object detects an artifactual
+  proof. An argument that still goes through where its conclusion is false is
+  wrong somewhere nobody has read closely enough yet.
+- **A load-bearing quantity gets a blind re-derivation.** An agent re-derives
+  it from the statement of the quantity and the parameters alone, never reading
+  the producer's implementation, notes, or report (`blind_rederivation.
+  blind_from`). This is *not* replication: recomputing from the producer's own
+  artifacts reproduces a wrong-but-self-consistent implementation faithfully,
+  which is exactly the failure mode validation cannot see. Agreement is then
+  evidence about the quantity; disagreement localises to one of two named
+  implementations.
+
+Reviewers report on their own joints, not on the whole claim: a blinded
+reviewer cannot see the other joints by construction, so a whole-claim verdict
+from one is an opinion formed from a fraction of the evidence. The Coordinator
+composes them. `tools/check_review_independence.py` checks that the composition
+rests on the independence it claims — every joint owned, every assigned
+reviewer attested, no undeclared sibling reads, and no re-deriver whose
+declared sources intersect its `blind_from`.
+
+Departures from the plan go in `procedure_deviations` rather than being quietly
+absorbed. Acting before a report returns, reassigning a joint mid-round, or
+dropping a control may all be right in the moment; none of them is
+self-documenting, and a review protocol that is silently deviated from is worth
+less than one that was never declared, because it still reads as rigorous.
 
 ## Inter-agent messaging
 

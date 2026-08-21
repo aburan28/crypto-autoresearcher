@@ -163,6 +163,47 @@ A failure at this gate normally returns the proposal for revision. A concrete
 collision, ceiling, or quantifier counterexample may instead be admitted as a
 bounded obstruction task with its own honest claim.
 
+## Review architecture
+
+Before dispatching a claim-changing review round, write its `review_plan`
+(`templates/research-records.md`, contract in AGENTS.md "Review architecture").
+The plan is written **first**, because most of what makes a review informative
+is decided before any reviewer runs:
+
+1. **Record your prior.** State what you expect the review to find, in the
+   plan, before any report returns. Concurrence with a recorded prior and
+   concurrence with an unrecorded one look identical afterwards and mean
+   different things. A prior the review overturns is among the most valuable
+   results available to this program — and only if it was written down.
+2. **Enumerate the joints and give each exactly one owner.** Name the steps
+   that carry the claim, then assign them. Do not ask several reviewers to
+   "review the result": they will converge on the most legible step and their
+   agreement will measure that convergence rather than coverage.
+3. **Supply a worked attack per joint.** Say what to build, compute, or vary,
+   and where you think it breaks. You are not delegating the judgement; you are
+   supplying the cheapest route to a break so the reviewer spends its budget
+   attacking rather than orienting.
+4. **Declare blindness, and lift it deliberately.** Reviewers do not read each
+   other within a round. A hardening round that should see earlier verdicts is
+   `blindness.lifted_for` with a rationale.
+5. **Require the proves-too-much control**, naming objects for which the
+   conclusion is known false and the signature a correct argument must show on
+   them.
+6. **Require a blind re-derivation of any load-bearing quantity**, listing in
+   `blind_from` the producer artifacts the re-deriver may not read. Validation
+   recomputes from the producer's implementation and therefore cannot see an
+   implementation that is wrong and self-consistent; this is the check that
+   can.
+
+Compose the verdicts yourself. A blinded reviewer owns one joint and cannot see
+the others, so its opinion on the whole claim is formed from a fraction of the
+evidence and is not a vote. Run
+`python3 tools/check_review_independence.py --batch <dir>` before treating the
+round as complete, and record any departure from the plan in
+`procedure_deviations` — acting before a report returns may well be right, but
+it is not self-documenting, and an undocumented deviation leaves a protocol
+that still reads as rigorous while no longer being it.
+
 ## Closure gate
 
 A decision that closes a lane — `reject_scoped`, or any `pause` resting on "no

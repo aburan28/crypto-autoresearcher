@@ -1,0 +1,497 @@
+# Validation report for TASK-20260820-047039
+# Independent dispatchability validation of BCP-2 + runner md5_collision_pair kind
+# Batch: BATCH-312472 (GOAL-MD5-001, RQ-MDFIVE-6870c1) — batch 2 of 7
+# Claim ceiling: protocol_supersession_and_certificate_implementation_only
+# This report asserts nothing about MD5 in either direction (SC-2). It is a
+# record about THIS PROGRAM'S OWN PROCESS: whether BCP-2 is mechanically
+# dispatchable at the snapshot commit.
+
+validation_report:
+  id: VAL-20260820-047039
+  task_id: TASK-20260820-047039
+  batch_id: BATCH-312472
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  claim_ceiling: protocol_supersession_and_certificate_implementation_only
+  security_assertions: []
+
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    resolved_model_id: zai/glm-5.2
+    model_verified: >-
+      Not independently probe-verified in this session: no
+      `python3 -m orchestration.adapter doctor --probe` was run. The model
+      identifier is reported from the session environment and is unverified
+      configuration until a probe confirms it. The session honoured the
+      requested review-adversarial / xhigh policy; no fallback or degradation
+      was used.
+    fallback_used: false
+    degraded_requirements: []
+    independent_session: true
+    amazon_bedrock_selected_configured_probed_contacted_or_used: false
+
+  committed_tree_verified:
+    snapshot_commit: 8677f11af
+    snapshot_commit_subject: >-
+      snapshot(TASK-20260820-513ea9): GOAL-MD5-001 BATCH-312472 content_first
+      snapshot — BCP-2 + runner certificate kind
+    head_at_validation: e2b4838577326ebf5f6818d9760f8674c96e6328
+    working_tree_status: >-
+      The four validated paths (harness/runner.py, BCP-2.yaml, quarantine
+      MANIFEST.yaml, kb/src/crypto_kb/ingest/repo_corpus.py) are IDENTICAL
+      between the snapshot commit 8677f11af and the working tree: `git diff
+      8677f11af -- <paths>` produced no output. HEAD has advanced past the
+      snapshot commit, but the validated objects are unchanged. All verdicts
+      rest on the committed tree at 8677f11af, not uncommitted working state.
+      The only writes in this task are under this review directory (never
+      committed).
+
+  # ===================================================================
+  # DISPATCHABILITY DETERMINATION (one line)
+  # ===================================================================
+  dispatchability_determination: dispatchable-with-named-gaps
+  determination_basis: >-
+    The pre-dispatch gate is mechanically decidable and PASSES for the
+    committed payload (recomputed digest == pre-registered value, hash-only
+    access; the payload content was never read). The certificate logic
+    correctly rejects all three known-false objects with the failing check
+    named, and the pin-mechanism distinctness check passes (distinct import
+    paths, distinct runtime types, distinct library linkage). The firewall
+    carry-over is intact with NO regression against the BATCH-46254b
+    determination. ONE named gap (DEFECT-1) does not block dispatch: BCP-2's
+    documented IMPL-3 runtime_type string `_md5.MD5Type` does not match the
+    string the runner's pin-mechanism probe records (`_md5.md5`), because the
+    type object's __name__ is `md5` while `MD5Type` is an attribute alias for
+    the same object. The runner's distinctness check is unaffected (it compares
+    the two impls' strings to each other), but a dispatcher doing a literal
+    cross-check against BCP-2's documented value would see a false mismatch.
+    Fix owner: Coordinator (superseding BCP-3) or next-batch dispatch record
+    (treat the runner's probe output as authoritative).
+
+  # ===================================================================
+  # CHECK 1: THE PRE-DISPATCH GATE, EVALUATED MECHANICALLY
+  # ===================================================================
+  check_1_pre_dispatch_gate:
+    verdict: PASS
+    pinned_command_verbatim_from_BCP-2: >-
+      python3 -c "import yaml,hashlib,sys; d=yaml.safe_load(open(sys.argv[1]));
+      print(hashlib.sha256(yaml.safe_dump(d['path'],sort_keys=True,
+      default_flow_style=False).encode()).hexdigest())" <file>
+    where_file_is: >-
+      coordination/goals/GOAL-MD5-001/quarantine/MD5-COLLISION-PATH-WANG-2004-199.yaml
+      (the quarantined payload). The command reads the file in text mode and
+      prints ONLY the sha256 hex digest of the canonical serialization of the
+      `path` block. The payload CONTENT was never read or displayed (hash-only
+      access, exactly as a future dispatcher's).
+
+    # --- 1a: run on the real quarantined payload (hash-only) ---
+    check_1a_real_payload_hash_only:
+      command_run: >-
+        python3 -c "import yaml,hashlib,sys; d=yaml.safe_load(open(sys.argv[1]));
+        print(hashlib.sha256(yaml.safe_dump(d['path'],sort_keys=True,
+        default_flow_style=False).encode()).hexdigest())"
+        coordination/goals/GOAL-MD5-001/quarantine/MD5-COLLISION-PATH-WANG-2004-199.yaml
+      observed_digest: 2ea0083baa99e0af841f09e14ed5a5ab0488f2b8df0c5ffe1512e0be5cc05002
+      pre_registered_value_BCP-2: 2ea0083baa99e0af841f09e14ed5a5ab0488f2b8df0c5ffe1512e0be5cc05002
+      pre_registered_value_MANIFEST: 2ea0083baa99e0af841f09e14ed5a5ab0488f2b8df0c5ffe1512e0be5cc05002
+      comparison: MATCH
+      interpreter_version: Python 3.12.8
+      pyyaml_version: 6.0.3
+      payload_file_sha256_confirmed: e44a3fed81e9e7621697432b2124b357fc2c3f502f4bc6779df5c377b0a3e3c5
+      payload_file_sha256_matches_MANIFEST: true
+      gate_outcome: >-
+        recomputed == pre-registered -> MATCH -> gate PASSES -> dispatch
+        ALLOWED for the committed payload. No drift between BCP-2's recorded
+        value and the MANIFEST's committed value.
+
+    # --- 1b: synthetic structure mirroring the path-block shape ---
+    check_1b_synthetic_gate_logic:
+      synthetic_file: >-
+        coordination/goals/GOAL-MD5-001/batches/BATCH-312472/reviews/
+        TASK-20260820-047039/synthetic_payload.yaml
+      synthetic_shape_basis: >-
+        Constructed from the MANIFEST's canonicalization text ONLY (no content
+        knowledge beyond it): the `path` block carries "the differential
+        characteristic, initial value, and digests". All values are FABRICATED
+        for shape-matching (same keys/depth/value types); this is NOT the
+        quarantined payload and carries no real path data. A
+        `literal_pairs_as_extracted` block is included to mirror the excluded
+        block.
+      command_sequence_and_outputs:
+        - step: 1b-A pinned command (exact) on synthetic
+          command: >-
+            python3 -c "import yaml,hashlib,sys; d=yaml.safe_load(open(sys.argv[1]));
+            print(hashlib.sha256(yaml.safe_dump(d['path'],sort_keys=True,
+            default_flow_style=False).encode()).hexdigest())" <synthetic>
+          observed_digest: 48eaf6d1600588fc603d9f39a9dbfa069ad2baeb9cc37d1df7126eb293bceabc
+        - step: 1b-B perturbation sort_keys=False (NOT the pinned command)
+          observed_digest: acd4fc835039723acdec6b21a3a2002945491f02ec9199d7821008d23e5f07ca
+        - step: 1b-C perturbation default_flow_style=True (NOT the pinned command)
+          observed_digest: 5fc57923b6d5c01c616cfe2213b6de8e2fb51ba7f21f558b1010d8198f359b29
+        - step: 1b-D perturbation serialize literal_pairs_as_extracted (NOT path)
+          observed_digest: 15710c31485d2564587bc7fb3dd3e1e987683fa8f161d1de4ce57780a8922d5e
+        - step: 1b-E pre-registered value (real payload, for reference)
+          value: 2ea0083baa99e0af841f09e14ed5a5ab0488f2b8df0c5ffe1512e0be5cc05002
+      gate_decision_logic_step_through:
+        - case: digest MATCHES (recomputed == pre-registered)
+          demonstration: >-
+            On the real payload (1a), recomputed 2ea0083... == pre-registered
+            2ea0083... -> MATCH -> gate PASSES -> dispatch ALLOWED.
+          also: >-
+            Equivalently, if the pre-registered value were set to the synthetic
+            digest 48eaf6d1..., then recomputed 48eaf6d1... == pre-registered
+            48eaf6d1... -> MATCH -> gate PASSES. The gate is symmetric: it
+            compares two digests and decides equality.
+        - case: digest does NOT match (recomputed != pre-registered)
+          demonstration: >-
+            On the synthetic (1b-A), recomputed 48eaf6d1... != pre-registered
+            2ea0083... -> MISMATCH -> gate HALTs -> dispatch BLOCKED. Correct:
+            the synthetic content is not the real payload, so a mismatch is the
+            designed behavior, not a failure of the gate.
+        - case: serialization PERTURBED
+          demonstration: >-
+            Each perturbation (1b-B sort_keys=False -> acd4fc83...; 1b-C
+            default_flow_style=True -> 5fc57923...; 1b-D wrong block ->
+            15710c31...) produces a DIFFERENT digest. Against any fixed
+            pre-registered value, each would MISMATCH -> gate HALTs. This shows
+            the serialization is PINNED (byte-for-byte), not free: changing
+            sort_keys, flow style, or the serialized block changes the digest,
+            and the gate's digest comparison is the check that detects it. A
+            version or edit that re-bytes the `path` block differently fails
+            the gate and HALTs dispatch, which is the designed behavior
+            (BCP-2 pre_dispatch_gate.pyyaml_version_dependence).
+      conclusion: >-
+        The gate is mechanically decidable: it recomputes a digest with a
+        pinned command and compares it to a pre-registered value. The decision
+        is a string equality with two outcomes (MATCH -> pass; MISMATCH ->
+        HALT). The serialization is pinned, so perturbations are detected. The
+        gate PASSES for the committed payload.
+
+  # ===================================================================
+  # CHECK 2: THE CERTIFICATE LOGIC, RE-RUN ON OWN KNOWN-FALSE OBJECTS
+  # ===================================================================
+  check_2_certificate_logic:
+    verdict: PASS
+    driver: >-
+      coordination/goals/GOAL-MD5-001/batches/BATCH-312472/reviews/
+      TASK-20260820-047039/check2_driver.py — MY OWN driver importing
+      _verify_md5_collision_pair, _MD5_IMPL_FUNCS, _md5_pin_mechanism,
+      PINNED_MD5_IMPLEMENTATIONS from harness/runner.py at the snapshot commit.
+      Does NOT reuse the producer's selftest.py; imports the same functions it
+      tested.
+    cross_impl_digests_of_test_messages:
+      MD5_impl1_b_a: 0cc175b9c0f1b6a831c399e269772661
+      MD5_impl3_b_a: 0cc175b9c0f1b6a831c399e269772661
+      MD5_impl1_b_b: 92eb5ffee6ae2fec3ad71c777531578f
+      MD5_impl3_b_b: 92eb5ffee6ae2fec3ad71c777531578f
+      impl1_eq_impl3_on_m1: true
+      impl1_eq_impl3_on_m2: true
+      m1_collides_with_m2: false
+    rerun_results_object_by_object:
+      - object: A_noncolliding_claimed_eq_md5_of_m1
+        construction: >-
+          m1="61" (byte 'a'), m2="62" (byte 'b'), claimed digest = true MD5
+          of m1 (0cc175...). m1 != m2 and MD5(m1) != MD5(m2).
+        expected: verified=false; failing checks = digest_mismatch_impl1_m2 and digest_mismatch_impl3_m2 (m2's digest != claimed; m1's matches; impls agree on each message so no implementations_disagree; m1 != m2 so no m1_equals_m2)
+        observed_verified: false
+        observed_failing_checks:
+          - digest_mismatch_impl1_m2
+          - digest_mismatch_impl3_m2
+        check_fired_correctly: true
+        verified_by_wrapper_populated: true
+      - object: B_tampered_digest_allzero
+        construction: >-
+          m1="61", m2="62", claimed digest = "0"*32 (tampered; matches
+          neither message's true MD5).
+        expected: verified=false; failing checks = all four digest_mismatch_* (no message digest matches the all-zero claimed value)
+        observed_verified: false
+        observed_failing_checks:
+          - digest_mismatch_impl1_m1
+          - digest_mismatch_impl1_m2
+          - digest_mismatch_impl3_m1
+          - digest_mismatch_impl3_m2
+        check_fired_correctly: true
+        verified_by_wrapper_populated: true
+      - object: C_m1_equals_m2_correct_digest
+        construction: >-
+          m1="61", m2="61" (m1 == m2), claimed digest = true MD5 of that
+          message (0cc175...). All four computed digests match the claimed
+          value, but m1 == m2.
+        expected: verified=false; failing check = m1_equals_m2 (the equality check fires even though all four digests match)
+        observed_verified: false
+        observed_failing_checks:
+          - m1_equals_m2
+        check_fired_correctly: true
+        verified_by_wrapper_populated: true
+    all_known_false_objects_verified_false: true
+    verified_by_population_rule: >-
+      CONFIRMED WRAPPER-POPULATED ONLY (BCP-2 J5 fix): in every case the
+      driver's cert dict had its verified_by overwritten by the wrapper's own
+      recomputation (four digests, two per implementation), regardless of input.
+      A solver-provided verified_by would be cleared by the assignment
+      cert["verified_by"] = [...] (runner.py line 419).
+
+    pin_mechanism_check:
+      protocol_requirement: >-
+        BCP-2 collision_certificate_format.pin_mechanism_requirement: a
+        dispatcher must verify distinct_import_paths, distinct_runtime_types,
+        and library_linkage; the wrapper records them at run time and a
+        distinctness failure makes the certificate verified:false (INV-13).
+      runner_probe_output:
+        IMPL-1:
+          module_file: /Users/adamburan/.pyenv/versions/3.12.8/lib/python3.12/lib-dynload/_hashlib.cpython-312-darwin.so
+          runtime_type: _hashlib.HASH
+        IMPL-3:
+          module_file: /Users/adamburan/.pyenv/versions/3.12.8/lib/python3.12/lib-dynload/_md5.cpython-312-darwin.so
+          runtime_type: _md5.md5
+        distinct: true
+      distinct_import_paths: true
+      distinct_runtime_types: true
+      library_linkage_otool_L:
+        IMPL-1_links:
+          - /opt/homebrew/opt/openssl@3/lib/libcrypto.3.dylib (OpenSSL 3.6.3)
+          - /usr/lib/libSystem.B.dylib
+        IMPL-3_links:
+          - /usr/lib/libSystem.B.dylib (ONLY — no crypto library)
+        IMPL-1_links_crypto_library: true
+        IMPL-3_links_crypto_library: false
+        linkage_distinct: true
+      observed: >-
+        The two pinned implementations are genuinely distinct at all three
+        levels: distinct module files (_hashlib.cpython-312-darwin.so vs
+        _md5.cpython-312-darwin.so), distinct runtime type strings
+        (_hashlib.HASH vs _md5.md5), and distinct library linkage (IMPL-1 links
+        libcrypto/OpenSSL; IMPL-3 links libSystem only). The runner's
+        _md5_pin_mechanism records all three and asserts distinct=True. This
+        matches the BATCH-46254b validator's check 2 determination. See
+        DEFECT-1 for the documentation-string discrepancy on IMPL-3's
+        runtime_type label (does not affect the distinctness check).
+
+  # ===================================================================
+  # CHECK 3: FIREWALL CARRY-OVER (no regression vs BATCH-46254b)
+  # ===================================================================
+  check_3_firewall_carry_over:
+    verdict: PASS
+    determination: NO REGRESSION
+    baseline: >-
+      VAL-20260820-23e0ea (BATCH-46254b validator), snapshot commit
+      0c1192f2127421625294838651d98ea573a613b7. Determination: firewall INTACT
+      and ENFORCEABLE; 21 staging globs in RULES of
+      kb/src/crypto_kb/ingest/repo_corpus.py; none matching coordination/**.
+    elements:
+      - element: quarantine marker text and path
+        BCP-2_location: firewall.quarantine.marker.file_level + firewall.quarantine.path
+        BCP-2_text: >-
+          marker file_level: literal key `bcp1_quarantine: true` and
+          `bcp1_marker` string equal to "BCP-1-QUARANTINED-PAYLOAD"; path:
+          coordination/goals/GOAL-MD5-001/quarantine/
+        BCP-1_text: identical (marker keys held verbatim; path identical)
+        BATCH-46254b_determination: >-
+          check 5d: payload's first top-level key is `bcp1_quarantine: true`
+          and second key is `bcp1_marker: "BCP-1-QUARANTINED-PAYLOAD"`,
+          matching BCP-1's exact marker specification.
+        comparison: no regression (carried forward verbatim in substance)
+      - element: CONSUMPTION rule and its invalidity condition
+        BCP-2_location: blind_scoring_rule.consumption + invalidity_conditions INV-2
+        BCP-2_text: >-
+          A run is CONSUMPTION (invalid, never a weaker pass) when the
+          quarantined payload's sha256 (or a derived file's) appears in
+          input_manifest, or the authoring session read the payload, or the
+          output quotes the payload's specific values, or the encoding was
+          authored by a session that read the collision-path KN-LIT entry.
+        BCP-1_text: identical in substance (blind_scoring_rule.consumption + INV-2)
+        BATCH-46254b_determination: >-
+          check 5 (firewall integrity) PASS; INV-2 carried forward.
+        comparison: no regression (held verbatim in substance)
+      - element: closed hash-manifested input set
+        BCP-2_location: firewall.closed_hash_manifested_input_set
+        BCP-2_text: >-
+          The calibration run wrapper MUST construct the solver's ENTIRE input
+          directory and record the sha256 of every file under
+          run.inputs.input_manifest. CHECKED: whether the input_manifest sha256
+          set intersects the quarantine MANIFEST sha256 list. DECLARED NOT
+          CHECKED: whether input_manifest is complete (an omitted file is
+          invisible). The red team's container-isolation amendment is named as a
+          future tightening, not adopted.
+        BCP-1_text: identical in substance
+        BATCH-46254b_determination: >-
+          check 5f: input_manifest does not exist in runner.py today (BCP-1's
+          claim accurate); the hash-intersection check is the one auditable
+          firewall element.
+        comparison: no regression (held; future tightening named, not adopted)
+      - element: ordering guarantee (protocol frozen before any calibration run)
+        BCP-2_location: frozen_statement
+        BCP-2_text: >-
+          "THIS RECORD IS FROZEN AS OF ITS COMMIT under TASK-20260820-513ea9,
+          which occurs BEFORE any blind calibration run is dispatched. That
+          ordering — BCP-2 committed before the search it scores — is what
+          makes 'blind' checkable rather than merely asserted."
+        BCP-1_text: >-
+          identical ordering argument (BCP-1 frozen under TASK-20260810-927ab5
+          before acquisition/quarantine writes).
+        BATCH-46254b_determination: >-
+          check 5 firewall_ordering PASS: BCP-1 committed before quarantine
+          payload/KN-LIT writes (git merge-base --is-ancestor confirmed).
+        comparison: no regression (ordering guarantee carried forward; BCP-2 frozen before any calibration run)
+      - element: staging-rules reference (RULES in repo_corpus.py)
+        BCP-2_location: >-
+          firewall.quarantine.corpus_exclusion_is_structural_not_only_declared
+          + firewall.staging_rules_reference
+        BCP-2_text: >-
+          RULES, a tuple of 21 StagingRule globs, in
+          kb/src/crypto_kb/ingest/repo_corpus.py (tuple spans lines 261-310;
+          the four knowledge/ rules span lines 262-269). No glob matches
+          coordination/**. CORRECTION OF BCP-1 DEFECT-4: BCP-1 referred to
+          "STAGING_RULES" at lines 262-268; the actual variable is RULES
+          (line 261) and the knowledge/ rules span lines 262-269.
+        source_verified_at_check_time:
+          file: kb/src/crypto_kb/ingest/repo_corpus.py
+          sha256_at_check_time: 290dc6f4bf042b7b7e307734bd54ecafdd1a91162dc9955dd3ea0f6516e79bf9
+          sha256_matches_BCP-2_last_recorded: true
+          RULES_constant_line: 261
+          glob_count: 21
+          globs_list:
+            - knowledge/literature/KN-LIT-*.md
+            - knowledge/techniques/KN-TECH-*.md
+            - knowledge/findings/KN-FIND-*.md
+            - knowledge/open-problems/KN-OPEN-*.md
+            - ledger/evidence/EV-*.yaml
+            - ledger/EV-*.yaml
+            - ledger/H-*.yaml
+            - ledger/hypotheses/H-*.yaml
+            - ledger/RQ-*.yaml
+            - ledger/questions/RQ-*.yaml
+            - ledger/proposals/IDEA-*.yaml
+            - ledger/goals/GOAL-*.yaml
+            - ledger/goals/GOAL-*/goal.yaml
+            - ledger/goals/GOAL-*/checkpoints/*.yaml
+            - ledger/subgoals/SG-*.yaml
+            - ledger/decisions/DEC-*.yaml
+            - ledger/DEC-*.yaml
+            - experiments/*/specification.yaml
+            - experiments/*/analysis.md
+            - docs/*.md
+            - inputs/*/paper_fulltext.md
+          any_glob_matches_coordination: false
+          staging_logic: >-
+            iter_staged() iterates `for rule in rules: for path in
+            sorted(repo_root.glob(rule.glob))` — it can only stage files
+            matching a declared glob. The `include` parameter can only
+            RESTRICT (filter out paths not in the allowed set), not ADD files
+            outside the rules (line 378: `if allowed is not None and ... not
+            in allowed: continue`). Therefore crypto-kb stage-repo structurally
+            cannot stage anything under coordination/goals/GOAL-MD5-001/
+            quarantine/ into the retrieval corpus.
+        BATCH-46254b_determination: >-
+          check 5f: ENFORCEABLE — 21 globs, none matching coordination/**,
+          iter_staged() can only stage files matching a declared glob, include
+          can only restrict. DEFECT-4: BCP-1's variable name "STAGING_RULES"
+          and line range "262-268" were inaccurate (actual RULES, 261; 262-269).
+        comparison: >-
+          no regression. BCP-2 CORRECTED BCP-1's DEFECT-4 (variable name RULES,
+          line range 262-269) and the correction is accurate against the source.
+          The sha256 at check time (290dc6f4...) matches BCP-2's
+          sha256_last_recorded, so no drift. The structural exclusion remains
+          ENFORCEABLE.
+
+  # ===================================================================
+  # CHECK 4: DEFECTS
+  # ===================================================================
+  defects:
+    count: 1
+    items:
+      - id: DEFECT-1
+        severity: minor
+        location: >-
+          coordination/goals/GOAL-MD5-001/batches/BATCH-312472/protocol/BCP-2.yaml
+          (collision_certificate_format.pinned_implementations.IMPL-3.runtime_type)
+        description: >-
+          BCP-2 documents IMPL-3's runtime_type as `_md5.MD5Type`. The actual
+          runtime type, as recorded by the runner's own _md5_pin_mechanism probe
+          AND by this validator's independent runtime inspection, is
+          `_md5.md5` (the type object's __name__ attribute is `md5`,
+          lowercase). `_md5.MD5Type` IS the same underlying type object
+          (`_md5.MD5Type is type(_md5.md5(b'x'))` is True — MD5Type is an
+          attribute alias), so BCP-2 is not naming a non-existent type. But the
+          STRING the runner records is `_md5.md5` (via
+          `f"{t.__module__}.{t.__name__}"`), which does NOT string-match BCP-2's
+          documented `_md5.MD5Type`. The runner's distinctness check is
+          UNAFFECTED: it compares the two impls' type strings to EACH OTHER
+          ({_hashlib.HASH, _md5.md5} -> 2 distinct -> True), never against BCP-2's
+          documented expected value, so INV-13 does not fire falsely and dispatch
+          is not blocked. The risk is that a dispatcher or reviewer doing a
+          LITERAL cross-check of the runner's recorded `_md5.md5` against BCP-2's
+          documented `_md5.MD5Type` would see a string mismatch and could
+          falsely HALT dispatch. IMPL-1's documented runtime_type
+          (`_hashlib.HASH`) IS correct and matches the runner's recording.
+        does_not_block_dispatch: true
+        action: >-
+          Fix owner: Coordinator (a superseding BCP-3 record, since BCP-2 is
+          frozen) OR the next-batch dispatch record. Either (a) correct BCP-2's
+          documented IMPL-3 runtime_type to `_md5.md5` (the __name__ form the
+          runner records) in a superseding record, or (b) record in the dispatch
+          record that the runner's probe output is AUTHORITATIVE for the
+          pin-mechanism check and that BCP-2's `_md5.MD5Type` is an attribute
+          alias for the same type, not a string to match against. The
+          pin_mechanism_requirement.what_the_wrapper_must_record_at_run_time
+          already says the wrapper records "the runtime type of each produced
+          hash object" and checks the two are distinct from each other (not
+          against a documented string), so the protocol's operative rule is
+          already correct; only the documented expected-value field is stale.
+
+  # ===================================================================
+  # SCOPE RESPECTED
+  # ===================================================================
+  scope_respected:
+    wrote_only_under:
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/reviews/TASK-20260820-047039/
+    files_written:
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/reviews/TASK-20260820-047039/synthetic_payload.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/reviews/TASK-20260820-047039/check2_driver.py
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/reviews/TASK-20260820-047039/validation-report.yaml
+    did_not_commit: true
+    did_not_edit_committed_records: true
+    did_not_change_status: true
+    did_not_approve_experiments: true
+    did_not_promote_knowledge: true
+    did_not_record_attestation: true
+    quarantined_payload_content_read: false
+    quarantined_payload_access_mode: hash-only (the pinned command in check 1a outputs only the sha256 digest; the payload content was never read, displayed, or catted)
+    sibling_review_report_read: false
+    amazon_bedrock_selected_configured_probed_contacted_or_used: false
+
+  # ===================================================================
+  # REVIEW ATTESTATION
+  # ===================================================================
+  review_attestation:
+    task_id: TASK-20260820-047039
+    joints_owned:
+      - "The pre-dispatch gate, evaluated mechanically (1a real payload hash-only; 1b synthetic + perturbations + decision-logic step-through)"
+      - "The certificate logic, re-run on own known-false objects (A non-colliding, B tampered digest, C m1==m2) + pin-mechanism distinctness"
+      - "Firewall carry-over (no regression vs BATCH-46254b determination)"
+      - "Defects (concrete, actionable, named fix owner)"
+    sources_read:
+      - AGENTS.md (provided in session system prompt)
+      - agents/validator.md
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/task-cards/TASK-20260820-047039.md
+      - ledger/handoffs/TASK-20260820-047039.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/protocol/BCP-2.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/protocol/BCP-1.yaml
+      - coordination/goals/GOAL-MD5-001/quarantine/MANIFEST.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/reviews/TASK-20260810-23e0ea/validation-report.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/tasks/TASK-20260810-3e0793/implementation-pin.yaml
+      - harness/runner.py (at snapshot commit 8677f11af; verified identical to working tree)
+      - kb/src/crypto_kb/ingest/repo_corpus.py (RULES block, iter_staged, _matched_paths)
+    read_sibling_reports: false
+    sibling_review_directory_noted: >-
+      The directory coordination/goals/GOAL-MD5-001/batches/BATCH-312472/reviews/
+      TASK-20260820-affeff/ (sibling reviewer, same round) was NOT opened or
+      read. Its existence is noted here for completeness; no content from it
+      influenced this report. Per the task card's explicit instruction and the
+      review-plan blindness, this attestation records read_sibling_reports: false.
+    blind_from_respected: true
+    requested_policy: review-adversarial
+    resolved_model_id: zai/glm-5.2
+    resolved_effort: xhigh
+    verdict: dispatchable-with-named-gaps
