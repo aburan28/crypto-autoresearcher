@@ -1,0 +1,636 @@
+idea:
+  id: IDEA-20260821-a8e9db
+  question_id: RQ-FRODO-3260cc
+  added: '2026-08-21'
+  title: >-
+    FrodoKEM ships TWO public matrices A under one security claim, and seedA is PUBLIC, so
+    Frodo-AES runs AES-128 with a KNOWN key on a 2^32-point structured input subspace while
+    Frodo-SHAKE runs an XOF: prove by algebra that the Renyi divergence and the decryption
+    failure rate cannot see which generator was used, then compute exactly the one statistic
+    that can - the aligned-8-entry block-collision spectrum of A - at all three parameter sets,
+    and settle whether the AES/SHAKE choice is a performance option or an unstated modelling
+    assumption
+  class: control
+  claim: >-
+    (A) THE SPLIT, STATED AS THREE SEPARATE ASSERTIONS, EACH INDEPENDENTLY FALSIFIABLE.
+    A1 (ALGEBRAIC, ZERO COMPUTE): the decryption-failure error term of FrodoKEM is
+    E'S - S'E + E'' and contains no occurrence of A; therefore the per-entry failure
+    distribution, the failure threshold, and every convolution over chi are invariant under
+    ANY choice of the matrix generator, exactly and not approximately. A2 (ALGEBRAIC, ZERO
+    COMPUTE): the Renyi divergence R_a(chi || Psi) is a functional of chi and of the rounded
+    Gaussian alone and contains no occurrence of A; therefore it too is generator-invariant.
+    A1 and A2 together predict that a generator-swap arm of the lane's own recomputation
+    pipeline must return BITWISE IDENTICAL outputs, which makes them a usable instrument
+    check rather than a remark. A3 (EXACT FINITE COMPUTATION): the choice is nonetheless not
+    empty, because the two generators induce genuinely different distributions on A, and the
+    difference is exactly computable at the standardized parameters through one statistic -
+    the number of coincidences among the n*(n/8) aligned 8-entry blocks that each generator
+    call produces.
+    (B) WHAT A3 COMPUTES. Frodo-AES sets A[i, j..j+7] = AES128(seedA, i || j || 0^96) mod q.
+    For fixed seedA, AES128 is a permutation and the index encoding is injective, so at
+    Frodo-976 and Frodo-1344, where q = 2^16 and the reduction is the identity on a 16-bit
+    word, the aligned blocks of A are PAIRWISE DISTINCT WITH PROBABILITY 1. A uniform A has
+    at least one aligned-block coincidence with probability
+    1 - prod_{i=0}^{m-1} (1 - i / 2^128), m = n^2 / 8, which is a closed-form exact rational.
+    At Frodo-640, q = 2^15 drops one bit per coefficient, i.e. 8 bits per block, so the AES
+    arm's coincidence count is NOT forced to zero and its exact expectation is a different
+    closed form. Frodo-SHAKE forces nothing at any parameter set. The deliverable is the
+    exact optimal distinguishing advantage of this statistic, per generator, per parameter
+    set, in exact rational arithmetic, together with the exact statistical distance floor
+    below.
+    (C) THE STATISTICAL-DISTANCE FLOOR, WHICH APPLIES TO BOTH GENERATORS AND IS THE REASON
+    THE QUESTION IS ABOUT MODELLING AND NOT ABOUT STATISTICS. seedA is 128 bits at ALL THREE
+    parameter sets (lenA = 128 in the CFRG draft text fetched for this proposal), so at most
+    2^128 matrices A are reachable, against q^(n^2) uniform ones. The statistical distance
+    between the generated and the uniform distribution on A is therefore at least
+    1 - 2^(128 - 15*640^2) at Frodo-640 and at least 1 - 2^(128 - 16*1344^2) at Frodo-1344 -
+    i.e. indistinguishable from 1. "A is uniform" is consequently NEVER a statistical claim
+    for FrodoKEM; it is a computational or idealised one, and the two generators sit in
+    DIFFERENT idealisations: SHAKE128 is an XOF with an indifferentiability argument behind
+    it, whereas AES-128 under a public key is a public permutation evaluated in the KNOWN-KEY
+    model, which is a strictly weaker modelling position and one in which distinguishers on
+    reduced and (per a recalled result) full AES-128 are published.
+    (D) WHAT IS NOT CLAIMED, EXPLICITLY. No attack on FrodoKEM-AES. No advantage that any
+    adversary can convert into anything. No statement that either generator is broken, weak,
+    or should be withdrawn. The known-key literature is invoked ONLY to name the model, and
+    the honest ceiling is stated in method_ceiling: the recalled full-AES known-key
+    distinguisher needs data on the order of 2^64 while Frodo consumes at most n^2/8 <= 2^17.8
+    blocks from a 2^32-point structured subspace, so it does not apply at Frodo's data
+    complexity and this proposal does not claim it does. What is claimed is that the CHOICE OF
+    MODEL is an input to the security argument that the document may not state, and that
+    whether it does is a finite, cheap, decidable reading question with an exact numerical
+    companion.
+  mechanism: >-
+    STAGE 0 - THE ENCODING GATE, AND IT CAN FAIL. Transcribe the AES index encoding from the
+    filed primary text and verify by exhaustive enumeration that (i, j) -> b is injective over
+    the actual index ranges at n = 640, 976, 1344. If two distinct index pairs encode to the
+    same 16-byte block at any parameter set, the injectivity premise of the whole idea is
+    dead, the collision count is forced upward, and that is the result. Cost: seconds.
+    STAGE 1 - THE ALGEBRAIC INVARIANCE PROOF (A1, A2). Write the decryption error symbolically
+    from the filed text and exhibit that A appears in the ciphertext and in the public key but
+    cancels in B'S - (C - ...) so that the surviving error term is E'S - S'E + E''. This is a
+    symbolic identity, not a measurement, and it is what licenses A1. Do the same for the
+    divergence functional, which is trivial. Then EXECUTE the invariance as a control: run the
+    lane's chi-side pipeline twice with the two generators wired in and require bitwise
+    identical output. A pipeline that returns different numbers has a bug, and finding it here
+    costs nothing.
+    STAGE 2 - THE EXACT COLLISION SPECTRUM (A3). For each parameter set and each generator,
+    compute in exact rational arithmetic: (a) the probability that a uniform A has at least one
+    aligned-block coincidence, 1 - prod_{i<m}(1 - i/2^128) for q = 2^16 and the corresponding
+    form with the 120-bit reduced block for q = 2^15; (b) the AES arm's forced value (zero at
+    q = 2^16, and the exact expected count at q = 2^15, which follows from AES outputs being
+    distinct and the reduction being 2^8-to-1 on each 16-bit lane); (c) the SHAKE arm's value,
+    which under the XOF-as-random-function model equals the uniform value; (d) the optimal
+    advantage of the resulting distinguisher, exactly. NOTHING IS SAMPLED. These are closed
+    forms evaluated in exact rational arithmetic; the sampling appears only in the controls.
+    STAGE 3 - THE SEED-ENTROPY FLOOR (C). Evaluate 1 - 2^(128 - D*n^2) exactly per parameter
+    set, D = 15 or 16 as read from the filed text, and record it beside the advantage from
+    Stage 2. The juxtaposition is the point: a statistical distance of essentially 1 sitting
+    beside a distinguishing advantage of order 2^-90 is precisely the signature of a claim
+    that lives in an idealisation, and it localises WHICH idealisation each generator needs.
+    STAGE 4 - THE READING. Search the filed primary text for the sentence that states the
+    assumption on Gen, and record verbatim whether it (i) names a model, (ii) names a
+    different model per generator, or (iii) is silent. Three outcomes, all reportable, and the
+    third is the one this proposal exists to be able to report.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX IS UNAVAILABLE THIS SESSION (configured with an
+      in-memory Qdrant; it answers nothing). Retrieval instrument was therefore the Grep tool
+      (ripgrep) over the working tree plus WebSearch/WebFetch, both verified working.
+      GREPS RUN (tool: Grep, i.e. ripgrep; pattern -> path -> file count):
+      (1) 'Frodo-AES|FrodoKEM-AES|SHAKE128.*A matrix|matrix generation|GenA|gen_a' -i ->
+      repo root -> 42 files, of which ZERO are under ledger/proposals; the matches are
+      GOAL-AES-002/003 C sources, knowledge/literature KN-LIT-940/988/1024/1111/1265/1489/1500,
+      research_digest chunks, and one rejected ECDLP idea.
+      (2) 'seedA|seed_A|len_seedA' -i -> repo root -> 161 files, dominated by 'seed' substring
+      noise in run manifests; no FrodoKEM proposal among them.
+      (3) 'Frodo' -i -> knowledge/ -> 9 files: sources.json, SOURCES.md, KN-TECH-047,
+      KN-LIT-be0bfd, KN-LIT-3859, KN-LIT-2541, KN-LIT-2088, KN-LIT-118, gathers/GATHER-20260807.md.
+      NONE concerns matrix generation; all are implementation-attack or multiplication-strategy
+      entries that RQ-FRODO-3260cc.constraints already rules out of scope.
+      (4) 'known-key|known key distinguisher|public permutation|PRP-PRF|switching lemma' -i ->
+      ledger/ -> 12 files: RQ-AES-002, RQ-AES-003, GOAL-AES-002, GOAL-AES-003,
+      IDEA-20260821-71fc18, IDEA-20260816-e4d944, IDEA-20260816-a14ea4, IDEA-20260816-75df2c,
+      IDEA-20260813-2123f1, IDEA-20260805-b9047c, IDEA-20260731-006, EV-FAEST-002. Every one is
+      an AES-lane or FAEST-lane record; NONE is under any RQ-FRODO-*.
+      (5) 'SampleFrodo|T_chi' -> ledger/ -> 2 files: RQ-FRODO-3260cc.yaml and
+      IDEA-20260808-e7ba81.yaml, the latter under RQ-FNDSA-001 (FN-DSA sampler), not this lane.
+      (6) '^  title:|^  question_id:' -> ledger/proposals glob IDEA-20260821-*.yaml, to check
+      the same-day batch for collisions; the two ML-KEM records whose bodies I then read
+      (IDEA-20260821-0d1fde, IDEA-20260821-01623a) concern a field-norm Wesolowski instantiation
+      and a NoMod robust-regression breakdown point respectively - no overlap.
+      READ IN FULL: the lane's 8 pre-extracted proposal titles at
+      scratchpad/ctx/proposals-RQ-FRODO-3260cc.txt; ledger/questions/RQ-FRODO-3260cc.yaml;
+      ledger/questions/RQ-FRODO-a2dbe2.yaml; ledger/goals/GOAL-FRODO-001.yaml; the statement
+      heads of H-FRODO-e0c651 and H-FRODO-8ea540; docs/inventor-protocol.md;
+      docs/target-result-profile.md; knowledge/techniques/KN-TECH-1a5b7e.md.
+      WEB SEARCHES RUN (WebSearch, 6 total this session; the two bearing on this record):
+      'FrodoKEM matrix A generation AES128 versus SHAKE128 security analysis distinguisher' and
+      'FrodoKEM public seed A known-key AES distinguisher matrix generation security concern'.
+      WEB FETCHES ATTEMPTED (WebFetch, 7 total this session; those bearing on this record):
+      https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem SUCCEEDED and returned the
+      Gen-AES and Gen-SHAKE pseudocode and the parameter table (n, q, B, nHat, D, lenA);
+      https://www.ietf.org/archive/id/draft-longa-cfrg-frodokem-02.html returned HTTP 404;
+      https://www.iacr.org/archive/asiacrypt2014/88730350/88730350.pdf FAILED - the fetcher
+      returned unreadable compressed PDF stream data, so Gilbert 2014 is NOT a read source here.
+    results: >-
+      No record in this repository - proposal, hypothesis, evidence, experiment specification or
+      knowledge entry - tracks FrodoKEM's matrix generator as an object. The lane's eight
+      existing proposals are entirely chi-side and A-free: five conservation identities of the
+      13-integer table (IDEA-20260805-390957), a magnitude-derived mutation control
+      (IDEA-20260805-411b60), the Renyi order read as a sample-count receipt
+      (IDEA-20260805-57fc49), scale-versus-tail-shape error in a failure rate
+      (IDEA-20260805-f16b44), the table as a finite integer program (IDEA-20260808-2df781), the
+      nbar-column secret as a rank-nbar dense sublattice (IDEA-20260808-dd4d30), the
+      failure-indicator correlation matrix unstructured versus negacyclic (IDEA-20260816-1418f4),
+      and worst-case-versus-average in a published delta (IDEA-20260816-3949c8). The known-key
+      model appears in this repository only inside the AES goals, where it is used as a target,
+      never as a MODELLING INPUT to a lattice KEM. The web searches returned the FrodoKEM
+      specification family, the CFRG draft, the Microsoft reference implementation, and the
+      general known-key literature (Knudsen-Rijmen 2007, Gilbert 2014, 'Revisiting Gilbert's
+      known-key distinguisher', 'New and Old Limits for AES Known-Key Distinguishers',
+      'Weak-Key Distinguishers for AES'); the second search explicitly reported finding no
+      documented work linking FrodoKEM's public seed to the known-key model. That is a negative
+      search result and is recorded as such, not as evidence that no such work exists.
+    verdict: >-
+      UNVERIFIED, and deliberately so. What was actually READ is one fetched draft text and
+      three fetched eprint abstract pages; the FrodoKEM standard proposal PDF was NOT read, and
+      Gilbert 2014 was NOT read. CLAIMED NEW RELATIVE TO THIS REPOSITORY: treating the choice of
+      matrix generator as a tracked object at all; the pairing of an algebraic invariance proof
+      (the two audited numbers cannot see A) with an exact finite computation of the one
+      statistic that can; and the observation that a public seedA places Frodo-AES in the
+      known-key model rather than a PRF model. ASSEMBLED FROM KNOWN PARTS AND NOT INVENTED HERE:
+      the PRP-versus-PRF and known-key modelling distinctions are textbook; the birthday
+      closed form is elementary; that FrodoKEM offers two generators is in the specification and
+      is universally described as a performance choice. The proposal's content is the exact
+      numbers and the reading question, not the concepts.
+  object_first_candidate:
+    tracked_object: >-
+      The MULTISET OF ALIGNED 8-ENTRY BLOCKS of the public matrix A - that is, A projected onto
+      the sequence of n*(n/8) tuples (A[i,j], ..., A[i,j+7]) for j = 0, 8, 16, ..., with the
+      block boundaries fixed by the generator's own call structure - followed from the seed,
+      through one generator call, into A, and read out as a coincidence count.
+    lossiness: >-
+      GENUINELY LOSSY, and the loss is compatible with the target's operations, which is the
+      test docs/inventor-protocol.md section 2 demands. The projection discards (i) the ORDER of
+      the blocks and their index labels, (ii) all cross-block structure, and (iii) at Frodo-640
+      it additionally discards the top bit of every coefficient, which is exactly the bit the
+      mod-q reduction discards. What is retained still propagates deterministically: a
+      generator call writes exactly one block and nothing else, so the multiset is a function of
+      the seed alone and is computed one call at a time with no interaction. The projection is
+      NOT a change of coordinates - A is not recoverable from the multiset, because the index
+      labels are gone and n^2/8 blocks in any order are consistent with (n^2/8)! matrices. This
+      distinguishes it sharply from the worked failure in KN-LIT-7595, where the tracked pair
+      was invertible and therefore worthless.
+    propagation: >-
+      One step of the target operation is one generator call. Under Frodo-AES it writes a block
+      that is a permutation image of a distinct input, so the propagation law is 'never repeat
+      a block' (exactly, at q = 2^16) or 'repeat only through the 8 dropped bits' (at q = 2^15).
+      Under Frodo-SHAKE it writes a block drawn from an XOF stream, so the propagation law is
+      'repeat with the uniform birthday rate'. The two laws are DIFFERENT PROPAGATION RULES for
+      the same object, which is the requirement for the object to be testable, and the
+      difference between them is a single exactly computable rational number per parameter set.
+    survival_score: >-
+      ONE STEP, and the proposal says so rather than inflating it. The object survives generator
+      call to generator call and then DISSOLVES: nothing downstream of A in FrodoKEM reads
+      aligned blocks - the secret is multiplied against whole columns, the error terms do not
+      involve A at all, and the block boundaries have no algebraic meaning after the matrix
+      product. The honest reading is therefore that a nonzero advantage found here is a
+      statement about the generator and NOT about the KEM, and the proposal is built to say that
+      out loud. That one-step survival is also exactly why the object is affordable: it needs no
+      simulation of the scheme.
+  null_object_control: >-
+    THREE ARMS, all on the identical counting code path, all in one invocation, and each able to
+    fail. NULL-1 (UNIFORM ARM, and it can fail): generate A of the same shape from a
+    CSPRNG-backed uniform source over Z_q, count aligned-block coincidences, and require the
+    observed count over >= 8 independent draws to be consistent with the exactly derived
+    closed-form distribution. If the uniform arm's empirical count disagrees with its own closed
+    form, the counter is wrong and no other arm is readable. Because the comparator is GENERATED,
+    KN-TECH-1a5b7e mode 5 applies and it is drawn >= 8 times and reported as an interval, never
+    as a point. NULL-2 (SENSITIVITY LADDER, and it supplies the threshold): a deliberately
+    defective generator that repeats an aligned block with declared probability
+    eps in {2^-30, 2^-25, 2^-20, 2^-15, 2^-10} - five points, i.e. at least three interior ones,
+    per the KN-TECH-1a5b7e obligation-3 refinement - with the comparator NAMED as the uniform arm,
+    the threshold declared before the run as 'the coincidence count must exceed the uniform arm's
+    8-draw max at eps = 2^-20 and must not at eps = 2^-30', and MONOTONICITY of the count in eps
+    reported explicitly rather than inferred from the two endpoints. NULL-3 (MAXIMAL-REMOVAL
+    CONTROL): a generator that emits a CONSTANT block. Total removal must be at least as extreme
+    as partial removal and on the same side; if the constant generator does not produce the
+    maximal count, the statistic is not reading the object and the instrument is void
+    (KN-TECH-1a5b7e mode 2). FORCED-VALUE DERIVATION, WRITTEN BEFORE THE RUN: the AES arm at
+    q = 2^16 is FORCED to zero coincidences by injectivity, so that arm cannot discriminate
+    anything and is reported as a derived constant, not as a measurement - stating this is
+    precisely obligation 4, and hiding it would be mode 3. The arms that CAN move are the uniform
+    arm, the SHAKE arm, and the AES arm at Frodo-640 where 8 bits are dropped.
+  discriminated_from:
+  - >-
+    IDEA-20260805-390957 and H-FRODO-e0c651 part 1 derive conservation identities that the
+    13-integer TABLE must satisfy. Those are chi-side and, by assertion A2 of this record, are
+    invariant under the generator; this proposal tracks a different object entirely and would be
+    run unchanged if every one of those identities held exactly.
+  - >-
+    IDEA-20260805-411b60 and H-FRODO-e0c651 part 2 derive the magnitude by which a seeded
+    one-unit TABLE perturbation must move the DFR. This record's mutation control perturbs the
+    GENERATOR, not the table, and its predicted response is a coincidence count rather than a
+    bit shift in a failure rate. The two controls are complementary and neither substitutes.
+  - >-
+    IDEA-20260816-1418f4 compares an unstructured and a negacyclic encryption at matched
+    marginals to isolate correlation attributable to RING structure in the FAILURE INDICATORS.
+    That is a chi-and-ciphertext-side object; this is an A-side object, its statistic is a
+    coincidence count rather than a correlation matrix, and its two arms differ by the PRG
+    rather than by the algebra of the ring.
+  - >-
+    IDEA-20260808-dd4d30 concerns what the nbar-column secret does to the LATTICE. This record
+    makes no lattice claim of any kind, derives no sieve cost, and is explicitly compatible with
+    GOAL-FRODO-001.non_duplication[0], which reserves the lattice-estimator lane for
+    GOAL-MLKEM-003 and GOAL-MLKEM-004.
+  - >-
+    RQ-FRODO-a2dbe2 owns the Fujisaki-Okamoto reduction ledger, including multi-user and
+    multi-target accounting. This record does not evaluate any IND-CCA bound, does not sweep a
+    query count, and does not convert its advantage into a bit-security movement; if a batch
+    finds itself doing that it has crossed into a2dbe2's lane and must hand off.
+  - >-
+    The AES-lane records that mention known-key distinguishers (RQ-AES-002, RQ-AES-003 and the
+    IDEA records listed in the novelty screen) treat AES as the target of cryptanalysis. Here
+    AES is a component of another scheme and the only question asked is which model its use
+    requires; no AES cryptanalysis is proposed, attempted, or claimed.
+  citations:
+  - ref: draft-longa-cfrg-frodokem (IETF datatracker HTML view)
+    provenance: retrieved
+    claim: >-
+      Frodo.Gen with AES128 sets A[i,j+k] = C[i,j+k] mod q where C[i,j]||...||C[i,j+7] =
+      AES128(seedA, b) and b encodes the 16-bit little-endian row and column indices padded with
+      zeros to 16 bytes; Frodo.Gen with SHAKE128 sets row i from SHAKE128(i || seedA). Parameters
+      returned: n = 640/976/1344, q = 32768/65536/65536, B = 2/3/4, nHat = 8, D = 15/16/16,
+      lenA = 128 for all three.
+    verified_by: idea-generator@2026-08-21
+  - ref: 'Gilbert, "A Simplified Representation of AES", ASIACRYPT 2014'
+    provenance: recalled
+    claim: >-
+      A known-key distinguisher for the full 10-round AES-128 at time complexity on the order of
+      2^64, extending an 8-round distinguisher. A WebSearch result summary on 2026-08-21 asserted
+      this; the paper PDF fetch FAILED (unreadable compressed stream) and the paper was NOT read.
+      Cited only to name the model, never as a quantitative input.
+    verified_by: null
+  - ref: 'Knudsen and Rijmen, "Known-Key Distinguishers for Some Block Ciphers", ASIACRYPT 2007'
+    provenance: recalled
+    claim: >-
+      Introduces the known-key model, in which the adversary knows the key and the question is
+      whether the permutation is distinguishable from a random permutation. Not read this session.
+    verified_by: null
+  assumptions:
+  - >-
+    The Gen pseudocode and parameter table transcribed from the CFRG draft fetch agree with the
+    FrodoKEM standard proposal once that document is filed as a KN-LIT entry. The fetched content
+    was a summariser's extraction and MAY BE EXTRACTION-DAMAGED - the sampling table it returned
+    was truncated at index 6 and the parameter names it returned (nHat, D, lenA) may be its own
+    renaming. RQ-FRODO-3260cc.constraints[0] forbids designing on unfiled sources, so Stage 0
+    of this proposal is a transcription gate and not a formality.
+  - >-
+    AES-128 with a fixed key is a permutation on 128-bit blocks. This is a definitional property
+    of the cipher, not an assumption about its strength, and it is what forces the AES arm's
+    value at q = 2^16.
+  - >-
+    The index encoding (i, j) -> b is injective over the actual index ranges. This is checked
+    exhaustively in Stage 0 and can fail.
+  - >-
+    The XOF-as-random-function model is used ONLY to give the SHAKE arm a predicted value to be
+    compared against; it is not asserted to be true, and the SHAKE arm is also measured
+    empirically so that the model's prediction can be contradicted.
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes the conclusion is the unstated modelling assumption on Gen:
+      the security argument needs a distribution on A it can call uniform, the statistical
+      distance to uniform is essentially 1 for any 128-bit seed, and therefore some idealisation
+      is doing the work. Which one, and whether it is the same for both generators, is the
+      bottleneck.
+    baseline_embedding:
+      parameter_slice: >-
+        The baseline is the ordinary reading in which both generators are PRGs and the choice is
+        performance-only. That baseline is reproduced exactly as the parameter slice
+        'advantage = 0 for every statistic', and this proposal's Stage 2 is a strict test of it:
+        if every computed advantage is zero, the baseline is reproduced and the proposal's A3 is
+        refuted.
+      reproduction_check: >-
+        Symbolic: the invariance proof of A1/A2 must reproduce the lane's existing chi-side
+        outputs bitwise under a generator swap. That is a frozen regression fixture, not a plot.
+    observation_collision:
+      observable: >-
+        The aligned-block coincidence count, and the derived optimal distinguishing advantage.
+      distinct_preimage_search: >-
+        A collision is expected and is a declared outcome, not a surprise: at Frodo-640 an AES
+        arm and a uniform arm can produce the SAME coincidence count, because the 8 dropped bits
+        restore collisions. The proposal therefore reports the exact advantage rather than a
+        verdict, and states in interpretation_limits that a matching count does not establish
+        the two distributions are equal - it establishes only that THIS observable does not
+        separate them. Searching for a second observable that does separate them at Frodo-640 is
+        named as forward guidance.
+    constructive_transforms:
+    - transform: observable_fiber
+      proposed_object: >-
+        Hold the coincidence count fixed and vary the generator; ask which intrinsic invariant of
+        A distinguishes the resulting matrices. Candidates with a defined one-step propagation:
+        the multiset of 8-entry blocks after an affine relabelling of the index space, and the
+        distribution of the 128-bit XOR of two blocks at index difference delta, which is
+        constant-ish under a permutation and uniform under an XOF.
+      predicted_gain: >-
+        None in attack terms. The gain is identification: an observable that separates the
+        generators at Frodo-640, where the primary one provably does not.
+    quantifier_order: >-
+      FOR EVERY parameter set P in {640, 976, 1344} and FOR EVERY generator G in {AES, SHAKE},
+      THERE EXISTS an exactly computable rational adv(P, G) such that the aligned-block
+      coincidence statistic distinguishes Gen_G from uniform with advantage exactly adv(P, G).
+      Note the order carefully: the advantage is allowed to depend on P and G, and no uniform
+      statement over parameter sets is claimed. The separate modelling assertion has the weaker
+      form: THERE EXISTS no standard-model assumption on AES-128 under a PUBLIC key that yields
+      pseudorandomness of A - this is an existential over assumptions and is NOT provable here;
+      it is stated as a reading question about the document, which is why Stage 4 exists.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest thing this method can certify is: an exact distinguishing advantage for one
+        named statistic, and a verbatim record of what the specification says about Gen. It can
+        NEVER certify that no better distinguisher exists, and it can never certify anything
+        about LWE hardness at Frodo's dimensions. The recalled known-key distinguisher on full
+        AES-128 requires data on the order of 2^64; Frodo consumes at most n^2/8 <= 2^17.8 blocks
+        drawn from a 2^32-point structured subspace, so that result does NOT apply here and this
+        proposal does not claim it does.
+      nearby_object_control: >-
+        The nearby object on which the hoped-for conclusion fails is Frodo-640 itself: there the
+        AES arm's forced zero disappears because 8 bits are dropped, so a method that reported
+        'AES is distinguishable' uniformly would be wrong at exactly one of the three
+        standardized parameter sets. Any verdict that does not differ between q = 2^15 and
+        q = 2^16 has not identified the load-bearing structure.
+    proof_obligations:
+    - claim: A appears nowhere in E'S - S'E + E''
+      responsibility: correctness
+    - claim: the index encoding is injective at each n
+      responsibility: feasibility
+    - claim: 1 - prod_{i<m}(1 - i/2^128) is the exact uniform coincidence probability
+      responsibility: size
+    - claim: the counting pipeline detects a seeded eps = 2^-20 repeat rate
+      responsibility: interface
+    - claim: statistical distance to uniform >= 1 - 2^(128 - D*n^2)
+      responsibility: scope
+    not_applicable_reason: null
+  predictions:
+  - metric: >-
+      bitwise identity of the lane's chi-side outputs (Renyi divergence numerator/denominator
+      and DFR numerator/denominator) under an AES-versus-SHAKE generator swap
+    direction: different
+    minimum_effect: >-
+      zero difference is REQUIRED; any nonzero difference at all falsifies A1/A2 or exposes a
+      pipeline bug, and either is a reportable result
+  - metric: aligned-block coincidence count in the Frodo-AES arm at Frodo-976 and Frodo-1344
+    direction: lower
+    minimum_effect: exactly 0, a derived constant rather than a measurement
+  - metric: >-
+      exact optimal distinguishing advantage of the aligned-block statistic, AES arm versus
+      uniform, at Frodo-1344
+    direction: higher
+    minimum_effect: >-
+      strictly positive and below 2^-64; a value above 2^-64 would be a surprise large enough to
+      require independent re-derivation before it is reported at all
+  - metric: >-
+      exact optimal distinguishing advantage of the aligned-block statistic, AES arm versus
+      uniform, at Frodo-640 (q = 2^15, 8 bits dropped)
+    direction: different
+    minimum_effect: >-
+      the Frodo-640 value must differ from the Frodo-1344 value by more than a factor of 2, or
+      the mod-q reduction is not doing what the derivation says it does
+  - metric: >-
+      number of sentences in the filed primary text that state a model or assumption for Gen,
+      per generator
+    direction: different
+    minimum_effect: >-
+      0, 1 or 2 - a count, reported verbatim with page and line, with 0 being the outcome the
+      proposal exists to be able to report and 2 (a different named model per generator) being
+      the outcome that would refute the claim that the document is silent
+  minimal_test:
+    design: >-
+      One invocation, four arms, no lattice, no scheme simulation. ARM 1 (algebra, seconds):
+      symbolic derivation that the decryption error contains no A, executed as a generator-swap
+      regression on the lane's chi-side pipeline requiring bitwise identical output. ARM 2 (exact
+      closed forms, seconds): evaluate 1 - prod_{i<m}(1 - i/2^128) with m = n^2/8, the q = 2^15
+      variant, and 1 - 2^(128 - D*n^2), all in exact rational arithmetic at all three parameter
+      sets, and report the resulting advantages as exact rationals plus their base-2 logarithms.
+      ARM 3 (counting instrument, minutes): implement the aligned-block counter and run it on the
+      uniform arm >= 8 times, the eps-ladder at five values, and the constant-block maximal
+      removal, reporting the uniform arm's interval and the ladder's monotonicity. ARM 4
+      (reading, minutes of human time): grep the filed primary text for the Gen assumption and
+      quote it verbatim, or record that no such sentence exists. THIS DISCRIMINATES because ARM 1
+      and ARM 2 have forced, derivable values that disagree with each other by construction - a
+      statistical distance of essentially 1 next to an advantage near 2^-90 - and only ARM 4 can
+      say which of the two the document's argument relies on. TOTAL COST: well under one hour of
+      single-core compute; ARM 2 alone is under a second.
+    controls:
+    - uniform-A arm drawn >= 8 times, reported as an interval, per KN-TECH-1a5b7e mode 5
+    - >-
+      seeded-defect ladder at eps in {2^-30, 2^-25, 2^-20, 2^-15, 2^-10} with the comparator
+      named as the uniform arm, a numeric threshold declared before the run, and monotonicity
+      reported explicitly
+    - constant-block maximal-removal arm; must be the most extreme and on the same side
+    - >-
+      forced-value declaration for the AES arm at q = 2^16 (exactly zero) written before the run
+      so that its agreement is not read as a measurement
+    - >-
+      index-encoding injectivity gate at all three n, exhaustively, before any counting
+    - >-
+      generator-swap bitwise-identity regression on the chi-side pipeline, run FIRST, as the
+      instrument check for A1/A2
+    required_metrics:
+    - exact rational coincidence probability, uniform arm, per parameter set
+    - exact rational coincidence probability and count, AES arm, per parameter set
+    - measured coincidence count and 8-draw interval, uniform and SHAKE arms
+    - exact optimal distinguishing advantage per (parameter set, generator), as a rational and in bits
+    - exact statistical-distance floor 1 - 2^(128 - D*n^2) per parameter set
+    - ladder counts at all five eps values, with a monotonicity flag
+    - constant-block arm count
+    - verbatim quotation (or recorded absence) of the Gen assumption in the filed primary text
+  falsification_conditions:
+  - >-
+    The generator-swap regression returns different chi-side numbers. Then A1 or A2 is false, or
+    the pipeline is buggy; either way the invariance argument is withdrawn and the bug is the
+    result.
+  - >-
+    The index encoding is not injective at some n. The forced-zero derivation collapses and the
+    AES arm's value must be recomputed from the actual encoding.
+  - >-
+    The uniform arm's measured coincidence count is inconsistent with its own closed form over
+    8 draws. The counter is wrong and no arm is readable.
+  - >-
+    The eps-ladder is not monotone, or the eps = 2^-20 rung does not exceed the uniform arm's
+    8-draw maximum. The instrument cannot sign a departure and no directional reading is attached
+    to any arm (this is exactly the KN-TECH-1a5b7e refinement).
+  - >-
+    The constant-block arm is not the most extreme. The statistic is not reading the object and
+    the instrument is void.
+  - >-
+    The filed primary text names a model for Gen, per generator, explicitly. Then the claim that
+    the modelling assumption is unstated is FALSE, this record's part (C) is refuted, and the
+    honest deliverable shrinks to the exact advantage table - which is still a lane contribution
+    but a much smaller one.
+  - >-
+    All computed advantages are exactly zero at all three parameter sets. Then A3 is refuted, the
+    performance-only reading of the generator choice is confirmed on this observable, and the
+    forward guidance is the observable_fiber transform above.
+  confounders:
+  - >-
+    The block boundary is a property of the GENERATOR'S CALL STRUCTURE, not of A. Frodo-AES makes
+    8 coefficients per call and Frodo-SHAKE makes n per call, so 'aligned 8-entry block' is
+    natural for AES and arbitrary for SHAKE. Comparing them on an AES-natural statistic is a
+    choice that favours finding a difference, and the record must say so; the mitigation is to
+    report the same statistic at block widths 8 and n for BOTH generators.
+  - >-
+    Extraction damage in the fetched pseudocode. The whole derivation rests on the AES input
+    being i || j || 0^96 and on the reduction being 'mod q' on a 16-bit word. If the filed text
+    differs, the forced values change.
+  - >-
+    Confusing 'A is not uniform' with 'A is weak'. Every 128-bit-seeded PRG has statistical
+    distance essentially 1 from uniform on a large object; that fact is universal and carries no
+    security content by itself. The record must present the floor as a MODELLING observation, and
+    the advantage as the security-relevant quantity.
+  - >-
+    A CSPRNG-backed 'uniform' arm is itself a PRG and inherits the same floor. Its use is
+    legitimate only because the statistic reads 128-bit-block coincidences at rates far above any
+    PRG's period effects, and this must be argued rather than assumed.
+  - >-
+    Reading the known-key literature as applicable. It is not at Frodo's data complexity; the
+    method_ceiling says so and any deliverable that omits that sentence has overclaimed.
+  interpretation_limits:
+  - >-
+    NO ATTACK, NO BREAK, NO SPEEDUP, NO EXPONENT. Nothing here is evidence about the hardness of
+    LWE at Frodo's dimensions, in either direction.
+  - >-
+    A nonzero advantage on this statistic is a statement about the GENERATOR ONLY. The tracked
+    object dissolves after one step and nothing downstream of A reads aligned blocks.
+  - >-
+    A zero or matching advantage establishes only that THIS observable does not separate the two
+    distributions. It does not establish that they are close, and it must never be reported as
+    'the generators are equivalent'.
+  - >-
+    Everything is scoped to Frodo-640, Frodo-976 and Frodo-1344 exactly as filed, with q, n and
+    lenA as read from the filed text. No other parameter set and no eFrodoKEM variant is spoken
+    for.
+  - >-
+    The modelling assertion is a READING of a document, at the tier of 'this sentence is or is not
+    present'. It is not a proof that no standard-model assumption suffices.
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      SHAKE128, used as Frodo.Gen(i || seedA) -> 16n bits, produces on distinct inputs an output
+      that is indistinguishable from a uniformly random bit string by any adversary running in
+      time below 2^128, and in particular its aligned-block coincidence count is distributed as
+      that of a uniform draw, up to a term bounded by the sponge indifferentiability advantage
+      for the number of queries made here (at most n calls per matrix).
+    rigorous_support: >-
+      The rigorous ingredient it imitates is the indifferentiability of the sponge construction
+      from a random oracle up to the capacity bound - the analogue, in this record's structure, of
+      the role Canfield-Erdos-Pomerance plays in the exemplar: a proved statement about a generic
+      object that the heuristic then asserts holds for the specific instance. NOT read this
+      session; recalled, and flagged as such.
+    validation_plan: >-
+      Direct, and this is the rare case where the heuristic is sampled at the REAL parameters
+      rather than at toy scale, because generating A is cheap. Sample >= 8 independent seeds per
+      parameter set, generate A by SHAKE, count aligned-block coincidences at block widths 8 and
+      n, and compare the empirical count distribution with the exact closed-form uniform
+      prediction 1 - prod_{i<m}(1 - i/2^128) and its Poisson approximation. Tail check: the
+      largest observed coincidence count across all draws against its exact predicted tail
+      probability, in the style of the exemplar's smoothest-sample check. Transfer assumption:
+      NONE for the SHAKE arm - the sampled parameters ARE the standardized parameters
+      (n = 640/976/1344, q = 2^15/2^16/2^16, lenA = 128). Record the seeds.
+  - id: H2
+    statement: >-
+      For the purpose of predicting the uniform arm, a CSPRNG-backed sampler is a faithful stand-in
+      for the uniform distribution on Z_q^(n x n) at the coincidence statistic, i.e. its
+      coincidence count distribution differs from the exact closed form by less than the 8-draw
+      sampling interval.
+    rigorous_support: >-
+      The rigorous companion is the exact closed form itself, which is derived and not assumed;
+      H2 asserts only that the sampler realises it. This pairing - an exact combinatorial bound
+      plus the assertion that a specific object behaves like a uniform one of its size - is the
+      structure the target profile requires of a heuristic.
+    validation_plan: >-
+      Draw the uniform arm >= 8 times at each parameter set and compare the empirical count with
+      the closed form; report the interval, not the point (KN-TECH-1a5b7e mode 5). If the two
+      disagree beyond the interval, H2 is refuted and the sampler is replaced before any other arm
+      is read. Sampled parameters: the standardized ones. No transfer assumption.
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED, and none could follow from this design. Cost of the
+      MEASUREMENT: the closed forms are O(m) exact rational operations with m = n^2/8 <= 225792,
+      i.e. sub-second; the counting arms are O(n^2) hash or cipher calls per draw, i.e. one matrix
+      generation each, which the reference implementations perform in milliseconds to seconds.
+      Total well under one hour single-core including all ladders.
+    memory_exponent: >-
+      No attack memory exponent is claimed. Peak storage is one A per arm, n^2 * D bits, at most
+      about 3.4 MB at Frodo-1344, plus a hash table of n^2/8 block digests, under 10 MB.
+    best_known: >-
+      There is no incumbent in this repository or, per the searches run, in the literature reached
+      this session, for a distinguishing advantage between Frodo-AES and Frodo-SHAKE. On the
+      attack frontier there is no row at all, because no attack is proposed. On the MEASUREMENT
+      axis the nearest committed object is nothing: the lane's eight proposals are chi-side.
+    hidden_overhead: >-
+      The o(1) hides nothing because there is no asymptotic claim. What the COST estimate hides is
+      human time: Stage 0's transcription gate and Stage 4's reading are the expensive parts and
+      they are not compute, and Stage 0 is blocked outright until RQ-FRODO-3260cc.constraints[0]'s
+      source gate is opened.
+    tradeoff_note: >-
+      Not applicable - memory is negligible and there is no search to parallelise. The only
+      tradeoff worth naming is the opposite of the usual one: the exact closed forms cost less
+      than the empirical controls, so the controls, not the result, dominate the budget. That is
+      the correct ordering under docs/inventor-protocol.md section 3.
+  dominated_by: >-
+    n/a (no attack result claimed). Checked against the frontier this repository holds for
+    FrodoKEM before writing this: there is no time/memory/data row for any attack on FrodoKEM in
+    ledger/evidence, and RQ-FRODO-3260cc.constraints[5] excludes the implementation-attack
+    entries (KN-LIT-2088, KN-LIT-3859, KN-LIT-118, KN-TECH-047) from being scored here in either
+    direction. Writing 'null' would assert a check against a frontier row that does not exist,
+    which AGENTS.md rule 5 forbids. On the MEASUREMENT axis this record is dominated by nothing
+    because no record in the repository computes any A-side statistic for FrodoKEM.
+  sota_delta: >-
+    No attack; conceptual and measurement contribution only. Quantitatively: the repository
+    currently holds ZERO numbers describing FrodoKEM's matrix generator - no advantage, no
+    coincidence rate, no statistical-distance floor, no null floor - so the delta is the creation
+    of a first exact table with its controls, not an improvement on an existing figure. Against
+    the literature reached this session, the searches returned no work computing a Frodo-AES
+    versus Frodo-SHAKE distinguishing advantage; that is a negative search result and is not
+    asserted as a fact about the literature.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    By part, and the parts do not survive together. (i) That A1/A2 hold, i.e. the generator swap
+    returns bitwise identical chi-side numbers: ~0.97 - this is close to an algebraic certainty
+    and the 0.03 is pipeline risk, which is exactly why it is run as an instrument check.
+    (ii) That the AES arm at q = 2^16 is forced to exactly zero coincidences: ~0.93, conditional
+    on the fetched encoding being right, which Stage 0 checks. (iii) That the resulting exact
+    advantage is strictly positive and below 2^-64 at Frodo-1344: ~0.9. (iv) That the filed
+    primary text is SILENT on the modelling assumption for Gen, i.e. part (C)'s reading outcome:
+    ~0.35 - I would bet against this, because specification authors usually say something, and a
+    single sentence naming a PRF or random-oracle assumption refutes it outright. (v) That any of
+    this ever bears on FrodoKEM's security: ~0.02, and the record is written so that a reader who
+    shares that estimate still finds the exact table worth having. (vi) That the whole run
+    produces a defensible table plus a defensible reading: ~0.9.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+  - RQ-FRODO-3260cc
+  - RQ-FRODO-a2dbe2
+  - GOAL-FRODO-001
+  - H-FRODO-e0c651
+  - H-FRODO-8ea540
+  - IDEA-20260805-390957
+  - IDEA-20260808-dd4d30
+  - IDEA-20260816-1418f4
+  - docs/inventor-protocol.md
+  - docs/target-result-profile.md
+  - docs/claims-and-verification.md
+  - knowledge/techniques/KN-TECH-1a5b7e.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py
+    --next idea --date 20260821 (random 6-hex token, no state scanned), each id then verified
+    free with --check before assignment. No identifier was chosen by looking for the next free
+    number (CLAUDE.md, Conventions).
