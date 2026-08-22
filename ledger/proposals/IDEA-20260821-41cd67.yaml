@@ -1,0 +1,635 @@
+idea:
+  id: IDEA-20260821-41cd67
+  question_id: RQ-MLKEM-003
+  added: '2026-08-21'
+  title: >-
+    Core-SVP charges ONE sieve call where a real reduction makes thousands, and the standard
+    defence is that this is conservative - but nobody in this program has measured by how much,
+    and the mechanism that could make it nearly free (warm-started pool reuse across blocksizes)
+    predicts a factor an order of magnitude smaller than the naive tour count: track the
+    CUMULATIVE WORK ACCRUAL CURVE across a whole progressive reduction schedule, normalised by
+    its own final call, against a cold-restart null whose value is forced and derivable before
+    the run
+  class: mechanism
+  claim: >-
+    (A) THE FUDGE, NAMED AND SIZED. The core-SVP convention that fixed ML-KEM's parameters
+    charges a single SVP oracle call at the required blocksize beta. A real primal attack runs a
+    reduction schedule: many blocksizes, many tours, one SVP call per block position per tour.
+    Define R(beta) = (total sieve work over the entire schedule that reaches quality beta) /
+    (work of one sieve call at beta). Core-SVP asserts, in effect, that R may be set to 1 and
+    that doing so is conservative. TWO QUANTITATIVELY INCOMPATIBLE EXPLANATIONS OF R ARE BOTH
+    CURRENTLY DEFENSIBLE IN THIS PROGRAM, AND NEITHER HAS BEEN MEASURED HERE.
+    EXPLANATION 1, THE TOUR-COUNT READING: R is of order (number of tours) x (lattice dimension
+    minus beta), because that is how many SVP calls a BKZ schedule makes. At ML-KEM-shaped
+    dimensions with a handful of tours that is of order 2^13, i.e. core-SVP understates real
+    attack cost by roughly 13 bits.
+    EXPLANATION 2, THE WARM-START READING: cost is dominated by the last few calls, because a
+    progressive schedule hands each sieve a pool already produced by the previous one and each
+    smaller blocksize is exponentially cheaper. DERIVATION, ARITHMETIC ONLY, NOT A MEASUREMENT:
+    under the core-SVP convention itself, with the g6k default free-dimension rule
+    f(beta) = 11.5 + 0.075*beta, one call at blocksize beta costs 2^(0.292*(beta - f(beta))) =
+    2^(0.27010*beta - 3.358), so consecutive blocksizes differ by a factor 2^0.27010 = 1.2058 and
+    the sum over ALL blocksizes up to beta, WITH NO REUSE AT ALL, is 1/(1 - 2^-0.27010) = 5.862
+    times the final call, i.e. 2.552 bits. So even a fully cold progressive schedule that runs
+    every blocksize once costs only 2.55 bits more than core-SVP; the 13 bits of Explanation 1
+    live entirely in the REPEATED CALLS AT FIXED BLOCKSIZE across block positions and tours, and
+    whether those repeats cost full price or are amortised by pool reuse is an empirical question
+    with a definite answer at blocksizes this program can execute.
+    (B) WHY THE ANSWER MATTERS AT THIS EXACT SIZE. EV-MLKEM-020's committed observations put the
+    free-memory margins at +2.800527 / +6.041285 / +1.276377 bits for the three FIPS 203 sets.
+    The gap between the two explanations of R is roughly 10 bits. THE UNMEASURED SCHEDULE TERM IS
+    LARGER THAN EVERY MARGIN THIS LANE HAS ARGUED ABOUT, ADDED TOGETHER, AND IT POINTS IN THE
+    DIRECTION THAT MAKES ML-KEM SAFER, WHICH IS PRECISELY WHY NOBODY CHECKS IT.
+    (C) THE CLAIM PROPER, FALSIFIABLE, TWO-SIDED. At blocksizes beta in [50, 85] on ML-KEM-shaped
+    q-ary bases with q = 3329, measured R(beta) - total sieve work of a full pump-and-jump
+    progressive schedule reaching beta, divided by the work of its own final call - satisfies
+    log2 R(beta) <= 6, i.e. warm-started reuse holds the schedule term at least 7 bits below the
+    naive tour-count reading, AND log2 R is not increasing in beta faster than log2 of the
+    schedule's own call count. A measured log2 R that tracks log2(tours x positions) instead is
+    the clean refutation and would mean core-SVP is conservative by roughly the tour count, which
+    is a defensible and reportable finding in the opposite direction.
+    (D) WHAT IS NOT CLAIMED. No attack, no break, no exponent moved. R is a cost-accounting
+    quantity inside a convention, not a physical bound. Measurements at beta <= 85 say nothing
+    about beta ~ 400-900 except through numbered heuristic H1. This record proposes no change to
+    any committed number and asserts nothing about EV-MLKEM-015, EV-MLKEM-020 or any other
+    record; AGENTS.md rule 12 is UNMET and inherited.
+  mechanism: >-
+    THE MECHANISM BEING TESTED, STATED AS A CAUSAL CLAIM RATHER THAN A CORRELATION: in a
+    progressive sieve schedule the pool produced at blocksize beta' is not discarded; it is
+    extended and re-sieved at beta' + 1. If reuse is effective, the marginal work of the
+    (beta'+1)-th step is the work of REPAIRING a pool that is already mostly saturated, not of
+    building one, so the schedule's total work is a small multiple of its last step's work and R
+    is nearly independent of how many block positions and tours the schedule contains. If reuse
+    is ineffective - because extending the pool by one dimension invalidates most of it, or
+    because the jump strategy skips positions in a way that forces rebuilds - then each call pays
+    close to full price and R grows like the call count. THESE TWO MECHANISMS PREDICT DIFFERENT
+    SHAPES FOR THE SAME MEASURED CURVE, not merely different magnitudes, which is what makes the
+    measurement discriminating rather than descriptive.
+    STAGE 1 - INSTRUMENT AND WORK UNIT. Rebuild the GOAL-MLKEM-004 instrument per KN-TECH-14efa5
+    and reproduce its committed check (g6k bgj1 dim 70, q = 3329 -> database 75511 vectors,
+    335.2 s) before anything else is trusted. Instrument the sieve to count a HARDWARE-INDEPENDENT
+    work unit - the number of vector-pair inner products (equivalently reduction attempts)
+    performed - alongside wall-time and peak database size. The work unit is the primary metric
+    precisely because wall-time is a property of the machine and the sibling record
+    IDEA-20260807-8fbc86 already owns the wall-time axis.
+    STAGE 2 - THE TRACKED OBJECT. Run a full pump-and-jump progressive schedule on a fixed basis
+    up to target blocksize beta. Emit, per SVP call, the tuple (blocksize at that call, block
+    position, tour index, work units consumed, pool size at entry, pool size at exit). The tracked
+    object is the CUMULATIVE WORK ACCRUAL CURVE W(t) = (work consumed by the first t calls) /
+    (total work), a monotone curve on [0, 1] x [0, 1], together with the single scalar
+    R = total work / work of the final call.
+    STAGE 3 - THE FORCED VALUES, DERIVED BEFORE ANY RUN (KN-TECH-1a5b7e obligation 4). Two bounds
+    are forced and must be computed and frozen first, because the informative content of the
+    measurement is WHERE IN BETWEEN R falls, not which side of a threshold it is on.
+    LOWER: R >= 1 trivially. UPPER: R <= R_cold, where R_cold is computed in closed form from the
+    measured single-call cost curve by summing full-price calls over the schedule's actual call
+    list with no reuse. Both are derivable from data the batch already has, so a result reported
+    as "warm beats cold" carries zero information and must not be the headline.
+    STAGE 4 - WHAT EACH OUTCOME MEANS, DECLARED BEFORE THE RUN. (i) log2 R <= 2.6, i.e. R at or
+    below the one-call-per-blocksize sum 5.862: reuse is near-total, the repeats are nearly free,
+    core-SVP's neglect of the schedule is worth under 3 bits, and Explanation 1 is refuted at the
+    measured blocksizes. (ii) 2.6 < log2 R <= 6: reuse is partial and the schedule term is a
+    mid-size correction that should be carried explicitly in any memory-charged cost model.
+    (iii) log2 R > 6 and growing with the call count: Explanation 2 is refuted, core-SVP is
+    conservative by roughly the call count, and every margin in this lane is understated by that
+    much - which would be the single most consequential negative the lane could produce.
+    (iv) NEITHER branch, declared in advance: R fails to stabilise across seeds or bases, in which
+    case R is not a property of the schedule and nothing is reported. This branch exists because
+    GOAL-MLKEM-004 batch 4 emitted C_NEITHER on a two-outcome rule and reporting it honestly was
+    the right move; the rule here carries the branch from the start.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX IS UNAVAILABLE THIS SESSION (in-memory Qdrant, answers
+      nothing), so no `kb` provenance appears in this record. Commands actually run from
+      /home/user/crypto-autoresearcher, with returned counts:
+      `grep -ril "progressive.?BKZ|BKZ simulator|BKZ tour|tour schedul" ledger/proposals/` -> 10
+      files: IDEA-20260821-01623a, IDEA-20260816-fdc8e8, -b824af, -bd7f26, -08eda1,
+      IDEA-20260814-137f68, IDEA-20260811-4a55dd, IDEA-20260805-f7c912, -866eca, -690de8; of these
+      the RQ-MLKEM-003 members are fdc8e8, b824af, bd7f26, 08eda1 and f7c912, and their titles
+      (read from the pre-extracted lane inventory) are about technique-quality trends, the
+      structured/unstructured discount, sparsity interaction, FFT Fourier support, and the
+      delta(beta) map respectively - none about where cost accrues across a schedule.
+      `grep -rn "question_id: RQ-MLKEM" ledger/proposals/` -> 21 distinct RQ-MLKEM-003 proposals,
+      full title list read in this session; none mentions tours, schedules, warm starts, pool
+      reuse, or the number of SVP calls.
+      `grep -ril "dimensions for free|dimensions-for-free" ledger/proposals/` -> 3 files, all
+      treating d4f as an inherited convention.
+      Read in full: RQ-MLKEM-003, GOAL-MLKEM-004 (all 391 lines including every batch summary),
+      IDEA-20260807-8fbc86 lines 1-120, KN-TECH-1a5b7e, docs/inventor-protocol.md,
+      docs/target-result-profile.md; read selectively EV-MLKEM-020 lines 100-169, 466-505.
+      WEB, fetched this session 2026-08-21: WebSearch 'progressive BKZ g6k pump workout cost
+      accrual number of SVP calls core-SVP conservative overestimate' (8 links); WebFetch
+      https://eprint.iacr.org/2022/1343 -> Xia, Wang, Wang, Gu, Wang, "Refined Strategy for
+      Solving LWE in Two-step Mode", last revised 2025-02-28, reporting "improvements of 7.2 to
+      23.4 times over the heuristic strategy employed in G6K" across six TU Darmstadt LWE
+      Challenge parameter sets, and "the first tight simulation for BKZ that can jump by J > 1
+      blocks"; the fetch explicitly returned that the abstract does NOT break cost down per tour
+      or per blocksize.
+    results: >-
+      NO record in this repository measures, models, or names the schedule term R. The nearest
+      in-lane record is IDEA-20260807-8fbc86, which fits (c_T, c_M) from wall-time and peak
+      database size across dimensions 50-85 - that is the cost of ONE call as a function of its
+      dimension, and R is a property of the SEQUENCE of calls; 8fbc86's design produces no call
+      list and no accrual curve, and its metrics (wall-time, peak db, peak RSS per run) cannot be
+      re-read to recover R even in principle. GOAL-MLKEM-003 and GOAL-MLKEM-004 between them ran
+      eighteen batches and, per 8fbc86's own reading of the closure records, every use of the
+      core-SVP constants was relayed rather than measured; neither goal's completion criteria
+      mention the number of SVP calls. EXTERNALLY: the 7.2-23.4x spread that Xia et al. report
+      between two schedule strategies at fixed target is, converted, 2.85-4.55 bits of pure
+      schedule choice, which independently establishes that the schedule term is neither
+      negligible nor a constant - but their paper optimises the strategy, it does not decompose
+      where the cost lands, and the fetch confirmed the abstract makes no per-tour statement.
+    verdict: >-
+      UNVERIFIED. One external citation is retrieved and re-readable (eprint 2022/1343); the rest
+      of the external picture is recalled and flagged as such. This record asserts NOTHING about
+      whether the sieving literature has measured R - the quantity is natural enough that
+      implementers plausibly track it, and no claim of external novelty is made. CLAIMED NEW
+      RELATIVE TO THIS REPOSITORY: (i) naming R and the accrual curve as objects, (ii) the closed
+      form 1/(1 - 2^-0.27010) = 5.862 for the one-call-per-blocksize floor under this program's
+      own conventions, (iii) the observation that the gap between the two live explanations of R
+      is about 10 bits against committed margins of 1.28-6.04 bits, and (iv) the cold-restart
+      null with a forced value derived before the run. ASSEMBLED FROM KNOWN PARTS: the instrument
+      is GOAL-MLKEM-004's, the margins are EV-MLKEM-020's, progressive BKZ and pump-and-jump are
+      standard, and the null discipline is KN-TECH-1a5b7e's.
+  object_first_candidate:
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens for this record: dual-attack score geometry (six
+      GOAL-MLKEM-004 batches plus eight in-lane proposals), estimator-arithmetic differencing
+      (twelve GOAL-MLKEM-003 batches), the module-structure discount (four in-lane proposals),
+      and single-call resource fitting (IDEA-20260807-8fbc86). The lens here is the SCHEDULE - the
+      sequence of oracle calls - which none of those families follows.
+    tracked_object: >-
+      W(t), the cumulative fraction of total sieve work consumed by the first t calls of a
+      reduction schedule, plus the derived scalar R = total work / final-call work. Work is
+      counted in vector-pair reduction attempts, a hardware-independent unit.
+    lossiness: >-
+      LOSSY AND ALGEBRAICALLY SO. The full state of a reduction schedule is the entire sequence
+      of bases, pools and Gram-Schmidt profiles - at the committed dim-70 scale that is 75511
+      vectors PER CALL, and a schedule makes hundreds of calls. The projection retains a monotone
+      scalar curve. It discards every vector, every basis, every profile, the identity of which
+      block position was reduced, and all geometry. This is emphatically not a change of
+      coordinates: from W(t) one cannot recover a single basis vector, and two schedules with
+      completely different geometric behaviour can have identical W. THE COMPATIBILITY CONDITION
+      that makes it a legitimate object rather than a summary statistic: work is ADDITIVE over
+      calls and a schedule is a SEQUENCE of calls, so the target's own composition operation
+      (append one call) acts on W by appending one increment - the retained part propagates
+      deterministically under the operation that defines the target. Nothing about the discarded
+      geometry is needed to predict the next value of W given the next call's work.
+    propagation: >-
+      One step is one SVP call. W(t+1) = W(t) + w_{t+1}/W_total, deterministic given the call's
+      work. The interesting propagation law is the one being MEASURED: how w_{t+1} depends on the
+      pool inherited from call t. Under total reuse, w_{t+1} is small whenever the blocksize did
+      not increase; under no reuse, w_{t+1} depends only on the blocksize. Those two laws are
+      distinguishable from the emitted per-call tuples with no additional experiment, which is the
+      cheap internal falsifier: regress w on (blocksize, pool-size-at-entry) and see which
+      predictor carries the variance.
+    survival_score: >-
+      Survives the entire schedule by construction - the object is defined on the whole run and
+      does not dissolve. What CAN dissolve is its stability: if R varies more across seeds and
+      bases than it does across blocksizes, then R is not a property of the schedule and the
+      object is useless. That instability is the pre-declared NEITHER branch and is reported as
+      the seed-to-seed spread of R at fixed beta, against the beta-to-beta spread at fixed seed.
+      Reported as a ratio of those two spreads; a ratio near or above 1 means the object dissolved
+      at step one.
+  null_object_control: >-
+    Structured on KN-TECH-1a5b7e's checklist, with obligation 4 done first because this design is
+    at high risk of a forced contrast.
+    FORCED VALUE DERIVATION, BEFORE ANY RUN: warm-start work is bounded above by cold-restart work
+    call for call, because the warm sieve begins from a superset of what the cold sieve begins
+    from. THEREFORE "WARM BEATS COLD" IS FORCED AND CARRIES NO INFORMATION, and any report whose
+    headline is that inequality is inadmissible. The informative quantity is the RATIO
+    R_warm / R_cold in [0, 1], and its value is not forced.
+    NULL-C, THE COLD-RESTART SCHEDULE: execute the identical call list with the pool discarded and
+    rebuilt between every call. This is a real run, not a model. Its expected value is separately
+    DERIVABLE in closed form from the measured single-call cost curve, so the run doubles as a
+    consistency check on the instrument: if executed cold work disagrees with the closed-form cold
+    prediction by more than the declared tolerance, the work counter is wrong and nothing is
+    reported. CAN IT FAIL: yes, in two ways - the derivation may disagree with the execution, and
+    R_warm/R_cold may come back at 1.0, meaning reuse buys nothing and the whole mechanism is
+    refuted.
+    NULL-S, THE SHUFFLED-SCHEDULE CONTROL: execute the same MULTISET of calls in a randomised
+    blocksize order, destroying the progressive structure while preserving the call count, the
+    blocksizes and the total nominal work. Progressive structure must beat shuffled structure; if
+    it does not, "progressive" contributes nothing and the accrual shape is an artefact of the
+    call multiset. CAN IT FAIL: yes - and if it does not fail, the object is about the multiset,
+    not the schedule.
+    SENSITIVITY DEMONSTRATION, COMPARATOR NAMED, THRESHOLD PRE-DECLARED: the comparator is NULL-C
+    (the arm the null is about, not whichever arm looks best). The statistic must separate the two
+    by at least a factor 2 in R at beta = 70, declared before the run; the dynamic range is
+    exhibited at both ends by a deliberately crippled reuse mode (pool truncated to 10% between
+    calls) and by full reuse. MONOTONICITY: at least three interior truncation fractions
+    (10%, 40%, 70%) are run and monotonicity of R in the truncation fraction is REPORTED, not
+    assumed - KN-TECH-1a5b7e's refinement is explicit that two endpoints do not establish a
+    direction.
+    COMPARATOR N_DRAWS: NULL-C and NULL-S are executed on at least 8 independent bases each and
+    reported as intervals; a residual read against one draw is not reportable (mode 5).
+    VERDICT ON THE NULL ARM FIRST: the four-branch rule of Stage 4 is emitted on NULL-C before the
+    warm arm is read. If it emits the same branch on both, the rule discriminates nothing and must
+    be rewritten.
+  discriminated_from:
+  - >-
+    IDEA-20260807-8fbc86 measures (c_T, c_M) by fitting wall-time and peak database size against
+    dimension for single sieve runs, and anchors the instrument on an LWE Challenge. It is a
+    per-call cost curve. R is a functional of the SEQUENCE of calls and is invariant to a uniform
+    rescaling of the per-call curve - so 8fbc86 could be completely right about c_T and this
+    record's answer would be unchanged, and vice versa. Its metric list contains no call list and
+    no accrual curve; its data cannot yield R.
+  - >-
+    IDEA-20260805-f7c912 measures delta(beta), the root-Hermite factor produced by a reduction.
+    That is the QUALITY the schedule achieves. R is the COST of achieving it. A schedule can hit
+    the target delta at any R; the two are independent axes and both are needed to price an
+    attack.
+  - >-
+    IDEA-20260821-374af4 (this session's sibling) measures the free-dimension count, i.e. the
+    dimension at which each call is made. It changes the per-call cost and leaves R structurally
+    untouched, because R is a ratio of works within the same schedule and the d4f rule appears in
+    numerator and denominator. The two records are multiplicative and non-overlapping, and the
+    d4f record's Stage-0 table is an input to this one's closed-form cold prediction.
+  - >-
+    IDEA-20260816-70e41d prices memory to locate an enumeration/sieving crossover. No memory price
+    appears here and no enumeration is run; R is a pure work-accounting ratio inside the sieve
+    family.
+  - >-
+    Every dual-attack record in this lane (08eda1, 725f05, ba5bd8, 5a4409, a102ec, bb7668,
+    522b48, 8fbc86 in part) concerns the distinguisher and its score statistics. This record never
+    scores a candidate, never builds a dual lattice, and never computes an advantage.
+  citations:
+  - ref: 'ePrint 2022/1343 - Wenwen Xia, Leizhang Wang, Geng Wang, Dawu Gu, Baocang Wang,
+      "Refined Strategy for Solving LWE in Two-step Mode" (last revised 2025-02-28)'
+    provenance: retrieved
+    claim: >-
+      Reports "improvements of 7.2 to 23.4 times over the heuristic strategy employed in G6K" on
+      six TU Darmstadt LWE Challenge parameter sets, via a strategy search (PSSearch) and "the
+      first tight simulation for BKZ that can jump by J > 1 blocks". The fetched summary
+      explicitly records that the abstract does NOT describe how cost distributes across tours or
+      blocksizes. Used here only as external evidence that the schedule term is variable by
+      2.85-4.55 bits at fixed target, never as a value for R.
+    verified_by: idea-generator@2026-08-21
+  - ref: EV-MLKEM-020 (committed evidence record, this repository)
+    provenance: internal
+    claim: >-
+      Free-memory margins +2.800527 / +6.041285 / +1.276377 bits at the three FIPS 203 sets;
+      effective sieve dimensions bkz 353.197381 / 557.152930 / 792.144373 and svp 385.084530 /
+      590.132012 / 825.235330; "eta+1 > beta on all three sets so the final BDD/SVP call sets peak
+      memory" - i.e. the schedule's terminal call is already known to be the expensive one in
+      memory, which is exactly the structure R is designed to measure in time.
+    verified_by: ledger/evidence/EV-MLKEM-020.yaml
+  - ref: GOAL-MLKEM-004 instrument block (KN-TECH-14efa5)
+    provenance: internal
+    claim: >-
+      g6k 0.1.2 with gauss_sieve, bgj1, bdgl, hk3, nv; verified by execution at dim 50
+      (db 4075, 0.94 s) and dim 70 (db 75511, 335.2 s), q = 3329; instrument ephemeral and
+      rebuilt per batch.
+    verified_by: ledger/goals/GOAL-MLKEM-004.yaml
+  - ref: 'g6k master, g6k/algorithms/bkz.py: default_dim4free_fun(blocksize) = int(11.5 + 0.075*blocksize)'
+    provenance: retrieved
+    claim: >-
+      The free-dimension rule used in the closed-form derivation of the 5.862 cold-schedule floor.
+    verified_by: idea-generator@2026-08-21
+  - ref: 'BDGL16 core-SVP time exponent 2^{0.292n+o(n)}'
+    provenance: recalled
+    claim: >-
+      The constant used to derive the per-blocksize cost ratio 2^0.27010 and hence the 5.862
+      figure. NOT verified this session. If the constant differs, the floor moves and Stage 3
+      recomputes it; the structure of the argument does not change.
+    verified_by: null
+  - ref: 'Standard BKZ tour accounting: one SVP call per block position per tour, roughly d - beta
+      positions, a handful of tours'
+    provenance: recalled
+    claim: >-
+      The basis of Explanation 1's order-2^13 figure at ML-KEM-shaped dimensions. NOT verified
+      this session; the exact call count must be read from the executed schedule and not assumed.
+    verified_by: null
+  assumptions:
+  - The sieve can be instrumented to count vector-pair reduction attempts without changing its
+    behaviour; if the instrumentation perturbs the schedule the counts are void.
+  - The GOAL-MLKEM-004 instrument rebuilds (its own reproducibility_warning says it will not
+    survive session end); a failed rebuild is infrastructure under AGENTS.md rule 5.
+  - A full progressive schedule to beta = 85 fits in budget. The committed single-call datum
+    (dim 70 bgj1, 335.2 s) does not establish this, because a schedule makes many calls, and the
+    batch must therefore begin at beta = 50 and stop when the budget binds rather than promising
+    beta = 85.
+  - R is well defined only relative to a declared schedule; the schedule (blocksize ladder, jump
+    value, tour count, preprocessing) is frozen before the run and reported with every number.
+  proof_search_map:
+    bottleneck: >-
+      Not a proof-oriented proposal in the theorem sense; the map is filled because the claim is
+      a quantitative cost-model statement. The bottleneck in the cost chain is the step from
+      "cost of one SVP call at beta" to "cost of an attack requiring quality beta" - the only step
+      in the whole core-SVP convention that is asserted rather than computed.
+    baseline_embedding:
+      parameter_slice: >-
+        R = 1 with a single-call schedule reproduces the core-SVP convention exactly. That is the
+        exact old-method boundary and it is a runnable configuration, not a limit.
+      reproduction_check: >-
+        Running the schedule with the ladder truncated to the single blocksize beta must return
+        R = 1.000 exactly and total work equal to the single-call work measured independently.
+        Frozen fixture at beta = 60.
+    observation_collision:
+      observable: 'R, one positive real per (schedule, basis, beta).'
+      distinct_preimage_search: >-
+        COLLISION IDENTIFIED IN ADVANCE: a schedule with few expensive calls and a schedule with
+        many cheap calls can share an R. R therefore does NOT identify the call count, and the
+        record must report the call list alongside R or the number is ambiguous. This is why the
+        per-call tuple list, not just R, is a required artifact. A second collision: R is
+        invariant under uniform rescaling of the work unit, so it cannot distinguish an efficient
+        implementation from an inefficient one - which is a feature here (hardware independence)
+        and a limitation stated in interpretation_limits.
+    constructive_transforms:
+    - transform: telescoping_potential
+      proposed_object: >-
+        Treat the pool's saturation deficit as a potential that each call reduces, and charge each
+        call the deficit it removes. If reuse is real, the potential telescopes across the ladder
+        and the sum collapses to the final call's deficit, giving R = O(1) structurally rather
+        than empirically.
+      predicted_gain: >-
+        Converts a measured ratio into a derived bound. Predicted gain is not a speedup but a
+        REASON: it would explain why R is small, which a measurement alone cannot. Failure of the
+        telescoping (deficit not monotone across calls) is itself diagnostic and is checkable from
+        the same per-call tuples at no extra compute.
+    - transform: stronger_invariant
+      proposed_object: >-
+        Track pool-size-at-entry alongside blocksize, so the per-call work law can be regressed on
+        both. Preserving more state than R requires is what makes the mechanism (not just the
+        magnitude) testable.
+      predicted_gain: Separates the reuse mechanism from the blocksize mechanism within one run.
+    quantifier_order: >-
+      FOR ALL beta in the measured window, FOR ALL bases in the declared seed set, THERE EXISTS a
+      schedule (the frozen pump-and-jump ladder) with R(beta, basis) <= 2^6. NOTE THE ORDER: the
+      schedule is FIXED IN ADVANCE and does not depend on the basis. A claim with the quantifiers
+      the other way round - "for every basis there exists a schedule with small R" - would be much
+      weaker and would be an attacker-optimisation claim, which this record does NOT make. Xia et
+      al.'s 7.2-23.4x result lives in exactly that weaker quantifier order and is cited only as
+      evidence of variability.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For this schedule, this sieve kernel, this lattice family and beta in [50, 85], the
+        schedule term is R = ... +/- ..., measured in vector-pair reduction attempts." Nothing
+        about FIPS 203 blocksizes, nothing about optimal schedules, nothing about other kernels.
+      nearby_object_control: >-
+        The nearby object where the desired conclusion fails is a schedule with a large jump value
+        J, where consecutive calls share little of the block and reuse should be much weaker. If
+        R is the same at J = 1 and at large J, the method is not reading reuse at all and has not
+        identified the load-bearing structure. This control is cheap and is in the required list.
+    proof_obligations:
+    - claim: Single-blocksize schedule returns R = 1.000 and matches the independent single-call work.
+      responsibility: baseline
+    - claim: Executed cold work agrees with the closed-form cold prediction within tolerance.
+      responsibility: correctness
+    - claim: R_warm/R_cold is reported with an interval over >= 8 bases.
+      responsibility: success_probability
+    - claim: Instrumentation does not change the schedule's trajectory.
+      responsibility: interface
+    - claim: No statement is made about beta > 85 except through H1.
+      responsibility: scope
+    not_applicable_reason: null
+  predictions:
+  - metric: 'log2 R(beta) at beta = 70, warm progressive schedule, vector-pair reduction attempts'
+    direction: lower
+    minimum_effect: '6.0 - i.e. R below 64, at least 7 bits below the naive tour-count reading'
+  - metric: 'R_warm / R_cold at matched call list, beta = 70'
+    direction: lower
+    minimum_effect: 0.5
+  - metric: 'slope of log2 R against log2(number of calls in the schedule), across schedules with
+      1x, 2x and 4x the call count at fixed beta'
+    direction: lower
+    minimum_effect: '0.5 - a slope of 1 is the no-reuse prediction and a slope near 0 is total
+      reuse; anything at or above 0.5 refutes the warm-start explanation'
+  - metric: 'fraction of total work consumed by the final 10% of calls, W(1) - W(0.9)'
+    direction: higher
+    minimum_effect: 0.5
+  - metric: 'R at jump J = 1 versus R at the largest jump run'
+    direction: different
+    minimum_effect: '0.3 in log2 R - if the two agree, the measurement is not reading reuse'
+  - metric: 'ratio of seed-to-seed spread of R at fixed beta to beta-to-beta spread at fixed seed'
+    direction: lower
+    minimum_effect: '1.0 - at or above 1 the object is unstable and the NEITHER branch fires'
+  minimal_test:
+    design: >-
+      Rebuild the instrument and reproduce the committed dim-70 bgj1 database size (75511) as a
+      gate. Freeze one pump-and-jump ladder, one kernel (bgj1), one preprocessing, one jump value
+      J = 1. Beta in {50, 60, 70}, eight bases per beta. For each cell run three arms in the same
+      invocation: WARM (the frozen ladder), NULL-C (same call list, pool discarded between calls),
+      NULL-S (same call multiset, randomised order). Emit per-call tuples throughout. Compute R
+      and W(t) for each arm; emit the frozen four-branch rule on NULL-C first, then on WARM.
+      Then two ablation cells at beta = 70 only: truncation fractions 10/40/70% for the
+      monotonicity requirement, and one large-J cell for the nearby-object control.
+      WHY THIS DISCRIMINATES: the two explanations of R differ in the SLOPE of log2 R against
+      log2(call count), and that slope is measured directly by varying the tour count at FIXED
+      beta - so the discrimination needs no extrapolation and no large blocksize. The smallest
+      cell, beta = 50 with 1x/2x/4x tours, is on its own a complete discriminator; everything
+      above it is replication and scope.
+      STOPPING RULE: if the beta = 50 slope cell already returns a slope outside [0, 0.5] with a
+      non-overlapping interval over 8 bases, the headline is settled and the larger cells are
+      replication only.
+    controls:
+    - 'NULL-C cold-restart arm, executed (not modelled), >= 8 bases, with its closed-form
+      prediction derived before the run and compared'
+    - 'NULL-S shuffled-order arm at matched call multiset'
+    - 'single-blocksize baseline returning R = 1.000 exactly'
+    - 'pool-truncation ladder at 10/40/70% with monotonicity of R in the truncation fraction
+      REPORTED, not assumed'
+    - 'large-jump nearby-object control'
+    - 'instrument rebuild gate reproducing db 75511 at dim 70 bgj1'
+    - 'instrumentation-neutrality check: an uninstrumented run must reach the same final basis
+      profile as an instrumented one on the same seed'
+    required_metrics:
+    - per-call tuples (blocksize, position, tour, work units, pool size in, pool size out) for
+      every call of every arm, archived
+    - R per (arm, beta, basis) with interval over bases
+    - W(t) curves, archived, for at least one basis per cell
+    - R_warm / R_cold with interval
+    - slope of log2 R against log2(call count) at fixed beta, with confidence interval
+    - closed-form cold prediction and its signed discrepancy against executed cold work
+    - seed-to-seed and beta-to-beta spreads of R
+    - wall-time and peak RSS per arm, plus the rebuild receipt
+  falsification_conditions:
+  - 'log2 R > 6 and the slope against log2(call count) is at or above 0.5: the warm-start
+    mechanism is refuted, core-SVP is conservative by roughly the call count, and the lane must
+    record that every margin it has computed is understated by that amount. This is a clean
+    refutation of the claim and is the most consequential outcome available.'
+  - 'R_warm / R_cold >= 0.5: reuse buys less than a factor 2 and the mechanism is not doing the
+    work attributed to it, whatever R''s absolute value is.'
+  - 'NULL-S matches WARM: progressive ordering contributes nothing and the accrual shape is a
+    property of the call multiset, not of the schedule.'
+  - 'Executed cold work disagrees with the closed-form cold prediction beyond tolerance: the work
+    counter is wrong; no R is reported and an instrumentation defect is recorded.'
+  - 'R at J = 1 equals R at large J: the measurement is not reading reuse and the mechanism claim
+    is unsupported regardless of R''s value.'
+  - 'Seed-to-seed spread of R at fixed beta exceeds the beta-to-beta spread: R is not a property
+    of the schedule; the NEITHER branch fires and nothing is reported.'
+  - 'Instrumented and uninstrumented runs reach different bases on the same seed: the
+    instrumentation perturbs the object and all counts are void.'
+  confounders:
+  - >-
+    The work unit. Vector-pair reduction attempts and wall-time do not agree, because bucketing
+    and near-neighbour filtering change the cost per attempt. R measured in attempts and R
+    measured in seconds can differ materially; BOTH must be reported and the divergence between
+    them is itself a datum.
+  - >-
+    Schedule choice is a free parameter and Xia et al.'s retrieved 7.2-23.4x spread proves it is
+    a large one. R is scoped to the frozen ladder and is not a property of "progressive BKZ".
+  - >-
+    Preprocessing before the ladder can be charged to the ladder or excluded; the boundary is
+    arbitrary and must be declared, because putting preprocessing inside R inflates it and putting
+    it outside deflates it.
+  - >-
+    Memory pressure. At the largest reachable beta the pool may exceed cache or RAM and wall-time
+    will jump for reasons that have nothing to do with reuse. This is exactly the effect
+    IDEA-20260816-7bc28c owns; here it is a confounder to be excluded by reporting the
+    hardware-independent unit as primary.
+  - >-
+    q-ary structure. At small beta the block still contains q-vectors and the sieve behaves
+    atypically; the fit must exclude that range and say where it ends.
+  - >-
+    Kernel choice. bgj1, bdgl and hk3 have different reuse behaviour. R is scoped to bgj1 unless
+    a second kernel is run.
+  interpretation_limits:
+  - Beta in [50, 85] is toy scale. Nothing here is a statement about FIPS 203, whose blocksizes
+    are of order 400-900. H1 is the only bridge and it is an assumption, not a result.
+  - R is a ratio inside a cost convention. It is not a lower bound on attack cost, not an upper
+    bound, and not a physical quantity; an attacker with a better schedule gets a different R.
+  - A small R does NOT mean attacks are cheaper than believed - it means core-SVP's neglect of
+    the schedule is a small error. A large R means core-SVP is conservative. Neither direction is
+    a security claim and neither is reported with adjectives.
+  - R is invariant under uniform rescaling of the work unit, so it says nothing about
+    implementation efficiency and cannot be compared against any wall-time-based figure.
+  - AGENTS.md rule 12 is UNMET and inherited from GOAL-MLKEM-003/004; no committed record's
+    status is proposed to change.
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      (EXTRAPOLATION) Let s(beta) be the fitted slope of log2 R against log2(call count) at fixed
+      beta, measured for beta in [50, 85] with the ladder, kernel and preprocessing frozen. H1
+      asserts that s(beta) does not increase with beta outside the measured window, uniformly for
+      beta up to the estimator's largest selected blocksize (of order 900). H1 asserts nothing
+      about the VALUE of R at those blocksizes, only about the sign of its dependence on schedule
+      length.
+    rigorous_support: >-
+      The rigorous ingredient is the exact geometric sum: under the core-SVP convention with the
+      g6k free-dimension rule, one call at beta costs 2^(0.27010*beta - 3.358), so the
+      one-call-per-blocksize total is exactly 1/(1 - 2^-0.27010) = 5.862 times the final call for
+      every beta - a beta-INDEPENDENT constant. That is a theorem about the convention, not an
+      assumption. The classical distributional statement H1 imitates is the standard renewal /
+      geometric-series argument that a sum dominated by its largest term has a ratio to that term
+      which converges as the number of terms grows: H1 asserts that the repeated-call structure
+      obeys the same regime, i.e. that the extra calls at fixed blocksize behave like a bounded
+      multiplicative overhead rather than an independent factor.
+    validation_plan: >-
+      SAMPLE: R at beta = 50, 60, 70 (and 80, 85 if budget allows), 8 bases per cell, with the
+      call count varied 1x/2x/4x at each beta by changing the tour count only. SCALE justified by
+      GOAL-MLKEM-004's committed dim-70 single-call timing of 335.2 s; a 4x-tour ladder to 70 is
+      the budget-binding cell and the batch declares in advance that it stops there if needed.
+      COMPARISON: s(beta) against 0 (total reuse) and against 1 (no reuse), and R against the
+      exactly derived cold value. TAIL CHECK: s at the largest reachable beta, taken alone, must
+      agree in sign with the pooled fit; disagreement is reported as H1 UNSUPPORTED at the top of
+      its own window. TRANSFER ASSUMPTION, STATED PLAINLY: there is no sampling shortcut for R at
+      cryptographic blocksizes - no analogue of the Deuring correspondence exists here - so H1
+      cannot be validated where it is used, and that is the honest ceiling of this design. The
+      external anchor available instead is a schedule-strategy comparison on real LWE Challenge
+      instances (eprint 2022/1343), whose 7.2-23.4x spread bounds how much schedule choice alone
+      can move a comparable quantity at larger scale.
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED, and this record cannot produce one: R is a
+      sub-exponential-in-beta multiplicative factor, not an exponent. Explicitly: the outcome
+      changes an ADDITIVE bit term, not the 0.292 coefficient. The candidate range for that term
+      is [0, 13] bits and the whole point is to narrow it. Under the exponent-first bias of
+      docs/target-result-profile.md this record is therefore NOT target-class on axis A1, and it
+      says so: it is a required building block, because every bit count this lane produces is the
+      product of an exponent and this factor, and the factor is currently set to 1 by convention
+      with no measurement anywhere in eighteen committed batches.
+    memory_exponent: >-
+      NO ATTACK MEMORY EXPONENT IS CLAIMED. R as defined is a TIME ratio. The memory analogue is
+      already settled in the committed record and in the opposite structural direction:
+      EV-MLKEM-020 states "eta+1 > beta on all three sets so the final BDD/SVP call sets peak
+      memory", i.e. peak memory is set by ONE call regardless of the schedule, so the schedule
+      term multiplies time and leaves peak memory alone. That asymmetry is itself a reportable
+      consequence: charging the schedule makes attacks look worse in time at unchanged memory,
+      which moves the time-memory position of every memory-charged margin in this lane.
+      The measurement's own peak memory is one sieve pool, the same as a single call.
+    best_known: >-
+      There is no incumbent value, bound, or null floor for R anywhere in this repository - the
+      greps above returned zero proposals concerning schedules, tours, or reuse. The incumbent
+      CONVENTION is R = 1, executed inside EV-MLKEM-020's committed 140.20 / 200.96 / 270.72 bit
+      figures. Externally, no verified value is known to this record; eprint 2022/1343 bounds
+      schedule VARIABILITY at 7.2-23.4x but reports no R.
+    hidden_overhead: >-
+      (i) The 5.862 cold floor is derived inside the core-SVP convention using two constants
+      (0.292 and the g6k linear d4f rule) that are themselves asymptotic or fitted; it is a
+      statement about the convention's arithmetic, not about a machine. (ii) R measured in
+      vector-pair attempts hides all bucketing and filtering overhead, which is where a real sieve
+      spends much of its time; that overhead is exactly the o(1) the exponent hides and it is NOT
+      captured here. (iii) The measured window is one sixth to one tenth of the blocksizes that
+      matter, a larger extrapolation ratio than the exemplar profile's validation experiments.
+      (iv) The schedule is frozen, so nothing here bounds what an optimising attacker achieves -
+      the quantifier-order note above is the honest statement of that limit.
+    tradeoff_note: >-
+      Because the schedule multiplies time and leaves peak memory at the final call's level, R
+      moves an attack's position along the TIME axis only. Any memory-priced crossover
+      (IDEA-20260816-70e41d) and any frontier-geometry argument (IDEA-20260821-46c09f) that uses
+      per-call sieve cost as the time coordinate is implicitly setting R = 1 and should carry R as
+      an explicit multiplier once it is measured. Parallelisation position: the schedule is
+      inherently SEQUENTIAL across blocksizes - call t+1 needs call t's pool - so R is a factor
+      that parallelism across processors does NOT reduce, unlike the intra-call sieve work. That
+      asymmetry is a further reason the term deserves a measured value rather than a convention.
+  dominated_by: >-
+    n/a (no attack result claimed), stated after checking rather than asserted. No attack cost
+    triple exists here: nothing is solved, nothing is recovered, no query is made, so no row of
+    any attack frontier applies and writing `null` would be a fabrication under AGENTS.md rule 5.
+    On the MEASUREMENT axis the rows I checked in this repository are IDEA-20260807-8fbc86
+    (per-call wall-time and peak database size), IDEA-20260805-f7c912 (delta(beta)),
+    IDEA-20260805-fc6361 (saturation-ball census), IDEA-20260816-70e41d (memory-priced crossover)
+    and the six committed GOAL-MLKEM-004 evidence records; none produces a call list, an accrual
+    curve, or R, so none dominates. Externally I did not verify whether a published measurement of
+    R exists; if one does it dominates the measurement outright, and the design's forced-value
+    derivation and null structure would still be a separate contribution.
+  sota_delta: >-
+    No attack; measurement and mechanism contribution only. Quantitatively: this repository holds
+    ZERO values for the schedule term and eighteen committed batches that set it to 1 by
+    convention. The two live explanations of it differ by about 10 bits, against committed
+    free-memory margins of 2.800527 / 6.041285 / 1.276377 bits - so the unmeasured term is larger
+    than the entire quantity the lane has spent two closed goals arguing about. The delta is the
+    creation of a first measured value with a forced-value derivation, an executed cold null, and
+    a slope test that separates the two explanations without extrapolation.
+  estimated_cost:
+    implementation: high
+    compute: high
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    By part. (i) That the instrument rebuilds and the sieve can be instrumented for pair counts
+    without perturbing the schedule: ~0.6 - g6k's counters may not be exposed and adding them is
+    the main implementation risk, and this is the single most likely reason the batch returns
+    nothing. (ii) That a full ladder to beta = 70 with 4x tours fits the budget on eight bases:
+    ~0.6, extrapolating from the committed 335.2 s single call. (iii) That the executed cold arm
+    matches its closed-form prediction within tolerance: ~0.75. (iv) That R comes in below 2^6 at
+    beta = 70: ~0.6 - I lean toward the warm-start explanation but the jump strategy could easily
+    force rebuilds I am not modelling. (v) That the slope against call count separates from both
+    0 and 1 with non-overlapping intervals: ~0.5. (vi) That the batch produces a defensible R with
+    an interval, or a defensible statement that R is unstable: ~0.8. I would bet against (i) more
+    readily than against any mathematical part, which is a statement about tooling risk and is why
+    the sibling record IDEA-20260821-46c09f is the cheaper first move.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+  - RQ-MLKEM-003
+  - GOAL-MLKEM-003
+  - GOAL-MLKEM-004
+  - EV-MLKEM-020
+  - KN-TECH-14efa5
+  - KN-TECH-1a5b7e
+  - IDEA-20260807-8fbc86
+  - IDEA-20260805-f7c912
+  - IDEA-20260816-70e41d
+  - IDEA-20260816-7bc28c
+  - IDEA-20260821-374af4
+  - docs/inventor-protocol.md
+  - docs/target-result-profile.md
+  - docs/claims-and-verification.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py
+    --next idea --date 20260821 (random 6-hex token, no state scanned), each id then verified
+    free with --check before assignment. No identifier was chosen by looking for the next free
+    number (CLAUDE.md, Conventions).
