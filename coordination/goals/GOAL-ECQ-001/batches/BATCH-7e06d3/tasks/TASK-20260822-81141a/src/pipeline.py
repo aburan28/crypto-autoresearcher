@@ -879,3 +879,342 @@ def extra_points(ainv, alarm_seconds=25):
         P = V[i]
         pts.append((Fraction(str(P[0])), Fraction(str(P[1]))))
     return pts, (rl, rh)
+
+
+# --------------------------------------------------------------------------
+# drivers
+# --------------------------------------------------------------------------
+
+def search_configuration(seed, tries):
+    """Deterministic seeded search for an 8-point configuration in general
+    position whose reduced Q(t) model has the smallest coefficients.
+    The objective is model height only -- NOT rank, and not any property of
+    the specialisations, so it cannot tune the answer toward a target rank."""
+    rng = random.Random(seed)
+    cands = []
+    audit = {"tried": 0, "general_position": 0, "built": 0}
+    for _ in range(tries):
+        audit["tried"] += 1
+        R = rng.choice([2, 3, 4])
+        if 2 * R + 1 < 8:
+            continue
+        xs = rng.sample(range(-R, R + 1), 8)
+        pts = [[x, rng.randint(-R, R), 1] for x in xs]
+        if len(set(map(tuple, pts))) < 8:
+            continue
+        rep = general_position_report(pts)
+        if not rep["general_position"]:
+            continue
+        audit["general_position"] += 1
+        try:
+            fam = build_family(pts)
+        except Exception:
+            continue
+        audit["built"] += 1
+        cands.append((fam.model_size, pts))
+    if not cands:
+        raise RuntimeError("no usable configuration found")
+    cands.sort(key=lambda z: (z[0], z[1]))
+    return cands[0][1], audit, sorted(c[0] for c in cands)
+
+
+def json_default(o):
+    if isinstance(o, Fraction):
+        return frac_str(o)
+    raise TypeError(repr(o))
+
+
+def cmd_selftest(args):
+    out = {"harness_self_tests": {}}
+    d = json.load(open(args.record_curve))
+    ai = d["a_invariants"]
+    pts = [(Fraction(a), Fraction(b)) for a, b in d["points"]]
+    t0 = time.time()
+    r = certify_rank(ai, pts)
+    out["harness_self_tests"]["a_record_rank30"] = {
+        "source": args.record_curve, "n_points_supplied": len(pts),
+        "expected_rank": 30, "returned_rank": r["rank"],
+        "pass": r["rank"] == 30,
+        "regulator_det": {str(k): v["regulator_det"] for k, v in r["by_precision"].items()},
+        "least_eigenvalue": {str(k): v["least_eigenvalue"] for k, v in r["by_precision"].items()},
+        "precision_agreement": r["precision_agreement"],
+        "seconds": time.time() - t0,
+    }
+    t0 = time.time()
+    E = pari.ellinit("[0,0,1,-1,0]")
+    V = E.ellratpoints(50)
+    p37 = []
+    for i in range(len(V)):
+        p37.append((Fraction(str(V[i][0])), Fraction(str(V[i][1]))))
+    r2 = certify_rank([0, 0, 1, -1, 0], p37)
+    out["harness_self_tests"]["b_conductor37_rank1"] = {
+        "a_invariants": [0, 0, 1, -1, 0], "n_points_supplied": len(p37),
+        "expected_rank": 1, "returned_rank": r2["rank"], "pass": r2["rank"] == 1,
+        "regulator_det": {str(k): v["regulator_det"] for k, v in r2["by_precision"].items()},
+        "precision_agreement": r2["precision_agreement"],
+        "seconds": time.time() - t0,
+    }
+    json.dump(out, open(args.out, "w"), indent=2, default=json_default)
+    print(json.dumps(out, indent=2, default=json_default))
+    return out
+
+
+def cmd_family(args):
+    t_start = time.time()
+    if args.points:
+        pts = json.loads(args.points)
+        audit, sizes = {"tried": 0, "supplied": True}, []
+    else:
+        pts, audit, sizes = search_configuration(args.seed, args.tries)
+    F = build_family(pts)
+    gp = general_position_report(pts)
+    tlist = [Fraction(s) for s in args.tvals.split(",")]
+    regs = []
+    for t0 in tlist:
+        sp = specialise(F, t0)
+        if sp is None:
+            regs.append({"t": frac_str(t0), "status": "singular_fibre"})
+            continue
+        ai, pp = sp
+        c = certify_rank(ai, pp)
+        regs.append({
+            "t": frac_str(t0),
+            "a_invariants": [str(a) for a in ai],
+            "section_points": [[frac_str(x), frac_str(y)] for x, y in pp],
+            "rank_of_the_8_sections": c["rank"],
+            "regulator_det_8x8": {str(k): v["regulator_det"] for k, v in c["by_precision"].items()},
+            "least_eigenvalue": {str(k): v["least_eigenvalue"] for k, v in c["by_precision"].items()},
+            "nonsingular": c["rank"] == 8,
+            "independent_indices": c["by_precision"][38]["indices"],
+        })
+    out = {
+        "construction": "pencil of plane cubics through 8 rational points in general position",
+        "configuration_search": {"seed": args.seed, "tries": args.tries,
+                                 "audit": audit, "model_size_distribution_head": sizes[:20]},
+        "eight_points_P2Q": [[frac_str(c) for c in p] for p in F.points],
+        "general_position_audit": gp,
+        "pencil_basis_C1": {str(list(k)): frac_str(v) for k, v in sorted(F.C1.items())},
+        "pencil_basis_C2": {str(list(k)): frac_str(v) for k, v in sorted(F.C2.items())},
+        "pencil": "C_t = C1 + t*C2",
+        "ninth_base_point": [frac_str(c) for c in F.P9],
+        "ninth_base_point_method": "resultant elimination of y from C1,C2 with the eight known x-coordinates divided out; verified by exact substitution into both C1 and C2",
+        "zero_section_index_in_base9": F.origin_index,
+        "weierstrass_family_over_Qt": {
+            "model": "y^2 = x^3 - 27*c4(t)*x - 54*c6(t)",
+            "c4": str(F.c4), "c6": str(F.c6),
+            "discriminant": str(F.disc),
+            "degrees": {"c4": F.deg[0], "c6": F.deg[1], "discriminant": F.deg[2]},
+            "rational_elliptic_surface_check": {
+                "deg_c4_le_4": F.deg[0] <= 4, "deg_c6_le_6": F.deg[1] <= 6,
+                "deg_disc_eq_12": F.deg[2] == 12},
+        },
+        "eight_sections_over_Qt": [{"X": str(X), "Y": str(Y)} for X, Y in F.sections],
+        "sections_verified_symbolically_over_Qt": True,
+        "regulators_at_specialisations": regs,
+        "wall_clock_seconds": time.time() - t_start,
+    }
+    json.dump(out, open(args.out, "w"), indent=2, default=json_default)
+    print(json.dumps({k: out[k] for k in ("eight_points_P2Q", "ninth_base_point",
+                                          "weierstrass_family_over_Qt")}, indent=2))
+    for r in regs:
+        print("t=%s rank_of_8_sections=%s det=%s" % (r["t"], r.get("rank_of_the_8_sections"),
+                                                     str(r.get("regulator_det_8x8", {}).get("38"))[:16]))
+    return out
+
+
+def enumerate_domain(pmax, qmax):
+    out = []
+    for q in range(1, qmax + 1):
+        for p in range(-pmax, pmax + 1):
+            if p == 0:
+                continue
+            if math.gcd(abs(p), q) != 1:
+                continue
+            out.append(Fraction(p, q))
+    return out
+
+
+def cmd_sieve(args):
+    t_start = time.time()
+    fam_json = json.load(open(args.family))
+    pts = [[Fraction(c) for c in p] for p in fam_json["eight_points_P2Q"]]
+    F = build_family([[int(Fraction(c)) for c in p] for p in pts])
+    plist = primes_upto(args.mn_N)
+    logs = [math.log(p) for p in plist]
+    D1 = enumerate_domain(args.pmax, args.qmax)
+    scored = []
+    singular = 0
+    for t0 in D1:
+        sp = specialise(F, t0)
+        if sp is None:
+            singular += 1
+            continue
+        s = mn_score(sp[0], plist, logs)
+        scored.append((s, t0))
+    scored.sort(key=lambda z: -z[0])
+    D2 = [t for t in enumerate_domain(args.pmax2, args.qmax2)]
+    D2set = set(D2)
+    scored2 = [(s, t) for s, t in scored if t in D2set]
+    rng = random.Random(args.seed)
+    rand2 = rng.sample([t for _, t in scored2], min(args.K, len(scored2)))
+    out = {
+        "statistic": "Mestre-Nagao S(N) = sum_{p<=N} ((p+1-a_p)/p) log p, ellap",
+        "statistic_role": "ORDERING ONLY; never contributes to a certified rank",
+        "mn_N": args.mn_N, "n_primes": len(plist),
+        "tier1_domain": {"t = p/q": "gcd(p,q)=1", "pmax": args.pmax, "qmax": args.qmax,
+                         "enumerated": len(D1), "singular_fibres_skipped": singular,
+                         "scored_volume": len(scored)},
+        "tier2_domain": {"pmax": args.pmax2, "qmax": args.qmax2, "scored_volume": len(scored2)},
+        "seconds_per_specialisation": (time.time() - t_start) / max(1, len(scored)),
+        "tier1_top": [[frac_str(t), s] for s, t in scored[:args.K_global]],
+        "tier2_mn_arm": [[frac_str(t), s] for s, t in scored2[:args.K]],
+        "tier2_random_control_arm": [[frac_str(t), None] for t in rand2],
+        "control_seed": args.seed,
+        "overlap_mn_vs_random": len(set(t for _, t in scored2[:args.K]) & set(rand2)),
+        "score_summary": {
+            "max": scored[0][0] if scored else None,
+            "median": scored[len(scored) // 2][0] if scored else None,
+            "min": scored[-1][0] if scored else None,
+        },
+        "wall_clock_seconds": time.time() - t_start,
+    }
+    json.dump(out, open(args.out, "w"), indent=2, default=json_default)
+    print(json.dumps({k: out[k] for k in ("tier1_domain", "tier2_domain",
+                                          "seconds_per_specialisation", "score_summary")},
+                     indent=2))
+    return out
+
+
+def certify_one(F, t0, alarm_seconds):
+    sp = specialise(F, t0)
+    if sp is None:
+        return {"t": frac_str(t0), "status": "singular_fibre"}
+    ai, sec = sp
+    t1 = time.time()
+    ex, rr = extra_points(ai, alarm_seconds)
+    descent_seconds = time.time() - t1
+    allpts = list(sec) + list(ex)
+    c = certify_rank(ai, allpts)
+    rec = {
+        "t": frac_str(t0),
+        "a_invariants": [str(a) for a in ai],
+        "n_sections": len(sec), "n_descent_points": len(ex),
+        "descent_status": ("timeout" if rr == "timeout" else
+                           ("ok" if rr else "error")),
+        "ellrank_bounds_NOT_A_CLAIM": (list(rr) if isinstance(rr, tuple) else rr),
+        "descent_seconds": descent_seconds,
+        "certified_rank": c.get("rank"),
+        "on_curve_all_exact": c.get("on_curve_all"),
+        "precision_agreement": c.get("precision_agreement"),
+        "regulator_det": {str(k): v["regulator_det"] for k, v in c.get("by_precision", {}).items()},
+        "least_eigenvalue": {str(k): v["least_eigenvalue"] for k, v in c.get("by_precision", {}).items()},
+        "independent_point_indices": (c["by_precision"][38]["indices"]
+                                      if "by_precision" in c else None),
+        "exhibited_points": [[frac_str(x), frac_str(y)] for x, y in allpts],
+    }
+    if "error" in c:
+        rec["certificate_error"] = c["error"]
+    return rec
+
+
+def cmd_certify(args):
+    t_start = time.time()
+    fam_json = json.load(open(args.family))
+    F = build_family([[int(Fraction(c)) for c in p] for p in fam_json["eight_points_P2Q"]])
+    sv = json.load(open(args.sieve))
+    arms = {
+        "tier2_mn_arm": [Fraction(x[0]) for x in sv["tier2_mn_arm"]],
+        "tier2_random_control_arm": [Fraction(x[0]) for x in sv["tier2_random_control_arm"]],
+        "tier1_global_top": [Fraction(x[0]) for x in sv["tier1_top"][:args.K_global]],
+    }
+    alarms = {"tier2_mn_arm": args.alarm, "tier2_random_control_arm": args.alarm,
+              "tier1_global_top": args.alarm_global}
+    results = {}
+    for name, ts in arms.items():
+        recs = []
+        for t0 in ts:
+            if time.time() - t_start > args.budget:
+                recs.append({"t": frac_str(t0), "status": "not_run_budget_exhausted"})
+                continue
+            recs.append(certify_one(F, t0, alarms[name]))
+            print("[%s] t=%s rank=%s (%s) %.1fs" % (
+                name, frac_str(t0), recs[-1].get("certified_rank"),
+                recs[-1].get("descent_status"), time.time() - t_start), flush=True)
+        results[name] = recs
+
+    def hit(recs):
+        done = [r for r in recs if r.get("certified_rank") is not None]
+        h = {"attempted": len(recs), "certified": len(done),
+             "descent_timeouts": sum(1 for r in recs if r.get("descent_status") == "timeout"),
+             "not_run": sum(1 for r in recs if r.get("status") == "not_run_budget_exhausted")}
+        for thr in (9, 10, 11, 12):
+            h["rank_ge_%d" % thr] = sum(1 for r in done if r["certified_rank"] >= thr)
+        h["max_certified_rank"] = max([r["certified_rank"] for r in done], default=None)
+        h["rank_histogram"] = {}
+        for r in done:
+            k = str(r["certified_rank"])
+            h["rank_histogram"][k] = h["rank_histogram"].get(k, 0) + 1
+        return h
+
+    allrecs = [r for recs in results.values() for r in recs
+               if r.get("certified_rank") is not None]
+    allrecs.sort(key=lambda r: (-r["certified_rank"], len(r["a_invariants"][4])))
+    out = {
+        "certification_rule": "every reported rank is a LOWER BOUND from exhibited points, each re-verified on that exact curve in exact rational arithmetic by our own code, with the r x r Neron-Tate regulator reported at two precisions",
+        "silverman_note": "Silverman specialisation motivated the search only; every curve below is recertified with its own points and its own regulator",
+        "arms": {k: hit(v) for k, v in results.items()},
+        "curves_best_first": allrecs,
+        "per_arm_records": results,
+        "wall_clock_seconds": time.time() - t_start,
+    }
+    json.dump(out, open(args.out, "w"), indent=2, default=json_default)
+    print(json.dumps(out["arms"], indent=2))
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("selftest")
+    s.add_argument("--record-curve", required=True)
+    s.add_argument("--out", required=True)
+    s.set_defaults(func=cmd_selftest)
+
+    s = sub.add_parser("family")
+    s.add_argument("--seed", type=int, default=81141)
+    s.add_argument("--tries", type=int, default=4000)
+    s.add_argument("--points", default=None)
+    s.add_argument("--tvals", default="1,2,-1,1/2,5,-7,7/5,11/3")
+    s.add_argument("--out", required=True)
+    s.set_defaults(func=cmd_family)
+
+    s = sub.add_parser("sieve")
+    s.add_argument("--family", required=True)
+    s.add_argument("--mn-N", type=int, default=1000)
+    s.add_argument("--pmax", type=int, default=2000)
+    s.add_argument("--qmax", type=int, default=40)
+    s.add_argument("--pmax2", type=int, default=150)
+    s.add_argument("--qmax2", type=int, default=8)
+    s.add_argument("--K", type=int, default=60)
+    s.add_argument("--K-global", type=int, default=20)
+    s.add_argument("--seed", type=int, default=81141)
+    s.add_argument("--out", required=True)
+    s.set_defaults(func=cmd_sieve)
+
+    s = sub.add_parser("certify")
+    s.add_argument("--family", required=True)
+    s.add_argument("--sieve", required=True)
+    s.add_argument("--alarm", type=int, default=8)
+    s.add_argument("--alarm-global", type=int, default=20)
+    s.add_argument("--K-global", type=int, default=20)
+    s.add_argument("--budget", type=float, default=1500.0)
+    s.add_argument("--out", required=True)
+    s.set_defaults(func=cmd_certify)
+
+    args = ap.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
