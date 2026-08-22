@@ -93,6 +93,72 @@ def tracked_files() -> list[str]:
             if p and not os.path.basename(p).startswith("._")]
 
 
+def _diff_destination_paths(*arguments: str) -> set[str]:
+    """Paths holding the post-image of an A/C/M/R/T diff entry.
+
+    ``--name-status -z`` emits the status, then one path for ordinary entries
+    and the source plus destination for copies and renames.  Only destinations
+    can hold the candidate object that the scoped checks must inspect.
+    """
+    result = _run(
+        "git", "diff", "--name-status", "-z", "--find-renames",
+        "--find-copies", "--diff-filter=ACMRT", *arguments, "--",
+    )
+    if result.returncode != 0:
+        return set()
+
+    fields = result.stdout.split("\0")
+    destinations: set[str] = set()
+    index = 0
+    while index < len(fields) and fields[index]:
+        status = fields[index]
+        index += 1
+        if not status or index >= len(fields):
+            break
+        if status[0] in {"C", "R"}:
+            if index + 1 >= len(fields):
+                break
+            index += 1  # source path
+            destination = fields[index]
+            index += 1
+        else:
+            destination = fields[index]
+            index += 1
+        if destination:
+            destinations.add(destination)
+    return destinations
+
+
+def _index_symlink_paths() -> set[str]:
+    """Tracked goal paths whose staged object has Git mode 120000."""
+    result = _run(
+        "git", "ls-files", "--stage", "-z", "--", "ledger/goals"
+    )
+    if result.returncode != 0:
+        return set()
+    symlinks = set()
+    for entry in result.stdout.split("\0"):
+        if not entry or "\t" not in entry:
+            continue
+        metadata, path = entry.split("\t", 1)
+        mode = metadata.split(" ", 1)[0]
+        if mode == "120000":
+            symlinks.add(path)
+    return symlinks
+
+
+def _first_path_component(path: str, candidates: set[str]) -> str | None:
+    normalized = path.replace(os.sep, "/")
+    if not normalized.startswith("ledger/goals/"):
+        return None
+    components = normalized.split("/")
+    for length in range(3, len(components) + 1):
+        component = "/".join(components[:length])
+        if component in candidates:
+            return component
+    return None
+
+
 def goal_symlink_component(path: str) -> str | None:
     """First symlink component below ledger/goals, inspected without follow."""
     normalized = path.replace(os.sep, "/")
@@ -111,13 +177,21 @@ def goal_symlink_component(path: str) -> str | None:
 
 
 def check_goal_symlinks(paths: list[str]) -> list[str]:
-    """Reject every tracked symlink at or below a goal path."""
+    """Reject every index or worktree symlink at or below a goal path."""
     bad = []
+    index_symlinks = _index_symlink_paths()
     for rel in paths:
-        component = goal_symlink_component(rel)
+        index_component = _first_path_component(rel, index_symlinks)
+        component = index_component or goal_symlink_component(rel)
         if component is not None:
+            representation = (
+                f"traverses symlink {component} in staged index "
+                "(object mode 120000)"
+                if index_component is not None
+                else f"traverses symlink {component}"
+            )
             bad.append(
-                f"{rel}: tracked goal path traverses symlink {component}; "
+                f"{rel}: tracked goal path {representation}; "
                 "goal records must be ordinary files and directories and "
                 "symlink targets are never read"
             )
@@ -178,20 +252,21 @@ def check_prospective_goal_ids(base: str) -> list[str]:
 
 
 def touched_files(base: str) -> list[str] | None:
-    """Tracked files this branch adds or modifies relative to `base`.
+    """Committed, staged, or tracked-worktree candidate destinations.
 
     Returns None when `base` cannot be resolved, so the caller falls back to the
-    absolute sweep rather than silently checking nothing.
+    absolute sweep rather than silently checking nothing.  Untracked paths are
+    intentionally absent until they enter the index.
     """
     if _run("git", "rev-parse", "--verify", "--quiet", base + "^{commit}").returncode:
         return None
     merge_base = _run("git", "merge-base", "HEAD", base).stdout.strip()
     if not merge_base:
         return None
-    out = _run("git", "diff", "--name-only", "--diff-filter=ACMR", "-z",
-               merge_base, "HEAD").stdout
-    touched = {p for p in out.split("\0") if p}
-    return [p for p in tracked_files() if p in touched]
+    committed = _diff_destination_paths(merge_base, "HEAD")
+    staged = _diff_destination_paths("--cached", "HEAD")
+    tracked_worktree = _diff_destination_paths()
+    return sorted(committed | staged | tracked_worktree)
 
 
 def check_markers(paths: list[str]) -> list[str]:
@@ -366,8 +441,9 @@ def main() -> int:
     scoped = touched_files(args.base) if args.base and not args.absolute else None
     parse_paths = paths if scoped is None else scoped
     if scoped is not None:
-        print(f"note: parseability scoped to {len(scoped)} file(s) this branch "
-              f"adds or modifies vs {args.base}; the absolute sweep runs on main",
+        print(f"note: parseability scoped to {len(scoped)} committed, staged, "
+              f"or tracked-worktree candidate path(s) vs {args.base}; the "
+              "absolute sweep runs on main",
               file=sys.stderr)
 
     groups = [

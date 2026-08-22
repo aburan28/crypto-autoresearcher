@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -30,6 +31,11 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
         self.git("add", ".")
         self.git("commit", "-qm", "base")
         self.git("tag", "base-tree")
+        tools = self.root / "tools"
+        tools.mkdir(exist_ok=True)
+        self.cli = tools / "check_merge_hygiene.py"
+        shutil.copy2(Path(hygiene.__file__), self.cli)
+        shutil.copy2(Path(vl.__file__), tools / "validate_ledger.py")
 
     def tearDown(self) -> None:
         self.external_temporary.cleanup()
@@ -82,6 +88,21 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
         with mock.patch.object(vl, "REPO", str(self.root)):
             vl.check_goals(context)
         return context
+
+    def _run_base_cli(self) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(self.cli), "--base", "base-tree"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def _assert_base_cli_rejects_symlink(self) -> subprocess.CompletedProcess[str]:
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("symlinked goal paths", result.stderr)
+        return result
 
     def _assert_merge_hygiene_rejects(self) -> None:
         output = StringIO()
@@ -221,6 +242,125 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
         self.assertNotIn("batch_checkpoints", context.records[goal_id])
         self.assertTrue(any("checkpoints" in error and "target was not read" in error
                             for error in context.errors), context.errors)
+
+    def test_base_cli_rejects_staged_added_sharded_directory_symlink(self) -> None:
+        target = self.external_root / "staged-shard-target"
+        target.mkdir()
+        (target / "goal.yaml").write_text(
+            self._goal_document("GOAL-STAGED-a1b2c3"), encoding="utf-8"
+        )
+        link = self.root / "ledger/goals/GOAL-STAGED-a1b2c3"
+        link.symlink_to(target, target_is_directory=True)
+        self.git("add", str(link.relative_to(self.root)))
+
+        result = self._assert_base_cli_rejects_symlink()
+        self.assertIn("staged index (object mode 120000)", result.stderr)
+
+    def test_base_cli_rejects_staged_type_change_to_symlink(self) -> None:
+        target = self.external_root / "staged-type-target.yaml"
+        target.write_text(
+            self._goal_document("GOAL-BASE-001"), encoding="utf-8"
+        )
+        path = self.root / "ledger/goals/GOAL-BASE-001.yaml"
+        path.unlink()
+        path.symlink_to(target)
+        self.git("add", str(path.relative_to(self.root)))
+
+        result = self._assert_base_cli_rejects_symlink()
+        self.assertIn("staged index (object mode 120000)", result.stderr)
+
+    def test_base_cli_checks_staged_rename_destination(self) -> None:
+        destination = "ledger/goals/GOAL-RENAMED-002.yaml"
+        self.git(
+            "mv", "ledger/goals/GOAL-BASE-001.yaml", destination
+        )
+
+        with mock.patch.object(hygiene, "REPO", str(self.root)):
+            self.assertIn(destination, hygiene.touched_files("base-tree"))
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("GOAL-RENAMED-002", result.stderr)
+        self.assertIn("new legacy GOAL identifiers", result.stderr)
+
+    def test_base_cli_checks_staged_index_after_worktree_diverges(self) -> None:
+        target = self.external_root / "index-only-target.yaml"
+        target.write_text(
+            self._goal_document("GOAL-INDEX-a1b2c3"), encoding="utf-8"
+        )
+        path = self.root / "ledger/goals/GOAL-INDEX-a1b2c3.yaml"
+        path.symlink_to(target)
+        self.git("add", str(path.relative_to(self.root)))
+        path.unlink()
+        path.write_text(
+            self._goal_document("GOAL-INDEX-a1b2c3"), encoding="utf-8"
+        )
+
+        result = self._assert_base_cli_rejects_symlink()
+        self.assertIn("staged index (object mode 120000)", result.stderr)
+
+    def test_base_cli_checks_tracked_unstaged_worktree_symlink(self) -> None:
+        target = self.external_root / "unstaged-target.yaml"
+        target.write_text(
+            self._goal_document("GOAL-BASE-001"), encoding="utf-8"
+        )
+        path = self.root / "ledger/goals/GOAL-BASE-001.yaml"
+        path.unlink()
+        path.symlink_to(target)
+
+        result = self._assert_base_cli_rejects_symlink()
+        self.assertIn("tracked goal path traverses symlink", result.stderr)
+        self.assertNotIn("staged index", result.stderr)
+
+    def test_base_cli_rejects_committed_goal_symlink(self) -> None:
+        target = self.external_root / "committed-target.yaml"
+        target.write_text(
+            self._goal_document("GOAL-COMMITTED-a1b2c3"), encoding="utf-8"
+        )
+        path = self.root / "ledger/goals/GOAL-COMMITTED-a1b2c3.yaml"
+        path.symlink_to(target)
+        self.git("add", str(path.relative_to(self.root)))
+        self.git("commit", "-qm", "commit goal symlink")
+
+        result = self._assert_base_cli_rejects_symlink()
+        self.assertIn("staged index (object mode 120000)", result.stderr)
+
+    def test_base_cli_allows_ordinary_staged_random_goal(self) -> None:
+        self._write_goal("GOAL-ORDINARY-deadbe", sharded=True)
+        self.git("add", "ledger/goals/GOAL-ORDINARY-deadbe/goal.yaml")
+
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
+        self.assertNotIn("symlinked goal paths", result.stderr)
+
+    def test_base_cli_does_not_mislabel_out_of_scope_symlink(self) -> None:
+        target = self.external_root / "ordinary-target.txt"
+        target.write_text("ordinary fixture\n", encoding="utf-8")
+        link = self.root / "misc/fixture-link"
+        link.parent.mkdir()
+        link.symlink_to(target)
+        self.git("add", str(link.relative_to(self.root)))
+
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
+        self.assertNotIn("symlinked goal paths", result.stderr)
+
+    def test_base_cli_ignores_untracked_goal_until_staged(self) -> None:
+        target = self.external_root / "untracked-target.yaml"
+        target.write_text(
+            self._goal_document("GOAL-UNTRACKED-a1b2c3"), encoding="utf-8"
+        )
+        link = self.root / "ledger/goals/GOAL-UNTRACKED-a1b2c3.yaml"
+        link.symlink_to(target)
+
+        untracked = self._run_base_cli()
+        self.assertEqual(
+            untracked.returncode, 0, (untracked.stdout, untracked.stderr)
+        )
+        self.assertNotIn("symlinked goal paths", untracked.stderr)
+
+        self.git("add", str(link.relative_to(self.root)))
+        staged = self._assert_base_cli_rejects_symlink()
+        self.assertIn("staged index (object mode 120000)", staged.stderr)
 
     def test_ordinary_sharded_directory_remains_valid(self) -> None:
         goal_id = "GOAL-ORDINARY-a1b2c3"
