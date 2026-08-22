@@ -199,6 +199,73 @@ class AllocationTests(unittest.TestCase):
             r"free goal id for 'ERANK': GOAL-ERANK-[0-9a-f]{6}",
         )
 
+    def test_free_legacy_goal_fails_prospective_check(self) -> None:
+        output = StringIO()
+        with mock.patch.object(ai, "occurrences", return_value=[]):
+            with redirect_stdout(output):
+                status = ai.check("GOAL-FREE-999")
+        self.assertEqual(status, 1)
+        self.assertIn("free legacy-form GOAL id cannot be minted", output.getvalue())
+        self.assertTrue(ai.well_formed("GOAL-FREE-999")[0])
+
+    def test_free_random_goal_passes_prospective_check(self) -> None:
+        output = StringIO()
+        with mock.patch.object(ai, "occurrences", return_value=[]):
+            with redirect_stdout(output):
+                status = ai.check("GOAL-FREE-a1b2c3")
+        self.assertEqual(status, 0)
+        self.assertIn("well-formed and free", output.getvalue())
+
+    def test_existing_legacy_goal_remains_unavailable(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output):
+            status = ai.check("GOAL-BLAKE-001")
+        self.assertEqual(status, 1)
+        self.assertIn("REFUSE: taken", output.getvalue())
+
+    def test_goal_next_rejects_date_scope(self) -> None:
+        error = StringIO()
+        with redirect_stderr(error), self.assertRaises(SystemExit) as raised:
+            ai.main(["--next", "goal", "--date", "20260822"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("requires exactly --area", error.getvalue())
+
+    def test_goal_next_rejects_simultaneous_area_and_date(self) -> None:
+        error = StringIO()
+        with redirect_stderr(error), self.assertRaises(SystemExit) as raised:
+            ai.main([
+                "--next", "goal", "--area", "ERANK",
+                "--date", "20260822",
+            ])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("does not accept --date", error.getvalue())
+
+    def test_goal_next_requires_area_scope(self) -> None:
+        error = StringIO()
+        with redirect_stderr(error), self.assertRaises(SystemExit) as raised:
+            ai.main(["--next", "goal"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("requires exactly --area", error.getvalue())
+
+    def test_unrelated_area_and_date_scoped_types_retain_behavior(self) -> None:
+        output = StringIO()
+        with mock.patch.object(ai, "occurrences", return_value=[]):
+            with redirect_stdout(output):
+                evidence = ai.main([
+                    "--next", "evidence", "--area", "TEST", "--seed", "7",
+                ])
+                decision = ai.main([
+                    "--next", "coordinator_decision", "--date", "20260822",
+                    "--seed", "7",
+                ])
+                legacy_simultaneous = ai.main([
+                    "--next", "evidence", "--area", "TEST",
+                    "--date", "20260822", "--seed", "7",
+                ])
+        self.assertEqual((evidence, decision, legacy_simultaneous), (0, 0, 0))
+        self.assertIn("EV-TEST-", output.getvalue())
+        self.assertIn("DEC-20260822-", output.getvalue())
+
     def test_sequential_goal_allocation_is_prohibited(self) -> None:
         error = StringIO()
         with redirect_stderr(error):

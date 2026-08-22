@@ -44,6 +44,7 @@ import argparse
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 
@@ -90,6 +91,37 @@ def tracked_files() -> list[str]:
     out = _run("git", "ls-files", "-z").stdout
     return [p for p in out.split("\0")
             if p and not os.path.basename(p).startswith("._")]
+
+
+def goal_symlink_component(path: str) -> str | None:
+    """First symlink component below ledger/goals, inspected without follow."""
+    normalized = path.replace(os.sep, "/")
+    if not normalized.startswith("ledger/goals/"):
+        return None
+    current = REPO
+    for component in normalized.split("/"):
+        current = os.path.join(current, component)
+        try:
+            mode = os.lstat(current).st_mode
+        except OSError:
+            return None
+        if stat.S_ISLNK(mode):
+            return os.path.relpath(current, REPO).replace(os.sep, "/")
+    return None
+
+
+def check_goal_symlinks(paths: list[str]) -> list[str]:
+    """Reject every tracked symlink at or below a goal path."""
+    bad = []
+    for rel in paths:
+        component = goal_symlink_component(rel)
+        if component is not None:
+            bad.append(
+                f"{rel}: tracked goal path traverses symlink {component}; "
+                "goal records must be ordinary files and directories and "
+                "symlink targets are never read"
+            )
+    return bad
 
 
 def goal_id_from_head_path(path: str) -> str | None:
@@ -166,6 +198,8 @@ def check_markers(paths: list[str]) -> list[str]:
     """Any tracked text file carrying an unresolved conflict marker."""
     bad = []
     for rel in paths:
+        if goal_symlink_component(rel) is not None:
+            continue
         full = os.path.join(REPO, rel)
         try:
             with open(full, "r", encoding="utf-8", errors="strict") as fh:
@@ -228,6 +262,8 @@ def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
     for rel in paths:
         if not _wanted(rel):
             continue
+        if goal_symlink_component(rel) is not None:
+            continue
         full = os.path.join(REPO, rel)
         try:
             with open(full, "r", encoding="utf-8") as fh:
@@ -270,6 +306,8 @@ def check_collisions(base: str) -> list[str]:
 
     bad = []
     for rel in added:
+        if goal_symlink_component(rel) is not None:
+            continue
         # Does `base` already have a record under this exact identifier?
         on_base = _run("git", "cat-file", "-e", f"{base}:{rel}")
         if on_base.returncode != 0:
@@ -333,6 +371,7 @@ def main() -> int:
               file=sys.stderr)
 
     groups = [
+        ("symlinked goal paths", check_goal_symlinks(parse_paths)),
         ("unresolved conflict markers", check_markers(parse_paths)),
         ("unparseable records", check_parses(parse_paths,
                                              report_stale=scoped is None)),

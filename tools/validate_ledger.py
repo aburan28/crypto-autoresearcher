@@ -45,6 +45,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 
@@ -1366,7 +1367,17 @@ def load_goal_documents(ctx: Ctx):
     tools/shard_goal.py. Migrating all of them at once would land a rename in
     every one of the open branches simultaneously.
     """
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*.yaml"))):
+    goals_root = os.path.join(REPO, "ledger", "goals")
+    try:
+        entries = sorted(os.scandir(goals_root), key=lambda entry: entry.name)
+    except OSError:
+        entries = []
+
+    for entry in entries:
+        if (entry.is_symlink() or not entry.name.endswith(".yaml")
+                or not entry.is_file(follow_symlinks=False)):
+            continue
+        path = entry.path
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1376,8 +1387,16 @@ def load_goal_documents(ctx: Ctx):
             continue
         yield path, goal, lambda rec_id: f"{rec_id}.yaml", os.path.basename(path)
 
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*",
-                                              "goal.yaml"))):
+    for entry in entries:
+        if entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+            continue
+        path = os.path.join(entry.path, "goal.yaml")
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            continue
+        if not stat.S_ISREG(mode):
+            continue
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1386,7 +1405,24 @@ def load_goal_documents(ctx: Ctx):
             ctx.err(path, "missing top-level 'research_goal' mapping")
             continue
         directory = os.path.dirname(path)
-        shards = sorted(glob.glob(os.path.join(directory, "checkpoints", "*.yaml")))
+        checkpoints = os.path.join(directory, "checkpoints")
+        try:
+            checkpoint_mode = os.lstat(checkpoints).st_mode
+        except OSError:
+            checkpoint_mode = 0
+        if stat.S_ISDIR(checkpoint_mode):
+            checkpoint_entries = sorted(
+                os.scandir(checkpoints), key=lambda checkpoint: checkpoint.name
+            )
+        else:
+            checkpoint_entries = []
+        shards = [
+            checkpoint.path
+            for checkpoint in checkpoint_entries
+            if (not checkpoint.is_symlink()
+                and checkpoint.name.endswith(".yaml")
+                and checkpoint.is_file(follow_symlinks=False))
+        ]
         merged = []
         for shard in shards:
             sdoc = load_yaml(shard, ctx)
@@ -1407,7 +1443,33 @@ def load_goal_documents(ctx: Ctx):
         yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
 
 
+def check_goal_symlinks(ctx: Ctx) -> None:
+    """Reject goal-tree symlinks without opening or traversing their targets."""
+    root = os.path.join(REPO, "ledger", "goals")
+    try:
+        root_mode = os.lstat(root).st_mode
+    except OSError:
+        return
+    if not stat.S_ISDIR(root_mode):
+        return
+    pending = [root]
+    while pending:
+        current = pending.pop()
+        try:
+            entries = sorted(os.scandir(current), key=lambda entry: entry.name)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_symlink():
+                ctx.err(entry.path,
+                        "goal path may not be a symlink; target was not read",
+                        force=True)
+            elif entry.is_dir(follow_symlinks=False):
+                pending.append(entry.path)
+
+
 def check_goals(ctx: Ctx):
+    check_goal_symlinks(ctx)
     for path, goal, expected_name, identity in load_goal_documents(ctx):
         rec_id = goal.get("id")
         if not rec_id or not GOAL_ID.match(str(rec_id)):

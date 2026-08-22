@@ -214,6 +214,11 @@ def check(rec_id: str) -> int:
         print("\nREFUSE: taken. Allocate above the union maximum; never reuse, "
               "and never fill a gap.")
         return 1
+    if vl.GOAL_LEGACY_ID.fullmatch(rec_id):
+        print("\nREFUSE: a free legacy-form GOAL id cannot be minted. Existing "
+              "three-digit GOAL ids remain valid history, but every new goal "
+              "must use a random six-hex suffix from --next goal --area AREA.")
+        return 1
     print("\nOK: well-formed and free across the union.")
     return 0
 
@@ -360,6 +365,8 @@ def main(argv: list[str] | None = None) -> int:
         return check(args.check)
     if args.audit:
         return audit()
+    if args.next == "goal" and (not args.area or args.date):
+        ap.error("--next goal requires exactly --area and does not accept --date")
     middle = args.area or args.date
     if not middle and args.next not in NO_MIDDLE:
         ap.error("--next requires --area (for GOAL/RQ/H/EXP/EV) or --date "
