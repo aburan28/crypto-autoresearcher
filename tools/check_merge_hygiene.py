@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -75,6 +76,11 @@ PARSE_RULES = (
 # same basename with different content is the collision we are hunting.
 ID_DIRS = ("ledger", "experiments", "knowledge")
 
+GOAL_HEAD_PATTERNS = (
+    re.compile(r"^ledger/goals/(GOAL-[^/]+)\.yaml$"),
+    re.compile(r"^ledger/goals/(GOAL-[^/]+)/goal\.yaml$"),
+)
+
 
 def _run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(args, cwd=REPO, capture_output=True, text=True)
@@ -84,6 +90,59 @@ def tracked_files() -> list[str]:
     out = _run("git", "ls-files", "-z").stdout
     return [p for p in out.split("\0")
             if p and not os.path.basename(p).startswith("._")]
+
+
+def goal_id_from_head_path(path: str) -> str | None:
+    """Return the semantic GOAL id represented by a flat or sharded head."""
+    normalized = path.replace(os.sep, "/")
+    for pattern in GOAL_HEAD_PATTERNS:
+        match = pattern.match(normalized)
+        if match:
+            return match.group(1)
+    return None
+
+
+def goal_ids_from_paths(paths: list[str]) -> set[str]:
+    return {
+        goal_id
+        for path in paths
+        if (goal_id := goal_id_from_head_path(path)) is not None
+    }
+
+
+def goal_ids_at_ref(ref: str) -> set[str] | None:
+    """Semantic goal-head identities in one committed tree."""
+    probe = _run("git", "rev-parse", "--verify", "--quiet", ref + "^{commit}")
+    if probe.returncode != 0:
+        return None
+    result = _run("git", "ls-tree", "-r", "--name-only", "-z", ref, "--",
+                  "ledger/goals")
+    if result.returncode != 0:
+        return None
+    return goal_ids_from_paths([path for path in result.stdout.split("\0") if path])
+
+
+def check_prospective_goal_ids(base: str) -> list[str]:
+    """Reject only semantic GOAL identities newly introduced after ``base``.
+
+    The candidate set comes from Git's tracked index/worktree view, so a staged
+    candidate is checked before commit and a committed candidate is checked in
+    CI. Comparing identities, rather than added paths, preserves a legacy goal
+    moved from its flat head to the sharded layout.
+    """
+    base_ids = goal_ids_at_ref(base)
+    if base_ids is None:
+        return [f"SKIPPED: no such ref {base!r}; prospective GOAL ids unchecked"]
+    candidate_ids = goal_ids_from_paths(tracked_files())
+    newly_introduced = sorted(candidate_ids - base_ids)
+    return [
+        f"{goal_id}: newly introduced GOAL identifier does not use the "
+        "required random six-hex suffix. Mint new goals with "
+        "tools/allocate_id.py --next goal --area AREA; legacy three-digit "
+        "identifiers remain valid only when already present on the base."
+        for goal_id in newly_introduced
+        if not vl.GOAL_RANDOM_ID.fullmatch(goal_id)
+    ]
 
 
 def touched_files(base: str) -> list[str] | None:
@@ -280,6 +339,8 @@ def main() -> int:
     ]
     if args.base:
         groups.append(("identifier collisions", check_collisions(args.base)))
+        groups.append(("new legacy GOAL identifiers",
+                       check_prospective_goal_ids(args.base)))
 
     failed = False
     for label, problems in groups:
@@ -296,7 +357,8 @@ def main() -> int:
     if failed:
         return 1
     print("PASS: no conflict markers, no unparseable records"
-          + (", no identifier collisions" if args.base else ""))
+          + (", no identifier collisions, no new legacy GOAL identifiers"
+             if args.base else ""))
     return 0
 
 

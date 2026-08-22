@@ -20,7 +20,7 @@ from __future__ import annotations
 import sys
 import random
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest import mock
@@ -49,11 +49,18 @@ class WellFormednessTests(unittest.TestCase):
             with self.subTest(good):
                 self.assertTrue(ai.well_formed(good)[0])
 
-    def test_unpatterned_prefix_says_so_rather_than_passing_silently(self) -> None:
-        """GOAL/KN have no enforced pattern; the tool must not imply they do."""
-        ok, why = ai.well_formed("GOAL-ECDLP-001")
-        self.assertTrue(ok)
-        self.assertIn("NOT checked", why)
+    def test_goal_uses_the_authoritative_combined_pattern(self) -> None:
+        for rec_id in ("GOAL-ECDLP-001", "GOAL-ERANK-a1b2c3"):
+            with self.subTest(rec_id):
+                ok, why = ai.well_formed(rec_id)
+                self.assertTrue(ok, why)
+                self.assertIn("goal pattern", why)
+
+    def test_malformed_goal_suffixes_are_refused(self) -> None:
+        for rec_id in ("GOAL-ERANK-01", "GOAL-ERANK-abcd",
+                       "GOAL-ERANK-ABCDEF", "GOAL-erank-a1b2c3"):
+            with self.subTest(rec_id):
+                self.assertFalse(ai.well_formed(rec_id)[0])
 
     def test_patterns_come_from_the_build_gate_not_a_copy(self) -> None:
         """If this tool restated the patterns they could drift apart silently."""
@@ -118,6 +125,7 @@ class UnionScopeTests(unittest.TestCase):
 
     def test_recursive_scan_covers_each_allocated_record_prefix(self) -> None:
         for rec_id in (
+            "GOAL-MONO-001",
             "TASK-20260811-338053",
             "EXP-ALMIG-001",
             "EV-ECDLP-2a7e77",
@@ -177,6 +185,46 @@ class AllocationTests(unittest.TestCase):
         """Tests and incident reproduction need determinism on demand."""
         self.assertEqual(ai.random_token(random.Random(11)),
                          ai.random_token(random.Random(11)))
+
+    def test_seeded_goal_allocation_uses_area_and_six_hex_token(self) -> None:
+        output = StringIO()
+        with mock.patch.object(ai, "occurrences", return_value=[]):
+            with redirect_stdout(output):
+                status = ai.main([
+                    "--next", "goal", "--area", "ERANK", "--seed", "11",
+                ])
+        self.assertEqual(status, 0)
+        self.assertRegex(
+            output.getvalue(),
+            r"free goal id for 'ERANK': GOAL-ERANK-[0-9a-f]{6}",
+        )
+
+    def test_sequential_goal_allocation_is_prohibited(self) -> None:
+        error = StringIO()
+        with redirect_stderr(error):
+            status = ai.main([
+                "--next", "goal", "--area", "ERANK", "--sequential",
+            ])
+        self.assertEqual(status, 1)
+        self.assertIn("sequential GOAL allocation is prohibited", error.getvalue())
+
+    def test_sharded_goal_directory_is_seen_as_taken(self) -> None:
+        hits = ai.occurrences("GOAL-MONO-001")
+        self.assertTrue(any(path.endswith("ledger/goals/GOAL-MONO-001")
+                            for path in hits), hits)
+
+    def test_flat_goal_file_is_seen_as_taken(self) -> None:
+        hits = ai.occurrences("GOAL-BLAKE-001")
+        self.assertTrue(any(path.endswith("ledger/goals/GOAL-BLAKE-001.yaml")
+                            for path in hits), hits)
+
+    def test_sharded_goal_audit_uses_directory_identifier(self) -> None:
+        path = next(
+            candidate for candidate in ai._paths()
+            if candidate.replace("\\", "/").endswith(
+                "ledger/goals/GOAL-MONO-001/goal.yaml")
+        )
+        self.assertEqual(ai._record_identifier(path), "GOAL-MONO-001")
 
     def test_audit_returns_nonzero_while_defects_remain(self) -> None:
         """The repo currently carries pre-existing malformed and duplicated ids."""

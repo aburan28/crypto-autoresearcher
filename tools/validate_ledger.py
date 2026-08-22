@@ -130,6 +130,7 @@ def _load_duplicate_run_owners() -> dict[str, set[str]]:
 DUPLICATE_RUN_OWNERS = _load_duplicate_run_owners()
 
 ID_PATTERNS = {
+    "goal": re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX}$"),
     "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
     "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
     "hypothesis": re.compile(rf"^H-[A-Z]+-{SUFFIX}$"),
@@ -1193,7 +1194,9 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                                          f"unknown entry '{knowledge_id}'")
 
 
-GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
+GOAL_ID = ID_PATTERNS["goal"]
+GOAL_LEGACY_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_LEGACY}$")
+GOAL_RANDOM_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_RANDOM}$")
 # `closed_at_budget` is a terminal status in active use. It asserts that the
 # campaign budget ran out WITHOUT a completion criterion being met, so it makes
 # no success claim and needs no quorum. Using it to retire a goal that did meet
