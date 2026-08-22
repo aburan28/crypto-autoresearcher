@@ -99,3 +99,11 @@ flag and commit the final log before the snapshot archive, via the sweep
 
 Run terminated and its log stopped growing (verified stable across a re-read).
 Flag cleared via the sweep and the final log committed. Sweep is empty again.
+
+---
+
+## OPEN for RUN-ECQ-81141a-004 (over-Q pipeline), 2026-08-22
+
+Flagged for CHURN FREQUENCY, not size — the log is sub-kB but dirtied three
+consecutive stop-cycles. Same local-only skip-worktree; same sweep discharges it
+before the snapshot archive.
