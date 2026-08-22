@@ -29,3 +29,16 @@ the stale committed prefix. Before that archive runs:
 
 Leaving the flag set would archive a truncated log while reporting a hash for it,
 which is exactly the kind of silent mismatch the archive receipts exist to catch.
+
+---
+
+## DISCHARGED for RUN-a7a9e8-002-m10-main, 2026-08-22
+
+The run terminated (`exit_code: 0`, `ended_at: 2026-08-22T14:33:15Z`) and its log
+stopped growing — measured stable at 3,480,393 bytes across a re-read. The flag
+was cleared with `git update-index --no-skip-worktree` and the FINAL log was
+committed in full alongside the run's `manifest.yaml` and `raw-result.json`, so
+the snapshot archive will hash the complete file rather than a stale prefix.
+
+This note stays in the batch as the audit trail. If another producer run opens a
+new live log, the same procedure and the same obligation apply again.
