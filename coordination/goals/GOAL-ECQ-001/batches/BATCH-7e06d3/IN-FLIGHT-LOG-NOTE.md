@@ -84,3 +84,11 @@ NOTHING. No flagged path remains outstanding.
 Its `raw-result.json` is 35,039,973 bytes — large, but under GitHub's 100 MB
 limit, so it is committed VERBATIM with no compression and no deviation. Only
 run 002 needed the gzip treatment, and only because it exceeded the hard limit.
+
+---
+
+## OPEN for RUN-a7a9e8-008-upper-crosscheck, 2026-08-22
+
+Live log, growing; local-only skip-worktree applied. Obligation OPEN — clear the
+flag and commit the final log before the snapshot archive, via the sweep
+`git ls-files -v coordination/ | grep '^S'`.
