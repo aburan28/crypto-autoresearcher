@@ -861,8 +861,14 @@ def extra_points(ainv, alarm_seconds=25):
     s = "[0,0,0,%d,%d]" % (ainv[3], ainv[4])
     try:
         r = pari("iferr(alarm(%d,ellrank(ellinit(%s))),E,[-1,-1,0,[]])" % (alarm_seconds, s))
-    except Exception:
-        return [], None
+    except BaseException:
+        # PARI alarm/interrupt surfaces as a Python exception under cypari;
+        # this is an infrastructure outcome (budget guard), never a rank claim.
+        try:
+            pari("alarm(0)")
+        except BaseException:
+            pass
+        return [], "timeout"
     try:
         rl, rh = int(r[0]), int(r[1])
     except Exception:

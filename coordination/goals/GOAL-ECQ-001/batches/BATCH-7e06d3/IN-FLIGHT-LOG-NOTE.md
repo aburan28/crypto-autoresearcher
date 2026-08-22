@@ -69,3 +69,18 @@ carrying the flag.
 rate, the archive will accumulate tens of MB per run. That is a producer
 over-collection question to settle before the snapshot archive fixes it in
 history, not something to resolve by trimming output.
+
+---
+
+## DISCHARGED for RUN-a7a9e8-004-augment-full, 2026-08-22
+
+Run terminated (`exit_code: 0`, `ended_at: 2026-08-22T14:45:56Z`, 703 s) and its
+log stopped growing — measured stable at 2,311,904 bytes across a re-read. Flag
+cleared, final log committed in full.
+
+Sweep result at this point: `git ls-files -v coordination/ | grep '^S'` returns
+NOTHING. No flagged path remains outstanding.
+
+Its `raw-result.json` is 35,039,973 bytes — large, but under GitHub's 100 MB
+limit, so it is committed VERBATIM with no compression and no deviation. Only
+run 002 needed the gzip treatment, and only because it exceeded the hard limit.
