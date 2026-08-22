@@ -468,3 +468,129 @@ def reduce_weierstrass(a2, a4, a6):
             A6 //= p ** 6
             lam = lam / p
     return A2, A4, A6, lam
+
+
+# --------------------------------------------------------------------------
+# Q(t) layer: reduction of the Weierstrass family and fast specialisation
+# --------------------------------------------------------------------------
+
+T = pari("t")
+
+
+def _pol_val(a, f):
+    """valuation of the polynomial a at the irreducible polynomial f"""
+    if a == 0:
+        return 10 ** 9
+    k = 0
+    while True:
+        q, r = a.divrem(f)
+        if r != 0:
+            return k
+        a = q
+        k += 1
+
+
+def reduce_family(a2, a4, a6):
+    """Remove the largest lam(t) in Q[t] and rational constant with
+    lam^2 | a2, lam^4 | a4, lam^6 | a6.  Returns (a2,a4,a6,lam)."""
+    lam = pari("1")
+    prod = a2 * a4 * a6
+    if prod != 0:
+        fa = pari.factor(prod)
+        for i in range(fa.nrows()):
+            f = fa[0][i]
+            if pari.type(f) != "t_POL":
+                continue
+            k = min(_pol_val(a2, f) // 2, _pol_val(a4, f) // 4, _pol_val(a6, f) // 6)
+            if k >= 1:
+                lam = lam * f ** k
+                a2 = a2 / f ** (2 * k)
+                a4 = a4 / f ** (4 * k)
+                a6 = a6 / f ** (6 * k)
+    # rational content
+    def content_frac(a):
+        if a == 0:
+            return None
+        return Fraction(str(pari.content(a)))
+    cs = [content_frac(a) for a in (a2, a4, a6)]
+    # numerator side: remove m with m^2|c2, m^4|c4, m^6|c6 ; denominator side too
+    num = 1
+    for p in SMALL_PRIMES:
+        while True:
+            ks = []
+            for c, e in zip(cs, (2, 4, 6)):
+                if c is None:
+                    ks.append(10 ** 9)
+                    continue
+                v = _vp(c.numerator, p) - _vp_den(c.denominator, p)
+                ks.append(v // e)
+            k = min(ks)
+            if k < 1:
+                break
+            num *= p
+            cs = [None if c is None else c / Fraction(p) ** e for c, e in zip(cs, (2, 4, 6))]
+    den = 1
+    for p in SMALL_PRIMES:
+        while True:
+            ks = []
+            for c, e in zip(cs, (2, 4, 6)):
+                if c is None:
+                    ks.append(10 ** 9)
+                    continue
+                ks.append(_vp(c.denominator, p) // e)
+            k = min(ks)
+            if k < 1:
+                break
+            den *= p
+            cs = [None if c is None else c * Fraction(p) ** e for c, e in zip(cs, (2, 4, 6))]
+    mu = Fraction(num, den)
+    mus = pari("%d/%d" % (mu.numerator, mu.denominator))
+    a2 = a2 / mus ** 2
+    a4 = a4 / mus ** 4
+    a6 = a6 / mus ** 6
+    lam = lam * mus
+    return a2, a4, a6, lam
+
+
+def _vp_den(n, p):
+    if n == 0:
+        return 0
+    k = 0
+    while n % p == 0:
+        n //= p
+        k += 1
+    return k
+
+
+def gen_to_ratfunc(g):
+    """PARI element of Q(t) -> (num_coeffs, den_coeffs) as Fraction lists,
+    ascending powers of t."""
+    ty = pari.type(g)
+    if ty == "t_RFRAC":
+        n, d = g.numerator(), g.denominator()
+    else:
+        n, d = g, pari("1")
+    return _poly_coeffs(n), _poly_coeffs(d)
+
+
+def _poly_coeffs(p):
+    if pari.type(p) != "t_POL":
+        return [Fraction(str(p))]
+    deg = int(p.poldegree(T))
+    v = pari.Vec(p)  # descending
+    return [Fraction(str(v[deg - i])) for i in range(deg + 1)]
+
+
+def eval_coeffs(coeffs, t0):
+    acc = Fraction(0)
+    for c in reversed(coeffs):
+        acc = acc * t0 + c
+    return acc
+
+
+def eval_ratfunc(rf, t0):
+    n = eval_coeffs(rf[0], t0)
+    d = eval_coeffs(rf[1], t0)
+    if d == 0:
+        return None
+    return n / d
