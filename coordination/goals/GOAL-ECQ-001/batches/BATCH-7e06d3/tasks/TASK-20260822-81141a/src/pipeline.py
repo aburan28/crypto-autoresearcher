@@ -1174,6 +1174,128 @@ def cmd_certify(args):
     return out
 
 
+
+def cmd_assemble(args):
+    """Assemble the declared deliverables from the immutable run records.
+    Pure aggregation: no new mathematics, no re-scoring."""
+    t_start = time.time()
+    fam = json.load(open(args.family))
+    sv = json.load(open(args.sieve))
+    certs = [json.load(open(f)) for f in args.cert]
+
+    # ---- certified_curves.json (best first, deduplicated by (t, rank)) ----
+    seen = {}
+    for src, c in zip(args.cert, certs):
+        for arm, recs in c["per_arm_records"].items():
+            for r in recs:
+                if r.get("certified_rank") is None:
+                    continue
+                key = r["t"]
+                cand = dict(r)
+                cand["arm"] = arm
+                cand["source_run"] = os.path.basename(os.path.dirname(src))
+                if key not in seen or cand["certified_rank"] > seen[key]["certified_rank"]:
+                    seen[key] = cand
+    curves = sorted(seen.values(), key=lambda r: -r["certified_rank"])
+    cc = {
+        "claim_tier": "certified LOWER BOUND on rank over Q from exhibited points only",
+        "not_claimed": ["analytic rank", "ellrank r_high", "Selmer bound",
+                        "any rank inherited from Q(t) by specialisation"],
+        "verification": "each listed point re-verified on that exact curve in exact rational arithmetic by this task's own Fraction code (on_curve_exact); r x r Neron-Tate regulator computed at 38 and 77 digits and required to agree",
+        "family": {"c4": fam["weierstrass_family_over_Qt"]["c4"],
+                   "c6": fam["weierstrass_family_over_Qt"]["c6"],
+                   "model": fam["weierstrass_family_over_Qt"]["model"],
+                   "specialisation": "t -> t0, then integral small-prime reduction of [0,0,0,-27c4,-54c6]"},
+        "best_certified_rank": curves[0]["certified_rank"] if curves else None,
+        "n_curves_certified": len(curves),
+        "curves": curves,
+    }
+    json.dump(cc, open(args.out_curves, "w"), indent=2, default=json_default)
+
+    # ---- gap_analysis.json ----
+    arms = {}
+    for c in certs:
+        for k, v in c["arms"].items():
+            arms.setdefault(k, []).append(v)
+    mn = certs[0]["arms"]["tier2_mn_arm"]
+    ctrl = certs[0]["arms"]["tier2_random_control_arm"]
+
+    def rate(a, thr):
+        return {"count": a["rank_ge_%d" % thr], "of_attempted": a["attempted"],
+                "rate": a["rank_ge_%d" % thr] / a["attempted"]}
+
+    best = curves[0]["certified_rank"] if curves else None
+    ga = {
+        "axis_1_base_rank_over_Qt": {
+            "achieved_measured": 8,
+            "achieved_evidence": "8 sections exhibited over Q(t) and verified symbolically on the reduced family; 8x8 Neron-Tate regulator nonsingular at t in {-1,-7,7/5,11/3,3} (least eigenvalue > 0.3), singular at t in {1,2,1/2,5}",
+            "theoretical_ceiling_of_this_construction": 8,
+            "ceiling_reason": "a pencil of plane cubics through 8 points is a RATIONAL elliptic surface; MW rank over Qbar(t) is at most 8",
+            "published_record_base_rank_reference": "roughly 18-20 (Elkies-class constructions on higher elliptic surfaces); cited as background, not measured here",
+            "gap_in_base_rank": "10 to 12",
+        },
+        "axis_2_sieve_volume": {
+            "tier1_specialisations_scored_measured": sv["tier1_domain"]["scored_volume"],
+            "tier1_domain": sv["tier1_domain"],
+            "tier2_matched_domain": sv["tier2_domain"],
+            "seconds_per_mestre_nagao_score_measured": sv["seconds_per_specialisation"],
+            "mn_N": sv["mn_N"],
+            "fibres_on_which_descent_was_attempted_measured": sum(a["attempted"] for a in certs[0]["arms"].values()),
+            "descent_timeouts_measured": sum(a["descent_timeouts"] for a in certs[0]["arms"].values()),
+            "binding_cost_measured": "2-descent per fibre, not the statistic: MN scoring ran at %.4f s/fibre while ellrank timed out on %d of %d attempted fibres at the 8s/20s alarms"
+                                      % (sv["seconds_per_specialisation"],
+                                         sum(a["descent_timeouts"] for a in certs[0]["arms"].values()),
+                                         sum(a["attempted"] for a in certs[0]["arms"].values())),
+        },
+        "mestre_nagao_efficiency_measured": {
+            "design": "matched arms, same tier2 domain of %d specialisations, K=%d each; MN arm = top K by S(N), control arm = uniform random sample drawn with seed %s"
+                      % (sv["tier2_domain"]["scored_volume"], mn["attempted"], sv["control_seed"]),
+            "overlap_between_arms": sv["overlap_mn_vs_random"],
+            "mn_arm": {"rank_histogram": mn["rank_histogram"],
+                       "max_certified_rank": mn["max_certified_rank"],
+                       "descent_timeouts": mn["descent_timeouts"],
+                       "ge_9": rate(mn, 9), "ge_10": rate(mn, 10), "ge_11": rate(mn, 11)},
+            "random_control_arm": {"rank_histogram": ctrl["rank_histogram"],
+                                   "max_certified_rank": ctrl["max_certified_rank"],
+                                   "descent_timeouts": ctrl["descent_timeouts"],
+                                   "ge_9": rate(ctrl, 9), "ge_10": rate(ctrl, 10), "ge_11": rate(ctrl, 11)},
+            "caveat": "descent timeouts floor a fibre at rank 8 (the sections alone), so both arms' hit rates are LOWER bounds; the timeout counts are reported so the confound is visible",
+            "prior_measurement_referenced": "GOAL-ECRANK-001 measured this statistic ordering poorly on twist families (nothing above rank 4 in the top 400 of 364756)",
+        },
+        "best_certified_rank_over_Q_measured": best,
+        "distance_to_the_record": {
+            "world_record_rank_over_Q": 30,
+            "open_target": 31,
+            "certified_here": best,
+            "shortfall": (31 - best) if best is not None else None,
+            "record_ladder": {"2006": 28, "2024": 29, "2026": 30},
+        },
+        "what_reaching_31_would_require": [
+            "A base curve of rank roughly 18-20 over Q(t). This construction cannot supply it: the rational-elliptic-surface bound caps MW rank over Qbar(t) at 8, so the extra 10-12 requires a different surface (K3 or higher), not more sieving of this one.",
+            "Extra-over-base observed here was at most 4 (certified 12 from a base of 8) across %d fibres on which descent was attempted. Reaching 31 from a base of 8 would require +23 from a single specialisation, which was not observed at any point in this search and is not a scale-up of anything measured here."
+            % sum(a["attempted"] for a in certs[0]["arms"].values()),
+            "A per-fibre rank filter far cheaper than 2-descent. At the measured %.1f s mean descent cost with an 8s alarm, certification -- not scoring -- is the binding cost; scoring ran %d fibres in %.0f s."
+            % (certs[0]["wall_clock_seconds"] / max(1, sum(a["attempted"] for a in certs[0]["arms"].values())),
+               sv["tier1_domain"]["scored_volume"], sv["wall_clock_seconds"]),
+        ],
+        "explicitly_not_progress_toward_31": "A certified rank of %s from a rank-8 Q(t) base is not a fraction of the way to 31. The record ladder (28 -> 29 -> 30) rests on base ranks roughly 18-20; a rank-8 base is a different regime, not a smaller version of the same one." % best,
+        "tested_parameters_and_transfer_assumptions": {
+            "family": "one pencil, 8 base points with coordinates in [-4,4], chosen by a seeded search over %d configurations minimising MODEL HEIGHT only" % fam["configuration_search"]["tries"],
+            "specialisation_domain": "t=p/q, gcd(p,q)=1, |p|<=%d, q<=%d" % (sv["tier1_domain"]["pmax"], sv["tier1_domain"]["qmax"]),
+            "solver": "PARI/GP 2.15.4 ellrank (2-descent) with alarm guards; ellratpoints found nothing at bound 100 on these models",
+            "transfer": "every number here is scoped to this single family and this domain; nothing is claimed for other pencils, other point configurations, or larger t",
+        },
+        "assembled_from_runs": [os.path.basename(os.path.dirname(f)) for f in args.cert],
+        "wall_clock_seconds": time.time() - t_start,
+    }
+    json.dump(ga, open(args.out_gap, "w"), indent=2, default=json_default)
+    print(json.dumps({"best_certified_rank": best,
+                      "mn_ge11": ga["mestre_nagao_efficiency_measured"]["mn_arm"]["ge_11"],
+                      "ctrl_ge11": ga["mestre_nagao_efficiency_measured"]["random_control_arm"]["ge_11"],
+                      "tier1_volume": sv["tier1_domain"]["scored_volume"]}, indent=2))
+    return ga
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -1214,6 +1336,14 @@ def main():
     s.add_argument("--only-arm", default=None)
     s.add_argument("--out", required=True)
     s.set_defaults(func=cmd_certify)
+
+    s = sub.add_parser("assemble")
+    s.add_argument("--family", required=True)
+    s.add_argument("--sieve", required=True)
+    s.add_argument("--cert", nargs="+", required=True)
+    s.add_argument("--out-curves", required=True)
+    s.add_argument("--out-gap", required=True)
+    s.set_defaults(func=cmd_assemble)
 
     args = ap.parse_args()
     args.func(args)
