@@ -92,3 +92,10 @@ run 002 needed the gzip treatment, and only because it exceeded the hard limit.
 Live log, growing; local-only skip-worktree applied. Obligation OPEN — clear the
 flag and commit the final log before the snapshot archive, via the sweep
 `git ls-files -v coordination/ | grep '^S'`.
+
+---
+
+## DISCHARGED for RUN-a7a9e8-008-upper-crosscheck, 2026-08-22
+
+Run terminated and its log stopped growing (verified stable across a re-read).
+Flag cleared via the sweep and the final log committed. Sweep is empty again.
