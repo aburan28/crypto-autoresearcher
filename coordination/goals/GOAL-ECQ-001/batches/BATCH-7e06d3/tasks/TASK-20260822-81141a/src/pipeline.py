@@ -828,3 +828,48 @@ def specialise(F, t0):
             return None
         pts.append((X * mu ** 2, Y * mu ** 3))
     return [0, 0, 0, A, B], pts
+
+
+# --------------------------------------------------------------------------
+# STAGE 2: Mestre-Nagao statistic (ORDERING ONLY -- never a certified rank)
+# --------------------------------------------------------------------------
+
+def primes_upto(N):
+    sieve = [True] * (N + 1)
+    sieve[0:2] = [False, False]
+    for i in range(2, int(N ** 0.5) + 1):
+        if sieve[i]:
+            for j in range(i * i, N + 1, i):
+                sieve[j] = False
+    return [i for i, v in enumerate(sieve) if v]
+
+
+def mn_score(ainv, plist, logs):
+    """S(N) = sum_{p<=N} ((p+1-a_p)/p) log p, via PARI ellap."""
+    E = pari.ellinit("[0,0,0,%d,%d]" % (ainv[3], ainv[4]))
+    s = 0.0
+    for p, lg in zip(plist, logs):
+        ap = int(E.ellap(p))
+        s += ((p + 1 - ap) / p) * lg
+    return s
+
+
+def extra_points(ainv, alarm_seconds=25):
+    """Search for points beyond the sections.  ellrank's r_low/r_high are NOT
+    used as a rank claim -- only the POINTS it exhibits are kept, and they are
+    re-verified in exact arithmetic downstream."""
+    s = "[0,0,0,%d,%d]" % (ainv[3], ainv[4])
+    try:
+        r = pari("iferr(alarm(%d,ellrank(ellinit(%s))),E,[-1,-1,0,[]])" % (alarm_seconds, s))
+    except Exception:
+        return [], None
+    try:
+        rl, rh = int(r[0]), int(r[1])
+    except Exception:
+        return [], None
+    pts = []
+    V = r[3]
+    for i in range(len(V)):
+        P = V[i]
+        pts.append((Fraction(str(P[0])), Fraction(str(P[1]))))
+    return pts, (rl, rh)
