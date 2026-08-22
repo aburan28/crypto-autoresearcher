@@ -266,6 +266,29 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
         )
         return root
 
+    def _install_replace(
+        self, original: str, replacement: str, *, ref_base: str = "refs/replace"
+    ) -> str:
+        ref = f"{ref_base.rstrip('/')}/{original}"
+        self.git("update-ref", ref, replacement)
+        return ref
+
+    def _effective_tree_mode(
+        self, prefix: str, environment: dict[str, str] | None = None
+    ) -> str:
+        env = os.environ.copy()
+        env.pop("GIT_NO_REPLACE_OBJECTS", None)
+        env.update(environment or {})
+        result = subprocess.run(
+            ["git", "-C", str(self.root), "ls-tree", "HEAD", "--", prefix],
+            check=True, capture_output=True, text=True, env=env,
+        )
+        metadata = result.stdout.split("\t", 1)[0]
+        return metadata.split(" ", 1)[0]
+
+    def _assert_replace_ref_preserved(self, ref: str, expected: str) -> None:
+        self.assertEqual(self.git("rev-parse", ref), expected)
+
     def _assert_base_cli_rejects_symlink(self) -> subprocess.CompletedProcess[str]:
         result = self._run_base_cli()
         self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
@@ -465,6 +488,157 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
                 "GIT_WORK_TREE": str(benign),
             },
         )
+
+    def test_default_commit_replacement_cannot_launder_goals_gitlink(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "goals gitlink behind commit replacement")
+        original = self.git("rev-parse", "HEAD")
+        replacement = self.git("rev-parse", "base-tree")
+        ref = self._install_replace(original, replacement)
+        self.assertEqual(self._effective_tree_mode("ledger/goals"), "040000")
+
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+        self._assert_replace_ref_preserved(ref, replacement)
+
+    def test_default_tree_replacement_cannot_launder_goals_gitlink(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "goals gitlink behind tree replacement")
+        original = self.git("rev-parse", "HEAD:ledger")
+        replacement = self.git("rev-parse", "base-tree:ledger")
+        ref = self._install_replace(original, replacement)
+        self.assertEqual(self._effective_tree_mode("ledger/goals"), "040000")
+
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+        self._assert_replace_ref_preserved(ref, replacement)
+
+    def test_default_tree_replacement_cannot_launder_ledger_gitlink(self) -> None:
+        self._stage_gitlink("ledger", initialized=True)
+        self.git("commit", "-qm", "ledger gitlink behind tree replacement")
+        original = self.git("rev-parse", "HEAD^{tree}")
+        replacement = self.git("rev-parse", "base-tree^{tree}")
+        ref = self._install_replace(original, replacement)
+        self.assertEqual(self._effective_tree_mode("ledger"), "040000")
+
+        self._assert_gitlink_rejected(
+            "ledger", "LEDGER_GITLINK_INTERPRETED"
+        )
+        self._assert_replace_ref_preserved(ref, replacement)
+
+    def test_custom_replace_namespace_cannot_launder_commit(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "goals gitlink behind custom replacement")
+        original = self.git("rev-parse", "HEAD")
+        replacement = self.git("rev-parse", "base-tree")
+        ref_base = "refs/test-replacements"
+        ref = self._install_replace(original, replacement, ref_base=ref_base)
+        environment = {"GIT_REPLACE_REF_BASE": ref_base}
+        self.assertEqual(
+            self._effective_tree_mode("ledger/goals", environment), "040000"
+        )
+
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED", environment
+        )
+        self._assert_replace_ref_preserved(ref, replacement)
+
+    def test_caller_cannot_reenable_replacements_with_zero(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "goals gitlink behind caller override")
+        original = self.git("rev-parse", "HEAD")
+        replacement = self.git("rev-parse", "base-tree")
+        ref = self._install_replace(original, replacement)
+        environment = {"GIT_NO_REPLACE_OBJECTS": "0"}
+        # Git currently treats presence of this variable as disabling replace
+        # processing even when its value is "0".  The validator must not rely
+        # on that incidental parsing rule: it strips the caller value and
+        # installs its own explicit disable on every bound query.
+        self.assertEqual(
+            self._effective_tree_mode("ledger/goals", environment), "160000"
+        )
+
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED", environment
+        )
+        self._assert_replace_ref_preserved(ref, replacement)
+
+    def test_replace_namespace_and_alternate_git_context_cannot_launder(self) -> None:
+        alternate = self._alternate_index()
+        benign = self._benign_repository()
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "goals gitlink behind combined redirects")
+        original = self.git("rev-parse", "HEAD")
+        replacement = self.git("rev-parse", "base-tree")
+        ref_base = "refs/combined-replacements"
+        ref = self._install_replace(original, replacement, ref_base=ref_base)
+        replacement_environment = {"GIT_REPLACE_REF_BASE": ref_base}
+        self.assertEqual(
+            self._effective_tree_mode("ledger/goals", replacement_environment),
+            "040000",
+        )
+        environment = {
+            **replacement_environment,
+            "GIT_NO_REPLACE_OBJECTS": "0",
+            "GIT_INDEX_FILE": str(alternate),
+            "GIT_DIR": str(benign / ".git"),
+            "GIT_WORK_TREE": str(benign),
+        }
+
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED", environment
+        )
+        self._assert_replace_ref_preserved(ref, replacement)
+
+    def test_every_bound_provenance_query_disables_replacements(self) -> None:
+        caller_environment = {
+            "GIT_REPLACE_REF_BASE": "refs/caller-selected-replacements",
+            "GIT_NO_REPLACE_OBJECTS": "0",
+        }
+        real_run = subprocess.run
+        with (mock.patch.dict(os.environ, caller_environment, clear=False),
+              mock.patch.object(vl.subprocess, "run", wraps=real_run) as run):
+            with mock.patch.object(vl, "REPO", str(self.root)):
+                in_git, errors = vl.protected_prefix_git_errors()
+        self.assertTrue(in_git)
+        self.assertEqual(errors, [])
+
+        provenance_calls = []
+        for call in run.call_args_list:
+            command = call.args[0]
+            if "ls-tree" in command or "ls-files" in command:
+                provenance_calls.append(call)
+        self.assertEqual(len(provenance_calls), 4)
+        for call in provenance_calls:
+            command = call.args[0]
+            environment = call.kwargs["env"]
+            self.assertIn("--no-replace-objects", command)
+            self.assertEqual(environment.get("GIT_NO_REPLACE_OBJECTS"), "1")
+            self.assertNotIn("GIT_REPLACE_REF_BASE", environment)
+
+    def test_raw_provenance_query_failure_stops_before_traversal(self) -> None:
+        probe = subprocess.CompletedProcess([], 0, "true\n", "")
+        context = subprocess.CompletedProcess(
+            [], 0,
+            f"{self.root}\n{self.root / '.git'}\n{self.root / '.git/index'}\n",
+            "",
+        )
+        raw_failure = subprocess.CompletedProcess(
+            [], 128, "", "fatal: cannot read raw tree object\n"
+        )
+        unused_index = subprocess.CompletedProcess([], 0, "", "")
+        with mock.patch.object(
+            vl.subprocess, "run",
+            side_effect=[probe, context, raw_failure, unused_index],
+        ):
+            rejected = self._validator_context()
+        rendered = "\n".join(rejected.errors)
+        self.assertIn("cannot determine protected-prefix Git metadata", rendered)
+        self.assertIn("target was not read", rendered)
+        self.assertNotIn("GOAL-HIDDEN-999", rejected.ids)
+        self.assertNotIn("GOAL-HIDDEN-a1b2c3", rejected.ids)
 
     def test_head_symlink_rejects_index_descendants(self) -> None:
         self._replace_prefix("ledger/goals", "external", stage=True, commit=True)

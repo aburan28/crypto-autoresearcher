@@ -1446,6 +1446,7 @@ def load_goal_documents(ctx: Ctx):
 GIT_CONTEXT_REDIRECTS = {
     "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
     "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS",
 }
 
 
@@ -1466,7 +1467,10 @@ def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
     The boolean reports whether REPO is a Git worktree.  Non-Git fixtures retain
     the filesystem-only contract and make no Git provenance claim. Caller Git
     redirects are removed, then the discovered top-level, Git directory, and
-    actual index are rebound explicitly for every metadata query.
+    actual index are rebound explicitly for every metadata query. Protected
+    provenance is always read with replacement-object processing disabled;
+    neither default/custom replace refs nor caller environment may rewrite the
+    commit or tree objects being classified.
     """
     git_marker = os.path.join(REPO, ".git")
     clean_env = _explicit_git_environment()
@@ -1514,11 +1518,17 @@ def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
 
     bound_env = dict(clean_env)
     bound_env["GIT_INDEX_FILE"] = index_file
+    # Belt and suspenders: the global option binds the individual invocation,
+    # while the environment also covers Git versions/subcommands that consult
+    # the conventional replacement-disable switch internally.  Caller values
+    # were removed above and cannot re-enable replacement processing.
+    bound_env["GIT_NO_REPLACE_OBJECTS"] = "1"
 
     def bound_git(*arguments: str) -> subprocess.CompletedProcess:
         return subprocess.run(
-            ["git", f"--git-dir={git_directory}", f"--work-tree={REPO}",
-             *arguments], capture_output=True, text=True, env=bound_env,
+            ["git", "--no-replace-objects", f"--git-dir={git_directory}",
+             f"--work-tree={REPO}", *arguments],
+            capture_output=True, text=True, env=bound_env,
         )
 
     errors: list[tuple[str, str]] = []
