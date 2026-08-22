@@ -490,66 +490,89 @@ def _pol_val(a, f):
         k += 1
 
 
+def _is_pol(g):
+    return str(pari.type(g)) == "t_POL"
+
+
+def c4c6(a2, a4, a6):
+    b2, b4, b6 = 4 * a2, 2 * a4, 4 * a6
+    c4 = b2 * b2 - 24 * b4
+    c6 = -b2 ** 3 + 36 * b2 * b4 - 216 * b6
+    return b2, c4, c6
+
+
 def reduce_family(a2, a4, a6):
-    """Remove the largest lam(t) in Q[t] and rational constant with
-    lam^2 | a2, lam^4 | a4, lam^6 | a6.  Returns (a2,a4,a6,lam)."""
+    """Reduce the family y^2=x^3+a2 x^2+a4 x+a6 over Q(t) to the c4/c6 model
+    y^2 = x^3 - 27 c4' x - 54 c6', removing the largest Lam(t) in Q(t) with
+    Lam^4 | c4 and Lam^6 | c6.  Returns (c4', c6', b2, Lam).
+    The accompanying isomorphism is  X = (36 x + 3 b2)/Lam^2,  Y = 108 y/Lam^3.
+    """
+    b2, c4, c6 = c4c6(a2, a4, a6)
     lam = pari("1")
-    prod = a2 * a4 * a6
-    if prod != 0:
-        fa = pari.factor(prod)
-        for i in range(fa.nrows()):
-            f = fa[0][i]
-            if pari.type(f) != "t_POL":
-                continue
-            k = min(_pol_val(a2, f) // 2, _pol_val(a4, f) // 4, _pol_val(a6, f) // 6)
-            if k >= 1:
-                lam = lam * f ** k
-                a2 = a2 / f ** (2 * k)
-                a4 = a4 / f ** (4 * k)
-                a6 = a6 / f ** (6 * k)
+    if c4 != 0 and c6 != 0:
+        g = pari.gcd(c4, c6)
+        if _is_pol(g) and int(g.poldegree(T)) > 0:
+            fa = pari.factor(g)
+            for i in range(fa.nrows()):
+                f = fa[0][i]
+                if not _is_pol(f):
+                    continue
+                k = min(_pol_val(c4, f) // 4, _pol_val(c6, f) // 6)
+                if k >= 1:
+                    lam = lam * f ** k
+                    c4 = c4 / f ** (4 * k)
+                    c6 = c6 / f ** (6 * k)
     # rational content
-    def content_frac(a):
+    def cont(a):
         if a == 0:
             return None
         return Fraction(str(pari.content(a)))
-    cs = [content_frac(a) for a in (a2, a4, a6)]
-    # numerator side: remove m with m^2|c2, m^4|c4, m^6|c6 ; denominator side too
-    num = 1
-    for p in SMALL_PRIMES:
-        while True:
+    mu = Fraction(1)
+    while True:
+        cs = [cont(c4), cont(c6)]
+        moved = False
+        for p in SMALL_PRIMES:
             ks = []
-            for c, e in zip(cs, (2, 4, 6)):
+            for c, e in zip(cs, (4, 6)):
                 if c is None:
                     ks.append(10 ** 9)
-                    continue
-                v = _vp(c.numerator, p) - _vp_den(c.denominator, p)
-                ks.append(v // e)
+                else:
+                    ks.append((_vp_int(c.numerator, p) - _vp_int(c.denominator, p)) // e)
             k = min(ks)
-            if k < 1:
+            if k >= 1:
+                mu *= p ** k
+                c4 = c4 / pari(str(p ** (4 * k)))
+                c6 = c6 / pari(str(p ** (6 * k)))
+                moved = True
                 break
-            num *= p
-            cs = [None if c is None else c / Fraction(p) ** e for c, e in zip(cs, (2, 4, 6))]
-    den = 1
-    for p in SMALL_PRIMES:
-        while True:
-            ks = []
-            for c, e in zip(cs, (2, 4, 6)):
+            ks2 = []
+            for c, e in zip(cs, (4, 6)):
                 if c is None:
-                    ks.append(10 ** 9)
-                    continue
-                ks.append(_vp(c.denominator, p) // e)
-            k = min(ks)
-            if k < 1:
+                    ks2.append(10 ** 9)
+                else:
+                    ks2.append(_vp_int(c.denominator, p) // e)
+            k2 = min(ks2)
+            if k2 >= 1:
+                mu /= p ** k2
+                c4 = c4 * pari(str(p ** (4 * k2)))
+                c6 = c6 * pari(str(p ** (6 * k2)))
+                moved = True
                 break
-            den *= p
-            cs = [None if c is None else c * Fraction(p) ** e for c, e in zip(cs, (2, 4, 6))]
-    mu = Fraction(num, den)
-    mus = pari("%d/%d" % (mu.numerator, mu.denominator))
-    a2 = a2 / mus ** 2
-    a4 = a4 / mus ** 4
-    a6 = a6 / mus ** 6
-    lam = lam * mus
-    return a2, a4, a6, lam
+        if not moved:
+            break
+    lam = lam * pari("%d/%d" % (mu.numerator, mu.denominator))
+    return c4, c6, b2, lam
+
+
+def _vp_int(n, p):
+    n = int(n)
+    if n == 0:
+        return 10 ** 9
+    k = 0
+    while n % p == 0:
+        n //= p
+        k += 1
+    return k
 
 
 def _vp_den(n, p):
@@ -565,8 +588,7 @@ def _vp_den(n, p):
 def gen_to_ratfunc(g):
     """PARI element of Q(t) -> (num_coeffs, den_coeffs) as Fraction lists,
     ascending powers of t."""
-    ty = pari.type(g)
-    if ty == "t_RFRAC":
+    if str(pari.type(g)) == "t_RFRAC":
         n, d = g.numerator(), g.denominator()
     else:
         n, d = g, pari("1")
@@ -574,7 +596,7 @@ def gen_to_ratfunc(g):
 
 
 def _poly_coeffs(p):
-    if pari.type(p) != "t_POL":
+    if not _is_pol(p):
         return [Fraction(str(p))]
     deg = int(p.poldegree(T))
     v = pari.Vec(p)  # descending
@@ -594,3 +616,215 @@ def eval_ratfunc(rf, t0):
     if d == 0:
         return None
     return n / d
+
+
+# --------------------------------------------------------------------------
+# STAGE 3: certification harness over Q
+#   (1) exact on-curve check in our own rational arithmetic,
+#   (2) Neron-Tate height matrix at two precisions,
+#   (3) greedy maximal independent subset via Gram determinants.
+# --------------------------------------------------------------------------
+
+def on_curve_exact(ainv, P):
+    """a1,a2,a3,a4,a6 and P=(x,y) as Fractions.  Exact, our own arithmetic."""
+    a1, a2, a3, a4, a6 = [Fraction(a) for a in ainv]
+    x, y = Fraction(P[0]), Fraction(P[1])
+    return y * y + a1 * x * y + a3 * y - (x ** 3 + a2 * x * x + a4 * x + a6) == 0
+
+
+def _pt_str(P):
+    return "[%s,%s]" % (frac_str(P[0]), frac_str(P[1]))
+
+
+def height_matrix_pari(ainv, pts, precision_digits):
+    pari.set_real_precision(precision_digits)
+    E = pari.ellinit("[%s]" % ",".join(frac_str(a) for a in ainv))
+    V = pari("[%s]" % ",".join(_pt_str(P) for P in pts))
+    return E.ellheightmatrix(V)
+
+
+def _to_float_matrix(H, n):
+    return [[float(H[i][j]) for j in range(n)] for i in range(n)]
+
+
+def _det(M):
+    import numpy as np
+    if not M:
+        return 1.0
+    return float(np.linalg.det(np.array(M, dtype=float)))
+
+
+def independent_subset(G, tol=1e-6):
+    """Greedy maximal independent subset of a Gram matrix.
+
+    A candidate is accepted only if it increases the Gram determinant by a
+    factor > tol.  det(G_new)/det(G_old) is the squared distance from the new
+    vector to the span of the accepted ones, so the criterion is
+    dimension-independent: it does NOT get harder to pass as the subset grows.
+    (A raw relative-determinant test does, and silently under-counts the
+    rank-30 fixture -- that failure mode is why this form is used.)
+    """
+    n = len(G)
+    chosen = []
+    prev = 1.0
+    for i in range(n):
+        cand = chosen + [i]
+        sub = [[G[a][b] for b in cand] for a in cand]
+        d = _det(sub)
+        if d > 0 and d / prev > tol:
+            chosen = cand
+            prev = d
+    return chosen
+
+
+def certify_rank(ainv, pts, precisions=(38, 77), tol=1e-6, eig_tol=1e-6):
+    """Certified rank LOWER BOUND from the exhibited points only.
+
+    Every point is first re-verified on the curve in exact rational
+    arithmetic by our own code (on_curve_exact); a single failure voids the
+    whole certificate.  Independence is then decided from the Neron-Tate
+    height pairing at two working precisions, and the two must agree.
+    """
+    exact_ok = [on_curve_exact(ainv, P) for P in pts]
+    if not all(exact_ok):
+        return {"error": "point not on curve in exact arithmetic",
+                "n_points": len(pts), "on_curve_all": False,
+                "bad_indices": [i for i, v in enumerate(exact_ok) if not v],
+                "rank": None}
+    res = {"n_points": len(pts), "on_curve_all": True, "by_precision": {},
+           "tol": tol, "eig_tol": eig_tol}
+    ranks = []
+    for prec in precisions:
+        H = height_matrix_pari(ainv, pts, prec)
+        G = _to_float_matrix(H, len(pts))
+        chosen = independent_subset(G, tol)
+        if chosen:
+            body = ";".join(",".join(str(H[a][b]) for b in chosen) for a in chosen)
+            sub = pari("Mat(%s)" % body) if len(chosen) == 1 else pari("[%s]" % body)
+            det = str(pari.matdet(sub))
+            ev = pari.qfjacobi(sub)[0]
+            eigs = sorted(float(ev[i]) for i in range(len(chosen)))
+            least = eigs[0]
+        else:
+            det, least = "1", None
+        res["by_precision"][prec] = {
+            "rank": len(chosen), "indices": chosen,
+            "regulator_det": det, "least_eigenvalue": least,
+            "diag_heights": [G[i][i] for i in range(len(pts))],
+        }
+        ranks.append(len(chosen) if (least is None or least > eig_tol) else -1)
+    res["ranks_by_precision"] = ranks
+    res["precision_agreement"] = len(set(ranks)) == 1 and ranks[0] >= 0
+    res["rank"] = ranks[0] if res["precision_agreement"] else None
+    return res
+
+
+# --------------------------------------------------------------------------
+# family assembly
+# --------------------------------------------------------------------------
+
+class Family(object):
+    pass
+
+
+def build_family(points, origin=None):
+    """points: 8 rational points in P^2 (lists of 3 ints/Fractions, z != 0).
+    Returns a Family with the pencil, the 9th base point and the reduced
+    Weierstrass family over Q(t) together with the 8 sections."""
+    basis = cubics_through(points)
+    if len(basis) != 2:
+        raise ValueError("cubics through the 8 points do not form a pencil (dim=%d)" % len(basis))
+    C1 = primitive_form(vec_to_form(basis[0]))
+    C2 = primitive_form(vec_to_form(basis[1]))
+    P9 = primitive_point(ninth_base_point(C1, C2, points))
+    base9 = [[Fraction(c) for c in p] for p in points] + [P9]
+    mons = set(C1) | set(C2)
+    Ct = {e: pari(frac_str(C1.get(e, 0))) + T * pari(frac_str(C2.get(e, 0))) for e in mons}
+
+    best = None
+    idxs = range(9) if origin is None else [origin]
+    for oi in idxs:
+        try:
+            P0 = [pari(frac_str(c)) for c in base9[oi]]
+            wd = weierstrass_data(Ct, P0)
+            A0, A1, A2, A3 = wd["A"]
+            a2, a4, a6 = A2, A1 * A3, A0 * A3 * A3
+            c4, c6, b2, lam = reduce_family(a2, a4, a6)
+            size = max(len(str(x.numerator)) + len(str(x.denominator))
+                       for x in _poly_coeffs(c4) + _poly_coeffs(c6))
+            if best is None or size < best[0]:
+                best = (size, oi, wd, c4, c6, b2, lam)
+        except Exception:
+            continue
+    if best is None:
+        raise ValueError("no usable origin among the 9 base points")
+    size, oi, wd, c4, c6, b2, lam = best
+
+    secs = []
+    for j in range(9):
+        if j == oi:
+            continue
+        Q = [pari(frac_str(c)) for c in base9[j]]
+        m = map_point(wd, Q)
+        if m is None:
+            raise ValueError("base point %d falls on the frame's line at infinity" % j)
+        x, y = m
+        X = (36 * x + 3 * b2) / lam ** 2
+        Y = 216 * y / lam ** 3
+        if (Y * Y - (X ** 3 - 27 * c4 * X - 54 * c6)) != 0:
+            raise ValueError("section %d fails the exact Q(t) curve equation" % j)
+        secs.append((X, Y))
+
+    F = Family()
+    F.points = [[Fraction(c) for c in p] for p in points]
+    F.C1, F.C2, F.P9 = C1, C2, P9
+    F.base9 = base9
+    F.origin_index = oi
+    F.c4, F.c6 = c4, c6
+    F.lam, F.b2 = lam, b2
+    F.disc = (c4 ** 3 - c6 ** 2) / 1728
+    F.sections = secs
+    F.c4_co = _poly_coeffs(c4)
+    F.c6_co = _poly_coeffs(c6)
+    F.sec_rf = [(gen_to_ratfunc(X), gen_to_ratfunc(Y)) for X, Y in secs]
+    F.model_size = size
+    F.deg = (int(c4.poldegree(T)), int(c6.poldegree(T)), int(F.disc.poldegree(T)))
+    return F
+
+
+def reduce_short(A, B):
+    """[0,0,0,A,B] with A,B rational -> integral, small-prime-reduced model.
+    Returns (A',B',mu) with A'=A mu^4, B'=B mu^6 and (x,y)->(mu^2 x, mu^3 y)."""
+    A, B = Fraction(A), Fraction(B)
+    d = _lcm(A.denominator, B.denominator)
+    mu = Fraction(d)
+    Ai = int(A * d ** 4)
+    Bi = int(B * d ** 6)
+    for p in SMALL_PRIMES:
+        while True:
+            k = min(_vp(Ai, p) // 4, _vp(Bi, p) // 6)
+            if k < 1:
+                break
+            Ai //= p ** 4
+            Bi //= p ** 6
+            mu = mu / p
+    return Ai, Bi, mu
+
+
+def specialise(F, t0):
+    """Specialise the family at t=t0 (Fraction).  Returns (ainv, points) with
+    ainv=[0,0,0,A,B] integral and the 8 sections as exact rational points, or
+    None if the fibre is singular."""
+    c4v = eval_coeffs(F.c4_co, t0)
+    c6v = eval_coeffs(F.c6_co, t0)
+    if c4v ** 3 - c6v ** 2 == 0:
+        return None
+    A, B, mu = reduce_short(-27 * c4v, -54 * c6v)
+    pts = []
+    for rx, ry in F.sec_rf:
+        X = eval_ratfunc(rx, t0)
+        Y = eval_ratfunc(ry, t0)
+        if X is None or Y is None:
+            return None
+        pts.append((X * mu ** 2, Y * mu ** 3))
+    return [0, 0, 0, A, B], pts
