@@ -168,6 +168,54 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
         self.assertTrue(any(prefix in error and "target was not read" in error
                             for error in context.errors), context.errors)
 
+    def _stage_gitlink(self, prefix: str, *, initialized: bool,
+                       target_commit: str | None = None) -> Path:
+        path = self.root.joinpath(*prefix.split("/"))
+        commit = target_commit or self.git("rev-parse", "HEAD")
+        self.git("rm", "-qr", "--cached", prefix)
+        self.git("update-index", "--add", "--cacheinfo",
+                 "160000", commit, prefix)
+        if initialized:
+            goals = path / "goals" if prefix == "ledger" else path
+            goals.mkdir(parents=True, exist_ok=True)
+            marker = ("LEDGER_GITLINK_INTERPRETED" if prefix == "ledger"
+                      else "GITLINK_TARGET_INTERPRETED")
+            legacy = self._goal_document("GOAL-GITLINK-999") + \
+                f"  target_marker: {marker}\n"
+            random_goal = self._goal_document("GOAL-GITLINK-a1b2c3") + \
+                f"  target_marker: {marker}\n"
+            (goals / "GOAL-GITLINK-999.yaml").write_text(
+                legacy, encoding="utf-8"
+            )
+            (goals / "GOAL-GITLINK-a1b2c3.yaml").write_text(
+                random_goal, encoding="utf-8"
+            )
+        else:
+            shutil.rmtree(path)
+        return path
+
+    def _assert_gitlink_rejected(self, prefix: str, marker: str) -> None:
+        result = self._run_validator_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        combined = result.stdout + result.stderr
+        self.assertIn("exact Git index gitlink", combined)
+        self.assertIn("160000", combined)
+        self.assertIn("target was not read", combined)
+        self.assertNotIn("GOAL-GITLINK-999", combined)
+        self.assertNotIn("GOAL-GITLINK-a1b2c3", combined)
+        self.assertNotIn(marker, combined)
+
+        context = self._validator_context()
+        self.assertNotIn("GOAL-GITLINK-999", context.ids)
+        self.assertNotIn("GOAL-GITLINK-a1b2c3", context.ids)
+        self.assertNotIn(marker, repr(context.records))
+        self.assertTrue(any("exact Git index gitlink" in error
+                            for error in context.errors), context.errors)
+
+        merge = self._run_base_cli()
+        self.assertEqual(merge.returncode, 1, (merge.stdout, merge.stderr))
+        self.assertIn("160000", merge.stderr)
+
     def _assert_base_cli_rejects_symlink(self) -> subprocess.CompletedProcess[str]:
         result = self._run_base_cli()
         self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
@@ -246,6 +294,96 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
     def test_committed_external_ledger_prefix_alias_is_rejected(self) -> None:
         self._replace_prefix("ledger", "external", stage=True, commit=True)
         self._assert_prefix_rejected("ledger")
+
+    def test_committed_initialized_goals_gitlink_is_rejected(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "initialized goals gitlink")
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+
+    def test_committed_initialized_ledger_gitlink_is_rejected(self) -> None:
+        self._stage_gitlink("ledger", initialized=True)
+        self.git("commit", "-qm", "initialized ledger gitlink")
+        self._assert_gitlink_rejected(
+            "ledger", "LEDGER_GITLINK_INTERPRETED"
+        )
+
+    def test_uninitialized_goals_gitlink_is_rejected(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=False)
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+
+    def test_uninitialized_ledger_gitlink_is_rejected(self) -> None:
+        self._stage_gitlink("ledger", initialized=False)
+        self._assert_gitlink_rejected(
+            "ledger", "LEDGER_GITLINK_INTERPRETED"
+        )
+
+    def test_unavailable_target_goals_gitlink_is_rejected(self) -> None:
+        self._stage_gitlink(
+            "ledger/goals", initialized=False, target_commit="a" * 40
+        )
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+
+    def test_unavailable_target_ledger_gitlink_is_rejected(self) -> None:
+        self._stage_gitlink(
+            "ledger", initialized=False, target_commit="b" * 40
+        )
+        self._assert_gitlink_rejected(
+            "ledger", "LEDGER_GITLINK_INTERPRETED"
+        )
+
+    def test_staged_initialized_gitlink_is_rejected(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+
+    def test_staged_gitlink_remains_rejected_after_worktree_disagrees(self) -> None:
+        path = self._stage_gitlink("ledger/goals", initialized=False)
+        path.mkdir()
+        (path / "GOAL-BASE-001.yaml").write_text(
+            "research_goal:\n  id: GOAL-BASE-001\n  status: active\n",
+            encoding="utf-8",
+        )
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+
+    def test_ordinary_descendants_are_not_exact_gitlink_entries(self) -> None:
+        with mock.patch.object(vl, "REPO", str(self.root)):
+            in_git, errors = vl.protected_prefix_git_errors()
+        self.assertTrue(in_git)
+        self.assertEqual(errors, [])
+
+    def test_non_git_fixture_uses_filesystem_boundary_only(self) -> None:
+        nongit = self.external_root / "non-git-fixture"
+        (nongit / "ledger/goals").mkdir(parents=True)
+        context = vl.Ctx(set())
+        with mock.patch.object(vl, "REPO", str(nongit)):
+            in_git, errors = vl.protected_prefix_git_errors()
+            valid = vl.check_trusted_goal_prefixes(context)
+        self.assertFalse(in_git)
+        self.assertEqual(errors, [])
+        self.assertTrue(valid)
+        self.assertEqual(context.errors, [])
+
+        shutil.rmtree(nongit / "ledger/goals")
+        target = self.external_root / "non-git-target"
+        target.mkdir()
+        (nongit / "ledger/goals").symlink_to(target, target_is_directory=True)
+        rejected = vl.Ctx(set())
+        with mock.patch.object(vl, "REPO", str(nongit)):
+            valid = vl.check_trusted_goal_prefixes(rejected)
+        self.assertFalse(valid)
+        self.assertTrue(any("trusted goal prefix is symlink" in error
+                            for error in rejected.errors), rejected.errors)
+        self.assertFalse(any("Git index" in error for error in rejected.errors),
+                         rejected.errors)
 
     def test_committed_internal_ledger_prefix_alias_is_rejected(self) -> None:
         self._replace_prefix("ledger", "internal", stage=True, commit=True)

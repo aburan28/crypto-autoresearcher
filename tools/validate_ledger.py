@@ -1443,8 +1443,99 @@ def load_goal_documents(ctx: Ctx):
         yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
 
 
+def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
+    """Inspect exact index entries without touching protected-prefix targets.
+
+    Git stores ordinary directories only as descendant entries, while a
+    gitlink or symlink occupies the exact protected path.  Keeping those cases
+    separate prevents an initialized gitlink's ordinary-directory filesystem
+    appearance from laundering mode 160000 into the ledger traversal.
+
+    The boolean reports whether REPO is a Git worktree.  Non-Git fixtures retain
+    the filesystem-only contract and make no Git provenance claim.
+    """
+    git_marker = os.path.join(REPO, ".git")
+    try:
+        probe = subprocess.run(
+            ["git", "-C", REPO, "rev-parse", "--is-inside-work-tree"],
+            capture_output=True, text=True,
+        )
+    except OSError as error:
+        if os.path.lexists(git_marker):
+            return True, [("ledger", "cannot inspect protected-prefix Git "
+                           f"metadata: {error}; target was not read")]
+        return False, []
+    if probe.returncode != 0 or probe.stdout.strip() != "true":
+        if os.path.lexists(git_marker):
+            detail = (probe.stderr or probe.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "Git worktree probe failed"
+            return True, [("ledger", "cannot determine protected-prefix Git "
+                           f"metadata: {reason}; target was not read")]
+        return False, []
+
+    errors: list[tuple[str, str]] = []
+    for relative in ("ledger", "ledger/goals"):
+        result = subprocess.run(
+            ["git", "-C", REPO, "ls-files", "--stage", "-z", "--", relative],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "index query failed"
+            errors.append((relative, "cannot determine protected-prefix Git "
+                                     f"metadata: {reason}; target was not read"))
+            break
+
+        exact_modes: list[str] = []
+        descendant_count = 0
+        for entry in result.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            mode = metadata.split(" ", 1)[0]
+            if candidate == relative:
+                exact_modes.append(mode)
+            elif candidate.startswith(relative + "/"):
+                descendant_count += 1
+
+        if exact_modes:
+            modes = sorted(set(exact_modes))
+            description = (
+                "gitlink" if modes == ["160000"] else
+                "symlink" if modes == ["120000"] else
+                "regular file" if modes == ["100644"] else
+                "non-directory object"
+            )
+            if description in {"gitlink", "symlink"}:
+                finding = f"an exact Git index {description}"
+            else:
+                finding = f"{description}; exact Git index object"
+            errors.append((
+                relative,
+                f"trusted goal prefix is {finding} "
+                f"with mode(s) {modes}; ordinary tracked descendants are "
+                "required and target was not read",
+            ))
+            break
+        if descendant_count == 0:
+            errors.append((
+                relative,
+                "trusted goal prefix is missing; Git index has neither an "
+                "exact entry nor ordinary tracked descendants, so candidate "
+                "type is indeterminate and target was not read",
+            ))
+            break
+    return True, errors
+
+
 def check_trusted_goal_prefixes(ctx: Ctx) -> bool:
     """Require ordinary ledger and ledger/goals directories without follow."""
+    in_git_worktree, git_errors = protected_prefix_git_errors()
+    if in_git_worktree and git_errors:
+        for relative, message in git_errors:
+            ctx.err(os.path.join(REPO, *relative.split("/")), message, force=True)
+        return False
+
     for relative in ("ledger", "ledger/goals"):
         path = os.path.join(REPO, *relative.split("/"))
         try:
