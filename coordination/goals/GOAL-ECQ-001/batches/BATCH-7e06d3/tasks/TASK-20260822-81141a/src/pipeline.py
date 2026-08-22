@@ -1129,6 +1129,8 @@ def cmd_certify(args):
     }
     alarms = {"tier2_mn_arm": args.alarm, "tier2_random_control_arm": args.alarm,
               "tier1_global_top": args.alarm_global}
+    if args.only_arm:
+        arms = {args.only_arm: arms[args.only_arm]}
     results = {}
     for name, ts in arms.items():
         recs = []
@@ -1209,6 +1211,7 @@ def main():
     s.add_argument("--alarm-global", type=int, default=20)
     s.add_argument("--K-global", type=int, default=20)
     s.add_argument("--budget", type=float, default=1500.0)
+    s.add_argument("--only-arm", default=None)
     s.add_argument("--out", required=True)
     s.set_defaults(func=cmd_certify)
 

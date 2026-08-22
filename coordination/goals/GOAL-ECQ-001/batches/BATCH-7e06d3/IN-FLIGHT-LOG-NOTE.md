@@ -107,3 +107,12 @@ Flag cleared via the sweep and the final log committed. Sweep is empty again.
 Flagged for CHURN FREQUENCY, not size — the log is sub-kB but dirtied three
 consecutive stop-cycles. Same local-only skip-worktree; same sweep discharges it
 before the snapshot archive.
+
+---
+
+## DISCHARGED for RUN-ECQ-81141a-004 (over-Q pipeline), 2026-08-22
+
+Run terminated and its log stopped growing (stable at 8,008 bytes across a
+re-read). Flag cleared via the sweep and the final log committed with the run's
+manifest and raw-result. Sweep empty again. RUN-005's log opened stable and small,
+so it needs no flag.
