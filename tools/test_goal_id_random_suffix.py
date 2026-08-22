@@ -99,13 +99,18 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
             check=False,
         )
 
-    def _run_validator_cli(self) -> subprocess.CompletedProcess[str]:
+    def _run_validator_cli(
+        self, environment: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env.update(environment or {})
         return subprocess.run(
             [sys.executable, str(self.root / "tools/validate_ledger.py")],
             cwd=self.root,
             capture_output=True,
             text=True,
             check=False,
+            env=env,
         )
 
     def _prefix_target(self, prefix: str, kind: str) -> Path:
@@ -190,31 +195,76 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
             (goals / "GOAL-GITLINK-a1b2c3.yaml").write_text(
                 random_goal, encoding="utf-8"
             )
+            (goals / "GOAL-MALFORMED-deadbe.yaml").write_text(
+                "TARGET_ONLY_MALFORMED_YAML: [unterminated\n", encoding="utf-8"
+            )
         else:
             shutil.rmtree(path)
         return path
 
-    def _assert_gitlink_rejected(self, prefix: str, marker: str) -> None:
-        result = self._run_validator_cli()
+    def _assert_gitlink_rejected(
+        self, prefix: str, marker: str,
+        environment: dict[str, str] | None = None,
+    ) -> None:
+        result = self._run_validator_cli(environment)
         self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
         combined = result.stdout + result.stderr
-        self.assertIn("exact Git index gitlink", combined)
+        self.assertIn("exact Git", combined)
+        self.assertIn("gitlink", combined)
         self.assertIn("160000", combined)
         self.assertIn("target was not read", combined)
         self.assertNotIn("GOAL-GITLINK-999", combined)
         self.assertNotIn("GOAL-GITLINK-a1b2c3", combined)
         self.assertNotIn(marker, combined)
+        self.assertNotIn("TARGET_ONLY_MALFORMED_YAML", combined)
 
-        context = self._validator_context()
+        with mock.patch.dict(os.environ, environment or {}, clear=False):
+            context = self._validator_context()
         self.assertNotIn("GOAL-GITLINK-999", context.ids)
         self.assertNotIn("GOAL-GITLINK-a1b2c3", context.ids)
         self.assertNotIn(marker, repr(context.records))
-        self.assertTrue(any("exact Git index gitlink" in error
+        self.assertFalse(any("TARGET_ONLY_MALFORMED_YAML" in error
+                             for error in context.errors), context.errors)
+        self.assertTrue(any("exact Git" in error and "gitlink" in error
                             for error in context.errors), context.errors)
 
         merge = self._run_base_cli()
         self.assertEqual(merge.returncode, 1, (merge.stdout, merge.stderr))
         self.assertIn("160000", merge.stderr)
+
+    def _alternate_index(self, ref: str = "base-tree") -> Path:
+        index = self.external_root / f"alternate-index-{len(list(self.external_root.iterdir()))}"
+        env = os.environ.copy()
+        env["GIT_INDEX_FILE"] = str(index)
+        subprocess.run(
+            ["git", "-C", str(self.root), "read-tree", ref],
+            check=True, capture_output=True, text=True, env=env,
+        )
+        return index
+
+    def _benign_repository(self) -> Path:
+        root = self.external_root / "benign-repository"
+        root.mkdir()
+        subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+        subprocess.run(
+            ["git", "-C", str(root), "config", "user.email",
+             "tests@example.invalid"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(root), "config", "user.name", "Benign Git"],
+            check=True,
+        )
+        path = root / "ledger/goals/GOAL-BENIGN-a1b2c3.yaml"
+        path.parent.mkdir(parents=True)
+        path.write_text(
+            "research_goal:\n  id: GOAL-BENIGN-a1b2c3\n  status: active\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+        subprocess.run(
+            ["git", "-C", str(root), "commit", "-qm", "benign"], check=True
+        )
+        return root
 
     def _assert_base_cli_rejects_symlink(self) -> subprocess.CompletedProcess[str]:
         result = self._run_base_cli()
@@ -353,6 +403,76 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
         self._assert_gitlink_rejected(
             "ledger/goals", "GITLINK_TARGET_INTERPRETED"
         )
+
+    def test_head_goals_gitlink_rejects_candidate_index_descendants(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "goals gitlink in HEAD")
+        self.git("read-tree", "base-tree")
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+
+    def test_head_ledger_gitlink_rejects_candidate_index_descendants(self) -> None:
+        self._stage_gitlink("ledger", initialized=True)
+        self.git("commit", "-qm", "ledger gitlink in HEAD")
+        self.git("read-tree", "base-tree")
+        self._assert_gitlink_rejected(
+            "ledger", "LEDGER_GITLINK_INTERPRETED"
+        )
+
+    def test_rename_destination_cannot_authorize_head_gitlink(self) -> None:
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "goals gitlink before rename candidate")
+        self.git("read-tree", "base-tree")
+        source = "ledger/goals/GOAL-BASE-001.yaml"
+        destination = "ledger/goals/GOAL-RENAMED-a1b2c3.yaml"
+        blob = self.git("rev-parse", f"base-tree:{source}")
+        self.git("update-index", "--force-remove", source)
+        self.git("update-index", "--add", "--cacheinfo",
+                 "100644", blob, destination)
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED"
+        )
+
+    def test_alternate_index_cannot_mask_explicit_root_gitlink(self) -> None:
+        alternate = self._alternate_index()
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "gitlink hidden from alternate index")
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED",
+            {"GIT_INDEX_FILE": str(alternate)},
+        )
+
+    def test_misleading_git_dir_and_work_tree_cannot_redirect_root(self) -> None:
+        benign = self._benign_repository()
+        self._stage_gitlink("ledger", initialized=True)
+        self.git("commit", "-qm", "gitlink hidden from alternate repository")
+        self._assert_gitlink_rejected(
+            "ledger", "LEDGER_GITLINK_INTERPRETED",
+            {"GIT_DIR": str(benign / ".git"), "GIT_WORK_TREE": str(benign)},
+        )
+
+    def test_combined_alternate_git_environment_cannot_redirect_root(self) -> None:
+        alternate = self._alternate_index()
+        benign = self._benign_repository()
+        self._stage_gitlink("ledger/goals", initialized=True)
+        self.git("commit", "-qm", "gitlink hidden from combined environment")
+        self._assert_gitlink_rejected(
+            "ledger/goals", "GITLINK_TARGET_INTERPRETED",
+            {
+                "GIT_INDEX_FILE": str(alternate),
+                "GIT_DIR": str(benign / ".git"),
+                "GIT_WORK_TREE": str(benign),
+            },
+        )
+
+    def test_head_symlink_rejects_index_descendants(self) -> None:
+        self._replace_prefix("ledger/goals", "external", stage=True, commit=True)
+        self.git("read-tree", "base-tree")
+        result = self._run_validator_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("exact Git HEAD tree symlink", result.stderr)
+        self.assertIn("target was not read", result.stderr)
 
     def test_ordinary_descendants_are_not_exact_gitlink_entries(self) -> None:
         with mock.patch.object(vl, "REPO", str(self.root)):

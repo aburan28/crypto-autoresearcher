@@ -1443,8 +1443,20 @@ def load_goal_documents(ctx: Ctx):
         yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
 
 
+GIT_CONTEXT_REDIRECTS = {
+    "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+}
+
+
+def _explicit_git_environment() -> dict[str, str]:
+    """Environment stripped of caller-controlled repository redirects."""
+    return {key: value for key, value in os.environ.items()
+            if key not in GIT_CONTEXT_REDIRECTS}
+
+
 def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
-    """Inspect exact index entries without touching protected-prefix targets.
+    """Inspect bound HEAD and actual index without touching alias targets.
 
     Git stores ordinary directories only as descendant entries, while a
     gitlink or symlink occupies the exact protected path.  Keeping those cases
@@ -1452,13 +1464,16 @@ def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
     appearance from laundering mode 160000 into the ledger traversal.
 
     The boolean reports whether REPO is a Git worktree.  Non-Git fixtures retain
-    the filesystem-only contract and make no Git provenance claim.
+    the filesystem-only contract and make no Git provenance claim. Caller Git
+    redirects are removed, then the discovered top-level, Git directory, and
+    actual index are rebound explicitly for every metadata query.
     """
     git_marker = os.path.join(REPO, ".git")
+    clean_env = _explicit_git_environment()
     try:
         probe = subprocess.run(
             ["git", "-C", REPO, "rev-parse", "--is-inside-work-tree"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, env=clean_env,
         )
     except OSError as error:
         if os.path.lexists(git_marker):
@@ -1473,22 +1488,62 @@ def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
                            f"metadata: {reason}; target was not read")]
         return False, []
 
+    context = subprocess.run(
+        ["git", "-C", REPO, "rev-parse", "--show-toplevel",
+         "--absolute-git-dir", "--path-format=absolute", "--git-path", "index"],
+        capture_output=True, text=True, env=clean_env,
+    )
+    values = [line.strip() for line in context.stdout.splitlines() if line.strip()]
+    if context.returncode != 0 or len(values) != 3:
+        detail = (context.stderr or context.stdout).strip().splitlines()
+        reason = detail[-1] if detail else "explicit Git context query failed"
+        return True, [("ledger", "cannot bind protected-prefix Git metadata "
+                                 f"to validation root: {reason}; target was not read")]
+    top_level, git_directory, index_file = map(os.path.abspath, values)
+    try:
+        root_matches = os.path.samefile(top_level, REPO)
+    except OSError:
+        root_matches = (os.path.normcase(os.path.realpath(top_level))
+                        == os.path.normcase(os.path.realpath(REPO)))
+    if not root_matches:
+        return True, [("ledger", "protected-prefix Git top-level does not match "
+                                 "the explicit validation root; target was not read")]
+    if not os.path.isdir(git_directory) or not os.path.isfile(index_file):
+        return True, [("ledger", "protected-prefix actual Git directory or "
+                                 "index is unavailable; target was not read")]
+
+    bound_env = dict(clean_env)
+    bound_env["GIT_INDEX_FILE"] = index_file
+
+    def bound_git(*arguments: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["git", f"--git-dir={git_directory}", f"--work-tree={REPO}",
+             *arguments], capture_output=True, text=True, env=bound_env,
+        )
+
     errors: list[tuple[str, str]] = []
     for relative in ("ledger", "ledger/goals"):
-        result = subprocess.run(
-            ["git", "-C", REPO, "ls-files", "--stage", "-z", "--", relative],
-            capture_output=True, text=True,
-        )
-        if result.returncode != 0:
-            detail = (result.stderr or result.stdout).strip().splitlines()
-            reason = detail[-1] if detail else "index query failed"
+        head = bound_git("ls-tree", "-z", "HEAD", "--", relative)
+        index = bound_git("ls-files", "--stage", "-z", "--", relative)
+        if head.returncode != 0 or index.returncode != 0:
+            failed = head if head.returncode != 0 else index
+            detail = (failed.stderr or failed.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "HEAD or index query failed"
             errors.append((relative, "cannot determine protected-prefix Git "
                                      f"metadata: {reason}; target was not read"))
             break
 
+        head_modes: list[str] = []
+        for entry in head.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            if candidate == relative:
+                head_modes.append(metadata.split(" ", 1)[0])
+
         exact_modes: list[str] = []
         descendant_count = 0
-        for entry in result.stdout.split("\0"):
+        for entry in index.stdout.split("\0"):
             if not entry or "\t" not in entry:
                 continue
             metadata, candidate = entry.split("\t", 1)
@@ -1498,8 +1553,20 @@ def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
             elif candidate.startswith(relative + "/"):
                 descendant_count += 1
 
-        if exact_modes:
-            modes = sorted(set(exact_modes))
+        for source, modes_found in (("Git HEAD tree", head_modes),
+                                    ("Git index", exact_modes)):
+            modes = sorted(set(modes_found))
+            if modes == ["040000"] and source == "Git HEAD tree":
+                continue
+            if not modes and source == "Git index" and descendant_count:
+                continue
+            if not modes:
+                errors.append((
+                    relative,
+                    f"trusted goal prefix is missing from {source}; protected "
+                    "candidate state is indeterminate and target was not read",
+                ))
+                break
             description = (
                 "gitlink" if modes == ["160000"] else
                 "symlink" if modes == ["120000"] else
@@ -1507,15 +1574,17 @@ def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
                 "non-directory object"
             )
             if description in {"gitlink", "symlink"}:
-                finding = f"an exact Git index {description}"
+                finding = f"an exact {source} {description}"
             else:
-                finding = f"{description}; exact Git index object"
+                finding = f"{description}; exact {source} object"
             errors.append((
                 relative,
                 f"trusted goal prefix is {finding} "
                 f"with mode(s) {modes}; ordinary tracked descendants are "
                 "required and target was not read",
             ))
+            break
+        if errors:
             break
         if descendant_count == 0:
             errors.append((
