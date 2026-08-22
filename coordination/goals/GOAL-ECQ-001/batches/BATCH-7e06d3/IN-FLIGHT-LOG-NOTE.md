@@ -42,3 +42,30 @@ the snapshot archive will hash the complete file rather than a stale prefix.
 
 This note stays in the batch as the audit trail. If another producer run opens a
 new live log, the same procedure and the same obligation apply again.
+
+---
+
+## OPEN for RUN-a7a9e8-004-augment-full, 2026-08-22
+
+Same situation, same treatment: the producer opened a fourth run whose stdout.log
+is live and growing. Flag set with `git update-index --skip-worktree`; LOCAL
+ONLY, nothing committed, no repo config changed.
+
+**Obligation is OPEN.** Before the snapshot archive, clear the flag and commit
+the final log, exactly as was done for RUN-a7a9e8-002-m10-main:
+
+    git update-index --no-skip-worktree <path>
+    git add <path>
+
+Check `runs/` for any further live logs at archive time — the producer has opened
+four runs so far and may open more, so this must be swept rather than fixed to a
+known list. `git ls-files -v <dir> | grep '^S'` lists every path currently
+carrying the flag.
+
+## Watch item for the Coordinator
+
+`raw-result.json` for run 002 was 108 MB and had to be stored gzipped
+(RAW-RESULT-STORAGE.md in that run directory). If later runs dump at the same
+rate, the archive will accumulate tens of MB per run. That is a producer
+over-collection question to settle before the snapshot archive fixes it in
+history, not something to resolve by trimming output.
