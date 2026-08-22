@@ -340,6 +340,11 @@ def audit() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    area_occurrences = sum(
+        argument == "--area" or argument.startswith("--area=")
+        for argument in raw_argv
+    )
     ap = argparse.ArgumentParser(
         prog="python3 tools/allocate_id.py",
         description="Check an identifier is well-formed AND free across the "
@@ -359,14 +364,17 @@ def main(argv: list[str] | None = None) -> int:
                          "that will be merged.")
     ap.add_argument("--seed", type=int, default=None,
                     help="seed the random allocator (tests and reproduction only)")
-    args = ap.parse_args(argv)
+    args = ap.parse_args(raw_argv)
 
     if args.check:
         return check(args.check)
     if args.audit:
         return audit()
-    if args.next == "goal" and (not args.area or args.date):
-        ap.error("--next goal requires exactly --area and does not accept --date")
+    if args.next == "goal" and (area_occurrences != 1
+                                or not args.area or args.date):
+        ap.error("goal allocation requires exactly one --area occurrence "
+                 "(--next goal requires exactly --area) and does not accept "
+                 "--date")
     middle = args.area or args.date
     if not middle and args.next not in NO_MIDDLE:
         ap.error("--next requires --area (for GOAL/RQ/H/EXP/EV) or --date "

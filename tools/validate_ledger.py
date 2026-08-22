@@ -1443,6 +1443,29 @@ def load_goal_documents(ctx: Ctx):
         yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
 
 
+def check_trusted_goal_prefixes(ctx: Ctx) -> bool:
+    """Require ordinary ledger and ledger/goals directories without follow."""
+    for relative in ("ledger", "ledger/goals"):
+        path = os.path.join(REPO, *relative.split("/"))
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            description = "missing"
+        else:
+            if stat.S_ISLNK(mode):
+                description = "symlink"
+            elif stat.S_ISDIR(mode):
+                continue
+            elif stat.S_ISREG(mode):
+                description = "regular file"
+            else:
+                description = "special file"
+        ctx.err(path, f"trusted goal prefix is {description}; required ordinary "
+                      "directory and target was not read", force=True)
+        return False
+    return True
+
+
 def check_goal_symlinks(ctx: Ctx) -> None:
     """Reject goal-tree symlinks without opening or traversing their targets."""
     root = os.path.join(REPO, "ledger", "goals")
@@ -1469,6 +1492,8 @@ def check_goal_symlinks(ctx: Ctx) -> None:
 
 
 def check_goals(ctx: Ctx):
+    if not check_trusted_goal_prefixes(ctx):
+        return
     check_goal_symlinks(ctx)
     for path, goal, expected_name, identity in load_goal_documents(ctx):
         rec_id = goal.get("id")
@@ -1604,6 +1629,17 @@ def main() -> int:
                          "(bootstraps the full set only if no baseline "
                          "file exists; never grows an existing one)")
     args = ap.parse_args()
+
+    # This must precede every inventory, glob, supersession, and record read.
+    # If ledger itself is an alias, even an apparently unrelated ledger glob
+    # would otherwise escape the candidate tree before check_goals runs.
+    prefix_ctx = Ctx(set())
+    if not check_trusted_goal_prefixes(prefix_ctx):
+        print(f"FAIL: {len(prefix_ctx.errors)} new validation error(s):\n",
+              file=sys.stderr)
+        for error in prefix_ctx.errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
 
     try:
         legacy_inventory = load_legacy_inventory()

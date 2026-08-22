@@ -82,6 +82,8 @@ GOAL_HEAD_PATTERNS = (
     re.compile(r"^ledger/goals/(GOAL-[^/]+)/goal\.yaml$"),
 )
 
+TRUSTED_GOAL_PREFIXES = ("ledger", "ledger/goals")
+
 
 def _run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(args, cwd=REPO, capture_output=True, text=True)
@@ -145,6 +147,96 @@ def _index_symlink_paths() -> set[str]:
         if mode == "120000":
             symlinks.add(path)
     return symlinks
+
+
+def _tree_mode(ref: str, path: str) -> str | None:
+    """Git mode for one exact path in a committed tree, without checkout."""
+    result = _run("git", "ls-tree", "-z", ref, "--", path)
+    if result.returncode != 0:
+        return None
+    for entry in result.stdout.split("\0"):
+        if not entry or "\t" not in entry:
+            continue
+        metadata, candidate = entry.split("\t", 1)
+        if candidate == path:
+            return metadata.split(" ", 1)[0]
+    return None
+
+
+def _index_mode(path: str) -> str | None:
+    """Conceptual index mode for a required prefix, without reading targets.
+
+    Git stores no directory entries in the index.  Descendants therefore prove
+    the ordinary tree case; an exact entry is necessarily a file or symlink and
+    its real mode is returned.
+    """
+    result = _run("git", "ls-files", "--stage", "-z", "--", path)
+    if result.returncode != 0:
+        return None
+    descendants = False
+    for entry in result.stdout.split("\0"):
+        if not entry or "\t" not in entry:
+            continue
+        metadata, candidate = entry.split("\t", 1)
+        if candidate == path:
+            return metadata.split(" ", 1)[0]
+        if candidate.startswith(path + "/"):
+            descendants = True
+    return "040000" if descendants else None
+
+
+def _mode_description(mode: str | None) -> str:
+    if mode is None:
+        return "missing"
+    if mode == "120000":
+        return "symlink (Git mode 120000)"
+    if mode == "040000":
+        return "ordinary directory (Git mode 040000)"
+    return f"non-directory Git mode {mode}"
+
+
+def check_trusted_goal_prefixes() -> list[str]:
+    """Prove ledger and ledger/goals are ordinary candidate directories.
+
+    HEAD and index inspection use Git metadata only.  Filesystem inspection is
+    component-by-component with lstat, and stops at the first forbidden object,
+    so a symlink target is never resolved, opened, globbed, or traversed.
+    """
+    bad: list[str] = []
+    for state, mode_for in (("committed HEAD tree", lambda p: _tree_mode("HEAD", p)),
+                            ("staged index", _index_mode)):
+        for prefix in TRUSTED_GOAL_PREFIXES:
+            mode = mode_for(prefix)
+            if mode != "040000":
+                bad.append(
+                    f"{prefix}: trusted goal prefix in {state} is "
+                    f"{_mode_description(mode)}; required ordinary directory "
+                    "and target was not read"
+                )
+                break
+
+    for prefix in TRUSTED_GOAL_PREFIXES:
+        full = os.path.join(REPO, *prefix.split("/"))
+        try:
+            mode = os.lstat(full).st_mode
+        except OSError:
+            description = "missing"
+        else:
+            if stat.S_ISLNK(mode):
+                description = "symlink"
+            elif stat.S_ISDIR(mode):
+                continue
+            elif stat.S_ISREG(mode):
+                description = "regular file"
+            else:
+                description = "special file"
+        bad.append(
+            f"{prefix}: trusted goal prefix in tracked worktree/absolute tree "
+            f"is {description}; required ordinary directory and target was "
+            "not read"
+        )
+        break
+    return bad
 
 
 def _first_path_component(path: str, candidates: set[str]) -> str | None:
@@ -446,13 +538,22 @@ def main() -> int:
               "absolute sweep runs on main",
               file=sys.stderr)
 
+    trusted_prefix_problems = check_trusted_goal_prefixes()
+    if trusted_prefix_problems:
+        # No later filesystem check may touch ledger: an invalid ledger prefix
+        # could redirect every open/glob beneath it. Git-only prefix inspection
+        # above is the complete and blocking result for that candidate.
+        parse_paths = [p for p in parse_paths
+                       if p != "ledger" and not p.startswith("ledger/")]
+
     groups = [
+        ("invalid trusted goal prefixes", trusted_prefix_problems),
         ("symlinked goal paths", check_goal_symlinks(parse_paths)),
         ("unresolved conflict markers", check_markers(parse_paths)),
         ("unparseable records", check_parses(parse_paths,
                                              report_stale=scoped is None)),
     ]
-    if args.base:
+    if args.base and not trusted_prefix_problems:
         groups.append(("identifier collisions", check_collisions(args.base)))
         groups.append(("new legacy GOAL identifiers",
                        check_prospective_goal_ids(args.base)))

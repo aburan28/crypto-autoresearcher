@@ -247,6 +247,30 @@ class AllocationTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("requires exactly --area", error.getvalue())
 
+    def test_goal_next_rejects_repeated_different_area_occurrences(self) -> None:
+        output, error = StringIO(), StringIO()
+        with redirect_stdout(output), redirect_stderr(error), \
+                self.assertRaises(SystemExit) as raised:
+            ai.main([
+                "--next", "goal", "--area", "ERANK",
+                "--area", "ECDLP", "--seed", "11",
+            ])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("exactly one --area occurrence", error.getvalue())
+
+    def test_goal_next_rejects_repeated_identical_area_occurrences(self) -> None:
+        output, error = StringIO(), StringIO()
+        with redirect_stdout(output), redirect_stderr(error), \
+                self.assertRaises(SystemExit) as raised:
+            ai.main([
+                "--next", "goal", "--area=ERANK",
+                "--area", "ERANK", "--seed", "11",
+            ])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("exactly one --area occurrence", error.getvalue())
+
     def test_unrelated_area_and_date_scoped_types_retain_behavior(self) -> None:
         output = StringIO()
         with mock.patch.object(ai, "occurrences", return_value=[]):

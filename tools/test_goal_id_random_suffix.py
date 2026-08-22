@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -98,6 +99,75 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
             check=False,
         )
 
+    def _run_validator_cli(self) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(self.root / "tools/validate_ledger.py")],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def _prefix_target(self, prefix: str, kind: str) -> Path:
+        if kind == "internal":
+            target = self.root / "prefix-fixtures" / prefix.replace("/", "-")
+        else:
+            target = self.external_root / f"{kind}-{prefix.replace('/', '-')}"
+        if kind == "dangling":
+            return target
+        goals = target / "goals" if prefix == "ledger" else target
+        goals.mkdir(parents=True)
+        (goals / "GOAL-HIDDEN-999.yaml").write_text(
+            self._goal_document("GOAL-HIDDEN-999"), encoding="utf-8"
+        )
+        (goals / "GOAL-HIDDEN-a1b2c3.yaml").write_text(
+            self._goal_document("GOAL-HIDDEN-a1b2c3"), encoding="utf-8"
+        )
+        (goals / "GOAL-PARSE-deadbe.yaml").write_text(
+            "B2_TARGET_ONLY_PARSE_MARKER: [unterminated\n", encoding="utf-8"
+        )
+        return target
+
+    def _replace_prefix(self, prefix: str, kind: str, *, stage: bool,
+                        commit: bool = False) -> Path:
+        path = self.root.joinpath(*prefix.split("/"))
+        shutil.rmtree(path)
+        target = self._prefix_target(prefix, kind)
+        link_target: Path | str = target
+        if kind == "internal":
+            link_target = os.path.relpath(target, path.parent)
+        path.symlink_to(link_target, target_is_directory=True)
+        if stage:
+            self.git("add", "-A")
+        if commit:
+            self.git("commit", "-qm", f"{kind} {prefix} alias")
+        return path
+
+    def _assert_prefix_rejected(self, prefix: str) -> None:
+        merge = self._run_base_cli()
+        self.assertEqual(merge.returncode, 1, (merge.stdout, merge.stderr))
+        self.assertIn("invalid trusted goal prefixes", merge.stderr)
+        self.assertIn(prefix, merge.stderr)
+        self.assertIn("target was not read", merge.stderr)
+        self.assertNotIn("GOAL-HIDDEN-999", merge.stdout + merge.stderr)
+        self.assertNotIn("GOAL-HIDDEN-a1b2c3", merge.stdout + merge.stderr)
+        self.assertNotIn("B2_TARGET_ONLY_PARSE_MARKER", merge.stdout + merge.stderr)
+
+        ledger = self._run_validator_cli()
+        self.assertEqual(ledger.returncode, 1, (ledger.stdout, ledger.stderr))
+        self.assertIn("trusted goal prefix is", ledger.stderr)
+        self.assertIn(prefix, ledger.stderr)
+        self.assertIn("target was not read", ledger.stderr)
+        self.assertNotIn("GOAL-HIDDEN-999", ledger.stdout + ledger.stderr)
+        self.assertNotIn("GOAL-HIDDEN-a1b2c3", ledger.stdout + ledger.stderr)
+        self.assertNotIn("B2_TARGET_ONLY_PARSE_MARKER", ledger.stdout + ledger.stderr)
+
+        context = self._validator_context()
+        self.assertNotIn("GOAL-HIDDEN-999", context.ids)
+        self.assertNotIn("GOAL-HIDDEN-a1b2c3", context.ids)
+        self.assertTrue(any(prefix in error and "target was not read" in error
+                            for error in context.errors), context.errors)
+
     def _assert_base_cli_rejects_symlink(self) -> subprocess.CompletedProcess[str]:
         result = self._run_base_cli()
         self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
@@ -160,6 +230,105 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
             hygiene.goal_ids_from_paths(paths),
             {"GOAL-X-a1b2c3", "GOAL-Y-deadbe"},
         )
+
+    def test_committed_external_goals_prefix_alias_is_rejected(self) -> None:
+        self._replace_prefix("ledger/goals", "external", stage=True, commit=True)
+        self._assert_prefix_rejected("ledger/goals")
+
+    def test_committed_internal_goals_prefix_alias_is_rejected(self) -> None:
+        self._replace_prefix("ledger/goals", "internal", stage=True, commit=True)
+        self._assert_prefix_rejected("ledger/goals")
+
+    def test_committed_dangling_goals_prefix_alias_is_rejected(self) -> None:
+        self._replace_prefix("ledger/goals", "dangling", stage=True, commit=True)
+        self._assert_prefix_rejected("ledger/goals")
+
+    def test_committed_external_ledger_prefix_alias_is_rejected(self) -> None:
+        self._replace_prefix("ledger", "external", stage=True, commit=True)
+        self._assert_prefix_rejected("ledger")
+
+    def test_committed_internal_ledger_prefix_alias_is_rejected(self) -> None:
+        self._replace_prefix("ledger", "internal", stage=True, commit=True)
+        self._assert_prefix_rejected("ledger")
+
+    def test_committed_dangling_ledger_prefix_alias_is_rejected(self) -> None:
+        self._replace_prefix("ledger", "dangling", stage=True, commit=True)
+        self._assert_prefix_rejected("ledger")
+
+    def test_staged_goals_prefix_alias_is_rejected_from_index(self) -> None:
+        self._replace_prefix("ledger/goals", "external", stage=True)
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("staged index is symlink (Git mode 120000)", result.stderr)
+
+    def test_staged_ledger_prefix_alias_is_rejected_from_index(self) -> None:
+        self._replace_prefix("ledger", "external", stage=True)
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("staged index is symlink (Git mode 120000)", result.stderr)
+
+    def test_staged_regular_file_prefix_is_rejected(self) -> None:
+        path = self.root / "ledger/goals"
+        shutil.rmtree(path)
+        path.write_text("not a directory\n", encoding="utf-8")
+        self.git("add", "-A")
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("staged index is non-directory Git mode 100644",
+                      result.stderr)
+        ledger = self._run_validator_cli()
+        self.assertEqual(ledger.returncode, 1, (ledger.stdout, ledger.stderr))
+        self.assertIn("trusted goal prefix is regular file", ledger.stderr)
+
+    def test_missing_required_prefix_is_rejected(self) -> None:
+        shutil.rmtree(self.root / "ledger/goals")
+        self.git("add", "-A")
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("staged index is missing", result.stderr)
+        ledger = self._run_validator_cli()
+        self.assertEqual(ledger.returncode, 1, (ledger.stdout, ledger.stderr))
+        self.assertIn("trusted goal prefix is missing", ledger.stderr)
+
+    def test_staged_prefix_alias_remains_rejected_after_worktree_diverges(self) -> None:
+        path = self._replace_prefix("ledger/goals", "external", stage=True)
+        path.unlink()
+        path.mkdir()
+        (path / "GOAL-BASE-001.yaml").write_text(
+            "research_goal:\n  id: GOAL-BASE-001\n  status: active\n",
+            encoding="utf-8",
+        )
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("staged index is symlink (Git mode 120000)", result.stderr)
+
+    def test_tracked_worktree_goals_prefix_alias_is_rejected(self) -> None:
+        self._replace_prefix("ledger/goals", "external", stage=False)
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("tracked worktree/absolute tree is symlink", result.stderr)
+
+    def test_tracked_worktree_ledger_prefix_alias_is_rejected(self) -> None:
+        self._replace_prefix("ledger", "external", stage=False)
+        result = self._run_base_cli()
+        self.assertEqual(result.returncode, 1, (result.stdout, result.stderr))
+        self.assertIn("tracked worktree/absolute tree is symlink", result.stderr)
+
+    def test_absolute_prefix_check_rejects_without_resolving_target(self) -> None:
+        self._replace_prefix("ledger/goals", "external", stage=False)
+        with mock.patch.object(hygiene, "REPO", str(self.root)):
+            problems = hygiene.check_trusted_goal_prefixes()
+        self.assertTrue(problems)
+        rendered = "\n".join(problems)
+        self.assertIn("tracked worktree/absolute tree is symlink", rendered)
+        self.assertNotIn("GOAL-HIDDEN", rendered)
+
+    def test_ordinary_trusted_prefixes_pass_all_candidate_states(self) -> None:
+        with mock.patch.object(hygiene, "REPO", str(self.root)):
+            self.assertEqual(hygiene.check_trusted_goal_prefixes(), [])
+        context = self._validator_context()
+        self.assertFalse(any("trusted goal prefix" in error
+                             for error in context.errors), context.errors)
 
     def test_tracked_sharded_directory_symlink_is_rejected_without_follow(self) -> None:
         target = self.external_root / "valid-goal-target"
