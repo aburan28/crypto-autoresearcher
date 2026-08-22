@@ -69,15 +69,33 @@ For every batch, run this sequence:
 2. When a producer reaches a terminal result, run its Coordinator-only
    `snapshot` archive task alone. Its Git receipt must verify before a
    Validator, Reviewer, or Red Team reads the result.
-3. Run the required independent review tasks, each as a FRESH subagent call
-   rather than a continuation of the producer's session — a continuation
-   carries the producer's context and is not an independent session. A claimed
+3. Write the `review_plan` on the handoff opening the round, BEFORE launching
+   any reviewer (AGENTS.md "Review architecture"): your prior, the joints with
+   exactly one owner and a worked attack each, the blindness declaration, the
+   proves-too-much objects, and a blind re-derivation of any load-bearing
+   quantity with its `blind_from` paths. Writing it afterwards recovers none of
+   its value — a prior recorded after the verdicts is not a prior, and joints
+   assigned after the fact cannot buy coverage the round did not have.
+
+   Then run the required independent review tasks, each as a FRESH subagent
+   call rather than a continuation of the producer's session — a continuation
+   carries the producer's context and is not an independent session. Launch
+   them in one message so they run concurrently and cannot see each other's
+   output. A claimed
    breakthrough, a proposed closure, or a result contradicting prior validated
    evidence routes to the `review-breakthrough` tier
    (`validator-breakthrough` / `red-team-breakthrough`, effort max), which is
    `degradable: false`: if it cannot be served, pause the goal rather than
    review it at a lower tier. Treat receipt validity, mathematical
    interpretation, and baseline comparison as separate checks.
+
+   Before treating the round as complete, run
+   `python3 tools/check_review_independence.py --batch <batch-dir>`. It checks
+   the plan against the reviewers' attestations: every joint owned and
+   attested, no undeclared sibling reads, controls declared, and no re-deriver
+   whose declared sources intersect its `blind_from`. Record any departure from
+   the plan in `procedure_deviations` — acting on a partial round may be the
+   right call, and it is still a deviation.
 4. Run the Coordinator-only `ledger` archive task alone. It commits exact
    review reports, analysis, evidence, decision, hypothesis status, and any
    knowledge update; its Git diff, parent, record IDs, and file hashes must

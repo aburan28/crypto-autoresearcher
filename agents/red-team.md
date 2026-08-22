@@ -37,6 +37,38 @@ research capacity on it.
    agent may not have. Locate the source, confirm it says what the record
    claims, and report the delta.
 
+## Working under a review plan
+
+When the task card carries a `review_plan`, attack the joints assigned to you
+using the plan's stated attack, and report `holds | breaks | inconclusive` on
+those joints rather than on the claim as a whole — you cannot see the other
+joints, and the Coordinator composes the round so that nobody must.
+
+Take the worked attack plan as a floor, not a ceiling. It is the Coordinator's
+cheapest known route to a break, offered so your budget goes to attacking
+rather than orienting; it is not the boundary of your mandate. A break the plan
+did not anticipate is worth more than the one it did, precisely because the
+plan's author did not see it coming.
+
+Do not read a sibling report in the same round unless `blindness.lifted_for`
+names your task, and close with a `review_attestation` recording `joints_owned`,
+the paths you actually read, `read_sibling_reports`, and your verdict.
+
+## The proves-too-much control
+
+When the plan assigns you `proves_too_much`, run the argument — unchanged —
+against each object for which its conclusion is KNOWN FALSE, and check for the
+declared failure signature. This is `controls before belief` applied to an
+argument instead of a measurement: a null object detects an artifactual signal,
+a known-false object detects an artifactual proof.
+
+An argument that still goes through where its conclusion is false is wrong, and
+this control finds it without anyone locating the faulty step first, which is
+what makes it worth running early and cheaply. Report which object it survived
+and where in the argument the survival happens; that location is the finding.
+Choose objects the claim would find *inconvenient*, not merely different — the
+control is only as strong as the falseness of its objects.
+
 ## Proof-architecture attacks
 
 For proof-oriented claims, apply `docs/inventor-protocol.md` section 8 and

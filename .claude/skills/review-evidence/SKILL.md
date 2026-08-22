@@ -18,6 +18,13 @@ review, and synthesis.
    from `experiments/<EXP-ID>/`. Before reviewing, merge `origin/main` into
    the working branch (merge, never rebase) so the decision is made against
    current ledger state — see "Branch and PR hygiene" below.
+
+   If this review can change a claim, write its `review_plan` now, before
+   dispatching anyone (AGENTS.md "Review architecture"): the claim as its
+   producer stated it, your prior, the joints with one owner and a worked
+   attack each, the proves-too-much objects, and a blind re-derivation of any
+   load-bearing quantity. Written after the verdicts it is worth nothing — a
+   prior recorded once you know the answer is not a prior.
 2. Dispatch the **coordinator** subagent to:
    - re-verify validity before interpreting anything (run count, schema,
      seeds, raw/summary agreement, controls). Invalid or incomplete run

@@ -552,7 +552,123 @@ handoff:
     maximum_runs: null
   completion_gate: []
   return_format: null
+  review_plan: null              # required on the handoff that OPENS a
+                                 # claim-changing review round; see below
 ```
+
+## Review plan
+
+Written by the Coordinator on the handoff opening a review round, **before any
+reviewer runs**. A review round without one is a set of agents asked to look at
+something; with one it is an experiment whose result can be read.
+
+```yaml
+review_plan:
+  claim_under_review: null      # the exact claim, as its PRODUCER stated it —
+                                # not as the Coordinator would restate it
+  coordinator_prior: null       # what the Coordinator expects the review to
+                                # find, written before any reviewer reports.
+                                # Pre-commitment: "three reviewers concurred"
+                                # and "three reviewers concurred with what the
+                                # Coordinator already believed" are different
+                                # findings, and only a recorded prior
+                                # distinguishes them
+  joints:                       # the load-bearing steps: if one fails, the
+                                # claim fails. Enumerated, then OWNED
+    - joint: null               # the step, stated precisely enough to attack
+      assigned_to: null         # exactly ONE reviewer TASK-*. Two reviewers on
+                                # one joint means another joint has none
+      attack_plan: null         # the worked attack, not "check this step" —
+                                # what to build, compute, or vary, and where
+                                # the Coordinator thinks it breaks
+      breaking_artifact: null   # what a successful break would produce
+  blindness:
+    mutual: true                # reviewers may not read each other's reports
+                                # in this round
+    lifted_for: []              # TASK-*s deliberately allowed to read earlier
+                                # verdicts — a hardening round is a legitimate
+                                # reason to lift blindness
+    rationale: null             # required whenever lifted_for is nonempty:
+                                # blindness is lifted on purpose, never drifted
+                                # out of
+  proves_too_much:              # required on every claim-changing review
+    objects: []                 # objects for which the conclusion is KNOWN
+                                # FALSE — an anomalous curve for a claim that
+                                # should not reach it, a group where the
+                                # assumed structure is absent
+    failure_signature: null     # what the argument must do on each. An
+                                # argument that succeeds where its conclusion
+                                # is false has proved too much and is wrong
+                                # somewhere it has not been read closely enough
+    assigned_to: null
+  blind_rederivation:
+    required: false
+    quantity: null              # the STATEMENT of what must be re-derived —
+                                # the quantity and its definition, never the
+                                # method that produced it
+    parameters: null            # the inputs, exactly as the producer used them
+    blind_from: []              # paths the re-deriver MUST NOT read: the
+                                # producer's implementation, notes, and report
+    assigned_to: null
+  procedure_deviations: []      # any departure from this plan, recorded rather
+                                # than quietly absorbed — acting before a
+                                # report returns, reassigning a joint, dropping
+                                # a control
+```
+
+**Why joints are owned.** A reviewer told to "review this" reviews what it
+finds legible, and several reviewers told the same thing converge on the same
+legible parts — agreement then measures shared taste, not independent scrutiny.
+Enumerating the load-bearing steps and giving each exactly one owner buys
+coverage instead of correlation, and makes an unowned joint visible before the
+round runs rather than after the claim ships.
+
+**Why the attack plan is worked.** "Check localisation" and "build the
+counterexample numerically: crowd synthetic off-line objects at the window's
+edge and show the certificate stays negative" ask for different work. The
+second is falsifiable in a bounded time and returns something either way; the
+first returns an opinion. The Coordinator is not delegating the judgement, it
+is supplying the cheapest known route to a break.
+
+**Proves-too-much is `controls before belief` applied to an argument.** A null
+object tests whether a measurement is an artifact; a known-false object tests
+whether an argument is. Both fail the same way — the quantity that does not
+decay when the parameter meant to destroy it increases, and the proof that
+still goes through where its conclusion is false.
+
+**Blind re-derivation is not replication.** Recomputing a metric from the
+producer's artifacts, with the producer's implementation, cannot catch an
+implementation that is wrong and self-consistent — it reproduces the error
+faithfully. A re-derivation starts from the statement of the quantity and the
+parameters, and nothing else: `blind_from` names what the agent may not read,
+and the agent's report declares what it did read, so the independence is
+checkable rather than promised. Agreement is then evidence about the quantity;
+disagreement localises to one of two named implementations.
+
+## Review attestation
+
+Every reviewer's report carries this block. It is what makes the plan's
+independence properties checkable after the fact rather than assumed.
+
+```yaml
+review_attestation:
+  task_id: null
+  joints_owned: []              # from the plan; the reviewer's assignment
+  sources_read: []              # paths actually read, honestly and completely
+  read_sibling_reports: false   # true is a violation unless the plan's
+                                # blindness.lifted_for names this task
+  blind_from_respected: null    # re-derivation tasks only: true means no path
+                                # in the plan's blind_from was read
+  verdict: null                 # holds | breaks | inconclusive, for the joints
+                                # owned — not a verdict on the whole claim,
+                                # which no single blinded reviewer can see
+```
+
+A reviewer reports on **its own joint**. It does not vote on the claim: it
+cannot see the other joints by construction, so a whole-claim verdict from a
+blinded reviewer is an opinion formed from a fraction of the evidence. The
+Coordinator composes the verdicts; `tools/check_review_independence.py` checks
+that the composition rests on the independence it claims.
 
 ## Coordinator archive receipt
 
