@@ -17,6 +17,12 @@ check parseability first and defer only the files that are not yet valid.
 
 Deferral is LOCAL ONLY (.git/info/exclude): nothing is committed, no repository
 configuration changes, and the entry is removed once the file parses.
+
+The managed entries live inside a MARKED BLOCK and this script touches nothing
+outside it. That is not decoration: the first version of this script rewrote the
+whole exclude file and silently deleted a hand-written entry that was holding
+back a 108 MB artifact, which then got committed and the push was rejected by
+GH001. A tool that cleans up other people's lines is a tool that loses them.
 """
 import argparse
 import json
@@ -50,10 +56,31 @@ def parses(path):
         return False, str(exc)[:80]
 
 
+BEGIN = '# >>> wip_parse_guard managed block >>>'
+END = '# <<< wip_parse_guard managed block <<<'
+
+
 def read_exclude():
     if not os.path.exists(EXCLUDE):
         return []
     return open(EXCLUDE).read().splitlines()
+
+
+def split_managed(lines):
+    """Return (before, managed, after). Only `managed` is ever rewritten."""
+    if BEGIN in lines and END in lines:
+        i, j = lines.index(BEGIN), lines.index(END)
+        return lines[:i], lines[i + 1:j], lines[j + 1:]
+    return lines, [], []
+
+
+def write_exclude(before, managed, after):
+    body = list(before)
+    if managed:
+        body += [BEGIN] + managed + [END]
+    body += after
+    with open(EXCLUDE, 'w') as fh:
+        fh.write('\n'.join(body).rstrip('\n') + '\n')
 
 
 def main():
@@ -67,27 +94,23 @@ def main():
         ok, why = parses(path)
         if not ok:
             bad.append((path, why))
-
-    # Drop stale deferrals: anything that now parses should come back.
-    lines = read_exclude()
     still_bad = {p for p, _ in bad}
-    kept = [ln for ln in lines
-            if not (ln.startswith('coordination/') and ln.endswith(('.json', '.yaml', '.yml'))
-                    and ln not in still_bad)]
+
     if args.exclude:
-        for path, _ in bad:
-            if path not in kept:
-                kept.append(path)
-        if kept != lines:
-            with open(EXCLUDE, 'w') as fh:
-                fh.write('\n'.join(kept) + '\n')
+        before, managed, after = split_managed(read_exclude())
+        # Only ever drop entries THIS script added, and only once they parse.
+        managed = [ln for ln in managed if ln in still_bad]
+        for path in sorted(still_bad):
+            if path not in managed:
+                managed.append(path)
+        write_exclude(before, managed, after)
 
     if bad:
         print('UNPARSEABLE (not safe to commit yet):')
         for path, why in bad:
             print('  - %s: %s' % (path, why))
         if args.exclude:
-            print('deferred locally via .git/info/exclude; they return once they parse')
+            print('deferred locally in the managed block; they return once they parse')
     else:
         print('all changed/untracked JSON and YAML parse; safe to commit')
     return 0
