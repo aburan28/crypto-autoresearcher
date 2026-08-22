@@ -1,0 +1,948 @@
+validation_report:
+  id: VAL-20260822-0de988          # mirrors the task token, as this repo's other VAL records do
+  task_id: TASK-20260822-0de988
+  goal_id: GOAL-ECQ-001
+  batch_id: BATCH-7e06d3
+  role: validator
+  hypothesis_id: H-ECQ-cec3c4
+  snapshot_commit_read: b71f466840fe6cface5a6b87c4e518841793399e
+  snapshot_parent: adb11e3012595bcfb5289c145bab80cf6eb6f915
+  worktree_state_at_read: clean (git status --porcelain empty at HEAD == snapshot commit)
+  reviewed_producer_tasks:
+  - TASK-20260822-81141a        # over-Q pipeline, this batch's own production
+  - TASK-20260822-a7a9e8        # Mestre producer, COMMISSIONED UNDER GOAL-ECRANK-002, carried forward
+  joints_owned: [1, 2]
+  joints_not_owned_and_not_reviewed: [3, 4]   # owned by the red-team task, blind to me this round
+
+  # =====================================================================
+  # 0. CONTRACT INTEGRITY -- read this before the verdicts
+  # =====================================================================
+  contract_integrity_findings:
+  - id: CI-1
+    severity: blocking for the ROUND's independence audit, not for the joints below
+    finding: >-
+      IDENTIFIER REUSE. My task card dispatches TASK-20260822-0de988 against
+      GOAL-ECQ-001 / BATCH-7e06d3. The committed handoff of that identifier,
+      ledger/handoffs/TASK-20260822-0de988.yaml (introduced at commit f5fb41f5),
+      is a DIFFERENT task: goal GOAL-ECRANK-002, batch BATCH-e0caa5, write_scope
+      coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-0de988,
+      with a review_plan about a Mestre construction and a k=3 twist-family
+      optimum. One identifier now names two tasks in two goals. AGENTS.md rule 14
+      forbids this; rule 15 says the remedy is a superseding record, not a rename,
+      because completed archives bind these strings.
+    evidence:
+    - ledger/handoffs/TASK-20260822-0de988.yaml   (GOAL-ECRANK-002 / BATCH-e0caa5)
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/dispatch_queue.json
+    consequence: >-
+      tools/check_review_independence.py reads the review_plan from the ledger
+      handoff. Run today it would compose my report against the BATCH-e0caa5 plan,
+      whose joints I did not work, and would report an unowned joint and an
+      unattested reviewer for this batch. The Coordinator must reconcile this
+      before composing the round.
+  - id: CI-2
+    severity: blocking for the round's independence audit
+    finding: >-
+      The committed dispatch queue for BATCH-7e06d3 names the validator task of
+      this batch as TASK-20260822-0a0041, deliverable
+      .../tasks/TASK-20260822-0a0041/validation_report.yaml, archived_by
+      TASK-20260822-2fa82a. Its review_plan joints 1 and 2 are, word for word in
+      substance, the joints my task card assigned me, and its proves_too_much and
+      blind_rederivation are also assigned to 0a0041. So the SUBSTANTIVE contract
+      I executed is committed; only the identifier and the write path are not.
+    action_taken: >-
+      I wrote to the path my task card assigned (TASK-20260822-0de988) and to
+      nothing else, because exceeding an assigned write_scope is the one failure
+      this program's concurrency rules exist to prevent, and 0a0041's scope may
+      belong to another dispatched agent. The Coordinator's ledger archive must
+      decide which path binds; the report content is identical either way and is
+      recomputable from committed artifacts alone.
+  - id: CI-3
+    severity: recorded
+    finding: >-
+      The review_plan I executed exists only in my task card (an in-session
+      message) for this goal/batch under the identifier I was given. AGENTS.md is
+      explicit that a message is never a record. The committed plan under
+      TASK-20260822-0a0041 covers the same joints, so the round is recoverable;
+      but as dispatched, the plan-of-record and the plan-executed are bound by
+      different identifiers.
+  - id: CI-4
+    severity: recorded; affects how my blind re-derivation must be read
+    finding: >-
+      The two contracts disagree on blind_from. My task card forbids only
+      .../TASK-20260822-81141a/src/. The committed handoff TASK-20260822-0a0041
+      lists the WHOLE producer directory .../TASK-20260822-81141a as blind_from --
+      which is unsatisfiable for a reviewer who is simultaneously assigned joints
+      1 and 2, since those joints are attacks on qt_family.json and
+      certified_curves.json inside that directory. See blind_rederivation below
+      for exactly what I read and when. This is a defect in the plan, not a
+      dodge: one agent cannot be blind to a directory and be required to audit it.
+
+  # =====================================================================
+  # 1. ARTIFACT CHECKS
+  # =====================================================================
+  artifact_checks:
+  - check: snapshot commit is real, is HEAD, and the tree is clean
+    result: pass
+    detail: >-
+      b71f4668 exists, HEAD == b71f4668, parent adb11e30 as recorded in the
+      receipt's repo_head_at_hashing. git status --porcelain empty. I validated
+      committed state, not a working tree.
+  - check: all seven declared path_sha256 in the archive receipt reproduce at the snapshot commit
+    result: pass
+    method: git show b71f4668:<path> | sha256sum, for each of the seven declared paths
+    detail: >-
+      qt_family.json 4646194..., certified_curves.json a342ff9..., gap_analysis.json
+      9c11dab..., report.md 47c2168..., highrank_pool.json 3d8620e..., a7a9e8
+      report.md 00cd7dd..., raw-result.json.gz 7c8d7df... -- all eight (seven paths
+      plus the receipt) match the receipt exactly. Content binding holds.
+  - check: required run-record fields present for the over-Q producer
+    result: pass_with_note
+    detail: >-
+      RUN-ECQ-81141a-001..007 each carry command.txt, environment.json,
+      manifest.yaml/json, stdout.log, stderr.log, raw-result.json. Seeds are
+      explicit integers (81141) and recorded. Commit at execution
+      (f7d9716) and dirty-tree state are recorded in report.md.
+      NOTE: these run directories are NOT among the seven hashed paths; per the
+      receipt's own open item O2 they entered git through in-flight durability
+      commits, so their integrity rests on commit reachability, not on a hash
+      binding. That is the Coordinator's O2 to close, and I record it rather than
+      treat it as discharged.
+  - check: frozen approved protocol exists at a declared path
+    result: incomplete
+    detail: >-
+      No experiments/<EXP-ID>/specification.yaml exists. The producer executed
+      against ledger/handoffs/TASK-20260822-81141a.yaml plus
+      ledger/hypotheses/H-ECQ-cec3c4.yaml and FLAGGED this rather than refusing.
+      I confirm the hypothesis record does carry P1/P2/P3, the falsification
+      conditions, controls and the proof_search_map, so the substance of a frozen
+      contract is present and was committed before execution. Whether that
+      constitutes an approved protocol is the Coordinator's question (receipt
+      open item O1), not mine; I record it as an unresolved artifact gap.
+  - check: no claim under review reaches rank >= 31 over Q (routing rule)
+    result: pass
+    detail: >-
+      Maximum over everything I verified: 12 (over-Q pipeline, t = -65/22) and 13
+      (Mestre pool, 2 curves). Nothing at or above 31, so this round correctly
+      stays at review-adversarial and does NOT route to review-breakthrough.
+      Recorded because the routing rule required me to stop and say so if it did.
+
+  # =====================================================================
+  # 2. JOINT 1 -- are the 8 sections genuinely independent?
+  # =====================================================================
+  joint_verdicts:
+  - joint: 1
+    statement: >-
+      The 8 sections are genuinely independent, i.e. the 8 base points were in
+      general position and the surface really has rank 8 over Q(t); the 9th base
+      point was computed and verified, not assumed; the pencil is not degenerate.
+    verdict: holds
+    strength: strong -- the claim survives the plan's attack and an upper-bound
+      cross-check the plan did not ask for
+    what_i_recomputed_myself:
+    - id: J1-a
+      item: general-position audit, exact
+      result: >-
+        Recomputed from the 8 points in qt_family.json with my own exact
+        Fraction linear algebra. No 3 of the 8 collinear (all 56 triples,
+        3x3 determinants), no 6 on a conic (all 28 sextuples, rank of the 6x6
+        conic matrix = 6 in every case), all 8 distinct. Matches the producer's
+        audit exactly.
+    - id: J1-b
+      item: the pencil is a genuine pencil
+      result: >-
+        The 8x10 exact system of cubics through the 8 points has rank 8, kernel
+        dimension 2. The stated C1 and C2 both vanish at all 8 points and are
+        linearly independent. So C_t = C1 + t*C2 is the full space, not a
+        sub-family.
+    - id: J1-c
+      item: 9th base point COMPUTED, not assumed
+      result: >-
+        (197684347 : -60668562 : -45807609) substituted exactly into C1 and C2
+        gives 0 and 0. It is distinct from all 8. Independently, I formed the
+        Sylvester resultant Res_y(C1, C2) with my own polynomial arithmetic: it
+        has degree exactly 9 in x, the product of (x - x_i) over the NINE base
+        points divides it exactly (remainder 0, cofactor degree 0), and the nine
+        x-coordinates are distinct. The base locus is exactly those nine points,
+        so nothing was assumed and nothing is missing.
+    - id: J1-d
+      item: the pencil is not degenerate
+      result: >-
+        deg c4 = 4, deg c6 = 6, deg disc = 12 as claimed. The discriminant
+        polynomial is SQUAREFREE (gcd(D, D') has degree 0), so all 12 singular
+        fibres are I_1 and therefore irreducible; the surface is not isotrivial
+        (c4^3 is not proportional to the discriminant). Squarefree disc of degree
+        12 plus Shioda-Tate forces the geometric Mordell-Weil rank to be EXACTLY
+        8 = 8 - sum(m_v - 1) with every m_v = 1. So 8 is simultaneously the
+        producer's floor and the construction's ceiling, exactly as H-ECQ-cec3c4
+        states, and it is now measured rather than asserted.
+    - id: J1-e
+      item: the 8 sections satisfy the family identically over Q(t)
+      result: >-
+        For each of the 8 sections I checked Y(t)^2 - X(t)^3 + 27*c4(t)*X(t) +
+        54*c6(t) == 0 as an identity of polynomials over Q, with exact rational
+        arithmetic. All 8 vanish identically. These are sections, not near-misses.
+    - id: J1-f
+      item: THE PLAN'S ACTUAL ATTACK -- regulators at specialisations OF MY OWN CHOOSING
+      result: >-
+        I picked ten t values the producer never tested, specialised the family
+        and the sections myself, verified every specialised point on the
+        specialised curve in exact Fractions, and computed the 8x8 Neron-Tate
+        height-pairing matrix at 38 AND 115 decimal digits with eigenvalues from
+        qfjacobi at the same precision. NINE OF TEN GIVE FULL RANK 8 with healthy,
+        well-separated spectra:
+          t = -2      rank 8   det 1.058457e6     least eigenvalue 1.533
+          t = 6       rank 8   det 1.057535e7     least eigenvalue 2.394
+          t = -11     rank 8   det 9.285476e5     least eigenvalue 1.303
+          t = -3/7    rank 8   det 2.517495e6     least eigenvalue 1.765
+          t = 13/9    rank 8   det 2.970704e6     least eigenvalue 2.105
+          t = 101/3   rank 8   det 1.206298e8     least eigenvalue 4.881
+          t = 1000/7  rank 8   det 1.031914e9     least eigenvalue 5.741
+          t = 17/13   rank 8   det 3.505872e6     least eigenvalue 1.665
+          t = -23/5   rank 8   det 8.728105e6     least eigenvalue 2.262
+          t = 4       rank 6   (see J1-h)
+        The plan's breaking artifact was "a singular or near-singular 8x8
+        regulator at MULTIPLE independent specialisations". Nine independent
+        validator-chosen t give a nonsingular regulator with least eigenvalue
+        between 1.3 and 5.7 -- three to four orders of magnitude above anything a
+        tolerance argument could reach, at two precisions. A dependent section set
+        cannot do this. Joint 1 does not break.
+    - id: J1-g
+      item: the producer's own nine specialisations, recomputed independently
+      result: >-
+        I re-derived each of the producer's nine curves from the c4/c6 family
+        myself and confirmed each of their reported a-invariants is a genuine
+        (u^4, u^6) rescaling of mine -- i.e. the curve they scored IS the
+        specialisation they say it is. My rank agrees with theirs at all nine t:
+        8 at t in {-1, -7, 7/5, 11/3, 3} and 4, 7, 7, 7 at t in {1, 2, 1/2, 5}.
+        My determinants agree with theirs to ~17 significant digits (see the
+        precision finding below).
+    - id: J1-h
+      item: >-
+        THE RANK DROPS ARE REAL -- checked against an upper bound, which the plan
+        did not require and which is the only way to tell a genuine exceptional
+        fibre from a tolerance artefact
+      result: >-
+        A zero eigenvalue is evidence of dependence only if the ambient curve
+        cannot support 8 independent points. I therefore ran PARI's ellrank (an
+        implementation the producer did not write) on the drop fibres:
+          t = 1     ellrank [4, 4]  -- curve rank is EXACTLY 4, so 8 sections CANNOT be independent
+          t = 2     ellrank [7, 7]  -- EXACTLY 7
+          t = 5     ellrank [7, 7]  -- EXACTLY 7
+          t = -1    ellrank [8, 8]  -- EXACTLY 8, consistent with full-rank sections
+          t = 3     ellrank [8, 8]  -- EXACTLY 8
+          t = 1/2   ellrank [8, 8]  -- curve rank 8 while the SECTION IMAGES span only 7
+        The first three are decisive: the drop is forced by an unconditional upper
+        bound on the fibre, not by numerics. t = 1/2 is the subtler and more
+        interesting case: the fibre has rank 8 but the specialisation map is not
+        injective there, so the producer's wording ("genuine exceptional
+        specialisations") is right while "rank drops" would be wrong if read as a
+        statement about the fibre. I also confirmed the zero eigenvalues are zero
+        to working precision, not merely small: at t = 1 the four smallest
+        eigenvalues at 115 digits are -7.34e-115, -4.80e-115, -2.23e-115,
+        4.15e-115 against nonzero eigenvalues 2.23, 4.61, 11.11, 23.82.
+        NEW DATUM THE PRODUCER DOES NOT REPORT: at t = 4 -- my choice, untested by
+        them -- the sections span only rank 6, and ellrank returns [6, 6], so the
+        fibre itself has rank exactly 6. This is a FIFTH exceptional value. It is
+        not a defect (they tested nine t and reported all nine honestly), but the
+        report's table should not be read as enumerating the exceptional set.
+    artifacts_supporting:
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/qt_family.json
+      (sha256 464619426bf4a97604c37e8b5d4e7e9c6be5990bf7d0621783992398453f919b)
+    - my recomputation scripts and outputs, listed under artifact_paths
+
+  # =====================================================================
+  # 3. JOINT 2 -- is every rank backed by that many exhibited independent points?
+  # =====================================================================
+  - joint: 2
+    statement: >-
+      Every rank reported over Q is backed by that many exhibited independent
+      points ON THAT EXACT CURVE -- not an analytic rank, not a Selmer bound, not
+      an ellrank r_high, not a rank inherited from the generic fibre by
+      Silverman specialisation.
+    verdict: holds
+    strength: strong -- exhaustive on (a), and on (b) exhaustive at the ranks that
+      carry the claim
+    part_a_over_Q_pipeline:
+      scope: ALL 137 certified fibres in certified_curves.json, none sampled
+      what_i_recomputed_myself:
+      - Every one of the exhibited points (8 sections plus descent points, up to
+        20 per curve) re-verified ON THAT CURVE in exact Python Fractions by my
+        own code, and cross-checked with PARI ellisoncurve. 137/137 curves,
+        0 points off curve. Every discriminant nonzero.
+      - For every curve, the r x r height-pairing matrix on the producer's OWN
+        declared independent_point_indices, recomputed at 38 and 115 digits with
+        my own eigenvalue count and my own greedy Gram-Schmidt subset selection.
+        My rank equals the claimed rank on all 137 -- (8,8) x93, (9,9) x14,
+        (10,10) x17, (11,11) x12, (12,12) x1. No curve where my rank is below the
+        claim; none where it is above either, so the claims are also not
+        understated.
+      - >-
+        Structural checks: claimed rank == number of independent indices on all
+        137; no index out of range; no curve claims more than it exhibits.
+      - >-
+        THE SILVERMAN-INHERITANCE ATTACK, which is the one the plan singles out:
+        for each of the 137 curves I recomputed the specialisation of all eight
+        Q(t) sections at that t, recovered the scaling u from the a-invariants,
+        and checked the producer's first eight exhibited points ARE those
+        specialised sections, exactly. True on 137/137. Combined with the
+        preceding item, the rank-8 floor is re-certified on the specialised curve
+        by exhibited points every time; it is never inherited. certified_curves.json
+        also states this in its own not_claimed list, and the artifact backs the
+        statement.
+      - >-
+        THE POINT-FREE-BOUND ATTACK: 83 of the 137 curves have descent_status
+        "timeout" and n_descent_points = 0. Every one of those 83 claims rank
+        EXACTLY 8 -- the section floor -- and not one point more. Of the 54 with
+        descent points, ranks are 8 x10, 9 x14, 10 x17, 11 x12, 12 x1. No curve
+        anywhere claims a rank above the ellrank r_high recorded beside it, and
+        no curve turns a bound into a rank. The GOAL-ECRANK-001 failure mode
+        (ellrank returning [1,1,0,[]] -- a proven bound with NO point) does not
+        occur here: the field is named ellrank_bounds_NOT_A_CLAIM and it is in
+        fact not a claim anywhere in the file.
+      best_curve_independently_confirmed:
+        t: -65/22
+        a_invariants: [0, 0, 0, -518228207838672723, 141005837549331272675978478]
+        exhibited: 20 points, 12 declared independent
+        my_certified_rank: 12
+        my_12x12_regulator_at_115_digits: 5833522604.9513962075901839955742636927
+        my_least_eigenvalue: 0.3462478885838063
+        producer_reported: 5833522604.9513962265934478696931388274 (38 digits)
+        agreement: 17 significant digits (see precision finding PF-1)
+    part_b_mestre_producer:
+      scope: >-
+        156 of the 1,206 pool curves: ALL 2 at rank 13, ALL 29 at rank 12, and 25
+        drawn at each of ranks 7, 8, 9, 10, 11 with a recorded seed (20260822).
+        The rank-13 and rank-12 claims -- the ones that carry claim (b) -- are
+        checked exhaustively; the lower ranks are sampled and I say so.
+      commissioning_goal_named: >-
+        GOAL-ECRANK-002 (paused by DEC-20260822-d9bf63); these artifacts are an
+        INPUT carried into GOAL-ECQ-001, not this batch's production, and keep
+        their BATCH-e0caa5 path.
+      results:
+      - >-
+        Every point of every checked curve lies on that curve in exact Fractions:
+        0 failures.
+      - >-
+        My independent r x r regulator reproduces the claimed rank on all 156
+        checked curves. Maximum certified rank I could reproduce: 13, on both
+        rank-13 curves, matching max_certified_rank in highrank_pool.json.
+      - No checked curve claims a rank it cannot exhibit; no claim reaches 31.
+      - The pool's claim_kind states in terms "no analytic rank, no ellrank
+        r_high, no point-free bound is included anywhere" and the artifact is
+        consistent with that on everything I checked.
+      limitation_stated_plainly: >-
+        1,050 of the 1,206 pool curves (ranks 7-11) were NOT individually
+        re-certified by me. My verdict on part (b) is therefore: the rank-13
+        headline and the entire rank-12 tier are independently confirmed; the
+        lower tiers are confirmed on a seeded sample of 25 each with zero
+        failures. That is a sampling statement, not an exhaustive one.
+    artifacts_supporting:
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/certified_curves.json
+      (sha256 a342ff9c7c93424e1f6dbb886bd70dba85c2ce754ba54ec4f0bf06cc83d15aee)
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/highrank_pool.json
+      (sha256 3d8620ea993436880fc4a70d4028cc92c087481fd6c2c46b391f2d667f5e1a24)
+    - git show 78584ab8:.../RUN-a7a9e8-004-augment-full/raw-result.json  (see BC1)
+
+  # =====================================================================
+  # 4. BINDING CONDITION BC1 (and what BC2/BC3/BC4 look like from here)
+  # =====================================================================
+  binding_condition_checks:
+  - id: BC1
+    obligation: >-
+      Verification of a rank claim resting on RUN-a7a9e8-004 or RUN-a7a9e8-007
+      raw output must be performed against the UNTRIMMED originals recovered from
+      history, never against the trimmed files in the working tree.
+    verdict: DISCHARGED for RUN-004; NOT DISCHARGEABLE AS WRITTEN for RUN-007, and
+      it does not need to be -- see below
+    run_004:
+      commit_78584ab8_reachable: true
+      detail: >-
+        git cat-file confirms 78584ab8 is a commit and git merge-base
+        --is-ancestor confirms it is an ancestor of HEAD. The untrimmed
+        raw-result.json is present there at 35,039,973 bytes.
+      recovered_bytes: 35039973
+      recorded__original_bytes: 35039973
+      bytes_match: true
+      recovered_record_count: 34740
+      recorded__original_record_count: 34740
+      record_count_match: true
+      recovered_sha256: 7855699d259275644b4d8ed56e6636c8cae6f838b88357287b1d1daaab8eb560
+      note_for_BC2: >-
+        That sha256 is the content hash BC2 asks the ledger archive to record. I
+        computed it from the recovered blob; recording it is the archive's act,
+        not mine.
+      retained_300_is_an_exact_prefix_of_the_untrimmed_results: true
+      aggregates_verbatim: >-
+        source, nmax, dmax and wall_clock_s are byte-identical between the trimmed
+        and untrimmed files. The trim truncated the results list and added nothing
+        else; it did not strip fields, reorder, or alter an aggregate.
+      BC3_triggered: false
+      why_this_check_was_not_ceremonial: >-
+        BOTH rank-13 curves are ABSENT from the retained first 300 records and
+        PRESENT in the untrimmed file. Verifying the rank-13 claim against the
+        working-tree file was therefore literally impossible; BC1 is the reason
+        this check could be done at all.
+      cross_check_against_untrimmed:
+      - curve_id: m10+extra#-20_-16_-14_-13_-7_-6_2_3_14_19
+        found_in_untrimmed_RUN004: true
+        found_in_trimmed_first_300: false
+        untrimmed_base_rank: 9
+        untrimmed_n_extra_found: 6
+        untrimmed_extra_u: ["5/1", "-199/5", "-337/7", "-109/7", "138/7", "-101/11"]
+        matches_pool_extra_quartic_u: true
+      - curve_id: m10+extra#-12_5_6_7_9_10_11_13_14_17
+        found_in_untrimmed_RUN004: true
+        found_in_trimmed_first_300: false
+        untrimmed_base_rank: 9
+        untrimmed_n_extra_found: 5
+        untrimmed_extra_u: ["-112/1", "-28/1", "70/3", "-35/11", "256/11"]
+        matches_pool_extra_quartic_u: true
+      what_this_establishes: >-
+        The two rank-13 curves in highrank_pool.json correspond to trials actually
+        performed in the untrimmed RUN-004, with the same parameter vector, the
+        same base rank 9, and the same set of extra quartic parameters u. The
+        untrimmed records additionally carry augmented_rank / augmented_det /
+        augmented_curve, which the trimmed prefix records do not. Independently of
+        all that, I re-certified rank 13 on both curves from the a-invariants and
+        points, so the claim does not rest on the run record's own arithmetic.
+    run_007:
+      finding: >-
+        THERE IS NO UNTRIMMED RUN-007 raw-result.json ANYWHERE IN HISTORY. The
+        path has exactly two committed versions: 58 bytes at e278a344 (the WIP
+        stub, plain text) and 289 bytes at 1e9452fd, which is byte-identical to the
+        working-tree file. The working-tree file contains NO _trim_note, NO
+        _original_bytes and NO _original_record_count.
+      consequence_1: >-
+        DEVIATION-immutability-trim.md states RUN-007's raw-result received "the
+        same treatment" as RUN-004 and that "every other run" was committed
+        untrimmed before the trim. Neither is supported by the artifact for
+        RUN-007: there is no pre-trim version, and the post-trim file carries none
+        of the trim bookkeeping the note credits it with. Report this as a defect
+        in the deviation note, not as evidence of tampering -- the file is a
+        four-number verification summary and there is nothing in it to hide.
+      consequence_2: >-
+        Its manifest.yaml asserts "raw_result_trimmed_for_storage: see _trim_note
+        in raw-result.json" and raw-result.json has no _trim_note. That is an
+        internally inconsistent record and, per BC4, a defect to REPORT rather than
+        reconcile. I have not touched it.
+      BC3_assessment: >-
+        NOT TRIGGERED. BC3's pre-declared trigger is 78584ab8 unreachable OR
+        recovered content disagreeing with a recorded _original_bytes /
+        _original_record_count. 78584ab8 is reachable and RUN-004 agrees exactly.
+        For RUN-007 there is no recorded _original_* value for anything to
+        disagree with, so the trigger as written does not fire. I am reporting
+        this rather than construing the trigger, because BC3 says explicitly that
+        it is a pre-declared trigger and not a criterion to be revisited after
+        seeing the outcome -- which cuts both ways.
+      why_no_claim_is_at_risk: >-
+        RUN-007's raw output is {curves: 1206, points_checked: 11499, failures: 0,
+        verdict: PASS}. It carries no rank certificate. The rank-13 claim rests on
+        highrank_pool.json (a hashed, declared snapshot path) and on RUN-004, both
+        of which I verified. My own re-certification of 156 pool curves is a
+        strictly stronger check than RUN-007 performed, and it is independent of it.
+  - id: BC4
+    obligation: the seven trimmed manifests are archived as overwritten records;
+      any discrepancy beyond the single appended key is a defect to report
+    verdict: satisfied, with two factual corrections to the surrounding notes
+    detail: >-
+      I diffed each manifest against its immediately previous committed version.
+      In all seven cases the ONLY change is one added line,
+      "  raw_result_trimmed_for_storage: see _trim_note in raw-result.json", with
+      nothing removed, and the working-tree file equals the latest committed
+      version. No discrepancy beyond the single appended key.
+    correction_1: >-
+      There are EIGHT run directories under TASK-20260822-a7a9e8, not seven:
+      001-m8-control, 002-m10-main, 003-augment, 004-augment-full, 005-assemble,
+      006-scrutiny, 007-independent-verify and 008-upper-crosscheck. RUN-008's
+      manifest has a single committed version and does NOT carry the appended key,
+      which dates the trim before RUN-008 existed. "All seven manifests" should
+      read "seven of the eight runs".
+    correction_2: >-
+      Run 005 and 006 are named "005-assemble" and "006-scrutiny" on disk. Any
+      downstream record naming them otherwise should be checked against the tree.
+
+  # =====================================================================
+  # 5. PROVES-TOO-MUCH CONTROL SET
+  # =====================================================================
+  control_checks:
+  - control: rank-30 Alpoge-Howell fixture, harness must return EXACTLY 30
+    input: experiments/EXP-ECRANK-e1e30e/runs/RUN-ECRANK-e1e30e-003/record_curve_input.json
+    expected: 30
+    my_harness_returned: 30
+    result: pass
+    detail: >-
+      30 points supplied, all 30 on the curve in exact Fractions and by PARI
+      ellisoncurve. My eigenvalue count is 30 at BOTH 38 and 115 digits; my greedy
+      Gram-Schmidt subset is 30. Least eigenvalue 0.2940657535759725168805...,
+      no rejected eigenvalue at all. Not 29, not 31, not 24.
+  - control: the producer's REPLACED independence criterion
+    result: pass, and I formed my own view as instructed
+    detail: >-
+      The producer's first criterion was relative (det / prod(diag)) and returned
+      24 on this fixture; it was replaced, before any family number was produced,
+      by an incremental one -- accept a point iff it multiplies the Gram
+      determinant by more than tol = 1e-6. MY VIEW: the replacement is sound and
+      the diagnosis of the original is correct. det/prod(diag) is the squared
+      Hadamard ratio, which decays geometrically in the dimension for ANY matrix
+      that is not near-diagonal, so a fixed threshold on it necessarily
+      under-counts as r grows -- exactly the 30 -> 24 failure observed, and a
+      failure that gets WORSE at higher rank, i.e. in the direction of the claim.
+      The incremental quantity det(G_{k+1})/det(G_k) is the squared distance from
+      the new height vector to the span of the accepted ones: an absolute,
+      dimension-free quantity. That is the right shape of test. I did not read
+      src/, so I am judging the criterion as described in report.md, not the code
+      that implements it; I built my own version of the same idea independently
+      and it returns 30 here and reproduces every rank in section 3.
+      RESIDUAL CONCERN, RECORDED: tol = 1e-6 is absolute and is only two to three
+      orders of magnitude below the smallest genuine eigenvalues seen in this
+      package (0.29 on the fixture, 0.346 on the best curve). My own threshold is
+      1e-20 at 38 digits and 1e-60 at 115, and the observed gap between accepted
+      and rejected is ~115 orders of magnitude, so the split is not close in any
+      case I checked. The producer's margin is comfortable but is thinner than the
+      evidence allows, and nothing in the package would detect a genuine
+      eigenvalue below 1e-6 if one ever occurred.
+  - control: known rank-1 curve, a-invariants [0,0,1,-1,0] (conductor 37)
+    expected: 1
+    my_harness_returned: 1
+    result: pass
+    detail: >-
+      18 points from ellratpoints(50), all on curve; rank 1 at both precisions.
+      Smallest accepted eigenvalue 29.13, largest rejected 2.77e-115 -- a split of
+      116 orders of magnitude. The 17 dependent points are correctly absorbed.
+  - control: configuration whose exhibited point set is EMPTY
+    expected: 0
+    my_harness_returned: 0
+    result: pass
+    detail: run on the best over-Q curve itself, so the 0 comes from the empty
+      support and not from a weak curve.
+  - control: configuration whose exhibited point is TORSION
+    expected: 0
+    my_harness_returned: 0
+    result: pass
+    detail: >-
+      Two forms. (i) y^2 = x^3 - x with all three 2-torsion points (x,0): Gram
+      matrix identically 0, rank 0. (ii) the 2-torsion point (0,0) on
+      y^2 = x^3 - 2x, which is a POSITIVE-rank curve, so the 0 cannot be an
+      artefact of the curve having no rank: still 0. A torsion point has canonical
+      height 0 and cannot inflate a rank in my harness.
+  - control: linearly DEPENDENT non-torsion points (mine, added beyond the plan)
+    expected: 1
+    my_harness_returned: 1
+    result: pass
+    detail: >-
+      A dependent set on the conductor-37 curve returns 1, not 3. Added because
+      the plan's controls test torsion and emptiness but not the dependence
+      failure mode that the 30 -> 24 incident was actually about.
+  proves_too_much_conclusion: >-
+    My harness returns the known value on every object for which the answer is
+    known, and in particular NEVER MORE. The plan's failure signature -- a harness
+    reporting more than 30 on the record curve or more than 1 on the rank-1 curve
+    -- does not occur, so the numbers I report in sections 2 and 3 are not the
+    scorer measuring itself.
+
+  # =====================================================================
+  # 6. BLIND RE-DERIVATION
+  # =====================================================================
+  blind_rederivation:
+    required: true
+    quantity: >-
+      the certified rank of the single best curve the over-Q producer reports:
+      the number of exhibited rational points that are independent under the
+      Neron-Tate pairing, i.e. the rank of their height-pairing Gram matrix.
+    parameters_i_started_from: >-
+      the a-invariants alone, [0, 0, 0, -518228207838672723,
+      141005837549331272675978478], as supplied in my task card.
+    method: >-
+      Before opening ANY file under .../TASK-20260822-81141a/, I ran PARI/GP
+      2.15.4's own ellrank on those a-invariants at efforts 0, 1 and 2. PARI's
+      2-descent is an implementation the producer did not write. I then certified
+      PARI's OWN returned points with my own toolkit: exact on-curve check in
+      Fractions, height-pairing Gram matrix at 38 and 115 digits, my own
+      eigenvalue count and my own greedy Gram-Schmidt subset.
+    result:
+      ellrank_effort_1: "[12, 12, 0, L] with #L = 12"
+      ellrank_effort_2: "[12, 12, 0, L'] with #L' = 12, and L' is a DIFFERENT point set from L"
+      my_certification_of_L:  {rank: 12, all_on_curve_exact: true, det_115: 472515331001.063,   least_eigenvalue: 1.1768}
+      my_certification_of_Lp: {rank: 12, all_on_curve_exact: true, det_115: 12165487308036.973, least_eigenvalue: 0.8366}
+      producer_value: 12
+      agree: true
+    strength_of_the_agreement: >-
+      This is not a replication. Neither of PARI's two point sets is the
+      producer's 20-point set, and the three regulators (4.7e11, 1.2e13,
+      5.83e9) are three different lattice covolumes for the same group -- which
+      is what genuinely different generating sets of a rank-12 group look like.
+      Additionally r_high = 12, an unconditional upper bound, so rank E(Q) is
+      EXACTLY 12: the producer's lower bound is not merely correct, it is sharp
+      and could not have been beaten by a better search.
+    blind_from_declared_in_my_task_card: [".../TASK-20260822-81141a/src/"]
+    blind_from_declared_in_the_committed_handoff_TASK-20260822-0a0041:
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/src
+    blind_from_respected: partial -- and the partiality is stated, not glossed
+    exactly_what_i_read_and_did_not:
+      never_read_at_all: >-
+        coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/src/
+        -- not pipeline.py, not verify.py, not runwrap.py, not any file in that
+        directory, at any point in this session. Every line of verification code I
+        ran is my own, written from the definitions restated at the top of my
+        toolkit.
+      read_but_only_after_the_blind_derivation_was_launched_with_its_inputs_fixed: >-
+        report.md, qt_family.json, certified_curves.json, gap_analysis.json and
+        the run manifests under .../TASK-20260822-81141a/. The committed handoff
+        0a0041 lists that whole directory as blind_from; my task card lists only
+        src/. I could not work joints 1 and 2 without those files -- they ARE the
+        objects under attack -- so I resolved the conflict by fixing the blind
+        derivation's inputs first and declaring the rest here. See CI-4.
+      value_was_never_secret: >-
+        My task card disclosed "best certified rank 12 at t = -65/22" before I
+        began. Blindness to the VALUE was therefore never available to me and I do
+        not claim it. What the derivation tests, and what it does establish, is
+        independence from the producer's IMPLEMENTATION and POINT SET.
+    read_sibling_reports: false
+
+  # =====================================================================
+  # 7. METRIC RECOMPUTATIONS AND A PRECISION FINDING
+  # =====================================================================
+  metric_recomputations:
+  - metric: 8x8 Neron-Tate regulator at the producer's five nonsingular t
+    producer: [1019096.0496458863642178 (t=-1), 3184383.1949423770424494 (t=-7),
+      2499514.0527064824909733 (t=7/5), 9151811.9638615550600239 (t=11/3),
+      1010027.3568478395566152 (t=3)]
+    mine_at_115_digits: [1019096.0496458863636398, 3184383.1949423770429677,
+      2499514.0527064824907316, 9151811.9638615550712829, 1010027.3568478395568351]
+    agreement: rank identical (8 everywhere); determinants agree to ~17 significant digits
+  - metric: r x r regulator at the producer's four exceptional t
+    finding: >-
+      MISLABELLED FIELD. At t in {1, 2, 1/2, 5} the value stored under
+      "regulator_det_8x8" is NOT the 8x8 determinant -- I measure that determinant
+      to be zero to 113 digits -- it is the determinant of the r x r submatrix on
+      the declared independent_indices. I recomputed those submatrix determinants
+      and they match: 1.9789060284963339980 vs 1.9789060284963340212 (t=1),
+      114827.00374834295892 vs 114827.00374834295915 (t=2), 22381.336433958323203
+      vs 22381.336433958323237 (t=1/2), 14713.072270161947941 vs
+      14713.072270161948004 (t=5). The numbers are right; the field name is wrong,
+      and a reader who takes it at face value would conclude the 8x8 regulator is
+      nonsingular at a fibre where it is exactly singular.
+  - metric: 12x12 regulator of the best over-Q curve
+    producer: 5833522604.9513962265934478696931388274 (38 digits)
+    mine: 5833522604.9513962075901839955742636927 (115 digits)
+    rank_agreement: 12 = 12
+    least_eigenvalue: 0.3462478885838063 -- identical to the producer's
+  - metric: 30x30 regulator of the rank-30 fixture
+    producer: 1.0720686604115654970290884760953064158e37
+    mine: 1.0720686604115654188358042985326663938e37
+    rank_agreement: 30 = 30
+  precision_findings:
+  - id: PF-1
+    severity: methodological; changes NO rank in this package
+    finding: >-
+      Every regulator determinant I recomputed agrees with the producer's to about
+      17 significant digits and then diverges -- on the rank-30 fixture, on the
+      12x12 best curve, on all five nonsingular specialisations, and on all four
+      exceptional ones. The pattern is uniform, which makes it systematic rather
+      than incidental.
+    my_computation_is_internally_stable: >-
+      My 38-digit and 115-digit determinants, each computed from a height matrix
+      REBUILT at that precision, agree with each other to ~33-34 digits
+      (e.g. fixture: ...654188358042985326664045 vs ...654188358042985326663938).
+    the_producer_s_is_internally_stable_too: >-
+      Their 38-digit and 77-digit values agree to ~35 digits. Two internally
+      stable computations that disagree at digit 17 are not both measuring the
+      same matrix at the stated precision.
+    hypothesis_i_tested_and_did_not_confirm: >-
+      I rounded my 115-digit height matrix entrywise through IEEE double and
+      recomputed the determinant at 115 digits: 1.07206866041155723715...e37,
+      which agrees with the true value to only 15 digits and does NOT reproduce
+      the producer's 1.07206866041156549702...e37. So a simple float64 round-trip
+      of the final matrix is NOT the mechanism. I do not know what is, and I am
+      not going to guess -- diagnosing it requires reading src/, which I am
+      forbidden to do.
+    corroborating_observation: >-
+      The reported least_eigenvalue values are IEEE doubles and are byte-identical
+      at "38" and "77" (e.g. 0.29406575357597253 twice, 0.09377026388685054 twice).
+      A quantity stored as a double is identical at any two precisions by
+      construction, so for that field the report's "computed at 38 and 77 digits
+      and required to agree" test is VACUOUS -- it cannot fail. The determinants
+      are stored as full-precision strings and are not vacuous in the same way,
+      but their 38-vs-77 agreement to 35 digits is what one would see if a matrix
+      fixed once at some working precision were passed to the determinant routine
+      twice, in which case that check tests the determinant routine and not the
+      height computation.
+    what_this_does_and_does_not_affect: >-
+      DOES NOT AFFECT: any rank in this package. Ranks are integers read off an
+      eigenvalue split of ~115 orders of magnitude; a 17th-digit discrepancy
+      cannot move one, and I reproduced all 137 + 156 + 9 of them independently.
+      DOES AFFECT: the number of digits any downstream record may quote for a
+      regulator determinant, and the weight the phrase "computed at 38 and 77
+      digits and required to agree" can bear. An evidence record should quote
+      these determinants to no more than ~16 significant digits, or re-derive them.
+
+  # =====================================================================
+  # 8. OTHER DEFECTS FOUND (reported, not repaired)
+  # =====================================================================
+  defects_reported_not_repaired:
+  - id: D-DISC-LABEL
+    where: qt_family.json -> weierstrass_family_over_Qt.discriminant
+    finding: >-
+      The stated model is y^2 = x^3 - 27*c4(t)*x - 54*c6(t), whose discriminant is
+      1259712*(c4^3 - c6^2). The polynomial stored under "discriminant" is
+      (c4^3 - c6^2)/1728 -- I verified the ratio is exactly 1728 on every one of
+      the 13 coefficients. That is the discriminant of the curve with INVARIANTS
+      (c4, c6), i.e. the stated model rescaled by u = 6, and it differs from the
+      stated model's discriminant by the constant factor 6^12 = 2176782336.
+    impact: >-
+      None on the mathematics: degree 12, squarefreeness and the Shioda-Tate
+      argument are all invariant under a nonzero constant factor, and I verified
+      squarefreeness on the stored polynomial. It is a labelling error that would
+      mislead a reader who used the field to check the model.
+  - id: D-REGDET-LABEL
+    where: qt_family.json -> regulators_at_specialisations[*].regulator_det_8x8
+    finding: at the four exceptional t this field holds the r x r sub-determinant,
+      not the 8x8 determinant, which is zero there. See metric_recomputations.
+  - id: D-RUN007
+    where: RUN-a7a9e8-007 manifest.yaml and raw-result.json, and DEVIATION-immutability-trim.md
+    finding: >-
+      manifest points at a _trim_note that does not exist; no untrimmed original
+      exists in history; the deviation note describes a trim of this run that the
+      artifacts do not evidence. Reported under BC1/BC4 above.
+  - id: D-RUNCOUNT
+    where: the archive receipt and the deviation note ("all seven runs", "runs 001-007")
+    finding: eight run directories exist; RUN-008-upper-crosscheck is untouched by
+      the trim. Reported under BC4 above.
+
+  # =====================================================================
+  # 9. SCOPE, LIMITATIONS, AND WHAT THIS REPORT DOES NOT SAY
+  # =====================================================================
+  limitations:
+  - I own joints 1 and 2 only. Joints 3 (Mestre-Nagao used for ordering only) and
+    4 (two-axis gap framing) belong to the red-team task and I did not review
+    them, did not read its report, and express no view on them. A whole-claim
+    verdict from me would be an opinion built from half the evidence.
+  - 1,050 of the 1,206 Mestre pool curves (ranks 7-11) were not individually
+    re-certified; the rank-13 and rank-12 tiers were checked exhaustively and the
+    rest on a seeded sample of 25 per rank.
+  - I did not audit the sieve accounting, the matched-arm MN-vs-random comparison,
+    the timeout confound, or the gap analysis. Those are joints 3 and 4.
+  - The rank-8 ceiling of the construction is established by Shioda-Tate from a
+    measured squarefree degree-12 discriminant. That is a statement about THIS
+    pencil, from THESE 8 base points, and does not bound any other construction.
+  - >-
+    Everything here is scoped to the tested objects: 137 specialisations of one
+    rational elliptic surface with |p| <= 2000, q <= 40; 156 curves of one
+    1,206-curve Mestre pool; PARI/GP 2.15.4 under python 3.11; no Sage. Certified
+    ranks are LOWER BOUNDS from exhibited points, except where I explicitly cite
+    ellrank's r_high, which is an unconditional upper bound.
+  - This report validates evidence admissibility. It supports no ECDLP claim,
+    demonstrates no speedup, moves no hypothesis status, and authorizes no
+    promotion. A passed verdict means the receipt may be used as evidence, and
+    nothing further.
+  - PF-1 is an unexplained systematic discrepancy. I established it, bounded its
+    consequences and falsified my own first hypothesis for its cause; I did not
+    find the cause, because doing so requires reading src/, which the blind
+    re-derivation forbids. Naming it is the honest stopping point.
+
+  heuristic_validation_checks:
+  - status: not_applicable_as_a_distribution_validation
+    detail: >-
+      H-ECQ-cec3c4 carries one heuristic, HEUR-1 (the Mestre-Nagao sum orders
+      specialisations by likely rank well enough to be worth certifying). It is
+      declared ordering-only and is explicitly excluded from every certified
+      rank. Auditing whether the ordering earns its keep -- the matched MN-arm
+      versus random-arm comparison and the timeout confound -- is joint 3, which
+      is not mine. What I can and do confirm from my own joint: HEUR-1 contributes
+      nothing to any rank I verified, because every rank is reproduced from
+      exhibited points with no reference to any score.
+  - check: null-object control for a reported statistical signal (inventor protocol section 3)
+    status: satisfied within my joints, and I note where it is not mine to judge
+    detail: >-
+      The load-bearing quantities in my joints are ranks and regulators, not
+      correlations, and each was measured against objects whose value is known
+      (rank-30 fixture, rank-1 curve, empty support, torsion support, dependent
+      support). The one genuinely statistical claim in the package -- the MN arm's
+      46.7%/40.0%/20.0% hit rates versus the random control's 26.7%/10.0%/0% -- IS
+      accompanied by a same-shape null object (a random control arm of the same
+      size drawn from the same 1,548-specialisation sub-domain with a recorded
+      seed) and the producer records the timeout confound (31 vs 35) rather than
+      hiding it. Whether that control is sufficient is joint 3's question.
+
+  cost_model_checks:
+  - status: not_applicable
+    detail: >-
+      No asymptotic-complexity claim and no concrete-cost table is made
+      (hypothesis field asymptotic_claim is explicitly null). The cost numbers in
+      the package are measured wall-clock and per-specialisation timings with
+      declared units (1.028 ms per specialisation over 97,640; 1,993.0 s total
+      across seven runs; 1.22 GB peak RSS), and memory is reported alongside time.
+      Scaled-instance and cheat-classification checks under inventor-protocol
+      section 6 do not bind here because no improvement at an unreachable scale is
+      claimed -- the deliverable is an explicit measurement of a SHORTFALL (12 vs
+      31, base rank 8 vs 18-20), which is the opposite failure mode.
+
+  proof_architecture_checks:
+  - check: baseline fixture reproduces exactly
+    result: pass
+    detail: >-
+      The proof_search_map names the Alpoge-Howell rank-30 curve as its frozen
+      baseline fixture. My harness returns exactly 30 on it, with a least
+      eigenvalue matching the recorded 0.294. The determinant matches to 17
+      digits; see PF-1.
+  - check: quantifier fidelity
+    result: pass
+    detail: >-
+      H-ECQ-cec3c4 states "EXISTS 8 rational points such that FOR ALL
+      specialisations outside a finite bad set the sections stay independent, and
+      EXISTS t0 among those searched whose certified rank is >= 11", and claims
+      only the second existential. The artifacts match that order: the universal
+      is never used as a certificate -- I verified on all 137 curves that the
+      rank-8 floor is re-exhibited on each specialised curve -- and the finite bad
+      set is exhibited by example (t = 1, 2, 1/2, 5, and t = 4 which I add) rather
+      than asserted.
+  - check: method ceiling derived from the method's own resource measure
+    result: pass
+    detail: >-
+      The ceiling of 8 over Q(t) is not an estimate. It follows from
+      deg c4 = 4, deg c6 = 6, deg disc = 12 with disc squarefree, which I verified
+      exactly, via Shioda-Tate with every fibre irreducible. The construction
+      cannot exceed 8 over Q(t), and the campaign says so before it runs.
+  - check: strictness witness
+    result: not_applicable
+    detail: no improvement over a prior method is claimed; the deliverable is a
+      measured shortfall.
+
+  # =====================================================================
+  # 10. VERDICT
+  # =====================================================================
+  joint_1_verdict: holds
+  joint_2_verdict: holds
+  proves_too_much_verdict: pass on all five objects
+  blind_rederivation_verdict: agrees (12, independently, with r_high = 12 making it exact)
+  BC1_verdict: discharged for RUN-004; not dischargeable as written for RUN-007,
+    with no claim at risk; BC3 not triggered
+  verdict: passed
+  verdict_scope: >-
+    PASSED means: on joints 1 and 2, the artifacts frozen at b71f4668 are
+    admissible evidence. The 8-section base really has rank 8 over Q(t) and 8 is
+    also its exact ceiling; every rank over Q in both producers' deliverables that
+    I checked is a certified lower bound backed by that many exhibited independent
+    points on that exact curve; and BC1 is discharged for RUN-004 against the
+    untrimmed original. It does NOT mean the round passed -- joints 3 and 4 are
+    unreviewed by me. It does NOT clear the contract-integrity findings CI-1..CI-4,
+    which are the Coordinator's to resolve before composing the round, and it does
+    not repair the four defects in section 8. It supports no ECDLP claim,
+    demonstrates no speedup, and authorizes no promotion.
+  coordinator_prior_outcome: >-
+    The committed prior in TASK-20260822-0a0041 expected P1 to HOLD, P2 to hold
+    marginally at rank 11-14, and P3 to hold decisively. On my joints the prior is
+    CONFIRMED and not overturned: P1 holds (8 independent sections, verified at
+    nine specialisations of my own choosing), and the certified rank over Q is 12
+    -- inside the predicted 11-14 band. Recorded so that "the validator concurred"
+    is distinguishable from "the validator concurred with what the Coordinator
+    already believed": here it is the latter, and the informative content of my
+    report is in PF-1, D-DISC-LABEL, D-REGDET-LABEL, D-RUN007, the t = 4 fifth
+    exceptional fibre, and CI-1..CI-4, none of which the prior anticipated.
+
+  procedure_deviations:
+  - The task card and the committed handoff disagree on this task's identifier,
+    write path and blind_from. I executed the task card's joints, wrote to the
+    task card's path, honoured the STRICTER src/ prohibition absolutely, and
+    declared the rest. See CI-1..CI-4 and blind_rederivation.
+  - I added one control beyond the plan (linearly dependent non-torsion points)
+    and one check beyond the plan (ellrank upper bounds at the drop fibres, and at
+    a fibre of my own choosing). Both are additive; neither replaced a required check.
+  - >-
+    Budget: 1800 s wall clock / 2 GB / 12 runs. I executed 12 verification
+    computations, the longest 8.0 s (ellrank effort 2) and the largest ~0.5 GB
+    (parsing the 35 MB untrimmed RUN-004). Total compute well inside budget; no
+    check was cut for budget.
+
+  review_attestation:
+    joints_owned: [1, 2]
+    also_owned: [proves_too_much control set, blind re-derivation]
+    joints_reviewed_by_me: [1, 2]
+    read_sibling_reports: false
+    sibling_reports_in_this_round_not_read:
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-53748a
+      (red-team scope per the committed queue; directory name observed in a
+      listing, contents never opened)
+    blind_from_respected: partial -- see blind_rederivation.exactly_what_i_read_and_did_not
+    independent_session: true
+    requested_policy: review-adversarial
+    fallback_used: false
+    degraded_allowed: false
+    degraded_requirements: []
+    resolved_model_id: claude-opus-5
+    runtime: claude_code
+    reasoning_effort: xhigh
+    reasoning_effort_provenance: >-
+      From .claude/agents/validator.md frontmatter, which CLAUDE.md derives from
+      roles.yaml -> review-adversarial -> reasoning_effort. Not chosen by me and
+      not altered by me.
+    model_verified: >-
+      NOT probe-verified in this session. `python3 -m orchestration.adapter
+      resolve --role validator` refused without an --independent-session
+      assertion, and asserting independence to a tool in order to make it agree
+      that the session is independent would be circular. The resolved model id
+      above is the model actually answering, reported directly and not from
+      configuration.
+    policy_honoured: >-
+      Yes. review-adversarial requires xhigh reasoning and an independent session;
+      both hold. No downgrade was taken and none was needed, so the instruction to
+      refuse rather than downgrade did not fire.
+    sources_read:
+    - AGENTS.md
+    - agents/validator.md
+    - CLAUDE.md (runtime binding, provided in session context)
+    - ledger/handoffs/TASK-20260822-0de988.yaml
+    - ledger/handoffs/TASK-20260822-0a0041.yaml
+    - ledger/hypotheses/H-ECQ-cec3c4.yaml
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/archives/TASK-20260822-66bacf/receipt.yaml
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/dispatch_plan.md
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/dispatch_queue.json
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/report.md
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/qt_family.json
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/certified_curves.json
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/gap_analysis.json (keys and scope fields only)
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/runs/RUN-ECQ-81141a-001..007/ (listings, manifests, RUN-001 raw-result.json)
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/report.md (rank-13 section)
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/highrank_pool.json
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/DEVIATION-immutability-trim.md
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/runs/*/manifest.yaml (all, plus their prior committed versions via git show)
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/runs/RUN-a7a9e8-004-augment-full/raw-result.json (trimmed, in-tree)
+    - "git show 78584ab8:coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/runs/RUN-a7a9e8-004-augment-full/raw-result.json (UNTRIMMED)"
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/runs/RUN-a7a9e8-007-independent-verify/ (all versions via git show)
+    - experiments/EXP-ECRANK-e1e30e/runs/RUN-ECRANK-e1e30e-003/record_curve_input.json
+    sources_deliberately_not_read:
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-81141a/src/  (NEVER opened, any file, at any time)
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e0caa5/tasks/TASK-20260822-a7a9e8/src/
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-53748a/  (sibling reviewer this round)
+    - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-0a0041/  (the other candidate validator scope)
+    tools_used: PARI/GP 2.15.4 via cypari (ellinit, ellisoncurve, ellheightmatrix,
+      qfjacobi, matdet, ellrank, ellratpoints, elltors); python 3.11 Fraction
+      arithmetic and my own exact linear algebra, polynomial arithmetic and
+      Sylvester resultant; numpy not used for any load-bearing quantity.
+    verdict: passed
+
+  run_ids_reviewed:
+  - RUN-ECQ-81141a-001
+  - RUN-ECQ-81141a-002
+  - RUN-ECQ-81141a-003
+  - RUN-ECQ-81141a-004
+  - RUN-ECQ-81141a-005
+  - RUN-ECQ-81141a-006
+  - RUN-ECQ-81141a-007
+  - RUN-a7a9e8-004-augment-full (untrimmed original at 78584ab8)
+  - RUN-a7a9e8-007-independent-verify
+  - RUN-ECRANK-e1e30e-003 (control fixture)
+
+  artifact_paths:
+  - coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-0de988/validation_report.yaml
+  handoff_to_ledger_archive: >-
+    This report is at
+    coordination/goals/GOAL-ECQ-001/batches/BATCH-7e06d3/tasks/TASK-20260822-0de988/validation_report.yaml.
+    The committed queue archives the validator report of this batch under
+    TASK-20260822-2fa82a (which names TASK-20260822-0a0041's path). The archive
+    task must reconcile CI-1/CI-2 -- either by binding this path or by directing a
+    superseding record at the committed path -- before the round is composed. I
+    made no commit and changed no ledger, hypothesis, or raw artifact.
+  authored_at: '2026-08-22T00:00:00+00:00'
+  authored_by: validator
