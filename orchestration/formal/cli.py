@@ -6,8 +6,12 @@ anything.  Promotion of a verified proof into claim state stays a Coordinator
 decision made against the artifact this prints.
 
     autoresearch formal doctor
+    autoresearch formal formalize --task-file formal/targets/ncp-affine-normal-form.yaml
     autoresearch formal formalize --task-id TASK-... --claim-id CL-... \\
         --claim-file claim.txt --theorem-name Foo.bar --theorem-file Foo/Bar.lean
+
+Prefer --task-file: a frozen spec is what the Coordinator queued, and a
+hand-typed claim on the command line is a different claim nobody approved.
 """
 from __future__ import annotations
 
@@ -65,7 +69,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     workspace = repo_root / args.workspace
     print(f"\nworkspace    {workspace}")
     for name in ("lean-toolchain", "lakefile.toml", "lakefile.lean",
-                 "lake-manifest.json", "AxiomAudit.lean"):
+                 "lake-manifest.json", "AxiomAudit.lean", "CryptoResearch.lean"):
         marker = "present" if (workspace / name).is_file() else "missing"
         print(f"  {name:<20} {marker}")
 
@@ -80,8 +84,37 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if ready else 1
 
 
-def cmd_formalize(args: argparse.Namespace) -> int:
-    repo_root = Path(args.repo_root).resolve()
+def _task_from_args(args: argparse.Namespace) -> FormalProofTask:
+    """Build the task from a frozen spec file, or from explicit flags."""
+
+    if args.task_file:
+        from .targets import load_spec, task_from_spec
+
+        conflicting = [
+            name
+            for name in ("task_id", "claim_id", "claim", "claim_file",
+                         "theorem_name", "theorem_file")
+            if getattr(args, name)
+        ]
+        if conflicting:
+            # Silently letting a flag win would run something other than the
+            # spec that was reviewed and queued.
+            raise ValueError(
+                "--task-file is the frozen spec; it cannot be combined with "
+                + ", ".join(f"--{name.replace('_', '-')}" for name in conflicting)
+            )
+        return task_from_spec(load_spec(args.task_file))
+
+    missing = [
+        name
+        for name in ("task_id", "claim_id", "theorem_name", "theorem_file")
+        if not getattr(args, name)
+    ]
+    if missing:
+        raise ValueError(
+            "without --task-file these are required: "
+            + ", ".join(f"--{name.replace('_', '-')}" for name in missing)
+        )
 
     if args.claim_file:
         claim = Path(args.claim_file).read_text(encoding="utf-8").strip()
@@ -90,10 +123,9 @@ def cmd_formalize(args: argparse.Namespace) -> int:
     else:
         claim = sys.stdin.read().strip()
     if not claim:
-        print("error: empty claim", file=sys.stderr)
-        return 2
+        raise ValueError("empty claim")
 
-    task = FormalProofTask(
+    return FormalProofTask(
         task_id=args.task_id,
         kind=FormalTaskKind(args.kind),
         claim_id=args.claim_id,
@@ -103,6 +135,11 @@ def cmd_formalize(args: argparse.Namespace) -> int:
         workspace=args.workspace,
         hypothesis_ids=tuple(args.hypothesis or ()),
     )
+
+
+def cmd_formalize(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    task = _task_from_args(args)
 
     config = MathCodeConfig.from_env()
     if args.effort:
@@ -189,13 +226,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_doctor.set_defaults(func=cmd_doctor)
 
     p_run = sub.add_parser("formalize", help="run one formalize-then-verify task")
-    p_run.add_argument("--task-id", required=True)
-    p_run.add_argument("--claim-id", required=True)
+    p_run.add_argument("--task-file",
+                       help="a frozen crypto.autoresearch.formal_task.v1 spec "
+                            "(formal/targets/*.yaml) -- preferred over the flags below")
+    p_run.add_argument("--task-id")
+    p_run.add_argument("--claim-id")
     p_run.add_argument("--claim", help="the claim text; or use --claim-file, or stdin")
     p_run.add_argument("--claim-file")
-    p_run.add_argument("--theorem-name", required=True,
+    p_run.add_argument("--theorem-name",
                        help="fully qualified Lean name, e.g. CryptoResearch.ECDLP.bound")
-    p_run.add_argument("--theorem-file", required=True,
+    p_run.add_argument("--theorem-file",
                        help="path inside the workspace, e.g. CryptoResearch/ECDLP/Bound.lean")
     p_run.add_argument("--kind", default=FormalTaskKind.FORMALIZE_CLAIM.value,
                        choices=[k.value for k in FormalTaskKind])
