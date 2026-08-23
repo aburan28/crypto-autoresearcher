@@ -194,7 +194,13 @@ def evaluate_candidate(fam, values, rank_time_limit=20, want_record=True):
             cert['certifier_escalated'] = True
     rec['certificate'] = cert
     rec['certified_rank'] = cert['certified_rank_lower_bound']
-    rec['numerical_regulator'] = numerical_regulator(mai, mpts)
+    # the regulator is reported for the ICARM record only, and must be taken
+    # over the CERTIFIED INDEPENDENT subset: over all exhibited points it is
+    # ~0 whenever the search returned dependent points, which says nothing.
+    ind = cert.get('independence', {}).get('independent_point_indices', [])
+    cert_pts = [mpts[i] for i in ind] or mpts
+    rec['numerical_regulator'] = numerical_regulator(mai, cert_pts)
+    rec['numerical_regulator_over'] = 'certified independent subset'
     rec['submission_record'] = icarm_record(mai, mpts, cert, minv, fam, values,
                                             rec['numerical_regulator'])
     return rec
