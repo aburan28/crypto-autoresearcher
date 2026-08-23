@@ -471,3 +471,28 @@ def test_model_supplied_string_numeric_args_do_not_crash_the_tool_loop(scope,
     assert _as_int("50", 100) == 50
     assert _as_int("many", 100) == 100
     assert _as_int(True, 100) == 100
+
+
+def test_model_supplied_string_json_array_command_is_coerced(scope, journal):
+    """Regression: glm-5.2 (zai backend, 2026-08-22) sent run_command's
+    `command` as a JSON array *serialized as a string* ('["python3",
+    "--version"]'). The old isinstance check rejected every such call with
+    an unjournaled ERROR, so a validator burned its step budget on retries
+    and then misattributed the failure to non-functional tooling. The
+    observed shape is now coerced (and the coercion journaled); a bare shell
+    string is never split, so the allow-list on command[0] stays the
+    authority on what may run."""
+    runner = build_tools(scope, journal, ["run_command"])[0]
+    assert "ERROR" not in runner.invoke({"command": '["ls"]'})
+    assert any(e.get("tool") == "run_command"
+               and e.get("coerced_from") == "string"
+               for e in journal.entries)
+    # a bare shell string is not shell-split
+    assert "ERROR" in runner.invoke({"command": "ls -la"})
+    # non-list JSON and non-string elements are rejected, not coerced
+    assert "ERROR" in runner.invoke({"command": '{"a": 1}'})
+    assert "ERROR" in runner.invoke({"command": '["ls", 1]'})
+    # a correctly-typed list runs without a coercion note
+    journal.entries.clear()
+    assert "ERROR" not in runner.invoke({"command": ["ls"]})
+    assert not any(e.get("coerced_from") for e in journal.entries)

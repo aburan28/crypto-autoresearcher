@@ -12,6 +12,7 @@ correct itself; one that gets an opaque failure usually cannot.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -130,6 +131,28 @@ def _as_int(value: Any, default: int, *, minimum: int = 1) -> int:
     except (TypeError, ValueError):
         return default
     return max(minimum, result)
+
+
+def _as_command_list(value: Any) -> list[str] | None:
+    """Coerce a model-supplied command argument into a list of strings.
+
+    Models (observed: glm-5.2 via the zai backend, 2026-08-22) sometimes pass
+    the command as a JSON-array *string* — ``'["python3", "--version"]'`` —
+    where the schema declares an array of strings. That shape is coerced, and
+    nothing else: a bare shell string is never split, so the allow-list check
+    on ``command[0]`` stays the authority on what may run. A malformed value
+    returns None; the caller replies with a correctable message, never a crash.
+    """
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except ValueError:
+            return None
+        value = parsed
+    if isinstance(value, (list, tuple)) and value:
+        if all(isinstance(part, str) for part in value):
+            return list(value)
+    return None
 
 
 # --------------------------------------------------------------------------
@@ -263,11 +286,14 @@ def _run_command(scope: TaskScope, journal: ToolJournal, command: list[str],
     if timeout_seconds is not None:
         timeout_seconds = _as_int(timeout_seconds,
                                   scope.command_timeout_seconds)
-    if not isinstance(command, (list, tuple)) or not command:
+    coerced = _as_command_list(command)
+    if coerced is None:
         return ("ERROR: command must be a non-empty argument list "
                 "(a JSON array of strings)")
-    if not all(isinstance(part, str) for part in command):
-        return "ERROR: every argument in the command list must be a string"
+    if not isinstance(command, (list, tuple)):
+        journal.record("run_command", {"command": coerced,
+                                       "coerced_from": "string"})
+    command = coerced
     program = command[0]
     if program not in scope.allowed_commands:
         journal.record("run_command", {"command": command},
