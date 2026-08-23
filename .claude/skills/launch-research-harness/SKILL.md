@@ -71,9 +71,12 @@ portfolio is empty".
 **Resume** an existing goal: use its `dispatch_queue_path` and
 `current_batch_id`; continue from `next_action`.
 
-**Start new**: only when the user asks for a new campaign. Create the next free
-`GOAL-<AREA>-<NNN>.yaml` from `templates/research-records.md`, bind `RQ-*`,
-create `coordination/goals/GOAL-.../batches/BATCH-001/` with handoffs + queue
+**Start new**: only when the user asks for a new campaign. Mint the goal with
+`python3 tools/allocate_id.py --next goal --area AREA`, confirm the emitted
+`GOAL-<AREA>-<tok>` with `--check`, and create its YAML record from
+`templates/research-records.md`. Never choose a suffix or scan for a maximum.
+Bind `RQ-*`, then create `coordination/goals/GOAL-.../batches/BATCH-<tok>/`
+with handoffs + queue
 (`goal_id` set), then follow `/coordinate-research-goal` launch steps.
 Snapshot-archive the goal/queue/handoffs before any worker runs.
 
@@ -402,7 +405,7 @@ User: continue the active ECDLP goal
 → prefer matching active GOAL-* → same loop from next_action
 
 User: launch a new research goal for RQ-SSI-001
-→ create GOAL-SSI-00N + BATCH-001 → snapshot → then coordinate loop
+→ allocate and check GOAL-SSI-<tok> + BATCH-<tok> → snapshot → then coordinate loop
 
 User: just keep the harness running
 → select highest-ranked active goal → batch → checkpoint → next batch → ...

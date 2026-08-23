@@ -31,6 +31,7 @@ from .integration import verification_outcome_from_formal_result
 from .lean_worker import LeanWorker
 from .mathcode import FormalizationAttempt, FormalizationFailure, MathCodeFormalizer
 from .models import FormalProofResult, FormalProofTask, FormalStatus
+from .workspace import rebuild_root
 
 SCHEMA_FORMAL_PROOF_V1 = "crypto.autoresearch.formal_proof.v1"
 
@@ -152,6 +153,9 @@ def formalize_and_verify(
     attempt = formalizer.formalize(task)
 
     if attempt.staged:
+        # A staged file that nothing imports is never compiled, so `lake build`
+        # would pass without ever looking at it. Regenerate the root first.
+        rebuild_root(formalizer.repo_root / task.workspace)
         return FormalRunRecord(task=task, attempt=attempt, result=worker.verify(task))
 
     if attempt.failure is FormalizationFailure.INCOMPLETE_PROOF:
