@@ -441,3 +441,33 @@ def test_every_api_direct_tool_name_has_an_implementation(scope, journal):
         names = role_registry.expected_tools(roles_doc, role, "api_direct")
         if names is not None:
             assert len(build_tools(scope, journal, names)) == len(names)
+
+
+def test_model_supplied_string_numeric_args_do_not_crash_the_tool_loop(scope,
+                                                                        journal):
+    """Regression: glm-5.2 (zai backend, 2026-08-22) passed a string `limit`
+    to search_files and the tool loop crashed with TypeError
+    ('>=' not supported between instances of 'int' and 'str'). Per this
+    module's contract a malformed tool call degrades to the declared
+    default or an ERROR string the model can correct -- never a crash."""
+    from orchestration.agent.tools import _as_int
+
+    search = build_tools(scope, journal, ["search_files"])[0]
+    # string numeric args are coerced; no exception escapes
+    assert isinstance(search.invoke({"regex": "hypothesis", "limit": "3"}),
+                      str)
+    # an uncoercible value falls back to the default, also without raising
+    assert isinstance(search.invoke({"regex": "hypothesis", "limit": "many"}),
+                      str)
+    listing = build_tools(scope, journal, ["list_files"])[0]
+    assert isinstance(listing.invoke({"pattern": "ledger/*", "limit": "2"}),
+                      str)
+    reading = build_tools(scope, journal, ["read_file"])[0]
+    out = reading.invoke({"path": "ledger/H-A-001.yaml", "start_line": "1",
+                          "max_lines": "2"})
+    assert out.startswith("1\t")
+    runner = build_tools(scope, journal, ["run_command"])[0]
+    assert "ERROR" in runner.invoke({"command": "not-a-list"})
+    assert _as_int("50", 100) == 50
+    assert _as_int("many", 100) == 100
+    assert _as_int(True, 100) == 100
