@@ -9,12 +9,13 @@ refuted here, and nothing was submitted to the ICARM endpoint.
   in each run's `environment.json` (`claude-opus-5`, `model_verified: false` — no
   `adapter doctor --probe` was run in this session). No fallback, no degraded
   requirement.
-- budget 3600 s / 4 GB / 80 runs. Used: 10 run records, peak RSS 1.66 GB
-  (RUN-ECQPIPE-01d3d9-006), aggregate child wall clock ≈ 1.6 ks.
+- budget 3600 s / 4 GB / 80 runs. Used: **16 run records**, peak RSS 1.66 GB
+  (RUN-ECQPIPE-01d3d9-006/-011), aggregate child wall clock ≈ 1.9 ks — all three
+  limits respected. 16 run ids were used in total (`-001 … -016`).
 
 Artifacts: `pipeline_validation.json` (every number below, machine-readable),
 `pipeline/` (source + `README.md` documenting the entry point),
-`runs/RUN-ECQPIPE-01d3d9-001 … -010` (immutable run records), `results/` (raw
+`runs/RUN-ECQPIPE-01d3d9-001 … -016` (immutable run records), `results/` (raw
 producer outputs, copied into each run record as `raw-result.json`).
 
 ---
@@ -102,8 +103,12 @@ Two exceptions, recorded rather than smoothed over:
   `ellglobalred` guard in the first pass — an infrastructure outcome (the
   conductor needs the factorisation of a very large discriminant), never a
   mathematical result. They are excluded from the 281 denominator and were
-  retried with a 130 s guard in `RUN-ECQPIPE-01d3d9-010`; see
-  `check_1_reproduction.conductor_retry` in `pipeline_validation.json`.
+  retried with a 130 s guard in `RUN-ECQPIPE-01d3d9-010` (961 s): **1 of the 8
+  resolved** (#66, conductor agrees) and **7 still exceeded the guard**
+  (#9, #10, #11, #12, #67, #199, #289). Their conductors remain unmeasured here
+  and are reported as unmeasured. That retry also re-certified their ranks
+  exactly, **8 / 8 agreeing**, including ranks 23, 24, 26, 27, 28 and 29 — so the
+  unmeasured quantity is the conductor alone.
 
 **Gate verdict: passed.** Rank certification, both height definitions,
 discriminant and conductor reproduce the board on all 289 curves, with the two
@@ -165,7 +170,7 @@ the same check produced the number that decides whether it is usable.**
 
 ## 3. Mestre-Nagao ordering with its random-sample control
 
-`RUN-ECQPIPE-01d3d9-006 … -009`: four families, box t = p/q with |p| ≤ 15, q ≤ 2
+`RUN-ECQPIPE-01d3d9-011 … -014` (which supersede `-006 … -009`, see §6): four families, box t = p/q with |p| ≤ 15, q ≤ 2
 (47 parameter points), **top-15 by Mestre-Nagao** against **15 uniformly random
 draws from the same box** (seed 20260823). Both arms fully descended and exactly
 certified.
@@ -201,10 +206,44 @@ Every curve in §3 carries an exactly certified rank lower bound, its minimal
 model, naive height, Faltings height and conductor to the board's own
 definitions, and an emitted ICARM-format submission record. The best certified
 rank reached from the internal demo families was **7** (DEMO-SEC5-r5), at a naive
-height far above the r ≥ 7 frontier cell (35.78). **No frontier cell was
-beaten**, which is what these objects were built for: throwaway families of
-generic rank ≤ 5, made to exercise and falsify, not to compete. Nothing was
-submitted; every emitted record carries `provenance.not_submitted: true`.
+height far above the r ≥ 7 frontier cell (35.78): at ranks 2–7 the demo curves
+are 7–56 in naive height **above** the corresponding frozen cells, which is what
+these objects were built for — throwaway families of generic rank ≤ 5, made to
+exercise and falsify, not to compete.
+
+One incidental exception, reported because it is a fact and not because it is a
+result: the specialisation t = 0 of DEMO-SEC5-r5 minimalises to
+`[1,-1,1,0,0]` — the conductor-53 curve 53a1 — with certified rank 1 (generator
+(0,−1), exact) and naive height **11.3875**, below the frozen r ≥ 1 cell of
+11.6136 (curve #42, 37a1). It does **not** take the other two r ≥ 1 cells: its
+Faltings height is −0.98855 (cell −0.99654) and its log conductor 3.9703 (cell
+3.6109). This is a textbook curve that the board simply does not contain, not a
+discovery, and it says nothing about the r ≥ 15 target. Whether anything is
+submitted is a Coordinator decision after review; **nothing was submitted**, and
+every emitted record carries `provenance.not_submitted: true`.
+
+## 4b. Smoke test against a real candidate base family
+
+`RUN-ECQPIPE-01d3d9-015` and `-016`. The concurrent TASK-20260823-d1cb76 landed
+`candidate_families.json` with eight candidates; exactly one carries an explicit
+Weierstrass equation, `KLOOSTERMAN-2005-GEOM15`
+(y² = x³ + 2(t⁸+14t⁴+1)x + 4t²(t⁸+6t⁴+1)), which that record itself marks
+"RETRIEVED … NOT independently double-extracted" and whose rank claim is
+**geometric** (over C̄), not over Q(t). It is used here **only** as a real input
+proving the pipeline is family-agnostic; no rank claim of that record is relied
+on or reproduced.
+
+- height budget, 61 parameter points, |t| ≤ 20, q ≤ 2:
+  **h = 17.15 + 22.62·log H, R² = 0.996** → admissible box under h < 118.770 is
+  log H ≤ 4.49, i.e. **|t| ≲ 89** — a comfortably wide box, in contrast to the
+  rank-5 demo family's |t| ≲ 5.
+- certified ranks over the box |t| ≤ 6, q ≤ 2 (top-5 ordered vs 5 random):
+  max **1**, mean 0.4 (ordered) and 0.2 (random), min naive height 13.69.
+
+Observation only: this family's height budget is generous and its certified rank
+over Q at small parameters is 0–1, which is consistent with its rank claim being
+geometric rather than over Q(t). Whether it is a usable base is a Coordinator
+judgement, not one made here.
 
 ## 5. What the pipeline needs from the base family to reach rank ≥ 15 under h < 118.770
 
@@ -241,7 +280,17 @@ Stated as the measured requirement, with no claim that any family meets it:
   as `certifier_escalated: true`. A shortfall of the certifier is never reported
   as a low rank.
 - 8 conductor computations exceeded the 15 s guard (§1) — infrastructure
-  outcome, retried at 130 s in `-010`.
+  outcome; retried at 130 s in `-010`, where 7 still exceeded it. Those 7
+  conductors are left unmeasured rather than estimated.
+- **Defect found and corrected after `-006 … -009`:** the emitted ICARM record's
+  numerical `regulator` was computed over *all* exhibited points, so it collapsed
+  to ~1e-112 whenever the search returned dependent points (e.g. 53a1 above).
+  It now runs over the certified independent subset (53a1 → 0.09298, the
+  expected value). `pipeline.py` was fixed and the four pipeline runs were
+  repeated under new ids `-011 … -014`; `-006 … -009` remain in place, valid as
+  measurements of certified rank and height (which the defect did not touch) and
+  superseded for the regulator field. `pipeline_validation.json` is assembled
+  from the reruns.
 - The Mestre-Nagao arm and the random arm may draw the same parameter point; the
   arms are not disjoint by construction. A limitation of the control's design at
   this sample size.

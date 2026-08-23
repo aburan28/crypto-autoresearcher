@@ -69,7 +69,7 @@ def main(taskdir, outpath):
     arms = {'mestre_nagao_top': [], 'uniform_random_control': []}
     heights = {'mestre_nagao_top': [], 'uniform_random_control': []}
     per_family = []
-    for p in sorted(glob.glob(os.path.join(res, 'pipeline_*.json'))):
+    for p in sorted(glob.glob(os.path.join(res, 'pipeline_DEMO-*.json'))):
         d = json.load(open(p))
         s = d['arm_summary']
         per_family.append({
@@ -106,7 +106,7 @@ def main(taskdir, outpath):
         taskdir, '..', '..', '..', '..', 'baseline', 'frontier_20260823.json')))
     fbt = frontier['frontier_by_rank_threshold']
     produced = []
-    for p in sorted(glob.glob(os.path.join(res, 'pipeline_*.json'))):
+    for p in sorted(glob.glob(os.path.join(res, 'pipeline_DEMO-*.json'))):
         d = json.load(open(p))
         for arm, recs in d['arms'].items():
             for c in recs:
@@ -163,6 +163,24 @@ def main(taskdir, outpath):
         'check_3_mestre_nagao_control': {'per_family': per_family,
                                          'pooled': pooled},
         'check_4_certifier_negative_controls': self_t,
+        'check_6_real_candidate_family_smoke_test': {
+            'family_spec': 'pipeline/families/KLOOSTERMAN-2005-GEOM15.json',
+            'source_record': 'coordination/goals/GOAL-ECQ-002/batches/'
+                             'BATCH-f2341e/tasks/TASK-20260823-d1cb76/'
+                             'candidate_families.json',
+            'why': 'demonstrates the pipeline runs against a real candidate '
+                   'base family produced by another task; no rank claim of '
+                   'that record is relied on or reproduced',
+            'height_fit': ({k: v for k, v in json.load(open(os.path.join(
+                res, 'falsifier_height_kloosterman.json')))['families'][0].items()
+                if k != 'rows'}
+                if os.path.exists(os.path.join(
+                    res, 'falsifier_height_kloosterman.json')) else None),
+            'pipeline_run': (json.load(open(os.path.join(
+                res, 'pipeline_KLOOSTERMAN-2005-GEOM15.json')))['arm_summary']
+                if os.path.exists(os.path.join(
+                    res, 'pipeline_KLOOSTERMAN-2005-GEOM15.json')) else None),
+        },
         'check_5_produced_curves_vs_frozen_frontier': {
             'frontier_path': 'coordination/goals/GOAL-ECQ-002/baseline/'
                              'frontier_20260823.json',
