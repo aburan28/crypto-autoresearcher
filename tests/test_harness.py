@@ -617,3 +617,297 @@ def test_md5_collision_pair_verified_by_is_wrapper_populated(tmp_path):
     assert all(e["computed_digest_m1"] == digest and e["computed_digest_m2"] == digest
                for e in verified_by)
     assert "SOLVER-CLAIMED" not in json.dumps(raw)
+
+
+# ---------------------------------------------------------------------------
+# harness/run_md4_ceiling.py (GOAL-MD5-001 BATCH-af29f6 TASK-20260821-de817d,
+# EXP-MDFIVE-88f7d1). Additive only. These are the two audit-1 correctness
+# gates the frozen contract requires to pass BEFORE any statistical run is
+# trusted: the RFC 1320 published test vectors, and HEUR-H2's deterministic
+# backward-inversion regression fixture.
+# ---------------------------------------------------------------------------
+
+def test_rfc1320_md4_vectors():
+    """The standalone MD4 core (no hashlib) must reproduce every published
+    RFC 1320 Appendix A.5 test vector exactly."""
+    from harness.run_md4_ceiling import check_rfc1320_vectors
+
+    result = check_rfc1320_vectors()
+    assert result["all_ok"] is True, result
+    assert len(result["vectors"]) == 7
+
+
+def test_h2_backward_inversion_regression_fixture_md4_and_md5():
+    """HEUR-H2 (H-MDFIVE-bf7767): forward_step/backward_step composition
+    must be an exact identity on every sampled tuple for BOTH primitives'
+    Round-1 conventions (MD4: no trailing '+= b'; MD5: with it) -- a single
+    failure invalidates all downstream MITM search results."""
+    from harness.run_md4_ceiling import h2_regression_fixture
+
+    for mode in ("md4", "md5"):
+        result = h2_regression_fixture(seed=8975317, n=10000, mode=mode)
+        assert result["all_ok"] is True, (mode, result["failures"][:3])
+        assert result["n"] == 10000
+
+
+def test_md4_forward_backward_step_add_b_convention():
+    """Regression pin for the specific bug this module's first draft hit:
+    MD4's Round-1 operation (RFC 1320 sec 3.4, "[abcd k s]" notation) has NO
+    trailing '+= b' term, unlike MD5's RFC 1321 FF/GG/HH/II macros. Using
+    MD5's formula for MD4 fails every RFC 1320 A.5 vector -- this test pins
+    the two conventions directly against a hand-computed example so a future
+    edit that re-merges them is caught immediately, not just via the vector
+    self-test."""
+    from harness.run_md4_ceiling import (MD4_ADD_B, MD5_ADD_B, _IV,
+                                         backward_step, forward_step)
+
+    assert MD4_ADD_B is False
+    assert MD5_ADD_B is True
+    state = _IV
+    xk, s, t = 0x11223344, 7, 0
+    md4_next = forward_step(state, xk, s, t, add_b=False)
+    md5_next = forward_step(state, xk, s, t, add_b=True)
+    assert md4_next != md5_next
+    assert backward_step(md4_next, xk, s, t, add_b=False) == state
+    assert backward_step(md5_next, xk, s, t, add_b=True) == state
+
+
+def test_md4_ceiling_brute_force_control_result_sets_equal():
+    """The correctness control this contract requires before any k1=k2=10
+    search result is trusted (invalidation_rules): the MITM hash-table
+    search's result set must be IDENTICAL to the naive all-pairs search's
+    result set on the fully brute-forceable k1=k2=6 subset."""
+    from harness.run_md4_ceiling import (fixed_word_generation,
+                                         generate_target, mitm_search,
+                                         naive_all_pairs_search)
+
+    fixed = fixed_word_generation(seed=20260821, free_bits=6)
+    target = generate_target(8975316, fixed, "md4", free_bits=6)
+    mitm = mitm_search(fixed, target, "md4", 6, 6, 6, 20)
+    naive = naive_all_pairs_search(fixed, target, "md4", 6, 6, 20)
+    assert sorted(mitm["solutions"]) == sorted(naive["solutions"])
+    assert mitm["solutions"], "control target must be reachable in-window"
+
+
+# ===========================================================================
+# harness/run_md4_ceiling_v2.py -- R1-SEP10 instrument
+# (GOAL-MD5-001 / BATCH-7215fa / TASK-20260821-372d67, EXP-MDFIVE-a8e71e).
+# ADDITIVE ONLY: nothing above this banner is modified, and
+# harness/run_md4_ceiling.py (BATCH-af29f6's frozen instrument, IR-7) is
+# neither edited nor imported by these tests.
+# ===========================================================================
+
+def test_v2_rfc1320_vectors_and_md5_t16():
+    """CTL-PO7. All seven RFC 1320 Appendix A.5 MD4 vectors, plus MD5's
+    T[1..16] against the RFC 1321 sec 3.4 sine definition."""
+    from harness.run_md4_ceiling_v2 import check_md5_t16, check_rfc1320_vectors
+
+    vec = check_rfc1320_vectors()
+    assert vec["all_ok"], vec
+    assert len(vec["vectors"]) == 7
+    assert check_md5_t16()["all_ok"]
+
+
+def test_v2_input_pins_match_committed_sha256():
+    """The two RFC pins are re-hashed, never re-fetched."""
+    from harness.run_md4_ceiling_v2 import check_input_pins
+
+    pins = check_input_pins()
+    assert pins["all_ok"], pins
+
+
+def test_v2_h2_exact_invertibility_both_primitives():
+    """CTL-PO6. backward_step is the exact inverse of forward_step for both
+    add_b conventions; a single failure invalidates everything downstream."""
+    from harness.run_md4_ceiling_v2 import h2_regression_fixture
+
+    for primitive in ("md4", "md5"):
+        res = h2_regression_fixture(8975327, 2000, primitive)
+        assert res["all_ok"], res["failures"][:3]
+
+
+def test_v2_component_step_convention():
+    """The rotating-tuple convention, pinned as arithmetic: state_S[1] is the
+    register produced at step S, [2] at S-1, [3] at S-2, [0] at S-3."""
+    from harness.run_md4_ceiling_v2 import component_step
+
+    assert component_step(8, 3) == 6      # R1-SEP10 reads v6
+    assert component_step(9, 1) == 9      # batch-4 slice reads v9
+    assert component_step(8, 2) == 7
+    assert component_step(8, 0) == 5
+
+
+def test_v2_component_identity_against_independent_reference():
+    """CTL-PO9. Tuple position p of state_S from the module's own forward
+    chain equals the register produced at step component_step(S,p) as
+    computed by the independent straight-line named-register reference."""
+    import random as _random
+
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            component_identity_check)
+
+    rng = _random.Random(20260821)
+    probes = [[rng.getrandbits(32) for _ in range(16)] for _ in range(16)]
+    for primitive in ("md4", "md5"):
+        for S, p in ((8, 3), (9, 1)):
+            params = ConstructionParams(primitive=primitive, i_word=2,
+                                        j_word=12, S=S, p=p, k1=4, k2=4,
+                                        m=12, k=20)
+            res = component_identity_check(params, None, probes)
+            assert res["all_ok"], res
+
+
+def test_v2_observables_are_the_single_code_path():
+    """A-6 / PO-8. Both observable functions take the parameter tuple and are
+    the only readers of the declared observable; the fingerprint names them
+    fully-qualified together with the exact tuple they were invoked with."""
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            code_path_fingerprint)
+
+    params = ConstructionParams("md4", 2, 12, 8, 3, 4, 4, 12, 20)
+    fp = code_path_fingerprint(params)
+    assert fp["chunk1_observable"].endswith(
+        "run_md4_ceiling_v2.chunk1_observable")
+    assert fp["chunk2_observable"].endswith(
+        "run_md4_ceiling_v2.chunk2_observable")
+    assert fp["parameter_tuple"] == {
+        "primitive": "md4", "i_word": 2, "j_word": 12, "S": 8, "p": 3,
+        "k1": 4, "k2": 4, "m": 12, "k": 20}
+
+
+def test_v2_chunk1_observable_does_not_read_free_word_B():
+    """Recorded honestly rather than presented as a passed test: the forward
+    observable structurally cannot read free word B (index j_word >= S), so
+    CTL-PO3's four repetitions are byte-identical by construction."""
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            chunk1_observable,
+                                            fixed_word_generation)
+
+    params = ConstructionParams("md4", 2, 12, 8, 3, 4, 4, 12, 20)
+    fixed = fixed_word_generation(20260821, (2, 12), 4)
+    base = [chunk1_observable(fixed["high"][2] | low, params, fixed)
+            for low in range(16)]
+    perturbed = dict(fixed)
+    words = list(fixed["words"])
+    words[12] ^= 0xFFFF0000
+    perturbed["words"] = words
+    assert base == [chunk1_observable(fixed["high"][2] | low, params,
+                                      perturbed) for low in range(16)]
+
+
+def test_v2_forward_backward_halves_meet_on_the_planted_pair():
+    """HEUR-H2 at the construction level: for the planted pair the forward and
+    backward halves produce the SAME declared observable, for both slices and
+    both primitives -- feasibility (PO-10), not a gate result."""
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            chunk1_observable,
+                                            chunk2_observable,
+                                            fixed_word_generation,
+                                            generate_target)
+
+    for primitive in ("md4", "md5"):
+        for (i, j, S, p) in ((2, 12, 8, 3), (8, 9, 9, 1)):
+            params = ConstructionParams(primitive, i, j, S, p, 4, 4, 12, 20)
+            fixed = fixed_word_generation(20260821, (i, j), 4)
+            target = generate_target(8975322, fixed, params)
+            fwd = chunk1_observable(target["true_word_i"], params, fixed)
+            bwd = chunk2_observable(target["true_word_j"], target["Y"],
+                                    params, fixed)
+            assert fwd == bwd == target["component_full32"]
+
+
+def test_v2_naive_baseline_is_independent_of_the_observable():
+    """CTL-PO4's baseline must not read what the MITM reads. BATCH-af29f6's
+    baseline compared low_k_fwd against low_k_bwd and was vacuous (ANOM-1
+    caveat); this one compares an independent straight-line 16-step forward
+    output against Y. Checked against the SOURCE, not a docstring."""
+    import ast
+    import inspect
+    import textwrap
+
+    from harness import run_md4_ceiling_v2 as mod
+
+    def _body(fn):
+        """Source with the docstring stripped -- the docstring MENTIONS the
+        forbidden names in order to say it does not use them."""
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+        node = tree.body[0]
+        if (node.body and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+                and isinstance(node.body[0].value.value, str)):
+            node.body = node.body[1:]
+        return ast.unparse(node)
+
+    src = _body(mod.naive_y_reproducing_search)
+    assert "backward_step" not in src
+    assert "chunk1_observable" not in src
+    assert "chunk2_observable" not in src
+    attrs = {n.attr for n in ast.walk(ast.parse(src))
+             if isinstance(n, ast.Attribute)}
+    assert "p" not in attrs, "the naive baseline must not read component p"
+    assert "m" not in attrs, "the naive baseline must not read the window"
+    assert "_reference_round1_output" in src
+
+    ref_src = _body(mod._reference_round1_output)
+    assert "forward_step" not in ref_src
+
+
+def test_v2_naive_and_certificate_verified_mitm_agree_at_k4():
+    """A cheap, non-gate correctness check of the two independent search
+    paths at k1=k2=4 on the R1-SEP10 slice: the certificate-verified MITM set
+    equals the naive Y-reproducing set, and the planted pair is in-window
+    (PO-10 feasibility). This is a code-correctness test, not CTL-PO4, which
+    the contract fixes at k1=k2=6 with its own seed."""
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            fixed_word_generation,
+                                            generate_target, mitm_search,
+                                            naive_y_reproducing_search,
+                                            verify_certificate)
+
+    params = ConstructionParams("md4", 2, 12, 8, 3, 4, 4, 12, 20)
+    fixed = fixed_word_generation(20260821, (2, 12), 4)
+    target = generate_target(8975322, fixed, params)
+    mitm = mitm_search(params, fixed, target)
+    verified = sorted(
+        (a, b) for (a, b) in mitm["raw_solutions"]
+        if verify_certificate(params, fixed, target, a, b)["verified"])
+    naive = sorted(naive_y_reproducing_search(params, fixed,
+                                              target)["solutions"])
+    assert verified == naive
+    assert (target["true_word_i"], target["true_word_j"]) in naive
+
+
+def test_v2_variance_classification_is_the_frozen_three_way_split():
+    """The three-way split is applied mechanically and labels, never
+    concludes: below 64 is INSTRUMENT DEGENERACY and a STOP, explicitly NOT
+    an H1 falsification."""
+    from harness.run_md4_ceiling_v2 import classify_variance
+
+    assert "INSTRUMENT_DEGENERACY" in classify_variance(0.0)
+    assert "INSTRUMENT_DEGENERACY" in classify_variance(63.9)
+    assert classify_variance(256.0) == "inside_[128,512]_H1_consistent_band"
+    assert classify_variance(100.0) == "outside_[128,512]_and_not_below_64"
+    assert classify_variance(None) == "not_computable"
+
+
+def test_v2_manifest_output_carries_caveat_refs(tmp_path):
+    """SC-5 / IR-8, checked on the MANIFEST ITSELF rather than on prose: a run
+    written by this module carries `caveat_refs`, and it names KN-TECH-bb7e9f
+    and DEC-20260821-1215e5 F-4."""
+    import yaml as _yaml
+
+    from harness.run_md4_ceiling_v2 import _main
+
+    out_root = str(tmp_path / "out")
+    rc = _main(["--mode", "primary", "--primitive", "md4", "--k1", "4",
+                "--k2", "4", "--target-seed", "8975322",
+                "--run-suffix", "unit-caveat-check", "--out-root", out_root])
+    assert rc == 0
+    manifest_path = os.path.join(out_root, "runs",
+                                 "RUN-MDFIVE-unit-caveat-check",
+                                 "manifest.yaml")
+    manifest = _yaml.safe_load(open(manifest_path))
+    refs = manifest["run"]["inputs"]["parameters"]["caveat_refs"]
+    assert any("KN-TECH-bb7e9f" in r for r in refs)
+    assert any("DEC-20260821-1215e5 F-4" in r for r in refs)
+    assert manifest["run"]["cost_model"]["caveat_refs"] == refs
