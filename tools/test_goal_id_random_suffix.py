@@ -280,7 +280,7 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
         env.pop("GIT_NO_REPLACE_OBJECTS", None)
         env.update(environment or {})
         result = subprocess.run(
-            ["git", "-C", str(self.root), "ls-tree", "HEAD", "--", prefix],
+            ["git", "-C", str(self.root), "ls-tree", "HEAD^{tree}", "--", prefix],
             check=True, capture_output=True, text=True, env=env,
         )
         metadata = result.stdout.split("\t", 1)[0]
