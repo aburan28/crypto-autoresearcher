@@ -103,7 +103,7 @@ def main(taskdir, outpath):
 
     # ---- what the pipeline actually certified, against the frozen frontier
     frontier = json.load(open(os.path.join(
-        taskdir, '..', '..', '..', 'baseline', 'frontier_20260823.json')))
+        taskdir, '..', '..', '..', '..', 'baseline', 'frontier_20260823.json')))
     fbt = frontier['frontier_by_rank_threshold']
     produced = []
     for p in sorted(glob.glob(os.path.join(res, 'pipeline_*.json'))):
