@@ -46,6 +46,9 @@ REPO = vl.REPO
 SEARCH_GLOBS = [
     os.path.join(REPO, "ledger", "*.yaml"),            # root, live not legacy
     os.path.join(REPO, "ledger", "*", "*.yaml"),       # typed subdirectories
+    # Persistent goals support both a flat head and a sharded head whose
+    # identifier is carried by its parent directory.
+    os.path.join(REPO, "ledger", "goals", "*", "goal.yaml"),
     os.path.join(REPO, "ledger", "corrections", "*.md"),
     os.path.join(REPO, "experiments", "*", "specification.yaml"),
     os.path.join(REPO, "experiments", "*", "corrections", "*.yaml"),
@@ -64,6 +67,7 @@ SEARCH_GLOBS = [
 
 # id prefix -> the record type whose pattern governs it
 PREFIX_TYPE = {
+    "GOAL": "goal",
     "RQ": "research_question",
     "IDEA": "idea",
     "H": "hypothesis",
@@ -77,6 +81,7 @@ PREFIX_TYPE = {
 
 # Record types whose identifier is PREFIX-SUFFIX with no date or area segment.
 NO_MIDDLE = {"batch"}
+SEQUENTIAL_FORBIDDEN = {"goal"}
 
 
 # Corrections are coordination/control-plane records rather than one of the
@@ -168,6 +173,15 @@ def occurrences(rec_id: str) -> list[str]:
     ]
 
 
+def _record_identifier(path: str) -> str:
+    """Return the canonical record identifier carried by a curated path."""
+    rel = os.path.relpath(path, REPO).replace(os.sep, "/")
+    sharded_goal = re.match(r"^ledger/goals/(GOAL-[^/]+)/goal\.yaml$", rel)
+    if sharded_goal:
+        return sharded_goal.group(1)
+    return os.path.splitext(os.path.basename(path))[0]
+
+
 def well_formed(rec_id: str) -> tuple[bool, str]:
     """Check an identifier against the build gate's own pattern."""
     prefix = rec_id.split("-", 1)[0]
@@ -200,6 +214,11 @@ def check(rec_id: str) -> int:
         print("\nREFUSE: taken. Allocate above the union maximum; never reuse, "
               "and never fill a gap.")
         return 1
+    if vl.GOAL_LEGACY_ID.fullmatch(rec_id):
+        print("\nREFUSE: a free legacy-form GOAL id cannot be minted. Existing "
+              "three-digit GOAL ids remain valid history, but every new goal "
+              "must use a random six-hex suffix from --next goal --area AREA.")
+        return 1
     print("\nOK: well-formed and free across the union.")
     return 0
 
@@ -208,7 +227,7 @@ def _used_numbers(prefix: str, middle: str) -> set[int]:
     pat = re.compile(rf"^{re.escape(prefix)}-{re.escape(middle)}-(\d{{3}})$")
     used: set[int] = set()
     for path in _identifier_paths():
-        stem = os.path.splitext(os.path.basename(path))[0]
+        stem = _record_identifier(path)
         m = pat.match(stem)
         if m:
             used.add(int(m.group(1)))
@@ -299,7 +318,7 @@ def audit() -> int:
     seen: dict[str, list[str]] = {}
     malformed: list[tuple[str, str, str]] = []
     for path in _paths():
-        stem = os.path.splitext(os.path.basename(path))[0]
+        stem = _record_identifier(path)
         prefix = stem.split("-", 1)[0]
         if prefix not in PREFIX_TYPE:
             continue
@@ -321,6 +340,11 @@ def audit() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    area_occurrences = sum(
+        argument == "--area" or argument.startswith("--area=")
+        for argument in raw_argv
+    )
     ap = argparse.ArgumentParser(
         prog="python3 tools/allocate_id.py",
         description="Check an identifier is well-formed AND free across the "
@@ -340,17 +364,26 @@ def main(argv: list[str] | None = None) -> int:
                          "that will be merged.")
     ap.add_argument("--seed", type=int, default=None,
                     help="seed the random allocator (tests and reproduction only)")
-    args = ap.parse_args(argv)
+    args = ap.parse_args(raw_argv)
 
     if args.check:
         return check(args.check)
     if args.audit:
         return audit()
+    if args.next == "goal" and (area_occurrences != 1
+                                or not args.area or args.date):
+        ap.error("goal allocation requires exactly one --area occurrence "
+                 "(--next goal requires exactly --area) and does not accept "
+                 "--date")
     middle = args.area or args.date
     if not middle and args.next not in NO_MIDDLE:
-        ap.error("--next requires --area (for RQ/H/EXP/EV) or --date "
+        ap.error("--next requires --area (for GOAL/RQ/H/EXP/EV) or --date "
                  "(for IDEA/DEC/TASK/CORR); batch takes neither")
     if args.sequential:
+        if args.next in SEQUENTIAL_FORBIDDEN:
+            print("REFUSE: sequential GOAL allocation is prohibited; new goals "
+                  "must use the default random 6-hex token", file=sys.stderr)
+            return 1
         return next_free(args.next, middle)
     return token_id(args.next, middle, seed=args.seed)
 

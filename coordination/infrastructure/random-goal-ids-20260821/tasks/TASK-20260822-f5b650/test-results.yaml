@@ -1,0 +1,109 @@
+test_results:
+  task_id: TASK-20260822-f5b650
+  recorded_at: '2026-08-22T07:34:47Z'
+  worktree: /Users/adamburan/.codex/worktrees/infra-random-goal-ids-20260821/crypto-autoresearcher
+  implementation_head: 1f4b5c7567a81a2bb758ab2e225fbbf8c19bf18a
+  bound_base_commit: 76b860c1ba1364b6a74695a09d1ae995a6ba8ebe
+  environment:
+    python: '3.13.1'
+    runtime: codex
+  commands:
+    - id: preflight
+      command: >-
+        python3 plugins/crypto-autoresearcher-harness/scripts/preflight.py
+        --repo "$PWD" --runtime codex --doctor
+      exit_code: 0
+      observed_stdout: >-
+        READY: contracts and selected runtime binding are consistent; 11
+        generated bindings current, 8 roles consistent, harness doctor ready.
+      observed_stderr: ''
+    - id: compile
+      command: >-
+        python3 -m py_compile tools/check_merge_hygiene.py
+        tools/test_goal_id_random_suffix.py
+      exit_code: 0
+      observed_stdout: ''
+      observed_stderr: ''
+    - id: focused_unittest
+      command: python3 -m unittest -v tools/test_goal_id_random_suffix.py
+      exit_code: 0
+      summary: {tests_run: 21, failures: 0, errors: 0}
+      observed_output: 'Ran 21 tests in 5.974s; OK'
+    - id: focused_pytest
+      command: python3 -m pytest -q tools/test_goal_id_random_suffix.py
+      exit_code: 0
+      summary: {passed: 21, failed: 0}
+      observed_stdout: '21 passed in 5.14s'
+      observed_stderr: ''
+    - id: broader_focused_unittest
+      command: >-
+        python3 -m unittest -v tools/test_allocate_id.py
+        tools/test_goal_id_random_suffix.py tools/test_goal_closure_quorum.py
+        tools/test_research_dispatch.py
+      exit_code: 0
+      summary: {tests_run: 137, failures: 0, errors: 0}
+      observed_output: 'Ran 137 tests in 13.478s; OK'
+      note: >-
+        The allocator audit test intentionally printed the frozen malformed and
+        duplicate identifier debt and asserted that the audit remains nonzero.
+    - id: merge_hygiene
+      command: python3 tools/check_merge_hygiene.py --base origin/main
+      exit_code: 0
+      observed_stdout: >-
+        PASS: no conflict markers, no unparseable records, no identifier
+        collisions, no new legacy GOAL identifiers
+      observed_stderr: >-
+        note: parseability scoped to 48 committed, staged, or
+        tracked-worktree candidate path(s) vs origin/main; the absolute sweep
+        runs on main
+    - id: runtime_bindings
+      command: python3 tools/check_runtime_bindings.py
+      exit_code: 0
+      observed_stdout: 'OK: 8 roles consistent with every runtime binding'
+      observed_stderr: ''
+    - id: run_immutability
+      command: python3 tools/check_run_immutability.py
+      exit_code: 0
+      observed_stdout: 'OK: no committed run artifacts were modified or deleted'
+      observed_stderr: ''
+    - id: head_vs_base_ledger
+      command: >-
+        Run tools/validate_ledger.py in the candidate worktree and a git-archive
+        extraction of origin/main at
+        76b860c1ba1364b6a74695a09d1ae995a6ba8ebe, sort unique error bullets, and
+        compute comm -23 candidate base.
+      candidate_exit_code: 1
+      base_exit_code: 1
+      candidate_error_count: 1
+      base_error_count: 1
+      new_error_count: 0
+      candidate_stdout_and_stderr_path: /tmp/goalid-results-20260822.l83zB4/candidate.out
+      base_stdout_and_stderr_path: /tmp/goalid-results-20260822.l83zB4/base.out
+      shared_error: >-
+        experiments/EXP-SSI-697354-v2/runs/RUN-SSI-697354-v2-a/manifest.yaml:
+        expected top-level key 'run'
+      new_error_set: []
+      classification: inherited_base_error_unchanged
+    - id: diff_check
+      command: git diff --check
+      exit_code: 0
+      observed_stdout: ''
+      observed_stderr: ''
+  required_cli_regressions:
+    staged_added_sharded_directory_symlink: pass
+    staged_type_change_to_symlink: pass
+    staged_rename_destination: pass
+    staged_index_symlink_after_worktree_replacement: pass
+    tracked_unstaged_worktree_symlink: pass
+    committed_base_behavior: pass
+    absolute_behavior: pass
+    ordinary_staged_random_goal_control: pass
+    symlink_outside_ledger_goals_control: pass
+    untracked_before_stage_then_enforced: pass
+  validity:
+    status: valid
+    reason: >-
+      Every frozen real-CLI regression passes, broader identifier/goal/dispatch
+      regressions pass, ordinary and out-of-scope controls remain accepted, and
+      the exact ledger comparison introduces zero errors relative to the
+      authoritative base.
