@@ -80,6 +80,9 @@ def main(argv=None):
     ap.add_argument('scan')
     ap.add_argument('out')
     ap.add_argument('--max-families', type=int, default=400)
+    ap.add_argument('--only-min-ceiling', type=int, default=None,
+                    help='restrict to families whose OWN Shioda-Tate '
+                         'ceiling is at least this')
     ap.add_argument('--t-per-family', type=int, default=12)
     ap.add_argument('--height-cap', type=float, default=100.0)
     ap.add_argument('--alarm', type=int, default=20)
@@ -89,6 +92,10 @@ def main(argv=None):
     scan = json.load(open(a.scan))
     fams = sorted(scan['families'],
                   key=lambda f: f['measured_envelope_min_naive_height'])
+    if a.only_min_ceiling is not None:
+        fams = [f for f in fams
+                if (f.get('surface') or {}).get('shioda_tate_ceiling') is not None
+                and f['surface']['shioda_tate_ceiling'] >= a.only_min_ceiling]
     sel = fams[:a.max_families]
     have = {f['family'] for f in sel}
     # every family whose OWN ceiling admits rank >= 12 is searched, whatever its

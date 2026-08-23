@@ -44,11 +44,11 @@ def canonical(tup):
     return tuple(min(e, sorted(m - x for x in e)))
 
 
-def enumerate_admissible(mmax):
+def enumerate_admissible(mmax, mmin=5):
     seen = set()
     out = []
     tested = 0
-    for m in range(5, mmax + 1):
+    for m in range(mmin, mmax + 1):
         for mid in itertools.combinations(range(1, m), 4):
             tested += 1
             t = (0,) + mid + (m,)
@@ -85,6 +85,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument('out')
     ap.add_argument('--exhaustive-max', type=int, default=56)
+    ap.add_argument('--exhaustive-min', type=int, default=5)
     ap.add_argument('--large-lo', type=int, default=57)
     ap.add_argument('--large-hi', type=int, default=400)
     ap.add_argument('--n-large-tested', type=int, default=400000)
@@ -94,12 +95,12 @@ def main(argv=None):
     rng = random.Random(a.seed)
 
     t_enum = time.time()
-    ex, tested, seen = enumerate_admissible(a.exhaustive_max)
+    ex, tested, seen = enumerate_admissible(a.exhaustive_max, a.exhaustive_min)
     lg = sample_admissible(a.large_lo, a.large_hi, a.n_large_tested, rng, seen)
     t_enum = time.time() - t_enum
 
     work = ([('published', tuple(sorted(t)), nm) for nm, t in PUBLISHED.items()]
-            + [('admissible_exhaustive_spread_le_%d' % a.exhaustive_max, t, None)
+            + [('admissible_exhaustive_spread_%d_%d' % (a.exhaustive_min, a.exhaustive_max), t, None)
                for t in ex]
             + [('admissible_sampled_spread_%d_%d' % (a.large_lo, a.large_hi), t, None)
                for t in lg])
