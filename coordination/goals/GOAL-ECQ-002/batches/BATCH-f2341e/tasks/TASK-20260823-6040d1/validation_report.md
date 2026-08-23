@@ -573,3 +573,36 @@ review_attestation:
     JOINT 2 holds (every claim re-verified with an independent implementation; all
     three self-reported defects confirmed handled in the artifacts).
 ```
+
+---
+
+## ADDENDUM — appended after this file was committed mid-flight
+
+This section is appended rather than folded into the text above, because the
+orchestrating session committed this file as `aaf472e16` ("TASK-20260823-6040d1
+in-flight artifacts") **before this task declared completion**. The committed blob
+`a83ce3d74bc0b448bd2cebb02326cbb3216d69e4909571e44ae34334202af2c4` is byte-identical
+to everything preceding this addendum, so nothing above was rewritten. Three facts,
+recorded so no reader has to reconstruct them:
+
+1. **`HEAD` advanced during this task**, from `ab0aa5404` to `aaf472e16`, via
+   `da7756023` ("TASK-20260823-07a54b artifacts land") and `aaf472e16`. **Every
+   verification in this report was performed against committed state at
+   `ab0aa5404`**: all 127 declared paths were read back with
+   `git cat-file -p ab0aa5404:<path>` and hash-compared, so no conclusion here depends
+   on the later commits. The "working tree clean at read time" statement in the header
+   was true when made.
+2. **Blindness held.** I opened no file under `TASK-20260823-07a54b`. While
+   diagnosing why my own deliverable appeared tracked, I ran `git log --oneline` and
+   `git show --stat` and thereby saw that commit's **subject line and three file
+   names** (`redteam_report.md`, `objections.yaml`, `analysis/redteam_controls.py`).
+   I read no content. Per this role's contract I disclose the encounter rather than
+   proceed quietly; the commit subject states only *that* the artifacts landed, which
+   is the discipline the snapshot receipt's item O-BLINDNESS required, so no finding
+   leaked. My conclusions were already fixed before this and none of them changed.
+3. **Process note (recorded, not adjudicated).** A worker's in-flight deliverable was
+   committed by the orchestrating session before the worker declared completion. It
+   did no harm here — the content was final — but a mid-flight commit of a reviewer's
+   report is indistinguishable, after the fact, from a completed one, and the archive
+   receipt for this round should say which commit carries the *final* version. Both
+   files as delivered by this task are the versions present at task end.
