@@ -1,0 +1,56 @@
+handoff:
+  id: TASK-20260823-8ea188
+  from: coordinator
+  to: coordinator
+  batch_id: BATCH-8b08ef
+  goal_id: GOAL-ECQ-002
+  objective: >-
+    Snapshot-archive the BATCH-8b08ef producer for blind review, ALONE, in an isolated commit, with a
+    receipt carrying path_sha256 for every archived path. This is the batch's ONLY archival task
+    before review; the ledger archive is TASK-20260823-3eedf3 and runs after both reviewers return.
+  uncertainty_reduced: >-
+    Whether the producer's artifacts are durable and hash-pinned at a sha that two blind reviewers can
+    read and recompute independently of each other and of this role.
+  inputs:
+  - coordination/goals/GOAL-ECQ-002/batches/BATCH-8b08ef/dispatch_queue.json
+  - coordination/goals/GOAL-ECQ-002/batches/BATCH-8b08ef/tasks/TASK-20260823-827765
+  constraints:
+  - Stage ONLY declared paths; never `git add -A`.
+  - >-
+    DERIVE the archived set from the producer's write_scope rather than hand-listing it; a hand-listed
+    set has been wrong three times in this campaign. Record the derivation in the receipt.
+  - >-
+    READ NO PRODUCER ARTIFACT FOR CONTENT. This role exists so that it cannot leak a finding into a
+    live blind round; BATCH-541940's blindness held partly because the snapshot role read nothing.
+  - Commit messages say THAT, never WHAT, while any reviewer is live.
+  - Do not change hypothesis or goal status, and write no evidence or decision record.
+  - >-
+    RUN ALONE. No other task runs concurrently with an archive, and the dispatcher enforces it. The
+    binding mode is content_first and is declared in advance in the queue, with its reason; never
+    infer it from a failed commit-scope check.
+  - >-
+    A content mismatch on any declared hash is FATAL and stops the batch. Report it rather than
+    re-deriving the hash from whatever is on disk.
+  deliverables:
+  - >-
+    coordination/goals/GOAL-ECQ-002/batches/BATCH-8b08ef/archives/TASK-20260823-8ea188/receipt.yaml
+    with path_sha256 for every archived path, the commit sha, its declared parent, the derivation of
+    the archived set from the producer's write_scope, and the binding mode with its reason.
+  artifact_paths:
+  - coordination/goals/GOAL-ECQ-002/batches/BATCH-8b08ef/archives/TASK-20260823-8ea188/receipt.yaml
+  archived_by: TASK-20260823-8ea188
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 2400
+    memory_gb: 2
+    maximum_runs: 10
+  completion_gate:
+  - every declared path hashed and every hash verified against the tree at the archive sha
+  - the archived set derived from the producer's write_scope, with the derivation recorded
+  - the post-commit verifier accepts the archive BEFORE any reviewer is dispatched
+  return_format: coordinator archive receipt only.
