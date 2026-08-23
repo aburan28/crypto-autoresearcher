@@ -911,3 +911,143 @@ def test_v2_manifest_output_carries_caveat_refs(tmp_path):
     assert any("KN-TECH-bb7e9f" in r for r in refs)
     assert any("DEC-20260821-1215e5 F-4" in r for r in refs)
     assert manifest["run"]["cost_model"]["caveat_refs"] == refs
+
+
+# ---------------------------------------------------------------------------
+# harness/run_md4_seed_sweep.py -- RC-1/RC-4/RC-5 phase-1 sweep
+# (GOAL-MD5-001 / BATCH-ebac02 / TASK-20260822-767bb1, EXP-MDFIVE-b6-phase1).
+# Additive block; appends only.
+# ---------------------------------------------------------------------------
+
+def test_b6_sweep_null_object_forward_channel_is_fully_injective():
+    """RC-5 null object (additive non-multiplexer mixer): the forward channel
+    is fully injective at gate scale (k1=4) at BOTH resolutions on fixed
+    seeds -- the control shows the 16-distinct behavior the multiplexer
+    object can fail to reach."""
+    import time
+    from harness.run_md4_seed_sweep import measure_seed_null
+
+    t0 = time.monotonic()
+    for prim in ("md4", "md5"):
+        for seed in (20260821, 20260850, 20260919):
+            n = measure_seed_null(prim, seed, t0, 120)
+            for row in n["direction_A_rows"]:
+                assert row["distinct_fwd_32bit"] == 16
+                assert row["distinct_fwd_12bit"] == 16
+
+
+def test_b6_sweep_null_object_backward_channel_is_structurally_degenerate():
+    """The additive mixer makes the Round-1 state affine in the words, and at
+    the declared component position the backward 12-bit window projection has
+    zero coefficient in the free word's low bits: distinct_bwd_12bit == 1 for
+    all held-fixed indices, both primitives. Recorded as a structural
+    property (the bwd-12 null comparison is degenerate, not a control pass)."""
+    import time
+    from harness.run_md4_seed_sweep import measure_seed_null
+
+    t0 = time.monotonic()
+    for prim in ("md4", "md5"):
+        for seed in (20260821, 20260850, 20260919):
+            n = measure_seed_null(prim, seed, t0, 120)
+            for row in n["direction_B_rows"]:
+                assert row["distinct_bwd_12bit"] == 1
+
+
+def test_b6_sweep_primary_object_diverges_from_null_at_12bit():
+    """The measurement responds to substitution: on the same fixed seeds the
+    primary (multiplexer) object's forward 12-bit distinct count is strictly
+    below the null object's -- the collapse is object-specific, not an
+    artifact of the instrument."""
+    import time
+    from harness.run_md4_seed_sweep import measure_seed, measure_seed_null
+
+    t0 = time.monotonic()
+    for seed in (20260821, 20260850, 20260919):
+        p = measure_seed("md4", seed, t0, 120)
+        n = measure_seed_null("md4", seed, t0, 120)
+        assert p["direction_A_rows"][0]["distinct_fwd_12bit"] < \
+            n["direction_A_rows"][0]["distinct_fwd_12bit"]
+
+
+def test_b6_sweep_measure_seed_is_deterministic():
+    import time
+    from harness.run_md4_seed_sweep import measure_seed
+
+    t0 = time.monotonic()
+    a = measure_seed("md4", 20260821, t0, 120)
+    b = measure_seed("md4", 20260821, t0, 120)
+    assert a == b
+
+
+def test_b6_sweep_adjudicate_boundary_at_declared_tolerance():
+    """Term (b): TOLERANCE=1 is a strict inequality -- departure 1 stays
+    inside, departure 2 crosses."""
+    from harness.run_md4_seed_sweep import adjudicate, TOLERANCE
+
+    assert TOLERANCE == 1
+    assert not adjudicate(5, 4)["beyond_declared_tolerance"]
+    assert adjudicate(6, 4)["beyond_declared_tolerance"]
+    assert not adjudicate(3, 4)["beyond_declared_tolerance"]
+    assert adjudicate(2, 4)["beyond_declared_tolerance"]
+
+
+def test_b6_sweep_predicted_distinct_is_capped_at_window_size():
+    """The pre-registered prediction is 2^(surviving bits) capped at 2^4=16,
+    applied at both resolutions (RC-4 basis)."""
+    from harness.run_md4_seed_sweep import predicted_distinct
+
+    assert predicted_distinct({"surviving_bit_count": 4})[
+        "predicted_distinct_32bit"] == 16
+    assert predicted_distinct({"surviving_bit_count": 2})[
+        "predicted_distinct_12bit"] == 4
+    assert "MODELED" in predicted_distinct(
+        {"surviving_bit_count": 4})["basis"]
+
+
+def test_b6_sweep_null_rc4_all_low_bits_survive():
+    """The additive mixer transmits every low bit of the free word into the
+    component (linearity): rc4_bit_sensitivity reports all 4 surviving on the
+    fixed seeds, both primitives."""
+    import time
+    from harness.run_md4_seed_sweep import measure_seed_null
+
+    t0 = time.monotonic()
+    for prim in ("md4", "md5"):
+        for seed in (20260821, 20260919):
+            n = measure_seed_null(prim, seed, t0, 120)
+            assert n["rc4"]["surviving_bit_count"] == 4
+            assert n["rc4"]["implied_distinct_32bit_bound"] == 16
+            # the affine mixer carries every bit on every path: the
+            # carry-free model is exact enough to agree with the
+            # measurement here, with no adjudication
+            assert n["rc4"]["modeled_predicted_surviving_bits"] == \
+                [0, 1, 2, 3]
+            assert n["rc4"]["modeled_vs_measured_adjudications"] == []
+
+
+def test_b6_sweep_manifest_carries_declared_params_and_caveats(tmp_path):
+    """The manifest itself carries the declared eps/threshold/tolerance, the
+    armed deadline, and the SC-5 caveat_refs -- checked on the manifest, not
+    on prose."""
+    import yaml as _yaml
+    from harness.run_md4_seed_sweep import _main
+
+    out_root = str(tmp_path / "out")
+    rc = _main(["--primitive", "md4", "--object", "primary",
+                "--seeds", "20260821", "20260822", "--deadline", "120",
+                "--out-root", out_root, "--run-suffix", "unit-b6-check",
+                "--command", "python3 -m harness.run_md4_seed_sweep unit"])
+    assert rc == 0
+    manifest_path = os.path.join(out_root, "runs",
+                                 "RUN-MDFIVE-b6-primary-md4-unit-b6-check",
+                                 "manifest.yaml")
+    m = _yaml.safe_load(open(manifest_path))
+    p = m["run"]["inputs"]["parameters"]
+    assert p["declared_eps"] == 0.25
+    assert p["injectivity_threshold"] == 12
+    assert p["declared_tolerance"] == 1
+    assert p["armed_deadline_seconds"] == 120
+    assert any("KN-TECH-bb7e9f" in r for r in p["caveat_refs"])
+    assert any("DEC-20260822-40bf14" in r for r in p["caveat_refs"])
+    assert m["run"]["cost_model"]["caveat_refs"] == p["caveat_refs"]
+    assert m["run"]["status"] == "completed_valid"
