@@ -59,7 +59,52 @@ contract, and whether `lake` is on PATH — and exits non-zero while anything is
 missing. It never guesses: an engine that does not report `--version` is
 recorded as *not reported*, not as a version.
 
+## Bring up the Lean workspace
+
+MathCode writes the Lean; `lake` is what turns it into evidence. Until the
+workspace exists there is nothing to verify against, and `doctor` stays red.
+
+```sh
+./formal/setup.sh            # or: ./formal/setup.sh v4.22.0 to track a tag
+```
+
+It bootstraps on `leanprover/lean4:stable`, runs `lake update` (which writes
+`lake-manifest.json` — **that file is the pin**), adopts Mathlib's own
+`lean-toolchain`, fetches the prebuilt Mathlib cache, generates the root
+module, builds, and finally compiles `AxiomAudit.lean`. Commit
+`lean-toolchain` and `lake-manifest.json` afterwards: those two are what a
+later verification reproduces against.
+
+`AxiomAudit.lean` is worth reading before you trust a green run. `#print
+axioms` prints its findings and exits 0 whatever it finds, which would make
+the audit step a no-op that passes for any theorem at all — so the committed
+audit is an `elab` command that walks every theorem under `CryptoResearch` and
+**throws** on any axiom outside `propext`, `Classical.choice`, `Quot.sound`.
+It has not been compiled against a live toolchain (this integration was
+written in a container with no Lean), which is exactly why `setup.sh` compiles
+it as its last step.
+
+`formal/CryptoResearch.lean` — the root module listing the staged theorem
+files — is generated (`tools/rebuild_formal_root.py`) and gitignored. The
+pipeline regenerates it before every verification, because a staged file that
+nothing imports is never compiled, and `lake build` would report PASS for a
+build that never looked at it.
+
 ## Run one task
+
+Prefer a frozen spec over flags. `formal/targets/*.yaml` is a
+`crypto.autoresearch.formal_task.v1` record — the claim, the theorem name and
+file, the task kind, and the committed theory note the claim came from:
+
+```sh
+autoresearch formal formalize --task-file formal/targets/ncp-affine-normal-form.yaml \
+  --artifact-out coordination/goals/GOAL-.../tasks/TASK-.../formal_proof.json
+```
+
+A spec is what the Coordinator reviewed and queued; a claim retyped on the
+command line is a different claim nobody approved, so `--task-file` refuses to
+be combined with `--claim`, `--theorem-name`, and friends. The flag form
+remains for one-off exploration:
 
 ```sh
 autoresearch formal formalize \
@@ -69,8 +114,7 @@ autoresearch formal formalize \
   --theorem-name CryptoResearch.ECDLP.genericLowerBound \
   --theorem-file CryptoResearch/ECDLP/GenericLowerBound.lean \
   --hypothesis H-ECDLP-017 \
-  --kind formalize_claim \
-  --artifact-out experiments/EXP-.../formal/FP-ECDLP-00017.json
+  --kind formalize_claim
 ```
 
 `--kind` selects one of the four frontier task kinds
@@ -87,6 +131,31 @@ The command prints a `crypto.autoresearch.formal_proof.v1` artifact carrying a
 used, the sha256 of the prompt and of the generated source, the attempt
 directory, exit code, and wall-clock duration. Hashes that could not be computed
 are `null`.
+
+## Queuing formal work
+
+Formal tasks need **no new role and no dispatcher change**. A formalization is
+an `executor` running a frozen command and returning artifacts, which is
+exactly what `crypto.autoresearch.dispatch_queue.v1` already describes;
+inventing a `formal-worker` role would hand the lane an authority it does not
+have.
+
+```sh
+python3 tools/formal_task.py formal/targets/ncp-affine-normal-form.yaml \
+    --artifact-dir coordination/goals/GOAL-X/batches/BATCH-Y/tasks
+```
+
+prints the stanza to paste into that batch's queue, with the read/write scopes,
+the artifact path, and a handoff whose constraints restate the evidence rules
+the executor must not step outside. The queued command and the command the
+executor runs come from the same spec file rather than two hand-copied command
+lines that drifted.
+
+`tests/test_formal_targets.py` runs the dispatcher's own per-task validators
+over every generated stanza. Batch structure — every producer assigned to an
+archive task — is deliberately not generated: an archive stanza carries real
+commit SHAs and path hashes that exist only once the Coordinator has actually
+archived, and inventing them would be exactly the fabrication rule 5 forbids.
 
 ## Configuration
 
