@@ -84,7 +84,7 @@ context:
     should nonetheless name only the task and the record ids, per the campaign's
     standing rule.
   path_count_declared: 12
-  path_count_with_digest_supplied: 4
+  path_count_with_digest_supplied: 12
   self_exclusion: >-
     This receipt is the fourth declared artifact_path of the task and is staged
     WITHOUT a pre-computed hash. A receipt cannot contain its own hash any more
@@ -93,17 +93,40 @@ context:
 
 digest_status:
   supplied: >-
-    FOUR of twelve. The four blind review records carry real sha256 values,
-    transcribed verbatim from the orchestrating session's supply file
-    orchestrator_review_sha256.json (committed at 848a12538). No key and no hash
-    pair was altered, added or omitted, and no digest was verified by
-    recomputation by this role.
+    TWELVE of twelve, in two stages. FOUR - the blind review records - were
+    transcribed verbatim by this role from the orchestrating session's supply
+    file orchestrator_review_sha256.json (committed at 848a12538). The other
+    EIGHT were computed by the orchestrating session's verify-and-commit gate and
+    written into path_sha256 above, replacing this role's sentinels, exactly as
+    the procedure directs. THIS ROLE COMPUTED NO HASH AND VERIFIED NONE BY
+    RECOMPUTATION, at either stage.
   pending: >-
-    EIGHT of twelve carry the sentinel PENDING-ORCHESTRATOR-DIGEST. Three are the
-    ledger records this task authors, for which the task envelope explicitly
-    directs this role to declare the paths and the orchestrating session to fill
-    the digests at commit time. Five are the batch-level Coordinator documents,
-    declared under DEC-20260823-ee9162 R11 and requiring the same treatment.
+    NONE. Every sentinel has been replaced. The group comments in path_sha256
+    still describe the sentinel discipline because that is the discipline under
+    which the paths were declared, and the comments are retained as the record of
+    it rather than rewritten to match the outcome.
+  ONE_DIGEST_IS_KNOWN_STALE_AND_MUST_BE_RECOMPUTED: >-
+    ledger/decisions/DEC-20260823-ee9162.yaml WAS EDITED AFTER THE GATE HASHED
+    IT. R20 asserted that DEC-20260823-839fc6 had filed its owed-and-blocked
+    promotion in free-text keys the validator ignores. THAT WAS WRONG - that
+    record carries `not_warranted` at line 1563, the same borrowed key this
+    decision uses - and this role corrected it rather than let a false statement
+    about a committed record ship. The correction strengthens R20 rather than
+    weakening it. CONSEQUENCE, STATED PLAINLY BECAUSE A CONTENT MISMATCH IS FATAL
+    TO THIS ARCHIVE: the value now recorded for that path,
+    9f413b58f952ff4eeef2583cdd54d536c7a5611965448cf1ce24994f9cbc9c03, IS STALE
+    AND WILL NOT MATCH THE TREE. The gate must recompute that one digest and
+    overwrite it before staging. The digests for EV-ECQ-8ee697.yaml and the
+    checkpoint shard are unaffected - neither file was touched after hashing -
+    and so are the four review digests.
+  the_sentinel_discipline_in_retrospect: >-
+    RETAINED AS WRITTEN AND VINDICATED BY THIS VERY DEFECT. A sentinel is
+    distinguishable from a stale hash at a glance; a stale hash is not
+    distinguishable from a correct one by reading. The only thing that caught the
+    staleness above was this role knowing it had edited the file, which is not a
+    control. THE CONTROL IS THE GATE RECOMPUTING EVERY DIGEST IMMEDIATELY BEFORE
+    STAGING RATHER THAN TRUSTING ANY VALUE IN THIS RECEIPT, INCLUDING ITS OWN
+    EARLIER OUTPUT.
   the_sentinel_is_not_a_hash: >-
     IT IS A REFUSAL, MADE VISIBLE. This role has no shell, cannot compute sha256,
     and will not author placeholder, estimated or null digits that a verifier or a
@@ -164,6 +187,16 @@ post_authoring_amendments:
     ledger/goals/GOAL-ECQ-002/checkpoints/BATCH-541940.yaml GAINED TWO OPEN ITEMS
     and its EXP-* item was extended to name the index port and to state that the
     port closes nothing about the finding.
+  - >-
+    DEC-20260823-ee9162 R20 WAS CORRECTED AFTER THE GATE HAD ALREADY HASHED THE
+    FILE. Its first draft asserted that DEC-20260823-839fc6 filed its
+    owed-and-blocked promotion in free-text keys the validator ignores. That was
+    an assertion about a committed record made WITHOUT READING IT, and it is
+    false: that record carries `not_warranted` at line 1563, the same borrowed
+    key this decision uses. Corrected before commit. The correction makes R20's
+    point stronger - two consecutive decisions forced into the same misstatement
+    is a property of the schema, not of either author - and it leaves that path's
+    recorded digest STALE. See digest_status.
   not_amended_and_why:
   - >-
     EV-ECQ-8ee697 IS UNCHANGED. Its experiment_ids stays EMPTY and its
@@ -574,11 +607,13 @@ inference:
 
 next_actions:
 - >-
-  ORCHESTRATING SESSION, BEFORE STAGING. Replace every
-  PENDING-ORCHESTRATOR-DIGEST sentinel in path_sha256 with the computed sha256 of
-  that path, and recompute the four supplied digests against the tree. Abort
-  non-zero on any mismatch and on any remaining sentinel. A receipt carrying a
-  sentinel at commit time is a fatal archive defect.
+  ORCHESTRATING SESSION, BEFORE STAGING. RECOMPUTE ALL TWELVE DIGESTS AGAINST THE
+  TREE - do not trust any value now in path_sha256, including the gate's own
+  earlier output. ledger/decisions/DEC-20260823-ee9162.yaml IS KNOWN STALE: it
+  was edited after hashing, to correct a false claim R20 made about
+  DEC-20260823-839fc6. Overwrite that digest, verify the other eleven, and abort
+  non-zero on any remaining mismatch or any remaining
+  PENDING-ORCHESTRATOR-DIGEST sentinel.
 - >-
   ORCHESTRATING SESSION, BEFORE STAGING. Cross-check the declared set against
   `git ls-files` over both reviewer write_scopes and abort if either reviewer
@@ -622,12 +657,15 @@ completion_gate:
   - item: every declared path hashed
     satisfied: partial
     note: >-
-      Twelve paths declared. Four carry real digests transcribed from the
-      orchestrating session's supply file. Eight carry an explicit sentinel and
-      are filled by the verify-and-commit gate before staging, which is the
-      procedure the task envelope itself directs. This receipt is self-excluded
-      because a receipt cannot contain its own hash. THE GATE, NOT THIS RECORD,
-      completes this item, and it must abort rather than commit a sentinel.
+      Twelve paths declared and twelve now carry a digest - four transcribed by
+      this role from the orchestrating session's supply file, eight computed by
+      the gate in place of this role's sentinels. IT IS RECORDED AS `partial`
+      RATHER THAN `true` FOR ONE REASON: the decision record was edited after
+      hashing to correct a false claim, so its recorded digest is STALE and this
+      item is not satisfied until the gate recomputes it. This receipt is
+      self-excluded because a receipt cannot contain its own hash. THE GATE, NOT
+      THIS RECORD, COMPLETES THIS ITEM, and it must abort rather than commit
+      either a sentinel or a digest it did not itself just verify.
   - item: artifact set derived from write_scope, not hand-listed
     satisfied: true
     note: >-
