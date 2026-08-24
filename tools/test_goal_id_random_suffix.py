@@ -279,12 +279,70 @@ class ProspectiveGoalIdentifierTests(unittest.TestCase):
         env = os.environ.copy()
         env.pop("GIT_NO_REPLACE_OBJECTS", None)
         env.update(environment or {})
-        result = subprocess.run(
-            ["git", "-C", str(self.root), "ls-tree", "HEAD", "--", prefix],
-            check=True, capture_output=True, text=True, env=env,
-        )
-        metadata = result.stdout.split("\t", 1)[0]
-        return metadata.split(" ", 1)[0]
+        replacements_enabled = "GIT_NO_REPLACE_OBJECTS" not in env
+        ref_base = env.get("GIT_REPLACE_REF_BASE", "refs/replace").rstrip("/")
+
+        # Some Git versions abort while peeling a commit through a custom
+        # replacement namespace whose replacement object has a different
+        # shape.  This helper is only an adversarial-fixture observer, so walk
+        # the object graph explicitly instead of asking Git to perform the
+        # replacement traversal.  Every plumbing query disables replacements;
+        # the replacement refs themselves are then applied in Python.
+        safe_env = env.copy()
+        safe_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+        safe_env.pop("GIT_DIR", None)
+        safe_env.pop("GIT_WORK_TREE", None)
+        safe_env.pop("GIT_INDEX_FILE", None)
+
+        def git(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                ["git", "-C", str(self.root), *arguments],
+                check=check,
+                capture_output=True,
+                text=True,
+                env=safe_env,
+            )
+
+        def resolve_replacement(object_id: str) -> str:
+            if not replacements_enabled:
+                return object_id
+            seen: set[str] = set()
+            current = object_id
+            while current not in seen:
+                seen.add(current)
+                result = git(
+                    "show-ref", "--verify", "--hash",
+                    f"{ref_base}/{current}", check=False,
+                )
+                if result.returncode != 0:
+                    return current
+                current = result.stdout.strip()
+            self.fail(f"replacement cycle while resolving {object_id}")
+
+        current = resolve_replacement(git("rev-parse", "HEAD").stdout.strip())
+        object_type = git("cat-file", "-t", current).stdout.strip()
+        if object_type == "commit":
+            commit = git("cat-file", "-p", current).stdout
+            current = next(
+                line.removeprefix("tree ")
+                for line in commit.splitlines()
+                if line.startswith("tree ")
+            )
+        else:
+            self.assertEqual(object_type, "tree")
+
+        components = prefix.split("/")
+        for index, component in enumerate(components):
+            current = resolve_replacement(current)
+            self.assertEqual(git("cat-file", "-t", current).stdout.strip(), "tree")
+            result = git("ls-tree", current, "--", component)
+            metadata = result.stdout.split("\t", 1)[0]
+            mode, _kind, child = metadata.split(" ", 2)
+            if index == len(components) - 1:
+                return mode
+            current = child
+
+        self.fail(f"empty prefix: {prefix}")
 
     def _assert_replace_ref_preserved(self, ref: str, expected: str) -> None:
         self.assertEqual(self.git("rev-parse", ref), expected)
