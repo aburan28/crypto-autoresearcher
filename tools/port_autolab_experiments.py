@@ -1316,9 +1316,15 @@ def load_verify_baseline() -> dict:
 
 
 def package_dirs() -> list[Path]:
+    """Ported autolab packages, not every experiment that happens to share an
+    AREA_META area code. A fresh, non-ported EXP-<area>-* contract (e.g. a
+    later /propose-ideas batch filed under the same area as a legacy import)
+    has no archived `source/` directory; only actually-ported packages do.
+    """
     root = REPO / "experiments"
     return sorted(
-        d for area in AREA_META for d in root.glob(f"EXP-{area}-*") if d.is_dir())
+        d for area in AREA_META for d in root.glob(f"EXP-{area}-*")
+        if d.is_dir() and (d / "source").is_dir())
 
 
 def port_item(item: dict, index: int) -> dict | None:

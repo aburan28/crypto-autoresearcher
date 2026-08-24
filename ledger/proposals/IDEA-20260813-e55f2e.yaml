@@ -1,0 +1,434 @@
+idea:
+  id: IDEA-20260813-e55f2e
+  question_id: RQ-UOV-001
+  added: '2026-08-13'
+  title: >-
+    COMPRESSION MAKES KEYS CORRELATED, AND CORRELATED KEYS ARE A MULTI-TARGET
+    QUESTION NOBODY HAS ASKED: plain UOV keys are independent so oil-space
+    recovery cannot amortise across them, but a seed-expanded public key shares
+    a derivation function across every user -- so measure whether T compressed
+    keys cost less than T times one, which is the exact form RQ-UOV-001's second
+    flank takes at scale
+  class: algorithm
+
+  claim: >-
+    (A) THE ASYMMETRY. For PLAIN UOV, distinct users' keys are independent
+    draws, so an attacker facing T keys has T independent problems and total
+    work is T times single-key work; there is no amortisation to find and the
+    multi-target question is closed by independence. For SEED-BASED /
+    COMPRESSED variants, part of the public key is not sampled but DERIVED, by a
+    public expansion function, from a short seed. Every user runs the same
+    expansion. That is a shared object across the entire population, and shared
+    objects are where multi-target amortisation lives.
+
+    (B) THE CLAIM, STATED SO IT CAN FAIL. Define A(T) as the total work to
+    recover ANY ONE oil space among T independently seeded compressed keys,
+    divided by the work to recover one. Independence predicts A(T) = 1 for all T
+    -- attacking T targets to get one success is no cheaper than attacking one,
+    when the T problems share nothing. The claim under test is whether A(T) < 1
+    for compressed keys, i.e. whether the shared expansion creates structure an
+    attacker can pay for once and reuse. THE HONEST PRIOR IS A(T) = 1: a good
+    expansion function is exactly a thing that destroys shared structure, and if
+    the variant is designed competently there is nothing here. The record is
+    worth filing because the question is cheap, it is the natural scaling form
+    of RQ-UOV-001's second flank, and no record in this corpus asks it.
+
+    (C) THREE PLACES THE SHARED EXPANSION COULD LEAK, PRE-REGISTERED. A tail
+    found without a pre-registered mechanism is an artifact, so the mechanisms
+    are named before measurement:
+      M1 SHARED PRECOMPUTATION. If the expansion's image lies in a structured
+         subset of key space -- for instance if the derived block always has a
+         fixed algebraic shape -- an attacker can precompute against that shape
+         once and reuse it per target. This is the standard preprocessing
+         tradeoff and it is charged as advice, not as free work.
+      M2 CROSS-KEY COLLISIONS. Two seeds whose expansions agree on a subspace
+         relevant to the oil-space search. Expected rate is computable from the
+         expansion's output size and is a birthday count; measure the observed
+         rate against it.
+      M3 STRUCTURAL CORRELATION IN THE DERIVED BLOCK. The derived part may be
+         constrained (symmetric, low-rank, or confined to a subspace) in a way
+         the sampled part is not, making the SAME sub-block attackable across
+         all keys simultaneously.
+    Each has its own statistic and its own null.
+
+    (D) THE COST DISCIPLINE THAT MAKES OR BREAKS IT. Any A(T) < 1 must be
+    reported with preprocessing and memory CHARGED, per RQ-UOV-001.constraints.
+    A multi-target result that ignores the cost of building and storing the
+    shared precomputation is the canonical way this program's own records say a
+    partial win dies -- IDEA-20260805-69af7c makes exactly that point about UOV
+    memory. So A(T) is reported on a time-memory frontier, never as a bare
+    ratio, and the T at which the precomputation cost is amortised away is the
+    reported quantity.
+
+    (E) WHAT THIS IS NOT. NOT an attack, NOT a claim that compressed UOV is
+    weaker, and NOT a statement about deployed parameters. The compressed-variant
+    specification has NOT been read by this program (RQ-UOV-001.provenance), so
+    every statement about how expansion works is a research target.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-74349c, the closest record: it tracks the entropy of the oil
+      space through the seed expansion, i.e. how much randomness ONE key retains.
+      This record holds one key's entropy fixed and asks whether work amortises
+      across MANY keys. Entropy per key versus cost per target: different
+      quantities, and if 74349c finds entropy loss, this record's M3 is where
+      that loss would show up at scale. They should share a harness.
+    - >-
+      IDEA-20260808-2b4581 (structure-discount ledger across UOV-descended
+      schemes). That compares schemes at flattened parameters; this compares
+      T instances of ONE scheme. Different axis.
+    - >-
+      IDEA-20260805-69af7c (charge the memory the key-recovery model never
+      charges). This record adopts that discipline for its own claim rather than
+      competing with it, and (D) cites it as the reason A(T) is reported on a
+      frontier.
+    - >-
+      "multi-key" returns 5 hits repository-wide and ZERO among the 14
+      RQ-UOV-001 proposals; no UOV record poses a multi-target question.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE SHARED DERIVATION: the part of a compressed public key that is a
+      deterministic function of a public expansion applied to a per-user seed,
+      together with any precomputation an attacker can build once against it.
+    lossiness: >-
+      The projection "key |-> its derived block" discards the sampled part
+      entirely. Whether the retained part carries usable structure is precisely
+      the question, and the answer is measured rather than argued.
+    propagation: >-
+      The derived block propagates across the whole user population by
+      construction -- every user's key contains an image of the same function.
+      That is the property M1-M3 try to consume, and it is what distinguishes
+      compressed from plain, where nothing propagates across users.
+    survival_score: >-
+      Survives across all T targets if the expansion leaves structure; survives
+      across none if it does not. That binary is the measurement.
+
+  mechanism: >-
+    STEP 0 -- ACQUISITION GATE, AND IT BINDS HARDER HERE THAN ELSEWHERE. There
+    is no experiment without the exact expansion function: its domain, its
+    output size, and which part of the public key it produces. RQ-UOV-001
+    forbids design before primary sources are filed and records that the
+    Round-3 bundle is unread. If the compressed variant's specification cannot
+    be obtained, this record halts at Stage 0 at zero compute and says so.
+    STEP 1 -- PRE-REGISTER M1-M3 with exact statistics and thresholds, and
+    compute the M2 birthday rate in closed form from the output size, before any
+    key is generated.
+    STEP 2 -- THE INDEPENDENCE BASELINE. Measure A(T) for PLAIN keys first. It
+    must come out at 1 within measurement error, because plain keys are
+    independent. This is the calibration that makes any compressed deviation
+    meaningful, and it is blocking.
+    STEP 3 -- MEASURE A(T) FOR COMPRESSED KEYS across a T ladder, with
+    preprocessing and memory charged, reporting the frontier rather than a
+    ratio.
+    STEP 4 -- ATTRIBUTE. Correlate any deviation with M1, M2 or M3. An
+    unattributed deviation is reported as unexplained and is explicitly not
+    assigned to a mechanism invented afterwards.
+
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      grep -ril for "multi-key", "multi-target", "amortis", "amortiz",
+      "preprocessing", "seed expansion", "shared" over ledger/proposals and
+      knowledge/, 2026-08-13 at 8e230f800, plus a sweep of the 14 RQ-UOV-001
+      proposals.
+    results: >-
+      "multi-key": 5 repository-wide, ZERO in the UOV set. No UOV proposal poses
+      a multi-target or amortisation question; the multi-target machinery this
+      program has developed is on the ECDLP and hash-based sides.
+    verdict: >-
+      UNVERIFIED. Multi-target attacks and preprocessing tradeoffs are standard
+      and none is claimed as new. The specific question -- whether a shared
+      public expansion in a compressed multivariate key creates cross-user
+      amortisation -- is absent from this corpus. No claim is made against the
+      external literature, which this program has not read for the compressed
+      variants, and the honest expectation is that a competent expansion leaves
+      nothing.
+
+  null_object_control: >-
+    (1) PLAIN-KEY BASELINE, BLOCKING: A(T) measured for independent plain keys
+    must equal 1 within error. This is the null that gives the compressed number
+    meaning, and if the harness reports A(T) < 1 for INDEPENDENT keys it is
+    measuring its own solver's reuse, not the scheme.
+    (2) IDEAL-EXPANSION NULL: replace the real expansion by a random oracle of
+    identical output size and re-measure. This separates "compression amortises"
+    from "this particular expansion amortises" -- the second is a repairable
+    implementation matter, the first is structural, and they have completely
+    different consequences.
+    (3) PLANTED-CORRELATION POSITIVE CONTROL, BLOCKING: an expansion deliberately
+    weakened to share a fixed sub-block across all keys, where A(T) must fall
+    measurably. A harness that reports A(T) = 1 for both the real and the
+    deliberately correlated expansion cannot detect amortisation and no null
+    from it is admissible.
+
+  assumptions:
+    - >-
+      The compressed variant derives part of the public key from a per-user seed
+      by a public function. UNVERIFIED; Stage 0 establishes it and the record is
+      void if the variant works differently.
+    - >-
+      Oil-space recovery is the target, per RQ-UOV-001's assumption field, and
+      any recovery carries a certificate the wrapper re-verifies.
+    - >-
+      Toy shapes where full recovery is feasible for many keys, since A(T)
+      requires many independent recoveries to estimate at all.
+    - >-
+      The attacker's goal is ANY one success among T, which is the standard
+      multi-target formulation. An all-T goal is a different quantity and is out
+      of scope.
+
+  proof_search_map:
+    bottleneck: >-
+      Whether the expansion's image carries exploitable structure. Everything
+      else -- the T ladder, the frontier, the attribution -- is measurement
+      around that single question.
+    baseline_embedding:
+      parameter_slice: >-
+        T = 1, where A(T) is 1 by definition for both plain and compressed keys.
+      reproduction_check: >-
+        The harness must return exactly 1 at T = 1 for both populations, and
+        must return 1 within error for plain keys at every T. A drift at T = 1
+        is an instrument error.
+    observation_collision:
+      observable: A(T), the amortisation ratio
+      distinct_preimage_search: >-
+        Required: two populations with the same A(T) and different mechanisms --
+        for instance the real expansion and the random-oracle null both landing
+        at 1. That collision is the EXPECTED result and it is what licenses the
+        conclusion "no amortisation", so it must be measured rather than
+        assumed. A collision between the real expansion and the planted-
+        correlation control, by contrast, would mean the instrument is blind.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          A cost measure charging precomputation, storage and per-target work in
+          separate proved-disjoint blocks, so A(T) is decomposable and a claimed
+          amortisation can be attributed to a block.
+        predicted_gain: >-
+          Prevents the failure mode (D) names: a ratio that looks like a win
+          until the shared precomputation is charged.
+      - transform: boundary_lift
+        proposed_object: >-
+          Extend the single-target cost model to a (S, T)-style frontier for the
+          compressed variant, where S is the shared precomputation.
+        predicted_gain: >-
+          Turns "does it amortise" into a curve with a break-even T, which is a
+          number a parameter-setter can use.
+    quantifier_order: >-
+      The claim, explicit: FOR ALL T, FOR ALL populations of T independently
+      seeded compressed keys, EXISTS an attack strategy with total cost less
+      than T times single-key cost. The witness strategy may depend on the
+      expansion function but NOT on the individual seeds -- that is what makes
+      it amortisation rather than per-target work. A measured ratio produced by
+      a strategy that consults the seeds is not evidence for this claim, and the
+      harness must enforce the separation.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At these toy shapes and this T ladder, A(T) for compressed keys is X
+        with preprocessing and memory charged, against 1 for plain keys." NEVER
+        a statement about deployed populations or about the scheme's security.
+      nearby_object_control: >-
+        The random-oracle expansion, where structural amortisation must be
+        absent. If the real and ideal expansions give the same A(T), any
+        deviation found is structural to compression itself rather than to the
+        function -- and if they differ, it is the function.
+    proof_obligations:
+      - claim: A(T) = 1 for independent plain keys.
+        responsibility: baseline
+      - claim: The planted-correlation control shows A(T) < 1.
+        responsibility: success_probability
+      - claim: Preprocessing and memory are charged in the reported frontier.
+        responsibility: scope
+      - claim: The strategy does not consult individual seeds.
+        responsibility: interface
+      - claim: Recovered oil spaces carry re-verified certificates.
+        responsibility: correctness
+
+  predictions:
+    - metric: A(T) for plain UOV keys across the T ladder
+      direction: different
+      minimum_effect: >-
+        Exactly 1 within measurement error at every T. A value below 1 for
+        independent keys refutes the harness, not the scheme, and halts the run.
+    - metric: A(T) for compressed keys, preprocessing and memory charged
+      direction: lower
+      minimum_effect: >-
+        Predicted 1 -- no amortisation. A ratio below 0.9 sustained across at
+        least three T values AND surviving the charging in (D) is the finding,
+        and it must attribute to M1, M2 or M3.
+    - metric: >-
+        A(T) for the real expansion versus a random-oracle expansion of
+        identical output size
+      direction: different
+      minimum_effect: >-
+        Predicted identical. A gap localises the effect in the specific
+        expansion function rather than in compression as a design, which is a
+        materially different and more repairable finding.
+    - metric: planted-correlation control
+      direction: lower
+      minimum_effect: >-
+        Must show A(T) measurably below 1, or the instrument cannot detect
+        amortisation and no null result may be reported.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, HARD GATE): obtain and file the compressed
+      variant's expansion specification. Halt if unobtainable -- this record has
+      no content without it.
+      STAGE 1 (zero compute): pre-register M1-M3 and compute the M2 birthday
+      rate in closed form.
+      STAGE 2 (HARD GATE): plain-key baseline A(T) = 1, and the
+      planted-correlation positive control.
+      STAGE 3 (hours to days): A(T) for compressed keys across a T ladder, with
+      certificates re-verified and preprocessing and memory charged.
+      STAGE 4: the random-oracle expansion null on the identical harness.
+      STAGE 5 (zero compute): the (precomputation, per-target) frontier and the
+      break-even T; attribution to M1-M3 or an explicit unattributed report.
+    controls:
+      - plain independent keys, A(T) must be 1 (BLOCKING)
+      - random-oracle expansion of identical output size
+      - planted shared sub-block, A(T) must drop (BLOCKING)
+      - T = 1 reproduction for both populations
+    required_metrics:
+      - A(T) per T, per population, with preprocessing and memory charged
+      - the (precomputation, per-target) frontier and break-even T
+      - M1-M3 statistics and their correlation with any deviation
+      - certificate verification outcome per recovery
+      - sample size per T and the largest shape reached
+
+  falsification_conditions:
+    - >-
+      Plain keys show A(T) < 1. The harness is reusing work across independent
+      problems; instrument failure, nothing reported.
+    - >-
+      The planted-correlation control shows no drop. The instrument cannot see
+      amortisation; no null admissible.
+    - >-
+      Compressed A(T) < 0.9 across three T values, surviving full charging. The
+      independence expectation is refuted and this becomes a live direction with
+      its own cost record.
+    - >-
+      A deviation appears that correlates with none of M1-M3. Reported as
+      unexplained and explicitly not attributed; adding a fourth mechanism to
+      fit it is prohibited by this record.
+
+  confounders:
+    - >-
+      Solver caching. A harness that memoises across targets will produce
+      A(T) < 1 for any population including independent plain keys. The plain
+      baseline exists to catch exactly this and is blocking for that reason.
+    - >-
+      Seed reuse in the test generator. If the generator draws correlated seeds,
+      the measured amortisation is the generator's, not the scheme's. Seed
+      independence is verified before Stage 3.
+    - >-
+      Uncharged precomputation, which is the failure mode (D) and
+      IDEA-20260805-69af7c both name; a bare ratio is not admissible output.
+    - >-
+      Conflating "this expansion amortises" with "compression amortises". The
+      random-oracle null separates them and the two have different remedies.
+
+  interpretation_limits:
+    - >-
+      Toy tier, per RQ-UOV-001.claim_tier_ceiling. A T ladder reachable at toy
+      shapes is far shorter than a real population and no measured A(T) transfers.
+    - >-
+      A(T) = 1 is a controlled confirmation that closes the multi-target axis
+      for the tested variant at the tested shapes, and is a real result.
+    - >-
+      Everything about the expansion function is unverified until Stage 0; this
+      is a proposal, not a finding.
+
+  heuristic_assumptions:
+    - id: HEUR-UOVMT-1
+      statement: >-
+        For T independently seeded compressed keys, the number of pairs whose
+        expansions agree on any sub-block relevant to oil-space recovery follows
+        the birthday count T^2 / (2 * q^b), where b is the output dimension of
+        the relevant sub-block, i.e. the expansion behaves like a uniform random
+        function on that sub-block.
+      rigorous_support: >-
+        Rigorous: the birthday count itself, exact for a uniform random
+        function. Heuristic: that the deployed expansion behaves uniformly on
+        the sub-block, which is the design intent of any such function and is
+        precisely what the random-oracle null tests rather than assumes.
+      validation_plan: >-
+        Generate many seeds at toy shapes, count sub-block collisions exactly by
+        enumeration, and compare against T^2 / (2 q^b) across a T ladder
+        spanning at least two orders of magnitude. Comparison distribution: the
+        random-oracle expansion measured on the identical counter, so the real
+        function is read against an ideal one of the same size rather than
+        against zero. Tail check: the largest collision multiplicity observed
+        against the predicted tail, since a structured expansion shows in the
+        multiplicity before the count. Toy scale only, labelled so.
+
+  target_complexity:
+    time_exponent: >-
+      NOT AN EXPONENT PROPOSAL for the expected outcome. If A(T) < 1 survives
+      charging, the improvement is a factor on a multi-target attack, reported
+      on a (precomputation, per-target) frontier with a break-even T -- not an
+      exponent against single-key UOV, and the record does not claim one.
+    memory_exponent: >-
+      The shared precomputation IS memory and is the whole mechanism; it is
+      charged as advice and reported as the S axis of the frontier. A result
+      quoting time alone would hide the entire cost.
+    best_known: >-
+      Single-target oil-space recovery via the intersection-attack family, per
+      RQ-UOV-001.targets, multiplied by T. That product is the baseline any
+      A(T) < 1 must beat after charging, and the matched-baseline discipline in
+      RQ-UOV-001.constraints applies.
+    hidden_overhead: >-
+      The break-even T. An amortisation that only pays above a T larger than any
+      real deployment population is not a practical result, and the record
+      requires the break-even T to be reported alongside any ratio.
+    tradeoff_note: >-
+      This is inherently a time-memory tradeoff proposal and is reported as a
+      frontier, not a point, for that reason.
+
+  dominated_by: >-
+    As an ATTACK on single-key UOV: mounts none; dominated on every axis by the
+    RQ-UOV-001.targets baselines.
+    As a MULTI-TARGET result: the incumbent is the trivial strategy -- attack one
+    key, cost T times single-key work for T successes or 1x for one success --
+    which dominates any proposal here unless A(T) < 1 survives charging.
+    Expected outcome is that the incumbent wins, and the record says so.
+    Against IDEA-20260805-74349c it is complementary rather than competing: that
+    record measures per-key entropy, this measures cross-key cost.
+  sota_delta: >-
+    Predicted zero improvement, with the prediction stated as the honest prior
+    rather than discovered. Deliverable as numbers: A(T) measured across a T
+    ladder for plain and compressed populations with preprocessing and memory
+    charged; a break-even T reported with any ratio; three pre-registered
+    mechanisms so a deviation is attributable; and a random-oracle null that
+    separates "this expansion" from "compression as a design" -- a distinction
+    with different remedies that no current record can make.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.88 that A(T) = 1 and there is no amortisation, which is the controlled
+    confirmation branch. 0.08 that a deviation localises to the specific
+    expansion function (random-oracle null separates), which is repairable and
+    worth reporting to the designers. 0.04 that it is structural to compression.
+    Filed because Stage 0's reading of the expansion is owed for
+    IDEA-20260805-74349c anyway, so the marginal cost of also asking the
+    multi-target question is small.
+
+  id_allocation_provenance: >-
+    python3 tools/allocate_id.py --next idea --date 20260813, then --check
+    IDEA-20260813-e55f2e confirmed free before use.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-13'
+  source_refs:
+    - RQ-UOV-001
+    - IDEA-20260805-74349c
+    - IDEA-20260805-69af7c
+    - IDEA-20260808-2b4581
+    - KN-TECH-035
+    - KN-TECH-053
+    - KN-TECH-056

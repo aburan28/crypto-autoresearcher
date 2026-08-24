@@ -1,0 +1,531 @@
+red_team_report:
+  id: RT-20260821-67a1b6
+  task_id: TASK-20260821-67a1b6
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  batch_id: BATCH-af29f6
+  review_plan_ref: coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/review-plan/review-plan-67a1b6.yaml
+  snapshot_reviewed: TASK-20260821-f2093f (commit 8690be95, HEAD at review time fc197e50)
+  claim_under_review: The frozen package (IDEA-20260821-e46061, DEC-20260821-b1a7b4, H-MDFIVE-bf7767,
+    EXP-MDFIVE-88f7d1, TASK-20260821-de817d's execution-report.yaml) honestly executes a bounded, scoped
+    method-ceiling audit of a Round-1-restricted, two-free-word splice-and-cut MITM partial-preimage instrument
+    against MD4 (control) and, conditionally, MD5's identical-scale Round 1, and that the claim tier it
+    lands on does not exceed `analyzed`.
+  round_verdict: holds-with-named-gaps
+  batch_halting_finding: none
+  batch_halting_finding_note: No finding in this round meets the review plan's own stated bar for batch-halting
+    (K2's scope restriction quietly widened, or K3's certificate not independently reproducible). K2 was
+    independently verified clean by direct inspection of run command.txt/manifest.yaml (not by trusting
+    the execution report's own claim), and K3's certificate was independently re-derived with exact numeric
+    agreement on every reported field. The gaps named below (D1-D3) are real and should gate any promotion
+    beyond `analyzed`, but none of them is a fabrication, a scope violation, or a non-reproducible certificate.
+  joint_verdicts:
+  - joint: K1
+    title: proof_search_map completeness and honesty
+    verdict: holds-with-named-gaps
+    worked_attack_output: 'Read the idea''s proof_search_map field by field per the plan''s attack. Audit
+      1 (baseline reproduction): literature figures (2^96/2^102/2^116.9/2^123.4) are consistently labeled
+      UNVERIFIED and never treated as reproduced or established -- clean on the specific risk the Coordinator
+      prior flagged. Audit 2 (observation-collision): genuinely computed the expected collision rate in
+      advance (~256 matching-window hits, ~1 expected full-target hit) rather than assuming none exist
+      -- clean. Audit 3 (quantifier order): explicit EXISTS-per-fixed-target statement, contrasted with
+      a forbidden universal reading -- clean. Audit 4 (nearby-object control): predicted result (R in
+      [0.5,2.0]) stated before any run, in a 0-run design-and-gate record -- clean, fixed_before_acquisition
+      genuinely satisfied since the gate decision predates de817d''s runs.'
+    new_finding_beyond_the_attack_plan: 'Audit 1''s own bottleneck statement asserts a SPECIFIC unstated
+      assumption that turned out false: "(b) lands the matching point on a register that was just updated
+      (so the comparison is meaningful, not comparing a stale value)". This assumption was verified only
+      at the level of RFC word-usage-per-step (which word appears in which step''s text), never at the
+      level of "does the returned state-tuple position after a chained BACKWARD composition actually carry
+      the free word''s dependency." I independently traced backward_step''s algebra (see K3 below) and
+      confirmed this assumption is FALSE for chunk2''s construction: tuple position 1 of the returned
+      state after the free-word-dependent backward_step call is a pass-through of an already-fixed component
+      of state10 (computed before word9 is ever consulted), while the value that genuinely depends on
+      word9 (tuple position 0, "old_a") is never read by mitm_search or naive_all_pairs_search. Audit
+      1''s own H2-regression-fixture control (a proved single-step inverse identity) cannot catch this,
+      because the bug is not in backward_step''s correctness as an inverse -- it is in which output POSITION
+      the caller reads after backward composition, a level audit 1''s reproduction_check never probed
+      computationally (it verified word-usage disjointness and F-function textual identity only). This
+      is a materially different, and I judge more structurally significant, gap than the literature-figure
+      conflation risk the Coordinator prior named -- see coordinator_prior_comparison below.'
+    second_finding: 'proof_obligation #2 ("The MITM hash-table search''s result set is IDENTICAL to the
+      naive all-pairs search''s result set on a shared small control subset, k1=k2=6") is satisfied in
+      the record (result_sets_equal=true, independently reconfirmed by me, see K3), but is a VACUOUS pass
+      for the specific defect that occurred: naive_all_pairs_search contains the identical `state9_b[1]`
+      position-read as mitm_search, so both implementations test the same word9-independent quantity and
+      are guaranteed to agree regardless of whether the intended two-free-word joint search works. The
+      frozen contract''s success_criterion (1) text does not anticipate this failure mode for its own
+      stated control. This is disclosed honestly by the Executor in RUN-MDFIVE-buildcheck''s own `result`
+      field ("this equality is itself a consequence of the word9-independence finding... not by itself
+      evidence the underlying two-free-word MITM construction works as intended") -- I independently derived
+      the same conclusion by tracing the code myself before reading that sentence closely, so this is
+      convergent corroboration, not a discrepancy.'
+    defect_severity: named-gap, not batch-halting -- all four audits were genuinely performed with real
+      content, not placeholders; the gap is a depth-of-verification limitation in audit 1's own reasoning,
+      not a fabricated or skipped audit.
+  - joint: K2
+    title: gate fidelity and MD5-scope compliance
+    verdict: holds
+    worked_attack_output: 'Compared EXP-MDFIVE-88f7d1.md5_run_authorization. exact_parameters_identical_to_md4_run
+      (S=9,k1=10,k2=10,m=12,k=20, byte-identical 14 fixed words, seed 8975315, 300s ceiling, "never larger
+      than the MD4 arm in any field") against the idea''s md5_specific_step_decision (same parameters,
+      decision: NAMED). Match exactly. Then, rather than trust the execution report''s own "authorization_check"
+      prose, I directly read runs/RUN-MDFIVE-md5-conditional/command.txt and manifest.yaml and runs/RUN-MDFIVE-h1-md4/command.txt:
+      the two commands are byte-for- byte identical except `--target md5 --target-seed 8975315` versus
+      `--target md4 --target-seed 8975314`. No larger scale, no additional parameter change, no unnamed
+      MD5 run. Also grepped every command.txt under this task''s runs/ directory for "md5" -- exactly
+      one match (RUN-MDFIVE-md5-conditional). Also independently read ledger/goals/GOAL-MD5-001.yaml''s
+      next_action: "No further MD5 runs in batch 4 unless the ceiling audit names an MD5-specific step,
+      gated by TASK-20260821-a288f8''s approval at identical bounded scale to the MD4 run" -- the actual
+      run satisfies this exactly.'
+    defect_severity: none found. This is the joint the Coordinator prior explicitly flagged as most likely
+      to break ("the joint I would bet money on breaking if anything does"); I find it clean, verified
+      from primary run artifacts rather than the execution report's narrative.
+  - joint: K3
+    title: MD4 (and conditional MD5) certificate re-derivation
+    verdict: holds
+    worked_attack_output: 'Independently invoked the frozen harness/run_md4_ceiling.py module''s functions
+      directly (fixed_word_generation(20260821, free_bits=10), generate_target(8975313, fixed, "md4",
+      free_bits=10), mitm_search(...), verify_match_certificate(...)) at the exact frozen seeds/parameters,
+      WITHOUT reading the executor''s stated output first. Result: exact agreement on every reported field
+      -- raw_solution_count=1024, matching_window_hits=2048, full_target_hits=1024, total_chunk_evaluations=2048,
+      naive_baseline_cost=1048576, speedup_vs_naive=512.0, genuinely_verified_count=1, genuinely_verified_pair=
+      (1932151644, 2414755370) matching true_word8/true_word9 I derived independently. Additionally re-ran
+      the k1=k2=6 brute-force control (mitm6 vs naive6): 64/64 solutions, sets equal -- reproduced. Additionally
+      re-ran the H2 regression fixture at n=2000 for both MD4 and MD5: all_ok=True both, matching the
+      record''s n=10000 claim at reduced sample size. Additionally re-ran RFC 1320 vector check: all_ok=True
+      (7/7). Independently re-ran the full test suite (`python3 -m pytest tests/test_harness.py -q`) and
+      got the exact same "37 passed, 1 failed, 1 skipped" the snapshot receipt and execution report both
+      claim, with the same single pre-existing failure (test_md5_pin_mechanism_real_registry_is_distinct,
+      module_file None on this build''s built-in _md5).'
+    anom_1_independent_reverification: 'Went beyond the plan''s stated attack to independently re-derive
+      ANOM-1 itself (not merely trust its disclosure), per the task instruction to weigh it under K1/K3/K6.
+      Sampled 50 uniformly random FULL 32-BIT word9 candidates (not just the declared 10-bit window, a
+      stronger check than the executor''s own 20-sample, declared-window check) against the same fixed
+      target: all 50 produced the IDENTICAL backward-derived "register A after step 9" value (2560406708).
+      As a positive control, the same test on word8 (which SHOULD vary) gave 50 distinct values out of
+      50 draws, confirming the search apparatus itself is not broadly non-discriminating -- only word9''s
+      channel is degenerate. I additionally traced the algebra of backward_step by hand from the source:
+      the returned tuple is (old_a, old_b, old_c, old_d) = (rotr(...)-F(...)-xk-t, c2, d2, a2) where xk=word9
+      only appears in old_a (position 0); mitm_search and naive_all_pairs_search both read position 1
+      (state9_b[1] = old_b = c2, a component of state10 fixed before word9 is consulted). This independently
+      confirms ANOM-1''s stated root cause exactly, via a different check (broader sample, hand algebra)
+      than the Executor''s own.'
+    certificate_kind: 'No claims-and-verification.md-schema certificate is issued (certificate: {kind:
+      none} throughout, disclosed by the Executor as a tooling-integration gap because harness.runner._verify
+      has no registered kind for this instrument). Re-verification is via a separate code path (_reference_round1_forward),
+      independently confirmed by me to be genuinely word9-discriminating (it checks state16 == target["Y"],
+      and state16''s computation DOES depend on word9 via step 10 onward) -- unlike the degenerate matching-window
+      filter, this check is not compromised by ANOM-1, which is why genuinely_verified_count correctly
+      isolates exactly 1 of 1024 raw candidates.'
+    defect_severity: none -- fully reproducible, and the reproduction exceeds rather than merely matches
+      the executor's own diligence.
+  - joint: K4
+    title: heuristic-validation statistical honesty
+    verdict: holds-with-named-gaps
+    worked_attack_output: 'Independently recomputed the comparison statistic from raw counters. Re-ran
+      h1_sampling at a reduced N=50 (budget-conscious) for both MD4 (seed 8975314) and MD5 (seed 8975315)
+      arms directly from the frozen module: MD4 matching-window set = {2048} (constant), full-target set
+      = {1024} (constant); MD5 matching-window set = {32768} (constant), full-target set = {1024} (constant)
+      -- matching the reported N=1000 constants exactly at this reduced sample. Independently recomputed
+      chi_square_goodness_of_fit on a synthetic all-2048/n=1000 sample and got chi2=127577.50865857219
+      exactly, matching the reported statistic bit-for-bit -- confirms the number is a correct computation,
+      not a fabricated or buggy one. (2048-256)/sqrt(256) = 112 standard deviations from the predicted
+      mean.'
+    artifact_tell: 'This is the canonical artifact tell named in docs/inventor-protocol.md section 3:
+      the parameter meant to introduce randomness in HEUR-H1''s model (an independent target draw) produces
+      ZERO variance in the observed statistic across all 1000 draws, rather than the Poisson-distributed
+      variation H1 predicts. What the measurement SHOULD have done as the target varied is show Poisson(256)-distributed
+      spread; instead it is flat. The record catches and reports this (satisfying AGENTS.md rule 8, "unexpected
+      observations must be recorded, not silently discarded"), which is correct discipline.'
+    named_gap: 'HEUR-H1''s own frozen falsification_condition is written without an exception for root-cause
+      attribution: "a reproducible (>=3 independent target draws), non-shrinking heavier-than-Poisson
+      tail." Read literally against the frozen contract text alone, this condition IS met (1000/1000 identical
+      draws is trivially "reproducible... non-shrinking" and is a maximally heavier-than- Poisson deviation,
+      not merely a heavy tail). The execution report''s "not_a_falsification_of_h1_per_se" framing is
+      a carefully reasoned and, on the merits, PROBABLY CORRECT distinction (the deviation''s cause --
+      word9 independence, a data-flow property of the chosen split point -- is different from what HEUR-H1
+      is actually a claim about, F''s iterated mixing) -- but the frozen contract''s own falsification
+      text does not carve out that exception, so the report sits closer to softening a literally-triggered
+      falsifier than its own wording fully owns. I flag this for explicit Coordinator disposition rather
+      than resolving it myself (per this task''s instruction not to draw the H1 conclusion): the contract''s
+      falsification_condition, taken at face value, has fired at this scale for this instrument; whether
+      that should be read as "H1 falsified" or "this run''s test of H1 is invalidated by a design defect
+      and must be re-run against a differently-chosen matching point before H1 can be tested at all" is
+      a live disambiguation the Coordinator must make, not a settled matter this report can leave implicit.'
+    defect_severity: named-gap, not batch-halting -- statistics are computed correctly and reported in
+      full and honestly (no numbers hidden, achieved N and halt status stated); the gap is in how close
+      the prose gets to resolving an ambiguity the frozen contract's own text leaves open, in the more
+      cautious direction (declining to call it falsified) rather than the inflationary direction the task
+      asked me to check for.
+  - joint: K5
+    title: cost-model honesty
+    verdict: holds
+    worked_attack_output: 'Walked the cost-scaling material row by row. IDEA-20260821-e46061. cost_scaling_sketch
+      is labeled "MODELED, NOT MEASURED -- RANK 3 (executor) produces the measured entries" and flags
+      linear multi-core scaling, unoptimized-Python throughput, and the cross-method unit-translation
+      caveat as explicitly optimistic/ unverified, satisfying CLAUDE.md promotion-gate #3''s flagging
+      requirement. de817d''s cost_scaling_table_measured is labeled "MEASURED -- RANK 3 (this task)" with
+      an explicit cross_method_note distinguishing its cost unit (chunk evaluations) from BATCH-1f30fe''s
+      (full-message blocks) and declining to compute any gap-closing estimate from it. No modeled and
+      measured number appear in the same formatted table anywhere in the package; no measured-as-modeled
+      or modeled-as-measured mislabeling found.'
+    new_finding_beyond_the_attack_plan: 'The MACHINE-READABLE artifacts for RUN-MDFIVE-primary-md4-v2
+      -- raw-result.json and manifest.yaml, the files AGENTS.md''s Artifact Policy designates as holding
+      "raw machine-readable results" -- carry the bare headline numbers (total_chunk_evaluations: 2048,
+      naive_baseline_cost: 1048576, from which 512x is one division away) with ZERO reference to ANOM-1
+      anywhere in either file. I confirmed this directly: `grep -ric anom` on both files returns 0. The
+      ANOM-1 caveat exists ONLY in the human-authored prose of execution-report.yaml (the `result` field,
+      not the bare `metrics` dict even there) and snapshot-receipt.json''s summary. Every CURRENT prose
+      document in this package does carry the caveat at the point the number is stated, so no document
+      in the frozen package today asserts an uncaveated claim from these numbers -- but the artifact design
+      itself has no field (e.g. a `caveat_refs` list on the run record) that would prevent a future automated
+      knowledge-promotion step, ledger synthesis, or agent that reads only artifact_paths'' raw-result.json
+      from picking up "512x" as an unqualified headline figure.'
+    defect_severity: named-gap, not batch-halting -- no current document overclaims; this is a forward-looking
+      hygiene gap in how the caveat propagates to machine-readable artifacts, worth fixing before this
+      run's numbers are cited by anything that does not also read execution-report.yaml's prose.
+  - joint: K6
+    title: claim-tier ceiling
+    verdict: holds
+    worked_attack_output: 'Scanned every claim-bearing sentence in the idea, the gate decision, and the
+      execution report for `supported`-tier language (unconditional statements about MD4/MD5 preimage
+      resistance beyond the declared bounded scale). Found none. Every document restates the toy-scale
+      boundary explicitly and repeatedly: idea''s interpretation_limits, H-MDFIVE-bf7767''s own interpretation_limits
+      ("this hypothesis and its experiment cannot exceed `analyzed`... must never be recorded `supported`"),
+      the gate decision''s "Claim-ceiling honesty" rationale bullet, and the snapshot receipt''s instrument_verdict
+      ("a scoped, honestly-reported limiting result about the chosen construction, not a claim about MD4/MD5
+      collision or preimage resistance at any scale beyond this toy instrument"). The "512x speedup" and
+      "R=1.0" numbers are, in every prose location I found them, immediately qualified with the ANOM-1
+      caveat at the point of statement -- they do not read as stronger than ANOM-1 allows in any document
+      this package commits as a claim-bearing record.'
+    dependency_on_k5: This HOLDS verdict is about the FROZEN PACKAGE's own text, which is clean. It is
+      conditioned on the Coordinator's disposition (not yet made, TASK-20260821-fb3f3c) correctly treating
+      the K5 finding above -- a future closing decision or knowledge-promotion step must not cite raw-result.json's
+      bare metrics without also carrying the caveat forward, or K6 would no longer hold for that later
+      record.
+    defect_severity: none in the reviewed package as committed.
+  proves_too_much:
+    failure_signature_checked: A package (or gate) that accepts J as a real certificate, accepts K as
+      in-scope, or accepts L's label as correct has proved too much.
+    object_J_unbounded_certificate:
+      result: correctly_rejected
+      reasoning: 'No document in this package claims execution at literature-scale complexity anywhere
+        (explicitly disclaimed: EXP-MDFIVE-88f7d1''s objective, "Never claims execution at literature-scale
+        complexity (2^96/2^102/2^116.9/2^123.4)"; scale_relevance.tier: toy). Testing whether the package''s
+        OWN mechanisms would catch a synthetic Object-J-style insertion: the frozen parameters (k1=k2=10)
+        bound the search space to 2^20 by contract (invalidation_rules), and the package''s own measured
+        throughput table (cost_scaling_table_measured: ~10^5-3x10^5 chunk evals/sec) makes a claimed 2^102-operation
+        result in 4 seconds implausible by roughly 25 orders of magnitude -- a cheap, checkable cross-reference
+        against the package''s own honest cost data would reject Object J outright.'
+    object_K_scope_creep_md5:
+      result: correctly_rejected
+      reasoning: Directly verified (K2 above, from primary artifacts, not narrative) that the sole MD5
+        run present is parameter-identical to the MD4 arm and matches its EXP authorization exactly. A
+        synthetic Object-K insertion (larger scale, or unnamed in the EXP contract) would be caught immediately
+        by the same command.txt/ manifest.yaml parameter-identity check I performed, and is explicitly
+        named invalid-regardless-of-outcome by EXP-MDFIVE-88f7d1's own invalidation_rules.
+    object_L_mislabeled_cost_figure:
+      result: correctly_rejected
+      reasoning: No modeled number is captioned measured or vice versa anywhere in the package (K5 above).
+        The one adjacent-labeling risk I checked (idea's modeled BATCH-1f30fe throughput anchor mentioned
+        in the same prose paragraph as de817d's measured throughput, in cost_scaling_table_measured.cross_method_note)
+        is prose-distinguished ("NOT directly comparable") rather than merged into one table row, so it
+        does not meet the failure signature.
+    overall: 'No proves-too-much object survives against this package. This is a genuine, positive finding:
+      the package''s own honest cost-scaling table, its exact-parameter authorization discipline, and
+      its consistent modeled/measured labeling are independently sufficient to reject all three known-false
+      objects, not merely asserted to be.'
+  blind_rederivation:
+    quantity: bounded-certificate-eligibility predicate
+    sources_used_for_derivation:
+    - 'EXP-MDFIVE-88f7d1.yaml: success_criterion (verbatim)'
+    - 'EXP-MDFIVE-88f7d1.yaml: falsification_criterion (verbatim)'
+    - 'EXP-MDFIVE-88f7d1.yaml: invalidation_rules (verbatim)'
+    sources_excluded_per_blind_from: 'IDEA-20260821-e46061''s honest_accounting/interpretation_limits/
+      priority_note narrative fields; TASK-20260821-de817d''s execution_report.executor_assessment block
+      (data_quality, requires_amendment_reason, etc. -- its self-assessment section); task-cards/TASK-20260821-420070.md
+      and -de817d.md and their handoffs (not read at all, in or out of this exercise). Note: I did read
+      and use execution-report.yaml''s `anomalies` (ANOM-1) block for the subsequent CHECKING step, not
+      the derivation step -- ANOM-1 is a technical/algebraic finding with an independent empirical test,
+      not narrative self-assessment, and the task card explicitly requires weighing it under K1/K3/K6;
+      I additionally independently reverified ANOM-1 myself from the frozen module before using it (see
+      K3), so the check does not rest on trusting anyone''s narrative characterization of it.'
+    derived_predicate: 'eligible(primitive, scale, seeds, claimed_pair, claimed_digest) holds iff: E1
+      primitive=md4, OR primitive=md5 AND md5_run_authorization.authorized AND scale/seeds byte-identical
+      to the md4 arm; E2 scale = frozen (S=9,k1=10,k2=10,m=12,k=20) and fixed words generated by the exact
+      frozen seed-20260821 procedure; E3 total_chunk_evaluations < 2^18; E4 the claimed pair, re-verified
+      via a code path SEPARATE from the search, reproduces both the k-bit target and the full Round-1
+      output state Y exactly; E5 the k1=k2=6 brute-force-equality control passes; E6 the H2 regression
+      fixture passes exactly on >=10,000 sampled tuples; E7 no falsification condition (a)-(e) has fired
+      for the arm in question, OR if one has fired the statistics are still reported (never suppressed)
+      but are NOT eligible as validating evidence for the corresponding heuristic.'
+    check_against_actual_records: 'RUN-MDFIVE-primary-md4-v2: E1 trivial (md4). E2 satisfied -- independently
+      regenerated fixed words/target from the frozen seeds and matched the record''s true_word8/word9
+      exactly. E3 satisfied -- 2048 < 262144 (independently recomputed). E4 satisfied -- genuinely_verified_
+      count=1, pair matches, independently recomputed via verify_match_certificate. E5 satisfied IN THE
+      LETTER -- but I independently derived (by tracing the code, before weighing any narrative) that
+      E5 is a VACUOUS check for this instrument, since naive_all_pairs_search shares the identical position-1
+      read bug as mitm_search. E6 satisfied -- independently reran H2 fixture (n=2000) for both primitives,
+      all_ok=True. E7: HEUR-H1''s falsification condition (b) has, read literally, fired (see K4) -- so
+      per my predicate, the H1 statistics are correctly REPORTED (satisfying success_criterion 3/4) but
+      are NOT eligible as validating evidence, which matches what the record itself does (no "H1 validated"
+      conclusion is drawn anywhere in the package).'
+    verdict: 'AGREEMENT with the record''s own bottom-line eligibility conclusion (RUN-MDFIVE-primary-md4-v2:
+      valid=true; H1 statistics reported, not claimed as validating). This is not mere replication of
+      the executor''s implementation: the predicate was derived from the frozen contract''s stated criterion
+      text alone, and the E5 weakness was located by independently tracing mitm_search''s and naive_all_pairs_search''s
+      source code, arriving at the identical conclusion the Executor''s own `result` field for RUN-MDFIVE-buildcheck
+      states -- i.e. two independently-derived readings of the same defect converge, which is corroborating
+      evidence the ANOM-1 disclosure is accurate and not overstated, rather than a newly discovered discrepancy.'
+    objects_J_K_tested_against_predicate: Object J fails E2 (scale mismatch) and is additionally implausible
+      against the measured-throughput cross-check. Object K fails E1 (authorization/parameter-identity
+      mismatch). Both correctly classified NOT ELIGIBLE by the blind-derived predicate, matching the required
+      proves-too-much failure signature (i.e., the predicate does NOT accept either known-false object).
+  defect_list:
+  - id: D1
+    joint: K1
+    severity: named-gap
+    description: 'proof_search_map audit 1''s bottleneck claim (b) ("lands the matching point on a register
+      that was just updated, so the comparison is meaningful") and proof_obligation #2 (k1=k2=6 brute-force-equality
+      control) both silently assumed the returned state-tuple position after backward composition tracks
+      the free word''s dependency; this was never independently checked computationally before the run
+      (only RFC word-usage-per-step disjointness and F-function textual identity were checked), and it
+      is false. ANOM-1 is the consequence.'
+    recommendation: For any future split-point/matching-quantity design in this instrument family, add
+      an explicit proof_obligation requiring a small-scale (e.g. k1=k2=4) computational spot-check, BEFORE
+      the declared-scale run, that the matching quantity actually varies with BOTH free words independently
+      (e.g. holding one free word fixed and confirming the observable changes as the other varies, and
+      vice versa) -- this would have caught ANOM-1 pre-run at negligible cost.
+  - id: D2
+    joint: K5
+    severity: named-gap
+    description: raw-result.json and manifest.yaml for RUN-MDFIVE-primary-md4-v2 (and by the same pattern,
+      the other runs) carry headline metrics (total_chunk_evaluations, naive_baseline_cost, from which
+      the 512x figure derives) with no field referencing ANOM-1. The caveat exists only in execution-report.yaml
+      prose and the snapshot-receipt.json summary, both external to the machine-readable run artifacts
+      AGENTS.md's Artifact Policy designates as authoritative.
+    recommendation: Before any downstream synthesis, knowledge-promotion, or automated ledger step cites
+      this run's metrics, it should be required to also read execution-report.yaml's ANOM-1 disclosure,
+      or a `caveat_refs` field should be added to the run's own machine-readable artifacts pointing at
+      it.
+  - id: D3
+    joint: K4
+    severity: named-gap, flagged for explicit Coordinator disposition
+    description: HEUR-H1's frozen falsification_condition, read literally against its own text, has fired
+      at this scale (1000/1000 non-shrinking, maximally heavier-than-Poisson deviation). The execution
+      report declines to call this a falsification, on grounds (root-cause attribution to ANOM-1 rather
+      than F's mixing) that are plausible but not licensed by any exception clause in the frozen falsification_condition
+      text itself.
+    recommendation: 'The Coordinator''s closing decision should explicitly rule on this disambiguation
+      rather than let it default to neither "H1 falsified" nor "H1 supported" by omission: either (a)
+      record H1 as falsified at this scale FOR THIS INSTRUMENT, with the root-cause note carried alongside
+      as an explanation, not a defense against the label; or (b) record this run''s H1 test as INVALIDATED
+      by the ANOM-1 design defect (the matching quantity does not actually test H1''s claimed mechanism),
+      requiring a re-run at a different split point/matching quantity before H1 can be tested at all at
+      this scale. Both are defensible; silence is not.'
+  coordinator_prior_comparison:
+    per_joint:
+    - joint: K1
+      prior_expected: HOLDS-WITH-NAMED-GAPS via literature-figure conflation risk (treating 2^96/2^102/2^123.4
+        as reproduced).
+      actual: HOLDS-WITH-NAMED-GAPS -- verdict label matches, but the specific risk the prior named is
+        CLEAN (no conflation found anywhere); the actual gap (D1, audit 1's bottleneck claim (b) falsified
+        by ANOM-1, and the vacuous k1=k2=6 control) is a different and, I judge, more structurally significant
+        finding the prior did not anticipate.
+      agreement: partial -- verdict tier confirmed, substance diverges.
+    - joint: K2
+      prior_expected: HOLDS, but named as "the joint I would bet money on breaking if anything does."
+      actual: HOLDS, confirmed clean from primary artifacts (command.txt, manifest.yaml), not merely from
+        the execution report's narrative.
+      agreement: full.
+    - joint: K3
+      prior_expected: HOLDS if a certificate was claimed; a non-reproducible certificate would be batch-halting.
+      actual: HOLDS -- exact numeric reproduction on every field, plus an independent reverification of
+        ANOM-1 exceeding the executor's own.
+      agreement: full.
+    - joint: K4
+      prior_expected: A named sample-size/statistical-power gap ("modest sample size... qualitatively
+        consistent but too small to be a strong statistical claim").
+      actual: HOLDS-WITH-NAMED-GAPS, but NOT for a sample-size reason -- N=1000/1000 was achieved and
+        the result (112 standard deviations, zero variance) would have been just as unambiguous at N=3.
+        The actual gap (D3) is a construct-validity/root-cause-attribution question the prior did not
+        anticipate.
+      agreement: partial -- verdict tier confirmed, mechanism of the gap is materially different from
+        what was predicted.
+    - joint: K5
+      prior_expected: At least one instance of a modeled and measured number placed in the same table
+        without clear distinction (a "labeling gap, not a lie"), while explicitly NOT expecting an outright
+        mislabeling.
+      actual: No instance of the SPECIFIC pattern the prior described was found (no modeled/measured number
+        share a table without prose distinction); no outright mislabeling either, matching the prior's
+        second expectation exactly. A different real gap was found instead (D2, uncaveated machine-readable
+        metrics) in the same joint.
+      agreement: partial -- the prior's specific prediction did not materialize, but the joint's overall
+        tier (a real, non-fatal gap exists) still holds via a different instance.
+    - joint: K6
+      prior_expected: HOLDS -- no `supported`-tier language expected.
+      actual: HOLDS, confirmed by direct text scan of all three documents.
+      agreement: full.
+    overall_note: 'No joint''s VERDICT LABEL is overturned relative to the Coordinator''s prior -- four
+      clean HOLDS (K2,K3,K5,K6) and two HOLDS-WITH-NAMED-GAPS (K1,K4) land exactly where predicted. But
+      on K1, K4, and (more mildly) K5, the prior''s anticipated MECHANISM of the gap was wrong even though
+      its bottom-line tier prediction was right: the review surfaced a structurally different and, on
+      K1 in particular, more significant defect (D1: a false unstated assumption underlying both the bottleneck
+      claim and a "correctness" control) than what was anticipated in advance. Per the review plan''s
+      own standard, this is not the overturn scenario it defined (K2 widened, or K3 non-reproducible)
+      and so is not reported as batch-halting, but it is reported plainly rather than folded silently
+      into "the prior was right."'
+  objections:
+  - 'D1: audit 1''s bottleneck claim (b) and proof_obligation #2 rest on an unverified assumption later
+    falsified by ANOM-1.'
+  - 'D2: machine-readable run artifacts (raw-result.json, manifest.yaml) carry the 512x-implying metrics
+    with no caveat pointer to ANOM-1.'
+  - 'D3: HEUR-H1''s frozen falsification_condition, read literally, has fired at this scale; the report''s
+    declination to call it falsified is plausible but not licensed by the contract''s own text, and needs
+    an explicit Coordinator ruling.'
+  required_controls:
+  - A pre-run, small-scale (e.g. k1=k2=4) two-way-dependence spot-check for any future split-point/matching-quantity
+    design in this instrument family (per D1's recommendation).
+  - A caveat_refs field (or equivalent) on machine-readable run artifacts for any run whose interpretation
+    is qualified by a disclosed anomaly (per D2's recommendation).
+  counterexample_or_mutation: 'ANOM-1 itself functions as the counterexample here: I independently constructed
+    a stronger version of it (50 full-32-bit-range word9 samples vs the Executor''s 20 declared-window
+    samples) and it holds without exception, confirming the two-free-word joint search is genuinely, not
+    merely apparently, degenerate at this split point.'
+  baseline_comparison: Not applicable in the ECDLP-baseline sense (Pollard-rho/BSGS) -- this is an MD4/MD5
+    Round-1 toy instrument, not an ECDLP attack. The relevant baseline within this instrument's own scope
+    is the naive O(2^{k1+k2}) all-pairs search over the same restricted 20-bit space, which the package
+    correctly uses throughout (never compared against full-primitive literature figures as if commensurable).
+  heuristic_challenges:
+  - 'HEUR-H1 (K4/D3): falsification condition triggered on its own literal text; root-cause attribution
+    to ANOM-1 is a plausible but currently unadjudicated basis for declining the label.'
+  - 'HEUR-H2: proved algebraic fact, independently reconfirmed (H2 fixture reruns, all_ok=True both primitives)
+    -- not a distributional heuristic, no challenge.'
+  - 'HEUR-H3: honestly left unvalidated and named as future work; no challenge, this is the correct disposition
+    for an untested second-order extrapolation.'
+  cost_model_challenges:
+  - 'D2: caveat does not propagate to machine-readable cost/count artifacts.'
+  - 'No modeled/measured mislabeling found (K5 clean); optimistic assumptions (linear scaling, unoptimized
+    throughput) properly flagged per CLAUDE.md gate #3.'
+  reduction_and_scope_challenges:
+  - 'K2: MD5-scope restriction independently verified compliant from primary run artifacts, not narrative.'
+  - 'No reduction chain is claimed by H-MDFIVE-bf7767 (reduction_chain.core_problem: null) -- nothing
+    to challenge here.'
+  proof_architecture_challenges:
+  - Observation-fiber / quantifier-order / method-ceiling / nearby-object audits (KN-TECH-080) all genuinely
+    performed, per K1; the gap found (D1) is a depth-of-verification limitation within audit 1, not a
+    missing or placeholder audit.
+  narrowest_supported_statement: At the declared bounded scale (Round 1, S=9, k1=k2=10, m=12, k=20), the
+    frozen instrument reproducibly finds the true (word8, word9) pair via a matching-window filter using
+    2048 total chunk evaluations, independently re-verified via a genuinely word9-discriminating separate
+    code path; but the matching quantity chosen (register A after step 9, read from backward composition)
+    is mathematically independent of the free word (word9) it was designed to jointly search over, so
+    the correct reading of "512x speedup" is "512x fewer evaluations to locate word8 via a degenerate
+    two-free-word search that supplies zero discriminating power over word9" -- not evidence of a genuine
+    two-free-word MITM speedup, and not evidence bearing on MD4/MD5 full-primitive preimage resistance
+    at any scale. R=1.0 (MD5 vs MD4) is likewise not informative for the stated null hypothesis, being
+    close to mechanically forced by the same shared word-schedule degeneracy rather than a genuine measurement
+    of round-1-only security margin. This narrowest statement matches, and does not narrow beyond, what
+    execution-report.yaml itself already states.
+  next_concrete_action: The Coordinator's closing decision (TASK-20260821-fb3f3c) should explicitly rule
+    on D3 (whether HEUR-H1 is falsified-at-this-scale or this run's H1 test is invalidated by the ANOM-1
+    design defect), record D1 as an open direction for a future amended split-point/matching- quantity
+    design (not resolved by this batch, per executor.md's prohibition on the Executor redesigning a frozen
+    hypothesis), and adopt D2's caveat-propagation fix before any future synthesis step cites this run's
+    raw metrics.
+  artifact_paths:
+  - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/reviews/TASK-20260821-67a1b6/red-team-report.yaml
+  review_attestation:
+    task_id: TASK-20260821-67a1b6
+    joints_owned:
+    - 'K1 proof_search_map completeness and honesty: are all four KN-TECH-080 audits genuinely performed
+      (not placeholders), and does the baseline- reproduction audit correctly distinguish "structure reproduced"
+      from "literature complexity figure established"?'
+    - 'K2 Gate fidelity and MD5-scope compliance: did the coordinator gate (a288f8) enforce the four-audit
+      checklist and the MD5-scope restriction, and is any MD5 run in the package exactly the one named
+      and bounded step (or none)?'
+    - 'K3 MD4 (and conditional MD5) certificate re-derivation: is any claimed certificate independently
+      reproducible from the frozen instrument and the declared scale alone?'
+    - 'K4 Heuristic-validation statistical honesty: is the empirical-vs- predicted comparison computed
+      correctly, and is the sample-size / statistical-power limitation disclosed rather than overclaimed?'
+    - 'K5 Cost-model honesty: is every cost-scaling number labeled modeled or measured, correctly, and
+      are optimistic assumptions flagged?'
+    - 'K6 Claim-tier ceiling: does the closing package (or, if not yet closed, does nothing in this reviewed
+      package pre-empt it) stay at or below `analyzed`, never `supported`?'
+    sources_read:
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/task-cards/TASK-20260821-67a1b6.md
+    - ledger/handoffs/TASK-20260821-67a1b6.yaml
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/review-plan/review-plan-67a1b6.yaml
+    - AGENTS.md
+    - agents/red-team.md
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/archives/TASK-20260821-f2093f/snapshot-receipt.json
+    - ledger/proposals/IDEA-20260821-e46061.yaml
+    - ledger/decisions/DEC-20260821-b1a7b4.yaml
+    - ledger/hypotheses/H-MDFIVE-bf7767.yaml
+    - experiments/EXP-MDFIVE-88f7d1/specification.yaml
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/execution-report.yaml
+    - harness/run_md4_ceiling.py
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-md5-conditional/command.txt
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-md5-conditional/manifest.yaml
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-h1-md4/command.txt
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4-v2/manifest.yaml
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4-v2/raw-result.json
+    - ledger/goals/GOAL-MD5-001.yaml (next_action section only, grep-targeted)
+    - coordination/goals/GOAL-MD5-001/quarantine/MANIFEST.yaml (hash-only manifest, never the quarantined
+      payload)
+    - git log/status of the working tree, to confirm the reviewed commit
+    sources_explicitly_not_read:
+    - coordination/goals/GOAL-MD5-001/quarantine/MD5-COLLISION-PATH-WANG-2004-199.yaml (NEVER READ, per
+      hard rule)
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/reviews/TASK-20260821-1601d6/ (sibling review
+      dir was listed via `ls` to confirm content_state only -- found EMPTY, zero files inside, so nothing
+      was or could have been read; noted per the race-condition instruction even though no race occurred)
+    - task-cards/TASK-20260821-420070.md and TASK-20260821-de817d.md, and their ledger/handoffs/*.yaml
+      (not read at all, per blind_rederivation.blind_from, and not otherwise required by this task's reading
+      list)
+    - IDEA-20260821-e46061's honest_accounting/interpretation_limits/priority_note fields were read (they
+      are part of the idea record I was directed to read for K1-K6) but explicitly NOT used as a source
+      for deriving the blind_rederivation predicate
+    - execution-report.yaml's executor_assessment block was read (required for K1/K5/K6) but explicitly
+      NOT used as a source for deriving the blind_rederivation predicate
+    read_sibling_reports: false
+    blind_from_respected: true
+    blind_from_note: The blind_rederivation predicate was derived solely from EXP-MDFIVE-88f7d1's success_criterion/falsification_criterion/
+      invalidation_rules text. ANOM-1 (execution-report.yaml's `anomalies` block) was used only in the
+      subsequent CHECKING step, and was additionally independently reverified from the frozen module itself
+      (fresh code trace + fresh 50-sample empirical test) before being relied upon, rather than taken
+      on the Executor's word.
+    re_derivation_runs_used: '1 bundled re-derivation session: multiple direct in-process invocations
+      of harness/run_md4_ceiling.py''s own functions at the frozen seeds/parameters, plus one `pytest
+      tests/test_harness.py -q` run, all within the declared 400s wall-clock / 4GB budget; no wall-clock
+      ceiling was hit.'
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    independent_session: true
+    fallback_used: false
+    degraded_requirements: []
+    bedrock: not selected, configured, probed, contacted, or used (SC-8)
+    commit_reviewed: 8690be95 (snapshot binding; HEAD at review time fc197e50, an archive-pointer commit
+      on top, not a content change to the reviewed snapshot)
+    per_joint_verdicts_summary:
+      K1: holds-with-named-gaps
+      K2: holds
+      K3: holds
+      K4: holds-with-named-gaps
+      K5: holds
+      K6: holds
+    joints_owned_shorthand:
+    - K1
+    - K2
+    - K3
+    - K4
+    - K5
+    - K6
+    verdict: holds
+    verdict_note: 'Coarse attestation-level verdict per tools/check_review_independence.py''s three-way
+      scale (holds|breaks|inconclusive). The round''s own finer-grained determination is round_verdict:
+      holds-with-named-gaps (4 joints holds, 2 holds-with-named-gaps, 0 breaks, 0 batch-halting) -- see
+      joint_verdicts above for the per-joint breakdown. ''holds'' is the correct coarse mapping: no joint
+      broke, and the round is a definite finding, not an inconclusive one.'

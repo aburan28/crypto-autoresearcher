@@ -1,0 +1,566 @@
+idea:
+  id: IDEA-20260821-4d4e5f
+  question_id: RQ-MLDSA-001
+  added: '2026-08-21'
+  title: >-
+    The signature-count ledger. "ML-DSA does not degrade in security with the number of
+    signatures produced" is a sentence about a model; make it a NUMBER by computing Q_S*,
+    the signature count at which each of three independent and non-interchangeable budgets
+    expires - the Fiat-Shamir-with-aborts reduction's own Q_S-dependence, a transcript-
+    leakage budget, and the RETRIEVED empirical budget of 2*10^5 to 5*10^5 signatures after
+    which t0 is fully recovered - and report the smallest, with the calibration that the
+    same ledger applied to SLH-DSA must return its known 2^64.
+  class: composition
+  claim: >-
+    (A) THE SENTENCE UNDER TEST, QUOTED FROM A RETRIEVED SOURCE. The IETF ML-DSA security-
+    considerations draft states (Section 3.2-5) "It is secure to use a single key pair for
+    signing many messages...ML-DSA does not degrade in security with the number of signatures
+    produced, under the standard security model." The trailing clause is doing all the work
+    and is never quantified anywhere this session could find.
+    (B) THE OBJECT. Define, per FIPS 204 category k and per route r, the function
+    Bits_r(k, Q_S, Q_H) = the number of bits of security that route r still guarantees after
+    Q_S signatures and Q_H hash queries, and define Q_S*(k, r) = the largest Q_S at which
+    Bits_r(k, Q_S, 2^Q_H_floor) is at or above the category floor (128 / 192 / 256). The
+    ledger is the table of Q_S*(k, r) over k and r, plus its row-wise minimum.
+    (C) THE THREE ROUTES, AND THEY MEASURE DIFFERENT THINGS - THIS IS THE WHOLE POINT.
+    R1, PROOF: the CMA-to-NMA-to-SelfTargetMSIS chain in ROM and QROM. Q_S enters through the
+    signing-oracle simulation. The deliverable is the EXPONENT VECTOR of Q_S and Q_H in the
+    dominant term, so that Q_S*(k, R1) is computable even if the multiplicative constant is
+    not obtained.
+    R2, TRANSCRIPT: the accepted responses z = y + c*s1 are Q_S hints on s1. Under
+    Fiat-Shamir with aborts the accepted z is exactly uniform and independent of s1, so the
+    naive hint budget is INFINITE; the honest question is what the OTHER published components
+    (h, and the c-tilde that selects c) budget, and whether a Hint-MLWE-style accounting -
+    which requires Gaussian secrets and noise flooding, not uniform secrets and rejection -
+    can be transferred at all. A documented failure to transfer is an acceptable and useful
+    deliverable for this route.
+    R3, EMPIRICAL, AND IT IS THE ONE WITH A RETRIEVED NUMBER: ePrint 2024/1373 (CRYPTO 2025)
+    reports "between 200,000 and 500,000 signatures are sufficient to recover t_0 on a desktop
+    computer", i.e. Q_S*(k, R3) is between 2^17.6 and 2^18.9 for the property "t0 is still
+    secret". The same paper states "The knowledge of t_0 has no impact on the black-box
+    cryptographic security of Dilithium, as can be seen in the security proof."
+    (D) THE DISCRIMINATION, AND IT IS SHARP BECAUSE THIS REPOSITORY ALREADY HOLDS THE OTHER
+    HALF. IDEA-20260808-5a748c computes Delta_beta, the core-SVP gap in bits between the
+    t1-only MLWE instance a key-only adversary faces and the full-t instance. R3 says that gap
+    CLOSES after about 2^18 signatures. Two outcomes, both informative and mutually exclusive:
+    (i) Delta_beta is at or near 0 bits, in which case R3's budget costs nothing in bits, the
+    quoted sentence survives with a footnote, and the binding budget is R1 or R2; (ii)
+    Delta_beta is materially positive, in which case there IS a signature-count-dependent
+    movement in the concrete MLWE hardness a real adversary faces, it completes at a Q_S
+    NAMED BY A PUBLISHED EXPERIMENT rather than by a proof artefact, and the unqualified
+    sentence is scoped in a way that matters operationally even though the security PROOF is
+    untouched.
+    (E) WHAT IS NOT CLAIMED. No break, no forgery, no contradiction of any security proof. R3
+    is a published result restated, not reproduced here. Claiming that a proof bound becoming
+    vacuous at Q_S means the scheme is broken at Q_S would be a category error and is
+    explicitly forbidden by this record's own method ceiling. No FIPS-204-parameter security
+    claim of any tier is made; the ledger reports what stated bounds and published
+    measurements say, with every entry carrying its provenance.
+  mechanism: >-
+    STAGE 1, TRANSCRIBE. For each route, transcribe the bound EXACTLY as stated in its source,
+    with the source recorded, and mark every symbol as obtained or unobtained. Where a source
+    cannot be obtained - ePrint 2023/246 is a KNOWN INFRASTRUCTURE BLOCKER in this repository
+    (DEC-20260805-79d745 records HTTP 403 across four routes; under AGENTS.md rule 5 that is
+    infrastructure, never evidence) - the route is carried as a SYMBOLIC row: the exponent of
+    Q_S and Q_H is recorded as an unknown from a small declared set (linear, quadratic, square
+    root) and Q_S* is reported as a function of it. THE LEDGER IS DESIGNED TO BE COMPUTABLE
+    WITHOUT THAT PDF; obtaining it collapses a symbolic row to a numeric one and is an upgrade,
+    not a precondition.
+    STAGE 2, COMMON UNITS. Convert every route to the same triple (bits guaranteed, Q_S, Q_H)
+    at a frozen evaluation point declared before any arithmetic: Q_H = 2^64 hash queries,
+    category floor 128 / 192 / 256 bits, classical core-SVP convention for the lattice side.
+    Report the ledger's sensitivity to each of those three choices, because a ledger whose
+    conclusion flips under the evaluation point is reporting the evaluation point.
+    STAGE 3, SOLVE. Solve Bits_r(k, Q_S) = floor(k) for Q_S per (k, r). Report the table, its
+    row minimum, and which route supplies the minimum at each category.
+    STAGE 4, THE CALIBRATION THAT CAN FAIL. Run the identical ledger machinery on SLH-DSA,
+    where a signature limit is real, known and standardised (2^64 per key, recalled from FIPS
+    205 and to be re-checked from the primary text). The ledger must return a finite Q_S* of
+    that order. If it returns infinity or 2^128 for SLH-DSA, the machinery is not measuring
+    signature limits and no ML-DSA row is reportable.
+    STAGE 5, COMPOSE WITH THE REPOSITORY. Multiply R3's Q_S* by IDEA-20260808-5a748c's
+    Delta_beta to produce the single sentence the ledger exists for: "after Q_S signatures, a
+    passive collector holds t0, and the concrete MLWE instance it faces is Delta_beta bits
+    easier than the one a key-only adversary faces" - with Delta_beta taken from that
+    proposal's own run if it has one, and left symbolic if it does not. NO NUMBER IS INVENTED
+    FOR Delta_beta HERE.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      The crypto-kb MCP retrieval index is UNAVAILABLE this session (in-memory Qdrant), so no
+      kb-provenance citation appears here. RIPGREP over /home/user/crypto-autoresearcher with
+      the Grep tool (ripgrep, -i): "FO ledger|Frodo.*ledger|tightness ledger" over
+      ledger/proposals/ returned 11 files - IDEA-20260816-d270bc, -adf2a2, -9bec34, -8596af,
+      -7b9457, -72e5e5, -583998, -32c366, -3949c8, -1418f4 and IDEA-20260805-57fc49 - and I
+      read the id, question_id, title and claim head of IDEA-20260816-583998, which is under
+      RQ-FRODO-a2dbe2 and states a ROM-to-QROM gap as a six-entry EXPONENT VECTOR for one KEM
+      transform. A combined count-mode pass for "hedged|deterministic mode|SampleInBall|
+      ExpandMask|multi-target|multi-user|QROM|abort rate|rejection sampling" over
+      ledger/proposals/ returned 611 occurrences across 174 files, too coarse to screen with.
+      "ML-DSA|Dilithium" over knowledge/ returned 40 files; glob ledger/hypotheses/H-MLDSA-*
+      returned 7. READ IN FULL: RQ-MLDSA-001, GOAL-MLDSA-001 (including next_action and the
+      ePrint 2023/246 blocker recorded there), KN-FIND-720727, KN-LIT-4f3b80, the 7-title
+      inventory of existing RQ-MLDSA-001 proposals, docs/inventor-protocol.md (all sections),
+      docs/target-result-profile.md, KN-TECH-1a5b7e. Read the title and claim head of
+      IDEA-20260808-5a748c. WEB SEARCHES bearing on this record: "Hint-MLWE Dilithium number
+      of signatures rejection sampling security reduction"; "multi-user security ML-DSA
+      Dilithium tightness multi-target forgery N public keys"; '"Uncompressing Dilithium''s
+      Public Key" CRYPTO 2025 recover t0 from signatures hints abstract'; '"number of
+      repetitions" OR "rejection rate" Dilithium leaks secret key norm per-key acceptance
+      probability distribution'. FETCHED AND READ:
+      https://www.ietf.org/archive/id/draft-connolly-cfrg-ml-dsa-security-considerations-02.html
+      (Section 3.2-5 quoted; explicitly checked for a signature-limit statement and none
+      found beyond that sentence), https://eprint.iacr.org/2024/1373 (abstract verbatim),
+      https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.ipd.pdf. FETCH FAILURE recorded:
+      https://eprint.iacr.org/2024/2046.pdf returned unrenderable binary. ePrint 2023/246 was
+      NOT attempted this session; its 403 blocker is a committed repository fact
+      (DEC-20260805-79d745) and this design is built not to require it.
+    results: >-
+      The Hint-MLWE search returned the KLSS Crypto'23 assumption and a rejection-free ZK
+      framework built on it (Springer chapter 10.1007/978-3-032-13301-4_6), confirming that
+      Hint-MLWE is stated for DISCRETE GAUSSIAN secrets - which is the named transfer gap for
+      route R2 and is why R2 is carried as a documented-obstruction route rather than as a
+      number. The multi-user search returned no ML-DSA signature-limit analysis. The retrieved
+      IETF draft contains the sentence under test and nothing else on the subject. Inside the
+      repository: the eleven "ledger"-matching proposals are all in the ML-KEM and FrodoKEM
+      lanes and concern KEM transform tightness; IDEA-20260816-583998 is the closest in method
+      and is a ROM-to-QROM exponent-vector object for one transform, with no empirical route
+      and no Q_S* solve. No RQ-MLDSA-001 proposal mentions a signature limit, Q_S, or the
+      number of signatures per key. H-MLDSA-d1e509 concerns the CMA-to-NMA tightness factor
+      and is recorded `inconclusive` pending exactly the blocked PDF - so this record is
+      adjacent to a live, stalled hypothesis and is designed to move around the blocker rather
+      than wait on it, which the goal's own next_action names as the only pending action.
+    verdict: >-
+      UNVERIFIED. Corpus novelty is checked and clean for RQ-MLDSA-001. External novelty is
+      NOT established: four searches and three successful fetches, with the two primary proof
+      sources (ePrint 2023/246 for R1; the KLSS Hint-MLWE paper for R2) UNREAD. It is likely
+      that the Q_S-dependence of the Dilithium reduction is written down explicitly in one of
+      them, in which case R1 becomes transcription rather than derivation - which is the
+      intended outcome and lowers, not raises, this record's cost. Claimed NEW: the
+      three-route ledger with the EMPIRICAL route included beside the proof routes, the
+      composition with IDEA-20260808-5a748c's Delta_beta, and the SLH-DSA calibration that can
+      fail. ASSEMBLED FROM KNOWN PARTS: the exponent-vector transcription method is
+      IDEA-20260816-583998's and is cited as such, not claimed; every route's underlying bound
+      is somebody else's theorem.
+  object_first_candidate:
+    tracked_object: >-
+      The GUARANTEE BUDGET as a function of Q_S: a single scalar, "bits still guaranteed",
+      followed from the statement of a bound, through substitution of the FIPS 204 parameters
+      and the frozen evaluation point, to the solve for Q_S*. It is tracked along three
+      routes that share the axis (Q_S) and share nothing else - one proof-theoretic, one
+      transcript-theoretic, one experimental.
+    lossiness: >-
+      SEVERELY LOSSY AND THAT IS THE DESIGN. Each route's full content - a theorem with its
+      adversary class, its oracle model, its simulation strategy, its statistical distances -
+      is projected onto one real number per (k, Q_S). Everything that distinguishes a ROM
+      argument from a QROM argument from a laboratory measurement is discarded. The discard is
+      compatible with the operation the ledger performs, which is a MINIMUM over routes: a
+      minimum needs only a common ordered scale, and "bits at a frozen evaluation point" is
+      one. It is emphatically NOT a change of coordinates: from the scalar one cannot recover
+      the route, the model, or the adversary class, which is exactly why the ledger reports
+      WHICH route supplies each minimum alongside the number, and why the method ceiling below
+      forbids reading a small Q_S* as a break.
+    propagation: >-
+      One step is one substitution into the bound. The propagation law is the exponent vector:
+      if the dominant term carries Q_S^a * Q_H^b, then a unit increase in log2 Q_S costs a
+      bits and the whole route is characterised by (a, b). That is the one-step observable and
+      it is measurable by symbolic differentiation of the transcribed bound, with no numeric
+      constant required - which is precisely what makes the ledger computable while ePrint
+      2023/246 is unreachable.
+    survival_score: >-
+      The object survives the entire computation for R1 and R3 and dissolves partway through
+      R2. R1: the exponent vector propagates from the theorem statement to Q_S* intact. R3:
+      the published signature count is already a number on the axis and needs only the
+      Delta_beta multiplier to become bits. R2: the object dissolves at the Gaussian-versus-
+      uniform mismatch, because a hint budget stated for discrete Gaussians has no defined
+      value for a rejection-sampled uniform response. Reporting exactly where it dissolves,
+      with the mismatch named, is R2's deliverable and is a §4-standard closure rather than a
+      gap.
+  null_object_control: >-
+    THE SLH-DSA CALIBRATION, and it can fail. Apply the identical ledger machinery, the
+    identical frozen evaluation point and the identical solve to SLH-DSA, whose per-key
+    signature limit is real, standardised and known (2^64, recalled from FIPS 205 and to be
+    re-read from the primary text before use). DECLARED BEFORE THE RUN: the machinery must
+    return a finite Q_S* within two orders of magnitude of 2^64 for at least one route. If it
+    returns infinity, or a value above 2^100, the machinery cannot detect a signature limit
+    that exists and NO ML-DSA row is reportable. SECOND CONTROL, the derived-zero arm: apply
+    the machinery to a route whose bound has NO Q_S dependence at all (a one-time-signature
+    bound stated per signature); its exponent vector must come out as exactly (0, b) and its
+    Q_S* as unbounded. If a Q_S-free bound yields a finite Q_S*, the transcription step is
+    manufacturing dependence. THIRD CONTROL, transcription independence: two transcribers
+    independently extract the exponent vector from the same stated bound without seeing each
+    other's work; a disagreement means the bound's statement is being interpreted, not read,
+    and the row is marked contested rather than averaged.
+  discriminated_from:
+  - >-
+    IDEA-20260816-583998 (RQ-FRODO-a2dbe2) turns a ROM-to-QROM gap for ONE KEM transform into
+    a six-entry exponent-vector difference. Same method family, explicitly credited. Different
+    lane, different primitive, different object: 583998's object is the GAP BETWEEN TWO MODELS
+    at fixed query counts; this record's object is a SOLVE FOR Q_S along one axis, across three
+    routes one of which is empirical - a route class 583998 has none of.
+  - >-
+    IDEA-20260808-5a748c prices t0 as a core-SVP gap Delta_beta between the t1-only and full-t
+    MLWE instances. That is a static quantity at Q_S = 0. This record supplies the missing
+    dynamic half - the signature count at which the gap closes - and composes the two. Neither
+    contains the other, and the composition is stated as a product, not as a new estimate.
+  - >-
+    H-MLDSA-d1e509 concerns the CMA-to-NMA tightness FACTOR and is `inconclusive` pending
+    ePrint 2023/246. This record does not touch that hypothesis's status, does not assume its
+    answer, and is constructed to yield a symbolic R1 row without it.
+  - >-
+    IDEA-20260821-4c0246 turns the N (targets) dial. This record turns the Q_S (signatures per
+    key) dial. They are orthogonal axes of the same resource space and could be combined later;
+    neither is assumed by the other.
+  - >-
+    ePrint 2024/1373 is a published attack on t0. This record does not reproduce it, does not
+    improve it, and cites its own stated numbers as a ledger row with full attribution.
+  citations:
+  - ref: 'IACR ePrint 2024/1373 (Azevedo Oliveira, Calle Viera, Cogliati, Goubin), CRYPTO 2025, "Uncompressing Dilithium''s public key"'
+    provenance: retrieved
+    claim: >-
+      Abstract, verbatim in the relevant part: "we show that each Dilithium signature leaks
+      information on t_0, then we construct an attack that retrieves it from Dilithium
+      signatures. Experimentally, depending on the Dilithium security level, between 200,000
+      and 500,000 signatures are sufficient to recover t_0 on a desktop computer." and "The
+      knowledge of t_0 has no impact on the black-box cryptographic security of Dilithium, as
+      can be seen in the security proof." Full text NOT read; only the ePrint abstract page.
+    verified_by: 'idea-generator@2026-08-21 (fetched https://eprint.iacr.org/2024/1373)'
+  - ref: 'draft-connolly-cfrg-ml-dsa-security-considerations-02 (IETF Internet-Draft)'
+    provenance: retrieved
+    claim: >-
+      Section 3.2-5: "It is secure to use a single key pair for signing many messages...ML-DSA
+      does not degrade in security with the number of signatures produced, under the standard
+      security model." Explicitly checked for any quantified signature limit, multi-user
+      statement, or reduction-tightness discussion; none found.
+    verified_by: 'idea-generator@2026-08-21 (fetched https://www.ietf.org/archive/id/draft-connolly-cfrg-ml-dsa-security-considerations-02.html)'
+  - ref: 'Kim, Lee, Seo, Son, Hint-MLWE (CRYPTO 2023), and "Rejection-Free Framework of Zero-Knowledge Proof Based on Hint-MLWE" (Springer 10.1007/978-3-032-13301-4_6)'
+    provenance: recalled
+    claim: >-
+      Hint-MLWE with Q hints is as hard as an associated MLWE instance when the secrets follow
+      DISCRETE GAUSSIAN distributions, with a width degradation that grows with Q. Surfaced by
+      search; the Gaussian requirement was seen in search-result text, the papers themselves
+      were NOT fetched or read this session. This is the named transfer gap for route R2.
+    verified_by: null
+  - ref: 'IACR ePrint 2023/246 (Barbosa et al.), filed here as KN-LIT-3907'
+    provenance: internal
+    claim: >-
+      Fixed CMA-to-NMA proofs in ROM and QROM plus a mechanised EasyCrypt ROM proof, per
+      KN-FIND-720727. THE FULL TEXT IS UNOBTAINED IN THIS REPOSITORY: DEC-20260805-79d745
+      records HTTP 403 across four routes, and under AGENTS.md rule 5 that is an
+      infrastructure fact and never mathematical evidence. Route R1 is therefore carried
+      symbolically.
+    verified_by: 'idea-generator@2026-08-21 (blocker read from GOAL-MLDSA-001 and KN-FIND-720727 in repository; the PDF itself was not attempted this session)'
+  - ref: 'NIST FIPS 205 (SLH-DSA) per-key signature limit'
+    provenance: recalled
+    claim: >-
+      SLH-DSA's parameter sets are designed for a bounded number of signatures per key on the
+      order of 2^64. RECALLED - the primary text was not read this session, and the
+      calibration control must re-read it before the number is used as a threshold.
+    verified_by: null
+  - ref: IDEA-20260808-5a748c
+    provenance: internal
+    claim: >-
+      Delta_beta, the core-SVP block-size gap in bits between the t1-only and full-t MLWE
+      instances, is the security value of t0. This record USES Delta_beta symbolically and
+      invents no value for it.
+    verified_by: 'idea-generator@2026-08-21 (title and claim head read in repository)'
+  - ref: IDEA-20260816-583998
+    provenance: internal
+    claim: >-
+      Method provenance for the exponent-vector transcription of a security bound. Credited,
+      not claimed.
+    verified_by: 'idea-generator@2026-08-21 (id, question_id, title and claim head read in repository)'
+  assumptions:
+  - >-
+    Each route's bound can be transcribed from a source obtained in this program, or else
+    carried symbolically with its exponent unknown drawn from a small declared set. No bound is
+    reconstructed from memory and presented as transcribed.
+  - >-
+    "Bits at a frozen evaluation point" is a legitimate common scale for a MINIMUM across
+    routes. It is NOT a legitimate scale for a difference or a ratio between routes, and the
+    ledger reports only the minimum and the per-route values, never inter-route arithmetic.
+  - >-
+    Delta_beta is supplied by IDEA-20260808-5a748c's own run if one exists, or left symbolic.
+    This record produces no lattice estimate of its own.
+  - >-
+    The category floors are 128 / 192 / 256 bits and Q_H is frozen at 2^64. Both are
+    conventions and the ledger's sensitivity to both is reported.
+  - >-
+    A proof bound becoming vacuous is a statement about the PROOF. This assumption is load
+    bearing and is repeated in the method ceiling and the interpretation limits because it is
+    the single most likely way this record gets misread.
+  proof_search_map:
+    bottleneck: >-
+      The step in the CMA-to-NMA reduction where the simulator must produce Q_S signatures
+      without the secret key. Q_S enters the bound there and nowhere else at leading order;
+      removing or tightening that step is what would change Q_S*(k, R1).
+    baseline_embedding:
+      parameter_slice: >-
+        Q_S = 0 must reproduce the NMA (no-message-attack) bound exactly, and Q_S = 1 must
+        reproduce the single-signature slice. Both are exact boundaries of the stated bound,
+        not approximations.
+      reproduction_check: >-
+        Symbolic: substitute Q_S = 0 into the transcribed expression and check it collapses
+        term-by-term to the NMA statement as transcribed from the same source. A frozen
+        fixture records both expressions and the substitution, so a later reader can re-run
+        the check without re-reading the source. If the collapse fails, the transcription is
+        wrong and the row is void.
+    observation_collision:
+      observable: >-
+        Bits_r(k, Q_S), the scalar "bits still guaranteed", and the derived Q_S*.
+      distinct_preimage_search: >-
+        A DIRECT AND ADMITTED COLLISION, one on each side of the conclusion: a scheme whose
+        bound is loose but whose true security is high, and a scheme whose bound is tight and
+        whose true security equals it, produce IDENTICAL Bits_r curves and identical Q_S*.
+        The ledger cannot separate them, and no additional condition available to this record
+        separates them. This is why route R3 is in the ledger at all: an empirical route is
+        the only one whose Q_S* is a statement about the object rather than about the
+        argument, and its presence is what keeps the ledger from being purely a measurement of
+        proof technique. The collision is recorded as an unresolved identifiability failure,
+        not as a caveat.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: >-
+        The exponent vector (a, b) of Q_S and Q_H in the dominant term, replacing the full
+        bound. The hypothesis becomes an exact equality of rational exponents rather than an
+        inequality with unobtained constants.
+      predicted_gain: >-
+        Makes Q_S* computable while the primary PDF is unreachable, at the cost of an
+        undetermined additive offset in log2 Q_S* equal to (1/a) * log2(constant). The offset
+        is reported as an explicit unknown, never absorbed.
+    - transform: observable_fiber
+      proposed_object: >-
+        Hold Bits_r fixed and vary the forgotten structure (route, oracle model, adversary
+        class) to exhibit the collision above concretely, using SLH-DSA and ML-DSA as the two
+        fibre members.
+      predicted_gain: >-
+        Establishes, constructively, that the ledger's scalar is not an intrinsic invariant of
+        the scheme - which is the honest boundary of what any tightness ledger can certify.
+    quantifier_order: >-
+      FOR ALL categories k, FOR ALL routes r in the declared set, THERE EXISTS a value
+      Q_S*(k, r) such that FOR ALL Q_S above it the transcribed bound for route r guarantees
+      fewer than floor(k) bits AT THE FROZEN EVALUATION POINT. Note carefully what is NOT
+      quantified: there is no "for all adversaries" anywhere, because the ledger quantifies
+      over BOUNDS, not over attacks. Any restatement that moves the quantifier onto adversaries
+      is a misreading and is forbidden by this record.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At the frozen evaluation point, the transcribed bound for route r guarantees fewer
+        than floor(k) bits once Q_S exceeds Q_S*(k, r); and the smallest such Q_S* across the
+        declared routes is X, supplied by route r*." That is the ceiling. The method can NEVER
+        certify that the scheme is insecure at Q_S*, cannot certify that a tighter proof does
+        not exist, and cannot distinguish a loose bound from a tight one.
+      nearby_object_control: >-
+        SLH-DSA, the closest standardised object where the hoped-for conclusion (a real,
+        finite, meaningful signature limit) is known to HOLD. The ledger must return
+        approximately 2^64 there. A ledger that returns "no limit" for SLH-DSA has not
+        identified the load-bearing structure, and its ML-DSA rows say nothing.
+    proof_obligations:
+    - claim: 'Q_S = 0 collapses each transcribed bound to its NMA statement, term by term.'
+      responsibility: baseline
+    - claim: 'The exponent vector (a, b) is extracted identically by two independent transcribers.'
+      responsibility: correctness
+    - claim: 'The Q_S* solve is monotone in Q_S at the frozen evaluation point, so the solve is well posed.'
+      responsibility: correctness
+    - claim: 'The SLH-DSA calibration returns a finite Q_S* of order 2^64.'
+      responsibility: feasibility
+    - claim: 'A Q_S-free bound yields exponent (0, b) and unbounded Q_S*.'
+      responsibility: strictness
+    - claim: 'The undetermined multiplicative constant is reported as an explicit additive offset in log2 Q_S*, never absorbed.'
+      responsibility: scope
+    - claim: 'R2 either produces a transferable bound or a named, argued obstruction; a blank is not acceptable.'
+      responsibility: interface
+    - claim: 'No entry is presented as a statement about attack cost against FIPS 204 parameters.'
+      responsibility: scope
+    not_applicable_reason: null
+  predictions:
+  - metric: 'Q_S*(k, R3), the signature count at which t0 is fully recovered, per category'
+    direction: lower
+    minimum_effect: 'between 2^17.6 and 2^18.9 as retrieved from ePrint 2024/1373; the ledger''s job is to place it beside the proof routes, not to re-derive it'
+  - metric: 'the exponent a of Q_S in route R1''s dominant term'
+    direction: different
+    minimum_effect: 'a nonzero rational; a = 0 would mean the proof route genuinely has no Q_S dependence and is the cleanest possible confirmation of the quoted sentence'
+  - metric: 'min over routes of Q_S*(k, r), per category, in log2'
+    direction: lower
+    minimum_effect: 'a finite number with a stated undetermined offset; "no limit" is a legitimate outcome only if every route returns exponent 0'
+  - metric: 'SLH-DSA calibration Q_S*, log2'
+    direction: different
+    minimum_effect: 'within 2 orders of magnitude of 64, or no ML-DSA row is reported'
+  - metric: 'sensitivity of the row minimum to the frozen evaluation point (Q_H from 2^48 to 2^96; floor +/- 16 bits)'
+    direction: different
+    minimum_effect: 'if the identity of the minimising route flips under any of these, the ledger reports a convention, not a fact, and says so in the headline'
+  - metric: 'bits of concrete MLWE hardness attributable to t0 after Q_S*(R3) signatures, = Delta_beta from IDEA-20260808-5a748c'
+    direction: different
+    minimum_effect: 'symbolic unless that proposal has a committed run; 0 bits would mean R3''s budget is free and the quoted sentence stands unqualified on this route'
+  minimal_test:
+    design: >-
+      Pure derivation and arithmetic; no lattice reduction, no signing, no sieve. Step 1:
+      transcribe R3 from the retrieved ePrint 2024/1373 abstract (done in this record) and
+      record it as a numeric row with its provenance. Step 2: transcribe R1 SYMBOLICALLY from
+      whatever statement of the Dilithium/ML-DSA CMA-to-NMA bound is obtainable, marking every
+      unobtained symbol, and extract (a, b) by two independent transcribers. Step 3: attempt
+      R2 and record either an adapted bound or the named Gaussian-versus-uniform obstruction.
+      Step 4: run the SLH-DSA calibration. Step 5: solve and tabulate, with the three
+      sensitivity sweeps. THIS DISCRIMINATES because the SLH-DSA control has a known answer
+      that the machinery can miss; because a Q_S-free bound must return exponent 0 exactly;
+      because two independent transcribers can disagree; and because the composed statement in
+      stage 5 has two mutually exclusive readings (Delta_beta at zero versus materially
+      positive) whose consequences for the quoted sentence are opposite. Cost: under one hour
+      of compute; the real cost is literature access and careful transcription.
+    controls:
+    - 'SLH-DSA calibration with a known finite signature limit (must return order 2^64).'
+    - 'A Q_S-free bound as a derived-zero arm (must return exponent exactly 0 and unbounded Q_S*).'
+    - 'Two independent transcribers per bound, with disagreement marked contested rather than averaged.'
+    - 'Three sensitivity sweeps on the frozen evaluation point (Q_H, category floor, core-SVP convention).'
+    - 'Explicit marking of every unobtained symbol, so a symbolic row can never be silently read as numeric.'
+    required_metrics:
+    - 'the ledger table Q_S*(k, r) with per-entry provenance (obtained / symbolic / empirical)'
+    - 'exponent vector (a, b) per proof route, per transcriber'
+    - 'row minimum and the identity of the minimising route, per category'
+    - 'the undetermined additive offset in log2 Q_S* for every symbolic row'
+    - 'SLH-DSA calibration value'
+    - 'flip status of the minimising route under each sensitivity sweep'
+    - 'R2 outcome: adapted bound, or named obstruction with its argument'
+  falsification_conditions:
+  - 'The SLH-DSA calibration returns no finite limit or a limit far from 2^64: the machinery does not measure signature limits and NO ML-DSA row is reported.'
+  - 'A Q_S-free bound returns a finite Q_S*: transcription is manufacturing dependence; the method is void until fixed.'
+  - 'The two transcribers disagree on (a, b): the bound''s statement is being interpreted, the row is marked contested, and no minimum is computed over contested rows.'
+  - 'The Q_S = 0 collapse to the NMA statement fails for a transcribed bound: that transcription is wrong and the row is void.'
+  - 'Every route returns exponent a = 0: the quoted IETF sentence is confirmed on every route examined, the ledger reports "no signature limit detected on the examined routes", and that is a complete and useful negative.'
+  - 'The identity of the minimising route flips under any sensitivity sweep: the headline becomes a statement about the evaluation point and must be phrased as one.'
+  - 'Delta_beta is measured at or near 0 bits by IDEA-20260808-5a748c: route R3''s budget costs nothing in bits, the composition in stage 5 is void, and the ledger reduces to two routes.'
+  confounders:
+  - 'The undetermined multiplicative constant in a symbolic row shifts log2 Q_S* by (1/a)*log2(constant), which for small a is large. Reported as an explicit offset; a row whose offset exceeds its own value is reported as uninformative rather than as a number.'
+  - 'Different sources state the "same" bound with different adversary classes and different oracle models; a minimum taken over incompatible rows is meaningless. Mitigated by recording the model per row and refusing the minimum across incompatible models.'
+  - 'Route R3 is a laboratory result on a desktop with an unstated implementation; its 2*10^5-5*10^5 figure carries the paper''s own scope and this record inherits it without narrowing it.'
+  - 'Reading a small Q_S* as an attack. This is the dominant misreading risk and is why the method ceiling is stated three times in this record.'
+  - 'The core-SVP convention choice moves the lattice-side numbers by tens of bits; the sweep exists because of this.'
+  interpretation_limits:
+  - 'A bound becoming vacuous at Q_S* means the PROOF stops guaranteeing, not that the scheme stops being secure. This record certifies nothing about attack cost.'
+  - 'Route R3 is a published measurement restated with attribution, not reproduced here. Its numbers are the authors'', its scope is theirs, and no claim of independent verification is made.'
+  - 'Route R2 may legitimately produce nothing but a named obstruction, and that is recorded as a §4-standard closure, not as a failure.'
+  - 'No claim tier above what each row''s own source supports. Rows are heterogeneous in tier by construction and the table must show the tier per row.'
+  - 'The ledger''s scalar is not an intrinsic invariant: the observation collision above is real and unresolved.'
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      For each transcribed route, the term carrying the highest power of Q_S dominates the
+      bound throughout the range of Q_S in which Bits_r crosses the category floor, so that
+      the solve for Q_S* using only the dominant term errs by at most one bit in Bits_r.
+    rigorous_support: >-
+      The rigorous ingredient is that each bound is a finite sum of monomials in
+      (Q_S, Q_H, epsilon, and the underlying problem advantages), so dominance is decidable
+      term by term once the exponents are known. The classical statement being imitated is the
+      ordinary asymptotic-dominance argument for a polynomial in several variables restricted
+      to a ray - it is exact away from crossover regions and can fail near them.
+    validation_plan: >-
+      For each transcribed bound, evaluate the FULL sum and the dominant term alone on a grid
+      of log2 Q_S from 0 to 128 at the frozen evaluation point, and report the maximum
+      discrepancy in Bits_r over the grid and specifically at the crossing. TAIL CHECK: report
+      the discrepancy at the two grid points bracketing the crossing, where dominance is
+      weakest by construction. Where a bound is symbolic and the constants are unobtained, run
+      the same check over the declared constant range and report the worst case. Sampled
+      parameters: the three FIPS 204 categories, Q_H in {2^48, 2^64, 2^96}. TRANSFER
+      ASSUMPTION: none - this check is exact for any obtained bound and is only inconclusive
+      for symbolic rows, where it is reported as inconclusive.
+  - id: H2
+    statement: >-
+      The Q_S* produced by route R3 for the property "t0 remains secret" transfers across the
+      three FIPS 204 categories within the range the source states (2*10^5 to 5*10^5), i.e.
+      the per-category values lie inside that bracket and are not extrapolated beyond it.
+    rigorous_support: >-
+      The source states the range as covering all three security levels. No structural theorem
+      is invoked; this is a restatement of a reported experimental range, and the assumption is
+      only that the reported range means what it says.
+    validation_plan: >-
+      Obtain the full text of ePrint 2024/1373 and extract the per-level figures rather than
+      the bracket, replacing the bracket with three numbers. Until then the bracket is carried
+      as a bracket and the ledger reports an interval, not a point. If the full text is
+      unobtainable, the row stays an interval permanently and says so. NO SAMPLING IS PERFORMED
+      BY THIS PROGRAM and no reproduction of that attack is claimed or planned under this
+      record.
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED AND NONE IS MOVED. The deliverable is a table of Q_S*
+      values and exponent vectors. Its own computational cost is negligible - polynomial
+      evaluation on a grid, seconds. The exponents that appear in the record are exponents of
+      Q_S and Q_H inside SOMEONE ELSE'S BOUND, not attack complexity exponents, and must never
+      be quoted as the latter.
+    memory_exponent: >-
+      Not applicable. No attack memory exponent is claimed. The ledger's own memory is a table
+      of a few dozen rows.
+    best_known: >-
+      For the SIGNATURE-COUNT question specifically, the incumbent is the retrieved IETF
+      sentence "ML-DSA does not degrade in security with the number of signatures produced,
+      under the standard security model" - a qualitative statement with no number attached, and
+      the only statement of its kind this session found. For the t0 sub-question the incumbent
+      is ePrint 2024/1373's 2*10^5-5*10^5 signatures. For reduction tightness the incumbent is
+      whatever ePrint 2023/246 states, which this repository has not obtained.
+    hidden_overhead: >-
+      The single largest hidden cost is the undetermined constant in every symbolic row, which
+      enters log2 Q_S* divided by the exponent a and is therefore amplified when a is small. A
+      second is that "bits at a frozen evaluation point" hides the entire adversary-class and
+      oracle-model content of each route; the observation collision above is the formal
+      statement of that cost and it is not resolvable within this method.
+    tradeoff_note: >-
+      There is a real operational tradeoff on the Q_S axis and the ledger's purpose is to
+      expose it: an application can rekey at Q_S, paying key-management cost to stay inside
+      every budget. The ledger supplies the number a rekeying policy would need, and nothing
+      more - it does not recommend a policy and does not claim any policy is required.
+  dominated_by: >-
+    n/a (no attack or cost-triple result claimed). Frontier rows checked before writing this:
+    (i) ePrint 2024/1373, 2*10^5-5*10^5 signatures for t0 - this record RESTATES that row with
+    attribution and does not compete with it; (ii) ePrint 2025/214, single-trace key recovery -
+    different adversary, not comparable; (iii) KN-LIT-4f3b80 (Jendral, 0.582) - fault model,
+    not comparable; (iv) the published MLWE / MSIS / SelfTargetMSIS estimates at FIPS 204
+    parameters - untouched by this record, which produces no lattice estimate; (v) all seven
+    existing RQ-MLDSA-001 proposals, none of which produces an attack cost triple or a Q_S
+    figure; (vi) IDEA-20260816-583998 in the FrodoKEM lane, which dominates on the maturity of
+    the exponent-vector method and is credited rather than competed with. Nothing on that list
+    contains a three-route signature-count ledger for ML-DSA, so no row dominates the
+    deliverable.
+  sota_delta: >-
+    No attack; conceptual and accounting contribution only. Quantitatively: this record adds
+    zero bits to and subtracts zero bits from every published estimate. Against the incumbent -
+    a qualitative sentence with no number - the delta is the replacement of that sentence by a
+    table with at least one numeric row (Q_S* between 2^17.6 and 2^18.9 for the t0 property,
+    retrieved, not derived here), at least one symbolic row with a stated exponent and a stated
+    offset, and one calibration against a known 2^64. If every route returns exponent 0, the
+    delta is the first quantitative confirmation of the sentence rather than a contradiction of
+    it, which is an equally acceptable outcome.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    By part. (i) That route R3's row is written correctly from the retrieved abstract: ~0.95 -
+    it is already written above. (ii) That a statement of the CMA-to-NMA bound sufficient to
+    extract an exponent vector is obtainable in this program, given the standing 403 on ePrint
+    2023/246: ~0.5, and this is the binding risk; the symbolic-row design is what keeps a
+    failure here from voiding the record. (iii) That the SLH-DSA calibration returns order
+    2^64: ~0.7 - SLH-DSA's limit comes from hash-tree structure rather than from a Q_S term in
+    a reduction, so the machinery may legitimately need a fourth route class to see it, and
+    discovering that is itself useful. (iv) That route R2 produces anything but a named
+    obstruction: ~0.25 - the Gaussian-versus-uniform mismatch is real and I expect it to hold.
+    (v) That the minimising route is R3 at every category: ~0.6. (vi) That the record yields a
+    defensible table with honest provenance per row either way: ~0.85.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+  - RQ-MLDSA-001
+  - GOAL-MLDSA-001
+  - H-MLDSA-d1e509
+  - KN-FIND-720727
+  - KN-LIT-3907
+  - IDEA-20260808-5a748c
+  - IDEA-20260816-583998
+  - KN-TECH-1a5b7e
+  - docs/inventor-protocol.md
+  - docs/target-result-profile.md
+  - docs/claims-and-verification.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py
+    --next idea --date 20260821 (random 6-hex token, no state scanned), each id then verified
+    free with --check before assignment. No identifier was chosen by looking for the next free
+    number (CLAUDE.md, Conventions).

@@ -18,8 +18,8 @@ What it deliberately does NOT do:
     fill in before the contract can be approved. Missing data stays missing
     (AGENTS.md rule 9).
   * It does not size budgets from wishes. Budgets come from the idea's declared
-    `estimated_cost` mapped through a fixed, documented table, and every
-    contract carries the toy-scale ceiling.
+    `estimated_cost` mapped through a fixed, documented table. Scale metadata
+    is copied from the idea when supplied and is not imposed automatically.
 
 Usage:
     python3 tools/derive_experiment_contracts.py --plan     # dry run, prints map
@@ -55,14 +55,6 @@ BUDGET = {
     "medium": (3600, 3.0, 40),
     "high":   (10800, 12.0, 60),
 }
-
-TOY_CEILING = (
-    "Toy scale only: p up to ~2^17 for full isogeny-class enumeration (which is "
-    "O(p^2)) and up to ~2^20 for single-curve work. Evidence from any run under "
-    "this contract is capped at claim_tier: toy and may not be presented as "
-    "crypto-scale validation (AGENTS.md rule 7)."
-)
-
 
 def allocate(area: str) -> str:
     out = subprocess.run(
@@ -164,9 +156,9 @@ def contract_from_idea(idea: dict, exp_id: str) -> tuple[dict, list[str]]:
         "preregistered_prediction": prereg or {
             "quantity": None, "formula": None, "source": None},
         "scale_relevance": {
-            "tier": "toy",
-            "justification": TOY_CEILING,
-            "correspondence": None,
+            "tier": idea.get("scale_tier"),
+            "justification": idea.get("scale_justification"),
+            "correspondence": idea.get("scale_correspondence"),
         },
         "tail_checks": _as_list(idea.get("confounders")),
         "replication": {

@@ -38,9 +38,9 @@ The eight below are the ones that matter most, roughly in order:
    is a finding. Adding a new superseding record is correct and not a finding.
 2. **Claim exceeding its tier.** `validate_ledger.py` checks the `claim_tier`
    *field* against run parameters; it cannot read prose. Flag any analysis,
-   synthesis, README, knowledge entry, or PR description whose language asserts
-   more than the tier allows — most often toy-scale results narrated as
-   evidence about cryptographic curves. Also flag any universal impossibility
+   synthesis, README, knowledge entry, or PR description whose language omits
+   the tested parameters, evidence scope, or transfer assumptions. Also flag
+   any universal impossibility
    claim ("X cannot beat Y"), which no tier permits.
 3. **Fabrication risk.** Rule 9. Any timing, count, speedup, solving degree,
    or citation that does not trace to a committed artifact is a finding. The

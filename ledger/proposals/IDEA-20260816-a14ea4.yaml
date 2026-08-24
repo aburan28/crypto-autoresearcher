@@ -1,0 +1,284 @@
+idea:
+  id: IDEA-20260816-a14ea4
+  question_id: RQ-ASCON-2dfd8b
+  added: '2026-08-16'
+  title: Build an exact duplex STATE ACCOUNTANT that labels every state bit across a session as attacker-set,
+    attacker-known, or unknown and propagates those labels conservatively through the reduced inter-block
+    permutation, so that the mode's constraint on what can be injected and observed becomes a measured
+    closure depth rather than a sentence
+  class: mechanism
+  claim: '(A) Every statement about what a reduced round count between data blocks does or does not
+    permit rests on an unwritten inventory: at each point in a duplex session, which state bits has
+    the adversary set, which does it merely know, and which are unknown to it. That inventory is never
+    written down in this program, and the phrase under the mode''s own constraints on what an adversary
+    can inject and observe currently has no referent. (B) The proposal is an exact symbolic accountant:
+    represent the 320-bit state as a vector of ternary labels (SET, KNOWN, UNKNOWN), initialise it
+    from the mode''s key/nonce/IV structure, and propagate it through absorption, squeezing and the
+    r-round permutation using a CONSERVATIVE dependency rule -- a bit becomes UNKNOWN as soon as any
+    bit it depends on is UNKNOWN, and stays SET only while every dependency is SET. The propagation
+    is a sound over-approximation of adversary ignorance, which is the safe direction. (C) The measured
+    quantities are: the closure depth D, being the number of permutation rounds after which the SET
+    and KNOWN sets are empty for a given session prefix; the trajectory of the three set sizes across
+    a multi-block session; and how D compares between the inter-block round count and the full initialization
+    count. (D) NOT CLAIMED: any attack; any statement that a nonempty SET set at some depth is exploitable,
+    since label-level controllability is far weaker than algebraic controllability; any statement
+    about published results. A conservative accountant OVERSTATES ignorance, so its output can support
+    the statement the adversary controls at most this much and can NEVER support the adversary controls
+    at least this much. That asymmetry is stated in the deliverable. (E) The null is essential and
+    executable: the identical accountant runs against a null permutation whose dependency structure
+    is a random wiring of the same density. If the closure depth is the same, the accountant is measuring
+    wiring density and state size, not the design, and the record is a controlled null.'
+  mechanism: 'Stage one extracts the per-bit dependency relation of one round directly from the implementation,
+    not from a description: for each output bit, determine which input bits it depends on by exhaustive
+    single-bit probing over a random state sample, and take the union over samples as a conservative
+    dependency set. Stage two validates that extraction by checking it against the algebraic structure
+    of the linear layer, where the dependency set is exactly the support of the corresponding matrix
+    row and can be verified exactly. Stage three implements the ternary label lattice with UNKNOWN
+    absorbing and defines label propagation as the pointwise join over each output bit''s dependency
+    set. Stage four initialises labels from the mode''s structure at the start of a session, with
+    key bits UNKNOWN, nonce bits SET, IV bits KNOWN, and propagates through initialization, then through
+    a declared number of absorb/permute/squeeze steps, recording the three set sizes at every depth.
+    Stage five reports the closure depth D, the set-size trajectories, and the comparison between
+    the inter-block count and the initialization count. Stage six runs the identical accountant on
+    a random-wiring null of matched density and on a deliberately sparsified wiring, in the same invocation.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Shared repository screen: grep -ril ascon over ledger/proposals, ledger/hypotheses, ledger/evidence
+      and experiments; grep -il over ledger/proposals/*.yaml for sponge, duplex, capacity, rekey,
+      data limit and constrained device; grep -il for division property and diffusion over the same.
+      Read: ledger/questions/RQ-ASCON-2dfd8b.yaml in full (its third target names the mode''s own
+      constraints on what an adversary can inject and observe as the operative framing), ledger/goals/GOAL-ASCON-001.yaml
+      first 60 lines, docs/inventor-protocol.md sections 1-8, ledger/proposals/IDEA-20260807-c4f1fc.yaml
+      first 40 lines, header of knowledge/techniques/KN-TECH-074.md.'
+    results: grep -ril ascon returned no ledger record. The sponge/duplex grep returned exactly two
+      proposals, IDEA-20260807-c4f1fc and IDEA-20260808-95a21c; the first proposes a cryptanalytic
+      lane against SLH-DSA's structured hash inputs and records that no repository record treats an
+      unkeyed permutation as a target, the second is a Fiat-Shamir cost audit. The greps for rekey,
+      data limit and constrained device over ledger/proposals/*.yaml each returned ZERO files. KN-TECH-074
+      records division property and monomial prediction as the established way to track propagation
+      of exponent vectors through a round function, noting naive bit-based tracking is exponential
+      in state size and that the standard implementation is an MILP or SAT model. That is the nearest
+      technique in the corpus and it tracks a different lattice for a different purpose.
+    verdict: 'UNVERIFIED. No external literature is reachable here and nothing in this record asserts
+      what it contains. Claimed NEW relative to this repository: a ternary controllability lattice
+      propagated conservatively over an empirically extracted per-bit dependency relation of the actual
+      implementation, applied to a duplex session rather than to a permutation in isolation, with
+      closure depth as the reported quantity and a matched-density random-wiring null. ASSEMBLED FROM
+      KNOWN PARTS: lattice-based conservative propagation over a round function is structurally the
+      same idea as division-property tracking recorded in KN-TECH-074, with a coarser three-element
+      lattice chosen precisely so that propagation is linear rather than exponential and needs no
+      solver; taint-style label propagation is elementary; the same-invocation null requirement is
+      docs/inventor-protocol.md section 3.'
+  object_first_candidate:
+    tracked_object: 'The ternary label vector: one label per state bit, drawn from {SET, KNOWN, UNKNOWN}
+      ordered with UNKNOWN as top, carried through a whole duplex session -- initialization, absorb,
+      permute, squeeze -- rather than through a permutation alone. The state values are not tracked
+      at all.'
+    lossiness: 'Strongly lossy and deliberately one-directional. Discarded: every state value, every
+      algebraic relation among bits, every probability -- 320 bits of state collapse to 320 two-bit
+      labels, and crucially the JOINT structure is discarded too, since the accountant tracks each
+      bit''s label independently and cannot represent the fact that two UNKNOWN bits might be known
+      to be equal. The discard is compatible with the target operation because the join over a dependency
+      set is monotone: a conservative label can only become more ignorant, never less, so the retained
+      labels still propagate deterministically and soundly in the ignorance direction. The projection
+      is emphatically not invertible, and the loss of joint structure is exactly why the output can
+      only bound controllability from above. That limitation is a feature of the projection and is
+      stated rather than hidden.'
+    propagation: 'One round acts on the label vector as follows. For each output bit, take the union
+      of labels of the input bits in its extracted dependency set and join them in the lattice: SET
+      joined with SET is SET; SET joined with KNOWN is KNOWN; anything joined with UNKNOWN is UNKNOWN.
+      The linear layer''s dependency sets are exactly the supports of its matrix rows and are known
+      exactly; the substitution layer''s dependency sets are within a bit slice and are small. Absorption
+      acts by overwriting rate-position labels to SET; squeezing acts by downgrading rate-position
+      labels from UNKNOWN to KNOWN, since the adversary observes them. The propagation of the object
+      across a session is therefore the interleaving of round joins with these two mode-level label
+      edits, and closure is the depth at which UNKNOWN has spread everywhere.'
+    survival_score: 'Reported as the closure depth D: the number of permutation rounds after which
+      no SET or KNOWN label remains, measured separately from a fresh initialization and from a mid-session
+      absorb, and reported against both the inter-block round count and the full initialization count.
+      The structure survives below D and is gone above it, in the coarse sense the lattice defines.
+      Because the accountant is conservative, D is an UPPER bound on how long controllability could
+      persist and a lower bound on nothing, which is stated with the number.'
+  null_object_control: 'A RANDOM-WIRING NULL: a synthetic round function whose per-bit dependency
+    sets are drawn uniformly at random with cardinality matched, bit for bit, to the extracted dependency
+    sets of the real round function, in the same invocation and through the identical accountant.
+    If the closure depth D coincides with the signal''s, the accountant is measuring dependency-set
+    cardinality and state size rather than the design''s wiring, and the correct record is a controlled
+    null. A SECOND null uses a deliberately sparsified wiring at half the matched cardinality, whose
+    closure depth must be strictly larger, confirming the accountant is sensitive to wiring at all.
+    A THIRD control, in the opposite direction, uses a fully connected wiring, whose closure depth
+    must be exactly one.'
+  discriminated_from:
+  - KN-TECH-074 (division property and monomial prediction). That tracks exponent vectors to decide
+    integral-distinguisher survival and needs an MILP or SAT model because its lattice is exponential;
+    this tracks a three-element controllability lattice per bit, is linear in state size, needs no
+    solver, decides nothing about distinguishers, and is applied across a duplex SESSION rather than
+    to a permutation.
+  - IDEA-20260807-c4f1fc, which proposes a structured-input cryptanalytic axis specific to SLH-DSA's
+    tweakable hash. That is a cryptanalytic lane; this is an accounting instrument that produces a
+    bound on ignorance and explicitly cannot support an exploitability claim.
+  - The third record in this batch (rate-confined zero-sum depth). That measures an algebraic property
+    of an affine subspace by direct evaluation; this measures a syntactic dependency closure with
+    no evaluation of any state value, and the two would disagree by construction -- the accountant
+    will report controllability persisting where the algebraic measurement finds nothing, which is
+    exactly the conservative direction.
+  - Ordinary taint analysis from software security. Structurally similar propagation, but the object
+    here is a cryptographic state under a mode's absorb and squeeze edits, the dependency relation
+    is extracted from an implementation by exhaustive probing and verified against a GF(2) matrix,
+    and the deliverable is a closure depth compared against a specified round count.
+  - IDEA-20260808-95a21c, the FAEST Fiat-Shamir cost audit, which is the only other duplex- or sponge-mentioning
+    proposal in the repository and shares no object with this one.
+  assumptions:
+  - A permutation implementation can be pinned and test-vector-validated; the dependency extraction
+    is meaningless against an unvalidated implementation.
+  - Exhaustive single-bit probing over a random state sample, unioned across samples, recovers a superset
+    of each output bit's true dependency set -- an assumption that must be checked, since probing
+    can MISS a dependency that only manifests at unsampled states, which would make the accountant
+    unsound in the dangerous direction; the exact GF(2) verification of the linear layer is the partial
+    defence and the substitution layer's small slices make exhaustive checking feasible there.
+  - A three-element lattice with UNKNOWN absorbing is coarse enough to be linear-time and expressive
+    enough to be worth computing; its inability to represent joint structure is accepted and declared.
+  - The mode's initial label assignment -- key UNKNOWN, nonce SET, IV KNOWN -- correctly represents
+    the adversary model being audited; alternative models (nonce-misuse, known-key) are separate configurations
+    rather than corrections.
+  - The inter-block round count and the rate/capacity split can be pinned, or swept over candidates
+    with results reported per candidate.
+  predictions:
+  - metric: closure depth D from a mid-session absorb, under the conservative accountant
+    direction: different
+    minimum_effect: no numeric pre-commitment; this program has never computed this quantity for any
+      permutation and any predicted value would be invented. Both a D below the inter-block round
+      count and a D above it are fully reportable with different consequences
+  - metric: closure depth D for the design minus D for the matched-cardinality random-wiring null
+    direction: different
+    minimum_effect: at least 1 round; if the two coincide the record is a controlled null and D is
+      not interpreted as a property of the design
+  - metric: closure depth for the fully connected wiring control
+    direction: lower
+    minimum_effect: exactly 1, a forced value; anything else is an accountant defect
+  - metric: closure depth for the half-cardinality sparsified wiring
+    direction: higher
+    minimum_effect: strictly greater than the matched-cardinality null's depth; equality indicates
+      the accountant is insensitive to wiring density and voids the comparison
+  - metric: agreement between probed dependency sets and the exact GF(2) supports for the linear layer
+    direction: different
+    minimum_effect: exactly 100 percent; any disagreement halts the run, since it shows probing misses
+      real dependencies and the accountant would be unsound
+  minimal_test:
+    design: 'Extract dependency sets by probing: for each of 320 input bits and each of 512 random
+      base states, flip the input bit, run one round, and record which output bits change; union across
+      states. Verify the linear layer''s extracted sets against the exact GF(2) matrix row supports,
+      and verify the substitution layer''s by exhaustive enumeration over a bit slice. Implement the
+      ternary lattice and propagate labels from a declared session start through initialization and
+      three absorb/permute/squeeze steps, recording set sizes at every round. Report closure depth
+      D. In the SAME invocation, run the identical accountant over three synthetic wirings -- matched-cardinality
+      random, half-cardinality sparsified, fully connected -- and record their closure depths. Cost:
+      about 160000 permutation evaluations for extraction plus negligible propagation, seconds to
+      a minute. The discriminating output is four closure depths and the set-size trajectories.'
+    controls:
+    - Matched-cardinality random-wiring null, identical accountant, same invocation, seed recorded.
+    - Half-cardinality sparsified wiring, whose closure depth must be strictly larger.
+    - Fully connected wiring, whose closure depth must be exactly 1.
+    - Exact GF(2) verification of extracted dependency sets for the linear layer, plus exhaustive
+      verification within one substitution bit slice.
+    - All-UNKNOWN initial labels, where closure depth must be 0 by definition.
+    - All-SET initial labels with no squeezing, where no bit may ever become UNKNOWN, confirming labels
+      do not decay spuriously.
+    required_metrics:
+    - closure depth D per arm and per session configuration
+    - sizes of the SET, KNOWN and UNKNOWN sets at every round and every session step
+    - extracted dependency-set cardinality distribution per output bit
+    - agreement rate between probed and exact dependency sets for the linear layer
+    - closure depth for each of the three synthetic wiring controls
+    - probe evaluations, seeds and wall-clock
+  falsification_conditions:
+  - Probed dependency sets disagree with the exact GF(2) supports anywhere, showing the extraction
+    misses dependencies and the accountant is unsound.
+  - The fully connected wiring control does not close at depth exactly 1.
+  - The sparsified wiring closes no later than the matched-cardinality null, showing insensitivity
+    to wiring.
+  - The design's closure depth equals the matched-cardinality random null's, forcing a controlled-null
+    record.
+  - The all-SET-no-squeeze control produces any UNKNOWN label, showing spurious label decay.
+  - The all-UNKNOWN control does not close at depth 0.
+  - The permutation fails a declared test vector.
+  confounders:
+  - Probing at 512 random base states can miss a dependency that manifests only rarely; the union
+    is a heuristic superset and the exact GF(2) check covers only the linear layer, so residual unsoundness
+    in the substitution layer is possible and must be bounded by exhaustive slice enumeration rather
+    than assumed away.
+  - Independent per-bit labels cannot express joint knowledge, so the accountant will over-report
+    ignorance in ways that vary with the wiring, potentially making the design-versus-null comparison
+    reflect that bias rather than the wiring.
+  - Cardinality matching between real and random wirings does not match their locality structure,
+    so part of any gap is topological rather than design-specific.
+  - The initial label assignment encodes an adversary model chosen by this program, and a different
+    but equally defensible model would change D without anything about the design changing.
+  - If the rate/capacity split is wrong, absorption and squeezing edit the wrong labels and every
+    trajectory is about a different mode.
+  interpretation_limits:
+  - The accountant is conservative and therefore supports only statements of the form the adversary
+    controls AT MOST this much; it can never support a claim that anything is controllable in an exploitable
+    sense.
+  - Label-level controllability is far weaker than algebraic controllability, so a nonempty SET set
+    at some depth is not a distinguisher, not an attack, and not a security concern.
+  - Closure depth is a property of the extracted dependency relation and the chosen lattice; a finer
+    lattice would generally close later and a coarser one sooner.
+  - Nothing here says anything about published results, about SP 800-232's security, or about any
+    deployed device.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Extraction costs state size times sample size permutation
+      evaluations; propagation is linear in state size times rounds.
+    memory_exponent: No attack exponent is claimed. Memory is the dependency relation, at most state
+      size squared bits, well under a megabyte.
+    best_known: 'The incumbent is the prose clause in RQ-ASCON-2dfd8b itself -- under the mode''s
+      own constraints on what an adversary can inject and observe -- which currently has no computed
+      referent anywhere in this repository. There is no numeric competitor: greps for rekey, data
+      limit and constrained device over ledger/proposals returned zero files and the ascon grep returned
+      no ledger record.'
+    hidden_overhead: The hidden cost is soundness of the extraction. A dependency relation obtained
+      by probing is a heuristic, and making it trustworthy requires the exact GF(2) verification plus
+      exhaustive substitution-slice enumeration, which is where the real implementation effort goes.
+      A second hidden cost is that a conservative accountant tends to close quickly and produce a
+      boring number, and the temptation to refine the lattice until the number is interesting is exactly
+      the failure this record must resist -- so the lattice is frozen before the run.
+  dominated_by: 'n/a (no result claimed). Pareto check across all three axes explicitly: time -- no
+    attack time is produced; memory -- no attack memory is produced, and the instrument''s own memory
+    is trivial; data/queries -- the accountant issues zero oracle queries and the probing is offline
+    evaluation of a local implementation. Every axis was considered rather than the field defaulted.'
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative delta is a closure
+    depth D with set-size trajectories and three wiring controls, where this repository previously
+    held no computed referent at all for the mode's injection-and-observation constraint.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Separately: that the permutation and the rate/capacity split can be pinned
+    here, about 0.35, limited by primary-text access. That the extraction agrees exactly with the
+    GF(2) supports for the linear layer, above 0.9, since that part is analytically checkable and
+    any disagreement is a plain bug. That the three synthetic wiring controls behave as forced (fully
+    connected closes at 1, sparsified closes later), above 0.9. That the design''s closure depth separates
+    from the matched-cardinality random null, about 0.35 -- a conservative accountant over a well-diffusing
+    round function tends to close in very few rounds regardless of wiring, and a controlled null is
+    the single most likely outcome. That the resulting number is nonetheless a usable measured obstruction
+    for later readers, about 0.6, because even a fast closure is a concrete bound where the program
+    currently has a sentence.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ASCON-2dfd8b
+  - GOAL-ASCON-001
+  - KN-TECH-074
+  - KN-TECH-073
+  - KN-TECH-056
+  - IDEA-20260807-c4f1fc
+  - IDEA-20260808-95a21c
+  - docs/inventor-protocol.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ASCON-4d3d00

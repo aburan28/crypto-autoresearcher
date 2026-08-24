@@ -1,0 +1,110 @@
+schema: crypto.autoresearch.blind_statement_packet.v1
+id: BLIND-QEC-EXACT-ADD-4c797e
+goal_id: GOAL-ECDLP-001
+batch_id: null
+recorded_at: '2026-08-24'
+purpose: >-
+  Give the independent re-deriver only the mathematical statement, encoding,
+  interfaces, and required quantities. The re-deriver must not read the
+  producer's implementation, proof, schedule, notes, gate counts, or reports
+  before freezing blind-rederivation.yaml.
+domain:
+  field: F_p
+  p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f
+  curve: 'E/F_p: y^2 = x^3 + 7'
+  subgroup_order: 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
+  subgroup_assumptions:
+  - r is odd and prime
+  - r is greater than 3
+  encoding:
+    affine_point: ordered pair (x,y) in F_p^2 satisfying the curve equation
+    identity: omega=(0,0)
+    identity_is_off_curve: true
+  addend_table: >-
+    A_h is a nonzero address-selected subgroup point. A signed-window digit has
+    a separate enable bit; enable=0 denotes the zero digit. The task must freeze
+    the exact address/sign convention it implements.
+total_interfaces:
+  total_idiv:
+    map: (X,Y) -> (X, Y/X) when X!=0; (X,Y) -> (X,Y) when X=0
+    required_wrapper: >-
+      Compute z=[X=0], toggle X_LSB by z so the wrapped divisor is one on the
+      zero branch and unchanged otherwise, run the existing in-place division
+      while preserving X, undo X_LSB, and uncompute z from restored X.
+    ancilla: one reusable bit z plus the wrapped primitive's existing clean workspace
+  total_imul:
+    map: (X,Y) -> (X, X*Y) when X!=0; (X,Y) -> (X,Y) when X=0
+    required_wrapper: >-
+      Use the analogous z=[X=0] wrapper so the multiplicand is one on the zero
+      branch; restore X and uncompute z.
+    ancilla: the same reusable bit z plus the wrapped primitive's existing clean workspace
+generic_core:
+  fixed_addend: A=(a,b)
+  centered_variables:
+    u: x-a
+    v: y-b
+    lambda: v/u
+    u3: lambda^2-u-3a
+    m: u-lambda^2+3a=-u3
+  enabled_map:
+  - X <- X-a
+  - Y <- Y-b
+  - Total-IDiv(X,Y)
+  - X <- X-Y^2, controlled by effective enable e
+  - X <- X+3a, controlled by e
+  - Total-IMul(X,Y)
+  - X <- -X, controlled by e
+  - X <- X+a
+  - Y <- Y-b, controlled by e
+  intended_output_on_generic_subgroup_input:
+    X: u3+a
+    Y: -lambda*u3-b
+    point: R+A
+  disabled_identity_obligation: >-
+    For e=0, the unconditional centering/uncentering plus Total-IDiv and
+    Total-IMul must compose to the exact identity on every pair of field
+    bitstrings, including X-a=0; not only on valid curve points.
+exceptional_router:
+  pre_core_flags:
+    fO: enable AND [R=O]
+    fA: enable AND [R=A]
+    fNA: enable AND [R=-A]
+    fN2A: enable AND [R=-2A]
+  flags_mutually_exclusive: true
+  effective_enable: enable AND NOT(fO OR fA OR fNA OR fN2A)
+  algebraic_promises_on_effective_enable:
+  - u is nonzero because R is neither A nor -A
+  - m is nonzero because R+A is neither A nor -A, whose preimages are O and -2A
+  exceptional_maps:
+    O: A
+    A: 2A
+    -A: O
+    -2A: -A
+  implementation_obligation: >-
+    Leave the generic core at identity on flagged branches, then apply
+    address-table XOR masks enc(C) XOR enc(C+A), controlled by the corresponding
+    flag. Clear each flag after mapping by masked equality against its unique
+    output A, 2A, O, or -A. Under r>3 these outputs are distinct. Translation
+    injectivity means an effective-enable input cannot land on an exceptional
+    output, which is the required cleanup invariant.
+  zero_digit_obligation: >-
+    All flag computations are masked by enable. When enable=0 every flag and e
+    is zero, no exceptional mask fires, and the core is the exact all-bitstring
+    identity.
+coherent_window_obligation: >-
+  Address-dependent equality checks, constants A, 2A, -A, -2A, and XOR masks
+  must be computed sequentially through the existing address/qROM register or
+  an explicitly charged replacement. The proof must be block-diagonal in a
+  superposed address and must clear every flag, qROM target, sign/work bit, and
+  arithmetic scratch register.
+quantities_for_blind_rederivation:
+- Derive the generic affine translation formula from the stated curve law.
+- Prove the exact e=0 all-bitstring identity of the totalized core.
+- Prove u and m are nonzero on the effective-enable subgroup domain.
+- Prove the four exception maps and post-map flag cleanup are collision-free for prime r>3.
+- Prove block-diagonal correctness for superposed addresses from basis-state correctness and cleanup.
+- Derive a symbolic peak-live register expression; do not insert an exact coefficient without a gate schedule.
+claim_ceiling: >-
+  A correct rederivation supports only review of the candidate construction. It
+  does not establish an implementation, an exact peak, 835 qubits, an exact
+  Toffoli coefficient, a speedup, novelty, or a breakthrough.

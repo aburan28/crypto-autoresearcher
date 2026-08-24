@@ -37,8 +37,8 @@ REQUIRED_HEADINGS = [
     "## Interpretation boundary",
     "## Exactly one next executable action",
 ]
-EXPECTED_HYPOTHESIS_COUNT = 17
-EXPECTED_CONTRACT_COUNT = 9
+EXPECTED_HYPOTHESIS_COUNT = 20
+EXPECTED_CONTRACT_COUNT = 12
 REQUIRED_DEDUP_REPORT = "DEDUP-20260718T132546-0700.md"
 REQUIRED_REDTEAM_REPORT = "REDTEAM-20260718T134111-0700.md"
 P1514_V2_ARTIFACT_HASHES = {
@@ -69,6 +69,9 @@ EXPECTED_IDS = {
     "ECDLP-IDEA-158",
     "ECDLP-IDEA-159",
     "ECDLP-IDEA-160",
+    "ECDLP-IDEA-434",
+    "ECDLP-IDEA-435",
+    "ECDLP-IDEA-436",
 }
 EXPECTED_REJECTED_IDS = {
     "ECDLP-IDEA-001",
@@ -174,6 +177,7 @@ EXPECTED_COHORT_SIZES = {
     "20260717-a": 11,
     "20260717-b": 3,
     "20260718-b": 3,
+    "20260809-a": 3,
 }
 NEW_COHORT_IDS = {f"ECDLP-IDEA-{i:03d}" for i in range(61, 411)}
 EXPECTED_RETIRED_CONTRACT_COUNT = 97
@@ -1138,11 +1142,16 @@ def main() -> int:
         errors.append("missing ideas/deferred/README.md")
     complete_ids = seen_ids | rejected_ids | deferred_ids
     expected_complete_ids = {
-        *(f"ECDLP-IDEA-{i:03d}" for i in range(1, 411))
+        *(f"ECDLP-IDEA-{i:03d}" for i in range(1, 411)),
+        # cohort 20260809-a, minted above the retired preallocation ceiling (433)
+        "ECDLP-IDEA-434",
+        "ECDLP-IDEA-435",
+        "ECDLP-IDEA-436",
     }
     if complete_ids != expected_complete_ids:
         errors.append(
-            "complete active/rejected/deferred ID coverage is not exactly 001..410"
+            "complete active/rejected/deferred ID coverage is not exactly "
+            "001..410 plus cohort 20260809-a"
         )
 
     retired_contracts = sorted(

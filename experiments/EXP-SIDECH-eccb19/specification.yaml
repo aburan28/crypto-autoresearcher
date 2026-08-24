@@ -1,0 +1,223 @@
+experiment:
+  id: EXP-SIDECH-eccb19
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-2f049b; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-2f049b
+  question_id: RQ-INSTR-f8faa0
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the detection-power surface of one frozen trace-based secret-dependence detector
+    across a planted-leak grade lattice and a four-point observation budget, with interleaved unplanted
+    and public-secret null cells.
+  objective: 'The one uncertainty a run reduces: what class of secret-dependent behaviour this program''s
+    only available leak detector can actually see, expressed as a number rather than as a claim of
+    rigour. Concretely: (i) what is the detector''s false-positive rate on a branch-free routine at
+    each budget, measured over independent seeds rather than taken to be the nominal alpha; (ii) what
+    is the smallest planted grade (m, w) the detector reaches a fire-rate of 0.8 on, at each budget,
+    which is the detector''s sensitivity stated in units a later record can cite; (iii) is the detector''s
+    response actually controlled by the grade coordinate -- that is, do two plants at the same grade
+    with different irrelevant arithmetic give the same fire-rate, and does a plant whose predicate
+    reads a public constant instead of the secret fail to fire -- which is the difference between
+    a detector of secret-dependence and a detector of plants. Without (iii) the surface would be a
+    measurement of the harness rather than of the detector. The run reduces exactly this uncertainty
+    and no other; it makes no attempt to find a leak in any real routine.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''for this detector at this frozen
+      threshold, on this branch-free base routine with this plant family, in this environment, the
+      false-positive rate at budget N was p with interval [a,b], and the minimum grade reaching fire-rate
+      0.8 was (m*, w*).'' What does NOT follow: that any routine in this repository leaks or does
+      not leak; that a detector with this sensitivity would find or miss a leak in a compiled implementation;
+      that any physical side channel exists; that grades map onto real-world leak severity; and anything
+      at all about the security of ECDSA, FN-DSA, SLH-DSA or any deployed system. In particular a
+      good surface licenses future NEGATIVE reports only down to the measured minimum detectable grade,
+      and licenses no positive report about any artifact not run here.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~2 hours implementation): write and freeze the branch-free base routine;
+      verify with dis output and with a determinism check that its traced event string is identical
+      across 500 distinct secrets. STAGE 1 (cost: ~1 hour): write the parameterised plant generator;
+      verify that grade (m,w) produces exactly m secret-dependent branch events per invocation by
+      counting events directly. STAGE 2 (cost: ~30 minutes): freeze the detector and its threshold,
+      record the threshold and a hash of the detector source in the run record before any cell executes.
+      STAGE 3 (cost: ~1-3 core-hours): execute the full grade x budget x seed grid, interleaving null
+      cells with signal cells in a recorded random order. STAGE 4 (cost: minutes): compute per-cell
+      fire-rates and binomial intervals; compute minimum detectable grade per budget; count monotonicity
+      violations. STAGE 5 (cost: minutes): run the arithmetic-invariance and public-constant-secret
+      controls at three matched cells. STAGE 6 (cost: minutes): emit the surface table, the two derived
+      numbers, and the run record with all seeds and the pre-run threshold hash.'
+    instrument: Python 3 standard library (sys.settrace or sys.monitoring for branch events, ast and
+      dis for verifying the base routine and the plant), numpy for the estimator and binomial intervals,
+      and the repository's own harness/runner.py and src/crypto_autoresearcher/runner.py for run-record
+      emission and seed recording. harness/ctrl_valueshuffle.py is the existing in-repository precedent
+      for a shuffle-style control arm. Base routine arithmetic uses harness/toycurve.py primitives.
+      No Sage, no external side-channel or fault-injection library, no physical instrumentation.
+    parameters: 'Grades: m in {0, 1, 2, 4, 8, 16}, w in {1, 2, 3}, with m=0 defining the two null
+      cells (w is irrelevant there and both are recorded). Budgets: N in {100, 400, 1600, 6400} traces
+      per detector invocation. Seeds: R=200 independent seeds per cell, drawn from one recorded master
+      seed. Base routine: fixed-length arithmetic pipeline of 256 field operations over p=65521. Secrets:
+      uniform 16-bit values. Detector threshold: fixed by the rule ''the 95th percentile of the statistic
+      over 1000 pilot runs on the base routine at N=1600'', computed once at STAGE 2 and frozen. Arithmetic-invariance
+      control: 2 plant variants at each of 3 grades.'
+  controls:
+  - Grade-(0,0) unplanted null, interleaved with signal cells and sharing seeds.
+  - 'Public-constant-secret null: plant present at grade (m,w) but the branch predicate reads a public
+    constant, so grade and secret-dependence are dissociated.'
+  - 'Arithmetic-invariance control: two plants at the same grade with different irrelevant arithmetic
+    must yield fire-rates whose intervals overlap.'
+  - 'Threshold-freeze control: the detector threshold is recorded before any cell is run and its hash
+    is stored in the run record.'
+  - 'Seed-independence control: the R seeds are drawn from a recorded master seed and the fire-indicator
+    series is checked for autocorrelation.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The grade-(0,0) cell IS the null object: the identical branch-free
+    routine, run through the identical detector at the identical budget with the identical seeds,
+    with no plant inserted. Executed in the same invocation as every signal cell, interleaved rather
+    than batched, so that any environment drift affects both arms equally. For the surface to mean
+    anything the null must show a fire-rate consistent with the detector''s nominal false-positive
+    rate -- pre-registered at 0.05 -- with its binomial interval containing that value. A null cell
+    that fires at 0.3 makes every signal cell uninterpretable, and the run reports the detector as
+    uncalibrated rather than reporting a surface. A second null arm swaps the secret argument for
+    a public constant, so that grade and secret-dependence are dissociated.'
+  independent_variables:
+  - planted-leak count m
+  - bits per planted branch w
+  - observation budget N
+  - plant arithmetic variant
+  - predicate source (secret vs public constant)
+  metrics:
+    primary:
+    - fire-rate per cell with binomial 95 percent interval
+    - false-positive rate at m=0
+    - minimum detectable m at fire-rate 0.8 per (w, N)
+    - blind-band width in grade units
+    secondary:
+    - monotonicity violation count
+    - detector statistic distribution per cell
+    - per-cell wall time
+    - 'event-count verification: measured secret-dependent branch events per invocation versus the
+      nominal m'
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The fire-rate as a function of grade and budget, and the two derived numbers read from
+      it.
+    formula: 'Under an additive-information model with a root-N estimator floor, the detector statistic
+      at grade (m,w) and budget N exceeds its threshold with probability approximately Phi( (c * min(m*w,
+      H(S)) - t) * sqrt(N) / s ), where H(S) is the secret label''s entropy in bits, t is the frozen
+      threshold, s is the statistic''s per-trace standard deviation measured at the null cell, and
+      c is an unknown per-detector constant. The run does NOT pre-commit c -- it is fitted from the
+      surface and reported with its residuals -- but it DOES pre-commit the shape: fire-rate must
+      be non-decreasing in m, non-decreasing in N, and must saturate once m*w exceeds H(S). A surface
+      that violates the saturation prediction falsifies the additive model even if the detector is
+      otherwise well-behaved, and that is reported as the result.'
+    source: Pre-registered in the parent proposal IDEA-20260816-2f049b before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The base routine is 256 toy-field operations at p=65521 and the secret is 16 bits,
+      chosen because at that size the null''s branch-freeness is verifiable by exhaustive determinism
+      checking and the plant''s event count is countable exactly. No transfer to cryptographic parameters
+      is claimed: a detector''s sensitivity on a 256-operation toy pipeline says nothing about its
+      sensitivity on a full signing routine, where the feature vector is far larger and the floor
+      correspondingly higher. The only extrapolation offered is the root-N budget scaling within the
+      fitted model, and it is reported with residuals at four measured budgets rather than fitted
+      from one.'
+    correspondence: null
+  tail_checks:
+  - Examine the detector statistic's upper tail at the null cell, since the false-positive rate is
+    entirely a tail property.
+  - Check cells adjacent to the estimated minimum detectable grade at higher seed count, since that
+    boundary is where binomial error matters most.
+  - Check the largest budget N=6400 at the null cell specifically, since a floor that grows with N
+    shows up there.
+  - Inspect the seeds producing fires at m=0 for a common structural feature.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt before the grid if the base routine fails its determinism check; report an instrument fault
+    and run no cells.
+  - Halt and report if the null cell's fire-rate exceeds 0.2 at the pilot stage; the surface is not
+    measurable with this threshold.
+  - Stop at R=200 seeds per cell; do not add seeds to move a boundary.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The null cells fire at a rate whose 95 percent interval contains the nominal
+    0.05, the public-constant-secret control does not fire above the null rate, and the fire-rate
+    is non-decreasing in m and N -- together yielding a reportable minimum-detectable-grade number
+    at each budget, whatever that number turns out to be.
+  falsification_criterion:
+  - Null fire-rate interval excludes the nominal 0.05.
+  - Public-constant-secret control fires at the matched signal cell's rate.
+  - More than one monotonicity violation beyond binomial error.
+  - Arithmetic-invariance control gives non-overlapping intervals at the same grade.
+  - Measured secret-dependent branch events per invocation disagree with the nominal m, showing the
+    plant generator is not delivering the grade it names.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-2f049b
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The rule fixing the detector threshold is stated but its independence from the results has not
+    been argued; a Coordinator must confirm the pilot set is disjoint from the measured cells.
+  - The plant family's representativeness of real secret-dependent code is asserted, not derived,
+    and the contract should say what class of real leak it is meant to stand for.
+  - H(S) saturation is predicted but the interaction between label entropy and featureisation dimension
+    has not been worked out.
+  - No power analysis was done to choose R=200; it is a budget choice and the resulting interval width
+    should be stated in advance.

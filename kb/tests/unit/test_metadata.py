@@ -120,6 +120,19 @@ def test_fingerprint_changes_on_a_real_edit():
     assert metadata_fingerprint(left) != metadata_fingerprint(right)
 
 
+@pytest.mark.parametrize(
+    "lineage_update",
+    [
+        {"supersedes": ["OLD-001"]},
+        {"verification_artifacts": ["ledger/old.yaml@sha256:" + "a" * 64]},
+    ],
+)
+def test_fingerprint_changes_when_lineage_changes(lineage_update):
+    baseline, _ = normalize(base())
+    updated, _ = normalize(base(**lineage_update))
+    assert metadata_fingerprint(baseline) != metadata_fingerprint(updated)
+
+
 def test_authority_ordering_is_total_and_ranked():
     assert authority_rank(Authority.MACHINE_CHECKED_PROOF) < authority_rank(Authority.REPRODUCED_EXPERIMENT)
     assert authority_rank(Authority.REPRODUCED_EXPERIMENT) < authority_rank(Authority.SINGLE_RUN_EXPERIMENT)
@@ -136,6 +149,26 @@ def test_payload_fields_cover_every_filterable_field():
     payload = metadata.payload_fields()
     for field in _LIST_FIELDS.values():
         assert field in payload, f"{field} is filterable but never reaches the payload"
+
+
+def test_payload_fields_include_immutable_lineage():
+    metadata, _ = normalize(
+        base(
+            supersedes=["OLD-001"],
+            verification_artifacts=[
+                "ledger/old.yaml@sha256:" + "a" * 64,
+                "ledger/new.yaml@sha256:" + "b" * 64,
+            ],
+        )
+    )
+
+    payload = metadata.payload_fields()
+
+    assert payload["supersedes"] == ["OLD-001"]
+    assert payload["verification_artifacts"] == [
+        "ledger/old.yaml@sha256:" + "a" * 64,
+        "ledger/new.yaml@sha256:" + "b" * 64,
+    ]
 
 
 def test_sidecar_round_trips_through_the_store(store):

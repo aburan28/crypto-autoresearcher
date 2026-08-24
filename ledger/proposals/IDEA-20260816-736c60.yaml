@@ -1,0 +1,243 @@
+idea:
+  id: IDEA-20260816-736c60
+  question_id: RQ-RSA-d46f02
+  added: '2026-08-16'
+  title: Do two partial leaks add? Supply bits of a prime and bits of the private exponent at the
+    same time, hold the total leaked bit count fixed, and measure whether the joint construction recovers
+    where either leak alone fails, or whether the second leak is worth less than the bits it contains.
+  class: composition
+  claim: '(A) Partial-information recovery is always posed here with one leak source. Real reasoning
+    about leakage severity is additive by default: a triage judgement that adds bits from two channels
+    and compares the sum against a bound assumes that two leaks of sizes a and b are worth a leak
+    of size a + b. That assumption is a composition claim and it has never been measured in this repository.
+    (B) Define the additivity deficit as follows. Fix a total leaked budget of k bits. Measure the
+    largest recoverable configuration when all k bits come from the prime, when all k come from the
+    private exponent, and when they are split in declared proportions. If the split arms recover wherever
+    the sum of information would predict, the leaks add; the claim under test is that they do NOT
+    add in general, because two leaks constrain the same secret through different algebraic relations,
+    and combining them requires a joint lattice whose dimension is roughly the sum and whose determinant
+    grows faster than either alone. (C) The claim includes a specific structural expectation: that
+    there is a regime where the split arm STRICTLY BEATS both pure arms at the same total k, namely
+    where each pure leak alone is just below its own threshold, and a complementary regime near either
+    pure threshold where the split arm is strictly worse. Locating the crossover is the deliverable,
+    and it is exactly the quantity a severity judgement would need. (D) WHAT IS NOT CLAIMED: no attack
+    and no security consequence; both leaks are supplied by this campaign to itself and no claim is
+    made that any real system leaks both. No claim that the joint construction used is the best possible
+    way to combine two leaks, so a measured deficit is a property of that construction; no claim about
+    leak pairs other than the one tested; and no assertion that combining leaks is impossible in any
+    regime, which is the opposite of what a measured crossover would show.'
+  mechanism: 'Stage 1: fix the two leak types precisely - a contiguous window of the prime''s bits,
+    and a contiguous window of the private exponent''s bits, both supplied by construction with the
+    full key known in advance. Stage 2: derive the joint polynomial system: the prime leak constrains
+    the prime directly, the exponent leak constrains the exponent through the key relation, and the
+    two share the unknown factorisation, so the joint system is multivariate with a declared shift
+    rule. Stage 3: fix a total leaked budget k and run arms at splits of 100/0, 75/25, 50/50, 25/75
+    and 0/100 on identical seeded key sets, measuring success at each split. Stage 4: sweep k to find,
+    for each split, the smallest k at which the split arm succeeds on at least 90 percent of instances;
+    the deficit is the difference between that value and the smallest of the pure arms'' thresholds.
+    Stage 5: locate the crossover in k where the best split changes. Refutation route: if no split
+    arm ever beats both pure arms at any k, composition buys nothing for this construction and the
+    honest deliverable is that measured obstruction with the joint dimension and determinant that
+    produced it.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Base bucket screen. Additionally: grep -rih for ''small private exponent'', ''private
+      exponent'', ''Wiener'', ''Boneh-Durfee'', ''composition'', ''combine'' across ledger/proposals/
+      and ledger/hypotheses/, and reading matching lines; re-read RQ-RSA-d46f02''s scope block, which
+      names small private exponent settings alongside partial key exposure.'
+    results: RQ-RSA-d46f02's scope names small-private-exponent attacks in the Wiener and Boneh-Durfee
+      lines as research targets to be located and filed, deliberately with no numbers attached; nothing
+      has been filed and the question carries zero proposals. The corpus's composition-flavoured proposals
+      are all in other lanes, mostly combining a lattice stage with a search stage in ML-KEM or in
+      index calculus. No record in the corpus combines two distinct leak sources about one secret,
+      and no record defines an additivity deficit for leakage. The blacklist's saturated threshold-ECDSA
+      and hidden-number-problem lanes concern nonce leakage across many signatures with averaging
+      available, which is structurally different from a single instance with two leaks and no averaging.
+    verdict: 'UNVERIFIED. Nothing asserted about external literature. Claimed new relative to this
+      repository: the additivity deficit as a defined and measured quantity for two simultaneous leak
+      sources about one RSA key, and the split-versus-pure crossover as the reported object. Assembled
+      from known parts: the two leak settings named but unfiled in RQ-RSA-d46f02''s own scope, the
+      small-root construction of KN-TECH-015, and the known-answer discipline used throughout this
+      bucket.'
+  object_first_candidate:
+    tracked_object: The pair of leaks as a single joint constraint object, carried as the triple (bits
+      from the prime, bits from the exponent, joint lattice dimension), and projected to the split
+      ratio and the total budget k.
+    lossiness: 'Genuinely lossy. The full state is both leaked bit strings, the full private key,
+      and the entire joint polynomial system. The tracked object retains only how many bits came from
+      each source and what the resulting dimension was, discarding the values, the positions within
+      each window, and the coefficients of the joint system. The discard is compatible with the target
+      operation - changing the split at fixed total - because the joint system''s shape is determined
+      by the two window lengths and the declared shift rule, not by the values. What it discards that
+      could matter is named: the two windows'' positions, high or low, change which relation each
+      leak enters, and position is therefore held fixed by declaration rather than dropped silently.'
+    propagation: One step of the target operation is moving one bit from the exponent window to the
+      prime window at fixed total k. Under such a step the prime-side box shrinks by a factor of two
+      and the exponent-side box doubles, the joint determinant moves by an exactly computable amount,
+      and the joint dimension may or may not change depending on the shift rule. The object propagates
+      as a split ratio whose effect on recoverability is, by the claim, non-monotone with an interior
+      optimum, which is precisely what a purely additive picture forbids.
+    survival_score: 'The joint object should survive while both windows are long enough to matter
+      and the joint dimension stays within budget. It dissolves at the two ends, where one window
+      is empty and the object degenerates to a pure arm, and it dissolves in the middle if the joint
+      dimension required by the shift rule exceeds what the reduction budget can handle. Concretely:
+      expected to carry information at n = 128 for total budgets spanning the two pure thresholds,
+      and to become budget-bound if the joint dimension exceeds roughly 60.'
+  null_object_control: The identical measurement runs against a null in which the second leak is replaced
+    by bits of an UNRELATED random integer of the same size, presented to the joint construction in
+    exactly the same slot with the same window length. The null must show that the split arms perform
+    no better than the pure prime arm with only its own bits, at every k; if a fake second leak helps,
+    the joint construction is gaining from dimension or from scaling rather than from information,
+    and every additivity conclusion is void. A second null replaces the exponent leak with a window
+    of the correct length whose bits are the true exponent's bits in permuted order, which must also
+    fail to help.
+  discriminated_from:
+  - 'Entry four of this bucket (non-contiguous positions): one leak source with a structured position
+    set. This entry uses two contiguous windows on two different quantities, so the object is a pair
+    of algebraic relations rather than a position set.'
+  - 'Entry five of this bucket (noisy leakage): one leak source with corrupted values. Here both leaks
+    are exact and the variable is how the budget is divided between two sources.'
+  - 'Threshold-ECDSA, ROS and hidden-number-problem work in this repository, which the blacklist marks
+    saturated: those aggregate many partial nonce leaks across signatures, where averaging over samples
+    is the central mechanism. Here there is one key, two leaks, and no averaging is available at all,
+    so the mechanism has no analogue.'
+  - 'Entry one of this bucket: measures a single-leak reach curve, which this entry consumes as its
+    two pure-arm baselines and does not re-derive.'
+  - 'Any proposal that combines a lattice stage with a search stage: those compose ALGORITHMS. This
+    composes CONSTRAINTS about one secret, and the deficit is defined on leaked bits rather than on
+    running time.'
+  assumptions:
+  - A joint polynomial system for the two leak types can be written down by a declared rule without
+    per-split tuning; otherwise the split arms are not comparable to each other.
+  - The two pure-arm thresholds are known from entry one at the same n and construction; without them
+    the deficit has no reference.
+  - Window positions are fixed by declaration, so that split effects are not confounded with position
+    effects.
+  - The private exponent is generated in a declared range and its size is recorded, since the exponent
+    leak's value depends entirely on that range.
+  predictions:
+  - metric: smallest total k at which the best split arm succeeds, versus the smaller of the two pure-arm
+      thresholds
+    direction: lower
+    minimum_effect: 1.0
+  - metric: smallest total k for the 50/50 split versus the sum of half-thresholds predicted by pure
+      additivity
+    direction: higher
+    minimum_effect: 'Forced statement: the 50/50 requirement exceeds the additive prediction. No numeric
+      excess is pre-committed because its size is the deficit being measured.'
+  - metric: existence of a k range where a split arm strictly beats both pure arms
+    direction: different
+    minimum_effect: 'Forced value: at least one k with a split arm succeeding while both pure arms
+      fail on the same instances. If no such k exists, the composition claim is refuted.'
+  - metric: fake-second-leak null improvement over the pure prime arm
+    direction: lower
+    minimum_effect: 0.0
+  minimal_test:
+    design: Fix n = 128, one construction and one exponent range. Take the two pure-arm thresholds
+      from entry one. Choose a single total budget k placed just below both pure thresholds, where
+      the composition claim makes its sharpest prediction. Run five split arms at 100/0, 75/25, 50/50,
+      25/75 and 0/100 on 60 paired seeded key sets, each key carrying both leaks so that all five
+      arms see the same keys. Run the fake-second-leak null and the permuted-exponent null across
+      all five splits in the same invocation. Report success counts with exact binomial intervals
+      per split, the joint lattice dimension and exact determinant per split, and whether any split
+      succeeded where both pure arms failed. This discriminates because the entire composition claim
+      reduces to whether an interior split beats both ends at a single well-chosen k, and because
+      the fake-leak null decides immediately whether any advantage is informational or dimensional.
+      Expected cost a few CPU-hours.
+    controls:
+    - 'Fake-second-leak null: bits of an unrelated integer in the same slot, same window length, same
+      invocation.'
+    - Permuted-exponent-bits null, preserving the multiset and destroying the assignment.
+    - Paired keys carrying both leaks, so all splits see identical instances.
+    - Pure arms run in the same invocation as the split arms rather than imported, so that the comparison
+      carries no cross-run drift.
+    - Exact determinant cross-check of the joint basis at every split against a symbolic prediction.
+    required_metrics:
+    - success count and exact binomial interval per split at each total budget k
+    - smallest k with at least 90 percent success, per split
+    - 'additivity deficit: smallest k for the best split minus the smaller pure-arm threshold'
+    - joint lattice dimension and exact log determinant per split
+    - fake-leak and permuted-leak null success rates with exact binomial upper bounds
+    - reduction wall time and peak resident memory per split
+  falsification_conditions:
+  - 'No split arm succeeds where both pure arms fail at any tested k: the composition claim is refuted
+    and the measured obstruction, with joint dimension and determinant, is the deliverable.'
+  - 'The fake-second-leak null improves on the pure prime arm: any advantage is dimensional rather
+    than informational and all additivity conclusions are void.'
+  - 'The permuted-exponent null helps: the construction is using window length rather than window
+    content.'
+  - 'A joint basis fails its determinant cross-check: the shift rule was not applied as declared at
+    that split.'
+  - 'The joint dimension at interior splits exceeds the budget in the majority of instances: the comparison
+    measures the budget and is reported as a budget outcome.'
+  confounders:
+  - The exponent range determines how much an exponent leak is worth, so a small exponent would make
+    the exponent arm trivially strong; the range is declared and recorded and the whole experiment
+    is repeated at a second range if the first is degenerate.
+  - The declared shift rule may suit one split better than another, so a measured optimum could be
+    a property of the rule; dimension and determinant per split are reported so this is visible rather
+    than hidden.
+  - Window positions interact with which relation each leak enters; positions are fixed by declaration
+    and any change of position is a separate contract.
+  - Joint dimension grows at interior splits, so time caps bind hardest exactly where the claim predicts
+    an advantage, which would suppress the effect the entry is looking for; capped instances are reported
+    separately and the cap is set from a pilot.
+  - The pure arms are also the endpoints of the split sweep, so any drift between them and entry one's
+    thresholds indicates a configuration mismatch and is checked before the deficit is computed.
+  interpretation_limits:
+  - A deficit is measured for one joint construction and one leak pair; nothing bounds what a better
+    joint construction could do, and no direction is declared closed.
+  - Both leaks are self-supplied; no claim is made that any real system exposes both, and severity
+    reasoning about real channels does not follow.
+  - Results hold at the tested modulus size, exponent range and window positions only.
+  - Where the joint dimension exceeded budget, the arm reports a budget outcome and not a mathematical
+    one.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Joint arms carry higher lattice dimension than pure
+      arms and therefore cost more; that cost is measured per split and reported as instrument cost,
+      never as an attack complexity.
+    memory_exponent: No attack memory exponent is claimed. Peak resident memory per split is reported
+      beside time, and interior splits are expected to be the most memory-hungry.
+    best_known: 'The incumbent is the additive convention: leaked bits from different channels are
+      summed and compared against a single bound. RQ-RSA-d46f02 names both leak settings as targets
+      to be filed and neither has been; the incumbent measurement of how two leaks combine in this
+      repository is that none exists.'
+    hidden_overhead: 'The joint shift rule is the hidden cost and the place an unfair comparison would
+      enter: a rule tuned at one split silently invalidates the sweep. Machine-side, joint dimension
+      growth at interior splits means the arms that matter most are the slowest, which is why the
+      cap must be set from a pilot rather than assumed.'
+  dominated_by: n/a (no result claimed). No attack point is asserted, so no time, memory or query
+    frontier row applies; frontier rows were not checked for that reason, stated plainly rather than
+    recorded as null.
+  sota_delta: No attack; conceptual and measurement contribution only. The deliverable is an additivity
+    deficit in bits and a located crossover in split ratio, where this repository currently holds
+    no measurement of how two leaks about one key combine.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'A declared joint shift rule producing runnable systems at all five splits
+    without per-split tuning: 0.5, the dominant risk in the entry. Some interior split strictly beating
+    both pure arms at some k: 0.55, which is the core two-sided question. The 50/50 requirement exceeding
+    the additive prediction: 0.8, since paying for a second variable is the default expectation. The
+    fake-leak null behaving: 0.9. Interior splits staying inside budget at n = 128: 0.6, and if they
+    do not, the honest outcome is a budget report rather than a composition result.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-RSA-d46f02
+  - KN-TECH-015
+  - KN-TECH-14efa5
+  - IDEA-20260808-e2315e
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - docs/target-result-profile.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-RSAPI-6f1f24

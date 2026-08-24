@@ -1,0 +1,163 @@
+merge_decision:
+  task_id: TASK-20260821-9c6eb4
+  verdict: REPAIR_REQUIRED
+  decided_by: coordinator
+  decided_on: '2026-08-22'
+  implementation_snapshot:
+    commit: e0c4f9384e6db209065660756b425617d78d6b08
+    parent: 231ab571
+    status: superseded_for_merge_by_required_repair
+  red_team_evidence:
+    task_id: TASK-20260821-78e283
+    archive_commit: b666ca33fd58d898cd1d5fc011bfb085cd24addf
+    report_sha256_prefix: 920898d
+    task_report_sha256_prefix: c548f9
+    blindness:
+      validator_report_read: false
+    blocking_findings:
+      - id: B1
+        title: Tracked sharded-goal directory symlink bypasses merge hygiene
+        observation: >-
+          A tracked symlink at ledger/goals/GOAL-BYPASS-002 pointing to
+          ../../docs/legacy-alias produces merge-hygiene exit status 0 and no
+          ledger goal errors, while campaign projection rejects the same
+          object.
+        consequence: >-
+          The candidate-tree goal enumerator does not consistently reject a
+          filesystem object that is not an actual repository-owned goal
+          directory. This breaks the prospective-enforcement boundary and
+          creates disagreement among authoritative consumers.
+        disposition: blocks_merge
+    nonblocking_findings_entering_repair:
+      - id: N1
+        title: Free legacy GOAL candidate passes allocator --check
+        disposition: include_in_successor
+        rationale: >-
+          --check is the prospective confirmation step for a newly minted
+          identifier. Accepting an unused legacy three-digit GOAL candidate
+          leaves a direct operator path around the random-suffix requirement.
+      - id: N2
+        title: Goal allocation accepts date scope and ambiguous simultaneous scopes
+        disposition: include_in_successor
+        rationale: >-
+          GOAL allocation is area-scoped. Accepting --date or accepting both
+          --area and --date makes the canonical namespace ambiguous and permits
+          noncanonical minting behavior.
+    disclosed_gaps_not_entering_this_successor:
+      - id: N3
+        title: Untracked and deletion coverage gaps
+        disposition: deferred_not_waived
+        rationale:
+          - >-
+            An untracked object cannot enter a committed PR without becoming
+            tracked, at which point the tracked candidate-tree guard must reject
+            the symlink.
+          - >-
+            Deletion does not mint a new identifier and remains governed by the
+            repository's existing immutability and merge-hygiene controls.
+          - >-
+            The successor must not claim untracked-path coverage that the tool
+            does not provide.
+        revisit_condition: >-
+          Reopen N3 if the successor demonstrates that a committed deletion of
+          an immutable goal record is not rejected by existing controls, or if
+          the documented command contract is expanded to promise pre-add
+          untracked-file protection.
+  validator_evidence:
+    task_id: TASK-20260821-0e1a21
+    archive_commit: d2f1501bc16d6f495198ed75d60ba46a1c540036
+    verdict: PASS
+    passed_gates: 35
+    total_gates: 35
+    blindness:
+      red_team_report_read: false
+    retained_scope: >-
+      Exact snapshot, hash, file-scope, ordinary-file compatibility,
+      prospective regular-path behavior, and zero-new-error gates tested by the
+      Validator.
+    limitation: >-
+      The validation matrix did not include a tracked symlink occupying a
+      sharded GOAL directory path. PASS therefore does not cover B1.
+  composition:
+    result: >-
+      The reports are mutually consistent once their tested domains are made
+      explicit. The Validator establishes the regular-path implementation
+      baseline; the Red Team supplies a counterexample outside that baseline.
+      A single reproducible blocking counterexample is sufficient to refuse
+      merge.
+    ci_effect: >-
+      Green CI for the prior head is retained as evidence for covered tests but
+      cannot discharge a missing known-false filesystem-object control.
+    merge_authorized: false
+    mark_pr_ready: false
+    erank_opening_authorized: false
+  successor_scope:
+    implementation_paths:
+      - tools/check_merge_hygiene.py
+      - tools/validate_ledger.py
+      - tools/allocate_id.py
+      - tools/test_goal_id_random_suffix.py
+      - tools/test_allocate_id.py
+    prohibited_paths:
+      - documentation
+      - projection
+      - MCP
+      - dispatch
+      - closure
+      - templates
+      - skills
+      - ledger records
+      - experiments
+      - research records
+    included_findings: [B1, N1, N2]
+    deferred_findings: [N3]
+  successor_task_ids:
+    archive_this_decision: TASK-20260821-556bcc
+    implementation: TASK-20260822-6039d9
+    archive_implementation: TASK-20260822-532ed3
+    red_team_recheck: TASK-20260822-12a697
+    validator_recheck: TASK-20260822-623567
+    archive_red_team_recheck: TASK-20260822-bed39c
+    archive_validator_recheck: TASK-20260822-c978bb
+    second_merge_decision: TASK-20260822-4c2dff
+    archive_second_merge_decision: TASK-20260822-4ea05c
+  b1_required_semantics:
+    ledger_goal_tree: >-
+      A symlink at any filesystem position purporting to be a GOAL head, flat
+      record, sharded directory, or record within a sharded directory is a hard
+      validation error.
+    merge_hygiene: >-
+      A tracked candidate-tree symlink under ledger/goals/ must produce a
+      nonzero result before semantic set comparison can omit or follow it.
+    non_following: >-
+      Rejection is independent of target existence or location; no symlink
+      target is read or interpreted as a goal.
+    compatibility: >-
+      Ordinary directories and legitimate flat-to-sharded migration remain
+      supported, and existing duplicate and path/content checks remain active.
+  n1_required_semantics:
+    free_legacy_goal_check: reject_nonzero_with_random_suffix_explanation
+    free_random_goal_check: accept_when_well_formed_and_unused
+    historical_whole_tree_compatibility: preserve
+    unrelated_record_types: unchanged
+  n2_required_semantics:
+    next_goal_requires: exactly_one_area_argument
+    reject:
+      - date_without_area
+      - simultaneous_area_and_date
+      - neither_area_nor_date
+    unrelated_identifier_types: unchanged
+  required_action:
+    - Implement the bounded B1, N1, and N2 repair under the frozen successor scope.
+    - Archive a new implementation snapshot.
+    - Obtain blind Red Team and Validator rechecks.
+    - Issue a new Coordinator merge decision.
+  campaign_gate:
+    infrastructure_pr_merge_authorized: false
+    erank_goal_record_creation_authorized: false
+    erank_queue_materialization_authorized: false
+    research_dispatch_authorized: false
+    rank_claim_effect: none
+    next_eligible_action: >-
+      Archive TASK-20260821-9c6eb4 and execute only the frozen five-path
+      successor repair.
