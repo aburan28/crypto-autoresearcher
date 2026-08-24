@@ -101,3 +101,53 @@ Recompute the K3 from the public datum: the non-CM orbit at `|t| = 14/13` on
 `u^2 = 16t^6 - 19t^4 + 88t^2 - 48`, via Elkies-Kumar 2-neighbour methods. **The
 input is public even though the output model is not.** Costed as a substantial
 project, not a session task.
+
+---
+
+# Addendum: forensics attempted WITHOUT the fibration, and what it settled
+
+Run in this session after the retrieval, on three rungs of the ladder: the
+verified rank-28 curve, ICARM #273 (rank >= 30), and ICARM #302 (rank >= 31).
+#273's a-invariants were retrieved the same way and carry the same provenance
+caveat; its listed conductor was not independently checked.
+
+## Measured
+
+| curve | log&#124;disc&#124; | naive height | j integral |
+| --- | --- | --- | --- |
+| rank 28 | 381.2024 | 393.6297 | no |
+| #273, r>=30 | 432.1249 | 442.0854 | no |
+| #302, r>=31 | 453.0469 | 468.2771 | no |
+
+**Pairwise quadratic-twist test: NEGATIVE on all three pairs.** No two of the
+record curves share a j-invariant, so none is another's twist.
+
+**Shared small primes in the discriminants**, with multiplicities
+(rank28 / #273 / #302): p=2 -> 15/16/15, p=3 -> 6/12/4, p=5 -> 6/8/4,
+p=7 -> 4/5/6, p=13 -> 4/5/5.
+
+## What this settles, and what it does NOT
+
+The twist test rules out only the degenerate case where two records are the same
+fibre up to twist. **Distinct j is EXPECTED for distinct specialisations of one
+fibration, so this does not refute a common family and must not be reported as
+doing so.**
+
+The shared small primes are **suggestive but not evidence.** A common fibration
+would put bad fibres over fixed t-values and produce common bad primes -- but so
+would search bias, because a sieve selects curves with many points modulo small
+primes, which drives exactly this divisibility. The two explanations are not
+separated by this measurement, and I am not going to pretend they are.
+
+## Conclusion
+
+**The family cannot be identified from the curves alone with what is available
+here.** IDEA-20260824-155411's forensics test is decidable only against the
+fibration's j-map, and that map is unpublished (see above). The inverted form --
+reconstructing the fibration from several known specialisations -- is
+over-determined in principle and was worth trying, but the discriminating
+statistic still requires the object we do not have.
+
+This closes the cheap forensics lane. It does not close the structural lane,
+which now rests on the two actions named above: obtain the model from its author,
+or recompute the K3 from the public Shimura-curve datum.
