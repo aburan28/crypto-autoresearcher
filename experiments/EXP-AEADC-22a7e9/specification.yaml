@@ -1,0 +1,225 @@
+experiment:
+  id: EXP-AEADC-22a7e9
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-7fb48f; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-7fb48f
+  question_id: RQ-AEADC-8db132
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Exhaustively enumerate four declared AEAD length-encoding conventions over all length pairs
+    in a named finite class and report exact collision counts against pre-registered structural predictions
+    and weakened positive controls
+  objective: 'The one uncertainty a run reduces is whether the boundary-encoding surface of an AEAD
+    mode is injective over a fully enumerated class, and if not, exactly where it first fails. Concretely:
+    (i) for each of the four declared conventions, what is the exact integer count of colliding length
+    pairs within all pairs up to the declared maximum at every supported field width, and what is
+    the minimal colliding pair as bytes; (ii) does that count agree with the structural injectivity
+    condition derived by hand and pre-registered before the enumerator runs, since a disagreement
+    falsifies an argument that reads as obviously correct and is worth more than the count itself;
+    (iii) is the enumerator demonstrably able to find collisions at all, established by the weakened
+    positive controls whose counts are predicted exactly in advance, so that a zero count elsewhere
+    is a verified injectivity statement rather than a silent failure. A run additionally reduces uncertainty
+    about the framing of this whole bucket, by checking that the count is byte-identical under an
+    ideal permutation in the primitive slot, which is the substitution the bucket treats as its defining
+    null.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: for each of the four conventions
+      as specified in stage 1, over all associated-data and ciphertext length pairs up to 2^20 bytes
+      at each declared field width, the encoding function collided exactly N times, with the listed
+      minimal colliding pairs, and the weakened controls collided at their predicted counts. What
+      does NOT follow: nothing about AES-GCM, CCM, AES-GCM-SIV, ChaCha20-Poly1305 or any named mode,
+      since the conventions are declared models and are not identified with any of them; no forgery,
+      attack, break or security consequence, since an encoding collision becomes a security statement
+      only under further conditions this run does not establish; nothing about lengths above the enumerated
+      bound; and no statement about what published designs do.'
+  inputs:
+    procedure: 'STAGE 0, zero compute, hours of human effort: fully specify the four conventions,
+      including field widths, endianness, fill bytes and concatenation order, and hash the specification
+      file. STAGE 1, zero compute: derive by hand the structural injectivity condition and the predicted
+      collision count per convention per field width; record with a file hash before any code runs.
+      STAGE 2, minutes: implement the four conventions as pure functions and validate each against
+      its own decoder on a fixture set. STAGE 3, minutes to an hour: enumerate all length pairs up
+      to 2^20 at each field width per convention, counting collisions exactly and storing every colliding
+      pair. STAGE 4, minutes: enumerate the four weakened variants as positive controls. STAGE 5,
+      minutes: rerun one convention with a seeded ideal permutation in the primitive slot and diff
+      the tables byte for byte. STAGE 6, hours of human effort: write an independent second implementation
+      of one convention from the stage-1 text alone and compare tables. STAGE 7, zero compute: emit
+      counts, minimal pairs, prediction deltas and control counts into an immutable run record via
+      harness/runner.py.'
+    instrument: 'Python 3, standard library only: four pure encoding functions, four decoders, an
+      exact enumerator using a dict keyed by explicit length-tagged byte tuples, and a streaming sorted-run
+      merge fallback for the largest field width. A seeded lazily-sampled bijection provides the ideal-primitive
+      slot for the invariance check; the real-primitive arm uses a pinned pure-Python block cipher
+      validated against published test vectors, though neither primitive can affect the count. Manifest
+      emission and seeding via harness/runner.py. No Sage, no network, no key material of any kind
+      in the load-bearing enumeration.'
+    parameters: 'Four conventions: trailing fixed-width length block, length-prefix, zero-padding-to-block-boundary
+      without a length field, and delimiter byte. Field widths of 32 and 64 bits for the length fields,
+      plus a weakened variant at width minus four bits for each. Associated-data length and ciphertext
+      length each enumerated over all values from 0 to 2^20 bytes inclusive, giving roughly 1.1 times
+      10^12 raw pairs, reduced by the block-boundary quantisation of each convention to the distinct
+      encoded classes actually reachable, which is what is enumerated. Block size 16 bytes. One primitive-substitution
+      arm.'
+  controls:
+  - Weakened-variant positive control per convention, with a predicted nonzero collision count computed
+    in stage 2.
+  - 'Primitive-substitution null: identical enumeration with a seeded ideal permutation in the slot,
+    requiring a byte-identical table.'
+  - Pre-registered hand-derived count per convention, recorded with a file hash before the enumerator
+    runs.
+  - 'Round-trip decodability check: every encoding that the hand derivation calls injective is decoded
+    back to its input pair and verified.'
+  - An independent second implementation of one convention, written from the stage-1 specification
+    alone, whose table must match the first.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls executed in the same invocation. NULL ONE, the structural
+    null: a deliberately weakened variant of each convention with one length field narrowed by four
+    bits, which must produce a nonzero and exactly predictable collision count; if it does not, the
+    enumerator is broken and a zero count elsewhere means nothing. NULL TWO, the primitive null this
+    bucket''s directive names: rerun one convention with the block cipher replaced by a seeded ideal
+    permutation, which must produce a byte-identical collision table, since an injectivity count cannot
+    depend on the primitive. For the audit to mean anything, null one must be nonzero at its predicted
+    count and null two must be exactly identical.'
+  independent_variables:
+  - encoding convention
+  - length field width
+  - associated-data length
+  - ciphertext length
+  - primitive slot occupant
+  metrics:
+    primary:
+    - exact collision count per convention per field width
+    - minimal colliding length pair per convention, as bytes
+    - signed difference between the pre-registered predicted count and the enumerated count
+    - collision count of each weakened positive control against its predicted value
+    secondary:
+    - byte-level diff of collision tables across primitive slots
+    - count of round-trip decodability failures
+    - agreement of the independent second implementation on one convention
+    - enumeration wall-clock and peak memory per convention
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The collision count of every convention and of every weakened positive control, inside
+      the declared class.
+    formula: For a convention that encodes both lengths in distinct fixed-width fields wide enough
+      to represent the maximum enumerated length, the predicted count is exactly zero, since the map
+      from a length pair to the concatenated fields is injective by field separation. For a convention
+      that pads each field to a block boundary and appends no length field, the predicted count is
+      the number of pairs whose padded forms coincide, which equals the number of distinct pairs of
+      lengths sharing the same block-quantised value in both coordinates, computed exactly in stage
+      1 as a closed-form sum over quantisation classes. For each weakened variant with field width
+      w reduced below the bits needed for the maximum length L, the predicted count is the number
+      of pairs colliding by modular wrap, computed as a closed form in L and w. Every one of these
+      values is written down before the enumerator is run.
+    source: Pre-registered in the parent proposal IDEA-20260816-7fb48f before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The enumerated class -- all length pairs to 2^20 bytes at 32- and 64-bit field
+      widths -- is a toy class in message length but is EXHAUSTIVE within it, which is the point:
+      no sampling, no statistics, no extrapolation, and an exact integer answer. The single stated
+      transfer assumption is that a collision, if a convention has one, appears at small lengths through
+      quantisation or wrap rather than only near the field maximum; that assumption is testable and
+      is exactly what the weakened positive controls exercise by moving the wrap point down into the
+      enumerated range. No result is projected outside the enumerated class, and the class boundary
+      is reported alongside every count.'
+    correspondence: null
+  tail_checks:
+  - The zero-length cases in each coordinate are checked explicitly, since empty associated data is
+    the classic boundary the padding conventions handle differently.
+  - Length pairs exactly at a block boundary and one byte on either side are checked separately for
+    each convention.
+  - The largest enumerated lengths at the reduced field widths are checked for wrap, which is where
+    the weakened controls must produce their collisions.
+  - Peak memory at the 64-bit field width is checked before the full run, with the streaming fallback
+    engaged if the table would not fit.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt and report the enumerator invalid if any weakened positive control returns zero collisions.
+  - Halt if the round-trip decoder disagrees with its encoder on any fixture.
+  - If the enumeration cannot complete at the largest field width within four core-hours, report the
+    class actually enumerated and make no statement about the remainder.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A completed enumeration in which every weakened positive control returns its
+    predicted nonzero count, the primitive-substitution tables are byte-identical, and each of the
+    four conventions carries an exact collision count with its minimal colliding pair or a verified
+    zero, reported against its pre-registered prediction.
+  falsification_criterion:
+  - A weakened positive control returns zero, invalidating the enumerator.
+  - The enumerated count disagrees with the pre-registered structural prediction for any convention.
+  - The independent second implementation of a convention produces a different table, indicating a
+    stage-1 specification ambiguity.
+  - The primitive-substitution tables differ in any byte.
+  - A convention declared injective fails round-trip decoding on any enumerated pair.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-7fb48f
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The four conventions are described by shape but their exact field widths, fill bytes, endianness
+    and concatenation order must be fixed by the Coordinator before stage 1 is meaningful, since every
+    unspecified rule is a hidden degree of freedom.
+  - The length bound of 2^20 is chosen for enumerability and not from an argument that a first collision
+    must appear below it.
+  - The choice of which single convention receives the independent second implementation is not made,
+    and it should be the one whose predicted count is nonzero.

@@ -20,6 +20,7 @@ from typing import Any, Callable, Iterable
 from urllib.parse import quote
 
 from . import config as config_module
+from . import resolver as resolver_module
 
 
 SCHEMA = "crypto.autoresearch.codex_runtime_session_receipt.v1"
@@ -36,6 +37,7 @@ STATE_COLUMNS = (
 )
 FAILURE_CODES = frozenset({
     "invalid_argument", "receipt_exists", "codex_version_failed",
+    "forbidden_inference_target",
     "launch_timeout", "launch_nonzero_exit", "probe_output_mismatch",
     "thread_id_missing", "thread_id_ambiguous", "state_db_read_failed",
     "state_row_missing", "state_row_ambiguous", "rollout_path_invalid",
@@ -44,6 +46,8 @@ FAILURE_CODES = frozenset({
     "model_mismatch", "reasoning_effort_mismatch", "provider_mismatch",
     "cli_version_mismatch", "workdir_mismatch", "source_mismatch",
     "sandbox_mismatch", "timestamp_invalid",
+    "policy_resolution_failed", "model_policy_mismatch",
+    "reasoning_effort_policy_mismatch",
     "runtime_bindings_check_failed", "receipt_write_failed",
     "privacy_invariant_failed", "metadata_schema_unsupported",
 })
@@ -168,6 +172,7 @@ def _empty_receipt(*, task_id: str, role: str, independent: bool,
             "sandbox": "read-only",
             "source": "exec",
         },
+        "policy_resolution": None,
         "runtime": {
             "runtime": "codex_cli",
             "provider": None,
@@ -219,6 +224,52 @@ def _empty_receipt(*, task_id: str, role: str, independent: bool,
             "failures": [],
         },
     }}
+
+
+def _strict_resolution(*, cfg: config_module.Config, policy: str, role: str,
+                       backend: str, effort: str | None,
+                       independent_session: bool) -> resolver_module.Resolution:
+    """Resolve native-Codex policy before any subprocess or network request."""
+    try:
+        resolution = resolver_module.resolve(
+            cfg, policy, backend=backend, fallback_allowed=False,
+            degraded_allowed=False, independent_session=independent_session,
+            originating_agent=None, assigned_agent=role,
+            reasoning_effort=effort)
+    except (config_module.ConfigError, resolver_module.ResolutionError):
+        raise _ProbeFailure("policy_resolution_failed") from None
+    if (resolution.backend != backend or resolution.fallback_used or
+            resolution.degraded_requirements or resolution.reasoning_effort_capped):
+        raise _ProbeFailure("policy_resolution_failed")
+    try:
+        cfg.assert_inference_target_allowed(
+            backend, resolution.provider, resolution.base_url,
+            resolution.resolved_model_id,
+            context="resolved native Codex probe target")
+    except config_module.ConfigError:
+        raise _ProbeFailure("forbidden_inference_target") from None
+    return resolution
+
+
+def _public_resolution(resolution: resolver_module.Resolution) -> dict[str, Any]:
+    return {
+        "requested_policy": resolution.requested_policy,
+        "canonical_policy": resolution.policy,
+        "backend": resolution.backend,
+        "provider_display_name": resolution.provider,
+        "resolved_model_id": resolution.resolved_model_id,
+        "model_provenance": resolution.model_provenance,
+        "model_last_probed": resolution.model_last_probed,
+        "requested_reasoning_effort": resolution.requested_reasoning_effort,
+        "reasoning_effort": resolution.reasoning_effort,
+        "fallback_used": resolution.fallback_used,
+        "fallback_allowed": False,
+        "degraded_requirements": list(resolution.degraded_requirements),
+        "degraded_allowed": False,
+        "reasoning_effort_capped": resolution.reasoning_effort_capped,
+        "verified_model": resolution.verified_model,
+        "global_backend_verified": False,
+    }
 
 
 def _run(argv: list[str], *, cwd: Path, timeout: int,
@@ -446,7 +497,8 @@ def _cross_checks(*, receipt: dict[str, Any], request_model: str,
                   session: dict[str, Any], turn: dict[str, Any],
                   cli_version: str, launch_start: datetime,
                   launch_end: datetime, binding_start: datetime,
-                  binding_end: datetime, recorded_at: datetime) -> list[str]:
+                  binding_end: datetime, recorded_at: datetime,
+                  expected_provider: str | None = None) -> list[str]:
     verification = receipt["runtime_session_receipt"]["verification"]
     normalized_row_model = row["model"].strip() if isinstance(row["model"], str) else None
     normalized_turn_model = turn["model"].strip() if isinstance(turn["model"], str) else None
@@ -461,7 +513,8 @@ def _cross_checks(*, receipt: dict[str, Any], request_model: str,
                          (session.get("model_provider"), turn.get("model_provider"))
                          if isinstance(value, str) and value.strip()]
     verification["provider_matches"] = bool(provider) and all(
-        value == provider for value in rollout_providers)
+        value == provider for value in rollout_providers) and (
+            expected_provider is None or provider == expected_provider)
 
     verification["cli_version_matches"] = (
         cli_version == row["cli_version"] == session["cli_version"])
@@ -512,6 +565,7 @@ def _write_exclusive(path: Path, receipt: dict[str, Any]) -> None:
     payload = json.dumps(receipt, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     try:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        os.fchmod(fd, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(payload)
             handle.flush()
@@ -548,6 +602,7 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
                         state_db: str, workdir: str, model: str, effort: str,
                         policy: str, role: str, task_id: str, receipt: str,
                         independent_session: bool, timeout_seconds: int = 300,
+                        backend: str = "openai",
                         process_runner: Callable[..., subprocess.CompletedProcess[Any]] = subprocess.run,
                         bindings_runner: Callable[..., subprocess.CompletedProcess[Any]] | None = None,
                         clock: Callable[[], datetime] = _now) -> dict[str, Any]:
@@ -567,6 +622,7 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
     canonical_workdir: Path | None = None
     canonical_state_db: Path | None = None
     rollout_path: Path | None = None
+    resolution: resolver_module.Resolution | None = None
     result = _empty_receipt(task_id=task_id, role=role,
                             independent=bool(independent_session), policy=policy,
                             canonical_policy=None, model=model, effort=effort,
@@ -579,9 +635,25 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
                 not isinstance(timeout_seconds, int) or timeout_seconds <= 0):
             raise _ProbeFailure("invalid_argument")
         try:
+            # ``--model`` is an executable selector passed to the native CLI,
+            # so reject it before even the harmless-looking version subprocess:
+            # a caller-supplied Bedrock model must never reach ``codex exec``.
+            cfg.assert_inference_target_allowed(
+                model, context="Codex session probe requested model")
+        except config_module.ConfigError:
+            raise _ProbeFailure("forbidden_inference_target") from None
+        try:
             canonical_policy = cfg.canonical_policy(policy)
         except config_module.ConfigError:
             raise _ProbeFailure("invalid_argument") from None
+        resolution = _strict_resolution(
+            cfg=cfg, policy=policy, role=role, backend=backend, effort=None,
+            independent_session=bool(independent_session))
+        body["policy_resolution"] = _public_resolution(resolution)
+        if model != resolution.resolved_model_id:
+            raise _ProbeFailure("model_policy_mismatch")
+        if effort != resolution.reasoning_effort:
+            raise _ProbeFailure("reasoning_effort_policy_mismatch")
         canonical_workdir = _existing_path(workdir, kind="dir")
         canonical_state_db = _existing_path(state_db, kind="file")
         binary = _existing_path(codex_bin, kind="file")
@@ -671,6 +743,18 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
         })
         provider = row["model_provider"].strip() if isinstance(row["model_provider"], str) else ""
         body["runtime"]["provider"] = provider or None
+        try:
+            # A native Codex session cannot establish its provider without
+            # observing the session metadata after launch.  It must therefore
+            # never turn a consistently reported forbidden provider or model
+            # into a verified runtime receipt.
+            cfg.assert_inference_target_allowed(
+                row.get("model"), row.get("model_provider"),
+                session.get("model"), session.get("model_provider"),
+                turn.get("model"), turn.get("model_provider"),
+                context="observed Codex runtime target")
+        except config_module.ConfigError:
+            raise _ProbeFailure("forbidden_inference_target") from None
         # Preserve the runtime-bindings gate: all request/state/rollout checks
         # must fail closed before invoking the checker.  These placeholder
         # values consume no clock reading and are only a preliminary metadata
@@ -682,7 +766,8 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
             thread_time=thread_time, row=row, session=session, turn=turn,
             cli_version=cli_version, launch_start=launch_start,
             launch_end=launch_end, binding_start=launch_end,
-            binding_end=launch_end, recorded_at=launch_end)
+            binding_end=launch_end, recorded_at=launch_end,
+            expected_provider=resolution.backend)
         if failures:
             raise _ProbeFailure(*failures)
         binding_argv = ["python3", "tools/check_runtime_bindings.py"]
@@ -708,7 +793,8 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
             thread_time=thread_time, row=row, session=session, turn=turn,
             cli_version=cli_version, launch_start=launch_start,
             launch_end=launch_end, binding_start=binding_start,
-            binding_end=binding_end, recorded_at=recorded_at)
+            binding_end=binding_end, recorded_at=recorded_at,
+            expected_provider=resolution.backend)
         if failures:
             raise _ProbeFailure(*failures)
         body["verification"].update({

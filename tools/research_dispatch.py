@@ -9,6 +9,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, Sequence
 
@@ -50,6 +51,8 @@ INDEPENDENT_REVIEW_ROLES = {"reviewer", "validator", "red-team"}
 TERMINAL_STATES = {"completed", "failed", "invalid", "cancelled"}
 STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
+ARCHIVE_BINDING_MODES = {"commit", "content_first"}
+FAILURE_PROVENANCE_ARCHIVE_KIND = "terminal_failure_provenance_archive"
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
@@ -96,6 +99,65 @@ def require_positive_number(record: dict[str, Any], field: str, location: str) -
     value = record.get(field)
     if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
         raise DispatchError(f"{location}.{field} must be a positive number")
+
+
+def parse_timestamp(value: Any, location: str) -> datetime:
+    """Parse an ISO-8601 timestamp, tz-aware output always.
+
+    A naive input (no offset) is rejected rather than assumed UTC: this
+    queue is read by whichever worktree's session picks it up next, and a
+    naive timestamp compared against another timezone silently compares the
+    wrong instants. Every other timestamp in this program's records is
+    explicit for the same reason (docs/evidence-and-reproducibility.md).
+    """
+    if not isinstance(value, str) or not value:
+        raise DispatchError(f"{location} must be an ISO-8601 timestamp string")
+    text = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError as error:
+        raise DispatchError(f"{location} is not a valid ISO-8601 timestamp: {error}") from None
+    if parsed.tzinfo is None:
+        raise DispatchError(f"{location} must carry an explicit UTC offset (or 'Z')")
+    return parsed.astimezone(timezone.utc)
+
+
+def validate_lease(task: dict[str, Any], location: str) -> None:
+    """Validate the optional lease a `running` task may carry.
+
+    A lease is never required -- every task record written before this field
+    existed has none, and that must keep meaning exactly what it always did:
+    a `running` task with no lease never expires under this mechanism. Only a
+    task that opts in by carrying one can be reclaimed automatically.
+
+    Presence outside `running` is refused rather than ignored: a lease left on
+    a task after it was manually reset to `queued`/a terminal state is stale
+    data nobody will notice, which is the exact failure mode a lease exists to
+    catch -- and it should not be able to hide inside the field meant to fix
+    it.
+    """
+    lease = task.get("lease")
+    if lease is None:
+        return
+    if task["state"] != "running":
+        raise DispatchError(f"{location}.lease is set but state is not \"running\"")
+    if not isinstance(lease, dict):
+        raise DispatchError(f"{location}.lease must be an object")
+    require_text(lease, "owner", f"{location}.lease")
+    epoch = lease.get("epoch")
+    if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch < 1:
+        raise DispatchError(f"{location}.lease.epoch must be a positive integer")
+    acquired_at = parse_timestamp(lease.get("acquired_at"), f"{location}.lease.acquired_at")
+    expires_at = parse_timestamp(lease.get("expires_at"), f"{location}.lease.expires_at")
+    if expires_at <= acquired_at:
+        raise DispatchError(f"{location}.lease.expires_at must be after lease.acquired_at")
+
+
+def lease_is_expired(task: dict[str, Any], now: datetime) -> bool:
+    lease = task.get("lease")
+    if lease is None:
+        return False
+    return now >= parse_timestamp(lease["expires_at"], "lease.expires_at")
 
 
 def _validate_path_text(path: str, location: str) -> tuple[PurePosixPath, str]:
@@ -148,6 +210,84 @@ def scope_overlaps(left: str, right: str) -> bool:
 
 def is_archive(task: dict[str, Any]) -> bool:
     return "archive" in task
+
+
+def _completed_failure_successor_exists(
+    failed_id: str,
+    task: dict[str, Any],
+    by_id: dict[str, dict[str, Any]],
+) -> bool:
+    """Return whether an archived failed task has a completed successor chain."""
+
+    source_ids = set(task["archive"]["source_task_ids"])
+    frontier = [failed_id]
+    visited: set[str] = set()
+    while frontier:
+        predecessor = frontier.pop()
+        if predecessor in visited:
+            continue
+        visited.add(predecessor)
+        for candidate in by_id.values():
+            if (
+                candidate["id"] in source_ids
+                and candidate.get("supersedes_failed_task") == predecessor
+            ):
+                if (
+                    candidate["state"] == "completed"
+                    and candidate["role"] in INDEPENDENT_REVIEW_ROLES
+                ):
+                    return True
+                frontier.append(candidate["id"])
+    return False
+
+
+def _failure_provenance_dependencies(
+    task: dict[str, Any], by_id: dict[str, dict[str, Any]]
+) -> set[str]:
+    """Return terminal failures an isolated archive may preserve without unblocking work."""
+
+    exception = task.get("dispatch_exception")
+    if not isinstance(exception, dict) or exception.get("kind") != FAILURE_PROVENANCE_ARCHIVE_KIND:
+        return set()
+    if not is_archive(task) or task["archive"]["kind"] != "ledger":
+        raise DispatchError(
+            f"task {task['id']} may use {FAILURE_PROVENANCE_ARCHIVE_KIND} only on a ledger archive"
+        )
+    if task["role"] != "coordinator":
+        raise DispatchError(f"failure-provenance archive {task['id']} must be coordinator-owned")
+    if (
+        exception.get("scientific_effect") != "none"
+        or exception.get("failed_tasks_reclassified_completed") is not False
+        or exception.get("successor_review_completed_independently") is not True
+    ):
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} has an invalid dispatch_exception boundary"
+        )
+    failed = {
+        dependency
+        for dependency in task["depends_on"]
+        if by_id[dependency]["state"] in {"failed", "invalid", "cancelled"}
+    }
+    if not failed:
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} must name a terminal failed dependency"
+        )
+    source_ids = set(task["archive"]["source_task_ids"])
+    if not failed.issubset(source_ids):
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} may exempt only archived source tasks"
+        )
+    missing_successors = sorted(
+        dependency
+        for dependency in failed
+        if not _completed_failure_successor_exists(dependency, task, by_id)
+    )
+    if missing_successors:
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} lacks a completed independent successor "
+            f"for {missing_successors}"
+        )
+    return failed
 
 
 def assert_acyclic(graph: dict[str, list[str]]) -> None:
@@ -269,6 +409,15 @@ def validate_archive_shape(task: dict[str, Any], location: str) -> None:
             raise DispatchError(f"{location}.archive.{field} is required")
     if archive["kind"] not in ARCHIVE_KINDS:
         raise DispatchError(f"{location}.archive.kind must be snapshot or ledger")
+    # Legacy archives are commit-bound.  `content_first` is intentionally
+    # opt-in: it is for source packages committed before their archive task
+    # ran, where one exact changed-path commit cannot express intact custody.
+    # Never infer this from a failed commit-scope check.
+    binding_mode = archive.get("binding_mode", "commit")
+    if binding_mode not in ARCHIVE_BINDING_MODES:
+        raise DispatchError(
+            f"{location}.archive.binding_mode must be commit or content_first"
+        )
     require_text_list(archive, "source_task_ids", f"{location}.archive")
     if len(archive["source_task_ids"]) != len(set(archive["source_task_ids"])):
         raise DispatchError(f"{location}.archive.source_task_ids contains duplicates")
@@ -437,6 +586,7 @@ def validate_queue(
                 )
             artifact_owners[path] = task["id"]
         validate_handoff(task, location)
+        validate_lease(task, location)
         if is_archive(task):
             validate_archive_shape(task, location)
         ids.append(task["id"])
@@ -523,11 +673,7 @@ def validate_queue(
 
     for task in tasks:
         if task["state"] == "running":
-            incomplete = [
-                dependency
-                for dependency in task["depends_on"]
-                if by_id[dependency]["state"] != "completed"
-            ]
+            incomplete = blockers(task, by_id)
             if incomplete:
                 raise DispatchError(
                     f"running task {task['id']} has incomplete dependencies {incomplete}"
@@ -554,9 +700,10 @@ def validate_queue(
 
 def blockers(task: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> list[str]:
     output: list[str] = []
+    preserved_failures = _failure_provenance_dependencies(task, by_id)
     for dependency in task["depends_on"]:
         state = by_id[dependency]["state"]
-        if state != "completed":
+        if state != "completed" and dependency not in preserved_failures:
             output.append(f"dependency_not_completed:{dependency}:{state}")
     if task["state"] == "blocked":
         output.append("task_marked_blocked")
@@ -596,10 +743,33 @@ def _ready_queued(
 
 
 def select(
-    queue: dict[str, Any], *, repository_verifier: RepositoryVerifier | None = None
+    queue: dict[str, Any],
+    *,
+    repository_verifier: RepositoryVerifier | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
+    """Select the tasks a dispatch plan admits.
+
+    `now`, when given, is the only clock this function reads -- it is never
+    sampled internally, so the same queue always produces the same plan for
+    the same `now`. Passing it lets a `running` task past its own declared
+    `lease.expires_at` stop being treated as holding its `write_scope`: a
+    lease is opt-in (`validate_lease`), so a task with none behaves exactly
+    as it always has, live or not. The task itself is left in state
+    `running` in the input -- this function only ever reads the queue, and
+    reverting a stale task to `queued` in the record itself is still a
+    Coordinator decision, made once and recorded, not an inference redrawn on
+    every dispatch run.
+    """
     by_id = validate_queue(queue, repository_verifier=repository_verifier)
-    running = [task for task in queue["tasks"] if task["state"] == "running"]
+    all_running = [task for task in queue["tasks"] if task["state"] == "running"]
+    expired = (
+        [task for task in all_running if lease_is_expired(task, now)]
+        if now is not None
+        else []
+    )
+    expired_ids = {task["id"] for task in expired}
+    running = [task for task in all_running if task["id"] not in expired_ids]
     ready = _ready_queued(queue, by_id)
     ready_archives = [task for task in ready if is_archive(task)]
     selected: list[dict[str, Any]] = list(running)
@@ -699,6 +869,16 @@ def select(
             for task in queue["tasks"]
             if task["state"] in TERMINAL_STATES
         ],
+        "expired_leases": [
+            {
+                "id": task["id"],
+                "role": task["role"],
+                "owner": task["lease"]["owner"],
+                "write_scope": task["write_scope"],
+                "expires_at": task["lease"]["expires_at"],
+            }
+            for task in expired
+        ],
         "gates": {
             "concurrency_cap_respected": (
                 len(selected) <= queue["max_concurrent"]
@@ -742,8 +922,7 @@ def select(
                 if is_archive(task)
             ),
             "terminal_noncompleted_tasks_do_not_unblock_successors": all(
-                all(by_id[dependency]["state"] == "completed"
-                    for dependency in task["depends_on"])
+                not blockers(task, by_id)
                 for task in selected
             ),
             "claim_relevant_tasks_have_independent_review": all(
@@ -757,6 +936,12 @@ def select(
             ),
         },
     }
+    # Keep declared and legacy content-only bindings visible in the canonical
+    # plan (and therefore its digest), rather than adding them only during CLI
+    # rendering after the plan has been hashed.
+    content_only = getattr(repository_verifier, "content_only_archives", None)
+    if content_only:
+        plan["content_only_archives"] = content_only
     plan["plan_sha256"] = digest(plan)
     return plan
 
@@ -785,6 +970,19 @@ def markdown(plan: dict[str, Any]) -> str:
         lines.append("None.")
     for task in plan["deferred"]:
         lines.append(f"- `{task['id']}`: {', '.join(task['reason'])}")
+    expired_leases = plan.get("expired_leases") or []
+    if expired_leases:
+        lines.extend(["", "## Expired Leases", "",
+                      "These tasks are still `running` in the queue, but their lease expired",
+                      "before `--now` -- their write_scope is no longer treated as held, so a",
+                      "queued successor over the same scope was admitted instead. The task",
+                      "itself is untouched: a Coordinator still records the actual terminal",
+                      "state (most likely `failed`) the next time the queue is edited.", ""])
+        for item in expired_leases:
+            lines.append(
+                f"- `{item['id']}` ({item['role']}, leased by `{item['owner']}`, "
+                f"expired {item['expires_at']}): {', '.join(item['write_scope'])}"
+            )
     degraded = plan.get("content_only_archives") or []
     if degraded:
         lines.extend(["", "## Archives verified on CONTENT only", "",
@@ -884,7 +1082,13 @@ class GitRepositoryVerifier:
         return paths
 
     def _verify_content_only(
-        self, task_id: str, archive: dict[str, Any], reason: str
+        self,
+        task_id: str,
+        archive: dict[str, Any],
+        reason: str,
+        *,
+        expected_paths: Sequence[str] | None = None,
+        allow_generated_skip: bool = True,
     ) -> None:
         """Verify an archive against CONTENT when its commit binding is gone.
 
@@ -910,6 +1114,11 @@ class GitRepositoryVerifier:
                 f"archive task {task_id} commit binding is unverifiable ({reason}) and it "
                 f"declares no path_sha256 to fall back on"
             )
+        if expected_paths is not None and set(hashes) != set(expected_paths):
+            raise DispatchError(
+                f"archive task {task_id} declared content_first binding must provide "
+                "path_sha256 for every archive and source artifact"
+            )
         skipped: list[str] = []
         for path in sorted(hashes):
             # Read the COMMITTED content at HEAD, not the working tree. A dirty
@@ -921,7 +1130,7 @@ class GitRepositoryVerifier:
                 ["git", "-C", str(self.repo_root), "show", f"HEAD:{path}"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
             if blob.returncode != 0:
-                if _is_generated_path(path):
+                if allow_generated_skip and _is_generated_path(path):
                     # The archive bound a generated artifact that this repository
                     # has since stopped tracking (.gitignore). The binding cannot
                     # be checked and its absence is policy, not corruption.
@@ -933,7 +1142,7 @@ class GitRepositoryVerifier:
                 )
             observed = hashlib.sha256(blob.stdout).hexdigest()
             if observed != hashes[path]:
-                if _is_generated_path(path):
+                if allow_generated_skip and _is_generated_path(path):
                     skipped.append(path)
                     continue
                 raise DispatchError(
@@ -951,9 +1160,15 @@ class GitRepositoryVerifier:
         declared_commit = archive["commit_sha"]
         if not isinstance(declared_commit, str):
             raise DispatchError(f"completed archive task {task_id} requires archive.commit_sha")
+        binding_mode = archive.get("binding_mode", "commit")
         try:
             commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
         except DispatchError:
+            if binding_mode == "content_first":
+                raise DispatchError(
+                    f"archive task {task_id} declared content_first binding requires "
+                    "archive.commit_sha to resolve to a commit"
+                )
             self._verify_content_only(
                 task_id, archive, f"commit {declared_commit} does not resolve")
             return
@@ -968,6 +1183,11 @@ class GitRepositoryVerifier:
         except OSError as error:
             raise DispatchError(f"unable to execute git for archive verification: {error}") from error
         if ancestor.returncode == 1:
+            if binding_mode == "content_first":
+                raise DispatchError(
+                    f"archive task {task_id} declared content_first binding requires "
+                    "archive.commit_sha to be an ancestor of HEAD"
+                )
             self._verify_content_only(
                 task_id, archive, f"commit {commit_sha[:12]} is not an ancestor of HEAD")
             return
@@ -994,6 +1214,32 @@ class GitRepositoryVerifier:
                 raise DispatchError(
                     f"archive task {task_id} parent_sha does not match first parent {parents[0]}"
                 )
+
+        if binding_mode == "content_first":
+            # This mode deliberately binds every declared artifact byte at HEAD
+            # instead of insisting that one commit changed the entire source
+            # package. A real, reachable commit, its declared parent, and the
+            # archival message IDs remain mandatory.
+            self._verify_content_only(
+                task_id,
+                archive,
+                "declared content_first binding mode",
+                expected_paths=expected_paths,
+                allow_generated_skip=False,
+            )
+            message = self._run(["log", "-1", "--format=%B", commit_sha]).decode(
+                "utf-8", "replace"
+            )
+            missing_ids = [
+                identifier
+                for identifier in [task_id, *archive["record_ids"]]
+                if identifier not in message
+            ]
+            if missing_ids:
+                raise DispatchError(
+                    f"archive task {task_id} commit message is missing IDs {missing_ids}"
+                )
+            return
 
         actual_paths = self._changed_paths(commit_sha, task_id)
         expected = set(expected_paths)
@@ -1140,6 +1386,13 @@ def main() -> int:
         type=Path,
         help="repository root used to verify completed archive commits (defaults to queue repository)",
     )
+    parser.add_argument(
+        "--now",
+        help="ISO-8601 instant to check running-task leases against (omit: leases never expire, "
+             "matching every queue written before leases existed). Explicit rather than sampled "
+             "from the clock, so a dispatch plan stays a pure function of its inputs -- "
+             "e.g. --now \"$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)\".",
+    )
     args = parser.parse_args()
     try:
         repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
@@ -1147,9 +1400,8 @@ def main() -> int:
         queue = json.loads(args.queue.read_text(encoding="utf-8"))
         enforce_reconciliation_document_authority(queue)
         verifier = GitRepositoryVerifier(repo_root)
-        plan = select(queue, repository_verifier=verifier)
-        if verifier.content_only_archives:
-            plan["content_only_archives"] = verifier.content_only_archives
+        now = parse_timestamp(args.now, "--now") if args.now is not None else None
+        plan = select(queue, repository_verifier=verifier, now=now)
     except (OSError, json.JSONDecodeError, DispatchError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2

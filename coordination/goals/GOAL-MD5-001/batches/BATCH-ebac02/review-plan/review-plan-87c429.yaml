@@ -1,0 +1,178 @@
+review_plan:
+  batch_id: BATCH-ebac02
+  round: 1
+  written_by: coordinator (driving session, 2026-08-22)
+  written_before_any_reviewer_runs: true
+  reviewed_object: >-
+    The phase-1 package of BATCH-ebac02: harness/run_md4_seed_sweep.py, its
+    run directories (RC-1 seed distributions for MD4 and MD5 at 32-bit and
+    12-bit resolution plus the CTL-PO5 raw candidate count; RC-4 static mask
+    check; RC-5 null-object controls), and the execution report, as frozen by
+    the snapshot receipt of TASK-20260822-b325fe.
+  reviewer_independence:
+    sessions:
+      - TASK-20260822-40389d (validator, review-adversarial, xhigh, independent session)
+      - TASK-20260822-87c429 (red team, review-adversarial, xhigh, independent session)
+    blindness: >-
+      Mutual within the round: neither reviewer reads the other's report; each
+      attests in its report exactly what it read. A later hardening round may
+      lift blindness only with a declared rationale (blindness.lifted_for).
+    tier_note: >-
+      Both reviewers run review-adversarial at xhigh. Serveability at opening
+      (2026-08-22 doctor --probe): openai serves gpt-5.6-sol; zai serves
+      glm-5.2; the api_direct openai_chat wire has a max_tokens/max_completion_
+      tokens bug against gpt-5.x (recorded in batch.yaml runtime_policy); the
+      codex_cli probe flow does not persist exec threads in this environment.
+      The dispatching session re-runs doctor --probe immediately before each
+      review and records the requested policy, the resolved model identifier,
+      and the probe status in the report. A backend that cannot reach xhigh is
+      a PAUSE, never a silent downgrade (AGENTS.md model policy;
+      degraded_allowed: false in both handoffs).
+  coordinator_prior:
+    recorded_before_any_report_returns: true
+    statement: >-
+      I expect the RC-1 sweep to show the 12-bit distinct_fwd distribution
+      concentrating at the LOW end (mass on 1..a small constant, far below
+      (1-eps)*2^12 for any declared eps), i.e. the collapse is NOT a seed
+      lottery: the fixed-word seed changes the particular collapsed value but
+      not the fact of collapse. My mechanism attribution, held pending at
+      DEC-20260822-40bf14 F-10, is that the F-multiplexer mask on the path
+      from the free word to the declared component kills the varying bits
+      (the RC-4 mechanism), not the seed choice.
+    falsifiable_prediction: >-
+      If >= 50% of the >= 100 seeds reach the declared injectivity threshold
+      at 12-bit resolution on EITHER primitive, the batch-5 single-seed
+      negative was a seed lottery, the construction is salvageable by seed
+      re-draw, and the phase-1 routing answer (seed vs criterion vs
+      construction) flips to SEED. That outcome OVERTURNS this prior and is a
+      first-class result, to be reported as such rather than absorbed.
+  joints:
+    - joint: V1
+      owner: TASK-20260822-40389d
+      claim_step: >-
+        The reported distributions are what the instrument produced, not what
+        a re-implementation or a selective subset would produce.
+      worked_attack_plan: >-
+        Re-run the sweep driver on a 10-seed sample drawn from the manifest's
+        seed list (seeds named by the validator, not by the producer) and
+        require EXACT integer agreement on distinct_fwd, distinct_bwd (both
+        resolutions) and the raw candidate count for each sampled seed. Where
+        the driver is stochastic beyond the seed, require agreement of the
+        distribution summary statistics as frozen in the manifest.
+    - joint: V2
+      owner: TASK-20260822-40389d
+      claim_step: >-
+        The run artifacts are complete and unaltered: seeds, environment,
+        command, manifests, raw machine-readable output.
+      worked_attack_plan: >-
+        For every run directory: command.txt matches the frozen contract's
+        invocation; manifest carries code_path_fingerprint (term f) and an
+        armed deadline (term f); seed list length >= 100 per primitive;
+        raw-result.json parses and its per-seed integers are consistent with
+        the execution report's tables (recompute the tables from raw, not from
+        the report); quarantine sha256 e44a3fed... unchanged.
+    - joint: V3
+      owner: TASK-20260822-40389d
+      claim_step: >-
+        The eight contract terms (a)-(h) were honored, not merely mentioned.
+      worked_attack_plan: >-
+        (a) the injectivity criterion distinct >= (1-eps)*2^k appears at BOTH
+        32-bit and window/12-bit resolution with the declared eps stated
+        BEFORE the sweep (fixed_before_acquisition); (b) every observed-vs-
+        predicted integer departure beyond declared tolerance carries a
+        recorded adjudication, including departures on PASSING seeds; (c)
+        every threshold in the report carries a measured-or-modeled label,
+        including the controls'; (d) the uniformity premise is a numbered
+        heuristic with a test, not prose; (e) the held-fixed value is applied
+        inside gate_direction_A (spot-check the driver source at the named
+        gate); (g) every listed control carries a primitive qualifier; (h)
+        every distinct-count measurement has a paired null-object control run
+        with a non-multiplexer mixer of the same shape.
+    - joint: V4
+      owner: TASK-20260822-40389d
+      claim_step: >-
+        Scope discipline: no construction redesign, no MD5 beyond the
+        identically-bounded sweep arm, claim ceiling held at analyzed.
+      worked_attack_plan: >-
+        Diff the sweep module against the batch 5 instrument: the step
+        algebra, split point, and matching quantity must be UNCHANGED (the
+        sweep varies the seed, nothing structural); grep the execution report
+        for any claim beyond analyzed; confirm zero quarantined-payload reads
+        (attestation + filesystem check of the quarantine directory mtime).
+    - joint: R1
+      owner: TASK-20260822-87c429
+      claim_step: >-
+        The distribution actually separates seed-lottery from construction-
+        defect from model-defect at the granularity the routing decision
+        needs.
+      worked_attack_plan: >-
+        PROVES-TOO-MUCH CONTROLS (the argument is run against objects whose
+        verdict is KNOWN): (i) the ANOM-1 S=9 object from batch 4 (proven
+        independent of one free word, KN-TECH-bb7e9f) must be flagged as
+        collapsed by the same criterion applied to its measured counts; (ii)
+        a known-good mixer of the same shape (the RC-5 null object, which by
+        construction does NOT collapse) must PASS the criterion. If the
+        criterion flags neither, or both, it is not measuring the
+        construction and the routing answer is void. Then: is the reported
+        distribution's shape (and its confidence at n >= 100) actually
+        distinguishable from a seed-lottery model at the declared tolerance?
+    - joint: R2
+      owner: TASK-20260822-87c429
+      claim_step: >-
+        The RC-4 static mask-survival argument is sound: a free word's
+        varying bits that do not survive the (y XOR z) multiplexer mask at
+        some F application on the path to the declared component cannot
+        contribute to distinctness, and the check predicts the collapse.
+      worked_attack_plan: >-
+        PROVES-TOO-MUCH: run the identical mask argument on the ANOM-1 S=9
+        construction, where the conclusion (no discriminating power over
+        word9) is KNOWN TRUE from the blind proof -- the argument must
+        reproduce it from the mask alone, and if it needs anything beyond the
+        mask (e.g., the specific step-10 consumption) it is not the general
+        predictor its claim requires. Then check the argument against a
+        construction where the bits DO survive the mask but the observable
+        still collapses for an unrelated reason (the batch 5 CTL-PO5(b)
+        object): the check must be stated as necessary-not-sufficient, or
+        the report overclaims.
+    - joint: R3
+      owner: TASK-20260822-87c429
+      claim_step: >-
+        The cost model is honest and the routing granularity is adequate:
+        "seconds" is a measured bound, and the distribution justifies
+        choosing among seed / criterion / construction.
+      worked_attack_plan: >-
+        Compare the declared ceilings (120 s per sweep run) against the
+        wrapper-measured wall-clock in the run manifests; a "seconds" claim
+        resting on a 120 s ceiling with the actual time unreported is a
+        misstatement. Check the deadline was armed (term f) and would have
+        fired: was the deadline value chosen so a 10x slowdown is visible?
+        Then the granularity question: if the distribution is, say, 60/40
+        split between two shapes, does the routing decision (seed vs
+        criterion vs construction) actually change at that confidence? If
+        not, the honest output is "inconclusive at n=100, recommend n=X",
+        and the batch must say so.
+  blind_rederivation:
+    quantity: >-
+      The injectivity threshold count (1 - eps) * 2^k at BOTH 32-bit and
+      window/12-bit resolution, for the declared eps and the declared k of
+      the batch 5 construction.
+    owner: TASK-20260822-87c429
+    blind_from: >-
+      harness/run_md4_seed_sweep.py, the run manifests, and the producer's
+      notes and execution report. The re-deriver works from the frozen
+      criterion statement (DEC-20260822-40bf14 next_actions item 3(a)), the
+      declared k, the declared eps, and the RFC 1320/1321 step schedules
+      ALONE. Agreement is evidence about the quantity; disagreement
+      localises to one of the two implementations and is reported as such.
+  proves_too_much_objects:
+    - "ANOM-1 S=9 construction (batch 4): known-collapsed over one free word; the criterion and the mask argument must both reproduce the known verdict."
+    - "RC-5 null object (non-multiplexer mixer, same shape): known non-collapse; the criterion must pass it and the mask argument must not flag it."
+    - "Batch 5 CTL-PO5(b) object: known collapse for a reason the mask argument does NOT name; tests necessary-not-sufficient honesty."
+  escalation_triggers:
+    - >-
+      Any finding that the distributions were produced by code other than the
+      snapshot-bound module (fingerprint mismatch), or that a seed list is
+      shorter than declared, escalates to review-breakthrough handling of the
+      affected claim: the batch's entire measurement basis would be in
+        doubt and no ordinary ruling can compose over it.
+  procedure_deviations: []

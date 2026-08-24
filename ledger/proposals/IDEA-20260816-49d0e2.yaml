@@ -1,0 +1,259 @@
+idea:
+  id: IDEA-20260816-49d0e2
+  question_id: RQ-ECDSA-87625f
+  added: '2026-08-16'
+  title: Compute exactly, by exhaustive enumeration over every scalar of a given bit-length, the conditional
+    entropy H(scalar | operation string) for binary double-and-add, always-double-and-add, the Montgomery
+    ladder and w-NAF at w=2..5, turning SPA-resistance from a design intent into a number with a forced
+    value on two of the four.
+  class: theory
+  claim: '(A) THE OBJECT IS COMBINATORIAL AND EXACT. For a scalar-multiplication algorithm A and an
+    n-bit scalar k, let S_A(k) be the operation string: the word over the alphabet {D, A} (and, for
+    windowed methods, {D, A_j} indexed by table entry) that A emits on input k, with no values and
+    no timings. S_A is a function from 2^n scalars into a set of words. The fibre sizes |S_A^{-1}(s)|
+    are exactly computable by enumeration for n up to about 24, and from them H(k | S_A(k)) follows
+    exactly -- no sampling, no estimator, no confidence interval. (B) THE CLAIM. This conditional
+    entropy is the precise content of the phrase ''SPA-resistant'' for an adversary who observes the
+    operation sequence and nothing else, and it can be reported as a number in bits for each algorithm
+    rather than as an adjective. Two of the tested algorithms have FORCED values: the Montgomery ladder
+    emits a constant word at fixed bit-length, so H(k | S) = H(k) exactly, and naive binary double-and-add
+    emits a word that determines k up to the leading bit, so H(k | S) is at most 1 bit. Those two
+    are not hypotheses; they are the instrument''s calibration, and an implementation that fails to
+    reproduce them is buggy. (C) THE INTERESTING CELLS. w-NAF and always-double-and-add are where
+    the number is not forced: recoding introduces genuine many-to-one collapse, and the fibre-size
+    distribution -- not just its entropy -- is the deliverable. (D) WHAT IS NOT CLAIMED. No attack.
+    No claim that an adversary can observe an operation string on any real device: this is an ASSUMED
+    observation and this environment has no physical measurement capability. No claim about compiled
+    implementations, whose operation sequences may differ. No claim about ECDSA security, since residual
+    entropy in a nonce is not the same as recovery cost and the bridge between them is not built here.
+    (E) WHY THE NEGATIVE IS USABLE. If w-NAF''s residual entropy turns out to be large, that is a
+    measured statement about how much an operation-sequence observer would still have to search, expressed
+    in bits, and it is exact rather than estimated -- which is rare enough in this portfolio to be
+    worth having on its own.'
+  mechanism: 'STAGE 1: implement each algorithm as a pure emitter -- a function from scalar to operation
+    word, with no field arithmetic at all, so that enumeration over 2^n scalars is cheap and the object
+    under study is isolated from the curve entirely. Verify each emitter against a reference scalar
+    multiplication over harness/toycurve.py on random inputs, checking that the emitted word matches
+    the operations the real routine performs. STAGE 2: for n in a ladder up to 24, enumerate all scalars,
+    hash each emitted word, and accumulate fibre sizes in a dictionary. STAGE 3: compute H(k | S)
+    = sum over fibres of (|f|/2^n) * log2(|f|) exactly in rational or high-precision arithmetic, and
+    report the full fibre-size distribution, not only its entropy. STAGE 4: check the two forced values.
+    STAGE 5: run the null: a word generator that emits a random word with the same length distribution
+    as the algorithm''s, independent of the scalar, for which H(k | S) must equal n exactly. STAGE
+    6: fit and report the growth of H(k | S) with n for the non-forced algorithms, stating the fit
+    as a fit and reporting residuals, so that any statement about larger n is visibly an extrapolation
+    rather than a measurement.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-ECDSA-87625f. Grepped ledger/proposals/, ledger/hypotheses/ and knowledge/ for
+      'double-and-add' (four proposals, one hypothesis H-BPR-965f0b, and KN-LIT-3849), 'ladder' (six
+      proposals), 'wNAF' (two knowledge entries, KN-LIT-5101 and KN-LIT-6638), 'signed digit' (KN-LIT-2652,
+      KN-LIT-3371, KN-LIT-7383), 'residual entropy' (IDEA-20260808-19876e), 'operation sequence' (IDEA-20260816-2dfc3a
+      and KN-FIND-d29ece). Read the titles of the closest hits.
+    results: '''double-and-add'' and ''ladder'' hit several ECDLP-lane proposals, but the reading
+      of their titles showed them concerned with group-law and algorithmic structure, not with an
+      observation model. ''residual entropy'' hits exactly one proposal, IDEA-20260808-19876e, whose
+      object is entirely different: it argues that a constant-advantage transcript distinguisher cannot
+      move a key-recovery exponent unless it shrinks a candidate-curve set by a positive power of
+      p, in the SQIsign lane. ''wNAF'' and ''signed digit'' appear only in knowledge/literature entries,
+      i.e. as recorded external technique, with no proposal attached. No record was found that computes
+      a fibre-size distribution or a conditional entropy of a scalar given an emitted operation word.'
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature. Assembled from known parts:
+      operation-sequence observation as the model behind SPA-resistance is standard folklore, and
+      w-NAF recoding is recorded here as external technique in KN-LIT-5101 and KN-LIT-6638. Claimed
+      new only within this repository: computing the fibre-size distribution and the exact conditional
+      entropy by exhaustive enumeration, and using the two algorithms with forced values as a built-in
+      calibration for the enumeration itself.'
+  object_first_candidate:
+    tracked_object: The operation word S_A(k) over the alphabet {D, A} or {D, A_1..A_m}, followed
+      through the whole scalar multiplication. Equivalently, the fibre S_A^{-1}(s) -- the set of scalars
+      sharing a word -- which is the object whose size distribution is measured.
+    lossiness: Genuinely lossy for three of the four algorithms and TOTALLY lossy for one, which is
+      exactly the range being measured. All coordinates, all field elements and all table CONTENTS
+      are discarded; only the shape of the addition chain survives. For the Montgomery ladder the
+      projection loses everything -- the fibre is the whole scalar space -- and for naive double-and-add
+      it loses almost nothing, since the word is a transcription of the bit string. The intermediate
+      cases are the content. The retained part propagates because the word is built left to right
+      by a rule that reads one recoded digit at a time and appends a token, so the word is a suffix-extending
+      function of the recoding and no later digit can change an earlier token.
+    propagation: 'One step of the target operation -- processing one recoded digit of the scalar --
+      appends a fixed token: D for a doubling, D followed by A_j when digit j is nonzero. The map
+      from recoded digit sequence to word is therefore a monoid homomorphism into the free monoid
+      on the token alphabet, and the fibre structure is entirely determined by which digit sequences
+      the recoding can produce and which of them the homomorphism identifies. This makes the whole
+      object a question about the recoding''s image and the homomorphism''s kernel, computable without
+      any curve.'
+    survival_score: 'Stated as the number of scalar bits after which the word stops distinguishing
+      scalars, per algorithm: zero for the ladder (never distinguishes), n for naive double-and-add
+      (distinguishes to within the leading bit at every length), and a measured curve for w-NAF and
+      always-double-and-add. Reported also as H(k | S)/n, the fraction of the scalar''s entropy surviving
+      observation, at each n in the ladder, which is the comparable quantity across algorithms.'
+  null_object_control: A word generator that emits, for each scalar, a word drawn independently of
+    the scalar from the SAME length distribution and the SAME token alphabet as the algorithm being
+    tested, with the identical fibre-counting and entropy code applied. For the measurement to mean
+    anything the null must return H(k | S) = n exactly -- to the last bit, since this computation
+    has no sampling error. A null returning less than n means the fibre-counting or the entropy arithmetic
+    is wrong, since an independent word cannot reduce entropy. Both arms run in the same invocation
+    over the same enumerated scalar set. A second null uses a constant word for every scalar, which
+    must also return exactly n, checking the degenerate end of the same code path.
+  discriminated_from:
+  - 'IDEA-20260808-19876e (a constant-advantage transcript distinguisher cannot move a key-recovery
+    exponent; only a leak shrinking the candidate set by a positive power of p can): shares the vocabulary
+    of residual search space but its object is a candidate-curve set in the SQIsign lane and its move
+    is a dichotomy argument about exponents; this object is a fibre of an operation-word map and its
+    move is exhaustive enumeration.'
+  - 'KN-LIT-5101 and KN-LIT-6638 (w-NAF recorded as external technique in the knowledge corpus): those
+    record the recoding as a technique for efficiency; this measures the fibre structure of the word
+    it emits, which is a different question about the same recoding and is not answered by the technique
+    note.'
+  - 'The blacklisted nonce-bias window-shape proposals under RQ-ECDSA-87625f: those concern the DISTRIBUTION
+    of the nonce; this holds the nonce uniform and measures what an operation-word observation does
+    to it.'
+  - 'The execution-trace mutual-information estimator proposed elsewhere in this batch: that instrument
+    estimates a quantity with a floor and a confidence interval over sampled traces; this computes
+    an exact value by enumeration with no estimator at all, and the two would disagree in a way that
+    is itself a useful cross-check on the estimator.'
+  - 'Timing-based SPA analysis generally: no time is measured here and the object is defined without
+    reference to duration, so an algorithm whose operations take different times is not distinguished
+    from one whose operations take equal times.'
+  assumptions:
+  - An adversary who observes the exact operation sequence and nothing else is ASSUMED; this environment
+    has no physical measurement capability and demonstrates no such observation.
+  - The pure emitter faithfully reproduces the operation sequence of the corresponding real routine,
+    verified against harness/toycurve.py rather than assumed.
+  - Scalars are uniform over the full n-bit range; a different scalar distribution changes every number
+    reported.
+  - Table-entry indices are observable for windowed methods; if only D and A are distinguishable,
+    w-NAF's numbers change and both variants must be reported.
+  - Extrapolation of H(k|S)/n from n<=24 to larger n requires a growth law that the run fits rather
+    than derives.
+  predictions:
+  - metric: H(k | S) for the Montgomery ladder at every n in the ladder
+    direction: different
+    minimum_effect: forced value exactly n bits; any other value is an implementation fault
+  - metric: H(k | S) for naive binary double-and-add at every n
+    direction: lower
+    minimum_effect: forced value at most 1 bit, arising only from the leading-bit convention; any
+      larger value means the emitter is not emitting what the algorithm does
+  - metric: H(k | S)/n for w-NAF at w=4, at n=24
+    direction: different
+    minimum_effect: 'no pre-commitment: this is the quantity the enumeration exists to produce and
+      pre-committing it would make the run confirmatory rather than measuring'
+  - metric: H(k | S) on the independent-word null and on the constant-word null
+    direction: different
+    minimum_effect: forced value exactly n bits on both nulls
+  - metric: monotonicity of H(k | S)/n in the window width w for w-NAF
+    direction: higher
+    minimum_effect: predicted non-decreasing in w, since a wider window makes more scalars share a
+      token pattern; a decrease at any w falsifies the reasoning and is reported
+  minimal_test:
+    design: 'Enumerate n = 16 only, all 65536 scalars, for four emitters: naive double-and-add, Montgomery
+      ladder, always-double-and-add, and w-NAF at w=4. Hash each emitted word, accumulate fibre sizes,
+      compute H(k|S) exactly in Fraction arithmetic, and in the same invocation run both nulls over
+      the same scalar set. This is under a second of compute and settles everything that matters:
+      whether the two forced values come out exactly right, whether both nulls return exactly 16,
+      and whether w-NAF''s number is interestingly far from both extremes. If the forced values are
+      wrong the emitters are wrong and nothing else is worth running; if w-NAF lands at 15.9 bits
+      the observation model carries almost nothing and the full n-ladder is not worth its cost; if
+      it lands somewhere in between, the ladder up to n=24 and the w sweep become worth running.'
+    controls:
+    - Independent-word null with matched length distribution, same enumeration and same entropy code.
+    - Constant-word null, checking the degenerate end of the code path.
+    - Montgomery-ladder forced-value control, which must return exactly n.
+    - Naive double-and-add forced-value control, which must return at most 1 bit.
+    - 'Emitter-fidelity control: for 1000 random scalars, the emitted word is compared token by token
+      against the operation sequence of the corresponding real routine executed over harness/toycurve.py.'
+    - 'Exact-arithmetic control: entropies computed in Fraction and in float, required to agree to
+      1e-12, so that no conclusion rests on floating-point summation over many small fibres.'
+    required_metrics:
+    - H(k | S) in bits, exactly, per (algorithm, n)
+    - H(k | S)/n per (algorithm, n)
+    - 'fibre-size distribution: count, maximum, median and the full histogram'
+    - number of distinct words emitted per (algorithm, n)
+    - null-arm entropies
+    - emitter-fidelity mismatch count against the real routine
+  falsification_conditions:
+  - The Montgomery-ladder arm returns anything other than exactly n bits.
+  - The naive double-and-add arm returns more than 1 bit.
+  - Either null returns anything other than exactly n bits.
+  - Fraction and float entropy computations disagree beyond 1e-12.
+  - Emitter-fidelity checking finds any mismatch between an emitted word and the real routine's operation
+    sequence.
+  - H(k|S)/n for w-NAF decreases with n across the whole ladder, contradicting the expectation that
+    the fraction is roughly stable and indicating an emitter that is length-dependent in an unintended
+    way.
+  confounders:
+  - Leading-bit and final-subtraction conventions differ between textbook and implemented versions
+    and change the forced values; the convention must be recorded per emitter.
+  - Whether table indices are observable is an adversary-model choice that changes w-NAF's answer
+    by a large factor; both variants must be reported or the number is ambiguous.
+  - Fibre counting by hashing risks collisions; a collision would merge fibres and understate entropy,
+    so the hash must be checked or replaced by the word itself as the key.
+  - Word length varies with the scalar for some algorithms, and length alone is an observation; the
+    null must match the length distribution or it is not matched.
+  - Enumeration at n=24 over four algorithms and several w values is 4 * 2^24 emitter calls, where
+    an inefficient emitter turns a cheap experiment into an expensive one.
+  interpretation_limits:
+  - An exact entropy under an ASSUMED observation is still conditional on that assumption; no claim
+    follows about any real device.
+  - Residual entropy is not recovery cost; converting bits of remaining uncertainty into an attack
+    cost requires a search model this proposal does not supply.
+  - Results are for these emitters at these conventions and do not transfer to a compiled implementation
+    whose operation sequence may differ.
+  - Extrapolation from n<=24 to 256 is a fit, reported as a fit with residuals, and is not a measurement.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The enumeration itself is Theta(2^n) emitter calls
+      at bit-length n, which is why n is capped at 24; that is the cost of the measurement, not of
+      any attack.
+    memory_exponent: No attack exponent is claimed. Memory is O(number of distinct words), bounded
+      by 2^n and in practice far smaller for the collapsing algorithms; the fibre dictionary is the
+      dominant term.
+    best_known: 'Within this repository the incumbent is nothing: no record computes a fibre-size
+      distribution or a conditional entropy for an operation-sequence observation. The nearest recorded
+      material is the w-NAF and signed-digit technique notes KN-LIT-5101, KN-LIT-6638, KN-LIT-2652,
+      KN-LIT-3371 and KN-LIT-7383, which record recodings as efficiency techniques and attach no observation
+      model.'
+    hidden_overhead: 'The forced values hide a convention question: leading-bit handling, final subtraction,
+      and whether the ladder''s dummy operations are emitted at all can each move the calibration,
+      and getting them wrong makes the instrument silently mis-calibrated rather than visibly broken.
+      The human cost is choosing the adversary''s alphabet -- whether table indices are visible --
+      which changes w-NAF''s answer more than any other decision in the experiment.'
+  dominated_by: 'n/a (no result claimed). No attack cost is produced, so no time/memory/data frontier
+    row applies; all three axes were checked and none is populated by this deliverable. The measurement''s
+    own cost is Theta(2^n) and is reported as an experiment cost. Explicitly not null: the frontier
+    question does not arise rather than being won.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: replaces the adjective
+    ''SPA-resistant'' with an exact number in bits per algorithm at n<=24, with a fibre-size histogram,
+    computed without sampling error, where the current corpus state is no number at all. No attack
+    time, memory or query count is claimed to change.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That the two forced values come out exactly right on the first correct
+    implementation: 0.8, with the residual risk entirely in leading-bit and dummy-operation conventions
+    rather than in the mathematics. That both nulls return exactly n: 0.95, since an independent word
+    cannot reduce entropy and a failure would indicate a coding error that is easy to find. That w-NAF''s
+    residual entropy lands strictly between the two extremes by a margin large enough to be interesting:
+    0.65, because the recoding does collapse scalars but perhaps not by much at the observable alphabet.
+    That the number is later used to qualify a leakage claim rather than filed as a curiosity: 0.4.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ECDSA-87625f
+  - RQ-INSTR-f8faa0
+  - IDEA-20260808-19876e
+  - KN-LIT-5101
+  - KN-LIT-6638
+  - KN-LIT-2652
+  - docs/inventor-protocol.md
+  - harness/toycurve.py
+  - harness/runner.py
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SIDECH-74fede

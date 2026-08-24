@@ -1,0 +1,232 @@
+idea:
+  id: IDEA-20260816-ff04de
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: 'Stress the one independence assumption a homomorphic product''s noise bound cannot do without:
+    measure the empirical correlation between the noise vector of a ciphertext product and the noise
+    vectors of its two factors, exhaustively at ring degrees where every plaintext and every secret
+    can be enumerated.'
+  class: control
+  claim: '(A) Every stated variance-style noise model for a homomorphic multiplication reaches its
+    product rule by treating the two factors'' noise polynomials, and their messages, as independent,
+    so that the variance of the cross terms m1*e2 + m2*e1 + e1*e2 factorises. In a circuit where both
+    operands descend from a common ancestor ciphertext, or share randomness through a common relinearization
+    key, that independence is an assumption about the circuit, not about the scheme, and it is directly
+    checkable. The claim is that the empirical correlation between the product''s noise coefficient
+    vector and each factor''s, measured as the leading canonical correlation between the two coefficient
+    vectors over an exhaustive enumeration, is a well-defined statistic that separates circuit shapes:
+    a tree whose leaves are independent fresh encryptions versus a chain that repeatedly reuses one
+    ciphertext. (B) The claim is further that this separation is measurable at N in {8,16} with a
+    secret space small enough to enumerate every secret, so that no sampling argument is needed anywhere,
+    and that the resulting correlation is reported as a number with an interval rather than as a verdict
+    on the model. (C) NOT CLAIMED: that the independence assumption is false in any deployed setting,
+    that a correlation of any size implies a security loss, that the noise model is wrong, or that
+    a circuit shape should be avoided. A measured correlation is a measured correlation. Whether it
+    moves any bound is a separate derivation this contract does not perform and explicitly declines
+    to gesture at.'
+  mechanism: 'STAGE 1 builds an exact toy scheme at N=8 and N=16 over a small modulus, with the secret
+    drawn from a ternary space small enough to enumerate in full at N=8 (3^8 = 6561 secrets). STAGE
+    2 defines two circuit families of equal multiplicative depth: INDEPENDENT, where every leaf is
+    a fresh encryption under fresh randomness, and SHARED, where one ciphertext is multiplied into
+    the accumulator repeatedly so that the same noise vector reappears at every level. STAGE 3 records,
+    for every (secret, plaintext, randomness) point in the enumeration, the exact noise coefficient
+    vectors of both factors and of the product. STAGE 4 computes for each level the cross-covariance
+    matrix between factor and product noise vectors and extracts its leading canonical correlation
+    and its Frobenius norm, normalised by the product of the marginal standard deviations. STAGE 5
+    runs the identical computation on a null population in which each product noise vector is paired
+    with a factor noise vector drawn from a different, independently generated evaluation of the same
+    circuit shape, which destroys the pairing but preserves every marginal. The difference between
+    the true-pairing and shuffled-pairing correlations is the estimate; the shuffled arm sets the
+    resolution floor. Refutation is a true-pairing correlation indistinguishable from the shuffled
+    floor in both circuit families, which would say the independence assumption is not stressed by
+    circuit shape at these degrees.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -ril 'independence assumption' over ledger/proposals/ and ledger/hypotheses/,
+      grep -rl 'RQ-FHE-001' ledger/proposals/, grep -ril 'canonical embedding' and 'variance model'
+      over ledger/ and knowledge/, and ls experiments/ | grep -i fhe. Read RQ-FHE-001, KN-TECH-082,
+      KN-OPEN-016, KN-OPEN-026, and the titles of the independence-assumption hits.
+    results: '''independence assumption'' hits IDEA-20260801-020, IDEA-20260726-012, IDEA-20260813-a46301,
+      IDEA-20260813-8aa6ea, IDEA-20260816-ddc377 and IDEA-20260811-332ce9; none is attached to RQ-FHE-001
+      and none concerns homomorphic products. The nearest conceptual neighbour in the corpus is KN-OPEN-016,
+      whose whole subject is a family of LWE dual attacks whose independence heuristics were argued
+      unsound and then measured internally in KN-FIND-012 through KN-FIND-016, but that is an attack-analysis
+      heuristic about short-vector scores, not a scheme-side noise-model assumption about a product.
+      KN-TECH-082 records ''independence-heuristic'' as a tag on the hybrid-attack family, again attack-side.
+      The only proposal on RQ-FHE-001, IDEA-20260807-a06996, is a parameter census that runs nothing.
+      No experiments/EXP-FHE-* exists.'
+    verdict: 'UNVERIFIED. No claim is made about what the FHE literature contains; testing independence
+      assumptions in noise models is exactly the kind of thing that gets done and this program cannot
+      check. What is claimed new is internal: the corpus has stressed independence heuristics only
+      on the attack side (KN-FIND-012..016, KN-TECH-082) and never on the scheme side, and the specific
+      construction here (canonical correlation between factor and product noise vectors, with a pairing-shuffled
+      null at the same marginals, over an exhaustive secret enumeration) is assembled from standard
+      multivariate statistics and this program''s null-object rule.'
+  object_first_candidate:
+    tracked_object: The leading canonical correlation rho_L between the coefficient vector of a level-L
+      product's noise polynomial and the coefficient vector of one designated factor's noise polynomial,
+      as a function of level and circuit family.
+    lossiness: 'Genuinely lossy. The full joint object is a 2N-dimensional distribution over integer
+      vectors indexed by every secret and every plaintext in the enumeration; rho_L retains one number
+      per level per circuit family. Discarded: the marginal magnitudes entirely (rho is scale-free),
+      the sign pattern, the plaintext dependence, and all but the leading direction of the cross-covariance.
+      What survives propagates because the product rule''s independence step is precisely a statement
+      that this cross-covariance is zero, so the retained coordinate is the coordinate the assumption
+      lives in. Discarding scale is what makes the object comparable across levels, where magnitudes
+      differ by orders.'
+    propagation: One multiplication maps a pair of noise vectors (e1, e2) with messages (m1, m2) to
+      m1*e2 + m2*e1 + e1*e2 plus a relinearization term, all under negacyclic convolution. Under the
+      model's independence step the cross-covariance of the output with e1 is zero; under actual evaluation
+      it contains the term m2 * Cov(e1, e1) = m2 * Sigma_1, which is not zero whenever m2 is not zero.
+      The propagation of rho is therefore predicted to be driven by the message magnitudes, and that
+      prediction is itself testable by varying t.
+    survival_score: 'The correlation is expected to be visible at every level where decryption remains
+      correct, and to be strongest at level 1 and decay as more independent noise is folded in. Concretely:
+      expected to survive 2 to 4 levels in the SHARED family and to fall to the shuffled floor within
+      1 to 2 levels in the INDEPENDENT family. It dissolves once accumulated fresh noise from relinearization
+      dominates the inherited term.'
+  null_object_control: 'Null arm: pairing-shuffled populations. Every product noise vector is paired
+    with a factor noise vector taken from an independently seeded run of the identical circuit at
+    identical parameters, so all marginals, all magnitudes and all level structure are preserved and
+    only the true pairing is destroyed. The identical canonical-correlation code runs on both populations
+    in the same invocation. For the signal arm to mean anything the shuffled arm must give a leading
+    canonical correlation consistent with the finite-sample floor for its dimension and sample count,
+    and the signal arm must exceed it by the pre-committed margin. If both arms sit at the same value,
+    the recorded outcome is a controlled null and the independence assumption is not stressed by this
+    construction at these degrees.'
+  discriminated_from:
+  - KN-FIND-012 through KN-FIND-016 and EV-MLKEM-011..016 measure independence and coverage heuristics
+    inside the dual attack's score distributions; those are attack-side statistics on short-vector
+    scores, not scheme-side noise vectors, and nothing there involves a homomorphic product.
+  - KN-TECH-082 records the hybrid attack's independence heuristic; that assumption is about guessing
+    and lattice-solving stages, not about a product noise bound.
+  - IDEA-20260807-a06996 (RQ-FHE-001) is a parameter census with no runtime measurement of any kind.
+  - 'A goodness-of-fit test on the noise distribution: this measures a cross-vector dependence between
+    two objects, not the shape of one marginal.'
+  - IDEA-20260808-e7ba81 (RQ-FNDSA-001) frames sampler exactness as spiked-covariance detection; that
+    is a single-population eigenvalue problem for a signature sampler, not a two-population cross-covariance
+    for a homomorphic product.
+  assumptions:
+  - At N=8 the full ternary secret space (3^8) and a small plaintext space are jointly enumerable
+    within the compute budget, making the estimate exhaustive rather than sampled.
+  - Canonical correlation on integer coefficient vectors is meaningful without a Gaussian assumption;
+    only the finite-sample null floor is used for calibration, and it is measured rather than assumed.
+  - The relinearization key is fixed across the enumeration, so key-switching noise is a fixed offset
+    rather than an extra random source; a secondary arm varies it.
+  - Circuit shape can be held exactly fixed between the two families apart from the reuse pattern,
+    so the families differ in one factor only.
+  predictions:
+  - metric: leading canonical correlation rho_1 in the SHARED family, level 1
+    direction: higher
+    minimum_effect: 0.3 above the shuffled floor measured at the same dimension and sample count
+  - metric: leading canonical correlation in the INDEPENDENT family at every level
+    direction: different
+    minimum_effect: within 2 standard errors of the shuffled floor, i.e. a predicted absence of effect
+  - metric: decay of rho_L with L in the SHARED family
+    direction: lower
+    minimum_effect: a factor of 2 reduction from level 1 to level 3
+  - metric: dependence of rho_1 on plaintext modulus t
+    direction: higher
+    minimum_effect: 'refusal to pre-commit a number: the predicted driver is the message magnitude
+      m2, but the mapping from t to the realised |m2| depends on the enumeration restriction, and
+      a pre-committed constant would be arbitrary'
+  minimal_test:
+    design: 'At N=8, q a single 20-bit prime, t=2, ternary secret, run both circuit families to depth
+      3 over the full secret enumeration crossed with a fixed set of 64 plaintext assignments, and
+      record every noise coefficient vector. Compute the leading canonical correlation between designated
+      factor and product at each level, for each family, and for the pairing-shuffled null built from
+      a second independently seeded enumeration. Report all four numbers with standard errors from
+      a jackknife over secrets. The discrimination is complete at this size: if SHARED exceeds the
+      shuffled floor by 0.3 and INDEPENDENT does not, the independence step is stressed by reuse and
+      the effect is localised to circuit shape; if neither exceeds the floor, the construction is
+      a controlled null and the whole framing closes for the price of an afternoon. N=16 exists only
+      to check that the effect does not vanish with dimension, and it is optional.'
+    controls:
+    - Pairing-shuffled null with identical marginals, run in the same invocation.
+    - INDEPENDENT circuit family as an internal negative control with matched depth and matched noise
+      budget.
+    - 'Zero-message control: plaintexts all zero, where the predicted driver m2 vanishes and rho should
+      collapse to the floor.'
+    - 'Dimension control: the shuffled floor is measured separately at N=8 and N=16 rather than assumed,
+      since the finite-sample floor scales with dimension over sample count.'
+    - Fixed-key and re-keyed arms, so relinearization key reuse is separated from ciphertext reuse.
+    required_metrics:
+    - leading canonical correlation between factor and product noise vectors, per level and family
+    - Frobenius norm of the normalised cross-covariance matrix, per level and family
+    - the same two quantities on the pairing-shuffled null
+    - jackknife standard errors over the secret enumeration
+    - marginal variance of each noise vector, to confirm the shuffle preserved marginals
+    - enumeration size and whether it was exhaustive
+  falsification_conditions:
+  - SHARED and INDEPENDENT both sit within 2 standard errors of the shuffled floor at every level.
+  - The shuffled floor itself exceeds 0.3 at the tested dimension and sample size, meaning the statistic
+    has no resolution and the design must grow before it can say anything.
+  - The zero-message control shows the same correlation as the nonzero-message arm, contradicting
+    the stated mechanism and indicating the effect comes from something other than the m2*Sigma_1
+    term.
+  - rho is not reproducible across independent seedings of the same enumeration.
+  - Marginal variances differ between shuffled and true populations, meaning the null destroyed more
+    than the pairing and the comparison is invalid.
+  confounders:
+  - Relinearization key reuse creates a correlation channel independent of ciphertext reuse; the re-keyed
+    arm separates them but only partially at small N.
+  - At N=8 the canonical correlation between two 8-dimensional vectors has a high finite-sample floor;
+    if the floor is not measured precisely the whole effect can be swamped.
+  - Restricting plaintexts biases the m2 distribution and hence the predicted driver.
+  - Modular reduction at a single small prime induces wraparound correlations that are an artifact
+    of the toy modulus rather than of the scheme.
+  - Fixed circuit depth couples level index to accumulated noise magnitude, so a decay in rho may
+    reflect magnitude growth rather than loss of dependence.
+  interpretation_limits:
+  - A correlation measured at N=8 with a 20-bit modulus is not a statement about any parameter set
+    anyone ships.
+  - A nonzero correlation does not by itself move any noise bound; the derivation from correlation
+    to bound is not attempted here and must not be read in.
+  - The result is about one product rule as transcribed by the Coordinator, not about noise models
+    as a class.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The enumeration costs O(S * P * d * N^2) integer
+      operations for S secrets and P plaintext assignments, which at N=8, S=6561, P=64, d=3 is small.
+    memory_exponent: No attack memory exponent is claimed. Storing the full noise-vector population
+      is O(S * P * d * N) machine words.
+    best_known: The incumbent is the independence step itself as stated in the noise model being transcribed,
+      used without measurement. This proposal does not replace it; it measures the residual the step
+      sets to zero.
+    hidden_overhead: 'The finite-sample floor for canonical correlation at small dimension is the
+      hidden cost: it is easy to report an impressive rho that is entirely floor. Human cost hides
+      in defending the claim that the shuffle preserves marginals exactly.'
+  dominated_by: 'n/a (no result claimed). Checked: there is no FHE experiment directory in this repository
+    and no internal frontier row for noise-model independence measurement; the contract emits no attack
+    cost so it does not enter the time/memory/data frontier.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a dimensionless correlation
+    with an interval, not a cost.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That the exhaustive enumeration and the statistic are computable and
+    reproducible: 0.9. That the SHARED family exceeds the shuffled floor by the pre-committed 0.3:
+    0.55, because the mechanism term m2*Sigma_1 is real arithmetic but may be dominated by fresh relinearization
+    noise even at level 1. That the INDEPENDENT family stays at the floor as predicted: 0.75. That
+    the finite-sample floor at N=8 is low enough for the test to have resolution at all: 0.5, and
+    this is the single most likely way the design fails.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-TECH-082
+  - KN-OPEN-016
+  - KN-OPEN-026
+  - KN-FIND-012
+  - KN-FIND-014
+  - EV-MLKEM-011
+  - IDEA-20260807-a06996
+  - docs/inventor-protocol.md
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-cd8414

@@ -1,0 +1,234 @@
+experiment:
+  id: EXP-SLHDSA-6c39f3
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-cf82f2; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-cf82f2
+  question_id: RQ-SLHDSA-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Enumerate the exact leaf-index pushforward of a toy SLH-DSA digest-then-split map over the
+    whole randomizer domain, and report its total-variation excess over a same-sample-size uniform
+    null across byte-aligned and byte-straddling split variants
+  objective: 'The one uncertainty a run reduces is whether the unbiasable index that three records
+    in this repository condition on is measurable, and with what resolution. Concretely: (i) whether
+    the exact pushforward histogram, computed by enumerating the entire randomizer domain rather than
+    sampling it, has a total-variation distance from uniform that exceeds a same-sample-size uniform
+    null''s measured floor by more than that null''s between-seed spread, at byte-aligned split widths
+    where no structural deviation is expected; (ii) whether the answer changes when the split''s field
+    widths straddle the digest''s byte boundaries, which is the only place in this design where the
+    encoding rather than the hash could plausibly contribute, and for which no direction is pre-registered;
+    (iii) what resolution the design actually has, expressed as the smallest total-variation excess
+    the null floor and its spread would allow to be detected at each tested alphabet size, so that
+    a null result is reported with its power attached rather than as a bare absence. A run reduces
+    (i) and (ii) to excess numbers with spreads, and (iii) to a per-configuration resolution figure.
+    No resolvable excess anywhere is the expected outcome and a complete one.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'At most, a completed run supports: for the tested randomizer
+      widths, leaf alphabet sizes, split variants and digest backends, the exact pushforward histogram,
+      its total-variation distance from uniform, the uniform null''s measured floor and spread, the
+      resulting excess, the chi-square statistic, and the design''s resolution at each configuration.
+      WHAT DOES NOT FOLLOW: nothing about any FIPS 205 parameter set or any deployed digest width,
+      no security level, no bias exploit, no attack, no forgery, no statement about SHA-2 or SHAKE
+      (used here only as fixed truncated backends while the split map is the variable), no statement
+      about what the literature contains, and nothing about the fault or memory-corruption claim class.
+      A zero excess at 20-bit randomizer domains says nothing about behaviour at deployed widths,
+      where the pushforward is not enumerable and this contract offers no substitute.'
+  inputs:
+    procedure: 'STAGE 0, freeze (zero compute): register split variants, widths, backends, sample
+      sizes, the analytic floor formula per variant, and the pre-registered null expectation. STAGE
+      1, split map (~4h human): implement each split variant explicitly, including byte-boundary handling,
+      with the permuted-bin control wired in. STAGE 2, exact pushforward (~1h compute): for each (r,
+      h, variant, backend), evaluate the map on all 2^r randomizer values with message and key fixed,
+      accumulating the histogram in a streaming pass. STAGE 3, null (~1h compute): identical pipeline
+      on 2^r uniform draws, two generators, three seeds each. STAGE 4, statistics (~10min compute):
+      total variation, chi-square, excess over floor, and the per-configuration resolution figure.
+      STAGE 5, message sweep (~2h compute): repeat STAGE 2 at eight distinct fixed messages per configuration,
+      to bound message dependence rather than assume it away. STAGE 6, report (zero compute): excess
+      and resolution per configuration, with all controls and spreads.'
+    instrument: Python 3.11. hashlib for SHA-256 and SHAKE-128 as the two truncated digest backends,
+      numpy for streaming histogram accumulation and the total-variation and chi-square arithmetic,
+      scipy.stats only for the chi-square p-value (or an in-repository implementation if scipy is
+      unavailable in the environment, which the contract requires be checked in STAGE 0), random.Random
+      and secrets.SystemRandom as the two independent uniform generators for the null. New single-file
+      module under harness/ following the convention of harness/toycurve.py and harness/rho.py, invoked
+      via harness/runner.py so that seeds, parameters and the resolved inference block appear in the
+      run manifest. No Sage, no external cryptographic library, no network access.
+    parameters: 'Randomizer width r in {8, 12, 16, 20}, enumerated exhaustively. Leaf alphabet h in
+      {8, 9, 12, 16}, chosen so that h = 8 and h = 16 are byte-aligned and h = 9 and h = 12 are not.
+      Split variants: three (discard-surplus-bits, straddle-boundaries, pad-to-byte). Digest backends:
+      two (SHA-256 truncated, SHAKE-128 truncated), each truncated to exactly h + a*k bits with a
+      = 3, k = 3. Null: 2^r draws per configuration, two generators, three seeds each. Message sweep:
+      eight fixed messages per configuration. Total exact-arm digest evaluations bounded by 4 widths
+      x 4 alphabets x 3 variants x 2 backends x 8 messages x 2^20, capped in the contract at 2^33
+      evaluations with a hard wall-clock stop.'
+  controls:
+  - Uniform-source null arm at identical sample size, identical pipeline, same invocation, three seeds.
+  - Second uniform generator (a different seeded algorithm) for the null, to confirm the measured
+    floor is a sample-size property and not a generator property.
+  - Byte-aligned versus byte-straddling split variants at otherwise identical parameters, so the encoding
+    rather than the hash is the variable.
+  - Two concrete digest backends (SHA-256-truncated and SHAKE-128-truncated) at identical widths,
+    so a deviation seen in one and not the other is identifiable as backend-specific.
+  - 'A permuted-bin control: relabel the histogram bins by a fixed random permutation before computing
+    total variation, which must leave the statistic unchanged and catches ordering bugs in the extraction.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Indices drawn from a seeded uniform pseudorandom source over the same
+    alphabet [2^h], at the identical sample size, pushed through the identical histogram, total-variation
+    and chi-square pipeline, inside the same process invocation, on three seeds. The null must show
+    a nonzero measured total-variation distance -- this is the point -- consistent with the finite-sample
+    floor, and the between-seed spread of that floor sets the resolution. The signal arm means something
+    only if its total-variation distance exceeds the null arm''s measured value by more than the null''s
+    own between-seed spread. If the null arm''s floor is larger than any plausible effect at the chosen
+    sample size, the measurement has no resolution and must be reported as such rather than as an
+    absence of bias.'
+  independent_variables:
+  - randomizer width r
+  - leaf alphabet size h and its byte alignment
+  - split variant (discard / straddle / pad)
+  - digest backend
+  - fixed message index in the sweep
+  metrics:
+    primary:
+    - exact pushforward histogram per configuration
+    - total-variation distance from uniform, signal arm
+    - total-variation distance, uniform null arm, with between-seed spread
+    - excess of signal over null floor
+    - 'per-configuration resolution: smallest excess detectable given the floor and spread'
+    secondary:
+    - chi-square statistic and p-value
+    - maximum single-bin deviation and its bin index
+    - agreement between the two uniform generators on the floor
+    - permuted-bin control invariance check
+    - composition bound q * TV at the signature budgets used elsewhere in this bucket
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The excess E = TV_signal - TV_null, where TV_signal is the total-variation distance
+      of the exact pushforward from uniform and TV_null is the mean measured total-variation distance
+      of the uniform-source arm at the identical sample size, at each byte-aligned configuration.
+    formula: 'Predicted value zero, within the null arm''s between-seed spread. TV(P, U) is defined
+      as one half the sum over bins i in [2^h] of |P_i - 2^{-h}|, computed on normalized counts. The
+      analytic finite-sample floor against which TV_null is validated is E[TV] approximately equal
+      to sqrt((2^h - 1) / (2 pi N)) for N samples over 2^h equiprobable bins, and the pre-registration
+      is twofold: TV_null agrees with that floor within its spread, and E lies within that same spread
+      of zero at every byte-aligned configuration. No value is pre-registered for the byte-straddling
+      configurations, deliberately.'
+    source: Pre-registered in the parent proposal IDEA-20260816-cf82f2 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at randomizer widths 8 to 20 bits and leaf alphabets of 256 to 65536 bins,
+      with a = 3 and k = 3 fixing the FORS block width. These are the largest sizes at which the randomizer
+      domain enumerates completely, which is what buys an exact pushforward rather than a sampled
+      one. The transfer assumption, stated and not established: that whether the split map introduces
+      a structural deviation is a property of the encoding''s alignment arithmetic and not of the
+      absolute widths, so that an alignment effect present at deployed widths would also be present
+      at these. That assumption is weak and is the reason the byte-straddling arm exists; it is not
+      established by any run under this contract, and under AGENTS.md rule 4 no output is phrased
+      as a statement about any deployed digest width or parameter set.'
+    correspondence: null
+  tail_checks:
+  - Confirm the permuted-bin control leaves total variation numerically unchanged.
+  - Confirm the two independent uniform generators produce floors agreeing within their spreads.
+  - Confirm the exact enumeration reproduces a sampled estimate at the same configuration within the
+    sampled arm's band.
+  - Confirm the analytic floor formula matches the measured null floor at three alphabet sizes before
+    any signal number is read.
+  - Confirm the maximum single-bin deviation is not concentrated at bin 0 or the last bin, which would
+    indicate an off-by-one in extraction rather than a distributional effect.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt and report no resolution if the measured null floor exceeds the smallest excess of interest
+    at every configuration.
+  - Halt and report a pipeline failure if the null floor disagrees with its analytic expectation beyond
+    spread.
+  - Hard wall-clock stop at 12 CPU-hours; a stop is an infrastructure outcome and is never negative
+    mathematical evidence.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: An exact pushforward histogram per configuration with its total-variation excess
+    over a measured uniform null floor, each reported with the design's resolution at that configuration
+    attached, and all five controls cleared.
+  falsification_criterion:
+  - 'The null floor disagrees with its analytic expectation beyond spread: no signal number may be
+    read.'
+  - 'The two uniform generators disagree on the floor: the null measures the generator, not the sample
+    size.'
+  - 'The permuted-bin control changes the statistic: indexing bug, run invalid.'
+  - 'An excess appears in one digest backend and not the other at identical split widths: not attributable
+    to the split map, reported as inconclusive.'
+  - 'Measured resolution at every configuration is coarser than the smallest excess of interest: reported
+    as no resolution, explicitly not as no bias.'
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-cf82f2
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The exact field widths and byte-boundary behaviour of the real split map are taken from a structural
+    description this repository marks UNVERIFIED; a Coordinator must decide whether testing three
+    variants is an adequate hedge or whether a primary source must be filed as a KN-LIT entry first.
+  - The smallest excess of interest is not yet defined; it must be derived from the occupancy lane's
+    error budget via the q * TV composition bound and fixed before freezing, or the resolution figure
+    has nothing to be compared against.
+  - Whether the uniform-randomizer input distribution is the right one, or whether the deterministic
+    and hedged signing modes require separate contracts, is a Coordinator scoping decision.
+  - Whether scipy is available in the execution environment must be settled in STAGE 0, since the
+    chi-square p-value path depends on it and an in-repository fallback changes the numerical tolerances.

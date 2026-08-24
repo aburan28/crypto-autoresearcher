@@ -1,0 +1,220 @@
+experiment:
+  id: EXP-FHEX-5e6e4f
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-560157; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-560157
+  question_id: RQ-FHE-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the per-level ratio of exact decryption noise to the transcribed worst-case bound
+    across a fixed multiplication tree in a toy exact FHE scheme, with a matched-variance independent-noise
+    null arm.
+  objective: 'The one uncertainty a run reduces is whether the gap between an FHE noise bound and
+    the noise actually present is a per-level compounding property of homomorphic evaluation or an
+    arithmetic property of the bound recursion alone. (i) It fixes one transcription of one worst-case
+    recursion as the model, so that from then on the phrase ''the model'' in this lane names a specific
+    code path rather than a family. (ii) It produces the ratio sequence R_L over an exhaustive plaintext
+    enumeration at three ring degrees, with a fitted per-level slope and a bootstrap interval, so
+    that the looseness of the bound becomes a measured number with units of bits per multiplicative
+    level rather than an impression. (iii) It runs the identical measurement against matched-variance
+    independent noise in the same invocation, which is the only thing that can tell the two candidate
+    explanations apart: if the null reproduces the slope, the compounding lives in the recursion''s
+    constants and the signal arm carries no information about evaluation. A run also produces, as
+    a by-product the lane needs, an audited exact-arithmetic toy scheme whose recovered noise polynomial
+    is checked against an independent decryption path on every ciphertext, which is the instrument
+    every other proposal in this bucket depends on.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: for this transcribed recursion,
+      this implementation, these three ring degrees, this plaintext modulus, this circuit shape, and
+      this enumerated plaintext set, the ratio of exact infinity-norm noise to modelled bound decays
+      at the measured per-level rate, and a matched-variance independent-noise null does or does not
+      reproduce that rate. What does NOT follow: nothing about any deployed or shipped FHE parameter
+      set, nothing about the security level of any scheme, nothing about whether a modulus could be
+      reduced, and nothing about the behaviour of the same ratio at cryptographic ring degrees, since
+      no extrapolation is validated by this run.'
+  inputs:
+    procedure: 'STAGE 0 (cost: hours of implementation, minutes of compute): build the exact toy scheme
+      with integer negacyclic convolution and an assertion that the recovered noise polynomial reproduces
+      the ciphertext under an independent decryption path; freeze the transcription of the worst-case
+      recursion in a separate module that never sees a ciphertext. STAGE 1 (minutes): calibrate at
+      N=16 the enumerable plaintext subset and confirm decryption correctness through depth 4. STAGE
+      2 (under one core-hour): run the exhaustive enumeration at N in {16,32,64}, depth 4, recording
+      exact noise polynomials, infinity and two norms, and model bounds at every level. STAGE 3 (minutes):
+      run the identity-circuit control at every degree. STAGE 4 (minutes): run the matched-variance
+      null arm in the same invocation as STAGE 2 by construction, sharing the recursion code path.
+      STAGE 5 (minutes): fit log2 R_L against L per arm per degree per seed, bootstrap over the enumeration,
+      and emit slopes with intervals plus full residual tables. STAGE 6 (minutes): emit the run manifest
+      and the counts of decryption failures, recorded separately.'
+    instrument: Python 3 with numpy for array bookkeeping and Python arbitrary-precision integers
+      for all ring arithmetic, so no floating point touches a noise value; schoolbook O(N^2) negacyclic
+      convolution rather than an NTT, chosen because at N<=64 it is fast enough and is far easier
+      to audit than a transform. New self-contained modules under harness/, following the conventions
+      of harness/run.py and harness/runner.py for deterministic seeding and run-manifest emission,
+      including the inference block recording the resolved policy. No Sage, no external FHE library,
+      no floating-point statistics library; bootstrap intervals computed directly.
+    parameters: 'Ring degree N in {16, 32, 64}. Modulus chain: three 20-bit primes congruent to 1
+      mod 2N. Plaintext modulus t = 2. Secret: ternary, Hamming weight fixed at N/4 for the sparse
+      arm and uniform ternary for the dense arm. Error: discrete Gaussian with sigma = 3.2, sampled
+      by exact rejection over integers. Circuit: balanced multiplication tree of depth 4 followed
+      by one linear layer. Enumeration: all plaintext pairs of Hamming weight at most 2 (137 values
+      at N=16, 529 at N=32, 2081 at N=64; product sets of 18769, 279841 and 4330561 pairs respectively,
+      with the N=64 arm subsampled to 200000 pairs and that subsampling recorded as non-exhaustive).
+      Seeds: 3 per parameter point.'
+  controls:
+  - 'Null arm: matched-variance independent noise through the identical recursion, executed in the
+    same invocation as the signal arm.'
+  - 'Identity-circuit control: a depth-d chain of multiplications by an encryption of 1, which the
+    model charges in full but which should produce far less true noise growth; separates model arithmetic
+    from message-dependent growth.'
+  - 'Seed control: three independent key and randomness seeds per parameter point, with the slope
+    reported per seed before pooling.'
+  - 'Implementation control: the noise polynomial recovered by exact subtraction must equal the noise
+    polynomial recovered by an independent decryption path, checked as an assertion on every ciphertext.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Null arm: at each level, replace the actual ciphertext noise polynomial
+    by a freshly drawn independent polynomial whose coefficients are sampled to match the measured
+    per-level variance, and push it through the identical B_L recursion and the identical R_L computation
+    in the same invocation. For the signal arm to mean anything the null must show a DIFFERENT R_L
+    trajectory, specifically a flatter or non-decaying one, because independent matched-variance noise
+    has no compounding correlation history. If the two trajectories agree within the bootstrap interval,
+    the recorded outcome is a controlled null: the ratio is an artifact of the bound''s arithmetic
+    and carries no information about homomorphic evaluation.'
+  independent_variables:
+  - ring degree N
+  - arm (signal, matched-variance null, identity-circuit control)
+  - multiplicative level L
+  - secret density (sparse h=N/4 versus uniform ternary)
+  metrics:
+    primary:
+    - R_L = exact infinity-norm noise divided by model bound, per level
+    - fitted slope of log2 R_L against L with bootstrap interval
+    - difference in fitted slope between signal and null arms
+    - exact infinity norm of the decryption noise polynomial per level
+    secondary:
+    - two norm of the noise polynomial per level
+    - model bound B_L per level
+    - residuals of the affine fit
+    - seed-to-seed spread of the fitted slope
+    - count of decryption failures per parameter point
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The fitted per-level slope of log2 R_L in the signal arm, and its difference from the
+      same slope in the matched-variance null arm, at each ring degree.
+    formula: log2 R_L = a + b*L, where R_L = ||e_L||_inf / B_L, e_L is the exact decryption noise
+      polynomial at multiplicative level L, and B_L is the transcribed worst-case recursion evaluated
+      from the same fresh-encryption bound. Predicted b <= -0.5 bits per level in the signal arm,
+      and |b_signal - b_null| >= 0.3 bits per level with non-overlapping 95 percent bootstrap intervals.
+    source: Pre-registered in the parent proposal IDEA-20260816-560157 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Tested at N in {16,32,64} with 20-bit primes, which is three to eight binary orders
+      below any ring degree an FHE library ships and far below any modulus chain in use. The only
+      transfer statement the contract makes is that the fitted slope b is compared across the three
+      degrees to see whether it is degree-stable; a degree-stable slope would make an extrapolation
+      to larger N a stateable hypothesis for a later contract, and this contract does not make it.
+      Nothing measured here is reported as a property of shipped parameters, per AGENTS.md rule 4.
+    correspondence: null
+  tail_checks:
+  - Report the maximum and the 99.9th percentile of R_L over the enumeration alongside the mean, since
+    the bound is about worst cases and a mean ratio would misrepresent it.
+  - Report the empirical distribution of ||e_L||_inf near the correctness threshold, with the count
+    of enumeration points within 1 bit of failure.
+  - Check whether the affine fit's residuals grow at the largest L, which would indicate the summary
+    breaks exactly where it matters.
+  - Report the ratio computed with the two-norm in place of the infinity norm, as a sensitivity check
+    on the choice of coordinate.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt a parameter point once decryption fails for more than 1 percent of the enumeration, and record
+    the level at which that happened rather than extending the tree.
+  - Halt the N=64 arm at 200000 enumerated pairs and record it as subsampled.
+  - Abort the run and report an instrument failure, not a result, if the noise-recovery assertion
+    fails on any ciphertext.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A reproducible fitted slope b in the signal arm with a bootstrap interval excluding
+    zero at all three degrees, together with a null-arm slope whose interval is disjoint from it at
+    at least two of the three degrees.
+  falsification_criterion:
+  - Null and signal slope intervals overlap at every degree.
+  - Signal slope interval covers zero at every degree.
+  - Seed-to-seed spread of b exceeds 0.05 bits per level, so the statistic is not reproducible.
+  - Affine residuals are structured rather than centred, invalidating the summary.
+  - The noise-recovery assertion fails, which is an instrument failure and is never recorded as mathematical
+    evidence.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-560157
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The Coordinator must select and name the exact worst-case noise recursion to be transcribed, including
+    its constants for relinearization and modulus switching; the measurement is meaningless until
+    'the model' names one document.
+  - RQ-FHE-001 carries a constraint that no experiment may be designed until the relevant primary
+    sources are filed as KN-LIT entries with citation_verified other than web; the Coordinator must
+    rule whether that gate binds a contract that measures a scheme's own noise recursion and cites
+    no attack claim, or whether the gate must be opened first.
+  - The mapping from the toy circuit shape to any circuit anyone runs is unspecified and must be declared
+    as out of scope or supplied.
+  - Whether the sparse-secret arm at h=N/4 is a meaningful analogue of shipped sparse secrets at N=8192
+    is undetermined and the contract should state it as untested.

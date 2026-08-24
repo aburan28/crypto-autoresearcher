@@ -1,0 +1,88 @@
+schema: crypto.autoresearch.ecdlp.prime_candidate_stream.v1
+status: successor_input_draft_pending_independent_review
+contract_version: prime-stream-v1
+purpose: >-
+  Define the exact deterministic mapping from a family row to prime candidates
+  before curve coefficients, subgroup generation, or rho. This is a protocol
+  input and conformance contract, not a prime census or ECDLP evidence.
+input_encoding:
+  encoding: UTF-8
+  separator_byte: 0x1f
+  fields: [seed_decimal, field_bits_decimal, curve_family_ascii, prime_candidate_tag]
+  prime_candidate_tag: prime_candidate
+root_digest:
+  algorithm: SHA-256
+  message: seed_decimal || 0x1f || field_bits_decimal || 0x1f || curve_family_ascii || 0x1f || prime_candidate_tag
+candidate_rank:
+  first_rank: 0
+  encoding: unsigned_64_bit_big_endian
+  digest_message: root_digest_bytes || rank_bytes
+candidate_integer:
+  digest_algorithm: SHA-256
+  digest_to_integer: unsigned_big_endian_digest_integer
+  low_bits: field_bits_minus_one
+  formula: (1 << (field_bits - 1)) | (digest_integer & ((1 << (field_bits - 1)) - 1)) | 1
+  meaning: odd field_bits-bit integer before the exact prime search
+prime_search:
+  algorithm: least_prime_at_or_above_candidate_integer
+  primality: exact_deterministic_trial_division
+  search_order: candidate_integer_then_successive_integers
+  candidate_prime_bit_length: must_equal_declared_field_bits
+  bit_length_failure: rejected_candidate
+  no_probable_prime_oracle: true
+  no_backend_specific_prime_function: true
+row_selection:
+  max_candidate_ranks: 64
+  accept_only_if:
+    - prime_search_succeeds
+    - prime_bit_length_matches
+    - declared_family_predicate_holds
+    - prime_not_already_accepted_for_same_row
+  rejection_statuses:
+    - composite_search_candidate
+    - wrong_bit_length
+    - family_predicate_failure
+    - duplicate_accepted_prime
+  exhaustion_status: family_unavailable_refusal
+  cross_family_fallback: forbidden
+transcript:
+  required_fields:
+    - row_id
+    - seed
+    - field_bits
+    - curve_family
+    - root_digest_hex
+    - candidate_rank
+    - rank_digest_hex
+    - candidate_integer
+    - selected_prime_or_null
+    - candidate_bit_length
+    - family_predicate
+    - primality_method
+    - decision
+    - rejection_reason
+  ordering: row_order_then_candidate_rank
+  digest: sha256(canonical_utf8_jsonl_with_lf_endings)
+cost_accounting:
+  charge_every_candidate_rank: true
+  fields:
+    - sha256_operations
+    - trial_division_operations
+    - family_predicate_checks
+    - duplicate_checks
+    - serialized_bytes
+  omitted_transcript_or_cost: invalid_receipt
+conformance_controls:
+  - id: C-PRIME-REPLAY
+    expected: two independent replays produce byte-identical transcript
+  - id: C-PRIME-RANK-MUTATION
+    expected: changing only candidate_rank changes rank_digest and transcript binding
+  - id: C-PRIME-FAMILY-MUTATION
+    expected: changing only curve_family changes root_digest and cannot relabel the accepted row
+  - id: C-PRIME-FALLBACK
+    expected: cap exhaustion remains family_unavailable_refusal with no cross-family candidate
+claim_boundary: >-
+  Passing this contract demonstrates only deterministic prime-stream
+  reproducibility and refusal accounting. It does not establish special-curve
+  availability, an automorphism quotient, a speedup, or an ECDLP conclusion.
+

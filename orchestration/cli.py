@@ -299,6 +299,11 @@ def cmd_campaign(args: argparse.Namespace) -> int:
     return _delegate("orchestration.campaign.cli", args.rest)
 
 
+def cmd_formal(args: argparse.Namespace) -> int:
+    """Formalize a claim with MathCode and verify it with Lean."""
+    return _delegate("orchestration.formal.cli", args.rest)
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     """Where things stand, without running anything."""
     cfg = config_module.load()
@@ -389,7 +394,8 @@ def build_parser() -> argparse.ArgumentParser:
             ("adapter", cmd_adapter, "resolve policies, inspect backends"),
             ("agent", cmd_agent, "plan or run a single dispatched task"),
             ("eval", cmd_eval, "evaluation suites, baselines, comparisons"),
-            ("campaign", cmd_campaign, "read-only campaign observations and peer coordination")):
+            ("campaign", cmd_campaign, "read-only campaign observations and peer coordination"),
+            ("formal", cmd_formal, "formalize a claim in Lean and machine-check it")):
         p = sub.add_parser(name, help=help_text,
                            add_help=False)   # pass --help through to the sub-CLI
         p.add_argument("rest", nargs=argparse.REMAINDER)

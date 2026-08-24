@@ -1,0 +1,210 @@
+experiment:
+  id: EXP-POLYMAC-c86946
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-7b4369; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-7b4369
+  question_id: RQ-POLYMAC-7c89e4
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Threshold the measured-to-bound ratio over an (L, q) grid in both fields to extract near-tightness
+    regions, sweep the tolerance, and report the cross-field symmetric difference with a random-function
+    null and a shuffled-grid control
+  objective: The uncertainty reduced is where, in the two-dimensional parameter space the bound actually
+    lives in, the bound is nearly attained - and whether that place is the same for both constructions.
+    (i) Compute the exact optimal forgery probability at every node of a declared (L, q) grid in both
+    arms, reusing the shared enumeration so the two records cannot diverge. (ii) Threshold the ratio
+    at three tolerances to obtain near-tightness regions, trace each region's boundary along both
+    axes, and enlarge the window until the boundary is interior or the budget is spent, so that the
+    reported boundary is an observation rather than an edge effect. (iii) Superimpose the two arms
+    at matched log-cardinality and emit the symmetric difference cell by cell, together with the null-arm
+    region and the shuffled-grid control, so that a claimed cross-field difference is separated from
+    thresholding artifacts before it is read. The run does not reduce uncertainty about deployed parameters
+    and emits no guidance of any kind.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'Maximal supportable scope: at width n = 16 (and any additional
+      widths completed), with the pinned bound, the frozen scaling rule and the declared tolerances,
+      the near-tightness region of the hash layer is exactly the tabulated node set in each arm, with
+      the tabulated boundary and the tabulated symmetric difference. WHAT DOES NOT FOLLOW: nothing
+      about tightness at deployed field sizes; nothing about any deployed data limit or rekeying interval;
+      no recommendation, preference, or caution about any parameter choice; and no causal attribution
+      of a cross-arm difference to the field, since padding and key constraints are unseparated in
+      this contract by design.'
+  inputs:
+    procedure: 'STAGE 0 (cost: hours, human): freeze the grid, the tolerances, the scaling rule and
+      the window-enlargement budget; record the bound as a derivation gap. STAGE 1 (cost: minutes
+      to an hour): run the shared exhaustive enumeration at every grid node in both arms. STAGE 2
+      (cost: seconds): instantiate the bound at every node and form ratios. STAGE 3 (cost: seconds):
+      threshold at each tolerance, extract regions, trace boundaries. STAGE 4 (cost: as stage 1 if
+      triggered): enlarge the window on any axis whose boundary sits at the edge, up to the budget.
+      STAGE 5 (cost: minutes): run the random-function null over the identical grid and the 32 shuffled-grid
+      permutations. STAGE 6 (cost: seconds): superimpose arms at matched log-cardinality, compute
+      the symmetric difference, plot any Coordinator-supplied coordinate through the scaling rule
+      as a labelled projection. STAGE 7 (cost: seconds): emit the manifest and a report that a text
+      check confirms contains no prescriptive sentence.'
+    instrument: Python 3 standard library for arithmetic and enumeration, sharing one achievable-difference
+      module with the other contracts in this batch; region extraction and boundary tracing by simple
+      grid scans; a mechanical text check over the emitted report for prescriptive constructions (should,
+      recommend, must use, safe to) that fails the run if any is found. Manifest and inference block
+      via harness/runner.py. numpy for tabulation only. No Sage, no network.
+    parameters: 'Width n = 16 primary, n = 12 and n = 20 if budget allows. Grid: L in {1, 2, 4, 8,
+      16, 32} by q in {1, 2, 4, 8}. Tolerances tau in {0.02, 0.1, 0.3}. Window enlargement: at most
+      one doubling per axis. Null arm: 32 random keyed functions per node. Shuffled control: 32 permutations
+      of the measured ratio grid. Five primes per width for the prime arm, with the region computed
+      per prime and the spread reported. Achievable-difference family capped at 2^18 per node.'
+  controls:
+  - Random-function null arm on the identical grid, same invocation.
+  - 'Shuffled-grid control: the same measured ratios randomly permuted across nodes before region
+    extraction, 32 permutations.'
+  - Tolerance sweep over tau in {0.02, 0.1, 0.3} so the region's dependence on the threshold is visible.
+  - 'Window enlargement check: the grid is doubled along whichever axis shows a boundary at the edge,
+    until the boundary is interior or the enlargement budget is exhausted.'
+  - Both arms computed by one code path with the field as a parameter, so no arm-specific code can
+    create an arm-specific region.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The random-function null runs on the identical grid in the same invocation.
+    Its optimal forgery probability is independent of L and grows linearly in q, so its ratio surface
+    is a known analytic shape and its tight region must be either the entire grid or empty, with the
+    transition occurring at a tolerance the contract can predict in advance from the bound''s constant.
+    For the signal arms to mean anything the null must land on the predicted side at each tau; if
+    the null''s region has an interior boundary in L, the enumeration is producing L-dependence where
+    none can exist and no signal cell is interpretable. A second control, a shuffled-grid arm in which
+    the measured ratios are randomly permuted across nodes before region extraction, must produce
+    a region with no connected boundary - establishing that the region-extraction code is detecting
+    structure and not shape-fitting noise.'
+  independent_variables:
+  - field type (binary extension, prime, null, shuffled control)
+  - message length L
+  - query count q
+  - tolerance tau
+  - choice of prime within a width
+  metrics:
+    primary:
+    - binary near-tightness indicator per (arm, node, tau)
+    - region boundary coordinates per arm and axis
+    - symmetric difference size as a fraction of the union
+    - minimum ratio over the grid and its coordinate, per arm
+    secondary:
+    - null-arm region per tau
+    - largest connected component of the shuffled control
+    - prime-sweep spread of the region size
+    - number of nodes where the enumeration hit the family cap
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'The near-tightness region T_arm(tau) = { (L, q) : 1 - tau <= R_arm(L, q) <= 1 } and
+      the normalised symmetric difference |T_binary triangle T_prime| / |T_binary union T_prime| at
+      each tau.'
+    formula: 'R is defined exactly as in the ratio-surface contract: exhaustively maximised acceptance
+      probability divided by the pinned bound at the same (L, q, field size). Predicted: the null
+      arm''s R is independent of L, hence T_null(tau) is a union of full columns and has no interior
+      L boundary; and the shuffled control''s largest connected component is at most 25 percent of
+      the corresponding signal component. No value is pre-committed for the symmetric difference.'
+    source: Pre-registered in the parent proposal IDEA-20260816-7b4369 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Tested at n in {12, 16, 20}, where every node's optimum is exhaustively computable
+      so the region is exact and not a fit. The only transfer statement in the contract is the arithmetic
+      image of a supplied deployed coordinate under the frozen scaling rule, and it is labelled a
+      projection at the point of use, is not treated as evidence, and carries no conclusion. No claim
+      about deployed tightness is derived at any stage.
+    correspondence: null
+  tail_checks:
+  - q = 1 column must reproduce the single-query ratio computed independently by the ratio-surface
+    contract, exactly
+  - L = 1 row, where the difference polynomial is linear and the root set has at most one element,
+    must be checked in closed form
+  - the largest L, where the degree approaches the field size, must be inspected for saturation before
+    the region there is read
+  - nodes where the achievable-difference family hit its cap must be flagged and excluded from region
+    boundaries or the boundary is reported as a lower bound
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - stop enlarging the window after one doubling per axis and report any remaining edge boundary as
+    unobserved
+  - halt interpretation if the null arm shows an interior L boundary
+  - cap total wall clock at 5400 seconds; on exceeding, drop n = 20 and the third tolerance and record
+    the reduction
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: Both arms produce regions at all three tolerances in one invocation, the null
+    arm has no interior L boundary, the shuffled control's largest component is under the 25 percent
+    threshold, and the symmetric difference is reported with the prime-sweep spread and no prescriptive
+    language.
+  falsification_criterion:
+  - null arm shows an interior L boundary
+  - shuffled control produces a comparable connected region
+  - every region is empty at every tolerance in both arms
+  - the region boundary remains at the grid edge after the enlargement budget
+  - the emitted report fails the prescriptive-language check
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-7b4369
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The bound formula is a derivation gap shared with the ratio-surface contract and must be pinned
+    from primary text before approval.
+  - The scaling rule used to map any deployed coordinate onto the toy grid must be frozen and ratified;
+    without it, stage 6's projection must be omitted entirely rather than improvised.
+  - The Coordinator must decide whether deployed coordinates are supplied at all, since the bucket
+    forbids deployment advice and the projection is the closest this contract comes to that line.
+  - The tolerance set is proposed, not blessed; a Coordinator ruling is needed on whether a relative
+    or absolute near-tightness criterion is used.

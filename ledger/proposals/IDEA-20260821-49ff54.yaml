@@ -1,0 +1,565 @@
+idea:
+  id: IDEA-20260821-49ff54
+  question_id: RQ-MLDSA-001
+  added: '2026-08-21'
+  title: >-
+    Exactly two of ML-DSA's four rejection conditions can carry key information in the
+    ABORT COUNT, and both are the t0 conditions: the two norm gates have a fixed-width
+    acceptance interval and are therefore EXACTLY key-independent by algebra, while the
+    ||c t0||_inf >= gamma2 gate and the wt(h) > omega gate have no such argument. Measure
+    the bit rate of the abort-count channel, and measure it separately in hedged and
+    deterministic mode, where the prediction runs OPPOSITE to the standard guidance -
+    against a repeated-message observer, hedged mode delivers Q_S independent draws of a
+    per-key statistic where deterministic mode delivers at most one per distinct message.
+  class: control
+  claim: >-
+    (A) THE OBSERVABLE. The tracked observable is a single non-negative integer per
+    produced signature: T, the number of times the signing loop restarted. It is not a
+    signature byte, not a power trace and not a fault; it is what a passive observer of
+    signing LATENCY on a device with data-independent per-iteration cost can read, and it
+    is strictly coarser than anything any published ML-DSA side-channel attack consumes.
+    (B) THE DERIVED PART, WHICH COSTS NO COMPUTE AND IS THE POINT OF THE PROPOSAL. FIPS 204
+    signing restarts on the disjunction of four conditions. For the two norm gates -
+    ||z||_inf >= gamma1 - beta with z = y + c*s1, and ||r0||_inf >= gamma2 - beta with
+    r0 = LowBits(A y - c s2) - the acceptance interval has FIXED WIDTH (2(gamma1-beta)-1,
+    resp. 2(gamma2-beta)-1) and, because beta = tau*eta is a worst-case bound on
+    ||c s1||_inf and ||c s2||_inf, that interval lies entirely inside the support of the
+    shifted uniform variable for EVERY admissible key. The per-iteration acceptance
+    probability of those two gates is therefore a constant of the parameter set, EXACTLY
+    independent of (s1, s2). This is the same fixed-width argument the rejection-sampling
+    lemma uses for the accepted z; here it is applied to the TRIAL COUNT, which the lemma
+    does not cover. (C) WHERE THE CHANNEL MUST THEREFORE LIVE. The remaining two gates are
+    ||c t0||_inf >= gamma2 and wt(h) > omega. Neither has a fixed-width argument: t0 has
+    coefficients in (-2^12, 2^12], so ||c t0||_inf ranges up to tau*2^12 (159744 at
+    ML-DSA-44) against gamma2 = q/88 = 95232, and the gate genuinely fires at a rate that
+    is a function of the actual t0. PREDICTION, STATED BEFORE ANY RUN: essentially all
+    key-dependent information in T is carried by these two gates, and an arm in which they
+    are disabled must return a bit rate indistinguishable from zero. (D) THE HEDGED /
+    DETERMINISTIC CONTRAST, AND WHY ITS DIRECTION IS THE INTERESTING PART. In deterministic
+    mode rnd is all-zero, so T is a deterministic function T(sk, M); an observer confined
+    to a message set of size m can collect at most m distinct values however many
+    signatures it sees. In hedged mode T is redrawn per signature, so Q_S signatures on the
+    SAME message give Q_S independent draws from the per-key law. CLAIM: for an observer
+    with m << Q_S, the accumulated information about a t0 functional is bounded by a
+    constant in deterministic mode and grows with Q_S in hedged mode, so the retrieved,
+    quoted guidance "There is no reason to prefer deterministic signing over hedged
+    signing; hedged signing is the safer default in all environments"
+    (draft-connolly-cfrg-ml-dsa-security-considerations-02, Section 2.2.1) is
+    unconditional where a scoped statement is what the evidence supports. (E) WHAT IS NOT
+    CLAIMED. No attack, no key recovery, no forgery, no break of MLWE, MSIS or
+    SelfTargetMSIS, and no claim about FIPS 204 parameters - the measurement runs at
+    reduced parameters only. A positive mutual information is an information-theoretic
+    upper bound on what any procedure could extract; it names no procedure and no query
+    count. A NEAR-ZERO RESULT IS THE OUTCOME THE DESIGN IS BUILT TO REPORT HONESTLY and is
+    a measured upper bound on the abort-count channel, which converts an argued folk claim
+    ("the restart count leaks only statistical information") into a number with an error
+    bar. Deterministic mode is NOT recommended by this record under any outcome: it is
+    already documented as fault-vulnerable, and this proposal measures one channel, not a
+    net.
+  mechanism: >-
+    STAGE 0, ALGEBRA BEFORE COMPUTE. Write out the four rejection conditions from FIPS 204
+    signing and derive, symbolically, the per-iteration acceptance probability of each as a
+    function of the key. Record the two fixed-width derivations in full (they are the
+    forced-value derivations of KN-TECH-1a5b7e obligation 4) and record that no such
+    derivation exists for the two t0 gates. This stage can already falsify the proposal: if
+    a fixed-width argument also goes through for the c*t0 gate, the channel is empty by
+    algebra and no run happens. STAGE 1, INSTRUMENT. Implement a reduced-parameter ML-DSA
+    with all four gates individually switchable, emitting (key id, message id, mode, T,
+    per-gate abort counts) per signature. Declare, before data exists, a low-dimensional
+    key functional G(t0) - the coarsened per-polynomial profile of ||t0||_2 over a
+    four-symbol alphabet - and the Miller-Madow-corrected plug-in mutual-information
+    estimator, with its bias computed as a function of alphabet size and sample count.
+    STAGE 2, ARMS. (i) HEDGED, m = 1: one fixed message, Q_S signatures per key, K keys.
+    (ii) DETERMINISTIC, m = 1: same, where T is constant per key by construction - this arm
+    is a derived-value check, since its per-key sample count is exactly 1 regardless of
+    Q_S. (iii) DETERMINISTIC, m = Q_S: distinct messages, the fair comparison at equal
+    distinct-observation count. (iv) Z-GATE-ONLY control, with the two t0 gates disabled:
+    its true information is zero by the stage-0 derivation, so it is a null that CAN fail
+    and whose failure voids the instrument. (v) LABEL-PERMUTATION null on the identical
+    estimator. (vi) KEY-INDEPENDENT BERNOULLI null matched to the measured per-gate rates.
+    STAGE 3, READOUT. Report bits per observed signature for each arm with intervals; the
+    permutation null pins the estimator floor; nulls (v) and (vi) must agree with each
+    other or nothing is reportable; arm (iv) must sit on the floor. STAGE 4, LADDER in Q_S
+    and in K, with convergence a precondition for reporting any value.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      The crypto-kb MCP retrieval index is UNAVAILABLE this session - it is configured with
+      an in-memory Qdrant and answers nothing - so no kb-provenance citation appears in this
+      record. Retrieval instrument was ripgrep over the repository plus WebSearch/WebFetch.
+      RIPGREP, from /home/user/crypto-autoresearcher, using the Grep tool (ripgrep, -i,
+      files_with_matches unless noted): "hedged" over the repository root returned 153 files,
+      of which only four are under ledger/proposals/ (IDEA-20260816-cf82f2,
+      IDEA-20260808-4f83f6, IDEA-20260805-96cb3d, IDEA-20260805-818196) and none is under
+      RQ-MLDSA-001 except IDEA-20260805-818196 (the fault-proof rank record); "SampleInBall"
+      over the repository root returned 8 files (IDEA-20260808-4f83f6, IDEA-20260805-bb52fa,
+      IDEA-20260805-818196, IDEA-20260805-5194f9, H-MLDSA-2ae88d, H-MLDSA-2d4123,
+      H-MLDSA-acac6d, and BATCH-66b482's proposals.yaml); a combined count-mode pass for
+      "hedged|deterministic mode|SampleInBall|ExpandMask|multi-target|multi-user|QROM|abort
+      rate|rejection sampling" over ledger/proposals/ returned 611 occurrences across 174
+      files and was too coarse to discriminate, which is recorded rather than presented as a
+      screen; "ML-DSA|Dilithium" over knowledge/ returned 40 files; a glob of
+      ledger/hypotheses/H-MLDSA-*.yaml returned 7. READ IN FULL: RQ-MLDSA-001,
+      GOAL-MLDSA-001, KN-FIND-720727, KN-LIT-4f3b80, the pre-extracted 7-title inventory of
+      every existing RQ-MLDSA-001 proposal, docs/inventor-protocol.md,
+      docs/target-result-profile.md, knowledge/techniques/KN-TECH-1a5b7e.md, and the worked
+      exemplar IDEA-20260816-b336a3. WEB, 8 searches and 8 fetches this session; the ones
+      bearing on this record: search "Dilithium rejection sampling repetition count timing
+      side channel leakage secret key"; search '"number of repetitions" OR "rejection rate"
+      Dilithium leaks secret key norm per-key acceptance probability distribution'; search
+      "Dilithium hint vector h leakage t0 low-order bits signature MakeHint UseHint attack";
+      search '"Uncompressing Dilithium''s Public Key" CRYPTO 2025 recover t0 from signatures
+      hints abstract'. FETCHED AND READ: https://eprint.iacr.org/2025/214 (abstract and
+      attacker model), https://eprint.iacr.org/2024/1373 (abstract verbatim),
+      https://eprint.iacr.org/2024/1660 (abstract verbatim),
+      https://www.ietf.org/archive/id/draft-connolly-cfrg-ml-dsa-security-considerations-02.html
+      (Sections 2.2.1, 3.2.1 quoted), https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.ipd.pdf
+      (parameter table). FETCH FAILURES, recorded because they bound the screen:
+      https://eprint.iacr.org/2024/1660.pdf and https://eprint.iacr.org/2024/2046.pdf both
+      returned binary PDF the fetch tool could not render.
+    results: >-
+      The nearest external prior art is ePrint 2025/214 (Zhou, Wang, Sun, Yu, "Rejected
+      Signatures' Challenges Pose New Challenges"), which does attack the rejection-sampling
+      procedure, but its observable is the rejected signature's CHALLENGE AND RESPONSE
+      recovered by single-trace NTT leakage on Cortex-M4, and it reports 100% key recovery
+      in seconds to minutes at Dilithium-2/3/5. That is a strictly richer observable than one
+      integer per signature and a strictly stronger adversary; it does not measure the
+      information content of the restart count, and it does not compare hedged against
+      deterministic mode. ePrint 2024/1373 (Azevedo Oliveira, Calle Viera, Cogliati, Goubin,
+      CRYPTO 2025) recovers t0 from 200,000-500,000 ordinary signatures with no side channel
+      at all - the same secret this proposal's channel points at, via a completely different
+      and much richer observable (the signature bytes). It therefore DOMINATES this proposal
+      on the t0-recovery axis and is recorded as such below. What neither addresses, and what
+      no repository record addresses, is (a) the per-gate decomposition of which rejection
+      conditions can carry key information at all, with the fixed-width derivation making two
+      of them exactly zero, and (b) the hedged-versus-deterministic sample-count inversion for
+      a repeated-message observer. Inside the repository: none of the seven existing
+      RQ-MLDSA-001 proposals tracks the abort count, the trial count, or the mode distinction;
+      IDEA-20260805-818196 mentions hedged mode only in classifying the Jendral glitch attack's
+      injection site.
+    verdict: >-
+      UNVERIFIED. Novelty relative to the corpus is checked and clean; novelty relative to the
+      full external literature is NOT established - four searches and five successful fetches
+      are a screen, not a survey, and two relevant PDFs could not be rendered. Claimed NEW here:
+      the per-gate fixed-width derivation applied to the TRIAL COUNT rather than the accepted
+      output, and the repeated-message hedged/deterministic sample-count inversion.
+      ASSEMBLED FROM KNOWN PARTS: the rejection-sampling fixed-width argument is Lyubashevsky's
+      and is standard; Miller-Madow correction, permutation nulls and structural nulls are
+      estimator hygiene from KN-TECH-1a5b7e; the estimator design is directly downstream of
+      IDEA-20260816-b336a3 in the HQC lane and this record does not claim that method as its own.
+  object_first_candidate:
+    tracked_object: >-
+      The restart count T of the FIPS 204 signing loop, decomposed by which of the four
+      rejection conditions fired, followed from the sampling of (s1, s2, t0) at key
+      generation through each signing iteration to the observable latency. What is tracked
+      is the divergence, in bits, of the posterior over a declared t0 functional G given the
+      observed T-sequence, from its prior.
+    lossiness: >-
+      LOSSY THREE TIMES OVER, deliberately, and each discard is compatible with the
+      operation that follows it. First, the whole signing state (y, w, c, z, r0, h) of an
+      aborted iteration is projected to a single bit "accepted or not" - everything the
+      published single-trace attacks consume is thrown away. Second, the sequence of those
+      bits is projected to its length T. Third, the key is projected onto G, a coarsened
+      per-polynomial ||t0||_2 profile over a four-symbol alphabet, discarding position and
+      sign information entirely. Mutual information is monotone under all three
+      projections, so the measured value is a LOWER bound on I(sk ; full transcript) and an
+      upper bound on nothing - the honest direction, and it is exactly why a small value is
+      informative about the CHANNEL and not about the scheme. Critically, the projection to
+      T is not a change of coordinates: from T alone the aborted iterations are
+      unrecoverable, and the fixed-width derivation shows that two of the four gates
+      contribute nothing to T at all, so the retained part is strictly smaller than the
+      state.
+    propagation: >-
+      One signing iteration is one step, and it writes exactly one increment of T. The
+      propagation law of interest is the per-iteration acceptance probability p(sk) =
+      p_z * p_r0 * p_ct0(t0) * p_h(t0, s2), which factorises because the gates are evaluated
+      in sequence on the same iteration. Stage 0 derives p_z and p_r0 to be constants of the
+      parameter set. The measurement decomposes the total information into per-gate terms
+      plus a residual, and reports both: if the total equals the sum of the two t0-gate terms
+      within error, the decomposition is confirmed; if the z-gate term is non-zero, the
+      stage-0 algebra is wrong and that, not the bit count, is the finding.
+    survival_score: >-
+      One iteration, then a hard collapse. Key information enters T only through the two t0
+      gates of a single iteration and then survives only as an increment to an integer. The
+      proposal reports the ratio I(G ; T-vector) / I(G ; 1{T > 0}) at the executed
+      parameters, a concrete number expressing how much is lost by observing only "did it
+      restart at all". A ratio near 1 means the count adds nothing beyond the restart
+      indicator and the object dissolves immediately; a ratio well above 1 means it survives
+      the step meaningfully. Either value is the deliverable.
+  null_object_control: >-
+    FOUR controls, all on the identical estimator code path and all in the same invocation
+    as the signal arm. NULL-A, DERIVED-ZERO ARM (this is the load-bearing one and it can
+    fail): run with the two t0 gates disabled, so that by the stage-0 fixed-width derivation
+    the true mutual information is EXACTLY zero for every key. If this arm returns a value
+    above the permutation floor, either the derivation or the implementation is wrong and
+    NO signal-arm number is reportable. NULL-B, LABEL PERMUTATION: recompute after
+    permuting which key produced which T-vector, preserving both marginals; its true value
+    is zero by construction, so it is the estimator's bias-plus-noise floor at this sample
+    size, drawn at least 8 times so that it is reported as an interval and not a point
+    (KN-TECH-1a5b7e mode 5). NULL-C, STRUCTURAL: generate T from a key-independent geometric
+    process matched to the measured per-gate rates; it must agree with NULL-B within
+    intervals, or the estimator responds to something other than key dependence.
+    SENSITIVITY DEMONSTRATION, declared with a numeric threshold before the run: an
+    artificially inflated-t0 family, in which t0 coefficients are scaled by a factor g, must
+    show the estimate rising monotonically over at least three interior values of g (g = 1,
+    1.5, 2, 3), because the c*t0 gate's firing rate is monotone in ||t0||. Two endpoints are
+    not a direction; three interior points and a reported monotonicity verdict are required,
+    and a non-monotone statistic forfeits any directional reading of the headline.
+  discriminated_from:
+  - >-
+    ePrint 2025/214 (Zhou et al.) attacks rejection sampling using single-trace NTT leakage
+    of the REJECTED challenge and response and achieves full key recovery. This record
+    consumes one integer per ACCEPTED signature and claims no recovery of anything. If the
+    measured bit rate here is tiny and 2025/214's attack succeeds, that is consistent and
+    informative: it localises the value in the trace content rather than in the count.
+  - >-
+    ePrint 2024/1373 recovers t0 from the signature bytes of 200k-500k ordinary signatures.
+    Same secret, richer observable, and a working attack; this is the dominating result on
+    that axis and is recorded in dominated_by. The question here is what the COUNT alone is
+    worth and whether the two modes differ - neither of which 2024/1373 asks.
+  - >-
+    IDEA-20260805-818196 (fault-proof boundary as the rank of an affine constraint system)
+    concerns what a FAULTING adversary forces; this record's adversary injects nothing and
+    observes only latency.
+  - >-
+    IDEA-20260808-5a748c prices t0 as a core-SVP gap between the t1-only and full-t MLWE
+    instances. That is the VALUE of t0 in bits; this record measures a RATE at which one
+    coarse channel emits information about it. Neither implies the other, and the two
+    compose only through IDEA-20260821-4d4e5f's ledger.
+  - >-
+    IDEA-20260816-b336a3 (HQC lane) counts bits per observed decoding failure. Same
+    estimator discipline, different scheme, different object, different lane; this record
+    cites it as method provenance rather than claiming the method.
+  - >-
+    IDEA-20260805-031ce2 (RQ-MLDSA-ffa0f5) shares this record's underlying object: the same
+    four FIPS 204 Algorithm 7 rejection predicates, classified predicate-by-predicate into a
+    table as the primary deliverable, with ||c t0||_inf >= gamma2 singled out as the special
+    gate and the same envelope tau*2^(d-1) = 159744 < 2*gamma2 = 190464 at ML-DSA-44 carried
+    in both. The two censuses CROSS-CUT and are not the same partition: 031ce2 sorts by
+    verifier-observability and consequence-of-omission ({z, wt(h)} verifier-enforced, {r0}
+    self-enforcing, {c t0} unobservable), while this record sorts by key-dependence of the
+    per-iteration ACCEPTANCE PROBABILITY ({z, r0} exactly key-independent by the fixed-width
+    argument, {c t0, wt(h)} not) - so r0 and wt(h) fall on opposite sides of each other in the
+    two records. The discriminating tests are disjoint: 031ce2 observes whether a signature
+    emitted by a signer that OMITS a predicate still verifies, via 10^5 (r, s) hint-fibre
+    samples and 500 emissions per variant against an independently written verifier, against
+    the forced value 0.991; this record observes the restart count T of a fully CONFORMING
+    signer and measures bias-corrected I(G(t0) ; T-vector) against a permutation floor and a
+    derived-zero arm. Neither quantity is recoverable from the other, and 031ce2 carries no
+    hedged/deterministic contrast at all. WHAT THIS RECORD OWES IT: 031ce2 mechanism (5)
+    derives the c t0 gate's firing rate as 7.34e-9 per signature at ML-DSA-44 and EXACTLY 0 at
+    -65 and -87, which bears directly on this record's prediction that the two t0 gates carry
+    >= 5 per cent of abort events - a share reachable only under the reduced parameters this
+    record already declares as an undischarged transfer assumption.
+  citations:
+  - ref: 'draft-connolly-cfrg-ml-dsa-security-considerations-02 (IETF Internet-Draft)'
+    provenance: retrieved
+    claim: >-
+      Section 2.2.1 "There is no reason to prefer deterministic signing over hedged signing;
+      hedged signing is the safer default in all environments." and "The randomness input
+      (rnd) is set to all zeros, making the signature a deterministic function of the signing
+      key and message." Section 3.2.1 "The deterministic variant of ML-DSA is vulnerable to
+      fault injection attacks". Section 3.2-5 "It is secure to use a single key pair for
+      signing many messages...ML-DSA does not degrade in security with the number of
+      signatures produced, under the standard security model."
+    verified_by: 'idea-generator@2026-08-21 (fetched https://www.ietf.org/archive/id/draft-connolly-cfrg-ml-dsa-security-considerations-02.html)'
+  - ref: 'NIST FIPS 204 initial public draft (ipd)'
+    provenance: retrieved
+    claim: >-
+      Parameter table used for the derived numbers in this record - q = 8380417, d = 13;
+      ML-DSA-44 (tau 39, lambda 128, gamma1 2^17, gamma2 q/88, (k,l) (4,4), eta 2, beta 78,
+      omega 80); ML-DSA-65 (49, 192, 2^19, q/32, (6,5), 4, 196, 55); ML-DSA-87 (60, 256,
+      2^19, q/32, (8,7), 2, 120, 75). FIDELITY CAVEAT: this table was returned by the fetch
+      tool's summarisation of the PDF, not by a byte-level read of the standard, and it is
+      the INITIAL PUBLIC DRAFT, not the final FIPS 204. Any experiment derived from this
+      record must re-read the final standard before any number is reported.
+    verified_by: 'idea-generator@2026-08-21 (fetched https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.ipd.pdf)'
+  - ref: 'IACR ePrint 2025/214 (Zhou, Wang, Sun, Yu)'
+    provenance: retrieved
+    claim: >-
+      Side-channel key recovery on Dilithium-2/3/5 targeting rejection sampling, consuming
+      the rejected signature's challenge and response via single-trace NTT leakage on
+      Cortex-M4, claiming 100% success rate in seconds to minutes.
+    verified_by: 'idea-generator@2026-08-21 (fetched https://eprint.iacr.org/2025/214)'
+  - ref: 'IACR ePrint 2024/1373 (Azevedo Oliveira, Calle Viera, Cogliati, Goubin), CRYPTO 2025'
+    provenance: retrieved
+    claim: >-
+      "we show that each Dilithium signature leaks information on t_0, then we construct an
+      attack that retrieves it from Dilithium signatures. Experimentally, depending on the
+      Dilithium security level, between 200,000 and 500,000 signatures are sufficient to
+      recover t_0 on a desktop computer." and "The knowledge of t_0 has no impact on the
+      black-box cryptographic security of Dilithium, as can be seen in the security proof."
+    verified_by: 'idea-generator@2026-08-21 (fetched https://eprint.iacr.org/2024/1373)'
+  - ref: 'Lyubashevsky, Fiat-Shamir with aborts / rejection sampling lemma'
+    provenance: recalled
+    claim: >-
+      The accepted response of a Fiat-Shamir-with-aborts signature is distributed
+      independently of the secret when the acceptance region has fixed width contained in the
+      shifted support. The trial count is not covered by this statement. RECALLED ONLY - the
+      exact lemma statement and its conditions were not read this session.
+    verified_by: null
+  - ref: KN-FIND-720727
+    provenance: internal
+    claim: >-
+      Dilithium/ML-DSA formal proofs cover cryptographic adversaries only; physical fault
+      injection is outside the formal model. Used here to place a passive latency observer
+      INSIDE the cryptographic model boundary if per-iteration cost is data-independent, and
+      outside it otherwise - a scope question this record must answer explicitly.
+    verified_by: 'idea-generator@2026-08-21 (read in repository)'
+  - ref: KN-TECH-1a5b7e
+    provenance: internal
+    claim: >-
+      Null sufficiency: the four ways a control passes without being able to fail, the
+      comparator-replication requirement (>= 8 draws), the three-interior-point monotonicity
+      requirement, and the obligation to derive the forced value before measuring.
+    verified_by: 'idea-generator@2026-08-21 (read in repository)'
+  assumptions:
+  - >-
+    Per-iteration signing cost is data-independent on the modelled device, so T is
+    recoverable from latency. If it is not, the observable is richer than modelled and the
+    measured value is a lower bound on what a real latency observer gets - stated in that
+    direction, never the other.
+  - >-
+    Reduced parameters can be chosen so that the c*t0 gate fires at a rate high enough to
+    estimate a distribution over T, while the four-gate structure and the beta = tau*eta
+    relation are preserved. If they cannot, the measurement is not affordable and the record
+    says so rather than substituting a differently-shaped surrogate.
+  - >-
+    The key functional G is fixed before any data exists and never revised; a G chosen after
+    seeing T-vectors would inflate the estimate arbitrarily.
+  - >-
+    Keys are sampled independently across trials, so the estimator's variance formula applies.
+  - >-
+    No conclusion transfers to FIPS 204 parameters. The rate at which the c*t0 gate fires is
+    a function of gamma2, tau and d and is not preserved by the reduction; the transfer
+    assumption is named and NOT discharged by any run under this record.
+  proof_search_map:
+    bottleneck: null
+    baseline_embedding:
+      parameter_slice: not_applicable
+      reproduction_check: null
+    observation_collision:
+      observable: null
+      distinct_preimage_search: null
+    constructive_transforms:
+    - transform: null
+      proposed_object: null
+      predicted_gain: null
+    quantifier_order: null
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations:
+    - claim: null
+      responsibility: null
+    not_applicable_reason: >-
+      This is an empirical control experiment, not a proof-oriented proposal. It certifies no
+      theorem, claims no asymptotic, and proposes no reduction. The one derivation it contains
+      (the fixed-width argument for the two norm gates) is a pre-compute falsification check
+      stated in `mechanism` STAGE 0 and is checkable symbolically; it is not a certificate
+      family and does not carry a complexity claim, so §8's four audits have no object to bind
+      to. If the derivation fails, the proposal is withdrawn before any compute is spent, which
+      is the outcome §8 exists to produce.
+  predictions:
+  - metric: 'bias-corrected I(G(t0) ; T-vector) in bits per observed signature, hedged arm minus permutation-null interval'
+    direction: higher
+    minimum_effect: 0.005
+  - metric: 'accumulated bits at fixed Q_S with message-set size m = 1, hedged arm divided by deterministic arm'
+    direction: higher
+    minimum_effect: 2.0
+  - metric: 'Z-GATE-ONLY derived-zero arm, estimate minus permutation-null interval'
+    direction: different
+    minimum_effect: '0.0 - this arm MUST NOT exceed the null floor; any excess voids the instrument and no headline is reported'
+  - metric: 'share of total abort events attributable to the ||c t0||_inf >= gamma2 gate and the wt(h) > omega gate'
+    direction: higher
+    minimum_effect: 0.05
+  - metric: 'ratio I(G ; T-vector) / I(G ; 1{T > 0})'
+    direction: higher
+    minimum_effect: 1.0
+  - metric: 'monotonicity of the estimate across the four-point t0-inflation ladder g = 1, 1.5, 2, 3'
+    direction: different
+    minimum_effect: 'monotone increasing at all three interior steps, or the directional reading of the headline is forfeited'
+  minimal_test:
+    design: >-
+      One reduced parameter set, six arms, one invocation, no ladder in the minimal version.
+      Choose n = 64, (k, l) = (2, 2), a small NTT-friendly q, d chosen so the t0 range is a
+      meaningful fraction of gamma2, tau and eta with beta = tau*eta held exactly. Generate
+      K = 512 keys; per key, Q_S = 2000 signatures on a single fixed message in hedged mode,
+      2000 on a single fixed message in deterministic mode, and 2000 on distinct messages in
+      deterministic mode. Record T and the per-gate abort counts. Compute the bias-corrected
+      mutual information per arm, then the Z-GATE-ONLY arm, then 8 label permutations, then
+      the structural null. Report six numbers with intervals. THIS DISCRIMINATES because the
+      Z-GATE-ONLY arm's true value is derived to be exactly zero, so it pins the instrument;
+      because the permutation floor pins the estimator; and because the hedged-versus-
+      deterministic ratio at m = 1 is the quantity the standard guidance's unconditional
+      sentence implicitly sets to <= 1. Cost: order of one CPU-hour in a compiled inner loop,
+      more in pure Python.
+    controls:
+    - 'Z-GATE-ONLY derived-zero arm (two t0 gates disabled); true value exactly zero by the stage-0 algebra.'
+    - 'Label-permutation null, >= 8 independent draws, reported as an interval not a point.'
+    - 'Structural key-independent geometric null matched to the measured per-gate rates.'
+    - 'Deterministic m = 1 arm, whose distinct-sample count is exactly 1 per key by construction.'
+    - 't0-inflation sensitivity ladder at g = 1, 1.5, 2, 3 with a monotonicity verdict reported.'
+    - 'Pre-registration of G, the alphabet, the estimator and every threshold, with the design document predating data generation.'
+    - 'A FIPS-parameter sanity arm that verifies beta = tau*eta holds at the reduced parameters exactly as at ML-DSA-44/65/87, so the fixed-width derivation is transferable to the surrogate.'
+    required_metrics:
+    - 'bias-corrected I(G ; T-vector) per arm, with confidence interval'
+    - 'permutation-null interval over >= 8 draws'
+    - 'structural-null interval'
+    - 'Z-GATE-ONLY arm value and its distance from the null floor'
+    - 'per-gate abort shares'
+    - 'I(G ; 1{T > 0}) and the ratio to the count-based value'
+    - 'hedged/deterministic accumulated-bits ratio at m = 1 and at m = Q_S'
+    - 'distinct-sample counts actually achieved per arm'
+    - 'monotonicity verdict across the g-ladder'
+  falsification_conditions:
+  - 'STAGE 0 falsifier, before any compute: if a fixed-width argument also goes through for the ||c t0||_inf >= gamma2 gate at the reduced parameters, the channel is empty by algebra and the proposal is withdrawn.'
+  - 'The hedged arm does not exceed the permutation-null interval by the pre-declared 0.005 bits: the recorded result is a measured upper bound on the abort-count channel at this sample size, which is a usable obstruction and is the honest headline.'
+  - 'The Z-GATE-ONLY arm exceeds the null floor: the instrument is measuring something other than key dependence and no number is reportable.'
+  - 'The permutation and structural nulls disagree beyond their intervals: same consequence.'
+  - 'The hedged/deterministic ratio at m = 1 comes out at or below 1.0: the sample-count inversion does not occur, the standard guidance survives this test unqualified on this channel, and that is the finding.'
+  - 'The estimate is non-monotone across the g-ladder: no directional reading is attached to any label, per KN-TECH-1a5b7e''s refinement.'
+  - 'The t0 gates account for under 5 per cent of abort events at reduced parameters: the surrogate has been tuned into a regime unlike ML-DSA and the number is about the surrogate.'
+  confounders:
+  - 'Small-sample positive bias in mutual-information estimation, which is why the permutation null is mandatory rather than advisory and why it is drawn at least 8 times.'
+  - 'Reduced-parameter tuning may push the c*t0 gate rate far from its FIPS value in either direction, making the bit rate a property of the surrogate; the per-gate shares are reported precisely so a reader can see this.'
+  - 'The deterministic m = 1 arm has exactly one distinct sample per key, so its estimator is in a different small-sample regime from the hedged arm; the fair comparison is the m = Q_S arm and both are reported.'
+  - 'Correlated seeds across arms shrinking apparent variance in arm differences.'
+  - 'Alphabet-size dependence of G: a finer G raises both the true value and the bias, so the run repeats at two coarsening levels.'
+  - 'On a real device, per-iteration cost is not exactly data-independent, so a latency observer sees more than T. That makes the measured value a lower bound, and any statement in the other direction is out of scope.'
+  interpretation_limits:
+  - 'A positive value bounds what any procedure could extract; it names no procedure, no query count and no attack.'
+  - 'The value is a lower bound on I(sk ; transcript) because of three projections, so it cannot be used to argue that little information is present - only that at least this much is.'
+  - 'Nothing here recommends deterministic mode. Deterministic mode is separately documented as fault-vulnerable (retrieved IETF draft Section 3.2.1); this record measures one channel and computes no net.'
+  - 'The measurement is confined to reduced parameters. FIPS 204 t0-gate rates are not measured and are not extrapolated to.'
+  - 'The result is scoped to the declared functional G and to the executed sample sizes.'
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      For the reduced parameter set, over uniformly random keys, the per-iteration
+      probability that the gate ||c t0||_inf >= gamma2 fires is a non-degenerate function of
+      t0 with strictly positive variance across keys; formally, Var_{t0}( P_c[ ||c t0||_inf
+      >= gamma2 ] ) > 0, with c uniform on B_tau.
+    rigorous_support: >-
+      The rigorous part is the negative half, which is proved rather than assumed: for the
+      two norm gates the acceptance interval has fixed width 2(gamma1-beta)-1 (resp.
+      2(gamma2-beta)-1) and lies inside the shifted support because beta = tau*eta bounds
+      ||c s1||_inf and ||c s2||_inf, so those two gates have EXACTLY key-independent
+      acceptance probability. The classical statement H1 imitates is the ordinary
+      concentration of ||c t0||_inf for c a tau-sparse ternary multiplier and t0 uniform on
+      (-2^(d-1), 2^(d-1)]: the maximum over 256 coefficients of a sum of tau signed
+      near-uniform terms behaves like the maximum of a Gaussian-ish family whose scale is
+      set by ||t0||_2, so the gate rate is a monotone function of a per-key scale parameter
+      rather than a constant.
+    validation_plan: >-
+      Sample 10^4 keys at the reduced parameters and, for each, estimate P_c[||c t0||_inf >=
+      gamma2] over 10^3 fresh challenges; plot the empirical distribution of that per-key
+      probability and test Var > 0 against the label-permuted null. Compare the empirical
+      per-key gate rate against the prediction from a Gaussian model of (c t0)_i with scale
+      sqrt(tau)*sd(t0), including a TAIL CHECK on the 100 keys with the largest ||t0||_2,
+      whose predicted gate rate must be the highest observed. Record the sampled parameters
+      (n, k, l, q, d, tau, gamma2) explicitly. TRANSFER ASSUMPTION, stated and NOT
+      discharged: that the sign of Var > 0 persists at ML-DSA-44/65/87, where tau*2^12
+      (159744 at tau = 39) exceeds gamma2 = q/88 = 95232 so the gate is known to be active,
+      but where nothing here measures its dispersion.
+  - id: H2
+    statement: >-
+      Conditioned on the key, the restart counts of distinct hedged signatures on the same
+      message are i.i.d. geometric with the per-key acceptance probability p(sk), so Q_S
+      hedged signatures on one message deliver Q_S independent draws of a p(sk)-estimator.
+    rigorous_support: >-
+      Imitates the standard geometric-trials model for rejection sampling. Its rigorous
+      support is that in hedged mode rho' = H(K || rnd || mu) with fresh rnd per signature,
+      so distinct signatures use independent mask streams; the only coupling is the shared
+      key and the shared message, both of which are conditioned on.
+    validation_plan: >-
+      Test the geometric fit per key by a chi-squared goodness-of-fit on the observed T
+      histogram at K = 512 keys and Q_S = 2000, and test independence by the lag-1
+      autocorrelation of the T-sequence against its permutation null. The deterministic m = 1
+      arm is the forced-value counterpart: its T is constant per key, so its autocorrelation
+      is degenerate by construction and its distinct-sample count is exactly 1 - a derived
+      value checked mechanically. Sampled parameters recorded; no transfer to FIPS
+      parameters is asserted.
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED. The measurement costs O(K * Q_S * E[T] * C_sign) where
+      C_sign is one reduced-parameter signing iteration, plus O(K * Q_S) for the estimator;
+      each permutation null adds O(K * Q_S).
+    memory_exponent: >-
+      No attack memory exponent is claimed. Storage is the (G, T, per-gate counts) table,
+      O(K * Q_S) small integers - well under a gigabyte at K = 512, Q_S = 6000.
+    best_known: >-
+      On the axis this record's channel points at (learning about t0 from ordinary signing
+      behaviour) the incumbent is ePrint 2024/1373: full t0 recovery from 200,000-500,000
+      signatures on a desktop, with no side channel. On the axis of measuring the
+      information content of the abort count, no incumbent value, bound or null floor exists
+      in this repository or was found in the four searches run.
+    hidden_overhead: >-
+      The hidden cost is the reduced-parameter regime itself: forcing the c*t0 gate to fire
+      often enough to estimate a distribution may require a d/gamma2 relation unlike FIPS
+      204's, and defending that choice as ML-DSA-shaped is human argument, not compute.
+      Second, Miller-Madow is a first-order correction; at moderate alphabet size the
+      residual bias can exceed the effect, which is why the permutation null and not the
+      correction is load-bearing.
+    tradeoff_note: >-
+      Not applicable in the attack sense. The one operational tradeoff is observer-side: the
+      claimed hedged/deterministic inversion holds only for an observer confined to a small
+      message set, and it vanishes as m approaches Q_S. That boundary - the message-set size
+      at which the two modes deliver equal information - is itself a reported quantity.
+  dominated_by: >-
+    ePrint 2024/1373 (Azevedo Oliveira, Calle Viera, Cogliati, Goubin, CRYPTO 2025) DOMINATES
+    this proposal in the Pareto sense on the t0-learning axis: it uses a strictly richer
+    observable already present in the signature bytes, needs no side channel, and recovers t0
+    outright from 2*10^5-5*10^5 signatures. ePrint 2025/214 dominates on key recovery given a
+    single trace. Frontier rows checked: those two, plus KN-LIT-4f3b80 (Jendral single-trace
+    voltage glitch, 0.582 success, requires physical fault injection - not comparable on the
+    passive axis but checked), plus every RQ-MLDSA-001 proposal in the repository (none
+    produces a cost triple for any attack). What is NOT dominated, because no checked row
+    addresses it: the per-gate decomposition of the abort count, the measured bit rate of the
+    count-only channel, and the hedged-versus-deterministic sample-count comparison.
+  sota_delta: >-
+    No attack; conceptual and measurement contribution only. Quantitatively: this record
+    produces no cost triple and moves no exponent. Against the nearest attack, ePrint
+    2024/1373's 2*10^5-5*10^5 signatures for full t0, this record's channel is coarser by the
+    entire signature payload and would at best yield a bit rate in the 10^-3 to 10^-1
+    bits/signature range - i.e. it is expected to be WORSE as an attack by orders of magnitude
+    and is not offered as one. The delta is the creation of a first number with its null floor
+    for the abort-count channel, plus the first quantitative statement of the
+    hedged/deterministic inversion, where the repository and the four searches run found no
+    value, bound or floor at all.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    By part. (i) That the stage-0 fixed-width derivation holds for both norm gates and fails
+    for both t0 gates: ~0.85 - the fixed-width argument is standard, but beta = tau*eta is a
+    bound and an edge case at the reduced parameters could break it, which is why stage 0 is a
+    gate. (ii) That reduced parameters exist with an active c*t0 gate and ML-DSA-shaped
+    structure: ~0.8. (iii) That the Z-GATE-ONLY arm sits on the null floor, licensing the
+    instrument: ~0.75. (iv) That the hedged arm exceeds the floor by 0.005 bits: ~0.6 - some
+    key dependence is near-certain in principle, but at these sample sizes the floor may sit
+    above it. (v) That the hedged/deterministic ratio at m = 1 exceeds 2.0: ~0.7, and this is
+    the part most worth betting on, because it is close to forced by the sample-count argument
+    once (iv) is non-zero. (vi) That the run yields a defensible number or a defensible upper
+    bound either way: ~0.9.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+  - RQ-MLDSA-001
+  - GOAL-MLDSA-001
+  - KN-FIND-720727
+  - KN-LIT-4f3b80
+  - KN-TECH-1a5b7e
+  - IDEA-20260805-818196
+  - IDEA-20260808-5a748c
+  - IDEA-20260816-b336a3
+  - docs/inventor-protocol.md
+  - docs/target-result-profile.md
+  - docs/claims-and-verification.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py
+    --next idea --date 20260821 (random 6-hex token, no state scanned), each id then verified
+    free with --check before assignment. No identifier was chosen by looking for the next free
+    number (CLAUDE.md, Conventions).
