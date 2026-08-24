@@ -292,7 +292,6 @@ def _null_draw_sha1(rng: random.Random, in_code: bool) -> PathObject:
     obj.dv = tuple(words)
     obj.dv_seed_window = tuple(words[:16])
     obj.in_linearized_code = P.sha1_in_linearized_code(words)
-    obj.id = obj.id.replace("SHA1U", "SHA1U")
     return obj
 
 
