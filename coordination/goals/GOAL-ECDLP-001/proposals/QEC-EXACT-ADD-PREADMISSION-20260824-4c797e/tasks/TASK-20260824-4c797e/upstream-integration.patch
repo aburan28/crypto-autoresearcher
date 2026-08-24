@@ -1,0 +1,193 @@
+diff --git a/exact_complete_point_addition.py b/exact_complete_point_addition.py
+new file mode 100644
+--- /dev/null
++++ b/exact_complete_point_addition.py
+@@ -0,0 +1,188 @@
++"""Exact fixed-add completion layer for the pinned Fig.14 implementation.
++
++This module intentionally makes no 835-qubit or exact gate-count claim.  It
++adds six persistent scalar qubits to the source registers.  Signed-window
++callers must provide the coherent qROM backend described at the bottom.
++"""
++from __future__ import annotations
++
++from dataclasses import dataclass
++from typing import Protocol, Sequence
++
++from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
++from qiskit.circuit import Clbit, Qubit
++
++from point_addition_fig14_s835_fastdual_wrapped_quadratic import _append_add_const
++from quadratic_fig15_inplace_s835_fastdual_wrapped import (
++    append_inplace_division_fig15_quadratic,
++    append_inplace_multiplication_fig15_quadratic,
++)
++from quadratic_modular_arithmetic import neg_modp_instruction
++from quadratic_squ_minus import append_squ_minus_block_quadratic
++from under1000_eea_shared_s835_fastdual_wrapped import (
++    SECP256K1_P,
++    shared_eea_s_qubits,
++)
++
++
++def _toggle_zero(qc: QuantumCircuit, X: Sequence[Qubit], z: Qubit) -> None:
++    """z ^= [X == 0], using Qiskit's no-clean-ancilla MCX interface."""
++    for q in X:
++        qc.x(q)
++    qc.mcx(list(X), z)
++    for q in X:
++        qc.x(q)
++
++
++def append_total_idiv(
++    qc: QuantumCircuit, X: Sequence[Qubit], Y: Sequence[Qubit],
++    A: Sequence[Qubit], S: Sequence[Qubit], z: Qubit,
++    b: Sequence[Clbit], m: Sequence[Clbit], *, p: int,
++) -> None:
++    _toggle_zero(qc, X, z)
++    qc.cx(z, X[0])
++    append_inplace_division_fig15_quadratic(qc, X, Y, A, S, b, m, p=p)
++    qc.cx(z, X[0])
++    _toggle_zero(qc, X, z)
++
++
++def append_total_imul(
++    qc: QuantumCircuit, X: Sequence[Qubit], Y: Sequence[Qubit],
++    A: Sequence[Qubit], S: Sequence[Qubit], z: Qubit,
++    b: Sequence[Clbit], m: Sequence[Clbit], *, p: int,
++) -> None:
++    _toggle_zero(qc, X, z)
++    qc.cx(z, X[0])
++    append_inplace_multiplication_fig15_quadratic(qc, X, Y, A, S, b, m, p=p)
++    qc.cx(z, X[0])
++    _toggle_zero(qc, X, z)
++
++
++def _bits(value: int, n: int) -> tuple[int, ...]:
++    return tuple((value >> i) & 1 for i in range(n))
++
++
++def _toggle_match(
++    qc: QuantumCircuit, enable: Qubit, X: Sequence[Qubit], Y: Sequence[Qubit],
++    word: tuple[int, int], target: Qubit,
++) -> None:
++    controls = [enable] + list(X) + list(Y)
++    values = (1,) + _bits(word[0], len(X)) + _bits(word[1], len(Y))
++    for q, value in zip(controls, values):
++        if not value:
++            qc.x(q)
++    qc.mcx(controls, target)
++    for q, value in reversed(tuple(zip(controls, values))):
++        if not value:
++            qc.x(q)
++
++
++def _toggle_effective(qc: QuantumCircuit, enable: Qubit, flags: Sequence[Qubit], e: Qubit) -> None:
++    for flag in flags:
++        qc.x(flag)
++    qc.mcx([enable] + list(flags), e)
++    for flag in flags:
++        qc.x(flag)
++
++
++def _neg(point: tuple[int, int], p: int) -> tuple[int, int]:
++    return point[0], (-point[1]) % p
++
++
++def _double(point: tuple[int, int], p: int) -> tuple[int, int]:
++    x, y = point
++    lam = 3 * x * x * pow(2 * y, -1, p) % p
++    x3 = (lam * lam - 2 * x) % p
++    return x3, (lam * (x - x3) - y) % p
++
++
++def _xor_mask(qc: QuantumCircuit, flag: Qubit, X: Sequence[Qubit], Y: Sequence[Qubit], before: tuple[int, int], after: tuple[int, int]) -> None:
++    for i, bit in enumerate(_bits(before[0] ^ after[0], len(X))):
++        if bit:
++            qc.cx(flag, X[i])
++    for i, bit in enumerate(_bits(before[1] ^ after[1], len(Y))):
++        if bit:
++            qc.cx(flag, Y[i])
++
++
++def append_exact_fixed_addition(
++    qc: QuantumCircuit, enable: Qubit, X: Sequence[Qubit], Y: Sequence[Qubit],
++    A: Sequence[Qubit], S: Sequence[Qubit], z: Qubit,
++    flags: Sequence[Qubit], effective: Qubit,
++    b_div: Sequence[Clbit], b_mul: Sequence[Clbit], m: Sequence[Clbit],
++    *, addend: tuple[int, int], p: int = SECP256K1_P,
++) -> None:
++    """Append the v2 totalized core and four exact exceptional branches."""
++    if len(flags) != 4:
++        raise ValueError("exact completion needs four clean exception flags")
++    n = len(X)
++    a, b = addend
++    two_a = _double(addend, p)
++    neg_a = _neg(addend, p)
++    neg_two_a = _neg(two_a, p)
++    before = ((0, 0), addend, neg_a, neg_two_a)
++    after = (addend, two_a, (0, 0), neg_a)
++    for flag, word in zip(flags, before):
++        _toggle_match(qc, enable, X, Y, word, flag)
++    _toggle_effective(qc, enable, flags, effective)
++
++    _append_add_const(qc, reg=X, dirty=A, ctrl=None, S=S, m_arith=m,
++                      n=n, p=p, const=-a, name="EXACT_X_SUB_A")
++    _append_add_const(qc, reg=Y, dirty=A, ctrl=effective, S=S, m_arith=m,
++                      n=n, p=p, const=-b, name="EXACT_CTRL_Y_SUB_B")
++    append_total_idiv(qc, X, Y, A, S, z, b_div, m, p=p)
++    append_squ_minus_block_quadratic(qc, effective, X, Y, A, S, m, p=p)
++    _append_add_const(qc, reg=X, dirty=A, ctrl=effective, S=S, m_arith=m,
++                      n=n, p=p, const=3*a, name="EXACT_CTRL_X_ADD_3A")
++    append_total_imul(qc, X, Y, A, S, z, b_mul, m, p=p)
++    neg = neg_modp_instruction(n, p, controlled=True, name="EXACT_CTRL_NEG_X")
++    qc.append(neg, [effective] + list(X) + list(A) + list(S[:4]), list(m)[:n])
++    _append_add_const(qc, reg=X, dirty=A, ctrl=None, S=S, m_arith=m,
++                      n=n, p=p, const=a, name="EXACT_X_ADD_A")
++    _append_add_const(qc, reg=Y, dirty=A, ctrl=effective, S=S, m_arith=m,
++                      n=n, p=p, const=-b, name="EXACT_CTRL_Y_SUB_B_FINAL")
++
++    for flag, source, target in zip(flags, before, after):
++        _xor_mask(qc, flag, X, Y, source, target)
++    _toggle_effective(qc, enable, flags, effective)
++    for flag, word in zip(flags, after):
++        _toggle_match(qc, enable, X, Y, word, flag)
++
++
++def build_exact_fixed_addition(*, n: int, addend: tuple[int, int], p: int = SECP256K1_P) -> QuantumCircuit:
++    s_qubits = shared_eea_s_qubits(n)
++    enable = QuantumRegister(1, "enable")
++    X = QuantumRegister(n, "X")
++    Y = QuantumRegister(n, "Y")
++    A = QuantumRegister(n, "A_shared_work")
++    S = QuantumRegister(s_qubits, "S_shared")
++    z = QuantumRegister(1, "z_total")
++    flags = QuantumRegister(4, "exception_flags")
++    effective = QuantumRegister(1, "effective_enable")
++    b_div = ClassicalRegister(n, "b_div")
++    b_mul = ClassicalRegister(n, "b_mul")
++    m = ClassicalRegister(max(1, n), "m_arith")
++    qc = QuantumCircuit(enable, X, Y, A, S, z, flags, effective, b_div, b_mul, m)
++    append_exact_fixed_addition(qc, enable[0], X, Y, A, S, z[0], flags,
++                                effective[0], b_div, b_mul, m,
++                                addend=addend, p=p)
++    return qc
++
++
++class CoherentSignedWindowBackend(Protocol):
++    """Integration point; every method must preserve address and clean target."""
++    def compare_addressed_pair(self, *, relation: str, target_flag: Qubit) -> None: ...
++    def apply_addressed_constant(self, *, operation: str, control: Qubit) -> None: ...
++    def apply_addressed_xor_mask(self, *, relation: str, control: Qubit) -> None: ...
++    def assert_targets_clean(self) -> None: ...
++
++
++@dataclass(frozen=True)
++class SignedWindowCompletionPlan:
++    pre_relations: tuple[str, ...] = ("O", "A_h", "-A_h", "-2A_h")
++    post_relations: tuple[str, ...] = ("A_h", "2A_h", "O", "-A_h")
++    arithmetic_constants: tuple[str, ...] = ("-a_h", "-b_h", "3a_h", "a_h", "-b_h")
++    claim_boundary: str = "qROM and primitive gate costs remain symbolic"
++
++    def validate_backend(self, backend: CoherentSignedWindowBackend) -> None:
++        backend.assert_targets_clean()
