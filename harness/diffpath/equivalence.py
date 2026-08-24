@@ -103,7 +103,7 @@ def align_E1(obj: PathObject) -> PathObject:
     return out
 
 
-def act_E2_rotate(obj: PathObject, b: int) -> PathObject:
+def act_E2_rotate(obj: PathObject, b: int, with_conditions: bool = True) -> PathObject:
     """E2 (CONJECTURED): relabel every bit by a simultaneous left-rotation."""
     if obj.primitive != "sha1":
         raise ValueError("E2 acts on sha1 objects only")
@@ -113,8 +113,9 @@ def act_E2_rotate(obj: PathObject, b: int) -> PathObject:
     return PathObject(
         id=f"{obj.id}~E2r{b}", primitive="sha1", step_range=obj.step_range,
         provenance=obj.provenance, source_ref=obj.source_ref, status=obj.status,
-        conditions=tuple(Condition(c.step, c.operand, (c.bit + b) % 32,
-                                   c.value, c.value_p) for c in obj.conditions),
+        conditions=(tuple(Condition(c.step, c.operand, (c.bit + b) % 32,
+                                    c.value, c.value_p) for c in obj.conditions)
+                    if with_conditions else ()),
         path_data={"kind": "E2_image", "of": obj.id, "rot": b},
         step_delta=new_delta, step_delta_signed=rot_signed,
         dv=tuple(P.rotl(w, b) for w in obj.dv) if obj.dv else None,
@@ -128,13 +129,14 @@ def act_E2_rotate(obj: PathObject, b: int) -> PathObject:
     )
 
 
-def act_E3_negate(obj: PathObject) -> PathObject:
+def act_E3_negate(obj: PathObject, with_conditions: bool = True) -> PathObject:
     """E3: swap the two members of the pair; every signed difference negates."""
     neg_signed = tuple(tuple((j, -s) for (j, s) in sd) for sd in obj.step_delta_signed)
     return PathObject(
         id=f"{obj.id}~E3", primitive=obj.primitive, step_range=obj.step_range,
         provenance=obj.provenance, source_ref=obj.source_ref, status=obj.status,
-        conditions=tuple(c.swapped() for c in obj.conditions),
+        conditions=(tuple(c.swapped() for c in obj.conditions)
+                    if with_conditions else ()),
         path_data={"kind": "E3_image", "of": obj.id},
         step_delta=tuple((-d) & MASK32 for d in obj.step_delta),
         step_delta_signed=neg_signed,

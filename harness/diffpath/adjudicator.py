@@ -39,7 +39,7 @@ MASK32 = P.MASK32
 # ---------------------------------------------------------------------------
 
 def normalise_conditions(obj: PathObject, e5_active: bool):
-    """Normal form of a real condition set.
+    """Normal form of a real condition set (E5's normalisation, applied).
 
     Dedup + sort + contradiction detection: the same (step, operand, bit)
     pinned to two different values is unsatisfiable, and every unsatisfiable
@@ -50,6 +50,21 @@ def normalise_conditions(obj: PathObject, e5_active: bool):
     on the bounded alphabet only.  That the same normal form is solution-set
     exact on real per-step 32-bit condition sets is NOT established here and is
     NOT claimed.
+
+    THE OUTPUT IS REPORTED BESIDE EVERY ADJUDICATION AND IS NOT PART OF THE
+    MEMBERSHIP KEY.  Reason, measured before any run of this experiment was
+    charged: this package derives a path's sufficient conditions FROM ITS
+    WITNESS PAIR, and the conditions are sufficient rather than necessary, so
+    two different pairs realising the SAME differential path routinely yield
+    DIFFERENT condition sets -- 9904 of 19999 seeded single-step MD5 pairs with
+    identical (delta_m, step_delta) did so (seed 999).  Putting a
+    witness-derived set into the membership key would make membership depend on
+    which pair happened to exhibit the path, so the same path presented with a
+    second witness would fail to match itself.  The question was raised by cost
+    profiling and settled on correctness; both are stated so a reviewer can
+    weigh either.  CONSEQUENCE, STATED PLAINLY: the canonical form is COARSER
+    than "path plus conditions", so two paths differing ONLY in their
+    sufficient-condition sets are identified by this adjudicator.
     """
     keys = sorted({(c.step, c.operand, c.bit, c.value) for c in obj.conditions})
     if not e5_active:
@@ -70,8 +85,9 @@ def serialize(obj: PathObject, gens: frozenset) -> tuple:
         diff_part = tuple(obj.dv or ())
     parts = [("primitive", obj.primitive), ("length", obj.length),
              ("message_difference", diff_part),
-             ("step_delta", tuple(obj.step_delta)),
-             ("conditions", normalise_conditions(obj, "E5" in gens))]
+             ("step_delta", tuple(obj.step_delta))]
+    # NOTE: the condition set is deliberately NOT in the membership key; see
+    # normalise_conditions.__doc__ for the measured reason and the consequence.
     if "E4" not in gens:
         # without E4 the signed-digit REPRESENTATION is part of the identity
         parts.append(("signed_representation", tuple(obj.step_delta_signed)))
@@ -96,9 +112,11 @@ def canonical(obj: PathObject, gens: frozenset) -> tuple:
     base = EQ.align_E1(obj) if ("E1" in gens and obj.primitive == "sha1") else obj
     variants = [base]
     if "E3" in gens:
-        variants = variants + [EQ.act_E3_negate(v) for v in variants]
+        variants = variants + [EQ.act_E3_negate(v, with_conditions=False)
+                               for v in variants]
     if "E2" in gens and obj.primitive == "sha1":
-        variants = [EQ.act_E2_rotate(v, b) for v in variants for b in range(32)]
+        variants = [EQ.act_E2_rotate(v, b, with_conditions=False)
+                    for v in variants for b in range(32)]
     return min(serialize(v, gens) for v in variants)
 
 
@@ -149,6 +167,8 @@ class Adjudication:
     closest_distance: int | None = None
     census_readable_entries: int = 0
     census_plantable_entries: int = 0
+    condition_signature_size: int = 0
+    condition_signature_unsat: bool = False
     scope_note: str = ""
 
     def to_record(self) -> dict:
@@ -187,6 +207,7 @@ class Adjudicator:
                 best_id, best_d = e.id, d
 
         n_readable = len(self.census.readable)
+        csig = normalise_conditions(obj, "E5" in self.strict)
         return Adjudication(
             candidate_id=obj.id, primitive=obj.primitive,
             strict_verdict="MEMBER" if s_hit else "NON-MEMBER",
@@ -198,6 +219,8 @@ class Adjudicator:
             closest_entry=best_id, closest_distance=best_d,
             census_readable_entries=n_readable,
             census_plantable_entries=len(self.census.plantable_entries()),
+            condition_signature_size=(0 if csig == ("UNSAT",) else len(csig)),
+            condition_signature_unsat=(csig == ("UNSAT",)),
             scope_note=(
                 "NON-MEMBER is scoped to this census. Readable (literature) "
                 f"entries: {n_readable}. With {n_readable} readable entries a "
