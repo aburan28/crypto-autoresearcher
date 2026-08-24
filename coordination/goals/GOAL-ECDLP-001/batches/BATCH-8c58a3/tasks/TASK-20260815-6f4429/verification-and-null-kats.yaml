@@ -1,0 +1,604 @@
+verification_and_null_kats:
+  schema: crypto.autoresearch.static_verification.v1
+  experiment_id: EXP-SYC-ff777e
+  task_id: TASK-20260815-6f4429
+  batch_id: BATCH-8c58a3
+  goal_id: GOAL-ECDLP-001
+  recorded_at: '2026-08-15'
+  status: REVISE_WITH_EXACT_RESIDUALS
+  implementation_authorized: false
+  execution_authorized: false
+  experiment_design_approved: false
+  maximum_runs: 0
+  experiment_runs: 0
+  curve_generation_performed: false
+  research_state_transition_authorized: false
+  evidence_promotion_authorized: false
+  evidence_claimed: false
+  budget_increase_authorized: false
+  hard_cap_increase_authorized: false
+
+  authority:
+    task_id: TASK-20260815-6f4429
+    batch_id: BATCH-8c58a3
+    goal_id: GOAL-ECDLP-001
+    authorizing_decision: DEC-20260815-d83212
+    parent_checkpoint: ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-11dc7b.yaml
+    predecessor_experiment_id: EXP-SYC-edf98d
+    supersedes_experiment_id: EXP-SYC-edf98d
+    archived_by_task: TASK-20260815-48ab56
+    git_ref_read_from_dot_git_head: refs/heads/claude/launch-the-barnes-5316qt
+    git_command_run_by_this_producer: false
+    digest_computed_by_this_producer: false
+
+  runtime_provenance:
+    receipt_path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-8c58a3/tasks/TASK-20260815-6f4429/runtime-session-receipt.json
+    requested_policy: coordinator-orchestration-code
+    self_reported_resolved_model_id: claude-sonnet-5
+    self_reported_resolved_model_id_source: >-
+      Direct self-report from this authoring session's own runtime system
+      context ("Sonnet 5", exact model id claude-sonnet-5).
+    committed_binding_target_for_coordinator_orchestration_code: anthropic:claude-opus-5
+    committed_binding_target_source: >-
+      Read directly from orchestration/model-bindings.yaml and
+      orchestration/model-policies.yaml. NOT a live confirmation of what
+      served this session.
+    these_are_two_distinct_facts: true
+    backend: anthropic
+    runtime: claude_code
+    reasoning_effort: high
+    fallback_used: false
+    degraded: false
+    amazon_bedrock_selected_configured_probed_contacted_or_used: false
+    probe_session_launched: false
+    probe_versus_authoring_gap: none
+
+  strict_parse_contract:
+    single_document_required: true
+    duplicate_keys_rejected: true
+    json_receipt_parse_required: true
+    yaml_artifact_count: 5
+    json_artifact_count: 1
+
+  path_membership:
+    owned_yaml_paths:
+      - experiments/EXP-SYC-ff777e/specification.yaml
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-8c58a3/tasks/TASK-20260815-6f4429/verification-and-null-kats.yaml
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-8c58a3/tasks/TASK-20260815-6f4429/custody-and-executable-contract.yaml
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-8c58a3/tasks/TASK-20260815-6f4429/physical-frontier-compiler.yaml
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-8c58a3/tasks/TASK-20260815-6f4429/design-repair-report.yaml
+    owned_json_path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-8c58a3/tasks/TASK-20260815-6f4429/runtime-session-receipt.json
+    declared_artifact_count: 6
+    extra_paths_allowed: false
+    files_written_outside_write_scope: 0
+
+  # ===========================================================================
+  # SYSTEM-PEAK-LIVE-CONCURRENCY KATs. CARRIED FORWARD BYTE-IDENTICAL FROM
+  # EXP-SYC-edf98d. D2 and V2 do not touch this section; neither KAT-PEAK-1
+  # through KAT-PEAK-7 nor aggregate_kat_summary is repaired or re-touched by
+  # this successor (item C's optional overclaim sub-note remains open, not
+  # addressed here, per this batch's own task card).
+  # NOTHING WAS EXECUTED to produce any of these: the expected values are
+  # derived from the frozen rule, and a future implementation must reproduce
+  # them exactly.
+  # ===========================================================================
+  peak_aggregate_kats:
+    executed: false
+    execution_status: >-
+      no code exists, nothing was run, and no measurement was taken. These are
+      contract fixtures with expected values fixed in advance of any
+      implementation.
+    frozen_rule: 'peak_live_bytes_system = max_t( shared(t) + sum_j concurrent_nonshared_shard_j(t) - dedup(t) )'
+    shard_index_range: j = 1 through 8
+    time_base: >-
+      one host monotonic clock; every allocate and free event of the shared
+      context and of all eight shards is stamped on that single timeline; the
+      aggregate is evaluated at every event timestamp in the merged event set
+    units: bytes
+    dedup_definition: >-
+      dedup(t) = sum over physical pages P live at t of (c_P(t) - 1) * bytes(P),
+      where c_P(t) counts how many of the nine accounting terms charge P at t;
+      any unproved duplication is set to zero
+    fixtures:
+
+      - id: KAT-PEAK-1
+        name: eight-simultaneous-non-shared-shards
+        purpose: reject max-of-shards undercounting
+        events:
+          - 'shard j allocates 1 byte at t=1.0, for j = 1..8'
+          - 'shard j frees that byte at t=2.0, for j = 1..8'
+        shared_t: 0 at every t
+        dedup_t: 0 at every t
+        aggregate_at_t_in_1_0_to_2_0: 0 + (1+1+1+1+1+1+1+1) - 0 = 8
+        expected_peak_live_bytes: 8
+        must_reject:
+          - {wrong_rule: max-of-shards, wrong_value: 1}
+          - {wrong_rule: max-of-shards-with-setup, wrong_value: 1}
+        pass_condition: census returns exactly 8
+        fail_meaning: >-
+          any value below 8 proves the census is taking a maximum across
+          workers instead of a sum across simultaneously live allocations
+
+      - id: KAT-PEAK-2
+        name: eight-staggered-non-shared-shards
+        purpose: reject sum-of-independent-maxima overcounting
+        events:
+          - 'shard j allocates 1 byte at t=2j and frees it at t=2j+1, for j = 1..8'
+          - 'the eight live windows [2,3), [4,5), [6,7), [8,9), [10,11), [12,13), [14,15), [16,17) are pairwise disjoint'
+        shared_t: 0 at every t
+        dedup_t: 0 at every t
+        aggregate_at_every_event_time: 0 + 1 - 0 = 1
+        expected_peak_live_bytes: 1
+        must_reject:
+          - {wrong_rule: sum-of-independent-maxima, wrong_value: 8}
+          - {wrong_rule: sum-over-shards-ignoring-time, wrong_value: 8}
+        pass_condition: census returns exactly 1
+        fail_meaning: >-
+          any value above 1 proves the census is adding per-shard maxima that
+          are never simultaneously live
+
+      - id: KAT-PEAK-3
+        name: eight-simultaneous-plus-one-shared-byte
+        purpose: shared allocation counted exactly once, both accountings agree
+        events:
+          - 'the shared context allocates 1 byte at t=0.0 and frees it at t=3.0'
+          - 'shard j allocates 1 byte at t=1.0 and frees it at t=2.0, for j = 1..8'
+        accounting_a_shared_charged_once:
+          shared_t_in_1_0_to_2_0: 1
+          nonshared_j: 1 each
+          dedup_t: 0
+          aggregate: 1 + 8 - 0 = 9
+        accounting_b_shared_also_charged_into_every_shard:
+          shared_t_in_1_0_to_2_0: 1
+          nonshared_j: 2 each
+          dedup_t: 8
+          aggregate: 1 + 16 - 8 = 9
+        expected_peak_live_bytes: 9
+        both_accountings_must_agree: true
+        must_reject:
+          - {wrong_rule: shared-charged-per-shard-without-dedup, wrong_value: 17}
+          - {wrong_rule: shared-charged-per-shard-without-dedup-and-shared-dropped, wrong_value: 16}
+          - {wrong_rule: max-of-shards-plus-shared, wrong_value: 2}
+          - {wrong_rule: shared-dropped, wrong_value: 8}
+        pass_condition: both accountings return exactly 9
+        fail_meaning: >-
+          disagreement between the two accountings proves dedup(t) is not
+          removing exactly the duplicated charges, so shared bytes are not
+          counted exactly once
+
+      - id: KAT-PEAK-4
+        name: eight-staggered-plus-one-shared-byte
+        purpose: shared byte counted once when no two shards are ever simultaneous
+        events:
+          - 'the shared context allocates 1 byte at t=0.0 and frees it at t=18.0'
+          - 'shard j allocates 1 byte at t=2j and frees it at t=2j+1, for j = 1..8, windows pairwise disjoint'
+        shared_t_over_0_to_18: 1
+        dedup_t: 0
+        aggregate_at_every_shard_window: 1 + 1 - 0 = 2
+        expected_peak_live_bytes: 2
+        must_reject:
+          - {wrong_rule: sum-of-independent-maxima-plus-shared, wrong_value: 9}
+          - {wrong_rule: shared-dropped, wrong_value: 1}
+          - {wrong_rule: shared-charged-per-shard-without-dedup, wrong_value: 3, derivation: 'shared(t)=1 plus the one live shard charging 2 (its own byte and the shared byte) minus dedup 0'}
+        pass_condition: census returns exactly 2
+
+      - id: KAT-PEAK-5
+        name: seven-simultaneous-one-staggered
+        purpose: >-
+          additional discriminator beyond the three mandated fixtures; rejects
+          both wrong rules simultaneously with a value equal to neither the
+          shard count nor one
+        status: additional_not_a_substitute_for_kat_peak_1_through_4
+        events:
+          - 'shards 1..7 each allocate 1 byte at t=1.0 and free it at t=2.0'
+          - 'shard 8 allocates 1 byte at t=3.0 and frees it at t=4.0'
+        shared_t: 0 at every t
+        dedup_t: 0 at every t
+        aggregate_at_t_in_1_0_to_2_0: 0 + 7 - 0 = 7
+        aggregate_at_t_in_3_0_to_4_0: 0 + 1 - 0 = 1
+        expected_peak_live_bytes: 7
+        must_reject:
+          - {wrong_rule: max-of-shards, wrong_value: 1}
+          - {wrong_rule: sum-of-independent-maxima, wrong_value: 8}
+        pass_condition: census returns exactly 7
+
+      - id: KAT-PEAK-6
+        name: sampled-census-null-control
+        purpose: >-
+          null-object control proving the census is event-exact rather than
+          poll-based
+        status: negative_control
+        events:
+          - 'identical to KAT-PEAK-1'
+          - 'the census is permitted to observe only t=0.5 and t=2.5, outside the live window'
+        sampled_census_would_return: 0
+        expected_result: INVALID
+        expected_result_meaning: >-
+          a poll-based census that misses the live window must report apparatus
+          invalidity, not a peak of 0 and not a peak of 8. Sampling is forbidden
+          because it can only undercount.
+        must_reject:
+          - {wrong_behaviour: report 0 as the peak, why_wrong: silent undercount}
+          - {wrong_behaviour: report 8 by inference, why_wrong: fabricated observation from an invalid census}
+
+      # =======================================================================
+      # ITEM C FIX (carried forward byte-identical from EXP-SYC-edf98d). New
+      # fixture repairing C-PEAK-KAT-PARTIAL-OVERLAP-COVERAGE-GAP. All six
+      # fixtures above test only full-coincidence (all eight shards
+      # simultaneously live) or full-disjointness (shards pairwise never
+      # simultaneous) topologies. This fixture is a genuine PARTIAL overlap: a
+      # sliding staircase where exactly 4 of 8 shards are live at any interior
+      # instant, a value equal to neither the shard count (8) nor 1.
+      # =======================================================================
+      - id: KAT-PEAK-7
+        name: partial-staircase-overlap-eight-shards
+        purpose: >-
+          reject any implementation that special-cases only the two extreme
+          topologies (full-coincidence returning the shard count, full-
+          disjointness returning 1) and falls back to an incorrect default
+          elsewhere
+        status: additional_discriminator_new_since_EXP-SYC-edf98d
+        events:
+          - 'shard j allocates 1 byte at t=j and frees it at t=j+4, for j = 1..8'
+          - >-
+            each shard's live window has length 4, offset by 1 from the next:
+            shard1 [1,5), shard2 [2,6), shard3 [3,7), shard4 [4,8),
+            shard5 [5,9), shard6 [6,10), shard7 [7,11), shard8 [8,12)
+        shared_t: 0 at every t
+        dedup_t: 0 at every t
+        sample_point_1:
+          t: 4.5
+          live_shards: [1, 2, 3, 4]
+          aggregate: 0 + 4 - 0 = 4
+        sample_point_2:
+          t: 5.5
+          live_shards: [2, 3, 4, 5]
+          aggregate: 0 + 4 - 0 = 4
+        merged_event_set: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        aggregate_over_the_interior: >-
+          the maximum over every event timestamp in the merged event set
+          {1,...,12} and every interior point is 4 throughout the interior -- a
+          standard sliding-window overlap of
+          min(window_length=4, shard_count=8)=4
+        expected_peak_live_bytes: 4
+        must_reject:
+          - {wrong_rule: full-coincidence-special-case, wrong_value: 8}
+          - {wrong_rule: full-disjointness-special-case, wrong_value: 1}
+        pass_condition: census returns exactly 4 at every interior event time
+        fail_meaning: >-
+          any implementation which special-cases only the two extreme
+          topologies this task's six existing KATs (KAT-PEAK-1 through
+          KAT-PEAK-6) exercise -- all-simultaneous returning the shard count N,
+          all-disjoint returning 1 -- and falls back to an incorrect default
+          elsewhere would PASS all six existing KATs while FAILING this one.
+          This is precisely the coverage gap the Red Team constructed: none of
+          the six existing full-coincidence/full-disjointness fixtures could
+          catch a wrong implementation that hardcodes those two special cases
+          and mishandles genuine partial overlap.
+
+    aggregate_kat_summary:
+      mandated_by_checkpoint: [KAT-PEAK-1, KAT-PEAK-2, KAT-PEAK-3, KAT-PEAK-4]
+      additional_discriminators: [KAT-PEAK-5, KAT-PEAK-6, KAT-PEAK-7]
+      additional_discriminators_note: >-
+        KAT-PEAK-7 is added to additional_discriminators, not to
+        mandated_by_checkpoint, which remains KAT-PEAK-1 through KAT-PEAK-4
+        exactly as inherited from EXP-SYC-793304.
+      rejects_undercounting: true
+      rejects_overcounting: true
+      rejects_partial_overlap_special_casing: true
+      rejects_partial_overlap_special_casing_scope_note: >-
+        Carried forward unchanged from EXP-SYC-edf98d. Red Team's BATCH-11dc7b
+        non-blocking sub-note (that this field asserts more than any finite
+        KAT suite can prove, since a cheaper 3-shard/6-event counterexample
+        could still defeat a naive pattern-matching implementation) remains
+        OPEN and OPTIONAL per this batch's own task card: it MAY be relabeled
+        if doing so does not expand scope beyond D2 and V2, but is NOT
+        required. This field is left UNCHANGED here to keep this successor's
+        diff minimal and exactly scoped to D2 and V2, as directed.
+      shared_counted_exactly_once: true
+      census_streams_required: 9
+      missing_stream: invalidates
+      multi_host_execution: invalidates
+
+  # ===========================================================================
+  # HA-2 TAIL KATs. Unchanged from EXP-SYC-793304 / EXP-SYC-edf98d except the
+  # item-A serialization label fix on KAT-HA2-TUPLEWISE-MARKOV.serialization
+  # below (carried forward, not re-touched). No stored value is changed
+  # anywhere in this section. D2 and V2 do not affect this section: V2's fix
+  # is applied in specification.yaml's blocker_repairs block, not here.
+  # ===========================================================================
+  ha2_kats:
+    formula: E[X]=N^(-1/3+gamma_x+o(1))
+    source_hypothesis: H-SYC-b854f4
+    finite_convention: 'N=2^bits and o(1)=0 for the mean arithmetic KAT only'
+    convention_forbidden_for_tails: >-
+      The zero-o(1) convention must not be applied to HA-3's kappa_N, because
+      kappa=1 forces X supported on {0,1} and hence P(X >= 33)=0 by fiat. See
+      lemma L4 in specification.yaml.
+    capacity: 32
+    overflow_event: 'X >= 33'
+    tuple_count_per_size: 98304
+    tuple_count_identity: 32 curves * 256 roots * 4 public models * 3 eta values = 98304
+
+    frozen_expectation_margins_propagated_verbatim:
+      source: >-
+        ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-080a9c.yaml
+        preserved_repairs, with the bits mapping unchanged through
+        BATCH-86fd69, BATCH-11dc7b, and this batch
+      gamma_x_5_over_18:
+        bits_18: '64.000000000000'
+        bits_21: '71.837571091800'
+        bits_24: '80.634947193272'
+        bits_27: '90.509667991878'
+        bits_30: '101.593667325965'
+      gamma_x_1_over_3_all_sizes: '32.000000000000'
+      status: expectations_only
+      re_derived_from_memory: false
+
+    rows:
+      - {bits: 18, N: 262144, L: 64, gamma_x: 5/18, expected_X: '0.5000000000000000', cap_over_expected_X_margin: '64.000000000000'}
+      - {bits: 21, N: 2097152, L: 128, gamma_x: 5/18, expected_X: '0.4454493590701696', cap_over_expected_X_margin: '71.837571091800'}
+      - {bits: 24, N: 16777216, L: 256, gamma_x: 5/18, expected_X: '0.3968502629920499', cap_over_expected_X_margin: '80.634947193272'}
+      - {bits: 27, N: 134217728, L: 512, gamma_x: 5/18, expected_X: '0.3535533905932738', cap_over_expected_X_margin: '90.509667991878'}
+      - {bits: 30, N: 1073741824, L: 1024, gamma_x: 5/18, expected_X: '0.3149802624737183', cap_over_expected_X_margin: '101.593667325965'}
+    ceiling_rows_gamma_x_1_over_3:
+      expected_X_all_sizes: '1.0000000000000000'
+      cap_over_expected_X_margin_all_sizes: '32.000000000000'
+    checks:
+      - at gamma_x=5/18 the exponent is -1/18
+      - at gamma_x=1/3 the exponent is 0
+      - 32/E[X] is 32*2^(bits/18) at the threshold slice
+      - 32/E[X] is exactly 32 at the ceiling slice
+    carried_forward_serialization_limitation: >-
+      Carried unchanged: the bits=21 expected-X string follows binary64 .16f
+      formatting; exact-real half-up rounding at sixteen places would end in
+      1697. Non-blocking, restated rather than normalized.
+
+    KAT-HA2-TUPLEWISE-MARKOV:
+      status: positive_arithmetic_kat
+      statement: 'P(X >= 33) <= mu/33 for nonnegative integer-valued X with mean mu'
+      sharpness: >-
+        attained by the two-point law X=33 with probability mu/33 and X=0
+        otherwise, so mu/33 is the best possible bound from the mean alone
+      serialization: twelve decimal places, half-up rounding of the long division
+      serialization_repair_note: >-
+        ITEM A FIX (carried forward, not re-touched). Predecessor EXP-SYC-793304
+        stated "twelve decimal places, truncated long division". Independent
+        recomputation showed 3 of 5 rows (bits 18, 27, 30) actually match
+        half-up ROUNDING, not truncation (true truncated values one ULP lower:
+        0.015151515151 / 0.010713739108 / 0.009544856438). The label is
+        relabeled here rather than the five stored rows below being
+        recomputed to true truncation. Every stored value below is UNCHANGED
+        from EXP-SYC-793304.
+      rows:
+        - {bits: 18, gamma_x: 5/18, mu: '0.5000000000000000', bound: '0.015151515152'}
+        - {bits: 21, gamma_x: 5/18, mu: '0.4454493590701696', bound: '0.013498465426'}
+        - {bits: 24, gamma_x: 5/18, mu: '0.3968502629920499', bound: '0.012025765545'}
+        - {bits: 27, gamma_x: 5/18, mu: '0.3535533905932738', bound: '0.010713739109'}
+        - {bits: 30, gamma_x: 5/18, mu: '0.3149802624737183', bound: '0.009544856439'}
+      ceiling_row: {gamma_x: 1/3, mu: '1.0000000000000000', bound: '0.030303030303'}
+      range_gamma_x_5_over_18: '0.009544856439 through 0.015151515152'
+      independent_corroboration: >-
+        TASK-20260813-e04de4 records the identical range endpoints
+        '0.009544856439_to_0.015151515152' for the equal-mean construction. The
+        agreement is expected, since that construction is the Markov extremal
+        law; it is cited as an independent recomputation, not as authority.
+      certifying: false
+
+    KAT-HA2-FAMILYWISE-UNION-VACUITY:
+      status: positive_arithmetic_kat_with_negative_conclusion
+      statement: 'P(any of 98304 tuples overflows) <= 98304 * mu / 33 = 2978.909090909091 * mu'
+      serialization: six decimal places
+      rows:
+        - {bits: 18, gamma_x: 5/18, familywise_bound: '1489.454545', vacuous: true}
+        - {bits: 21, gamma_x: 5/18, familywise_bound: '1326.953145', vacuous: true}
+        - {bits: 24, gamma_x: 5/18, familywise_bound: '1182.180856', vacuous: true}
+        - {bits: 27, gamma_x: 5/18, familywise_bound: '1053.203409', vacuous: true}
+        - {bits: 30, gamma_x: 5/18, familywise_bound: '938.297567', vacuous: true}
+      ceiling_row: {gamma_x: 1/3, familywise_bound: '2978.909091', vacuous: true}
+      non_vacuity_would_require_mu_at_most: '0.000335693359375'
+      exact_fraction: 33/98304 = 11/32768
+      shortfall_factor_equals_the_familywise_bound: true
+      conclusion: >-
+        vacuous at every ladder size and at both gamma_x slices; no
+        simultaneous-tail guarantee follows from the mean
+
+    KAT-HA2-SECOND-MOMENT-VACUITY:
+      status: positive_arithmetic_kat_with_negative_conclusion
+      statement: >-
+        with kappa = E[X^2]/E[X] from HA-3, Markov on X^2 gives
+        P(X >= 33) <= kappa*mu/1089 and familywise 98304*kappa*mu/1089;
+        non-vacuity requires kappa*mu <= 1089/98304
+      exact_threshold_literal: '0.011077880859375'
+      exact_fraction: 1089/98304 = 363/32768
+      kappa_lower_bound: 1
+      kappa_lower_bound_reason: 'X^2 >= X pointwise for nonnegative integer X, so E[X^2] >= E[X]'
+      smallest_mu_on_the_ladder: '0.3149802624737183'
+      comparison: '1 * 0.3149802624737183 > 0.011077880859375'
+      conclusion: >-
+        vacuous for every admissible kappa at every ladder size and both slices;
+        the second moment does not rescue the familywise bound
+
+    NKAT-HA2-EQUAL-MEAN:
+      status: MANDATORY_NEGATIVE_KAT
+      retained_from: TASK-20260813-e04de4 control CTRL-HA2-TAIL-BOUNDARY
+      construction: >-
+        For any displayed mean mu, let X=33 with probability mu/33 and X=0
+        otherwise. Then E[X]=mu exactly.
+      expected_behaviour:
+        every_displayed_mean_preserved_exactly: true
+        every_displayed_margin_preserved_exactly: true
+        thirty_third_distinct_value_occurs_with_positive_probability: true
+        per_tuple_overflow_probability: mu/33
+      expected_verdict: >-
+        Any argument that infers capacity adequacy, tail safety, or overflow
+        improbability from an HA-2 mean margin MUST FAIL against this fixture.
+      may_be_removed_when: >-
+        never, unless a separately stated and validated finite-N tail heuristic
+        supersedes the mean-only basis
+      forbidden_uses_of_mean_margins:
+        - as a tail bound
+        - as a simultaneous or familywise bound
+        - as a worst-case bound
+        - as evidence of capacity adequacy
+        - as a basis for relaxing the overflow-invalidation rule
+
+    NKAT-HA2-CONVENTION-DEGENERACY:
+      status: negative_kat
+      construction: >-
+        Apply the frozen zero-o(1) convention to HA-3's kappa_N = N^o(1),
+        obtaining kappa = 1 exactly.
+      consequence: >-
+        For nonnegative integer X, E[X^2]=E[X] holds iff X is supported on
+        {0,1} almost surely, which gives P(X >= 33)=0.
+      expected_verdict: >-
+        This "certificate" must be REJECTED as assuming its conclusion. The
+        convention is admitted for HA-2 mean arithmetic only.
+
+  # ===========================================================================
+  worst_case_occupancy_kat:
+    formula: selected_pair_comparisons[bits] / 98304 = 8*(L(bits)-1)
+    capacity: 32
+    rows:
+      - {bits: 18, L: 64, bound: 504, exceeds_capacity_by: 472}
+      - {bits: 21, L: 128, bound: 1016, exceeds_capacity_by: 984}
+      - {bits: 24, L: 256, bound: 2040, exceeds_capacity_by: 2008}
+      - {bits: 27, L: 512, bound: 4088, exceeds_capacity_by: 4056}
+      - {bits: 30, L: 1024, bound: 8184, exceeds_capacity_by: 8152}
+    multiplicity_note: >-
+      Every retained candidate must originate from a charged
+      selected_pair_comparisons event; polynomial multiplicity cannot create an
+      uncharged candidate outside this event census.
+    adequacy: FAIL_not_worst_case_safe
+    preserved_unweakened: true
+
+  overflow_rule_kat:
+    inherited_from: EXP-SYC-12de89
+    capacity: 32
+    width: U8_0_through_31
+    rule: >-
+      a realized thirty-third distinct candidate has zero-based candidate_index
+      32, is outside U8_0_through_31, and invalidates the apparatus without
+      truncation, replacement, sampling, or silent saturation
+    weakened: false
+
+  DERIV1_regression:
+    purpose: >-
+      preserve the predecessor-local table as a regression KAT only; it is not
+      the HA-2 calibration and carries no capacity authority
+    formula: worst_case_per_tuple_bound / N
+    rows:
+      - {bits: 18, N: 262144, worst_case_per_tuple_bound: 504, expected_occupancy_literal: '0.0019226074218750', margin_vs_32: 16644.063492}
+      - {bits: 21, N: 2097152, worst_case_per_tuple_bound: 1016, expected_occupancy_literal: '0.0004844665527344', margin_vs_32: 66052.031496}
+      - {bits: 24, N: 16777216, worst_case_per_tuple_bound: 2040, expected_occupancy_literal: '0.0001215934753418', margin_vs_32: 263172.015686}
+      - {bits: 27, N: 134217728, worst_case_per_tuple_bound: 4088, expected_occupancy_literal: '0.0000304579734802', margin_vs_32: 1050628.007828}
+      - {bits: 30, N: 1073741824, worst_case_per_tuple_bound: 8184, expected_occupancy_literal: '0.0000076219439507', margin_vs_32: 4198404.00391}
+    bits27_required_literal: '0.0000304579734802'
+    bits27_exact_identity: 4088 / 134217728 = 0.000030457973480224609375
+    all_rows_unchanged_from_predecessor: true
+    authority_boundary: regression_kat_only_not_ha2_capacity_evidence
+
+  # ===========================================================================
+  # D2 FIX: archive now carries itemized: true with an itemization_basis
+  # reference. communication remains itemized: false, disposition unchanged
+  # except for the scope correction (communication alone, see specification.yaml
+  # and custody-and-executable-contract.yaml for the full repair). No scalar
+  # below changes.
+  # ===========================================================================
+  capacity_fit:
+    residuals:
+      archive: {scheduled_bytes: 5563755264, hard_cap_bytes: 2307745600, over_cap_bytes: 3256009664, status: OPEN_CARRIED_FORWARD, itemized: true, itemization_basis: 'coordination/goals/GOAL-ECDLP-001/batches/BATCH-68ea16/tasks/TASK-20260811-cb5d76/physical-frontier-compiler.yaml archive_hashing_mount_state_scaling; n_c_by_size [177118029, 357047457, 716906313, 1436624022, 2876059443] for bits [18,21,24,27,30]; DERIVED x3-multiplier inference, disclosed uncertain, larger non-adopted additive-delta alternative 7713503488 disclosed as robustness check'}
+      communication: {scheduled_bytes: 5614086912, hard_cap_bytes: 2328717120, over_cap_bytes: 3285369792, status: OPEN_CARRIED_FORWARD, itemized: false, itemization_disposition_scope: communication_alone}
+      output: {required_bytes: 15520768, hard_cap_bytes: 8388608, over_cap_bytes: 7132160, status: OPEN_CARRIED_FORWARD, itemized: true}
+    item_D2_note: >-
+      D2-ARCHIVE-ITEMIZATION-BASIS-OVERLOOKED repaired: archive is now
+      itemized with disclosed derivation uncertainty; communication remains
+      NOT_ACHIEVABLE_WITHOUT_FABRICATION, correctly re-scoped to communication
+      alone (not both totals, as EXP-SYC-edf98d wrongly stated) -- see
+      custody-and-executable-contract.yaml archive_and_communication and
+      experiments/EXP-SYC-ff777e/specification.yaml
+      items_A_through_D_repairs.D-ARCHIVE-COMMUNICATION-ITEMIZATION-GAP.D2_FIX_APPLIED.
+      The scalars themselves are unchanged.
+    equations:
+      - 5563755264 - 2307745600 = 3256009664
+      - 5614086912 - 2328717120 = 3285369792
+      - 15520768 - 8388608 = 7132160
+    output_row_sum_identity: 1966080*4+524288+2097152+1048576+8192+46080+1048576+2097152+786432=15520768
+    all_positive: true
+    no_cap_raise: true
+    capacity_fit: false
+    refused_as_a_fit: [truncation, hash_substitution_for_retained_bytes, dropping_a_mount, dropping_a_stream, inventing_a_communication_row_partition]
+
+  budget_sums:
+    planned_wall: 7200+72000+172800+1200+9600+172800+14400=450000
+    hard_wall: 9000+90000+216000+1500+12000+216000+18000=562500
+    planned_cpu: 4+160+384+4+20+384+32=988
+    hard_cpu: 5+200+480+5+25+480+40=1235
+    maximum_memory_gb: 2
+    budget_increase_detected: false
+
+  deferred_status:
+    RT-OBJ3: >-
+      RT-OBJ3 (crossover-N estimate) remains an OPEN, NON-BLOCKING finding
+      DEFERRED to a future batch; it is not closed here.
+    RT-OBJ4: >-
+      RT-OBJ4 (k-list/generalized-birthday baseline) remains an OPEN,
+      NON-BLOCKING finding DEFERRED to a future batch; it is not closed here.
+    implementation_effect: none
+    folded_into_another_item: false
+
+  residuals:
+    - id: ha2_simultaneous_tail
+      exact: >-
+        No non-vacuous familywise tail exists from HA-2 or HA-3 as committed;
+        the union bound ranges from 938.297567 to 1489.454545 at gamma_x=5/18
+        and is 2978.909091 at gamma_x=1/3, and the second-moment route requires
+        kappa*mu <= 0.011077880859375 while kappa*mu >= 0.3149802624737183.
+      disposition: proved unavailable; overflow invalidates without truncation
+    - id: candidate_index_worst_case
+      exact: 'bounds [504,1016,2040,4088,8184] exceed capacity 32 by [472,984,2008,4056,8152]'
+      disposition: capacity 32 is not worst-case adequate; overflow invalidates
+    - id: peak_aggregate_fit_unproved
+      exact: >-
+        the corrected aggregate rule can exceed any per-shard figure by up to
+        eightfold and no static or measured byte figure exists, so fit under the
+        unchanged maximum_memory_gb ceiling of 2 is unproved
+      disposition: OPEN_DISCLOSED_NEW_IN_EXP-SYC-793304_CARRIED_FORWARD_UNCHANGED
+    - id: archive_capacity
+      over_bytes: 3256009664
+      itemized: true
+      itemization_basis: BATCH-68ea16/TASK-20260811-cb5d76 archive_hashing_mount_state_scaling
+    - id: communication_capacity
+      over_bytes: 3285369792
+      itemized: false
+    - id: output_capacity
+      over_bytes: 7132160
+      itemized: true
+    - id: d2_archive_itemization_repaired
+      value: D2-ARCHIVE-ITEMIZATION-BASIS-OVERLOOKED
+      disposition: REPAIRED_this_successor
+
+  checks_performed_by_this_producer:
+    method: >-
+      reading of committed bytes and arithmetic over frozen literals by the
+      authoring session, including independent re-reading of
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-68ea16/tasks/TASK-20260811-cb5d76/physical-frontier-compiler.yaml's
+      archive_hashing_mount_state_scaling section and
+      experiments/EXP-SYC-793304/specification.yaml's contract_3_simultaneous_tail
+      block. No command was executed, no digest was computed, no parser was
+      invoked, and no measurement was taken.
+    arithmetic_recomputed_from_committed_literals: true
+    d2_row_sum_independently_recomputed: >-
+      177118029+357047457+716906313+1436624022+2876059443=5563755264,
+      recomputed independently by this producer (see specification.yaml
+      D2_FIX_APPLIED.archive_itemization.arithmetic_check).
+    d2_communication_symmetry_independently_recomputed: >-
+      1871362304*3=5614086912, recomputed independently by this producer.
+    v2_five_subfields_independently_reverified_against_frozen_source: true
+    strict_parse_asserted_as_verified_by_this_producer: false
+    strict_parse_note: >-
+      This producer CANNOT run a YAML or JSON parser and therefore does not
+      claim that strict parsing passed. Verification of that contract is the
+      snapshot and review tasks' job.
+    digests_recomputed: false
+    experiment_runs: 0

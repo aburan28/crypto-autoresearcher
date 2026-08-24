@@ -9,6 +9,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, Sequence
 
@@ -98,6 +99,65 @@ def require_positive_number(record: dict[str, Any], field: str, location: str) -
     value = record.get(field)
     if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
         raise DispatchError(f"{location}.{field} must be a positive number")
+
+
+def parse_timestamp(value: Any, location: str) -> datetime:
+    """Parse an ISO-8601 timestamp, tz-aware output always.
+
+    A naive input (no offset) is rejected rather than assumed UTC: this
+    queue is read by whichever worktree's session picks it up next, and a
+    naive timestamp compared against another timezone silently compares the
+    wrong instants. Every other timestamp in this program's records is
+    explicit for the same reason (docs/evidence-and-reproducibility.md).
+    """
+    if not isinstance(value, str) or not value:
+        raise DispatchError(f"{location} must be an ISO-8601 timestamp string")
+    text = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError as error:
+        raise DispatchError(f"{location} is not a valid ISO-8601 timestamp: {error}") from None
+    if parsed.tzinfo is None:
+        raise DispatchError(f"{location} must carry an explicit UTC offset (or 'Z')")
+    return parsed.astimezone(timezone.utc)
+
+
+def validate_lease(task: dict[str, Any], location: str) -> None:
+    """Validate the optional lease a `running` task may carry.
+
+    A lease is never required -- every task record written before this field
+    existed has none, and that must keep meaning exactly what it always did:
+    a `running` task with no lease never expires under this mechanism. Only a
+    task that opts in by carrying one can be reclaimed automatically.
+
+    Presence outside `running` is refused rather than ignored: a lease left on
+    a task after it was manually reset to `queued`/a terminal state is stale
+    data nobody will notice, which is the exact failure mode a lease exists to
+    catch -- and it should not be able to hide inside the field meant to fix
+    it.
+    """
+    lease = task.get("lease")
+    if lease is None:
+        return
+    if task["state"] != "running":
+        raise DispatchError(f"{location}.lease is set but state is not \"running\"")
+    if not isinstance(lease, dict):
+        raise DispatchError(f"{location}.lease must be an object")
+    require_text(lease, "owner", f"{location}.lease")
+    epoch = lease.get("epoch")
+    if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch < 1:
+        raise DispatchError(f"{location}.lease.epoch must be a positive integer")
+    acquired_at = parse_timestamp(lease.get("acquired_at"), f"{location}.lease.acquired_at")
+    expires_at = parse_timestamp(lease.get("expires_at"), f"{location}.lease.expires_at")
+    if expires_at <= acquired_at:
+        raise DispatchError(f"{location}.lease.expires_at must be after lease.acquired_at")
+
+
+def lease_is_expired(task: dict[str, Any], now: datetime) -> bool:
+    lease = task.get("lease")
+    if lease is None:
+        return False
+    return now >= parse_timestamp(lease["expires_at"], "lease.expires_at")
 
 
 def _validate_path_text(path: str, location: str) -> tuple[PurePosixPath, str]:
@@ -526,6 +586,7 @@ def validate_queue(
                 )
             artifact_owners[path] = task["id"]
         validate_handoff(task, location)
+        validate_lease(task, location)
         if is_archive(task):
             validate_archive_shape(task, location)
         ids.append(task["id"])
@@ -682,10 +743,33 @@ def _ready_queued(
 
 
 def select(
-    queue: dict[str, Any], *, repository_verifier: RepositoryVerifier | None = None
+    queue: dict[str, Any],
+    *,
+    repository_verifier: RepositoryVerifier | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
+    """Select the tasks a dispatch plan admits.
+
+    `now`, when given, is the only clock this function reads -- it is never
+    sampled internally, so the same queue always produces the same plan for
+    the same `now`. Passing it lets a `running` task past its own declared
+    `lease.expires_at` stop being treated as holding its `write_scope`: a
+    lease is opt-in (`validate_lease`), so a task with none behaves exactly
+    as it always has, live or not. The task itself is left in state
+    `running` in the input -- this function only ever reads the queue, and
+    reverting a stale task to `queued` in the record itself is still a
+    Coordinator decision, made once and recorded, not an inference redrawn on
+    every dispatch run.
+    """
     by_id = validate_queue(queue, repository_verifier=repository_verifier)
-    running = [task for task in queue["tasks"] if task["state"] == "running"]
+    all_running = [task for task in queue["tasks"] if task["state"] == "running"]
+    expired = (
+        [task for task in all_running if lease_is_expired(task, now)]
+        if now is not None
+        else []
+    )
+    expired_ids = {task["id"] for task in expired}
+    running = [task for task in all_running if task["id"] not in expired_ids]
     ready = _ready_queued(queue, by_id)
     ready_archives = [task for task in ready if is_archive(task)]
     selected: list[dict[str, Any]] = list(running)
@@ -785,6 +869,16 @@ def select(
             for task in queue["tasks"]
             if task["state"] in TERMINAL_STATES
         ],
+        "expired_leases": [
+            {
+                "id": task["id"],
+                "role": task["role"],
+                "owner": task["lease"]["owner"],
+                "write_scope": task["write_scope"],
+                "expires_at": task["lease"]["expires_at"],
+            }
+            for task in expired
+        ],
         "gates": {
             "concurrency_cap_respected": (
                 len(selected) <= queue["max_concurrent"]
@@ -876,6 +970,19 @@ def markdown(plan: dict[str, Any]) -> str:
         lines.append("None.")
     for task in plan["deferred"]:
         lines.append(f"- `{task['id']}`: {', '.join(task['reason'])}")
+    expired_leases = plan.get("expired_leases") or []
+    if expired_leases:
+        lines.extend(["", "## Expired Leases", "",
+                      "These tasks are still `running` in the queue, but their lease expired",
+                      "before `--now` -- their write_scope is no longer treated as held, so a",
+                      "queued successor over the same scope was admitted instead. The task",
+                      "itself is untouched: a Coordinator still records the actual terminal",
+                      "state (most likely `failed`) the next time the queue is edited.", ""])
+        for item in expired_leases:
+            lines.append(
+                f"- `{item['id']}` ({item['role']}, leased by `{item['owner']}`, "
+                f"expired {item['expires_at']}): {', '.join(item['write_scope'])}"
+            )
     degraded = plan.get("content_only_archives") or []
     if degraded:
         lines.extend(["", "## Archives verified on CONTENT only", "",
@@ -1279,6 +1386,13 @@ def main() -> int:
         type=Path,
         help="repository root used to verify completed archive commits (defaults to queue repository)",
     )
+    parser.add_argument(
+        "--now",
+        help="ISO-8601 instant to check running-task leases against (omit: leases never expire, "
+             "matching every queue written before leases existed). Explicit rather than sampled "
+             "from the clock, so a dispatch plan stays a pure function of its inputs -- "
+             "e.g. --now \"$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)\".",
+    )
     args = parser.parse_args()
     try:
         repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
@@ -1286,7 +1400,8 @@ def main() -> int:
         queue = json.loads(args.queue.read_text(encoding="utf-8"))
         enforce_reconciliation_document_authority(queue)
         verifier = GitRepositoryVerifier(repo_root)
-        plan = select(queue, repository_verifier=verifier)
+        now = parse_timestamp(args.now, "--now") if args.now is not None else None
+        plan = select(queue, repository_verifier=verifier, now=now)
     except (OSError, json.JSONDecodeError, DispatchError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2

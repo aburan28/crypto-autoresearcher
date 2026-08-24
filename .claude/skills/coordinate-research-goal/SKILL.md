@@ -27,9 +27,12 @@ reviews, and scopes its claims exactly as before.
 
 1. Read `AGENTS.md`, `CLAUDE.md`, `docs/task-lifecycle.md`,
    `docs/dynamic-subagent-dispatch.md`, and the relevant ledger records.
-2. Reuse an active `ledger/goals/GOAL-<AREA>-<NNN>.yaml` when it matches the
-   request; otherwise create the next free goal record from
-   `templates/research-records.md`. Bind it to one or more `RQ-*` records.
+2. Reuse an active `ledger/goals/GOAL-*` record under its exact ID when it
+   matches the request, including a legacy three-digit ID. Otherwise mint a new
+   ID with `python3 tools/allocate_id.py --next goal --area AREA`, confirm it
+   with `--check`, and create the goal record from
+   `templates/research-records.md`. Never choose a suffix manually or scan for
+   a maximum. Bind it to one or more `RQ-*` records.
 3. State an explicit objective, completion criteria, pause conditions, campaign
    budget, and exactly one next action. A negative result is not a completion
    criterion.
@@ -38,7 +41,7 @@ reviews, and scopes its claims exactly as before.
    returned ID in the goal record. Keep it active across turns; do not mark it
    complete merely because one batch, idea, or experiment finished.
 5. Create the first bounded batch under
-   `coordination/goals/GOAL-<AREA>-<NNN>/batches/BATCH-<NNN>/`, with committed
+   `coordination/goals/GOAL-<AREA>-<tok>/batches/BATCH-<tok>/`, with committed
    handoff records and a dispatch queue. Each task names exact `artifact_paths`,
    an exclusive `write_scope`, a budget, and an archival task. Commit the goal,
    question, queue, and handoff records through a Coordinator snapshot archive
@@ -69,15 +72,33 @@ For every batch, run this sequence:
 2. When a producer reaches a terminal result, run its Coordinator-only
    `snapshot` archive task alone. Its Git receipt must verify before a
    Validator, Reviewer, or Red Team reads the result.
-3. Run the required independent review tasks, each as a FRESH subagent call
-   rather than a continuation of the producer's session — a continuation
-   carries the producer's context and is not an independent session. A claimed
+3. Write the `review_plan` on the handoff opening the round, BEFORE launching
+   any reviewer (AGENTS.md "Review architecture"): your prior, the joints with
+   exactly one owner and a worked attack each, the blindness declaration, the
+   proves-too-much objects, and a blind re-derivation of any load-bearing
+   quantity with its `blind_from` paths. Writing it afterwards recovers none of
+   its value — a prior recorded after the verdicts is not a prior, and joints
+   assigned after the fact cannot buy coverage the round did not have.
+
+   Then run the required independent review tasks, each as a FRESH subagent
+   call rather than a continuation of the producer's session — a continuation
+   carries the producer's context and is not an independent session. Launch
+   them in one message so they run concurrently and cannot see each other's
+   output. A claimed
    breakthrough, a proposed closure, or a result contradicting prior validated
    evidence routes to the `review-breakthrough` tier
    (`validator-breakthrough` / `red-team-breakthrough`, effort max), which is
    `degradable: false`: if it cannot be served, pause the goal rather than
    review it at a lower tier. Treat receipt validity, mathematical
    interpretation, and baseline comparison as separate checks.
+
+   Before treating the round as complete, run
+   `python3 tools/check_review_independence.py --batch <batch-dir>`. It checks
+   the plan against the reviewers' attestations: every joint owned and
+   attested, no undeclared sibling reads, controls declared, and no re-deriver
+   whose declared sources intersect its `blind_from`. Record any departure from
+   the plan in `procedure_deviations` — acting on a partial round may be the
+   right call, and it is still a deviation.
 4. Run the Coordinator-only `ledger` archive task alone. It commits exact
    review reports, analysis, evidence, decision, hypothesis status, and any
    knowledge update; its Git diff, parent, record IDs, and file hashes must
@@ -85,6 +106,21 @@ For every batch, run this sequence:
 5. In that same ledger commit, update the `GOAL-*` record with the batch,
    decision, latest verified commit, and exactly one next action. Rerank the
    remaining hypotheses only after this committed checkpoint.
+
+   **Read the obstruction registry before you rerank.** Run
+   `python3 tools/obstruction_registry.py --unexamined`. For each entry, ask
+   the reversal question: which theory takes this measurement as its
+   *hypothesis* rather than its refutation? A form that is indefinite blocks
+   every argument needing positivity and is the premise of the operator theory
+   built for indefinite forms; a degree that grows blocks elimination and
+   bounds the object it grows in. The registry crosses goals deliberately —
+   the reversal that matters is usually not available to the session that
+   measured the obstruction, and arrives later against a theory nobody had in
+   hand at the time. A candidate that survives this question enters the
+   ranking as an ordinary hypothesis with its own record; it gets no priority
+   for having come from here. "No theory takes it up" is a complete answer,
+   and belongs in that record's `resource_check.reading` so the next rerank
+   does not re-ask it blind.
 6. Generate the next bounded batch and return to step 1 while the goal remains
    `active`. Preserve failed, invalid, deferred, and anomalous tasks as scoped
    evidence and route them to a repair, replication, or new positive search

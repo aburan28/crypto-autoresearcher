@@ -1,0 +1,312 @@
+idea:
+  id: IDEA-20260816-f061f1
+  question_id: RQ-SLHDSA-001
+  added: '2026-08-16'
+  title: When two signatures land on the same hypertree leaf the same one-time key signs two different
+    roots; track the elementwise maximum of the chain-position vectors as a monotone accumulator,
+    count its saturation horizon exhaustively at enumerable hypertree heights, and measure whether
+    leaf collisions occur at the rate an idealized index predicts.
+  class: measurement
+  claim: '(A) A stateless hypertree signer selects its leaf per signature, so leaf repetition is an
+    ordinary birthday event in normal operation with no fault, no adversary and no implementation
+    error involved. When it happens, one one-time key issues two signatures on two generally distinct
+    roots, and the question of what that costs is not about probability but about an accumulator:
+    the elementwise maximum r = max over issued signatures of the chain-position vectors. (B) That
+    accumulator is the right object because it is exactly what a passive observer of the transcript
+    can compute and exactly what bounds extension: the set of messages forgeable from the whole transcript
+    under a given one-time key is the dominance up-set of r, not of any individual signature''s vector.
+    The single-signature case is the companion up-set entry; this entry is the multi-signature case,
+    and the operation joining them -- elementwise max -- is idempotent and monotone, so the object
+    has a genuine dynamics rather than a static count. (C) Both halves are measurable at enumerable
+    scale. The saturation horizon, meaning the number of signatures under one key after which r reaches
+    the top of the box and every forgeable message is forgeable, is computable exactly by enumeration
+    at small (w, len1). The leaf-collision rate, meaning how many of q signatures share a leaf at
+    hypertree height h, is computable exactly at h up to about 20 and comparable against the idealized-index
+    prediction. (D) The two halves multiply into one reported quantity that neither gives alone: the
+    expected size of the transcript-wide up-set after q signatures, as a curve in q, computed exactly,
+    with an idealized-index arm and a concrete-hash arm run side by side. (E) WHAT IS NOT CLAIMED:
+    no forgery, no attack, no weakness, no security level, no bit count, no statement about any FIPS
+    205 parameter set, no statement about SHA-2 or SHAKE, no statement about what the literature contains,
+    and above all nothing about the fault or memory-corruption claim class -- every collision considered
+    here arises from honest signing, which is the entire point of studying a stateless design.'
+  mechanism: 'STAGE A: separate the two halves so neither can contaminate the other. Half one is pure
+    combinatorics on the accumulator: given a multiset of chain-position vectors, compute r by elementwise
+    max and |U(r)| by the enumeration routine of the companion up-set entry, reused rather than rewritten.
+    Half two is pure occupancy: given h and q, compute the exact distribution of the number of leaves
+    receiving at least two signatures, by dynamic programming over occupancy counts rather than by
+    simulation. STAGE B: validate each half independently. The accumulator half is validated by checking
+    that r after one signature reproduces that signature''s own up-set count, and that r is monotone
+    nonincreasing in |U| as signatures are added. The occupancy half is validated against the exact
+    birthday distribution, which is arithmetic and needs no run. STAGE C: compose them. For each q,
+    draw the leaf assignment (idealized arm: uniform; concrete arm: a truncated hash of a randomizer),
+    group signatures by leaf, compute r per leaf, and accumulate the total transcript-wide up-set
+    size. STAGE D: run the concrete-hash arm and the idealized arm in the same invocation on the same
+    seeds, so the only difference is the index source. STAGE E: report the saturation horizon distribution,
+    the collision-count distribution against its exact arithmetic prediction, and the composed up-set
+    curve in q for both arms, with all differences carrying bands.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril for WOTS, hypertree, occupancy, collision, leaf, reuse over ledger/proposals/,
+      ledger/hypotheses/, knowledge/. Read RQ-SLHDSA-001 in full and the statement block of H-SLHDSA-3a403a,
+      noting its declared scope and its clause (i) weighting by 2^{-h} over leaves. Read the claim
+      field of IDEA-20260813-945a67 in full. Pulled id, question_id and title for all twelve SLH-DSA-touching
+      proposals.
+    results: 'The leaf-occupancy object appears in this repository only on the FORS side: H-SLHDSA-3a403a
+      clause (i) writes gamma_i for the number of issued signatures landing on hypertree leaf i and
+      then immediately uses it inside a FORS-only product, and clause (ii) shows the 2^h leaf count
+      cancelling against the 2^{-h} weight. The hypothesis then states explicitly that nothing in
+      it touches the WOTS+ layer or the hypertree. IDEA-20260805-fbe36a and IDEA-20260808-02a046 both
+      carry gamma_i or its equivalent as an intermediate and both discard it into the FORS product.
+      IDEA-20260813-945a67 concerns node and subtree reuse but exclusively under a single-fault model,
+      producing alias certificates rather than counts, and explicitly frames its object as fault-induced.
+      No record in this repository follows the same leaf occupancy into the one-time layer, and none
+      defines an elementwise-maximum accumulator or a saturation horizon.'
+    verdict: 'UNVERIFIED. That leaf collisions in a stateless hypertree cause one-time key reuse is
+      the basic design tension of the whole construction and is certainly not a new observation; this
+      program cannot read external literature and asserts nothing about what treatments exist elsewhere.
+      What is claimed new is internal and specific: this repository computes gamma_i twice and discards
+      it into a FORS product both times, no record carries it into the one-time layer, and the particular
+      deliverable -- the elementwise-maximum accumulator with an exactly enumerated saturation horizon,
+      composed with an exactly computed collision distribution into a single up-set curve in q, with
+      an idealized-index arm run beside a concrete-hash arm -- is assembled from parts this repository
+      holds separately and has never joined.'
+  object_first_candidate:
+    tracked_object: The elementwise maximum r = (max over all signatures issued under one one-time
+      key of b_i)_i, where b is a chain-position vector. The object is followed as signatures accumulate
+      under a repeated leaf, and its associated quantity is |U(r)|, the dominance up-set of the accumulator.
+    lossiness: 'The projection discards which signature contributed each coordinate maximum, the order
+      of signatures, every message signed, every hash value, the secret seed, and the authentication
+      paths. What survives is one integer vector per one-time key. This is genuinely lossy: from r
+      one cannot reconstruct any individual signature, cannot say how many signatures were issued,
+      and cannot recover any message. It propagates because the join operation -- elementwise max
+      -- is associative, commutative and idempotent, so the accumulator is order-independent and reads
+      nothing that was discarded; each new signature updates it by a rule that needs only the new
+      vector. The boundary is explicit: r says nothing about what an adversary who inverts chains
+      can do, and it deliberately loses the count of signatures, so any question of the form how many
+      times was this key used is invisible to the object and must be answered by the occupancy half
+      instead.'
+    propagation: One additional signature under the same one-time key acts on the tracked object as
+      r <- max(r, b_new) coordinatewise. Because max is idempotent, a repeated identical vector leaves
+      r unchanged, which is the formal statement that reuse costs nothing when the two messages encode
+      identically. Because max is monotone, |U(r)| is nonincreasing in the number of signatures, so
+      the accumulator's dynamics is a monotone descent toward the singleton at the top of the box,
+      and the number of steps to reach it is the saturation horizon. On the occupancy side, one signature
+      increments one leaf counter, so the two halves have different one-step actions and are composed
+      rather than conflated.
+    survival_score: 'Exact for the accumulator at every (w, len1) with w^len1 at most 2^24 (w = 4
+      to len1 = 12, w = 16 to len1 = 6), reusing the verified enumeration of the companion up-set
+      entry. Exact for the occupancy distribution at hypertree height h up to about 20 by dynamic
+      programming over occupancy counts, and to about h = 26 for the mean alone. Beyond those, both
+      halves survive as sampled estimates with bands and the composed curve inherits the wider of
+      the two. The accumulator itself does not dissolve at a parameter boundary: it dissolves at a
+      change of adversary, exactly as in the single-signature case, since inversion moves downward
+      in the order and is invisible to r. That, and the two numeric horizons above, is the survival
+      score.'
+  null_object_control: 'Two nulls, both in the same invocation as the signal arm. First, for the occupancy
+    half, an idealized uniform index source: leaves assigned by a seeded uniform draw over [2^h],
+    which must reproduce the exact birthday collision distribution computed arithmetically in STAGE
+    B; if it does not, the pipeline is broken and the concrete-hash arm cannot be read. Second, for
+    the accumulator half, a shuffled-attribution null in which the same multiset of chain-position
+    vectors is redistributed across leaves uniformly at random while preserving the per-leaf signature
+    counts. For the composed measurement to mean anything, the shuffled-attribution null must reproduce
+    the signal arm''s up-set curve: the accumulator''s behaviour should depend only on how many signatures
+    share a leaf, not on which ones, and a difference between the signal and shuffled arms would mean
+    the leaf assignment and the message encoding are correlated, which is a finding about the digest
+    split rather than about reuse and must be routed to the randomizer-distribution entry rather than
+    reported here.'
+  discriminated_from:
+  - 'IDEA-20260813-945a67: node and subtree reuse under a single-fault model, producing alias certificates.
+    Every collision studied here arises in honest, fault-free operation from the birthday bound alone,
+    and the deliverable is a count, not a certificate. RQ-SLHDSA-001 requires the fault class be kept
+    strictly separate and this entry keeps it separate by construction.'
+  - 'H-SLHDSA-3a403a: defines gamma_i, the per-leaf signature count, then states in its own scope
+    line that nothing in it touches the WOTS+ layer or the hypertree. This entry takes the quantity
+    that hypothesis defines and discards, and carries it into the layer that hypothesis excludes.'
+  - 'IDEA-20260805-fbe36a and IDEA-20260808-02a046: both consume leaf occupancy as an intermediate
+    inside a FORS product and neither reports it. Their object is a forgery probability at the few-time
+    layer; this object is an integer accumulator at the one-time layer.'
+  - 'The companion up-set entry in this same batch: that one enumerates |U(b)| for a single signature
+    and has no dynamics. This one has the elementwise-max accumulator, a saturation horizon, and a
+    composition with occupancy, and it reuses that entry''s enumeration routine rather than duplicating
+    it -- which is a dependency, stated, not an overlap.'
+  - 'IDEA-20260805-88ecef and IDEA-20260808-ae34ad: cost-convention and memory-charge arguments about
+    a search. Nothing here searches for anything or charges any cost.'
+  assumptions:
+  - Leaf selection in honest operation is the only mechanism producing one-time key reuse in the model
+    considered; faults, state corruption and implementation error are excluded by scope and their
+    exclusion is stated, not established.
+  - The two halves compose multiplicatively in the sense that the accumulator's behaviour depends
+    on the per-leaf signature count and not on which signatures landed there; this is tested by the
+    shuffled-attribution null rather than assumed.
+  - The chain-position encoding and checksum convention are as fixed in the companion up-set contract,
+    whose structural description this repository marks UNVERIFIED.
+  - Exact dynamic programming over occupancy counts is equivalent to the birthday distribution, which
+    is checked arithmetically at small h rather than argued.
+  - The extension adversary restriction carries over unchanged from the single-signature case; chain
+    inversion is out of scope.
+  predictions:
+  - metric: '|U(r)| after gamma signatures under one one-time key, as a function of gamma, at fixed
+      (w, len1)'
+    direction: lower
+    minimum_effect: 'forced monotone descent: |U(r)| must be nonincreasing in gamma at every step
+      by the idempotence of max, and any increase is an instrument failure rather than a finding'
+  - metric: saturation horizon, the median gamma at which r reaches the top of the box at w = 4, len1
+      = 6
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit a value: the horizon is the deliverable and depends
+      on the encoding''s valid-set geometry in a way I cannot compute without running the enumeration.
+      The binding pre-commitment is instead that the horizon is reported as a full distribution with
+      its support, not as a single number.'
+  - metric: number of leaves receiving at least two of q signatures, idealized-uniform arm, versus
+      the exact arithmetic birthday prediction
+    direction: different
+    minimum_effect: 'forced value: agreement within the arm''s own Monte-Carlo band at every (h, q);
+      disagreement invalidates the pipeline'
+  - metric: difference in the composed transcript-wide up-set curve between the concrete-hash arm
+      and the idealized-uniform arm at q = 2^{h/2}
+    direction: lower
+    minimum_effect: 0.02
+  - metric: difference between the signal arm and the shuffled-attribution null on the composed up-set
+      curve
+    direction: lower
+    minimum_effect: 0.01
+  minimal_test:
+    design: 'One configuration tests both halves and their composition. Fix w = 4, len1 = 6 for the
+      encoding, reusing the verified up-set enumeration, and h = 12 for the hypertree, so the leaf
+      alphabet has 4096 entries and collisions appear at around q = 64 signatures. For q on a grid
+      from 16 to 512, run three arms inside one invocation on three seeds: idealized-uniform leaf
+      assignment, concrete truncated-hash leaf assignment, and shuffled-attribution. In each arm,
+      assign each signature a leaf and an encoding, group by leaf, compute r per leaf by elementwise
+      max, compute |U(r)| by the verified enumeration, and sum across leaves. Separately compute the
+      exact birthday collision distribution arithmetically at each (h, q) and compare against the
+      idealized arm. The discriminating observables are three: whether the idealized arm reproduces
+      the arithmetic birthday distribution, whether the concrete arm differs from the idealized arm,
+      and whether the shuffled null differs from the signal. Cost is minutes. If the idealized arm
+      fails to match arithmetic, nothing else is readable and the failure is cheap to find.'
+    controls:
+    - Idealized-uniform leaf assignment arm, validated against the exact arithmetic birthday distribution
+      computed independently of any run.
+    - 'Shuffled-attribution null: same vectors, same per-leaf counts, leaf assignment permuted, identical
+      pipeline, same invocation.'
+    - 'Single-signature consistency check: r after one signature must give exactly that signature''s
+      own |U(b)| from the companion enumeration.'
+    - 'Monotonicity check: |U(r)| recomputed after every added signature, required nonincreasing at
+      every step.'
+    - Two concrete digest backends for the leaf-assignment arm, so a difference seen in one and not
+      the other is identifiable as backend-specific rather than structural.
+    required_metrics:
+    - '|U(r)| as a function of gamma, per (w, len1), exact'
+    - saturation horizon distribution with full support, per (w, len1)
+    - exact leaf-collision count distribution per (h, q), arithmetic
+    - measured leaf-collision count per arm with band
+    - composed transcript-wide up-set curve in q, per arm, with band and seed spread
+    - signal-versus-shuffled-null difference on the composed curve
+  falsification_conditions:
+  - 'The idealized-uniform arm fails to reproduce the exact arithmetic birthday collision distribution:
+    the pipeline is broken and no other arm may be read.'
+  - '|U(r)| increases at any step as signatures are added: the accumulator is misimplemented, since
+    max is idempotent and monotone by construction.'
+  - 'r after a single signature disagrees with that signature''s own up-set count from the companion
+    enumeration: the two routines are inconsistent and the composition is void.'
+  - 'The shuffled-attribution null differs from the signal arm beyond band: leaf assignment and message
+    encoding are correlated, which is a digest-split finding and must be routed to the randomizer-distribution
+    entry rather than reported as a reuse result.'
+  - 'The concrete-hash arm differs from the idealized arm beyond band in one backend and not the other:
+    backend-specific, reported as inconclusive.'
+  - 'The saturation horizon is degenerate, meaning r reaches the top of the box after one or two signatures
+    at every tested encoding: the accumulator has no dynamics at these parameters and the composition
+    carries no information, which is itself a usable measured obstruction with the parameter range
+    stated.'
+  confounders:
+  - Small len1 makes the box shallow, so the saturation horizon compresses toward one or two signatures
+    for reasons of geometry rather than of reuse, which would look like a strong effect.
+  - Truncating a digest to h bits for leaf assignment introduces truncation structure that can present
+    as a concrete-versus-idealized difference having nothing to do with reuse; the two-backend control
+    partially separates this.
+  - The composed curve sums over leaves, so a single leaf with many signatures and many leaves with
+    two are conflated unless the per-leaf distribution is reported alongside the sum.
+  - At q well below the birthday point almost no leaf collides, so all arms agree trivially and the
+    design has no power; the q grid must straddle 2^{h/2} and the report must say which side each
+    point is on.
+  - 'Reusing the companion entry''s enumeration routine makes the two entries share a failure mode:
+    a sign error in the checksum direction would propagate into both and be invisible to every control
+    here, which is why the single-signature consistency check is stated as necessary but explicitly
+    not sufficient.'
+  interpretation_limits:
+  - Exact results at h up to 20 and w^len1 up to 2^24 say nothing about deployed hypertree heights
+    or Winternitz parameters, which lie far outside the enumerable region.
+  - Every collision here is an honest-operation birthday event; nothing in this entry bears on faults,
+    state corruption, or memory attacks, and no artifact of it may be reported alongside a result
+    from that class.
+  - The extension adversary is a restriction, so the up-set curve bounds one route only and is not
+    a security level.
+  - A degenerate saturation horizon is a statement about the tested encoding geometry, not about any
+    scheme's margin.
+  - The idealized-versus-concrete comparison is about a truncated toy digest and is not evidence about
+    SHA-2 or SHAKE in either direction.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement costs one up-set enumeration per
+      distinct accumulator value, cached, plus O(q) leaf assignments per arm per seed; the occupancy
+      half is an O(q * 2^h) dynamic program at h up to 20. None of this is an attack cost and no search
+      is performed.
+    memory_exponent: No attack memory exponent is claimed. The occupancy dynamic program holds O(2^h)
+      counters, at most a few megabytes at h = 20; the accumulator cache holds at most the number
+      of distinct r values encountered, bounded by the valid-encoding count.
+    best_known: 'The incumbent inside this repository is silence: H-SLHDSA-3a403a defines the per-leaf
+      signature count and then excludes the layer where it matters, and IDEA-20260805-fbe36a and IDEA-20260808-02a046
+      both consume it and discard it. The count of records here that follow leaf occupancy into the
+      one-time layer is zero. No claim is made about what exists outside this repository.'
+    hidden_overhead: 'The hidden cost is the shared failure mode with the companion up-set entry:
+      reusing its enumeration is the right engineering decision and it means a single wrong convention
+      in the checksum direction corrupts both entries identically, undetectable by any control internal
+      to either. The honest mitigation is that the companion entry validates its enumeration against
+      a closed-form product count, which is arithmetic and convention-sensitive, and this entry inherits
+      that validation rather than adding a second independent one. In human cost, the composition
+      stage is where the effort actually goes: keeping the occupancy half and the accumulator half
+      genuinely separate, so that a bug in one cannot be absorbed by tuning the other, requires writing
+      them as two modules with a declared interface rather than one loop.'
+  dominated_by: 'n/a (no result claimed). Checked against every frontier row this repository maintains
+    across time, memory and data/queries: an accumulator curve and an occupancy distribution have
+    no coordinate on any of them, since nothing here searches and no attack cost is produced. Nothing
+    dominates it, it dominates nothing, and it is not entered on any frontier.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Against this repository''s own
+    state: leaf occupancy is computed in two records and reported in none, and the one-time layer
+    is named in seven and measured in none. This would produce the first curve joining the two, reported
+    as exact integers below the enumeration boundary and as banded estimates above it.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Separable parts. (1) That the occupancy half reproduces the exact arithmetic
+    birthday distribution: about 0.95, this is a validation rather than a discovery and its failure
+    would only mean a coding error. (2) That the accumulator half behaves as claimed, monotone descent
+    with a well-defined saturation horizon: about 0.9, and the residual risk is the shared convention
+    error inherited from the companion enumeration rather than anything about the mathematics. (3)
+    That the saturation horizon is non-degenerate at the tested encodings, meaning it takes more than
+    two signatures to reach the top of the box: about 0.5. This is the part I am least sure of and
+    it is the part that decides whether the composition carries information; a degenerate horizon
+    is a usable measured obstruction and I would report it as one rather than retuning parameters
+    until it went away. (4) That the concrete-hash arm agrees with the idealized arm within band:
+    about 0.85, with the residual dominated by truncation-width effects rather than by anything about
+    a hash. (5) That the shuffled-attribution null matches the signal arm: about 0.85, and a mismatch
+    would be routed to the randomizer entry rather than claimed here.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SLHDSA-001
+  - H-SLHDSA-3a403a
+  - GOAL-SLHDSA-001
+  - IDEA-20260813-945a67
+  - IDEA-20260805-fbe36a
+  - IDEA-20260808-02a046
+  - EXP-SLHDSA-9cbad4
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SLHDSA-bafee8

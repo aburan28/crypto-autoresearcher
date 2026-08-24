@@ -18,6 +18,13 @@ review, and synthesis.
    from `experiments/<EXP-ID>/`. Before reviewing, merge `origin/main` into
    the working branch (merge, never rebase) so the decision is made against
    current ledger state — see "Branch and PR hygiene" below.
+
+   If this review can change a claim, write its `review_plan` now, before
+   dispatching anyone (AGENTS.md "Review architecture"): the claim as its
+   producer stated it, your prior, the joints with one owner and a worked
+   attack each, the proves-too-much objects, and a blind re-derivation of any
+   load-bearing quantity. Written after the verdicts it is worth nothing — a
+   prior recorded once you know the answer is not a prior.
 2. Dispatch the **coordinator** subagent to:
    - re-verify validity before interpreting anything (run count, schema,
      seeds, raw/summary agreement, controls). Invalid or incomplete run
@@ -59,7 +66,16 @@ review, and synthesis.
      with direction, strength (per the hierarchy in
      `docs/evidence-and-reproducibility.md`), `claim_tier` (never exceeding
      what the runs' parameters allow), `certificate_refs`,
-     `proof_status`/`proof_refs`, boundaries, and unresolved confounds;
+     `proof_status`/`proof_refs`, boundaries, and unresolved confounds. When
+     the direction is `weakens` or `contradicts`, fill the `obstruction` block:
+     the quantity that blocks the approach, its measured value with units and
+     error bars, the runs it is read from, and the scope those runs cover — a
+     verdict serves this review, a measurement serves every later reader. Then
+     fill its `resource_check`, which asks which theory takes that measurement
+     as its *hypothesis* rather than its refutation. Ask it here because the
+     object is still loaded and the scope is already written down;
+     `examined: true` recording that no theory takes it up is a complete
+     answer, and a null check blocks the decision;
    - record the `coordinator_decision` in `ledger/decisions/` choosing one
      transition: replicate | expand | refine | support | weaken |
      reject_scoped | inconclusive | pause, with rationale, evidence refs,

@@ -125,7 +125,7 @@ evidence rules above apply unchanged.
 
 ## Conventions
 
-- IDs: `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
+- IDs: `GOAL-<AREA>-<tok>`, `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
   `EXP-<AREA>-<tok>`, `RUN-*`, `EV-<AREA>-<tok>`, `DEC-YYYYMMDD-<tok>`,
   `TASK-YYYYMMDD-<tok>`, `BATCH-<tok>`, `KN-{LIT,TECH,FIND,OPEN}-<tok>`, where
   `<tok>` is a random 6-hex token. Immutable, never reused.
@@ -136,6 +136,8 @@ evidence rules above apply unchanged.
   breaking whatever archive binds it. Mint with
   `python3 tools/allocate_id.py --next <type> [--area X | --date YYYYMMDD]`,
   which draws a token **without scanning state**, then `--check` it before use.
+  A new persistent goal uses `--next goal --area AREA`; confirm the emitted
+  `GOAL-<AREA>-<tok>` with `--check` before authoring its record.
   `BATCH-<tok>` takes neither `--area` nor `--date`: `--next batch`.
   The legacy three-digit form stays valid forever — existing records and batch
   directories are immutable and must not be renamed. Cost, stated plainly: IDs

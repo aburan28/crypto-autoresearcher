@@ -1,0 +1,271 @@
+idea:
+  id: IDEA-20260816-15c21e
+  question_id: RQ-ALECF-001
+  added: '2026-08-16'
+  title: The benchmark's interface makes the offset point classical bits while the target is qubits,
+    so every submitted circuit is a classically-parameterized family and can precompute on the offset;
+    measure the classicality dividend as the ratio of Toffoli and ancilla cost between classical-offset
+    and fully quantum-offset reversible point addition.
+  class: composition
+  claim: '(A) The ALECF benchmark''s interface, stated verbatim in its committed README, is that a
+    circuit consumes four 256-element registers: target_x and target_y as qubits, and offset_x and
+    offset_y as CLASSICAL BITS, overwriting the target with the affine sum. That asymmetry is a modelling
+    decision with arithmetic consequences, and it is the interface that every score in this bucket
+    is measured against. (B) A classical offset means the circuit is not one circuit but a family
+    indexed by the offset, and any quantity depending only on the offset may be folded into the gate
+    list at build time at zero counted cost. The claim is that this classicality dividend is a measurable
+    ratio, not a qualitative remark: build the same point-addition function twice in the same interpreter,
+    once with the offset as compile-time constants and once with the offset held in quantum registers,
+    and the ratio of Toffoli counts and of peak ancilla widths is a number that can be reported per
+    field size. (C) The claim is that the dividend is not uniform across the computation: constant-folding
+    is expected to be worth much more in the multiplication and inversion stages, where a classical
+    operand converts a general multiplier into a constant multiplier, than in the addition stages,
+    where the saving is small. Measuring the per-stage breakdown is what converts a ratio into a mechanism.
+    (D) The claim is that this identifies, concretely, one direction in which the benchmark''s model
+    flatters a designer: a score measured only on classically-offset addition understates the cost
+    of any composition that needs a quantum offset, and states nothing about it either way. It also
+    identifies the opposite direction: if a use only ever needs classical offsets, then charging for
+    quantum-offset generality would overstate the cost. Which applies is a property of the composition,
+    not of the benchmark. (E) WHAT IS NOT CLAIMED: no claim that the benchmark''s interface is wrong,
+    no claim about what any algorithm requires, no claim that any real use needs quantum offsets,
+    no reference to what any published construction does, no attack, no speedup and no security consequence.
+    The deliverable is a ratio, its per-stage breakdown, and a statement of which direction it moves
+    a cost estimate.'
+  mechanism: 'STAGE 1: fix the function and the two interfaces. Implement reversible affine point
+    addition over a toy prime field twice, sharing all subroutine code: variant C takes the offset
+    as Python integers folded into gate construction, variant Q takes the offset in allocated quantum
+    registers and uses general reversible arithmetic throughout. Both must compute the identical function
+    on the same inputs, which the validity gate enforces. STAGE 2: instrument per stage. Tag every
+    gate with the stage that emitted it (field addition, field multiplication, field inversion, final
+    combination, uncomputation), so the count decomposes rather than arriving as one number. STAGE
+    3: measure. Record Toffoli count, peak ancilla width, depth, and the per-stage breakdown for both
+    variants, at several field sizes. STAGE 4: fit the dividend''s scaling. Report the ratio as a
+    function of field bit width, and separately per stage, so that a stage whose dividend grows with
+    width is distinguished from one whose dividend is a constant factor. STAGE 5: run the null arm,
+    a pair of random reversible programs of the same shape where one has a constant-folded operand
+    and the other does not, so that the generic saving from constant folding is measured and the point-addition-specific
+    excess is what remains. STAGE 6: report the ratios, the per-stage breakdown, the null-adjusted
+    excess, and the two-sided statement of which cost estimates the dividend flatters.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read experiments/EXP-ALECF-001/source/README.md in full, specifically its interface paragraph
+      naming target_x and target_y as qubits and offset_x and offset_y as classical bits. Confirmed
+      RQ-ALECF-001 carries zero proposals. Read the titles and claim openings of the ten proposals
+      under RQ-QRE-6dba8c. Grepped ledger/proposals/ for 'classical control', 'constant fold', 'precomputation',
+      'classically known' and 'windowed'.
+    results: 'IDEA-20260809-623d8d, on windowed arithmetic buying time with lookup tables, is the
+      closest existing record: windowing exploits classically known structure to replace repeated
+      arithmetic with table lookups, and its deliverable is a tradeoff curve over window size. It
+      is distinct in object and in question: windowing varies a table-size parameter within one interface,
+      whereas this proposal holds the algorithm fixed and varies the INTERFACE, measuring what the
+      classical/quantum split of the operands is worth. IDEA-20260809-593de3 counts the modular-arithmetic
+      layer with classical-simulation validation, and does not distinguish classical from quantum
+      operands. Nothing in ledger/proposals/ was found that measures a classicality dividend or that
+      references the ALECF interface at all. The repository''s own fixed_curve_preprocessing.py under
+      harness/ concerns classical preprocessing for fixed curves, which is a classical-side technique
+      and not a reversible-circuit interface question.'
+    verdict: 'UNVERIFIED. Constant folding and classically-controlled quantum arithmetic are standard
+      ideas outside this repository and nothing is asserted about their published treatment. What
+      is claimed new here is the specific measurement: the ratio between the two interface variants
+      of one point-addition implementation, decomposed per stage, with a constant-folding null that
+      separates the generic saving from the point-addition-specific one, and tied to the interface
+      this bucket''s benchmark actually declares. Assembled from known parts: reversible arithmetic
+      construction, constant folding, and per-stage instrumentation.'
+  object_first_candidate:
+    tracked_object: 'The operand-classicality assignment of a reversible circuit: the labelling of
+      each input register as classical (known at build time) or quantum (allocated), together with
+      the resulting gate list. The object is followed as the labelling is changed while the computed
+      function is held fixed.'
+    lossiness: 'The projection from a full computation to the operand-classicality labelling plus
+      resource counts discards the values themselves, the specific curve, the gate order, and the
+      arithmetic algorithm''s internals, keeping a labelling and four integers. It is compatible with
+      the target operation because the operation of interest, moving an operand from build time to
+      run time, acts precisely on the labelling. The retained part propagates deterministically: relabelling
+      a classical operand as quantum replaces every constant-multiplier subroutine that consumed it
+      with a general multiplier, and that replacement is mechanical, so the change in gate count can
+      be predicted from the subroutine inventory before it is measured. What is discarded is the operand''s
+      value, and that discard is exactly right, because the dividend should not depend on which offset
+      was chosen; if the measurement shows dependence on the offset value, the labelling was not the
+      whole story and that is itself reportable.'
+    propagation: 'One step of the target operation is relabelling a single operand from classical
+      to quantum. Acting on the object, it converts every subroutine call consuming that operand from
+      a constant-parameterized form to a general form, and each such conversion has a known local
+      effect: a constant modular multiplier becomes a general modular multiplier, costing a factor
+      that grows with the operand width, while a constant modular addition becomes a general one at
+      a factor near unity. Chaining relabellings composes multiplicatively per stage and additively
+      across stages, so the total dividend is a weighted sum over stages, with weights equal to the
+      number of affected subroutine calls. That decomposition is the propagation rule the experiment
+      reads off.'
+    survival_score: 'The labelling survives the whole build and dissolves at exactly one place: any
+      point where a classical operand''s value is used to make a data-dependent control-flow decision
+      at build time, since such a decision cannot be relabelled without changing the circuit''s structure
+      rather than its subroutine parameterization. The concrete survival statement is therefore per
+      stage: the dividend is well defined for stages whose structure is offset-independent, and undefined
+      for any stage whose gate count varies with the offset value. Measuring how many stages fall
+      in the second category, by building the circuit for many offsets and checking whether the gate
+      count is constant, is a required part of the experiment and the number of offset-dependent stages
+      is the survival score.'
+  null_object_control: 'The null object is a pair of random straight-line reversible programs of the
+    same gate count, register shape and subroutine inventory as the point-addition circuits, one built
+    with a designated operand folded in as a constant and one with the same operand allocated as a
+    quantum register, with the operand playing a structurally identical role in both. The identical
+    instrumentation and ratio computation runs on the null pair in the same invocation. For the signal
+    arm to mean anything the null must show a SMALLER dividend: if a random program with a folded
+    operand gains the same ratio, then the measured dividend is the generic value of constant folding
+    for a program of this size and says nothing about point addition, and the honest record is a controlled
+    null with the generic ratio reported as the finding.'
+  discriminated_from:
+  - 'IDEA-20260809-623d8d (windowed arithmetic tradeoff curve): varies a table-size parameter within
+    a fixed interface; this holds the algorithm fixed and varies the classical/quantum labelling of
+    the operands, which is an interface change rather than an algorithmic one.'
+  - 'IDEA-20260809-593de3 (count the modular-arithmetic layer, validate by classical simulation):
+    produces gate counts for one interface; this produces a ratio between two interfaces with a per-stage
+    decomposition.'
+  - 'harness/fixed_curve_preprocessing.py in this repository: classical preprocessing for a fixed
+    curve, a classical-side technique that never constructs a reversible circuit and measures no ancilla
+    width.'
+  - 'The uncomputation-trace contract elsewhere in this batch: that one varies scheduling with the
+    interface fixed; this one varies the interface with the scheduling fixed, and its tracked object
+    is a labelling rather than a time-indexed trace.'
+  assumptions:
+  - Both interface variants can be built from shared subroutine code so that the measured ratio reflects
+    the labelling and not two independently written implementations; this is enforced by construction
+    and checked by requiring identical stage inventories.
+  - The general-operand variant is implemented competently enough that the ratio is not inflated by
+    a naive general multiplier; a stated implementation quality caveat accompanies the number and
+    a second general-multiplier implementation is used as a sensitivity check.
+  - Toy field widths of 8 to 17 bits exhibit the same qualitative per-stage structure as larger widths;
+    only the scaling trend is fitted and no width beyond those tested is claimed.
+  - Gate count is measured under a fixed granularity convention applied identically to both variants,
+    so the ratio is granularity-robust even though the absolute counts are not.
+  predictions:
+  - metric: ratio of Toffoli count, quantum-offset variant divided by classical-offset variant, at
+      13-bit field width
+    direction: higher
+    minimum_effect: 1.5
+  - metric: ratio of peak ancilla width, quantum-offset divided by classical-offset, at 13-bit field
+      width
+    direction: higher
+    minimum_effect: 1.1
+  - metric: share of the total dividend attributable to the field-multiplication and field-inversion
+      stages combined
+    direction: higher
+    minimum_effect: 0.7
+  - metric: number of stages whose gate count depends on the offset value rather than only on its
+      classicality
+    direction: lower
+    minimum_effect: 1
+  - metric: measured dividend minus the constant-folding null's dividend
+    direction: higher
+    minimum_effect: 0.2
+  minimal_test:
+    design: Build once, label twice. Implement reversible field addition, multiplication and inversion
+      over F_p for a 13-bit prime as parameterized subroutines that accept an operand either as a
+      Python integer or as a quantum register, so that a single code path emits both variants. Compose
+      them into affine point addition and emit variant C and variant Q. Validity-gate both on 4096
+      random generic input pairs plus an ancilla-restoration check, and require that they compute
+      the identical function. Instrument every gate with its emitting stage. Record Toffoli count,
+      peak ancilla and depth for both, and the per-stage breakdown. Build variant C for 32 distinct
+      offsets and check whether its gate count is constant, which measures offset-dependence. In the
+      same invocation run the constant-folding null pair. The discriminating outputs are the two ratios,
+      the per-stage share, and the null-adjusted excess. Compute is minutes; the engineering is the
+      dual-mode subroutine layer, which is reusable by the composition contract in this batch.
+    controls:
+    - Constant-folding null pair of random reversible programs, run through identical instrumentation
+      in the same invocation.
+    - Identical-function gate across the two variants on the same inputs, so the ratio cannot come
+      from computing different things.
+    - Ancilla-restoration gate on both variants.
+    - 'Offset-invariance control: variant C rebuilt for 32 distinct offsets, with the distribution
+      of its gate count reported rather than a single value.'
+    - A second general-multiplier implementation for variant Q as a sensitivity check on implementation
+      quality, with both ratios reported.
+    required_metrics:
+    - Toffoli count per variant
+    - peak ancilla width per variant
+    - depth per variant
+    - per-stage gate-count breakdown
+    - offset-to-offset gate-count variation for variant C
+    - null-pair dividend
+    - validity-gate pass indicator per variant
+  falsification_conditions:
+  - The Toffoli ratio is below 1.05, meaning the classicality of the offset is worth essentially nothing
+    in this implementation.
+  - The measured dividend does not exceed the constant-folding null's dividend by more than the reported
+    interval, meaning the effect is generic constant folding.
+  - Variant C's gate count varies with the offset value by more than a few percent, meaning the labelling
+    is not the right object and the per-offset variation must be modelled instead.
+  - The two general-multiplier implementations of variant Q give ratios differing by more than a factor
+    of 1.5, meaning the number is an artifact of implementation quality rather than of the interface.
+  - The two variants fail the identical-function gate, voiding the comparison.
+  confounders:
+  - Implementation quality of the general-operand variant dominates the ratio and cannot be fully
+    controlled; the two-implementation sensitivity check bounds it but does not remove it.
+  - At small field widths the fixed overhead of register allocation compresses the ancilla ratio toward
+    one, so the ancilla dividend may be understated at toy scale.
+  - Stage tagging is authored, so the per-stage breakdown reflects the chosen decomposition; a different
+    decomposition of the same circuit would move shares between stages.
+  - A constant offset can enable savings beyond subroutine specialization, for instance skipping a
+    subtraction when a coordinate is zero, and such savings are offset-dependent and must be separated
+    by the offset-invariance control.
+  interpretation_limits:
+  - The ratio is a property of these two implementations at these widths, not of point addition in
+    general, and certainly not of any 256-bit circuit.
+  - Nothing here says the benchmark's interface should be different, and no statement is made about
+    what any algorithm requires of its offsets.
+  - A large dividend does not mean any published or imported score is understated, because no claim
+    is made about what those scores were intended to cover.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Gate counts here are for toy-width reversible arithmetic
+      and are not attack costs.
+    memory_exponent: No attack memory exponent is claimed. Ancilla widths measured are properties
+      of the two toy circuit variants.
+    best_known: The incumbent is the classical-offset interface as declared in the committed ALECF
+      README, under which both committed scores were produced. This contract does not beat it or replace
+      it; it measures what that interface choice is worth relative to a fully quantum-offset alternative
+      in one toy implementation.
+    hidden_overhead: 'The hidden cost is the dual-mode subroutine layer: writing arithmetic that compiles
+      to both a constant-parameterized and a general form from one source is more work than writing
+      either alone, and writing them separately would confound the ratio with two authors'' skill.
+      Human cost also hides in the stage taxonomy, since the per-stage breakdown is only as meaningful
+      as the decomposition, and a decomposition chosen to make one stage look dominant would be unfalsifiable.'
+  dominated_by: n/a (no result claimed). I checked this bucket's committed frontier, the two ALECF
+    points (1316081, 1152) and (1423723, 1141), and this contract produces only toy-width circuits
+    that enter no row of it. No attack or algorithm is proposed, so there is no time/memory/data frontier
+    on which it could be dominated.
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative output is a pair
+    of ratios between two interface variants of one toy implementation, a quantity for which this
+    repository holds no incumbent value at any width, which is the reason to measure it rather than
+    a claim of improvement.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Part (A), that the benchmark''s declared interface makes the offset classical
+    and the target quantum: 0.97, read directly from the committed README. Part (B), that a measurable
+    dividend exists and exceeds 1.5 in Toffoli count at toy width: 0.7, with the risk that toy widths
+    compress the multiplier specialization advantage. Part (C), that multiplication and inversion
+    account for at least 70 percent of the dividend: 0.65, since the stage taxonomy could distribute
+    it differently. Part (E), that the dividend exceeds the constant-folding null by 0.2: 0.5, because
+    generic constant folding in a random program of this size may already capture most of it. That
+    the offset-invariance control passes, validating the labelling as the right object: 0.6.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ALECF-001
+  - EXP-ALECF-001
+  - EXP-ALECF-002
+  - EXP-ALECF-003
+  - EV-ALECF-001
+  - IDEA-20260809-623d8d
+  - IDEA-20260809-593de3
+  - docs/inventor-protocol.md
+  - harness/toycurve.py
+  - harness/fixed_curve_preprocessing.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ALECF-f169f6

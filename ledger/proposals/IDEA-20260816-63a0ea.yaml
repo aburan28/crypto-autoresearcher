@@ -1,0 +1,231 @@
+idea:
+  id: IDEA-20260816-63a0ea
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: 'Treat bootstrapping''s insertion point as a measured quantity rather than a design choice:
+    locate the level at which the transcribed noise model says decryption must fail and the level
+    at which it actually fails, and report the gap in whole levels rather than in bits.'
+  class: composition
+  claim: '(A) A parameter set is chosen so that a circuit of a stated multiplicative depth completes
+    before the noise bound reaches the decryption threshold; bootstrapping is then inserted at the
+    level where the bound says the budget is exhausted. The claim is that there are two distinct levels
+    here and they should be named separately: L_model, the smallest L at which the transcribed worst-case
+    recursion''s bound exceeds the correctness threshold, and L_meas, the smallest L at which decryption
+    actually fails for a stated fraction of an enumerated input set. The gap G = L_meas - L_model
+    is a small non-negative integer, it is exactly computable at toy parameters, and it is the honest
+    statement of how much slack a parameter set carries, in the units the design decision is actually
+    made in. (B) The claim is that G is a more stable and more transferable statistic than the ratio
+    of noise magnitudes, because it is quantised: a bound that is loose by a factor of 8 per level
+    and a bound loose by a factor of 2 per level can produce the same G at one parameter set and different
+    G at another, and which happens is the measurement. G should be reported jointly with the failure-probability
+    curve as a function of L, since G depends on the chosen failure fraction and hiding that dependence
+    would misstate it. (C) NOT CLAIMED: that any parameter set carries excess slack that could be
+    removed, that bootstrapping could be inserted later in any deployed system, that a positive G
+    is a defect, or anything about security. A positive G may be exactly the safety margin the designer
+    intended, and this contract cannot distinguish deliberate margin from modelling looseness.'
+  mechanism: 'STAGE 1 defines the correctness threshold explicitly as a function of the modulus chain
+    and plaintext modulus, in one place, so both arms use the same threshold. STAGE 2 evaluates the
+    transcribed worst-case recursion level by level with no ciphertext involved, and records L_model
+    as the first level whose bound crosses the threshold. STAGE 3 runs the actual circuit over an
+    enumerated input set at the same parameters, records the empirical decryption-failure fraction
+    at every level, and defines L_meas at three declared failure fractions (any failure, 2^-10, and
+    2^-20 where the enumeration supports it) so the fraction-dependence is visible rather than hidden.
+    STAGE 4 forms G at each fraction and repeats across a grid of parameter sets that vary ring degree,
+    modulus chain length and secret density, producing G as a surface rather than a point. STAGE 5
+    runs the null: the identical L_meas determination on a synthetic ciphertext population whose noise
+    is drawn independently at each level with the model''s own predicted variance, which is what the
+    level structure would look like if noise did not accumulate through evaluation. Refutation is
+    G equal to zero everywhere, meaning the bound is tight at the level granularity and the framing
+    has nothing to measure, which is itself a useful measured statement.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -ril 'bootstrap' over ledger/proposals/, grep -ril 'noise budget' over ledger/proposals/,
+      grep -rl 'RQ-FHE-001' ledger/proposals/, ls experiments/ | grep -i fhe, and read RQ-FHE-001
+      (whose fourth declared target is that a parameter repair must be costed as a bootstrapping slowdown),
+      KN-OPEN-026 and IDEA-20260809-2e974b.
+    results: '''bootstrap'' hits many proposals but the hits are overwhelmingly statistical bootstrap
+      resampling, e.g. IDEA-20260816-f49ad1, IDEA-20260809-2ba70c, IDEA-20260807-59fed3, IDEA-20260807-d53a93,
+      IDEA-20260816-98ab8e, IDEA-20260731-014; none is FHE bootstrapping. ''noise budget'' hits IDEA-20260813-4aecda,
+      IDEA-20260813-0cf345 and IDEA-20260813-02479f, none attached to RQ-FHE-001. IDEA-20260809-2e974b
+      (RQ-NTRU-9015ee) plots a correctness constraint against overstretched-NTRU fatigue on the modulus
+      axis, which is the closest thing in the corpus to a correctness-boundary measurement, but it
+      is NTRU key generation rather than levelled homomorphic evaluation and it has no notion of a
+      level. RQ-FHE-001 itself names the bootstrapping-cost coupling as a target but has no proposal
+      addressing it: its only proposal, IDEA-20260807-a06996, is a parameter census. No experiments/EXP-FHE-*
+      exists.'
+    verdict: 'UNVERIFIED. Nothing is asserted about the external literature, which very plausibly
+      contains empirical noise-budget measurements. What is claimed new is internal: RQ-FHE-001''s
+      own fourth target, costing a parameter change in bootstrapping terms, has no proposal attached
+      to it, and the specific move of quantising the model-measurement gap into whole levels and reporting
+      it as a function of the declared failure fraction is assembled from a standard correctness condition
+      and this program''s insistence that a statistic be reported in the units the decision is made
+      in.'
+  object_first_candidate:
+    tracked_object: The integer pair (L_model, L_meas) at a declared failure fraction, and their difference
+      G, as a function of the parameter tuple (N, modulus chain length, secret density).
+    lossiness: 'Genuinely lossy, and aggressively so. The full object is the entire joint distribution
+      of decryption noise across levels and inputs; G retains one integer. Discarded: every magnitude,
+      the whole shape of the failure-probability curve, and all input dependence beyond the chosen
+      fraction. What survives propagates because the design decision the object serves is itself integer-valued:
+      bootstrapping is inserted at a level, not at a noise magnitude, so the quantised coordinate
+      is the coordinate in which the downstream operation acts. The cost of the projection is stated:
+      G is discontinuous in the parameters and two parameter sets with very different slack can share
+      a G, which is why the failure-probability curve is reported alongside rather than replaced.'
+    propagation: 'One multiplicative level advances both coordinates of the tracked pair by a rule:
+      L_model advances deterministically as the transcribed recursion crosses or does not cross the
+      threshold, and L_meas advances stochastically as the empirical failure fraction crosses the
+      declared fraction. G therefore changes by 0 or plus/minus 1 at each level boundary, and its
+      increments are exactly where the model''s per-level slack is spent. Adding one prime to the
+      modulus chain shifts both thresholds and is the cleanest single-parameter perturbation of the
+      pair.'
+    survival_score: The object exists only over the levels between fresh encryption and the first
+      failure, which at toy parameters is 3 to 8 levels; G is a single integer summarising that whole
+      range, and it is expected to be in the range 0 to 3. It dissolves entirely once the failure
+      fraction is high, because L_meas ceases to be well defined when failure is near certain at every
+      level.
+  null_object_control: 'Null arm: a synthetic ciphertext population in which the noise polynomial
+    at each level is drawn independently from a distribution with exactly the variance the model predicts
+    at that level, so accumulation through evaluation is destroyed while the level-indexed magnitude
+    is preserved. The identical L_meas determination, at the identical failure fractions, runs on
+    this population in the same invocation. For the signal arm to mean anything the null must produce
+    G near zero, since a population built to match the model''s own predicted variance should fail
+    where the model says. A null with a large G would mean G is measuring the gap between the model''s
+    variance prediction and its own tail bound rather than anything about evaluation, and that is
+    a distinct and reportable outcome.'
+  discriminated_from:
+  - IDEA-20260809-2e974b (RQ-NTRU-9015ee) plots correctness against fatigue on a continuous modulus
+    axis for NTRU key generation; there is no level index, no homomorphic evaluation, and no quantised
+    gap.
+  - IDEA-20260807-a06996 (RQ-FHE-001) censuses shipped parameter tuples and runs nothing; this measures
+    a runtime failure boundary in a toy implementation.
+  - Entry 1 of this bucket reports a continuous per-level ratio of noise to bound; this reports the
+    integer level at which the two cross a threshold, which is a different statistic that can be flat
+    where the ratio moves and can jump where the ratio is smooth.
+  - 'A decryption-failure-rate study of a KEM such as those under RQ-MLKEM-001: those measure a single
+    failure probability for a one-shot decapsulation, with no level index and no accumulating budget.'
+  - 'A library benchmark: no timing is measured and the AVOID list for this bucket rules speed benchmarking
+    out; the metric is an integer level.'
+  assumptions:
+  - A single correctness threshold can be stated unambiguously from the modulus chain and plaintext
+    modulus, and both arms can be made to use the same one.
+  - The enumerated input set is large enough to resolve a 2^-10 failure fraction; the 2^-20 fraction
+    is reported only where the enumeration supports it and otherwise recorded as unresolved.
+  - Level index is well defined, i.e. the circuit shape fixes when modulus switching happens relative
+    to multiplication.
+  - G is stable under reseeding at fixed parameters; this is tested rather than assumed.
+  predictions:
+  - metric: G at the any-failure fraction, toy parameters
+    direction: higher
+    minimum_effect: at least 1 whole level, i.e. decryption survives at least one level past where
+      the transcribed worst-case bound says it must fail
+  - metric: G in the null arm
+    direction: lower
+    minimum_effect: 0, i.e. within one level of zero
+  - metric: dependence of G on secret density (sparse h=N/4 versus uniform ternary)
+    direction: different
+    minimum_effect: 'refusal to pre-commit a direction: sparsity reduces the true noise but also changes
+      which bound term dominates, and asserting a sign before measuring would be a guess'
+  - metric: reproducibility of G across seeds at fixed parameters
+    direction: lower
+    minimum_effect: 0, i.e. G must be identical across all three seeds or the statistic is not usable
+  minimal_test:
+    design: 'One parameter point suffices to discriminate: N=32, a modulus chain of four 20-bit primes,
+      t=2, uniform ternary secret, a chain of multiplications by fresh encryptions with modulus switching
+      after each. Evaluate the transcribed recursion to get L_model. Then run 100000 enumerated or
+      sampled input assignments through the same chain, recording decryption success or failure at
+      every level, and read L_meas at the any-failure and 2^-10 fractions. Report G. Run the synthetic
+      model-variance null through the identical L_meas code in the same invocation and report its
+      G. If G is 0 in the signal arm the framing closes cheaply and the closure is a real measured
+      statement about that parameter point; if G is 2 or more, the quantity is worth mapping over
+      the parameter grid. The grid, the sparse-secret arm and the 2^-20 fraction all exist only to
+      turn a point into a surface and are not needed for the discrimination.'
+    controls:
+    - Synthetic model-variance null arm, same invocation, same L_meas code path.
+    - Three seeds per parameter point, with G required to be identical across them.
+    - A deliberately-too-small modulus chain where L_model is 1, as a positive control that the L_meas
+      machinery detects early failure correctly.
+    - An identity-circuit arm where no multiplication happens, in which both levels should be undefined
+      or equal, as an instrument check.
+    - Both the any-failure and 2^-10 fractions reported, so fraction-dependence of G is visible rather
+      than a hidden analyst choice.
+    required_metrics:
+    - L_model, the first level at which the transcribed bound crosses the correctness threshold
+    - L_meas at each declared failure fraction
+    - G = L_meas - L_model at each fraction
+    - empirical decryption-failure fraction at every level, with its confidence interval
+    - the same quantities for the synthetic null arm
+    - number of input assignments and whether the set was exhaustive or sampled
+  falsification_conditions:
+  - G equals 0 at every parameter point and every fraction, so the bound is tight at level granularity
+    and the framing has nothing to measure.
+  - G differs across seeds at fixed parameters, so the statistic is not reproducible.
+  - The null arm produces a G as large as the signal arm, meaning G measures the gap between the model's
+    variance and its own tail bound rather than evaluation.
+  - The positive control fails to detect early failure, invalidating the instrument.
+  - L_meas is undefined at the required fractions because the input set is too small, in which case
+    the run reports insufficient resolution and not a result.
+  confounders:
+  - The choice of failure fraction can move G by a level on its own; reporting several fractions bounds
+    but does not remove this.
+  - Where modulus switching sits relative to multiplication changes the level indexing and hence both
+    coordinates.
+  - The correctness threshold is itself a modelling choice at the boundary and a different convention
+    shifts L_model.
+  - Sampled rather than exhaustive inputs make the small-fraction estimates unstable exactly where
+    G is read.
+  - A too-generous fresh-encryption bound inflates L_model downward and G upward without anything
+    about evaluation changing.
+  interpretation_limits:
+  - A positive G is not evidence that a parameter set is over-provisioned; deliberate safety margin
+    and modelling looseness are indistinguishable here.
+  - Nothing about bootstrapping performance, cost, or placement in any real system follows; only a
+    level index in a toy implementation is measured.
+  - G at N=32 with four 20-bit primes is not a statement about a shipped modulus chain of many 50-bit
+    primes.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Cost is O(I * d * N^2) integer operations for I
+      input assignments at depth d.
+    memory_exponent: No attack memory exponent is claimed. O(N * log q) per live ciphertext.
+    best_known: The incumbent is the practice of placing bootstrapping at the level the worst-case
+      bound designates, with whatever margin the implementer adds. This does not beat that practice
+      and proposes no replacement placement rule; it measures the distance between the designated
+      level and the observed one.
+    hidden_overhead: Resolving a 2^-20 failure fraction empirically needs on the order of 2^22 evaluations,
+      which is where the compute budget actually goes; the human cost hides in defending one correctness-threshold
+      convention against the several in use.
+  dominated_by: 'n/a (no result claimed). Checked: there is no FHE experiment directory in this repository,
+    so no internal frontier row exists, and the contract produces no attack cost in time, memory or
+    data, so it does not enter the Pareto comparison at all.'
+  sota_delta: no attack; conceptual/measurement contribution only. The deliverable is an integer level
+    gap and a failure-probability curve.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: 'That L_model and L_meas are both computable and that G is reproducible
+    across seeds: 0.85. That G is at least 1 at the tested point: 0.7, because worst-case recursions
+    are usually loose by more than a level''s worth, though at a short modulus chain the level granularity
+    is coarse enough that 0 is entirely possible. That the null arm gives G near 0 as required for
+    the signal to be interpretable: 0.5, and this is the most likely failure of the design, because
+    the model''s tail bound and its variance prediction may already differ by a level. That G is stable
+    enough across a parameter grid to be called a surface rather than noise: 0.4.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-OPEN-026
+  - KN-OPEN-016
+  - KN-TECH-082
+  - IDEA-20260807-a06996
+  - IDEA-20260809-2e974b
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-c44bb1

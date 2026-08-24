@@ -7,7 +7,7 @@ experiment:
     explicit Velu isogenies, certificate-carrying DLP transfer, and separated
     measurement of group-operation count versus per-operation field cost, with
     the walk charged.
-  status: review_required
+  status: approved
   objective: >-
     Convert obstruction 4 of EV-ECDLP-b3e847 ("within-class uniformity") from an
     asserted absence-of-evidence claim into a measured, certificate-carrying
@@ -53,21 +53,33 @@ experiment:
       Breadth-first walk from the base curve over ell-isogenies for the degrees
       above, computing each isogeny explicitly by Velu's formulas, deduplicating
       vertices by F_p-isomorphism class (not by j-invariant alone: twists share
-      j and must not be merged). The walk terminates when no new vertex appears;
-      the class is required to be COMPLETE, and a walk that does not close is
-      reported as incomplete rather than presented as a census.
+      j and must not be merged). The walk terminates when no new vertex appears.
+      Termination of the walk is NOT completeness: the declared degrees need not
+      generate cl(O). The census is COMPLETE only when the number of enumerated
+      vertices equals the class number h(disc(End(E_0))) computed independently
+      (Hurwitz-Kronecker count for the order), and a walk that closes short of
+      h is reported as an incomplete subgraph rather than presented as a census.
     null_objects: >-
-      At least 8 random curves at the same p with DIFFERENT trace (hence
-      different order), generated from a declared seed.
+      At least 8 random curves from a declared seed whose group order differs
+      from N by a factor large enough that 0.886*sqrt(N) separates at the
+      resolution of the seed dispersion band -- in practice curves over a
+      SMALLER declared prime p' with N' <= N/16, not same-p different-trace
+      curves, whose Hasse-bounded order difference of O(1/sqrt(p)) is far below
+      the rho seed noise and could never separate. Same-p different-trace curves
+      are additionally enumerated as a STRUCTURAL null object (they must not
+      appear in the class walk), but carry no cost-resolution role.
 
   controls:
-    - name: null_object_different_trace
+    - name: null_object_different_order
       role: >-
-        MANDATORY. Random same-p, different-trace curves. Their solve costs must
-        track their own 0.886*sqrt(N_control) and must be distinguishable from
-        the class members' costs. If this control shows no detectable
-        difference, the meter cannot see a real cost difference and NO null
-        result from Q1 or Q3 may be reported as evidence.
+        MANDATORY. Random curves of materially different order (N' <= N/16 over
+        a declared smaller prime p'). Their solve costs must track their own
+        0.886*sqrt(N_control) and must be distinguishable from the class
+        members' costs. If this control shows no detectable difference, the
+        meter cannot see a real cost difference and NO null result from Q1 or
+        Q3 may be reported as evidence. Same-p different-trace curves are NOT
+        used for this gate: Hasse confines their orders to a relative width
+        O(1/sqrt(p)), so no sample size available here could separate them.
     - name: positive_control_tate_invariance
       role: >-
         The predicted invariance of the group-operation count across the class
@@ -99,7 +111,9 @@ experiment:
         report a fake speedup.
 
   independent_variables:
-    - class membership (base curve, class member, different-trace null object)
+    - >-
+      class membership (base curve, class member, different-ORDER cost-resolution
+      null object, same-p different-trace structural null object)
     - isogeny walk degree and path length from the base curve
     - Weierstrass model reachable per member (a = -3 reachable or not)
     - rho seed
@@ -119,9 +133,14 @@ experiment:
           operations, per member, in that member's CHEAPEST reachable model.
       - name: charged_end_to_end_cost
         definition: >-
-          Walk cost to reach the member (isogeny evaluations, converted to field
-          multiplications) plus that member's solve cost, compared against the
-          base curve's solve cost alone. The walk is never free preprocessing.
+          Measured entirely in FIELD MULTIPLICATIONS, so that no group-operation
+          count is ever added to a field-multiplication count: walk cost to
+          reach the member (Velu isogeny evaluations, converted to field
+          multiplications) plus that member's solve cost in field
+          multiplications (its group_operations_to_solve multiplied by its
+          field_multiplications_per_group_operation), compared against the base
+          curve's solve cost expressed in the same unit. The walk is never free
+          preprocessing.
     secondary:
       - name: a_minus_3_model_reachable
         definition: boolean per member; a/(-3) a fourth power in F_p
@@ -202,10 +221,11 @@ experiment:
       censored with its step count at cutoff; it is NEVER recorded as a slow
       curve and NEVER as negative mathematical evidence (AGENTS.md rule 5).
     - >-
-      Stop the census when the class walk closes (no new isomorphism classes)
-      and every member has either a verified certificate or a recorded defect.
+      Stop the census when the class walk closes (no new isomorphism classes),
+      the vertex count matches h(disc(End(E_0))), and every member has either a
+      verified certificate or a recorded defect.
     - >-
-      If the null-object control fails to distinguish different-trace curves,
+      If the null-object control fails to distinguish different-order curves,
       STOP and report an instrument failure. Do not report Q1 or Q3 results from
       that run.
 
@@ -217,8 +237,10 @@ experiment:
       A certificate checker sharing state or code paths with the solver
       invalidates the whole run: self-confirmation is not verification.
     - >-
-      An incomplete class walk invalidates every "no member is cheaper" claim,
-      which is a statement about a complete class or nothing.
+      An incomplete class walk -- one that closes on fewer vertices than
+      h(disc(End(E_0))), i.e. whose declared degrees do not generate cl(O) --
+      invalidates every "no member is cheaper" claim, which is a statement
+      about a complete class or nothing.
     - >-
       Comparing group-operation counts across members in DIFFERENT coordinate
       systems invalidates Q1.
@@ -231,10 +253,11 @@ experiment:
 
   success_criterion: >-
     The census is SUCCESSFUL as a measurement (independently of which way it
-    comes out) when all of the following hold: the class walk closed; every
-    member carries a verified certificate; the base curve reproduced
-    0.886*sqrt(N) within the seed band; the null-object control demonstrably
-    distinguished different-trace curves; and all three primary metrics are
+    comes out) when all of the following hold: the class walk closed and its
+    vertex count matched h(disc(End(E_0))); every member carries a verified
+    certificate; the base curve reproduced 0.886*sqrt(N) within the seed band;
+    the null-object control demonstrably distinguished the different-order
+    control curves; and all three primary metrics are
     reported per member with their bands.
 
     Under the predicted outcome this yields: obstruction 4 of EV-ECDLP-b3e847
@@ -263,7 +286,9 @@ experiment:
     - base curve selection log, including rejected candidates and the seed
     - >-
       complete class enumeration: vertices with j-invariant, isomorphism class
-      id, Weierstrass coefficients, walk path and degrees
+      id, Weierstrass coefficients, walk path and degrees, plus the
+      independently computed class number h(disc(End(E_0))) and the
+      vertex-count-versus-h comparison that establishes completeness
     - every Velu isogeny with its kernel generator and edge certificate
     - the frozen DLP instance and its transfer to each member
     - per-member, per-seed solve records with instrumented operation counts
@@ -275,14 +300,31 @@ experiment:
     - run manifest with the resolved inference block and environment
 
   assigned_to: executor
-  approved_by: null
+  approved_by: coordinator
 
   approval_note: >-
-    NOT APPROVED. Under AGENTS.md rule 1 only the Coordinator approves an
-    experiment, and approval is the gate that authorizes execution and spends
-    compute. This contract was authored by the top-level session and is filed at
-    status review_required. The Coordinator must review it, approve or revise
-    it, and issue the TASK-* handoff before any Executor implementation or run.
+    APPROVED by the Coordinator on 2026-08-13 under DEC-20260813-e0077d, and
+    FROZEN at version 1 from that moment: every field above is the protocol
+    that was approved, and any later change requires a versioned
+    protocol_amendment under experiments/EXP-ISOU-2ac81f/amendments/
+    (docs/task-lifecycle.md, "Protocol amendments"), never an edit in place.
+
+    Approved exactly as written. No budget, metric, control, input, stopping
+    rule, invalidation rule, success criterion, or scope field was altered at
+    approval; the three pre-approval defect repairs (different-ORDER null
+    object, class-number completeness gate, single-unit end-to-end cost) were
+    drafting on an unapproved contract, not amendments.
+
+    Execution is authorized only through the handoff TASK-20260813-4bee82,
+    which records implementation-level deterministic resolutions the Coordinator
+    fixed BEFORE any data is seen (walk-function and distinguished-point
+    parameters frozen and identical across every curve, common-coordinate-system
+    reading for Q1, declared candidate model set for Q2, M/S aggregation,
+    measured-versus-modeled labelling of the walk cost, and run ordering under
+    the budget). Those resolutions bind the implementation; they add no metric
+    and change no field of this contract. The Executor does not begin until the
+    snapshot archive of this approval commits and verifies
+    (docs/task-lifecycle.md step 6).
 
   related_records:
     supersedes: none

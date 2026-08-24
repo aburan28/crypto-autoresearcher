@@ -1,0 +1,286 @@
+idea:
+  id: IDEA-20260816-2dfc3a
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: Run one frozen trail-search encoding against the BLAKE3 permutation-with-schedule and the
+    BLAKE2s permutation-with-schedule and report the two minimum-trail-weight-per-round curves side
+    by side, so the BLAKE2-to-BLAKE3 margin transfer becomes a divergence this program measured rather
+    than a design assertion it inherited.
+  class: measurement
+  claim: '(A) The transfer argument that justifies BLAKE3''s round count is a statement about two
+    objects measured at different times, by different people, with different tools. It can be converted
+    into a statement about two objects measured by ONE tool at ONE time. Concretely: a trail-search
+    encoding parameterised only by the triple (round function operation sequence with its rotation
+    constants, message schedule as a table of index permutations, round count) can be instantiated
+    at BLAKE3''s parameters and at BLAKE2s''s parameters so that nothing whatever differs between
+    the two runs except that triple. (B) The deliverable is the pair of curves W3(r) and W2(r) for
+    r = 1..Rmax, where W(r) is the minimum differential trail weight the solver proves optimal inside
+    the declared ceiling, or the best lower bound it certifies when it does not close the gap -- the
+    two cases labelled separately in every row and never averaged together. The comparison quantity
+    is the pointwise difference D(r) = W3(r) - W2(r) over the rounds both curves reach, together with
+    the per-round increments dW/dr for each. (C) NOT CLAIMED, and this part is the operative scope
+    clause: nothing here is a statement about full seven-round BLAKE3, about any deployed system,
+    or about the existence of any attack on anything. A trail bound bounds trails, not differentials
+    and not hulls; KN-TECH-076 makes precisely that reporting gap explicit. A small D(r) is therefore
+    not a safety statement and a large D(r) is not a weakness statement. No extrapolation from Rmax
+    to seven rounds is claimed, offered, or implied; the curve stops where the solver stopped and
+    the record says so. (D) A ceiling reached without optimality is a budget outcome about an encoding,
+    a solver build and a machine. It is reported with encoding hash, solver version, seed and wall-clock
+    ceiling, and it is never negative mathematical evidence about either primitive (AGENTS.md rule
+    3).'
+  mechanism: 'Stage-wise, and the early stages are the load-bearing ones. First, pin reference implementations
+    of both primitives and validate them against published test vectors including keyed and multi-chunk
+    cases; an encoding built against a subtly wrong reference measures the reference. Second, write
+    ONE encoding generator whose only inputs are the ARX operation sequence with rotation constants,
+    the schedule table, and the round count, and instantiate it twice. Third, demonstrate that the
+    two instantiations are the same program under a parameter swap: substituting BLAKE2s''s schedule
+    table into the BLAKE3 instantiation must reproduce, constraint for constraint, the schedule-swapped
+    chimera used elsewhere in this bucket. This is a structural diff, costs no solver time, and is
+    what earns the phrase like-for-like. Fourth, sweep r upward from 1 until the declared wall-clock
+    ceiling is hit, recording per r whether the solver returned a proved optimum or a certified lower
+    bound. Fifth, repeat every point under three seeds and, where the encoding admits it, two variable
+    orderings, so a per-point reproducibility band is MEASURED rather than assumed; D(r) is then read
+    against that band. The mechanism can fail informatively: if the two instantiations cannot be shown
+    to be the same program under a parameter swap, the deliverable becomes the specific structural
+    asymmetry that blocks a like-for-like comparison -- which is exactly the thing an inherited transfer
+    argument has to assume without stating.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Ran, in /home/user/crypto-autoresearcher: grep -ril blake over ledger/ knowledge/ experiments/;
+      grep -ril chacha over ledger/ knowledge/; grep -ril ''bound-per-round|per-round bound'' over
+      ledger/proposals ledger/hypotheses; grep -ril ''message schedule'' over ledger/proposals; grep
+      -ril ''quarter-round|rotation constant'' over ledger/ knowledge/. Read RQ-BLAKE-584719 and GOAL-BLAKE-001
+      in full, docs/inventor-protocol.md sections 1-5 and 8, the heads of KN-TECH-076, KN-TECH-077,
+      KN-TECH-276d30, and the head of GOAL-MD5-001.'
+    results: ZERO proposals exist under RQ-BLAKE-584719; the only BLAKE-bearing files in the ledger
+      are RQ-BLAKE-584719 and GOAL-BLAKE-001 themselves. The bound-per-round grep returned exactly
+      one proposal, IDEA-20260808-e40da2, which is a closed-form ECDSA nonce-leakage bound and shares
+      no object with this. The message-schedule grep returned IDEA-20260813-878855 and IDEA-20260813-93a735,
+      both SQIsign transcript records. ChaCha appears in IDEA-20260809-3a39bc (ChaCha20-Poly1305 commitment
+      ablation, an authenticator-algebra object) and in GOAL-AEADC-001 and GOAL-POLYMAC-001. KN-TECH-076
+      already supplies the automated-trail-search method and, importantly, the trail-versus-differential
+      reporting gap this record's part (C) is written against. GOAL-MD5-001 owns instrument calibration
+      and GOAL-SHA2-001 / GOAL-SHA3-001 run comparable per-round measurements on other primitives.
+    verdict: 'UNVERIFIED. No agent here can read external literature, so nothing is asserted about
+      what has or has not been published. Assembled from known parts: the search method (KN-TECH-076),
+      the two primitives'' public specifications, and the program''s own like-for-like pipeline discipline.
+      Claimed new HERE and only here: the parameterised single-generator construction whose sole inputs
+      are the design triple, the structural-diff proof that the two instantiations are the same program
+      under a parameter swap, and the per-point reproducibility band measured from repeated seeds
+      so that D(r) is read against a measured band rather than eyeballed. Within this repository the
+      object is unprecedented; outside it, unverified in both directions.'
+  object_first_candidate:
+    tracked_object: The per-round minimum differential trail weight vector W(r), r = 1..Rmax, of a
+      permutation-plus-schedule pair, together with the solver's optimality status at each r. The
+      object followed through the computation is the trail weight itself -- an integer-valued lower-bound
+      sequence indexed by round -- not the trail, not the characteristic, and not any pair of messages.
+    lossiness: 'Genuinely lossy, and the loss is the point. The state is 16 32-bit words plus 16 message
+      words; the tracked object is one integer per round. Discarded: the trail''s actual bit positions,
+      the message differences realising it, the number of distinct trails at that weight (the clustering
+      that KN-TECH-076 names), and everything about the hull. What survives propagation is the property
+      the discard is compatible with: the weight of a round is additive over rounds in the model,
+      so W(r) is defined by the same recursion the encoding enforces, and the minimum over trails
+      of a sum is what the solver optimises directly. The discard is exactly why the object is comparable
+      across two primitives -- bit positions are not comparable, integers are -- and exactly why part
+      (C) forbids reading it as an attack statement.'
+    propagation: 'One round of the target operation acts on the object by adding the round''s own
+      minimum achievable weight contribution, subject to the schedule''s injection of message words
+      into the state at that round. In the encoding this is a constraint block per round: modular-addition
+      differential propagation constraints (the standard XOR-difference model for addition), free
+      XOR and rotation propagation, and the schedule''s index permutation deciding which message word
+      enters which state word. W(r+1) is therefore never below W(r), and the increment W(r+1) - W(r)
+      is the per-round quantity that the message freedom is allowed to suppress.'
+    survival_score: 'Concretely: the object survives as an exactly comparable integer for as many
+      rounds as the solver closes to proved optimality, and as a weaker but still comparable certified
+      lower bound for some rounds beyond that. It dissolves at the round where the solver returns
+      neither -- only a ceiling hit -- because at that point the number reported is a statement about
+      hardware. Declare Rmax in advance as the largest r for which BOTH primitives return at least
+      a certified lower bound inside the same ceiling; rounds beyond Rmax are not plotted, not interpolated
+      and not extrapolated.'
+  null_object_control: 'The null object is a permutation of identical shape with structure removed:
+    same 16-word state, same number of ARX operations per round, same round count, but with rotation
+    constants drawn uniformly at random from 1..31 and the schedule table drawn as uniformly random
+    permutations of 0..15, sampled under a recorded seed. The IDENTICAL encoding generator produces
+    its constraint set, and the identical solver, ceiling, seeds and orderings run against it in the
+    same invocation. What the null must show for the signal arm to mean anything: the null''s W(r)
+    curve must be distinguishable from at least one of the two real curves by more than the measured
+    reproducibility band at some r inside Rmax. If randomly parameterised ARX gives the same per-round
+    curve as both real designs, the instrument is measuring the shape of the encoding, not either
+    design, and D(r) means nothing. The null is also run at three independent random parameterisations
+    so its own spread is measured, giving the band against which D(r) is judged.'
+  discriminated_from:
+  - 'KN-TECH-076 (automated trail search): that note is the method this record uses, not a competitor.
+    What is added is a two-primitive parameterised instantiation with a structural-diff identity proof
+    and a measured reproducibility band; KN-TECH-076 explicitly warns that an optimal trail bounds
+    only trails, and this record''s part (C) is written to that warning rather than around it.'
+  - 'IDEA-20260808-e40da2: a closed-form zero-compute bound for the ECDSA bias-detection attack class.
+    Same word ''bound'', entirely different object (query counts under a leakage model, not per-round
+    trail weights of an ARX permutation) and different question.'
+  - 'GOAL-MD5-001: owns instrument calibration against complete ground truth on MD5. This record CONSUMES
+    that calibration as a precondition and adds nothing to it; its own contribution begins only once
+    a calibrated instrument exists.'
+  - 'GOAL-SHA2-001 and GOAL-SHA3-001: both measure per-round behaviour with a shared instrument on
+    SHA-256 and Keccak. Different primitives, and GOAL-BLAKE-001''s non_duplication clause forbids
+    assembling any cross-primitive comparison table before each goal has reproduced its own baseline;
+    this record makes no cross-primitive claim beyond the BLAKE3/BLAKE2s pair.'
+  - 'IDEA-20260809-3a39bc: ChaCha appears there as an AEAD authenticator-algebra object (Poly1305
+    clamping, prime-field reduction). Here ChaCha lineage matters only as the round function''s ancestry,
+    and this record makes no statement about ChaCha at all.'
+  assumptions:
+  - BLAKE3 and BLAKE2s specifications are read from pinned primary text filed as KN-LIT entries, never
+    recalled. Until that filing exists this proposal cannot be approved -- RQ-BLAKE-584719's first
+    constraint says so explicitly.
+  - The standard XOR-difference model of modular addition is an adequate and identical abstraction
+    for both primitives; if it is adequate for one and not the other, D(r) measures the model.
+  - Both primitives' round structures are expressible in one generator whose only free inputs are
+    the design triple. This is an assumption to be demonstrated by structural diff, not asserted.
+  - Solver optimality claims are trusted only where the solver emits a proof or an optimality flag
+    that the harness records; otherwise the row is a certified lower bound.
+  - Wall-clock ceilings are enforced identically for both arms on the same machine in the same session,
+    so that a ceiling hit is symmetric between arms.
+  predictions:
+  - metric: D(r) = W3(r) - W2(r) at equal r, over rounds both curves reach
+    direction: different
+    minimum_effect: 'REFUSING TO PRE-COMMIT A NUMBER, with reason: the encoding''s reproducibility
+      band is itself an output of this experiment and is unknown before the run. The pre-registered
+      decision rule instead is: D(r) counts as a divergence only if |D(r)| exceeds twice the measured
+      seed-to-seed spread at that r, and the band is frozen from the null and repeat runs before D(r)
+      is read.'
+  - metric: per-round increment dW/dr for each primitive over the first three rounds
+    direction: different
+    minimum_effect: at least 1 weight unit of difference in the first-three-round mean increment is
+      the smallest effect the integer-valued metric can express; anything below that is unresolvable
+      by construction and will be reported as unresolvable
+  - metric: seed-to-seed spread of W(r) at fixed r and fixed primitive
+    direction: lower
+    minimum_effect: 0 -- forced value. A correct encoding with a proved optimum must be seed-invariant;
+      any nonzero spread on a proved-optimum row is an instrument defect and blocks the comparison
+  - metric: null-arm W(r) curve distinguishability from both real curves at some r <= Rmax
+    direction: higher
+    minimum_effect: must exceed the measured band at at least one r; if it never does, the run is
+      a controlled null and reports no divergence result at all
+  minimal_test:
+    design: 'The cheapest discriminating measurement is not the full sweep. It is r = 1,2,3 only,
+      on all four arms in one invocation: BLAKE3-parameterised, BLAKE2s-parameterised, and two random-parameterised
+      nulls, each at three seeds. Three rounds of an ARX permutation is small enough that a SAT encoding
+      closes to proved optimality in seconds to minutes, which makes the seed-invariance prediction
+      (forced value 0) testable immediately and cheaply. That single low-round block answers the three
+      questions that gate everything downstream: does the encoding return seed-invariant optima at
+      all; does the parameter-swap structural diff hold constraint for constraint; and does the null
+      differ from the real arms at any of r = 1,2,3. If seed-invariance fails, the instrument is broken
+      and no curve is worth computing. If the null matches both real arms across r = 1,2,3, the encoding
+      is not resolving design differences at low round counts and the sweep should be redesigned before
+      spending the ceiling. Only if all three gates pass does the sweep to Rmax get requested.'
+    controls:
+    - Random-parameter null arm (random rotation constants, random schedule tables) run in the same
+      invocation, same solver, same ceiling, same seeds.
+    - Seed repetition (three seeds per point) and, where supported, two solver variable orderings,
+      giving a measured reproducibility band rather than an assumed one.
+    - 'Parameter-swap structural diff: BLAKE2s''s schedule table substituted into the BLAKE3 instantiation
+      must reproduce the schedule-swapped chimera constraint set exactly; a mismatch halts the comparison.'
+    - Test-vector precondition on both reference implementations, including keyed and multi-chunk
+      vectors, before any encoding is generated.
+    - 'An identity control: the encoding run twice on the SAME primitive with different constraint-emission
+      orderings must return identical optima.'
+    required_metrics:
+    - W(r) per primitive per round, with an explicit optimality status field (proved_optimum | certified_lower_bound
+      | ceiling_hit)
+    - D(r) = W3(r) - W2(r) over rounds both arms reach
+    - per-round increment dW/dr per primitive
+    - seed-to-seed spread of W(r) per point
+    - null-arm W(r) per random parameterisation, with its own spread
+    - solver wall-clock and peak memory per point
+    - Rmax, defined as the largest r at which both arms returned at least a certified lower bound
+  falsification_conditions:
+  - Seed-to-seed spread is nonzero on any row marked proved_optimum -- the encoding is nondeterministic
+    and the comparison is void until fixed.
+  - The parameter-swap structural diff fails, so the two arms are not demonstrably the same program
+    and no like-for-like claim is available.
+  - The null arm's curve is indistinguishable from both real curves across all r <= Rmax -- a controlled
+    null, and D(r) carries no information.
+  - Rmax is 1 or 2, i.e. the ceiling binds before any round at which the two designs could plausibly
+    differ; the deliverable becomes a budget measurement about the encoding.
+  - Reference implementations fail any published test vector, including keyed or multi-chunk cases.
+  - D(r) reverses sign across r without the increments explaining it, indicating the two arms are
+    hitting different solver regimes rather than different designs.
+  confounders:
+  - Solver heuristics interacting differently with two constraint sets of different size, so that
+    a ceiling hit on one arm is not comparable to a ceiling hit on the other. Mitigated by reporting
+    optimality status per row and never comparing a ceiling-hit row to a proved-optimum row.
+  - 'Encoding size asymmetry: a different round count means a different number of constraints, so
+    wall-clock is not comparable even when W(r) is. Wall-clock is reported as instrument metadata,
+    never as a design property.'
+  - Machine variance and thermal throttling affecting only whichever arm runs second. Mitigated by
+    interleaving arms and by never treating wall-clock as a result.
+  - 'Clustering: many trails at the same weight change what a bound means for an attack, and the encoding
+    does not see them. This is why part (C) forbids the attack reading, not a defect to be mitigated.'
+  - An implementation-fidelity error in either reference producing a schedule table that is subtly
+    wrong, which would make the entire comparison a comparison of typos.
+  interpretation_limits:
+  - Bounds on trails, not on differentials or hulls. Nothing here supports a statement about attack
+    cost on either primitive.
+  - Scoped to rounds 1..Rmax under one encoding, one solver build, one machine and one ceiling. Another
+    encoding may return different bounds and that would not contradict this record.
+  - No statement about full-round BLAKE3, about the seven-round choice, or about any deployed system
+    follows, and the record must be read as forbidding those readings rather than as silent on them.
+  - A coincidence of curves supports the transfer argument only within the rounds reached; the rounds
+    not reached are the rounds the argument is actually about.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The only exponents produced are solver wall-clock
+      scalings in r, which are properties of an encoding and a machine, not of either primitive.
+    memory_exponent: No attack memory exponent is claimed. Peak solver memory per point is recorded
+      as instrument metadata only.
+    best_known: 'The incumbent is the inherited transfer argument itself: the design-time assertion
+      that cryptanalysis of BLAKE2 established a comfortable margin at seven rounds, as relayed (not
+      verified) in RQ-BLAKE-584719''s provenance block. This record does not beat it; it converts
+      it from an assertion into a measured quantity over the rounds a solver reaches.'
+    hidden_overhead: 'The human cost is where this hides: writing ONE generator that is genuinely
+      parameter-only, and proving it by structural diff, is most of the work and none of the headline.
+      Also hidden -- the acquisition precondition (primary specifications and the cited BLAKE2 cryptanalysis
+      filed as KN-LIT) is a blocking dependency that no solver time reduces, and the reproducibility
+      band costs a 3x seed multiplier on every point plus a 3x null arm, i.e. roughly 6x the naive
+      budget.'
+  dominated_by: 'n/a (no attack result claimed). Pareto check performed in the only sense available:
+    across time, memory and data/queries this record produces no attack row at all, so there is no
+    frontier row it could occupy or be dominated on. As a measurement it is dominated by any future
+    run of the same encoding that reaches a larger Rmax, and that successor relation is stated so
+    the record can be superseded rather than argued with.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively the delta is: the
+    transfer argument currently carries zero measured rounds of like-for-like comparison in this repository,
+    and a run would carry Rmax rounds with a stated reproducibility band and a null arm. The delta
+    is Rmax rounds and one band, not a speedup.'
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'Separated by part. That a single parameter-only generator can be written
+    and its two instantiations shown identical by structural diff: 0.7 -- both round functions are
+    ARX with a schedule table, which is the case the construction is designed for, but the finalizations
+    differ and may leak into the encoding. That the encoding returns seed-invariant proved optima
+    at r <= 3: 0.8, low round counts are routine for SAT-based ARX models. That Rmax reaches a round
+    count where the two designs could plausibly differ (say r >= 5) inside a campaign budget: 0.3
+    -- ARX modular-addition models blow up fast and this is the likeliest failure. That D(r) exceeds
+    the measured band at some reached r: genuinely unknown, and I decline to put a number on it because
+    the band is an output of the same run; the honest statement is that BOTH outcomes are complete
+    results under GOAL-BLAKE-001''s stated completion criteria. That the whole thing is blocked at
+    acquisition rather than at compute: 0.4, given RQ-BLAKE-584719''s own pause condition.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - KN-TECH-076
+  - KN-TECH-077
+  - GOAL-MD5-001
+  - RQ-MDFIVE-6870c1
+  - GOAL-SHA2-001
+  - GOAL-SHA3-001
+  - IDEA-20260808-e40da2
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-7f9d51

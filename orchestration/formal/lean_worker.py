@@ -22,6 +22,36 @@ _FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("unsafe", re.compile(r"\bunsafe\b")),
 )
 
+#: Constructs that mean "this proof is not finished" rather than "this source
+#: violates the lane contract".  A generated candidate carrying only these is an
+#: incomplete formalization; see ``orchestration.formal.mathcode``.
+INCOMPLETE_PROOF_LABELS: frozenset[str] = frozenset({"sorry", "admit"})
+
+
+def scan_forbidden_text(text: str) -> tuple[str, ...]:
+    """Return the labels of forbidden constructs present in one Lean source.
+
+    Shared by the authoritative workspace scan below and by the pre-stage scan
+    in the formalizer adapter, so a generated candidate is judged by exactly
+    the patterns that will judge it again after staging.
+    """
+
+    return tuple(label for label, pattern in _FORBIDDEN_PATTERNS if pattern.search(text))
+
+
+def forbidden_sites(text: str) -> tuple[tuple[str, int], ...]:
+    """Return ``(label, line_number)`` for every forbidden construct occurrence.
+
+    Line numbers are 1-based and point at the unfinished obligation, which is
+    the pointer a ``find_proof_gap`` successor needs.
+    """
+
+    sites: list[tuple[str, int]] = []
+    for label, pattern in _FORBIDDEN_PATTERNS:
+        for match in pattern.finditer(text):
+            sites.append((label, text.count("\n", 0, match.start()) + 1))
+    return tuple(sorted(sites, key=lambda site: (site[1], site[0])))
+
 
 class LeanWorker:
     """Run reproducible Lean build and axiom-audit checks for one task."""
@@ -117,9 +147,9 @@ class LeanWorker:
         findings: list[str] = []
         for path in sorted(workspace.rglob("*.lean")):
             text = path.read_text(encoding="utf-8")
-            for label, pattern in _FORBIDDEN_PATTERNS:
-                if pattern.search(text):
-                    findings.append(f"{label}:{path.relative_to(workspace)}")
+            findings.extend(
+                f"{label}:{path.relative_to(workspace)}" for label in scan_forbidden_text(text)
+            )
         return tuple(findings)
 
     @staticmethod

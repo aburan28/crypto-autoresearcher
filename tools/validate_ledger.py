@@ -45,6 +45,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 
@@ -130,6 +131,7 @@ def _load_duplicate_run_owners() -> dict[str, set[str]]:
 DUPLICATE_RUN_OWNERS = _load_duplicate_run_owners()
 
 ID_PATTERNS = {
+    "goal": re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX}$"),
     "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
     "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
     "hypothesis": re.compile(rf"^H-[A-Z]+-{SUFFIX}$"),
@@ -209,6 +211,171 @@ def field_is_satisfied(body: dict, field: str) -> bool:
 TIER_ORDER = {"toy": 0, "medium": 1, "crypto": 2}
 PROOF_STATUSES = {"certificate", "derivation", "empirical_only",
                   "not_applicable"}
+
+# Both blocks below are OPTIONAL and checked only when present, which is what
+# lets them land without a baseline entry: the baseline is prune-only, so a
+# newly-required field on immutable records could never be grandfathered and
+# would fail `main` forever. Absence is reported as schema debt instead --
+# `tools/obstruction_registry.py --debt` for the obstruction backlog. What is
+# enforced is that a record CLAIMING the new schema completes it.
+CITATION_PROVENANCE = {"recalled", "retrieved", "kb", "internal"}
+
+# `recalled` means no agent in this program opened the source. Such a reference
+# is a pointer for a reviewer, never support (AGENTS.md rule 9), so these two
+# record shapes may not rest on one. No committed record carries a provenance
+# field at all, so this can be a hard error from the start: it fires only on
+# records written against the new schema.
+PROVENANCE_ASSERTS_LITERATURE = {"known", "adaptation"}
+
+OBSTRUCTION_REQUIRED = ["statement", "quantity", "value", "scope"]
+
+# `review_plan` on a handoff follows the same optional-when-present rule. What
+# this checks is the plan's INTERNAL consistency, which is all a single record
+# can show: whether the reviewers honoured it is cross-checked against their
+# attestations by `tools/check_review_independence.py`, which needs the reports
+# and so cannot run here.
+REVIEW_VERDICTS = {"holds", "breaks", "inconclusive"}
+
+
+def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate a `review_plan` block on a handoff."""
+    plan = body.get("review_plan")
+    if plan is None:
+        return
+    if not isinstance(plan, dict):
+        ctx.err(path, "review_plan must be a mapping")
+        return
+    for field in ("claim_under_review", "coordinator_prior"):
+        if not str(plan.get(field) or "").strip():
+            ctx.err(path, f"review_plan.{field} is required; the prior is "
+                          f"recorded before the round so concurrence can be "
+                          f"told apart from agreement with the Coordinator")
+    joints = plan.get("joints")
+    if not isinstance(joints, list) or not joints:
+        ctx.err(path, "review_plan.joints must be a nonempty list; a review "
+                      "with no named load-bearing step cannot show coverage")
+    else:
+        seen: dict[str, int] = {}
+        for index, entry in enumerate(joints):
+            if not isinstance(entry, dict):
+                ctx.err(path, f"review_plan.joints[{index}] must be a mapping")
+                continue
+            name = str(entry.get("joint") or "").strip()
+            if not name:
+                ctx.err(path, f"review_plan.joints[{index}].joint is empty")
+            else:
+                seen[name] = seen.get(name, 0) + 1
+            if not str(entry.get("assigned_to") or "").strip():
+                ctx.err(path, f"review_plan.joints[{index}] has no "
+                              f"assigned_to; an unowned joint is the coverage "
+                              f"gap this plan exists to make visible")
+            if not str(entry.get("attack_plan") or "").strip():
+                ctx.err(path, f"review_plan.joints[{index}] has no "
+                              f"attack_plan; a worked attack returns a result "
+                              f"either way, 'review this' returns an opinion")
+        for name, count in seen.items():
+            if count > 1:
+                ctx.err(path, f"review_plan joint '{name}' is listed {count} "
+                              f"times; one joint, one owner")
+    blindness = plan.get("blindness")
+    if blindness is not None:
+        if not isinstance(blindness, dict):
+            ctx.err(path, "review_plan.blindness must be a mapping")
+        elif (blindness.get("lifted_for")
+                and not str(blindness.get("rationale") or "").strip()):
+            ctx.err(path, "review_plan.blindness.lifted_for is nonempty and "
+                          "requires a rationale; blindness is lifted on "
+                          "purpose, never drifted out of")
+    control = plan.get("proves_too_much")
+    if not isinstance(control, dict) or not (control.get("objects") or []):
+        ctx.err(path, "review_plan.proves_too_much.objects is required; the "
+                      "argument is run against objects where its conclusion is "
+                      "known false, as controls-before-belief for an argument")
+    elif not str(control.get("failure_signature") or "").strip():
+        ctx.err(path, "review_plan.proves_too_much.failure_signature is "
+                      "required; state what the argument must do on a "
+                      "known-false object or the control cannot fail")
+    rederivation = plan.get("blind_rederivation")
+    if isinstance(rederivation, dict) and rederivation.get("required"):
+        for field in ("quantity", "assigned_to"):
+            if not str(rederivation.get(field) or "").strip():
+                ctx.err(path, f"review_plan.blind_rederivation.{field} is "
+                              f"required when required is true")
+        if not (rederivation.get("blind_from") or []):
+            ctx.err(path, "review_plan.blind_rederivation.blind_from is "
+                          "required; name the producer's implementation, notes "
+                          "and report, or the independence is not checkable")
+
+
+def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
+    """Validate `citations` and hypothesis `structural_ingredients` entries."""
+    groups = [("citations", body.get("citations"))]
+    if rec_type == "hypothesis":
+        groups.append(("structural_ingredients",
+                       body.get("structural_ingredients")))
+    for field, entries in groups:
+        if entries is None:
+            continue
+        if not isinstance(entries, list):
+            ctx.err(path, f"{field} must be a list")
+            continue
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict) or "provenance" not in entry:
+                continue          # pre-schema entry; reported as debt, not error
+            where = f"{field}[{index}]"
+            provenance = entry.get("provenance")
+            if provenance not in CITATION_PROVENANCE:
+                ctx.err(path, f"{where}.provenance must be "
+                              f"recalled|retrieved|kb|internal")
+                continue
+            if provenance == "recalled":
+                if rec_type == "coordinator_decision":
+                    ctx.err(path, f"{where} is provenance 'recalled'; a "
+                                  f"remembered source may not back a decision "
+                                  f"(AGENTS.md rule 9)")
+                if (rec_type == "idea" and body.get("novelty_status")
+                        in PROVENANCE_ASSERTS_LITERATURE):
+                    ctx.err(path, f"{where} is provenance 'recalled' but "
+                                  f"novelty_status is "
+                                  f"'{body.get('novelty_status')}'; use "
+                                  f"'unverified' until the source is read")
+            elif not str(entry.get("verified_by") or "").strip():
+                ctx.err(path, f"{where}.provenance is '{provenance}' and "
+                              f"requires verified_by naming the agent that "
+                              f"read the source")
+
+
+def check_obstruction(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate an `obstruction` block: a measurement, not a verdict."""
+    block = body.get("obstruction")
+    if block is None:
+        return
+    if not isinstance(block, dict):
+        ctx.err(path, "obstruction must be a mapping")
+        return
+    for field in OBSTRUCTION_REQUIRED:
+        if not str(block.get(field) or "").strip():
+            ctx.err(path, f"obstruction.{field} is required; an obstruction "
+                          f"recorded as prose is a verdict, not a datum")
+    measured_by = block.get("measured_by")
+    if not isinstance(measured_by, list) or not measured_by:
+        ctx.err(path, "obstruction.measured_by must be a nonempty list of "
+                      "RUN-*/EXP-* IDs the value is read from")
+    check = block.get("resource_check")
+    if not isinstance(check, dict):
+        ctx.err(path, "obstruction.resource_check is required (inventor "
+                      "protocol section 4); an unexamined obstruction asserts "
+                      "only that nobody looked")
+        return
+    if check.get("examined") is not True:
+        ctx.err(path, "obstruction.resource_check.examined must be true; the "
+                      "reversal is checked when the object is still loaded")
+    if not str(check.get("reading") or "").strip():
+        ctx.err(path, "obstruction.resource_check.reading is required; name "
+                      "the theory taking this measurement as its hypothesis, "
+                      "or state that the check found none")
+    if not isinstance(check.get("spawned_ids", []), list):
+        ctx.err(path, "obstruction.resource_check.spawned_ids must be a list")
 KNOWLEDGE_TYPES = {
     "literature": ("literature", "KN-LIT-"),
     "technique": ("techniques", "KN-TECH-"),
@@ -329,6 +496,11 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
                           "empirical_only|not_applicable")
         if not isinstance(body.get("proof_refs"), list):
             ctx.err(path, "proof_refs must be a list")
+    check_citations(path, body, rec_type, ctx)
+    if rec_type in ("evidence", "coordinator_decision"):
+        check_obstruction(path, body, ctx)
+    if rec_type == "handoff":
+        check_review_plan(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
         promotion = body["knowledge_promotion"]
         if not isinstance(promotion, dict):
@@ -1023,7 +1195,9 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                                          f"unknown entry '{knowledge_id}'")
 
 
-GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
+GOAL_ID = ID_PATTERNS["goal"]
+GOAL_LEGACY_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_LEGACY}$")
+GOAL_RANDOM_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_RANDOM}$")
 # `closed_at_budget` is a terminal status in active use. It asserts that the
 # campaign budget ran out WITHOUT a completion criterion being met, so it makes
 # no success claim and needs no quorum. Using it to retire a goal that did meet
@@ -1193,7 +1367,17 @@ def load_goal_documents(ctx: Ctx):
     tools/shard_goal.py. Migrating all of them at once would land a rename in
     every one of the open branches simultaneously.
     """
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*.yaml"))):
+    goals_root = os.path.join(REPO, "ledger", "goals")
+    try:
+        entries = sorted(os.scandir(goals_root), key=lambda entry: entry.name)
+    except OSError:
+        entries = []
+
+    for entry in entries:
+        if (entry.is_symlink() or not entry.name.endswith(".yaml")
+                or not entry.is_file(follow_symlinks=False)):
+            continue
+        path = entry.path
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1203,8 +1387,16 @@ def load_goal_documents(ctx: Ctx):
             continue
         yield path, goal, lambda rec_id: f"{rec_id}.yaml", os.path.basename(path)
 
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*",
-                                              "goal.yaml"))):
+    for entry in entries:
+        if entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+            continue
+        path = os.path.join(entry.path, "goal.yaml")
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            continue
+        if not stat.S_ISREG(mode):
+            continue
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1213,7 +1405,24 @@ def load_goal_documents(ctx: Ctx):
             ctx.err(path, "missing top-level 'research_goal' mapping")
             continue
         directory = os.path.dirname(path)
-        shards = sorted(glob.glob(os.path.join(directory, "checkpoints", "*.yaml")))
+        checkpoints = os.path.join(directory, "checkpoints")
+        try:
+            checkpoint_mode = os.lstat(checkpoints).st_mode
+        except OSError:
+            checkpoint_mode = 0
+        if stat.S_ISDIR(checkpoint_mode):
+            checkpoint_entries = sorted(
+                os.scandir(checkpoints), key=lambda checkpoint: checkpoint.name
+            )
+        else:
+            checkpoint_entries = []
+        shards = [
+            checkpoint.path
+            for checkpoint in checkpoint_entries
+            if (not checkpoint.is_symlink()
+                and checkpoint.name.endswith(".yaml")
+                and checkpoint.is_file(follow_symlinks=False))
+        ]
         merged = []
         for shard in shards:
             sdoc = load_yaml(shard, ctx)
@@ -1234,7 +1443,228 @@ def load_goal_documents(ctx: Ctx):
         yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
 
 
+GIT_CONTEXT_REDIRECTS = {
+    "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS",
+}
+
+
+def _explicit_git_environment() -> dict[str, str]:
+    """Environment stripped of caller-controlled repository redirects."""
+    return {key: value for key, value in os.environ.items()
+            if key not in GIT_CONTEXT_REDIRECTS}
+
+
+def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
+    """Inspect bound HEAD and actual index without touching alias targets.
+
+    Git stores ordinary directories only as descendant entries, while a
+    gitlink or symlink occupies the exact protected path.  Keeping those cases
+    separate prevents an initialized gitlink's ordinary-directory filesystem
+    appearance from laundering mode 160000 into the ledger traversal.
+
+    The boolean reports whether REPO is a Git worktree.  Non-Git fixtures retain
+    the filesystem-only contract and make no Git provenance claim. Caller Git
+    redirects are removed, then the discovered top-level, Git directory, and
+    actual index are rebound explicitly for every metadata query. Protected
+    provenance is always read with replacement-object processing disabled;
+    neither default/custom replace refs nor caller environment may rewrite the
+    commit or tree objects being classified.
+    """
+    git_marker = os.path.join(REPO, ".git")
+    clean_env = _explicit_git_environment()
+    try:
+        probe = subprocess.run(
+            ["git", "-C", REPO, "rev-parse", "--is-inside-work-tree"],
+            capture_output=True, text=True, env=clean_env,
+        )
+    except OSError as error:
+        if os.path.lexists(git_marker):
+            return True, [("ledger", "cannot inspect protected-prefix Git "
+                           f"metadata: {error}; target was not read")]
+        return False, []
+    if probe.returncode != 0 or probe.stdout.strip() != "true":
+        if os.path.lexists(git_marker):
+            detail = (probe.stderr or probe.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "Git worktree probe failed"
+            return True, [("ledger", "cannot determine protected-prefix Git "
+                           f"metadata: {reason}; target was not read")]
+        return False, []
+
+    context = subprocess.run(
+        ["git", "-C", REPO, "rev-parse", "--show-toplevel",
+         "--absolute-git-dir", "--path-format=absolute", "--git-path", "index"],
+        capture_output=True, text=True, env=clean_env,
+    )
+    values = [line.strip() for line in context.stdout.splitlines() if line.strip()]
+    if context.returncode != 0 or len(values) != 3:
+        detail = (context.stderr or context.stdout).strip().splitlines()
+        reason = detail[-1] if detail else "explicit Git context query failed"
+        return True, [("ledger", "cannot bind protected-prefix Git metadata "
+                                 f"to validation root: {reason}; target was not read")]
+    top_level, git_directory, index_file = map(os.path.abspath, values)
+    try:
+        root_matches = os.path.samefile(top_level, REPO)
+    except OSError:
+        root_matches = (os.path.normcase(os.path.realpath(top_level))
+                        == os.path.normcase(os.path.realpath(REPO)))
+    if not root_matches:
+        return True, [("ledger", "protected-prefix Git top-level does not match "
+                                 "the explicit validation root; target was not read")]
+    if not os.path.isdir(git_directory) or not os.path.isfile(index_file):
+        return True, [("ledger", "protected-prefix actual Git directory or "
+                                 "index is unavailable; target was not read")]
+
+    bound_env = dict(clean_env)
+    bound_env["GIT_INDEX_FILE"] = index_file
+    # Belt and suspenders: the global option binds the individual invocation,
+    # while the environment also covers Git versions/subcommands that consult
+    # the conventional replacement-disable switch internally.  Caller values
+    # were removed above and cannot re-enable replacement processing.
+    bound_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+
+    def bound_git(*arguments: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["git", "--no-replace-objects", f"--git-dir={git_directory}",
+             f"--work-tree={REPO}", *arguments],
+            capture_output=True, text=True, env=bound_env,
+        )
+
+    errors: list[tuple[str, str]] = []
+    for relative in ("ledger", "ledger/goals"):
+        head = bound_git("ls-tree", "-z", "HEAD", "--", relative)
+        index = bound_git("ls-files", "--stage", "-z", "--", relative)
+        if head.returncode != 0 or index.returncode != 0:
+            failed = head if head.returncode != 0 else index
+            detail = (failed.stderr or failed.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "HEAD or index query failed"
+            errors.append((relative, "cannot determine protected-prefix Git "
+                                     f"metadata: {reason}; target was not read"))
+            break
+
+        head_modes: list[str] = []
+        for entry in head.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            if candidate == relative:
+                head_modes.append(metadata.split(" ", 1)[0])
+
+        exact_modes: list[str] = []
+        descendant_count = 0
+        for entry in index.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            mode = metadata.split(" ", 1)[0]
+            if candidate == relative:
+                exact_modes.append(mode)
+            elif candidate.startswith(relative + "/"):
+                descendant_count += 1
+
+        for source, modes_found in (("Git HEAD tree", head_modes),
+                                    ("Git index", exact_modes)):
+            modes = sorted(set(modes_found))
+            if modes == ["040000"] and source == "Git HEAD tree":
+                continue
+            if not modes and source == "Git index" and descendant_count:
+                continue
+            if not modes:
+                errors.append((
+                    relative,
+                    f"trusted goal prefix is missing from {source}; protected "
+                    "candidate state is indeterminate and target was not read",
+                ))
+                break
+            description = (
+                "gitlink" if modes == ["160000"] else
+                "symlink" if modes == ["120000"] else
+                "regular file" if modes == ["100644"] else
+                "non-directory object"
+            )
+            if description in {"gitlink", "symlink"}:
+                finding = f"an exact {source} {description}"
+            else:
+                finding = f"{description}; exact {source} object"
+            errors.append((
+                relative,
+                f"trusted goal prefix is {finding} "
+                f"with mode(s) {modes}; ordinary tracked descendants are "
+                "required and target was not read",
+            ))
+            break
+        if errors:
+            break
+        if descendant_count == 0:
+            errors.append((
+                relative,
+                "trusted goal prefix is missing; Git index has neither an "
+                "exact entry nor ordinary tracked descendants, so candidate "
+                "type is indeterminate and target was not read",
+            ))
+            break
+    return True, errors
+
+
+def check_trusted_goal_prefixes(ctx: Ctx) -> bool:
+    """Require ordinary ledger and ledger/goals directories without follow."""
+    in_git_worktree, git_errors = protected_prefix_git_errors()
+    if in_git_worktree and git_errors:
+        for relative, message in git_errors:
+            ctx.err(os.path.join(REPO, *relative.split("/")), message, force=True)
+        return False
+
+    for relative in ("ledger", "ledger/goals"):
+        path = os.path.join(REPO, *relative.split("/"))
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            description = "missing"
+        else:
+            if stat.S_ISLNK(mode):
+                description = "symlink"
+            elif stat.S_ISDIR(mode):
+                continue
+            elif stat.S_ISREG(mode):
+                description = "regular file"
+            else:
+                description = "special file"
+        ctx.err(path, f"trusted goal prefix is {description}; required ordinary "
+                      "directory and target was not read", force=True)
+        return False
+    return True
+
+
+def check_goal_symlinks(ctx: Ctx) -> None:
+    """Reject goal-tree symlinks without opening or traversing their targets."""
+    root = os.path.join(REPO, "ledger", "goals")
+    try:
+        root_mode = os.lstat(root).st_mode
+    except OSError:
+        return
+    if not stat.S_ISDIR(root_mode):
+        return
+    pending = [root]
+    while pending:
+        current = pending.pop()
+        try:
+            entries = sorted(os.scandir(current), key=lambda entry: entry.name)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_symlink():
+                ctx.err(entry.path,
+                        "goal path may not be a symlink; target was not read",
+                        force=True)
+            elif entry.is_dir(follow_symlinks=False):
+                pending.append(entry.path)
+
+
 def check_goals(ctx: Ctx):
+    if not check_trusted_goal_prefixes(ctx):
+        return
+    check_goal_symlinks(ctx)
     for path, goal, expected_name, identity in load_goal_documents(ctx):
         rec_id = goal.get("id")
         if not rec_id or not GOAL_ID.match(str(rec_id)):
@@ -1369,6 +1799,17 @@ def main() -> int:
                          "(bootstraps the full set only if no baseline "
                          "file exists; never grows an existing one)")
     args = ap.parse_args()
+
+    # This must precede every inventory, glob, supersession, and record read.
+    # If ledger itself is an alias, even an apparently unrelated ledger glob
+    # would otherwise escape the candidate tree before check_goals runs.
+    prefix_ctx = Ctx(set())
+    if not check_trusted_goal_prefixes(prefix_ctx):
+        print(f"FAIL: {len(prefix_ctx.errors)} new validation error(s):\n",
+              file=sys.stderr)
+        for error in prefix_ctx.errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
 
     try:
         legacy_inventory = load_legacy_inventory()

@@ -1,0 +1,328 @@
+idea:
+  id: IDEA-20260813-d50a10
+  added: '2026-08-13'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  title: >-
+    First-disagreement coupling: replay exact and reformulated FN-DSA samplers
+    on one randomness tape, locate the first rounding or rejection split, and
+    bracket output distance by coupling mismatch and a public-output witness
+  class: measurement
+  claim: >-
+    Conditional on the draft sampler admitting a deterministic replay from a
+    declared randomness tape, a paired execution of an exact-arithmetic
+    reference and a floating-point or integer reformulation can separate three
+    quantities that an unpaired goodness-of-fit test conflates: the probability
+    of any path disagreement, the first tree node and predicate at which it
+    occurs, and the portion of that disagreement visible in transmitted
+    signatures.  The observed mismatch probability of this particular coupling
+    is an upper bound on total-variation distance, while a preregistered public
+    witness supplies a lower bound.  A zero-width exact-null replay must have
+    zero mismatches, and a planted threshold displacement must be detected
+    before any bound on a candidate sampler is interpretable.  This is an
+    instrument proposal, not a finding that any standardized sampler differs.
+  mechanism: >-
+    Model each sampler as a deterministic map F(theta, r) from public inputs
+    theta and a canonical random-bit tape r to a trace and transmitted output.
+    Couple two implementations by using the identical theta and r.  Until the
+    first arithmetic interval, comparison, rejection predicate, or table lookup
+    differs, their state is identical; recording that first divergence turns an
+    end-to-end mismatch into a localized mechanism.  For outputs X and Y under
+    this coupling, d_TV(Law(X), Law(Y)) <= Pr[X != Y].  A lower bound comes
+    separately from a fixed bounded public statistic phi:
+    d_TV >= |E phi(X)-E phi(Y)|/(range(phi)).  The experiment therefore reports
+    a bracket rather than mislabelling coupling mismatch as equality or as a
+    lower bound.  Per-node mismatch mass is accumulated on the first-divergence
+    partition, so its sum equals the end-to-end coupling mismatch by
+    construction.  A later certificate may add rigorous tail mass for random
+    tapes not enumerated; this proposal itself performs no enumeration or run.
+  why_not_a_renamed_known_approach: >-
+    IDEA-20260805-4a6dc7 compares one-dimensional leaf histograms with an exact
+    reference and derives fixed-sample power.  This proposal compares complete
+    executions pathwise under shared randomness, attributes the first control-
+    flow divergence, and outputs a two-sided distance bracket.  It is also not
+    IDEA-20260801-010: no high-dimensional chi-square or KS reference is needed,
+    because equality is tested at the replay and predicate level.  It is not
+    IDEA-20260805-2bbfb2's analytic leaf-normalizer channel, the width-homotopy
+    moment object of IDEA-20260805-637a3b or H-FNDSA-58b464, the BBP detector of
+    IDEA-20260808-e7ba81, the exact-null construction of H-FNDSA-6a9cbb, or the
+    NTRU key-shape question in IDEA-20260808-cb0828.
+  predictions:
+    - observable: exact-null first-disagreement count
+      metric: null_mismatch_rate
+      predicted: >-
+        Exactly 0 for two independently coded exact samplers given identical
+        canonical tapes; any nonzero count is an implementation or tape-mapping
+        failure and invalidates treatment interpretation.
+    - observable: planted threshold-shift first-disagreement curve
+      metric: mismatch_probability_by_shift
+      predicted: >-
+        Positive and monotone nondecreasing for a frozen ladder of representable
+        threshold displacements; the fitted small-shift slope must agree with
+        the exact reference mass of the displaced boundary interval within a
+        preregistered tolerance.
+    - observable: first divergent predicate
+      metric: first_divergence_mass_conservation
+      predicted: >-
+        The sum of mutually exclusive first-node frequencies equals the final
+        path-mismatch frequency exactly, up to integer counting identity.
+    - observable: public-output witness
+      metric: tv_lower_bound_and_coupling_upper_bound
+      predicted: >-
+        The lower bound never exceeds the paired mismatch upper bound after
+        simultaneous confidence correction; violation falsifies the bracket or
+        the implementation of the public witness.
+  minimal_test:
+    design: >-
+      After primary sampler pseudocode and randomness consumption are filed,
+      define one canonical bit-tape API and implement two toy-scale exact
+      replays independently.  Freeze a node taxonomy, a threshold-shift ladder,
+      public witness family, alpha, simultaneous confidence method, dimensions,
+      tape derivation, and maximum tape count.  Run the exact-versus-exact null
+      first, then the planted ladder, then and only then a named floating or
+      integer candidate.  Report mismatch upper bounds, witness lower bounds,
+      first-divergence histograms, and the probability that a divergent trace
+      nevertheless encodes the same transmitted signature.
+    test_boundary:
+      instances: toy sampler trees only until the primary draft and reference code are filed
+      parameters: >-
+        Frozen small tree depths and a frozen displacement ladder chosen only
+        after exact boundary masses are computable; no standardized-scale
+        conclusion is permitted.
+      oracle_model: local deterministic sampler invocation with chosen public input and random tape
+      preprocessing: construction of exact boundary-mass tables is charged
+      stopping_rule: >-
+        Stop without treatment interpretation if either exact-null replay
+        mismatches or the smallest two planted shifts are not ordered by effect.
+    required_metrics:
+      - tapes attempted, tapes consumed and any rejected or invalid tapes
+      - per-node first-disagreement counts and exact mass-conservation check
+      - output mismatch rate with a simultaneous upper confidence bound
+      - public-witness expectation differences with simultaneous lower bounds
+      - trace-divergent but output-equal frequency
+      - time, memory, preprocessing and randomness consumed by each arm
+  controls:
+    - name: independently implemented exact replay
+      kind: exact_null
+      construction: >-
+        Two exact-arithmetic implementations of the same frozen sampler and
+        canonical tape semantics, paired on identical inputs and tapes.
+      forced_value: zero first-disagreement and zero output-mismatch counts
+      gate: any mismatch invalidates every treatment comparison
+    - name: displaced comparison threshold
+      kind: biased_positive
+      construction: >-
+        Shift exactly one frozen rejection or rounding boundary by each value
+        in a preregistered ladder while preserving all other code and tapes.
+      forced_value: >-
+        Mismatch probability equals the exact reference probability mass of
+        tapes whose decision variable falls in the displaced interval.
+      gate: >-
+        The instrument must recover monotonicity and the predicted boundary
+        mass before a non-detection on any candidate sampler is admissible.
+    - name: tape-permutation negative localization control
+      kind: structural_control
+      construction: >-
+        Permute unused suffix bits only after the frozen first-divergence node.
+      forced_value: the recorded first-divergence node is unchanged
+      gate: a change demonstrates that the supposedly canonical tape semantics are state dependent
+  confounders:
+    - >-
+      Shared-tape coupling is not unique.  Its mismatch probability is an upper
+      bound on total variation, not the total variation itself; a poor coupling
+      can be loose by an arbitrary factor.
+    - >-
+      Floating and integer samplers may consume randomness differently after a
+      rejection.  The canonical tape must index semantic draws rather than API
+      calls, or the reported first divergence is an alignment artifact.
+    - >-
+      A trace disagreement can be erased by later encoding or compression; it
+      is not automatically a public distinguishing signal.
+    - >-
+      Toy boundary density need not transfer to a full standardized tree, and
+      primary sampler details remain unverified in this task.
+  falsification_conditions:
+    - The exact-null coupling yields any first or final mismatch.
+    - >-
+      The planted boundary ladder is nonmonotone beyond its preregistered
+      simultaneous interval or disagrees with exact boundary mass.
+    - >-
+      The public-witness lower confidence bound exceeds the coupling upper
+      confidence bound, showing that at least one estimator or normalization is wrong.
+    - >-
+      First-node frequencies do not sum exactly to the final path-mismatch
+      count, so trace attribution is not a partition.
+    - >-
+      The candidate cannot be replayed from canonical randomness; the claimed
+      pathwise question is then undefined for that implementation, not answered negatively.
+  interpretation_limits:
+    - No mismatch has been measured and no FN-DSA implementation is evaluated here.
+    - >-
+      A small coupling upper bound is scoped to the frozen public inputs, tape
+      distribution, arithmetic implementation and toy tree; it is not a proof
+      of standardized distributional exactness.
+    - >-
+      A nonzero mismatch is an implementation difference, not trapdoor leakage.
+      Leakage requires a public witness, signature-count accounting and later
+      certified recovery under RQ-FNDSA-001.
+    - Timing, cache, fault and deployed-target interaction are out of scope.
+  assumptions:
+    - >-
+      The sampler can be represented as a deterministic map of public inputs
+      and an explicit random tape after the primary specification is filed.
+    - >-
+      Exact arithmetic and the candidate use compatible semantic random draws;
+      otherwise a new coupling must be specified rather than silently aligned.
+    - >-
+      The encoder/decoder used for the public witness is the one specified by
+      the eventual primary text; no recalled FN-DSA component layout is relied on.
+  heuristic_assumptions:
+    - id: HEUR-D50A10-1
+      formal_statement: >-
+        For the frozen planted-shift ladder, the shared-tape coupling is locally
+        near maximal: as shift h tends to zero, its mismatch probability divided
+        by the true total variation tends to a constant in [1, 2].
+      rigorous_support: >-
+        Coupling inequality rigorously supplies only d_TV <= Pr[X != Y].  The
+        near-maximality ratio is not proved and is therefore isolated as a heuristic.
+      validation_plan: >-
+        At enumerably small toy leaves, compute both distributions exactly,
+        calculate total variation by summation, and compare it with paired
+        mismatch on every ladder rung.
+      falsification_condition: >-
+        A ratio outside [1, 2] on any preregistered small-shift rung, or failure
+        to stabilize as h decreases.
+    - id: HEUR-D50A10-2
+      formal_statement: >-
+        A fixed finite family of public bounded witnesses captures at least ten
+        percent of the total variation induced by each planted defect class.
+      rigorous_support: >-
+        The variational characterization guarantees an optimal witness exists
+        but does not place it in the frozen finite family.
+      validation_plan: >-
+        On exact toy distributions compare the best frozen witness lower bound
+        with directly summed total variation for threshold, width and table-cell perturbations.
+      falsification_condition: best frozen witness captures less than ten percent on any planted class
+  proof_search_map:
+    bottleneck: >-
+      Converting an implementation difference into a correctly oriented and
+      localized bound on output-distribution distance without needing the
+      intractable full lattice-Gaussian normalizer.
+    baseline_embedding:
+      parameter_slice: >-
+        Identical exact implementations, zero displacement and identical tape;
+        this embeds distributional equality with forced mismatch zero.
+      reproduction_check: >-
+        Exact integer identity of outputs and traces for every enumerated tape
+        on the smallest frozen sampler tree.
+    observation_collision:
+      observable: first-divergence node plus final transmitted-output equality
+      distinct_preimage_search: >-
+        Search explicitly for two divergent traces that encode the same public
+        output and for two equal first-node labels with different final outputs;
+        both collisions delimit what localization alone identifies.
+    constructive_transforms:
+      - transform: telescoping_potential
+        proposed_object: first-divergence partition of random tapes
+        predicted_gain: additive attribution whose masses sum to the end-to-end coupling mismatch
+      - transform: observable_fiber
+        proposed_object: fiber of divergent internal traces under the public encoder
+        predicted_gain: separates internal arithmetic disagreement from public statistical visibility
+    quantifier_order: >-
+      For every frozen public input theta and implementation pair (F,G), there
+      exists the declared shared-tape coupling C_theta; the witness family is
+      fixed before tapes are sampled and may not depend on observed treatment outputs.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A scoped upper bound from one coupling, a scoped lower bound from a
+        frozen witness, and a first-divergence attribution for the declared inputs.
+      nearby_object_control: >-
+        A candidate that differs internally only inside one encoder fiber has
+        positive trace mismatch but zero public-output distance; the method
+        must report that collision rather than call it leakage.
+    proof_obligations:
+      - claim: shared-tape mismatch upper-bounds total variation
+        responsibility: correctness
+      - claim: first-divergence events partition all mismatching tapes
+        responsibility: interface
+      - claim: public bounded witness gives a valid lower bound with simultaneous confidence
+        responsibility: success_probability
+      - claim: all tape generation, rejected paths and preprocessing are charged
+        responsibility: scope
+    not_applicable_reason: null
+  target_complexity:
+    time_exponent: >-
+      No attack exponent is claimed.  Instrument cost is O(N C_sampler) for N
+      paired tapes plus O(N) trace aggregation; any later signature count is
+      reported only as data complexity against a calibrated effect.
+    memory_exponent: >-
+      O(L) counters for L node predicates in streaming mode, or O(NL) only if
+      full traces are intentionally retained and charged.
+    best_known_baseline: >-
+      IDEA-20260805-4a6dc7's fixed-sample exact leaf histogram and
+      IDEA-20260801-010's broad whole-signature GOF.  Neither localizes the
+      first arithmetic/control-flow disagreement under shared randomness.
+    hidden_overhead_disclosure: >-
+      Canonical tape adapters, exact arithmetic, rejected paths, confidence
+      correction across nodes and the potentially loose coupling factor are all charged.
+    time_memory_tradeoff: >-
+      Full trace retention can be replaced by streaming first-node counters;
+      this reduces memory from O(NL) to O(L) without changing paired sample count.
+    data_queries: N local paired sampler calls per arm; no victim or deployed-signature oracle
+    preprocessing: exact boundary-mass and witness tables, included in cost
+    oracle_model: local chosen-input deterministic replay only
+    retry_success_accounting: >-
+      Per-attempt cost is one paired replay.  There is no retry success claim;
+      power is a preregistered function of N and planted mismatch probability.
+  sota_delta: >-
+    Quantitative instrument delta only: replaces an unlocalized fixed-sample
+    discrepancy with an interval [witness lower bound, coupling mismatch upper
+    bound] and an exact first-node mass partition, while claiming zero change
+    to FN-DSA attack time, memory or security.
+  dominated_by: >-
+    n/a (no attack result claimed).  Pareto rows checked against
+    IDEA-20260801-010, IDEA-20260805-2bbfb2, IDEA-20260805-4a6dc7,
+    IDEA-20260805-637a3b, IDEA-20260808-cb0828, IDEA-20260808-e7ba81,
+    H-FNDSA-58b464 and H-FNDSA-6a9cbb.  On time this adds paired exact replay
+    and is not faster than leaf GOF; on memory it can stream in O(L); on data
+    it makes no improvement claim; on preprocessing it pays for exact boundary
+    masses; on oracle access it uses only local chosen tapes.  No existing row
+    supplies the same distance bracket plus first-divergence attribution, so
+    none dominates on the localization/certification axis.  External Pareto
+    status is unverified.
+  estimated_cost:
+    implementation: medium
+    compute: low
+    data: medium
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.75 that canonical shared-tape replay is definable after the primary
+    sampler is read; 0.60 that the coupling is sufficiently tight to be useful
+    on planted toy defects; below 0.10 that an unmodified standardized sampler
+    would show a reachable public difference, which is not predicted here.
+  novelty_status: unverified
+  novelty_screen: >-
+    Parent-supplied immutable retrieval receipts and a direct current-tree
+    screen covered every listed FN-DSA neighbor.  The bound/localization
+    combination was not present in those records.  The index is stale relative
+    to the current branch, absence is not novelty evidence, and no primary
+    paper was checked; external novelty is therefore unverified.
+  discriminated_from: >-
+    Exact nearest neighbor IDEA-20260805-4a6dc7 is a leaf-level marginal GOF
+    with a fixed-sample power law.  This proposal's carrier is the shared random
+    tape and first divergent predicate; its outputs are a coupling upper bound,
+    public-witness lower bound and localization histogram, none of which that
+    neighbor supplies.
+  source_refs:
+    - RQ-FNDSA-001
+    - GOAL-FNDSA-001
+    - IDEA-20260801-010
+    - IDEA-20260805-2bbfb2
+    - IDEA-20260805-4a6dc7
+    - IDEA-20260805-637a3b
+    - IDEA-20260808-cb0828
+    - IDEA-20260808-e7ba81
+    - H-FNDSA-58b464
+    - H-FNDSA-6a9cbb
