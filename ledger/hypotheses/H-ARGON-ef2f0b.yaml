@@ -1,0 +1,314 @@
+hypothesis:
+  id: H-ARGON-ef2f0b
+  question_id: RQ-ARGON-141710
+  idea_id: IDEA-20260812-318db8
+  goal_id: GOAL-ARGON-001
+
+  statement: >-
+    For a single Argon2 lane (p=1), at t in {1, 3} (the pass counts of RFC
+    9106's two RECOMMENDED parameter tuples, KN-LIT-7f3c21 Sec. 4) and q
+    swept across RFC-9106-adjacent toy scales, the real per-lane
+    reference-index DAG (chain edges per RFC 9106 Sec. 3.2 plus the
+    within-window reference edge resolved by each variant's specified
+    indexing function, RFC 9106 Sec. 3.4.1-3.4.2) requires a node-removal set
+    at most half as large (as a fraction of q) as a window-matched
+    uniform-reference null graph needs, to bring the graph's longest path to
+    <=50% of its native depth (t*q-1) -- for at least one of Argon2i,
+    Argon2d, Argon2id. The mechanism is that RFC 9106's within-window offset
+    transform (Sec. 3.4.2, confirmed non-uniform, concentrating probability
+    toward recently computed blocks) makes bridging edges typically short
+    relative to the candidate window, so a removal set spaced slightly larger
+    than the typical bridging distance severs most bridging routes cheaply.
+
+  mechanism: >-
+    (1) Each lane is, independent of any reference edges, a single linear
+    chain of length t*q-1 (RFC 9106 Sec. 3.2, KN-LIT-7f3c21, confirms
+    proposal.md's C1); this lower-bounds graph depth at t*q-1 and is
+    unaffected by removing non-chain nodes. (2) Whether a removal set
+    shatters this chain into short pieces (small post-removal depth) or
+    leaves it substantially bridged (large post-removal depth) is governed by
+    how far back surviving reference edges reach relative to the size of the
+    gaps created -- the classical depth-robust-graph mechanism (a chain plus
+    edges spanning many scales resists deletion; a chain plus edges spanning
+    only short, locally concentrated distances does not). (3) RFC 9106's
+    within-window offset transform (Sec. 3.4.2: zz = |W|-1 - floor(|W| *
+    floor(J1^2/2^32) / 2^32), KN-LIT-7f3c21, confirms proposal.md's C6
+    near-verbatim) is a monotone transform of a uniform 32-bit value that
+    concentrates probability toward large zz -- i.e. toward recently
+    computed / nearby blocks -- so the typical bridging distance available at
+    any point in the lane should be short relative to the candidate-window
+    size W(j), making the graph cheaper to shatter than a window-matched
+    graph with uniformly distributed reference targets.
+
+  assumptions:
+    - >-
+      C1 (per-lane linear chain, RFC 9106 Sec. 3.2) and C2 (exactly one
+      reference edge per block after the first two per lane, same section):
+      READ (KN-LIT-7f3c21), not RECALLED.
+    - >-
+      C3 (Argon2i data-independent indexing, Sec. 3.4.1.2), C4 (Argon2d
+      data-dependent indexing, Sec. 3.4.1.1), C5 (Argon2id split point:
+      pass 0, slice 0 or 1 uses Argon2i-style, otherwise Argon2d-style, Sec.
+      3.4.1.3), C6 (non-uniform within-window offset transform, Sec. 3.4.2):
+      READ (KN-LIT-7f3c21), not RECALLED.
+    - >-
+      C7 (recommended parameter table, Sec. 4): READ (KN-LIT-7f3c21) --
+      FIRST RECOMMENDED: Argon2id, t=1, p=4, m=2^21 KiB (q=524288 blocks/
+      lane); SECOND RECOMMENDED: Argon2id, t=3, p=4, m=2^16 KiB (q=16384
+      blocks/lane). Only the t-values (1, 3) are used directly by this
+      hypothesis's test boundary; the literal recommended q-values are named
+      here for provenance but are NOT the tested q-values (see test_boundary
+      and interpretation_limits).
+    - >-
+      Single-lane construction assumption: this hypothesis tests a DIRECTLY
+      CONSTRUCTED p=1 configuration (matching IDEA-20260809-a915ea's and
+      IDEA-20260812-318db8's own minimal_test scope), not the induced
+      single-lane subgraph of a real p=4 run. RFC 9106's segment/slice
+      structure (4 slices per pass, Sec. 3.2) still applies at p=1, but a
+      p=1 run's within-lane candidate window differs slightly from the
+      within-lane portion of a real p=4 run's window (a p=4 run's window can
+      also admit cross-lane targets from finished segments in other lanes,
+      which are excluded here by construction, not by post-hoc filtering).
+      This is a named transfer assumption, not a hidden one (proposal.md
+      Sec.5's own stated conservative simplification: cross-lane edges can
+      only ADD bridging routes, never remove them, so p=1 construction is
+      conservative in the direction of finding an effect, not manufacturing
+      one).
+
+  proof_search_map:
+    not_applicable_reason: >-
+      This is an empirical/measurement hypothesis about a concrete finite
+      graph's node-removal-set size under a declared approximation
+      algorithm, not a theorem, asymptotic complexity bound, certificate
+      family, reduction, or closure argument. docs/inventor-protocol.md
+      Sec.8 / KN-TECH-080's proof-architecture-portfolio gate governs
+      proof-oriented proposals and does not apply here; no bottleneck audit,
+      observation-collision search, quantifier-order statement, or method
+      ceiling is required before dispatching this hypothesis's paired
+      experiment. (Contrast: a future record claiming an asymptotic
+      complexity bound on Argon2's tradeoff-attack cost, e.g. under
+      IDEA-20260809-ac5947's lineage, WOULD require this gate.)
+    bottleneck: null
+    baseline_embedding:
+      parameter_slice: null
+      reproduction_check: null
+    observation_collision:
+      observable: null
+      distinct_preimage_search: null
+    constructive_transforms: []
+    quantifier_order: null
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations: []
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    No complexity-improvement claim against any central hard problem is made
+    or implied. This hypothesis is class `measurement` (proposal.md Sec.9,
+    IDEA-20260812-318db8): rho is a dimensionless topological ratio between
+    two graphs at declared toy-scale parameters, not an asymptotic exponent,
+    time bound, or memory bound. `docs/target-result-profile.md`'s
+    exponent-targeting bias and the four asymptotic-complexity promotion
+    gates (agents/coordinator.md) do not apply to this record; they would
+    apply to a future record making an AT-cost complexity claim under
+    GOAL-ARGON-001's tradeoff-attack lineage (IDEA-20260809-ac5947 and
+    downstream).
+
+  heuristic_assumptions:
+    - id: HEUR-001
+      label: H1 (proposal.md Sec.8) -- reference-index distribution modeling
+      formal_statement: >-
+        The 32-bit pseudorandom value J1 feeding the reference-index
+        transform (RFC 9106 Sec. 3.4.2) -- taken from G's output for
+        Argon2i-style indexing, or from the previous block's leading bytes
+        for Argon2d-style indexing (KN-LIT-7f3c21, Secs. 3.4.1.1-3.4.1.2) --
+        is modeled as drawn from Uniform[0, 2^32) for the purpose of
+        interpreting the resulting zz-distribution's shape, independent of
+        the specific synthetic (arbitrary, non-secret) password/salt/
+        associated-data bytes used to seed a given run.
+      random_model_justification: >-
+        Standard random-oracle-style modeling heuristic used throughout the
+        memory-hard-function literature: a cryptographic compression
+        function's output on fresh input is treated as indistinguishable
+        from uniform to a computationally bounded distinguisher, imitating
+        the classical PRF/PRG-output-uniformity assumption. No rigorous
+        bound on G's actual output distribution is asserted or available;
+        this heuristic is the modeling convention, not a proven property of
+        BLAKE2b-derived G.
+      supporting_results: []
+      obstructions:
+        - >-
+          None proven for BLAKE2b-derived G specifically (proposal.md Sec.8:
+          "none proven for a general compression function"). This heuristic
+          lacks the "rigorous bound + classical distribution theorem"
+          combination docs/claims-and-verification.md's heuristic-record
+          shape asks for (contrast the target-profile exemplar's Heuristic
+          1, which combines a proven degree bound with Canfield-Erdos-
+          Pomerance) -- the justification here is standard-practice modeling
+          only, and this gap is recorded rather than papered over.
+      validation_experiment_ids: []
+      validation_status: >-
+        NOT YET SCHEDULED. EXP-ARGON-2608c2's KS precondition check tests a
+        DOWNSTREAM, COMPOSITE quantity (z_j/W(j) vs Uniform[0,1), i.e. H1
+        combined with the deterministic zz-transform), not H1 in isolation.
+        H1's own dedicated validation route (proposal.md Sec.8: chi-squared/
+        KS goodness-of-fit test on >=10^5-10^6 samples of G's raw leading 32
+        output bits against Uniform[0, 2^32)) is named but not built into
+        any experiment contract yet. Named explicitly as a gap, not silently
+        assumed discharged by EXP-ARGON-2608c2.
+      falsification_condition: >-
+        A chi-squared/KS test on G's leading 32 output bits, run over a
+        declared sample of synthetic (non-secret) inputs, rejects
+        Uniform[0, 2^32) with a practically meaningful effect size (not
+        merely statistically significant at large sample size).
+    - id: HEUR-002
+      label: H2 (proposal.md Sec.8) -- marginal-distribution sufficiency (configuration-model approximation)
+      formal_statement: >-
+        The eps-depth-reducing-set size of the graph built from "fixed
+        chain + per-node independently-drawn reference target" is
+        well-approximated by treating each node's reference target as an
+        INDEPENDENT draw from its own position-dependent back-distance
+        distribution -- i.e. higher-order correlations among different
+        nodes' targets (e.g. shared pseudorandom-stream structure within an
+        Argon2i slice) do not materially change eps-depth-reducing-set size
+        relative to what the marginal distribution alone predicts.
+      random_model_justification: >-
+        Imitates the classical configuration-model approximation in random
+        graph theory (Molloy-Reed-style results: macroscopic graph
+        properties are well predicted by a graph's degree/edge-length
+        sequence alone, independent of higher-order correlation structure,
+        away from small-size effects). No rigorous bound proven for this
+        specific construction.
+      supporting_results: []
+      obstructions:
+        - >-
+          None proven for this specific construction (proposal.md Sec.8).
+          Same gap as HEUR-001: modeling-convention justification only, no
+          proven-bound-plus-classical-theorem pairing.
+      validation_experiment_ids: []
+      validation_status: >-
+        NOT YET SCHEDULED. The validation route named in proposal.md Sec.8
+        (compare e-DRS(G_real) against e-DRS of a THIRD, intermediate
+        control object -- G_real with each node's reference target
+        independently resampled from G_real's own empirical per-position
+        back-distance distribution) is NOT built by EXP-ARGON-2608c2, which
+        constructs only G_real and G_unif (the uniform null), not this third
+        resampled-marginal object. Named explicitly as future work, not
+        silently covered.
+      falsification_condition: >-
+        At a small q where exact/near-exact eps-depth-reducing-set
+        computation is tractable, e-DRS(G_real) diverges materially from
+        e-DRS of the marginal-resampled intermediate object described above.
+
+  structural_ingredients: []
+  structural_ingredients_note: >-
+    No external theorem or published bound is incorporated as a load-bearing
+    structural ingredient in this hypothesis's mechanism -- the classical
+    depth-robust-graph mechanism described in step (2) above is stated
+    qualitatively, not cited to a specific verified paper (see
+    IDEA-20260812-318db8's dominated_by: the strongest candidate corpus
+    record, KN-LIT-3385, has unverified content past its title). Leaving
+    this list empty rather than citing an unverified source, per AGENTS.md
+    rule 9 (never fabricate citations).
+
+  reduction_chain:
+    core_problem: >-
+      Compute the node-removal-set size (eps-depth-reducing-set, greedy
+      upper bound) needed to halve a finite DAG's longest path, for the real
+      Argon2 per-lane reference-index DAG and a window-matched uniform-
+      reference null, at declared toy-scale (t, q).
+    corollaries: []
+
+  predictions:
+    - metric: rho = |S*_real| / |S*_unif|
+      direction: lower
+      minimum_effect: >-
+        rho <= 0.5 at every tested (variant, t, q) triple for that variant
+        confirms; rho >= 0.8 at any tested triple for that variant falsifies;
+        rho in [0.5, 0.8) is reported as a genuine partial effect.
+    - metric: KS test on z_j/W(j) vs Uniform[0, 1)
+      direction: different
+      minimum_effect: >-
+        p <= 0.05 at a sample size large enough to detect a practically
+        meaningful departure from uniformity -- the PRECONDITION for the rho
+        prediction above to be interpreted as informative at all, checked
+        and reported first per proposal.md Sec.4.
+
+  test_boundary:
+    instances: >-
+      Single-lane (p=1) constructions of the reference-index DAG for all
+      three RFC 9106 variants -- Argon2i, Argon2d, Argon2id -- since the
+      within-window offset transform under test (RFC 9106 Sec. 3.4.2) is
+      applied identically downstream of J1 regardless of which variant
+      supplies J1 (Argon2i: counter-driven pseudorandom stream; Argon2d:
+      previous block's content; Argon2id: Argon2i-style for pass 0 slice 0-1,
+      Argon2d-style otherwise, KN-LIT-7f3c21). Testing all three
+      contributes toward GOAL-ARGON-001's "THREE-VARIANT COMPARISON"
+      completion criterion without expanding this hypothesis's own claim
+      beyond the single-lane, toy-scale scope stated here.
+    parameters:
+      t: [1, 3]
+      q_required: [512, 2048, 8192]
+      q_optional_stretch: [16384]
+      p: 1
+      variants: [Argon2i, Argon2d, Argon2id]
+    parameter_note: >-
+      t=1 and t=3 mirror RFC 9106's two RECOMMENDED tuples' pass counts
+      (KN-LIT-7f3c21 Sec. 4). q_required are RFC-9106-ADJACENT toy scales,
+      NOT the literal recommended q-values (524288 for the FIRST RECOMMENDED
+      tuple; 16384 for the SECOND) -- chosen to fit within the small,
+      toy-scale budget this experiment shares with several remaining
+      GOAL-ARGON-001 batches (campaign_budget.total_wall_clock_seconds=14400
+      across the whole goal). q_optional_stretch=16384 happens to equal the
+      SECOND RECOMMENDED tuple's literal q exactly and is run only if budget
+      remains after the required sweep and REQUIRED calibration complete; it
+      is not required for this hypothesis's success/falsification
+      determination. The FIRST RECOMMENDED tuple's literal q (524288) is
+      explicitly OUT OF SCOPE for any experiment under this hypothesis as
+      currently specified -- named as future work requiring a re-budgeted
+      successor experiment, per proposal.md Sec.6 step 7's own flag (naive
+      O(q^2) greedy cost makes 524288 infeasible: ~2.7e11 worst-case
+      operations).
+    implementation: >-
+      Direct construction (not instrumented extraction from a general-
+      purpose Argon2 library run) of the chain-plus-reference-edge topology,
+      per RFC 9106 Sec. 3.2-3.4.2 (KN-LIT-7f3c21), for each variant, using
+      synthetic (arbitrary, non-secret) seed material generated fresh
+      in-run. No password, credential, leaked corpus, or third-party dataset
+      is used at any stage (GOAL-ARGON-001 binding constraint).
+    budget: {}
+
+  falsification_conditions:
+    - >-
+      For a given variant: rho >= 0.8 at any tested required (t, q) pair
+      for that variant (material-effect falsification, proposal.md Sec.4).
+    - >-
+      For a given variant: the KS precondition check fails to reject
+      uniformity of z_j/W(j) at the required toy-scale q values for that
+      variant (precondition falsification -- refutes the mechanism's
+      supporting premise for that variant, independent of any numeric rho
+      reading).
+
+  interpretation_limits: >-
+    Single-lane (p=1) slice only; conservative relative to real multi-lane
+    Argon2 (cross-lane edges can only add bridging routes). Greedy
+    eps-depth-reducing-set heuristic gives an upper bound, never an exact
+    minimum, at the toy-scale q values tested here (exact/ILP computation is
+    used only on the separately-constructed bcf891 calibration families at
+    smaller scale, per EXP-ARGON-2608c2, not on G_real/G_unif themselves).
+    No claim about attack cost, wall-clock time, or memory in any adversary
+    model. No claim that any recommended parameter set is unsafe, and no
+    recommendation or deprecation of any parameter set (GOAL-ARGON-001
+    binding constraint). Any transfer from tested RFC-adjacent toy q to
+    literal RFC-recommended q is an explicitly named extrapolation
+    (structural-tell scaling check, not a direct observation at recommended
+    scale) except for the optional q=16384 stretch instance, which if run
+    IS the literal SECOND RECOMMENDED tuple's q under the p=1 single-lane
+    simplification named above.
+
+  status: specified
+  proposed_by: idea-generator
+  specified_by: coordinator

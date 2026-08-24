@@ -1,0 +1,186 @@
+idea:
+  id: IDEA-20260808-8aaddb
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-INSTR-f8faa0
+  goal_id: GOAL-ECDLP-001
+  title: 'A headline number whose producing code path CRASHES on the recorded inputs is undetectable
+    today: an executable-provenance checker that re-runs the named path on the RECORDED parameters
+    (not a canonical smoke input, because the observed crash was input-dependent on B mod
+    3) plus a derived-not-measured detector that flags any "measurement" exactly reproducible
+    by arithmetic on other recorded fields'
+  class: tooling
+  claim: 'SCOPE: this program''s own evidence pipeline. No cryptographic claim. THE MOTIVATING
+    FACTS, FROM CORR-20260727-007. (i) Nine extended-B measurements in EV-STR-002 have no
+    run artifact of any kind anywhere in the repository, established by an exhaustive independent
+    object-database search. (ii) The producing path those measurements claim is FALSIFIED
+    at two of four headline rows: the committed main() terminates with IndexError at harness/endomorphism_la.py:451
+    at exactly the instances with B mod 3 != 0 — B = 55 and B = 397 — and completes at both
+    B mod 3 == 0 instances. (iii) A headline cost_ratio of 0.011 is exact arithmetic on (alpha
+    = 1, B = 397), i.e. 1/397, so a reported "measurement" was derivable from two other recorded
+    fields. CLAIM A. Require every numeric claim in an evidence record to carry a producing_call
+    (module, symbol, parameters, commit), and build a checker with five verdicts: reproduces
+    / differs / raises / symbol-not-reachable / not-runnable-in-budget. THE DESIGN LESSON,
+    WHICH IS THE WHOLE POINT: the observed crash was INPUT-DEPENDENT, so a checker that runs
+    a canonical smoke input passes while the recorded inputs crash. The checker must sweep
+    the RECORDED parameter tuples, one per claimed number. CLAIM B. Add a DERIVED-NOT-MEASURED
+    detector: for each headline number, search the closure of simple arithmetic combinations
+    (ratio, product, difference, reciprocal) of the other recorded scalars in the same record
+    for an exact match at the reported precision. A "measurement" that is exactly 1/397 when
+    397 is another field is evidence it was computed, not measured. The accidental-match rate
+    is computable — with k recorded scalars there are O(k^2) binary combinations, so at d
+    reported significant digits the chance rate is about k^2 * 10^(-d) — which makes this
+    a detector with a stated false-positive rate rather than a hunch. DISCRIMINATOR: for each
+    flagged number, the two explanations are "computed and mislabelled as measured" versus
+    "measured and coincidentally equal". The computable chance rate separates them, and the
+    producing_call re-run settles it.'
+  mechanism: 'The checker is a static pass followed by a dynamic one. STATIC: at the record''s
+    bound commit, does the named symbol exist, and is it reachable from the named entry point
+    with an argument list compatible with the recorded parameters? This alone would have flagged
+    CORR-20260727-007''s additional defect that EV-STR-002 names a Groebner computation which
+    the arity-2 code path never performs (the only sympy.groebner call in the repository is
+    in a module the producing file never calls). DYNAMIC: re-execute per recorded tuple under
+    time and memory caps, comparing to the recorded value at the recorded precision. The derived-not-measured
+    detector is a small search over a closed combination set with a declared arity bound.
+    Its null is real measurements, which should match at only the chance rate; measuring that
+    rate on the corpus''s own verified numbers is what calibrates it.'
+  why_not_a_renamed_known_approach: 'NEAREST KNOWN: continuous integration. CI runs a fixed
+    test suite on fixed inputs; it would not have caught this, because the crash was specific
+    to the RECORDED parameters and no test asserted anything about B = 55. The difference
+    is that the input set is derived from the evidence records themselves, so coverage is
+    defined by what has been CLAIMED rather than by what someone thought to test. Against
+    IDEA-20260807-a4f5c5: that mutates certificates through the run wrapper; it does not re-execute
+    producing paths for numeric claims and does not address derived-vs-measured.'
+  predictions:
+  - observable: verdict distribution over every numeric claim in the committed ledger
+    metric: fraction in each of the five verdicts
+    predicted: '"symbol-not-reachable" and "not-runnable-in-budget" together above 0.5; at
+      least one "raises" (CORR-20260727-007 documents one such case, so the detector must
+      reproduce it or the checker is broken).'
+  - observable: known-case reproduction — the B mod 3 != 0 instances
+    metric: verdict
+    predicted: '"raises". Anything else means the checker is not exercising the recorded inputs,
+      which is the exact failure mode it exists to prevent.'
+  - observable: derived-not-measured flags
+    metric: count, and chance rate k^2 * 10^(-d) per record
+    predicted: At least one flag (the 0.011 = 1/397 case is documented in CORR-20260727-007,
+      so it is a known positive). Flags materially above the chance rate indicate systematic
+      mislabelling.
+  - observable: producing_call coverage
+    metric: fraction of numeric claims that carry one at all
+    predicted: Near zero initially, since the field does not exist. That number is the baseline
+      the instrument establishes.
+  minimal_test: 'PHASE 1 (zero risk): run the STATIC pass over the committed ledger and report
+    the verdict distribution and producing_call coverage. No execution. PHASE 2: run the DYNAMIC
+    pass on the subset that is runnable in budget, including the two documented B mod 3 !=
+    0 instances as known positives. PHASE 3: run the derived-not-measured detector over all
+    records, calibrate its chance rate on records whose numbers are independently verified,
+    and report flags with their per-record chance rate.'
+  controls:
+  - KNOWN POSITIVE: the documented IndexError instances must return "raises". A checker that
+      passes them is not using the recorded inputs.
+  - KNOWN POSITIVE 2: the 0.011 = 1/397 case must be flagged as derived.
+  - MATCHED NULL: records whose numbers have been independently reproduced (CORR-20260727-007
+      records that EXP-STR-003 arm A reproduced phi_alpha 9, 2, 4, 1 exactly at four instances)
+      must return "reproduces" and must NOT be flagged as derived.
+  - DECAY TEST: perturb a recorded parameter away from its true value; the verdict must move
+      from "reproduces" to "differs". If it still reports "reproduces", the checker is ignoring
+      the parameters.
+  - BUDGET HONESTY: a claim that cannot be re-run in budget returns "not-runnable-in-budget",
+      never "differs". Confusing the two would be exactly the AGENTS.md rule 5 error at the
+      instrument level.
+  confounders:
+  - Non-determinism (seeds, threading, floating point) makes exact reproduction impossible
+    for some claims; the checker must compare at the recorded precision and must report the
+    record's own seed provenance rather than declaring a mismatch.
+  - Environment drift: a path that ran under an older dependency set may not run now. That
+      is "not-runnable", not "differs", and the distinction is the instrument's main correctness
+      obligation.
+  - The derived detector will flag legitimate derived quantities that were honestly labelled
+    as derived; the flag is informative only against fields CLAIMED as measured, so the record
+    schema must distinguish the two.
+  - Re-executing arbitrary recorded code paths is a security and resource risk; caps and sandboxing
+    are mandatory.
+  falsification_conditions:
+  - The known-positive IndexError instances do not return "raises" — the checker is broken
+    and no verdict it produces is admissible.
+  - The reproduced phi_alpha instances are flagged as derived or fail to reproduce — the null
+    fires and the detector is over-strict.
+  - Perturbing parameters does not change the verdict — the checker is not parameter-sensitive.
+  - Derived-flag counts are indistinguishable from the computed chance rate across the whole
+    corpus — the detector has no power at the reported precisions and should be reported as
+    such rather than run.
+  interpretation_limits: 'Process instrumentation. It makes no cryptographic claim, moves
+    no exponent, and is not an accusation: CORR-20260727-007 states explicitly that its case
+    is a BOOKKEEPING FAILURE AROUND REAL MEASUREMENTS and that the phi column was positively
+    reproduced. A "raises" verdict means the recorded producing path does not execute as recorded,
+    which is a provenance fact and not a claim that a number is false. A "not-runnable-in-budget"
+    verdict is not evidence about anything (AGENTS.md rule 5).'
+  assumptions:
+  - Records can be extended with a producing_call field prospectively; retrospective coverage
+    will be low and that is the measured baseline, not a failure.
+  - Execution is sandboxed with time and memory caps.
+  heuristic_assumptions:
+  - id: HA-15
+    statement: (Chance-match rate.) For a record with k recorded scalars and headline numbers
+      reported to d significant digits, the probability that a genuinely measured number coincidentally
+      equals one of the O(k^2) simple binary combinations of the others is about k^2 * 10^(-d).
+    rigorous_ingredient: Counting the combination set is exact; only the assumption that a
+      measured value's low-order digits are uniform is modelled.
+    distribution_imitated: Uniformity of the mantissa's low-order digits — the standard assumption
+      behind digit-based anomaly tests.
+    validation_route: 'Measure the empirical match rate on the corpus''s independently reproduced
+      numbers (a set that exists: CORR-20260727-007 names four exactly reproduced phi_alpha
+      values and five verified discrete-log certificates). Compare against k^2 * 10^(-d) per
+      record. This uses existing committed data and needs no new runs.'
+    tail_checks: Report the distribution of the number of matches per record; a heavy tail
+      concentrated in a few records localizes mislabelling rather than indicting the corpus.
+  target_complexity:
+    time_exponent: NO EXPONENT MOVES. Static pass linear in the ledger; dynamic pass equal
+      to re-running the claimed computations, which is the honest and unavoidable cost and
+      is capped; derived detector O(k^2) per record.
+    memory_exponent: Negligible for the static and derived passes; the dynamic pass inherits
+      the re-run's footprint and is capped.
+    best_known_baseline: 'Current practice: numeric claims carry no producing_call and are
+      never re-executed. No baseline to beat.'
+    hidden_overhead_disclosure: The dynamic pass can be arbitrarily expensive for expensive
+      claims, so its coverage will be partial and the partiality must be reported as a coverage
+      number rather than left implicit.
+    time_memory_tradeoff: 'Static-versus-dynamic is exactly the tradeoff: the static pass
+      is nearly free and catches unreachable symbols; the dynamic pass costs a re-run and
+      catches input-dependent failures. Both are needed and the record says which caught what.'
+  sota_delta: 'Zero on attack cost. Against current practice: converts "the producing path
+    crashes on the stated inputs" from a defect discovered by a determined human validator
+    months later into an automated verdict, and supplies a false-positive-rate-bounded detector
+    for numbers labelled measured that were computed.'
+  dominated_by: CHECKED against every RQ-INSTR row in EXISTING_PROPOSALS.txt and against IDEA-20260807-a4f5c5
+    (certificate mutation suite, which does not re-execute producing paths) and IDEA-20260807-899c5e
+    (a Groebner-meter critique, a different object). Not dominated in-corpus. Externally,
+    provenance-tracking systems exist for scientific workflows and would dominate the engineering;
+    the novelty claimed is the input-derived coverage rule and the derived-not-measured detector
+    with a computed chance rate, and the external gap is stated.
+  estimated_cost: Implementation medium (static analysis plus a sandboxed runner). Compute
+    low for static and derived passes, variable and capped for dynamic.
+  recommended_priority: high
+  honest_prior_of_survival: 0.85 that the static pass and derived detector work and produce
+    actionable counts. 0.5 that the dynamic pass achieves useful coverage, because much of
+    the corpus predates any producing_call field and environment drift will dominate. The
+    realistic deliverable is a coverage number plus a small set of confirmed defects, and
+    saying so now avoids overselling it.
+  novelty_status: screened
+  novelty_screen: SCREENED against ledger/corrections/CORR-20260727-007.yaml (read in full,
+    including the IndexError localization, the 1/397 arithmetic, and the Groebner-call defect),
+    all RQ-INSTR rows of EXISTING_PROPOSALS.txt, IDEA-20260807-a4f5c5 (partial read), KNOWLEDGE_BARRIERS.txt,
+    the other /tmp/ideas-ctx/*.txt files, and my own X1.yaml. `screened` for in-corpus scope.
+  discriminated_from: 'IDEA-20260807-a4f5c5: mutates certificates through the run wrapper
+    and names five source defects; it does not re-execute producing paths for numeric claims,
+    does not use recorded parameters as the coverage set, and has no derived-vs-measured detector.
+    X1-10: artifact-hash integrity and review-role calibration — a different defect class
+    and a different statistic. X1-12: post-archival edits — a git-history property rather
+    than an execution property.'
+  source_refs:
+  - ledger/corrections/CORR-20260727-007.yaml
+  - ledger/questions/RQ-INSTR-f8faa0.yaml
+  - ledger/proposals/IDEA-20260807-a4f5c5.yaml
+  - AGENTS.md

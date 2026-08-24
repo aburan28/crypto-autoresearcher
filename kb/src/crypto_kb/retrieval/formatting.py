@@ -32,6 +32,8 @@ def to_result(hit: dict[str, Any], max_chars: int | None = None) -> SearchResult
         field_type=list(payload.get("field_type") or []),
         primitive=list(payload.get("primitive") or []),
         superseded=bool(payload.get("superseded", False)),
+        supersedes=list(payload.get("supersedes") or []),
+        verification_artifacts=list(payload.get("verification_artifacts") or []),
         experiment_id=payload.get("experiment_id"),
         run_ids=list(payload.get("run_ids") or []),
         git_commit=payload.get("git_commit"),
@@ -80,6 +82,10 @@ def render(response: SearchResponse, show_text: bool = True, width: int = 100) -
         lines.append(f"     {provenance}")
         if result.experiment_id or result.run_ids:
             lines.append(f"     experiment={result.experiment_id} runs={','.join(result.run_ids) or '-'}")
+        if result.supersedes:
+            lines.append(f"     supersedes={','.join(result.supersedes)}")
+        for artifact in result.verification_artifacts:
+            lines.append(f"     verification={artifact}")
         lines.append(f"     {result.source_uri}")
         lines.append(f"     chunk_id={result.chunk_id}")
         if show_text:

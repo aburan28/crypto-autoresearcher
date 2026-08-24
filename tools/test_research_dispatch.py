@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -33,6 +34,21 @@ def handoff() -> dict[str, Any]:
     }
 
 
+def lease(
+    owner: str = "executor-1",
+    *,
+    acquired_at: str = "2026-08-16T00:00:00+00:00",
+    expires_at: str = "2026-08-16T01:00:00+00:00",
+    epoch: int = 1,
+) -> dict[str, Any]:
+    return {
+        "owner": owner,
+        "acquired_at": acquired_at,
+        "expires_at": expires_at,
+        "epoch": epoch,
+    }
+
+
 def task(
     identifier: str,
     priority: int,
@@ -44,9 +60,10 @@ def task(
     read_scope: list[str] | None = None,
     write_scope: list[str] | None = None,
     artifact_paths: list[str] | None = None,
+    task_lease: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     default_scope = f"coordination/tasks/{identifier}/"
-    return {
+    result = {
         "id": identifier,
         "title": identifier,
         "role": role,
@@ -59,6 +76,9 @@ def task(
         "artifact_paths": artifact_paths or [f"coordination/tasks/{identifier}/report.json"],
         "handoff": handoff(),
     }
+    if task_lease is not None:
+        result["lease"] = task_lease
+    return result
 
 
 def archive_task(
@@ -220,6 +240,41 @@ class DispatchPlannerTests(unittest.TestCase):
         self.assertEqual(
             deferred_by_id(plan)["CHILD"], ["dependency_not_completed:PARENT:failed"]
         )
+
+    def test_failure_provenance_ledger_archive_can_preserve_failed_source(self) -> None:
+        failed = task("FAILED", 10, state="failed", role="validator")
+        successor = task("SUCCESSOR", 20, state="completed", role="validator")
+        successor["supersedes_failed_task"] = "FAILED"
+        archive = archive_task(
+            "LEDGER",
+            [failed, successor],
+            priority=90,
+            kind="ledger",
+        )
+        archive["dispatch_exception"] = {
+            "kind": "terminal_failure_provenance_archive",
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+            "successor_review_completed_independently": True,
+        }
+        plan = dispatch.select(queue(failed, successor, archive, maximum=1))
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["LEDGER"])
+        self.assertTrue(plan["gates"]["all_selected_dependencies_completed"])
+        self.assertTrue(plan["gates"]["terminal_noncompleted_tasks_do_not_unblock_successors"])
+
+    def test_failure_provenance_archive_requires_completed_independent_successor(self) -> None:
+        failed = task("FAILED", 10, state="failed", role="validator")
+        archive = archive_task("LEDGER", [failed], priority=90, kind="ledger")
+        archive["dispatch_exception"] = {
+            "kind": "terminal_failure_provenance_archive",
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+            "successor_review_completed_independently": True,
+        }
+        with self.assertRaisesRegex(
+            dispatch.DispatchError, "lacks a completed independent successor"
+        ):
+            dispatch.select(queue(failed, archive, maximum=1))
 
     def test_running_task_consumes_a_slot(self) -> None:
         running = task("RUNNING", 1, state="running")
@@ -487,11 +542,168 @@ class DispatchPlannerTests(unittest.TestCase):
                 queue(worker, archive), repository_verifier=dispatch.GitRepositoryVerifier(root)
             )
 
+    def test_declared_content_first_binds_faithful_split_superset_package(self) -> None:
+        """Reproduce BATCH-33b207: 17 sources across two ancestors, 55-path superset."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                ).stdout.strip()
+
+            def write(path: str, content: bytes) -> None:
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            write("README.md", b"base\n")
+            git("add", "README.md")
+            git("commit", "-m", "base")
+
+            source_paths = [f"experiments/EXP-ECTD/producer/{index:02d}.bin" for index in range(17)]
+            first_contents = {path: f"source-{index}\n".encode() for index, path in enumerate(source_paths[:15])}
+            for path, content in first_contents.items():
+                write(path, content)
+            for index in range(40):
+                write(f"unrelated/{index:02d}.txt", f"extra-{index}\n".encode())
+            git("add", *first_contents, *[f"unrelated/{index:02d}.txt" for index in range(40)])
+            git("commit", "-m", "producer package superset")
+            superset_commit = git("rev-parse", "HEAD")
+            self.assertEqual(55, len(git("diff-tree", "--no-commit-id", "--name-only", "-r", superset_commit).splitlines()))
+
+            second_contents = {path: f"source-{index}\n".encode() for index, path in enumerate(source_paths[15:], 15)}
+            for path, content in second_contents.items():
+                write(path, content)
+            git("add", *second_contents)
+            git("commit", "-m", "producer package remainder")
+            remainder_commit = git("rev-parse", "HEAD")
+
+            source = task("PRODUCER", 1, state="completed", artifact_paths=source_paths,
+                          write_scope=["experiments/EXP-ECTD/producer/"])
+            archive = archive_task("ARCHIVE", [source], state="completed", record_ids=["REC-ARCHIVE"])
+            receipt_path = archive["artifact_paths"][0]
+            receipt = b"content-first archive receipt\n"
+            write(receipt_path, receipt)
+            git("add", receipt_path)
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE content-first receipt")
+            receipt_commit = git("rev-parse", "HEAD")
+            payloads = {**first_contents, **second_contents, receipt_path: receipt}
+            archive["archive"].update(
+                {
+                    "binding_mode": "content_first",
+                    "commit_sha": receipt_commit,
+                    "parent_sha": remainder_commit,
+                    "path_sha256": {
+                        path: hashlib.sha256(content).hexdigest()
+                        for path, content in payloads.items()
+                    },
+                }
+            )
+            self.assertEqual(0, subprocess.run(
+                ["git", "-C", str(root), "merge-base", "--is-ancestor", superset_commit, "HEAD"]
+            ).returncode)
+            self.assertEqual(0, subprocess.run(
+                ["git", "-C", str(root), "merge-base", "--is-ancestor", remainder_commit, "HEAD"]
+            ).returncode)
+            verifier = dispatch.GitRepositoryVerifier(root)
+            plan = dispatch.select(queue(source, archive), repository_verifier=verifier)
+            self.assertEqual(
+                [{
+                    "task_id": "ARCHIVE",
+                    "reason": "declared content_first binding mode",
+                    "paths_verified": 18,
+                    "generated_paths_skipped": [],
+                }],
+                plan["content_only_archives"],
+            )
+
+    def test_content_first_rejects_mismatch_partial_hashes_and_missing_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments], check=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                ).stdout.strip()
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            worker = task("WORK", 1, state="completed")
+            archive = archive_task("ARCHIVE", [worker], state="completed", record_ids=["REC-ARCHIVE"])
+            payloads = {worker["artifact_paths"][0]: b"worker\n", archive["artifact_paths"][0]: b"receipt\n"}
+            for path, content in payloads.items():
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+            git("add", ".")
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE")
+            commit = git("rev-parse", "HEAD")
+            archive["archive"].update({
+                "binding_mode": "content_first",
+                "commit_sha": commit,
+                "parent_sha": None,
+                "path_sha256": {path: hashlib.sha256(content).hexdigest() for path, content in payloads.items()},
+            })
+            damaged = copy.deepcopy(queue(worker, archive))
+            damaged["tasks"][1]["archive"]["path_sha256"][worker["artifact_paths"][0]] = "0" * 64
+            with self.assertRaisesRegex(dispatch.DispatchError, "content hash mismatch"):
+                dispatch.validate_queue(damaged, repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            partial = copy.deepcopy(queue(worker, archive))
+            del partial["tasks"][1]["archive"]["path_sha256"][worker["artifact_paths"][0]]
+            with self.assertRaisesRegex(dispatch.DispatchError, "must cover every"):
+                dispatch.validate_queue(partial, repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            missing = copy.deepcopy(queue(worker, archive))
+            missing["tasks"][1]["archive"]["commit_sha"] = "f" * 40
+            with self.assertRaisesRegex(dispatch.DispatchError, "requires archive.commit_sha to resolve"):
+                dispatch.validate_queue(missing, repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            wrong_parent = copy.deepcopy(queue(worker, archive))
+            wrong_parent["tasks"][1]["archive"]["parent_sha"] = commit
+            with self.assertRaisesRegex(dispatch.DispatchError, "parent_sha must be null"):
+                dispatch.validate_queue(wrong_parent, repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            missing_message_id = copy.deepcopy(queue(worker, archive))
+            missing_message_id["tasks"][1]["archive"]["record_ids"] = ["REC-MISSING"]
+            with self.assertRaisesRegex(dispatch.DispatchError, "commit message is missing IDs"):
+                dispatch.validate_queue(
+                    missing_message_id, repository_verifier=dispatch.GitRepositoryVerifier(root)
+                )
+
+    def test_undeclared_content_first_shape_still_requires_exact_commit_scope(self) -> None:
+        source, contents, archive = completed_archive_queue()
+        archive["archive"]["commit_sha"] = "a" * 40
+        verifier = FakeGitVerifier(
+            changed_paths=[archive["artifact_paths"][0]],
+            contents=contents,
+            message="ARCHIVE REC-ARCHIVE archival receipt",
+        )
+        with self.assertRaisesRegex(dispatch.DispatchError, "missing"):
+            dispatch.validate_queue(source, repository_verifier=verifier)
+
+    def test_legacy_archive_validation_does_not_materialize_binding_mode(self) -> None:
+        worker = task("WORK", 1)
+        archive = archive_task("ARCHIVE", [worker])
+        source = queue(worker, archive)
+        dispatch.validate_queue(source)
+        self.assertNotIn("binding_mode", archive["archive"])
+
     def test_goal_id_is_optional_and_echoed_into_the_plan(self) -> None:
         worker = task("WORK", 1)
         archive = archive_task("ARCHIVE", [worker])
-        plan = dispatch.select(queue(worker, archive, goal_id="GOAL-20260718-001"))
-        self.assertEqual(plan["goal_id"], "GOAL-20260718-001")
+        plan = dispatch.select(queue(worker, archive, goal_id="GOAL-DISPATCH-a1b2c3"))
+        self.assertEqual(plan["goal_id"], "GOAL-DISPATCH-a1b2c3")
 
     def test_repository_queue_template_validates(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -499,7 +711,7 @@ class DispatchPlannerTests(unittest.TestCase):
             (root / "templates" / "subagent-task-queue.json").read_text(encoding="utf-8")
         )
         plan = dispatch.select(source)
-        self.assertEqual(plan["goal_id"], "GOAL-EXAMPLE-001")
+        self.assertEqual(plan["goal_id"], "GOAL-EXAMPLE-a1b2c3")
         self.assertEqual([task["id"] for task in plan["dispatches"]], ["TASK-EXEC-001"])
 
     def test_plan_is_stable_for_identical_input(self) -> None:
@@ -510,6 +722,149 @@ class DispatchPlannerTests(unittest.TestCase):
         first = dispatch.select(copy.deepcopy(source))
         second = dispatch.select(copy.deepcopy(source))
         self.assertEqual(first["plan_sha256"], second["plan_sha256"])
+
+
+class LeaseTests(unittest.TestCase):
+    """A `running` task's optional lease, and what expiry does and does not do."""
+
+    def test_lease_is_optional_and_never_expires_without_now(self) -> None:
+        # Every task record written before this field existed has no lease.
+        # That must keep behaving exactly as it always did: a running task
+        # with no lease -- or one with a lease nobody asked to check -- is
+        # never reclaimed, `--now` omitted or not.
+        running = task("RUNNING", 1, state="running")
+        ready = task("READY", 1, write_scope=["coordination/tasks/RUNNING/"],
+                     artifact_paths=["coordination/tasks/RUNNING/other.json"])
+        archive = archive_task("ARCHIVE", [running, ready])
+        plan = dispatch.select(queue(running, ready, archive, maximum=2))
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["RUNNING"])
+        self.assertEqual(deferred_by_id(plan)["READY"], ["write_scope_conflict:RUNNING"])
+        self.assertEqual(plan["expired_leases"], [])
+
+        leased = task("RUNNING", 1, state="running", task_lease=lease())
+        plan_with_lease_but_no_now = dispatch.select(
+            queue(leased, ready, archive, maximum=2)
+        )
+        self.assertEqual(
+            [item["id"] for item in plan_with_lease_but_no_now["dispatches"]], ["RUNNING"]
+        )
+        self.assertEqual(plan_with_lease_but_no_now["expired_leases"], [])
+
+    def test_expired_lease_frees_the_write_scope_for_a_queued_successor(self) -> None:
+        stale = task(
+            "STALE", 1, state="running",
+            write_scope=["coordination/tasks/STALE/"],
+            artifact_paths=["coordination/tasks/STALE/report.json"],
+            task_lease=lease(
+                owner="executor-1",
+                acquired_at="2026-08-16T00:00:00+00:00",
+                expires_at="2026-08-16T01:00:00+00:00",
+            ),
+        )
+        successor = task(
+            "SUCCESSOR", 1,
+            write_scope=["coordination/tasks/STALE/"],
+            artifact_paths=["coordination/tasks/STALE/retry-report.json"],
+        )
+        archive = archive_task("ARCHIVE", [stale, successor])
+        source = queue(stale, successor, archive, maximum=2)
+
+        before_expiry = dispatch.select(
+            copy.deepcopy(source), now=datetime.fromisoformat("2026-08-16T00:30:00+00:00")
+        )
+        self.assertEqual(
+            [item["id"] for item in before_expiry["dispatches"]], ["STALE"]
+        )
+        self.assertEqual(
+            deferred_by_id(before_expiry)["SUCCESSOR"], ["write_scope_conflict:STALE"]
+        )
+        self.assertEqual(before_expiry["expired_leases"], [])
+
+        after_expiry = dispatch.select(
+            copy.deepcopy(source), now=datetime.fromisoformat("2026-08-16T02:00:00+00:00")
+        )
+        dispatched_ids = [item["id"] for item in after_expiry["dispatches"]]
+        self.assertIn("SUCCESSOR", dispatched_ids)
+        self.assertNotIn("STALE", dispatched_ids)
+        self.assertEqual(
+            [item["id"] for item in after_expiry["expired_leases"]], ["STALE"]
+        )
+        self.assertEqual(after_expiry["expired_leases"][0]["owner"], "executor-1")
+
+        # The source record is untouched -- STALE is still "running" in the
+        # queue this plan was computed from. Reverting it to queued is a
+        # Coordinator decision, made once, not redrawn on every dispatch run.
+        self.assertEqual(
+            next(t for t in source["tasks"] if t["id"] == "STALE")["state"], "running"
+        )
+
+    def test_expiry_is_a_boundary_not_a_race(self) -> None:
+        stale = task("STALE", 1, state="running", task_lease=lease(
+            expires_at="2026-08-16T01:00:00+00:00"
+        ))
+        archive = archive_task("ARCHIVE", [stale])
+        exactly_at_expiry = dispatch.select(
+            queue(stale, archive, maximum=1),
+            now=datetime.fromisoformat("2026-08-16T01:00:00+00:00"),
+        )
+        self.assertEqual(
+            [item["id"] for item in exactly_at_expiry["expired_leases"]], ["STALE"]
+        )
+
+    def test_two_running_leases_still_cannot_overlap(self) -> None:
+        # A lease changes what happens after expiry. It does not relax the
+        # existing rule that two tasks cannot BOTH claim to be running over
+        # the same scope right now, expired or not -- that invariant is
+        # unconditional and stays that way.
+        first = task(
+            "FIRST", 1, state="running", write_scope=["coordination/live/"],
+            artifact_paths=["coordination/live/first.json"], task_lease=lease(owner="a"),
+        )
+        second = task(
+            "SECOND", 1, state="running", write_scope=["coordination/live/report/"],
+            artifact_paths=["coordination/live/report/second.json"], task_lease=lease(owner="b"),
+        )
+        archive = archive_task("ARCHIVE", [first, second])
+        with self.assertRaisesRegex(dispatch.DispatchError, "overlapping write scopes"):
+            dispatch.validate_queue(queue(first, second, archive))
+
+    def test_rejects_lease_on_a_non_running_task(self) -> None:
+        stale_flag = task("QUEUED", 1, state="queued", task_lease=lease())
+        with self.assertRaisesRegex(dispatch.DispatchError, 'lease is set but state is not "running"'):
+            dispatch.validate_queue(queue(stale_flag))
+
+    def test_rejects_malformed_lease_fields(self) -> None:
+        missing_owner = task("A", 1, state="running", task_lease={
+            "acquired_at": "2026-08-16T00:00:00+00:00",
+            "expires_at": "2026-08-16T01:00:00+00:00",
+            "epoch": 1,
+        })
+        with self.assertRaisesRegex(dispatch.DispatchError, "lease.owner"):
+            dispatch.validate_queue(queue(missing_owner))
+
+        bad_epoch = task("A", 1, state="running", task_lease=lease(epoch=0))
+        with self.assertRaisesRegex(dispatch.DispatchError, "lease.epoch"):
+            dispatch.validate_queue(queue(bad_epoch))
+
+        backwards = task("A", 1, state="running", task_lease=lease(
+            acquired_at="2026-08-16T02:00:00+00:00",
+            expires_at="2026-08-16T01:00:00+00:00",
+        ))
+        with self.assertRaisesRegex(dispatch.DispatchError, "expires_at must be after"):
+            dispatch.validate_queue(queue(backwards))
+
+        naive = task("A", 1, state="running", task_lease=lease(
+            acquired_at="2026-08-16T00:00:00", expires_at="2026-08-16T01:00:00",
+        ))
+        with self.assertRaisesRegex(dispatch.DispatchError, "explicit UTC offset"):
+            dispatch.validate_queue(queue(naive))
+
+    def test_cli_now_flag_is_optional_and_explicit(self) -> None:
+        # The CLI is the only place a clock may enter. Confirms parse_timestamp
+        # accepts the CLI's own --now shape (a bare 'Z' offset), which the ISO
+        # library used elsewhere in this module does not accept unmodified.
+        parsed = dispatch.parse_timestamp("2026-08-16T00:00:00Z", "--now")
+        self.assertEqual(parsed.isoformat(), "2026-08-16T00:00:00+00:00")
 
 
 class InferencePolicyTests(unittest.TestCase):

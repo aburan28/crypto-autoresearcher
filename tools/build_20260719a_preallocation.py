@@ -52,7 +52,8 @@ def record(c: dict[str, str]) -> str:
 - Cohort: `{COHORT}`
 - Evidence scale: complete corpus/ledger and primary-literature review only; no experiment ran
 - Contract posture: {'retired zero-run text snapshot' if c['key'] in {'A01','A02','A07'} else 'none; rejected before dispatch'}
-- Scale labels: every prospective finite check is `toy`; every extrapolation is `heuristic` and `model-bound`
+- Scale labels: every prospective finite check declares its tested parameters;
+  every extrapolation states its heuristic and model assumptions.
 - Novelty: `novelty-unverified`
 - Breakthrough claim: **none**; correctness of the named operation is not an ECDLP result.
 
@@ -129,7 +130,8 @@ Exhibit one required supplied source object or oracle, one restriction collision
 
 - Promote only with endpoint-only construction, exact all-strata restricted existence, charged bisection, `1,000` independent rows, `100` blind descents, both state/query caps, and `lambda,mu<=0.45`.
 - Falsify on one supplied answer catalogue, one existence/source mismatch, one source-dependent update, cap violation, or either exponent at least `0.50`.
-- Correctness on a supplied toy object is only a control.
+- Correctness on a supplied object is a valid control or result within the
+  declared object and transfer assumptions.
 
 ## Artifact plan
 
@@ -139,7 +141,7 @@ Exhibit one required supplied source object or oracle, one restriction collision
 
 ## Interpretation boundary
 
-This rejects the screened ECDLP transplant, not the cited native theorem or algorithm. Every prospective check is toy, heuristic, model-bound, and novelty-unverified; no relation, validator pass, or correct native operation is a breakthrough.
+This rejects the screened ECDLP transplant, not the cited native theorem or algorithm. Every prospective check is parameter-bound, heuristic where applicable, model-bound where applicable, and novelty-unverified; no relation, validator pass, or correct native operation is a breakthrough by itself.
 
 ## Exactly one next executable action
 
@@ -163,7 +165,7 @@ experiment:
   assigned_to: none
   objective: Audit endpoint-only construction, exact restricted existence, signed source replay, and complete descent costs.
   claim_boundary:
-    evidence_scale: toy
+    evidence_scale: null
     model_status: heuristic_model_bound
     novelty_status: novelty_unverified
     breakthrough_claim: false
@@ -198,7 +200,7 @@ handoff:
     - ideas/rejected/preallocation/{COHORT}_{c['key']}_{c['slug']}_contract_preid_duplicate.yaml.txt
   constraints:
     - No experiment, solver, relation campaign, or artifact generation is authorized.
-    - Treat every prospective claim as toy, heuristic, model-bound, and novelty-unverified.
+    - State the tested parameters, transfer assumptions, and novelty status for every prospective claim.
   deliverables:
     - theorem obligation audit only
   budget:

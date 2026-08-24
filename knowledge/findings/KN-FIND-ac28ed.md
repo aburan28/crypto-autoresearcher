@@ -20,7 +20,7 @@ corrections to the as-committed BATCH-121 tables:
 
 | Cell | As-committed | Exact value | Cause |
 |------|-------------|-------------|-------|
-| K*(standard) | 2001 | **2000** | IEEE-float ceil artifact: 200/0.1 = 2000.0000000000005 in double precision; exact rational is 2000 |
+| K*(standard) | 2001 | **2000** | IEEE-float ceil artifact in the evaluation of the K* formula; exact rational is 2000 |
 | m=4 cell | 126 | **125** | Same IEEE-float ceil artifact |
 | K*(BKK) | 96 | 96 | Correct as-committed |
 

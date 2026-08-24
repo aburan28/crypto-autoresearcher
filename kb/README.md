@@ -37,12 +37,23 @@ Qdrant  ──►  retrieval service  ──►  FastMCP
 cd kb
 make install-all                  # core + qdrant + mcp + aws + dev
 make qdrant-up                    # docker: qdrant on :6333
-export CRYPTO_KB_QDRANT_URL=http://localhost:6333
+cp .env.example .env              # already points at :6333
 
 make slice                        # stage this repo's records → ingest → status
 make search Q="negative results for Semaev decomposition over prime fields"
 make eval-slice && make evaluate  # hybrid vs dense vs sparse, against the gates
 ```
+
+Agents reach it through MCP, and **Claude Code needs no setup beyond the two
+commands above**: `.mcp.json` at the repository root is this server, committed,
+with a relative `--directory` so every worktree resolves it, and `uv run`
+builds `kb/.venv` on first launch. Codex and OpenCode snippets are in
+`clients/`. Put machine-specific settings in `kb/.env`, never in a client
+config — a value set there overrides `.env` and has to be maintained per
+client.
+
+The index is derived and starts empty; `make slice` is what fills it. Skip it
+and every tool returns nothing, correctly and unhelpfully.
 
 Without Docker, point `CRYPTO_KB_QDRANT_URL` at a directory instead
 (`export CRYPTO_KB_QDRANT_URL=./.kb-index`). That runs Qdrant embedded but
@@ -61,7 +72,10 @@ code, and the MCP server adds nothing of its own — it serialises them. Every
 result carries what is needed to cite it: `source_id`, `section_path`,
 `page_start`/`page_end` (when the parser could establish them), `claim_status`,
 `evidence_level`, `authority`, `superseded`, `experiment_id`, `run_ids`,
-`git_commit`, `content_hash`, `source_uri`.
+`git_commit`, `content_hash`, `source_uri`, plus immutable replacement lineage
+in `supersedes` and `verification_artifacts`. The same lineage is present in
+`search_knowledge`, every chunk returned by `get_context`, and the bounded
+metadata returned by `get_source`.
 
 ### Chunking respects the mathematics
 
@@ -100,6 +114,53 @@ Superseded material is excluded from retrieval by default and never deleted.
 A sidecar marked `provenance_class: model-suggested` has its authoritative
 fields dropped with a warning; only `topics` survives.
 
+### Schema-supersession lineage and the fresh-collection boundary
+
+Repository staging hash-verifies every source and replacement named in
+`tools/schema_supersession_registry.yaml`. A replacement document carries its
+legacy identifier in `supersedes` and both pinned `path@sha256:` bindings in
+`verification_artifacts`. Redirect aliases are not indexed as duplicate
+documents: their aliases and hash bindings are propagated to the terminal
+corrected target. Exact-ID search accepts both the canonical ID and those
+legacy aliases; `get_source` remains canonical-ID-only by design.
+
+The staging rules cover modern typed hypotheses, questions, proposals, flat
+and sharded goals, goal checkpoint shards, and subgoals. Checkpoint source IDs
+use both the goal directory and immutable shard filename, for example
+`goal-checkpoint:GOAL-ECDLP-001:BATCH-ef31ab-close-20260808`; the body batch ID
+is not unique enough to address a shard.
+
+For an auditable dry run, pass a `StagingDiagnostics` instance to
+`stage_repository`. It reports registry-path coverage, unregistered
+unparseable legacy records, different-byte duplicate source IDs, and
+intentional redirect suppressions separately. These diagnostics are debt
+records, not permission to repair or hide immutable sources.
+
+`tests/unit/test_repo_corpus.py` asserts that dry stage against **floors and
+per-destination coverage, not an exact document count**. The corpus is a
+different size in every concurrent worktree and grows with every research
+batch, so an exact pin fails on branches that changed nothing about staging.
+Destinations are read back off `RULES`, so a new staging rule must declare its
+own floor rather than staging an unwatched family; the floors are sized to
+catch a family collapsing to zero, not to track a few percent of drift. The
+debt sets above stay exact, because disclosed debt is closed and never grown.
+Because that test measures the repository rather than `kb/`, `kb.yml` runs it
+on every corpus-touching PR with a five-wheel install, outside the gate that
+skips the full retrieval suite. Note its unparseable set is a strict subset of
+`tools/merge_hygiene_baseline.txt` and not a duplicate of it: the baseline
+lists everything that fails to parse on disk anywhere in the repository, while
+this set lists only what a staging rule matched and no registered supersession
+routes around.
+
+**Do not reuse an existing collection after changing payload projection.** A
+change to `payload_fields()` need not change an already-ingested document's
+fingerprint, so an idempotent ingest can correctly skip the document while its
+old Qdrant payload still lacks lineage. After code snapshot and independent
+validation, an operator must select a fresh collection name and build it from
+the source corpus. Never update an existing shared collection in place. Tests
+use `qdrant_url=:memory:` and temporary object storage only; they neither
+authorize nor perform that operator-owned rebuild.
+
 ### Hybrid retrieval, and why
 
 Half the queries this corpus must answer are exact lookups — `EXP-GGM-001`,
@@ -126,34 +187,36 @@ Three findings from building the evaluation set, each measured:
 
 ## Measured results
 
-Against the evaluation corpus slice (415 documents, 1,518 chunks) and the
-32-question set in `tests/retrieval_eval/questions.jsonl`:
+Measured 2026-08-08 against the **frozen** evaluation slice
+(`crypto_kb/eval/corpus_manifest.txt`: 625 paths, 610 of which carry the
+frontmatter needed to stage) and the 32-question set in
+`tests/retrieval_eval/questions.jsonl`:
 
 | metric | hybrid | dense only | sparse only |
 | --- | ---: | ---: | ---: |
-| recall@5 | **0.870** | 0.826 | 0.913 |
-| recall@10 | 0.913 | 0.870 | 0.913 |
-| MRR | **0.764** | 0.673 | 0.748 |
-| nDCG@10 | **0.797** | 0.718 | 0.783 |
-| exact-identifier recall@5 | 1.000 | 1.000 | 1.000 |
-| general recall@5 | 0.786 | 0.714 | 0.857 |
+| recall@5 | 0.826 | 0.826 | **0.870** |
+| recall@10 | **0.913** | 0.870 | **0.913** |
+| MRR | **0.759** | 0.673 | 0.732 |
+| nDCG@10 | **0.792** | 0.718 | 0.772 |
+| exact-identifier recall@5 | **1.000** | **1.000** | 0.889 |
+| general recall@5 | 0.714 | 0.714 | **0.857** |
 | filter correctness | 1.000 | 1.000 | 1.000 |
 | source attribution | 1.000 | 1.000 | 1.000 |
 | duplicate rate | 0.000 | 0.000 | 0.000 |
-| median context tokens | 1,832 | 1,724 | 2,059 |
+| median context tokens | 1,822 | 1,756 | 2,007 |
 
 Against the plan's gates, **five of six pass and one does not**:
 
 ```text
 exact identifiers recall@5     1.000   ≥ 0.95    pass
-general questions recall@5     0.786   ≥ 0.80    FAIL
+general questions recall@5     0.714   ≥ 0.80    FAIL
 filter correctness             1.000   = 1.00    pass
 source attribution             1.000   ≥ 0.95    pass
 duplicate result rate          0.000   < 0.15    pass
-median retrieved context       1,832   < 5,000   pass
+median retrieved context       1,822   < 5,000   pass
 ```
 
-The miss is three questions out of fourteen, and they are the same kind:
+The miss is four questions out of thirty-two, and they are the same kind:
 vocabulary the pinned dependency-free embedder has no way to bridge. The
 clearest is a query asking about a *"generic-group simulable"* representation
 against a document that says *"GGM-simulable"* — no lexical overlap and no
@@ -162,13 +225,32 @@ encoder, and it is now measurable rather than assumed: set
 `CRYPTO_KB_DENSE_BACKEND=sentence-transformers`, bump the collection, and
 re-run `make evaluate`.
 
+### Why the slice is frozen
+
+These numbers are lower than the ones first recorded here (recall@5 0.870,
+general 0.786), and **no retrieval code changed between the two runs**. The
+slice was defined by globs, and six of the eight were open-ended:
+`ledger/evidence/EV-*.yaml` matched 137 files when the baseline was set and
+299 five days later, `knowledge/findings/KN-FIND-*.md` 31 and then 57. The
+corpus grew 430 → 625 documents, more documents competed for the same top-5,
+and recall fell. A measured baseline that any unrelated commit can move is not
+measuring retrieval.
+
+So the slice is now an explicit manifest of repository-relative paths and the
+globs are only the recipe used to regenerate it. `crypto-kb eval-manifest`
+reports drift; `--write` freezes it deliberately, after which the labels are
+re-checked and the baseline re-measured with the run that justifies it. A
+manifest path that has been deleted is an error, not a silent shrink.
+
 Two other honest readings of that table:
 
-- **Sparse alone beats hybrid on raw recall@5** on this corpus (0.913 vs
-  0.870), while hybrid wins on ranking quality (MRR, nDCG@10). This corpus is
-  unusually identifier-dense, which favours lexical matching. Hybrid is kept
-  because ranking quality is what a top-6 budget actually spends, but the
-  claim is checked by a test rather than asserted.
+- **Sparse alone beats hybrid on general recall@5** on this corpus (0.857 vs
+  0.714), while hybrid wins on ranking quality (MRR, nDCG@10) and on exact
+  identifiers (1.000 vs 0.889). This corpus is unusually identifier-dense,
+  which favours lexical matching. Hybrid is kept because ranking quality is
+  what a top-6 budget actually spends, and because dropping the dense side
+  would cost the exact-identifier gate; the claim is checked by a test rather
+  than asserted.
 - **Unsupported-answer rate is not measured.** It is a property of an answer,
   and this harness retrieves without answering. What is measured is the
   precondition: whether the passages needed to support an answer came back.
@@ -178,7 +260,9 @@ Two other honest readings of that table:
 
 ```bash
 crypto-kb stage-repo ..          # repository records → corpus layout + sidecars
-crypto-kb stage-repo .. --eval-slice   # just the fixed evaluation corpus
+crypto-kb stage-repo .. --eval-slice   # just the frozen evaluation corpus
+crypto-kb eval-manifest ..       # how the frozen slice differs from the globs today
+crypto-kb eval-manifest .. --write     # freeze it again, deliberately
 crypto-kb ingest [KEY|PREFIX]    # idempotent; --force to re-ingest
 crypto-kb search "query" [--json] [--source-type paper] [--mode dense|sparse]
 crypto-kb context <chunk_id> [--before 2 --after 2]
@@ -259,10 +343,10 @@ kb/
 
 ```bash
 make test-fast   # unit tests, no corpus build (~0.3s)
-make test        # full suite: builds a 415-document corpus and queries it (~60s)
+make test        # full suite: builds a 610-document corpus and queries it (~60s)
 ```
 
-186 tests. The integration and evaluation tests run against real repository
+209 tests. The integration and evaluation tests run against real repository
 documents through the real pipeline and a real (embedded) Qdrant — nothing is
 mocked between "a file on disk" and "a search result", because a retrieval test
 against fakes tests the fakes.

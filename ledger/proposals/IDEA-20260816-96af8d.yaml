@@ -1,0 +1,316 @@
+idea:
+  id: IDEA-20260816-96af8d
+  question_id: RQ-SLHDSA-001
+  added: '2026-08-16'
+  title: 'Before any number in this bucket is believed, establish that the toy signer can see a defect:
+    build two independently written scaled-down signers, differential-test them on their call traces
+    rather than only their outputs, and measure the detection rate over a catalogue of seeded structural
+    mutations as the instrument-validity number every other entry must cite.'
+  class: tooling
+  claim: '(A) Every measurement proposed in this bucket runs on a scaled-down signer that does not
+    yet exist, and the standard failure of such work is not a wrong conclusion but a correct-looking
+    one produced by an instrument that silently omits a structural feature. Signature verification
+    is a weak detector of this: a signer that omits a domain separator, mis-indexes a subtree, or
+    reuses an address across layers will still verify against itself, so a self-consistent implementation
+    passes the only check most harnesses apply. (B) The strong detector is the call trace -- the ordered
+    sequence of (call type, address, input fingerprint, output fingerprint) tuples -- because structural
+    defects change which calls are made even when they leave every verification passing. Two independently
+    written signers that agree on their full traces, up to a declared equivalence on internal ordering,
+    agree on far more than two that agree on their outputs. (C) The instrument''s sensitivity is measurable
+    rather than assertable, by seeding a catalogue of structural mutations -- drop a domain separator,
+    permute two address fields, reuse a subtree index across layers, truncate the checksum, off-by-one
+    the chain count, share a seed across layers -- and measuring what fraction the trace comparison
+    detects and what fraction verification alone detects. The gap between those two numbers is the
+    deliverable, and it is exactly the quantity that says how much a verification-only harness would
+    have hidden. (D) The measurement is meaningless without a null, and the null is unusually clean:
+    run the identical detection pipeline on pairs where the mutation is the identity transformation.
+    The false-positive rate on those pairs must sit at the floor, because a pipeline that reports
+    mutations that are not there makes every detection score uninterpretable. (E) WHAT IS NOT CLAIMED:
+    no attack, no forgery, no weakness, no security level, no statement about any FIPS 205 parameter
+    set, no statement about SHA-2 or SHAKE, no statement about what the literature contains, no claim
+    that either implementation is correct in any absolute sense -- two implementations agreeing establishes
+    agreement, not correctness -- and nothing about the fault or memory-corruption class. The seeded
+    mutations are deliberate defects in this program''s own toy code and are not models of any real-world
+    failure.'
+  mechanism: 'STAGE A: write the trace specification first, before either implementation, so that
+    neither can define the trace to match itself. The specification fixes what a trace entry contains,
+    what order-equivalences are permitted (for instance, sibling Merkle node computations may occur
+    in either order), and how fingerprints are formed. STAGE B: two implementations written independently
+    against the same structural description, ideally by separate sessions with no access to each other''s
+    code, since a shared author reproduces shared misreadings and the whole value of the differential
+    test is destroyed by correlation. STAGE C: differential test on identical inputs, comparing traces
+    under the declared equivalence and, separately, comparing signatures and verification outcomes,
+    so the two detectors are scored independently on the same events. STAGE D: mutation catalogue
+    -- a fixed, pre-registered list of structural mutations, each applied to one implementation only,
+    with the pair re-tested. Each mutation is classified before the run into predicted-detectable-by-verification
+    and predicted-detectable-only-by-trace, so the run scores a prediction rather than merely tabulating.
+    STAGE E: identity-mutation null, the same pipeline on unmutated pairs, giving the false-positive
+    rate. STAGE F: report per-mutation detection by each detector, the aggregate rates, the null false-positive
+    rate, and the list of mutations detected by neither -- which is the honest statement of what this
+    bucket''s instrument cannot see, and is the most important output.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril for mutation testing, differential testing, instrument validity, implementation
+      over ledger/proposals/, ledger/hypotheses/, knowledge/. Read RQ-SLHDSA-001 in full and docs/inventor-protocol.md
+      section 6, the validation ladder, whose step 4 requires verifying that the reproducibility pointer
+      is not a lie. Listed harness/ and tools/ to see what implementation-validation infrastructure
+      already exists. Pulled question_id and title for the six records the mutation-testing grep returned.
+    results: 'The mutation-testing grep returns six proposals -- IDEA-20260801-020, IDEA-20260807-4e8da3,
+      IDEA-20260805-01dfba, IDEA-20260814-137f68, IDEA-20260816-f9740c, IDEA-20260816-722a94 -- and
+      none is on RQ-SLHDSA-001; they apply the technique to other targets in this program. That establishes
+      mutation testing as an accepted method here, which is a point in favour of using it and against
+      claiming it as novel. The repository contains substantial validation tooling in tools/ (check_run_immutability.py,
+      check_run_source_provenance.py, validate_ledger.py among others), all of which validates records
+      rather than implementations. harness/ contains many run modules but no differential-testing
+      module and no trace comparator. On this research question specifically, no implementation of
+      any kind exists: the only contract, EXP-SLHDSA-9cbad4, is at status review_required with execution_authorized
+      false, and the repository holds no signer, toy or otherwise.'
+    verdict: 'UNVERIFIED. Differential and mutation testing are entirely standard software-engineering
+      practice, this program already uses mutation testing on other targets, and no external literature
+      is readable here, so nothing is asserted about what exists elsewhere and no part of the technique
+      is claimed as new. What is claimed is narrower and is about placement rather than invention:
+      this bucket proposes several measurements on an instrument that does not exist, the repository
+      has no signer for this scheme and no trace comparator anywhere, and two specific design choices
+      are ones I did not find in the six existing mutation-testing records -- scoring the trace detector
+      and the verification detector separately on the same mutation events so their gap is reported
+      as a number, and pre-classifying each mutation by which detector should catch it so the run
+      scores a prediction rather than tabulating outcomes.'
+  object_first_candidate:
+    tracked_object: 'The signing call trace: the ordered sequence of tuples (call type, full address
+      structure, input fingerprint, output fingerprint) emitted by one signing operation, tracked
+      as a sequence under the declared order-equivalence relation.'
+    lossiness: 'The projection discards the secret key, the message bytes, all intermediate secret
+      values, and the actual hash inputs and outputs -- fingerprints replace them, so no value in
+      a trace can be inverted to a secret. It retains call identity, address structure and the equality
+      pattern among inputs and outputs. This is genuinely lossy: from a trace one cannot produce a
+      signature, recover a key, or reconstruct a message. It propagates because structural defects
+      act on exactly what the trace retains -- which call is made, at which address, on which input
+      -- and leave the discarded material either unchanged or irrelevant. The boundary is explicit
+      and worth stating plainly: a defect that changes only a hash value while preserving call identity,
+      address and the whole equality pattern is invisible to this object, and the mutation catalogue
+      includes at least one such mutation deliberately so that the instrument''s blindness is measured
+      rather than assumed away.'
+    propagation: 'One signing operation appends a structurally determined block of trace entries:
+      the message-digest and index calls, then k FORS trees each contributing a leaf call and a tree
+      of node calls, then a FORS root compression, then per hypertree layer a WOTS+ chain block, a
+      public-key compression and a Merkle path block. A structural mutation acts on the trace by inserting,
+      deleting, reordering or re-addressing entries within that block, and the comparator''s job is
+      to localize the difference to a block. That localization is what makes a detection actionable
+      rather than a bare mismatch flag, and it is measured as a secondary metric: the fraction of
+      detected mutations whose block is correctly identified.'
+    survival_score: The trace is exact and complete at every toy parameter set this bucket uses; a
+      single signature at h = 6, d = 2, a = 3, k = 4, w = 16 produces on the order of a few thousand
+      entries, and a differential test over 10^3 signatures produces a few million, which compares
+      in seconds. The comparison dissolves as a practical instrument when the declared order-equivalence
+      class becomes large enough that canonicalization is ambiguous -- concretely, when parallel or
+      reordered execution is introduced, which this contract forbids by requiring both implementations
+      be strictly sequential. That prohibition is the survival boundary and it is stated as a constraint
+      on the implementations rather than discovered as a limitation.
+  null_object_control: 'Identity-mutation pairs: the identical detection pipeline run on N pairs where
+    the applied mutation is the identity transformation, so the two implementations are unmutated
+    and any reported difference is a false positive. The null must show a false-positive rate at the
+    floor -- the contract sets a target below one percent and reports the measured value regardless
+    -- and must show it separately for the trace detector and the verification detector. If the null
+    false-positive rate is not at the floor, every detection rate in the contract is uninterpretable,
+    because a detector that fires on unmutated pairs is measuring the harness rather than the mutation.
+    A second null runs each implementation against itself with different seeds, where traces must
+    differ only in fingerprint values and never in call structure, catching nondeterminism that would
+    otherwise inflate the false-positive rate for a reason unrelated to either implementation.'
+  discriminated_from:
+  - 'IDEA-20260801-020, IDEA-20260807-4e8da3, IDEA-20260805-01dfba, IDEA-20260814-137f68, IDEA-20260816-f9740c,
+    IDEA-20260816-722a94: the six existing mutation-testing proposals in this repository, all on other
+    targets. The technique is shared and is explicitly not claimed as novel; what differs is the target,
+    which has no implementation at all here, and the two design choices of scoring trace and verification
+    detectors separately and pre-classifying each mutation by expected detector.'
+  - 'tools/check_run_immutability.py and tools/check_run_source_provenance.py: existing validation
+    tooling in this repository, which validates records and provenance rather than implementations.
+    Neither compares an execution trace, and neither could detect a signer that omits a domain separator.'
+  - 'EXP-SLHDSA-9cbad4: the only SLH-DSA contract here, at status review_required with execution_authorized
+    false and no implementation behind it. This entry is the missing prerequisite for it and for every
+    other entry in this bucket, not an alternative to it.'
+  - 'The companion null-harness entry in this batch: that one validates the ideal-oracle backend against
+    itself, which is a check on the null, not on the signer. This one validates the signer''s structure
+    against a second implementation. Both are needed and neither substitutes for the other, which
+    is stated as a dependency rather than an overlap.'
+  - 'IDEA-20260813-7f8d6e, the fault-oracle persistence automaton: concerns faults injected into a
+    running signer as a threat model. The mutations here are deliberate defects in this program''s
+    own toy source code, are not models of any real-world failure, and carry no threat-model content
+    at all.'
+  assumptions:
+  - Two implementations written independently do not share misreadings of the structural description;
+    this is the assumption the whole design rests on, it is not verifiable from inside the contract,
+    and its only mitigation is genuine author independence, which must be arranged procedurally.
+  - The structural description both implementations are written against is the one recorded in this
+    repository, which marks itself UNVERIFIED against primary text; two implementations can agree
+    perfectly and both be wrong relative to the standard, and the contract says so rather than implying
+    otherwise.
+  - The declared order-equivalence on traces is neither too coarse (hiding real differences) nor too
+    fine (manufacturing false positives); the identity-mutation null measures the second failure directly
+    and the mutation catalogue measures the first indirectly.
+  - Both implementations are strictly sequential and deterministic given a seed, which is enforced
+    as a constraint rather than checked after the fact.
+  - The mutation catalogue is representative of the structural defect classes that matter for this
+    bucket's measurements; it is pre-registered and finite, and mutations detected by neither detector
+    are reported rather than dropped.
+  predictions:
+  - metric: detection rate of the trace comparator over the pre-registered mutation catalogue
+    direction: higher
+    minimum_effect: 0.8
+  - metric: false-positive rate of the trace comparator on identity-mutation pairs
+    direction: lower
+    minimum_effect: 0.01
+  - metric: detection rate of the verification-only detector over the same catalogue
+    direction: lower
+    minimum_effect: 0.5
+  - metric: number of catalogue mutations detected by the trace comparator but not by verification
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit a count: this gap is the deliverable and pre-registering
+      a target would give the catalogue an incentive to be stocked with mutations that widen it. The
+      binding pre-commitment is instead that every mutation is classified by expected detector before
+      the run and that misclassifications are reported.'
+  - metric: fraction of detected mutations whose trace block is correctly localized by the comparator
+    direction: higher
+    minimum_effect: 0.7
+  minimal_test:
+    design: The cheapest decisive version needs only one implementation pair and five mutations. Write
+      the trace specification, then have two implementations produced independently at h = 4, d =
+      1, a = 2, k = 3, w = 4. Run the differential test on 10^2 signatures with fixed seeds, confirming
+      trace equality under the declared equivalence and signature equality. Then apply five pre-classified
+      mutations to one implementation in turn -- drop a domain separator from the FORS leaf call (predicted
+      trace-only), permute two address fields (predicted trace-only), truncate the WOTS+ checksum
+      by one digit (predicted detectable by verification), off-by-one the chain count (predicted detectable
+      by verification), and change one hash constant while preserving every call and address (predicted
+      detectable by neither) -- and score both detectors on each. Finally run 10^2 identity-mutation
+      pairs for the false-positive rate. The discriminating observables are whether the trace comparator
+      catches both trace-only mutations, whether verification catches both verification mutations,
+      whether the fifth is missed by both as predicted, and whether the false-positive floor holds.
+      Cost is a few hours of human time and minutes of compute, and it establishes the instrument-validity
+      number before any other entry commits to a measurement.
+    controls:
+    - 'Identity-mutation pairs: unmutated implementations through the identical detection pipeline,
+      giving the false-positive rate for each detector separately.'
+    - 'Self-against-self with different seeds: traces must differ only in fingerprint values, never
+      in call structure, catching nondeterminism.'
+    - Pre-classification of every mutation by expected detector, so the run scores a prediction rather
+      than tabulating outcomes.
+    - A deliberately invisible mutation (a hash constant change preserving all call identity and addressing),
+      included so the instrument's blindness is measured rather than assumed away.
+    - 'Order-equivalence stress: apply a permitted sibling reordering to one implementation and require
+      the comparator not to flag it, checking the equivalence is not too fine.'
+    required_metrics:
+    - per-mutation detection outcome for the trace comparator and for the verification detector, separately
+    - aggregate detection rate for each detector over the catalogue
+    - false-positive rate for each detector on identity-mutation pairs
+    - count and identity of mutations detected by neither detector
+    - agreement between pre-classification and observed detector, per mutation
+    - block-localization accuracy for detected mutations
+  falsification_conditions:
+  - 'The false-positive rate on identity-mutation pairs exceeds the floor for either detector: the
+    pipeline reports differences that are not there, and no detection rate in the contract is interpretable.'
+  - 'Self-against-self with different seeds shows call-structure differences: at least one implementation
+    is nondeterministic and the differential test is void.'
+  - 'The order-equivalence stress test flags a permitted reordering: the equivalence is too fine and
+    the comparator manufactures false positives.'
+  - 'The two implementations disagree on unmutated inputs and the disagreement cannot be resolved
+    to a defect in one of them: the structural description is ambiguous, which is a finding about
+    the description and blocks the bucket until resolved.'
+  - 'The trace comparator''s detection rate falls below the verification detector''s: the extra machinery
+    buys nothing and the honest recommendation is to drop it.'
+  - 'A substantial fraction of the catalogue is detected by neither detector: the instrument is blind
+    to a defect class this bucket''s measurements depend on, and that class is reported as a stated
+    limit on every entry citing this harness.'
+  confounders:
+  - Two implementations written by the same author or by sessions sharing context reproduce the same
+    misreadings, so a perfect differential result would establish nothing; author independence is
+    procedural and cannot be verified from inside the run, which is the contract's central weakness
+    and is stated as such.
+  - A mutation that is structurally large may be detected for trivial reasons (a crash rather than
+    a trace difference), inflating the detection rate; crashes are recorded as a separate outcome
+    class and are not scored as detections.
+  - The mutation catalogue is chosen by the same reasoning that designed the trace format, so it may
+    over-represent defects the trace happens to expose; the deliberately invisible mutation is a partial
+    mitigation and the catalogue's provenance is reported alongside its results.
+  - Fingerprints compress hash values, so two different outputs could collide in a fingerprint and
+    hide a difference; the fingerprint width is set well above the trace length to make this negligible
+    and the assumed collision probability is reported.
+  - Both implementations agreeing establishes agreement with each other and with a structural description
+    this repository marks UNVERIFIED; it establishes nothing about the standard, and no artifact may
+    phrase it as validation against one.
+  interpretation_limits:
+  - Two implementations agreeing is agreement, not correctness; the contract cannot establish that
+    either matches the standard, and says so on every artifact.
+  - The measured detection rate is a property of this specific mutation catalogue and would change
+    with a different one; the catalogue is pre-registered and published with the rate so that the
+    rate is never quoted alone.
+  - Seeded mutations are deliberate defects in this program's own toy code and are not models of any
+    real-world implementation failure, fault or attack.
+  - An instrument-validity number licenses other entries in this bucket to proceed; it licenses no
+    claim about SLH-DSA, any hash function, or any parameter set.
+  - Nothing here touches the fault or memory-corruption claim class, notwithstanding that the word
+    mutation appears in both vocabularies.
+  target_complexity:
+    time_exponent: No attack exponent is claimed and nothing is attacked. The instrument's own cost
+      is O(signatures times calls per signature) per implementation for trace generation and O(trace
+      length) for comparison, with trace length a few thousand entries per signature at the toy parameters.
+    memory_exponent: No attack memory exponent is claimed. Traces are streamed and compared incrementally,
+      holding O(1) signatures at a time; the full catalogue run holds at most one pair of traces in
+      memory, a few hundred megabytes at the largest tested parameters.
+    best_known: 'The incumbent inside this repository is nothing at all: there is no signer for this
+      scheme, toy or otherwise, no trace comparator anywhere in harness/, and the existing validation
+      tooling in tools/ validates records rather than implementations. The six existing mutation-testing
+      proposals apply the method to other targets. No claim is made about what exists outside this
+      repository.'
+    hidden_overhead: 'The overhead is author independence and it cannot be bought with compute. Two
+      implementations written by the same session share every misreading, so the differential test''s
+      entire value depends on a procedural arrangement the contract can require but not verify, and
+      the honest position is that a violated independence assumption produces a confident, clean,
+      worthless result. The second hidden cost is the trace specification: writing it before either
+      implementation is what stops the trace format from being tuned to whatever the first implementation
+      happens to do, and it is tedious enough that the temptation to write it afterwards is real.
+      Neither cost appears in any compute budget.'
+  dominated_by: 'n/a (no result claimed). Checked against every frontier row this repository maintains
+    across time, memory and data/queries: an instrument-validity rate has no coordinate on any of
+    them, since nothing is searched for and no attack cost is produced. Nothing dominates it, it dominates
+    nothing, and it is not entered on any frontier.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Against this repository''s own
+    state: zero signers for this scheme exist and zero trace comparators exist anywhere in the harness,
+    so the delta is the existence of an instrument plus a measured detection rate and false-positive
+    floor that every other entry in this bucket can cite instead of assuming.'
+  estimated_cost:
+    implementation: high
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Separable parts. (1) That two implementations can be produced and brought
+    into agreement on unmutated inputs: about 0.75, with the residual dominated by ambiguity in the
+    structural description rather than by coding difficulty -- and an irresolvable disagreement is
+    itself a valuable finding about the description. (2) That the trace comparator achieves at least
+    80 percent detection over the pre-registered catalogue: about 0.8, since most structural mutations
+    do change call identity or addressing by construction. (3) That the false-positive rate sits below
+    one percent: about 0.85, with the residual concentrated in getting the order-equivalence right
+    the first time. (4) That the trace detector materially outperforms the verification detector:
+    about 0.85, and I would regard a small gap as the more interesting outcome, because it would mean
+    verification is a better structural check than I expect and the extra machinery should be dropped.
+    (5) That author independence is actually achieved in practice rather than nominally: about 0.5,
+    and this is the number that most limits what the whole contract is worth. I state it separately
+    precisely because it is the one that a reader should discount by, and no amount of compute or
+    care inside the run can raise it.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SLHDSA-001
+  - EXP-SLHDSA-9cbad4
+  - GOAL-SLHDSA-001
+  - H-SLHDSA-3a403a
+  - IDEA-20260813-7f8d6e
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/runner.py
+  - tools/check_run_immutability.py
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SLHDSA-c26c49

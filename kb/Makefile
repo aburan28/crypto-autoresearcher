@@ -8,7 +8,7 @@ REPO_ROOT ?= ..
 QUESTIONS ?= tests/retrieval_eval/questions.jsonl
 
 .PHONY: help install install-all test test-fast lint slice ingest search status \
-        doctor evaluate qdrant-up qdrant-down mcp clean
+        doctor evaluate eval-slice eval-manifest qdrant-up qdrant-down mcp clean
 
 help:
 	@echo "setup"
@@ -23,11 +23,12 @@ help:
 	@echo "  make doctor        check the pieces are reachable and consistent"
 	@echo ""
 	@echo "evaluate"
-	@echo "  make eval-slice    stage + ingest the fixed evaluation corpus"
+	@echo "  make eval-slice    stage + ingest the frozen evaluation corpus"
+	@echo "  make eval-manifest report drift between the frozen slice and the globs"
 	@echo "  make evaluate      hybrid vs dense vs sparse, against the gates"
 	@echo ""
 	@echo "verify"
-	@echo "  make test          full suite (builds a ~400 document corpus)"
+	@echo "  make test          full suite (builds a ~610 document corpus)"
 	@echo "  make test-fast     unit tests only"
 	@echo ""
 	@echo "serve"
@@ -74,6 +75,11 @@ eval-slice:
 
 evaluate:
 	$(PYTHON) -m crypto_kb.cli evaluate --questions $(QUESTIONS)
+
+# Reports what the globs match that the frozen slice does not. Exits non-zero
+# only when a frozen path has been deleted, which invalidates question labels.
+eval-manifest:
+	$(PYTHON) -m crypto_kb.cli eval-manifest $(REPO_ROOT)
 
 mcp:
 	$(PYTHON) -m crypto_kb.mcp.server

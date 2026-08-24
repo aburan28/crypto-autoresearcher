@@ -3,10 +3,14 @@
 ## 0. Persistent goal binding
 
 For a sustained campaign, the Coordinator creates or resumes a
-`ledger/goals/GOAL-<AREA>-<NNN>.yaml` record before intake. It binds the
-objective to its research questions, completion criteria, pause conditions,
-budget, batch queue, latest verified commit, and exactly one next action. The
-initial goal checkpoint is committed before work begins.
+`ledger/goals/GOAL-<AREA>-<tok>.yaml` record before intake, where `<tok>` is
+the random six-hex value emitted by
+`python3 tools/allocate_id.py --next goal --area AREA` and confirmed with
+`--check`. Existing three-digit goal IDs remain valid legacy records and are
+resumed under their exact immutable IDs; they are never renamed for style. The
+record binds the objective to its research questions, completion criteria,
+pause conditions, budget, batch queue, latest verified commit, and exactly one
+next action. The initial goal checkpoint is committed before work begins.
 
 ## 1. Intake
 
@@ -134,7 +138,9 @@ commit inside a shared worktree.
 
 ## 10. Synthesis
 
-Synthesis statements must reference hypothesis, experiment, run, evidence, and decision IDs. They must explicitly distinguish toy-scale, medium-scale, and cryptographic-scale evidence.
+Synthesis statements must reference hypothesis, experiment, run, evidence, and
+decision IDs. They must state the tested parameters and distinguish direct
+observations from transfer or extrapolation arguments.
 
 ## 10a. Goal checkpoint, rerank, and continuation
 

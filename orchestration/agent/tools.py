@@ -12,6 +12,7 @@ correct itself; one that gets an opaque failure usually cannot.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -114,11 +115,53 @@ def _truncate(text: str, limit: int) -> str:
     return text[:limit] + f"\n[... truncated, {len(text) - limit} more characters]"
 
 
+def _as_int(value: Any, default: int, *, minimum: int = 1) -> int:
+    """Coerce a model-supplied numeric argument.
+
+    Models (observed: glm-5.2 via the zai backend, 2026-08-22) sometimes
+    pass a string where the schema says integer. Per this module's
+    contract a bad tool call returns a message the model can correct,
+    never a crash: an uncoercible value falls back to the declared
+    default rather than raising TypeError out of the tool loop.
+    """
+    if isinstance(value, bool):
+        return default
+    try:
+        result = int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, result)
+
+
+def _as_command_list(value: Any) -> list[str] | None:
+    """Coerce a model-supplied command argument into a list of strings.
+
+    Models (observed: glm-5.2 via the zai backend, 2026-08-22) sometimes pass
+    the command as a JSON-array *string* — ``'["python3", "--version"]'`` —
+    where the schema declares an array of strings. That shape is coerced, and
+    nothing else: a bare shell string is never split, so the allow-list check
+    on ``command[0]`` stays the authority on what may run. A malformed value
+    returns None; the caller replies with a correctable message, never a crash.
+    """
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except ValueError:
+            return None
+        value = parsed
+    if isinstance(value, (list, tuple)) and value:
+        if all(isinstance(part, str) for part in value):
+            return list(value)
+    return None
+
+
 # --------------------------------------------------------------------------
 # tool implementations
 # --------------------------------------------------------------------------
 def _read_file(scope: TaskScope, journal: ToolJournal, path: str,
                start_line: int = 1, max_lines: int = 400) -> str:
+    start_line = _as_int(start_line, 1)
+    max_lines = _as_int(max_lines, 400)
     try:
         target = scope.resolve(path, write=False)
     except ToolDenied as exc:
@@ -141,6 +184,7 @@ def _read_file(scope: TaskScope, journal: ToolJournal, path: str,
 
 def _list_files(scope: TaskScope, journal: ToolJournal,
                 pattern: str = "**/*", limit: int = 200) -> str:
+    limit = _as_int(limit, 200)
     root = scope.repo_root.resolve()
     found = []
     for path in sorted(root.glob(pattern)):
@@ -161,6 +205,9 @@ def _list_files(scope: TaskScope, journal: ToolJournal,
 
 def _search_files(scope: TaskScope, journal: ToolJournal, regex: str,
                   pattern: str = "**/*", limit: int = 100) -> str:
+    limit = _as_int(limit, 100)
+    if not isinstance(regex, str):
+        return "ERROR: regex must be a string pattern"
     try:
         compiled = re.compile(regex)
     except re.error as exc:
@@ -236,8 +283,17 @@ def _edit_file(scope: TaskScope, journal: ToolJournal, path: str,
 
 def _run_command(scope: TaskScope, journal: ToolJournal, command: list[str],
                  timeout_seconds: int | None = None) -> str:
-    if not command:
-        return "ERROR: command must be a non-empty argument list"
+    if timeout_seconds is not None:
+        timeout_seconds = _as_int(timeout_seconds,
+                                  scope.command_timeout_seconds)
+    coerced = _as_command_list(command)
+    if coerced is None:
+        return ("ERROR: command must be a non-empty argument list "
+                "(a JSON array of strings)")
+    if not isinstance(command, (list, tuple)):
+        journal.record("run_command", {"command": coerced,
+                                       "coerced_from": "string"})
+    command = coerced
     program = command[0]
     if program not in scope.allowed_commands:
         journal.record("run_command", {"command": command},

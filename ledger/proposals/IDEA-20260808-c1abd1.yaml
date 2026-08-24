@@ -1,0 +1,198 @@
+idea:
+  id: IDEA-20260808-c1abd1
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  title: SelfTargetMSIS is a CLAW between L lattice decodings and Q_H hash queries in ONE
+    fixed lattice, so the honest cost is max(C_reduce, |B_tau|) and not min(lattice arm, hash
+    arm) — the published min-of-two-arms omits the interpolating arm entirely.
+  class: algorithm
+  claim: 'SelfTargetMSIS asks for (y, c) with ||y||_inf <= zeta and c = H(mu || M y), c in
+    B_tau (RECALLED FIPS 204: tau in {39,49,60}, so |B_tau| = C(256,tau) 2^tau). An adversary
+    may (i) fix a candidate c, (ii) solve the INHOMOGENEOUS short-vector problem for that
+    c in the lattice fixed by pk, and (iii) vary mu freely to draw fresh hash outputs until
+    one equals c. Steps (ii) across many candidate c share ONE lattice, so one BKZ reduction
+    is amortised over L decodings. With L decodings and Q_H hash calls per decoding, success
+    requires L*Q_H ~ |B_tau|. CLAIM: the resulting cost is C_reduce + L*C_decode + |B_tau|
+    hash calls, whose minimum over L is approximately max(C_reduce, |B_tau|) whenever C_decode
+    << C_reduce — strictly below the published min(full lattice arm, |B_tau|) whenever the
+    lattice arm''s cost is dominated by reduction rather than decoding. FALSIFIABLE FORM:
+    the gap g = log2[min(C_lattice, |B_tau|)] - log2[max(C_reduce, |B_tau|)] at each FIPS
+    204 parameter set is either > 0 (a third arm exists and the published SelfTargetMSIS figure
+    is an overestimate) or = 0 (the reduction dominates the whole lattice arm and the min-of-two-arms
+    is already the claw''s optimum).'
+  mechanism: 'The lattice in SelfTargetMSIS is fixed by (A, t) and only the TARGET moves with
+    c — the same structure that makes batch-CVP cheaper than repeated CVP. Reduction is paid
+    once; each subsequent decoding is a Babai nearest-plane or a randomised lift, whose cost
+    is polynomial in the dimension against the reduction''s 2^{0.292 beta}. The hash side
+    is embarrassingly parallel and memoryless: mu is free, so hash queries are the cheap resource.
+    Meet-in-the-middle then applies in its standard form — two lists, one lattice-side (decodings,
+    each carrying its required c) and one hash-side (mu values, each yielding a c) — and the
+    balance L*Q_H = |B_tau| is the claw condition. The published cost model quotes a MINIMUM
+    of two arms that "share no resource profile" (an observation already in this corpus at
+    IDEA-20260805-5194f9); a minimum over incomparable resources is the classic signature
+    of a missing tradeoff curve, and here the curve is explicit.'
+  why_not_a_renamed_known_approach: 'Nearest corpus record: IDEA-20260805-5194f9 states the
+    two arms share no resource profile and stops there. IDEA-20260805-591f9d treats zeta as
+    the single number setting the lattice arm. IDEA-20260801-008 audits full cost at a fixed
+    norm model. None constructs the interpolation, and none uses the fact that the lattice
+    is FIXED while the target moves. Distinct from generic Fiat-Shamir forking-lemma slack:
+    this is an attack-side tradeoff on the assumption itself, not a reduction-side loss.'
+  predictions:
+  - observable: C_reduce (one BKZ-beta reduction of the SelfTargetMSIS lattice) and C_decode
+      (one lift/decoding) at ML-DSA-44/65/87, under one pinned cost model with sieve memory
+      charged at 2^{0.2075 beta}.
+    metric: log2(C_reduce), log2(C_decode), log2 |B_tau|, and the gap g in bits.
+    predicted: C_decode/C_reduce below 2^{-40}, so the claw's optimum is max(C_reduce, |B_tau|).
+      g > 0 iff C_reduce < C_lattice, i.e. iff the published lattice arm charges more than
+      one reduction. If the published arm already charges exactly one reduction, g = 0 and
+      the lane closes cleanly.
+  - observable: The value of L at the optimum, and the MEMORY needed to hold L decodings and
+      their required c values for the claw join.
+    metric: log2 L and log2 memory bits, against a swept cap of 2^{50}..2^{120} bits.
+    predicted: L ~ |B_tau|/Q_H. Because the join is by hash equality it needs no stored lattice
+      list if the hash side is regenerated per decoding, so memory stays at the sieve's 2^{0.2075
+      beta}; if the analysis instead requires storing L items, memory becomes the binding
+      constraint and must be reported as such.
+  minimal_test: Zero cryptography, arithmetic only. (1) Read tau, zeta, gamma_1, (k,l), q
+    from FIPS 204 primary text; the goal's literature gate applies. (2) Compute log2 |B_tau|
+    exactly. (3) Under one pinned cost model, compute C_reduce at the block size the published
+    SelfTargetMSIS lattice arm uses, and C_decode for a Babai lift at the same dimension.
+    (4) Evaluate the claw optimum over L and report g with a memory cap sweep. (5) State whether
+    the published arm charges one reduction or many; that single reading decides the sign
+    of g.
+  controls:
+  - 'DEGENERATE-L CONTROL: at L = 1 the claw must reproduce the published min-of-two-arms
+    exactly. If it does not, the composition is mis-assembled.'
+  - 'RESOURCE-COMMENSURABILITY CONTROL: hash calls and lattice operations must be converted
+    to one unit before any min or max is taken. Report the conversion explicitly; a gap that
+    vanishes under a different unit is not a gap.'
+  - 'NULL: repeat for a hypothetical variant where each candidate c requires its OWN reduction
+    (no shared lattice). g must become 0. That isolates amortisation as the mechanism rather
+    than the arithmetic.'
+  confounders:
+  - Decoding must return a vector meeting the l-infinity bound zeta, not merely a close vector;
+    Babai's output norm may exceed zeta, in which case each decoding succeeds only with probability
+    p < 1 and L must be inflated by 1/p. That factor is the single largest threat to the claim
+    and must be estimated, not assumed to be 1.
+  - c must lie in B_tau (sparse, +/-1). A decoding-first strategy produces arbitrary c-components,
+    so the adversary must fix c FIRST — which is the order assumed here and must be stated
+    to avoid an accounting error.
+  - Hash calls at 2^{257}-scale |B_tau| are not free in aggregate even if individually cheap;
+    if |B_tau| dominates, the third arm gives nothing and the honest answer is that the hash
+    arm binds.
+  falsification_conditions:
+  - g = 0 at all three parameter sets — the published model already sits at the claw optimum;
+    lane closed with a number.
+  - Decoding success probability p is so small that L/p exceeds |B_tau| — the interpolation
+    is void.
+  - The published lattice arm is already a single-reduction cost — the claim is vacuous and
+    should be recorded as such.
+  interpretation_limits: Cost-model arithmetic only. No forgery is produced; nothing here
+    is a break. A positive g means one published number is an overestimate under one cost
+    model, scoped to that model and those parameters. Memory is charged in every row or the
+    comparison is void.
+  assumptions:
+  - SelfTargetMSIS has the fixed-lattice / moving-target structure recalled above from FIPS
+    204 and the Dilithium design.
+  - A pinned lattice cost model is inherited (not invented); the corpus records twelve batches
+    of dispute over exactly such models.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: For a fixed BKZ-beta-reduced basis of the SelfTargetMSIS lattice, the probability
+      that a randomised Babai lift of a uniformly random target returns a vector with l-infinity
+      norm at most zeta is a constant p independent of the target, uniformly over targets
+      in the fundamental domain.
+    rigorous_ingredient: Babai's error bound is a deterministic function of the Gram-Schmidt
+      profile alone and does not depend on the target; only the l-infinity/l-2 conversion
+      introduces target dependence.
+    distribution_imitated: The standard randomised-rounding model in which the lift error
+      is uniform on the fundamental parallelepiped of the reduced basis.
+    validation_route: At toy dimension (60-100), reduce once and lift many random targets;
+      measure the empirical p and its variance across targets. TOY SCALE, labelled; no crypto-scale
+      sampling is claimed or available.
+    tail_checks: 'Report the WORST target''s success probability, not the mean: a claw needs
+      p to hold for the specific c values that survive, and a heavy lower tail in p silently
+      inflates L.'
+  target_complexity:
+    time_exponent: 'Target: max(2^{0.292 beta + o(beta)}, |B_tau|) against the published min(C_lattice,
+      |B_tau|). No asymptotic exponent moves; what moves is whether the reduction is paid
+      once or many times, which is a bit-level correction to a standardised parameter''s margin.
+      Building block, stated as such.'
+    memory_exponent: 2^{0.2075 beta} for the sieve; PLUS storage for the claw join if the
+      hash side is tabulated rather than regenerated. Both variants must appear as separate
+      rows.
+    best_known_baseline: The published SelfTargetMSIS cost as min of the lattice and hash
+      arms.
+    hidden_overhead_disclosure: 1/p (the decoding success rate) is the hidden multiplier and
+      is the most likely place the claim dies. The o(beta) in the sieve is unchanged and cancels
+      in the gap.
+    time_memory_tradeoff: 'Explicit and central: L trades hash calls against decodings at
+      fixed L*Q_H = |B_tau|, and the memory cap decides whether the join is tabulated.'
+  sota_delta: 'If g > 0: the published SelfTargetMSIS figure is an overestimate by g bits
+    under one cost model. If g = 0: zero, and the deliverable is a closed lane with a number.
+    No attack is implemented in either branch.'
+  dominated_by: Checked against the three ML-DSA cost records in the corpus (IDEA-20260801-008,
+    IDEA-20260805-5194f9, IDEA-20260805-591f9d) and the two ML-DSA hypotheses (H-MLDSA-12f563,
+    H-MLDSA-d1e509). All sit at the single-target lattice point and DOMINATE this proposal
+    on implementation maturity but not on the cost axis, since none evaluates a tradeoff curve.
+    On memory they dominate if the claw requires a stored join; on time they do not if g >
+    0. Stated as a genuine three-axis check rather than a null.
+  estimated_cost: 'Implementation: low. Compute: low (arithmetic plus a toy lifting experiment
+    for p).'
+  recommended_priority: high
+  honest_prior_of_survival: P(the claw is correctly formulated) ~ 0.7. P(g > 3 bits) ~ 0.3
+    — my main doubt is that the published lattice arm may already be quoted as a single core-SVP
+    call, in which case g = 0 by construction and the work is one afternoon's reading. P(1/p
+    kills it) ~ 0.35. Cheap enough that the negative is worth buying.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (all RQ-MLDSA-001 rows), EXISTING_HYPOTHESES.txt
+    (H-MLDSA-*), CATALOGUE_TITLES.txt (no ML-DSA cost entries), KNOWLEDGE_BARRIERS.txt, GOAL-MLDSA-001.yaml,
+    and my own L1.yaml. WEB NOT SCREENED (tool failure).'
+  discriminated_from: IDEA-20260805-5194f9 observes the incommensurable arms; this constructs
+    the arm that connects them. My own L1.yaml L1-07 proposed a BDD-with-preprocessing frontier
+    for the same problem using RECALLED external exponents; this record replaces that with
+    an elementary claw needing no external constants, and should SUPERSEDE it if only one
+    is dispatched.
+  lossy_projection_test: 'PASSES. Tracked object: the pair (required challenge c, produced
+    hash output c'') — two elements of B_tau, discarding the entire lattice vector and the
+    entire message. The fibre over a matching pair is the whole set of decodings and messages
+    producing it. Discarded compatibly, because the SelfTargetMSIS success predicate is exactly
+    the equality of those two elements, and both propagate deterministically (c through the
+    decoding, c'' through H). Tracking the full (y, mu) loses nothing and is the incumbent.'
+  proof_search_map:
+    bottleneck: Whether the BKZ reduction is paid once or once per candidate challenge.
+    baseline_embedding:
+      parameter_slice: L = 1 recovers the published min-of-two-arms exactly.
+      reproduction_check: A frozen fixture asserting equality at L = 1 to the bit.
+    observation_collision:
+      observable: Total charged cost.
+      distinct_preimage_search: Many (L, Q_H) pairs give equal total cost, so total cost never
+        identifies an operating point; the deliverable must be the curve plus the memory cap.
+    constructive_transforms:
+    - transform: specialization_pack
+      proposed_object: The (L, Q_H) claw curve for the fixed-lattice/moving-target structure.
+      predicted_gain: Lattice arm charged once rather than L times.
+    quantifier_order: FOR ALL FIPS 204 parameter sets, THERE EXISTS (L, Q_H) with L*Q_H ~
+      |B_tau| such that the composed cost is below the published minimum — with the decoding
+      success probability p NOT permitted to depend on the individual challenge.
+    method_ceiling:
+      strongest_certifiable_claim: An arithmetic statement about a composed cost model under
+        a pinned SVP oracle cost.
+      nearby_object_control: A variant in which each candidate needs its own reduction must
+        show g = 0; if it does not, the arithmetic is charging a resource that is not there.
+    proof_obligations:
+    - claim: Decoding cost is negligible against reduction cost.
+      responsibility: runtime
+    - claim: Decoding meets the l-infinity bound with probability p, stated.
+      responsibility: success_probability
+    - claim: Hash and lattice work are converted to one unit before min/max.
+      responsibility: baseline
+    - claim: Join memory is charged or the regeneration variant is used.
+      responsibility: memory
+    not_applicable_reason: null
+  source_refs:
+  - IDEA-20260805-5194f9 (corpus proposal index) — the two-arm observation extended here.
+  - GOAL-MLDSA-001.yaml (corpus, read in full) — completion criterion C1.

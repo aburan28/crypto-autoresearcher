@@ -53,7 +53,11 @@ enumerations are additionally compared for set equality
 
 ## Protocol deviations
 
-Every run manifest carries this list verbatim in `run.protocol_deviations`.
+Run manifests carry this list verbatim in `run.protocol_deviations`, but **not
+uniformly**: the seventeen measurement runs carry D1–D6 as the list stood when
+they were written, and the two decision runs carry D1–D7 + DEF-1 + DEF-2 with the
+corrected D3 wording. D7 and the defects were found *during* execution and a run
+record cannot be edited afterwards. **This file is the complete list.**
 
 ### D1 — the primary-class tie-break (material)
 
@@ -113,10 +117,17 @@ invalidation rule. Both cannot be honoured literally: deferring Arm B needs
 either a second sum-set pass (invalid) or holding every sum set in memory (about
 1 GB at p=6007, against a 4 GB cap).
 
-**Resolved as:** one shared pass scores every arm, and the baseline gate is
-evaluated and written **before any Arm B statistic is computed, aggregated or
-reported**. On a gate failure the run is written `invalid` with the defect, no
-Arm B aggregate is produced, and the driver halts before any further prime.
+**Resolved as:** one shared pass scores every arm. Stated exactly, because an
+earlier wording of this deviation overstated it: the per-cell aggregates for
+every arm are computed inside the sweep, and the baseline gate is then evaluated
+and written **before any Arm B statistic is read, aggregated into a persistence
+or stratification verdict, or reported as an arm contrast**. On a gate failure
+the run is written `invalid` with the defect, the Arm B cell aggregates are
+dropped from the run record, **no persistence or stratification statistic is
+computed for that prime**, and the driver halts. Raw per-curve hit counts for
+every arm are retained (measurements are never discarded). Run manifests written
+before this wording was corrected carry the earlier text; the code behaved as
+described here in all of them.
 
 ### D4 — origin/main merge (procedural)
 
@@ -146,6 +157,80 @@ are computed at the contract's own `target_count_primary = 400` and at seed
 20260807 — the first frozen seed and the one the bit-exact baseline requires.
 F_p at all three seeds and all three target counts is reported in
 `sensitivity_all_seeds_and_T` in every case, whatever the verdict.
+
+### D7 — a stopping rule was not honoured in time (material)
+
+SR3 says that if the baseline-reproduction control fails, STOP. The stage-3 runs
+at p=6007 and p=2003 were launched in a **single shell invocation**, so the
+p=2003 run had already executed to completion before the p=6007 gate result
+could be read. `RUN-ICINV-fg-primary-p2003` therefore exists and was executed
+after a gate failure that SR3 says should have stopped the experiment. It is
+retained and reported. It changes no verdict: the terminal state is INVALID on
+the p=6007 baseline failure whatever p=2003 shows. After the failure was read,
+the only stage-3 run launched was the p=6007 re-run needed to correct DEF-2 in
+the very record that carries the failure.
+
+## Defects in this Executor's own code, found during execution
+
+Both were found by me during execution, both are disclosed here and in every
+subsequent run manifest, and both were corrected the only way an immutable run
+record can be corrected: **new run ids, with the defective records retained**.
+
+### DEF-1 — the baseline gate was evaluated on the wrong class
+
+The first stage-2 runs (`RUN-ICINV-fg-nullr-p2003/-p4001/-p6007`) evaluated the
+baseline-reproduction control on the NULL-R class, where the contract defines it
+only for Arm A0 on the **primary** class, and so carry a misleading
+`gate_passed: false` for a comparison that was never asked for. The gate now
+also requires `class_role == "primary"`. The v1 measurements are unaffected: the
+v1 and v2 per-curve tables and cell aggregates were verified **bit-identical** at
+all three primes.
+
+### DEF-2 — FABRICATED STATISTIC (AGENTS.md rule 9)
+
+The committed EV-ENDO-10109d per-row variance ratios were transcribed into this
+harness as float literals, and **22 of the 24 literals had fabricated low-order
+digits**: only the two operating rows had been copied from a full-precision dump,
+and the rest were filled in to plausible precision from a 4-decimal print. This
+is a fabricated statistic and it is disclosed rather than quietly patched.
+
+- **No gate verdict changed.** The three baseline checks read only measured
+  values and the contract's own stated targets 1.918 and 1.591; the fabricated
+  digits entered only the comparison columns.
+- **The error under-reported the reproduction.** With the true committed values,
+  Arm A0 at p=4001 matches the committed run at **13/13 rows with delta exactly
+  0.0**, not 1/13 as the defective artifact reported.
+- **p=2003 runs are unaffected**: that prime has no committed counterpart, so no
+  committed value ever entered its artifacts.
+- **Fix**: the literals are deleted. `load_committed_baseline` reads the values
+  from the committed run records at run time and binds them by SHA-256, so there
+  is no transcription step left to get wrong.
+
+Superseded by DEF-2: `RUN-ICINV-fg-nullr-p4001/-p6007`,
+`RUN-ICINV-fg-nullr-v2-p4001/-p6007`, `RUN-ICINV-fg-primary-p4001/-p6007`.
+
+### DEF-3 — an infrastructure failure in the decision run
+
+The first `--stage decide` invocation raised `KeyError: 'n_rows'` in a summary
+**print** when formatting the prime that has no Arm B rows. The decision rule
+itself had already computed correctly. The failure was written as
+`RUN-ICINV-fg-decision-failed`, `status: failed_infrastructure`, and is retained;
+per AGENTS.md rule 5 it is not negative evidence and not a verdict.
+
+## Budget
+
+| Frozen limit | Consumed |
+|---|---|
+| `wall_clock_seconds_per_run: 14400` | max 85.5 s (RUN-ICINV-fg-primary-v2-p6007) |
+| `total_cpu_hours: 12` | 0.19 h summed over all 19 runs |
+| `maximum_memory_gb: 4` | max peak RSS 362 MB |
+| `maximum_runs: 18` | **19 — OVERRUN BY ONE, reported** |
+
+The run-count overrun is entirely self-inflicted: 9 core runs as budgeted, plus
+6 superseding runs forced by DEF-1 and DEF-2, plus 2 further stage-2 re-runs at
+p=2003 kept for set uniformity, plus 2 decision runs (one an infrastructure
+failure). No measurement was repeated to obtain a different number: every
+re-run's measurements are bit-identical to the record it supersedes.
 
 ## Other implementation facts worth a reviewer's attention
 
@@ -178,20 +263,32 @@ F_p at all three seeds and all three target counts is reported in
   and live in `coverage-certificates.json`, each verified against an
   independently enumerated point set.
 
-## Run inventory
+## Run inventory (19 run directories, none deleted)
 
-| Run ID | Stage | Prime | Class role |
-|---|---|---|---|
-| `RUN-ICINV-fg-stage1-p2003` | 1 | 2003 | premise check (both classes) |
-| `RUN-ICINV-fg-stage1-p4001` | 1 | 4001 | premise check (both classes) |
-| `RUN-ICINV-fg-stage1-p6007` | 1 | 6007 | premise check (both classes) |
-| `RUN-ICINV-fg-nullr-p2003` | 2 | 2003 | NULL-R (matched null + planted) |
-| `RUN-ICINV-fg-nullr-p4001` | 2 | 4001 | NULL-R (matched null + planted) |
-| `RUN-ICINV-fg-nullr-p6007` | 2 | 6007 | NULL-R (matched null + planted) |
-| `RUN-ICINV-fg-primary-p4001` | 3 | 4001 | primary |
-| `RUN-ICINV-fg-primary-p6007` | 3 | 6007 | primary |
-| `RUN-ICINV-fg-primary-p2003` | 3 | 2003 | primary |
-| `RUN-ICINV-fg-decision` | decide | all | aggregate terminal state |
+| Run ID | Stage | Prime | Status | Used by the decision rule? |
+|---|---|---|---|---|
+| `RUN-ICINV-fg-stage1-p2003` | 1 | 2003 | completed_valid | yes |
+| `RUN-ICINV-fg-stage1-p4001` | 1 | 4001 | completed_valid | yes |
+| `RUN-ICINV-fg-stage1-p6007` | 1 | 6007 | completed_valid | yes |
+| `RUN-ICINV-fg-nullr-p2003` | 2 | 2003 | completed_valid | no — superseded, DEF-1 |
+| `RUN-ICINV-fg-nullr-p4001` | 2 | 4001 | completed_valid | no — superseded, DEF-1 + DEF-2 |
+| `RUN-ICINV-fg-nullr-p6007` | 2 | 6007 | completed_valid | no — superseded, DEF-1 + DEF-2 |
+| `RUN-ICINV-fg-nullr-v2-p2003` | 2 | 2003 | completed_valid | no — superseded for set uniformity |
+| `RUN-ICINV-fg-nullr-v2-p4001` | 2 | 4001 | completed_valid | no — superseded, DEF-2 |
+| `RUN-ICINV-fg-nullr-v2-p6007` | 2 | 6007 | completed_valid | no — superseded, DEF-2 |
+| `RUN-ICINV-fg-nullr-v3-p2003` | 2 | 2003 | completed_valid | yes |
+| `RUN-ICINV-fg-nullr-v3-p4001` | 2 | 4001 | completed_valid | yes |
+| `RUN-ICINV-fg-nullr-v3-p6007` | 2 | 6007 | completed_valid | yes |
+| `RUN-ICINV-fg-primary-p4001` | 3 | 4001 | completed_valid | no — superseded, DEF-2 |
+| `RUN-ICINV-fg-primary-p6007` | 3 | 6007 | completed_invalid (SR3) | no — superseded, DEF-2 |
+| `RUN-ICINV-fg-primary-p2003` | 3 | 2003 | completed_valid | yes — unaffected by DEF-2 (see D7) |
+| `RUN-ICINV-fg-primary-v2-p4001` | 3 | 4001 | completed_valid | yes — baseline gate PASSED |
+| `RUN-ICINV-fg-primary-v2-p6007` | 3 | 6007 | completed_invalid (SR3) | yes — baseline gate FAILED |
+| `RUN-ICINV-fg-decision-failed` | decide | all | failed_infrastructure (DEF-3) | no |
+| `RUN-ICINV-fg-decision` | decide | all | completed_invalid | THE TERMINAL STATE |
+
+Every re-run's measurements are bit-identical to the record it supersedes; the
+superseding runs correct derived comparison fields only.
 
 p = 10007 is a permitted stretch only ("not required and its absence is not a
 defect") and was **not run**; the decision run records that explicitly.

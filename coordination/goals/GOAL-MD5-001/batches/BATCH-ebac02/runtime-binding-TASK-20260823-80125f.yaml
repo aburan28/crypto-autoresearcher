@@ -1,0 +1,79 @@
+runtime_binding:
+  id: TASK-20260823-80125f
+  minted: "2026-08-23"
+  minted_by: >-
+    Coordinator (driving session) on EXPLICIT OPERATOR DIRECTION. Option (b),
+    "mint a codex_cli review-adversarial binding", from the four resume
+    options delivered with the batch-6 close. The operator is the user of
+    this session and the direction was given in-session on 2026-08-23.
+  runtime: codex_cli
+  policy: review-adversarial
+  resolution_path: >-
+    The codex_cli runtime speaks openai_chat (orchestration/adapter env check,
+    2026-08-23: compatible backends openai, zai, fireworks, openrouter, local) and
+    resolves the policy through the repository binding of the openai backend:
+    openai.review-adversarial -> model gpt-5.6-sol, effort_map xhigh -> xhigh
+    (orchestration/model-bindings.yaml; the binding is operator-supplied,
+    last_probed 2026-08-02 and re-probed today, below). No new binding entry was
+    added to model-bindings.yaml: the codex runtime's declared resolution path
+    (probe_codex_session, backend parameter default "openai") already selects
+    exactly this binding, and a duplicate entry would be configuration drift.
+  model: gpt-5.6-sol
+  reasoning_effort: xhigh
+  fallback_allowed: false
+  degraded_allowed: false
+  independent_session_required: true
+  verification:
+    backend_serves_model:
+      instrument: python3 -m orchestration.adapter doctor --probe
+      ran: "2026-08-23"
+      result: "OK openai: serves gpt-5.6-sol"
+      output_archived: coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/reviews/TASK-20260823-80125f/doctor-probe-20260823.txt
+    empirical_session_serving:
+      ran: "2026-08-23T19:20Z and 2026-08-23T19:21Z (two independent codex exec invocations, ChatGPT Pro auth, provider openai)"
+      command_shape: codex exec --json --sandbox read-only --cd <worktree> --model gpt-5.6-sol --config model_reasoning_effort=xhigh <probe prompt>
+      result: >-
+        Both invocations exited 0 and returned the exact probe output
+        (probe_output_matches: true on the formal receipt), i.e. the declared
+        model/effort tuple is served by this install under this auth.
+      formal_receipt: coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/reviews/TASK-20260823-80125f/codex-session-probe-receipt.json
+    session_state_row_verification:
+      status: UNAVAILABLE_IN_THIS_BUILD
+      detail: >-
+        The repository's session-scoped instrument (probe-codex-session)
+        fail-closed with state_row_missing: codex-cli 0.149.0 in this
+        environment does not persist codex exec threads -- no row in
+        ~/.codex/state_5.sqlite.threads and no rollout file under
+        ~/.codex/sessions/ for either probe thread (01a03010-e03e-7313-ab48-7e36edafd69c,
+        01a03012-7149-77a2-8560-4673a8a98d2d), checked repeatedly post-run.
+        Interactive and thread-spawned subagent threads DO persist (1149 rows,
+        rollouts present), so this is specific to exec threads. This reproduces
+        the defect recorded in CORR-20260822-b17061, which named it as a
+        disqualifier at batch-6 opening; it is re-attested here with a fresh
+        immutable failed receipt rather than assumed.
+  disclosed_limitation: >-
+    Because exec threads do not persist in this build, the run's own session
+    cannot be cross-checked against an independent state row for the model it
+    actually served. The session-level model attestation therefore rests on
+    the hash-bound launch argv (the exact --model/--config flags), the
+    backend-level probe (doctor --probe OK above), and the account model
+    catalog (~/.codex/models_cache.json lists gpt-5.6-sol), with this gap
+    disclosed in every record the run produces. The model identifier is
+    verified at the level AGENTS.md names (doctor --probe confirms the backend
+    serves it); it is NOT verified at the session state-row level in this
+    build, and no record may claim otherwise.
+  auth: >-
+    ChatGPT Pro subscription (authenticated direct Codex session; resolved
+    provider "openai" per codex state DB provider field for gpt-5.6-sol
+    threads). Not Bedrock; permitted under AGENTS.md rule 16.
+  red_team_capability_check:
+    web_search: >-
+      roles.yaml declares the red-team web_search capability on the codex_cli
+      runtime (.codex/agents/red-team.toml exists); the joints R1-R3 and the
+      blind re-derivation require no network search -- all inputs are local
+      ledger/batch paths -- so the binding does not depend on that capability
+      being exercised.
+  budget_note: >-
+    The zai failure mode that killed TASK-20260822-87c429 (32000-token output
+    ceiling on the final synthesis turn) does not exist on this route: the
+    openai binding declares max_output_tokens 128000.

@@ -38,6 +38,8 @@ from typing import Any, Callable, Sequence
 
 import yaml
 
+from orchestration.adapter import config as config_module
+
 from . import graders as graders_module
 from . import report as report_module
 from .runner import TrialResult
@@ -57,6 +59,16 @@ INFRA_STATUSES = frozenset({
     "AgentTimeoutError", "AgentExecutionError", "HarborInternalError",
     "DockerError", "SetupError",
 })
+
+
+def _assert_task_target_allowed(task: "HarborTask") -> None:
+    """Use the adapter's single no-Bedrock authority before Harbor launches."""
+    try:
+        config_module.load().assert_inference_target_allowed(
+            task.agent, task.model,
+            context=f"Harbor task {task.id} inference target")
+    except config_module.ConfigError as exc:
+        raise ValueError(f"{task.id}: {exc}") from None
 
 
 class HarborUnavailable(RuntimeError):
@@ -81,6 +93,7 @@ class HarborTask:
             raise ValueError(
                 f"{self.id}: unknown Frontier-CS track {self.track!r} "
                 f"(expected one of {', '.join(TRACKS)})")
+        _assert_task_target_allowed(self)
 
 
 @dataclass
@@ -175,6 +188,9 @@ def probe(*, which: Callable[[str], str | None] = shutil.which,
 # --------------------------------------------------------------------------
 def build_command(task: HarborTask, *, frontier: str = "frontier") -> list[str]:
     """The exact Frontier-CS invocation, kept in one place so it is auditable."""
+    # Re-check at the external-process boundary: HarborTask is mutable after
+    # construction, and a mutated task must not reach ``frontier harbor``.
+    _assert_task_target_allowed(task)
     return [frontier, "harbor", "trial", task.track, task.problem,
             "-a", task.agent, "-m", task.model, "--json"]
 
@@ -236,6 +252,7 @@ def run_trial(task: HarborTask, trial: int, *, probe_result: Probe | None = None
               runner: Callable[..., subprocess.CompletedProcess] | None = None
               ) -> TrialResult:
     """Run one Frontier-CS trial. Failures are recorded, never swallowed."""
+    _assert_task_target_allowed(task)
     detected = probe_result or probe()
     detected.require()
     runner = runner or subprocess.run

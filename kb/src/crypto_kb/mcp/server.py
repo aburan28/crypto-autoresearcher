@@ -189,6 +189,17 @@ def main() -> None:  # pragma: no cover - process entry point
         from crypto_kb.observability import start_metrics_server
 
         start_metrics_server(settings.metrics_port)
+    if settings.qdrant_url == ":memory:":
+        # Every tool would answer "nothing found", correctly and uselessly, and
+        # an agent has no way to tell an empty index from an absent result.
+        log.warning(
+            "qdrant_url_is_in_memory",
+            detail=(
+                "an in-process index is empty in a fresh server; set "
+                "CRYPTO_KB_QDRANT_URL in kb/.env to a running Qdrant "
+                "(make qdrant-up) or a file-backed path"
+            ),
+        )
     log.info("mcp_server_starting", collection=settings.collection, qdrant=settings.qdrant_url)
     build_server().run()
 

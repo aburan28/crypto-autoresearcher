@@ -136,6 +136,21 @@ coordination/goals/*/batches/*/dispatch_plan.json
 coordination/goals/*/batches/*/dispatch_plan.md
 coordination/goals/*/batches/*/plan/dispatch_plan.json
 coordination/goals/*/batches/*/plan/dispatch_plan.md
+# Goals that put one queue per work unit under a batch (GOAL-ENDO-001's
+# batches/<BATCH>/<work-unit-slug>/) render their plan one level deeper than
+# the two patterns above reach. Same generated artifact, same rule.
+coordination/goals/*/batches/*/*/dispatch_plan.json
+coordination/goals/*/batches/*/*/dispatch_plan.md
+
+# Reconciliation-campaign dispatch plans. Same generated artifact as the four
+# entries above and rebuilt the same way; the existing globs only cover
+# coordination/goals/, so a RECON campaign's plan was landing untracked.
+# Listed by exact path, never as a directory: a directory ignore silently
+# swallows artifacts that do not exist yet, which is CORR-20260803-ba2eb7,
+# and this campaign's audit output must stay visible so its Coordinator
+# archive can INTRODUCE it (CORR-20260802-009).
+coordination/reconciliation/*/dispatch_plan.json
+coordination/reconciliation/*/dispatch_plan.md
 
 coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-6ba122/nib
 coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-6ba122/mini_b1
@@ -170,7 +185,16 @@ coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/rc8
 # the query log are all rebuildable with `make -C kb slice`.
 kb/.kb-corpus/
 kb/.kb-queries.jsonl
+kb/.kb-index/
 kb/.env
+
+# `uv run` writes this when it builds the MCP server's environment. Not
+# committed: it is one file every worktree rewrites, which is the conflict
+# shape this repository removes elsewhere, and the reproducibility it would
+# buy is not where this component's reproducibility lives -- the dense
+# embedder is deterministic by construction and the evaluation corpus is
+# frozen by manifest, so a resolver difference cannot move a measured result.
+kb/uv.lock
 
 # ---------------------------------------------------------------------------
 # Historical note from PR cursor/executors-test-harness-74d3 (PR #144):
@@ -199,3 +223,56 @@ coordination/goals/GOAL-AES-003/batches/BATCH-012/tasks/TASK-20260805-080b62/src
 coordination/goals/GOAL-AES-003/batches/BATCH-012/tasks/TASK-20260805-080b62/src/rc8probe_ideal_old
 
 coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/src/rc8probe_feistel
+
+# Local OpenCode runtime lock/session state (pid, hostname, claim tokens).
+# Ephemeral per-machine process-coordination state, not a research artifact;
+# a `git add -A` in a dispatch worktree swept it into a commit once and it
+# nearly reached main. See CORR-20260809 merge-contamination note.
+.opencode/goals/state.json.lock
+.opencode/goals/state.json.sessions/
+
+# Sibling git worktrees accidentally captured as gitlinks by the same
+# `git add -A`. These point at commits local to other worktrees on this
+# machine and are meaningless (and potentially dangling) anywhere else.
+.worktrees/
+
+# cairn (docs/cairn-integration-plan.md): the checkers and objectives under
+# cairn/ are committed source, pinned by hash -- but the LOG is state, not a
+# generated artifact, and it belongs outside the tree entirely (plan section
+# 5). tools/cairn_bridge.py defaults it to ~/.cairn/, so these only fire for
+# someone who pointed CAIRN_LOG inside the checkout anyway; the rule stays
+# defense in depth against exactly the concurrent-worktree hazard the plan
+# describes -- two worktrees committing "their" copy of one writer's log.
+cairn.jsonl
+cairn.pending.json
+*.objective-ids.json
+# Separate from the above: distributed-researcher's blob store is keyed off
+# --root, not --log (src/blobs.rs STORE_DIR = ".cairn/blobs"), and this
+# bridge points --root at this checkout so checkers resolve by their
+# committed repo-relative path. That makes a `.cairn/` directory here a
+# side effect of running the CLI at all, not something anyone chose to put
+# in the tree -- found by it happening once during this integration's own
+# testing.
+/.cairn/
+
+# Formal lane scratch (docs/mathcode-integration.md). The MathCode engine is an
+# autonomous coding agent, so each attempt runs in its own throwaway directory
+# OUTSIDE the Lean workspace -- LeanWorker scans every .lean file under
+# formal/, and one abandoned candidate carrying `sorry` would mark every later
+# task in that workspace INVALID. Attempts are kept on disk (a failed
+# formalization is the record of what was tried) but never committed: the
+# committed artifact is the staged theorem plus the proof artifact's hashes.
+.formal-attempts/
+# The engine's own output directory, if anyone runs `mathcode` by hand at the
+# repository root rather than through `autoresearch formal`.
+LeanFormalizations/
+
+# Lean build products and the generated root module of the formal workspace.
+# formal/CryptoResearch.lean lists the staged theorem modules so lake builds
+# them; it is derived from the directory (tools/rebuild_formal_root.py) and
+# regenerated by the formalize pipeline before every verification, so
+# committing it would be one more shared file for concurrent worktrees to
+# conflict over. lean-toolchain and lake-manifest.json ARE committed -- those
+# two are the pin a later verification reproduces against.
+formal/.lake/
+formal/CryptoResearch.lean

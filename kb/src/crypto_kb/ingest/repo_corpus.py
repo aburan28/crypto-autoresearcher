@@ -15,13 +15,20 @@ an agent will actually ask about.
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import subprocess
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Callable, Iterator
+from dataclasses import dataclass, field
+from pathlib import Path, PurePosixPath
+from typing import Any, Callable, Collection, Iterator, Mapping
 
 from crypto_kb.config import SOURCE_PREFIX
+from crypto_kb.ingest.schema_supersession import (
+    SchemaSupersession,
+    SchemaSupersessionError,
+    load_schema_supersessions,
+    route_repository_source,
+)
 from crypto_kb.metadata import metadata_key
 from crypto_kb.models import Authority, ClaimStatus, EvidenceLevel, ProvenanceClass, SourceType
 
@@ -70,6 +77,49 @@ class StagedDocument:
     source_key: str
     metadata: dict[str, Any]
     data: bytes
+
+
+@dataclass(frozen=True)
+class RedirectLineage:
+    """Legacy identities and hash bindings inherited by a redirect target."""
+
+    supersedes: tuple[str, ...]
+    verification_artifacts: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class UnparseableSource:
+    path: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class DuplicateSourceId:
+    source_id: str
+    kept_path: str
+    skipped_path: str
+    kept_sha256: str
+    skipped_sha256: str
+    identical_bytes: bool
+
+
+@dataclass(frozen=True)
+class RedirectSuppression:
+    source_path: str
+    target_path: str
+    redirect_id: str
+
+
+@dataclass
+class StagingDiagnostics:
+    """Explicit dry-staging debt and intentional suppression records."""
+
+    unparseable_sources: list[UnparseableSource] = field(default_factory=list)
+    duplicate_source_ids: list[DuplicateSourceId] = field(default_factory=list)
+    redirect_suppressions: list[RedirectSuppression] = field(default_factory=list)
+    registered_source_paths: list[str] = field(default_factory=list)
+    matched_registered_source_paths: list[str] = field(default_factory=list)
+    unmatched_registered_source_paths: list[str] = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------
@@ -223,9 +273,31 @@ RULES: tuple[StagingRule, ...] = (
                 SourceType.LEDGER, "evidence", _evidence_record),
     StagingRule("hypotheses", "ledger/H-*.yaml", "ledgers/hypotheses",
                 SourceType.LEDGER, "hypothesis", _ledger_record),
+    StagingRule("hypotheses-typed", "ledger/hypotheses/H-*.yaml", "ledgers/hypotheses",
+                SourceType.LEDGER, "hypothesis", _ledger_record),
     StagingRule("questions", "ledger/RQ-*.yaml", "ledgers/questions",
                 SourceType.LEDGER, "question", _ledger_record),
-    StagingRule("decisions", "ledger/DEC-*.yaml", "ledgers/decisions",
+    StagingRule("questions-typed", "ledger/questions/RQ-*.yaml", "ledgers/questions",
+                SourceType.LEDGER, "question", _ledger_record),
+    StagingRule("proposals", "ledger/proposals/IDEA-*.yaml", "ledgers/proposals",
+                SourceType.LEDGER, "proposal", _ledger_record),
+    StagingRule("goals-flat", "ledger/goals/GOAL-*.yaml", "ledgers/goals",
+                SourceType.LEDGER, "goal", _ledger_record),
+    StagingRule("goals-sharded", "ledger/goals/GOAL-*/goal.yaml", "ledgers/goals",
+                SourceType.LEDGER, "goal", _ledger_record),
+    StagingRule(
+        "goal-checkpoints",
+        "ledger/goals/GOAL-*/checkpoints/*.yaml",
+        "ledgers/goal-checkpoints",
+        SourceType.LEDGER,
+        "goal-checkpoint",
+        _ledger_record,
+    ),
+    StagingRule("subgoals", "ledger/subgoals/SG-*.yaml", "ledgers/subgoals",
+                SourceType.LEDGER, "subgoal", _ledger_record),
+    StagingRule("decisions", "ledger/decisions/DEC-*.yaml", "ledgers/decisions",
+                SourceType.LEDGER, "decision", _ledger_record),
+    StagingRule("decisions-root", "ledger/DEC-*.yaml", "ledgers/decisions",
                 SourceType.LEDGER, "decision", _ledger_record),
     StagingRule("experiments", "experiments/*/specification.yaml", "experiments/specifications",
                 SourceType.EXPERIMENT, "experiment", _experiment),
@@ -248,11 +320,26 @@ def stage_repository(
     store,
     rules: tuple[StagingRule, ...] = RULES,
     limit_per_rule: int | None = None,
+    include: Collection[str] | None = None,
+    diagnostics: StagingDiagnostics | None = None,
 ) -> list[StagedDocument]:
-    """Copy repository records into the corpus layout with derived sidecars."""
+    """Copy repository records into the corpus layout with derived sidecars.
+
+    ``include`` restricts staging to an explicit set of repository-relative
+    POSIX paths. The rules still decide *how* each file is staged; the set
+    decides *which* files exist at all, which is what pins a corpus whose
+    content must not move under an evaluation.
+    """
     git_commit = _git_commit(repo_root)
     staged: list[StagedDocument] = []
-    for document in iter_staged(repo_root, rules, git_commit, limit_per_rule):
+    for document in iter_staged(
+        repo_root,
+        rules,
+        git_commit,
+        limit_per_rule,
+        include,
+        diagnostics,
+    ):
         store.put(document.source_key, document.data)
         store.put(
             metadata_key(document.source_key),
@@ -268,8 +355,19 @@ def iter_staged(
     rules: tuple[StagingRule, ...],
     git_commit: str,
     limit_per_rule: int | None = None,
+    include: Collection[str] | None = None,
+    diagnostics: StagingDiagnostics | None = None,
 ) -> Iterator[StagedDocument]:
-    seen_ids: set[str] = set()
+    allowed = None if include is None else frozenset(include)
+    supersessions = load_schema_supersessions(repo_root)
+    if diagnostics is not None:
+        registered = set(supersessions)
+        matched = _matched_paths(repo_root, rules) & registered
+        diagnostics.registered_source_paths = sorted(registered)
+        diagnostics.matched_registered_source_paths = sorted(matched)
+        diagnostics.unmatched_registered_source_paths = sorted(registered - matched)
+    redirect_lineage = _redirect_lineage(rules, supersessions)
+    seen_ids: dict[str, tuple[str, str]] = {}
     for rule in rules:
         count = 0
         for path in sorted(repo_root.glob(rule.glob)):
@@ -277,27 +375,72 @@ def iter_staged(
                 break
             if not path.is_file():
                 continue
-            document = _stage_one(repo_root, path, rule, git_commit)
+            if allowed is not None and path.relative_to(repo_root).as_posix() not in allowed:
+                continue
+            document = _stage_one(
+                repo_root,
+                path,
+                rule,
+                git_commit,
+                supersessions,
+                redirect_lineage,
+                diagnostics,
+            )
             if document is None:
                 continue
             source_id = document.metadata["source_id"]
-            if source_id in seen_ids:
+            relative = path.relative_to(repo_root).as_posix()
+            digest = hashlib.sha256(document.data).hexdigest()
+            previous = seen_ids.get(source_id)
+            if previous is not None:
                 # Two rules can match one file (ledger/EV-*.yaml also lives
                 # under ledger/evidence/). First rule wins; a duplicate would
                 # index the same content under two ids and break diversity.
+                if diagnostics is not None:
+                    kept_path, kept_digest = previous
+                    diagnostics.duplicate_source_ids.append(
+                        DuplicateSourceId(
+                            source_id=source_id,
+                            kept_path=kept_path,
+                            skipped_path=relative,
+                            kept_sha256=kept_digest,
+                            skipped_sha256=digest,
+                            identical_bytes=kept_digest == digest,
+                        )
+                    )
                 continue
-            seen_ids.add(source_id)
+            seen_ids[source_id] = (relative, digest)
             count += 1
             yield document
 
 
 def _stage_one(
-    repo_root: Path, path: Path, rule: StagingRule, git_commit: str
+    repo_root: Path,
+    path: Path,
+    rule: StagingRule,
+    git_commit: str,
+    supersessions: dict[str, SchemaSupersession] | None = None,
+    redirect_lineage: Mapping[str, RedirectLineage] | None = None,
+    diagnostics: StagingDiagnostics | None = None,
 ) -> StagedDocument | None:
-    raw = path.read_bytes()
+    registry = supersessions if supersessions is not None else load_schema_supersessions(repo_root)
+    routed = route_repository_source(repo_root, path, registry)
+    raw = routed.data
     text = raw.decode("utf-8", errors="replace")
     front = _front_or_record(path, text)
     if front is None:
+        if routed.supersession is not None:
+            raise SchemaSupersessionError(
+                f"registered replacement for "
+                f"{routed.supersession.superseded_path} is not parseable"
+            )
+        if diagnostics is not None:
+            diagnostics.unparseable_sources.append(
+                UnparseableSource(
+                    path=path.relative_to(repo_root).as_posix(),
+                    reason="unregistered YAML source is not parseable",
+                )
+            )
         return None
 
     identifier = _identifier(path, rule, front)
@@ -308,6 +451,50 @@ def _stage_one(
         "provenance_class": ProvenanceClass.DETERMINISTIC.value,
         **fields,
     }
+    if routed.supersession is not None:
+        entry = routed.supersession
+        legacy_id = _legacy_identifier(path, rule)
+        expected_id = entry.redirect_id or entry.replacement_id or legacy_id
+        if identifier != expected_id:
+            raise SchemaSupersessionError(
+                f"registered replacement for {entry.superseded_path} declares "
+                f"identifier {identifier!r}, expected {expected_id!r}"
+            )
+        if entry.redirect_id:
+            # The pinned target parsed to the declared canonical identifier.
+            # Its ordinary discovery path will stage it once; suppress only
+            # this immutable alias after that identity check succeeds.
+            if diagnostics is not None:
+                diagnostics.redirect_suppressions.append(
+                    RedirectSuppression(
+                        source_path=entry.superseded_path,
+                        target_path=entry.superseding_path,
+                        redirect_id=entry.redirect_id,
+                    )
+                )
+            return None
+        if legacy_id != identifier:
+            metadata["supersedes"] = sorted(
+                {*metadata.get("supersedes", []), legacy_id}
+            )
+        metadata["verification_artifacts"] = sorted(
+            {
+                *metadata.get("verification_artifacts", []),
+                f"{entry.superseded_path}@sha256:{entry.superseded_sha256}",
+                f"{entry.superseding_path}@sha256:{entry.superseding_sha256}",
+            }
+        )
+    inherited = (redirect_lineage or {}).get(path.relative_to(repo_root).as_posix())
+    if inherited is not None:
+        metadata["supersedes"] = sorted(
+            {*metadata.get("supersedes", []), *inherited.supersedes}
+        )
+        metadata["verification_artifacts"] = sorted(
+            {
+                *metadata.get("verification_artifacts", []),
+                *inherited.verification_artifacts,
+            }
+        )
     metadata = {k: v for k, v in metadata.items() if v is not None or k in {"superseded_by"}}
     relative = path.relative_to(repo_root).as_posix()
     # Keyed by identifier, not filename: every experiment's spec is called
@@ -342,6 +529,12 @@ def _front_or_record(path: Path, text: str) -> dict[str, Any] | None:
 
 
 def _identifier(path: Path, rule: StagingRule, front: dict[str, Any]) -> str:
+    if rule.name == "goal-checkpoints":
+        # Batch identifiers repeat across goals, and some legacy checkpoint
+        # bodies even repeat within one goal.  The immutable shard address is
+        # therefore the goal directory plus filename, never an optional body
+        # field such as batch_id/checkpoint_id.
+        return f"{path.parent.parent.name}:{path.stem}"
     body = _unwrap(front)
     recorded = body.get("id") if isinstance(body, dict) else None
     if isinstance(recorded, str) and recorded.strip():
@@ -353,6 +546,99 @@ def _identifier(path: Path, rule: StagingRule, front: dict[str, Any]) -> str:
     if rule.name == "experiment-analysis":
         return f"{base}-analysis"
     return base
+
+
+def _legacy_identifier(path: Path, rule: StagingRule) -> str:
+    if rule.name == "goal-checkpoints":
+        return f"{path.parent.parent.name}:{path.stem}"
+    if path.name in {"specification.yaml", "analysis.md", "paper_fulltext.md"}:
+        base = path.parent.name
+    else:
+        base = path.stem
+    return f"{base}-analysis" if rule.name == "experiment-analysis" else base
+
+
+def _redirect_lineage(
+    rules: tuple[StagingRule, ...],
+    supersessions: Mapping[str, SchemaSupersession],
+) -> dict[str, RedirectLineage]:
+    """Route redirect aliases and their pinned bytes to the final source.
+
+    A redirect source is deliberately not staged as a second document.  Its
+    canonical target may itself have a schema-supersession replacement, so the
+    alias is attached to the target's ordinary discovery path and `_stage_one`
+    then unions the target replacement's hash bindings.  Following redirect
+    chains here preserves that property without ever indexing stale
+    intermediate bytes.
+    """
+    inherited: dict[str, tuple[set[str], set[str]]] = {}
+    for entry in supersessions.values():
+        if not entry.redirect_id:
+            continue
+        source_rule = _rule_for_path(entry.superseded_path, rules)
+        if source_rule is None:
+            continue
+
+        aliases = {
+            _legacy_identifier(Path(entry.superseded_path), source_rule)
+        }
+        artifacts = {
+            f"{entry.superseded_path}@sha256:{entry.superseded_sha256}",
+            f"{entry.superseding_path}@sha256:{entry.superseding_sha256}",
+        }
+        target = entry.superseding_path
+        visited = {entry.superseded_path}
+        while True:
+            if target in visited:
+                chain = " -> ".join([*sorted(visited), target])
+                raise SchemaSupersessionError(f"schema supersession redirect cycle: {chain}")
+            visited.add(target)
+            next_entry = supersessions.get(target)
+            if next_entry is None or not next_entry.redirect_id:
+                break
+            target_rule = _rule_for_path(target, rules)
+            if target_rule is None:
+                break
+            aliases.add(_legacy_identifier(Path(target), target_rule))
+            artifacts.update(
+                {
+                    f"{next_entry.superseded_path}@sha256:{next_entry.superseded_sha256}",
+                    f"{next_entry.superseding_path}@sha256:{next_entry.superseding_sha256}",
+                }
+            )
+            target = next_entry.superseding_path
+
+        target_aliases, target_artifacts = inherited.setdefault(target, (set(), set()))
+        target_aliases.update(aliases)
+        target_artifacts.update(artifacts)
+
+    return {
+        target: RedirectLineage(
+            supersedes=tuple(sorted(aliases)),
+            verification_artifacts=tuple(sorted(artifacts)),
+        )
+        for target, (aliases, artifacts) in inherited.items()
+    }
+
+
+def _rule_for_path(relative: str, rules: tuple[StagingRule, ...]) -> StagingRule | None:
+    candidate = PurePosixPath(relative)
+    return next((rule for rule in rules if candidate.match(rule.glob)), None)
+
+
+def _matched_paths(repo_root: Path, rules: tuple[StagingRule, ...]) -> set[str]:
+    """Physical repository paths discoverable by the declared rules.
+
+    This deliberately ignores an invocation's ``include`` and per-rule limit:
+    it answers whether the staging schema covers every registered immutable
+    source, not whether a caller selected that source for a smaller dry slice.
+    """
+    return {
+        path.relative_to(repo_root).as_posix()
+        for rule in rules
+        for path in repo_root.glob(rule.glob)
+        if path.is_file()
+    }
 
 
 def _path_topics(relative: str) -> list[str]:

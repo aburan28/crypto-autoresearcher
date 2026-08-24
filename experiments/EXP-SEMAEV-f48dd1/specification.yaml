@@ -1,9 +1,9 @@
 experiment:
   id: EXP-SEMAEV-f48dd1
   hypothesis_id: H-XOR-YIELD
-  version: 1
+  version: 2
   title: >-
-    X-oracle-alone Semaev yield discrimination (toy scale, smoke test)
+    X-oracle-alone Semaev yield discrimination (toy scale, full cell grid)
   status: approved
   frozen: true
   approved_by: coordinator
@@ -11,21 +11,21 @@ experiment:
   source_design: >-
     coordination/goals/GOAL-ECDLP-001/batches/BATCH-b3f591/tasks/TASK-20260806-a01d5a/experiment_design.md
   objective: >-
-    Smoke test (m=3, p=101, b=0.4, seed=1, all three arms) to verify that the
-    x-oracle-guided MITM Semaev relation collection runs correctly, produces
-    deterministic results, and passes pre-registered control checks before the
-    full cell grid is run.
+    Full cell grid execution (m=3, p∈{101,103,107,211}, b∈{0.4,0.5}, seeds=5 per
+    config, all three arms) to measure x-oracle yield advantage over random predictor.
+    Smoke test passed in BATCH-c3a501.
   scale_relevance:
     tier: toy
     justification: >-
-      Single-cell smoke test at the smallest planned parameters. No result is
-      presented as crypto-scale evidence (AGENTS.md rule 7).
+      Full grid at toy-scale primes (7-8 bits). No result is presented as crypto-scale
+      evidence (AGENTS.md rule 7). Purpose is to establish whether x-oracle provides
+      statistically significant yield advantage at any scale.
   inputs:
     cells:
       m_values: [3]
-      primes: [101]
-      b_values: [0.4]
-      seeds: [1]
+      primes: [101, 103, 107, 211]
+      b_values: [0.4, 0.5]
+      seeds: [1, 2, 3, 4, 5]
     curve_selection_rule: >-
       Deterministic: use harness.toycurve.generate_instance(seed=1, field_bits=7)
       to obtain a curve over F_p with p near 128. If p != 101, fall back to
@@ -52,38 +52,56 @@ experiment:
     - arm: [A, B, C]
   metrics:
     primary:
-      - yield: relations_found / tuples_enumerated
+      - yield: >-
+          relations_found / tuples_attempted, where tuples_attempted is defined
+          consistently across all arms as |F|^m (the full enumeration space).
+          For Arm A (exhaustive), this equals the number of triples enumerated.
+          For Arms B and C (MITM), this is the theoretical enumeration space
+          |F|^m, treating MITM as a filtering strategy that reduces verification
+          cost but not the enumeration space. This ensures yield comparisons
+          (Δ = Y_B − Y_C) use a consistent denominator.
     secondary:
       - oracle_queries
       - hash_table_hits
       - false_positives
       - wall_clock_seconds
       - field_operations
+      - candidates_verified: >-
+          Number of candidate tuples actually verified after MITM filtering
+          (Arms B/C only). Reported for transparency but not used in yield
+          denominator to maintain cross-arm consistency.
   replication:
-    seeds: [1]
+    seeds: [1, 2, 3, 4, 5]
     seed_policy: >-
-      Single deterministic seed for smoke test. Full grid uses 5 seeds per cell.
+      Five deterministic seeds per cell. Each seed produces an independent run.
+      Total: 4 primes × 2 b-values × 5 seeds = 40 configurations × 3 arms = 120 arm-runs.
   budget:
     wall_clock_seconds_per_run: 300
     maximum_memory_gb: 4
-    maximum_runs: 3
+    maximum_runs: 120
+    total_wall_clock_budget_seconds: 36000
   stopping_rules:
     - stop at 300s wall clock per arm (record as timed_out)
+    - stop at 10 hours total wall clock for the full grid
   invalidation_rules:
     - any run missing manifest, command, or raw-result is invalid
     - query count mismatch between arms B and C invalidates the cell
     - PRNG collision in arm C invalidates the cell
   success_criterion: >-
-    All three arms complete within budget, control checks pass, and results are
-    deterministic (reproducible with same seed).
+    All 120 arm-runs complete within budget, control checks pass for each cell,
+    and results are deterministic (reproducible with same seed). Report per-cell
+    yield statistics (mean, std) and overall Δ = Y_B − Y_C with confidence intervals.
   falsification_criterion: >-
     Infrastructure failure or control check failure does not falsify the
-    hypothesis (AGENTS.md rule 5); it invalidates the run.
+    hypothesis (AGENTS.md rule 5); it invalidates the run. If Δ is not statistically
+    significant (p > 0.05) across all cells, the hypothesis is weakened but not
+    falsified (toy-scale only).
   required_artifacts:
     - experiments/EXP-SEMAEV-f48dd1/specification.yaml
-    - experiments/EXP-SEMAEV-f48dd1/implementation/smoke_test.py
-    - experiments/EXP-SEMAEV-f48dd1/runs/RUN-SEMAEV-f48dd1-smoke/manifest.yaml
-    - experiments/EXP-SEMAEV-f48dd1/runs/RUN-SEMAEV-f48dd1-smoke/raw-result.json
+    - experiments/EXP-SEMAEV-f48dd1/implementation/full_grid.py
+    - experiments/EXP-SEMAEV-f48dd1/runs/RUN-SEMAEV-f48dd1-grid/manifest.yaml
+    - experiments/EXP-SEMAEV-f48dd1/runs/RUN-SEMAEV-f48dd1-grid/raw-results.json
+    - experiments/EXP-SEMAEV-f48dd1/runs/RUN-SEMAEV-f48dd1-grid/analysis.yaml
   assigned_to: executor
   inference_receipt:
     requested_policy: executor-implementation

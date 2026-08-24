@@ -141,6 +141,195 @@ def load_committed_baseline(p: int) -> dict | None:
         "operating_variance_ratio": d["row_closest_to_operating_density"]["variance_ratio"],
     }
 
+# --------------------------------------------------------------------------
+# CONTRACT VERSION 2 -- experiments/EXP-ICINV-4d33aa/amendments/v2.yaml
+# (status: filed_before_re_execution, approved_by: coordinator, 2026-08-07)
+#
+# Everything above stays exactly as version 1 left it so the version-1 run
+# records remain readable and their code path remains re-executable. The block
+# below is ADDITIVE and implements the amendment's changes A1 and A4.
+# --------------------------------------------------------------------------
+
+CONTRACT_VERSION = 2
+AMENDMENT_PATH = "experiments/EXP-ICINV-4d33aa/amendments/v2.yaml"
+
+# CHANGE A1. Version 1's SR3 gate compared Arm A0 at p=6007 against a committed
+# run measured at T=500 over ELEVEN different factor-base sizes, while the
+# contract froze T=400 over thirteen -- so the gate was unsatisfiable by
+# construction (CORR-20260807-14431d). The amendment requires the p=6007
+# baseline to be RE-MEASURED at the contract's own frozen parameters and
+# recorded as a new run under EXP-ICINV-55c2d8, and makes SR3 at p=6007 compare
+# Arm A0 against THAT run.
+#
+# ONLY THE RUN ID APPEARS HERE. Every NUMBER is read from the record at run time
+# and bound by sha256 (change A4): a transcribed value cannot be distinguished
+# from a measured one by any later reader, which is the defect
+# CORR-20260807-a24675 recorded.
+BASELINE_RUNS_V2 = {
+    4001: ("EXP-ICINV-55c2d8", "RUN-ICINV-p4001-fixed"),
+    6007: ("EXP-ICINV-55c2d8", "RUN-ICINV-f09176"),
+}
+
+# Retained for reporting only, and DELIBERATELY NOT USED as a reference: the
+# committed p=6007 sweep whose parameters differ from the frozen grid. It is
+# read and hashed in baseline-provenance.json so a reviewer can see the
+# parameters that made version 1's gate unsatisfiable, without any number of it
+# entering a comparison.
+BASELINE_RUNS_SUPERSEDED_V2 = {
+    6007: ("EXP-ICINV-55c2d8", "RUN-ICINV-p6007-fixed"),
+}
+
+# The contract's own prose constants for the operating-row sub-check. They are
+# stated in `controls.BASELINE-REPRODUCTION CONTROL` and are the ONLY reference
+# numbers this experiment takes from text rather than from a record; they are
+# reported beside the record-read reference at every prime and NEVER replace it
+# (see deviation D8).
+CONTRACT_STATED_OPERATING_VR = dict(BASELINE_COMMITTED_OPERATING_VR)
+
+
+def read_baseline_record(exp_id: str, run_id: str) -> dict | None:
+    """A committed saturation-sweep run, READ AND HASHED AT RUN TIME (change A4).
+
+    Reads BOTH `raw-result.json` (the numbers) and `manifest.yaml` (the declared
+    inputs: seed and parameters), hashes both, and returns the values as read.
+    Nothing here is transcribed and nothing is rounded.
+    """
+    import json
+    import os
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    raw_path = os.path.join(repo, "experiments", exp_id, "runs", run_id,
+                            "raw-result.json")
+    man_path = os.path.join(repo, "experiments", exp_id, "runs", run_id,
+                            "manifest.yaml")
+    if not os.path.exists(raw_path):
+        return None
+    with open(raw_path, "rb") as f:
+        raw_blob = f.read()
+    d = json.loads(raw_blob)["raw"]
+    declared_seed = None
+    declared_params = None
+    man_sha = None
+    if os.path.exists(man_path):
+        import yaml
+        with open(man_path, "rb") as f:
+            man_blob = f.read()
+        man_sha = hashlib.sha256(man_blob).hexdigest()
+        man = (yaml.safe_load(man_blob.decode("utf-8")) or {}).get("run") or {}
+        declared_seed = (man.get("inputs") or {}).get("seed")
+        declared_params = (man.get("inputs") or {}).get("parameters")
+    return {
+        "run_id": run_id,
+        "experiment_id": exp_id,
+        "raw_result_path": os.path.relpath(raw_path, repo),
+        "raw_result_sha256": hashlib.sha256(raw_blob).hexdigest(),
+        "manifest_path": (None if man_sha is None
+                          else os.path.relpath(man_path, repo)),
+        "manifest_sha256": man_sha,
+        "declared_seed_as_read": declared_seed,
+        "declared_parameters_as_read": declared_params,
+        "n_targets": d["n_targets"],
+        "fb_sizes": list(d["fb_sizes"]),
+        "trace": d["target_trace"],
+        "order": d["order"],
+        "n_curves": d["n_curves"],
+        "rows": {r["fb_size"]: r["variance_ratio"] for r in d["rows"]},
+        "row_verdicts": {r["fb_size"]: r["verdict"] for r in d["rows"]},
+        "mean_densities": {r["fb_size"]: r["mean_density_3V_over_order"]
+                           for r in d["rows"]},
+        "monotonic_decay": d["variance_ratio_decays_monotonically_with_density"],
+        "operating_fb": d["row_closest_to_operating_density"]["fb_size"],
+        "operating_variance_ratio":
+            d["row_closest_to_operating_density"]["variance_ratio"],
+    }
+
+
+def load_baseline_v2(p: int) -> dict | None:
+    """The SR3 reference sweep at p under contract version 2, as read."""
+    entry = BASELINE_RUNS_V2.get(p)
+    if entry is None:
+        return None
+    rec = read_baseline_record(*entry)
+    if rec is None:
+        raise FileNotFoundError(
+            f"change A1 requires the re-measured baseline {entry[1]} under "
+            f"{entry[0]} to exist BEFORE any Arm A0 or Arm B measurement of "
+            f"contract version 2; it was not found")
+    rec["parameters_match_frozen_grid"] = bool(
+        rec["n_targets"] == TARGET_COUNT_PRIMARY and rec["fb_sizes"] == FB_SIZES)
+    rec["rows_outside_frozen_band"] = sorted(
+        fb for fb, vr in rec["rows"].items()
+        if not (BASELINE_VR_BAND[0] <= vr <= BASELINE_VR_BAND[1]))
+    rec["reference_itself_inside_band_at_every_row"] = (
+        not rec["rows_outside_frozen_band"])
+    return rec
+
+
+def baseline_provenance(primes: list[int]) -> dict:
+    """The change-A4 artifact: what was read, from where, and its digest.
+
+    For each prime: the run id read, its declared parameters AS READ from the
+    record (never asserted from the contract), the sha256 of every file read,
+    and the full row table as read. A reviewer can recompute every reference
+    number in this run from these digests without rerunning anything.
+    """
+    per_prime: dict = {}
+    for p in primes:
+        entry = BASELINE_RUNS_V2.get(p)
+        if entry is None:
+            per_prime[str(p)] = {
+                "reference": None,
+                "why_absent": ("no committed EV-ENDO-10109d density sweep exists at this "
+                               "prime, so the contract states no baseline-reproduction "
+                               "control here and none is evaluated"),
+            }
+            continue
+        rec = load_baseline_v2(p)
+        per_prime[str(p)] = {
+            "reference": rec,
+            "used_for": ["SR3 row-by-row reproduction comparison",
+                         "SR3 operating-row +-0.25 tolerance reference"],
+            "frozen_grid_expected": {"n_targets": TARGET_COUNT_PRIMARY,
+                                     "fb_sizes": FB_SIZES},
+            "parameters_match_frozen_grid": rec["parameters_match_frozen_grid"],
+        }
+    superseded: dict = {}
+    for p, entry in BASELINE_RUNS_SUPERSEDED_V2.items():
+        rec = read_baseline_record(*entry)
+        if rec is None:
+            continue
+        superseded[str(p)] = {
+            "reference": rec,
+            "used_for": [],
+            "not_used_because": (
+                "its declared parameters, READ FROM THE RECORD, are n_targets "
+                f"{rec['n_targets']} over {len(rec['fb_sizes'])} factor-base sizes "
+                f"{rec['fb_sizes']}, which is not the grid this contract froze "
+                f"(n_targets {TARGET_COUNT_PRIMARY} over {FB_SIZES}). Comparing "
+                "against it is what made the version-1 gate unsatisfiable by "
+                "construction (CORR-20260807-14431d); amendment change A1 replaces "
+                "it with a re-measurement at the frozen parameters. No number from "
+                "this record enters any comparison in this run."),
+        }
+    return {
+        "scope": ("change A4: every reference value quoted from a committed record is "
+                  "READ FROM THAT RECORD AT RUN TIME and bound by sha256. No reference "
+                  "value is transcribed into source at any precision "
+                  "(CORR-20260807-a24675)."),
+        "amendment": AMENDMENT_PATH,
+        "contract_version": CONTRACT_VERSION,
+        "per_prime": per_prime,
+        "superseded_references_read_but_not_used": superseded,
+        "contract_stated_operating_vr": {
+            "values": CONTRACT_STATED_OPERATING_VR,
+            "provenance": ("quoted from the frozen contract's own prose "
+                           "(controls.BASELINE-REPRODUCTION CONTROL), not from a run "
+                           "record. Reported beside the record-read reference at every "
+                           "prime; the gate uses the record-read value (deviation D8)."),
+        },
+        "transcribed_reference_values_in_source": 0,
+    }
+
+
 ARMS_PRIMARY_CLASS = ["A0", "A1", "B"]
 ARMS_NULLR_CLASS = ["A0", "A1", "B", "C"]
 
@@ -1176,4 +1365,8 @@ __all__ = [
     "birthday_expectation", "build_curve_package", "measure_curve_all_arms",
     "aggregate_rows", "operating_row", "monotonic_decay", "tail_checks",
     "t_scaling", "self_audit_no_null_c", "committed_file_digest",
+    # contract version 2 (amendment changes A1 and A4)
+    "CONTRACT_VERSION", "AMENDMENT_PATH", "BASELINE_RUNS_V2",
+    "BASELINE_RUNS_SUPERSEDED_V2", "CONTRACT_STATED_OPERATING_VR",
+    "read_baseline_record", "load_baseline_v2", "baseline_provenance",
 ]

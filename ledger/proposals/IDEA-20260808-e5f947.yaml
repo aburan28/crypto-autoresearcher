@@ -1,0 +1,157 @@
+idea:
+  id: IDEA-20260808-e5f947
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLDSA-ffa0f5
+  goal_id: GOAL-MLDSA-002
+  title: 'Count the ML-DSA verifier''s ACCEPT FIBRE over BYTE STRINGS, not over algebraic
+    objects: sigDecode plus Verify is a predicate on octets, and every non-injectivity in
+    hintBitUnpack or w1Encode is a strong-unforgeability surface that the algebraic security
+    argument never mentions.'
+  class: measurement
+  claim: 'ML-DSA''s security argument is stated about algebraic objects (z, h, c); the verifier''s
+    actual domain is a byte string. CLAIM, exactly checkable by enumeration at true parameters:
+    (1) the number of distinct byte strings sigma'' != sigma that Verify accepts for a fixed
+    (pk, M) is either exactly 0 at all three parameter sets (in which case FIPS 204''s encoding
+    checks are complete and SUF-CMA has no encoding surface) or positive, and if positive
+    the exact count and the responsible field is named; (2) separately, the verifier never
+    checks that the recomputed w1'' lies in the IMAGE of HighBits, nor that h is the hint
+    a compliant signer would have produced — it checks only the hash equality, ||z||_inf and
+    the hint weight — so the set of accepted (z, h) pairs is characterised by those three
+    predicates alone and by nothing else, and that characterisation should be stated as a
+    lemma rather than assumed.'
+  mechanism: 'Two independent non-injectivity sources. FIRST, hintBitUnpack: h is transmitted
+    as a packed list of positions plus per-polynomial boundary indices, and a malformed packing
+    (non-monotone positions, positions past a boundary, trailing nonzero bytes) can decode
+    to a valid h unless explicitly rejected. FIPS 204 added explicit malformed-hint checks
+    precisely because this surface exists; whether those checks are EXHAUSTIVE is a finite
+    enumeration question, not a proof question. SECOND, w1Encode: the hash input is an encoding
+    of w1'', and if two distinct w1'' values (or two distinct encodings of one) collide under
+    w1Encode, the challenge equality can be satisfied by an object the signer never produced.
+    Both are questions about a concrete byte-level map with small, enumerable local structure
+    — the same defect shape as the ML-KEM re-encryption comparison lane (GOAL-MLKEM-002),
+    which the goal record names as the structural precedent.'
+  why_not_a_renamed_known_approach: 'Nearest corpus records: IDEA-20260805-3c957e (ciphertext
+    lengths are exact multiples of 32 because L = 32(d_u k + d_v) — an ML-KEM encoding-arithmetic
+    result), IDEA-20260807-1f5f89 (dk field-integrity mutation for ML-KEM), catalogue M2-5
+    (the encoding fibre of an ML-KEM encapsulation key) and M2-8 (the fibre census of the
+    ML-KEM decapsulation output map). Every one is ML-KEM; none is ML-DSA, and the ML-DSA
+    signature encoding has a strictly richer surface because it carries a variable-length
+    sparse hint. Distinct from IDEA-20260805-031ce2, which asks whether a signature violating
+    a SIGNING rejection verifies — an algebraic question about predicates, not a byte-level
+    fibre count.'
+  predictions:
+  - observable: '|{sigma'' : Verify(pk, M, sigma'') = 1}| for a fixed valid (pk, M, sigma),
+      searched by exhaustive local mutation of the hint region (single-byte, boundary-index,
+      and trailing-byte classes) plus targeted malformed packings.'
+    metric: Count of accepting sigma' != sigma, by mutation class.
+    predicted: 0 for a fully conformant FIPS 204 verifier. Any positive count identifies a
+      specific unchecked field and is a conformance finding of the same class as KN-FIND-001.
+  - observable: Injectivity of w1Encode on the image of HighBits, and its behaviour on out-of-image
+      inputs.
+    metric: Collision count over an exhaustive sweep of one polynomial's coefficient range
+      at the true (gamma_2, q).
+    predicted: Injective on the image (that is what the encoding is for), and the interesting
+      quantity is whether an out-of-image w1' can be produced by any (z, h) satisfying the
+      three checked predicates. Predicted no; a yes is a first-order finding.
+  - observable: 'NULL / positive control: a deliberately weakened verifier that skips the
+      malformed-hint check.'
+    metric: Accepting-mutation count under the weakened verifier.
+    predicted: Strictly positive, and the mutation classes it admits name exactly what the
+      real check buys. Per KN-TECH-054, a conformance gate that cannot see a planted defect
+      proves nothing, so this control is mandatory and must be baseline-invisible.
+  minimal_test: (1) Read sigEncode/sigDecode, hintBitPack/hintBitUnpack, w1Encode and the
+    Verify predicate list from FIPS 204 primary text, and resolve the algorithm/line-numbering
+    question the goal record flags. (2) Implement the weakened-verifier positive control FIRST.
+    (3) Run the byte-mutation sweep against both verifiers over the declared mutation classes
+    at ML-DSA-44/65/87. (4) Enumerate w1Encode injectivity exhaustively over one polynomial's
+    range. (5) Report counts per class with the control's counts beside them.
+  controls:
+  - PLANTED-DEFECT POSITIVE CONTROL (weakened verifier) — mandatory, and it must be invisible
+    to the baseline gate per KN-TECH-054.
+  - CROSS-IMPLEMENTATION CONTROL: run the same mutations against a second independent verifier;
+      a disagreement is a finding about one implementation, an agreement is a finding about
+      the standard.
+  - VALID-SIGNATURE CONTROL: the unmutated sigma must accept in every arm, or the harness
+      is broken.
+  confounders:
+  - A single accepting mutant could be a bug in MY decoder rather than in the verifier. Any
+    positive must be reproduced against a second implementation before it is written anywhere.
+  - 'Mutation coverage is not proof of absence: a zero count bounds only the searched classes
+    and the record must say exactly which classes were searched.'
+  - FIPS 204's checks may be stated in prose rather than in the algorithm listing; a "missing"
+    check may be present as a normative requirement elsewhere.
+  falsification_conditions:
+  - Zero accepting mutants in every searched class under the conformant verifier, with the
+    positive control showing nonzero — the encoding surface is closed at the searched coverage.
+  - The positive control ALSO shows zero — the instrument has no power and nothing is interpretable
+    (an instrument outcome, per KN-TECH-054).
+  interpretation_limits: Conformance tier. A positive result is a statement about an implementation
+    or an encoding, NOT about MLWE, MSIS or SelfTargetMSIS — the goal record makes any package
+    readable as such a claim defective regardless of what it measured. A negative result closes
+    exactly the enumerated mutation classes and no more (AGENTS.md rule 6).
+  assumptions:
+  - The FIPS 204 signature encoding carries a packed variable-length hint with boundary indices,
+    as recalled; step (1) is the gate.
+  - A conformant reference verifier and at least one independent second verifier are obtainable.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: Encoding-level accept-fibre defects, if present, are reachable by LOCAL mutations
+      of the hint region (single byte, boundary index, trailing bytes) rather than requiring
+      a globally restructured signature.
+    rigorous_ingredient: hintBitUnpack's failure modes are governed by monotonicity and boundary
+      constraints on a short index list; violating either is a local edit by construction,
+      and the check surface is finite and enumerable.
+    distribution_imitated: The locality principle underlying differential conformance testing,
+      and this program's own KN-FIND-001, where byte-complete differential probing of the
+      ML-KEM comparison primitive discriminated incomplete comparisons at fix boundaries.
+    validation_route: 'The weakened-verifier positive control IS the validation: if local
+      mutations find the planted defect, locality suffices for that defect class; if they
+      do not, HA-1 is false and the search must be widened before any negative is reported.'
+    tail_checks: Report the mutation class with the FEWEST detections under the positive control,
+      since that class bounds the instrument's blind spot.
+  target_complexity:
+    time_exponent: 'NOT AN ATTACK. Cost is the enumeration size: O(signature length x mutation
+      classes) verifier calls, a few million at most.'
+    memory_exponent: O(1).
+    best_known_baseline: No corpus record enumerates the ML-DSA accept fibre; the ML-KEM analogues
+      (catalogue M2-5, M2-8, IDEA-20260805-3c957e) are the methodological baseline.
+    hidden_overhead_disclosure: None; the enumeration is exact within its declared classes
+      and its coverage is the only thing that can be overstated.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: Delivers the first stated characterisation of what the ML-DSA verifier does
+    and does not check, as a lemma plus an enumerated fibre count. Zero against any hard problem.
+  dominated_by: n/a (no attack-cost result claimed). Checked against the five RQ-MLDSA-ffa0f5
+    rows and the four ML-KEM encoding rows; none covers ML-DSA signature encoding, so none
+    dominates. If a published ML-DSA malleability result already exists, this is dominated
+    by it — and I could not check, which is what `unverified` records.
+  estimated_cost: 'Implementation: medium (two verifiers plus a mutation harness). Compute:
+    low.'
+  recommended_priority: medium
+  honest_prior_of_survival: P(a conformant FIPS 204 verifier admits any accepting mutant)
+    ~ 0.12 — the standard added explicit malformed-hint checks, so the modal outcome is a
+    clean zero. P(the positive control demonstrates real power) ~ 0.8. P(the lemma characterising
+    the accept set is worth recording regardless) ~ 0.9, and that is the reason to run it.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (RQ-MLDSA-ffa0f5 and ML-KEM encoding rows),
+    EXISTING_HYPOTHESES.txt (H-MLDSA-2d4123, H-MLKEM-d9062d), CATALOGUE_TITLES.txt (M2-5,
+    M2-8), KNOWLEDGE_BARRIERS.txt (KN-FIND-001, KN-TECH-054), GOAL-MLDSA-002.yaml. WEB NOT
+    SCREENED.'
+  discriminated_from: Catalogue M2-5 and M2-8 are ML-KEM encoding fibres; IDEA-20260805-3c957e
+    is ML-KEM length arithmetic; IDEA-20260807-1f5f89 mutates ML-KEM dk fields. This is the
+    ML-DSA signature encoding, whose sparse variable-length hint has no ML-KEM analogue. IDEA-20260805-031ce2
+    asks an algebraic question about signing predicates, not a byte-level fibre count.
+  lossy_projection_test: 'PASSES, and this one is worth stating carefully because it is the
+    easiest place to fool oneself. Tracked object: the ACCEPT INDICATOR of the verifier as
+    a function of the byte string — a one-bit projection of a several-kilobyte object. Massively
+    lossy. Discarded compatibly, because the verifier''s own semantics are exactly this bit
+    and nothing downstream in the protocol sees more; the bit propagates deterministically
+    under any mutation. A projection that would FAIL: tracking the decoded (z, h, c), which
+    is what the algebraic argument already tracks and which loses precisely the encoding information
+    this proposal is about.'
+  source_refs:
+  - GOAL-MLDSA-002.yaml (corpus, read in full) — including its statement that GOAL-MLKEM-002
+    is the structural precedent for a conformance lane.
+  - KN-FIND-001 and KN-TECH-054 (corpus, via KNOWLEDGE_BARRIERS.txt) — byte-complete differential
+    probing, and the requirement of a baseline-invisible positive control.

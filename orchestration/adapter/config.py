@@ -15,6 +15,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -26,6 +27,13 @@ PROVIDERS_PATH = REPO_ROOT / "orchestration" / "providers.yaml"
 BINDINGS_PATH = REPO_ROOT / "orchestration" / "model-bindings.yaml"
 
 DEFAULT_EFFORT_ORDER = ["none", "low", "medium", "high", "xhigh", "max"]
+
+# A binding's ``model`` is the sole authority for an outbound model selector.
+# ``request`` is deliberately open for provider-specific tuning knobs, but it
+# must not replace transport routing after resolution has already been checked.
+REQUEST_TARGET_SELECTOR_FIELDS = frozenset({
+    "model", "provider", "backend", "endpoint", "base_url", "url",
+})
 
 
 class ConfigError(ValueError):
@@ -89,7 +97,29 @@ class Config:
     def runtime_table(self) -> dict[str, Any]:
         return self.providers.get("runtimes", {})
 
+    @property
+    def forbidden_provider_substrings(self) -> list[str]:
+        governance = self.providers.get("governance", {})
+        return [str(value).casefold() for value in
+                governance.get("forbidden_provider_substrings", [])]
+
+    def assert_inference_target_allowed(self, *values: object,
+                                        context: str = "inference target") -> None:
+        """Fail before resolution when a cost-prohibited provider is named."""
+        for value in values:
+            if value is None:
+                continue
+            normalized = str(value).casefold()
+            for token in self.forbidden_provider_substrings:
+                if token and token in normalized:
+                    reason = (self.providers.get("governance", {}) or {}).get(
+                        "reason", "provider is forbidden by repository policy")
+                    raise ConfigError(
+                        f"{context} {value!r} is forbidden by cost policy "
+                        f"(matched {token!r}): {reason}")
+
     def backend(self, name: str) -> dict[str, Any]:
+        self.assert_inference_target_allowed(name, context="backend")
         try:
             return self.backend_table[name]
         except KeyError:
@@ -116,8 +146,12 @@ class Config:
         backend = self.backend(backend_name)
         override = backend.get("base_url_env")
         if override and env.get(override):
-            return env[override].rstrip("/")
-        return str(backend["base_url"]).rstrip("/")
+            base_url = env[override].rstrip("/")
+        else:
+            base_url = str(backend["base_url"]).rstrip("/")
+        self.assert_inference_target_allowed(
+            base_url, context=f"backend {backend_name} resolved endpoint")
+        return base_url
 
     def default_backend(self, env: dict[str, str] | None = None) -> str:
         env = os.environ if env is None else env
@@ -184,6 +218,41 @@ def _digest(docs: dict[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(blob).hexdigest()[:32]
 
 
+def _scalar_values(value: Any):
+    """Yield scalar config values without treating mappings as string blobs."""
+    if isinstance(value, dict):
+        for key, child in value.items():
+            yield key
+            yield from _scalar_values(child)
+    elif isinstance(value, (list, tuple, set)):
+        for child in value:
+            yield from _scalar_values(child)
+    else:
+        yield value
+
+
+def _validate_wire_path(config: Config, wire_name: str, field: str,
+                        value: Any) -> None:
+    """Require a target-checked, slash-prefixed relative wire path.
+
+    The transport concatenates this value to the guarded backend base URL.
+    A relative path requirement prevents a configuration value such as
+    ``@host`` or ``//host`` from changing the final request authority after
+    that base URL check has completed.
+    """
+    if not isinstance(value, str) or not value:
+        raise ConfigError(
+            f"wire protocol {wire_name} is missing a non-empty `{field}` path")
+    config.assert_inference_target_allowed(
+        value, context=f"wire protocol {wire_name} {field}")
+    parsed = urlsplit(value)
+    if (not value.startswith("/") or value.startswith("//") or
+            parsed.scheme or parsed.netloc or parsed.query or parsed.fragment):
+        raise ConfigError(
+            f"wire protocol {wire_name} {field} must be a slash-prefixed "
+            "relative path without an authority, query, or fragment")
+
+
 def validate(config: Config) -> None:
     """Fail loudly on anything that could mis-route a task."""
     for section, doc in (("policies", config.policies),
@@ -227,10 +296,25 @@ def validate(config: Config) -> None:
     for role, policy_id in (config.policies.get("role_defaults") or {}).items():
         config.canonical_policy(policy_id)  # raises on typo
 
+    wire_protocols = config.providers.get("wire_protocols")
+    if not isinstance(wire_protocols, dict) or not wire_protocols:
+        raise ConfigError("providers.yaml declares no wire protocols")
+    for wire_name, protocol in wire_protocols.items():
+        if not isinstance(protocol, dict):
+            raise ConfigError(f"wire protocol {wire_name!r} must be a mapping")
+        config.assert_inference_target_allowed(
+            wire_name, context="wire protocol name")
+        for field in ("path", "models_path"):
+            _validate_wire_path(config, wire_name, field, protocol.get(field))
+
     backends = config.providers.get("backends")
     if not isinstance(backends, dict) or not backends:
         raise ConfigError("providers.yaml declares no backends")
     for name, backend in backends.items():
+        config.assert_inference_target_allowed(
+            name, backend.get("display_name"), backend.get("base_url"),
+            backend.get("base_url_env"), backend.get("wire"),
+            context=f"backend {name}")
         for field in ("wire", "base_url", "api_key_env"):
             if not backend.get(field):
                 raise ConfigError(f"backend {name} is missing `{field}`")
@@ -266,6 +350,23 @@ def validate(config: Config) -> None:
                 raise ConfigError(
                     f"binding {backend_name}.{policy_id} names a model but is "
                     f"marked unbound")
+            if binding.get("model"):
+                config.assert_inference_target_allowed(
+                    binding["model"],
+                    context=f"binding {backend_name}.{policy_id} model")
+            request = binding.get("request")
+            if request is not None:
+                if not isinstance(request, dict):
+                    raise ConfigError(
+                        f"binding {backend_name}.{policy_id} request must be a mapping")
+                config.assert_inference_target_allowed(
+                    *_scalar_values(request),
+                    context=f"binding {backend_name}.{policy_id} request")
+                selectors = sorted(REQUEST_TARGET_SELECTOR_FIELDS.intersection(request))
+                if selectors:
+                    raise ConfigError(
+                        f"binding {backend_name}.{policy_id} request may not override "
+                        f"transport target selector(s): {', '.join(selectors)}")
             caps = binding.get("capabilities") or {}
             ceiling = caps.get("max_reasoning_effort")
             if binding.get("model") and ceiling not in order:
