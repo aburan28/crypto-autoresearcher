@@ -1,0 +1,191 @@
+schema: crypto.autoresearch.static_repair_package.v1
+repair_package:
+  id: TASK-20260824-ab65a6-repair
+  task_id: TASK-20260824-ab65a6
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-005931
+  controlling_decision: DEC-20260824-2cdacd
+  prior_decision: DEC-20260824-a7d568
+  status: additive_superseding_static_repair_pending_review
+  recorded_at: '2026-08-24T23:00:10Z'
+  authoring_role: executor
+  document_kind: static_contract_repair
+  experiment_id: null
+  experiment_runs_authorized: 0
+  experiment_runs_executed: 0
+  scientific_result: false
+  scientific_conclusion: null
+  supersession:
+    mode: additive_new_artifact
+    supersedes_prior_package: true
+    prior_package_path: coordination/goals/GOAL-ENDO-001/batches/BATCH-25e27c/resource-implementation-planning-gate-2/planning-gate-2.yaml
+    prior_package_edited: false
+    prior_decision_edited: false
+    interpretation: >-
+      This package supplies successor boundary rules. It does not rewrite,
+      normalize, or retroactively pass the predecessor.
+
+  authorization_boundary:
+    statement: >-
+      Writing this package authorizes no implementation, Phase B, experiment,
+      control, instrument, target, curve, JINV, transport, N18, science,
+      status transition, closure, breakthrough, publication, network write,
+      resource-disposition change, or automatic execution.
+    implementation_authorized: false
+    phase_b_authorized: false
+    control_runs_authorized: 0
+    experiment_runs_authorized: 0
+    instrument_runs_authorized: 0
+    target_or_curve_access_authorized: false
+    jinv_work_authorized: false
+    transport_work_authorized: false
+    n18_authorized: false
+    scientific_interpretation_authorized: false
+    hypothesis_status_change_authorized: false
+    experiment_status_change_authorized: false
+    goal_status_change_authorized: false
+    resource_disposition_change_authorized: false
+    closure_authorized: false
+    breakthrough_authorized: false
+    publication_authorized: false
+    network_write_authorized: false
+    automatic_execution: false
+    fallback_allowed: false
+    degraded_allowed: false
+    resource_disposition: resource_incomplete
+    gates_cleared: 0
+
+  repaired_boundaries:
+    materialization:
+      rule_id: REPAIR-MAT-1
+      applies_when: materialization_on_host == true
+      required_observation:
+        field: current_host_observation
+        required: true
+        freshness_seconds: 3600
+        required_fields: [host_id, observed_at, free_disk_bytes, memory_bytes, observation_status]
+        accepted_status: known
+      decision_table:
+        - condition: observation_missing_or_null
+          action: STOP_REFUSE_MATERIALIZATION
+        - condition: observation_status in [unknown, unavailable, invalid, stale]
+          action: STOP_REFUSE_MATERIALIZATION
+        - condition: any_required_field_missing_or_nonfinite
+          action: STOP_REFUSE_MATERIALIZATION
+        - condition: observation_known_and_fresh_and_complete
+          action: continue_to_separate_non_authorizing_checks
+      no_observation_alternative_is_admissible: false
+      pass_requires: current_host_observation_known_fresh_complete
+      stop_preserves_resource_incomplete: true
+    pb3:
+      rule_id: REPAIR-PB3-1
+      required_terms:
+        - retained_bytes
+        - largest_artifact_bytes
+        - shard_count
+        - logical_io_bytes
+      required_model_fields: [sharded_merge_model, residual_artifact_grouping]
+      unknown_values: [null, UNKNOWN, unknown, unavailable, invalid, nonfinite, unevaluable]
+      decision_table:
+        - condition: any_required_term_or_model_missing_unknown_invalid_nonfinite_or_unevaluable
+          action: STOP_REFUSE_FIT_OR_PASS_INTERPRETATION
+        - condition: all_terms_finite_nonnegative_and_model_evaluable
+          action: evaluate_numeric_caps
+        - condition: any_numeric_cap_exceeded
+          action: STOP_REFUSE_FIT_OR_PASS_INTERPRETATION
+        - condition: all_numeric_caps_satisfied
+          action: remain_unapproved_and_return_to_coordinator
+      unknown_is_not_zero: true
+      underived_quantity_policy: leave_corresponding_estimate_underived
+      stop_preserves_resource_incomplete: true
+
+  quantitative_controls:
+    common:
+      execution_authorized_by_this_file: false
+      unmeasured_control_is_not_pass: true
+      missing_or_invalid_record_action: STOP
+      uncertainty_rule: >-
+        Use the pre-registered statistic and its stated 95% confidence interval
+        (paired bootstrap, 10000 resamples, or exact binomial interval where
+        applicable). If an interval cannot be computed, STOP. Boundary equality
+        is handled exactly by the rule below; no operator discretion is allowed.
+      replicate_policy: >-
+        Replicates are independent seeded records; seeds, cardinality, and raw
+        observations must be retained before evaluation.
+    CT-1:
+      metric: absolute_difference_in_collision_rate_vs_matched_null
+      cardinality_replicates: 1000 signal trials and 1000 matched-null trials, paired by seed
+      tolerance_or_effect_rule: |-
+        PASS only if the 95% CI for (signal_rate - null_rate) contains 0 and
+        its upper endpoint is <= 0.02; otherwise STOP.
+      uncertainty_treatment: paired bootstrap 95% CI; STOP if fewer than 1000 valid pairs
+      pass_behavior: PASS_CONTROL_ONLY
+      stop_behavior: STOP_NO_SIGNAL_CLAIM
+    CT-2:
+      metric: excess_unique_output_rate_signal_minus_matched_null
+      cardinality_replicates: 1000 signal trials and 1000 matched-null trials, paired by seed
+      tolerance_or_effect_rule: |-
+        PASS only if the 95% CI upper endpoint for the difference is <= 0.02
+        and the point estimate is not positive beyond that tolerance; otherwise STOP.
+      uncertainty_treatment: paired bootstrap 95% CI; invalid or missing pairs STOP
+      pass_behavior: PASS_CONTROL_ONLY
+      stop_behavior: STOP_NO_UNIQUENESS_CLAIM
+    CT-3:
+      metric: ratio_of_observed_signal_rate_to_matched_null_rate
+      cardinality_replicates: 1000 signal trials and 1000 matched-null trials; minimum null count 20
+      tolerance_or_effect_rule: |-
+        PASS only if the two-sided 95% CI for the ratio is contained in [0.80, 1.25];
+        zero or fewer than 20 null events is STOP, not a favorable ratio.
+      uncertainty_treatment: exact binomial-log ratio interval; undefined denominator STOP
+      pass_behavior: PASS_CONTROL_ONLY
+      stop_behavior: STOP_NO_RATE_EQUIVALENCE_CLAIM
+    CT-4:
+      metric: paired_cpu_seconds_ratio_under_doubled_input_and_wall_rate_change
+      cardinality_replicates: 30 independent seed pairs at baseline and doubled input
+      tolerance_or_effect_rule: |-
+        PASS only if the 95% CI for doubled/baseline CPU ratio is contained in
+        [1.80, 2.20] and the 95% CI for wall-rate ratio is <= 0.60; otherwise STOP.
+      uncertainty_treatment: paired bootstrap 95% CIs; any timeout, missing timing, or clock anomaly STOP
+      pass_behavior: PASS_CONTROL_ONLY
+      stop_behavior: STOP_NO_SCALING_CLAIM
+    CT-5:
+      metric: signal_effect_after_signal_destroying_parameter_minus_matched_null_effect
+      cardinality_replicates: 1000 baseline trials and 1000 signal-destroyed trials, each with 1000 matched-null trials
+      tolerance_or_effect_rule: |-
+        PASS only if the 95% CI for destroyed-minus-null absolute effect is
+        contained in [-0.02, 0.02] and the destroyed point estimate is <= 0.02;
+        otherwise STOP.
+      uncertainty_treatment: paired bootstrap 95% CI; incomplete strata STOP
+      pass_behavior: PASS_CONTROL_ONLY
+      stop_behavior: STOP_NO_VANISHING_EFFECT_CLAIM
+
+  known_false_static_controls:
+    - id: KF-MAT-NO-OBS
+      input_mutation: materialization_on_host=true with current_host_observation=null
+      expected: STOP_REFUSE_MATERIALIZATION
+    - id: KF-PB3-UNKNOWN
+      input_mutation: logical_io_bytes=UNKNOWN and sharded_merge_model=missing
+      expected: STOP_REFUSE_FIT_OR_PASS_INTERPRETATION
+    - id: KF-CT-BOUNDARY
+      input_mutation: synthetic CT record just inside and just outside every stated boundary
+      expected: deterministic opposite classifications without operator judgment
+  controls_are_planned_not_executed: true
+
+  scope_and_claim_boundary:
+    in_scope: [static boundary specification, fail-closed decision rules, quantitative control preregistration]
+    explicitly_out_of_scope: [implementation, Phase B, target_access, curve_access, transport, N18, JINV, science]
+    no_experiment_id_created: true
+    no_experiment_run_directory_created: true
+    no_status_change: true
+    no_scientific_conclusion: true
+
+  provenance:
+    source_records:
+      - DEC-20260824-2cdacd
+      - DEC-20260824-a7d568
+      - TASK-20260824-453079
+      - TASK-20260824-5d19e1
+    provenance_kind: internal
+    observations_made_by_this_task: []
+    prior_artifacts_edited: false
+    commands_run: ["pwd", "sed/read-only inspection of AGENTS.md, executor.md, queue, decisions, prior reports, and predecessor package", "git rev-parse HEAD", "date -u"]
