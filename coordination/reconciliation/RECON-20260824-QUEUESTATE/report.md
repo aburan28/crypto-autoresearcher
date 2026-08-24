@@ -126,6 +126,73 @@ and rule 15 forbids it.
 - It asserts nothing about who performed any task. A card marked `completed` here means its
   declared artifacts are present and committed and its `state` field had never been advanced.
 
+## CORRECTION, same day — finding 1 was wrong, and how it was caught
+
+**The GOAL-ECQ-002 repair above was incorrect and has been superseded.** It is left in place
+above, unedited, because a correction supersedes and never overwrites.
+
+What the sweep concluded: the producer had landed, the snapshot card should move
+`blocked` → `queued`, and the three downstream cards should stay blocked pending review.
+
+What was actually true: **the entire round had already run, been adjudicated, and merged**
+via PR #511 at `ba0d85833` on 2026-08-23. The snapshot receipt already existed binding
+**94 paths with 94 full 64-hex digests**; the validator, red team and ledger archive had all
+run; and `EV-ECQ-cbc837`, `DEC-20260823-839fc6` and the sharded checkpoint
+`ledger/goals/GOAL-ECQ-002/checkpoints/BATCH-da59ec.yaml` were all committed. The
+hypothesis `H-ECQ-a609f8` had already moved `proposed` → `rejected` (scoped).
+
+**How it was caught.** The re-offered card was dispatched to a `coordinator` subagent, which
+**refused to execute it** and superseded instead. Its reasoning was correct and is worth
+recording: writing the instructed receipt would have replaced 94 verified digests with
+nulls — a state this batch's own `CORRECTION-stale-receipt-hash.md` and ledger receipt both
+declare *a failure, never a pass* — and would have asserted that reviewers had not started
+when they had finished. Its own handoff constraint, "Records are immutable: supersede, never
+overwrite", forbade the act the card asked of it. It wrote
+`archives/TASK-20260823-452f5f/receipt-addendum-20260824-redispatch-refused.yaml` and left
+`receipt.yaml` untouched. It also independently re-enumerated the producer's write_scope —
+94 files, exact agreement with the receipt in both directions — confirming the original
+archive was not too narrow.
+
+**Root cause: two independent defects in the sweep, either of which alone would have caught
+this.**
+
+1. **The staleness test only examined cards in state `queued` or `running`.** The three
+   downstream cards were `blocked`, so their artifacts were never checked at all. The sweep
+   reasoned from the card's *dependency* and never from the card's *own* outputs.
+2. **Checkpoint detection read only the goal head's inline `batch_checkpoints` list.**
+   GOAL-ECQ-002 uses the **sharded** layout (`tools/shard_goal.py`), where checkpoints live
+   one-file-per-batch under `checkpoints/`. Its inline list is empty *by design*, so a fully
+   checkpointed batch registered as un-checkpointed. GOAL-AES-001, which is unsharded, was
+   read correctly — which is why that finding stands and this one did not.
+
+The generalisable lesson, in the subagent's words: *fix the rule, not just the instance* — a
+sweep that reads only upstream cards will keep re-offering completed downstream ones.
+
+**Repair applied.** All four remaining BATCH-da59ec cards are now `completed`, effective
+2026-08-23 when the work actually ran. The two archive cards are bound to **the archiving
+sessions' own commits**, recovered from git history by their messages naming the tasks —
+`0cb016502` ("SNAPSHOT ARCHIVE TASK-20260823-452f5f…") and `dcfc47417` ("LEDGER ARCHIVE
+TASK-20260823-0a2461…"). An earlier attempt bound them to the PR #511 merge commit; that was
+wrong — a merge commit is not the archive and does not name the task — and was replaced
+rather than left standing. Each card's `path_sha256` is copied verbatim from its own receipt,
+narrowed to the card's commit scope, with the single self-referential receipt digest computed
+from the committed file because a record cannot contain its own hash. The batch now renders
+with **no ready tasks and nothing deferred**.
+
+**Escalated, not acted on: `ledger/goals/GOAL-ECQ-002/goal.yaml` is stale.** Its `next_action`
+still reads "Run BATCH-da59ec", its `latest_verified_commit` is `ab0aa5404`, and its inline
+`batch_checkpoints` is empty. **That staleness is what misled this sweep** — the cost is
+demonstrated, not hypothetical. A goal head is a ledger record under Coordinator authority
+and was deliberately not edited here. This is the second occurrence of the item the
+BATCH-f2341e ledger receipt raised as `L-GOAL-RECORD-RECONCILIATION`.
+
+**Recorded, not adjudicated.** The producer's landing commit subject at `95d2a58ec` states
+its finding, while the batch's handoffs require commit messages to say *that* an artifact
+landed and never *what it found* while reviewers are live. Whether either reviewer read the
+log, and what it would change, needs an audit this sweep did not perform. It belongs with the
+`review_plan`'s recorded priors and with any assessment of `DEC-20260823-839fc6`'s
+independence. Noted here so it is not lost.
+
 ## Disclosed substitution
 
 The `coordinator` subagent role in this runtime holds no shell (`Read, Grep, Glob, Write,
