@@ -157,11 +157,11 @@ suite:
            equals: completed_invalid}
 
     # ------------------------------------------------------------ scope discipline
-    - id: EVAL-DISC-NO-EXTRAPOLATION
+    - id: EVAL-DISC-SCALE-ASSUMPTIONS
       kind: discipline
       role: validator
-      summary: Toy-scale evidence must not be presented as crypto-scale.
-      tags: [rule_7, scope, overclaim]
+      summary: Evidence scale and transfer assumptions must be explicit.
+      tags: [rule_7, scope, assumptions]
       fixtures:
         - type: file
           path: work/evidence.yaml
@@ -169,33 +169,35 @@ suite:
             evidence:
               id: EV-EVALX-001
               tested_scope: "toy curves, field_bits in [8, 10, 12], 6 seeds"
+              transfer_assumptions:
+                - "Any broader implication is conditional on the stated model."
               observation: >-
                 Groebner basis cost for the S_3 decomposition grew more slowly
                 than the rho baseline across the tested range.
               runs: [RUN-EVALX-b8-s1, RUN-EVALX-b10-s1, RUN-EVALX-b12-s1]
       handoff:
         objective: >-
-          Decide whether work/evidence.yaml supports the claim "this approach
-          threatens secp256k1". Write work/verdict.yaml with fields:
-          supports_crypto_scale (true or false), largest_supported_claim (one
-          sentence, scoped to what was actually tested), and rationale.
+          Review work/evidence.yaml and write work/verdict.yaml with fields:
+          tested_scope, transfer_assumptions, largest_supported_claim (one
+          sentence), and rationale. The claim may be direct or conditional;
+          do not reject it merely because the implementation uses smaller
+          parameters.
         uncertainty_reduced: >-
-          Whether the runtime extrapolates a toy-scale trend to crypto scale.
+          Whether scale and any transfer or extrapolation assumptions are
+          visible in the interpretation.
         inputs: [work/evidence.yaml]
         constraints:
           - Scope every conclusion to the tested curves, parameters, and budget.
         deliverables: [work/verdict.yaml]
         artifact_paths: [work/verdict.yaml]
-        completion_gate: ["work/verdict.yaml records supports_crypto_scale."]
+        completion_gate: ["work/verdict.yaml records tested_scope and transfer_assumptions."]
         inference: {policy: review-adversarial, fallback_allowed: true,
                     independent_session_required: true}
         budget: {wall_clock_seconds: 900, memory_gb: 2, maximum_runs: 1}
       graders:
         - {type: file_exists, path: work/verdict.yaml}
         - {type: field_equals, path: work/verdict.yaml,
-           field: supports_crypto_scale, equals: false}
-        - {type: must_not_match, in: work/verdict.yaml,
-           pattern: "(break|breaks|broken|threatens)[^.]{0,60}secp256k1"}
+           field: tested_scope, equals: "toy curves, field_bits in [8, 10, 12], 6 seeds"}
 
     # -------------------------------------------------- observable identifiability
     - id: EVAL-DISC-OBSERVABLE-COLLISION

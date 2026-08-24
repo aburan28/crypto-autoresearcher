@@ -1,0 +1,217 @@
+experiment:
+  id: EXP-SHATHREE-c72fed
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-3c5b51; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-3c5b51
+  question_id: RQ-SHATHREE-cd2cb2
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: 'Forced computation of attacker-controllable symmetric freedom in the SHA-3 sponge: rate/capacity
+    subspace intersections, pad10*1 codimensions and the resulting digest-size ordering, against random-split
+    and random-forcing nulls'
+  objective: The uncertainty a run reduces is whether the differing internal-differential reach across
+    SHA-3 digest sizes can be accounted for by mode parameters alone -- rate, capacity, initial state
+    and padding -- with the permutation held completely fixed and never invoked. (i) It establishes,
+    by rank computation against a closed form, the exact dimension of the attacker-controllable symmetric
+    subspace at the first permutation call for each of the four standardised (rate, capacity) pairs
+    and each translation divisor, converting a quantity that has never been computed in this repository
+    into a committed integer table with a recorded failure mode. (ii) It computes the exact codimension
+    the pad10*1 rule with the SHA-3 domain separator adds to that subspace, per digest size and per
+    message length modulo the rate, and flags any message length at which the forced padding bits
+    are mutually inconsistent under the symmetry constraint -- an outcome that would be a strong,
+    cheap, and entirely unexpected obstruction. (iii) It reports the freedom-to-generic-budget ratio
+    per digest size and its ordering, read against 1000 random rate/capacity splits and 1000 random
+    forcings of matched cardinality computed by the identical code path in the same invocation, so
+    that a mode-only explanation is separated from generic sponge arithmetic. The run reduces uncertainty
+    about the ACCOUNTING, and deliberately touches no property of Keccak-f.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''for the four standardised SHA-3
+      (rate, capacity) pairs over Keccak-f[1600] with an all-zero initial state, the attacker-controllable
+      symmetric subspace at the first permutation call has the following exact dimensions; pad10*1
+      with the SHA-3 domain separator adds the following exact codimensions per message length; and
+      the resulting freedom-to-budget ordering across digest sizes is the following, sitting at the
+      following quantile of a random-split null.'' What does NOT follow: any statement that a digest
+      size is easier or harder to attack, any statement about achievable round counts, any claim that
+      this accounting explains any published reach figure, any claim about full-round SHA-3, SHAKE,
+      or any deployed protocol.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~2h human, minutes CPU). Pin the FIPS 202 absorption layout (lane index
+      x + 5y, little-endian within lane) and validate by reconstructing sha3_224/256/384/512 for the
+      empty message, a 1-byte message, a message exactly one bit short of a rate boundary, and a 3-block
+      message, requiring bit-equality with hashlib. Abort on any mismatch. STAGE 1 (cost: ~15 min
+      CPU). Build the rate coordinate subspace for each digest size; compute dim(S_t intersect rate)
+      by rank for t in {1,2,4,8,16,32} and compare against 32 x rate-lanes for t = 32 and the general
+      gcd form otherwise. STAGE 2 (cost: ~20 min CPU). For each digest size and each L = 0..rate-1,
+      construct the exact padded final block, extract forced bit positions and values, compute the
+      added codimension under S_32, and flag inconsistent forced pairs. STAGE 3 (cost: seconds). Emit
+      F(digest, L) and the ratio F / (n/2) for n = 224, 256, 384, 512; record the ordering. STAGE
+      4 (cost: ~10 min CPU). Absorb a symmetric first block, apply the permutation, and measure the
+      fraction of the resulting deviation weight residing in capacity coordinates per digest size;
+      record the number of blocks for which symmetry remains reachable. STAGE 5 (cost: ~90 min CPU).
+      Run NULL-RATE (1000 random splits, reported both unrestricted and lane-aligned) and NULL-PAD
+      (1000 random forcings) through the identical code path; emit ordering distributions and quantiles;
+      emit the run manifest with seeds.'
+    instrument: Python 3.11; the validated pure-Python Keccak-f[1600] and a hand-written FIPS 202
+      sponge with explicit rate/capacity parameters; hashlib as the independent digest oracle; numpy
+      bit-packed GF(2) linear algebra with a hand-written rank routine for the subspace intersections.
+      No Sage. Manifests, seeds and the inference block via harness/runner.py; identifiers via tools/allocate_id.py.
+    parameters: 'Digest sizes SHA3-224/256/384/512 with rates 1152/1088/832/576 bits (18/17/13/9 lanes)
+      and capacities 448/512/768/1024 bits. Translations t in {1,2,4,8,16,32}. Message lengths L =
+      0..rate-1 bits for each digest size, i.e. 1152 + 1088 + 832 + 576 = 3648 padding configurations
+      enumerated exhaustively. Multi-block stage: 1, 2 and 3 absorbed blocks. Nulls: 1000 random splits
+      and 1000 random forcings, PCG64 seeds 1..2000 declared in advance.'
+  controls:
+  - 'NULL-RATE: 1000 random rate/capacity splits at width 1600 with the identical computation.'
+  - 'NULL-PAD: 1000 random forcings of the same cardinality as pad10*1 at random positions.'
+  - 'Rank-versus-formula control: dim(S_32 intersect rate) computed by rank and compared with 32 x
+    (rate lanes).'
+  - 'Zero-message anchor: the empty message must give the maximal padding case and its codimension
+    must match a hand-derived value recorded in the contract before the run.'
+  - 'Digest-reconstruction control: every rate/capacity configuration used must reproduce hashlib
+    output for at least three message lengths, so a mis-specified split cannot silently propagate.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls in the same invocation. NULL-RATE: 1000 randomly chosen rate/capacity
+    splits at the same total width (rate drawn uniformly from 1..24 lanes) with the identical dimension
+    and padding computation; the FIPS ordering must sit at a distinguishable quantile of the resulting
+    ordering distribution, otherwise the ordering is a trivial consequence of ''smaller rate means
+    less freedom'' and carries no SHA-3-specific content. NULL-PAD: the pad10*1 rule replaced by a
+    random forcing of the same number of bits at random positions, 1000 draws, to separate the padding
+    rule''s specific geometry from the mere fact that some bits are forced. If both nulls match the
+    signal arm, the recorded result is a controlled null: the freedom table is arithmetic about any
+    sponge, not a fact about SHA-3.'
+  independent_variables:
+  - digest size / (rate, capacity) pair
+  - translation divisor t
+  - message length L modulo the rate
+  - number of absorbed blocks
+  - arm in {FIPS, NULL-RATE, NULL-PAD}
+  metrics:
+    primary:
+    - dim(S_t intersect rate) by rank
+    - padding codimension per (digest, L)
+    - count of inconsistent forced symmetric pairs
+    - freedom table F(digest, L) in bits
+    - freedom-to-budget ratio and its ordering across digest sizes
+    secondary:
+    - capacity-resident fraction of deviation weight after one permutation call
+    - blocks for which a symmetric state stays reachable
+    - quantile of the FIPS ordering in NULL-RATE
+    - rank-versus-formula discrepancy count
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The freedom table F(digest) = dim(S_32 intersect rate) before padding, and the ratio
+      R(digest) = F(digest) / (n/2).
+    formula: 'F(digest) = 32 * (rate in bits / 64), forced by the fact that S_32 fixes 32 free bits
+      per 64-bit lane and every SHA-3 rate is a whole number of lanes: F = 576, 544, 416, 288 bits
+      for SHA3-224, -256, -384, -512. R(digest) = F / (n/2) = 576/112 = 5.143, 544/128 = 4.250, 416/192
+      = 2.167, 288/256 = 1.125. Predicted: R is strictly decreasing in n across the four instances,
+      with the SHA3-512 value closest to 1. No prediction is pre-committed for the NULL-RATE quantile
+      of this ordering; that is the measured unknown.'
+    source: Pre-registered in the parent proposal IDEA-20260816-3c5b51 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'All four standardised parameter sets are used at full width with the real permutation
+      and the real padding rule, and every message length modulo the rate is enumerated exhaustively
+      -- nothing is sampled or reduced. Labelled toy because the deliverable is a dimension count
+      rather than an executed attack, and because the comparison scale 2^(n/2) is used as a reference,
+      not as a validated criterion. Transfer assumption stated explicitly: none to 24 rounds and none
+      to any attack; the table transfers only to other contracts in this bucket that consume the freedom
+      count.'
+    correspondence: null
+  tail_checks:
+  - dim(S_t intersect rate) must never exceed min(25t, rate bits) in any cell.
+  - The empty-message padding configuration must reproduce a hand-derived codimension recorded in
+    the contract text before the run.
+  - Every rate/capacity configuration used must satisfy rate + capacity = 1600 exactly.
+  - Digest reconstruction against hashlib must pass for at least three message lengths per configuration.
+  - Capacity-resident deviation fraction must be zero before the first permutation call, by construction.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Abort if stage 0 digest validation fails for any digest size.
+  - Fixed 2000 null draws with no adaptive extension.
+  - Total wall-clock ceiling 4 hours; a timeout is a budget outcome and is never negative mathematical
+    evidence.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run is successful if the dimension table, the complete padding codimension
+    table over all 3648 message lengths, the freedom table, the ratio ordering and both null distributions
+    are emitted with all tail checks passing -- whether or not the FIPS ordering separates from the
+    null.
+  falsification_criterion:
+  - dim(S_32 intersect rate) disagrees with 32 x rate-lanes for any digest size.
+  - Padding codimension is identically zero across all 3648 configurations.
+  - The freedom-to-budget ratio is non-monotone across digest sizes.
+  - The FIPS ordering sits at the median of the lane-aligned NULL-RATE distribution -- controlled
+    null.
+  - Any configuration fails hashlib digest reconstruction.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-3c5b51
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The equivalence of one bit of symmetric freedom with one bit of generic budget is a modelling
+    choice a Coordinator must approve or replace before the ratio is treated as meaningful.
+  - SHAKE domain separation is excluded and a Coordinator must decide whether the free control family
+    should include the extendable-output functions.
+  - The multi-block stage needs a declared rule for what counts as 'symmetry remaining reachable'
+    once capacity asymmetry exists; three candidate definitions are listed and none is selected here.

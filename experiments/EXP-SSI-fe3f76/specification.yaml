@@ -77,19 +77,19 @@ experiment:
       quantifier under review is therefore forall p exists fixed A_p forall
       E in V_p, with all query randomness conditioned on that fixed A_p.
     query_scope: >-
-      T_q is a fully specified finite functional. Let omega range only over
-      query-side randomness after fixed advice A_p, its builder seed, and its
-      frozen index are committed. One attempt has hard budget L_steps and work
-      W(A_p,E;omega), including lookup, parse, validation, candidate walks,
-      pullback, saturation, output conversion, and failed-candidate cost.
-      Let q(A_p,E)=Pr_omega[an admissible output before the budget]. If q=0,
-      T_q(A_p,E)=infinity. Otherwise independent restarts with the same A_p
-      give T_q(A_p,E)=E_omega[W(A_p,E;omega)]/q(A_p,E), and
-      T_q(A_p)=max_{E in V_p} T_q(A_p,E). Builder randomness is not averaged:
-      T_build is conditioned on the committed seed and includes failed attempts,
-      duplicate rejection, serialization, and index construction. A restart cap
-      is an implementation stop rule; hitting it is invalid/infrastructure
-      status, never a finite T_q.
+      T_q(A_p,E) is the expected cost over query-side randomness only, with E
+      held at the worst case in V_p. Advice-generation randomness, if used to
+      build A_p, belongs to T_build and is not averaged away. A future report
+      must separately disclose whether a finite-sample diagnostic uses an
+      average over random advice; that diagnostic may not be substituted for
+      the universal quantifier.
+    success_and_restart: >-
+      A query attempt has target failure probability epsilon = 2^-40. The
+      attempt budget includes graph-walk burn-in, walk steps, index lookup,
+      candidate parsing, order validation, path pullback, saturation, and
+      restart bookkeeping. The declared T_q is per successful-output target
+      cost after charging inverse success probability; an attempt timeout is
+      an infrastructure/contract failure, not a negative result.
     amortization: >-
       For Q independent instances using the same fixed A_p, total cost is
       T_build(A_p) + Q*T_q(A_p), and the reported amortized cost is
@@ -98,16 +98,6 @@ experiment:
 
   exact_parameterization:
     log2_p: [256, 512]
-    prime_instances:
-      - {label: SQISign-I, p_expression: "5*2^248-1", log2_p_approx: 256, source: "inputs/P13-WESOLOWSKI-2026/paper_fulltext.md:248,256"}
-      - {label: SQISign-V, p_expression: "27*2^500-1", log2_p_approx: 512, source: "inputs/P13-WESOLOWSKI-2026/paper_fulltext.md:248,257"}
-    vertex_encoding:
-      field_element: "canonical unsigned little-endian integer in [0,p-1]"
-      field_bytes: "b_p=ceil(bit_length(p)/8), computed from exact p_expression"
-      j_invariant: "encoding_version(1 byte)||j_0(b_p bytes)||j_1(b_p bytes)"
-      curve_id_bytes: "b_curve(p)=1+2*b_p"
-      vertex_order: "lexicographic byte order on curve_id; duplicate IDs rejected"
-      finite_set: "V_p is the sorted distinct vertex list under this encoding; no estimate replaces |V_p|"
     sigma_grid:
       - {label: "0", numerator: 0, denominator: 1, mode: no_advice_control}
       - {label: "1/6", numerator: 1, denominator: 6, mode: treatment}
@@ -137,77 +127,67 @@ experiment:
 
   advice_representation:
     logical_entry_definition: >-
-      S counts distinct logical records. Every record uses the exact fixed-width
-      schemas below; shared indexes, failed attempts, duplicate rejection,
-      padding, and retained-versus-attempted counts are charged separately.
+      S counts distinct logical records, not curves plus hidden auxiliary data.
+      Every record has a declared byte layout, and shared indexes, deduplication
+      tables, padding, failed-build attempts, and rejected duplicates are
+      charged separately. Unused slots are not silently free.
     encoding_parameters:
-      curve_id: "encoding_version(1)||j_0(b_p)||j_1(b_p), width b_curve=1+2*b_p"
-      signed_order_scalar: "sign(1)||magnitude(2*b_p+4 bytes), width b_scalar=2*b_p+5"
-      order_tag: "order_version(1)||owner_curve_id(b_curve)||four signed_order_scalar values"
-      order_tag_bytes: "b_order=1+b_curve+4*b_scalar"
-      path_descriptor: "zero bytes; paths are reconstructed and charged to T_q"
-      slot_index: "unsigned little-endian slot, width b_slot(S)=max(1,ceil(log2(max(2,S+1))/8))"
-      shared_index: "index_version(1)||S slot records, width b_index=1+S*(b_curve+b_slot)"
-      c_middle_descriptor: "middle_version(1)||left_slot(b_slot)||right_slot(b_slot)"
-      c_middle_bytes: "b_middle=1+2*b_slot"
-    branch_schemas:
-      construction_a_order_tagged: {fields: [lookup_curve_id(b_curve), order_tag(b_order)], entry_bytes: "b_A=b_curve+b_order"}
-      construction_b_order_tagged: {fields: [lookup_curve_id(b_curve), order_tag(b_order)], entry_bytes: "b_B_tagged=b_curve+b_order"}
-      construction_b_membership_only: {fields: [lookup_curve_id(b_curve)], entry_bytes: "b_B_membership=b_curve"}
-      construction_c_pair_entry: {fields: [left_endpoint(b_curve), right_endpoint(b_curve), middle_descriptor(b_middle)], entry_bytes: "b_C=2*b_curve+b_middle"}
-    overflow_rule: >-
-      An order scalar that overflows the declared envelope is a build failure
-      retained in attempted-count accounting; it is never truncated or made a null.
+      curve_id: >-
+        Canonical serialized j-invariant with measured byte width b_j(p) recorded
+        in the freeze receipt; the two F_p coordinates and any canonicalization
+        header are included in b_j(p).
+      order_tag: >-
+        Canonical serialized candidate order with byte width b_ord(p), including
+        representation and validation metadata.
+      path_descriptor: >-
+        Optional canonical walked-path descriptor with byte width b_path(p);
+        if the query reconstructs a path instead, b_path(p)=0 and the
+        reconstruction cost is charged in T_q.
+      index: >-
+        The lookup index has measured byte width b_idx(S,p), including collision
+        handling and duplicate rejection metadata.
     branches:
       construction_a_order_tagged:
-        build: "Build distinct curve/order records and one shared index I_A; charge attempts, failures, duplicates, serialization, and index construction in T_build."
-        query: "Use I_A, parse and validate order_tag against owner_curve_id, reconstruct E-to-owner path, pull back, saturate, and apply the final target identity/output gate."
+        record: [curve_id, order_tag, path_descriptor]
+        build: >-
+          Build and validate each distinct curve/order record; charge failed
+          order-to-curve attempts, duplicate rejection, serialization, and
+          index construction in T_build.
+        query: >-
+          Lookup the curve, validate the tagged order for that curve, then
+          perform the declared pullback/saturation/output conversion.
       construction_b_order_tagged:
-        size_law: "S_B(theta)=floor(p^(1/2+3*theta/2)) before finite-vertex saturation"
-        build: "same byte and failure charges as A, plus declared delta-screen certificate bytes if any"
-        query: "membership hit, order validation, terminal small-delta procedure, pullback, saturation, and output gate are all charged"
+        record: [curve_id, order_tag, path_descriptor]
+        status: >-
+          Separate branch. It may be algebraically redundant with A only after
+          its typed representation and build/query charges are compared.
       construction_b_membership_only:
-        size_law: "S_B(theta)=floor(p^(1/2+3*theta/2)) before finite-vertex saturation"
-        build: "store only curve_id plus shared membership index; no hidden order bytes"
-        query: "membership hit only; terminal order procedure and output conversion are charged after the hit"
+        record: [curve_id, path_descriptor]
+        status: >-
+          Separate branch. A hit supplies membership only; the terminal
+          small-delta/order procedure is charged after the hit and is not
+          silently replaced by an order lookup.
       construction_c_pair_entry:
-        build: "charge both endpoint IDs, middle descriptors, endpoint deduplication, pair index, and retained-versus-attempted counts"
-        query: "charge pair access, both endpoint resolutions, middle reconstruction, pullback, saturation, and output conversion"
-    B_theta_to_sigma:
-      formula: "sigma_B(theta)=1/2+3*theta/2; theta(sigma)=(2*sigma-1)/3 when sigma>=1/2"
-      rows:
-        - {sigma: "0", theta: null, status: not_applicable, reason: "S=0 control"}
-        - {sigma: "1/6", theta: null, status: not_applicable, reason: "below minimum B size p^(1/2); no padding"}
-        - {sigma: "1/3", theta: null, status: not_applicable, reason: "below minimum B size p^(1/2); no padding"}
-        - {sigma: "1/2", theta: "0", status: applicable, saturation: "S_B=floor(p^(1/2))"}
-        - {sigma: "2/3", theta: "1/9", status: applicable, saturation: "S_B=floor(p^(2/3))"}
-        - {sigma: "4/5", theta: "1/5", status: applicable, saturation: "S_B=floor(p^(4/5))"}
-        - {sigma: "1", theta: "1/3", status: applicable, saturation: "S_B=floor(p)"}
-      padding_and_saturation: >-
-        A B row is absent when sigma<1/2. When S_B exceeds |V_p|, report
-        attempted, rejected, retained, and padded counts separately. Padding
-        with invalid or identity-rejected records cannot create an applicable row.
+        record: [left_endpoint, right_endpoint, middle_descriptor]
+        status: >-
+          Pair-entry width, endpoint deduplication, and middle-table metadata
+          are charged independently. C cannot inherit A's order-tagged cost.
     physical_memory: >-
-      M_adv_bytes is retained entry bytes plus one shared index, deduplication
-      metadata, failed-build receipt bytes, and declared padding. M_work_bytes
-      is separate. Report build/query peaks and
-      Q_break_even=T_build/(T_inc-T_q) only when T_q<T_inc; otherwise undefined.
+      Report M_adv_bytes = S*b_entry + b_idx + b_shared + b_padding and
+      M_work_bytes separately. Convert to log2 bytes using the measured widths;
+      do not report logical entries as physical memory. Report build memory,
+      query memory, and the incumbent's 2^92.5-entry model on separate axes.
 
   fiber_and_output_model:
     charged_fiber: >-
-      For an advice element a, its frozen shared index I_A, and query budget t,
-      R_t(a;I_A) is the set of distinct input vertices E in V_p for which the
-      typed query using a plus read-only access to I_A and at most t query work
-      outputs an explicit admissible non-scalar OneEnd witness at E. Abstract
-      ring membership without an output witness is not counted. I_A is not
-      attributed to any one element: its bytes are charged once below.
+      For an advice element a and query budget t, R_t(a) is the set of distinct
+      input vertices E in V_p for which the typed query using only a and at most
+      t query work outputs an explicit admissible non-scalar OneEnd witness at
+      E. Abstract ring membership without an output witness is not counted.
     union_rule: >-
-      R_t(A;I_A) = union over a in A of R_t(a;I_A), with set union performed
-      before counting. Overlaps are never double-counted. A query may read only
-      the declared shared index and its selected record; it may not charge a
-      shared table as if it were free per element. The reported pair is
-      (|R_t(A;I_A)|, b_index+b_shared), so fiber mass and shared bytes stay
-      reconciled.
+      R_t(A) = union over a in A of R_t(a), with set union performed before
+      counting. Overlaps are never double-counted. Shared indexes and shared
+      path/table bits are charged once in the declared representation.
     pullback_rule: >-
       A future implementation must specify the path direction, field encoding,
       order validation, saturation, and conversion from the pushed order to the
@@ -298,88 +278,76 @@ experiment:
       - "Build cost, break-even Q, and physical byte conversion"
 
   controls:
-    seed_commitment:
-      seed_bytes: 32
-      build_seed: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-      query_seed: "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
-      random_advice_seed: "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f"
-      shuffled_fiber_seed: "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f"
-      pair_null_seed: "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f"
-      hitting_time_seed: "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
-      seeds_are: "pre-registered public hex commitments; never reused for treatment generation"
-    finite_control_plan:
-      instances_per_replicate: 4096
-      replicates: 8
-      total_instances: 32768
-      paired_query_seeds: true
-      acceptance_arithmetic: "exact integer counts plus rational mean-cost ratios; no post-hoc tolerance"
-    entries:
     - id: CTRL-S0
       kind: known_answer
-      forced_result: "T_inc=p^(1/3+o(1)); S=0 has no advice lookup"
+      forced_result: "T_inc = p^(1/3+o(1)); S=0 has no advice lookup"
       order: before_all_treatment
       failure_action: terminate_without_treatment_rows
     - id: CTRL-S-P-HARDCODED
       kind: known_answer
       forced_result: "full distinct V_p order-tagged table has polynomial query"
-      note: "symbolic corner control; not a claim that a random sampler builds it at the same charge"
+      note: >-
+        This is a symbolic corner control, not a claim that the random sampler
+        builds it at the same cost.
     - id: CTRL-RANDOM-ADVICE
-      kind: semantic_path_matched_null
+      kind: matched_null
       order: before_treatment
       record_layout: >-
-        Use the selected treatment branch exact record and shared index. The
-        lookup_curve_id is valid. The order_tag is valid but owner_curve_id is
-        payload_index=(target_index+1) mod |V_p|, so no validity_tag, malformed
-        payload, or early null branch exists. Parse, validate, reconstruct,
-        pull back, saturate, and return NO_WITNESS only at the final owner equals
-        target output gate.
-      statistic: >-
-        Report witness_count (forced 0), completed_attempt_count (forced 32768),
-        mean path-work ratio against paired final-gate-disabled replay, and
-        delta_path=abs(mean_null-mean_replay)/max(1,mean_replay).
-      tolerance: "witness_count=0; completed_attempt_count=32768; delta_path<=1/64"
-      forced_result: "semantic null has no admissible witness; path-cost mismatch invalidates the instrument"
+        Exactly the same fixed-width [curve_id, payload, validity_tag, optional
+        path_descriptor] record and index width as the selected treatment
+        branch. curve_id values are sampled without replacement from V_p;
+        payload bytes are generated independently with SHAKE256(seed || index),
+        and validity_tag=0 marks that no order data are attached.
+      query_path: >-
+        The same lookup, parse, fixed-cost validation, walk, restart, and budget
+        accounting path is used; the null returns NO_WITNESS at the output gate
+        without interpreting payload as an order.
+      seed: >-
+        A freeze receipt must record a non-secret 32-byte seed before any
+        treatment row. The seed is not reused for treatment generation.
+      forced_result: "T_inc at every declared S; any improvement invalidates the instrument"
       failure_action: invalidate_instrument_and_report_no_treatment
     - id: CTRL-SHUFFLED-FIBER
-      kind: semantic_path_matched_negative_control
+      kind: negative_control
       record_layout: >-
-        Preserve all valid fixed-width fields but assign owner_curve_id by
-        pi(i)=(i+1) mod |V_p|, with a recorded fallback for |V_p|=1. Execute
-        the same parse, validation, path, pullback, saturation, and final gate;
-        no identity check skips semantic work.
-      statistic: "same witness_count, completion_count, and delta_path as CTRL-RANDOM-ADVICE"
-      tolerance: "witness_count=0; completion_count=32768; delta_path<=1/64"
-      forced_result: "T_inc within finite-size path-cost tolerance; no output witness"
+        Treatment curve_id values and order payloads are preserved byte-for-byte
+        but order payloads are assigned to different curve_id values by a
+        recorded deterministic permutation with no fixed point where possible.
+      query_rule: >-
+        The validator checks the curve/order identity before accepting a witness;
+        reinterpretation as an order for another curve is forbidden and charged
+        as a failed candidate.
+      forced_result: "T_inc within the declared finite-size tolerance"
     - id: CTRL-C-PAIR-NULL
       kind: matched_pair_null
       applies_to: construction_c_pair_entry
       record_layout: >-
-        Generate valid endpoint IDs with treatment-matched marginals, pair count,
-        widths, and lookup path, then key-permute only the right endpoints to
-        remove the middle-factor correlation. All endpoints remain valid.
-      statistic: >-
-        With n=8192 and B=256 bins, report z_max=max_b |N_b-n/B| /
-        sqrt(n*(1/B)*(1-1/B)) and collision_excess=(C_obs-C_iid)/n.
-      tolerance: "z_max<=6 and |collision_excess|<=4/sqrt(8192), exact rational gates"
-      forced_result: "pair statistic matches null; failure invalidates Construction C rows only"
+        Independently generated endpoint pairs match the treatment marginals,
+        pair count, endpoint encoding, and lookup path but remove the declared
+        middle-factor correlation.
+      forced_result: >-
+        The pair statistic must match the pre-registered null tolerance; failure
+        invalidates Construction C rows only.
     - id: CTRL-NEARBY-ORIENTED
       kind: non_gating_sanity_diagnostic
       applies_to: typed_oriented_nearby_object_only
       forced_result: null
-      note: "distinct problem type; never a proof-map gate or SSI frontier evidence"
+      note: >-
+        This diagnostic is not a proof-map gate and cannot refute or validate
+        the SSI frontier because its problem type is distinct. Its full input,
+        baseline, and output encoding must still be recorded if run.
 
   pair_and_distribution_diagnostics:
     H-ADV-4_statistic: >-
-      Before any C treatment row use n=8192 pairs, B=256 bins, the committed
-      pair_null_seed, and identical endpoint marginals and table access. The
-      exact gates are z_max<=6 and |collision_excess|<=4/sqrt(8192); no theorem
-      is inferred from a pass.
+      Before any C treatment row, compare a pre-registered binned endpoint-pair
+      collision statistic against CTRL-C-PAIR-NULL with identical marginals,
+      seed count, bins, and table access. The report must state the finite-sample
+      tolerance, sample count, and whether the diagnostic is descriptive or
+      gating. No theorem is inferred from a pass.
     H-ADV-1-R_statistic: >-
-      At toy p use 1024 independently sampled target sets, 4096 starts per set,
-      8 replicates, and the committed hitting_time_seed. Compare the empirical
-      hitting-time CDF to the random-set null with D_KS<=4/sqrt(4096). This is
-      sampled-set diagnostic scope and cannot validate the fixed-A_p worst case.
-
+      At toy p only, compare the sampled start-vertex hitting-time CDF for
+      random distinct target sets against the declared toy null. Report the
+      sampled-set scope separately from the fixed-A_p worst-case symbolic row.
 
   metrics:
     primary:
@@ -390,8 +358,7 @@ experiment:
     secondary:
       - "log2 advice bytes and query-cost exponent at log2(p)=256,512"
       - "Construction C minus A exponent gap under H-ADV-4, explicitly conditional"
-      - "finite-size attempted, retained, duplicate, overflow, padding, and saturation counts"
-      - "semantic-null witness counts, completion counts, paired path-cost ratios, and exact tolerances"
+      - "finite-size duplicate and saturation counts"
       - "non-gating nearby diagnostic output, if run"
 
   preregistered_prediction:
@@ -399,7 +366,6 @@ experiment:
     formula: "min(T_inc, T_branch(A_tagged), T_branch(B_tagged), T_branch(B_membership), T_C_pair)"
     prediction_status: conditional_symbolic_input_not_observation
     exact_sigma_labels: ["0", "1/6", "1/3", "1/2", "2/3", "4/5", "1"]
-    exact_prime_labels: ["SQISign-I: 5*2^248-1", "SQISign-V: 27*2^500-1"]
     random_advice_null: "T_inc at every declared S"
     construction_c_gap: "reported only conditional on H-ADV-4 and the typed pair accounting"
 
@@ -447,12 +413,12 @@ experiment:
 
   stopping_rules:
     - "No stage executes while frozen=false or execution_authorized=false."
-    - "Commit and verify semantic-path-equivalent controls, sample counts, statistics, tolerances, and seeds before any treatment row."
-    - "Stop at the first exact-prime, exact-label, schema, semantic-null, output-type, or accounting failure and preserve the partial artifact."
+    - "Commit and verify the random-advice and shuffled-fiber control definitions before any treatment row."
+    - "Stop at the first exact-label, output-type, null, or accounting failure and preserve the partial artifact."
     - "Any sub-1/3 closed-list row requires independent review-breakthrough at max before promotion."
 
   invalidation_rules:
-    - "Change exact primes, sigma labels, typed record layouts, control seeds, statistics, tolerances, or formula after any observation."
+    - "Change exact sigma labels, typed record layouts, controls, or formula after any observation."
     - "Use numpy, Sage, network access, or isogeny implementation in Stage 0/1."
     - "Claim an all-advice lower bound, attack, security result, or exponent move."
     - "Treat H-ADV-1-R as validation of H-ADV-1-W."
@@ -470,10 +436,10 @@ experiment:
   falsification_criterion: >-
     Terminate or invalidate if any exact encoding is missing, fixed-advice and
     random-set quantifiers are conflated, S=0 or the matched random null fails,
-    a semantic-path-equivalent null skips parse/validation/path work, C's pair
-    null fails, a closed-list row violates its declared arithmetic, or a required
-    build/memory/output cost is omitted. Timeout, crash, unavailable backend, or
-    dependency failure is infrastructure only.
+    shuffled-fiber identity checks are bypassed, C's pair null fails, a closed
+    list row violates its declared arithmetic, or a required build/memory/output
+    cost is omitted. Timeout, crash, unavailable backend, or dependency failure
+    is infrastructure only.
 
   required_artifacts:
     - "Additive correction report with predecessor and review hashes"
@@ -495,3 +461,4 @@ experiment:
 
   assigned_to: executor
   approved_by: null
+

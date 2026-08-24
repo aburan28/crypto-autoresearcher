@@ -1,0 +1,210 @@
+experiment:
+  id: EXP-RSAPI-10864e
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-4a70f7; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-4a70f7
+  question_id: RQ-RSA-d46f02
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure achievable leaked-bit counts for contiguous, random-subset, arithmetic-progression
+    and block-interleaved position sets on known-answer RSA instances, with random-value and permuted-value
+    nulls and exhaustion certification per cell.
+  objective: 'The one uncertainty a run reduces is how much of the value of leaked bits comes from
+    the bits themselves and how much from their contiguity, at moduli where every cell can be certified
+    independently. Concretely: (i) whether a mechanical derivation rule turns an arbitrary run decomposition
+    into a runnable small-root system without per-set tuning, since without that the arms are not
+    comparable and no measurement follows; (ii) what the contiguous-equivalent count c(P) is for each
+    declared position-set family at fixed k, obtained by inverting a contiguous baseline measured
+    on the same instances in the same invocation, and whether the deficit k - c(P) tracks run count
+    rather than bit count; (iii) whether the failures observed are construction failures or information-theoretic
+    ones, which the exhaustion arm decides per cell at n at most 96 rather than leaving to inference.
+    A run also tells later contracts whether the leaked position set deserves to be a standing parameter
+    of this bucket or whether contiguity is irrelevant at reachable sizes, which is a two-sided outcome
+    and useful either way.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: for this reproduced
+      construction, this mechanical derivation rule, these four position-set families, these moduli
+      and this budget, the measured contiguous-equivalent bit count of each family with exact binomial
+      intervals, together with a per-cell partition of failures into information-theoretic and construction-bound.
+      WHAT DOES NOT FOLLOW: nothing about real leakage channels, since the pattern is self-supplied;
+      nothing about deployed RSA; no claim that the deficit is intrinsic rather than a property of
+      the derivation rule; no attack, speedup or security consequence; and no extrapolation of c(P)
+      to larger moduli, larger k, or position-set families not tested.'
+  inputs:
+    procedure: 'STAGE 0 (zero compute): declare the four position-set families, the derivation rule
+      from run decomposition to polynomial system, k, seeds, the success threshold and the symbolic
+      determinant of each arm''s basis. STAGE 1 (engineering, no compute): implement the derivation
+      rule and self-test that a fully contiguous set reproduces the univariate baseline construction
+      exactly, which is the rule''s own positive control. STAGE 2 (minutes): determinant cross-check
+      every arm''s basis against STAGE 0. STAGE 3 (CPU-hours): run the five signal arms on 40 paired
+      known-answer instances at n = 96, bisecting on k. STAGE 4 (CPU-hours, same invocation): run
+      the random-value and permuted-value nulls across all five arms. STAGE 5 (bounded, same invocation):
+      run the exhaustion arm over the unknown positions of every instance, at most 2^24 candidates
+      each, certifying recoverability. STAGE 6 (CPU-hours): repeat at n = 128 without the exhaustion
+      arm, to check that the ordering survives one size step. STAGE 7 (zero compute): invert the contiguous
+      curve, report c(P), deficits and intervals.'
+    instrument: Python 3.11. fpylll 0.6.4 for reduction via the wheels-only route in KN-TECH-14efa5,
+      pinned to one deterministic setting. python-flint or gmpy2 for exact integers, determinants
+      and verification by exact division. The exhaustion arm is plain Python with gmpy2 integer arithmetic
+      and needs no lattice library. harness/runner.py for manifests and seeds; harness/run.py as the
+      bounded-run wrapper. No Sage.
+    parameters: 'Modulus bit-length n in {96, 128}, balanced primes. Five position-set arms: contiguous;
+      random subset with 2 runs; random subset with 4 runs; arithmetic progression with common difference
+      2; block-interleaved with 4 blocks. Leaked bit count k bisected over at most 9 values around
+      the contiguous threshold. 40 paired known-answer instances per arm per n. Exhaustion arm only
+      at n = 96 and only where the total unknown is at most 24 bits, capped at 2^24 candidates per
+      instance. Per-instance wall-clock cap 900 seconds, memory cap 8 GB.'
+  controls:
+  - 'Random-value null: same positions, wrong values, must fail in every arm, same invocation.'
+  - 'Permuted-value null: true values, permuted positions, must fail.'
+  - Contiguous baseline arm measured in the same invocation as the yardstick, not imported from another
+    run.
+  - Exhaustion arm at n <= 96 certifying information-theoretic recoverability per cell.
+  - 'Run-count-matched pairs: arithmetic-progression and block-interleaved arms are compared only
+    at equal k and equal run count.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical measurement runs against a null in which the position
+    set is identical but the revealed VALUES are drawn uniformly at random rather than taken from
+    the true prime. Every arm must fail at every k, with an exact binomial upper bound. This is the
+    control that makes c(P) mean anything: without it, a construction that appears to recover at large
+    k might be recovering from the modulus alone. A second null holds the values true and permutes
+    them among the positions of P, preserving the multiset of revealed bits and destroying the position
+    assignment, which must also fail. A third arm is the information-theoretic null at n at most 96:
+    exhaustion over all assignments of the unknown positions, which certifies whether any method could
+    have recovered in that cell, so that a lattice failure is separable from an underdetermined instance.'
+  independent_variables:
+  - position-set family
+  - number of maximal runs in P
+  - leaked bit count k
+  - modulus bit-length n
+  - arm class (signal, random-value null, permuted-value null, exhaustion)
+  metrics:
+    primary:
+    - r_hat in k per arm with exact binomial interval
+    - c(P) per arm from the same-invocation contiguous curve
+    - deficit k - c(P)
+    - exhaustion certification outcome per cell
+    secondary:
+    - lattice dimension and exact log determinant per arm
+    - reduction wall time and peak resident memory per arm
+    - run positions within the prime, recorded per instance
+    - count of time-capped instances per arm
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The deficit D(P) = k - c(P), where c(P) is the contiguous bit count achieving the same
+      r_hat under the same construction family and budget.
+    formula: D(P) >= 1 for every arm with at least two runs, and D(P) is non-decreasing in run count
+      at fixed k. At matched k and matched run count, D(arithmetic progression, difference 2) >= D(block-interleaved)
+      + 1. c(P) is read by linear interpolation on the contiguous arm's success-versus-k curve measured
+      on the identical instances.
+    source: Pre-registered in the parent proposal IDEA-20260816-4a70f7 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Tested at 96 and 128 bit moduli with balanced primes, leaked position sets of at
+      most four runs, and exhaustion certification only at 96 bits with at most 24 unknown bits. Ground
+      truth is exact by construction at both sizes and additionally certified information-theoretically
+      at 96. NO TRANSFER to cryptographic sizes is assumed or claimed. The single transfer assumption
+      made inside the contract is that the ORDERING of arms survives the one size step from 96 to
+      128, and STAGE 6 exists to test exactly that rather than to assume it.
+    correspondence: null
+  tail_checks:
+  - Per-instance success at the two k values bracketing each arm's r_hat
+  - Distribution of run positions among failing instances in the random-subset arms
+  - Maximum as well as median reduction time per arm, since high-run arms have heavier tails
+  - Instances where a norm-bound success failed exact verification
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Halt an instance at the wall-clock cap and record it as budget-limited, never as a mathematical
+    negative
+  - Void the run if any null arm recovers a factor
+  - Skip the exhaustion arm for any cell whose unknown exceeds 24 bits and mark that cell uncertified
+    rather than estimating it
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A run succeeds if all five arms complete on paired instances at n = 96 with c(P)
+    reported with exact binomial intervals, both nulls are bounded, and every cell within the unknown-bit
+    limit carries an exhaustion certification, whether or not the predicted ordering holds.
+  falsification_criterion:
+  - Every non-contiguous arm showing c(P) equal to k within resolution refutes the contiguity claim
+  - Deficit not increasing with run count refutes the proposed explanatory variable
+  - Arithmetic-progression arm outperforming block-interleaved at matched run count refutes the ordering
+    prediction
+  - Any null-arm recovery voids the run
+  - Lattice success in a cell exhaustion certifies as unrecoverable voids the run as a generator or
+    verifier bug
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-4a70f7
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - RQ-RSA-d46f02 requires the underlying construction to be filed as a KN-LIT entry from primary
+    text before any experiment is designed; the mechanical derivation rule extends that construction
+    and cannot be fixed before it exists.
+  - The derivation rule from run decomposition to polynomial system is described in words here and
+    must be written down exactly, including how box bounds are assigned per unknown block and how
+    the shift set scales with the number of variables.
+  - Whether the required dimension for four runs at n = 128 fits inside the declared per-instance
+    cap is unknown; a Coordinator should either raise the cap or drop the four-run arm at 128 before
+    approval.
+  - The interpolation used to invert the contiguous curve into c(P) needs its error budget stated
+    against the resolution floor.

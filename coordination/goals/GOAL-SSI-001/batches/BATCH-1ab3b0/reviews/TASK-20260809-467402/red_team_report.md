@@ -662,7 +662,3 @@ cryptographic computation, baseline measurement, control outcome, or scientific
 observation was performed. Existing producer, predecessor, queue, ledger, and
 snapshot files were not modified; only the two declared task artifacts were
 written.
-
-## Archival binding
-
-Coordinator archival metadata for `TASK-20260809-579676` was appended after the independent review. The verdict, findings, evidence boundary, and claim ceiling above are unchanged.

@@ -1,0 +1,223 @@
+experiment:
+  id: EXP-SHAONE-630aa1
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-389b1b; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-389b1b
+  question_id: RQ-SHAONE-081e3a
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure attack-loop versus straight-line compression-function throughput from a single shared
+    implementation across condition depths, with always-satisfied and rate-matched nulls and three
+    component ablations, on two CPU models.
+  objective: 'The one uncertainty a run reduces is how much of a device''s nominal hashing throughput
+    an attack loop actually realises, which every device-hour-to-evaluation conversion implicitly
+    assumes is all of it. Stated as parts: (i) it establishes whether the measurement framing is sound,
+    by requiring an always-satisfied condition chain of the same depth to recover eta_hw near 1 within
+    its interval, so that any measured gap is attributable to condition failure rather than to loop
+    overhead unrelated to conditions -- and a null that fails to recover 1 is a cheap, complete and
+    reportable refutation of the framing; (ii) it measures eta_hw as a function of message-modification
+    condition depth with interleaved rather than sequential measurement blocks, so that thermal drift
+    and frequency scaling cannot masquerade as a depth effect, and verifies via a branch-free variant
+    that the depth parameter is actually present in the compiled machine code rather than flattened
+    away by the compiler; (iii) it separates the effect of condition DEPTH from the effect of condition
+    FAILURE RATE using a rate-matched randomly positioned control, and attributes the remaining gap
+    to branch misprediction, abandoned vector lanes and state rollback by disabling each in turn.
+    No collision is produced, no GPU is used, and the loop runs for a fixed evaluation budget rather
+    than to any success.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: on THESE two CPU models,
+      with THIS single shared implementation at THESE compiler flags and vector width, an attack loop
+      with condition depth d realises eta_hw of this value relative to the straight-line baseline,
+      with these null arms, these ablation attributions and these intervals. WHAT DOES NOT FOLLOW:
+      nothing about GPU efficiency, where divergence behaviour differs qualitatively; nothing about
+      what a better-optimised attack loop could achieve, since implementation quality is held fixed
+      rather than optimised; no correction factor for any published device-hour figure; no cost for
+      any attack; and no security consequence.'
+  inputs:
+    procedure: 'STAGE 0 (cost: 2 human-hours): declare the condition-depth values, the compiler flags,
+      the vector width, the evaluation budget per block, the interleaving schedule and the machine
+      list; freeze them. STAGE 1 (cost: 4-8 human-hours): write ONE source file producing both the
+      straight-line baseline and the parameterised attack loop, so implementation quality is shared
+      by construction; verify both against hashlib reference vectors. STAGE 2 (cost: minutes): confirm
+      the depth parameter reaches the machine code by comparing the branching and branch-free variants;
+      if their rates coincide at every depth, halt and report compiler flattening. STAGE 3 (cost:
+      CPU-minutes): run the interleaved sweep of attack loop, baseline, always-satisfied null and
+      rate-matched random control at every depth on machine 1. STAGE 4 (cost: CPU-minutes): run the
+      three ablation variants -- branch-free, vectorisation-disabled, state-save-removed -- at the
+      extreme depths only. STAGE 5 (cost: CPU-minutes): repeat STAGE 3 on machine 2. STAGE 6 (cost:
+      1 human-hour): compute eta_hw with intervals, read hardware performance counters where available,
+      report per-block timings to expose drift, and state every disagreement with the predictions
+      as such.'
+    instrument: A single C source file compiled with declared flags, exposing both the straight-line
+      baseline and the parameterised attack loop, driven from Python 3.11 via ctypes; the evaluation
+      counter and the timer both inside the C layer so interpreter overhead does not enter the ratio;
+      perf counters read through the standard Linux interface where permitted, with graceful degradation
+      to ablation-only attribution when they are not; numpy for interval computation; hashlib for
+      reference-vector validation of both variants; harness/runner.py for the run manifest, the machine
+      identification and the interleaving seed. No Sage, no GPU, no network access during measurement.
+    parameters: 'Condition depths: 0, 4, 8, 16, 24, 32. Evaluation budget per measurement block: 10^8
+      evaluations. Interleaving: round-robin across arms with 20 blocks per arm per depth. Arms: attack
+      loop, straight-line baseline, always-satisfied null, rate-matched randomly positioned control.
+      Ablations: branch-free, vectorisation-disabled, state-save-removed, at depths 0 and 32 only.
+      Machines: 2 distinct CPU models available to the harness, identified in the manifest. Vector
+      width and compiler flags: declared and identical across arms.'
+  controls:
+  - Always-satisfied condition chain at each depth, interleaved in the same process.
+  - Rate-matched, randomly positioned condition set, separating depth from failure rate.
+  - Branch-free variant with all conditions computed but none branched on, isolating misprediction.
+  - Vectorisation-disabled variant, isolating abandoned-lane cost.
+  - State-save-removed variant, isolating rollback cost.
+  - Interleaved rather than sequential measurement blocks, so thermal drift cannot masquerade as a
+    depth effect.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Always-satisfied condition chain: run the IDENTICAL attack loop with
+    a condition chain of the same depth whose conditions are constructed always to hold, in the same
+    invocation on the same machine. By construction no abandonment occurs, so this null must recover
+    eta_hw close to 1; if it does not, the gap is being produced by the loop''s structure rather than
+    by condition failure and no depth-dependent claim is admissible. A second null uses conditions
+    satisfied at the same overall RATE but at randomly scattered positions rather than in a chain,
+    separating the effect of depth from the effect of failure rate -- the two are routinely conflated
+    and this control is the only thing that separates them.'
+  independent_variables:
+  - condition depth
+  - arm (attack loop / baseline / always-satisfied null / rate-matched random)
+  - ablation variant
+  - CPU model
+  metrics:
+    primary:
+    - evaluations per second per arm per depth
+    - eta_hw(d) with interval, per machine
+    - eta_hw of the always-satisfied null at each depth
+    - eta_hw of the rate-matched random control at each depth
+    secondary:
+    - eta_hw of each ablation variant at depths 0 and 32
+    - branch misprediction rate and vector lane utilisation where counters are readable
+    - per-block timings in interleaving order, for drift detection
+    - reference-vector agreement for both compiled variants
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: eta_hw(d) = (attack-loop evaluations per second at depth d) / (straight-line baseline
+      evaluations per second, same run, same machine), and the null value eta_null(d) for the always-satisfied
+      chain.
+    formula: Predicted eta_null(d) >= 0.95 at every depth, by construction, since no abandonment occurs.
+      Predicted eta_hw(32) <= 0.7 on both machines. Predicted eta_hw(chained, d) / eta_hw(rate-matched
+      random, d) <= 0.91 at d = 32, i.e. chaining costs at least nine percent beyond the failure rate
+      alone. Rates are computed over 20 interleaved blocks of 10^8 evaluations each, reported as medians
+      with bootstrap intervals.
+    source: Pre-registered in the parent proposal IDEA-20260816-389b1b before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested parameters are condition depths up to 32 over 10^8-evaluation blocks on
+      two commodity CPU models -- toy because no collision is produced and the loop runs to a fixed
+      evaluation budget rather than to any success, which is what makes the measurement cost CPU-minutes.
+      Transfer assumption stated explicitly and unusually strongly: eta_hw does NOT transfer to GPUs,
+      where divergence and lane abandonment behave qualitatively differently, and does not transfer
+      to a differently optimised attack loop. What is argued to transfer is only the qualitative existence
+      of a loop-shape penalty, and even that is asserted rather than established outside these two
+      machines.'
+    correspondence: null
+  tail_checks:
+  - Report per-block timings in interleaving order and check for monotone drift, which would indicate
+    thermal throttling rather than a depth effect.
+  - Report the median and the full block distribution per cell, not the mean, since a single descheduled
+    block can move a mean substantially.
+  - Check whether the ablation variants' effects sum to approximately the full gap; a large unexplained
+    remainder means the attribution is incomplete and must be reported as such.
+  - Check reference-vector agreement after the sweep as well as before, to detect any variant compiled
+    incorrectly.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt at STAGE 2 and report compiler flattening if the branching and branch-free variants give
+    identical rates at every depth.
+  - Stop and report a framing failure if the always-satisfied null does not recover eta_hw near 1.
+  - Stop the second machine's sweep if the first machine's per-block timings show drift exceeding
+    a declared bound, and fix the drift before spending more measurement.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run is successful if the always-satisfied null recovers eta_hw at or above
+    0.95 at every depth and eta_hw(d) is reported with intervals for both machines alongside the rate-matched
+    control -- whichever way the depth dependence falls.
+  falsification_criterion:
+  - The always-satisfied null does not recover eta_hw near 0.95, voiding the framing.
+  - eta_hw is flat in condition depth on both machines, refuting the loop-shape penalty premise on
+    this hardware.
+  - Branching and branch-free variants give identical rates, showing the depth parameter is absent
+    from the machine code.
+  - Chained and rate-matched-random arms give indistinguishable eta_hw, showing depth adds nothing
+    beyond failure rate.
+  - Per-block timings drift monotonically beyond the declared bound, so no stable ratio exists.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-389b1b
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - Whether a CPU-only measurement is admissible evidence about a quantity that matters chiefly for
+    GPU-quoted costs is a scoping judgement the Coordinator must make explicitly before approval,
+    not something this contract can settle.
+  - The claim that baseline and attack loop share implementation quality because they share a source
+    file needs a stronger check than assertion; the Coordinator should decide whether compiled-code
+    inspection is required.
+  - Availability of hardware performance counters in the execution environment is unknown and determines
+    whether component attribution rests on counters or on ablations alone.
+  - The declared drift bound for interleaved block timings has no derivation and must be fixed as
+    an explicit declaration before measurement.

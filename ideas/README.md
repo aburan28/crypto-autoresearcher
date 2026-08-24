@@ -26,6 +26,9 @@ all executable preflights are explicitly toy or model-bound until independently 
 | [ECDLP-IDEA-158](ECDLP-IDEA-158_x_only_nonfaithful_wnu_signed_lift_hypothesis.md) | Nonfaithful x-only WNU signed lift | algorithm | conservative | proposed, unapproved; theorem preflight only | [contract](contracts/ECDLP-EXP-CONTRACT-158_x_only_nonfaithful_wnu_preflight.yaml) |
 | [ECDLP-IDEA-159](ECDLP-IDEA-159_non_diagonal_conormal_polar_source_blowup_hypothesis.md) | Non-diagonal conormal-polar source blowup | algebraic-representation | representation-changing | proposed, unapproved; theorem preflight only | [contract](contracts/ECDLP-EXP-CONTRACT-159_conormal_polar_source_preflight.yaml) |
 | [ECDLP-IDEA-160](ECDLP-IDEA-160_nonlogarithmic_ramification_break_scalar_digits_hypothesis.md) | Nonlogarithmic ramification-break scalar digits | arithmetic-transfer | high-risk | proposed, unapproved; theorem preflight only | [contract](contracts/ECDLP-EXP-CONTRACT-160_ramification_break_digits_preflight.yaml) |
+| [ECDLP-IDEA-434](ECDLP-IDEA-434_isogeny_class_decomposition_yield_invariance_hypothesis.md) | Isogeny-class variation of Semaev decomposition yield | representation | representation-changing | proposed, unapproved | [contract](contracts/ECDLP-EXP-CONTRACT-434_isogeny_class_yield_preflight.yaml) |
+| [ECDLP-IDEA-435](ECDLP-IDEA-435_function_field_lift_target_coefficient_audit_hypothesis.md) | Target-coefficient audit of the function-field lifting face | control | conservative | proposed, unapproved | [contract](contracts/ECDLP-EXP-CONTRACT-435_target_coefficient_audit_preflight.yaml) |
+| [ECDLP-IDEA-436](ECDLP-IDEA-436_local_torsion_coordinate_valuation_profile_hypothesis.md) | Coordinate-valuation profile of the canonical prime-to-p torsion lift | mechanism | high-risk | proposed, unapproved | [contract](contracts/ECDLP-EXP-CONTRACT-436_valuation_profile_preflight.yaml) |
 
 The machine-readable index is [idea_registry.tsv](idea_registry.tsv). The originating
 semantic audit is [DEDUP-20260717T124917-0700.md](reviews/DEDUP-20260717T124917-0700.md),
@@ -589,6 +592,22 @@ validator passes, or toy scalars are not breakthroughs.
 - A toy gate can promote only to a larger scaling study; finite-size slope confidence is
   still model-bound and cannot establish a cryptographic asymptotic.
 - Negative evidence closes only the exact stated test boundary.
+
+The `434`–`436` pass (cohort `20260809-a`) was generated from the
+[GATHER-20260809](../knowledge/gathers/GATHER-20260809.md) local-corpus sweep rather
+than from a free-generation round, so it is small and source-anchored: one
+representation-changing record, one conservative control record, and one high-risk
+mechanism record. Two of the three are
+deliberately *cheap discriminators over evidence this program already holds* rather
+than new constructions — `435` audits the existing `EV-XEDN-*` relations for a target
+coefficient, and `436` is gated on a generic-group simulability memo that may reject it
+without any run. The same sweep produced two scoped negatives that were filed as
+findings instead of ideas, because they are settled by counting rather than by
+experiment: `KN-TECH-3b593f` (post-SIDH higher-dimensional isogeny machinery does not
+reach genus 1) and `KN-TECH-73630e` (the local-torsion lifting face is closed for
+group-theoretic invariants). The corpus is now 18 active proposed/unapproved records.
+No experiment ran. Only the Coordinator may approve a contract or change an official
+state.
 
 ## Layout
 

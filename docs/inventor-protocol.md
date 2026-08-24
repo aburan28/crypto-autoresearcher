@@ -116,6 +116,34 @@ concluded that the classical ECDLP space is saturated. Under this standard
 those conclusions are `unverified` until someone writes the enumeration
 (`KN-OPEN-019`) and the argument.
 
+**The obstruction is measured, and it is read twice.** A named obstruction
+still fails the standard if it is only prose. Record it as the `obstruction`
+block of `templates/research-records.md` — a quantity, its value with units and
+error bars, the runs it is read from, the scope it is claimed over — because
+the reusable content of a negative result is the number it measured, not the
+verdict it reached. A verdict serves the session that wrote it; a measurement
+serves every later reader, who can compare it, re-scope it, or turn it over.
+
+Turning it over is the second reading, and `resource_check` makes it a required
+step rather than a lucky one. The question is not "is this obstruction real"
+but "which theory wants this measurement": a form that is indefinite blocks
+every argument needing positivity and is the *hypothesis* of the operator
+theory built for indefinite forms; a degree that grows blocks elimination and
+bounds the object it grows in; a density that goes negative on part of a range
+blocks a global bound and localises where the global bound was the wrong
+target. The reading may fail — `examined: true` with `reading` recording that
+no theory takes it up is a complete and honest answer, and is not a closure of
+the obstruction. What is incomplete is leaving the field null, which asserts
+only that nobody looked.
+
+This runs at closure because that is when the cost is lowest: the object is
+loaded, the measurement is fresh, and the scope is already written down.
+`tools/obstruction_registry.py` derives the standing set from committed records
+and re-poses the question at each rerank, so an obstruction measured under one
+goal remains available to every other — the reversal that matters is often not
+available to the session that measured it, and arrives against a theory nobody
+had in hand at the time.
+
 ## 5. Honest accounting in the deliverable
 
 Every ideation or closure session emits a structured record carrying:

@@ -1,0 +1,428 @@
+idea:
+  id: IDEA-20260813-fbedca
+  added: '2026-08-13'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  title: >-
+    Exact compression-cell constrained decoding: replace the i.i.d. rounding
+    surrogate by the public finite fibre of every ML-KEM ciphertext coordinate
+    and propagate those hard cells through one shared ephemeral secret
+  class: representation
+  claim: >-
+    FIPS 203 exposes Compress_du(u) and Compress_dv(v), not u and v. For every
+    transmitted compressed coefficient c, the exact preimage
+    F_d(c)={x in Z_q: Compress_d(x)=c} is public and has only three or four
+    elements for du=10, one or two for du=11, 208 or 209 elements for dv=4,
+    and 104 or 105 for dv=5. Standard ciphertext-side LWE/BDD costing normally
+    replaces these labeled finite cells by independent centered rounding noise
+    or by a marginal variance. The proposed representation keeps the cells as
+    hard, coordinate-labeled constraints and couples all of them through the
+    single ephemeral CBD secret y in
+    u=A^T*y+e1 and v=t^T*y+e2+mu. The falsifiable claim is that a cell-aware
+    branch-and-bound/list decoder achieves at least a factor 4 fewer candidate
+    node evaluations, at matched success probability and memory, than both
+    (i) the marginal-variance baseline and (ii) IDEA-20260807-05e12c's
+    singleton/per-class rescaling baseline on a fully enumerable scaled
+    ML-KEM pipeline. A later FIPS-shaped cost projection survives only if it
+    yields at least 2 fully charged bits beyond the best of those baselines.
+    Failure of either threshold makes the algorithmic extension non-material.
+    This is passive single-ciphertext session recovery, not key recovery, a
+    failure oracle, or implementation leakage.
+  mechanism: >-
+    The tracked object is the product of exact public compression fibres,
+    augmented by their shared affine dependence on y and a message hypothesis.
+    The representation is lossy because many uncompressed (u,v) pairs map to
+    one ciphertext and the secret y cannot be reconstructed from the fibres
+    alone. It is operationally compatible because a partial y assignment
+    deterministically shrinks or empties coordinate fibres, enabling early
+    pruning before an expensive lattice decode. This differs from changing a
+    per-coordinate score: support inconsistency is an infinite penalty and the
+    constraint propagation couples coordinates through the same ring products.
+    It also differs from treating singleton cells as clean samples: all cells,
+    including 3/4-way du=10 and large dv cells, retain their exact offset and
+    cardinality, while v supplies a coupled consistency filter. Candidate
+    messages or y values are verified offline by the FIPS 203 re-encryption
+    relation, but every branch and verification is charged.
+  object_studied: >-
+    The exact labeled ciphertext-fibre CSP and its propagation through y;
+    not a marginal DFR, a public-key weak-key statistic, or a decryption oracle.
+  depth_of_verified_structure: >-
+    Proposal only. Fibre cardinalities follow from the FIPS 203 map and must be
+    re-derived exactly; no decoder speedup, success ratio, or standardized cost
+    is observed or claimed here.
+  why_not_a_renamed_known_approach: >-
+    IDEA-20260807-05e12c identifies the du=11 singleton/double mixture and
+    proposes a noise-model correction using marginal variance, per-class
+    rescaling, or clean-samples-only dimension reduction. The present delta is
+    an exact finite-domain CSP over every du and dv cell, with shared-y and
+    u/v propagation plus an executable decoder interface. IDEA-20260805-2b94fe
+    replaces Euclidean scoring by a separable exact log-likelihood for CBD and
+    compression; this proposal preserves the public cell label, uses hard
+    support and cross-coordinate affine consistency, and is killed if its gain
+    disappears after matching the same likelihood. IDEA-20260805-3d71ca
+    selects the best of M ciphertexts using a projected norm; this is one
+    ciphertext with M=1 and no target selection.
+  assumptions:
+    - >-
+      Passive known-ciphertext model: one valid FIPS 203 ciphertext and its
+      valid encapsulation key are public. No decapsulation output, chosen
+      ciphertext, timing, fault, leakage, or malformed-key behavior is used.
+    - >-
+      The baseline and treatment use identical frozen A,t,c, lattice basis,
+      node budget, message-list policy, verification rule, and memory cap.
+    - >-
+      A FIPS-shaped projection from scaled tests is an estimator result only;
+      toy node-count gains do not establish cryptanalytic advantage.
+  proof_search_map:
+    bottleneck: >-
+      Show that exact cell propagation removes candidate work not already
+      removed by the best separable likelihood or singleton/per-class model,
+      and that the saving exceeds propagation and memory overhead.
+    baseline_embedding:
+      parameter_slice: >-
+        Replace every exact fibre by the centered interval/noise law used by
+        the pinned ciphertext-side BDD baseline; disabling propagation must
+        reproduce its candidate ordering, success probability, and cost. A
+        second slice retains only the singleton/double label of
+        IDEA-20260807-05e12c.
+      reproduction_check: >-
+        On a fully enumerable toy cell, enumerate all y,e1,e2,mu, construct
+        ciphertexts, and verify bit-for-bit that the disabled treatment equals
+        the marginal baseline and that the class-only mode equals the nearest
+        neighbor's three declared models.
+    observation_collision:
+      observable: >-
+        The complete vector of compression-cell labels and cardinalities,
+        optionally augmented by current branch residuals.
+      distinct_preimage_search: >-
+        Exhaustively find two ground-truth (y,e1,e2,mu) tuples with the same
+        ciphertext fibre vector but opposite decoder outcomes or materially
+        different remaining search sizes. If abundant, labels alone are not
+        identifying; the branch residual and v constraint must carry the gain.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Maintain the joint residual-cell state for u and v under partial y
+          assignments rather than independent marginal error scores.
+        predicted_gain: >-
+          At least 4x fewer evaluated nodes at equal success and memory on the
+          fully enumerable scaled pipeline.
+      - transform: representation_reduction
+        proposed_object: >-
+          Encode each fibre as exact modular interval/set constraints inside a
+          mixed BDD/list-decoding state with offline re-encryption verification.
+        predicted_gain: >-
+          At least 2 fully charged projected bits beyond the best marginal or
+          class-only baseline, else no material standardized claim.
+    quantifier_order: >-
+      For every standardized parameter set and every valid (ek,c), the exact
+      fibres are public. The performance claim is existential over one frozen
+      decoder per parameter set but universal over a preregistered distribution
+      of honest ciphertexts; decoder choices may depend on public parameters
+      and c but not on hidden y,e1,e2,m beyond enumerated branches.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A passive single-ciphertext, model-relative constant-bit reduction in
+        session-recovery work; not MLWE key recovery and not an exponent change.
+      nearby_object_control: >-
+        A balanced artificial compression map with the same output alphabet and
+        marginal fibre-size histogram but labels randomly permuted independently
+        per coordinate. It preserves marginal noise and destroys arithmetic
+        adjacency/coupling. Equal performance means the mechanism is mere
+        cardinality weighting.
+    proof_obligations:
+      - claim: Exact fibre sets and cardinalities reproduce FIPS 203 Compress/Decompress for du and dv.
+        responsibility: baseline
+      - claim: The branch state is sound, rejecting no valid hidden tuple.
+        responsibility: correctness
+      - claim: The exhaustive toy pipeline establishes completeness and counts every collision.
+        responsibility: feasibility
+      - claim: Disabled and class-only modes exactly embed both nearest baselines.
+        responsibility: interface
+      - claim: The >=4x node reduction survives propagation, list, memory, verification, and retry charges.
+        responsibility: runtime
+      - claim: The projected >=2-bit delta uses one matched estimator and declares all transfer assumptions.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: exact_fibre_cardinality_census
+      direction: different
+      minimum_effect: >-
+        The census must sum to q=3329 for every d: du=10 cells have size 3 or
+        4; du=11 cells size 1 or 2; dv=4 cells size 208 or 209; dv=5 cells size
+        104 or 105. Any mismatch blocks the experiment.
+    - metric: treatment_node_evaluations_at_fixed_success
+      direction: lower
+      minimum_effect: >-
+        At most one quarter of the better of marginal-likelihood and class-only
+        baselines on at least two adjacent scaled dimensions; less than 4x is
+        below the proposal's algorithmic materiality threshold.
+    - metric: treatment_peak_memory
+      direction: lower
+      minimum_effect: >-
+        No greater than the best baseline by more than 25 percent. A time gain
+        purchased with an exponential cell-state table is rejected.
+    - metric: projected_fully_charged_delta_bits
+      direction: lower
+      minimum_effect: >-
+        At least 2.0 bits beyond the best baseline at a declared FIPS-shaped
+        estimator slice, reported as a projection only.
+    - metric: signal_under_label_randomization
+      direction: lower
+      minimum_effect: >-
+        The treatment advantage must decay toward zero as 0,25,50,75,100
+        percent of labels are independently permuted; non-decay is an artifact.
+  minimal_test:
+    design: >-
+      First derive all fibre sets from the normative integer formula and
+      enumerate the smallest ring where every (y,e1,e2,mu) tuple is feasible.
+      Run four decoders on identical inputs: marginal variance, class-only,
+      separable exact likelihood, and joint cell propagation. Measure complete
+      recovery, node counts, peak state, and false pruning. Then run a frozen
+      dimension ladder only if the exhaustive cell is sound. Execute the
+      balanced-map and label-permutation nulls before treatment. Stop if the
+      joint decoder fails the 4x threshold on two adjacent sizes; do not run
+      standardized BKZ. This record authorizes no execution.
+    controls:
+      - >-
+        Disabled-propagation baseline reproducing the pinned marginal-noise
+        ciphertext BDD attack exactly.
+      - >-
+        Class-only baseline reproducing IDEA-20260807-05e12c's singleton versus
+        nonsingleton treatment and clean-sample dimension reduction.
+      - >-
+        Separable exact-likelihood baseline from IDEA-20260805-2b94fe, with the
+        same candidate-evaluation and memory budgets.
+      - >-
+        Balanced-map same-shape null preserving alphabet and fibre histogram
+        while breaking arithmetic adjacency.
+      - >-
+        Label-permutation decay ladder at 0,25,50,75,100 percent permutation;
+        every point is required and thresholds are frozen before treatment.
+      - >-
+        Planted singleton/unique branch positive control whose ground-truth path
+        is the only support-consistent path and therefore must be pruned to one.
+    required_metrics:
+      - exact per-label fibre set, cardinality, center, and offset for du and dv
+      - false-prune count over exhaustive ground truth, required to be zero
+      - node evaluations, wall time, and peak bytes at fixed recovery probability
+      - u-only versus u-plus-v ablation and message-list cost
+      - baseline reproduction residuals and collision-fibre size distribution
+      - per-stage propagation, lattice, list, verification, and retry costs
+      - null and five-point decay-ladder effects with uncertainty intervals
+  falsification_conditions:
+    - >-
+      Any valid exhaustive ground-truth path is pruned, so the decoder is
+      unsound even if its apparent speed is high.
+    - >-
+      The treatment uses more than one quarter of baseline nodes on two adjacent
+      scaled dimensions, or the gain vanishes against the exact-likelihood
+      baseline.
+    - >-
+      Peak memory grows exponentially faster than the baseline or exceeds the
+      25-percent cap at the test boundary.
+    - >-
+      The balanced-map null matches the treatment, or the signal does not decay
+      under label randomization; then public labels are not the mechanism.
+    - >-
+      Fully charged FIPS-shaped projection is below 2 bits after including v,
+      message, verification, and retry work.
+  confounders:
+    - Comparing node counts at unequal success probability or list size.
+    - Letting the treatment see the hidden preimage while baselines see only c.
+    - Treating compression errors as independent of y,e1 or of the public cell label.
+    - Ignoring v, mu hypotheses, or offline verification work.
+    - Using a hand-tuned branch order learned from treatment instances.
+    - Inferring standardized behavior from fully enumerable toy dimensions.
+    - Counting the exact likelihood gain again as a cell-propagation gain.
+  interpretation_limits:
+    - >-
+      The ciphertext is honestly generated and public. There is no CCA access,
+      per-ciphertext failure bit, timing, fault, side channel, or live-key action.
+    - >-
+      K-PKE is used only as the internal equation specified by FIPS 203; the
+      proposal does not recommend or assume stand-alone K-PKE deployment.
+    - >-
+      Exhaustive and dimension-ladder effects are toy evidence only. A
+      standardized number would be an estimator projection until a faithful
+      end-to-end attack is approved, run, archived, and independently reviewed.
+    - >-
+      Session recovery for one ciphertext does not imply decapsulation-key
+      recovery, decryption-failure exploitation, category loss, or a break.
+  heuristic_assumptions:
+    - id: H1-cell-pruning-transfer
+      statement: >-
+        The relative reduction in support-consistent nodes caused by exact cell
+        propagation remains bounded away from one as dimension increases from
+        the exhaustive cells to the declared FIPS-shaped estimator slice.
+      formal_statement: >-
+        For dimensions d in the preregistered ladder, median
+        N_joint(d)/min(N_marginal(d),N_class(d),N_likelihood(d)) is non-increasing
+        and at most 1/4 on two adjacent terminal d values; extrapolation beyond
+        those values is explicitly conditional.
+      rigorous_support: >-
+        The fibre map and pruning soundness are exact finite-set facts. No
+        theorem gives dimension-uniform search-tree reduction, so the transfer
+        is a named heuristic rather than a consequence of fibre size.
+      validation_plan: >-
+        Exhaust the base cell, then use at least five frozen dimensions, eight
+        instance seeds each, report the full ratio distribution and extreme
+        tails, and compare with the balanced-map and permutation nulls.
+      falsification_condition: >-
+        Ratio rises toward one at two adjacent dimensions, exceeds 1/4 at the
+        terminal pair, or null and treatment intervals overlap completely.
+    - id: H2-estimator-interface
+      statement: >-
+        The cost of the residual lattice/list problem after cell pruning can be
+        represented by the same frozen BKZ/BDD success model used by the
+        baseline without silently improving the treatment's cost convention.
+      formal_statement: >-
+        At every tested scaled cell, predicted and observed treatment-to-baseline
+        cost ratios have the same sign and differ by at most 25 percent under
+        one estimator commit and one reduction-cost convention.
+      rigorous_support: >-
+        DDGR shows how exact side information can be integrated into lattice
+        attacks, while FIPS 203 gives the exact equations. Neither proves this
+        decoder's estimator fidelity.
+      validation_plan: >-
+        Compare predicted and observed ratios across the dimension ladder,
+        include negative/control cases, freeze optimizer ranges, and report the
+        same memory/data axes. No absolute FIPS cost is validated by this plan.
+      falsification_condition: >-
+        Ratio sign mismatch, error above 25 percent at two adjacent dimensions,
+        or a baseline reproduction failure.
+  target_complexity:
+    time_exponent: >-
+      No claimed change from the best ciphertext-side primal/hybrid baseline;
+      target is a constant-bit reduction only.
+    memory_exponent: >-
+      Must remain unchanged. Any exponential joint-state overhead beyond the
+      baseline exponent falsifies the candidate.
+    best_known: >-
+      Best matched marginal, class-only, separable-likelihood, and pinned
+      ciphertext-side lattice rows under one estimator; the exact row must be
+      reproduced before interpretation.
+    hidden_overhead: >-
+      Fibre construction, constraint propagation, branch queues, v/message
+      coupling, lattice reduction, enumeration/list size, re-encryption,
+      unsuccessful branches, and retry probability.
+    tradeoff_note: >-
+      Report node-time versus state-memory curves and both sieve/high-memory
+      and enumeration/low-memory lattice endpoints. Parallel branches duplicate
+      state and do not provide free linear speedup.
+  cost_boundary:
+    oracle_model: passive one-ciphertext session recovery under a valid public key
+    samples_or_queries: one encapsulation key and one ciphertext; zero decapsulation queries
+    preprocessing: >-
+      Public A expansion, exact fibre-table construction, basis construction,
+      branch ordering, and any decoder preprocessing are charged per key or
+      ciphertext according to actual reuse.
+    memory: >-
+      Basis/reduction state, fibre tables, joint residual state, branch queue,
+      message candidates, and verification buffers; peak bytes and exponent.
+    reduction_and_decoding: >-
+      All BKZ/SVP calls, node expansions, list merges, exact-likelihood
+      evaluations, u/v propagation, restarts, and negative branches.
+    verification: >-
+      Derive candidate y/m/coins as required, regenerate the FIPS 203 internal
+      encryption relation, compare the complete ciphertext, and charge all
+      false candidates.
+    success_and_retry: >-
+      Per-attempt work times inverse honest-ciphertext recovery probability;
+      failed branches and messages are paid, and M is fixed to one.
+    standardized_sets:
+      - ML-KEM-512
+      - ML-KEM-768
+      - ML-KEM-1024
+    optimistic_assumptions:
+      - Search-tree pruning ratios transfer beyond toy dimensions.
+      - Joint-state maintenance is subdominant and cache-neutral.
+      - A pinned BDD estimator represents the residual problem.
+    scope: >-
+      One honest ciphertext only. No key recovery, multi-ciphertext selection,
+      CCA/failure channel, implementation, or deployment conclusion.
+  estimated_cost:
+    implementation: high
+    compute: medium
+    note: >-
+      Exhaustive small cells and a bounded dimension ladder are sufficient for
+      the cheapest falsifier; standardized BKZ is neither needed nor authorized.
+  dominated_by: >-
+    n/a (no attack result claimed). The exact-census/control portion is
+    dominated by IDEA-20260807-05e12c and the separable scoring portion by
+    IDEA-20260805-2b94fe. The only undominated proposed delta is joint hard-cell
+    propagation through shared y and the u/v equations. It is dominated in full
+    unless it beats both neighbors by >=4x nodes at equal memory/success and
+    projects to >=2 fully charged bits. IDEA-20260805-3d71ca is a separate
+    M>1 target-selection frontier and cannot be compared without adding its M
+    data cost; here M=1.
+  sota_delta: >-
+    No present attack delta. Required measured toy delta is >=2.0 bits in node
+    evaluations (4x) beyond the best matched neighbor, with <=25-percent memory
+    overhead. Required projected FIPS-shaped delta is >=2.0 fully charged bits.
+    Time and memory exponent deltas are 0; data remains one ciphertext.
+  recommended_priority: medium
+  novelty_status: unverified
+  novelty_screen:
+    local_kb_status: zero manifests and zero indexed points; direct committed-corpus screen used
+    screened_proposals:
+      - IDEA-20260722-001
+      - IDEA-20260805-0e65c3
+      - IDEA-20260805-1d76e9
+      - IDEA-20260805-2b94fe
+      - IDEA-20260805-3d71ca
+      - IDEA-20260805-530869
+      - IDEA-20260805-574cd0
+      - IDEA-20260805-690de8
+      - IDEA-20260805-866eca
+      - IDEA-20260805-cd6e1e
+      - IDEA-20260805-cdc87d
+      - IDEA-20260805-e805b6
+      - IDEA-20260806-7c1ae4
+      - IDEA-20260807-05e12c
+      - IDEA-20260807-1f5f89
+      - IDEA-20260807-331ae5
+      - IDEA-20260807-abacec
+      - IDEA-20260808-4854f8
+      - IDEA-20260808-90632c
+    adjacent_corpus:
+      - KN-TECH-038
+      - KN-TECH-047
+      - KN-LIT-118
+      - KN-LIT-119
+      - GOAL-MLKEM-005 deployment and failure-oracle boundaries
+    nearest_neighbors:
+      - id: IDEA-20260807-05e12c
+        precise_delta: Exact all-cell du/dv CSP and joint propagation replace singleton/per-class marginal rescaling.
+      - id: IDEA-20260805-2b94fe
+        precise_delta: Hard public labeled support and shared-y coupling replace separable exact likelihood.
+      - id: IDEA-20260805-3d71ca
+        precise_delta: A single-ciphertext M=1 decoder replaces best-of-M projected-norm target selection.
+    external_screen: >-
+      Primary sources read: FIPS 203 compression definitions, Algorithms 14-15,
+      and Table 2; DDGR, LWE with Side Information (CRYPTO 2020), including its
+      public toolkit; the lattice-estimator authors' repository. The bounded
+      search did not locate a primary source implementing this exact joint
+      compression-cell CSP for standardized ML-KEM. Absence is not evidence of
+      novelty, so the status remains unverified.
+  source_refs:
+    - https://doi.org/10.6028/NIST.FIPS.203
+    - https://eprint.iacr.org/2020/292
+    - https://github.com/lducas/leaky-LWE-Estimator
+    - https://github.com/malb/lattice-estimator
+    - ledger/proposals/IDEA-20260807-05e12c.yaml
+    - ledger/proposals/IDEA-20260805-2b94fe.yaml
+    - ledger/proposals/IDEA-20260805-3d71ca.yaml
+  enumerated_closures:
+    - >-
+      If exact likelihood matches joint propagation, the public-cell algorithm
+      is a renamed score correction and is closed at the tested boundary.
+    - >-
+      If toy pruning is real but projected fully charged gain is below 2 bits,
+      only the representation/tooling result remains; no ML-KEM attack claim follows.
+  open_directions:
+    - Alternative sound constraint-propagation orders that avoid exponential state.
+    - Composition with M>1 target selection, only after separately charging M.
+    - Proof bounds on search-tree pruning from unequal modular cells.

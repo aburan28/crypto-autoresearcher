@@ -6,7 +6,7 @@ Copy these records into experiment-specific YAML files. IDs are immutable.
 
 ```yaml
 research_goal:
-  id: GOAL-AREA-NNN
+  id: GOAL-AREA-abcdef
   title: null
   objective: null
   question_ids: []
@@ -54,6 +54,12 @@ research_goal:
 The goal record is an operational anchor, not evidence. Create and commit it
 with its initial question and handoff before dispatch. Update it only through a
 Coordinator ledger archive commit.
+
+For a new goal, mint the ID with
+`python3 tools/allocate_id.py --next goal --area AREA`, then confirm the exact
+result with `--check`; the six lowercase hex characters above are a placeholder,
+not a suffix to copy or choose manually. Existing `GOAL-AREA-001` records remain
+valid legacy history and must not be renamed merely to adopt the current form.
 
 `completion_quorum` **no longer gates** `status: completed` — the three-model
 quorum is suspended (AGENTS.md rule 13, restored via
@@ -151,6 +157,11 @@ hypothesis:
                                 # into an algorithm; never fabricate citations
     - description: null
       citation: null
+      provenance: recalled | retrieved | kb | internal
+                                # how this citation is known; see "Citation
+                                # provenance". A `recalled` ingredient is a
+                                # pointer for the reviewer, not support
+      verified_by: null         # required unless provenance is `recalled`
       role: null                # e.g. degree bound, distribution law, mixing time
   reduction_chain:
     core_problem: null          # problem the core result solves directly
@@ -210,10 +221,9 @@ experiment:
     formula: null               # e.g. rho(u) ~ u^{-u(1+o(1))}, with u defined
     source: null                # theorem the prediction derives from, cited
   scale_relevance:
-    tier: toy | medium | crypto # ceiling on what runs at this scale may support;
-                                # must match the claim_tier of resulting evidence
-    justification: null         # why conclusions transfer across scale, or their
-                                # stated limit
+    tier: toy | medium | crypto | null # descriptive tested scale label
+    justification: null         # tested parameters and any transfer or
+                                # extrapolation assumptions
     correspondence: null        # sampling correspondence used to reach scale,
                                 # if any (e.g. Deuring correspondence): the
                                 # isometry claim and its citation; null means
@@ -224,11 +234,30 @@ experiment:
   replication:
     seeds: []
     independent_instances: 0
+  # Budget floors. Historical contracts carry budgets far below anything the
+  # hardware required -- 90 s cells and 255 s scripts (EXP-ICI-001), sized to a
+  # ~280 s tool timeout rather than to the computation. Those caps censored
+  # cells and forced checkpoint engines to be written around them
+  # (src/h012c_block_m4ri.py). The tool cap is now 600 s
+  # (.claude/settings.json), so size a budget to the WORK and let the stopping
+  # rules end the run. Below these floors, state in the objective why:
+  #   wall_clock_seconds_per_run >= 600     (one full tool window)
+  #   maximum_memory_gb          >= 8       (DREG peaked at 7.16 GB)
+  # Existing frozen contracts keep their budgets: they are immutable, and a
+  # re-budgeted protocol is a NEW contract, not an edit to an approved one.
   budget:
     wall_clock_seconds_per_run: null
     total_cpu_hours: null
     maximum_memory_gb: null
     maximum_runs: null
+    maximum_workers: null   # optional; omitted == 1 == the run process alone.
+                            # Declaring N > 1 lets a LOCKED run create N-1
+                            # descendants (RLIMIT_NPROC is raised from zero to a
+                            # bound that is recorded in the approval lock and the
+                            # manifest). Declare it only for work that has passed
+                            # parallel.verify_determinism, and never above the
+                            # core count: the run is charged for its whole
+                            # process group's CPU against total_cpu_hours.
   stopping_rules: []
   invalidation_rules: []
   success_criterion: null
@@ -284,7 +313,7 @@ evidence:
   type: empirical | theoretical | literature
   direction: supports | weakens | contradicts | neutral
   strength: anecdotal | preliminary | replicated | strong | inconclusive | contradictory
-  claim_tier: toy | medium | crypto      # ceiling on what this record may assert
+  claim_tier: toy | medium | crypto      # descriptive evidence-scale label
   certificate_refs: []                   # run certificates backing any claimed solve/relation
   proof_status: certificate | derivation | empirical_only | not_applicable
                                          # strongest checkable basis for the stated
@@ -296,13 +325,85 @@ evidence:
   inference: null
   boundaries: []
   unresolved_confounds: []
+  obstruction:                  # required when direction is weakens|contradicts,
+                                # and on any record closing a lane. A narrative
+                                # obstruction is a fatigue report (AGENTS.md
+                                # "Closure standard"); this block is what makes
+                                # it a measurement other work can reuse.
+    statement: null             # what blocks the approach, as a claim about the
+                                # OBJECT, not about the attempt. "Semaev degree
+                                # grows 2^{n-1} in the summation index", not
+                                # "we could not make descent work"
+    quantity: null              # the measured quantity making the block concrete
+    value: null                 # its measured value WITH UNITS and error bars
+    measured_by: []             # RUN-*/EXP-* IDs the value is read from
+    scope: null                 # parameters over which the value was measured;
+                                # the obstruction is claimed nowhere else
+    resource_check:             # never omitted: an obstruction is a datum, and
+                                # a datum can be an asset under another theory
+      examined: null            # true|false — has the reversal been considered
+      reading: null             # the theory under which this block is a
+                                # RESOURCE, or an explicit statement that the
+                                # check ran and found none
+      spawned_ids: []           # IDEA-*/H-* records that took it as a resource
   reviewed_by: coordinator
 ```
 
 `claim_tier` and certificate semantics are defined in
-`docs/claims-and-verification.md`. The tier may never exceed what the
-supporting runs' parameters allow, and any claimed solve must reference a
-`verified: true` certificate.
+`docs/claims-and-verification.md`. The tier describes the tested evidence;
+records must state their parameters, scope, and transfer assumptions, and any
+claimed solve must reference a `verified: true` certificate.
+
+`obstruction` exists because a negative result's reusable content is the
+*number* it measured, not the verdict it reached. An obstruction recorded as
+prose is unusable by any later reader: it cannot be compared, re-scoped, or
+inverted. Recorded as a quantity over a stated scope, it becomes an object the
+program can act on — including by reading it the other way round.
+`resource_check` forces that second reading at the moment the cost of taking it
+is lowest, and `tools/obstruction_registry.py` re-poses the question to every
+open obstruction at each rerank. Neither is a claim: `examined: true` with
+`reading` recording that no resource was found is a complete, honest answer.
+
+## Citation provenance
+
+Any record field naming an external work — `structural_ingredients[].citation`,
+`heuristic_assumptions[].supporting_results`, a `literature` evidence record, a
+novelty argument — carries how the agent came to know it:
+
+```yaml
+citations:
+  - ref: null                   # arXiv id, DOI, KN-LIT-* id, or internal record ID
+    provenance: recalled | retrieved | kb | internal
+                                # recalled  — from the model's own knowledge; no
+                                #             agent opened it in this program
+                                # retrieved — an agent fetched and read the source
+                                # kb        — resolved through the crypto-kb index
+                                #             to a corpus record
+                                # internal  — this program's own committed record
+    claim: null                 # what the work is being relied on FOR — the
+                                # specific theorem, bound, or statement
+    verified_by: null           # TASK-*/agent that read the source and confirmed
+                                # `claim`. Required unless provenance is
+                                # `recalled`, where it is null by definition.
+```
+
+**A `recalled` citation is a pointer, never a citation.** It tells a reviewer
+where to look; it does not support anything. It may not back a
+`coordinator_decision`, may not discharge a
+`heuristic_assumptions[].supporting_results` entry, and may not support
+`novelty_status: known` or `adaptation` — both of which assert what the
+literature contains. An idea whose only literature is recalled is
+`novelty_status: unverified`, which is the honest default and not a defect.
+Promotion is by a *new* record in which an agent that actually read the source
+marks the entry `retrieved` or `kb` and names itself in `verified_by` — never
+by editing the original, which is immutable.
+
+Recalled references are wanted, not merely tolerated: naming the nearest work
+you can remember, hedged and marked, is how a reviewer finds the paper that
+settles the claim. Rule 9 forbids fabricating citations; this field is how a
+half-remembered one is stated without becoming a fabricated one. An agent with
+no retrieval access states `provenance: recalled` and hedges in `claim`; the
+failure is an unmarked recollection presented as a checked source.
 
 ## Focused campaign claim
 
@@ -457,7 +558,123 @@ handoff:
     maximum_runs: null
   completion_gate: []
   return_format: null
+  review_plan: null              # required on the handoff that OPENS a
+                                 # claim-changing review round; see below
 ```
+
+## Review plan
+
+Written by the Coordinator on the handoff opening a review round, **before any
+reviewer runs**. A review round without one is a set of agents asked to look at
+something; with one it is an experiment whose result can be read.
+
+```yaml
+review_plan:
+  claim_under_review: null      # the exact claim, as its PRODUCER stated it —
+                                # not as the Coordinator would restate it
+  coordinator_prior: null       # what the Coordinator expects the review to
+                                # find, written before any reviewer reports.
+                                # Pre-commitment: "three reviewers concurred"
+                                # and "three reviewers concurred with what the
+                                # Coordinator already believed" are different
+                                # findings, and only a recorded prior
+                                # distinguishes them
+  joints:                       # the load-bearing steps: if one fails, the
+                                # claim fails. Enumerated, then OWNED
+    - joint: null               # the step, stated precisely enough to attack
+      assigned_to: null         # exactly ONE reviewer TASK-*. Two reviewers on
+                                # one joint means another joint has none
+      attack_plan: null         # the worked attack, not "check this step" —
+                                # what to build, compute, or vary, and where
+                                # the Coordinator thinks it breaks
+      breaking_artifact: null   # what a successful break would produce
+  blindness:
+    mutual: true                # reviewers may not read each other's reports
+                                # in this round
+    lifted_for: []              # TASK-*s deliberately allowed to read earlier
+                                # verdicts — a hardening round is a legitimate
+                                # reason to lift blindness
+    rationale: null             # required whenever lifted_for is nonempty:
+                                # blindness is lifted on purpose, never drifted
+                                # out of
+  proves_too_much:              # required on every claim-changing review
+    objects: []                 # objects for which the conclusion is KNOWN
+                                # FALSE — an anomalous curve for a claim that
+                                # should not reach it, a group where the
+                                # assumed structure is absent
+    failure_signature: null     # what the argument must do on each. An
+                                # argument that succeeds where its conclusion
+                                # is false has proved too much and is wrong
+                                # somewhere it has not been read closely enough
+    assigned_to: null
+  blind_rederivation:
+    required: false
+    quantity: null              # the STATEMENT of what must be re-derived —
+                                # the quantity and its definition, never the
+                                # method that produced it
+    parameters: null            # the inputs, exactly as the producer used them
+    blind_from: []              # paths the re-deriver MUST NOT read: the
+                                # producer's implementation, notes, and report
+    assigned_to: null
+  procedure_deviations: []      # any departure from this plan, recorded rather
+                                # than quietly absorbed — acting before a
+                                # report returns, reassigning a joint, dropping
+                                # a control
+```
+
+**Why joints are owned.** A reviewer told to "review this" reviews what it
+finds legible, and several reviewers told the same thing converge on the same
+legible parts — agreement then measures shared taste, not independent scrutiny.
+Enumerating the load-bearing steps and giving each exactly one owner buys
+coverage instead of correlation, and makes an unowned joint visible before the
+round runs rather than after the claim ships.
+
+**Why the attack plan is worked.** "Check localisation" and "build the
+counterexample numerically: crowd synthetic off-line objects at the window's
+edge and show the certificate stays negative" ask for different work. The
+second is falsifiable in a bounded time and returns something either way; the
+first returns an opinion. The Coordinator is not delegating the judgement, it
+is supplying the cheapest known route to a break.
+
+**Proves-too-much is `controls before belief` applied to an argument.** A null
+object tests whether a measurement is an artifact; a known-false object tests
+whether an argument is. Both fail the same way — the quantity that does not
+decay when the parameter meant to destroy it increases, and the proof that
+still goes through where its conclusion is false.
+
+**Blind re-derivation is not replication.** Recomputing a metric from the
+producer's artifacts, with the producer's implementation, cannot catch an
+implementation that is wrong and self-consistent — it reproduces the error
+faithfully. A re-derivation starts from the statement of the quantity and the
+parameters, and nothing else: `blind_from` names what the agent may not read,
+and the agent's report declares what it did read, so the independence is
+checkable rather than promised. Agreement is then evidence about the quantity;
+disagreement localises to one of two named implementations.
+
+## Review attestation
+
+Every reviewer's report carries this block. It is what makes the plan's
+independence properties checkable after the fact rather than assumed.
+
+```yaml
+review_attestation:
+  task_id: null
+  joints_owned: []              # from the plan; the reviewer's assignment
+  sources_read: []              # paths actually read, honestly and completely
+  read_sibling_reports: false   # true is a violation unless the plan's
+                                # blindness.lifted_for names this task
+  blind_from_respected: null    # re-derivation tasks only: true means no path
+                                # in the plan's blind_from was read
+  verdict: null                 # holds | breaks | inconclusive, for the joints
+                                # owned — not a verdict on the whole claim,
+                                # which no single blinded reviewer can see
+```
+
+A reviewer reports on **its own joint**. It does not vote on the claim: it
+cannot see the other joints by construction, so a whole-claim verdict from a
+blinded reviewer is an opinion formed from a fraction of the evidence. The
+Coordinator composes the verdicts; `tools/check_review_independence.py` checks
+that the composition rests on the independence it claims.
 
 ## Coordinator archive receipt
 

@@ -1,0 +1,210 @@
+experiment:
+  id: EXP-RSAPI-6f1f24
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-736c60; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-736c60
+  question_id: RQ-RSA-d46f02
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Split a fixed leaked-bit budget between a window of the prime and a window of the private
+    exponent across five ratios on identical known-answer keys, and measure whether an interior split
+    recovers where both pure arms fail.
+  objective: 'The one uncertainty a run reduces is whether leaked bits from two different parts of
+    an RSA key can be added, as severity reasoning routinely assumes, or whether a second leak is
+    worth less than the bits it contains once a joint lattice must pay for it. Concretely: (i) whether
+    a declared joint shift rule produces runnable systems at every split without per-split tuning,
+    verified by an exact determinant cross-check at each split, since a rule tuned per split would
+    make the sweep meaningless; (ii) whether at a total budget placed just below both pure-arm thresholds
+    any interior split succeeds on instances where both pure arms fail, measured on identical paired
+    keys so the comparison carries no instance variance; (iii) whether any such advantage is informational
+    rather than dimensional, decided by a fake-second-leak null that supplies bits of an unrelated
+    integer in the same slot with the same window length. A run also yields the additivity deficit
+    in bits, which is the quantity any future comparison of a two-channel leak against a single bound
+    would need and which this repository does not have in any form.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: for this reproduced
+      construction, this declared joint shift rule, this modulus size, this exponent range, these
+      window positions and this budget, the measured smallest total leaked-bit count at which each
+      split ratio recovers on at least 90 percent of seeded keys, the resulting additivity deficit,
+      and whether an interior split strictly beats both pure arms. WHAT DOES NOT FOLLOW: nothing about
+      real leakage channels or about the severity of any real side channel, since both leaks are self-supplied;
+      no claim that the joint construction is optimal, so a deficit does not bound what composition
+      could achieve; no claim about other leak pairs, exponent ranges or window positions; and no
+      attack, speedup or security consequence.'
+  inputs:
+    procedure: 'STAGE 0 (zero compute): declare the two leak types, window positions, the exponent
+      range, the joint shift rule, the split ratios, seeds, the success threshold, and the symbolic
+      determinant of each split''s basis. STAGE 1 (engineering, no compute): implement the key generator
+      producing known-answer keys with both leaks, and the joint system builder; self-test that the
+      100/0 and 0/100 splits reproduce the two pure constructions exactly. STAGE 2 (minutes): determinant
+      cross-check every split''s basis against STAGE 0. STAGE 3 (CPU-hours): pilot one interior split
+      to set the per-instance cap from measured joint-dimension cost. STAGE 4 (CPU-hours): run all
+      five splits at the chosen total budget on 60 paired seeded keys. STAGE 5 (CPU-hours, same invocation):
+      run the fake-second-leak and permuted-exponent nulls across all five splits. STAGE 6 (CPU-hours):
+      sweep the total budget k over five values around the pure thresholds to locate the crossover.
+      STAGE 7 (zero compute): report deficits, crossover, intervals, dimensions and determinants.'
+    instrument: Python 3.11. fpylll 0.6.4 for reduction via the route in KN-TECH-14efa5, pinned to
+      one deterministic configuration recorded in the manifest. python-flint or gmpy2 for exact integer
+      arithmetic, key generation, determinant checks and verification by exact division of the modulus.
+      harness/runner.py for manifests, seeds and the inference block; harness/run.py as the bounded-run
+      wrapper. All five splits and both nulls execute in one process from one key set. No Sage.
+    parameters: Modulus bit-length n = 128 with balanced 64-bit primes. Private exponent generated
+      in a declared range, recorded per key, with a second range used only if the first proves degenerate.
+      Split ratios 100/0, 75/25, 50/50, 25/75, 0/100 of a fixed total leaked-bit budget k. Total budget
+      k swept over 5 values bracketing the two pure-arm thresholds taken from entry one. 60 paired
+      known-answer keys per split per k, plus 60 per null arm. Window positions fixed as most-significant
+      for both leaks. Per-instance wall-clock cap set from the STAGE 3 pilot; memory cap 8 GB.
+  controls:
+  - 'Fake-second-leak null: bits of an unrelated integer in the same slot, same window length, same
+    invocation.'
+  - Permuted-exponent-bits null, preserving the multiset and destroying the assignment.
+  - Paired keys carrying both leaks, so all splits see identical instances.
+  - Pure arms run in the same invocation as the split arms rather than imported, so that the comparison
+    carries no cross-run drift.
+  - Exact determinant cross-check of the joint basis at every split against a symbolic prediction.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical measurement runs against a null in which the second leak
+    is replaced by bits of an UNRELATED random integer of the same size, presented to the joint construction
+    in exactly the same slot with the same window length. The null must show that the split arms perform
+    no better than the pure prime arm with only its own bits, at every k; if a fake second leak helps,
+    the joint construction is gaining from dimension or from scaling rather than from information,
+    and every additivity conclusion is void. A second null replaces the exponent leak with a window
+    of the correct length whose bits are the true exponent''s bits in permuted order, which must also
+    fail to help.'
+  independent_variables:
+  - split ratio between prime-bit and exponent-bit leaks
+  - total leaked-bit budget k
+  - exponent range
+  - arm class (signal, fake-second-leak null, permuted-exponent null)
+  metrics:
+    primary:
+    - success count and exact binomial interval per split per k
+    - smallest k with at least 90 percent success per split
+    - additivity deficit in bits
+    - indicator of any k where an interior split succeeds while both pure arms fail
+    secondary:
+    - joint lattice dimension and exact log determinant per split
+    - null-arm success rates with exact binomial upper bounds
+    - reduction wall time and peak resident memory per split
+    - count of instances hitting the cap per split
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The additivity deficit Delta = k_best_split minus min(k_pure_prime, k_pure_exponent),
+      in bits, where each k is the smallest total leaked-bit budget achieving at least 90 percent
+      success for that arm.
+    formula: Delta <= -1, that is the best split requires strictly at least one bit less than the
+      better pure arm, AND there exists a tested k at which an interior split succeeds on at least
+      90 percent of keys while both pure arms succeed on fewer than 10 percent of the same keys. The
+      50/50 split requires strictly more total bits than a purely additive account of the two pure
+      thresholds would predict.
+    source: Pre-registered in the parent proposal IDEA-20260816-736c60 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'One modulus size of 128 bits with balanced 64-bit primes, one declared exponent
+      range, fixed most-significant window positions, and five split ratios. Ground truth is exact
+      by construction: the full private key is generated and known before any run, and every recovery
+      is verified by exact division. NO TRANSFER to larger moduli, other exponent ranges or other
+      window positions is assumed or claimed; in particular the crossover located here is a property
+      of the tested configuration and the contract makes no statement about where it would sit elsewhere.'
+    correspondence: null
+  tail_checks:
+  - Keys where an interior split succeeded and both pure arms failed, examined individually and re-verified
+    by exact division
+  - Distribution of joint lattice dimension across splits, since the interior splits are the largest
+  - Maximum as well as median reduction time per split
+  - Sensitivity of the deficit to removing the single most extreme key
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Stop if the STAGE 1 self-test shows that the 100/0 and 0/100 splits do not reproduce the two pure
+    constructions exactly
+  - Halt an instance at the pilot-derived cap and record it as budget-limited, never as a mathematical
+    negative
+  - Void the run if the fake-second-leak null improves on the pure prime arm
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A run succeeds if all five splits and both nulls complete on identical paired
+    keys, determinant cross-checks pass at every split, the nulls are bounded, and the additivity
+    deficit is reported with exact binomial intervals, whether or not any interior split wins.
+  falsification_criterion:
+  - No interior split beating both pure arms at any tested k refutes the composition claim and is
+    recorded as the measured obstruction
+  - Fake-second-leak null improvement voids all additivity conclusions
+  - Permuted-exponent null improvement shows the construction uses window length rather than content
+  - Determinant cross-check failure at any split voids that arm
+  - Majority cap-hits at interior splits make the comparison a budget measurement, reported as such
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-736c60
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - RQ-RSA-d46f02 requires both leak settings to be filed as KN-LIT entries from primary text before
+    any experiment is designed, and neither has been; the joint shift rule cannot be written before
+    the two single-leak constructions are.
+  - The joint shift rule is described in outline and must be written exactly, including how the two
+    leaks' variables share the unknown factorisation and how shifts are allocated between them at
+    each split.
+  - 'The exponent range is unset and is decisive: a range that makes the exponent leak trivially strong
+    or trivially useless would make the whole sweep degenerate, and a Coordinator must choose it deliberately.'
+  - Whether the interior splits' joint dimension fits any acceptable per-instance cap at n = 128 is
+    unknown until the STAGE 3 pilot runs; the contract must not be authorised past STAGE 3 without
+    that number.

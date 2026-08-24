@@ -1,0 +1,243 @@
+idea:
+  id: IDEA-20260816-df7016
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: Noise flooding is calibrated from an estimate of the noise it must hide; measure, at toy
+    parameters with two enumerable secrets, the total variation distance between flooded release distributions
+    as a function of the flooding standard deviation, and locate the deviation at which the distance
+    falls below measurement resolution.
+  class: measurement
+  claim: '(A) A flooding countermeasure adds noise of standard deviation sigma_flood to a value before
+    release so that the released distribution becomes nearly independent of the secret. The size of
+    sigma_flood needed is derived from a bound on the noise being hidden, and calibrating it from
+    an estimated rather than a worst-case bound trades a measurable amount of statistical closeness
+    for a measurable amount of precision. The claim is that at toy parameters where two candidate
+    secrets can be fixed and the entire release distribution enumerated, the total variation distance
+    between the release distributions under the two secrets is directly measurable as a function of
+    sigma_flood, giving a calibration curve rather than a single sufficiency claim. (B) The claim
+    is that this curve has a measurable knee: below some sigma_flood the distance is resolvable above
+    the estimator''s sampling floor, above it the distance is indistinguishable from zero at the achievable
+    sample count, and the location of that knee relative to the worst-case-derived sigma and to an
+    estimate-derived sigma is the deliverable. Reporting the achievable resolution alongside is mandatory,
+    because a distance indistinguishable from zero at 2^20 samples is not a distance of zero. (C)
+    NOT CLAIMED: that any deployed flooding calibration is insufficient, that any distance measured
+    here corresponds to any attack advantage, that a resolvable distance is exploitable, or anything
+    about the security of approximate FHE. The measured object is a statistical distance at toy parameters
+    between two chosen secrets, and the gap between that and a security statement is not bridged here
+    and is not gestured at.'
+  mechanism: STAGE 1 fixes two secrets that differ minimally, since the distinguishing task is hardest
+    for close secrets and the curve is most informative there; a second arm uses two random secrets
+    as the easy case. STAGE 2 constructs the exact release distribution under each secret by enumerating
+    the encryption randomness at toy parameters, so the pre-flooding distributions are known exactly
+    rather than sampled. STAGE 3 convolves each with the flooding distribution at a grid of sigma_flood
+    values, exactly where the alphabet permits and by large-sample simulation otherwise, and computes
+    the total variation distance directly from the two distributions. STAGE 4 measures the sampling
+    floor by computing the same distance between two independent samples from the SAME distribution
+    at the same sample count, which is the number that decides whether any measured distance is real.
+    STAGE 5 locates the knee as the smallest sigma_flood at which the distance drops below that floor,
+    and reports it alongside the worst-case-derived and estimate-derived sigma values computed from
+    the same implementation. Refutation is a curve with no knee inside the achievable range, meaning
+    the resolution is too coarse to say anything, which is reported as insufficient resolution and
+    not as a null result.
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -ril 'approximate homomorphic' and 'IND-CPA' over ledger/proposals/ and knowledge/;
+      grep -rl 'RQ-FHE-001' ledger/proposals/; ls experiments/ | grep -i fhe; read knowledge/literature/KN-LIT-7675.md,
+      which is the corpus's only record on noise-flooding calibration, plus KN-LIT-95256d, RQ-FHE-001
+      and KN-TECH-082.
+    results: KN-LIT-7675, 'Revisiting the Security of Approximate FHE with Noise-Flooding Countermeasures',
+      is the only record in the corpus about flooding calibration; it is marked confidence unverified
+      and citation_verified web, relays that provable flooding variance is large and that implementations
+      have incentive to calibrate against estimated rather than provably sufficient noise, and is
+      cited by zero ledger records. No proposal or hypothesis in ledger/ mentions flooding, smudging,
+      or total variation distance between release distributions. 'IND-CPA' in ledger/proposals/ returns
+      only IDEA-20260805-3d71ca, an ML-KEM target-selection record. The one proposal on RQ-FHE-001,
+      IDEA-20260807-a06996, is a parameter census. No experiments/EXP-FHE-* exists.
+    verdict: 'UNVERIFIED. No claim is made about the external literature; KN-LIT-7675 records from
+      a web summary that this exact calibration gap is the subject of published work, so a measured
+      calibration curve may well exist outside and this program cannot check. What is claimed new
+      is internal only: the corpus has no measurement of any kind on flooding, and the specific construction
+      (exact enumeration of the pre-flooding release distribution at two close secrets, exact convolution,
+      and a same-distribution sampling floor that decides resolvability) is assembled from elementary
+      probability and this program''s insistence that a resolution floor be measured before a distance
+      is believed.'
+  object_first_candidate:
+    tracked_object: The total variation distance d_TV(sigma_flood) between the flooded release distributions
+      under two fixed secrets, as a curve indexed by the flooding standard deviation, together with
+      the measured sampling floor at the same sample count.
+    lossiness: 'Genuinely lossy. The full object is a pair of distributions over a large release alphabet,
+      each with its own shape, tails and dependence on the encryption randomness; d_TV retains one
+      scalar per sigma_flood. Discarded: where in the alphabet the two distributions differ, the shape
+      of the difference, and everything about the tails beyond their contribution to one integral.
+      What survives propagates because convolution with the flooding distribution is a contraction
+      in total variation: d_TV after flooding is bounded by d_TV before, monotonically in sigma_flood,
+      so the retained scalar has a deterministic monotone response to the operation being tracked.
+      That monotonicity is what makes the curve well posed and the knee well defined; it is also why
+      the projection is not a coordinate change, since the location of the difference is irrecoverable
+      from the scalar and is exactly what a distinguisher would need.'
+    propagation: Increasing sigma_flood by a factor r convolves both distributions with a wider kernel,
+      contracting d_TV; for smooth kernels the contraction is roughly exponential in the ratio of
+      the pre-flooding separation to sigma_flood, so log d_TV against sigma_flood should be concave
+      and eventually steep. One further homomorphic operation before release widens the pre-flooding
+      distributions themselves, which moves the whole curve. Both moves are measured, so the curve's
+      response to each is a separate output rather than an assumption.
+    survival_score: The curve is informative only while d_TV exceeds the sampling floor, which at
+      2^22 samples is around 2^-11 in total variation. Concretely the object is expected to survive
+      from sigma_flood equal to the pre-flooding standard deviation up to roughly 4 to 8 times it,
+      and to be unmeasurable beyond that at any sample count this contract can afford. Stating that
+      ceiling honestly is part of the deliverable, since the interesting regime for a provable bound
+      is far above it.
+  null_object_control: 'Null arm: compute the identical total variation distance between two independent
+    sample sets drawn from the SAME distribution, at the identical sample count and identical alphabet
+    binning, in the same invocation. This is the sampling floor and it is strictly positive; any measured
+    distance below it is not a distance. For the signal arm to mean anything the same-distribution
+    floor must be measurably below the two-secret distance at small sigma_flood, establishing that
+    the estimator has resolution at all, and the knee is defined as the crossing. A second null uses
+    two secrets in a scheme where flooding is applied at a sigma so large that closeness is unarguable,
+    which must sit at the floor across the whole grid; if it does not, the estimator is biased and
+    no number in the run is usable.'
+  discriminated_from:
+  - KN-LIT-7675 is a web-summary literature note about flooding calibration with no measurement attached
+    and no experiment; this is a measurement contract with an explicit resolution floor and mounts
+    no attack.
+  - Entry 5 of this bucket counts an information rate for an uncountermeasured approximate release;
+    this measures a distance between two distributions under a countermeasure, in different units,
+    with a different null, and with the countermeasure's parameter as the independent variable.
+  - KN-LIT-95256d records IND-CPA^D attacks on exact schemes; there is no decryption oracle here,
+    no adversary, and no game.
+  - 'A statistical goodness-of-fit test on the flooded distribution: that compares one distribution
+    against a model; this compares two empirical distributions against each other and reports a distance,
+    not a p-value.'
+  - 'A differential-privacy epsilon calculation: no privacy parameter is derived, no composition is
+    claimed, and total variation rather than a divergence is measured precisely to avoid importing
+    a framework whose guarantees are not being tested.'
+  assumptions:
+  - At toy parameters the pre-flooding release distribution can be enumerated exactly over the encryption
+    randomness, so the only sampling error enters through the flooding convolution and the binning.
+  - Total variation distance between binned empirical distributions has a measurable same-distribution
+    floor that scales predictably with sample count, which is measured rather than assumed.
+  - Two minimally different secrets are the informative case; this is asserted, and the random-secret
+    arm tests it.
+  - The flooding distribution can be sampled exactly in integers, avoiding any floating-point tail
+    artifact at the extremes where the distance is decided.
+  predictions:
+  - metric: d_TV at sigma_flood equal to the pre-flooding standard deviation, minimally different
+      secrets
+    direction: higher
+    minimum_effect: 10x the measured same-distribution floor at the same sample count
+  - metric: sigma_flood at the knee, in units of the pre-flooding standard deviation
+    direction: higher
+    minimum_effect: at least 3, i.e. the distance remains resolvable out to three times the noise
+      being hidden
+  - metric: d_TV under the large-sigma second null across the whole grid
+    direction: different
+    minimum_effect: within the same-distribution floor everywhere, a predicted absence
+  - metric: shape of log d_TV against sigma_flood
+    direction: lower
+    minimum_effect: 'refusal to pre-commit a rate: the contraction rate depends on the pre-flooding
+      distribution''s tail, which is itself an output of the enumeration, so pre-committing a slope
+      would prejudge a measured quantity'
+  minimal_test:
+    design: 'At N=8 with a 30-bit modulus, fix two ternary secrets differing in one coordinate. Enumerate
+      2^16 encryption randomness values per secret and build the exact pre-flooding release distributions
+      on a fixed binning. Convolve each with a discrete Gaussian flooding kernel at sigma_flood on
+      a grid of 12 values spanning 0.25 to 16 times the pre-flooding standard deviation, and compute
+      total variation exactly on the binned distributions. In the same invocation, compute the same-distribution
+      floor by splitting one secret''s enumeration in half and measuring the distance between the
+      halves at each binning. Plot d_TV and the floor on one axis and read the crossing. Minutes of
+      compute. This discriminates because everything the proposal claims lives in whether a crossing
+      exists inside the grid: if d_TV is at the floor even at sigma_flood = 0.25, the enumeration
+      or the binning is wrong; if it never reaches the floor by 16, the resolution ceiling is stated
+      and the interesting regime is declared out of reach, which is a usable measured obstruction.'
+    controls:
+    - Same-distribution sampling floor at identical sample count and binning, in the same invocation.
+    - Large-sigma second null, which must sit at the floor across the whole grid.
+    - Random-secret arm alongside the minimally-different-secret arm, testing the assumption that
+      close secrets are the hard case.
+    - Binning sweep at three bin widths, since total variation on binned data depends on the binning
+      and a single choice could flatter the result.
+    - Sample-count sweep at 2^16 and 2^20, exposing the floor's scaling directly.
+    required_metrics:
+    - total variation distance between the two flooded release distributions, per sigma_flood and
+      per binning
+    - same-distribution sampling floor at matched sample count and binning
+    - sigma_flood at the crossing (the knee), in units of the pre-flooding standard deviation
+    - pre-flooding standard deviation, measured from the enumeration
+    - the worst-case-derived and estimate-derived sigma values computed from the same implementation,
+      for placement on the same axis
+    - d_TV for the large-sigma null and the random-secret arm
+  falsification_conditions:
+  - The large-sigma null exceeds the same-distribution floor, meaning the estimator is biased and
+    no number in the run is usable.
+  - d_TV is at the floor at the smallest sigma_flood on the grid, meaning the enumeration or binning
+    has destroyed the signal before flooding was applied.
+  - No crossing exists inside the grid, in which case the run reports a resolution ceiling and not
+    a null result.
+  - The knee location changes by more than a factor of 2 across the three binnings, meaning the statistic
+    is a binning artifact.
+  - The floor does not scale with sample count as measured between 2^16 and 2^20, indicating an estimator
+    problem.
+  confounders:
+  - Binning choice directly changes total variation on binned data and can be tuned; the binning sweep
+    bounds but does not remove this.
+  - The pre-flooding distribution's tail dominates the distance at large sigma_flood, so a truncated
+    or mis-sampled tail moves the knee.
+  - Two minimally different secrets is one choice among many and a different pair gives a different
+    curve.
+  - At N=8 the release alphabet is small enough that binning artifacts and genuine structure are hard
+    to separate.
+  - The discrete flooding kernel's own tail truncation, if any, contributes at exactly the regime
+    the knee sits in.
+  interpretation_limits:
+  - A resolvable total variation distance is not an attack advantage and no distinguisher is constructed
+    or claimed.
+  - The knee is a resolution boundary of this measurement, not a security boundary of any scheme;
+    the interesting regime for a provable bound lies above the measurable range and the contract says
+    so.
+  - Two fixed toy secrets say nothing about a distribution over secrets at deployed dimensions.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Cost is O(E * N^2) for E enumerated randomness values
+      plus O(G * A) for G grid points on an alphabet of A bins.
+    memory_exponent: No attack memory exponent is claimed. O(A) counters per distribution.
+    best_known: The incumbent is calibrating flooding from a provably sufficient bound, with the estimate-based
+      alternative as the practice this measurement places on the same axis. This proposal does not
+      beat either and recommends neither; it measures the distance both are trying to control, at
+      toy scale, with its resolution stated.
+    hidden_overhead: 'The sampling floor is the hidden term and it is the entire story: a distance
+      of 2^-14 measured at 2^20 samples is a floor, not a finding. The human cost hides in defending
+      the binning, which no principle fixes.'
+  dominated_by: 'n/a (no result claimed). Checked: this contract produces no attack cost in time,
+    memory or data/queries and there is no FHE experiment directory in this repository, so there is
+    no frontier row across any axis for it to be compared against.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a total variation
+    distance against a measured sampling floor, in units no attack cost uses.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the pre-flooding distributions can be enumerated exactly and the
+    curve computed: 0.85. That a crossing exists inside a grid spanning 0.25 to 16 times the pre-flooding
+    standard deviation: 0.6, since the contraction is fast and the floor at affordable sample counts
+    is high. That the knee is stable across binnings within a factor of 2: 0.45, and this is the most
+    likely failure. That the large-sigma null sits at the floor as required: 0.85. That the measurable
+    range reaches anywhere near the regime a provable bound occupies: 0.05, and the contract predicts
+    it will not and says so in advance.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-LIT-7675
+  - KN-LIT-95256d
+  - KN-OPEN-026
+  - KN-TECH-082
+  - IDEA-20260807-a06996
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-f5db3b
