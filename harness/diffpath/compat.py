@@ -19,8 +19,10 @@ def ensure() -> dict:
                 "reason": "a real sympy is importable; no shim installed"}
     if _COMPAT_DIR not in sys.path:
         sys.path.insert(0, _COMPAT_DIR)
+    stub = _install_semaev_stub()
     return {
         "sympy_shim_used": True,
+        "harness_semaev_stub_installed": stub,
         "reason": ("sympy is not installed in this environment and IR-10 "
                    "forbids acquiring it over the network; `uv pip install "
                    "--offline --system sympy` was attempted and FAILED (the "
@@ -35,4 +37,37 @@ def ensure() -> dict:
                               "records the sympy version as ABSENT, which is "
                               "the truth."),
         "shim_path": os.path.join(_COMPAT_DIR, "sympy.py"),
+        "semaev_stub_reason": (
+            "harness/runner.py::_verify imports harness.semaev UNCONDITIONALLY, "
+            "before it dispatches on the certificate kind, and harness/semaev.py "
+            "calls sympy.symbols at module scope. With no real sympy that import "
+            "fails for every run, including runs whose certificate kind is "
+            "`none`. A stub module is therefore placed in sys.modules for THIS "
+            "PROCESS ONLY. Its verify_decomposition_certificate RAISES if it is "
+            "ever called, so it cannot silently return a passing verification: "
+            "if a decomposition certificate ever reached it, the run would fail "
+            "loudly rather than record a fabricated verification. Every "
+            "certificate in EXP-DIFFP-fe894e is kind `none`, so it is never "
+            "called."),
     }
+
+
+def _install_semaev_stub() -> bool:
+    import types
+    if "harness.semaev" in sys.modules:
+        return False
+
+    def verify_decomposition_certificate(*_a, **_k):
+        raise RuntimeError(
+            "harness.diffpath.compat stub: harness.semaev is unavailable "
+            "because sympy is not installed in this environment. This stub "
+            "REFUSES to verify anything rather than returning a value. "
+            "EXP-DIFFP-fe894e emits only `kind: none` certificates, so "
+            "reaching this line means a certificate of another kind was "
+            "written and its verification MUST NOT be recorded as passed.")
+
+    mod = types.ModuleType("harness.semaev")
+    mod.verify_decomposition_certificate = verify_decomposition_certificate
+    mod.__diffpath_stub__ = True
+    sys.modules["harness.semaev"] = mod
+    return True
