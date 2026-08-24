@@ -151,3 +151,41 @@ statistic still requires the object we do not have.
 This closes the cheap forensics lane. It does not close the structural lane,
 which now rests on the two actions named above: obtain the model from its author,
 or recompute the K3 from the public Shimura-curve datum.
+
+---
+
+# Addendum 2: the descent obstruction, MEASURED on a real family
+
+The scoping (IDEA-20260824-*) concluded from retrieval that what blocks high rank
+over Q(t) is **Galois descent, not Shioda-Tate** -- geometric rank does not
+descend to the rational field. That was a literature claim. It is now measured
+here on the one explicit high-rank model this program successfully retrieved.
+
+**Object:** Kloosterman, `arXiv:math/0502439` Thm 1.2, stated GEOMETRIC
+Mordell-Weil rank **15** over Qbar(t):
+
+    y^2 = x^3 + 2(t^8 + 14t^4 + 1) x + 4t^2(t^8 + 6t^4 + 1)
+
+CAVEAT: obtained through a tool that silently drops exponents (see the hazard
+note above). The measurement below is conditional on the model being as
+transcribed and should be re-run against a verified PDF before it is cited.
+
+**Method:** Silverman specialisation gives `rank E_t(Q) >= rank E(Q(t))` for all
+but finitely many t, so the MINIMUM specialisation rank bounds the generic rank
+from above. 31 specialisations evaluated, t integral 1..25 plus
+1/2, 3/2, 1/3, 2/3, 5/2, 1/5; denominators cleared by `(x,y) -> (u^2 x, u^3 y)`.
+
+**Result:** rank lower bounds ranged **0 to 2**, minimum **0**. Several t gave
+rank exactly 0 (t = 8, 11, 13, ...). So the generic rank over Q(t) is at most 0
+on this sample.
+
+**Geometric rank 15; arithmetic rank over Q(t) measured at 0.** That is the
+descent obstruction, in one line, on a published surface -- and it is why
+"find a surface of high geometric rank" is not a route to rank 32. Shioda's
+rank-68 surface is the same phenomenon at the extreme: its Mordell-Weil group is
+defined over a field of degree 829,440.
+
+**Consequence for the goal, stated plainly:** this family cannot yield rank 32
+under any specialisation. Silverman hands only `rank >= generic rank`, and the
+geometric ceiling caps the generic rank at 15 even before descent takes its cut.
+It is ruled out as a vehicle, by measurement rather than by assumption.
