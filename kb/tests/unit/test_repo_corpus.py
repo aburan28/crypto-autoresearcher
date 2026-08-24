@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+from collections import Counter
 from pathlib import Path
 
 import pytest
 import yaml
 
+from crypto_kb.config import SOURCE_PREFIX
 from crypto_kb.ingest.repo_corpus import (
     RULES,
     StagingDiagnostics,
@@ -358,25 +360,81 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
     source_ids = [item.metadata["source_id"] for item in documents]
     source_keys = [item.source_key for item in documents]
 
-    # The independently reviewed BATCH-bac554 snapshot staged 10,920 records.
-    # Its subsequent neutral PASS archive adds one evidence and one decision
-    # record, both of which are part of the live corpus at this branch tip.
-    expected_document_count = 10_922
-    assert len(documents) == expected_document_count
-    assert len(set(source_ids)) == expected_document_count
-    assert len(set(source_keys)) == expected_document_count
-    assert len(sink.keys) == 2 * expected_document_count
-    assert len(set(sink.keys)) == 2 * expected_document_count
+    # Corpus size is not a property of the staging code. Every research batch
+    # commits new ledger records, and `parents[3]` is a different corpus in
+    # every concurrent worktree, so an exact document count fails on branches
+    # that changed nothing about staging. It also decays quietly: the exact
+    # pin here (10,922, from the independently reviewed BATCH-bac554 snapshot
+    # plus its neutral PASS archive) was maintained while three sibling pins
+    # went stale unnoticed at 76 / 75 / 103 against a live 80 / 79 / 105.
+    #
+    # What this test defends is the staging *schema*: every rule family still
+    # reaches the corpus, ids and keys stay one-to-one with documents, and the
+    # disclosed debt further down stays exactly as disclosed. The floors below
+    # are ratchets, not measurements. Each sits roughly a tenth under the count
+    # observed at commit b444f393d -- below the reviewed BATCH-bac554 snapshot,
+    # so a branch forked before recent records landed still passes -- and moves
+    # only when a reviewer deliberately raises it. They are sized to catch a
+    # family collapsing, not to track a few percent of drift; the precision
+    # lives in the exact debt sets and the supersession shape further down.
+    assert len(documents) >= 10_500
+    assert len(set(source_ids)) == len(documents)
+    assert len(set(source_keys)) == len(documents)
+    assert len(sink.keys) == 2 * len(documents)
+    assert len(set(sink.keys)) == 2 * len(documents)
     assert {
         "evidence:EV-DREG-39e13d",
         "decision:DEC-20260812-a987b8",
     } <= set(source_ids)
 
-    assert len(diagnostics.registered_source_paths) == 76
+    # No staging rule may silently match nothing, and growth in one family
+    # must not hide a family that collapsed to zero. Destinations are read
+    # back off RULES, so adding a rule without giving it a floor fails here
+    # rather than staging an unwatched family.
+    minimum_per_destination = {
+        "papers/literature-notes": 7_500,
+        "papers/vendored": 1,
+        "internal-notes/techniques": 80,
+        "internal-notes/findings": 55,
+        "internal-notes/open-problems": 28,
+        "ledgers/evidence": 370,
+        "ledgers/hypotheses": 270,
+        "ledgers/questions": 100,
+        "ledgers/proposals": 680,
+        "ledgers/goals": 64,
+        "ledgers/goal-checkpoints": 95,
+        "ledgers/subgoals": 1,
+        "ledgers/decisions": 510,
+        "experiments/specifications": 430,
+        "experiments/analyses": 145,
+        "repository-docs": 24,
+    }
+    assert set(minimum_per_destination) == {rule.destination for rule in RULES}
+    staged_per_destination = Counter(
+        key.removeprefix(SOURCE_PREFIX).rsplit("/", 1)[0] for key in source_keys
+    )
+    assert {
+        destination: staged_per_destination[destination]
+        for destination, floor in minimum_per_destination.items()
+        if staged_per_destination[destination] < floor
+    } == {}
+
+    # Registered supersessions are immutable and write-once, so the registry
+    # only ever grows; a shrink means a correction was dropped. The binding
+    # that matters is not the registry's size but its shape: every registration
+    # resolves to exactly one staged document, except a suppressed redirect,
+    # whose lineage merges into a target carrying its own registration.
+    assert len(diagnostics.registered_source_paths) >= 70
     assert diagnostics.matched_registered_source_paths == diagnostics.registered_source_paths
     assert diagnostics.unmatched_registered_source_paths == []
-    assert sum(bool(item.metadata.get("verification_artifacts")) for item in documents) == 75
+    assert sum(bool(item.metadata.get("verification_artifacts")) for item in documents) == (
+        len(diagnostics.registered_source_paths) - len(diagnostics.redirect_suppressions)
+    )
 
+    # The debt stays exact where the counts became floors. Disclosed debt is
+    # closed, never grown: a new unparseable record, a new colliding id, or a
+    # new suppressed redirect is a regression, not corpus growth, so each of
+    # these sets is pinned by membership and any addition fails the test.
     expected_unparseable = {
         "ledger/H-BKKMV-001.yaml",
         "ledger/H-DREG-001.yaml",
@@ -404,6 +462,27 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
         "experiments/EXP-SIG-005/specification.yaml",
     }
     assert {item.path for item in diagnostics.unparseable_sources} == expected_unparseable
+
+    # Two registries disclose this debt from different angles, and they must
+    # not drift apart. `tools/merge_hygiene_baseline.txt` grandfathers every
+    # file that fails to parse on disk anywhere in the repository; the set
+    # above holds only what a staging rule matched and no registered
+    # supersession routes around. So it is a subset and never an equal --
+    # `experiments/EXP-DREG-001/specification.yaml` sits in the baseline but
+    # not here, because staging reads its registered replacement instead.
+    #
+    # Containment is what makes the two lists one policy. A newly broken
+    # record silenced by editing only this test would pass every check but
+    # this one, and it cannot be legalised from the other side either: the
+    # baseline's own header says lines may only ever be REMOVED.
+    baseline_path = repo_root / "tools" / "merge_hygiene_baseline.txt"
+    hygiene_baseline = {
+        line.strip()
+        for line in baseline_path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    assert expected_unparseable - hygiene_baseline == set()
+
     assert {item.source_id for item in diagnostics.duplicate_source_ids} == {
         f"decision:DEC-20260722-{number:03d}" for number in range(1, 6)
     }
@@ -417,8 +496,10 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
         "ledger/hypotheses/H-XOR-YIELD.yaml"
     ]
 
+    # Count is already floored above as `ledgers/goal-checkpoints`; what these
+    # pin is the shard addressing scheme -- goal directory plus filename, so a
+    # batch that closes under a dated suffix keeps its own immutable address.
     checkpoint_ids = {item for item in source_ids if item.startswith("goal-checkpoint:")}
-    assert len(checkpoint_ids) == 103
     assert "goal-checkpoint:GOAL-ECDLP-001:BATCH-ef31ab" in checkpoint_ids
     assert (
         "goal-checkpoint:GOAL-ECDLP-001:BATCH-ef31ab-close-20260808"
