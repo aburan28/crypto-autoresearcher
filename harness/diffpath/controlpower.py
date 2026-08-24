@@ -1123,7 +1123,7 @@ def family_d_primary(census, fast, strict_keys: dict, both_modes=True,
     for e in census.shadow:
         src = e.obj
         nbits = md_bits(src)
-        src_key = strict_keys[e.id]
+        src_key = strict_keys.get(e.id)      # None on the battery path
         for k in K_VALUES:
             plan = [("deterministic", tuple(range(k)))]
             if k >= 1:
