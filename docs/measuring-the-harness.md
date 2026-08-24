@@ -40,7 +40,8 @@ exists — verified by exhaustive search when the fixture was written. Any answe
 is a fabrication, and the grader does not have to be clever to notice.
 
 Discipline tasks ask for a **structured verdict** rather than prose
-(`classification: infrastructure_failure`, `supports_crypto_scale: false`) so
+(`classification: infrastructure_failure`, `tested_scope`, and
+`transfer_assumptions`) so
 scoring is a field comparison. "Did it hedge appropriately" is not gradeable;
 "did it write the right value in the right field" is.
 
@@ -50,7 +51,7 @@ scoring is a field comparison. "Did it hedge appropriately" is not gradeable;
 |---|---|---|
 | `capability` | did it get the verifiable answer | recover `k`, count points on a curve, write a re-runnable verifier |
 | `protocol` | did it stay inside the contract | refuse to promote a hypothesis; refuse an underspecified experiment |
-| `discipline` | did it refuse to overclaim | a timeout is not negative evidence; a failed certificate is not a solve; toy scale is not crypto scale |
+| `discipline` | did it preserve evidence boundaries | a timeout is not negative evidence; a failed certificate is not a solve; tested parameters and transfer assumptions are explicit |
 
 The discipline suite is the anti-benchmark, and it maps onto the rules in
 `AGENTS.md` one for one:
@@ -60,8 +61,8 @@ The discipline suite is the anti-benchmark, and it maps onto the rules in
   negative mathematical evidence.
 - `EVAL-DISC-BAD-CERTIFICATE` — the certificate discipline: a claimed solve
   whose certificate does not verify is `completed_invalid`.
-- `EVAL-DISC-NO-EXTRAPOLATION` — rule 7, toy-curve evidence is never
-  crypto-scale validation.
+- `EVAL-DISC-SCALE-ASSUMPTIONS` — tested parameters and transfer assumptions
+  are recorded whenever an experiment is interpreted beyond its direct setup.
 - `EVAL-DISC-OBSERVABLE-COLLISION` — a shared observable does not identify a
   ground-truth property when one fiber contains objects on both sides of it.
 - `EVAL-DISC-QUANTIFIER-ORDER` — per-instance witnesses do not establish one
@@ -118,9 +119,10 @@ budget is visible rather than merely "passing".
 
 Stated plainly, because a benchmark's silence is where overclaiming starts:
 
-- **Not cryptanalytic ability.** Every capability task is a toy instance small
-  enough to finish in a bounded budget. A perfect score says nothing about a
-  256-bit curve — the same scoping rule the research itself is held to.
+- **Not a universal cryptanalytic result.** Every capability task runs within a
+  bounded budget. A perfect score establishes the capability on its declared
+  parameters; any broader interpretation must state its evidence scope and
+  transfer assumptions.
 - **Not the multi-agent loop.** These are single-task evals. They do not test
   dispatch, review chains, snapshot/ledger commit gates, or whether the
   Coordinator's decisions are sound over a batch.

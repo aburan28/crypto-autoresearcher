@@ -10,6 +10,8 @@ from __future__ import annotations
 import io
 import json
 import urllib.error
+import urllib.request
+from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 
@@ -89,6 +91,30 @@ def test_config_rejects_bedrock_model_hidden_under_allowed_backend(tmp_path):
         adapter.load(bindings_path=path)
 
 
+def test_config_rejects_bedrock_request_model_override_before_resolution(tmp_path):
+    bindings = yaml.safe_load((REPO / "orchestration/model-bindings.yaml").read_text())
+    bindings["bindings"]["openai"]["research-deep"]["request"]["model"] = (
+        "AmazOn-BeDrOcK/us.example-model")
+    path = tmp_path / "bindings.yaml"
+    path.write_text(yaml.safe_dump(bindings))
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.load(bindings_path=path)
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("path", "@amazon-bedrock.example.invalid/v1/messages"),
+    ("models_path", "/Amazon-Bedrock/models"),
+])
+def test_config_rejects_bedrock_wire_protocol_paths_before_resolution(tmp_path,
+                                                                      field, value):
+    providers = yaml.safe_load((REPO / "orchestration/providers.yaml").read_text())
+    providers["wire_protocols"]["openai_chat"][field] = value
+    path = tmp_path / "providers.yaml"
+    path.write_text(yaml.safe_dump(providers))
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.load(providers_path=path)
+
+
 def test_resolver_rejects_bedrock_endpoint_override(cfg):
     with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
         adapter.resolve(
@@ -105,6 +131,62 @@ def test_transport_rejects_tampered_bedrock_resolution(cfg):
             cfg, tampered, system=None,
             messages=[adapter.Message("user", "must not send")],
             env={"ZAI_API_KEY": "unused"})
+
+
+def test_transport_rejects_tampered_request_model_before_opener(cfg):
+    resolution = adapter.resolve(cfg, "research-deep", backend="zai", env={})
+    tampered = replace(
+        resolution, request={"model": "amazon-bedrock/us.example-model"})
+    calls = []
+
+    def forbidden_opener(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("forbidden request reached opener")
+
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.complete(
+            cfg, tampered, system=None,
+            messages=[adapter.Message("user", "must not send")],
+            env={"ZAI_API_KEY": "unused"}, opener=forbidden_opener)
+    assert calls == []
+
+
+def test_transport_rechecks_composed_endpoint_before_opener(cfg):
+    providers = deepcopy(cfg.providers)
+    providers["wire_protocols"]["openai_chat"]["path"] = (
+        "@amazon-bedrock.example.invalid/v1/chat/completions")
+    tampered_cfg = replace(cfg, providers=providers)
+    resolution = adapter.resolve(tampered_cfg, "research-deep", backend="zai", env={})
+    calls = []
+
+    def forbidden_opener(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("forbidden request reached opener")
+
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.complete(
+            tampered_cfg, resolution, system=None,
+            messages=[adapter.Message("user", "must not send")],
+            env={"ZAI_API_KEY": "unused"}, opener=forbidden_opener)
+    assert calls == []
+
+
+def test_model_probe_rechecks_composed_endpoint_before_opener(cfg):
+    providers = deepcopy(cfg.providers)
+    providers["wire_protocols"]["openai_chat"]["models_path"] = (
+        "@amazon-bedrock.example.invalid/v1/models")
+    tampered_cfg = replace(cfg, providers=providers)
+    calls = []
+
+    def forbidden_opener(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("forbidden request reached opener")
+
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.list_models(
+            tampered_cfg, "zai", env={"ZAI_API_KEY": "unused"},
+            opener=forbidden_opener)
+    assert calls == []
 
 
 def test_opencode_disables_bedrock_and_uses_allowed_defaults():
@@ -161,21 +243,46 @@ def test_resolves_to_a_concrete_model_on_the_default_backend(cfg):
     assert resolution.reasoning_effort == "high"
 
 
+def _pin_zai_review_below_floor(cfg):
+    """Force the zai review-adversarial binding below the policy's effort floor.
+
+    The degradation tests exercise the adapter's recorded-downgrade path, which
+    only exists when the bound ceiling is below the required xhigh. The
+    operator is free to bind any model, so these tests pin their own fixture
+    instead of assuming a live binding. Returns the original for restoration.
+    """
+    original = cfg.binding_table["zai"]["review-adversarial"]
+    pinned = deepcopy(original)
+    caps = dict(pinned.get("capabilities") or {})
+    caps["max_reasoning_effort"] = "high"
+    pinned["capabilities"] = caps
+    cfg.binding_table["zai"]["review-adversarial"] = pinned
+    return original
+
+
 def test_unmet_requirement_is_refused_without_permission(cfg):
-    with pytest.raises(resolver_module.ResolutionError) as excinfo:
-        adapter.resolve(cfg, "review-adversarial", backend="zai",
-                        independent_session=True, env={})
-    assert "reasoning_effort" in str(excinfo.value)
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        with pytest.raises(resolver_module.ResolutionError) as excinfo:
+            adapter.resolve(cfg, "review-adversarial", backend="zai",
+                            independent_session=True, env={})
+        assert "reasoning_effort" in str(excinfo.value)
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_degraded_resolution_is_permitted_only_explicitly_and_is_recorded(cfg):
-    resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
-                                 independent_session=True, degraded_allowed=True,
-                                 env={})
-    assert resolution.fallback_used is True
-    assert resolution.degraded_requirements, "a downgrade must be recorded"
-    assert resolution.requested_reasoning_effort == "xhigh"
-    assert resolution.reasoning_effort == "high"     # never overstated
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
+                                     independent_session=True, degraded_allowed=True,
+                                     env={})
+        assert resolution.fallback_used is True
+        assert resolution.degraded_requirements, "a downgrade must be recorded"
+        assert resolution.requested_reasoning_effort == "xhigh"
+        assert resolution.reasoning_effort == "high"     # never overstated
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_unbound_model_cannot_be_waved_through(cfg):
@@ -329,7 +436,7 @@ class _Response(io.BytesIO):
         return False
 
 
-def test_transient_failures_retry_then_succeed():
+def test_transient_failures_retry_then_succeed(cfg):
     attempts = []
 
     def opener(request, timeout=None):
@@ -340,12 +447,12 @@ def test_transient_failures_retry_then_succeed():
         return _Response(json.dumps({"ok": True}).encode())
 
     payload = transport_module.post_json(
-        "https://example.invalid/v1/messages", {}, {"model": "m"},
+        cfg, "https://example.invalid/v1/messages", {}, {"model": "m"},
         timeout=1, max_retries=3, opener=opener, sleep=lambda _: None)
     assert payload == {"ok": True} and len(attempts) == 3
 
 
-def test_client_errors_are_not_retried():
+def test_client_errors_are_not_retried(cfg):
     attempts = []
 
     def opener(request, timeout=None):
@@ -354,10 +461,37 @@ def test_client_errors_are_not_retried():
                                      io.BytesIO(b"bad key"))
 
     with pytest.raises(transport_module.TransportError, match="401"):
-        transport_module.post_json("https://example.invalid/v1/messages", {},
+        transport_module.post_json(cfg, "https://example.invalid/v1/messages", {},
                                    {"model": "m"}, timeout=1, max_retries=3,
                                    opener=opener, sleep=lambda _: None)
     assert len(attempts) == 1
+
+
+@pytest.mark.parametrize(("url", "body"), [
+    ("https://amazon-bedrock.example.invalid/v1/messages", {"model": "safe"}),
+    ("https://example.invalid/v1/messages", {"model": "Amazon-Bedrock/model"}),
+])
+def test_post_json_rejects_forbidden_target_before_opener(cfg, url, body):
+    calls = []
+
+    def forbidden_opener(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("forbidden request reached opener")
+
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        transport_module.post_json(
+            cfg, url, {}, body, timeout=1, max_retries=1,
+            opener=forbidden_opener, sleep=lambda _: None)
+    assert calls == []
+
+
+def test_default_redirect_handler_rejects_forbidden_endpoint_before_following(cfg):
+    handler = transport_module._TargetCheckingRedirectHandler(cfg)
+    request = urllib.request.Request("https://example.invalid/v1/messages")
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        handler.redirect_request(
+            request, None, 302, "Found", {},
+            "https://Amazon-BeDrOcK.example.invalid/v1/messages")
 
 
 # --------------------------------------------------------------------------
@@ -567,10 +701,14 @@ def test_breakthrough_review_still_requires_an_independent_session(cfg):
 
 def test_ordinary_review_remains_degradable_with_a_signed_amendment(cfg):
     """The distinction only means something if the lower tier still bends."""
-    resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
-                                 independent_session=True, degraded_allowed=True,
-                                 env={})
-    assert resolution.degraded_requirements
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
+                                     independent_session=True, degraded_allowed=True,
+                                     env={})
+        assert resolution.degraded_requirements
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_max_effort_reaches_the_wire(cfg):

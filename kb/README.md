@@ -72,7 +72,10 @@ code, and the MCP server adds nothing of its own — it serialises them. Every
 result carries what is needed to cite it: `source_id`, `section_path`,
 `page_start`/`page_end` (when the parser could establish them), `claim_status`,
 `evidence_level`, `authority`, `superseded`, `experiment_id`, `run_ids`,
-`git_commit`, `content_hash`, `source_uri`.
+`git_commit`, `content_hash`, `source_uri`, plus immutable replacement lineage
+in `supersedes` and `verification_artifacts`. The same lineage is present in
+`search_knowledge`, every chunk returned by `get_context`, and the bounded
+metadata returned by `get_source`.
 
 ### Chunking respects the mathematics
 
@@ -110,6 +113,53 @@ evidence level, the evidence level wins and the disagreement is reported.
 Superseded material is excluded from retrieval by default and never deleted.
 A sidecar marked `provenance_class: model-suggested` has its authoritative
 fields dropped with a warning; only `topics` survives.
+
+### Schema-supersession lineage and the fresh-collection boundary
+
+Repository staging hash-verifies every source and replacement named in
+`tools/schema_supersession_registry.yaml`. A replacement document carries its
+legacy identifier in `supersedes` and both pinned `path@sha256:` bindings in
+`verification_artifacts`. Redirect aliases are not indexed as duplicate
+documents: their aliases and hash bindings are propagated to the terminal
+corrected target. Exact-ID search accepts both the canonical ID and those
+legacy aliases; `get_source` remains canonical-ID-only by design.
+
+The staging rules cover modern typed hypotheses, questions, proposals, flat
+and sharded goals, goal checkpoint shards, and subgoals. Checkpoint source IDs
+use both the goal directory and immutable shard filename, for example
+`goal-checkpoint:GOAL-ECDLP-001:BATCH-ef31ab-close-20260808`; the body batch ID
+is not unique enough to address a shard.
+
+For an auditable dry run, pass a `StagingDiagnostics` instance to
+`stage_repository`. It reports registry-path coverage, unregistered
+unparseable legacy records, different-byte duplicate source IDs, and
+intentional redirect suppressions separately. These diagnostics are debt
+records, not permission to repair or hide immutable sources.
+
+`tests/unit/test_repo_corpus.py` asserts that dry stage against **floors and
+per-destination coverage, not an exact document count**. The corpus is a
+different size in every concurrent worktree and grows with every research
+batch, so an exact pin fails on branches that changed nothing about staging.
+Destinations are read back off `RULES`, so a new staging rule must declare its
+own floor rather than staging an unwatched family; the floors are sized to
+catch a family collapsing to zero, not to track a few percent of drift. The
+debt sets above stay exact, because disclosed debt is closed and never grown.
+Because that test measures the repository rather than `kb/`, `kb.yml` runs it
+on every corpus-touching PR with a five-wheel install, outside the gate that
+skips the full retrieval suite. Note its unparseable set is a strict subset of
+`tools/merge_hygiene_baseline.txt` and not a duplicate of it: the baseline
+lists everything that fails to parse on disk anywhere in the repository, while
+this set lists only what a staging rule matched and no registered supersession
+routes around.
+
+**Do not reuse an existing collection after changing payload projection.** A
+change to `payload_fields()` need not change an already-ingested document's
+fingerprint, so an idempotent ingest can correctly skip the document while its
+old Qdrant payload still lacks lineage. After code snapshot and independent
+validation, an operator must select a fresh collection name and build it from
+the source corpus. Never update an existing shared collection in place. Tests
+use `qdrant_url=:memory:` and temporary object storage only; they neither
+authorize nor perform that operator-owned rebuild.
 
 ### Hybrid retrieval, and why
 
@@ -296,7 +346,7 @@ make test-fast   # unit tests, no corpus build (~0.3s)
 make test        # full suite: builds a 610-document corpus and queries it (~60s)
 ```
 
-186 tests. The integration and evaluation tests run against real repository
+209 tests. The integration and evaluation tests run against real repository
 documents through the real pipeline and a real (embedded) Qdrant — nothing is
 mocked between "a file on disk" and "a search result", because a retrieval test
 against fakes tests the fakes.

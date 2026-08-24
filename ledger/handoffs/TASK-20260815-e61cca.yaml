@@ -1,0 +1,230 @@
+handoff:
+  id: TASK-20260815-e61cca
+  recorded_at: '2026-08-15'
+  from: coordinator
+  to: executor
+  objective: >-
+    PART A (new sampling, single-shard-only exponent completion). For EACH of shard 8001 and shard
+    8002 SEPARATELY (no cross-shard pooling anywhere in Part A), for each decode variant (unmodified
+    decode_blocks, V3-defected wrapper), call stage_a.py's real, unmodified _t_shard ONCE with
+    n_trials = 10000 + 20000 = 30000 (single call per (shard, variant), exactly matching
+    TASK-20260814-8bbdd2's discard-prefix technique, never two separate calls); retain only the
+    trailing slice at indices [10000:30000) (20,000 new trials per shard) for every statistic;
+    discard indices [0:10000) from all analysis (this is exactly TASK-20260809-a79e4f stage 2's
+    already-consumed range on these two shards, T2_shard_8001 = T2_shard_8002 = 10000) but still
+    compute them. Compute the single-shard-only (unpooled) local exponent for shard 8001 alone
+    between its own committed T=10,000 se_paired at k=17 (TASK-20260809-a79e4f
+    matched_pair_results.json stage_2.matched_pair.primary_cell_k17.shard_8001.se_paired) and this
+    task's own new T=20,000 se_paired at k=17 on the retained tail; do the same for shard 8002
+    alone. Report both, completing the four-shard table alongside the already-committed shard 5000
+    (2.836) and shard 6000 (1.402) values (EV-HQC-469c08 O6) -- do NOT recompute 5000/6000, cite
+    them. PART B (recomputation only, no new sampling). Using matched_pair_results.json's
+    ALREADY-COMMITTED per-shard point estimates, compute an inverse-variance-weighted (IVW)
+    combination (w_i = 1/se_paired_i^2, diff_ivw = sum(w_i*diff_i)/sum(w_i),
+    se_ivw = 1/sqrt(sum(w_i))) at k=17 and, for every k in the intersection of both shards'
+    evaluable_k ranges, for (a) shards 5000 and 6000 at their own committed T=5,000-each stage-1
+    point estimates (stage_1.matched_pair.per_shard.shard_5000/shard_6000), reporting the IVW result
+    alongside the existing concatenated-histogram pooled T=10,000 point
+    (stage_1.matched_pair.primary_cell_k17.pooled), and (b) shards 8001 and 8002 at their own
+    committed T=10,000-each stage-2 point estimates (stage_2.matched_pair.per_shard.shard_8001/shard_8002),
+    reporting the IVW result alongside the existing concatenated-histogram pooled T=20,000-equivalent
+    point (stage_2.matched_pair.primary_cell_k17.pooled). Report observations only.
+  uncertainty_reduced: >-
+    Whether the shard-to-shard estimator heterogeneity EV-HQC-469c08 O6/O7 found on shards 5000/6000
+    (single-shard local exponents 2.836 and 1.402, both far outside [0.4,0.6], undercutting the
+    "shard-specific to 8001/8002" reading) also holds on shards 8001/8002 themselves -- completing a
+    confound-free, pooling-convention-free four-shard table rather than leaving it at two shards.
+    Separately, whether the pooling-convention asymmetry EV-HQC-469c08 O8 named (arithmetic mean of
+    per-shard SEs vs. SE of pooled data on the same log-log line) is materially compressing the
+    reported pooled SE relative to an inverse-variance-weighted alternative that properly accounts
+    for the now-measured between-shard heterogeneity.
+  inputs:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py --
+    import read-only and sha256-pinned exactly as TASK-20260814-8bbdd2's driver does. Expected
+    sha256 06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405.
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py --
+    comb_matrix, log2_A_from_hists, reused exactly as before. Expected sha256
+    a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8.
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair.py
+    -- import read-only via load_module, measure and record its own sha256 at run time (do not
+    fabricate). Reuse make_defected_decode_blocks, matched_pair_stats, arm_hists, cell, load_module,
+    sha256_file, core_seconds, git_state, run_arm directly, called with n_trials=30000 (Part A) and
+    n_trials=10000 (Part A's verification calls), not re-derived.
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair_results.json
+    -- stage_2.hard_invariants.shard_8001_defected/shard_8001_undefected/shard_8002_defected/shard_8002_undefected
+    (D2_violations, D3_violations, D3_cap, D3_max_w) and
+    stage_2.matched_pair.per_shard.shard_8001/shard_8002 (ks, point_defected, point_undefected,
+    diff, se_paired, se_unpaired, z_paired, z_unpaired, unpaired_over_paired_ratio) -- the committed
+    DERIVED values Part A's verification call must reproduce, since no raw per-trial array exists
+    for these shards (see constraints). Also stage_1.matched_pair.per_shard.shard_5000/shard_6000
+    and both stages' primary_cell_k17.pooled entries, read-only, for Part B's IVW computation.
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-0e126d/tasks/TASK-20260814-8bbdd2/matched_pair_repeat.py
+    and design.md -- the discard-prefix driver pattern and disjointness-self-check pattern this task
+    adapts; read for structure, not copied verbatim where the data gap (see constraints) requires a
+    different check.
+  - ledger/evidence/EV-HQC-469c08.yaml -- O6 (shard 5000 = 2.836, shard 6000 = 1.402, the two
+    already-committed single-shard exponents this task's new numbers complete the table alongside),
+    O7 (the four-shard SE table), O8 (the pooling-convention asymmetry motivating Part B).
+  - ledger/decisions/DEC-20260814-3f429d.yaml -- the decision authorizing this task's next_actions.
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-0e126d/reviews/TASK-20260814-a49f1c/red_team_report.md
+    -- required_controls items 1 and 3, this task's origin.
+  constraints:
+  - PRE-REGISTER BEFORE RUNNING. design.md must exist and state, before any data is generated -
+    Part A's discard-prefix technique and constants (N_DISCARD_PREFIX=10000, N_NEW=20000,
+    N_TOTAL_PER_CALL=30000, shards 8001 and 8002 treated INDIVIDUALLY, retained slice [10000:30000)
+    per shard), the adapted disjointness proof (below), the F[:, 0:n_e-1] invariant construction,
+    and Part B's IVW formula and exactly which committed values it reads.
+  - "PART A: THE DISCARD-PREFIX TECHNIQUE IS MANDATORY, IDENTICAL DISCIPLINE TO TASK-20260814-8bbdd2
+    - for the RETAINED/ANALYZED data on each shard, ONE call to _t_shard per (shard, variant) with
+    n_trials=30000, never two separate calls of 10000 and 20000 for the analysis data itself - a
+    second, independent analysis call would restart trial indexing at 0 internally and silently
+    re-derive the SAME already-consumed domain tags. NO cross-shard pooling anywhere in Part A -
+    shard 8001's exponent uses only shard 8001's own T=10,000 and T=20,000 points; shard 8002's
+    uses only its own."
+  - "KNOWN DATA GAP, DISCLOSED: TASK-20260809-a79e4f's stage 2 did NOT persist raw per-trial S
+    arrays or histograms for shards 8001/8002 (confirmed - matched_pair.py's stage-2 branch, lines
+    617-795, never writes an R['per_trial_S'] key; matched_pair_results.json has exactly one
+    'per_trial_S' occurrence, under stage_1). TASK-20260814-8bbdd2's exact disjointness-self-check
+    (bit-identical comparison against a committed raw array) is THEREFORE NOT AVAILABLE for shards
+    8001/8002. Do not silently skip the check, weaken it without disclosure, or invent a claim that
+    a raw-array check was performed."
+  - "REQUIRED ALTERNATIVE DISJOINTNESS PROOF, FAIL-CLOSED, SPECIFIED HERE (not left for the executor
+    to invent). (1) For each of the 4 (shard, variant) pairs, make ONE dedicated VERIFICATION call
+    to _t_shard at n_trials=10000 (via matched_pair.py's run_arm, same warmup=300, BATCH=64,
+    WALL_CAP as the original stage-2 call) - separate from, and prior to, the real n_trials=30000
+    analysis call. This reproduces trial indices [0,10000) exactly, since CTRStream's key is a pure
+    function of (shard, trial_index, MASTER_SEED), independent of call boundaries or history
+    (established by the Red Team's own code trace, TASK-20260814-a49f1c Section 2, treated here as
+    a settled finding, not re-litigated). From this verification call, recompute
+    D2_violations/D3_violations/D3_cap/D3_max_w and matched_pair_stats (point_defected,
+    point_undefected, diff, se_paired, se_unpaired, z_paired, z_unpaired, ratio at every k in 2..26)
+    and assert these match TASK-20260809-a79e4f's COMMITTED stage_2 values EXACTLY for the
+    D2/D3/D3_cap/D3_max_w integers, and to full float64 bit-identity for the matched_pair_stats
+    arrays (report the exact match/mismatch; if the executor's environment cannot achieve
+    bit-identity for a disclosed reason, e.g. a numpy version difference, state a tight explicit
+    tolerance used instead, e.g. 1e-9 relative, and disclose the discrepancy as a finding, not
+    silently accept it). (2) Make the real n_trials=30000 analysis call. From THIS call's own raw
+    per-trial S, slice the discarded prefix [0:10000) and assert it is BIT-IDENTICAL, elementwise,
+    to the SEPARATE verification call's own raw per-trial S from step 1, on all 4 (shard, variant)
+    pairs - a within-task, cross-call determinism/disjointness proof. (3) FAIL-CLOSED - if EITHER
+    step fails on ANY of the 4 pairs, ABORT immediately; report infrastructure_error /
+    invalid_measurement (AGENTS.md rule 5); compute no statistic from that call's retained tail. (4)
+    STATE EXPLICITLY in design.md and the report that this two-step check is WEAKER than
+    TASK-20260814-8bbdd2's direct bit-identical-array-vs-committed-record check (a within-task
+    self-consistency proof plus an exact match against derived committed statistics, not a direct
+    raw-array match against a persisted committed array) - name this as a limitation, not a
+    silently accepted equivalence."
+  - PART A, THE STANDING F[:, 0:n_e-1] INVARIANT, FAIL-CLOSED, applies unchanged (this check needs
+    no committed comparator, only this task's own fresh data) - for each shard (8001, 8002)
+    separately, on the retained 20,000-trial tail, assert
+    F_defected[:, 0:n_e-1] == F_undefected[:, 0:n_e-1] elementwise for every retained trial. Report
+    mismatch count (expected 0) and PASS/FAIL per shard. A FAIL is infrastructure_error /
+    invalid_measurement.
+  - "PART A: report the single-shard-only local exponent for shard 8001 alone (T=10,000 committed
+    -> T=20,000 new) and shard 8002 alone (same), at k=17, using the SAME
+    alpha=-slope-of-OLS-on-2-points method TASK-20260814-8bbdd2 used, plus the completed four-shard
+    table (5000, 6000 cited from EV-HQC-469c08; 8001, 8002 newly computed here) with no conclusion
+    drawn about which of DEC-20260809-186c86's two named outcomes obtains - that judgment belongs to
+    the Coordinator/Validator/Red Team, not the executor."
+  - "PART B: compute the IVW combination EXACTLY as specified (w_i = 1/se_paired_i^2, diff_ivw =
+    sum(w_i*diff_i)/sum(w_i), se_ivw = 1/sqrt(sum(w_i))) for (a) shards 5000/6000 at T=5,000-each
+    and (b) shards 8001/8002 at T=10,000-each, at k=17 and every k in the intersection of both
+    shards' evaluable_k, reading ONLY already-committed values from TASK-20260809-a79e4f's
+    matched_pair_results.json - no new _t_shard call is authorized or needed for Part B. Report both
+    IVW results ALONGSIDE (never replacing) the existing concatenated-histogram pooled values at the
+    same k, and report the ratio se_ivw/se_pooled_concatenated at k=17 explicitly."
+  - REUSE THE REAL SAMPLER AND ESTIMATOR, DO NOT REBUILD THEM. Import matched_pair.py's
+    make_defected_decode_blocks, matched_pair_stats, arm_hists, cell, load_module, sha256_file,
+    run_arm read-only rather than re-deriving them. If you find yourself rewriting any reused
+    function to make this work, stop and report that instead - it is a finding, not an obstacle to
+    route around.
+  - USE PS-R3's PARAMETERS THROUGHOUT (n=7187, n_e=56, N=7168, k range 2..26,
+    m_load_bearing_order=17), identical to every prior task in this family. Standardized HQC
+    parameters are OUT OF SCOPE and unauthorized.
+  - D2/D3 hard invariants stay ON and fail-closed on all 8 calls (4 analysis calls at
+    n_trials=30000, 4 verification calls at n_trials=10000); expected 0 violations on all 8, and the
+    verification calls' D2/D3/D3_cap/D3_max_w must additionally match the committed stage_2 values
+    exactly (see the disjointness proof above).
+  - STATE PRECISELY WHAT YOU TESTED AND DID NOT - which defect class, which injection point, which
+    shards, which trial indices (explicitly - [10000,30000) retained per shard in Part A, [0,10000)
+    discarded, Part B reads only already-committed T=5,000/T=10,000 per-shard points), which
+    parameter set. Do not generalize past it.
+  - REPORT ACTUAL SPEND - core-seconds and wall-clock, against the 500 core-second and 1,800
+    wall-clock authorizations, so the ledger archive can debit a measured number.
+  - YOU ARE THE EXECUTOR - OBSERVATIONS ONLY. Do NOT conclude anything about A17, HQC's DFR, any
+    standardized parameter set, or whether the campaign should scale up or pause, and do NOT change
+    any record's status. Claim tier stays toy.
+  - Write only under your own task directory. Do not touch
+    experiments/EXP-HQC-982268/specification.yaml, stage_a.py, measure.py, TASK-20260809-a79e4f's
+    matched_pair.py, TASK-20260814-8bbdd2's matched_pair_repeat.py, any ledger record, or any other
+    task's directory.
+  deliverables:
+  - design.md
+  - shard_8001_8002_discard_prefix.py
+  - shard_8001_8002_discard_prefix_results.json
+  - ivw_pooling_check.py
+  - ivw_pooling_check_results.json
+  - four_shard_exponent_report.md
+  - run_manifest.yaml
+  - stdout.log
+  - stderr.log
+  artifact_paths:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/design.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/shard_8001_8002_discard_prefix.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/shard_8001_8002_discard_prefix_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/ivw_pooling_check.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/ivw_pooling_check_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/four_shard_exponent_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/run_manifest.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/stdout.log
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/stderr.log
+  archived_by: TASK-20260815-7c6951
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 2
+  budget_note: >-
+    Also authorized - 500 core-seconds of compute. Total trial-decode volume is roughly 160,000
+    (120,000 for the 4 analysis calls at 30,000 trials each, plus 40,000 for the 4 dedicated
+    verification calls at 10,000 trials each), about 2.7x BATCH-0e126d's 60,000, which spent only
+    30-90 of its own 500 core-second authorization; expected spend here is roughly 75-135
+    core-seconds by the same throughput arithmetic. Part B (the IVW recomputation) performs no new
+    _t_shard calls and adds negligible spend. No budget field is null. GOAL-HQC-001's
+    campaign_budget.total_wall_clock_seconds is 10,800 and is a LIVE pause condition; roughly
+    4,908.1 seconds remained after BATCH-0e126d's close, per that batch's own stated debit
+    convention (only executor-measured spend is debited).
+  completion_gate:
+  - design.md exists, predates both results JSON files, and states Part A's discard-prefix
+    constants and adapted disjointness proof, the F[:, 0:n_e-1] invariant construction, and Part
+    B's IVW formula and exact data sources.
+  - The two-step disjointness proof (verification-call-vs-committed-statistics match, then
+    analysis-call-prefix-vs-verification-call raw bit-identity) is reported PASS on all 4
+    (shard, variant) pairs, or the run is reported ABORTED as an infrastructure outcome, with the
+    weaker-than-TASK-20260814-8bbdd2 limitation stated explicitly.
+  - The F[:, 0:n_e-1] structural invariant is reported PASS with a stated mismatch count (expected
+    0) on both shards, or ABORTED as infrastructure_error.
+  - shard_8001_8002_discard_prefix_results.json carries per-shard diff/SE_paired/SE_unpaired/ratio/z
+    at k=17 and across k=2..26 for shards 8001 and 8002 individually (no pooling), and the
+    single-shard-only local exponent for each.
+  - four_shard_exponent_report.md states the completed four-shard table (5000, 6000 cited from
+    EV-HQC-469c08; 8001, 8002 newly computed) with no conclusion drawn about which named outcome
+    obtains.
+  - ivw_pooling_check_results.json carries the IVW diff/SE at k=17 (and ideally k=2..26) for both
+    (5000,6000)@T=5000-each and (8001,8002)@T=10000-each, alongside the existing
+    concatenated-histogram pooled values at the same k, with the se_ivw/se_pooled_concatenated
+    ratio at k=17 stated.
+  - run_manifest.yaml carries command, git commit and dirty-tree state, environment, seeds and
+    shard indices, timings, core-seconds and wall-clock, and validity status.
+  - No file outside the task's write_scope was created or modified.
+  return_format: >-
+    The executor's own report record per agents/executor.md - observations separated from
+    interpretation, with the mechanical facts (disjointness proof, invariant checks, run counts,
+    spend) stated separately from the measured statistics. Do not return a verdict on the
+    shard-specific-vs-general question; the Coordinator and review chain apply that judgment at the
+    ledger archive.

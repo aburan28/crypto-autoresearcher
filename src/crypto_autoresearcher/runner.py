@@ -67,6 +67,21 @@ POST_RUN_CHECK_KEYS = (
 )
 LOCKED_DESCENDANT_POLICY = "forbidden-via-rlimit-nproc-zero"
 
+# A locked run may fan out across cores, but only by declaring how far. The
+# declaration lives in budget.maximum_workers (absent == 1 == the run process
+# alone), is echoed into the approval lock's resource_policy, and is re-checked
+# against the runtime at launch. Slot 0 keeps the historical string byte for
+# byte, so every approval lock written before this field existed still matches.
+DEFAULT_MAXIMUM_WORKERS = 1
+BOUNDED_DESCENDANT_POLICY_PREFIX = "bounded-via-rlimit-nproc"
+
+# Headroom over the uid's process count at launch. RLIMIT_NPROC counts every
+# process of the real uid, not just this run's tree, so the limit is set
+# relative to the count observed in the parent. The margin absorbs the
+# short-lived processes a shared machine creates between the count and the
+# fork; without it a pool fails closed at startup rather than running.
+DESCENDANT_SLOT_HEADROOM = 8
+
 
 @dataclass(frozen=True)
 class _ChildResult:
@@ -704,7 +719,7 @@ def _load_approval_context(
                 "Python isolation flags -I -S -B"
             )
 
-    resource_policy = _locked_resource_policy()
+    resource_policy = _locked_resource_policy(_worker_slots(experiment))
     if canonical_json_bytes(approval["resource_policy"]) != canonical_json_bytes(
         resource_policy
     ):
@@ -1009,7 +1024,43 @@ def _limit_value(resource_name: int, requested: int) -> int:
     return min(requested, int(inherited_hard))
 
 
-def _locked_resource_policy() -> dict[str, Any]:
+def _descendant_policy(descendant_slots: int) -> str:
+    if descendant_slots <= 0:
+        return LOCKED_DESCENDANT_POLICY
+    return f"{BOUNDED_DESCENDANT_POLICY_PREFIX}-{descendant_slots}"
+
+
+def _worker_slots(experiment: dict[str, Any]) -> int:
+    """Descendant processes a locked run may create, from its declared budget."""
+    declared = experiment.get("budget", {}).get(
+        "maximum_workers", DEFAULT_MAXIMUM_WORKERS
+    )
+    if isinstance(declared, bool) or not isinstance(declared, int):
+        raise RecordValidationError("budget.maximum_workers must be an integer")
+    if declared < 1:
+        raise RecordValidationError("budget.maximum_workers must be at least 1")
+    return declared - 1
+
+
+def _uid_process_count() -> int:
+    """Processes of the real uid, for sizing RLIMIT_NPROC relative to now."""
+    try:
+        real_uid = os.getuid()
+        count = 0
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit():
+                continue
+            try:
+                if os.stat(f"/proc/{entry}").st_uid == real_uid:
+                    count += 1
+            except OSError:
+                continue
+        return count
+    except OSError:
+        return 0
+
+
+def _locked_resource_policy(descendant_slots: int = 0) -> dict[str, Any]:
     nproc_resource = getattr(resource, "RLIMIT_NPROC", None)
     if os.name != "posix" or not hasattr(os, "geteuid") or nproc_resource is None:
         raise RecordValidationError(
@@ -1022,20 +1073,37 @@ def _locked_resource_policy() -> dict[str, Any]:
             "RLIMIT_NPROC"
         )
     return {
-        "descendant_policy": LOCKED_DESCENDANT_POLICY,
+        "descendant_policy": _descendant_policy(descendant_slots),
         "effective_uid": effective_uid,
     }
 
 
+def _nproc_limit(descendant_slots: int | None) -> int | None:
+    """RLIMIT_NPROC value for a slot count: None leaves the limit untouched.
+
+    Computed in the parent because /proc is not safe to walk between fork and
+    exec. Slot 0 yields a hard zero -- fork() fails outright, the historical
+    behaviour. Above zero the limit is relative to the uid's current process
+    count, since RLIMIT_NPROC is a per-uid ceiling rather than a per-tree one.
+    """
+    if descendant_slots is None:
+        return None
+    if descendant_slots <= 0:
+        return 0
+    return _uid_process_count() + descendant_slots + DESCENDANT_SLOT_HEADROOM
+
+
 def _resource_limiter(
-    memory_bytes: int, cpu_seconds: float, forbid_descendants: bool
+    memory_bytes: int, cpu_seconds: float, descendant_slots: int | None
 ) -> Any:
+    nproc_limit = _nproc_limit(descendant_slots)
+
     def apply_limits() -> None:
-        if forbid_descendants:
+        if nproc_limit is not None:
             nproc_resource = getattr(resource, "RLIMIT_NPROC", None)
             if nproc_resource is None:
                 raise RuntimeError("RLIMIT_NPROC is unavailable")
-            resource.setrlimit(nproc_resource, (0, 0))
+            resource.setrlimit(nproc_resource, (nproc_limit, nproc_limit))
         address_space = getattr(resource, "RLIMIT_AS", None)
         if address_space is not None and sys.platform != "darwin":
             memory_limit = _limit_value(address_space, memory_bytes)
@@ -1299,7 +1367,7 @@ def _run_child(
     cpu_seconds: float,
     stdout_path: Path,
     stderr_path: Path,
-    forbid_descendants: bool = False,
+    descendant_slots: int | None = None,
 ) -> _ChildResult:
     infrastructure_error: str | None = None
     return_code: int | None = None
@@ -1323,7 +1391,7 @@ def _run_child(
                 start_new_session=os.name == "posix",
                 preexec_fn=(
                     _resource_limiter(
-                        memory_bytes, cpu_seconds, forbid_descendants
+                        memory_bytes, cpu_seconds, descendant_slots
                     )
                     if os.name == "posix"
                     else None
@@ -1621,7 +1689,7 @@ def run_experiment(
         cpu_seconds=remaining_cpu_seconds,
         stdout_path=temp_dir / "stdout.log",
         stderr_path=temp_dir / "stderr.log",
-        forbid_descendants=planned is not None,
+        descendant_slots=_worker_slots(experiment) if planned is not None else None,
     )
     child_elapsed = time.monotonic() - child_started
     finished_at = _utc_now()

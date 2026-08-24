@@ -1,0 +1,207 @@
+experiment:
+  id: EXP-RSAPI-0cbd60
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-a321ac; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-a321ac
+  question_id: RQ-RSA-d46f02
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Enumerate equal-determinant shift sets of a reproduced small-root construction, then measure
+    whether members of one class achieve the same unknown-bit recovery fraction, against a deliberately
+    unequal-determinant null class.
+  objective: 'The one uncertainty a run reduces is whether the pair (dimension, determinant) is a
+    sufficient description of a small-root construction for the purpose of predicting achievable reach,
+    or whether basis shape carries a residual that the pair discards. Concretely: (i) whether equal-determinant
+    classes with materially different profiles exist at feasible dimensions at all, which STAGE 1
+    answers symbolically at zero compute and which the program currently cannot answer; (ii) whether
+    members of one such class achieve r_hat values whose spread stays below the resolution floor imported
+    from the stagewise-ablation contract, and if not, how much of the residual the declared profile
+    statistic explains; (iii) whether the instrument can detect a determinant effect when one is genuinely
+    present, established by the unequal-determinant null class, without which a null within-class
+    result is uninterpretable. A run also produces a class census that later contracts in this bucket
+    need, since any design that wishes to vary one construction property while holding others fixed
+    must know which properties are jointly realisable.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: for this reproduced
+      construction, at the enumerated dimensions, with this declared profile statistic, this budget
+      and this sample size, either a measured within-class spread of r_hat below a stated floor together
+      with a demonstrated ability to detect an s effect, or a measured residual with the fraction
+      of variance the profile statistic explains. WHAT DOES NOT FOLLOW: no statement that any published
+      bound is tight or loose, since a sufficient condition need not be tight; no statement about
+      profile statistics other than the declared one; no attack, no construction improvement and nothing
+      about deployed RSA; and no extension of the class census beyond the reproduced construction.'
+  inputs:
+    procedure: 'STAGE 0 (zero compute): declare the construction, the dimension list, the profile
+      statistic, the resolution floor, seeds and the success threshold. STAGE 1 (minutes, zero lattice
+      compute): enumerate candidate shift sets at each dimension, compute exact integer determinants,
+      build the class census, report class sizes and within-class profile spread. GATE: proceed only
+      if a class qualifies. STAGE 2 (minutes): select three within-class members of maximal profile
+      spread and two null-class members of clearly different determinant; recompute every determinant
+      exactly to verify membership. STAGE 3 (CPU-hours): measure r_hat for all five arms on 60 paired
+      seeded known-answer instances at n = 128, bisecting on u with the declared threshold. STAGE
+      4 (CPU-hours, same invocation): run the rootless-polynomial null across all five arms. STAGE
+      5 (minutes): repeat the widest-spread arm pair with randomised row order and a re-seeded instance
+      set. STAGE 6 (zero compute): regress r_hat on s, then on s plus profile; report residual variance
+      and all exact binomial intervals.'
+    instrument: Python 3.11. python-flint or gmpy2 for exact integer determinants, exact rational
+      slack computation and verification by exact division. fpylll 0.6.4 for reduction, pinned to
+      one deterministic setting, via the route in KN-TECH-14efa5. harness/runner.py for manifests
+      and seeds; harness/run.py as the bounded-run wrapper. STAGE 1 is plain Python with exact integers
+      and needs no lattice library at all. No Sage.
+    parameters: 'Dimensions enumerated at D in {8, 12, 16, 24, 32}. Modulus bit-length n = 128 with
+      balanced 64-bit primes for the measurement stages. Five measurement arms: three same-class shift
+      sets, two different-determinant null-class shift sets. 60 paired known-answer instances per
+      arm, plus 60 rootless-null instances per arm. Unknown fraction u bisected over at most 9 evaluations
+      per arm. Profile statistic threshold for material difference declared in STAGE 0. Per-instance
+      wall-clock cap 900 seconds, memory cap 8 GB.'
+  controls:
+  - Null class of deliberately different determinants, establishing that the instrument can see an
+    s effect.
+  - Rootless random-polynomial null across all arms in the same invocation.
+  - Paired instances shared by every arm, so within-class comparison carries no instance variance.
+  - Exact integer determinant recomputation for every shift set actually used, verifying class membership
+    rather than assuming it.
+  - Resolution floor imported from the ablation entry's no-op notch and re-measured here as a within-arm
+    repeat.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical within-class comparison runs against a null class constructed
+    by taking shift sets with DELIBERATELY DIFFERENT determinants at the same dimension, spanning
+    a declared range of s. The null must show a clear monotone dependence of r_hat on s across that
+    range, at an effect size well above the resolution floor; if it does not, the instrument cannot
+    detect a determinant effect at all and the within-class null result would be uninformative rather
+    than evidence for sufficiency. A second null runs the whole comparison on rootless random polynomials,
+    where every arm must fail, ruling out any class-dependent artifact of the lattice-building code.'
+  independent_variables:
+  - shift-set identity within an equal-determinant class
+  - lattice dimension D
+  - slack s (via the null class)
+  - unknown-prime-bit fraction u
+  metrics:
+    primary:
+    - r_hat per shift set with exact binomial interval
+    - within-class spread of r_hat
+    - residual variance explained by the profile statistic after s
+    - 'class census: number and size of equal-determinant classes per dimension'
+    secondary:
+    - exact log determinant per shift set
+    - profile statistic per shift set
+    - reduction wall time and peak resident memory per arm
+    - null-class spread of r_hat across s
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The within-class spread of r_hat, defined as max minus min of r_hat over the three same-class
+      arms, compared against the resolution floor.
+    formula: Sufficiency is upheld at a dimension if within-class spread of r_hat <= 0.02 in u while
+      the null class shows a spread >= 0.05 in u over the declared s range. Slack is computed exactly
+      as s = (log det)/D minus the log of the Howgrave-Graham norm bound at the same u, evaluated
+      as a rational and rounded only for reporting.
+    source: Pre-registered in the parent proposal IDEA-20260816-a321ac before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Symbolic enumeration at dimensions 8 to 32 and measurement at a single 128-bit
+      modulus with 64-bit primes. Ground truth is exact by construction. NO TRANSFER to larger moduli
+      or larger dimensions is assumed; in particular the expectation stated in the proposal that sufficiency
+      fails as dimension grows is NOT tested beyond D = 32 here, and the contract reports only the
+      dimensions enumerated. The class census is specific to the reproduced construction and no transfer
+      to another construction is claimed.
+    correspondence: null
+  tail_checks:
+  - Largest and smallest achieved first-vector norm per arm, since equal determinant does not imply
+    equal achieved norm
+  - Per-instance success at the u values bracketing each arm's r_hat
+  - Sensitivity of the within-class spread to removing the single most extreme instance
+  - Row-order randomisation effect measured on the widest-spread arm pair
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop at the STAGE 1 gate and report the class census as the complete deliverable if no qualifying
+    class exists
+  - Void the run if any rootless-null arm recovers a factor
+  - Halt an instance at the wall-clock cap and record it as budget-limited, never as a mathematical
+    negative
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A run succeeds if the class census is produced, and either the gate closes with
+    the census reported as the deliverable, or all five arms complete with r_hat and exact binomial
+    intervals, the null class demonstrates detectable s dependence, and the rootless null recovers
+    nothing.
+  falsification_criterion:
+  - Within-class spread above the resolution floor refutes sufficiency at that dimension
+  - Null class showing no s dependence invalidates any within-class conclusion
+  - Determinant recomputation disagreeing with the census voids the affected arm
+  - Any rootless-null recovery voids the run
+  - Row-order randomisation producing spread comparable to the within-class spread shows the comparison
+    is measuring implementation order, not construction shape
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-a321ac
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The construction must be filed as a KN-LIT entry from primary text before approval, per RQ-RSA-d46f02's
+    constraints; the enumeration in STAGE 1 depends on knowing the admissible shift sets exactly.
+  - The profile statistic is proposed, not derived. A Coordinator should decide whether the variance
+    of log diagonal entries is the right determinant-preserving carrier or whether a Gram-Schmidt-based
+    statistic is required, which would change STAGE 1's cost.
+  - The material-difference threshold on the profile statistic is unset and cannot be set sensibly
+    until the STAGE 1 census shows what spreads are actually available.
+  - The resolution floor is imported from the stagewise-ablation contract and does not exist until
+    that contract has run.

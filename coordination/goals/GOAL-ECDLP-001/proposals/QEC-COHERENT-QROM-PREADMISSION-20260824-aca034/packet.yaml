@@ -1,0 +1,316 @@
+schema_version: "1.0"
+packet_id: QEC-COHERENT-QROM-PREADMISSION-20260824-aca034
+recorded_at: "2026-08-24"
+recorded_by: coordinator
+authority:
+  role: coordinator
+  frozen_head: 8bc3997e922bcc9d1828b46dc2c392cc787555d3
+  upstream_patch_base: b5e4c664de212bdb0981d93d70964a1dca1a0ec9
+  goal_id: GOAL-ECDLP-001
+  mode: non-batch-correction-integrity-control-plane
+  scientific_transition: none
+  status_change_authorized: false
+  predecessor_packet: QEC-EXACT-ADD-PREADMISSION-20260824-4c797e
+  predecessor_packet_path: coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/
+  predecessor_decision: DEC-20260824-d35552
+purpose: >-
+  Admit one bounded implementation-and-integrity correction for the missing
+  coherent signed-window qROM backend. The producer must construct an actual
+  reversible circuit IR and an upstream-applicable patch; a Protocol, facade,
+  classical address loop, or no-op is not an implementation.
+
+frozen_context:
+  byte_identical_pointers_required: true
+  pointers:
+    goal: GOAL-ECDLP-001
+    frozen_parameter: B70
+    frozen_max_bits: 128
+    frozen_unused_bit: 58
+    successor_parameter: B71
+    evaluation_target: P1553
+  permitted_use: reference-only
+  forbidden_transition: >-
+    No task in this packet may edit, promote, reject, close, weaken, supersede,
+    reinterpret, or make a new scientific claim about any frozen pointer.
+
+claim_boundary:
+  maximum_claim: >-
+    A validated exact fixed-base signed-window correction within the frozen
+    reversible circuit IR, with a leading 3n+O(log n) resource statement only
+    when explicitly conditional on the pinned upstream arithmetic primitive
+    bounds and supported by the archived liveness and counting derivation.
+  required_qualifiers:
+    - implementation correction
+    - fixed-base
+    - signed-window
+    - exact only over the declared circuit IR and tested parameter domain
+    - conditional on upstream arithmetic primitive bounds
+  forbidden_claims:
+    - an exact 835 coefficient
+    - an exact logarithmic coefficient
+    - an exact Toffoli coefficient
+    - a practical speedup
+    - an ECDLP algorithmic advance
+    - a P1553 result or transition
+    - a B71 result or transition
+    - novelty
+    - supported hypothesis status
+    - breakthrough
+
+circuit_contract:
+  circuit_ir:
+    requirement: actual reversible operation list
+    forbidden_substitutes:
+      - typing.Protocol-only backend
+      - interface-only facade
+      - no-op implementation
+      - classical branch or loop over a run-time quantum address
+    allowed_gate_set:
+      - X
+      - CX
+      - MCX
+    decomposition_rule: >-
+      An explicitly materialized equivalent decomposition is allowed only when
+      every elementary gate, control polarity, target, ancilla, and cleanup
+      obligation remains represented and countable in the IR.
+  registers:
+    address:
+      width: "w-1"
+      basis_order: little-endian
+      coherent: true
+    sign:
+      width: 1
+      coherent: true
+    zero_digit:
+      width: 1
+      semantics: "1 iff the recoded digit is zero"
+    effective_enable:
+      width: 1
+      semantics: "external enable AND NOT zero_digit"
+      negative_control_required: true
+    point_accumulator:
+      encoding: >-
+        Frozen upstream point encoding extended with the explicit off-curve O
+        representation; no implicit Python None or host-language sentinel.
+      exceptional_points:
+        - O
+        - A
+        - -A
+        - -2A
+    qrom_coordinates:
+      semantics: reversible load targets for the selected signed table point
+      initial_state: all-zero
+      final_state: all-zero
+    qrom_masks:
+      semantics: reversible exceptional-case mask targets
+      initial_state: all-zero
+      final_state: all-zero
+      required_masks:
+        - O
+        - A
+        - -A
+        - -2A
+  table_layout:
+    address_domain: "0 <= address < 2^(w-1)"
+    signed_entries: >-
+      Each address row stores coordinate bits and masks for +A and -A selection
+      under the coherent sign bit, including explicit rows/masks for O, A, -A,
+      and -2A exceptional arithmetic cases.
+    sign_selection: gate-level coherent controls only
+    host_address_enumeration: >-
+      Host-side enumeration may compile a fixed truth table into MCX terms;
+      generated operations must still act block-diagonally on a superposed
+      address/sign register. No address measurement or run-time classical loop
+      is permitted.
+  operation_order:
+    - derive_effective_enable_with_negative_zero_digit_control
+    - qrom_load_coordinates_and_masks
+    - apply_exception_aware_controlled_point_addition
+    - qrom_unload_masks_and_coordinates_by_exact_inverse
+    - uncompute_effective_enable
+    - assert_all_work_and_qrom_targets_clean
+  negative_controls:
+    representation: explicit in IR or explicit X-sandwich decomposition
+    cleanup: every X-sandwich must be closed before return
+  cleanup_assertions:
+    required:
+      - qrom coordinate targets return to zero
+      - qrom mask targets return to zero
+      - effective-enable work bit returns to zero
+      - arithmetic work registers return to zero
+      - address register is unchanged
+      - sign register is unchanged
+      - zero-digit register is unchanged
+      - external enable is unchanged
+    assertion_phase: after unload and all uncomputation
+  sparse_amplitude_simulator:
+    required: true
+    representation: sparse map from computational basis states to exact amplitudes
+    amplitude_domain: exact integers/rationals or symbolic exact values
+    required_superpositions:
+      - at least two address values with both sign values
+      - enabled and disabled branches
+      - zero-digit and nonzero-digit branches
+      - branches exercising O, A, -A, and -2A masks
+    proof_obligation: >-
+      Simulated action is block-diagonal in unchanged address/sign/enable/zero
+      labels, equals the corresponding signed table addition on every enabled
+      nonzero branch, is identity on disabled or zero-digit branches, and leaves
+      every declared work/qROM target clean with no cross-branch leakage.
+
+known_false_backends:
+  - id: KF-NOOP-PROTOCOL
+    description: Protocol or interface object whose emitted operation list is empty
+    expected_detection:
+      - semantic reviewer rejects implementation status
+      - sparse simulator detects identity on enabled nonzero branches
+  - id: KF-CLASSICAL-ADDRESS-LOOP
+    description: run-time classical branching or looping on the address value
+    expected_detection:
+      - IR inspection finds no coherent address controls
+      - address/sign superposition control fails
+  - id: KF-MISSING-UNLOAD
+    description: loaded qROM coordinates or masks remain live after arithmetic
+    expected_detection:
+      - cleanup assertion fails
+      - sparse state retains entanglement with qROM targets
+  - id: KF-PREMAP-FLAG-CLEANUP
+    description: exceptional flags are uncomputed before the arithmetic use site
+    expected_detection:
+      - liveness interval check fails
+      - exceptional-point control fails
+  - id: KF-ZERO-DIGIT-OMISSION
+    description: zero digit does not negatively control effective enable
+    expected_detection:
+      - zero-digit branch changes accumulator
+      - negative-control audit fails
+  - id: KF-PARTIAL-ARITHMETIC
+    description: ordinary additions work but one or more O/A/-A/-2A cases are absent
+    expected_detection:
+      - exceptional control matrix fails
+      - known-false sparse branches mismatch
+
+producer:
+  task_id: TASK-20260824-aca034
+  role: executor
+  objective: >-
+    Implement, test, patch, and run exactly once the coherent signed-window qROM
+    backend under this frozen specification, recording observations without
+    interpreting or changing scientific state.
+  write_scope: &producer_outputs
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/circuit-spec.yaml
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/src/coherent_signed_qrom_backend.py
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/tests/test_coherent_signed_qrom_backend.py
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/integration/upstream-b5e4c664de212bdb0981d93d70964a1dca1a0ec9.patch
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/run-manifest.json
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/command.txt
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/stdout.txt
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/stderr.txt
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/results.json
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/resource-accounting.json
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/source-provenance.json
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/control-matrix.json
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/receipt.json
+  exact_outputs: *producer_outputs
+  receipt_must_be_last: true
+  run_contract:
+    deterministic: true
+    approved_runs: 1
+    scientific_experiment_runs: 0
+    exact_command_recorded_in: coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/command.txt
+    raw_outputs:
+      stdout: coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/stdout.txt
+      stderr: coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/stderr.txt
+      machine_results: coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/run/results.json
+    seed: fixed-and-recorded-even-if-unused
+  source_binding:
+    upstream_commit: b5e4c664de212bdb0981d93d70964a1dca1a0ec9
+    patch_must_apply_to_exact_commit: true
+    patch_path: coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034/integration/upstream-b5e4c664de212bdb0981d93d70964a1dca1a0ec9.patch
+    required_hashes:
+      - upstream source tree hash
+      - patch sha256
+      - circuit specification sha256
+      - implementation sha256
+      - test sha256
+      - command sha256
+      - stdout sha256
+      - stderr sha256
+      - results sha256
+  resource_accounting:
+    exact_required:
+      - per-register widths and peak-live ranges
+      - per-operation liveness intervals
+      - X count added by this correction
+      - CX count added by this correction
+      - MCX count grouped by positive and negative control arity
+      - decomposed-equivalent elementary counts if decomposition is used
+      - qROM load access count
+      - qROM unload access count
+      - total qROM access count
+      - arithmetic primitive invocation count
+      - peak clean ancilla count
+      - peak dirty ancilla count
+    comparison_basis: pinned upstream commit and declared frozen circuit IR
+  completion_gate:
+    - all 13 exact outputs exist and no additional task output exists
+    - receipt is written last and hashes all preceding outputs
+    - patch applies cleanly to the exact pinned upstream commit
+    - exactly one deterministic implementation/control run is recorded
+    - all six known-false backends are detected for their declared reason
+    - sparse-amplitude block-diagonal action and cleanup checks pass
+    - exact liveness, added-gate, and qROM-access counts are machine-readable
+    - no forbidden scientific claim or frozen-pointer transition appears
+
+archival:
+  snapshot_task: TASK-20260824-74edc9
+  snapshot_mode: content_first
+  ledger_task: TASK-20260824-9c389b
+  ledger_mode: content_first
+
+review:
+  plan_path: coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/review-plan.yaml
+  blind_statement_path: coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/blind-statement.yaml
+  joints:
+    J1: TASK-20260824-7a6b70
+    J2: TASK-20260824-4105e3
+    J3: TASK-20260824-01b12b
+  blind_rederiver: TASK-20260824-caf255
+  evidence_record: EV-ECDLP-e304fc
+  decision_record: DEC-20260824-596697
+
+inference_policy:
+  bedrock_prohibited: true
+  fallback_allowed: false
+  degraded_allowed: false
+  tasks:
+    TASK-20260824-aca034:
+      policy: executor-implementation
+      reasoning_effort: medium
+    TASK-20260824-74edc9:
+      policy: coordinator-orchestration-code
+      reasoning_effort: high
+    TASK-20260824-7a6b70:
+      policy: review-adversarial
+      reasoning_effort: xhigh
+      independent_session_required: true
+    TASK-20260824-4105e3:
+      policy: review-adversarial
+      reasoning_effort: xhigh
+      independent_session_required: true
+    TASK-20260824-01b12b:
+      policy: review-adversarial
+      reasoning_effort: xhigh
+      independent_session_required: true
+    TASK-20260824-caf255:
+      policy: review-adversarial
+      reasoning_effort: xhigh
+      independent_session_required: true
+    TASK-20260824-9c389b:
+      policy: coordinator-orchestration-code
+      reasoning_effort: high
+
+non_authority_notice: >-
+  This packet creates no evidence, approval, experiment result, status change,
+  attestation, or scientific conclusion. Those require the declared immutable
+  outputs, independent reports, and a later Coordinator ledger decision.

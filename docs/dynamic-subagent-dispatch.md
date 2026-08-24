@@ -44,6 +44,47 @@ it. Do not let the producing agent be the sole interpreter. Mark its task card
 `review_required: true`; the queue validator then requires at least one
 dependent independent-review task.
 
+## Which agent runs a task, and how hard it thinks
+
+A queue task names a `role`; its optional `inference.policy` names a tier
+within that role. The pair selects the agent, and the agent carries the
+reasoning effort `orchestration/model-policies.yaml` calibrates for that policy:
+
+| `role` | `inference.policy` | agent | effort |
+|---|---|---|---|
+| `executor` | `executor-mechanical` | `executor-mechanical` | low |
+| `executor` | `executor-implementation` | `executor` | medium |
+| `coordinator` | `coordinator-orchestration-code` / `-orchestration` | `coordinator` | high |
+| `idea-generator` | `research-deep` | `idea-generator` | high |
+| `validator` / `reviewer` | `review-adversarial` | `validator` | xhigh |
+| `red-team` | `review-adversarial` | `red-team` | xhigh |
+| `validator` / `reviewer` | `review-breakthrough` | `validator-breakthrough` | max |
+| `red-team` | `review-breakthrough` | `red-team-breakthrough` | max |
+
+The `-breakthrough` and `-mechanical` agents are **policy-tier variants**
+declared in `orchestration/roles.yaml` with `variant_of`: same contract, same
+authority, same tools, different depth. `tools/check_runtime_bindings.py`
+enforces that — a variant that changed authority, or a binding whose `effort`
+stopped matching its policy, fails the build rather than dispatching quietly.
+
+Three rules follow, and none of them is a matter of judgement at dispatch time:
+
+- **The tier is chosen by `routing_rules`, not by the dispatcher's sense of
+  importance.** `claimed_breakthrough`, a proposed closure, or a result
+  contradicting prior validated evidence routes to `review-breakthrough`.
+- **No silent downgrade.** `review-breakthrough` is `degradable: false`:
+  dispatching `validator` where `validator-breakthrough` was required is a
+  policy violation, not a shortcut. If the tier cannot be served, the goal
+  pauses.
+- **Independence is per-session.** An independent review is a fresh agent
+  invocation. Continuing the producing agent's session to obtain a review
+  carries the producer's context and is exactly what
+  `independent_session_required` exists to prevent.
+
+Roles keep their canonical names in queues and handoffs
+(`tools/research_dispatch.py` ROLES is unchanged) — the variant is a runtime
+binding choice, not a new participant in the research contract.
+
 ## State and dependency rules
 
 `queued` tasks can be selected only when every `depends_on` task is
@@ -91,7 +132,10 @@ review and a ledger archive after every required review.
 ## Persistent goals
 
 `/coordinate-research-goal` binds a queue to a committed
-`ledger/goals/GOAL-<AREA>-<NNN>.yaml` record. The record names the objective,
+`ledger/goals/GOAL-<AREA>-<tok>.yaml` record. New goal IDs use the random
+six-hex token returned by `tools/allocate_id.py --next goal --area AREA` and
+confirmed with `--check`; an existing three-digit legacy ID remains valid and
+is carried unchanged. The record names the objective,
 success and stop conditions, current queue, last decision, and exactly one next
 action. Set the queue's optional top-level `goal_id` to that same record. It
 remains `active` across snapshot/review/ledger cycles. A negative,

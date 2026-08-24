@@ -1,0 +1,216 @@
+experiment:
+  id: EXP-SHATHREE-e7dce7
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-97de1e; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-97de1e
+  question_id: RQ-SHATHREE-cd2cb2
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Derive the per-round asymmetry injection weights from the FIPS 202 constant-generating LFSR,
+    build the full round-window cost table, and test whether a frozen collision harness at four rounds
+    can distinguish the cheapest from the most expensive window
+  objective: The uncertainty a run reduces is whether 'r rounds' is a well-defined object in this
+    bucket or whether it silently averages over 24 - r + 1 materially different windows. (i) It regenerates
+    the 24 round constants from the standard's eight-bit LFSR recurrence, validates them against hashlib
+    inside the full permutation, and emits the forced binary sequence recording, per round, whether
+    the two LFSR outputs landing at z = 31 and z = 63 differ -- the single bit that decides whether
+    that round's asymmetry injection carries its heaviest term. (ii) It computes the per-round injection
+    weight twice by structurally independent routes, from the LFSR formula and by direct XOR and popcount,
+    requiring agreement on all 24 rounds as a transcription guard, then builds the complete cumulative
+    window table for every starting index and every r from 1 to 8, reporting argmin, argmax, spread
+    and the rank of the conventional window that starts at round 0. (iii) It runs the frozen certificate-first
+    harness at four rounds on SHA3-256 for the conventional, cheapest and most expensive windows with
+    30 seeds each, against a 30-seed within-window null measured in the same invocation, to determine
+    whether injected weight is a quantity a search can feel at all -- with a negative outcome recorded
+    as a measured obstruction against weight-based cost models rather than as a failed experiment.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''the FIPS 202 round constants regenerate
+      from the stated LFSR and yield the following forced per-round injection weights; cumulative
+      injected weight over four-round windows spans the following range with the conventional window
+      at the following rank; and under this harness, budget and seeds, verified certificate counts
+      at four rounds did or did not differ between the cheapest and most expensive windows beyond
+      the measured within-window variance.'' What does NOT follow: that any window is easier or harder
+      to attack, that a cheaper window would improve any attack, anything about which window published
+      work uses, anything about full 24-round SHA-3, and any security consequence.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~2h human, minutes CPU). Implement rc(t) from the FIPS 202 LFSR recurrence;
+      regenerate all 24 constants; run the full permutation with them and require hashlib digest equality
+      for all four SHA-3 sizes. Abort on mismatch. STAGE 1 (cost: seconds). Extract the 168 consumed
+      LFSR outputs; emit the b_i sequence from outputs 7i+5 and 7i+6. STAGE 2 (cost: seconds). Compute
+      w_i by the LFSR structural formula and independently by XOR-and-popcount of RC_i XOR tau_32
+      RC_i; require agreement on all 24 rounds and halt on any disagreement. STAGE 3 (cost: seconds).
+      Build W(a, r) for all a and r = 1..8 by both the sliding recurrence and direct summation; require
+      agreement; emit argmin, argmax, spread and the conventional rank per r. STAGE 4 (cost: ~1 min
+      CPU). Run NULL-SCHEDULE: 1000 random matched-support schedules through stages 2-3; emit the
+      spread distribution and the FIPS quantile. STAGE 5 (cost: ~8h CPU). Harness arm: SHA3-256, r
+      = 4, conventional, argmin and argmax windows, 30 seeds each at a fixed 10^7 conflict budget,
+      plus 30 extra seeds on the conventional window as NULL-SEED. Every certificate re-verified independently.
+      STAGE 6 (cost: ~30 min). Emit variance comparison, all certificates in hex, and the run manifest
+      with seeds.'
+    instrument: Python 3.11; direct implementation of the FIPS 202 rc(t) LFSR; the hashlib-validated
+      pure-Python Keccak-f[1600] with a parameterised constant window; hashlib as the external oracle
+      for the a = 0, r = 24 case; the companion tooling contract's frozen Tseitin CNF encoder and
+      pinned Cadical build via python-sat; numpy for the tables and variance analysis. No Sage. Manifests,
+      seeds, budgets and the inference block via harness/runner.py.
+    parameters: 'Rounds 0..23, LFSR steps 0..167. Window starting index a = 0..24-r, window lengths
+      r = 1..8. Harness arm: SHA3-256 only, r = 4, three windows, 30 seeds each plus 30 NULL-SEED
+      repetitions, fixed conflict budget 10^7. NULL-SCHEDULE: 1000 random schedules with support drawn
+      from {z = 2^j - 1, j = 0..6}. PCG64 seeds 1..1200 declared in advance. Declared wall-clock ceiling
+      12 hours.'
+  controls:
+  - 'Two-derivation control: w_i computed from the LFSR formula and by direct XOR-popcount must agree
+    on all 24 rounds.'
+  - 'Digest control: regenerated constants must reproduce hashlib digests inside the full permutation.'
+  - 'NULL-SCHEDULE: 1000 random schedules of matched support shape through the window table.'
+  - 'NULL-SEED: 30 extra seeds on the conventional window with identical constants for the harness
+    arm.'
+  - 'Sliding-recurrence control: W(a, r) computed by the recurrence and by direct summation must agree
+    in every cell.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): NULL-SCHEDULE: 1000 random constant schedules of matched support shape,
+    run through stages 3-4 in the same invocation by the same code path, producing the null distribution
+    of window spreads. For the FIPS window structure to mean anything, its spread at r = 4 must sit
+    outside the central 90 percent of that distribution; otherwise any window effect is a property
+    of having 24 arbitrary constants rather than of the LFSR that generates them. NULL-SEED: for the
+    harness arm, the conventional window run with 30 additional seeds and identical constants, giving
+    the within-window variance against which any between-window difference must be read. Both nulls
+    are executed alongside the signal arms, not described.'
+  independent_variables:
+  - window starting index a
+  - window length r
+  - constant schedule arm in {FIPS, NULL-SCHEDULE}
+  - solver seed
+  - window arm in {conventional, argmin, argmax}
+  metrics:
+    primary:
+    - forced binary sequence b_i for i = 0..23
+    - w_i from both derivations, with agreement verdict
+    - W(a, r) table for all a and r = 1..8
+    - argmin, argmax, spread and conventional rank per r
+    - verified certificate counts per window per seed at r = 4
+    secondary:
+    - between-window versus within-window variance of certificate counts
+    - conflicts to first solution per invocation
+    - NULL-SCHEDULE spread distribution and FIPS quantile
+    - the 168 consumed LFSR outputs as raw data
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The per-round injection weight sequence w_i, and the four-round window spread S(4) =
+      max_a W(a,4) - min_a W(a,4).
+    formula: 'w_i = 2 * |{j in {0,1,2,3,4} : RC_i[2^j - 1] = 1}| + 2 * [RC_i[31] != RC_i[63]], where
+      RC_i[2^j - 1] is the LFSR output at step 7i + j. The first term counts support positions z in
+      {0,1,3,7,15} whose partners z + 32 in {32,33,35,39,47} lie outside the support, each contributing
+      two positions to RC_i XOR tau_32 RC_i; the second term is the unique support pair separated
+      by 32. W(a, r) := sum over i = a..a+r-1 of w_i, satisfying W(a+1, r) = W(a, r) - w_a + w_{a+r}.
+      Predicted: both derivations of w_i agree on all 24 rounds; S(4) >= 4; the conventional window
+      a = 0 is not the unique argmin. No prediction is pre-committed for the harness arm''s variance
+      ratio.'
+    source: Pre-registered in the parent proposal IDEA-20260816-97de1e before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The symbolic half uses the real standard''s LFSR and all 24 real constants with
+      nothing reduced. The harness half uses four of 24 rounds on one digest size, a regime with no
+      security meaning, chosen because it is where the harness has any resolution. Transfer assumption
+      stated explicitly: the window table is exact for the object defined; the harness result is scoped
+      strictly to r = 4, SHA3-256, this budget, these seeds, and the declared window convention, and
+      transfers nowhere else.'
+    correspondence: null
+  tail_checks:
+  - Both derivations of w_i must agree on all 24 rounds.
+  - W(a, r) computed by recurrence and by direct summation must agree in every one of the 156 cells.
+  - Every w_i must be even and at most 12, as the formula forces.
+  - Regenerated constants must reproduce hashlib digests for all four SHA-3 sizes.
+  - The within-window seed-only variance must be nonzero, or the between-window comparison is undefined.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Halt if the two derivations of w_i disagree.
+  - Halt if regenerated constants fail hashlib validation.
+  - Fixed seed and schedule counts with no adaptive extension.
+  - Declared 12-hour wall-clock ceiling; unfinished harness cells are recorded as not attempted, never
+    as negative evidence.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run is successful if the LFSR regeneration validates, both derivations of
+    w_i agree, the complete window table with argmin, argmax, spread and conventional rank is emitted
+    for r = 1..8, the null schedule distribution is reported, and the harness arm completes with all
+    certificates independently re-verified -- whatever the window effect turns out to be.
+  falsification_criterion:
+  - The two derivations of w_i disagree on any round.
+  - Regenerated constants fail hashlib digest reproduction.
+  - S(4) = 0, meaning all four-round windows cost identically.
+  - The conventional window is the unique argmin at every r.
+  - The within-window seed-only variance is zero, leaving the comparison undefined.
+  - Any harness certificate fails independent re-verification.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-97de1e
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The convention defining a window-shifted reduced-round variant is declared here but not justified;
+    a Coordinator must approve it, since at least two other conventions (re-indexing the LFSR, keeping
+    iota at round 0) are defensible and give different objects.
+  - Whether the harness arm should also run at r = 3 and r = 5 to bracket a resolution floor is unsettled
+    and affects the cost estimate materially.
+  - The relation between injected weight and search cost is entirely unmodelled, and a Coordinator
+    must decide whether the harness arm may be approved before such a model exists or only as an exploratory
+    measurement.

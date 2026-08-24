@@ -1,0 +1,229 @@
+experiment:
+  id: EXP-BLAKE-868493
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-7bab5e; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-7bab5e
+  question_id: RQ-BLAKE-584719
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Compute the finalization map's GF(2) rank, kernel dimension and zero-output-difference count
+    for BLAKE3's chaining and root outputs and BLAKE2s's feed-forward, against the truncation counting
+    bound and a 1000-draw random-map null.
+  objective: 'The one uncertainty a run reduces is whether the finalization contributes anything to
+    a BLAKE3-versus-BLAKE2s difference, measured on the finalization alone with no permutation involved.
+    Decomposed: (i) whether the finalization is separable from the permutation in each design -- writable
+    as a map applied after the last round, possibly taking the pre-permutation state as an additional
+    input -- since if it is not, the object this experiment measures does not exist and that fact
+    is the result; (ii) what the exact cancellation is, expressed as GF(2) kernel dimension where
+    the map is linear and as an exhaustive zero-output-difference count over a declared low-weight
+    sub-domain where it is not, and what the EXCESS of that cancellation over the pigeonhole counting
+    bound forced by truncation is, since the raw count is dominated by output width and is not comparable
+    across designs; (iii) whether the excess is distinguishable from what a random map of the same
+    shape produces, measured over 1000 draws through the identical code path, with a planted-kernel
+    control confirming the code recovers a known answer exactly. A run does NOT reduce uncertainty
+    about attack cost, about the permutation, or about the composition of the finalization with anything
+    upstream.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: for the finalization maps
+      as written from specification S at revision R and cross-checked against pinned reference implementation
+      P, the classification is (linear|affine|nonlinear), the GF(2) kernel dimension is k (or the
+      low-weight zero-difference count is c over the enumerated sub-domain D), the counting bound
+      is B, the excess is k - B (or c - B), and the null distribution of the excess over 1000 random
+      maps of the same shape has range [lo, hi]. What does NOT follow: that any excess value is a
+      weakness, a strength, an attack, or a security statement of any kind; that the result says anything
+      about the finalization composed with the permutation, which is not computed here; that anything
+      holds outside the enumerated sub-domain in the nonlinear case; or anything at all about full
+      BLAKE3 or any deployed system.'
+  inputs:
+    procedure: 'STAGE 0 (cost: agent time, zero compute): pin references, validate against published
+      vectors. STAGE 1 (cost: the bulk of the agent time, zero compute): write Phi for each design
+      and output role from primary text; classify linear/affine/nonlinear; record every place a feed-forward
+      reaches pre-permutation state. STAGE 2 (cost: seconds): linearity control -- 10000 random pairs
+      tested for Phi(a XOR b) == Phi(a) XOR Phi(b); classification stands or switches branch. STAGE
+      3, linear branch (cost: milliseconds): build the matrix by standard-basis evaluation, Gaussian-eliminate
+      over GF(2), read rank and kernel dimension. STAGE 3, nonlinear branch (cost: seconds to minutes):
+      exhaustive evaluation over weight-1, weight-2 and weight-3 state differences, counting zero
+      output differences. STAGE 4 (cost: seconds): counting bound and excess. STAGE 5 (cost: seconds):
+      1000-draw random-map null through the identical code path, plus the planted-kernel control.
+      STAGE 6 (cost: seconds): cross-implementation control -- rebuild Phi by black-box evaluation
+      of the pinned reference and require matrix agreement. STAGE 7 (cost: agent time): write the
+      record with classification, counts, bound, excess, null range and the sub-domain boundary.'
+    instrument: Python 3.11, standard library plus a hand-written GF(2) Gaussian elimination over
+      Python integers used as bit-rows (no external linear algebra dependency, so the code path is
+      auditable and identical for real and null arms). Pinned BLAKE3 and BLAKE2s C references via
+      ctypes for the black-box cross-check and the vector gate. Manifest and seed recording via harness/runner.py.
+      No solver, no SAT, no MILP, no Sage -- the computation is exact linear algebra and enumeration.
+    parameters: 'State width 512 bits (16 words of 32 bits) as read from the specification; output
+      widths per design and role as read. Basis evaluations: 512 per linear map. Linearity control:
+      10000 random pairs per map. Nonlinear branch sub-domain: all weight-1 differences (512), all
+      weight-2 (130816), all weight-3 (about 2.2e7) -- exhaustive and stated as the class boundary.
+      Null draws: 1000 random maps of matched shape, seeded and recorded. Planted-kernel control:
+      20 maps with planted kernel dimensions 1, 2, 4, 8, 16 (4 each). Maps measured: BLAKE3 chaining-value
+      output, BLAKE3 root output, BLAKE2s feed-forward -- three real maps minimum.'
+  controls:
+  - Random maps of the same shape (1000 draws) run through the identical code path in the same invocation,
+    giving the by-chance excess distribution.
+  - 'Planted-kernel control: a random map given a kernel of known dimension, which the code path must
+    recover exactly to the bit.'
+  - 'Linearity control: verify the linearity classification by testing Phi(a XOR b) == Phi(a) XOR
+    Phi(b) on 10000 random pairs before trusting the matrix construction; a single failure reclassifies
+    the map and switches to the enumeration branch.'
+  - 'Truncation-bound control: report the counting bound explicitly alongside every cancellation count
+    so the raw count is never presented without it.'
+  - 'Cross-implementation control: build Phi from the pinned C reference''s behaviour by black-box
+    evaluation as well as from the specification text, and require the two matrices to agree.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Random maps of the same shape, computed identically in the same invocation.
+    For a linear Phi: 1000 random GF(2) matrices of the same dimensions, each with rank and kernel
+    dimension computed by the same code path, giving the by-chance excess distribution. For a nonlinear
+    Phi: 1000 random truncating maps built from the same word-level shape (random word selections
+    and random XOR patterns), evaluated over the identical low-weight sub-domain. What the null must
+    show for the signal arm to mean anything: the null distribution of the excess must be concentrated
+    at or near zero with a measured spread, so that a real design''s excess can be located within
+    or outside it. If random maps of the same shape routinely show large excess, the excess is a property
+    of the shape and not of either design, and the record reports that instead -- a complete result
+    that would also invalidate the intended comparison. A second null is required for the nonlinear
+    case specifically: the identical measurement on a random map that is deliberately given a planted
+    kernel of known dimension, which the code path must recover exactly.'
+  independent_variables:
+  - design and output role (BLAKE3-chaining | BLAKE3-root | BLAKE2s-feedforward)
+  - map source (specification-derived | reference-derived)
+  - arm (real | random null | planted-kernel null)
+  metrics:
+    primary:
+    - linearity classification
+    - GF(2) rank and kernel dimension
+    - exact zero-output-difference count over the sub-domain (nonlinear branch)
+    - counting bound B
+    - excess over B
+    secondary:
+    - 'null excess distribution: min, median, max over 1000 draws'
+    - planted-kernel recovery exactness
+    - specification-derived versus reference-derived matrix agreement
+    - wall-clock per stage
+    - count of pre-permutation feed-forward inputs recorded at STAGE 1
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'Predicted: the excess of measured cancellation over the truncation counting bound,
+      for each real map.'
+    formula: 'For a map Phi from n state bits to m output bits with m <= n, the counting bound is
+      B = n - m expressed as a kernel dimension (equivalently 2^(n-m) - 1 nonzero cancelling differences).
+      Excess = k - B where k is the measured GF(2) kernel dimension in the linear branch; in the nonlinear
+      branch Excess = log2(c + 1) - B where c is the exact zero-output-difference count over sub-domain
+      D, with the sub-domain restriction stated on the same line. Excess = 0 is predicted for every
+      real map. Reading rule, frozen: an excess is called notable only if it falls strictly outside
+      the full observed range of the 1000-draw null for the same shape.'
+    source: Pre-registered in the parent proposal IDEA-20260816-7bab5e before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The linear branch is not a toy at all -- it is EXACT over the full 512-bit domain
+      and covers the entire object, and the record should say so rather than under-claiming. The nonlinear
+      branch is a toy tier: it enumerates only differences of weight 1 through 3 out of 2^512, and
+      the boundary is stated as the deliverable''s scope. NO EXTRAPOLATION from low-weight to high-weight
+      differences is performed or implied. The one transfer assumption, stated: that a finalization
+      written from the specification and one recovered by black-box evaluation of the pinned reference
+      are the same map, which is checked at STAGE 6 rather than assumed.'
+    correspondence: null
+  tail_checks:
+  - Inspect the extreme draws of the null distribution individually, since the reading rule depends
+    on its full range rather than on a summary statistic.
+  - Check the weight-3 enumeration's boundary specifically for any structure appearing only at the
+    top weight, which would signal that weight 4 matters.
+  - Verify the planted-kernel control at its largest planted dimension, where a subtle elimination
+    bug would show first.
+  - Examine any disagreement between specification-derived and reference-derived matrices row by row
+    rather than reporting a scalar mismatch.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - HALT if the linearity control contradicts the STAGE 1 classification and the nonlinear branch's
+    sub-domain is not affordable for that map's shape.
+  - HALT if the planted-kernel control fails to recover any planted dimension exactly.
+  - HALT and re-read the specification if STAGE 1 finds the finalization inseparable from the permutation
+    for either design.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run succeeds if every real map is classified, its cancellation measured exactly
+    (in the linear branch) or exhaustively over the stated sub-domain (otherwise), the counting bound
+    printed alongside every count, the excess reported against a 1000-draw null range, and the planted-kernel
+    and cross-implementation controls both pass -- whether the excess is zero or not.
+  falsification_criterion:
+  - Linearity control contradicts the classification.
+  - Planted-kernel control fails exact recovery.
+  - Specification-derived and reference-derived matrices disagree.
+  - Finalization found inseparable from the permutation, so the object does not exist as defined.
+  - Null range so wide that no real value could fall outside it.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-7bab5e
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The finalization's exact form -- including whether it feeds forward pre-permutation state and
+    whether BLAKE3's chaining and root outputs use different maps -- is unread; the specification
+    is not filed as KN-LIT and RQ-BLAKE-584719's first constraint blocks approval.
+  - The low-weight sub-domain for the nonlinear branch (weights 1 to 3) is a placeholder; a Coordinator
+    must set it against the map's actual shape and the available budget.
+  - Whether the 'same shape' for the random null means same dimensions only, or same word-level sparsity
+    pattern, materially changes the null distribution and must be decided before the run rather than
+    after seeing it.
+  - Whether this record should gate the chimera-lattice record's finalization axis is a sequencing
+    decision only a Coordinator can make.
