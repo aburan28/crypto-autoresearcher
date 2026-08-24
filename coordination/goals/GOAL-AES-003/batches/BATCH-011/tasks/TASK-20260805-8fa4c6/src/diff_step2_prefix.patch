@@ -1,0 +1,100 @@
+--- /home/user/crypto-autoresearcher/coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_baseline.c	2026-08-05 17:05:49.993106579 +0000
++++ /home/user/crypto-autoresearcher/coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_pfx.c	2026-08-05 17:13:17.603745367 +0000
+@@ -224,6 +224,11 @@
+     int rounds, amask, smask;
+     const uint8_t (*rk)[16];
+     uint64_t whist[5], trivial, wword[4], wge1;
++    /* TASK-20260805-8fa4c6 addition: k-byte prefix-zero event counters,
++     * k=1,2,3, per word j, mirroring the existing k=4 (wword) count but
++     * checking only the first k bytes of PW[j] rather than all 4. Counted
++     * only on nontrivial trials, same guard as wword. Additions only. */
++    uint64_t pfx1[4], pfx2[4], pfx3[4];
+ } job;
+ 
+ static void *worker(void *arg){
+@@ -269,6 +274,27 @@
+             for(int row = 0; row < 4; row++) if(d[PW[j][row]]) { z = 0; break; }
+             if(z){ W++; if(!trivial) J->wword[j]++; }
+         }
++        /* TASK-20260805-8fa4c6 addition: prefix-k counters, k=1,2,3.
++         * Independently derived from rc8probe's own PW/d state (not
++         * transcribed from any other instrument): for each word j, a
++         * prefix of length k is "zero" iff d[PW[j][0..k-1]] are all zero,
++         * checking the SAME row ordering PW already uses for the k=4 word
++         * check above, restricted to a byte-prefix instead of the full
++         * word. Guarded by !trivial exactly as wword is, so the k=4
++         * (wword) and k=1..3 (pfx1..3) counts are computed over the
++         * identical nontrivial-trial population and are directly
++         * comparable. This is a separate loop over j so the existing W/z
++         * loop above is left untouched. */
++        if(!trivial){
++            for(int j = 0; j < 4; j++){
++                int p1z = (d[PW[j][0]] == 0);
++                int p2z = p1z && (d[PW[j][1]] == 0);
++                int p3z = p2z && (d[PW[j][2]] == 0);
++                if(p1z) J->pfx1[j]++;
++                if(p2z) J->pfx2[j]++;
++                if(p3z) J->pfx3[j]++;
++            }
++        }
+         if(trivial){ J->trivial++; continue; }
+         J->whist[W]++;
+         if(W >= 1) J->wge1++;
+@@ -426,10 +452,20 @@
+     for(int t = 0; t < nthr; t++) pthread_join(th[t], NULL);
+ 
+     uint64_t wh[5] = {0}, wword[4] = {0}, trivial = 0, wge1 = 0;
++    /* TASK-20260805-8fa4c6 addition: prefix-k aggregation totals, k=1,2,3,
++     * additive alongside the existing wh/wword/trivial/wge1 totals above. */
++    uint64_t pfx1[4] = {0}, pfx2[4] = {0}, pfx3[4] = {0};
+     for(int t = 0; t < nthr; t++){
+         for(int i = 0; i < 5; i++) wh[i] += jobs[t].whist[i];
+         for(int i = 0; i < 4; i++) wword[i] += jobs[t].wword[i];
+         trivial += jobs[t].trivial; wge1 += jobs[t].wge1;
++        /* TASK-20260805-8fa4c6 addition: sum the per-thread prefix-k job
++         * fields into the run-level totals, mirroring the wword line above. */
++        for(int i = 0; i < 4; i++){
++            pfx1[i] += jobs[t].pfx1[i];
++            pfx2[i] += jobs[t].pfx2[i];
++            pfx3[i] += jobs[t].pfx3[i];
++        }
+     }
+     printf("{\n  \"probe\": \"rc8probe\",\n  \"arm\": \"%s\",\n  \"sbox_spec\": \"%s\",\n  \"sbox_seed\": %llu,\n  \"sbox_bijective\": true,\n",
+            name, spec, (unsigned long long)sbox_seed);
+@@ -453,6 +489,36 @@
+     printf("  \"whist\": [");
+     for(int i = 0; i < 5; i++) printf("%llu%s", (unsigned long long)wh[i], i < 4 ? "," : "");
+     printf("],\n");
++    /* TASK-20260805-8fa4c6 addition: k=1,2,3 prefix-zero event counts,
++     * per word and totalled, alongside the existing k=4 (wword/wge1)
++     * fields above. Placed as new JSON fields inserted before the
++     * pre-existing terminal null_expectation_analytic field, which is
++     * left byte-for-byte unmodified; this block supplies the trailing
++     * comma so that field's format string does not need to change. */
++    {
++        uint64_t pfx1t = pfx1[0] + pfx1[1] + pfx1[2] + pfx1[3];
++        uint64_t pfx2t = pfx2[0] + pfx2[1] + pfx2[2] + pfx2[3];
++        uint64_t pfx3t = pfx3[0] + pfx3[1] + pfx3[2] + pfx3[3];
++        uint64_t pfx4t = wword[0] + wword[1] + wword[2] + wword[3];
++        double nnt = (double)(N - trivial);
++        printf("  \"prefix_k1_by_word\": [%llu,%llu,%llu,%llu],\n",
++               (unsigned long long)pfx1[0], (unsigned long long)pfx1[1],
++               (unsigned long long)pfx1[2], (unsigned long long)pfx1[3]);
++        printf("  \"prefix_k2_by_word\": [%llu,%llu,%llu,%llu],\n",
++               (unsigned long long)pfx2[0], (unsigned long long)pfx2[1],
++               (unsigned long long)pfx2[2], (unsigned long long)pfx2[3]);
++        printf("  \"prefix_k3_by_word\": [%llu,%llu,%llu,%llu],\n",
++               (unsigned long long)pfx3[0], (unsigned long long)pfx3[1],
++               (unsigned long long)pfx3[2], (unsigned long long)pfx3[3]);
++        printf("  \"prefix_k1_total\": %llu,\n", (unsigned long long)pfx1t);
++        printf("  \"prefix_k2_total\": %llu,\n", (unsigned long long)pfx2t);
++        printf("  \"prefix_k3_total\": %llu,\n", (unsigned long long)pfx3t);
++        printf("  \"prefix_k4_total\": %llu,\n", (unsigned long long)pfx4t);
++        printf("  \"prefix_model_k1\": %.10f,\n", nnt * 4.0 / 256.0);
++        printf("  \"prefix_model_k2\": %.10f,\n", nnt * 4.0 / 65536.0);
++        printf("  \"prefix_model_k3\": %.10f,\n", nnt * 4.0 / 16777216.0);
++        printf("  \"prefix_model_k4\": %.10f,\n", nnt * 4.0 / 4294967296.0);
++    }
+     printf("  \"null_expectation_analytic\": %.10f\n", (double)(N - trivial) * 4.0 / 4294967296.0);
+     printf("}\n");
+     free(jobs); free(th);

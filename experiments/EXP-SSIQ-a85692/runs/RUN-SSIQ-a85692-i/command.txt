@@ -1,0 +1,104 @@
+working_directory: /home/user/crypto-autoresearcher
+
+# ---------------------------------------------------------------------
+# No new modular-polynomial fetch, no new external data of any kind: this
+# amendment performs NO Phi_ell sourcing (it reuses trapping_diagnostic_v5.
+# build_graph_for_prime, IMPORTED UNCHANGED, which itself reuses
+# build_isogeny_graph.py's Phi_2 BFS -- no Phi_ell>2 evaluation is needed
+# for GRAPH construction, only for the delta_E search proper, which reuses
+# compute_delta_e.two_sided_search UNCHANGED against the SAME already-
+# vendored modpoly_data/*.txt files every prior run in this lineage used).
+# See source_access_log.yaml for the explicit reuse-by-reference statement.
+# ---------------------------------------------------------------------
+
+# ---------------------------------------------------------------------
+# primary_execution: rebuild the p=2437 graph (IMPORTED UNCHANGED,
+# trapping_diagnostic_v5.build_graph_for_prime) + re-run the two-part
+# graph-identity verification (delta_e_independent_rng_probe_v8.
+# verify_graph_identity, GENUINELY IMPORTED UNCHANGED) + PART A ONLY
+# (run_truncation_probe_v9: 194 non-F_p-rational vertices, independent
+# per-vertex RNG via v8's own derive_per_vertex_seed/BASE_SEED=20260811,
+# FIXED 0.5s budget each, F_p-rational vertices wired in unconditionally) +
+# REQUIRED COMPARISON 1 against RUN-SSIQ-a85692-b's archived delta_map +
+# REQUIRED COMPARISON 2 against RUN-SSIQ-a85692-h's own new_delta_map (via
+# the new parse_v8_new_delta_map helper, wrapped per PF-5 write-order/
+# failure-isolation discipline). NO PART B. Single combined command:
+ulimit -v 2097152
+timeout 600 python3 experiments/EXP-SSIQ-a85692/implementation/delta_e_truncation_probe_v9.py \
+  --run-dir experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-i \
+  > experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-i/stdout.log \
+  2> experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-i/stderr.log
+
+# ulimit -v 2097152 KB == 2 GiB, matching specification_v9.yaml's own
+# budget.maximum_memory_gb: 2. timeout 600 matches
+# budget.wall_clock_seconds_per_run: 600, both hard caps applied exactly
+# as pre-registered.
+
+# --raw-result-b defaults to RUN-SSIQ-a85692-b/raw-result.json (relative to
+# the script's own directory, resolved identically regardless of cwd), and
+# --run-h-comparison defaults to
+# RUN-SSIQ-a85692-h/probe_delta_e_comparison.json (same resolution
+# convention) -- neither was passed explicitly above; both defaults were
+# used for this run, unmodified.
+
+# ---------------------------------------------------------------------
+# ACTUAL EXECUTION: PF-3's own standing operational repair (specification_
+# v9.yaml amendment_scope, "the Executor MUST launch this run's command
+# detached via setsid/nohup/disown, proactively, on the first attempt,
+# matching RUN-SSIQ-a85692-b's and RUN-SSIQ-a85692-h's own command.txt
+# pattern") was applied on the FIRST and ONLY attempt of this run -- no
+# attempt was killed by the environment-imposed background-process lifetime
+# limit; the run finished naturally in 101.46s (well under this run's own
+# 600s cap and far below the empirically ~60-65-minute infrastructure kill
+# window this lineage's own history discloses). The exact detached
+# invocation used, byte-for-byte identical in its ulimit/timeout/python3/
+# --run-dir argv to the primary_execution command above:
+#   setsid nohup bash -c 'ulimit -v 2097152; timeout 600 python3 \
+#     experiments/EXP-SSIQ-a85692/implementation/delta_e_truncation_probe_v9.py \
+#     --run-dir experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-i \
+#     > experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-i/stdout.log \
+#     2> experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-i/stderr.log; \
+#     echo "EXITCODE=$?" >> experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-i/stdout.log' \
+#     < /dev/null > /dev/null 2>&1 &
+#   disown -a
+# The detachment mechanism (setsid/nohup/disown) is an operational
+# adaptation to this session's execution environment, not a change to the
+# experiment's protocol, code, seeds, budget, or any pre-registered number:
+# the ulimit/timeout/python3/--run-dir/argv are byte-for-byte identical to
+# the primary_execution command above, and its own internal 600s `timeout`
+# guard is what actually bounds this run's real compute -- the external
+# detachment only prevented the HARNESS from tearing the process down
+# before that internal limit (never reached; the run finished naturally)
+# had a chance to apply. Process exited with EXITCODE=0.
+
+# ---------------------------------------------------------------------
+# Pre-execution verification commands run BEFORE the official run above
+# (interactive python3 -c invocations against the SAME, already-final
+# implementation module delta_e_truncation_probe_v9.py plus the genuinely
+# imported helper functions it uses; no code differs between these checks
+# and the official run below) -- recorded for audit-trail completeness, per
+# this lineage's own established precedent (RUN-SSIQ-a85692-h's own
+# command.txt), not as a second source of results:
+#   - tdv5.build_graph_for_prime(2437, 20260805) + v8probe.verify_graph_
+#     identity exercised standalone on the REAL graph: confirmed
+#     n_vertices=203, graph_identity pass=True -- matching every prior
+#     amendment's own archived figures for this prime, and matching the
+#     official run's own graph_identity_verification block exactly.
+#   - v8probe.derive_per_vertex_seed and compute_delta_e.two_sided_search
+#     exercised on a SMALL sample of 5 real non-F_p-rational vertices with
+#     the official PER_VERTEX_BUDGET_SECONDS=0.5, confirming truncation was
+#     genuinely forced (2 of 5 sampled vertices returned resolved=False,
+#     timed_out=True; the other 3 returned resolved=True, timed_out=True
+#     simultaneously -- both budget halves (source-table, target-table)
+#     hit their own half-budget cutoff, yet a collision had already been
+#     found in the partial tables before that cutoff) -- a CODE-PATH
+#     integration test on 5/194 vertices, NOT the official run and NOT a
+#     source of any reported research number (this sample's own resolved
+#     values were discarded, not merged into the official run below, which
+#     re-derives its own complete, independent 194-vertex result from
+#     scratch under the identical fixed per-vertex RNG/budget procedure).
+#   - parse_v8_new_delta_map exercised standalone against
+#     RUN-SSIQ-a85692-h's real committed probe_delta_e_comparison.json:
+#     confirmed 203 parsed vertex tuples from 203 raw string keys, zero
+#     collisions -- matching the round-2 pre-freeze review's own
+#     independent re-verification of this exact round-trip.

@@ -1,0 +1,214 @@
+experiment:
+  id: EXP-RSAPI-89a419
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-b4e5b7; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-b4e5b7
+  question_id: RQ-RSA-d46f02
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the largest unknown-prime-bit fraction recovered by one reproduced small-root construction
+    on known-answer RSA instances across modulus sizes and lattice dimensions, with random-bit and
+    scrambled-position nulls in the same invocation.
+  objective: 'The one uncertainty a run reduces is how far a declared, finite lattice and reduction
+    budget falls short of a reproduced construction''s own declared reach, at modulus sizes this harness
+    can actually reach. Concretely: (i) whether a threshold unknown fraction r_hat exists at all at
+    each tested (n, D), that is, whether success probability is monotone enough in u for a single
+    number to summarise the cell, and whether that number is stable across disjoint re-seeded instance
+    samples; (ii) what the value of R = r_hat / u_asym is at each grid point, with lattice dimension,
+    exact log determinant, reduction wall time and peak resident memory recorded beside it, so that
+    the shortfall is attributable to a stated budget rather than floating free; (iii) whether the
+    two null arms behave, meaning that random revealed bits and true-bits-wrong-positions both fail
+    at a rate bounded by an exact binomial computation, without which no signal-arm number means anything.
+    A run also fixes, for later entries in this bucket, the baseline against which ablations are read:
+    the stagewise ablation, the equal-determinant sufficiency test, the position-set and noise entries
+    and the completeness control all measure a MOVE in r_hat, and a move needs a from. Below 96 bits
+    the run additionally decides each cell independently by exhaustion, which separates a lattice
+    that failed from an instance that had nothing to find.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: medium
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: for the specific construction
+      reproduced here, the specific shift set declared before the run, the specific reducer and version
+      pinned, and the specific per-cell budget, the largest unknown fraction recovered on at least
+      90 percent of a seeded sample at each tested modulus size and lattice dimension, with time and
+      memory attached, and with two null arms bounded. WHAT DOES NOT FOLLOW: nothing about any deployed
+      RSA key or any real leakage channel; no assertion that a published bound is incorrect, since
+      a shortfall inside a budget is a statement about the budget and the implementation (AGENTS.md
+      rule 3); no extrapolation to modulus sizes outside the tested grid; no claim about a different
+      construction, shift set, or reducer; and no security consequence of any kind.'
+  inputs:
+    procedure: 'STAGE 0 (zero compute): declare the construction, the shift set, the reduction budget,
+      the grid, the seeds and the success threshold in the specification, and compute the exact log
+      determinant of every basis symbolically. STAGE 1 (minutes): implement the known-answer instance
+      generator and the verifier; self-test that every generated instance satisfies p q == N and that
+      the revealed bits match p. STAGE 2 (minutes): implement the lattice builder and check its determinant
+      against the STAGE 0 symbolic value exactly, which catches scaling errors before any compute
+      is spent. STAGE 3 (CPU-hours): run the signal arm over the grid, bisecting on u at each (n,
+      D), 40 instances per cell. STAGE 4 (CPU-hours, same invocation): run the random-bits null and
+      the scrambled-position null over the identical grid with the same generator and verifier. STAGE
+      5 (CPU-hours, small n only): run the exhaustion arm at n in 64 and 96 with unknown window at
+      most 24 bits. STAGE 6 (minutes): recompute every reported r_hat on a disjoint re-seeded sample.
+      STAGE 7 (zero compute): assemble the table, exact binomial intervals, and the memory-beside-time
+      report.'
+    instrument: Python 3.11. fpylll 0.6.4 for LLL and BKZ via the wheels-only route recorded in KN-TECH-14efa5.
+      python-flint or gmpy2 for exact integer arithmetic, determinant checks and verification by exact
+      division. harness/runner.py for run manifests, seed recording and the inference block; harness/run.py
+      as the bounded-run wrapper. A pure-Python exact-rational LLL retained as a cross-check on small
+      cells only. NO SAGE is used anywhere in this contract.
+    parameters: Modulus bit-length n in {64, 96, 128, 256, 512, 1024}. Lattice dimension D in {8,
+      16, 32, 48} subject to the per-cell time cap. Unknown fraction u swept over 9 values by bisection
+      within a bracket declared in STAGE 0. 40 known-answer instances per cell in the signal arm,
+      40 per cell in each null arm, disjoint seeds. Exhaustion arm at n in {64, 96} with unknown window
+      at most 24 bits and at most 2^24 candidates per instance. Per-cell wall-clock cap 900 seconds;
+      per-cell memory cap 8 GB. Balanced primes only, p and q each of bit-length n/2.
+  controls:
+  - Random-revealed-bits null at identical n, u, dimension, budget and seeds, executed in the same
+    invocation as the signal arm.
+  - 'Scrambled-position control: true bits, wrong positions, must fail.'
+  - 'Exhaustion cross-check at n <= 96 with unknown window at most 24 bits: the exhaustive search
+    decides recoverability independently of any lattice.'
+  - 'Re-seed replication: every reported r_hat recomputed on a disjoint instance sample with a different
+    seed.'
+  - 'Verification control: every claimed recovery is confirmed by exact integer multiplication p q
+    == N, so no success is ever inferred from a norm bound alone.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical measurement runs against a null instance in which the
+    revealed bits are drawn uniformly at random and are NOT the true bits of p, with everything else
+    identical: same n, same u, same shift set, same reduction budget, same seeds, same verification
+    by exact division. The null must show r_hat_null undefined because recovery succeeds at a rate
+    indistinguishable from zero at every u tested, with an exact binomial upper bound on the null
+    success rate recorded. If the null arm ever recovers a factor, the signal arm is measuring the
+    instance generator or the verification step, not the construction, and the whole measurement is
+    void. A second null holds the revealed bits true but scrambles their POSITIONS, which must also
+    fail, separating knowing-the-bits from knowing-where-they-go.'
+  independent_variables:
+  - modulus bit-length n
+  - shift-lattice dimension D
+  - unknown-prime-bit fraction u
+  - arm (signal, random-bits null, scrambled-position null, exhaustion)
+  metrics:
+    primary:
+    - r_hat per (n, D) by 90-percent threshold
+    - R = r_hat / u_asym
+    - per-cell success count with exact binomial interval
+    - null-arm success rate with exact binomial upper bound
+    secondary:
+    - reduction wall time per cell, median and maximum
+    - peak resident memory per cell
+    - exact log determinant per basis
+    - count of cells hitting the time cap
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: R(n, D) = r_hat(n, D) / u_asym, the ratio of the measured 90-percent-success unknown
+      fraction to the reproduced construction's declared asymptotic reach.
+    formula: R(n, D) < 1 at every tested cell, with R(256, D_max) <= 0.90. r_hat is defined as the
+      largest u in the declared bracket for which the observed success count over 40 seeded instances
+      is at least 36. u_asym is the reach the reproduced construction states for itself, recorded
+      in STAGE 0 before any run and never adjusted afterwards.
+    source: Pre-registered in the parent proposal IDEA-20260816-b4e5b7 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: medium
+    justification: 'Tested at moduli of 64 to 1024 bits with balanced primes and lattice dimensions
+      up to 48. Ground truth is exact by construction at every size and additionally certified by
+      exhaustion at 64 and 96 bits. NO TRANSFER TO LARGER MODULI IS ASSUMED: the curve is reported
+      only over the tested grid, and the finite-size behaviour observed at 1024 bits is not extrapolated.
+      The only transfer assumption made is within the grid, namely that instances drawn from the same
+      seeded generator at the same n are exchangeable, which the re-seed replication tests directly.'
+    correspondence: null
+  tail_checks:
+  - Maximum as well as median reduction time per cell, so a heavy tail is visible rather than averaged
+    away
+  - Per-instance success at the two u values immediately bracketing r_hat, to expose non-monotone
+    cells
+  - The largest and smallest achieved first-basis-vector norm per cell
+  - Count and identity of instances where verification failed after a norm-bound success, which would
+    indicate read-off error
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Halt a cell when the per-cell wall-clock cap is reached and record it as budget-limited, never
+    as a mathematical negative
+  - Halt the whole run and report an instrument failure if any null-arm instance recovers a factor
+  - Halt the grid if STAGE 2's determinant cross-check disagrees with the STAGE 0 symbolic value
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A run succeeds if r_hat is determined with an exact binomial interval at every
+    cell that did not hit the budget cap, both null arms are bounded below the declared threshold,
+    the exhaustion arm agrees with the lattice arm at n <= 96, and re-seeded replication reproduces
+    every r_hat to within 0.05 in u.
+  falsification_criterion:
+  - Any null-arm recovery voids the run
+  - Non-monotone success in u at more than one cell falsifies the existence of the threshold object
+  - Re-seeded r_hat differing by more than 0.05 in u falsifies stability
+  - Lattice-arm success in a cell the exhaustion arm certifies as unrecoverable indicates a generator
+    or verifier bug and voids the run
+  - STAGE 2 determinant mismatch falsifies the lattice builder before any measurement is taken
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-b4e5b7
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - RQ-RSA-d46f02's own constraint requires that the specific small-root construction be filed as
+    a KN-LIT entry with its bounds taken from primary text BEFORE any experiment is designed. The
+    denominator u_asym cannot be fixed until a Coordinator supplies that entry; this contract is unapprovable
+    until then and says so.
+  - The declared bracket for u in STAGE 0 depends on that same denominator and is therefore also unfilled.
+  - The 90-percent success threshold and the 40-instance sample size are proposed, not derived; a
+    Coordinator should set them against the binomial power actually wanted.

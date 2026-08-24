@@ -1,0 +1,718 @@
+idea:
+  id: IDEA-20260805-6eac55
+  question_id: RQ-HAWK-001
+  goal_id: GOAL-HAWK-001
+  added: '2026-08-05'
+  title: >-
+    The tau-cocycle lattice as an integral quadratic form: a sieve-free,
+    exact-integer certificate for Proposition 4.5 of the disclosed HAWK attack,
+    with four forced values derived before any run and a matched null that can
+    fail
+  class: verification
+
+  claim: >-
+    The whole load-bearing step of the disclosed HAWK key-recovery attack
+    (KN-LIT-7592, Straznickas-Weis) can be independently CHECKED without a
+    lattice sieve, without fpylll, without Sage, and without solving any SVP
+    instance, because the step is an assertion about an INTEGRAL QUADRATIC
+    FORM and not about an algorithm. Proposition 4.5 asserts that the publicly
+    computable rank-n lattice Lambda_B^(tau) carrying the tau-cocycle
+    V_tau = B^{-1} tau(B) is isometric to
+    sqrt(n/4) Z^{n/2+1} (+) sqrt(n/2) Z^{n/2-1}.
+    That single sentence FORCES four integers that can be computed exactly in
+    pure Python from the PUBLIC key alone: (F1) rank exactly n; (F2) Gram
+    determinant exactly (n/4)^{n/2+1} * (n/2)^{n/2-1}; (F3) exactly n+2 vectors
+    of squared length n/4, i.e. lambda_1^2 = n/4 with kissing number n+2;
+    (F4) exactly n^2/2 + 2n - 2 vectors of squared length n/2. All four are
+    stated here BEFORE any computation. The proposal is to build the lattice
+    from Q alone by a defining linear system DERIVED IN THIS RECORD (the paper's
+    Lemmas 4.1 and 4.3 were NOT read), measure F1-F4 at n = 4, 8, 16, 32, and
+    report the comparison against a matched null and a positive control. Both
+    outcomes are deliverables: agreement gives this program its first
+    independently computed HAWK object and a toy-tier certified re-derivation of
+    the attack's structural core; disagreement locates either an error in the
+    derivation below (most likely) or in a relayed characterisation of the
+    paper, and either is worth the day it costs.
+
+  object_first_candidate:
+    tracked_object: >-
+      The tau-COCYCLE V_tau = B^{-1} tau(B) in M_2(R_n), followed NOT as a
+      lattice-reduction target but as a point of an integral quadratic space:
+      the Z-module Lambda_B^(tau) = {Y in M_2(R_n) : tau(Y) = adj(Y) and
+      Q Y = ((c tau)(Y))^T tau(Q)} equipped with the rational quadratic form
+      Q^(tau)(Y) = Tr_{F/Q}(det Y), F the degree-n/4 fixed field of <c, tau>.
+      What is followed through the computation is the GRAM MATRIX of that form
+      in an HNF basis of Lambda_B^(tau) -- an n x n integer matrix -- and the
+      three invariants of it (rank, determinant, theta coefficients) that
+      Proposition 4.5 pins to exact values.
+    established_families_off_limits: >-
+      Declared off-limits as the PRIMARY LENS for this proposal: (a) BKZ /
+      progressive-sieve blocksize estimation and every core-SVP or AGPS20
+      gate-count argument -- the whole point is that the check must not need a
+      solver; (b) the primal/dual embedding attacks on module-LWE and NTRU;
+      (c) hybrid meet-in-the-middle and combinatorial key guessing;
+      (d) decryption-failure and side-channel routes (HAWK is a signature
+      scheme and those are a different attack surface, e.g. the relayed
+      sign-leakage claim of iacr:2026/1366);
+      (e) the nrd-PIP / principal-ideal / class-group family (KN-OPEN-028) --
+      that is a different lane of this same goal and this proposal deliberately
+      does not enter it;
+      (f) the OTHER order-2 symmetry, complex conjugation c, which is the lens
+      every pre-2026 module-LIP paper used. Point (f) is the interesting one:
+      the disclosed attack's whole engine was refusing (f), and this proposal
+      inherits that refusal rather than re-deriving it.
+    newness_score: >-
+      The OBJECT is not new -- it is the paper's own Lambda_B^(tau). What is new,
+      and what makes the record worth having, is the DECISION TO TREAT IT AS AN
+      INTEGRAL FORM RATHER THAN AS A REDUCTION PROBLEM, which converts a check
+      that appears to need a sieve into exact integer linear algebra, and the
+      derivation below of an explicit Z-LINEAR defining system for it. Against
+      this program's corpus the newness is unambiguous in a weaker but real
+      sense: GOAL-HAWK-001 has run zero computations of any kind
+      (EV-HAWK-001: "This program has run no HAWK experiment"), so any computed
+      HAWK object is the first. Against the external literature the derivation
+      below is very likely a re-derivation of the paper's Lemmas 4.1/4.3, which
+      were NOT READ; that is stated as the expected case, not hidden.
+    testability_score: >-
+      Very high and unusually cheap. Everything is exact integer arithmetic on
+      matrices of size at most 4n x 4n with n <= 32, i.e. at most 128 x 128,
+      plus a shortest-vector ENUMERATION which is trivial precisely because the
+      claimed basis is orthogonal. numpy 2.4.6 is present in this container
+      (verified this session by `python3 -c "import numpy"`); sympy, Sage,
+      fpylll and PARI are ABSENT (verified the same way). The design therefore
+      uses Python integers and hand-written HNF/Smith-form routines and needs
+      none of the absent packages.
+    survival_score: >-
+      The object survives the entire computation by construction -- it is a
+      fixed integral form, not a statistic. The risk is not that it dissolves
+      but that the DERIVED defining system below is not the paper's, in which
+      case the instrument is measuring a different lattice. The positive control
+      (V_tau computed from the secret must LIE in the constructed lattice with
+      squared length exactly n/4) is what detects that, and it can genuinely
+      fail.
+
+  mechanism: >-
+    ALL OF WHAT FOLLOWS IS DERIVED IN THIS RECORD. The paper's Lemmas 4.1 and
+    4.3, which state the defining constraints, were NOT READ -- only the
+    two-sentence summaries in KN-LIT-7592 and the verbatim fragments in
+    coordination/goals/GOAL-HAWK-001/batches/BATCH-001/tasks/TASK-20260802-004/
+    disclosed_attack_transcription.md. Every step below is therefore a CANDIDATE
+    RE-DERIVATION to be tested, never a citation.
+
+    SETUP. m = 2^ell, K = Q(zeta_m), R = Z[zeta_m], n = phi(m) = 2^{ell-1} = m/2
+    is the ring degree. HAWK's secret key is B in SL_2(R); the public key is the
+    Gram matrix Q = B* B where B* = c(B)^T and c is complex conjugation
+    (c(zeta) = zeta^{-1}). Two further automorphisms are available:
+    tau(zeta) = -zeta and c*tau.
+
+    (D0) WHEN DOES tau EXIST. -zeta_m = zeta_m^{1 + m/2}, so tau = sigma_{1+m/2}.
+    For sigma_{1+m/2} to be a field automorphism we need gcd(1 + m/2, m) = 1;
+    if p is an odd prime dividing m then p | m/2, so 1 + m/2 == 1 mod p and the
+    gcd condition holds automatically, while 1 + m/2 is odd exactly when 4 | m.
+    Hence tau is defined iff 4 | m. Its order: (1 + m/2)^2 = 1 + m + m^2/4 ==
+    1 + m^2/4 mod m, which is 1 mod m iff 4 | m. And tau = c iff
+    1 + m/2 == -1 mod m iff m | m/2 + 2, which for m > 4 is impossible. So:
+    **tau is an order-2 automorphism distinct from c iff 4 | m and m > 4.**
+    This is a derivation, not a quotation; the paper is reported to state the
+    complementary evasion criterion in the form "conductors m in {p^k, 2p^k}
+    evade", which is the DIFFERENT and STRICTLY STRONGER condition
+    "(Z/m)^x is cyclic". The gap between the two is the subject of the sibling
+    proposal IDEA-20260805-128f35 and is not pursued here.
+
+    (D1) THE COCYCLE IDENTITY. Put V = B^{-1} tau(B). Then
+    tau(V) = tau(B)^{-1} tau^2(B) = tau(B)^{-1} B = V^{-1}, i.e.
+    V * tau(V) = I. Also det V = det(B)^{-1} * tau(det B) = 1^{-1} * tau(1) = 1
+    because B in SL_2(R). For a 2x2 matrix of determinant 1,
+    V^{-1} = adj(V), so with V = [[a, b], [c, d]]:
+      tau(a) = d,  tau(d) = a,  tau(b) = -b,  tau(c) = -c.
+    THESE ARE Z-LINEAR CONDITIONS on the 4n integer coordinates of (a,b,c,d) in
+    the power basis 1, zeta, ..., zeta^{n-1}: tau(zeta^j) = (-1)^j zeta^j, so
+    tau acts diagonally with signs. Counting: d is determined by a (n free
+    coordinates); tau(b) = -b kills the even-index coordinates of b, leaving
+    n/2; likewise c leaves n/2. So the conditions of (D1) alone cut M_2(R)
+    (Z-rank 4n) down to Z-rank n + n/2 + n/2 = 2n.
+
+    (D2) THE PUBLIC-KEY CONDITION, LINEARISED -- the step that makes the lattice
+    PUBLICLY computable. Since Galois acts through ring automorphisms and c
+    commutes with tau, tau(B*) = tau(B)*. From tau(B) = B V:
+      tau(Q) = tau(B* B) = tau(B)* tau(B) = (B V)* (B V) = V* Q V.
+    Multiply on the left by (V*)^{-1}. Now
+      (V*)^{-1} = (c(V)^T)^{-1} = (c(V^{-1}))^T = (c(tau(V)))^T = ((c tau)(V))^T,
+    using V^{-1} = tau(V) from (D1). Therefore
+      **Q V = ((c tau)(V))^T tau(Q).**
+    tau(Q) is computed from the PUBLIC Q by applying tau entrywise; c*tau acts
+    on coordinates by a sign pattern composed with the conjugation permutation.
+    Both sides are Z-LINEAR in the coordinates of V, with coefficients built
+    from Q alone. So
+      Lambda_B^(tau) := {Y in M_2(R) : tau(Y) = adj-pattern(Y),
+                                       Q Y = ((c tau)(Y))^T tau(Q)}
+    is a Z-lattice computable from the public key, and V_tau lies in it. The
+    paper reports rank n; (D1) gives 2n, so (D2) must remove exactly n further
+    dimensions. THAT IS A PREDICTION OF THIS DERIVATION AND IS FORCED VALUE F1.
+
+    (D3) THE LENGTH FORM. The transcribed fragment gives
+    Q^(tau)(Y) := Tr_F(det Y) with F the degree-n/4 field fixed by c and tau.
+    Consistency check performed here: for Y satisfying (D1),
+    tau(det Y) = tau(a)tau(d) - tau(b)tau(c) = d a - (-b)(-c) = det Y, so
+    det Y lies in K^tau = Q(zeta^2), degree n/2. That det Y is additionally
+    c-invariant -- i.e. lands in F, degree n/4 -- does NOT follow from (D1)
+    alone and must come from (D2); this record does not claim to have proved it
+    and makes it an explicit instrument self-test (see minimal_test, CHK-3).
+    Granting it, Q^(tau) is a rational quadratic form on a rank-n lattice, and
+    Q^(tau)(V_tau) = Tr_{F/Q}(det V_tau) = Tr_{F/Q}(1) = [F : Q] = n/4.
+    So lambda_1(Lambda_B^(tau))^2 <= n/4, unconditionally, for every B in
+    SL_2(R). Note what this does and does not give: the UPPER BOUND n/4 is
+    generic and follows from det B = 1 alone; the ORTHOGONAL SPLITTING is the
+    2-power-specific content of Proposition 4.5 and is exactly what is unproven
+    here and measured by the experiment.
+
+    (D4) THE FOUR FORCED VALUES. If Lambda_B^(tau) is isometric to
+    L := sqrt(n/4) Z^{k1} (+) sqrt(n/2) Z^{k2} with k1 = n/2 + 1,
+    k2 = n/2 - 1, then, computed in this session and recorded before any run:
+      F1  rank = k1 + k2 = n.
+      F2  det(Gram) = (n/4)^{k1} * (n/2)^{k2}.
+          n=4: 2. n=8: 2048. n=16: 549755813888.
+          n=32: 2596148429267413814265248164610048.
+      F3  #{v : Q^(tau)(v) = n/4} = 2*k1 = n + 2.
+          n=4: 6. n=8: 10. n=16: 18. n=32: 34.
+      F4  #{v : Q^(tau)(v) = n/2} = 4*C(k1,2) + 2*k2 = n^2/2 + 2n - 2.
+          n=4: 14. n=8: 46. n=16: 158. n=32: 574.
+      F4 is the second theta coefficient and is the sharpest of the four: it is
+      quadratic in n, so an accidental match is far less likely than for F1-F3,
+      and it distinguishes the claimed ORTHOGONAL SUM from any merely
+      determinant-matching form.
+    F3 also reproduces the paper's own downstream arithmetic, which is a
+    consistency check on the derivation rather than on the paper: the
+    transcription records "exactly two of the 2(n/2+1) shortest-vector
+    candidates, +/- V_tau, satisfy Y == I (mod 2)", and 2(n/2+1) = n + 2 = F3.
+
+    (D5) COST BOOKKEEPING FOR THE CHECK ITSELF. Building the linear system is
+    O(n) applications of Galois elements to n-coordinate vectors plus one
+    kernel computation over Q on a matrix of size at most 4n x 4n -- at n = 32
+    that is 128 x 128 exact rational Gaussian elimination, milliseconds in
+    Python. F2 is one integer determinant of an n x n matrix (Bareiss,
+    O(n^3) big-integer operations). F3 and F4 need a short-vector ENUMERATION,
+    which is cheap precisely because the hypothesis under test says the Gram
+    matrix diagonalises: run LLL-free Fincke-Pohst on the HNF basis, and if the
+    claim is true the enumeration tree has essentially no branching. If the
+    claim is FALSE the enumeration may blow up, and that blow-up is itself
+    diagnostic -- so the contract charges it with a node budget and reports
+    exhaustion as a measured outcome, not as a timeout (see the experiment's
+    infrastructure-failure disposition).
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    what_the_screen_could_see: >-
+      Corpus grep over ledger/, knowledge/, experiments/ and coordination/ for
+      HAWK, module-LIP, cocycle and Lambda; plus the goal, question, evidence,
+      correction and decision records of GOAL-HAWK-001 read in full. IT COULD
+      NOT SEE: the body of the disclosed attack (only its abstract,
+      introduction and the BATCH-001 transcription fragments were ever read by
+      this program), the HAWK Round-3 specification (unread), iacr:2026/1318's
+      body (Cloudflare-gated), or iacr:2026/1560 (abstract only, relayed from
+      this session's scouting brief). Per KN-OPEN-3f7a21 and the literature
+      sweep, this corpus's `citation_verified: read` field is unreliable at
+      scale, so a corpus screen is a weak instrument and is not treated as one.
+    result: >-
+      GOAL-HAWK-001 holds exactly one prior proposal, IDEA-20260801-019, which
+      proposes to "re-implement the reduction and the solver from the report's
+      specification" and to compare "recovered-key success rate and cost".
+      THAT PROPOSAL NEEDS AN SVP SOLVER THIS CONTAINER DOES NOT HAVE, states no
+      forced value, and its only control is "sanity solver on random (non-key)
+      module-LIP instances". This proposal is not a variant of it: it removes
+      the solver from the critical path entirely and replaces a success-rate
+      comparison with four pre-derived integers. Zero prior hypotheses, zero
+      prior experiments, zero prior runs exist in area HAWK.
+    conclusion: >-
+      Novel WITHIN THIS CORPUS with high confidence. Against the external
+      literature, the derivation in `mechanism` is expected to coincide with the
+      paper's Lemmas 4.1/4.3 and is recorded as a re-derivation, not a discovery.
+
+  literature_context:
+    - >-
+      KN-LIT-7592, Straznickas and Weis, "HAWK-n Key Recovery Reduces to SVP in
+      Dimension n/2 + 1", Anthropic technical report, 2026. READ AT THE LEVEL OF
+      ABSTRACT, INTRODUCTION AND TECHNICAL OVERVIEW ONLY, by an earlier session
+      (TASK-20260802-004); the entry's own "Not verified here" section states
+      that "The body sections (3-9) and appendices were not read line by line"
+      and that Lemma 4.1, Lemma 4.3, Proposition 4.5, Theorem 5.1,
+      Proposition D.2 and Theorem 6.1 are NOT verified. Every structural claim
+      this proposal tests is therefore RELAYED AT ONE REMOVE and is treated as a
+      target, not an authority.
+    - >-
+      Verbatim fragments used here, from
+      coordination/goals/GOAL-HAWK-001/batches/BATCH-001/tasks/TASK-20260802-004/
+      disclosed_attack_transcription.md, which the same task produced from a
+      pdfminer.six extraction of the PDF (sha256 056faead...ac89, 748154 bytes,
+      re-acquired byte-identically by TASK-20260802-006): "The integer solutions
+      of the two conditions form the lattice Lambda(tau) B, of rank n
+      (Lemma 4.3). A Z-basis of it is computed from Q in polynomial time.
+      V_tau is a shortest vector of Lambda(tau) B. Lengths are measured by
+      Q(tau)(Y) := TrF(det Y), which is the trace from the degree-n/4 field F
+      fixed by c and tau. det V_tau = 1 since det B = 1, and so its squared
+      length is the minimum TrF(1) = n/4". THE TRANSCRIPTION FILE CARRIES A
+      KNOWN DEFECT: EV-HAWK-001 records that it "lacks a global damage caveat
+      and leaves at least four damaged renderings unmarked". The fragment above
+      is prose rather than formula and is the least likely class to be damaged,
+      but this is a stated risk, not a discharged one.
+    - >-
+      van Gent and Pulles 2025 (iacr:2025/928, IACR Communications in
+      Cryptology 2(2)), filed by BATCH-001 as KN-LIT-7673. NOT READ BY THIS
+      SESSION, and note a corpus defect found while writing this record:
+      KN-LIT-7673 and KN-LIT-7674 are cited by GOAL-HAWK-001, EV-HAWK-001,
+      KN-OPEN-028 and CORR-20260802-bc9e33, but NO FILE knowledge/literature/
+      KN-LIT-7673.md OR KN-LIT-7674.md EXISTS ON THIS BRANCH. Reported here
+      rather than repaired; this proposal does not depend on either entry.
+    - >-
+      KN-OPEN-028 (the nrd-PIP route) and KN-LIT-7671 (SLIP in AM intersect
+      coAM). Neither bears on this proposal: this is a check of a DIFFERENT
+      route, and the AM/coAM ceiling is a statement about the decision problem's
+      complexity, not about the shape of a particular cocycle lattice.
+    - >-
+      iacr:2026/1560 (Mureau, Pellet-Mary), reported to claim dimension
+      3m/8 + 1 and to credit m/2 + 1 to Ducas'23. NOT READ; RELAYED from this
+      session's scouting brief only. It bears on the sibling proposal
+      IDEA-20260805-3a855d and is named here only so that a reader does not
+      mistake n/2 + 1 for an uncontested figure.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Secret key B in SL_2(R) --> public Gram Q = B* B --> the pair
+      (Lambda_B^(tau), Q^(tau)), i.e. an n x n integer Gram matrix up to
+      GL_n(Z)-equivalence --> its four invariants (rank, determinant, and the
+      first two theta coefficients).
+    what_is_discarded: >-
+      At the first arrow, B itself up to the isometry group: Q determines B only
+      up to left multiplication by an element of the unitary group of R^2, which
+      is exactly the smLIP ambiguity. At the second, everything about Q except
+      the Galois-equivariant part that survives the two constraints. At the
+      third, the lattice's basis and (if Proposition 4.5 holds) essentially all
+      remaining information -- the invariants become functions of n alone.
+    why_genuinely_lossy: >-
+      Genuinely and massively lossy at every arrow, and the losses are of two
+      DIFFERENT kinds, which is what makes the audit informative rather than
+      decorative. The FIRST arrow loses the secret and is the scheme's own
+      design. The SECOND arrow is the interesting one: it is lossy but retains
+      exactly one distinguished point, V_tau, and retains it as an EXTREMAL
+      point (a shortest vector) rather than as a generic one. That is the whole
+      attack. The THIRD arrow is where the danger lies and the audit must be
+      honest about it.
+    why_compatible_with_the_operations: >-
+      Compatible by construction and this is checkable rather than asserted:
+      the defining conditions of (D1) and (D2) are Galois-equivariant identities
+      that V_tau satisfies for every B, so the projection commutes with the
+      scheme's own key generation. Membership of V_tau in the constructed
+      lattice is the positive control PC-1 precisely because this compatibility
+      is the one part of the derivation that could silently fail.
+    is_it_only_a_change_of_coordinates: >-
+      NO for the second arrow -- passing from Q to Lambda_B^(tau) is not a change
+      of coordinates, because the lattice has Z-rank n while Q has 4n integer
+      coordinates, and because the map is many-to-one on isometry classes. This
+      is NOT the (Delta, Pi) = (x xor y, x*y) failure of KN-LIT-7595: there,
+      the unordered pair was recoverable as the roots of t^2 + Delta t + Pi, so
+      nothing was discarded; here the fibre over Lambda_B^(tau) is large and B
+      is not recoverable from it without solving the SVP instance.
+    which_failure_was_checked_for: >-
+      BOTH, and the second one FIRES, deliberately, at the third arrow.
+      Checked for the change-of-coordinates failure: refuted for the second
+      arrow (rank n vs 4n, non-injective on classes). Checked for the MIRROR
+      failure -- a projection so lossy that it is CONSTANT across instances,
+      zero comparator spread, the failure named in IDEA-20260805-e805b6 and
+      catalogued in KN-TECH-1a5b7e: THE INVARIANTS F1-F4 ARE PREDICTED TO BE
+      EXACTLY CONSTANT ACROSS ALL SECRET KEYS AT FIXED n. That is not a defect
+      of this design, it is the hypothesis under test -- Proposition 4.5 says
+      the isometry class does not depend on B -- but it has a consequence that
+      must be written into every downstream citation and is written into
+      interpretation_limits: A MEASUREMENT OF F1-F4 CARRIES ZERO INFORMATION
+      ABOUT THE SECRET AND CANNOT BE CITED AS A KEY-RECOVERY RESULT. The
+      key-recovery content lives entirely in the SEPARATE observation that
+      V_tau is one of the n+2 shortest vectors and is selected among them by the
+      parity test Y == I (mod 2). The design keeps those two measurements in
+      different arms so that the constant-invariant arm cannot be mistaken for
+      the informative one.
+
+  assumptions:
+    - >-
+      That the derived defining system (D1)+(D2) is the paper's Lambda_B^(tau).
+      IF IT IS NOT, the instrument measures a different lattice and NO
+      conclusion about Proposition 4.5 may be drawn. Detection: positive control
+      PC-1.
+    - >-
+      That det Y lies in F for every Y in the lattice, so that Tr_{F/Q}(det Y)
+      is the right form. Only tau-invariance is derived above; c-invariance is
+      assumed and is checked directly as CHK-3.
+    - >-
+      That Q^(tau) is positive definite on Lambda_B^(tau). Necessary for
+      "shortest vector" to mean anything; not derived here; checked as CHK-4.
+    - >-
+      That a HAWK-shaped B can be generated at n = 4..32 without the Round-3
+      specification. The contract does NOT assume this: it uses arbitrary
+      B in SL_2(R) with small entries and states explicitly that this is a
+      HAWK-SHAPED, not a HAWK, key. Proposition 4.5 as reported is a statement
+      about all B in SL_2(R), so the weaker generation rule is sufficient for
+      testing it and is honestly weaker for anything else.
+
+  predictions:
+    - metric: >-
+        F1: Z-rank of the lattice defined by (D1)+(D2), computed from Q alone,
+        at n = 4, 8, 16, 32
+      direction: different
+      minimum_effect: >-
+        EXACTLY n at every n. Any other value falsifies the derived defining
+        system (most likely) or the reported rank-n claim (less likely), and the
+        contract must report which by re-deriving before it reports anything
+        about the paper.
+    - metric: >-
+        F2: determinant of the Gram matrix of Q^(tau) in an HNF basis, exact
+        integer, at n = 4, 8, 16, 32
+      direction: different
+      minimum_effect: >-
+        EXACTLY 2, 2048, 549755813888, 2596148429267413814265248164610048
+        respectively, i.e. (n/4)^{n/2+1} (n/2)^{n/2-1}. Computed in this session
+        before any run and recorded here. A mismatch at n = 4 or 8 with F1
+        passing is the most informative single outcome available, because it
+        would isolate the failure to the length form rather than to the lattice.
+    - metric: >-
+        F3: number of lattice vectors of squared length exactly n/4 (the kissing
+        number at lambda_1), at n = 4, 8, 16, 32
+      direction: different
+      minimum_effect: >-
+        EXACTLY n + 2, i.e. 6, 10, 18, 34. This is the value the paper's own
+        parity argument consumes as 2(n/2+1).
+    - metric: >-
+        F4: number of lattice vectors of squared length exactly n/2, at
+        n = 4, 8, 16, 32
+      direction: different
+      minimum_effect: >-
+        EXACTLY n^2/2 + 2n - 2, i.e. 14, 46, 158, 574. Quadratic in n and
+        therefore the hardest of the four to match by accident; it is the
+        discriminating prediction of the set.
+    - metric: >-
+        PC-1: is the secret-derived V_tau = B^{-1} tau(B) an element of the
+        publicly constructed lattice, with Q^(tau)(V_tau) = n/4 and
+        V_tau == I (mod 2)?
+      direction: different
+      minimum_effect: >-
+        YES at 20/20 independently generated keys per n. This is the POSITIVE
+        CONTROL. If it fails, the derivation is wrong and NO negative result
+        about Proposition 4.5 may be reported from this contract at all.
+    - metric: >-
+        NULL-1: Z-rank of the lattice defined by (D1)+(D2) when Q is replaced by
+        a random Hermitian positive-definite Q' of matched entry size that is
+        NOT of the form B* B with det B = 1
+      direction: lower
+      minimum_effect: >-
+        STRICTLY LESS THAN n, and predicted to be 0 for a generic Q'. Forced
+        before the run by the following reasoning, which the run tests: the
+        rank-n solution space of (D2) exists BECAUSE a B with tau(B) = B V
+        exists; a Q' with no such factorisation imposes n generically
+        independent conditions on a 2n-dimensional space with no reason for a
+        kernel. IF NULL-1 RETURNS n, THE LATTICE'S RANK IS AN ARTIFACT OF THE
+        LINEAR-ALGEBRA SHAPE AND CARRIES NO INFORMATION ABOUT THE KEY, and F1
+        must be struck from the forced-value set. This null can genuinely fail
+        and is the reason it is in the design.
+    - metric: >-
+        NULL-2 (graded, 4 interior points): Z-rank as a function of a
+        perturbation Q_e = B* B + e * E for a fixed Hermitian integer E and
+        e = 0, 1, 2, 4, 8
+      direction: lower
+      minimum_effect: >-
+        n at e = 0 and strictly less than n at every e >= 1, with monotone
+        non-increase in e. Reporting monotonicity localises the obstruction: a
+        rank that decays smoothly says the constraint is soft, a rank that drops
+        to 0 at e = 1 says it is a rigid algebraic condition. A rank that DOES
+        NOT DECAY as e grows is the canonical artifact tell of
+        docs/inventor-protocol.md section 3 and would invalidate the whole
+        instrument.
+
+  minimal_test:
+    design: >-
+      Five stages, ordered cheapest-first, each able to terminate the line.
+      STAGE 0 (zero compute, minutes): re-read the derivation (D0)-(D4) and
+      confirm the four forced integers arithmetically by an independent
+      recomputation of the binomial and power expressions. A discrepancy here
+      ends the contract before any code is written.
+      STAGE 1 (seconds, n = 4 only): build the linear system, compute the rank,
+      run PC-1. n = 4 means 16 integer coordinates and a 16 x 16 system; it is
+      hand-checkable. IF PC-1 FAILS AT n = 4, STOP -- the derivation is wrong,
+      publish that, and request the paper's Lemma 4.1/4.3 statements.
+      STAGE 2 (seconds to minutes, n = 4, 8, 16, 32): F1, F2, plus CHK-3
+      (det Y in F) and CHK-4 (positive definiteness), on 20 keys per n.
+      STAGE 3 (minutes, n = 4, 8, 16; n = 32 best-effort under a node budget):
+      F3 and F4 by exact enumeration.
+      STAGE 4 (OPTIONAL, explicitly outside the success criterion): the
+      end-to-end toy certificate -- select the two vectors among the F3 many
+      that satisfy Y == I (mod 2), take V, form the kernel sublattice
+      {x in R^2 : tau(x) = V^{-1} x}, find a short vector in it by enumeration,
+      assemble a candidate B', and CERTIFY by checking B'* B' == Q exactly over
+      Z. This is a certified toy-scale key recovery in the sense of
+      docs/claims-and-verification.md, at n <= 16, and it is a TOY-TIER result
+      that says nothing about deployed parameters.
+    controls:
+      - >-
+        NULL-1 (matched null, forced value derived pre-run, CAN FAIL). Random
+        Hermitian positive-definite Q' with entry sizes matched to the treatment
+        arm's Q, not of the form B* B with unit determinant. FORCED VALUE:
+        rank < n, predicted 0. If rank = n on the null, F1 is uninformative and
+        the contract says so.
+      - >-
+        NULL-1b (second null, different failure mode). Q'' = U* Q U for
+        U in GL_2(R) with det U a non-trivial unit of R (e.g. a cyclotomic unit
+        of infinite order at n >= 8). This is a genuine Gram matrix of a rank-2
+        module but breaks the det = 1 normalisation that (D1) used. FORCED
+        VALUE: the adj-pattern conditions no longer hold for the corresponding
+        cocycle, so PC-1 must FAIL on this arm while F1 may or may not hold.
+        Its purpose is to show that PC-1 is sensitive to the SL_2 condition
+        specifically, and not merely to Q being Hermitian.
+      - >-
+        PC-1 (positive control / nearby object where the effect MUST appear).
+        V_tau computed from the SECRET must lie in the publicly constructed
+        lattice at squared length exactly n/4 with V_tau == I (mod 2). Threshold
+        declared before the run: 20/20 keys at every n. IF PC-1 FAILS, THE
+        INSTRUMENT IS BROKEN AND NO NEGATIVE RESULT MAY BE REPORTED.
+      - >-
+        NULL-2 (GRADED, five points e = 0, 1, 2, 4, 8, monotonicity reported).
+        See predictions. Its job is to convert "it did not work" into "it
+        stopped working at e = k, and here is the rate", which localises the
+        obstruction.
+      - >-
+        CHK-3 (instrument self-test): verify c(det Y) = det Y for a basis of the
+        lattice, i.e. det Y in F. Derived above only for tau-invariance; this is
+        the assumption most likely to be wrong, and it is checked directly
+        rather than assumed.
+      - >-
+        CHK-4 (instrument self-test): verify that the Gram matrix of Q^(tau) is
+        positive definite (all leading principal minors positive, exact
+        integers). Required for "shortest vector" to be meaningful.
+      - >-
+        VERDICT-ON-THE-NULL-FIRST. The full decision rule is executed and
+        recorded on NULL-1 and NULL-1b before any treatment number is looked at,
+        and the null arm's outputs are hash-committed first. If the rule emits
+        the same verdict on null and treatment, it discriminates nothing and
+        must be rewritten before the treatment arm is read.
+      - >-
+        ARCHIVE CHECK (zero compute): list every archived measurement of any of
+        F1-F4 in this program. NONE EXISTS -- GOAL-HAWK-001 has run zero
+        experiments (EV-HAWK-001) -- and that unavailability is recorded here
+        rather than reported as a passed check.
+    required_metrics:
+      - exact Z-rank per arm per n, with the elimination method named
+      - exact Gram determinant per arm per n, with the algorithm named (Bareiss)
+      - exact theta coefficients at n/4 and n/2, with the enumeration node count
+      - PC-1 pass count out of 20 per n, with seeds
+      - CHK-3 and CHK-4 boolean results per n
+      - NULL-2 rank as a function of e, all five points, monotonicity reported
+      - if Stage 4 runs, the certificate B'* B' == Q as an exact integer identity
+
+  falsification_conditions:
+    - >-
+      PC-1 fails at n = 4. The derived defining system is not the paper's
+      lattice. The contract terminates, publishes the derivation and the
+      failure, and claims NOTHING about Proposition 4.5. This is the most likely
+      single failure of the proposal as written.
+    - >-
+      F1 holds but F2 fails at n = 8 or 16. Proposition 4.5's isometry class is
+      not what is reported, OR the length form is not Tr_{F/Q}(det Y). The
+      contract must distinguish these by CHK-3/CHK-4 before reporting.
+    - >-
+      F3 or F4 fails while F1 and F2 hold. The lattice has the right rank and
+      covolume but is not the claimed ORTHOGONAL SUM -- which would mean Ducas's
+      block reduction does not apply as reported and the n/2 + 1 dimension claim
+      would need re-derivation. This is the outcome with the largest
+      consequences and the smallest prior.
+    - >-
+      NULL-1 returns rank n. F1 is then a fact about the linear-algebra shape
+      and not about the key; it is struck from the forced-value set and the
+      remaining predictions are re-derived without it.
+    - >-
+      NULL-2's rank does not decay as e increases. The canonical artifact tell.
+      The whole instrument is then suspect and no result may be reported.
+
+  confounders:
+    - >-
+      RELAY DEPTH. The four forced values are derived from ONE SENTENCE of
+      Proposition 4.5 as summarised in KN-LIT-7592, which was itself written
+      from a partial reading. A mismatch is at least as likely to indict the
+      relay as the paper, and the contract's reporting rule says so explicitly.
+    - >-
+      DERIVATION RISK. (D2)'s linearisation is this record's own work. It is
+      elegant enough to be suspicious; the positive control exists because of
+      that.
+    - >-
+      TOY SCALE. n <= 32 against deployed n in {256, 512, 1024}. F1-F4 are
+      ALGEBRAIC identities whose statements do not depend on n, so agreement at
+      small n is a check of a derivation rather than an extrapolation -- but
+      Stage 4's key recovery IS a toy result and is labelled one. AGENTS.md
+      rule 7 applies with full force.
+    - >-
+      HAWK-SHAPED IS NOT HAWK. Without the Round-3 specification this contract
+      cannot generate keys by HAWK's own key-generation procedure. It uses
+      arbitrary short B in SL_2(R). Since the reported Proposition 4.5 quantifies
+      over all B in SL_2(R), that is sufficient for the test and insufficient for
+      anything else, and the record says which.
+    - >-
+      ENUMERATION ASYMMETRY. If the claim is true the enumeration is cheap; if
+      false it may be expensive. A budget exhaustion must therefore NOT be read
+      as evidence the claim is false -- it is infrastructure signal (AGENTS.md
+      rule 5). The contract carries an explicit disposition for this.
+
+  interpretation_limits:
+    - >-
+      NOTHING HERE IS A BREAK OF HAWK, AND NOTHING HERE ASSESSES HAWK'S SECURITY
+      IN EITHER DIRECTION. A confirmation confirms a structural lemma of someone
+      else's attack at toy parameters. A refutation refutes this program's
+      derivation of that lemma, or a relayed summary of it, before it refutes
+      the paper.
+    - >-
+      F1-F4 ARE CONSTANT ACROSS KEYS BY HYPOTHESIS. They therefore carry zero
+      information about any secret and may never be cited as a key-recovery
+      measurement. See the identifiability audit.
+    - >-
+      Even a fully successful Stage 4 is a toy-tier certified recovery at
+      n <= 16 with a brute-force enumeration standing in for Ducas's block
+      reduction. It establishes no cost, no exponent, and no statement about
+      HAWK-512 or HAWK-1024.
+    - >-
+      This contract does NOT test the n/2 + 1 SVP-dimension claim, which is
+      Theorem 5.1 and depends on the block-reduction algorithm rather than on
+      the lattice's shape. It tests the INPUT to that theorem.
+    - >-
+      RQ-HAWK-001 carries the constraint "No experiment may be designed until
+      the relevant primary sources are filed as KN-LIT entries", and
+      GOAL-HAWK-001's current next_action says DO NOT run /propose-ideas. This
+      proposal is filed as a review_required design under Coordinator authority
+      and asserts no discharge of either instruction. What it does assert is
+      narrower and checkable: the ONLY external source it depends on,
+      KN-LIT-7592, IS filed at citation_verified read, and nothing here depends
+      on iacr:2026/1318, whose four heuristics remain unread. The Coordinator
+      decides whether that is enough.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE IS LOAD-BEARING FOR THE HEADLINE. F1-F4 are consequences of a
+        stated isometry, derived by counting; they are not distributional
+        claims, contain no asymptotic, and are checked by exact integer
+        arithmetic. This entry exists to record that the proposal is
+        UNCONDITIONAL where its predecessor IDEA-20260801-019 was
+        implementation-conditional.
+      rigorous_support: >-
+        For L = sqrt(a) Z^{k1} (+) sqrt(b) Z^{k2} with a = n/4, b = n/2 and
+        b = 2a: det(Gram) = a^{k1} b^{k2}; #{v : |v|^2 = a} = 2 k1 (the
+        +/- unit vectors of the first block, since b > a); #{v : |v|^2 = b} =
+        4 C(k1, 2) + 2 k2 (two first-block coordinates at +/-1, or one
+        second-block coordinate at +/-1). All elementary, all recomputed in this
+        session.
+      validation_plan: >-
+        Direct exact computation at n = 4, 8, 16, 32 against the values printed
+        in `predictions`, plus an independent recomputation of the closed forms
+        at Stage 0. Not a distributional validation and not presented as one.
+    - id: H2
+      statement: >-
+        The linearisation Q V = ((c tau)(V))^T tau(Q) together with the
+        adj-pattern conditions defines exactly the lattice the paper calls
+        Lambda_B^(tau).
+      rigorous_support: >-
+        Derived in (D1)-(D2) from V tau(V) = I, det V = 1 and tau(Q) = V* Q V,
+        each of which follows from B in SL_2(R) and Q = B* B by two lines of
+        algebra. What is NOT established is that these conditions are the
+        paper's "two conditions" of Lemma 4.3, nor that they are exhaustive.
+      validation_plan: >-
+        PC-1 at n = 4 is the falsification test and it costs seconds. F1 at all
+        four n is the corroboration. Both are Stage 1/2, before any expensive
+        work.
+    - id: H3
+      statement: >-
+        det Y lies in F = K^{<c, tau>} for every Y in Lambda_B^(tau), so
+        Tr_{F/Q}(det Y) is well defined and equals the paper's length form.
+      rigorous_support: >-
+        tau-invariance of det Y follows from the adj-pattern conditions
+        (shown in D3). c-invariance does NOT and is assumed. This is the
+        weakest link in the derivation.
+      validation_plan: >-
+        CHK-3, an exact check on a lattice basis at every n. If it fails, the
+        length form is re-derived from (D2) before any forced value is compared.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this proposal -- it proposes no algorithm and moves no exponent.
+      The CLAIM whose input it checks does move one, as reported and NOT
+      verified here: HAWK key recovery from an exact-SVP oracle in dimension
+      beta_key (with beta_key/n -> 1 under HAWK's own model) to one in dimension
+      n/2 + 1, i.e. an asymptotic halving of the oracle dimension, giving
+      2^{(n/2+1)+o(n)} unconditionally with the provable [ADRS15] sieve. If
+      Proposition 4.5's forced values fail, that exponent claim needs
+      re-derivation; if they hold, this contract has corroborated its input at
+      toy scale and nothing more.
+    memory_exponent: >-
+      Of this check: negligible, under 1 GB, exact integers. Of the claim under
+      check: NOT ASSESSED HERE and deliberately so -- charging the attack's
+      memory is the subject of the sibling proposal IDEA-20260805-3a855d, and
+      splitting it out keeps this contract free of any cost model.
+    best_known: >-
+      For HAWK key recovery, as reported and unverified: the scheme's own
+      analysis at BKZ blocksizes beta_key in {211, 452, 940} for
+      HAWK-{256, 512, 1024}, versus the disclosed attack's oracle dimension
+      n/2 + 1 in {129, 257, 513}. RELAYED FROM KN-LIT-7592; not checked by this
+      program.
+    hidden_overhead: >-
+      Of this check: the enumeration node count, which is bounded and reported
+      rather than hidden. Of the claim: the poly(n) = O(n^2 log n) oracle-call
+      factor, whose charging status is exactly the question
+      IDEA-20260805-3a855d asks.
+    tradeoff_note: n/a -- no algorithm proposed.
+
+  dominated_by: >-
+    n/a (no result claimed; this is a verification contract, not a Pareto
+    point). Rows actually checked before writing this, on the QUESTION of
+    whether anyone has already computed these invariants: (i) the full HAWK
+    lane of this corpus -- GOAL-HAWK-001, RQ-HAWK-001, EV-HAWK-001,
+    DEC-20260802-007, CORR-20260802-008, CORR-20260802-bc9e33, KN-OPEN-028,
+    KN-LIT-7592, KN-LIT-7670, KN-LIT-7671, KN-LIT-7675, and the BATCH-001 and
+    BATCH-002 coordination directories -- all read, none contains a computed
+    quantity of any kind; (ii) ledger/proposals for RQ-HAWK-001 -- exactly one
+    prior proposal, IDEA-20260801-019, which proposes a solver-based
+    reimplementation, a different and strictly more expensive route;
+    (iii) experiments/ and ledger/evidence/ for area HAWK -- empty. Not checked,
+    and stated as unchecked: whether the paper's own released implementation
+    already computes these invariants (the code was never fetched), and whether
+    iacr:2026/1560 does. On the ATTACK frontier this proposal is dominated by
+    the disclosed attack itself on every axis, trivially, because it proposes no
+    attack; that is the honest reading of `dominated_by` here and it is not a
+    null.
+  sota_delta: >-
+    Zero on every attack axis: no time, memory, data, query or advice cost of
+    any HAWK attack is improved, and none is claimed. Quantitatively the delta
+    is evidentiary and is stated as such: this program currently holds ZERO
+    computed HAWK quantities and four uncheckable relayed structural claims
+    (Lemmas 4.1, 4.3, Proposition 4.5, Theorem 5.1, all listed as unverified in
+    KN-LIT-7592's own body). The contract converts one of them -- the one that
+    all the others rest on -- into four exactly checked integers at four
+    parameter sizes, at a cost of about one day and under 1 GB of memory, with
+    no solver dependency. If Stage 4 also runs, it converts a relayed
+    "implemented end-to-end" claim into a locally re-verifiable certificate
+    B'* B' = Q at n <= 16.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.60 that all four forced values are reproduced at n = 4, 8, 16 with PC-1
+    passing. The number is not higher because the defining linear system in
+    (D2) is this record's own derivation from a partial reading, because CHK-3
+    (det Y in F) is assumed rather than proved, because the transcription file
+    the derivation leans on is recorded by EV-HAWK-001 as carrying at least four
+    unmarked extraction damages, and because a single missing constraint would
+    give a lattice of rank 2n rather than n and fail F1 immediately. It is not
+    lower because the paper is reported to be unconditional and deterministic
+    with 28 theorems and 60 lemmas and was independently checked by at least one
+    outside reader (pqc-forum, RELAYED via this session's scouting brief, not
+    read); because F3 = n + 2 independently reproduces the paper's own
+    2(n/2 + 1) parity arithmetic, which is a non-trivial consistency check
+    performed before any run; and because the derived identity
+    Q^(tau)(V_tau) = Tr_{F/Q}(1) = n/4 reproduces the transcribed sentence
+    exactly. Separately: 0.90 that the contract reaches a decisive reading of
+    SOME kind, because Stage 0 is arithmetic and Stage 1 is a 16 x 16 integer
+    kernel.

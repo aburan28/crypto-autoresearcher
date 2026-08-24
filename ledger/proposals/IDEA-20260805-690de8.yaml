@@ -1,0 +1,545 @@
+idea:
+  id: IDEA-20260805-690de8
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-001
+  added: '2026-08-05'
+  title: >-
+    The operation-DAG ceiling on negacyclic isometry-orbit reuse: charge the
+    arithmetic circuit and the memory, not the sample count, and derive the
+    maximum bits any amount of orbit batching can ever buy
+  class: control
+
+  claim: >-
+    GOAL-MLKEM-001's one cryptanalytic candidate, IDEA-20260722-001, was
+    weakened on STATISTICAL grounds and its COMPUTATIONAL residue was left
+    explicitly open when the six-batch budget ran out. EV-MLKEM-001's own
+    inference sentence names the successor -- "a bounded symbolic derivation can
+    still determine whether any non-equivalent amortization survives the
+    rotated-vector identity" -- and EV-MLKEM-002 carries it forward verbatim as
+    unresolved confound 5, "computational reuse in weighted orbit evaluation
+    remains open pending operation-DAG accounting". No record in this repository
+    performs that accounting. This proposal performs it, and it predicts the
+    answer before running: (i) the 2n scores of a dual vector against its full
+    negacyclic orbit are exactly the 2n coefficients of ONE negacyclic ring
+    product, so the batched arithmetic cost is Theta(k n log n) against a naive
+    Theta(k n^2), a ratio of Theta(n / log n) which is about 20-32x at n = 256;
+    and (ii) that ratio is nevertheless incapable of moving the attack estimate
+    by two bits, because a speedup confined to one cost component can move an
+    OPTIMIZED total by at most -log2(1 - f) bits, where f is that component's
+    share of the total at the optimum. The deliverable is therefore a NUMBER --
+    the score-evaluation share f of the pinned estimator's optimized total --
+    plus the ceiling it forces. Both outcomes are useful: if f < 0.75 the whole
+    orbit-amortisation lane is arithmetically foreclosed against the 2-bit
+    materiality bar IDEA-20260722-001 itself declared, with an argument rather
+    than a fatigue report; if f >= 0.75 the lane is live and the campaign was
+    closed one derivation short of finding that out.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE OPERATION DAG. Not the score, not the secret, not the lattice: the
+      directed acyclic graph of modular multiply-accumulates and memory touches
+      performed by the scoring stage, followed from one sieved dual vector
+      through its full negacyclic orbit to the accumulated score table. Its
+      two observables are (mults, memory words touched). This is the object
+      IDEA-20260722-001's claim actually lives or dies on, and it is the one
+      object no record in this corpus has ever followed.
+    established_families_off_limits: >-
+      Off-limits as the primary lens for this proposal: primal/uSVP and BDD
+      embeddings, dual-sieve score statistics and their tail analyses,
+      hybrid/MITM guessing splits, decryption-failure and chosen-ciphertext
+      oracles, implementation side channels, class-group and principal-ideal
+      routes, and algebraic (Groebner/BKW/resultant) attacks. The negacyclic
+      isometry family is NOT off-limits, deliberately: this proposal advances no
+      attack inside it, it audits the cost accounting of a candidate already in
+      it, which is the one move the off-limits rule does not forbid.
+    newness_score: >-
+      The adjoint identity itself is elementary and EV-MLKEM-001 already used
+      the word "adjoint", so no novelty is claimed for it. What is new here, and
+      absent from this corpus, is (a) an explicit operation and memory count for
+      both evaluation orders, and (b) the ceiling that converts that count into
+      a hard upper bound on bits. The second is the part that decides the lane;
+      the first is the part that makes the second checkable.
+    testability_score: >-
+      Very high and almost free. Stage 1 is pen and paper. Stage 2 is a pure
+      numpy operation counter at n <= 256, seconds. Only stage 3 (the share f)
+      needs the pinned lattice-estimator and is infrastructure-gated.
+    survival_score: >-
+      The DAG survives the entire scoring stage by construction: composition of
+      DAGs adds op counts, so the object propagates deterministically. It stops
+      being informative exactly where the cost model stops decomposing into
+      named components, which is why stage 3 must report the decomposition it
+      found rather than assert one.
+
+  mechanism: >-
+    DERIVED IN THIS RECORD. Every external attribution below is labelled.
+
+    OBJECTS. R = Z_q[X]/(X^n + 1) with n = 256, q = 3329 (FIPS 203 parameters as
+    recorded in the archived in-repo report
+    coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-206/cost_baseline_report.yaml,
+    standardized_targets block, READ THIS SESSION). Module rank k in {2,3,4} for
+    ML-KEM-512/768/1024. A dual attack holds a pool of W short vectors
+    v = (v_1..v_k) in R^k and evaluates a periodic score f(<v, b> mod q) against
+    samples b in R^k. The negacyclic isometry group is generated by
+    multiplication by X and by negation; it has order 2n = 512, INDEPENDENT OF k
+    and of the parameter set, because multiplying an MLWE relation b = As + e by
+    X^j gives X^j b = A (X^j s) + X^j e, a valid relation with secret X^j s.
+
+    STEP 1 -- THE ADJOINT IDENTITY (derived, to be machine-checked, not cited).
+    For a, b in R write the coefficient-vector inner product <a, b> = sum_i a_i
+    b_i. Define the negacyclic conjugate bbar(X) = b_0 - sum_{i>=1} b_i X^{n-i}.
+    Then for every j in {0..n-1},
+        <X^j a, b> = coefficient of X^j in (a * bbar),
+    the product taken in R. Reason: the coefficient of X^j in a*bbar collects
+    a_m bbar_{j-m} with a negacyclic sign flip whenever the index wraps, and the
+    same sign flip is exactly what X^j a suffers when its coefficients wrap past
+    degree n-1. The negated orbit members contribute the negatives of the same
+    2n/2 = n numbers. HENCE: the 2n orbit scores against one sample are the n
+    coefficients of a single ring product, together with their negatives. The
+    identity is stated here as a derivation and is a PROOF OBLIGATION of the
+    paired experiment, not an authority.
+
+    STEP 2 -- COST BOOKKEEPING, PER SAMPLE PER POOL VECTOR.
+      NAIVE (score each orbit member separately): 2n inner products in R^k, each
+      k*n coefficient multiplications, total 2 k n^2 modular multiplications and
+      2n accumulator writes.
+      BATCHED (one ring product per module coordinate, then sum): k negacyclic
+      products of degree n. Schoolbook: k n^2 mults -- a factor 2n/... no, a
+      factor exactly 2 saving, which is NOT the interesting case. Via the NTT
+      that FIPS 203 already specifies for this ring: forward transform of the k
+      v-coordinates (reusable across all samples, so amortised to zero over the
+      pool), forward transform of the k b-coordinates, k pointwise products, one
+      inverse transform. Charging (3/2) n log2 n butterflies per length-n
+      transform as the declared counting convention, the per-sample cost is
+      about k*( (3/2) n log2 n + n ) + (3/2) n log2 n modular operations.
+      RATIO (naive / batched), at k = 3, n = 256, under the declared convention:
+      2*3*65536 = 393,216 against 3*(3072 + 256) + 3072 = 13,056, i.e. about
+      30x. Closed form: Theta(n / log n).
+      FORCED VALUE, PRE-REGISTERED: the measured op-count ratio must equal the
+      closed form to within the declared constant, and must GROW monotonically
+      in n across n in {32,64,128,256}. A ratio that does not grow with n is the
+      canonical artifact tell -- the quantity meant to be destroyed by shrinking
+      n has failed to decay -- and invalidates the counter, not the mathematics.
+
+    STEP 3 -- MEMORY, WHICH NOBODY CHARGED. Batched evaluation must hold the k
+    transformed v-coordinates and one length-n accumulator per candidate:
+    O(k n) words per pool vector against O(1) working words for the naive order,
+    with the transformed pool resident if the amortisation is to be real. The
+    archived report records that its own CC label "ignores memory access" and
+    that the memory-routing model raises primal costs by 14.3/22.6/30.6 bits at
+    ML-KEM-512/768/1024 (READ IN-REPO, same file, primal_memory_routing block;
+    the underlying source is NOT READ -- relayed). A speedup bought with
+    resident memory in a family where memory routing is worth twenty bits is not
+    a speedup until it is charged, and no record in this corpus charges it for
+    the orbit proposal.
+
+    STEP 4 -- THE CEILING, WHICH IS THE ACTUAL RESULT. Let the optimized total
+    cost be T(theta) = sum_i C_i(theta) over the estimator's parameter domain
+    (block size, sample count, guessing dimension). Suppose the improvement
+    divides exactly one component C_j by c >= 1 and leaves the domain unchanged.
+    Then T'(theta) = T(theta) - C_j(theta)(1 - 1/c) >= T(theta)/c pointwise
+    because C_j <= T, so min T' >= (min T)/c and the optimized total improves by
+    at most log2(c) bits. Sharper, in the form that decides this lane: if f
+    denotes C_j's share of T at the NEW optimum, the improvement is exactly
+    -log2(1 - f(1 - 1/c)) bits, which is bounded above by -log2(1 - f) as c goes
+    to infinity. So an INFINITELY fast scoring stage buys -log2(1 - f) bits and
+    no more. Numerically: f = 0.50 buys at most 1.00 bit; f = 0.75 buys at most
+    2.00 bits; f = 0.90 buys at most 3.32 bits. IDEA-20260722-001's own
+    materiality bar was two bits. THEREFORE the entire orbit-amortisation lane
+    is decided by one measured number, f, and the 30x ratio of step 2 is
+    irrelevant to the verdict except insofar as it is finite.
+
+    WHAT THIS DOES NOT SHOW. It does not show that no isometry-aware mechanism
+    can help ML-KEM. It shows that one confined to the scoring stage cannot
+    exceed -log2(1 - f) bits. Forward guidance is part of the mechanism, not an
+    afterthought: the lanes the ceiling does NOT foreclose are those that change
+    the REQUIRED SAMPLE COUNT (which changes the domain, not a component), those
+    that change the sieve exponent, and those that enlarge the feasible domain
+    (for instance by fitting a larger block size inside a fixed memory budget) --
+    the one documented way the pointwise inequality above can be evaded.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      PRIMARY IN-REPO SOURCE, READ THIS SESSION:
+      coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-206/cost_baseline_report.yaml.
+      Its module_rotation_prior_art block states: "Negacyclic rotations generate
+      equal-norm short vectors and permit same-A preprocessing reuse. Wu--Xu's
+      main example is NewHope512; corrected ML-KEM gains are the Hou--Jiang
+      values above." The external papers behind that sentence (source ids S08,
+      S09, S15 in that report) are NOT READ -- relayed claims. No theorem
+      number, page, or figure from them is asserted anywhere in this record.
+    - >-
+      ledger/evidence/EV-MLKEM-001.yaml, inference field, READ: "IDEA-20260722-001,
+      as specified, does not justify experiment design or a novelty/cost claim.
+      A bounded symbolic derivation can still determine whether any
+      non-equivalent amortization survives the rotated-vector identity and
+      carry-aware LaMS layer equations." This proposal is that derivation, three
+      batches after the campaign was told to run it and never did.
+    - >-
+      ledger/evidence/EV-MLKEM-002.yaml, unresolved_confounds item 5, READ:
+      "Computational reuse in weighted orbit evaluation remains open pending
+      operation-DAG accounting." That sentence is the exact tested boundary of
+      the negative that closed IDEA-20260722-001, and this proposal sits
+      immediately outside it.
+    - >-
+      tools/sage_free_estimator/README.md, READ THIS SESSION: a Sage-free shim
+      for the lattice-estimator pinned at commit 3e48ef421ec256afddb3e7d2249a77eab6e9ba12,
+      with a known-answer control asserting exact reproduction of
+      RUN-MLKEM-015-001 values (Kyber512 140.1994731076, Kyber768
+      200.9587149141). THE README IS A TRANSCRIPT, NOT A RUN THIS SESSION
+      PERFORMED. Stage 3 must execute the control itself and record its own
+      output; a README that says PASS is not a passed control.
+    - >-
+      ENVIRONMENT, MEASURED THIS SESSION (this resolves the disagreement flagged
+      in the session angle brief section 5.3): `python3 -c "import numpy"` gives
+      numpy 2.4.6; sympy, sage and estimator all raise ModuleNotFoundError.
+      Stages 1 and 2 need only numpy and are therefore unblocked. Stage 3 needs
+      a lattice-estimator checkout, which needs network, and is declared an
+      INFRASTRUCTURE REQUEST rather than an experiment (AGENTS.md rule 3).
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Scoring implementation (a program with values, secrets, and control flow)
+      --> its operation DAG --> the pair (modular multiplications, memory words
+      touched).
+    what_is_discarded: >-
+      Every value. The DAG retains the shape of the computation and discards its
+      contents: which secret, which sample, which score, which candidate won.
+    why_genuinely_lossy: >-
+      Massively lossy in the right direction. Uncountably many scoring functions
+      share one DAG, and the fibre over an observed op-count is the whole class
+      of programs with that circuit shape. Crucially it is NOT constant: the
+      comparator here is the ALGORITHM, not the instance, and the two algorithms
+      being compared differ by a factor Theta(n / log n) in the retained
+      coordinate. That is a large, derived, non-zero comparator spread and it is
+      what makes the projection worth tracking.
+    why_compatible_with_the_operations: >-
+      Compatible by construction: op counts add under sequential composition and
+      max under parallel composition, so the projection propagates
+      deterministically through exactly the operation the target performs
+      (composing evaluation stages). This is the property the (Delta, Pi) failure
+      lacks in reverse -- there the projection propagated but retained
+      everything.
+    is_it_only_a_change_of_coordinates: >-
+      NO, AND THE CHECK IS EXPLICIT. The recoverability test: can the scoring
+      function be reconstructed from its op count? No -- the naive and batched
+      orders compute the IDENTICAL 2n numbers by the identity in step 1, which
+      is precisely why the projection is informative: it separates two programs
+      that the value-level view identifies. FAILURE MODE CHECKED FOR: the mirror
+      failure (constant across the comparator set). It does not fire, because the
+      derived ratio grows with n and is graded across four values of n. FAILURE
+      MODE ALSO CHECKED FOR: the (Delta, Pi) failure (nothing discarded). It
+      does not fire either, because the values are demonstrably not recoverable
+      from the counts. A THIRD failure mode DOES threaten and is recorded rather
+      than hidden: the op count is constant across INSTANCES at fixed
+      parameters, so this projection can say nothing whatever about any
+      individual ML-KEM key, and no instance-level claim may be built on it.
+
+  assumptions:
+    - >-
+      That the pinned estimator's optimized cost decomposes into named
+      components at all, so that a score-evaluation share f is well defined. IF
+      IT DOES NOT, the ceiling still holds with f taken as the largest share
+      attributable to scoring under any admissible decomposition, and the
+      experiment must report the decomposition ambiguity as its result rather
+      than pick one.
+    - >-
+      That "materially improve" in GOAL-MLKEM-001's completion criterion 1 is at
+      least the two bits IDEA-20260722-001 declared. This is the campaign's own
+      threshold, quoted, not one invented here. If the Coordinator sets a lower
+      bar the ceiling arithmetic is unchanged and only the verdict moves.
+
+  proof_search_map_note: >-
+    The full four-audit proof_search_map for this proposal is carried on the
+    paired hypothesis H-MLKEM-6d9364, where inventor-protocol section 8 requires
+    it before the Coordinator approves implementation.
+
+  predictions:
+    - metric: >-
+        adjoint_identity_agreement: number of the 2n orbit inner products
+        <X^j v, b> mod q that equal the corresponding coefficient of (v * vbar-
+        convolved) b, over 200 random (v, b) pairs at n in {32,64,128,256},
+        k in {1,2,3,4}, q = 3329
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 2n out of 2n, on every pair, at every cell. Derived before the
+        run. A single mismatch falsifies the step-1 derivation and the whole
+        proposal is withdrawn as a superseding record. There is no tolerance:
+        this is exact modular arithmetic.
+    - metric: >-
+        op_count_ratio: (naive modular multiplications) / (batched modular
+        multiplications) per sample per pool vector, at k = 3, over
+        n in {32,64,128,256}
+      direction: higher
+      minimum_effect: >-
+        Monotone increasing in n, and at n = 256 within a factor 1.5 of the
+        derived closed form 2 k n^2 / (k((3/2) n log2 n + n) + (3/2) n log2 n),
+        which evaluates to about 30 at k = 3. Pre-registered numeric anchors at
+        k = 3: n = 32 about 6.7, n = 64 about 11, n = 128 about 19, n = 256
+        about 30. A ratio flat in n means the counter is measuring the harness
+        and no negative may be reported.
+    - metric: >-
+        unstructured_null_orbit_validity: fraction of the 2n coordinate-rotated
+        images of a dual vector that remain dual-lattice vectors, for an
+        unstructured (Frodo-shaped) LWE instance of matched dimension nk, same
+        q, same error width
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 2 of 2n (the vector and its negation), i.e. 2/512 = 0.0039 at
+        n = 256. Derived: a rotation is a lattice automorphism only because the
+        module is a ring module; delete the ring and only +/- survives. If the
+        unstructured null returns materially more than 2, the implementation is
+        generating vectors by a route that does not test membership and every
+        number in the package is void.
+    - metric: >-
+        f_score: the score-evaluation stage's share of the optimized total cost
+        under the pinned lattice-estimator (commit 3e48ef4) for ML-KEM-512/768/1024
+      direction: different
+      minimum_effect: >-
+        NO VALUE IS PREDICTED. This is the one quantity in the proposal whose
+        value is not derivable in advance, which is exactly why it is worth
+        measuring, and stating a prediction for it would be the forced-quantity
+        error this program has made six times (GOAL-MLKEM-005 completion
+        criterion C1). What IS pre-registered is the DECISION RULE, frozen here:
+        f < 0.75 at all three parameter sets closes the orbit-amortisation lane
+        against a 2-bit bar with an argument; f >= 0.75 at any parameter set
+        leaves it open and names it as the successor.
+    - metric: >-
+        memory_words_ratio: batched resident words / naive resident words per
+        pool vector
+      direction: higher
+      minimum_effect: >-
+        At least k*n (i.e. >= 768 at k = 3, n = 256) by the derivation in step 3.
+        Reported beside time in every row. A cost claim in this family that omits
+        the memory column is inadmissible under docs/claims-and-verification.md.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, each able to terminate the line.
+      STAGE 0 (zero compute, ~30 min): re-read EV-MLKEM-001, EV-MLKEM-002 and
+      the archived cost_baseline_report, and record verbatim the two sentences
+      that leave the computational residue open, so that a reviewer can check
+      that this proposal sits outside the tested boundary rather than inside it.
+      STAGE 1 (pen and paper, ~1 h, zero compute): write out the step-1 adjoint
+      identity and the step-4 ceiling in full with their proofs, and have them
+      checked. A defect in the ceiling proof ends the line here at zero cost.
+      STAGE 2 (numpy, minutes): machine-check the identity exactly mod q over
+      the declared grid; run the operation counter on both evaluation orders;
+      run the unstructured null; run the FFT positive control.
+      STAGE 3 (pinned estimator, infrastructure-gated): measure f_score. IF THE
+      CHECKOUT IS UNAVAILABLE THIS IS AN INFRASTRUCTURE OUTCOME AND NOT A
+      NEGATIVE RESULT (AGENTS.md rule 5); the package then reports stages 0-2,
+      states the ceiling as a function of f, and names the missing number.
+    controls:
+      - >-
+        NULL-U (unstructured / Frodo-shaped null object, same shape). Matched
+        dimension nk, same q = 3329, same error width, no ring. FORCED VALUE
+        DERIVED BEFORE THE RUN: exactly 2 of 2n rotated images are dual-lattice
+        vectors, and the batching identity therefore fails; the op-count ratio
+        must collapse to 1.0. THIS NULL CAN FAIL: if the unstructured arm shows
+        a batching saving, the counter is measuring the transform and not the
+        ring, and no conclusion may be drawn. This is the angle brief's
+        FRODO-as-matched-null template applied to the one place in this goal it
+        actually bites.
+      - >-
+        POSITIVE CONTROL, CYC-FFT (the effect MUST appear). Plain cyclic
+        convolution of length n computed naively versus by transform, counted by
+        the same instrument. The textbook ratio Theta(n / log n) MUST be
+        recovered to within the declared constant. If the counter cannot see the
+        classical FFT speedup, the instrument is broken and NO negative result
+        from any other arm may be reported at all.
+      - >-
+        GRADED CONTROL, four interior points, monotonicity reported. n in
+        {32,64,128,256} at fixed k = 3, and k in {1,2,3,4} at fixed n = 256.
+        The op-count ratio must increase monotonically in n and be essentially
+        flat in k (the orbit has order 2n regardless of k -- a derived
+        prediction that localises any failure to the transform rather than to
+        the module structure).
+      - >-
+        ORDERING CONTROL. The null arm and the positive control are generated,
+        counted and hash-committed BEFORE the treatment arm is looked at, and
+        the frozen decision rule is executed on the null first. If the rule
+        emits the same verdict on NULL-U as on the treatment, it discriminates
+        nothing and must be rewritten before the treatment arm is read.
+      - >-
+        ARCHIVE CHECK (zero compute). Enumerate every prior measurement of an
+        operation count in this corpus for any ML-KEM scoring routine.
+        EXPECTED RESULT: NONE EXISTS -- and that absence is recorded as an
+        absence, not claimed as a passed check.
+    required_metrics:
+      - the 2n-of-2n identity agreement count per cell, with q, n, k and seeds
+      - naive and batched modular-multiplication counts, separately, per cell
+      - resident memory words per pool vector for both orders
+      - the unstructured-null orbit validity count, with the membership test used
+      - the CYC-FFT positive-control ratio against its textbook value
+      - f_score per parameter set with the estimator commit, the decomposition
+        used, and the known-answer control's own output pasted verbatim
+
+  falsification_conditions:
+    - >-
+      Any single (v, b) pair at any cell where the 2n adjoint identities do not
+      all hold exactly mod q. The mechanism's step 1 is then wrong, the batching
+      does not exist, and the proposal is withdrawn.
+    - >-
+      An op-count ratio that is flat or decreasing in n. The instrument is then
+      measuring itself and nothing may be reported.
+    - >-
+      A counterexample to the step-4 ceiling: an admissible cost model and an
+      admissible subcomponent speedup where the optimized total improves by more
+      than log2(c) bits WITHOUT the feasible domain changing. The inequality is
+      elementary, so such a counterexample most likely exposes a domain change,
+      and locating it would be a more valuable result than the ceiling itself.
+    - >-
+      CYC-FFT fails. Nothing negative may be reported at all.
+    - >-
+      f_score >= 0.75 at any standardized parameter set. The lane is then NOT
+      closed, this proposal's headline reading is wrong, and the successor is
+      an end-to-end batched-scoring implementation with the memory charged.
+
+  confounders:
+    - >-
+      COUNTING CONVENTION. "(3/2) n log2 n butterflies per transform" is a
+      declared convention, not a fact about any implementation. A different
+      convention moves the ratio by a small constant and moves NOTHING about the
+      ceiling, which is convention-free. The package must report both the raw
+      counts and the convention, so a reviewer can re-derive under their own.
+    - >-
+      DECOMPOSITION AMBIGUITY. f_score is only as well defined as the
+      estimator's component structure. If the estimator fuses sieving and
+      scoring into one term, f is not measurable and the honest output is that
+      fact plus the ceiling stated parametrically in f.
+    - >-
+      AMORTISATION ACCOUNTING. The forward transforms of the pool vectors are
+      charged once and amortised over the sample set; whether that amortisation
+      is legitimate depends on the pool/sample ratio the attack actually uses.
+      The package must report the ratio it assumed, and report the unamortised
+      count as well.
+    - >-
+      RELAYED BASELINE. Every external cost figure entering stage 3's context is
+      relayed through one archived task artifact written by a different runtime
+      on 2026-07-22. It is read here as a record of what that task reported, not
+      as a verified reading of any paper.
+
+  interpretation_limits:
+    - >-
+      This is a COST-ACCOUNTING AUDIT, NOT AN ATTACK. It recovers no key, solves
+      no instance, and produces no certificate. Its claim tier is toy for every
+      measured quantity and derivation for the ceiling.
+    - >-
+      A negative outcome (f small) closes ONE lane -- amortisation confined to
+      the scoring stage of a dual attack that reuses a negacyclic orbit -- and
+      closes it WITH a named obstruction (the share ceiling), an argument (the
+      pointwise inequality), and forward guidance (sample-count changes,
+      exponent changes, and domain-enlarging changes are untouched). It does not
+      establish that ML-KEM's ring structure is unexploitable, and any record
+      citing it that way is misciting it.
+    - >-
+      The 30x arithmetic ratio must never be quoted as "a 30x speedup on
+      ML-KEM". It is a ratio between two ways of evaluating one scoring stage,
+      before memory is charged and before the share ceiling is applied.
+    - >-
+      NO STATUS CHANGE to IDEA-20260722-001, EV-MLKEM-001, EV-MLKEM-002 or
+      GOAL-MLKEM-001 is proposed or implied. GOAL-MLKEM-001 is closed at budget
+      and this record does not reopen it; it supplies the successor a new goal
+      would consume.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING FOR THE HEADLINE. The adjoint identity is an exact
+        statement of modular arithmetic and the share ceiling is an elementary
+        inequality over non-negative summands; neither is distributional and
+        neither is assumed. This entry exists to record that fact explicitly
+        rather than leave the field decorative.
+      rigorous_support: >-
+        Identity: negacyclic wrap-around sign bookkeeping, written out in step 1
+        and machine-checkable exactly. Ceiling: C_j <= sum_i C_i for
+        non-negative C_i, hence T' >= T/c pointwise, hence min T' >= (min T)/c.
+      validation_plan: >-
+        Exact modular check over 200 random pairs at 16 cells for the identity;
+        a written proof plus an adversarial search for a domain-changing
+        counterexample for the ceiling.
+    - id: H2
+      statement: >-
+        The estimator's optimized total admits a decomposition in which a
+        "score evaluation" component is identifiable, so that f_score is a
+        well-defined number rather than an artifact of how the terms were
+        grouped.
+      rigorous_support: >-
+        NONE. This is an assumption about somebody else's code and it is the
+        weakest link in stage 3. It is stated so a reviewer can attack it.
+      validation_plan: >-
+        Read the pinned estimator's cost expression, report every admissible
+        grouping, and report f as an interval over groupings rather than a point
+        if the grouping is not unique.
+
+  target_complexity:
+    time_exponent: >-
+      THIS PROPOSAL MOVES NO EXPONENT, AND SAYS SO PLAINLY. It bounds a
+      constant. Its value is that it bounds the constant BEFORE anyone spends a
+      campaign chasing it: the ceiling -log2(1 - f) is an upper bound on every
+      possible future improvement to that stage, not on one algorithm.
+    memory_exponent: >-
+      The batched order costs O(k n) resident words per pool vector against O(1),
+      reported beside time in every row. No memory exponent is claimed for any
+      attack.
+    best_known: >-
+      As recorded in the archived in-repo report (READ; its external sources NOT
+      READ -- relayed): corrected structure-aware code-based dual estimates
+      C0 121.9 / 173.0 / 237.4, CC 139.1 / 194.7 / 259.0, CN 134.5 / 188.7 /
+      254.1 bits at ML-KEM-512/768/1024, with the maximum matched structure gain
+      recorded as 0.8 bit.
+    hidden_overhead: >-
+      The transform amortisation hides in the pool/sample ratio, and the memory
+      residency hides in whatever the cost model charges for a memory word. Both
+      are named in the confounders and both are reported.
+    tradeoff_note: >-
+      The batched order is strictly worse in memory and strictly better in time,
+      so the two orders are Pareto-incomparable until memory is priced. That is
+      the honest statement and it is the reason the memory column is mandatory.
+
+  dominated_by: >-
+    n/a (no attack claimed) for the audit itself. On the QUESTION it audits --
+    can negacyclic orbit reuse materially improve an ML-KEM dual attack -- the
+    incumbent frontier and the rows checked are: (TIME) the corrected
+    structure-aware dual C0/CC/CN rows above; (TIME) the primal progressive-BKZ
+    RAM-gate row 141.4 / 204.3 / 276.5; (MEMORY) the same row's
+    98.1 / 143.2 / 194.3 log2 memory bits, which is the only memory column the
+    archived report carries for a classical attack; (TIME+MEMORY jointly) the
+    memory-routing row 158.7 / 229.9 / 310.2, which is the frontier point that
+    dominates any claim ignoring routing; (DATA/QUERIES) not applicable -- the
+    passive MLWE setting has no query axis, and the report's oracle-bearing rows
+    are excluded from its own scope. Every one of those rows was read in the
+    archived report this session. The incumbent structure gain on this exact
+    question is 0.0-0.8 bit. This proposal claims no point on any of those axes;
+    it bounds what a future point could be.
+  sota_delta: >-
+    Zero on every attack axis: no time, memory, data or query figure improves.
+    Quantitatively, the deliverable is (a) an exact ratio, derived at about 30x
+    at n = 256 k = 3 and to be measured, between two evaluation orders of one
+    stage, and (b) an upper bound of -log2(1 - f_score) bits on the total
+    improvement that stage can ever yield, against the campaign's own declared
+    2-bit materiality bar. If f_score < 0.75 the delta is a closure worth one
+    lane; if not, the delta is the identification of a live lane the campaign
+    closed one derivation short of.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.20 that the lane survives, i.e. that f_score >= 0.75 at some standardized
+    parameter set. It is not lower because dual attacks with an FFT scoring
+    stage genuinely can be scoring-dominated at their optimum, because nobody in
+    this corpus has ever measured f, and because DEC-20260803-64b55b records two
+    occasions in a single batch where this program's scouting was wrong in the
+    direction that would have closed work off. It is not higher because the
+    sieve producing the pool is the term that carries the 0.292-style exponent
+    (RECALLED, UNVERIFIED -- a candidate to check in stage 3, not an authority)
+    and exponential terms usually dominate their own postprocessing, and because
+    the campaign's own corrected structure gain of 0.0-0.8 bit is already below
+    the bar before any amortisation argument is made. Separately: 0.95 that the
+    audit reaches a decisive reading of stages 0-2, because they are pen, paper
+    and numpy, and about 0.5 that stage 3 runs at all, because it needs network
+    for the estimator checkout.

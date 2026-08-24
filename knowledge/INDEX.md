@@ -3,10 +3,85 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7646 entries.
+8061 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
+| KN-FIND-001 | Byte-complete differential probing of the ML-KEM comparison primitive discriminates incomplete re-encryption comparisons at fix boundaries | internal_finding | reported |  | ml-kem fips-203 implicit-rejection re-encryption-comparison conformance-testing differential-testing wolfssl avx2 neon defensive post-quantum |
+| KN-FIND-001e68 | A closed-form lattice-cost estimator's primal-attack cost readout can exhibit demonstrated, reproducible, non-smooth/chaotic block-size behavior in the severely sample-starved regime m << n, with no validity-range guard warning against it -- a single headline beta figure in this regime cannot be trusted as a stable measurement without an m-sensitivity control | internal_finding | derivation_plus_two_independent_reviews_via_genuinely_different_methods_on_one_model |  | instrument-design lattice-estimator primal_bdd RC.MATZOV sample-starved reduced-dimension m-sensitivity chaos negative-result cost-model ml-kem medium-tier |
+| KN-FIND-002 | Jet and endomorphism ECDLP oracles are GGM-simulable with O(1) overhead, closing their candidate families at exponent 1/2; elliptic-net and incidence oracles are GGM-simulable with non-constant overhead, providing no sub-birthday advantage | internal_finding | strong | established | ggm simulability jet endomorphism elliptic-net incidence ecdlp closure exponent-half generic-group-model |
+| KN-FIND-003 | mu_3 supplies infinity-norm-1 MW relations on the frozen j=0 free-x family; polarisation Gram rank is not Shioda rank | internal_finding | reported | established | lifting xedni function-field mu3 mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-004 | Non-isotrivial free-x sections still admit infinity-norm-1 MW relations; Gram can over-report coefficients without μ₃ | internal_finding | reported | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-005 | Raised deg-a≤4 non-isotrivial free-x still admit inf-norm-1 MW relations; deg x≤3 empty on deg-b=6 | internal_finding | reported | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-006 | The Semaev/Weil-descent Macaulay rank deficit is bounded structural syzygy content equal to 8*dim(V); the generic degree-4 baseline is exactly the classical trivial syzygies and the excess is a vanishing fraction | internal_finding | reported |  | semaev weil-descent groebner degree-of-regularity syzygy betti rank-deficit semi-regular binary-field ecdlp bounded negative-result |
+| KN-FIND-007 | Decomposition-yield conservation — factor-base geometry cannot change mean yield, only redistribute it | internal_finding | established |  | index-calculus factor-base decomposition-yield coverage point-decomposition conservation ecdlp toy-scale |
+| KN-FIND-008 | Rare-event density gates are settled exactly by fibering over solutions — and exactness does not protect against formalisation error | internal_finding | established |  | methodology lifting xedni function-field elliptic-surface rare-event exact-enumeration experiment-design ecdlp toy-scale |
+| KN-FIND-009 | Degeneracy of endomorphism-augmented ECDLP witness lattices is governed by short eigenvalue relations, not by the rank of End(E) | internal_finding | established |  | endomorphism witness-lattice glv relation-lattice minkowski vieta complex-multiplication scoped-negative experiment-design ecdlp |
+| KN-FIND-010 | Joint deg-x≤3 / deg-b=10 non-isotrivial free-x still admit inf-norm-1 MW relations at p≤19; p=31 density-blocked | internal_finding |  | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-011 | Full-enum densification recovers inf-norm-1 free-x MW relations at p=31 on joint deg-x≤3 / deg-b=10 family | internal_finding |  | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-012 | Carrier Fig 4.1 Pwrong simulations do not cover the Pgood≈1/2 threshold; Kyber-scale Pwrong is ~84+ bits beyond the toy floor | internal_finding | provisional |  | dual-attack carrier pwrong polar-code kyber ml-kem extrapolation contested kn-open-016 heuristic-validation |
+| KN-FIND-013 | Carrier CC NIST shortfalls are erased by ≈10–15 bits of Pwrong underestimation under a stated second-term payment heuristic | internal_finding | provisional |  | dual-attack carrier pwrong cost-sensitivity kyber ml-kem kn-open-016 conditional |
+| KN-FIND-014 | Carrier verifyModel Pwrong scores are FFT/k_fft while Pgood scores are raw cosine sums; scale-aligned Fig 4.1 coverage gap remains (fraction_inside=0) | internal_finding | provisional |  | dual-attack carrier pwrong score-scale verifyModel kyber kn-open-016 erratum |
+| KN-FIND-015 | Under pinned MATZOV costing, Kyber dual_hybrid does not beat primal_bdd and does not reproduce Carrier/MATZOV-2022 dual headlines; primal_bdd still undercuts NIST classical cutoffs | internal_finding | provisional |  | dual-attack primal-bdd matzov kyber ml-kem concrete-security cost-model contested lattice kn-open-016 |
+| KN-FIND-016 | Carrier Table 5.1 CC dual costs are Theorem-4.1-consistent; Table C.2 CN/Kyber-512 log2(Tsample)=143.30 is a transcription error for ≈134.30 | internal_finding | provisional |  | dual-attack carrier matzov kyber ml-kem concrete-security table-erratum cost-model kn-open-016 |
+| KN-FIND-017 | Scoped finding from EV-BKK-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-018 | Scoped finding from EV-BKKMV-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-019 | Scoped finding from EV-BKKMV-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-020 | Scoped finding from EV-EQJ-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-021 | Scoped finding from EV-FB-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-022 | Scoped finding from EV-NCP-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-023 | Scoped finding from EV-REP-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-024 | Scoped finding from EV-SIG-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-025 | Scoped finding from EV-SIG-003 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-026 | Scoped finding from EV-SIG-004 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-027 | Scoped finding from EV-SIG-005 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-028 | AES supplies one element of order 4 in GL(4,GF(2^8)) on a column, so no GL/AGL transitivity argument kills column-local invariants; and byte-wise Inv preserves GF(2^8)-collinearity, so the obstruction at SubBytes is the affine layer L | internal_finding | established |  | aes mixcolumns subbytes gf256 collinearity transitivity burnside column-local scoped-negative argument-unavailability derivation toy-scale reduced-round |
+| KN-FIND-029 | Five false-green escapes across three repairs of one mutation control; coverage escapes are closable by construction, evasion escapes are not closable by an in-process instrument | internal_finding | reported |  | mutation-testing false-green coverage-escape observability trusting-trust harness-integrity instrument-design experiment-design methodology controls-before-belief scoped-negative aes toy-scale |
+| KN-FIND-030 | Directory-scan ID allocation is not concurrency-safe across branches; two campaigns against one main allocate the same next-free id, and the correction record documenting the first collision collided the same way | internal_finding | established |  | harness-integrity ledger id-allocation concurrency merge-conflict record-immutability process methodology infrastructure scoped-negative non-cryptographic |
+| KN-FIND-031 | An empirical survival function's lowest nonzero value is 1/N, so a measured "floor" at log2 P = -log2 N is the estimator's resolution limit and not a property of the distribution; the Carrier Fig 4.1 Pwrong floor is exactly this | internal_finding | unverified | WITHDRAWN_PENDING_RULE_12_REVIEW | methodology instrument-artifact controls-before-belief rare-event survival-function sampling-resolution dual-attack carrier pwrong kyber ml-kem kn-open-016 experiment-design scoped-negative |
+| KN-FIND-194294 | Halving-query oracle is algebraically equivalent to the x-coordinate oracle | internal_finding | proved |  | halving-query x-oracle equivalence oracle-classification non-simulable |
+| KN-FIND-24acfd | Two independent review sessions were lost because the batch design archives reviews only after both complete | internal_finding | observed_directly |  | process harness archival durability dispatch review infrastructure ml-kem |
+| KN-FIND-2a35aa | Bit identity is not zero dispersion: a float-equality dispersion criterion refuses an arithmetic route, not an observable | internal_finding | derivation_plus_single_source_measurement |  | dispersion-criterion admissibility-gate g-var am-11 floating-point instrument-design null-object observable-invariance ml-kem negative-result toy-scale correction |
+| KN-FIND-2a8b7e | BKK sparse Semaev gives growing speedup 2^{m-1} × gamma_m at all m — ~3-5x at crypto scale | internal_finding | preliminary_empirical |  | bkk semaev sparse-relation constant-speedup growing-m prime-field index-calculus |
+| KN-FIND-3546c2 | A goal resumed without reading the merge digest re-reviewed a batch that was already archived and a campaign that was already closed | internal_finding | observed_directly |  | process harness concurrency dispatch review durability replication ml-kem |
+| KN-FIND-3a7d42 | H-PSEUDO proved for embedding-degree-2 MOV-vulnerable curves; inapplicable to generic cryptographic curves | internal_finding | conditional_proof |  | hpseudo magcs katz-sarnak tate-pairing embedding-degree mov-vulnerable generic-curves |
+| KN-FIND-4b8d73 | A dispersion criterion is a joint property of (observable, arithmetic route, family): three independent escapes across two independent review sessions | internal_finding | derivation_plus_two_session_replicated_conclusion_with_single_source_mechanisms |  | dispersion-criterion admissibility-gate g-var g-var2 am-11 am-16 floating-point family-conditionality fibre-condition instrument-design null-object observable-invariance review-replication ml-kem negative-result toy-scale correction |
+| KN-FIND-4c9e71 | H-PSEUDO adversarial robustness — max C ~ O(1) ≈ 4 across all tested primes (p=1009..9001) | internal_finding | preliminary_empirical |  | hpseudo adversarial robustness constant-c fourier prime-field |
+| KN-FIND-4e7a92 | Wesolowski corrected estimator formula — cost accounting for all Elkies steps at operating ell range | internal_finding |  |  | wesolowski supersingular-isogeny corrected-estimator elkies cost-model p13 heuristic-1 |
+| KN-FIND-5c1a03 | Three-way convergence — H-PSEUDO, Betti-Yield, and Wesolowski transfer all identify the same missing structural ingredient for prime-field ECDLP | internal_finding | multiple_independent_analyses |  | hpseudo betti-yield wesolowski structural-gap algebraic-structure prime-field-ecdlp convergence |
+| KN-FIND-5e9728 | Feeding a variance-only cost instrument a single class-weighted mixture distribution for a per-coordinate-heterogeneous noise construction is mathematically forced to equal the population-average baseline it was meant to be tested against -- a protocol-design degeneracy that collapses the intended heterogeneous test before any data is measured, for any partition and any per-class distributions | internal_finding | derivation_plus_two_independent_reviews_via_genuinely_different_methods_on_one_model |  | instrument-design protocol-design mixture-distributions law-of-total-probability variance-only-cost-model noise-heterogeneity negative-result lattice-estimator ml-kem medium-tier |
+| KN-FIND-6b3e17 | A pencil of plane cubics through 8 rational points certifies rank EXACTLY 12 over Q, and its base rank over Q(t) is EXACTLY 8 by Shioda-Tate: the world record over Q is bought with base rank, not sieve volume, and no amount of sieving a rational elliptic surface can supply it | internal_finding | exhibited_point_certificates_re_derived_independently_by_two_reviewers_plus_an_unconditional_ellrank_upper_bound |  | elliptic-curves mordell-weil-rank rank-over-Q rational-elliptic-surface pencil-of-cubics shioda-tate mestre-nagao sieving two-descent height-regulator specialisation rank-records negative-result proven-ceiling calibration-fixture |
+| KN-FIND-720727 | Dilithium/ML-DSA formal security proofs cover cryptographic adversaries only — physical fault injection (Shin DFA, Jendral glitch) is outside the formal model | internal_finding |  |  | ml-dsa fips-204 dilithium formal-proof fault-injection adversary-model easycrypt cma-security rom qrom security-boundary |
+| KN-FIND-7b19c2 | Geometric first-success descent model — per-target cost ~ N/B for naive ordered enumeration, both std and BKK enumerators | internal_finding | measured |  | ecdlp multi-target semaev index-calculus toy-scale measured |
+| KN-FIND-7d098b | Certified exactly non-constant on the fibre, even under exact arithmetic, carries no information about whether an object reads the instance | internal_finding | derivation_plus_two_independently_built_objects_in_two_review_sessions_on_one_model |  | dispersion-criterion admissibility-gate a-1 am-18 fibre-condition precision-invariance null-object exact-arithmetic p-gram instrument-design pre-registration ml-kem negative-result toy-scale |
+| KN-FIND-7de6b6 | A two-route independence test can be confounded by mismatched computational fidelity even when code-sharing is genuinely absent, and the confound is diagnosable by its statistical signature without resolving the underlying computation exactly | internal_finding | derivation_plus_two_independent_reviews_via_different_methods_on_one_model |  | independence reduction-quality computational-fidelity confound instrument-design cross-validation c3-lane statistical-signature ml-kem negative-result toy-scale |
+| KN-FIND-7e4b90 | Wesolowski degree bound requires 4D quaternion algebra — blocked for ordinary prime-field ECDLP | internal_finding | proved_negative |  | wesolowski quaternion-algebra ordinary-curves structural-theorem 4d-lattice blocked |
+| KN-FIND-7ffdd0 | A mutation-testing (positive) control's own predicted-effect-size formula and its own detection threshold can be structurally, mathematically correlated -- two different functionals of the same small archived sample -- making near-certain detection uninformative about the instrument's genuine sensitivity, even when the injected defect, the prediction, and the causal mechanism are all honestly and correctly constructed | internal_finding | derivation_plus_two_independent_reviews_via_genuinely_different_methods_on_one_model |  | instrument-design positive-control mutation-testing null-object-control order-statistics small-sample threshold-correlation c3-lane hkz ml-kem negative-result toy-scale |
+| KN-FIND-860118 | The corpus carries an uncorroborated "standardized schemes are broken under quantum attack" claim (KN-LIT-1743) whose refutation this program produced on 2026-07-22 and never promoted out of a task artifact; the ML-KEM instantiation of the arXiv:2605.17412v2 pipeline is closed on the paper's own structure, because Phase 1 returns a generator of the determinant ideal and that ideal is (q^d) for every A | internal_finding | reported |  | ml-kem module-lwe principal-ideal-problem determinant-ideal quantum-cryptanalysis break-claim-assessment corpus-hygiene knowledge-promotion-gap scoped-negative unreviewed-corroboration |
+| KN-FIND-8f2c90 | BKK mixed-volume factor-2 gives ~1.3-1.7x constant speedup in Semaev relation collection | internal_finding | preliminary_empirical |  | bkk semaev relation-collection constant-speedup index-calculus prime-field |
+| KN-FIND-93d1aa | Toy-scale BKK rescue of an infinite crossover K* is falsified at the one live window cell (B=16, m=3, N=1045) | internal_finding | measured |  | ecdlp multi-target bkk rescue-window falsified toy-scale |
+| KN-FIND-982fdf | C_t-minimality theorem — the threshold oracle is the minimal non-simulable order-based factor-base identifier | internal_finding | proved |  | oracle-minimality generic-group-model threshold-oracle semaev index-calculus proved |
+| KN-FIND-9b5df0 | A pre-registration naming a source an 'independent route' before auditing its code provenance can make bit-identical agreement indistinguishable from same-code cross-environment reproducibility | internal_finding | derivation_plus_two_independent_reviews_via_different_methods_on_one_model |  | independence route-provenance code-lineage pre-registration environment-diversity instrument-design cross-validation c3-lane ml-kem negative-result toy-scale |
+| KN-FIND-9d2f56 | Betti-Yield duality — H-PSEUDO is the exact condition for sub-rho combinatorial ECDLP | internal_finding | proved |  | betti-yield discrete-morse chain-complex h-pseudo combinatorial exact-condition |
+| KN-FIND-9d44b4 | A fibre-constancy test evaluated on floating-point values cannot separate 'reads the instance' from 'reads a nuisance parameter'; evaluated exactly it needs a scale | internal_finding | derivation_plus_three_independent_lines_in_two_review_sessions_on_one_model |  | dispersion-criterion admissibility-gate g-var2 fibre-condition am-16 am-17 am-18 floating-point machine-epsilon bit-identity scale-degenerate null-object precision-invariance instrument-design pre-registration ml-kem negative-result toy-scale |
+| KN-FIND-a1f3c2 | Semaev summation polynomial monodromy is C_2^{m-2} universally — no exceptional locus for prime-field index calculus | internal_finding | derivation |  | semaev monodromy prime-field ecdlp index-calculus galois factor-base closed |
+| KN-FIND-a8990a | The Semaev summation cover is E^{m-1}/(diagonal -1), so its monodromy is (Z/2)^{m-2} in every characteristic with arithmetic = geometric; over F_q this forces an exact factorization dichotomy -- totally split, or 2^{m-3} quadratics, never anything else -- determined by whether the m-1 x-fibres are simultaneously rational; and the factor-base locus lies entirely in the totally split part | internal_finding | derivation |  | semaev-polynomial summation-polynomial monodromy galois index-calculus factor-base ecdlp prime-field elliptic-curve derivation toy-scale scoped-negative publication-candidate |
+| KN-FIND-ac28ed | Exact-arithmetic corrections to BKK K* table: K*(standard)=2000 not 2001; m=4 cell 125 not 126 | internal_finding | proved |  | bkk semaev exact-arithmetic ieee-float bkk-speedup bkk-corrections |
+| KN-FIND-b7e091 | GGM closure of incidence and endomorphism oracle classes for prime-field ECDLP | internal_finding | proved |  | ggm generic-group-model incidence endomorphism shoup-lower-bound oracle closed |
+| KN-FIND-c41ea9 | The m=3 Semaev summation cover has cycle type governed by a quadratic character product, with monodromy S_2 for every non-singular curve; and on the factor-base locus the summation fibre splits completely at every m, so a generic-fibre Frobenius census measures a quantity that is constant where relation search operates | internal_finding | established |  | semaev-polynomial index-calculus monodromy galois chebotarev relation-rate ecdlp prime-field elliptic-curve scoped-negative toy-scale derivation |
+| KN-FIND-c7d31e | BKK Speedup Theorem — Semaev sparse check provably achieves (m+1)/2 speedup | internal_finding | proved |  | bkk semaev speedup-theorem combinatorics index-calculus proved |
+| KN-FIND-c93d45 | DL circularity obstruction — Weil bound cannot close the arithmetic factor-base yield gap | internal_finding | proved |  | weil-bound character-sum dl-circularity semaev arithmetic-factor-base obstruction |
+| KN-FIND-d1c853 | Wesolowski Heuristic-1 pairing rule — walk length vs smooth-norm pair count (unvalidated empirically) | internal_finding |  |  | wesolowski supersingular-isogeny heuristic-1 smooth-norm walk-length pairing-rule p13 unvalidated |
+| KN-FIND-d29ece | A two-route independence test whose own fidelity-matching requirement forces convergence to a canonical, essentially-unique invariant of the object under test demonstrates the absence of wrapper-level defects but has near-zero power against a defect shared by the code the two routes are licensed, or required, to share | internal_finding | derivation_plus_two_independent_reviews_via_different_methods_on_one_model |  | independence fidelity-matching exhaustive-enumeration canonical-invariant confound instrument-design cross-validation c3-lane hkz ml-kem negative-result toy-scale |
+| KN-FIND-d4f820 | H-PSEUDO empirical measurement — DL character sum constant C(p) ~ p^{0.055} at toy prime-field scale | internal_finding | preliminary_empirical |  | hpseudo character-sum fourier discrete-log semaev factor-base toy-scale scaling |
+| KN-FIND-e7a3b1 | H-PSEUDO proof approaches — all six standard analytic methods are closed; H-PSEUDO is a new open problem | internal_finding | proved_negative |  | hpseudo character-sum proof-attempts ddh bgs weil weyl michel-venkatesh open-problem |
+| KN-FIND-ead2ac | A precision minimum bisected at one (dimension, beta, seed) instance of an fpylll isolated-LLL-preprocessing step is not evidence it holds at a different instance of the identical cheap sub-step | internal_finding | derivation_via_two_independent_live_executed_counterexamples_across_two_batches_reconciled_by_one_session |  | fpylll fplll bkz lll numerical-stability gso-row-expo mpfr precision-bisection instrument-design methodology calibration-generality ml-kem negative-result toy-scale |
+| KN-FIND-f38a89 | AM4-OBS-1 corrected and narrowed: its diagonal premise is refuted, its conclusion is subsumed by the projector-conjugacy argument OBS-GEN | internal_finding | derivation |  | am4-obs-1 obs-gen invariance lattice-observables gso-projector ml-kem instrument-design correction negative-result toy-scale |
+| KN-FIND-f54a82 | An isolated LLL/GSO-preprocessing-step probe in fpylll is not evidence about the full BKZ tour it is used to characterize or validate a fix against | internal_finding | derivation_via_direct_code_reproduction_by_one_session_from_two_independently_produced_raw_observations |  | fpylll fplll bkz lll numerical-stability gso-row-expo mpfr instrument-design methodology cross-validation ml-kem negative-result toy-scale |
+| KN-FIND-f8c290 | Semaev index calculus complexity is tight — achievable lower bound confirmed at toy scale | internal_finding | preliminary_empirical |  | semaev index-calculus achievability complexity-tight prime-field ecdlp toy-scale |
+| KN-FIND-fd382f | Mordell-Weil rank >= 31 is certifiable for explicit elliptic curves over explicit multiquadratic fields with a witness checkable in exact rational arithmetic: degree 32 by pure Galois algebra, degree 16 with a height regulator, degree 8 out of reach | internal_finding | exact_certificate_verified_by_an_independent_pari_free_verifier_in_one_session |  | elliptic-curves mordell-weil-rank quadratic-twists multiquadratic-fields galois-eigenspace mazur-torsion height-regulator descent certificate exact-verification rank-records toy-scale |
+| KN-FIND-ff4a46 | Wording repair for KN-FIND-9d2f56: align with corrected H-PSEUDO orientation | internal_finding | proved |  | betti-yield h-pseudo wording-repair kn-find-9d2f56 orientation-fix |
+| KN-FIND-ffe1df | (O2) a conditional, class-restricted, level-1, BUCKET-AVERAGED barrier for sum-compatible filters on E(F_p) - NOT a closure of the Wagner k-tree lane | internal_finding | reported |  | ecdlp prime-field wagner-k-tree character-sums toy internal-finding |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -20,18 +95,22 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-011 | Lower Bounds for Discrete Logarithms and Related Problems | literature | established | web | generic-group-model lower-bound discrete-logarithm baseline shoup complexity ecdlp |
 | KN-LIT-012 | Parallel Collision Search with Cryptanalytic Applications | literature | established | web | pollard-rho distinguished-points parallel collision-search baseline generic discrete-logarithm ecdlp |
 | KN-LIT-013 | The Discrete-Logarithm Problem with Preprocessing | literature | reported | web | preprocessing non-uniform advice generic-group-model lower-bound discrete-logarithm baseline ecdlp |
+| KN-LIT-0138f3 | Message-recovery horizontal correlation attack on Classic McEliece | literature | reported | web | side-channel code-based classic-mceliece implementation-attack horizontal-attack correlation message-recovery single-trace |
 | KN-LIT-014 | The number of roots of a system of equations (Bernstein / BKK bound) | literature | established | web | bkk mixed-volume newton-polytope sparse-elimination bezout root-counting complexity |
 | KN-LIT-015 | A polyhedral method for solving sparse polynomial systems | literature | reported | web | polyhedral-homotopy mixed-volume bkk sparse-elimination mixed-subdivision solving |
 | KN-LIT-016 | Solving sparse linear equations over finite fields | literature | established | web | sparse-linear-algebra wiedemann krylov berlekamp-massey finite-field index-calculus complexity |
 | KN-LIT-017 | Solving homogeneous linear equations over GF(2) via block Wiedemann algorithm | literature | reported | web | sparse-linear-algebra block-wiedemann coppersmith finite-field parallel index-calculus complexity |
 | KN-LIT-018 | The Tate pairing via elliptic nets | literature | reported | web | elliptic-nets elliptic-divisibility-sequence eds tate-pairing recurrence representation ecdlp |
 | KN-LIT-019 | On the number of incidences between points and planes in three dimensions | literature | reported | web | incidence-geometry szemeredi-trotter finite-field point-line rich-lines relation-harvesting ecdlp |
+| KN-LIT-01b5dc | The complexity of information set decoding | literature | reported | web | isd syndrome-decoding code-based mceliece complexity lower-bounds historical |
+| KN-LIT-01f731 | A new sieving-style information-set decoding algorithm | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security sieving nearest-neighbor |
 | KN-LIT-020 | The Xedni Calculus and the Elliptic Curve Discrete Logarithm Problem | literature | reported | web | xedni lift mordell-weil rational-points ecdlp dead-end novelty-check |
 | KN-LIT-021 | Analysis of the Xedni Calculus Attack | literature | reported | web | xedni lift ecdlp dead-end negative-result novelty-check |
 | KN-LIT-022 | Elliptic Curve Discrete Logarithm Problem over Small Degree Extension Fields | literature | reported | web | joux-vitse index-calculus extension-field large-prime groebner f4 static-diffie-hellman ecdlp |
 | KN-LIT-023 | Improving the Complexity of Index Calculus Algorithms in Elliptic Curves over Binary Fields | literature | reported | web | fppr index-calculus binary-field groebner first-fall-degree multi-homogeneous subexponential ecdlp complexity |
 | KN-LIT-024 | On the First Fall Degree of Summation Polynomials | literature | reported | web | kousidis-wiemers first-fall-degree summation-polynomial groebner weil-descent binary-field ecdlp complexity |
 | KN-LIT-025 | Algebraic Approaches for the Elliptic Curve Discrete Logarithm Problem over Prime Fields | literature | reported | web | petit-kosters-messeng index-calculus prime-field point-decomposition groebner ecdlp frontier |
+| KN-LIT-0258c8 | Decoding one out of many | literature | reported | web | isd syndrome-decoding code-based mceliece multi-target dfr cost-model |
 | KN-LIT-026 | An Algorithm for Finding the Basis Elements of the Residue Class Ring of a Zero-Dimensional Polynomial Ideal (Buchberger's thesis) | literature | established | web | groebner-basis buchberger s-polynomial elimination polynomial-system solving foundational |
 | KN-LIT-027 | A new efficient algorithm for computing Grobner bases (F4) | literature | established | web | groebner-basis f4 faugere macaulay-matrix sparse-linear-algebra solving point-decomposition |
 | KN-LIT-028 | A new efficient algorithm for computing Grobner bases without reduction to zero (F5) | literature | reported | web | groebner-basis f5 faugere signature-based regular-sequence solving point-decomposition |
@@ -54,6 +133,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-045 | Lattice Attacks on Digital Signature Schemes | literature | reported | web | dsa ecdsa nonce-leakage lattice hidden-number-problem key-recovery ecdlp-adjacent cryptanalysis |
 | KN-LIT-046 | Factoring polynomials with rational coefficients (the LLL algorithm) | literature | established | web | lattice-reduction lll svp coppersmith cryptanalysis foundational |
 | KN-LIT-047 | Lattice basis reduction - Improved practical algorithms and solving subset sum problems (BKZ) | literature | established | web | lattice-reduction bkz enumeration korkine-zolotarev block-size security-estimate cryptanalysis |
+| KN-LIT-0471e7 | Introduction to Topics in Computational Number Theory Inspired by Peter L. Montgomery | literature | reported | read | montgomery survey book factorization ecc primality |
 | KN-LIT-048 | New directions in nearest neighbor searching with applications to lattice sieving (BDGL) | literature | reported | web | lattice-sieving svp nearest-neighbor locality-sensitive-filtering cost-model security-estimate |
 | KN-LIT-049 | Generating Hard Instances of Lattice Problems (the SIS problem) | literature | established | web | sis short-integer-solution worst-case-average-case lattice post-quantum foundational adjacent |
 | KN-LIT-050 | On Lattices, Learning with Errors, Random Linear Codes, and Cryptography (the LWE problem) | literature | established | web | lwe learning-with-errors worst-case-average-case quantum-reduction lattice post-quantum foundational adjacent |
@@ -76,9 +156,11 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-067 | Breaking SIDH in Polynomial Time | literature | reported | web | sidh cryptanalysis higher-dimensional-isogeny abelian-variety polynomial-time key-recovery isogeny post-quantum adjacent |
 | KN-LIT-068 | The number of curves of genus two with elliptic differentials (Kani's theorem) | literature | established | web | kani genus-two abelian-surface reducibility glue-and-split isogeny sidh-attack adjacent |
 | KN-LIT-069 | CSIDH - An Efficient Post-Quantum Commutative Group Action | literature | established | web | csidh class-group-action commutative supersingular prime-field key-exchange hidden-shift post-quantum adjacent |
+| KN-LIT-06af57 | High-performance implementations of Classic McEliece KEM on GPUs | literature | reported | web | classic-mceliece code-based implementation gpu throughput kem |
 | KN-LIT-070 | Hard Homogeneous Spaces / Public-Key Cryptosystem Based on Isogenies (Couveignes; Rostovtsev-Stolbunov) | literature | established | web | hard-homogeneous-space group-action ordinary-curve isogeny class-group key-exchange csidh-precursor adjacent |
 | KN-LIT-071 | Constructing elliptic curve isogenies in quantum subexponential time (Childs-Jao-Soukharev) | literature | reported | web | quantum hidden-shift kuperberg class-group-action csidh isogeny cryptanalysis post-quantum adjacent |
 | KN-LIT-072 | SQIsign - Compact Post-Quantum Signatures from Quaternions and Isogenies | literature | reported | web | sqisign signature deuring endomorphism-ring quaternion fiat-shamir isogeny post-quantum adjacent |
+| KN-LIT-072f64 | Reducing the number of qubits in quantum information set decoding | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum qubit-count resource-estimation grover |
 | KN-LIT-073 | On the quaternion ell-isogeny path problem (KLPT) | literature | reported | web | klpt quaternion maximal-order deuring endomorphism-ring isogeny-path sqisign adjacent |
 | KN-LIT-074 | The supersingular isogeny path and endomorphism ring problems are equivalent | literature | reported | web | endomorphism-ring isogeny-path equivalence deuring hardness-foundation grh isogeny adjacent |
 | KN-LIT-075 | Die Typen der Multiplikatorenringe elliptischer Funktionenkorper (the Deuring correspondence) | literature | established | web | deuring endomorphism-ring quaternion maximal-order supersingular complex-multiplication foundational adjacent |
@@ -89,6 +171,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-080 | Thorns in Polynomial Convolution | literature | reported | full_text | ml-kem polynomial-convolution decryption-failure correlation large-deviations canonical-embedding failure-oracle |
 | KN-LIT-081 | On Reduction Probability Models in Lattice Sieving | literature | reported | full_text | ml-kem lattice-sieving reduction-probability sphere-model ball-model cost-estimation memory |
 | KN-LIT-082 | An improved algorithm for computing logarithms over GF(p) and its cryptographic significance | literature | established | read | pohlig-hellman group-order smooth-order subgroup crt generic discrete-logarithm baseline ecdlp hygiene |
+| KN-LIT-082ca9 | The giant footprint is the smallest: low-footprint decryption of Classic McEliece | literature | reported | web | classic-mceliece code-based implementation memory-constrained decryption embedded low-footprint |
 | KN-LIT-083 | Class number, a theory of factorization, and genera | literature | established | web | baby-step-giant-step bsgs shanks meet-in-the-middle deterministic generic discrete-logarithm baseline memory ecdlp |
 | KN-LIT-084 | Reducing elliptic curve logarithms to logarithms in a finite field | literature | established | web | mov pairing weil-pairing embedding-degree supersingular transfer subexponential special-curves ecdlp hygiene |
 | KN-LIT-085 | A remark concerning m-divisibility and the discrete logarithm in the divisor class group of curves | literature | established | web | frey-ruck tate-pairing embedding-degree transfer divisor-class-group jacobian higher-genus special-curves ecdlp hygiene |
@@ -106,6 +189,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-097 | Faster elliptic-curve discrete logarithms on FPGAs | literature | reported | read | record-computation binary-field sect113r2 negation-map fruitless-cycles pollard-rho distinguished-points fpga cost-model baseline calibration ecdlp |
 | KN-LIT-098 | Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer | literature | established | read | shor quantum period-finding quantum-fourier-transform discrete-logarithm factoring polynomial-time post-quantum ecdlp baseline |
 | KN-LIT-099 | Quantum Resource Estimates for Computing Elliptic Curve Discrete Logarithms | literature | reported | read | quantum shor resource-estimate toffoli qubits reversible-arithmetic nist-curves prime-field post-quantum cost-model ecdlp |
+| KN-LIT-0cbb26 | Montgomery Multiplication on the Cell | literature | reported | read | montgomery multiplication cell simd implementation |
+| KN-LIT-0f43ad | Finding the permutation between equivalent linear codes: The support splitting algorithm | literature | reported | web | code-based mceliece structural-attack key-recovery support-splitting code-equivalence permutation-recovery foundational |
 | KN-LIT-100 | Lattice Reduction by Random Sampling and Birthday Methods | literature | reported | read | gsa geometric-series-assumption random-sampling birthday lattice-reduction bkz basis-profile heuristic lattice baseline |
 | KN-LIT-1000 | Local Inversion of maps: Black box Cryptanalysis | literature | reported | read | cryptanalysis dlp elliptic-curve finite-field quantum rsa symmetric |
 | KN-LIT-1001 | Mazur’s isogeny theorem | literature | reported | read | elliptic-curve isogeny number-theory pairing |
@@ -216,6 +301,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1097 | DERIVED p-ADIC HEIGHTS AND THE LEADING COEFFICIENT OF THE BERTOLINI–DARMON–PRASANNA p-ADIC L-FUNCTION | literature | reported | read | elliptic-curve number-theory pairing provable-security supersingular |
 | KN-LIT-1098 | DIAGONAL HYPERSURFACES AND ELLIPTIC CURVES OVER | literature | reported | read | elliptic-curve endomorphism finite-field number-theory pairing |
 | KN-LIT-1099 | DIOPHANTINE STABILITY FOR ELLIPTIC CURVES ON AVERAGE | literature | reported | read | abelian-variety elliptic-curve endomorphism number-theory pairing |
+| KN-LIT-10be29 | An observation on the security of McEliece's public-key cryptosystem | literature | reported | false | isd syndrome-decoding code-based mceliece lee-brickell algorithm foundational |
 | KN-LIT-110 | Report on the Security of LWE: Improved Dual Lattice Attack | literature | reported | read | dual-attack fft distinguisher lwe lwr kyber saber dilithium gate-count ram-model sieving-cost nist contested lattice calibration |
 | KN-LIT-1100 | DIVISIBILITY OF ORDERS OF REDUCTIONS OF ELLIPTIC CURVES | literature | reported | read | elliptic-curve isogeny pairing provable-security supersingular |
 | KN-LIT-1101 | Divisibility sequences related to abelian varieties isogenous to a power of an elliptic curve | literature | reported | read | abelian-variety elliptic-curve isogeny number-theory |
@@ -461,6 +547,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-132 | Improved algorithms for finding fixed-degree isogenies between supersingular elliptic curves | literature | reported | web | supersingular isogeny fixed-degree endomorphism-ring meet-in-the-middle memory-free low-memory quantum cost-model path-finding post-quantum adjacent |
 | KN-LIT-1320 | USING FRICKE MODULAR POLYNOMIALS TO COMPUTE ISOGENIES FRANÇOIS MORAIN | literature | reported | read | elliptic-curve isogeny number-theory pairing pqc |
 | KN-LIT-1321 | WiP: Towards a Secure SECP256K1 for Crypto Wallets: Hardware Architecture and Implementation | literature | reported | read | curve-arithmetic elliptic-curve extension-field finite-field provable-security quantum rsa side-channel signature |
+| KN-LIT-1321dc | Decoupling support enumeration and value discovery in non-binary ISD | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security non-binary-isd q-ary-codes |
 | KN-LIT-1322 | ZETA ELEMENTS FOR ELLIPTIC CURVES AND APPLICATIONS | literature | reported | read | elliptic-curve number-theory pairing supersingular |
 | KN-LIT-1323 | Zeta-functions of Curves over Finite Fields | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny jacobian |
 | KN-LIT-1324 | 100% of elliptic curves with a marked point have positive rank | literature | reported | read | elliptic-curve number-theory |
@@ -502,6 +589,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1357 | Compact, Efficient and CCA-Secure Updatable Encryption from Isogenies | literature | reported | read | elliptic-curve isogeny lattice pqc provable-security quantum sidh-csidh |
 | KN-LIT-1358 | COMPLEX TORI CONSTRUCTED FROM CAYLEY–DICKSON ALGEBRAS | literature | reported | read | elliptic-curve endomorphism isogeny lattice |
 | KN-LIT-1359 | Complexity of Post-Quantum Cryptography in | literature | reported | read | elliptic-curve hash implementation isogeny lattice pairing pqc quantum rsa sidh-csidh signature |
+| KN-LIT-1359cc | Classic McEliece on the ARM Cortex-M4 | literature | reported | web | classic-mceliece code-based implementation arm cortex-m4 embedded reference |
 | KN-LIT-136 | Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing | literature | established | web | multiple-comparison false-discovery-rate familywise-error-rate hypothesis-test screening statistics methodology experimental-design cross-domain |
 | KN-LIT-1360 | Computing Isomorphisms between Products of Supersingular Elliptic Curves | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny pairing protocol supersingular |
 | KN-LIT-1361 | COMPUTING THE MOD-3 GALOIS IMAGE OF A PRINCIPALLY POLARIZED ABELIAN SURFACE OVER THE RATIONALS | literature | reported | read | complexity-theory elliptic-curve endomorphism isogeny jacobian number-theory pairing provable-security |
@@ -546,6 +634,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1397 | HasteBoots: Proving TFHE Programmable Bootstrapping in Seconds | literature | reported | read | fhe pairing quantum survey zk-proof |
 | KN-LIT-1398 | How (not) to Build Identity-Based Encryption from Isogenies | literature | reported | read | complexity-theory isogeny lattice quantum signature |
 | KN-LIT-1399 | Hydrangea: Optimistic Two-Round Partial Synchrony with Improved Fault Resilience | literature | reported | read | complexity-theory pairing survey |
+| KN-LIT-13a01d | A distinguisher for high rate McEliece cryptosystems | literature | reported | web | code-based mceliece structural-attack key-recovery distinguisher high-rate goppa algebraic-cryptanalysis foundational |
 | KN-LIT-140 | On the Complexity of Solving Quadratic Boolean Systems | literature | reported | web | mq multivariate-quadratic booleansolve boolean-solving polynomial-system exhaustive-search sparse-linear-algebra hybrid complexity las-vegas solving index-calculus |
 | KN-LIT-1400 | Improved algorithms for ascending isogeny | literature | reported | read | cryptanalysis elliptic-curve endomorphism isogeny pairing protocol quantum supersingular survey |
 | KN-LIT-1401 | IMPROVED BOUNDS FOR SERRE’S OPEN IMAGE THEOREM | literature | reported | read | elliptic-curve isogeny number-theory pairing provable-security |
@@ -568,7 +657,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1417 | Linear Complementary Pairs of Algebraic Geometry Codes via Kummer Extensions | literature | reported | read | curve-arithmetic finite-field hyperelliptic quantum side-channel |
 | KN-LIT-1418 | LOCAL-GLOBAL PRINCIPLE FOR 11-ISOGENIES OF ELLIPTIC CURVES IS TRUE OVER QUADRATIC FIELDS | literature | reported | read | elliptic-curve isogeny number-theory pairing provable-security |
 | KN-LIT-1419 | Low latency FPGA implementation of twisted Edward curve cryptography hardware accelerator over prime field | literature | reported | read | curve-arithmetic elliptic-curve implementation pqc prime-field rsa side-channel |
-| KN-LIT-142 | A Note on Negligible Functions | literature | reported | read | provable-security |
+| KN-LIT-141bac | A public-key cryptosystem based on algebraic coding theory | literature | reported | false | code-based mceliece foundational goppa original public-key-cryptography |
+| KN-LIT-142 | A Note on Negligible Functions | literature | reported | read | provable-security foundations definitions negligible-function complexity-theory |
 | KN-LIT-1420 | MAZUR’S GROWTH NUMBER CONJECTURE IN THE RANK ONE CASE | literature | reported | read | elliptic-curve number-theory pairing provable-security supersingular |
 | KN-LIT-1421 | Memory Optimizations of Wagner’s Algorithm with Applications to Equihash | literature | reported | read | cryptanalysis hash implementation lattice pairing provable-security signature |
 | KN-LIT-1422 | MODULAR FORMS OF CM TYPE MOD l | literature | reported | read | abelian-variety elliptic-curve endomorphism isogeny jacobian number-theory |
@@ -742,7 +832,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1575 | Binary quadratic forms and elliptic curves with analytic rank one | literature | reported | read | elliptic-curve |
 | KN-LIT-1576 | BOGOMOLOV PROPERTY FOR MODULAR GALOIS REPRESENTATIONS WITH NONTRIVIAL NEBENTYPUS | literature | reported | read | complexity-theory elliptic-curve number-theory pairing provable-security quantum survey |
 | KN-LIT-1577 | Breaking ACDGV MinRank Gabidulin encryption schemes over matrix codes | literature | reported | read | cryptanalysis groebner pqc |
-| KN-LIT-1578 | Bridging the Cybersecurity Gap Between Web2 and Web3 An Incident-Based Analysis of Organizational and Application-Level Security Failures | literature | reported | read | survey |
+| KN-LIT-1578 | Bridging the Cybersecurity Gap Between Web2 and Web3 An Incident-Based Analysis of Organizational and Application-Level Security Failures | literature | reported | read | survey blockchain applied-security incident-analysis |
 | KN-LIT-1579 | BSD INVARIANTS AND MURMURATIONS OF ELLIPTIC CURVES | literature | reported | read | elliptic-curve number-theory pairing provable-security |
 | KN-LIT-158 | PRIMES IN THE DENOMINATORS OF IGUSA CLASS POLYNOMIALS | literature | reported | read | abelian-variety class-group elliptic-curve hyperelliptic jacobian number-theory provable-security supersingular |
 | KN-LIT-1580 | Building Europe’s Quantum Shield: The Strategic view for a Continent-Wide | literature | reported | read | dlp elliptic-curve factoring pairing protocol quantum rsa signature symmetric |
@@ -751,6 +841,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1583 | Can Cross-Layer Design Bridge Security and Efficiency? A Robust Authentication Framework for Healthcare Information Exchange Systems Khalid M. Ezzat | literature | reported | read | elliptic-curve pairing |
 | KN-LIT-1584 | Can We Tolerate Small Side-Channel Leakages: The Role of Registers in Glitch-Stopping Circuits | literature | reported | read | implementation side-channel symmetric |
 | KN-LIT-1585 | Chain Reactions: How Nonce Collisions in ECDSA Compromise Polygon MEV Searchers | literature | reported | read | cryptanalysis ecdsa elliptic-curve lattice side-channel signature |
+| KN-LIT-15853c | Key-recovery side-channel attack on the Berlekamp-Massey decoding algorithm in the Classic McEliece KEM | literature | reported | web | side-channel code-based classic-mceliece implementation-attack key-recovery berlekamp-massey decoding |
 | KN-LIT-1586 | CHASING RABBITS THROUGH HYPERCUBES: BETTER ALGORITHMS FOR HIGHER DIMENSIONAL 2-ISOGENY COMPUTATIONS AND MAX DUPARC | literature | reported | read | abelian-variety class-group elliptic-curve implementation isogeny mpc number-theory pairing protocol side-channel sidh-csidh signature supersingular |
 | KN-LIT-1587 | Choose Wisely and Privately: Proactive Client Selection for Fair and Efficient Federated Learning | literature | reported | read | fhe mov-fr mpc pairing survey |
 | KN-LIT-1588 | Ciphertext-Updatable Attribute-Based and Predicate Encryption from Lattices | literature | reported | read | lattice pairing protocol provable-security |
@@ -856,7 +947,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1679 | HENSEL MINIMALITY, p-ADIC EXPONENTIATION AND TATE UNIFORMIZATION | literature | reported | read | elliptic-curve pairing |
 | KN-LIT-168 | COMPLEX MULTIPLICATION TESTS FOR ELLIPTIC CURVES | literature | reported | read | complexity-theory elliptic-curve endomorphism isogeny number-theory provable-security supersingular |
 | KN-LIT-1680 | HIGHER FITTING IDEALS AND THE STRUCTURE OF ANTICYCLOTOMIC SHAFAREVICH–TATE GROUPS | literature | reported | read | abelian-variety elliptic-curve number-theory pairing provable-security |
-| KN-LIT-1681 | Highlights Image Encryption via DataIdentified Discrete Chaotic Maps | literature | reported | read | symmetric |
+| KN-LIT-1681 | Highlights Image Encryption via DataIdentified Discrete Chaotic Maps | literature | reported | read | symmetric image-encryption chaotic-map implementation |
 | KN-LIT-1682 | Hodge Loci and Complex Multiplication via Generalized Symmetries in Calabi-Yau sigma models | literature | reported | read | elliptic-curve endomorphism number-theory pairing |
 | KN-LIT-1683 | How to Authenticate a Non-Deterministic Computation | literature | reported | read | lattice pqc provable-security |
 | KN-LIT-1684 | HRA-Secure Lattice-based Proxy Re-Encryption without Noise Flooding | literature | reported | read | fhe lattice pairing pqc |
@@ -904,7 +995,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1722 | Locally Repairable Codes with Availability via Elliptic Function Fields | literature | reported | read | elliptic-curve finite-field supersingular |
 | KN-LIT-1723 | LoTRS: Practical Post-Quantum Structured Threshold Ring Signatures from Lattices | literature | reported | read | lattice pairing pqc zk-proof |
 | KN-LIT-1724 | Low-Depth Bootstrapping for Matrix-Native FHE | literature | reported | read | fhe implementation provable-security |
-| KN-LIT-1725 | LymphNode: A Plug-and-Play Access Control Method for Deep Neural Networks | literature | reported | read | protocol |
+| KN-LIT-1725 | LymphNode: A Plug-and-Play Access Control Method for Deep Neural Networks | literature | reported | read | machine-learning access-control model-protection applied-security |
 | KN-LIT-1726 | Lynx: Symmetric Primitive for Shorter and Faster VOLE-in-the-Head Signatures | literature | reported | read | cryptanalysis dlp finite-field pairing pqc quantum rsa signature survey symmetric zk-proof |
 | KN-LIT-1727 | MAGIQ: A Post-Quantum Multi-Agentic AI Governance System with Provable Security | literature | reported | read | ecdsa elliptic-curve pairing pqc provable-security quantum rsa signature survey |
 | KN-LIT-1728 | Maskaglia: A New, Efficient Approach to Masked Discrete | literature | reported | read | implementation lattice pairing pqc side-channel signature survey |
@@ -918,7 +1009,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1735 | MIPSBLEED: Uncovering Microarchitectural Timing Leaks in Pervasive Embedded Processors | literature | reported | read | cryptanalysis elliptic-curve side-channel |
 | KN-LIT-1736 | Miraidon: MinRank Identification | literature | reported | read | cryptanalysis lattice mpc pqc quantum rsa signature survey zk-proof |
 | KN-LIT-1737 | MOCK MODULARITY OF LOG GROMOV–WITTEN INVARIANTS: THE MIRROR TO P2 arXiv:2602.08153v1 [math.AG] 8 Feb 2026 HÜLYA ARGÜZ | literature | reported | read | elliptic-curve mov-fr number-theory |
-| KN-LIT-1738 | Modern Portfolio Theory in the Crypto-Wilderness Ivan Vynyavskyy # | literature | reported | read | survey |
+| KN-LIT-1738 | Modern Portfolio Theory in the Crypto-Wilderness Ivan Vynyavskyy # | literature | reported | read | blockchain economics portfolio-theory survey |
 | KN-LIT-1739 | MODULAR CURVES AND BAD REDUCTION | literature | reported | read | elliptic-curve number-theory pairing provable-security |
 | KN-LIT-174 | Endomorphism Rings and Isogenies Classes for Drinfeld A-Modules of Rank 2 over Finite Fields | literature | reported | read | elliptic-curve endomorphism finite-field isogeny supersingular |
 | KN-LIT-1740 | MODULAR ELLIPTIC CURVES AND HYPERBOLIC UNIFORMIZATION | literature | reported | read | abelian-variety elliptic-curve jacobian number-theory pairing |
@@ -955,6 +1046,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1769 | On discrepancy estimates for pseudorandom vectors constructed by the elliptic curve congruential generator 1,2 | literature | reported | read | elliptic-curve finite-field provable-security quantum |
 | KN-LIT-177 | GENERALISED EULER CHARACTERISTICS OF SELMER GROUPS | literature | reported | read | elliptic-curve number-theory pairing provable-security |
 | KN-LIT-1770 | ON GALOIS EMBEDDING PROBLEMS ARISING FROM 3-TORSION OF ELLIPTIC CURVES | literature | reported | read | elliptic-curve number-theory quantum |
+| KN-LIT-17708c | On minimum distance decoding of linear codes | literature | reported | false | isd syndrome-decoding code-based mceliece dumer minimum-distance-decoding historical |
 | KN-LIT-1771 | ON GRADED LIE ALGEBRAS ASSOCIATED TO ONCE-PUNCTURED ELLIPTIC CURVES WITH COMPLEX MULTIPLICATION | literature | reported | read | elliptic-curve number-theory |
 | KN-LIT-1772 | On Iwasawa theory of abelian varieties over Z2p-extension with | literature | reported | read | abelian-variety elliptic-curve mov-fr number-theory provable-security supersingular |
 | KN-LIT-1773 | ON PERIODS OF ELLIPTIC CURVES | literature | reported | read | elliptic-curve mov-fr number-theory pairing provable-security |
@@ -986,6 +1078,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1797 | Optimized Point Addition Circuits for Elliptic | literature | reported | read | cryptanalysis dlp ecdlp elliptic-curve finite-field pqc prime-field provable-security quantum rsa signature zk-proof |
 | KN-LIT-1798 | Optimizing Polynomial Multiplication and | literature | reported | read | implementation lattice mov-fr pairing pqc provable-security survey |
 | KN-LIT-1799 | ORDINARY ABELIAN VARIETIES: ISOGENY GRAPHS AND POLARIZATIONS | literature | reported | read | abelian-variety class-group elliptic-curve endomorphism finite-field isogeny number-theory pairing |
+| KN-LIT-17d46b | Asymptotic analysis of probabilistic algorithms for finding short codewords | literature | reported | web | isd syndrome-decoding code-based mceliece asymptotics probabilistic-algorithms historical |
 | KN-LIT-180 | Lucas sequences whose 8th term is a square | literature | reported | read | elliptic-curve number-theory pairing |
 | KN-LIT-1800 | p-ADIC ELLIPTIC POLYLOGARITHMS AND CUBIC CHABAUTY | literature | reported | read | elliptic-curve hyperelliptic jacobian mov-fr number-theory provable-security |
 | KN-LIT-1801 | p-ADIC L-FUNCTIONS FOR ELLIPTIC CURVES OVER GLOBAL | literature | reported | read | elliptic-curve number-theory provable-security |
@@ -997,6 +1090,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1807 | PIKE: Faster Isogeny-Based Public Key Encryption with Pairing-Assisted Decryption | literature | reported | read | cryptanalysis dlp isogeny pairing pqc protocol sidh-csidh supersingular |
 | KN-LIT-1808 | Plectic Heegner classes | literature | reported | read | elliptic-curve number-theory pairing |
 | KN-LIT-1809 | PQKryvos: Post-Quantum Secure E-Voting With Flexible Ballot | literature | reported | read | dlp lattice pairing pqc |
+| KN-LIT-180ad5 | Side-Channel and Fault-Injection Attacks on Kyber and Dilithium: Survey and New Results | literature |  | partial | ml-dsa ml-kem dilithium kyber sca fia survey fault-injection side-channel |
 | KN-LIT-181 | MODULAR PARAMETRIZATIONS OF NEUMANN–SETZER ELLIPTIC CURVES | literature | reported | read | elliptic-curve isogeny jacobian number-theory pairing |
 | KN-LIT-1810 | Practical Amortized Bootstrapping for NTRU-Based FHE | literature | reported | read | fhe lattice pairing quantum survey |
 | KN-LIT-1811 | Privacy Coins Under Viewing Key Compromise | literature | reported | read | pairing provable-security |
@@ -1019,6 +1113,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1827 | Quantum algorithm for Discrete Gaussian Sampling | literature | reported | read | cryptanalysis lattice pairing quantum signature |
 | KN-LIT-1828 | Quantum Circuit Implementation and Grover’s Search on the Lightweight Block Cipher KLEIN Family Indranil Mukherjee , Ranit Dutta , Bhupendra Singh | literature | reported | read | pairing pqc quantum symmetric |
 | KN-LIT-1829 | Quantum Circuit Optimization with LLMs under a Structured Guideline | literature | reported | read | cryptanalysis pqc quantum survey symmetric |
+| KN-LIT-182bfb | Asymptotics and improvements of sieving for codes | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security sieving asymptotics nearest-neighbor |
 | KN-LIT-183 | ON THE CORRESPONDECE BETWEEN SUPERSINGULAR | literature | reported | read | elliptic-curve endomorphism finite-field isogeny number-theory pairing supersingular |
 | KN-LIT-1830 | Quantum Futures Interactive: A Live Demonstration of Post-Quantum Blockchain Security, Infrastructure | literature | reported | read | pqc quantum |
 | KN-LIT-1831 | Quantum Horizon An evaluation of quantum computing as a threat to Bitcoin and Ethereum arXiv:2606.14484v1 [quant-ph] 12 Jun 2026 Iosif M. Gershteyn ̳ & Jacob A. Alber | literature | reported | read | ecdsa elliptic-curve mov-fr pqc quantum rsa signature survey |
@@ -1173,6 +1268,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1967 | (Batch) Fully Homomorphic Encryption over Integers for Non-Binary Message Spaces | literature | reported | read | fhe |
 | KN-LIT-1968 | (CM) Torsion on Elliptic Curves over Number Fields | literature | reported | read | elliptic-curve number-theory |
 | KN-LIT-1969 | (Compact) Adaptively Secure FE for Attribute-Weighted Sums from k-Lin | literature | reported | read | fhe provable-security |
+| KN-LIT-19691d | Mckeycutter: a high-throughput key generator of Classic McEliece on hardware | literature | reported | web | classic-mceliece code-based implementation hardware key-generation throughput asic |
 | KN-LIT-197 | Index Calculus in Class Groups of Plane Curves of Small Degree Claus Diem | literature | reported | read | class-group cryptanalysis dlp elliptic-curve extension-field finite-field hyperelliptic index-calculus number-theory weil-descent |
 | KN-LIT-1970 | (Efficient) Universally Composable Oblivious | literature | reported | read | mov-fr mpc pairing provable-security signature zk-proof |
 | KN-LIT-1971 | (Hierarchical) Identity-Based Encryption from Affine Message Authentication | literature | reported | read | pairing provable-security signature zk-proof |
@@ -1206,6 +1302,13 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1997 | A Bit-Vector Differential Model for the Modular Addition by a Constant | literature | reported | read | cryptanalysis hash implementation symmetric |
 | KN-LIT-1998 | A Black-Box Approach to Post-Quantum Zero-Knowledge in Constant Rounds | literature | reported | read | fhe hash implementation lattice pairing pqc provable-security zk-proof |
 | KN-LIT-1999 | A Black-Box Construction of Fully-Simulatable, Round-Optimal Oblivious Transfer from Strongly Uniform Key Agreement | literature | reported | read | lattice mpc provable-security quantum rsa zk-proof |
+| KN-LIT-19cf36 | On insecurity of cryptosystems based on generalized Reed-Solomon codes | literature | reported | web | code-based mceliece structural-attack key-recovery grs-codes niederreiter polynomial-time variant-break foundational |
+| KN-LIT-1b6203 | Factoring into coprimes in essentially linear time | literature | reported | read | factorization standalone integer number-theory bernstein complexity |
+| KN-LIT-1c9474 | HQC-RMRS, an instantiation of the HQC encryption framework with a more efficient auxiliary error-correcting code | literature | reported | read | hqc hqc-rmrs code-based kem decoding-failure-rate dfr reed-muller reed-solomon concatenated-code shortened-reed-solomon binary-symmetric-channel quasi-cyclic primary-source pqc |
+| KN-LIT-1d7668 | Classic McEliece key generation on RAM constrained devices | literature | reported | web | classic-mceliece code-based implementation key-generation ram-constrained embedded |
+| KN-LIT-1d8337 | Masking large keys in hardware: a masked implementation of McEliece | literature | reported | web | classic-mceliece code-based implementation hardware masking countermeasure side-channel-resistance large-keys |
+| KN-LIT-1eb70d | Application de la méthode de décodage itérative d'Omura à la cryptanalyse du système de McEliece | literature | reported | false | isd syndrome-decoding code-based mceliece omura iterative-decoding historical french-language |
+| KN-LIT-1f10ac | A summary of McEliece-type cryptosystems and their security | literature | reported | web | code-based survey mceliece security-analysis historical |
 | KN-LIT-200 | Ordinary elliptic curves of high rank over Fp (x) with constant j-invariant II | literature | reported | read | abelian-variety elliptic-curve hyperelliptic isogeny jacobian pairing supersingular |
 | KN-LIT-2000 | A Block-Cipher Mode of Operation for Parallelizable Message Authentication | literature | reported | read | hash pairing provable-security quantum symmetric |
 | KN-LIT-2001 | A Chosen Ciphertext Attack on RSA Optimal Asymmetric Encryption Padding (OAEP) as Standardized in PKCS #1 v2.0 | literature | reported | read | cryptanalysis factoring rsa |
@@ -1240,7 +1343,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2028 | A Detailed Analysis of Fiat-Shamir with Aborts | literature | reported | read | dlp hash lattice mov-fr provable-security signature zk-proof |
 | KN-LIT-2029 | A DETERMINISTIC ALGORITHM FOR FINDING r-POWER DIVISORS | literature | reported | read | elliptic-curve factoring lattice number-theory pairing pollard-rho quantum |
 | KN-LIT-203 | Anneaux d’endomorphismes et classe d’isogénies de modules de | literature | reported | read | elliptic-curve endomorphism finite-field isogeny supersingular |
-| KN-LIT-2030 | A Dichotomy for Local Small-Bias Generators | literature | reported | read | complexity-theory provable-security |
+| KN-LIT-2030 | A Dichotomy for Local Small-Bias Generators | literature | reported | read | pseudorandom-generator small-bias complexity-theory foundations |
 | KN-LIT-2031 | A Differential Fault Attack against Early Rounds of (Triple-)DES | literature | reported | read | cryptanalysis side-channel symmetric |
 | KN-LIT-2032 | A Differential Fault Attack on MICKEY 2.0 | literature | reported | read | cryptanalysis pairing side-channel symmetric |
 | KN-LIT-2033 | A Digital Signature Scheme based on CV P∞ ? | literature | reported | read | cryptanalysis lattice quantum signature survey zk-proof |
@@ -1359,6 +1462,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2136 | A New Bit-Serial Architecture for Field | literature | reported | read | elliptic-curve extension-field finite-field implementation |
 | KN-LIT-2137 | A New Class of Collision Attacks and its Application to DES | literature | reported | read | cryptanalysis hash pairing side-channel symmetric |
 | KN-LIT-2138 | A New Class of Weak Keys for Blowfish | literature | reported | read | cryptanalysis pairing quantum symmetric |
+| KN-LIT-21383c | Quantum Computation and Lattice Problems (Regev 2004) | literature | reported | web | quantum lattice svp dihedral-coset-problem dcp dsp hidden-subgroup subset-sum reduction pqc post-quantum adjacent |
 | KN-LIT-2139 | A New Classification of 4-bit Optimal S-boxes and its | literature | reported | read | cryptanalysis hash pairing quantum symmetric |
 | KN-LIT-214 | POWER RESIDUES OF FOURIER COEFFICIENTS OF ELLIPTIC CURVES WITH COMPLEX MULTIPLICATION | literature | reported | read | elliptic-curve pairing |
 | KN-LIT-2140 | A new criterion for avoiding the propagation of linear relations through an Sbox? | literature | reported | read | cryptanalysis hash symmetric |
@@ -1481,6 +1585,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2247 | A Subversion-Resistant SNARK | literature | reported | read | complexity-theory lattice pairing zk-proof |
 | KN-LIT-2248 | A Survey of Single-Database PIR: Techniques and Applications | literature | reported | read | fhe hash mpc survey |
 | KN-LIT-2249 | A Synthetic Indifferentiability Analysis of Interleaved Double-Key Even-Mansour Ciphers | literature | reported | read | pairing provable-security quantum symmetric |
+| KN-LIT-224f2c | Quantum circuit design for the Lee-Brickell based information set decoding | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum quantum-circuit lee-brickell grover resource-estimation |
 | KN-LIT-225 | ISOGENIES OF SUPERSINGULAR ELLIPTIC CURVES OVER FINITE | literature | reported | read | abelian-variety elliptic-curve finite-field isogeny number-theory pairing provable-security supersingular |
 | KN-LIT-2250 | A Systematic Approach and Analysis of Key Mismatch Attacks on Lattice-Based NIST | literature | reported | read | complexity-theory elliptic-curve lattice pairing pqc protocol rsa side-channel |
 | KN-LIT-2251 | A Systematic Approach to the Side-Channel Analysis of ECC Implementations with Worst-Case Horizontal Attacks | literature | reported | read | curve-arithmetic ecdsa elliptic-curve pairing pollard-rho side-channel signature survey |
@@ -1646,6 +1751,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2397 | Algebraic Cryptanalysis of the PKC’2009 Algebraic Surface Cryptosystem | literature | reported | read | cryptanalysis dlp elliptic-curve factoring finite-field lattice pairing pqc quantum rsa |
 | KN-LIT-2398 | Algebraic Decomposition for Probing Security | literature | reported | read | binary-field mpc pairing provable-security side-channel survey symmetric |
 | KN-LIT-2399 | Algebraic Distinguishers: From Discrete Logarithms to Decisional Uber Assumptions | literature | reported | read | complexity-theory dlp provable-security signature zk-proof |
+| KN-LIT-23ad7f | RISC-V based Vectorization of Classic McEliece Key Generation | literature | reported | web | classic-mceliece code-based implementation risc-v vectorization key-generation |
+| KN-LIT-23bab0 | Hardware design and implementation of Classic McEliece post-quantum cryptosystem based on FPGA | literature | reported | web | classic-mceliece code-based implementation hardware fpga full-system |
 | KN-LIT-240 | More Discriminants with the Brezing-Weng Method | literature | reported | read | dlp elliptic-curve endomorphism finite-field pairing protocol |
 | KN-LIT-2400 | Algebraic Group Model with Oblivious Sampling | literature | reported | read | complexity-theory cryptanalysis dlp elliptic-curve implementation pairing provable-security quantum zk-proof |
 | KN-LIT-2401 | Algebraic Immunity of S-boxes and Augmented Functions | literature | reported | read | finite-field pairing symmetric |
@@ -1722,7 +1829,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2466 | An Analysis of the XSL Algorithm | literature | reported | read | finite-field symmetric |
 | KN-LIT-2467 | An Analysis of XSL Applied to BES | literature | reported | read | cryptanalysis symmetric |
 | KN-LIT-2468 | An Analytical Model for Time-Driven Cache Attacks | literature | reported | read | complexity-theory implementation side-channel symmetric |
-| KN-LIT-2469 | An Asymptotically Optimal Method for Converting Bit Encryption to Multi-Bit Encryption | literature | reported | read | provable-security |
+| KN-LIT-2469 | An Asymptotically Optimal Method for Converting Bit Encryption to Multi-Bit Encryption | literature | reported | read | public-key provable-security key-encapsulation foundations |
 | KN-LIT-247 | The elliptic curve discrete logarithm problem and equivalent hard problems for elliptic divisibility sequences | literature | reported | read | dlp ecdlp elliptic-curve finite-field mov-fr pairing |
 | KN-LIT-2470 | An Efficiency-Preserving Transformation from Honest-Verifier Statistical Zero-Knowledge to Statistical Zero-Knowledge | literature | reported | read | dlp pairing zk-proof |
 | KN-LIT-2471 | An Efficient and Generic Construction for Signal’s Handshake (X3DH): | literature | reported | read | pairing pqc protocol signature |
@@ -1818,8 +1925,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2553 | Anonymous Signatures Made Easy | literature | reported | read | hash protocol provable-security rsa signature |
 | KN-LIT-2554 | Anonymous Tokens with Private Metadata Bit | literature | reported | read | mov-fr pairing provable-security zk-proof |
 | KN-LIT-2555 | Anonymous Traitor Tracing: How to Embed Arbitrary Information in a Key | literature | reported | read | provable-security |
-| KN-LIT-2556 | Anonymous Transferable E-Cash | literature | reported | read | protocol provable-security |
-| KN-LIT-2557 | Anonymous Whistleblowing over Authenticated Channels | literature | reported | read | protocol provable-security |
+| KN-LIT-2556 | Anonymous Transferable E-Cash | literature | reported | read | e-cash anonymity protocol provable-security |
+| KN-LIT-2557 | Anonymous Whistleblowing over Authenticated Channels | literature | reported | read | anonymity whistleblowing protocol provable-security |
 | KN-LIT-2558 | Anonymous, Robust Post-Quantum Public Key Encryption | literature | reported | read | pqc |
 | KN-LIT-2559 | Another Look at Complementation Properties Charles Bouillaguet1 , Orr Dunkelman1,2 | literature | reported | read | cryptanalysis hash pairing symmetric |
 | KN-LIT-256 | EXPLICIT CM-THEORY FOR LEVEL 2-STRUCTURES ON ABELIAN SURFACES | literature | reported | read | class-group curve-arithmetic elliptic-curve endomorphism finite-field isogeny jacobian number-theory |
@@ -1848,7 +1955,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2580 | Assessment of Hiding the Higher-Order | literature | reported | read | cryptanalysis implementation mpc side-channel symmetric |
 | KN-LIT-2581 | Astrolabous: A Universally Composable Time-Lock Encryption Scheme | literature | reported | read | mpc pairing provable-security |
 | KN-LIT-2582 | Asymmetric Group Key Agreement | literature | reported | read | pairing provable-security quantum |
-| KN-LIT-2583 | Asymmetric Group Message Franking: Definitions & Constructions | literature | reported | read | protocol provable-security |
+| KN-LIT-2583 | Asymmetric Group Message Franking: Definitions & Constructions | literature | reported | read | message-franking messaging provable-security protocol |
 | KN-LIT-2584 | Asymmetric Message Franking: Content Moderation for Metadata-Private | literature | reported | read | quantum |
 | KN-LIT-2585 | Asymmetric PAKE with low computation and communication | literature | reported | read | complexity-theory protocol provable-security |
 | KN-LIT-2586 | Asymptotic complexities of discrete logarithm algorithms in pairing-relevant finite fields | literature | reported | read | dlp elliptic-curve extension-field factoring finite-field number-theory pairing pollard-rho pqc prime-field protocol quantum signature zk-proof |
@@ -2086,6 +2193,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2797 | Breaking RSA Generically is Equivalent to Factoring | literature | reported | read | complexity-theory dlp factoring pairing provable-security rsa signature |
 | KN-LIT-2798 | Breaking Symmetric Cryptosystems using Quantum Period Finding | literature | reported | read | cryptanalysis factoring pairing pqc provable-security quantum symmetric |
 | KN-LIT-2799 | Breaking the Circuit Size Barrier for Secure Computation Under DDH | literature | reported | read | fhe mpc |
+| KN-LIT-27f923 | An optimized quantum implementation of ISD on scalable quantum resources | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum implementation resource-estimation |
 | KN-LIT-280 | Class number formulas via 2-isogenies of elliptic curves | literature | reported | read | elliptic-curve endomorphism finite-field isogeny number-theory provable-security |
 | KN-LIT-2800 | Breaking the Circuit Size Barrier for Secure Computation under Quasi-Polynomial LPN | literature | reported | read | fhe lattice mpc quantum |
 | KN-LIT-2801 | Breaking the decisional Diffie-Hellman problem for class group actions using genus theory | literature | reported | read | class-group dlp elliptic-curve endomorphism isogeny number-theory pairing pqc prime-field provable-security quantum sidh-csidh supersingular |
@@ -2146,7 +2254,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2851 | CCA-Secure Inner-Product Functional Encryption from Projective Hash Functions | literature | reported | read | hash lattice pairing provable-security |
 | KN-LIT-2852 | CCA-Secure Keyed-Fully Homomorphic Encryption | literature | reported | read | fhe pairing |
 | KN-LIT-2853 | CCA-Secure Proxy Re-Encryption without Pairings? | literature | reported | read | factoring pairing provable-security |
-| KN-LIT-2854 | CDs Have Fingerprints Too | literature | reported | read | implementation side-channel |
+| KN-LIT-2854 | CDs Have Fingerprints Too | literature | reported | read | forensics fingerprinting applied-security hardware |
 | KN-LIT-2855 | Central endomorphisms of groups and radical rings* | literature | reported | read | endomorphism |
 | KN-LIT-2856 | Ceremonies for End-to-End Verifiable Elections | literature | reported | read | pairing survey |
 | KN-LIT-2857 | Certicom ECC Challenge | literature | reported | read | dlp ecdlp elliptic-curve finite-field pairing rsa |
@@ -2172,7 +2280,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2875 | Characterizing Deterministic-Prover Zero Knowledge | literature | reported | read | hash mov-fr provable-security zk-proof |
 | KN-LIT-2876 | Characterizing Ideal Weighted Threshold Secret Sharing | literature | reported | read | complexity-theory mpc |
 | KN-LIT-2877 | Characterizing the Cryptographic Properties of Reactive 2-Party Functionalities | literature | reported | read | mpc pairing provable-security |
-| KN-LIT-2878 | Chernoff-type Direct Product Theorems | literature | reported | read | complexity-theory protocol provable-security |
+| KN-LIT-2878 | Chernoff-type Direct Product Theorems | literature | reported | read | hardness-amplification direct-product complexity-theory foundations |
 | KN-LIT-2879 | CHIP and CRISP: Protecting All Parties Against Compromise through Identity-Binding PAKEs | literature | reported | read | pairing protocol survey |
 | KN-LIT-288 | GAUSSIAN HYPERGEOMETRIC EVALUATIONS OF TRACES OF FROBENIUS FOR ELLIPTIC CURVES | literature | reported | read | elliptic-curve endomorphism finite-field |
 | KN-LIT-2880 | Chopsticks: Fork-Free Two-Round Multi-Signatures from Non-Interactive Assumptions | literature | reported | read | dlp pairing provable-security signature survey |
@@ -2185,6 +2293,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2887 | Chosen-Ciphertext Secure Fully Homomorphic Encryption? | literature | reported | read | fhe lattice pairing provable-security zk-proof |
 | KN-LIT-2888 | Chosen-Ciphertext Secure Key-Encapsulation Based on Gap Hashed Diffie-Hellman | literature | reported | read | hash pairing provable-security quantum |
 | KN-LIT-2889 | Chosen-Ciphertext Security from Identity-Based Encryption | literature | reported | read | provable-security zk-proof |
+| KN-LIT-288b99 | Statistical decoding of codes over Fq | literature | reported | web | code-based mceliece structural-attack key-recovery statistical-decoding q-ary-codes |
 | KN-LIT-289 | IGUSA CLASS POLYNOMIALS, EMBEDDINGS OF QUARTIC CM | literature | reported | read | elliptic-curve factoring hyperelliptic isogeny jacobian pairing provable-security supersingular |
 | KN-LIT-2890 | Chosen-Ciphertext Security from Subset Sum | literature | reported | read | lattice provable-security quantum |
 | KN-LIT-2891 | Chosen-Ciphertext Security from Tag-Based Encryption | literature | reported | read | pairing provable-security quantum |
@@ -2196,6 +2305,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2897 | cient Public Key Encryption Based on Ideal | literature | reported | read | hash lattice pairing provable-security quantum signature survey |
 | KN-LIT-2898 | cient State Recovery Attack on X-FCSR-256 | literature | reported | read | cryptanalysis implementation mov-fr pairing symmetric |
 | KN-LIT-2899 | cient structural attack on NIST submission DAGS | literature | reported | read | cryptanalysis lattice pairing pqc provable-security quantum |
+| KN-LIT-28adfb | A further improvement of the work factor in an attempt at breaking McEliece's cryptosystem | literature | reported | false | isd syndrome-decoding code-based mceliece work-factor historical |
 | KN-LIT-290 | Interactive Locking, Zero-Knowledge PCPs, and Unconditional Cryptography? | literature | reported | read | mpc pairing provable-security zk-proof |
 | KN-LIT-2900 | Ciminion: Symmetric Encryption Based on Toffoli-Gates over Large Finite Fields | literature | reported | read | binary-field cryptanalysis fhe finite-field groebner mpc pairing prime-field symmetric zk-proof |
 | KN-LIT-2901 | Cipher DAGs (extended abstract) | literature | reported | read | pairing |
@@ -2306,6 +2416,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-2997 | Compact Structure-preserving Signatures with Almost Tight Security | literature | reported | read | complexity-theory pairing provable-security quantum rsa signature survey |
 | KN-LIT-2998 | Compact VSS and Efficient Homomorphic UC Commitments | literature | reported | read | finite-field mpc provable-security zk-proof |
 | KN-LIT-2999 | Compact Zero-Knowledge Proofs for Threshold ECDSA with Trustless Setup | literature | reported | read | class-group dlp ecdsa fhe number-theory pairing signature survey zk-proof |
+| KN-LIT-2c8264 | A Subexponential-Time Quantum Algorithm for the Dihedral Hidden Subgroup Problem (Kuperberg 2005) | literature | reported | web | quantum dihedral hidden-subgroup kuperberg-sieve dcp dsp csidh hidden-shift isogeny lattice pqc post-quantum adjacent |
+| KN-LIT-2d85cd | Low-Reiter: Niederreiter encryption scheme for embedded microcontrollers | literature | reported | web | classic-mceliece code-based implementation niederreiter embedded microcontroller historical |
+| KN-LIT-2d9edb | An algebraic attack against McEliece-like cryptosystems based on BCH codes | literature | reported | web | code-based mceliece structural-attack key-recovery bch-codes algebraic-cryptanalysis variant-break |
 | KN-LIT-300 | The Ising model: from elliptic curves to modular | literature | reported | read | elliptic-curve factoring isogeny number-theory pairing |
 | KN-LIT-3000 | Compact Zero-Knowledge Proofs of Small Hamming Weight | literature | reported | read | finite-field mpc pairing provable-security zk-proof |
 | KN-LIT-3001 | Compact, Efficient and UC-Secure Isogeny-Based Oblivious Transfer | literature | reported | read | isogeny lattice mpc pairing pqc protocol provable-security quantum sidh-csidh supersingular zk-proof |
@@ -2618,6 +2731,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3280 | Cryptanalysis of the RSA Subgroup Assumption from TCC 2005 | literature | reported | read | cryptanalysis factoring provable-security rsa |
 | KN-LIT-3281 | Cryptanalysis of the Sidelnikov cryptosystem | literature | reported | read | cryptanalysis rsa |
 | KN-LIT-3282 | Cryptanalysis of the Square Cryptosystems | literature | reported | read | cryptanalysis dlp extension-field factoring finite-field mov-fr quantum rsa signature |
+| KN-LIT-328239 | Inverting Cryptographic Hash Functions via Cube-and-Conquer | literature | reported | read | cryptanalysis hash md4 md5 preimage sat cube-and-conquer inversion |
 | KN-LIT-3283 | Cryptanalysis of the Tiger Hash Function? | literature | reported | read | cryptanalysis hash pairing symmetric |
 | KN-LIT-3284 | Cryptanalysis of the Tractable Rational Map Cryptosystem | literature | reported | read | cryptanalysis finite-field quantum rsa |
 | KN-LIT-3285 | Cryptanalysis of Unbalanced RSA with Small CRT-Exponent | literature | reported | read | cryptanalysis factoring lattice provable-security rsa |
@@ -2636,6 +2750,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3297 | Cryptographic Agility and its Relation to Circular Encryption | literature | reported | read | hash pairing provable-security signature symmetric |
 | KN-LIT-3298 | Cryptographic Analysis of the Bluetooth Secure Connection Protocol Suite | literature | reported | read | elliptic-curve pairing protocol quantum rsa symmetric |
 | KN-LIT-3299 | Cryptographic applications of capacity theory: On the optimality of Coppersmith’s method for univariate polynomials | literature | reported | read | cryptanalysis factoring lattice pairing provable-security quantum rsa |
+| KN-LIT-32fb9b | Efficient decryption architecture for Classic McEliece | literature | reported | web | classic-mceliece code-based implementation hardware decryption architecture |
 | KN-LIT-330 | OPTIMALITY OF THE WIDTH-w NON-ADJACENT FORM: | literature | reported | read | curve-arithmetic elliptic-curve endomorphism number-theory quantum |
 | KN-LIT-3300 | Cryptographic competitions | literature | reported | read | hash quantum side-channel survey symmetric |
 | KN-LIT-3301 | Cryptographic Complexity of Multi-party Computation Problems: Classifications and Separations | literature | reported | read | complexity-theory mpc provable-security zk-proof |
@@ -2701,7 +2816,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3356 | David and Goliath Commitments: UC Computation for Asymmetric Parties Using Tamper-Proof Hardware | literature | reported | read | mpc pairing provable-security |
 | KN-LIT-3357 | DDH-like Assumptions Based on Extension Rings | literature | reported | read | complexity-theory elliptic-curve hash protocol provable-security |
 | KN-LIT-3358 | Decaf: Eliminating cofactors through point compression | literature | reported | read | curve-arithmetic ecdsa elliptic-curve protocol signature |
-| KN-LIT-3359 | Decentralized Anonymous Micropayments? | literature | reported | read | protocol |
+| KN-LIT-3359 | Decentralized Anonymous Micropayments? | literature | reported | read | blockchain micropayments anonymity protocol |
 | KN-LIT-336 | SMALL HEIGHT AND INFINITE NONABELIAN EXTENSIONS | literature | reported | read | complexity-theory elliptic-curve endomorphism number-theory pairing quantum |
 | KN-LIT-3360 | Decentralized Attribute-Based Signatures | literature | reported | read | provable-security signature |
 | KN-LIT-3361 | Decentralized Multi-Authority ABE for DNFs from LWE | literature | reported | read | factoring lattice mpc provable-security |
@@ -2728,7 +2843,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3380 | Delegating Quantum Computation in the Quantum Random Oracle Model | literature | reported | read | fhe hash mpc provable-security quantum symmetric |
 | KN-LIT-3381 | Delegating RAM Computations with Adaptive Soundness and Privacy? | literature | reported | read | mpc pairing provable-security |
 | KN-LIT-3382 | Deniable Fully Homomorphic Encryption from Learning With Errors | literature | reported | read | complexity-theory fhe lattice pqc provable-security quantum |
-| KN-LIT-3383 | Deniable Functional Encryption | literature | reported | read | provable-security |
+| KN-LIT-3383 | Deniable Functional Encryption | literature | reported | read | functional-encryption deniability provable-security |
 | KN-LIT-3384 | Deniable Ring Authentication? | literature | reported | read | mov-fr provable-security rsa signature zk-proof |
 | KN-LIT-3385 | Depth-Robust Graphs and Their Cumulative Memory Complexity | literature | reported | read | complexity-theory hash pairing quantum side-channel survey |
 | KN-LIT-3386 | Derandomization in Cryptography | literature | reported | read | complexity-theory provable-security |
@@ -2746,6 +2861,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3397 | Designing Proof of Human-work Puzzles for Cryptocurrency and Beyond | literature | reported | read | hash mpc pairing provable-security signature |
 | KN-LIT-3398 | Destroying Fault Invariant with Randomization -A Countermeasure for AES against Differential Fault Attacks | literature | reported | read | cryptanalysis mov-fr pairing rsa side-channel survey symmetric |
 | KN-LIT-3399 | Detect, Pack and Batch: Perfectly-Secure MPC with Linear | literature | reported | read | mpc pairing survey |
+| KN-LIT-33d2bd | Cryptanalysis of the Niederreiter public key scheme based on GRS subcodes | literature | reported | web | code-based mceliece structural-attack key-recovery niederreiter grs-codes subcodes variant-break |
 | KN-LIT-340 | VAN GEEMEN–SARTI INVOLUTIONS AND ELLIPTIC FIBRATIONS ON K3 | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic isogeny lattice |
 | KN-LIT-3400 | Detecting Dangerous Queries: A New Approach for Chosen Ciphertext Security | literature | reported | read | pairing provable-security zk-proof |
 | KN-LIT-3401 | Detecting flawed masking schemes with leakage detection tests | literature | reported | read | pairing side-channel survey |
@@ -2754,6 +2870,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3404 | Deterministic Polynomial Time Equivalence between Factoring and Key-Recovery Attack on Takagi’s RSA | literature | reported | read | cryptanalysis lattice provable-security rsa |
 | KN-LIT-3405 | Deterring Certificate Subversion: Efficient Double-Authentication-Preventing Signatures | literature | reported | read | hash protocol provable-security rsa signature |
 | KN-LIT-3406 | Developing a Hardware Evaluation Method for SHA-3 Candidates | literature | reported | read | hash implementation pairing symmetric |
+| KN-LIT-340675 | Differential Fault Attack on ML-DSA using Coefficients Computable from Public Information | literature |  | partial | ml-dsa fips-204 differential-fault-attack dfa implementation-attack fault-injection |
 | KN-LIT-3407 | Dew: A Transparent Constant-sized Polynomial Commitment Scheme | literature | reported | read | class-group complexity-theory mpc number-theory provable-security zk-proof |
 | KN-LIT-3408 | Déjà Q All Over Again: Tighter and Broader Reductions of q-Type Assumptions | literature | reported | read | complexity-theory cryptanalysis dlp mov-fr pairing provable-security survey |
 | KN-LIT-3409 | Déjà Q: Encore! Un Petit IBE | literature | reported | read | pairing quantum signature survey |
@@ -3037,6 +3154,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3661 | EKE Meets Tight Security in the Universally Composable Framework | literature | reported | read | pairing protocol provable-security quantum |
 | KN-LIT-3662 | Eliminating Random Permutation Oracles in the Even-Mansour Cipher | literature | reported | read | provable-security symmetric |
 | KN-LIT-3663 | ElimLin Algorithm Revisited | literature | reported | read | cryptanalysis finite-field semaev symmetric |
+| KN-LIT-3663ee | Equivalent Goppa codes and trapdoors to McEliece's public key cryptosystem | literature | reported | web | code-based mceliece structural-attack key-recovery goppa equivalent-keys key-space foundational |
 | KN-LIT-3664 | Elligator: Elliptic-curve points indistinguishable from uniform random strings | literature | reported | read | elliptic-curve hyperelliptic provable-security |
 | KN-LIT-3665 | Elliptic and Hyperelliptic Curves: a Practical Security Analysis | literature | reported | read | dlp ecdlp elliptic-curve finite-field hyperelliptic jacobian pairing pollard-rho prime-field |
 | KN-LIT-3666 | Elliptic curve cryptography in a post-quantum world: the mathematics of isogeny-based cryptography | literature | reported | read | elliptic-curve isogeny pqc rsa |
@@ -3056,13 +3174,13 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3679 | Encryption Switching Protocols Revisited: Switching modulo p | literature | reported | read | factoring fhe mpc pairing provable-security rsa |
 | KN-LIT-368 | ON THE MERTENS CONJECTURE FOR ELLIPTIC CURVES OVER FINITE FIELDS | literature | reported | read | elliptic-curve endomorphism finite-field isogeny pairing |
 | KN-LIT-3680 | Encryption to the Future A Paradigm for Sending Secret Messages to Future (Anonymous) Committees Matteo Campanelli1 | literature | reported | read | pairing quantum |
-| KN-LIT-3681 | End-to-end Design of a PUF-based Privacy Preserving Authentication Protocol | literature | reported | read | implementation protocol provable-security |
+| KN-LIT-3681 | End-to-end Design of a PUF-based Privacy Preserving Authentication Protocol | literature | reported | read | puf authentication privacy implementation |
 | KN-LIT-3682 | End-to-End Secure Messaging with Traceability Only for Illegal Content | literature | reported | read | mov-fr pairing |
 | KN-LIT-3683 | End-to-End Verifiable Elections in the Standard Model? | literature | reported | read | mpc pairing provable-security quantum zk-proof |
 | KN-LIT-3684 | Endemic Oblivious Transfer via Random | literature | reported | read | hash lattice mpc protocol provable-security |
 | KN-LIT-3685 | Endomorphisms for Faster Elliptic Curve Cryptography on a Large Class of Curves | literature | reported | read | elliptic-curve endomorphism finite-field glv-gls isogeny lattice |
 | KN-LIT-3686 | Energy-Efficient Software Implementation of Long Integer Modular Arithmetic? | literature | reported | read | curve-arithmetic implementation provable-security side-channel |
-| KN-LIT-3687 | Engineering Code Obfuscation | literature | reported | read | implementation |
+| KN-LIT-3687 | Engineering Code Obfuscation | literature | reported | read | obfuscation implementation applied-security |
 | KN-LIT-3688 | Engineering Privacy-Friendly Computations | literature | reported | read | fhe mov-fr mpc zk-proof |
 | KN-LIT-3689 | Enhan ing Collision Atta ks | literature | reported | read | pairing side-channel symmetric |
 | KN-LIT-369 | On the Surjectivity of Galois Representations Associated to Elliptic Curves over Number Fields | literature | reported | read | elliptic-curve finite-field isogeny number-theory pairing provable-security |
@@ -3139,6 +3257,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3754 | Extreme Enumeration on GPU and in Clouds - How Many Dollars You Need to Break SVP Challenges - 1 | literature | reported | read | fhe lattice pqc provable-security quantum |
 | KN-LIT-3755 | Eye for an Eye: E cient Concurrent Zero-Knowledge in the Timing Model | literature | reported | read | pairing zk-proof |
 | KN-LIT-3756 | Efficient Adaptively-Secure Byzantine Agreement for Long Messages | literature | reported | read | complexity-theory pairing survey |
+| KN-LIT-37562e | Improving the efficiency of quantum circuits for information set decoding | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum quantum-circuit resource-estimation |
 | KN-LIT-3757 | Efficient Leakage-Resilient MACs without Idealized Assumptions | literature | reported | read | hash pairing provable-security side-channel survey symmetric |
 | KN-LIT-3758 | Efficient Attribute-Based Signatures for Non-Monotone Predicates in the Standard Model | literature | reported | read | complexity-theory hash signature |
 | KN-LIT-3759 | Efficient Circuit-Size Independent Public Key Encryption with KDM Security | literature | reported | read | fhe provable-security |
@@ -3197,6 +3316,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3807 | Fast Multi-computations with Integer Similarity Strategy ? | literature | reported | read | curve-arithmetic elliptic-curve survey |
 | KN-LIT-3808 | Fast Multi-Precision Multiplication for Public-Key Cryptography on Embedded Microprocessors | literature | reported | read | elliptic-curve prime-field rsa |
 | KN-LIT-3809 | Fast Near Collision Attack on the Grain v1 Stream Cipher | literature | reported | read | cryptanalysis pairing symmetric |
+| KN-LIT-380ab7 | Full key-recovery cubic-time template attack on Classic McEliece decapsulation | literature | reported | web | side-channel code-based classic-mceliece implementation-attack template-attack key-recovery decapsulation complexity |
 | KN-LIT-381 | A local-global principle for isogenies of prime degree over number fields arXiv:1303.3809v2 [math.NT] 13 Jan 2014 Samuele Anni | literature | reported | read | abelian-variety elliptic-curve isogeny number-theory pairing provable-security |
 | KN-LIT-3810 | Fast Practical Lattice Reduction through Iterated Compression [0000−0001−5846−2046] | literature | reported | read | cryptanalysis factoring lattice pairing provable-security quantum survey |
 | KN-LIT-3811 | Fast Pseudorandom Functions Based on Expander Graphs? | literature | reported | read | complexity-theory hash provable-security |
@@ -3212,6 +3332,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3820 | Faster addition and doubling on elliptic curves | literature | reported | read | binary-field curve-arithmetic elliptic-curve finite-field hyperelliptic jacobian number-theory side-channel |
 | KN-LIT-3821 | Faster Algorithms for Approximate Common Divisors: Breaking Fully-Homomorphic-Encryption Challenges over the Integers | literature | reported | read | cryptanalysis fhe lattice rsa |
 | KN-LIT-3822 | Faster Algorithms for Solving LPN | literature | reported | read | pairing pqc |
+| KN-LIT-3822a6 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | literature | reported | full_text | methodology hypothesis-selection induction generalisation occams-razor mdl description-length weakness bennetts-razor enactive-cognition agi research-protocol non-cryptographic |
 | KN-LIT-3823 | Faster Amortized FHEW Bootstrapping Using Ring Automorphisms Gabrielle De Micheli1[0000−0002−2617−6878] , Duhyeong Kim2[0000−0002−4766−3456] | literature | reported | read | fhe lattice |
 | KN-LIT-3824 | Faster and Lower Memory Scalar Multiplication on Supersingular Curves in Characteristic Three | literature | reported | read | binary-field curve-arithmetic elliptic-curve endomorphism pairing provable-security supersingular survey |
 | KN-LIT-3825 | Faster and Shorter | literature | reported | read | protocol provable-security quantum signature |
@@ -3296,6 +3417,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3897 | Fine-Grained Cryptography Revisited | literature | reported | read | complexity-theory dlp fhe hash protocol provable-security |
 | KN-LIT-3898 | Fine-grained Cryptography? | literature | reported | read | complexity-theory dlp fhe hash lattice mov-fr pairing protocol provable-security quantum zk-proof |
 | KN-LIT-3899 | Fine-Grained Non-Interactive Key-Exchange: | literature | reported | read | complexity-theory hash lattice pairing protocol provable-security |
+| KN-LIT-38b647 | Reduction from sparse LPN to LPN, Dual Attack 3.0 | literature | reported | web | code-based mceliece structural-attack key-recovery lpn dual-attack statistical-decoding reduction |
 | KN-LIT-390 | Easy scalar decompositions for efficient scalar multiplication on elliptic curves and genus 2 Jacobians | literature | reported | read | curve-arithmetic elliptic-curve endomorphism finite-field glv-gls jacobian lattice provable-security quantum |
 | KN-LIT-3900 | Fine-Grained Proxy Re-Encryption: Definitions & Constructions from LWE | literature | reported | read | lattice pairing |
 | KN-LIT-3901 | Fine-grained Secure Attribute-based Encryption | literature | reported | read | dlp hash lattice pairing signature survey zk-proof |
@@ -3326,7 +3448,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3924 | Formal Abstractions for Attested Execution Secure Processors | literature | reported | read | mpc pairing |
 | KN-LIT-3925 | Formal Verification of Masked Hardware Implementations in the Presence of Glitches Roderick Bloem, Hannes Gross, Rinat Iusupov | literature | reported | read | hash implementation pairing side-channel survey symmetric |
 | KN-LIT-3926 | Formal Verification of Saber’s Public-Key | literature | reported | read | dlp factoring pqc quantum |
-| KN-LIT-3927 | Formalizing Delayed Adaptive Corruptions and the Security of Flooding Networks | literature | reported | read | protocol provable-security |
+| KN-LIT-3927 | Formalizing Delayed Adaptive Corruptions and the Security of Flooding Networks | literature | reported | read | uc-framework adaptive-corruption blockchain provable-security |
 | KN-LIT-3928 | Formalizing Hash-then-Sign Signatures | literature | reported | read | ecdsa hash mov-fr provable-security rsa side-channel signature zk-proof |
 | KN-LIT-3929 | Forward Secret Encrypted RAM: | literature | reported | read | complexity-theory lattice pairing |
 | KN-LIT-393 | Families of fast elliptic curves from Q-curves | literature | reported | read | complexity-theory curve-arithmetic elliptic-curve endomorphism finite-field glv-gls isogeny mov-fr number-theory pairing provable-security quantum |
@@ -3406,6 +3528,10 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3997 | Fully Leakage-Resilient Signatures | literature | reported | read | pairing provable-security side-channel signature |
 | KN-LIT-3998 | Fully Secure Accountable-Authority Identity-Based Encryption | literature | reported | read | quantum |
 | KN-LIT-3999 | Fully Secure Attribute-Based Encryption for t-CNF from LWE | literature | reported | read | lattice mpc provable-security quantum |
+| KN-LIT-39d9ed | Isogenies and the Discrete Logarithm Problem in Genus Three | literature | reported | read | genus-3 isogeny index-calculus hyperelliptic non-hyperelliptic plane-quartic recillas trigonal-construction donagi-livne tractable-subgroup ppav dlp-transfer ecc2007 slides |
+| KN-LIT-3c87b9 | RACE: a Rapid ARM Cryptographic Engine for code-based Classic McEliece PQC scheme | literature | reported | web | classic-mceliece code-based implementation arm engine acceleration |
+| KN-LIT-3c9f21 | A distinguisher for high rate McEliece cryptosystems | literature | reported | web | code-based mceliece structural-attack distinguisher high-rate goppa algebraic-cryptanalysis foundational claim-class-corrected |
+| KN-LIT-3f2ee6 | Verifying Classic McEliece: examining the role of formal methods in post-quantum cryptography standardisation | literature | reported | web | classic-mceliece code-based implementation formal-verification formal-methods standardisation methodology |
 | KN-LIT-400 | On the class numbers of the fields of the pn-torsion points of certain elliptic curves over Q | literature | reported | read | abelian-variety class-group complexity-theory elliptic-curve number-theory provable-security |
 | KN-LIT-4000 | Fully Secure Functional Encryption for Inner Products, from Standard Assumptions | literature | reported | read | lattice pairing provable-security quantum rsa |
 | KN-LIT-4001 | Fully Secure Functional Encryption with General Relations from the Decisional Linear Assumption | literature | reported | read | pairing |
@@ -3422,9 +3548,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4011 | Function Private Predicate Encryption for Low Min-Entropy Predicates | literature | reported | read | lattice pairing |
 | KN-LIT-4012 | Function Secret Sharing? | literature | reported | read | mpc quantum |
 | KN-LIT-4013 | Function-Hiding Inner Product Encryption | literature | reported | read | fhe finite-field pairing provable-security |
-| KN-LIT-4014 | Function-Private Functional Encryption in the Private-Key Setting | literature | reported | read | provable-security |
+| KN-LIT-4014 | Function-Private Functional Encryption in the Private-Key Setting | literature | reported | read | functional-encryption function-privacy provable-security |
 | KN-LIT-4015 | Function-Private Identity-Based Encryption: Hiding the Function in Functional Encryption | literature | reported | read | lattice provable-security |
-| KN-LIT-4016 | Function-Private Subspace-Membership | literature | reported | read | provable-security |
+| KN-LIT-4016 | Function-Private Subspace-Membership | literature | reported | read | functional-encryption function-privacy subspace-membership provable-security |
 | KN-LIT-4017 | Functional Commitments for All Functions, with Transparent Setup and from SIS | literature | reported | read | lattice mpc pairing pqc provable-security quantum zk-proof |
 | KN-LIT-4018 | Functional Encryption against Probabilistic Queries: Definition, Construction and Applications | literature | reported | read | fhe provable-security quantum |
 | KN-LIT-4019 | Functional Encryption for Attribute-Weighted Sums from k-Lin | literature | reported | read | pairing quantum |
@@ -3447,7 +3573,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4034 | Functional Encryption: Deterministic to Randomized Functions from Simple Assumptions | literature | reported | read | provable-security quantum rsa zk-proof |
 | KN-LIT-4035 | Functional Encryption: New Perspectives and Lower Bounds | literature | reported | read | complexity-theory hash mpc provable-security zk-proof |
 | KN-LIT-4036 | Functional Graph Revisited: Updates on (Second) Preimage Attacks on Hash Combiners | literature | reported | read | cryptanalysis hash pairing protocol provable-security |
-| KN-LIT-4037 | Functional Re-encryption and Collusion-Resistant Obfuscation | literature | reported | read | provable-security |
+| KN-LIT-4037 | Functional Re-encryption and Collusion-Resistant Obfuscation | literature | reported | read | obfuscation functional-encryption re-encryption provable-security |
 | KN-LIT-4038 | Functional Signatures and Pseudorandom Functions | literature | reported | read | signature |
 | KN-LIT-4039 | Further Hidden Markov Model Cryptanalysis | literature | reported | read | cryptanalysis elliptic-curve pairing side-channel survey |
 | KN-LIT-404 | Parallelizable Rate-1 Authenticated Encryption from Pseudorandom Functions Kazuhiko Minematsu | literature | reported | read | hash pairing protocol provable-security quantum symmetric |
@@ -3458,7 +3584,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4044 | Fuzzy Extractors: How to Generate Strong Keys from Biometrics and Other Noisy Data | literature | reported | read | mov-fr provable-security quantum survey |
 | KN-LIT-4045 | Fuzzy Password-Authenticated Key Exchange | literature | reported | read | mpc protocol provable-security quantum symmetric |
 | KN-LIT-4046 | G+G: A Fiat-Shamir Lattice Signature Based on Convolved Gaussians | literature | reported | read | cryptanalysis dlp lattice mov-fr pairing provable-security quantum signature survey zk-proof |
-| KN-LIT-4047 | Game Theoretic Notions of Fairness in Multi-Party Coin Toss? | literature | reported | read | mpc protocol |
+| KN-LIT-4047 | Game Theoretic Notions of Fairness in Multi-Party Coin Toss? | literature | reported | read | game-theory coin-tossing fairness mpc |
 | KN-LIT-4048 | Game-Theoretic Fairness Meets Multi-Party Protocols: The Case of Leader Election | literature | reported | read | complexity-theory mpc pairing |
 | KN-LIT-4049 | Games and the Impossibility of Realizable Ideal Functionality | literature | reported | read | provable-security signature |
 | KN-LIT-405 | QUADRATIC TWISTS OF ELLIPTIC CURVES | literature | reported | read | elliptic-curve pairing provable-security supersingular |
@@ -3626,6 +3752,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4197 | Hierarchical Integrated Signature and Encryption (or: Key Separation vs. Key Reuse: Enjoy the Best of Both Worlds) | literature | reported | read | pairing protocol quantum signature zk-proof |
 | KN-LIT-4198 | High Order Linearization Equation (HOLE) Attack on Multivariate Public Key Cryptosystems | literature | reported | read | cryptanalysis dlp factoring finite-field pairing quantum rsa symmetric |
 | KN-LIT-4199 | High Speed Cryptoprocessor for ηT Pairing on 128-bit Secure Supersingular Elliptic Curves over Characteristic Two Fields | literature | reported | read | binary-field elliptic-curve hyperelliptic implementation pairing supersingular |
+| KN-LIT-41f867 | On the McEliece public-key cryptosystem | literature | reported | web | isd syndrome-decoding code-based mceliece cryptanalysis historical original-parameters |
 | KN-LIT-420 | Determination of elliptic curves by their adjoint p-adic L-functions | literature | reported | read | elliptic-curve isogeny number-theory provable-security supersingular |
 | KN-LIT-4200 | High-order Attacks against the Exponent Splitting Protection | literature | reported | read | curve-arithmetic mpc rsa side-channel |
 | KN-LIT-4201 | High-Order Conversion From Boolean to Arithmetic Masking Jean-Sébastien Coron | literature | reported | read | hash mpc side-channel |
@@ -3707,7 +3834,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4270 | How to Compress Rabin Ciphertexts and Signatures (and More) | literature | reported | read | hash pairing provable-security quantum rsa signature |
 | KN-LIT-4271 | How to Compute under AC 0 Leakage without Secure Hardware | literature | reported | read | complexity-theory pairing side-channel |
 | KN-LIT-4272 | How to Construct an Ideal Cipher from a Small Set of Public Permutations | literature | reported | read | hash pairing provable-security symmetric |
-| KN-LIT-4273 | How to Delegate and Verify in Public: Verifiable Computation from Attribute-based Encryption | literature | reported | read | protocol provable-security |
+| KN-LIT-4273 | How to Delegate and Verify in Public: Verifiable Computation from Attribute-based Encryption | literature | reported | read | verifiable-computation attribute-based-encryption delegation provable-security |
 | KN-LIT-4274 | How to Disembed a Program? | literature | reported | read | hash lattice pairing provable-security rsa survey |
 | KN-LIT-4275 | How to Eat Your Entropy and Have it Too — Optimal Recovery Strategies for Compromised RNGs | literature | reported | read | complexity-theory mov-fr pairing side-channel zk-proof |
 | KN-LIT-4276 | How to Efficiently Evaluate RAM Programs with Malicious Security | literature | reported | read | hash implementation mpc pairing quantum survey symmetric |
@@ -3749,7 +3876,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4309 | How to Thwart Birthday Attacks against MACs via Small Randomness | literature | reported | read | hash pairing quantum symmetric |
 | KN-LIT-431 | ON FACTORIZATIONS OF MAPS BETWEEN CURVES | literature | reported | read | elliptic-curve factoring isogeny number-theory pairing |
 | KN-LIT-4310 | How to Use (Plain) Witness Encryption: | literature | reported | read | fhe hash lattice mpc pairing provable-security |
-| KN-LIT-4311 | How to Use Bitcoin to Design Fair Protocols | literature | reported | read | mpc protocol provable-security |
+| KN-LIT-4311 | How to Use Bitcoin to Design Fair Protocols | literature | reported | read | blockchain fairness mpc protocol |
 | KN-LIT-4312 | How to Use Metaheuristics for Design of Symmetric-Key Primitives | literature | reported | read | symmetric |
 | KN-LIT-4313 | How to Watermark Cryptographic Functions | literature | reported | read | complexity-theory mov-fr pairing point-decomposition provable-security |
 | KN-LIT-4314 | Hull Attacks on the Lattice Isomorphism Problem | literature | reported | read | complexity-theory cryptanalysis factoring lattice quantum |
@@ -3834,6 +3961,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4386 | Improved Classical and Quantum Algorithms for Subset-Sum | literature | reported | read | complexity-theory cryptanalysis isogeny lattice pairing pqc provable-security quantum survey |
 | KN-LIT-4387 | Improved Collision Search for SHA-0 | literature | reported | read | cryptanalysis hash pairing quantum |
 | KN-LIT-4388 | Improved Computational Extractors and their Applications | literature | reported | read | quantum |
+| KN-LIT-4388b3 | Hybrid decoding – classical-quantum trade-offs for information set decoding | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum hybrid cost-model resource-estimation |
 | KN-LIT-4389 | Improved Conditional Cube Attacks on Keccak Keyed Modes with MILP Method? | literature | reported | read | cryptanalysis hash pairing rsa symmetric |
 | KN-LIT-439 | Summation polynomial algorithms for elliptic curves in characteristic two | literature | reported | read | binary-field curve-arithmetic dlp ecdlp elliptic-curve extension-field finite-field index-calculus point-decomposition pollard-rho semaev summation-polynomial survey weil-descent |
 | KN-LIT-4390 | Improved Construction of Nonlinear Resilient S-Boxes | literature | reported | read | pairing provable-security symmetric |
@@ -4286,6 +4414,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4797 | Low-Complexity Weak Pseudorandom Functions in AC0[MOD2] 1 | literature | reported | read | complexity-theory |
 | KN-LIT-4798 | Low-Latency Encryption – Is “Lightweight = Light + Wait”?? | literature | reported | read | hash implementation pairing symmetric |
 | KN-LIT-4799 | Low-Overhead Implementation of a Soft Decision Helper Data Algorithm for SRAM PUFs | literature | reported | read | implementation pairing quantum |
+| KN-LIT-47b29b | Progressive sieving-style information-set decoding algorithm | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security sieving classic-mceliece cost-model |
 | KN-LIT-480 | On the Bousfield-Kan spectral sequence for Qp2qp3q arXiv:1507.02650v1 [math.AT] 9 Jul 2015 Donald M. Larson ̊ | literature | reported | read | elliptic-curve isogeny number-theory pairing |
 | KN-LIT-4800 | Low-Power Elliptic Curve Cryptography Using Scaled Modular Arithmetic | literature | reported | read | dlp ecdsa elliptic-curve extension-field finite-field implementation provable-security rsa signature |
 | KN-LIT-4801 | Lower and Upper Bounds for Deniable | literature | reported | read | complexity-theory pairing provable-security |
@@ -4462,6 +4591,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4957 | More Efficient Dishonest Majority Secure Computation over Z2k via Galois Rings | literature | reported | read | mpc prime-field |
 | KN-LIT-4958 | More Efficient Oblivious Transfer Extensions with Security for Malicious Adversaries? | literature | reported | read | hash mpc pairing provable-security rsa survey |
 | KN-LIT-4959 | More Efficient Public-Key Cryptography with | literature | reported | read | pairing protocol quantum side-channel signature zk-proof |
+| KN-LIT-495e7f | Structural cryptanalysis of McEliece schemes with compact keys | literature | reported | web | code-based mceliece structural-attack key-recovery compact-keys quasi-cyclic quasi-dyadic algebraic-cryptanalysis variant-break |
 | KN-LIT-496 | Composite Genus One Belyi Maps | literature | reported | read | elliptic-curve isogeny lattice |
 | KN-LIT-4960 | More Insight on Deep Learning-aided Cryptanalysis | literature | reported | read | cryptanalysis pairing |
 | KN-LIT-4961 | More is Less: Perfectly Secure Oblivious Algorithms in the Multi-Server Setting? | literature | reported | read | complexity-theory mov-fr |
@@ -4480,14 +4610,14 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4973 | Multi-Bit Cryptosystems Based on Lattice Problems | literature | reported | read | lattice quantum |
 | KN-LIT-4974 | Multi-ciphertext security degradation for lattices | literature | reported | read | dlp lattice pairing pollard-rho provable-security quantum survey symmetric |
 | KN-LIT-4975 | Multi-Client Functional Encryption for Linear Functions in the Standard Model from LWE | literature | reported | read | lattice mpc provable-security |
-| KN-LIT-4976 | Multi-Client Functional Encryption for Separable Functions Michele Ciampi1 | literature | reported | read | provable-security |
+| KN-LIT-4976 | Multi-Client Functional Encryption for Separable Functions Michele Ciampi1 | literature | reported | read | functional-encryption multi-client mpc provable-security |
 | KN-LIT-4977 | Multi-Client Functional Encryption with Fine-Grained Access Control | literature | reported | read | mpc provable-security |
 | KN-LIT-4978 | Multi-Client Inner Product Encryption: Function-Hiding Instantiations Without Random Oracles | literature | reported | read | provable-security |
 | KN-LIT-4979 | Multi-Client Non-Interactive Verifiable Computation Seung Geol Choi1? | literature | reported | read | fhe lattice mpc |
 | KN-LIT-498 | CYCLIC ÉTALE COVERINGS OF GENERIC CURVES AND ORDINARINESS OF DORMANT OPERS | literature | reported | read | elliptic-curve pairing provable-security |
 | KN-LIT-4980 | Multi-Client Oblivious RAM with Poly-Logarithmic Communication | literature | reported | read | complexity-theory fhe lattice mpc pairing provable-security survey |
 | KN-LIT-4981 | Multi-Client Verifiable Computation with Stronger Security Guarantees | literature | reported | read | lattice mpc |
-| KN-LIT-4982 | Multi-Designated Receiver Signed Public Key Encryption | literature | reported | read | protocol signature |
+| KN-LIT-4982 | Multi-Designated Receiver Signed Public Key Encryption | literature | reported | read | public-key signature multi-designated-receiver provable-security |
 | KN-LIT-4983 | Multi-Hop Fine-Grained Proxy Re-Encryption | literature | reported | read | lattice pairing |
 | KN-LIT-4984 | Multi-Identity and Multi-Key Leveled FHE from Learning with Errors | literature | reported | read | fhe lattice mpc pairing provable-security |
 | KN-LIT-4985 | Multi-Input Attribute Based Encryption and Predicate Encryption | literature | reported | read | complexity-theory lattice pairing provable-security |
@@ -4506,6 +4636,14 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4997 | Multi-Key FHE from LWE, Revisited | literature | reported | read | fhe lattice mpc |
 | KN-LIT-4998 | Multi-key Fully-Homomorphic Encryption in the Plain Model | literature | reported | read | fhe lattice mpc pairing quantum |
 | KN-LIT-4999 | Multi-Key Homomophic Encryption from TFHE | literature | reported | read | fhe lattice mpc |
+| KN-LIT-49a052 | An attack on a modified Niederreiter encryption scheme | literature | reported | web | code-based mceliece structural-attack key-recovery niederreiter variant-break grs-codes |
+| KN-LIT-4a6dd5 | Classic McEliece implementation with low memory footprint | literature | reported | web | classic-mceliece code-based implementation low-memory embedded cardis |
+| KN-LIT-4acef4 | One Discrete Gaussian Sample in 2^{n/2+o(n)} Time | literature | reported | read | lattices discrete-gaussian sampling svp cvp superlattice smoothing |
+| KN-LIT-4c1133 | Compact HQC with new (un)balance | literature | reported | web | hqc uhqc code-based kem decryption-failure decoding-failure-rate dfr information-set-decoding unbalanced-errors parameter-selection quasi-cyclic syndrome-decoding pqc adjacent out-of-declared-scope |
+| KN-LIT-4c8135 | Polynomial time key-recovery attack on high rate random alternant codes | literature | reported | web | code-based mceliece structural-attack key-recovery alternant-codes polynomial-time high-rate algebraic-cryptanalysis |
+| KN-LIT-4dadec | Module-Lattice-Based Digital Signature Standard (FIPS 204) | literature |  | partial | ml-dsa fips-204 dilithium lattice-signature nist-standard selfTargetMSIS msis |
+| KN-LIT-4f3b80 | A Single-Trace Side-Channel Attack on ML-DSA: Practical Full-Key Recovery from a Single Faulty Signature | literature |  | partial | ml-dsa fips-204 voltage-glitch single-trace fault-injection cortex-m4 hedged-signing |
+| KN-LIT-4fa25d | Classic McEliece: conservative code-based cryptography: what plaintext confirmation means | literature | reported | web | code-based mceliece plaintext-confirmation kem fujisaki-okamoto primary-source |
 | KN-LIT-500 | ELLIPTIC CURVES IN ISOGENY CLASSES | literature | reported | read | complexity-theory elliptic-curve isogeny pairing quantum |
 | KN-LIT-5000 | Multi-Key Homomorphic Authenticators | literature | reported | read | fhe lattice quantum |
 | KN-LIT-5001 | Multi-Key Homomorphic Signatures Unforgeable under Insider Corruption? | literature | reported | read | lattice mpc signature zk-proof |
@@ -4720,7 +4858,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5191 | Non-Interactive Secure Computation of Inner-Product from LPN and LWE | literature | reported | read | lattice mov-fr pairing pqc protocol zk-proof |
 | KN-LIT-5192 | Non-Interactive Secure Multiparty Computation for Symmetric Functions, Revisited: | literature | reported | read | complexity-theory mpc survey |
 | KN-LIT-5193 | Non-Interactive Secure Multiparty Computation? | literature | reported | read | mpc provable-security |
-| KN-LIT-5194 | Non-Interactive Timestamping in the Bounded Storage Model | literature | reported | read | protocol provable-security |
+| KN-LIT-5194 | Non-Interactive Timestamping in the Bounded Storage Model | literature | reported | read | timestamping bounded-storage-model foundations provable-security |
 | KN-LIT-5195 | Non-interactive Universal Arguments | literature | reported | read | fhe hash pairing provable-security quantum |
 | KN-LIT-5196 | Non-Interactive Verifiable Computing: Outsourcing Computation to Untrusted Workers | literature | reported | read | lattice pairing |
 | KN-LIT-5197 | Non-interactive Zaps and New Techniques for NIZK | literature | reported | read | complexity-theory mov-fr provable-security zk-proof |
@@ -4788,7 +4926,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5253 | OAEP Reconsidered | literature | reported | read | factoring hash provable-security rsa |
 | KN-LIT-5254 | Obfuscated Fuzzy Hamming Distance and Conjunctions from Subset Product Problems | literature | reported | read | dlp provable-security quantum |
 | KN-LIT-5255 | Obfuscating Circuits via Composite-Order Graded Encoding | literature | reported | read | complexity-theory fhe provable-security quantum |
-| KN-LIT-5256 | Obfuscating Conjunctions | literature | reported | read | provable-security |
+| KN-LIT-5256 | Obfuscating Conjunctions | literature | reported | read | obfuscation conjunctions provable-security |
 | KN-LIT-5257 | Obfuscating Point Functions with Multibit Output ? | literature | reported | read | provable-security quantum |
 | KN-LIT-5258 | Obfuscating Simple Functionalities from Knowledge assumptions | literature | reported | read | complexity-theory lattice provable-security |
 | KN-LIT-5259 | Obfuscation Combiners | literature | reported | read | complexity-theory hash provable-security |
@@ -4829,13 +4967,14 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5290 | Oblivious-Transfer Complexity of Noisy Coin-Toss via Secure Zero Communication Reductions | literature | reported | read | complexity-theory mpc pairing provable-security survey |
 | KN-LIT-5291 | Observations on COMET | literature | reported | read | cryptanalysis pairing quantum symmetric |
 | KN-LIT-5292 | Observations on the SIMON block cipher family | literature | reported | read | cryptanalysis implementation quantum side-channel symmetric |
-| KN-LIT-5293 | Ofelimos: Combinatorial Optimization via Proof-of-Useful-Work | literature | reported | read | protocol provable-security |
+| KN-LIT-5293 | Ofelimos: Combinatorial Optimization via Proof-of-Useful-Work | literature | reported | read | blockchain proof-of-work combinatorial-optimization protocol |
 | KN-LIT-5294 | Off-Line/On-Line Signatures: Theoretical | literature | reported | read | hash quantum signature symmetric |
 | KN-LIT-5295 | OMAC: One-Key CBC MAC | literature | reported | read | provable-security symmetric |
 | KN-LIT-5296 | On 2-Round Secure Multiparty Computation | literature | reported | read | mpc pairing zk-proof |
 | KN-LIT-5297 | On a Generalization of Substitution-Permutation Networks: The HADES Design Strategy | literature | reported | read | mpc pairing prime-field provable-security symmetric |
 | KN-LIT-5298 | On Actively-Secure Elementary MPC Reductions | literature | reported | read | mpc provable-security survey |
 | KN-LIT-5299 | On Average-Case Hardness in TFNP from One-Way Functions? | literature | reported | read | complexity-theory hash provable-security |
+| KN-LIT-52ce4c | Quantum Algorithms for Lattice Problems (Chen 2024) — main LWE claim RETRACTED | literature | reported | web | quantum lattice lwe sis cryptanalysis retracted withdrawn-claim complex-gaussian windowed-qft pqc post-quantum base-rate adjacent |
 | KN-LIT-530 | The average size of the 3-isogeny Selmer groups of elliptic curves y 2 = x3 + k | literature | reported | read | abelian-variety elliptic-curve endomorphism isogeny number-theory |
 | KN-LIT-5300 | On Basing Private Information Retrieval on NP-Hardness | literature | reported | read | complexity-theory fhe hash lattice mpc pairing provable-security |
 | KN-LIT-5301 | On Basing Search SIVP on NP-Hardness | literature | reported | read | complexity-theory hash lattice pairing provable-security quantum survey |
@@ -4991,7 +5130,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5438 | On the Complexity of Compressing Obfuscation Gilad Asharov1? , Naomi Ephraim2?? | literature | reported | read | complexity-theory provable-security |
 | KN-LIT-5439 | On the Complexity of Fair Coin Flipping | literature | reported | read | complexity-theory mpc pairing provable-security |
 | KN-LIT-544 | CHARACTER SUMS FOR ELLIPTIC CURVE DENSITIES | literature | reported | read | elliptic-curve |
-| KN-LIT-5440 | On the Complexity of Non-Adaptively Increasing the Stretch of Pseudorandom Generators | literature | reported | read | complexity-theory provable-security |
+| KN-LIT-5440 | On the Complexity of Non-Adaptively Increasing the Stretch of Pseudorandom Generators | literature | reported | read | pseudorandom-generator stretch complexity-theory foundations |
 | KN-LIT-5441 | On the Complexity of Parallel Hardness Amplification for One-Way Functions | literature | reported | read | complexity-theory provable-security quantum |
 | KN-LIT-5442 | On the Complexity of Scrypt and Proofs of Space in the Parallel Random Oracle Model Joël | literature | reported | read | complexity-theory hash pairing provable-security |
 | KN-LIT-5443 | On the Complexity of UC Commitments? | literature | reported | read | mpc provable-security quantum zk-proof |
@@ -5032,7 +5171,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5475 | On the Generic and Efficient Constructions of Secure Designated Confirmer Signatures | literature | reported | read | pairing provable-security signature zk-proof |
 | KN-LIT-5476 | On the Generic Construction of Identity-Based Signatures with Additional Properties | literature | reported | read | lattice pairing provable-security signature |
 | KN-LIT-5477 | On the Generic Insecurity of the Full Domain Hash | literature | reported | read | hash provable-security rsa signature |
-| KN-LIT-5478 | On the Gold Standard for Security of Universal Steganography | literature | reported | read | protocol provable-security |
+| KN-LIT-5478 | On the Gold Standard for Security of Universal Steganography | literature | reported | read | steganography provable-security foundations |
 | KN-LIT-5479 | On the Hardness of Information-Theoretic Multiparty Computation? | literature | reported | read | complexity-theory mpc quantum |
 | KN-LIT-548 | CONSTRUCTING PERMUTATION RATIONAL FUNCTIONS FROM ISOGENIES | literature | reported | read | elliptic-curve endomorphism finite-field hash isogeny jacobian rsa |
 | KN-LIT-5480 | On the Hardness of Learning with Rounding over Small Modulus ? | literature | reported | read | lattice provable-security quantum |
@@ -5166,6 +5305,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5597 | On the Static Diffie-Hellman Problem on Elliptic Curves over Extension Fields | literature | reported | read | cryptanalysis dlp elliptic-curve extension-field hyperelliptic index-calculus jacobian provable-security survey zk-proof |
 | KN-LIT-5598 | On the Statistical Leak of the | literature | reported | read | cryptanalysis dlp elliptic-curve lattice pairing provable-security quantum signature |
 | KN-LIT-5599 | On the Streaming Indistinguishability of a | literature | reported | read | cryptanalysis provable-security symmetric |
+| KN-LIT-55b31e | Knapsack-type cryptosystems and algebraic coding theory | literature | reported | false | code-based niederreiter foundational knapsack dual-construction |
+| KN-LIT-55e037 | Optimizing key recovery in Classic McEliece: advanced error correction for noisy side-channel measurements | literature | reported | web | classic-mceliece code-based implementation side-channel error-correction key-recovery noisy-data |
 | KN-LIT-560 | Luca De Feo | literature | reported | read | cryptanalysis curve-arithmetic elliptic-curve endomorphism finite-field hash isogeny pairing pqc protocol |
 | KN-LIT-5600 | On the Structure of Unconditional UC Hybrid Protocols | literature | reported | read | mpc pairing provable-security quantum |
 | KN-LIT-5601 | On the Success Probability of Solving Unique SVP via BKZ | literature | reported | read | cryptanalysis fhe lattice pqc protocol provable-security quantum signature |
@@ -5252,6 +5393,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5675 | Optimization of LPN Solving Algorithms | literature | reported | read | dlp factoring lattice provable-security quantum |
 | KN-LIT-5676 | Optimized Interpolation Attacks on LowMC | literature | reported | read | cryptanalysis fhe mpc pairing symmetric zk-proof |
 | KN-LIT-5677 | Optimized Method for Computing Odd-Degree Isogenies on Edwards Curves | literature | reported | read | curve-arithmetic dlp elliptic-curve finite-field isogeny pairing pqc protocol quantum sidh-csidh supersingular survey |
+| KN-LIT-5677ae | Security analysis of the Classic McEliece, HQC and BIKE schemes in low memory | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security classic-mceliece bike hqc memory-constrained nist-pqc cost-model |
 | KN-LIT-5678 | Optimizing Authenticated Garbling for Faster Secure Two-Party Computation | literature | reported | read | mpc pairing survey symmetric |
 | KN-LIT-5679 | Optimizing double-base elliptic-curve single-scalar multiplication | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic jacobian quantum |
 | KN-LIT-568 | On the vanishing of almost all primary components of the Shafarevich-Tate group of elliptic curves over the rationals François Destrempes | literature | reported | read | curve-arithmetic elliptic-curve isogeny number-theory pairing quantum |
@@ -5367,7 +5509,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-578 | THREE-ISOGENY SELMER GROUPS AND RANKS OF ABELIAN VARIETIES IN QUADRATIC TWIST FAMILIES OVER A NUMBER FIELD | literature | reported | read | abelian-variety elliptic-curve isogeny jacobian number-theory pairing |
 | KN-LIT-5780 | Policy-Compliant | literature | reported | read | pairing provable-security signature zk-proof |
 | KN-LIT-5781 | POLKA: Towards Leakage-Resistant PostQuantum CCA-Secure Public Key Encryption Clément | literature | reported | read | mov-fr pairing pqc provable-security side-channel survey |
-| KN-LIT-5782 | Polling with Physical Envelopes: A Rigorous Analysis of a Human-Centric Protocol | literature | reported | read | protocol provable-security |
+| KN-LIT-5782 | Polling with Physical Envelopes: A Rigorous Analysis of a Human-Centric Protocol | literature | reported | read | protocol human-centric physical-assumption foundations |
 | KN-LIT-5783 | Polly Cracker, revisited, revisited Gottfried Herold? | literature | reported | read | cryptanalysis lattice pairing survey |
 | KN-LIT-5784 | Polly Cracker, Revisited? | literature | reported | read | fhe lattice number-theory provable-security |
 | KN-LIT-5785 | Poly Onions: Achieving Anonymity in the Presence of Churn | literature | reported | read | provable-security |
@@ -5419,6 +5561,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5827 | Practical attacks against the Walnut digital signature scheme | literature | reported | read | cryptanalysis pqc quantum signature |
 | KN-LIT-5828 | Practical Bootstrapping in Quasilinear Time | literature | reported | read | fhe pairing quantum survey |
 | KN-LIT-5829 | Practical Chosen Ciphertext Secure Encryption from Factoring | literature | reported | read | complexity-theory factoring hash lattice pairing provable-security rsa signature zk-proof |
+| KN-LIT-582d77 | Finding Preimages in Full MD5 Faster Than Exhaustive Search | literature | reported | metadata | cryptanalysis hash md5 preimage meet-in-the-middle splice-and-cut |
 | KN-LIT-583 | A LOCAL-GLOBAL PRINCIPLE FOR ISOGENIES OF COMPOSITE DEGREE | literature | reported | read | elliptic-curve isogeny number-theory pairing provable-security quantum |
 | KN-LIT-5830 | Practical Collisions for EnRUPT | literature | reported | read | cryptanalysis hash pairing quantum signature |
 | KN-LIT-5831 | Practical Construction and Analysis of Pseudo-randomness Primitives | literature | reported | read | hash provable-security symmetric |
@@ -5472,7 +5615,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5875 | Predicate Encryption for Circuits from LWE | literature | reported | read | lattice pairing survey |
 | KN-LIT-5876 | Predicate Encryption for Multi-Dimensional Range Queries from Lattices | literature | reported | read | lattice |
 | KN-LIT-5877 | Predicate Encryption from Bilinear Maps and One-Sided Probabilistic Rank | literature | reported | read | lattice |
-| KN-LIT-5878 | Predicate Encryption Supporting Disjunctions | literature | reported | read | protocol |
+| KN-LIT-5878 | Predicate Encryption Supporting Disjunctions | literature | reported | read | predicate-encryption pairing provable-security |
 | KN-LIT-5879 | Predictable Arguments of Knowledge | literature | reported | read | zk-proof |
 | KN-LIT-588 | AN UNEXPECTED TRACE RELATION OF CM POINTS | literature | reported | read | elliptic-curve isogeny jacobian number-theory |
 | KN-LIT-5880 | Predicting Lattice Reduction | literature | reported | read | cryptanalysis dlp lattice provable-security quantum rsa survey |
@@ -5495,7 +5638,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5896 | Privacy Amplification in the Isolated Qubits Model Yi-Kai Liu | literature | reported | read | hash mov-fr mpc pairing quantum |
 | KN-LIT-5897 | Privacy with Imperfect Randomness | literature | reported | read | mpc protocol signature zk-proof |
 | KN-LIT-5898 | Privacy-Enhancing Auctions Using Rational Cryptography | literature | reported | read | mov-fr mpc pairing |
-| KN-LIT-5899 | Privacy-Enhancing Cryptography: From Theory | literature | reported | read | survey |
+| KN-LIT-5899 | Privacy-Enhancing Cryptography: From Theory | literature | reported | read | privacy survey provable-security |
 | KN-LIT-590 | Cache-Attacks on the ARM TrustZone implementations of AES-256 and AES-256-GCM via GPU-based analysis | literature | reported | read | cryptanalysis mov-fr side-channel symmetric |
 | KN-LIT-5900 | Privacy-Free Garbled Circuits for Formulas: Size Zero and Information-Theoretic | literature | reported | read | complexity-theory mpc pairing zk-proof |
 | KN-LIT-5901 | Privacy-Free Garbled Circuits with Applications To Efficient Zero-Knowledge? | literature | reported | read | mpc zk-proof |
@@ -5606,6 +5749,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-5997 | Pseudorandom Quantum States | literature | reported | read | complexity-theory lattice pairing pqc quantum symmetric |
 | KN-LIT-5998 | Pseudorandomness from Braid Groups | literature | reported | read | pairing quantum |
 | KN-LIT-5999 | Pseudorandomness of Decoding, Revisited: Adapting OHCP to Code-Based Cryptography | literature | reported | read | lattice pqc provable-security quantum signature |
+| KN-LIT-5f3698 | Sloppy Alice attacks! Adaptive chosen ciphertext attacks on the McEliece public-key cryptosystem | literature | reported | web | cca kem provable-security code-based adaptive-cca message-recovery historical attack |
+| KN-LIT-5f8f0a | Code-based cryptography | literature | reported | web | code-based survey book-chapter mceliece niederreiter foundational |
+| KN-LIT-5ff88f | Polynomial time key-recovery attack on high rate random alternant codes (boundary completed: the Goppa exclusion is phase-scoped, present-tense, unproved, and conjectured by its authors to fall) | literature | reported | transcription_of_full_text_at_recorded_sha256 | code-based mceliece structural-attack key-recovery alternant-codes generic-alternant goppa-exclusion polynomial-time high-rate small-field algebraic-cryptanalysis heuristic-conditional |
 | KN-LIT-600 | Fiat-Shamir and Correlation Intractability from Strong KDM-Secure Encryption? | literature | reported | read | cryptanalysis hash provable-security signature |
 | KN-LIT-6000 | Pseudorandomness with Proof of Destruction and Applications | literature | reported | read | pairing pqc provable-security quantum signature |
 | KN-LIT-6001 | PSI from PaXoS: | literature | reported | read | mpc pairing provable-security survey |
@@ -5748,7 +5894,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6126 | Random Probing Security: Verification | literature | reported | read | provable-security quantum side-channel |
 | KN-LIT-6127 | Random Sampling for Short Lattice Vectors on Graphics Cards | literature | reported | read | cryptanalysis implementation lattice mov-fr pairing provable-security quantum signature |
 | KN-LIT-6128 | Random Sampling Revisited: Lattice Enumeration with Discrete Pruning | literature | reported | read | cryptanalysis fhe lattice pairing pqc quantum signature survey |
-| KN-LIT-6129 | Random Selection with an Adversarial Majority? | literature | reported | read | complexity-theory mpc protocol |
+| KN-LIT-6129 | Random Selection with an Adversarial Majority? | literature | reported | read | mpc random-selection adversarial-majority foundations |
 | KN-LIT-613 | Multi-Theorem Preprocessing NIZKs from Lattices | literature | reported | read | lattice mpc pairing provable-security zk-proof |
 | KN-LIT-6130 | Random Self-reducibility of Ideal-SVP via Arakelov Random Walks | literature | reported | read | abelian-variety class-group dlp elliptic-curve fhe isogeny lattice mov-fr number-theory provable-security quantum |
 | KN-LIT-6131 | Random Subgroups of Braid Groups: An Approach to Cryptanalysis of a Braid Group based Cryptographic Protocol | literature | reported | read | cryptanalysis lattice protocol |
@@ -5778,7 +5924,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6153 | Rational Modular Encoding in the DCR Setting: | literature | reported | read | class-group dlp finite-field lattice number-theory pairing provable-security zk-proof |
 | KN-LIT-6154 | RATIONAL POINTS ON HYPERELLIPTIC ATKIN-LEHNER QUOTIENTS OF MODULAR CURVES AND THEIR COVERINGS | literature | reported | read | elliptic-curve hyperelliptic isogeny jacobian number-theory pairing |
 | KN-LIT-6155 | Rational Sumchecks? | literature | reported | read | mov-fr pairing provable-security quantum |
-| KN-LIT-6156 | Rationality in the Full-Information Model | literature | reported | read | mpc protocol |
+| KN-LIT-6156 | Rationality in the Full-Information Model | literature | reported | read | game-theory rationality full-information-model foundations |
 | KN-LIT-6157 | Re-encryption, functional re-encryption, and multi-hop re-encryption: A framework for achieving obfuscation-based security and instantiations from lattices | literature | reported | read | fhe lattice pairing |
 | KN-LIT-6158 | Read-Proof Hardware from Protective Coatings Pim Tuyls, Geert-Jan Schrijen, Boris Škorić | literature | reported | read | mov-fr pairing side-channel |
 | KN-LIT-6159 | Real Time Cryptanalysis of Bluetooth Encryption with Condition Masking | literature | reported | read | cryptanalysis pairing quantum symmetric |
@@ -6034,6 +6180,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6386 | SDitH in the QROM Carlos Aguilar-Melchor1 �, Andreas Hülsing2? �, David Joseph1 � | literature | reported | read | hash lattice pqc provable-security signature |
 | KN-LIT-6387 | Se ond Preimage Atta ks on Dithered Hash | literature | reported | read | cryptanalysis hash quantum |
 | KN-LIT-6388 | Search for Related-key Differential Characteristics in DES-like ciphers | literature | reported | read | cryptanalysis symmetric |
+| KN-LIT-63884a | Key-recovery fault injection attack on the Classic McEliece KEM | literature | reported | web | side-channel code-based classic-mceliece implementation-attack fault-injection key-recovery kem |
 | KN-LIT-6389 | Searchable Encryption Revisited: Consistency | literature | reported | read | pairing provable-security |
 | KN-LIT-639 | Round Optimal Black-Box “Commit-and-Prove” | literature | reported | read | pairing provable-security zk-proof |
 | KN-LIT-6390 | Searchable Encryption with Optimal Locality: Achieving Sublogarithmic Read Efficiency | literature | reported | read | fhe |
@@ -6065,12 +6212,12 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6414 | Secure Channels based on Authenticated | literature | reported | read | protocol provable-security quantum symmetric |
 | KN-LIT-6415 | Secure Communication in Multicast Graphs | literature | reported | read | complexity-theory |
 | KN-LIT-6416 | Secure Communications over Insecure Channels Based on Short Authenticated Strings | literature | reported | read | hash mov-fr pairing protocol provable-security quantum rsa survey |
-| KN-LIT-6417 | Secure Computability of Functions in the IT setting with | literature | reported | read | mpc provable-security quantum |
+| KN-LIT-6417 | Secure Computability of Functions in the IT setting with | literature | reported | read | mpc information-theoretic computability foundations |
 | KN-LIT-6418 | Secure Computation Against Adaptive Auxiliary Information | literature | reported | read | mpc pairing provable-security |
 | KN-LIT-6419 | Secure Computation and Its Diverse Applications Yuval Ishai | literature | reported | read | mpc side-channel survey |
 | KN-LIT-642 | SINGULAR UNITS AND ISOGENIES BETWEEN CM ELLIPTIC CURVES | literature | reported | read | complexity-theory elliptic-curve factoring finite-field isogeny provable-security quantum |
 | KN-LIT-6420 | Secure Computation based on Leaky Correlations: High Resilience Setting | literature | reported | read | mpc provable-security quantum |
-| KN-LIT-6421 | Secure Computation for Big Data | literature | reported | read | mpc |
+| KN-LIT-6421 | Secure Computation for Big Data | literature | reported | read | mpc big-data survey |
 | KN-LIT-6422 | Secure Computation from Elastic Noisy Channels | literature | reported | read | mpc pairing |
 | KN-LIT-6423 | Secure Computation from Leaky Correlated Randomness | literature | reported | read | mpc |
 | KN-LIT-6424 | Secure Computation From Millionaire | literature | reported | read | mpc pairing provable-security quantum survey |
@@ -6101,6 +6248,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6447 | Secure Multi-party Quantum Computation with a Dishonest Majority | literature | reported | read | lattice mpc pairing |
 | KN-LIT-6448 | Secure Multiparty Computation from Threshold Encryption based on Class Groups | literature | reported | read | class-group factoring fhe lattice mpc number-theory provable-security rsa zk-proof |
 | KN-LIT-6449 | Secure Multiparty Computation with Free Branching | literature | reported | read | fhe mpc pairing survey |
+| KN-LIT-644dfd | Hybrid-grained GPU implementations for the Classic McEliece | literature | reported | web | classic-mceliece code-based implementation gpu parallel throughput |
 | KN-LIT-645 | Succinct Garbling Schemes from Functional Encryption through a Local Simulation Paradigm? | literature | reported | read | fhe lattice mpc provable-security zk-proof |
 | KN-LIT-6450 | Secure Multiparty Computation with Minimal Interaction | literature | reported | read | lattice mpc |
 | KN-LIT-6451 | Secure Multiparty Computation with Sublinear Preprocessing | literature | reported | read | fhe mpc provable-security quantum zk-proof |
@@ -6119,7 +6267,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6463 | Secure Remote Authentication Using Biometric Data | literature | reported | read | hash protocol provable-security |
 | KN-LIT-6464 | Secure Sampling with Sublinear Communication Seung Geol Choi1 , Dana Dachman-Soled2 | literature | reported | read | fhe mov-fr pairing |
 | KN-LIT-6465 | Secure Signatures and Chosen Ciphertext Security in a Quantum Computing World | literature | reported | read | hash lattice pqc provable-security signature |
-| KN-LIT-6466 | Secure Sketch for Biometric Templates | literature | reported | read | provable-security |
+| KN-LIT-6466 | Secure Sketch for Biometric Templates | literature | reported | read | biometrics fuzzy-extractor secure-sketch applied-security |
 | KN-LIT-6467 | Secure Software Leasing | literature | reported | read | pairing provable-security |
 | KN-LIT-6468 | Secure Software Leasing from Standard Assumptions | literature | reported | read | lattice pairing quantum |
 | KN-LIT-6469 | Secure Software Leasing Without Assumptions | literature | reported | read | pairing provable-security survey |
@@ -6208,7 +6356,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6544 | Self-Updatable Encryption: Time Constrained Access Control with | literature | reported | read | quantum |
 | KN-LIT-6545 | Semantic Security and Indistinguishability in the Quantum World | literature | reported | read | elliptic-curve factoring hash lattice pqc provable-security quantum rsa symmetric |
 | KN-LIT-6546 | Semantic Security for the Wiretap Channel | literature | reported | read | survey |
-| KN-LIT-6547 | Semantically Secure Order-Revealing Encryption: Multi-Input | literature | reported | read | provable-security |
+| KN-LIT-6547 | Semantically Secure Order-Revealing Encryption: Multi-Input | literature | reported | read | order-revealing-encryption multilinear-maps provable-security |
 | KN-LIT-6548 | Semi-Adaptive Security and Bundling | literature | reported | read | mov-fr mpc provable-security |
 | KN-LIT-6549 | Semi-Homomorphic Encryption and Multiparty Computation | literature | reported | read | fhe lattice mpc pairing provable-security survey zk-proof |
 | KN-LIT-655 | A GROSS-KOHNEN-ZAGIER THEOREM FOR NON-SPLIT CARTAN CURVES | literature | reported | read | elliptic-curve jacobian lattice number-theory pairing |
@@ -6229,6 +6377,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6563 | Sequences of Games: A Tool for Taming Complexity in Security Proofs Victor Shoup | literature | reported | read | provable-security survey |
 | KN-LIT-6564 | Sequential Aggregate Signatures and Multisignatures Without Random Oracles Steve Lu?1 , Rafail Ostrovsky??2 , Amit Sahai? ? ?3 | literature | reported | read | provable-security quantum rsa signature |
 | KN-LIT-6565 | Sequential Aggregate Signatures with Lazy Verification from Trapdoor Permutations | literature | reported | read | ecdsa glv-gls mov-fr provable-security quantum rsa signature |
+| KN-LIT-6565a8 | Complete and improved FPGA implementation of Classic McEliece | literature | reported | web | classic-mceliece code-based implementation hardware fpga complete-implementation reference |
 | KN-LIT-6566 | Sequential Aggregate Signatures with Short Public Keys: Design, Analysis and Implementation Studies | literature | reported | read | pairing provable-security quantum signature |
 | KN-LIT-6567 | Server-Aided Verification: Theory and Practice | literature | reported | read | dlp factoring lattice pairing provable-security rsa signature zk-proof |
 | KN-LIT-6568 | Sesquilinear pairings on elliptic curves (+ isogenies) Katherine E. Stange (+ Joseph Macula) | literature | reported | read | elliptic-curve isogeny pairing |
@@ -6266,6 +6415,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6597 | Short Variable Length Domain Extenders With Beyond Birthday Bound Security | literature | reported | read | complexity-theory cryptanalysis pairing quantum symmetric |
 | KN-LIT-6598 | Short, Invertible Elements in Partially Splitting | literature | reported | read | finite-field hash lattice pairing quantum signature zk-proof |
 | KN-LIT-6599 | Short-lived zero-knowledge proofs and signatures | literature | reported | read | pairing protocol quantum signature zk-proof |
+| KN-LIT-65ecae | On syndrome decoding of linear codes | literature | reported | false | isd syndrome-decoding code-based mceliece dumer syndrome-decoding historical |
 | KN-LIT-660 | Adventures in Supersingularland Sarah Arpin, Catalina Camacho-Navarro, Kristin Lauter | literature | reported | read | cryptanalysis elliptic-curve hash isogeny quantum supersingular |
 | KN-LIT-6600 | Short-output universal hash functions and | literature | reported | read | finite-field hash implementation lattice provable-security quantum |
 | KN-LIT-6601 | Shorter Hash-and-Sign Lattice-Based Signatures Thomas Espitau[0000−0002−7655−9594]1 , Mehdi Tibouchi[0000−0002−2736−2963]1 | literature | reported | read | ecdsa isogeny lattice protocol quantum signature |
@@ -6367,7 +6517,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6689 | Simultaneous Amplification: The Case of Non-Interactive Zero-Knowledge | literature | reported | read | complexity-theory mpc pairing zk-proof |
 | KN-LIT-669 | Ease of Side-Channel Attacks on AES-192/256 by Targeting Extreme Keys | literature | reported | read | cryptanalysis pairing side-channel survey symmetric |
 | KN-LIT-6690 | Simultaneous Hardcore Bits and Cryptography Against Memory Attacks | literature | reported | read | lattice pairing quantum rsa side-channel symmetric |
-| KN-LIT-6691 | Simultaneous Secrecy and Reliability Amplification for a General Channel Model | literature | reported | read | protocol provable-security |
+| KN-LIT-6691 | Simultaneous Secrecy and Reliability Amplification for a General Channel Model | literature | reported | read | hardness-amplification secrecy-amplification foundations provable-security |
 | KN-LIT-6692 | Simultaneously Resettable Arguments of Knowledge | literature | reported | read | pairing provable-security quantum zk-proof |
 | KN-LIT-6693 | Sine Series Approximation of the Mod Function for Bootstrapping of Approximate HE | literature | reported | read | fhe |
 | KN-LIT-6694 | Single Base Modular Multiplication for Efficient Hardware RNS Implementations of ECC | literature | reported | read | curve-arithmetic elliptic-curve implementation lattice pairing provable-security rsa |
@@ -6429,7 +6579,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6745 | Solving Underdetermined Systems of Multivariate Quadratic Equations revisited | literature | reported | read | cryptanalysis groebner hash signature symmetric |
 | KN-LIT-6746 | Some Easy Instances of Ideal-SVP and Implications on the Partial Vandermonde Knapsack Problem | literature | reported | read | complexity-theory curve-arithmetic lattice number-theory provable-security quantum |
 | KN-LIT-6747 | Some Mathematical Mysteries in Lattices | literature | reported | read | complexity-theory lattice quantum |
-| KN-LIT-6748 | Some Perspectives on Complexity-Based Cryptography | literature | reported | read | complexity-theory survey |
+| KN-LIT-6748 | Some Perspectives on Complexity-Based Cryptography | literature | reported | read | complexity-theory survey foundations |
 | KN-LIT-6749 | Some Plausible Constructions of Double-Block-Length Hash Functions | literature | reported | read | cryptanalysis hash provable-security symmetric |
 | KN-LIT-675 | Genus 2 Supersingular Isogeny Oblivious Transfer arXiv:1907.00475v4 [cs.CR] 27 Jul 2019 Ramsès Fernàndez-València[0000−0002−8959−636X] | literature | reported | read | abelian-variety elliptic-curve hash hyperelliptic isogeny jacobian mpc pairing protocol provable-security sidh-csidh signature supersingular survey |
 | KN-LIT-6750 | Some Recent Progress in Lattice-Based Cryptography | literature | reported | read | lattice quantum survey |
@@ -6446,7 +6596,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6760 | Spartan and Bulletproofs are simulation-extractable (for free!) | literature | reported | read | cryptanalysis dlp pairing provable-security survey zk-proof |
 | KN-LIT-6761 | Spartan: Efficient and general-purpose zkSNARKs without trusted setup | literature | reported | read | dlp finite-field hash pairing provable-security quantum survey zk-proof |
 | KN-LIT-6762 | Speak Much, Remember Little: Cryptography in the Bounded Storage Model, Revisited? | literature | reported | read | complexity-theory mpc provable-security quantum |
-| KN-LIT-6763 | Specific versus General Assumptions in Cryptography | literature | reported | read | provable-security |
+| KN-LIT-6763 | Specific versus General Assumptions in Cryptography | literature | reported | read | foundations assumptions provable-security survey |
 | KN-LIT-6764 | Speed-Stacking: Fast Sublinear Zero-Knowledge Proofs for Disjunctions | literature | reported | read | mpc pairing zk-proof |
 | KN-LIT-6765 | Speed-ups and time–memory trade-offs for tuple lattice sieving | literature | reported | read | lattice pairing provable-security quantum survey |
 | KN-LIT-6766 | Speeding up point multiplication on hyperelliptic curves with efficiently-computable endomorphisms | literature | reported | read | binary-field curve-arithmetic dlp elliptic-curve endomorphism extension-field finite-field glv-gls hyperelliptic jacobian |
@@ -6475,6 +6625,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6787 | Stam’s collision resistance conjecture | literature | reported | read | hash pairing provable-security |
 | KN-LIT-6788 | Standard Security Does Not Imply Indistinguishability Under Selective Opening | literature | reported | read | cryptanalysis hash provable-security |
 | KN-LIT-6789 | Standard Security Does Not Imply Security Against Selective-Opening | literature | reported | read | hash provable-security |
+| KN-LIT-678a43 | Solving the supersingular isogeny problem in time p^{2/5+o(1)} using bivariate multipoint evaluation | literature | reported | read | isogeny supersingular ecdlp multipoint-evaluation endomorphism attack |
 | KN-LIT-679 | Implementing Grover oracles for quantum key search on AES and LowMC | literature | reported | read | binary-field cryptanalysis dlp ecdsa hash pqc provable-security quantum rsa signature symmetric |
 | KN-LIT-6790 | Starfish on Strike | literature | reported | read | curve-arithmetic elliptic-curve factoring hyperelliptic number-theory pairing rsa survey |
 | KN-LIT-6791 | State Machine Replication under Changing | literature | reported | read | mpc pairing survey |
@@ -6546,8 +6697,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6851 | Structure-Preserving Signatures on Equivalence | literature | reported | read | complexity-theory dlp hash pairing provable-security quantum signature |
 | KN-LIT-6852 | Structure-Preserving Signatures on Equivalence Classes From Standard Assumptions | literature | reported | read | complexity-theory mpc pairing provable-security |
 | KN-LIT-6853 | Structure-Preserving Smooth Projective Hashing | literature | reported | read | hash mov-fr mpc pairing protocol |
-| KN-LIT-6854 | Structured Encryption and Dynamic Leakage Suppression | literature | reported | read | protocol provable-security symmetric |
-| KN-LIT-6855 | Structured Encryption and Leakage Suppression | literature | reported | read | protocol provable-security |
+| KN-LIT-6854 | Structured Encryption and Dynamic Leakage Suppression | literature | reported | read | structured-encryption leakage searchable-encryption provable-security |
+| KN-LIT-6855 | Structured Encryption and Leakage Suppression | literature | reported | read | structured-encryption leakage searchable-encryption provable-security |
 | KN-LIT-6856 | Sub-Linear Lattice-Based Zero-Knowledge Arguments for Arithmetic Circuits? | literature | reported | read | dlp lattice mov-fr mpc pairing provable-security quantum survey zk-proof |
 | KN-LIT-6857 | Sub-linear Zero-Knowledge Argument for Correctness of a Shuffle | literature | reported | read | fhe hash mov-fr pairing provable-security zk-proof |
 | KN-LIT-6858 | Sub-Linear, Secure Comparison With Two Non-Colluding Parties | literature | reported | read | mpc |
@@ -6636,9 +6787,11 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6933 | Targeted Lossy Functions and Applications Anonymous Submission | literature | reported | read | hash lattice mpc provable-security rsa |
 | KN-LIT-6934 | Tate pairing implementation for hyperelliptic curves y 2 = xp − x + d | literature | reported | read | elliptic-curve finite-field hyperelliptic mov-fr pairing prime-field protocol provable-security signature supersingular |
 | KN-LIT-6935 | Taylor Expansion of Maximum Likelihood Attacks for | literature | reported | read | side-channel symmetric |
+| KN-LIT-6935a1 | The Four Faces of Lifting for the Elliptic Curve Discrete Logarithm Problem | literature | reported | read | ecdlp lifting xedni index-calculus canonical-height formal-group masser mazur serre obstruction-taxonomy prime-field survey ecc2007 slides |
 | KN-LIT-6936 | TEC-Tree: A Low-Cost, Parallelizable Tree for | literature | reported | read | hash |
 | KN-LIT-6937 | Template Attacks in Principal Subspaces | literature | reported | read | implementation provable-security side-channel symmetric |
 | KN-LIT-6938 | Templates as Master Keys | literature | reported | read | mpc pairing side-channel symmetric |
+| KN-LIT-6938cf | Symphony of speeds: harmonizing Classic McEliece cryptography with GPU innovation | literature | reported | web | classic-mceliece code-based implementation gpu throughput |
 | KN-LIT-6939 | Templates vs. Stochastic Methods –A Performance Analysis for Side Channel Cryptanalysis | literature | reported | read | cryptanalysis pairing side-channel symmetric |
 | KN-LIT-694 | On the Euler characteristics of signed Selmer groups | literature | reported | read | elliptic-curve number-theory pairing provable-security quantum supersingular |
 | KN-LIT-6940 | The 128-bit Blockcipher CLEFIA | literature | reported | read | pairing survey symmetric |
@@ -6706,6 +6859,14 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6997 | The Impact of Decryption Failures on the | literature | reported | read | lattice provable-security |
 | KN-LIT-6998 | The Impossibility of Obfuscation with Auxiliary Input or a Universal Simulator | literature | reported | read | provable-security |
 | KN-LIT-6999 | The Indifferentiability of the Duplex and its Practical Applications | literature | reported | read | hash mov-fr pairing provable-security symmetric |
+| KN-LIT-6a786b | The use of information sets in decoding cyclic codes | literature | reported | web | isd syndrome-decoding code-based mceliece prange foundational cyclic-codes |
+| KN-LIT-6ad1af | Classic McEliece hardware implementation with enhanced side-channel and fault resistance | literature | reported | web | classic-mceliece code-based implementation hardware side-channel-resistance fault-resistance countermeasure |
+| KN-LIT-6b1fc8 | Understanding the new distinguisher of alternant codes at degree 2 | literature | reported | web | code-based mceliece structural-attack distinguisher alternant-codes algebraic-cryptanalysis claim-class-corrected |
+| KN-LIT-6bdee9 | Side-channel attacks on the McEliece and Niederreiter public-key cryptosystems | literature | reported | web | side-channel code-based classic-mceliece implementation-attack niederreiter survey foundational countermeasures |
+| KN-LIT-6c6f5e | Verified non-recursive calculation of Beneš networks applied to Classic McEliece | literature | reported | web | classic-mceliece code-based implementation formal-verification benes-network permutation proof-assistant |
+| KN-LIT-6da230 | Classic McEliece: conservative code-based cryptography: guide for security reviewers | literature | reported | read | code-based mceliece isd security-categories memory-cost structural-attacks primary-source |
+| KN-LIT-6dcb5b | Verified fast formulas for control bits for permutation networks | literature | reported | false | classic-mceliece code-based implementation formal-verification permutation-network control-bits constant-time |
+| KN-LIT-6e1eb5 | A side-channel attack against Classic McEliece when loading the Goppa polynomial | literature | reported | web | side-channel code-based classic-mceliece implementation-attack goppa-polynomial key-loading power-analysis |
 | KN-LIT-700 | PRIME TORSION IN THE BRAUER GROUP OF AN ELLIPTIC CURVE | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic quantum |
 | KN-LIT-7000 | The Insecurity of Esign in Practical Implementations | literature | reported | read | factoring lattice provable-security quantum rsa signature symmetric |
 | KN-LIT-7001 | The IPS Compiler: Optimizations, Variants and Concrete Efficiency? | literature | reported | read | fhe finite-field mpc pairing |
@@ -6727,15 +6888,16 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7016 | The Memory-Tightness of Authenticated Encryption | literature | reported | read | protocol provable-security quantum symmetric |
 | KN-LIT-7017 | The Minimum Number of Cards in Practical Card-based Protocols? | literature | reported | read | mov-fr mpc provable-security |
 | KN-LIT-7018 | The Missing Difference Problem, and its Applications to Counter Mode Encryption | literature | reported | read | complexity-theory cryptanalysis pairing symmetric |
-| KN-LIT-7019 | The MMap Strikes Back: Obfuscation and New Multilinear Maps Immune to CLT13 Zeroizing Attacks? | literature | reported | read | cryptanalysis protocol provable-security |
+| KN-LIT-7019 | The MMap Strikes Back: Obfuscation and New Multilinear Maps Immune to CLT13 Zeroizing Attacks? | literature | reported | read | multilinear-maps obfuscation cryptanalysis |
 | KN-LIT-702 | Primitive divisors of sequences associated to elliptic curves | literature | reported | read | elliptic-curve factoring number-theory provable-security |
 | KN-LIT-7020 | The Modular Inversion Hidden Number Problem | literature | reported | read | cryptanalysis lattice pairing provable-security rsa signature survey |
-| KN-LIT-7021 | The Moral Character of Cryptographic Work | literature | reported | read | survey |
+| KN-LIT-7021 | The Moral Character of Cryptographic Work | literature | reported | read | ethics survey policy |
 | KN-LIT-7022 | The More The Merrier: Reducing the Cost of Large Scale MPC | literature | reported | read | cryptanalysis implementation mov-fr mpc |
 | KN-LIT-7023 | The Mother of All Leakages: How to Simulate Noisy Leakages via Bounded Leakage (Almost) for Free | literature | reported | read | complexity-theory pairing provable-security side-channel survey symmetric |
 | KN-LIT-7024 | The Multi-User Security of Authenticated Encryption: AES-GCM in TLS 1.3 | literature | reported | read | cryptanalysis protocol provable-security symmetric |
 | KN-LIT-7025 | The Multi-User Security of Double Encryption | literature | reported | read | pairing provable-security quantum symmetric |
 | KN-LIT-7026 | The Multiple Number Field Sieve with | literature | reported | read | dlp factoring finite-field number-theory pairing prime-field survey |
+| KN-LIT-70266b | Statistical decoding revisited | literature | reported | web | code-based mceliece structural-attack key-recovery statistical-decoding |
 | KN-LIT-7027 | THE MULTIPLE-LATTICE NUMBER FIELD SIEVE | literature | reported | read | complexity-theory curve-arithmetic factoring lattice number-theory pollard-rho |
 | KN-LIT-7028 | The Nested Subset Differential Attack | literature | reported | read | cryptanalysis finite-field pqc quantum rsa signature |
 | KN-LIT-7029 | The Number Field Sieve in the Medium Prime Case | literature | reported | read | dlp elliptic-curve extension-field factoring finite-field index-calculus number-theory pairing prime-field |
@@ -6926,6 +7088,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7197 | Towards a Game Theoretic View of Secure Computation | literature | reported | read | mpc |
 | KN-LIT-7198 | Towards a Separation of Semantic and CCA Security for Public Key Encryption | literature | reported | read | pairing provable-security |
 | KN-LIT-7199 | Towards a Simpler Lattice Gadget Toolkit | literature | reported | read | fhe lattice pairing quantum survey |
+| KN-LIT-71d1a0 | The syzygy distinguisher | literature | reported | web | code-based mceliece structural-attack key-recovery distinguisher syzygy commutative-algebra alternant-codes algebraic-cryptanalysis |
+| KN-LIT-71fb0b | Weak keys in McEliece public-key cryptosystem | literature | reported | web | code-based mceliece structural-attack key-recovery weak-keys goppa key-generation |
 | KN-LIT-720 | TRIANGULATIONS OF NON-ARCHIMEDEAN CURVES | literature | reported | read | elliptic-curve pairing provable-security |
 | KN-LIT-7200 | Towards a Theory of Extractable Functions | literature | reported | read | pairing provable-security zk-proof |
 | KN-LIT-7201 | Towards a Unified Approach to Black-Box Constructions of Zero-Knowledge Proofs? | literature | reported | read | hash pairing provable-security zk-proof |
@@ -6994,7 +7158,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7259 | Trapdoor Functions from the Computational Diffie-Hellman Assumption? | literature | reported | read | zk-proof |
 | KN-LIT-726 | A GROUP THEORETIC PERSPECTIVE ON ENTANGLEMENTS OF DIVISION FIELDS | literature | reported | read | elliptic-curve isogeny number-theory pairing |
 | KN-LIT-7260 | Trapdoor Hash Functions and Their Applications 1 2 | literature | reported | read | fhe hash lattice pairing provable-security quantum |
-| KN-LIT-7261 | Trapdooring with Isogenies | literature | reported | read | elliptic-curve isogeny |
+| KN-LIT-7261 | An Elliptic Curve Trapdoor System | literature | reported | true | ecdlp elliptic-curve isogeny weil-descent ghs trapdoor key-escrow binary-field teske |
 | KN-LIT-7262 | Trapdoors for Lattices: Simpler, Tighter, Faster, Smaller | literature | reported | read | hash lattice provable-security quantum signature |
 | KN-LIT-7263 | Treading the Impossible: A Tour of Set-Up Assumptions for Obtaining Universally | literature | reported | read | mpc provable-security survey zk-proof |
 | KN-LIT-7264 | TreePIR: Sublinear-Time and Polylog-Bandwidth Private Information Retrieval from DDH | literature | reported | read | complexity-theory lattice mov-fr |
@@ -7087,7 +7251,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7343 | Unbounded Multi-Party Computation from Learning with Errors | literature | reported | read | lattice mpc pqc quantum |
 | KN-LIT-7344 | Unbounded Quadratic Functional Encryption and More from Pairings | literature | reported | read | pairing quantum |
 | KN-LIT-7345 | Unclonable Encryption, Revisited | literature | reported | read | complexity-theory pairing pqc provable-security |
-| KN-LIT-7346 | Unclonable Polymers and | literature | reported | read | protocol provable-security |
+| KN-LIT-7346 | Unclonable Polymers and | literature | reported | read | unclonable polymer hardware applied-security |
 | KN-LIT-7347 | Unconditional and Composable Security Using a Single Stateful Tamper-Proof Hardware Token | literature | reported | read | lattice mpc pairing provable-security zk-proof |
 | KN-LIT-7348 | Unconditional Authenticity and Privacy from an Arbitrarily Weak Secret | literature | reported | read | provable-security quantum |
 | KN-LIT-7349 | Unconditional Byzantine Agreement and Multi-Party Computation Secure Against Dishonest Minorities from Scratch | literature | reported | read | mpc |
@@ -7125,7 +7289,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7378 | Universal Amplification of KDM Security: From 1-Key Circular to Multi-Key KDM | literature | reported | read | lattice provable-security zk-proof |
 | KN-LIT-7379 | Universal Composition with Joint State | literature | reported | read | pairing protocol quantum |
 | KN-LIT-738 | CONJECTURE A AND μ-INVARIANT FOR SELMER GROUPS OF SUPERSINGULAR ELLIPTIC CURVES | literature | reported | read | class-group elliptic-curve number-theory provable-security supersingular survey |
-| KN-LIT-7380 | Universal Composition with Responsive Environments | literature | reported | read | protocol provable-security |
+| KN-LIT-7380 | Universal Composition with Responsive Environments | literature | reported | read | uc-framework responsive-environment provable-security foundations |
 | KN-LIT-7381 | Universal Constructions and Robust Combiners for Indistinguishability Obfuscation and Witness Encryption | literature | reported | read | lattice pairing provable-security |
 | KN-LIT-7382 | Universal Designated Verifier Signature Proof (or How to Efficiently Prove Knowledge of a Signature) | literature | reported | read | pairing provable-security signature |
 | KN-LIT-7383 | Universal Designated-Verifier Signatures | literature | reported | read | pairing provable-security signature |
@@ -7207,7 +7371,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7452 | Verifiable Homomorphic Oblivious Transfer and Private Equality Test | literature | reported | read | fhe mpc zk-proof |
 | KN-LIT-7453 | Verifiable Inner Product Encryption Scheme? | literature | reported | read | pairing |
 | KN-LIT-7454 | Verifiable Oblivious Storage | literature | reported | read | complexity-theory fhe hash lattice mpc pairing zk-proof |
-| KN-LIT-7455 | Verifiable Predicate Encryption and | literature | reported | read | provable-security |
+| KN-LIT-7455 | Verifiable Predicate Encryption and | literature | reported | read | predicate-encryption verifiability provable-security |
 | KN-LIT-7456 | Verifiable Private Information Retrieval | literature | reported | read | lattice pairing quantum zk-proof |
 | KN-LIT-7457 | Verifiable Random Functions from Identity-based Key Encapsulation? | literature | reported | read | provable-security quantum signature zk-proof |
 | KN-LIT-7458 | Verifiable Random Functions from Standard Assumptions | literature | reported | read | pairing zk-proof |
@@ -7233,7 +7397,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7476 | Visualizing area-time tradeoffs for | literature | reported | read | hash implementation |
 | KN-LIT-7477 | Visualizing size-security tradeoffs for lattice-based encryption | literature | reported | read | lattice pqc |
 | KN-LIT-7478 | VMPC One-Way Function and Stream Cipher | literature | reported | read | complexity-theory cryptanalysis implementation mov-fr symmetric |
-| KN-LIT-7479 | VOLE-PSI: Fast OPRF and Circuit-PSI from Vector-OLE | literature | reported | read | implementation mpc protocol |
+| KN-LIT-7479 | VOLE-PSI: Fast OPRF and Circuit-PSI from Vector-OLE | literature | reported | read | private-set-intersection oblivious-prf vector-ole mpc |
 | KN-LIT-748 | Divided We Stand, United We Fall: Security Analysis of Some SCA+SIFA Countermeasures Against SCA-Enhanced Fault Template Attacks? | literature | reported | read | hash implementation mov-fr mpc side-channel symmetric |
 | KN-LIT-7480 | VSH, an Efficient and Provable Collision-Resistant Hash Function | literature | reported | read | dlp factoring hash provable-security rsa signature |
 | KN-LIT-7481 | VSS from Distributed ZK Proofs and Applications | literature | reported | read | dlp isogeny lattice mpc pqc provable-security quantum signature zk-proof |
@@ -7326,7 +7490,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7560 | “HILA5 Pindakaas”: On the CCA security of lattice-based encryption with error correction | literature | reported | read | cryptanalysis hyperelliptic lattice pairing pqc protocol symmetric |
 | KN-LIT-7561 | “Ooh Aah... Just a Little Bit” : A small amount of side channel can go a long way | literature | reported | read | binary-field cryptanalysis curve-arithmetic ecdsa elliptic-curve implementation lattice prime-field provable-security rsa side-channel signature symmetric |
 | KN-LIT-7562 | “Provable” Security Against Differential and Linear Cryptanalysis | literature | reported | read | cryptanalysis dlp mov-fr provable-security survey symmetric |
-| KN-LIT-7563 | Resource Estimation of the Distributed Quantum Algorithm for the Elliptic Curve Logarithm Problem | literature | reported | web | ecdlp quantum shor resource-estimation distributed-quantum-computing logical-qubits modular-inversion extended-euclidean cost-model p256 quantum-cryptanalysis |
+| KN-LIT-7563 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | literature | reported | full_text | supersingular isogeny-problem oneend endomorphism-ring smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization deuring exponent-improvement exemplar isogeny adjacent |
 | KN-LIT-7564 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | literature | reported | web | isogeny supersingular isogeny-path-problem endomorphism-ring complexity smoothness-heuristic memory-cost parameter-selection post-quantum cost-model frontier |
 | KN-LIT-7565 | Multilevel Amortized Gaussian Elimination in Information-Set Decoding: Applications to HQC and PCG | literature | reported | web | information-set-decoding gaussian-elimination amortization linear-algebra-cost stern code-based hqc pcg gate-cost-model branching-process security-estimate adjacent |
 | KN-LIT-7566 | Provable Recovery of RSA Private Exponents below N^{11/42-epsilon} | literature | reported | web | rsa small-private-exponent wiener boneh-durfee coppersmith small-roots lattice provable heuristic-removal cryptanalysis adjacent |
@@ -7341,17 +7505,109 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7574 | Quantum Cryptanalysis on IBM Quantum Hardware: Extending Even-Mansour Period Recovery from N=4 to N=10 | literature | reported | web | quantum-cryptanalysis simon-algorithm grover bernstein-vazirani even-mansour feistel real-hardware nisq error-mitigation q2-model calibration scope-discipline adjacent |
 | KN-LIT-7575 | DSA Nonce Vulnerabilities: An Interactive Analysis | literature | reported | web | dsa nonce-reuse nonce-leakage hidden-number-problem hnp lattice key-recovery ctf education tooling visualization ecdlp-adjacent |
 | KN-LIT-758 | EULER CHARACTERISTICS AND THEIR CONGRUENCES FOR MULTI-SIGNED SELMER GROUPS | literature | reported | read | elliptic-curve number-theory pairing provable-security supersingular |
+| KN-LIT-7580 | Complex-Multiplication Terminals for Supersingular Isogeny Path-Finding | literature | reported | web | isogeny supersingular isogeny-path-problem delfs-galbraith complex-multiplication hilbert-class-polynomial klpt endomorphism-ring precomputation time-memory cost-model post-quantum |
+| KN-LIT-7581 | Quantum Lazy Sampling and Path Recording for Any Group | literature | reported | web | generic-group-model oracle-simulation compressed-oracle lazy-sampling query-complexity lower-bound quantum pseudorandom-unitary foundations proof-technique |
+| KN-LIT-7582 | PRISM with a pinch of salt: Simple, Efficient and Strongly Unforgeable Signatures from Isogenies | literature | reported | web | isogeny supersingular endomorphism-ring signature hash-and-sign sqisign standard-model strong-unforgeability post-quantum parameter-selection |
+| KN-LIT-7583 | An analysis of a weakened version of PRISM | literature | reported | web | isogeny supersingular endomorphism-ring signature cryptanalysis primality-testing miller-rabin qrom assumption-failure parameter-selection post-quantum |
+| KN-LIT-7584 | Efficient Ternary Computation of Optimal Ate Pairing on BLS27 Curves | literature | reported | web | pairing elliptic-curve bls-curves embedding-degree number-field-sieve extnfs finite-field-dlp parameter-selection implementation cost-model |
+| KN-LIT-7585 | ZKPoSP: Post-Quantum Zero-Knowledge Proofs for Hierarchical Deterministic Wallets | literature | reported | web | shor ecdlp migration post-quantum zk-proof nizk hd-wallet bip32 ed25519 secp256k1 harvest-now-decrypt-later applied |
+| KN-LIT-7586 | The McEliece Cryptosystem After Nearly Five Decades: A Survey of Security, Cryptanalysis, and Future Directions | literature | reported | web | code-based mceliece goppa-codes information-set-decoding structural-attack survey post-quantum cryptanalysis parameter-selection methodology |
+| KN-LIT-7587 | The Polynomial-Time Low-Degree Conjecture is False | literature | reported | web | complexity lower-bound low-degree-method average-case-hardness hardness-evidence counterexample barrier methodology reed-muller distinguisher |
+| KN-LIT-7588 | CryptanalysisBench: Can LLMs do Cryptanalysis? | literature | reported | web | benchmark llm automated-cryptanalysis symmetric-crypto block-cipher hash-function aead nist-competition methodology evaluation harness |
+| KN-LIT-7589 | Lower bounds on the strength of the determinant | literature | reported | web | algebraic-complexity strength partition-rank birch-rank determinant lower-bound chow-ring intersection-theory polynomial-system proof-technique |
 | KN-LIT-759 | Explicit description of isogeny and isomorphism classes of Drinfeld modules over finite field | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny number-theory pairing |
+| KN-LIT-7590 | Degenerating Discriminants | literature | reported | web | groebner-degeneration discriminant dual-variety conormal-variety whitney-stratification mixed-discriminant polynomial-system elimination algebraic-geometry proof-technique |
+| KN-LIT-7591 | Lower bounds for the CNOT-complexity of linear reversible operators | literature | reported | web | quantum circuit-complexity cnot-count lower-bound linear-reversible additive-complexity error-correcting-codes resource-estimation cost-model explicit-construction |
+| KN-LIT-7592 | HAWK-n Key Recovery Reduces to SVP in Dimension n/2 + 1 | literature | reported | read | hawk lattice-isomorphism-problem module-lip cyclotomic galois-automorphism key-recovery svp nist-pqc post-quantum signature llm-assisted-discovery gate-count cost-model |
+| KN-LIT-7593 | Cryptanalysis of 7-Round AES via the Algebraic Structure of its S-box | literature | reported | web | aes s-box mobius-bridge meet-in-the-middle demirci-selcuk differential-enumeration invariant fingerprint round-reduced llm-autonomous-discovery verification-methodology scaled-down-cipher cost-accounting |
+| KN-LIT-7594 | Discovering cryptographic weaknesses with Claude | literature | reported | web | llm-cryptanalysis autonomous-research agentic-harness hawk aes lea serpent salsa20 poseidon sha-1 cryptanalysisbench responsible-disclosure verification-bottleneck methodology program-level |
+| KN-LIT-7595 | Mythos Preview's Chain of Thought in Discovering the AES Möbius Bridge | literature | reported | web | research-methodology agentic-harness inventor-protocol tracked-object negative-closure control-experiment pareto-domination sota-honesty deliverable-schema prior-art-triage cross-ratio pgl2 aes s-box primary-methodology-source |
+| KN-LIT-7596 | Advanced cryptography from lattice isomorphism — new constructions of IBE and FHE | literature | reported | web | lattice-isomorphism-problem lip ibe fhe gpv gsw assumption-load post-quantum adjacent |
+| KN-LIT-7597 | Decision trees, Frobenius traces, and Weierstrass coefficients of elliptic curves | literature | reported | web | elliptic-curve frobenius-trace weierstrass-coefficients isogeny-class conductor machine-learning decision-tree ml-to-theorem murmurations methodology |
+| KN-LIT-7598 | A lower bound for the distance between CM points on Shimura curves | literature | reported | web | cm-points shimura-curve quaternion-algebra endomorphism-ring discriminant diophantine-approximation liouville separation-bound adjacent |
+| KN-LIT-7599 | Engineered Complete Intersections: Algorithmic Aspects | literature | reported | web | sparse-polynomial-systems tropical-geometry mixed-subdivision bkk newton-polytope elimination eliminant a-discriminant homotopy-continuation solution-counting software groebner-alternative |
 | KN-LIT-760 | EXPLICIT TWO-COVER DESCENT FOR GENUS 2 CURVES | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic isogeny jacobian number-theory provable-security |
+| KN-LIT-7600 | A Resource Estimation Model for the Hardware-Software Co-Design of Distributed Quantum Architectures | literature | reported | web | distributed-quantum-computing resource-estimation communication-qubits entanglement-distribution decoherence cost-model circuit-partitioning hidden-cost |
+| KN-LIT-7601 | Cryptanalytic Properties of Mealy Machines | literature | reported | web | geometric-approach mealy-machine s-function unified-framework linear differential integral boomerang differential-linear symmetric methodology adjacent |
+| KN-LIT-7602 | Classic Full Plaintext Recovery Attacks on Low Round Generalized Feistel Networks | literature | reported | web | generalized-feistel round-reduced plaintext-recovery black-box-round-function topology-vs-component structural-attack symmetric adjacent |
+| KN-LIT-7603 | Linear Descent for Rank-2 and Rank-4 Module-LIP | literature | reported | full_text_supplied | module-lip hawk lattice-isomorphism linear-descent symmetric-square hodge-star exterior-square svp cm-field lenstra-silverberg bambury-nguyen pqc |
+| KN-LIT-7604 | Notes on summation polynomials | literature | reported | web | summation-polynomial semaev weil-descent first-fall-degree degree-of-regularity groebner binary-field index-calculus ecdlp elliptic-curve dlp prior-art |
+| KN-LIT-7605 | On the last fall degree of Weil descent polynomial systems | literature | reported | web | weil-descent last-fall-degree summation-polynomial semaev groebner solving-degree binary-field index-calculus ecdlp dlp prior-art |
+| KN-LIT-7606 | The Structured Generic-Group Model | literature | reported | web | generic-group-model lower-bound simulability index-calculus discrete-logarithm dlp ecdlp elliptic-curve smooth-integers preprocessing prior-art |
+| KN-LIT-7607 | Last fall degree, HFE, and Weil descent attacks on ECDLP | literature | reported | web | last-fall-degree first-fall-degree weil-descent summation-polynomial semaev hfe groebner solving-degree index-calculus ecdlp elliptic-curve dlp binary-field prior-art |
 | KN-LIT-761 | EXPLICIT UNIFORM BOUNDS FOR BRAUER GROUPS OF SINGULAR K3 SURFACES | literature | reported | read | curve-arithmetic elliptic-curve isogeny lattice mov-fr number-theory pairing |
+| KN-LIT-7612 | Security Analysis on UOV Families with Odd Characteristics: Using Symmetric Algebra | literature | reported | web | uov qr-uov multivariate xl-algorithm exterior-algebra symmetric-algebra key-recovery odd-characteristic polynomial-system nist-pqc algebraic-attack adjacent |
+| KN-LIT-7613 | Explicit height bounds on modular polynomials for the elliptic j-invariant, cube root of j, and Weber modular function f | literature | reported | web | modular-polynomial j-invariant weber-function height-bound explicit-constants isogeny-computation class-polynomial cost-model isogeny adjacent |
+| KN-LIT-7614 | Extremal Chowla sets and their linear analogues: A human-AI mathematical investigation using Co-Scientist | literature | reported | web | human-ai-collaboration co-scientist agentic-mathematics methodology extremal-invariant finite-groups field-extensions normal-basis research-protocol adjacent |
+| KN-LIT-7615 | Certified in Theory, Broken in Practice: Assumption Gaps in Cryptographic Model Certification | literature | reported | web | assumption-gap certification zero-knowledge-proof auditing benchmark-overfitting scope-of-claim security-definition methodology claim-tier adjacent |
+| KN-LIT-7616 | Can PCE solve the factorisation problem via optimisation? | literature | reported | web | pauli-correlation-encoding factorization binary-optimization qubit-compression quantum-annealing-style preliminary negative-result cost-model rsa adjacent |
+| KN-LIT-7617 | Assessing the Impact of a Variant of MATZOV's Dual Attack on Kyber | literature | reported | read | dual-attack polar-code fft lwe kyber ml-kem matzov repaired-heuristics concrete-security contested lattice nist |
+| KN-LIT-7618 | CRYSTALS-Kyber: Algorithm Specifications And Supporting Documentation (Round 3) | literature | reported | read | kyber ml-kem nist specification module-lwe concrete-security primary-source lattice |
+| KN-LIT-7619 | FAEST reference implementation (faest-ref) | literature | reported | true | faest reference-implementation source-code digital-signatures aes vole-in-the-head meson c post-quantum primary-source |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |
+| KN-LIT-7620 | NIST IR 8610: Status Report on the Second Round of the Additional Digital Signature Schemes for the NIST Post-Quantum Cryptography Standardization Process | literature | reported | true | nist pqc additional-digital-signatures round-3 status-report standardization faest primary-source |
+| KN-LIT-7621 | The Arithmetic of Elliptic Curves (2nd ed.) | literature | established | web | elliptic-curve formal-group height neron-tate mordell-weil finite-field local-field textbook foundational number-theory |
+| KN-LIT-7622 | Heegner points and derivatives of L-series | literature | reported | web | heegner-point l-function height neron-tate modular-forms modular-curve bsd mordell-weil foundational number-theory |
+| KN-LIT-7623 | Formal complex multiplication in local fields | literature | reported | web | lubin-tate formal-group local-field complex-multiplication class-field-theory p-adic foundational number-theory |
+| KN-LIT-7624 | Endomorphisms of abelian varieties over finite fields | literature | reported | web | abelian-variety endomorphism tate-module isogeny finite-field honda-tate foundational number-theory algebraic-geometry |
+| KN-LIT-7625 | Isogeny classes of abelian varieties over finite fields | literature | reported | web | abelian-variety isogeny honda-tate weil-number finite-field frobenius foundational number-theory algebraic-geometry |
+| KN-LIT-7626 | Abelian varieties over finite fields | literature | reported | web | abelian-variety endomorphism isogeny honda-tate finite-field ordinary supersingular polarization foundational number-theory algebraic-geometry |
+| KN-LIT-7627 | Néron Models | literature | reported | web | neron-model abelian-variety jacobian picard-functor reduction scheme algebraic-geometry foundational number-theory |
+| KN-LIT-7628 | Abelian varieties | literature | reported | web | abelian-variety polarization dual-abelian-variety theta scheme algebraic-geometry foundational textbook |
+| KN-LIT-7629 | A First Course in Modular Forms | literature | reported | web | modular-forms modular-curve hecke eichler-shimura galois-representation moduli jacobian textbook foundational number-theory |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |
+| KN-LIT-7630 | Constructing Isogenies Between Elliptic Curves Over Finite Fields | literature | reported | true | isogeny ordinary-curves endomorphism-ring conductor ecdlp galbraith prime-field |
+| KN-LIT-7631 | Expander graphs based on GRH with an application to elliptic curve cryptography (redirect) | literature | reported | read | isogeny expander grh ecdlp ordinary-curves redirect |
+| KN-LIT-7632 | Mathematics of Isogeny Based Cryptography | literature | reported | true | isogeny survey supersingular ordinary ecdlp weak-curves mitm |
+| KN-LIT-7633 | Hidden Pairings and Trapdoor DDH Groups | literature | reported | false | trapdoor-ddh hidden-pairing elliptic-curve multivariate dent-galbraith |
+| KN-LIT-7634 | Trapdoor DDH Groups from Pairings and Isogenies | literature | reported | true | trapdoor-ddh pairing isogeny supersingular dent-galbraith |
+| KN-LIT-7635 | A Kilobit Hidden SNFS Discrete Logarithm Computation | literature | reported | true | snfs trapdoor discrete-log prime-field hidden-structure parameter-generation |
+| KN-LIT-7636 | Removable Weak Keys for Discrete Logarithm Based Cryptography | literature | reported | true | weak-keys discrete-log elliptic-curve cheon implicit-representation |
+| KN-LIT-7637 | Ten Advances in Mathematics and Theoretical Computer Science | literature | reported | read | mathematics theoretical-computer-science proof-architecture theorem-search certificate counterexample invariant potential-method reduction methodology agentic-harness cross-domain |
+| KN-LIT-7638 | Publicly Verifiable Zero-Knowledge and Post-Quantum Signatures From VOLE-in-the-Head | literature | reported | true | faest vole-in-the-head zero-knowledge fiat-shamir nizk mpc-in-the-head post-quantum-signatures aes crypto-2023 primary-source |
+| KN-LIT-7639 | Character sums over AG codes | literature | reported | read | character-sums weil-bound bombieri algebraic-curves function-fields ecdlp stepanov |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
+| KN-LIT-7640 | Ten Advances in Mathematics and Theoretical Computer Science | literature | reported | read | mathematics theoretical-computer-science proof-architecture theorem-search certificate counterexample invariant potential-method reduction methodology agentic-harness cross-domain |
+| KN-LIT-7641 | The principal ideal problem for endomorphism rings of superspecial abelian varieties | literature | reported | web | principal-ideal-problem quaternion quaternion-algebra endomorphism-ring abelian-variety supersingular superspecial isogeny deuring number-theory cryptanalysis elliptic-curve |
+| KN-LIT-7642 | Efficient quaternion algorithms for the Deuring correspondence, and application to the evaluation of modular polynomials | literature | reported | web | deuring quaternion quaternion-algebra endomorphism-ring isogeny supersingular modular-polynomial implementation cost-model sqisign elliptic-curve number-theory |
+| KN-LIT-7643 | High-Order Galois Automorphisms for TNFS Linear Algebra | literature | reported | web | number-field-sieve tnfs dlp finite-field extension-field pairing galois automorphism index-calculus linear-algebra cost-model number-theory cryptanalysis |
+| KN-LIT-7644 | The discrete logarithm problem in cokernels of O_K-matrices | literature | reported | web | dlp class-group number-theory ring-of-integers module sandpile broken-platform cryptanalysis complexity negative-result |
+| KN-LIT-7645 | Computing class groups and gonalities of algebraic curves over finite fields | literature | reported | web | class-group jacobian function-field finite-field hyperelliptic riemann-roch gonality index-calculus dlp number-theory implementation cost-model |
+| KN-LIT-7646 | Decomposition of the Ate Pairing and its Relation to Generalized Pairing Inversion | literature | reported | web | pairing pairing-inversion ate-pairing elliptic-curve supersingular mov-fr dlp finite-field number-theory cryptanalysis miller-function |
+| KN-LIT-7647 | SoliloQuat: Throwing Caution to the Wind | literature | reported | web | principal-ideal-problem quaternion quaternion-algebra lattice ideal-lattice lattice-isomorphism-problem pqc provable-security number-theory soliloquy hawk |
+| KN-LIT-7648 | Cryptanalysis of Definite and Indefinite Lattice Isomorphism Problems With Applications to DEFI | literature | reported | web | lattice-isomorphism-problem lattice-isomorphism quadratic-form genus spinor-genus cryptanalysis signature pqc number-theory group-action hawk key-recovery |
+| KN-LIT-7649 | Principal ideal problem and ideal shortest vector over rational primes in power-of-two cyclotomic fields | literature | reported | web | principal-ideal-problem ideal-lattice cyclotomic lattice number-theory ring-lwe decomposition-field minkowski shortest-vector pqc |
 | KN-LIT-765 | Finding Elliptic Curves With Many Integral Points arXiv:2012.06233v1 [math.NT] 11 Dec 2020 Benjamin Jones | literature | reported | read | elliptic-curve |
+| KN-LIT-7650 | Module Lattice Security (Part I): Unconditional Verification of Weber's Conjecture for k <= 12 | literature | reported | web | principal-ideal-problem cyclotomic class-group class-number ideal-lattice lattice iwasawa grh number-theory pqc extraordinary-claim |
+| KN-LIT-7651 | Cryptanalysis of Hecke-KE: A Linear-Algebra Attack via Hecke Eigenbasis Decomposition | literature | reported | web | hecke modular-forms cryptanalysis key-recovery number-theory commuting-operators broken-platform one-way-function unfixable sturm-bound |
+| KN-LIT-7652 | Linear Code Equivalence via Plücker Coordinates | literature | reported | web | code-equivalence group-action invariant-theory plucker grassmannian groebner algebraic-cryptanalysis signature pqc negative-result less |
+| KN-LIT-7653 | Learning the Word Problem: Geodesic Lengths and Cryptographic Applications | literature | reported | web | word-problem group-theory non-commutative-crypto machine-learning graph-neural-network cryptanalysis broken-platform baumslag-solitar artin-group structural-leakage ml-to-theorem |
+| KN-LIT-7654 | On the higher algebraic K-groups of arithmetically equivalent number fields | literature | reported | web | arithmetic-equivalence k-theory zeta-function galois-representation class-group number-theory invariant lossy-projection etale-cohomology methodology |
+| KN-LIT-7655 | Radical 3-isogenies for the ideal class group actions on (2, epsilon)-structures | literature | reported | web | class-group-action group-action radical-isogeny isogeny supersingular oriented-curve orientation delfs-galbraith sidh-csidh q-curve montgomery-curve meet-in-the-middle elliptic-curve |
+| KN-LIT-7656 | Forensic categories: a framework for SQIsign-like primitives | literature | reported | web | deuring quaternion quaternion-algebra endomorphism-ring isogeny supersingular sqisign category-theory abstraction signature chameleon-hash provable-security elliptic-curve |
+| KN-LIT-7657 | Resource Estimation of the Distributed Quantum Algorithm for the Elliptic Curve Logarithm Problem | literature | reported | web | ecdlp quantum shor resource-estimate distributed-quantum-computing toffoli-count logical-qubits fault-tolerant elliptic-curve cost-model security-estimate extended-euclidean |
+| KN-LIT-7658 | The Cokernel Pairing | literature | reported | web | pairing weil-pairing tate-pairing elliptic-curve torsion-subgroup cokernel isogeny curve-arithmetic number-theory sylow foundational |
+| KN-LIT-7659 | Coppersmith's Method for Solving Modular Inversion Hidden Number Problem via Determinant-Based Elimination | literature | reported | web | coppersmith hidden-number-problem mihnp lattice lll shift-polynomial prng inversive-congruential cryptanalysis disproved-conjecture elliptic-curve |
 | KN-LIT-766 | Fine-Grained Cryptography: A New Frontier? | literature | reported | read | complexity-theory cryptanalysis hash protocol provable-security survey |
+| KN-LIT-7660 | On the Security of Constraint-Friendly Map-to-Curve Relations | literature | reported | web | hash-to-curve elliptic-curve generic-group-model ec-ggm model-failure forgery zk-proof constraint-system curve-arithmetic cryptanalysis security-model |
+| KN-LIT-7661 | Time vs Success Probability Tradeoff for SVP and BDD with Implications to LWE and SIS | literature | reported | web | lattice svp bdd lwe sis slide-reduction worst-case-to-average-case reduction-tightness cost-model concrete-security complexity conjecture |
+| KN-LIT-7662 | Refined Approx-SVP Rank Reduction Conditions and Adaptive Lattice Reduction for MSIS Security Estimation | literature | reported | web | lattice approx-svp msis bkz sieving dimension-for-free gram-schmidt concrete-security cost-model dilithium security-estimate lattice-estimator |
+| KN-LIT-7663 | On the Concrete Hardness Gap Between MLWE and LWE | literature | reported | web | module-lwe ring-lwe lwe cyclotomic structure hybrid-attack dual-attack primal-attack concrete-security cost-model kyber ml-kem fhe sparse-secret symmetry |
+| KN-LIT-7664 | Unified Dual Attack Analyses: Covariance-Based Score Distribution Prediction for LWE | literature | reported | web | dual-attack lwe kyber ml-kem dilithium independence-heuristic score-distribution concrete-security cost-model modulus-switching lattice-estimator methodology |
+| KN-LIT-7665 | What Happens When integrating Modulus Switching and Lossy Source Coding: A New Dual Attack Variant on LWE | literature | reported | web | dual-attack dual-sieve-fft lwe kyber ml-kem modulus-switching lossy-source-coding concrete-security cost-model memory multi-target |
+| KN-LIT-7666 | An Improved Hybrid Dual Attack on LWE with Sparse Secrets and its Application to FHE | literature | reported | web | dual-attack hybrid-attack lwe sparse-secret fhe bgv meet-in-the-middle independence-heuristic contradictory-regime concrete-security cost-model key-recovery |
+| KN-LIT-7667 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | literature | reported | web | module-lwe ring-lwe hybrid-attack decoding cyclotomic structure sparse-secret fhe concrete-security cost-model lattice-estimator symmetry |
+| KN-LIT-7668 | Sharper and Closed-Form Attacks on SIS When Modulus Is Small | literature | reported | web | sis isis large-norm-attack bdgl-sieve falcon mitaka dilithium forgery cost-model independence-heuristic concrete-security lattice |
+| KN-LIT-7669 | Solving SIS in any norm via Gaussian sampling | literature | reported | web | sis discrete-gaussian gaussian-sampling q-ary-lattice mcmc dilithium provable lp-norm concrete-security cost-model lattice |
 | KN-LIT-767 | Fixslicing AES-like Ciphers New bitsliced AES speed records on ARM-Cortex M and RISC-V | literature | reported | read | implementation side-channel symmetric |
+| KN-LIT-7670 | Cryptanalysis of HAWK: a Guessing Game | literature | reported | web | hawk lattice-isomorphism-problem module-lip nrd-pip principal-ideal-problem quaternion lenstra-silverberg subfield-attack heuristic key-recovery unverified-heuristic pqc cryptanalysis |
+| KN-LIT-7671 | Exploiting the complexity of Lattice Isomorphism Problem via Irreducible Decomposition | literature | reported | web | lattice-isomorphism-problem slip complexity am-coam polynomial-hierarchy np-hardness graph-isomorphism kz-basis orthogonal-decomposition svp foundational |
+| KN-LIT-7672 | Revisiting the Concrete Security of Falcon-type Signatures | literature | reported | web | falcon gpv ntru trapdoor concrete-security reduction-tightness provable-security strong-unforgeability random-oracle parameter-selection pqc lattice |
+| KN-LIT-7674 | Cryptanalysis of HAWK: a Guessing Game (with 30/06 correction) | literature | read | body_read_from_user_provided_text | hawk lattice-isomorphism-problem module-lip nrd-pip quaternion lenstra-silverberg heuristic key-recovery pqc cryptanalysis fractional-ideals super-polynomial |
+| KN-LIT-7675 | Revisiting the Security of Approximate FHE with Noise-Flooding Countermeasures | literature | unverified | web | fhe ckks approximate-fhe noise-flooding smudging ind-cpa-d key-recovery bootstrapping-failure-probability precision-loss countermeasure-gap unread-primary-source rq-fhe-001 |
 | KN-LIT-768 | From the Hardness of Detecting Superpositions to Cryptography: Quantum Public Key Encryption and Commitments | literature | reported | read | dlp pairing pqc provable-security |
 | KN-LIT-769 | Hardness of LWE on General Entropic Distributions? | literature | reported | read | fhe lattice pairing pqc provable-security quantum |
+| KN-LIT-76ba49 | Evaluation of Gaussian elimination using HLS for fast public key generation in the Classic McEliece | literature | reported | false | classic-mceliece code-based implementation hardware gaussian-elimination hls key-generation |
 | KN-LIT-770 | Hashing to elliptic curves of j “ 0 and Mordell–Weil groups | literature | reported | read | curve-arithmetic elliptic-curve finite-field pairing |
 | KN-LIT-771 | Improved quantum circuits for elliptic curve discrete logarithms | literature | reported | read | cryptanalysis curve-arithmetic dlp ecdlp elliptic-curve quantum |
 | KN-LIT-772 | Improved torsion-point attacks on | literature | reported | read | dlp elliptic-curve factoring finite-field isogeny pairing pqc protocol quantum sidh-csidh supersingular |
@@ -7379,12 +7635,23 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-794 | ON CLASS NUMBERS, TORSION SUBGROUPS, AND QUADRATIC TWISTS OF ELLIPTIC CURVES | literature | reported | read | class-group complexity-theory elliptic-curve number-theory pairing quantum |
 | KN-LIT-795 | ON ELEMENTS OF LARGE ORDER OF ELLIPTIC | literature | reported | read | complexity-theory elliptic-curve finite-field pairing provable-security |
 | KN-LIT-796 | On Index Calculus Algorithms for Subfield Curves | literature | reported | read | complexity-theory dlp ecdlp elliptic-curve endomorphism extension-field factoring finite-field index-calculus pollard-rho protocol provable-security quantum |
+| KN-LIT-7965a1 | An algorithmic reduction theory for binary codes: LLL and more | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security lattice-reduction lll reduction-theory cross-domain |
 | KN-LIT-797 | On some p-adic Galois representations and form class groups | literature | reported | read | class-group elliptic-curve extension-field isogeny number-theory pairing |
 | KN-LIT-798 | On the algebraic functional equation for the mixed signed Selmer group over multiple Zp-extensions | literature | reported | read | abelian-variety elliptic-curve number-theory pairing provable-security supersingular |
 | KN-LIT-799 | ON THE ANTICYCLOTOMIC IWASAWA THEORY OF RATIONAL ELLIPTIC | literature | reported | read | curve-arithmetic elliptic-curve isogeny number-theory pairing provable-security |
+| KN-LIT-7baf07 | Quasipolynomial Cryptanalysis of the McEliece Cryptosystem (or: PIR Meets McEliece) | literature | reported | web | code-based mceliece classic-mceliece goppa structural-attack distinguish-then-recover quasipolynomial pir locally-decodable-codes heuristic |
+| KN-LIT-7c2620 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | literature | unverified | web | ring-lwe module-lwe hybrid-attack decoding-attack sparse-secret ternary-secret fhe-parameters lattice-estimator concrete-security 128-bit-security bootstrapping-cost unread-primary-source rq-fhe-001 |
+| KN-LIT-7c4620 | A heuristic subexponential attack on the McEliece cryptosystem | literature | reported | web | code-based mceliece structural-attack key-recovery goppa subexponential heuristic algebraic-cryptanalysis |
+| KN-LIT-7c6f53 | Cryptanalysis of the original McEliece cryptosystem | literature | reported | web | isd syndrome-decoding code-based mceliece canteaut-chabaud cryptanalysis original-parameters record |
+| KN-LIT-7d2077 | Classic McEliece: conservative code-based cryptography: guide for implementors | literature | reported | web | code-based mceliece key-sizes implementation constant-time primary-source |
+| KN-LIT-7d6c98 | Profiled side-channel attack on cryptosystems based on the binary syndrome decoding problem | literature | reported | web | side-channel code-based classic-mceliece implementation-attack profiled-attack syndrome-decoding generic-attack |
+| KN-LIT-7ee1a9 | Understanding the new distinguisher of alternant codes at degree 2 | literature | reported | web | code-based mceliece structural-attack key-recovery distinguisher alternant-codes algebraic-cryptanalysis |
+| KN-LIT-7f3c21 | Argon2 Memory-Hard Function for Password Hashing and Proof-of-Work Applications (RFC 9106) | literature | established | true | argon2 memory-hard password-hashing kdf side-channel rfc |
+| KN-LIT-7f6a8b | Introduction to the higher dimensional setting / Isogeny Computations in Higher Dimensions (ECC 2024 autumn school and workshop) | literature | reported | read | higher-dimensional-isogeny ppav abelian-surface jacobian genus-2 mumford-representation cantor-algorithm kummer-surface theta x-only kani ecc2024 slides lecture-notes |
 | KN-LIT-800 | On the distribution of orders of Frobenius action on `-torsion of abelian surfaces | literature | reported | read | abelian-variety curve-arithmetic elliptic-curve endomorphism factoring finite-field |
 | KN-LIT-801 | On the division fields of an elliptic curve and an effective bound to the hypotheses of the local-global divisibility | literature | reported | read | elliptic-curve number-theory pairing |
 | KN-LIT-802 | On the Role of Hash-based Signatures in Quantum-Safe Internet of Things: Current Solutions and Future Directions | literature | reported | read | cryptanalysis dlp ecdsa elliptic-curve lattice pairing pqc quantum rsa signature survey |
+| KN-LIT-80202e | Quantum information set decoding algorithms | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum grover quantum-walk asymptotics |
 | KN-LIT-803 | ON TOTALLY SPLIT PRIMES IN HIGH-DEGREE TORSION FIELDS OF ELLIPTIC CURVES arXiv:2009.13119v2 [math.NT] 1 Oct 2021 JORI MERIKOSKI | literature | reported | read | complexity-theory elliptic-curve endomorphism number-theory pairing |
 | KN-LIT-804 | On two problems about isogenies of elliptic curves over finite fields | literature | reported | read | elliptic-curve endomorphism finite-field isogeny quantum |
 | KN-LIT-805 | Order-Fairness for Byzantine Consensus | literature | reported | read | pairing |
@@ -7392,10 +7659,12 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-807 | PERFECT SQUARES REPRESENTING THE NUMBER OF RATIONAL POINTS ON ELLIPTIC CURVES OVER FINITE FIELD EXTENSIONS | literature | reported | read | elliptic-curve finite-field |
 | KN-LIT-808 | Pholkos – Efficient Large-state Tweakable Block Ciphers from the AES Round Function | literature | reported | read | cryptanalysis hash pairing quantum symmetric |
 | KN-LIT-809 | Primitive divisors of sequences associated to elliptic curves with complex multiplication | literature | reported | read | elliptic-curve endomorphism lattice number-theory pairing |
+| KN-LIT-80f208 | Explicit bounds for generic decoding algorithms for code-based cryptography | literature | reported | false | isd syndrome-decoding code-based mceliece concrete-security lower-bounds cost-model |
 | KN-LIT-810 | Q-CURVES OVER ODD DEGREE NUMBER FIELDS | literature | reported | read | elliptic-curve hyperelliptic isogeny number-theory pairing |
 | KN-LIT-811 | QUADRATIC TWISTS OF ELLIPTIC CURVES AND CLASS NUMBERS | literature | reported | read | class-group complexity-theory elliptic-curve pairing provable-security |
 | KN-LIT-812 | Quantum Collision Attacks on AES-like Hashing with Low Quantum Random Access Memories | literature | reported | read | cryptanalysis dlp hash pairing pqc provable-security quantum symmetric |
 | KN-LIT-813 | Radical Isogenies | literature | reported | read | class-group curve-arithmetic elliptic-curve endomorphism hash isogeny lattice number-theory pairing pqc prime-field sidh-csidh supersingular survey zk-proof |
+| KN-LIT-813e69 | Decoding complexity bound for linear block codes | literature | reported | false | isd syndrome-decoding code-based mceliece krouk complexity-bounds historical |
 | KN-LIT-814 | RESIDUAL GALOIS REPRESENTATIONS OF ELLIPTIC CURVES WITH IMAGE CONTAINED IN THE NORMALISER OF A NON-SPLIT CARTAN | literature | reported | read | complexity-theory elliptic-curve isogeny mov-fr number-theory pairing |
 | KN-LIT-815 | RIGIDITY IN ELLIPTIC CURVE LOCAL-GLOBAL PRINCIPLES | literature | reported | read | abelian-variety elliptic-curve isogeny number-theory pairing provable-security quantum |
 | KN-LIT-816 | SIMULTANEOUS SUPERSINGULAR REDUCTIONS OF CM ELLIPTIC CURVES | literature | reported | read | elliptic-curve endomorphism number-theory provable-security supersingular |
@@ -7411,6 +7680,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-826 | TORSION POINTS ON ISOGENOUS ABELIAN VARIETIES | literature | reported | read | abelian-variety curve-arithmetic elliptic-curve isogeny jacobian number-theory pairing |
 | KN-LIT-827 | Towards Post-Quantum Key-Updatable Public-Key Encryption via Supersingular Isogenies | literature | reported | read | class-group dlp isogeny lattice number-theory pqc protocol sidh-csidh supersingular |
 | KN-LIT-828 | TWISTED μ4 -NORMAL FORM FOR ELLIPTIC CURVES DAVID KOHEL | literature | reported | read | binary-field curve-arithmetic elliptic-curve endomorphism finite-field provable-security side-channel |
+| KN-LIT-8285cb | Information-set decoding with hints | literature | reported | web | code-based mceliece structural-attack key-recovery isd hints partial-information side-channel-theory |
 | KN-LIT-829 | WHAT Ell SEES THAT K DOESN’T (WHEN p > 3) | literature | reported | read | elliptic-curve endomorphism number-theory prime-field supersingular |
 | KN-LIT-830 | Zero-Knowledge IOPs with | literature | reported | read | hash pairing pqc zk-proof |
 | KN-LIT-831 | θ-Congruent Numbers, Tiling Numbers and the Selmer Rank of Related | literature | reported | read | elliptic-curve number-theory pairing |
@@ -7422,6 +7692,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-837 | A PARAMETRIZED SET OF EXPLICIT ELEMENTS OF X(E/Q)[3] | literature | reported | read | elliptic-curve isogeny number-theory pairing quantum |
 | KN-LIT-838 | A Semi-Permanent Stuck-At Fault Analysis on AES | literature | reported | read | cryptanalysis implementation provable-security rsa side-channel symmetric |
 | KN-LIT-839 | An Isogeny-Based ID Protocol Using Structured Public Keys | literature | reported | read | class-group dlp elliptic-curve endomorphism finite-field isogeny number-theory pairing pqc provable-security quantum sidh-csidh signature supersingular survey |
+| KN-LIT-83a367 | AXI hardware accelerator for McEliece on FPGA embedded systems | literature | reported | web | classic-mceliece code-based implementation hardware fpga axi embedded accelerator |
 | KN-LIT-840 | ANTICYCLOTOMIC μ-INVARIANTS OF RESIDUALLY | literature | reported | read | abelian-variety class-group elliptic-curve number-theory pairing provable-security quantum |
 | KN-LIT-841 | ASYMPTOTIC GROWTH OF MORDELL–WEIL RANKS OF ELLIPTIC CURVES IN NONCOMMUTATIVE TOWERS | literature | reported | read | abelian-variety class-group elliptic-curve mov-fr number-theory pairing provable-security quantum supersingular |
 | KN-LIT-842 | Automatic Classical and Quantum Rebound Attacks on AES-like Hashing by Exploiting Related-key Differentials | literature | reported | read | cryptanalysis hash pairing quantum symmetric |
@@ -7432,6 +7703,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-847 | Commitment Schemes from Supersingular Elliptic | literature | reported | read | dlp elliptic-curve endomorphism factoring hash isogeny lattice pqc protocol provable-security quantum sidh-csidh signature supersingular zk-proof |
 | KN-LIT-848 | Complete Analysis of Implementing Isogeny-based Cryptography using Huff Form of Elliptic Curves | literature | reported | read | curve-arithmetic dlp elliptic-curve endomorphism finite-field isogeny pairing pqc protocol quantum sidh-csidh signature supersingular |
 | KN-LIT-849 | Complete Practical Side-Channel-Assisted Reverse Engineering of AES-Like Ciphers | literature | reported | read | cryptanalysis pairing quantum side-channel symmetric |
+| KN-LIT-84b674 | Classic McEliece: conservative code-based cryptography: cryptosystem specification | literature | reported | web | code-based mceliece goppa niederreiter specification parameters kem primary-source |
 | KN-LIT-850 | CONGRUENCES BETWEEN RAMANUJAN’S TAU FUNCTION | literature | reported | read | elliptic-curve isogeny number-theory pairing provable-security |
 | KN-LIT-851 | CONSTANT TAMAGAWA NUMBERS OF SPECIAL ELLIPTIC CURVES | literature | reported | read | elliptic-curve finite-field isogeny number-theory |
 | KN-LIT-852 | Constructing Cubic Curves with Involutions | literature | reported | read | elliptic-curve lattice |
@@ -7452,6 +7724,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-867 | Extending the GLS endomorphism to speed up GHS Weil descent using Magma Jesús-Javier Chi-Domı́nguezb,a,, Francisco Rodrı́guez-Henrı́quezb,a,1, Benjamin Smithc,2 | literature | reported | read | binary-field dlp elliptic-curve endomorphism extension-field glv-gls hyperelliptic index-calculus isogeny jacobian pollard-rho weil-descent |
 | KN-LIT-868 | FACTORIZATION OF MEASURES AND APPLICATIONS TO THE WEAK | literature | reported | read | complexity-theory elliptic-curve factoring number-theory pairing provable-security |
 | KN-LIT-869 | Faster Key Generation of Supersingular Isogeny Diffie-Hellman | literature | reported | read | curve-arithmetic elliptic-curve isogeny pqc sidh-csidh supersingular |
+| KN-LIT-86e77b | Cofactor-torsion attacks on hinted scalar multiplications in SNARK circuits | literature | reported | read | elliptic-curve snark scalar-multiplication hinted-computation cofactor torsion subgroup lattice-decomposition fake-glv soundness attack |
 | KN-LIT-870 | Filtered deformations of elliptic algebras | literature | reported | read | elliptic-curve endomorphism |
 | KN-LIT-871 | Fully projective radical isogenies in constant-time | literature | reported | read | class-group curve-arithmetic elliptic-curve implementation isogeny number-theory pairing pqc protocol side-channel sidh-csidh supersingular survey |
 | KN-LIT-872 | Fundamenta Informaticae 184(2) : 107–139 (2021) | literature | reported | read | binary-field curve-arithmetic elliptic-curve finite-field isogeny quantum sidh-csidh |
@@ -7462,6 +7735,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-877 | INFINITE FAMILIES OF ISOGENY-TORSION GRAPHS | literature | reported | read | elliptic-curve isogeny |
 | KN-LIT-878 | Internet Computer Consensus Jan Camenisch, Manu Drijvers, Timo Hanke | literature | reported | read | mov-fr pairing |
 | KN-LIT-879 | ISOGENIES OF CERTAIN K3 SURFACES OF RANK | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny jacobian number-theory pairing survey |
+| KN-LIT-87e00e | Collisions for Hash Functions MD4, MD5, HAVAL-128 and RIPEMD | literature | reported | read | cryptanalysis hash md5 md4 haval ripemd collision differential-attack |
 | KN-LIT-880 | Isogeny-based Group Signatures and | literature | reported | read | hash hyperelliptic isogeny lattice mov-fr pairing pqc provable-security signature zk-proof |
 | KN-LIT-881 | IWASAWA INVARIANTS FOR ELLIPTIC CURVES OVER | literature | reported | read | elliptic-curve number-theory pairing provable-security supersingular |
 | KN-LIT-882 | KOLYVAGIN CLASSES VERSUS NON-CRISTALLINE DIAGONAL CLASSES | literature | reported | read | elliptic-curve number-theory pairing provable-security |
@@ -7469,6 +7743,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-884 | L-FUNCTIONS OF ELLIPTIC CURVES MODULO INTEGERS arXiv:2110.12156v3 [math.NT] 30 Nov 2022 FÉLIX BARIL BOUDREAU | literature | reported | read | curve-arithmetic elliptic-curve finite-field number-theory provable-security |
 | KN-LIT-885 | Large Tate–Shafarevich orders from good abc triples | literature | reported | read | elliptic-curve isogeny number-theory pairing |
 | KN-LIT-886 | Lattice-based weak curve fault attack on ECDSA | literature | reported | read | cryptanalysis curve-arithmetic dlp ecdlp ecdsa elliptic-curve lattice protocol provable-security quantum side-channel signature |
+| KN-LIT-886c90 | A timing attack against the secret permutation in the McEliece PKC | literature | reported | web | side-channel code-based classic-mceliece implementation-attack timing-attack permutation historical |
 | KN-LIT-887 | LOCAL DATA OF RATIONAL ELLIPTIC CURVES WITH NON-TRIVIAL TORSION | literature | reported | read | elliptic-curve pairing provable-security |
 | KN-LIT-888 | Mathematical Assoc. of America | literature | reported | read | elliptic-curve finite-field isogeny |
 | KN-LIT-889 | Meet-in-the-Middle Attacks Revisited: | literature | reported | read | cryptanalysis hash pairing symmetric |
@@ -7482,6 +7757,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-897 | On Algebraic Embedding for Unstructured Lattices | literature | reported | read | lattice number-theory pairing quantum survey |
 | KN-LIT-898 | On order of vanishing of characteristic elements | literature | reported | read | elliptic-curve number-theory pairing provable-security |
 | KN-LIT-899 | On parameterizations of cyclic N -isogenies and strict K-curves lying above rational points of Y0+(N ) | literature | reported | read | elliptic-curve isogeny number-theory pairing |
+| KN-LIT-89d5df | Compact GF(2) systemizer and optimized constant-time hardware sorters for Key Generation in Classic McEliece | literature | reported | web | classic-mceliece code-based implementation hardware key-generation constant-time sorting systemizer |
+| KN-LIT-8ce0b5 | Rank Bounds for NTT Twiddle-Factor Fault Attacks on ML-DSA (Lean 4 Machine-Checked) | literature |  | partial | ml-dsa fips-204 ntt twiddle-factor fault-injection formal-verification lean4 rank-bound |
+| KN-LIT-8d884f | Efficient ASIC architecture for low latency Classic McEliece decoding | literature | reported | web | classic-mceliece code-based implementation hardware asic low-latency decoding |
 | KN-LIT-900 | ON SELMER GROUPS IN THE SUPERSINGULAR REDUCTION CASE | literature | reported | read | elliptic-curve number-theory pairing provable-security quantum supersingular |
 | KN-LIT-901 | ON THE AVERAGE OF p-SELMER RANK IN QUADRATIC TWIST FAMILIES OF ELLIPTIC CURVES OVER FUNCTION FIELD | literature | reported | read | elliptic-curve finite-field number-theory provable-security |
 | KN-LIT-902 | ON THE BIRCH–SWINNERTON-DYER CONJECTURE FOR MODULAR | literature | reported | read | abelian-variety elliptic-curve endomorphism isogeny mov-fr number-theory pairing provable-security survey |
@@ -7502,6 +7780,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-917 | RANK GROWTH OF ELLIPTIC CURVES OVER N -TH ROOT EXTENSIONS | literature | reported | read | abelian-variety elliptic-curve isogeny number-theory |
 | KN-LIT-918 | REPRESENTATIONS ATTACHED TO ELLIPTIC CURVES WITH A NON-TRIVIAL ODD TORSION POINT | literature | reported | read | elliptic-curve pairing provable-security |
 | KN-LIT-919 | Resistance of Isogeny-Based Cryptographic | literature | reported | read | cryptanalysis curve-arithmetic elliptic-curve factoring hash isogeny lattice pqc protocol quantum side-channel sidh-csidh supersingular |
+| KN-LIT-91b680 | A Survey of Chosen-Prefix Collision Attacks | literature | reported | read | hash-functions chosen-prefix collision survey stevens |
 | KN-LIT-920 | Revisiting Homomorphic Encryption Schemes for Finite Fields ? | literature | reported | read | fhe finite-field provable-security |
 | KN-LIT-921 | Richelot Isogenies, Pairings on Squared Kummer | literature | reported | read | abelian-variety curve-arithmetic dlp elliptic-curve factoring hash hyperelliptic isogeny jacobian pairing pqc protocol sidh-csidh signature supersingular |
 | KN-LIT-922 | Round-Efficient Byzantine Agreement and Multi-Party Computation with Asynchronous Fallback | literature | reported | read | mpc pairing survey |
@@ -7522,6 +7801,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-937 | The Lang-Trotter Conjecture for the elliptic curve y 2 = x3 + Dx | literature | reported | read | elliptic-curve endomorphism finite-field number-theory pairing provable-security supersingular |
 | KN-LIT-938 | TORSION FOR CM ELLIPTIC CURVES DEFINED OVER NUMBER FIELDS OF DEGREE 2p | literature | reported | read | elliptic-curve endomorphism number-theory pairing |
 | KN-LIT-939 | TORSION GROUPS OF MORDELL CURVES OVER NUMBER FIELDS OF HIGHER DEGREE | literature | reported | read | elliptic-curve number-theory |
+| KN-LIT-93ad69 | Perturbation of Hankel moment singular values and supersingular endomorphism rings via CVP | literature | unverified | read | hankel moments supersingular endomorphism-ring cvp p-adic quantum-oracle |
+| KN-LIT-93e8d7 | Error-correcting coding for digital communication | literature | reported | false | isd syndrome-decoding code-based mceliece omura textbook attribution historical |
 | KN-LIT-940 | TYPICALLY BOUNDING TORSION ON ELLIPTIC CURVES ISOGENOUS TO RATIONAL j-INVARIANT | literature | reported | read | class-group elliptic-curve endomorphism isogeny jacobian mov-fr number-theory pairing |
 | KN-LIT-941 | VARIATION OF CANONICAL HEIGHT FOR FATOU POINTS ON P1 | literature | reported | read | elliptic-curve endomorphism number-theory |
 | KN-LIT-942 | Verifiable Isogeny Walks: Towards an Isogeny-based Postquantum VDF | literature | reported | read | dlp elliptic-curve hash isogeny pairing quantum supersingular |
@@ -7535,6 +7816,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-950 | ALGEBRAIC INDEPENDENCE AND DIFFERENCE EQUATIONS OVER ELLIPTIC FUNCTION FIELDS | literature | reported | read | elliptic-curve endomorphism lattice mov-fr |
 | KN-LIT-951 | An attack on SIDH with arbitrary starting curve (draft) | literature | reported | read | cryptanalysis elliptic-curve endomorphism finite-field isogeny lattice pairing pqc protocol sidh-csidh supersingular |
 | KN-LIT-952 | Another Round of Breaking and Making Quantum Money: How to Not Build It from Lattices, and More | literature | reported | read | cryptanalysis curve-arithmetic elliptic-curve isogeny lattice pairing pqc provable-security quantum |
+| KN-LIT-95256d | Attacks Against the IND-CPA^D Security of Exact FHE Schemes | literature | unverified | web | fhe ind-cpa-d security-notion decryption-oracle exact-fhe bgv bfv tfhe ckks correctness-failure unread-primary-source rq-fhe-001 |
 | KN-LIT-953 | ASYMPTOTIC FERMAT FOR SIGNATURE (4, 2, p) OVER NUMBER FIELDS | literature | reported | read | elliptic-curve number-theory |
 | KN-LIT-954 | ASYMPTOTIC FORMULA FOR TATE–SHAFAREVICH GROUPS OF p-SUPERSINGULAR ELLIPTIC CURVES OVER ANTICYCLOTOMIC EXTENSIONS | literature | reported | read | abelian-variety elliptic-curve mov-fr number-theory pairing provable-security supersingular |
 | KN-LIT-955 | Attaining GOD Beyond Honest Majority With Friends and Foes | literature | reported | read | mpc pairing survey |
@@ -7553,6 +7835,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-968 | DYNAMICS ON P1 : PREPERIODIC POINTS AND PAIRWISE STABILITY | literature | reported | read | elliptic-curve endomorphism pairing |
 | KN-LIT-969 | Efficient NIZKs and Signatures from Commit-and-Open Protocols in the QROM? | literature | reported | read | hash lattice mov-fr pairing pqc provable-security quantum signature zk-proof |
 | KN-LIT-970 | Efficient Proofs of Knowledge for Threshold Relations | literature | reported | read | dlp hash pairing zk-proof |
+| KN-LIT-970963 | Dimension Reduction for SVP in HAWK: A Trace-Zero Approach | literature | reported | read | svp hawk module-lip nrdpip quaternion trace-zero cyclotomic lattice |
 | KN-LIT-971 | ELLIPTIC ANALOGUE OF IRREGULAR PRIME NUMBERS FOR THE pn -DIVISION FIELDS OF THE CURVES y 2 = x3 − (s4 + t2 )x | literature | reported | read | class-group complexity-theory curve-arithmetic elliptic-curve number-theory |
 | KN-LIT-972 | Elliptic Loops | literature | reported | read | abelian-variety dlp elliptic-curve provable-security quantum |
 | KN-LIT-973 | Endomorphism Rings of Supersingular Elliptic Curves over Fp and Binary Quadratic Forms | literature | reported | read | class-group elliptic-curve endomorphism finite-field isogeny number-theory sidh-csidh supersingular |
@@ -7582,6 +7865,81 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-997 | ISOGENY GRAPHS ON SUPERSPECIAL ABELIAN VARIETIES: | literature | reported | read | abelian-variety complexity-theory elliptic-curve finite-field hash isogeny lattice number-theory quantum |
 | KN-LIT-998 | Key Structures: Improved Related-Key Boomerang Attack against the Full AES-256 | literature | reported | read | cryptanalysis hash symmetric |
 | KN-LIT-999 | Local inversion of maps: A new attack on | literature | reported | read | binary-field cryptanalysis dlp ecdlp elliptic-curve finite-field rsa |
+| KN-LIT-a24b73 | Triple Cryptanalysis of Isogeny-Based VRFs from Asiacrypt 2025 | literature | reported | read | vrf isogeny cgl radical-isogenies cryptanalysis unique-provability |
+| KN-LIT-a409fc | New approaches to reduced complexity decoding | literature | reported | web | isd syndrome-decoding code-based mceliece complexity reduced-complexity-decoding historical |
+| KN-LIT-a45b7b | Index Calculus in Class Groups of Plane Curves of Small Degree | literature | reported | read | index-calculus plane-curve model-degree non-hyperelliptic genus-3 double-large-prime class-group dlp factor-base ghs ecc2007 slides |
+| KN-LIT-a4d0f1 | Elliptic and hyperelliptic curves with weak coverings against Weil descent attack | literature | reported | read | weil-descent ghs weak-covering index-calculus extension-field cover-attack curve-selection defensive ecc2007 slides |
+| KN-LIT-a4d70e | The syzygy distinguisher | literature | reported | web | code-based mceliece structural-attack distinguisher syzygy commutative-algebra alternant-codes algebraic-cryptanalysis claim-class-corrected |
+| KN-LIT-a58ca4 | How to lose some weight - a practical template syndrome decoding attack | literature | reported | web | side-channel code-based classic-mceliece implementation-attack template-attack syndrome-decoding practical isd |
+| KN-LIT-a740ab | Optimized implementation of encapsulation and decapsulation of Classic McEliece on ARMv8 | literature | reported | web | classic-mceliece code-based implementation arm armv8 encapsulation decapsulation |
+| KN-LIT-a85246 | Multi-instance security degradation of code-based KEMs | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security multi-target kem classic-mceliece bike hqc provable-security |
+| KN-LIT-aa3372 | A complete quantum circuit to solve the information set decoding problem | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum quantum-circuit resource-estimation |
+| KN-LIT-ace115 | Acceleration of Classic McEliece post-quantum cryptosystem with cache processing | literature | reported | web | classic-mceliece code-based implementation cache memory-hierarchy acceleration |
+| KN-LIT-ae8a1e | A modular analysis of the Fujisaki-Okamoto transformation | literature | reported | web | cca kem provable-security code-based fujisaki-okamoto hhk qrom foundational transform |
+| KN-LIT-b03de7 | Non-binary information set decoding and an attack on BCH-McEliece: A tale of two approaches to code-based cryptanalysis | literature | reported | false | isd syndrome-decoding code-based mceliece concrete-security non-binary-isd bch-codes thesis algebraic-cryptanalysis |
+| KN-LIT-b175dc | Acceleration of McEliece cryptosystem with instruction set extension for RISC-V | literature | reported | web | classic-mceliece code-based implementation risc-v instruction-set-extension acceleration |
+| KN-LIT-b2191d | Decoding linear codes with high error rate and its impact for LPN security | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security lpn high-error-rate bjmm |
+| KN-LIT-b2df4f | Multiparallel MMT: faster ISD algorithm solving high-dimensional syndrome decoding problem | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security mmt parallel implementation record |
+| KN-LIT-b46f62 | Implementation of Classic McEliece key generation based on Goppa binary code | literature | reported | web | classic-mceliece code-based implementation hardware key-generation goppa binary-codes |
+| KN-LIT-b5686a | McBits revisited | literature | reported | web | classic-mceliece code-based implementation constant-time bitslicing software mcbits |
+| KN-LIT-b66899 | Statistical decoding | literature | reported | web | code-based mceliece structural-attack key-recovery statistical-decoding lpn dual-attack |
+| KN-LIT-b777d1 | Algebraic approach for code equivalence | literature | reported | web | code-based mceliece structural-attack key-recovery code-equivalence algebraic-cryptanalysis thesis |
+| KN-LIT-b8093a | Solving the Shortest Vector Problem in 2^{0.6039n} Time via Mid-point Hessian | literature | reported | read | svp lattices hessian gaussian-sampling adrs mid-point quantum |
+| KN-LIT-b875db | Solving the Shortest Vector Problem in 2^{0.7314n+o(n)} Time via Discrete Gaussian Sampling on Superlattices | literature | reported | full_text_supplied | svp lattices discrete-gaussian-sampling superlattice sparsification smoothing-parameter kabatiansky-levenshtein sphere-packing adrs exponent-improvement provable-algorithms worst-case pqc cross-domain target-result-profile |
+| KN-LIT-b8a8be | Memory-efficient quantum information set decoding algorithm | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum memory-constrained resource-estimation |
+| KN-LIT-b9bba7 | Practical key recovery attacks on two McEliece variants | literature | reported | false | code-based mceliece structural-attack key-recovery variant-break key-recovery practical |
+| KN-LIT-b9d3e0 | How to backdoor (Classic) McEliece and how to guard against backdoors | literature | reported | web | side-channel code-based classic-mceliece implementation-attack backdoor subversion key-generation countermeasure |
+| KN-LIT-b9e1a8 | Hamming Quasi-Cyclic (HQC) | literature | reported | read | hqc code-based kem quasi-cyclic syndrome-decoding qcsd decoding-failure-rate dfr reed-muller reed-solomon concatenated-code shortened-reed-solomon binary-symmetric-channel fujisaki-okamoto ind-cca2 information-set-decoding specification primary-source pqc |
+| KN-LIT-bb53c1 | A non asymptotic analysis of information set decoding | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security non-asymptotic concrete-security cost-model |
+| KN-LIT-bbd0e9 | A probabilistic algorithm for computing minimum weights of large error-correcting codes | literature | reported | web | isd syndrome-decoding code-based mceliece leon minimum-weight algorithm historical |
+| KN-LIT-be0bfd | The Matrix Reloaded: Multiplication Strategies in FrodoKEM | literature | reported | read | pqc lattices frodokem implementation matrix avx2 |
+| KN-LIT-bfef5d | Leveraging HLS to design a versatile & high-performance Classic McEliece accelerator | literature | reported | web | classic-mceliece code-based implementation hardware hls accelerator versatile |
+| KN-LIT-c0a19f | Modeling bit flipping decoding based on nonorthogonal check sums with application to iterative decoding attack of McEliece cryptosystem | literature | reported | web | code-based mceliece structural-attack key-recovery bit-flipping iterative-decoding ldpc attack-modelling |
+| KN-LIT-c2c4d0 | Reaction attacks against several public-key cryptosystems | literature | reported | false | cca kem provable-security code-based reaction-attack decoding-failure foundational attack |
+| KN-LIT-c41d8b | Polynomial time key-recovery attack on high rate random alternant codes (boundary corrected: generic alternant only, Goppa codes explicitly excluded) | literature | reported | transcription_of_full_text_at_recorded_sha256 | code-based mceliece structural-attack key-recovery alternant-codes generic-alternant goppa-exclusion polynomial-time high-rate small-field algebraic-cryptanalysis |
+| KN-LIT-c4974d | Analysis of backdoored (Classic) McEliece in a multi-user setting | literature | reported | web | side-channel code-based classic-mceliece implementation-attack backdoor multi-user key-generation subversion |
+| KN-LIT-caabe2 | Two decoding algorithms for linear codes | literature | reported | false | isd syndrome-decoding code-based mceliece dumer algorithm historical |
+| KN-LIT-cd29fd | Quantum sieving for code-based cryptanalysis and its limitations for ISD | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum sieving quantum-sieving negative-result cost-model |
+| KN-LIT-cd9880 | McEliece cryptosystem implementation: theory and practice | literature | reported | web | classic-mceliece code-based implementation software reference-implementation historical |
+| KN-LIT-ced593 | On the complexity of some cryptographic problems based on the general decoding problem | literature | reported | web | isd syndrome-decoding code-based mceliece complexity general-decoding lpn |
+| KN-LIT-d15818 | FPGA-based Niederreiter cryptosystem using binary Goppa codes | literature | reported | web | classic-mceliece code-based implementation hardware fpga niederreiter goppa |
+| KN-LIT-d1a453 | Recognizing the structure of permuted reducible codes | literature | reported | false | code-based mceliece structural-attack key-recovery permuted-codes reducible-codes structural-recognition |
+| KN-LIT-d3ec68 | Preimage Attacks on 3-Pass HAVAL and Step-Reduced MD5 | literature | reported | read | cryptanalysis hash md5 haval preimage step-reduced |
+| KN-LIT-d4f467 | Embedded Elliptic Curves and Embedded Families for SNARK-Friendly Elliptic Curves | literature | reported | read | embedded-curve snark pairing bandersnatch cm-method schnorr |
+| KN-LIT-d5b1a7 | Fast hardware architecture with efficient matrix computations for the key generation of Classic McEliece | literature | reported | web | classic-mceliece code-based implementation hardware key-generation matrix-computation fpga |
+| KN-LIT-d5baac | Post-quantum WireGuard | literature | reported | web | classic-mceliece code-based implementation protocol wireguard vpn hybrid deployment |
+| KN-LIT-d6d510 | An attack on the CFS scheme and on TII McEliece challenges | literature | reported | web | code-based mceliece structural-attack key-recovery cfs signatures challenges algebraic-cryptanalysis |
+| KN-LIT-d78021 | AI for code-based cryptography | literature | reported | web | code-based mceliece structural-attack key-recovery machine-learning ai-for-cryptanalysis methodology |
+| KN-LIT-d82a53 | A note on the Goppa code distinguishing problem | literature | reported | web | code-based mceliece structural-attack goppa distinguisher indistinguishability claim-class-corrected |
+| KN-LIT-d962e5 | A safety-critical, RISC-V SoC integrated and ASIC-ready Classic McEliece accelerator | literature | reported | web | classic-mceliece code-based implementation hardware asic risc-v soc safety-critical |
+| KN-LIT-dd47da | Optimizing BJMM with nearest neighbors: full decoding in 2^{2n/21} and McEliece security | literature | reported | false | isd syndrome-decoding code-based mceliece concrete-security bjmm nearest-neighbor asymptotics mceliece-security |
+| KN-LIT-de5373 | Security analysis for BIKE, Classic McEliece and HQC against the quantum ISD algorithms | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum classic-mceliece bike hqc nist-pqc |
+| KN-LIT-e204ab | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem (Simon 2026, preliminary draft) | literature | unverified | read | quantum dihedral-coset-problem dcp dsp hidden-subgroup lattice lwe svp mlwe ml-kem ml-dsa pqc post-quantum cryptanalysis unverified-claim preliminary-draft adjacent |
+| KN-LIT-e37d4c | A note on the Goppa code distinguishing problem | literature | reported | web | code-based mceliece structural-attack key-recovery goppa distinguisher indistinguishability |
+| KN-LIT-e3fe13 | An IND-CCA2 attack against the 1st- and 2nd-round versions of NTS-KEM | literature | reported | web | cca kem provable-security code-based nts-kem ind-cca2 nist-pqc attack |
+| KN-LIT-e4a472 | The tangent space attack | literature | reported | web | code-based mceliece structural-attack key-recovery algebraic-cryptanalysis alternant-codes tangent-space |
+| KN-LIT-e530e8 | Side channels in the McEliece PKC | literature | reported | web | side-channel code-based classic-mceliece implementation-attack timing-attack foundational historical |
+| KN-LIT-e800e6 | A key-recovery side-channel attack on Classic McEliece implementations | literature | reported | web | side-channel code-based classic-mceliece implementation-attack key-recovery reference-implementation practical |
+| KN-LIT-e8eaf8 | A designer's guide to KEMs | literature | reported | web | cca kem provable-security code-based kem-design foundational methodology |
+| KN-LIT-eb2b9b | NIST IR 8545: Status Report on the Fourth Round of the NIST Post-Quantum Cryptography Standardization Process | literature | reported | web | pqc standardization nist mceliece bike hqc code-based primary-source |
+| KN-LIT-ef4327 | Concrete time/memory trade-offs in generalised Stern's ISD algorithm | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security stern time-memory-tradeoff concrete-security |
+| KN-LIT-f1073f | On breaking McEliece keys using brute force | literature | reported | web | code-based mceliece structural-attack key-recovery brute-force key-space goppa concrete-security |
+| KN-LIT-f1eb40 | Algebraic key-recovery side-channel attack on Classic McEliece | literature | reported | web | side-channel code-based classic-mceliece implementation-attack key-recovery algebraic profiling |
+| KN-LIT-f28b46 | Revisiting nearest-neighbor-based information set decoding | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security nearest-neighbor may-ozerov |
+| KN-LIT-f37d84 | Definite Orthogonal Modular Forms: Computations, Excursions, and Discoveries | literature | reported | read | modular-forms definite orthogonal hecke-operators theta-series eisenstein computational-ant |
+| KN-LIT-f390dc | A new algorithm for finding minimum-weight words in a linear code: application to McEliece's cryptosystem and to narrow-sense BCH codes of length 511 | literature | reported | web | isd syndrome-decoding code-based mceliece minimum-weight canteaut-chabaud bch-codes algorithm |
+| KN-LIT-f50ab3 | Leaky McEliece: secret key recovery from highly erroneous side-channel information | literature | reported | web | side-channel code-based classic-mceliece implementation-attack key-recovery erroneous-leakage error-correction lattice-techniques |
+| KN-LIT-f51628 | Sieving method for SDP with the zero window: an improvement in low memory environments | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security sieving memory-constrained cost-model |
+| KN-LIT-f6de4b | Bombieri–Weil bound (additive / Artin–Schreier case) — attempted verification of hypothesis (H1') | literature | partial | secondary_only | character-sums weil-bound bombieri artin-schreier additive-characters algebraic-curves ecdlp |
+| KN-LIT-f7d7dd | Improved quantum information set decoding | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum grover asymptotics |
+| KN-LIT-fa9bc8 | Analysis of information set decoding for a sub-linear error weight | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security asymptotics sublinear-weight prange |
+| KN-LIT-fab214 | Punctured syndrome decoding problem: Efficient side-channel attacks against Classic McEliece | literature | reported | web | side-channel code-based classic-mceliece implementation-attack punctured-syndrome-decoding problem-definition efficient-attacks |
+| KN-LIT-fb3102 | A statistical decoding algorithm for general linear block codes | literature | reported | web | code-based mceliece structural-attack key-recovery statistical-decoding foundational |
+| KN-LIT-fb9047 | A method for finding codewords of small weight | literature | reported | web | isd syndrome-decoding code-based mceliece stern birthday algorithm foundational |
+| KN-LIT-fb9929 | Low-Latency Elliptic Curve Scalar Multiplication | literature | reported | read | elliptic-curve scalar-multiplication parallel gpu ecdlp baseline |
+| KN-LIT-fbc2c8 | Breaking Goppa-based McEliece with hints | literature | reported | web | code-based mceliece structural-attack key-recovery goppa partial-information hints side-channel-theory |
+| KN-LIT-fd27c2 | Analysis and Optimization of Cryptographically Generated Addresses | literature | reported | read | cga addresses networking privacy hash optimization |
+| KN-LIT-fd29f0 | Security-analysis of a class of cryptosystems based on linear error-correcting codes | literature | reported | false | isd syndrome-decoding code-based mceliece thesis security-analysis historical |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
@@ -7600,6 +7958,19 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-016 | Does the improved dual attack on LWE actually beat the primal attack, once its heuristics are repaired? | open_problem | reported | open | dual-attack dual-sieve fft heuristics lwe kyber contested concrete-security falsification open lattice |
 | KN-OPEN-017 | Where does the enumeration/sieving crossover move once sieving memory is fully charged? | open_problem | reported | open | full-cost memory sieving enumeration crossover cost-model kissing-number wiener concrete-security open lattice cross-domain |
 | KN-OPEN-018 | Does lattice machinery bear on the plain ECDLP at all, outside the leakage model? | open_problem | reported | open | cross-domain lattice ecdlp hnp coppersmith index-calculus descent leakage genericity open |
+| KN-OPEN-019 | What object does each ECDLP attack family track, and is that enumeration closed? | open_problem | reported | open | ecdlp methodology tracked-object attack-families closure saturation index-calculus generic-group isogeny open |
+| KN-OPEN-020 | Universal algebraic-factor-base no-go for prime-field index calculus | open_problem | unverified | open | prime-field ecdlp index-calculus factor-base algebraic-description lower-bound open |
+| KN-OPEN-024 | Does the rank-1 (quaternion-order) principal ideal problem inherit the tractability now shown for matrix rings M_g(O), g >= 2? | open_problem | reported | open | principal-ideal-problem quaternion quaternion-algebra order short-generator unit-group endomorphism-ring superspecial abelian-variety lattice-isomorphism-problem non-commutative open |
+| KN-OPEN-025 | For which automorphism orders k can Galois symmetry accelerate the TNFS linear-algebra step, and what is the end-to-end gain? | open_problem | reported | open | number-field-sieve tnfs galois automorphism symmetry linear-algebra dlp finite-field extension-field pairing cost-model open |
+| KN-OPEN-026 | How large is the concrete security discount from module/ring structure, and does it grow with better techniques? | open_problem | reported | open | module-lwe ring-lwe lwe structure hybrid-attack coefficient-isometry sparse-secret fhe kyber ml-kem concrete-security cost-model symmetry open lattice |
+| KN-OPEN-027 | Is HAWK's module-LIP assumption reachable through nrd-PIP, and do the four heuristics hold? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg heuristic unverified-heuristic pqc concrete-security open lattice |
+| KN-OPEN-028 | What is the corrected cost of the nrd-PIP route against HAWK, now that Heuristic 4 has failed and 1-3 are verified? | open_problem | read | closed_all_questions_answered | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg super-polynomial fractional-ideals heuristic retracted-claim pqc open lattice |
+| KN-OPEN-2c095b | Is the multiplicative-order deficit of a curve-derived lambda a fact about CM arithmetic, or a fact about small integers? | open_problem | unverified | open | ecdlp ordinary-curves cm endomorphism kernel-field multiplicative-order matched-null null-design heuristic-validation toy-scale open |
+| KN-OPEN-3417fc | Is there a computable non-group-theoretic invariant on the canonical prime-to-p torsion lift E(Q_p)[n] whose value separates [k]S by k at sub-rho amortised cost? | open_problem | reported | open | lifting local-torsion p-adic valuation coordinate-invariant formal-group ecdlp prime-field open-problem kn-tech-06bb4e |
+| KN-OPEN-3f7a21 | Can this program's literature corpus support its own citation_verified markings, when 7457 of 7666 entries claim read against a downloads/ tree that has never existed in the repository? | open_problem | reported | open | corpus-integrity provenance citation-verified seeding novelty-screen knowledge-base meta open tooling audit |
+| KN-OPEN-5b3a08 | Does the shared harness/semaev.py's confirmed s4_expr bug, or build_factor_base's whole-curve (not target-subgroup) sampling, materially affect other Semaev/point-decomposition index-calculus experiments? | open_problem | established | open | semaev groebner harness-bug factor-base cofactor point-decomposition index-calculus cross-experiment shared-harness open |
+| KN-OPEN-875d43 | Does weakness beat description length as a hypothesis-selection proxy under a non-uniform (cryptanalytic) task distribution? | open_problem | unverified | open | methodology hypothesis-selection induction generalisation weakness mdl occams-razor non-uniform-prior harness-evaluation open |
+| KN-OPEN-8a5965 | Does Simon's claimed polynomial-time DCP algorithm survive scrutiny, and if so does it reach the concrete Module-LWE parameters of ML-KEM / ML-DSA? | open_problem | unverified | open | quantum dcp dihedral lattice lwe mlwe ml-kem ml-dsa svp verification unverified-claim pqc post-quantum open adjacent |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |
@@ -7609,6 +7980,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-007 | BKK bound and sparse / polyhedral elimination (mixed volume) | technique | established |  | bkk mixed-volume newton-polytope sparse-elimination polyhedral-homotopy sparse-resultant solving |
 | KN-TECH-008 | Sparse and structured linear algebra over finite fields | technique | established |  | sparse-linear-algebra wiedemann block-wiedemann structured-gaussian-elimination displacement-rank index-calculus complexity |
 | KN-TECH-009 | Elliptic nets and elliptic divisibility sequences (EDS) | technique | reported |  | elliptic-nets elliptic-divisibility-sequence eds somos recurrence division-polynomial representation ecdlp |
+| KN-TECH-00f082 | Matched-pair vs. between-shard SE ratio replicates within a fixed shard pool, not shown scale-invariant across a shard change -- and why a 3-point sizing sweep cannot tell the difference | technique | reported |  | matched-pair-design statistical-power standard-error-scaling shard-identity-confound sizing-sweep extrapolation hqc decode-blocks methodology |
 | KN-TECH-010 | Finite-field incidence bounds (Szemeredi-Trotter type) | technique | reported |  | incidence-geometry szemeredi-trotter finite-field point-line rich-lines sum-product relation-harvesting ecdlp |
 | KN-TECH-011 | Grobner bases and solving-degree complexity (Buchberger / F4 / F5) | technique | established |  | groebner-basis buchberger f4 f5 degree-of-regularity first-fall-degree solving point-decomposition ecdlp |
 | KN-TECH-012 | Isotypic (equivariant) decomposition of symmetric relation systems | technique | reported |  | representation-theory isotypic group-algebra idempotents symmetry equivariant block-decomposition semaev ecdlp |
@@ -7653,3 +8025,46 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-051 | Quantum cost models for the CSIDH class-group action, and the resource-constraint dispute | technique | reported |  | csidh class-group-action quantum hidden-shift kuperberg collimation-sieve quantum-memory resource-constrained cost-model parameter-selection security-estimate contested post-quantum adjacent |
 | KN-TECH-052 | Fitting and extrapolating cost exponents from bounded experiments | technique | reported |  | scaling-exponent extrapolation power-law bootstrap confidence-interval model-selection multiple-comparison experimental-design claim-tier methodology statistics calibration cross-domain |
 | KN-TECH-053 | MQ and Boolean polynomial-system solving - XL, BooleanSolve, and the crossbred hybrid | technique | reported |  | mq multivariate-quadratic xl crossbred booleansolve boolean-solving polynomial-system exhaustive-search hybrid sparse-linear-algebra groebner crossover solving calibration index-calculus |
+| KN-TECH-054 | Outcome-precedence design for differential-conformance protocols requires a baseline-invisible positive control | technique | reported |  | experiment-design differential-testing conformance-testing outcome-classification positive-control generator-adequacy falsifiability methodology ml-kem defensive |
+| KN-TECH-055 | Conditional exponent improvement via structural bound + smoothness/distribution heuristic + meet-in-the-middle + re-randomization | technique | reported |  | exemplar exponent-improvement smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization mixing-time conditional-theorem methodology isogeny adjacent |
+| KN-TECH-056 | Object-first invention protocol — tracked-object search with forbidden families, controlled nulls, mandatory closures, and Pareto-domination honesty | technique | reported |  | methodology research-protocol agentic-harness tracked-object negative-closure control-experiment pareto-domination sota-honesty deliverable-schema prior-art-triage saturation-discipline inventor |
+| KN-TECH-057 | Full-cost matched baselines for classical supersingular path-finding (Wiener 3D wiring model applied to MITM, Delfs-Galbraith, and van Oorschot-Wiener collision search on the isogeny graph) | technique | derivation_confirmed |  | isogeny-problem path-finding full-cost wiener-model mitm delfs-galbraith van-oorschot-wiener collision-search distinguished-points matched-baseline cost-model isogeny |
+| KN-TECH-058 | Supersingular isogeny-problem baselines, corrected against archived primary text (supersedes KN-TECH-029's classical F_p^2 figure) | technique | reported |  | isogeny-problem path-finding endomorphism-ring meet-in-the-middle claw-finding cost-model corpus-currency supersession isogeny adjacent |
+| KN-TECH-059 | Formal groups of elliptic curves | technique | established |  | formal-group elliptic-curve p-adic anomalous logarithm lubin-tate local-field foundational number-theory |
+| KN-TECH-060 | Néron–Tate canonical heights on elliptic curves and abelian varieties | technique | established |  | height neron-tate mordell-weil heegner-point bsd xedni lattice foundational number-theory |
+| KN-TECH-061 | Honda–Tate classification of abelian varieties over finite fields | technique | established |  | honda-tate abelian-variety isogeny weil-number frobenius endomorphism finite-field foundational number-theory algebraic-geometry |
+| KN-TECH-062 | Proof-architecture portfolio - boundary lifts, observation collisions, stronger invariants, telescoping potentials, and method ceilings | technique | reported |  | methodology proof-architecture theorem-search baseline-embedding identifiability observation-collision strengthened-invariant potential-method telescoping specialization quantifier-audit method-ceiling counterexample agentic-harness cross-domain |
+| KN-TECH-063 | Truncated, higher-order, and impossible differentials - relaxing, lifting, and inverting the differential predicate | technique | established |  | truncated-differential higher-order-differential impossible-differential miss-in-the-middle algebraic-degree derivative structural-distinguisher block-cipher symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-064 | Boomerang, rectangle and sandwich attacks, and the connectivity-table correction to the independence assumption | technique | established |  | boomerang rectangle amplified-boomerang sandwich-attack bct boomerang-switch related-key adaptive-chosen-ciphertext block-cipher symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-065 | Differential-linear cryptanalysis - chaining a differential into a linear approximation, and the middle-layer correction | technique | established |  | differential-linear dlct langford-hellman hybrid-distinguisher correlation rotational-differential-linear arx ascon block-cipher symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-066 | Differential cryptanalysis of hash functions and permutations - message modification, the rebound attack, and internal differentials | technique | established |  | hash-function collision-attack message-modification rebound-attack inbound-outbound freedom-degrees internal-differential keccak sponge permutation symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-067 | Linear cryptanalysis - linear approximation tables, correlation and the piling-up lemma, Matsui's Algorithms 1 and 2 | technique | established |  | linear-cryptanalysis matsui linear-approximation-table walsh-transform correlation bias piling-up-lemma known-plaintext wrong-key-randomisation block-cipher symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-068 | Linear hulls, multiple and multidimensional linear cryptanalysis - why a trail is not an approximation | technique | established |  | linear-hull multiple-linear multidimensional-linear capacity nyberg clustering-effect statistical-model llr key-dependence block-cipher symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-069 | Zero-correlation linear cryptanalysis and the impossible / integral / zero-correlation equivalences | technique | established |  | zero-correlation bogdanov-rijmen impossible-differential integral-attack links blondeau-nyberg multiple-zero-correlation distinguisher-duality block-cipher symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-06bb4e | Lifting-obstruction taxonomy for prime-field ECDLP: Silverman's four characteristic-zero faces plus the function-field fifth face | technique | literature_derived |  | ecdlp lifting xedni obstruction-taxonomy formal-group canonical-height masser mazur serre function-field elliptic-surface prime-field methodology dedup-instrument |
+| KN-TECH-070 | Correlation matrices, the wide-trail strategy, and the invariant attacks that trail bounds do not cover | technique | established |  | correlation-matrix walsh-transform wide-trail branch-number active-sboxes provable-resistance invariant-subspace nonlinear-invariant round-constants weak-keys aes symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-071 | Algebraic modelling of block ciphers - equation systems, XL/XSL, and the negative result that defines the technique's limits | technique | established |  | algebraic-cryptanalysis equation-system xl xsl bes sat-solver groebner algebraic-differential aes overdefined negative-result symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-072 | Algebraic and fast algebraic attacks on LFSR-based stream ciphers - annihilators, algebraic immunity, and the precomputation trade | technique | established |  | algebraic-attack stream-cipher lfsr annihilator algebraic-immunity fast-algebraic-attack berlekamp-massey boolean-function correlation-attack filter-generator symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-073 | Cube attacks and cube testers - superpoly recovery as key-recovery higher-order differential cryptanalysis | technique | established |  | cube-attack cube-tester superpoly dinur-shamir higher-order-differential algebraic-degree dynamic-cube conditional-cube correlation-cube trivium grain keccak symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-074 | Division property and monomial prediction - deciding when an integral distinguisher survives | technique | established |  | division-property integral-attack bit-based-division-property three-subset monomial-prediction parity-set todo superpoly-recovery milp algebraic-degree symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-075 | Interpolation and Groebner-basis attacks on low-degree and arithmetization-oriented ciphers | technique | established |  | interpolation-attack groebner-attack arithmetization-oriented mimc poseidon anemoi griffin marvellous low-multiplicative-complexity solving-degree prime-field zero-knowledge symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-076 | Automated trail search (MILP / SAT / SMT / CP) and the reporting gap between an optimal trail and a real advantage | technique | established |  | automated-search milp sat smt constraint-programming trail-search active-sboxes model-correctness clustering-effect search-hygiene tooling symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-077 | Related-key, known-key and rotational cryptanalysis - differential and linear attacks in strengthened access models | technique | established |  | related-key known-key open-key rotational-cryptanalysis key-schedule arx access-model differential-cryptanalysis distinguisher threat-model symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-078 | Correlation and fast correlation attacks - linear cryptanalysis of stream ciphers as decoding | technique | established |  | correlation-attack fast-correlation-attack siegenthaler meier-staffelbach lfsr decoding parity-check ldpc correlation-immunity linear-cryptanalysis stream-cipher symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-079 | Structural meet-in-the-middle cryptanalysis - Demirci-Selcuk tables, bicliques, and differential meet-in-the-middle | technique | established |  | meet-in-the-middle demirci-selcuk biclique differential-mitm truncated-differential precomputation-table time-memory-data key-recovery aes automated-search symmetric-cryptanalysis symmetric adjacent |
+| KN-TECH-080 | Proof-architecture portfolio - boundary lifts, observation collisions, stronger invariants, telescoping potentials, and method ceilings | technique | reported |  | methodology proof-architecture theorem-search baseline-embedding identifiability observation-collision strengthened-invariant potential-method telescoping specialization quantifier-audit method-ceiling counterexample agentic-harness cross-domain |
+| KN-TECH-081 | The principal ideal problem beyond commutative orders - quaternion orders, matrix rings, and the non-commutative gap | technique | reported |  | principal-ideal-problem quaternion quaternion-algebra endomorphism-ring order ideal-lattice lattice-isomorphism-problem class-group unit-group short-generator non-commutative superspecial abelian-variety number-theory lattice |
+| KN-TECH-082 | Hybrid attacks on LWE - guessing/MITM over sparse secrets, and ring-structure acceleration | technique | reported |  | hybrid-attack meet-in-the-middle sparse-secret ternary-secret lwe module-lwe ring-lwe fhe primal-attack dual-attack decoding coefficient-isometry independence-heuristic concrete-security lattice |
+| KN-TECH-14efa5 | Obtaining a working Sage, fpylll and G6K in a wheels-only container - the exact routes, and the two link-level fixes | technique | verified_by_execution |  | tooling environment sage passagemath fpylll g6k sieve bkz lattice reproducibility harness infrastructure |
+| KN-TECH-1a5b7e | Null sufficiency - deriving a contrast's forced value before measuring it, the three ways a control passes without being able to fail, the fourth way a decision rule passes without being able to discriminate, and the two ways a correct derivation is scoped to a regime the headline is not in | technique | single_run_experiment |  | methodology controls nulls experiment-design falsification statistics surrogate ablation pre-registration decision-rules comparator-replication |
+| KN-TECH-276d30 | Weakness maximisation as a hypothesis-selection proxy — prefer the least specific hypothesis that still fits every observation and control | technique | reported |  | methodology research-protocol hypothesis-selection induction generalisation weakness mdl occams-razor bennetts-razor null-object-control inventor agentic-harness |
+| KN-TECH-39a853 | A two-point (zero-degree-of-freedom) local exponent cannot be read directionally without an independent estimate of its own sampling variance -- and lowering the moment order rescales the units, not the resolvability | technique | reported |  | local-exponent two-point-slope zero-degrees-of-freedom jackknife standard-error-scaling noise-floor same-t-disjoint-window-control coupled-null control-blindness methodology hqc |
+| KN-TECH-3b593f | Genus-1 applicability boundary of post-SIDH higher-dimensional isogeny mechanisms | technique | derivation |  | isogeny genus-3 recillas trigonal-construction tractable-subgroup kani sidh-break torsion-advice higher-dimensional ecdlp prime-field scoped-negative derivation boundary applicability |
+| KN-TECH-6c0e15 | Null sufficiency - deriving a contrast's forced value before measuring it, the three ways a control passes without being able to fail, and the fourth way a decision rule passes without being able to discriminate | technique | single_run_experiment |  | methodology controls nulls experiment-design falsification statistics surrogate ablation pre-registration decision-rules |
+| KN-TECH-73630e | Canonical prime-to-p torsion lifting, and its reduction-isomorphism boundary | technique | derivation |  | lifting local-torsion formal-group good-reduction hensel ecdlp prime-field scoped-negative derivation obstruction-sharpening applicability |
+| KN-TECH-797223 | The Sage/fpylll/G6K recipe is container-dependent - four further failures, and why the original two fixes are the wrong abstraction | technique | verified_by_execution |  | tooling environment sage passagemath fpylll g6k sieve reproducibility harness infrastructure |
+| KN-TECH-9d21c4 | Null sufficiency - deriving a contrast's forced value before measuring it, and the three ways a control passes without being able to fail | technique | verified_by_execution |  | methodology controls nulls experiment-design falsification statistics surrogate ablation pre-registration |
+| KN-TECH-bb7e9f | Splice-and-cut matching quantities - a free word that the observable has not yet consumed makes its half of the MITM degenerate | technique | verified_by_execution |  | methodology meet-in-the-middle splice-and-cut mitm preimage chunk-separation matching-point word-schedule arx merkle-damgard md4 md5 controls pre-registration obstruction design-pitfall |
+| KN-TECH-c3d80e | Two-way dependence is a threshold, not a property - the separation law for splice-and-cut matching points, and why a non-constancy gate cannot discharge a near-injectivity premise | technique | verified_by_execution |  | methodology meet-in-the-middle splice-and-cut mitm preimage chunk-separation matching-point word-schedule arx merkle-damgard md4 md5 controls pre-registration gate-design injectivity null-object design-pitfall obstruction |
+| KN-TECH-d1bc4f | The dihedral coset problem as the quantum route to lattices, and why noise tolerance is the binding constraint | technique | established |  | quantum dihedral dcp dsp edcp hidden-subgroup kuperberg-sieve subset-sum lattice svp lwe mlwe reduction pqc post-quantum adjacent |
+| KN-TECH-eb06ea | Galois-eigenspace rank certificates: replace an n x n height regulator by distinctness of n squarefree integers modulo squares | technique | standard_algebra_applied_as_a_certificate_design_verified_in_practice |  | elliptic-curves mordell-weil-rank quadratic-twists multiquadratic-fields galois-cohomology eigenspace-decomposition mazur-torsion certificate-design exact-verification independence-proofs |

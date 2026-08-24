@@ -187,6 +187,7 @@ def collect_source_packages() -> list[dict]:
 
 def collect_retrievals() -> list[dict]:
     rows = []
+    seen_fail_markers: set[str] = set()
     for path in sorted(glob.glob(os.path.join(REPO, "inputs", "**", "provenance.json"),
                                  recursive=True)):
         doc = json.loads(_read(path))
@@ -228,6 +229,34 @@ def collect_retrievals() -> list[dict]:
                 "task_id": doc.get("task_id"),
                 "goal_id": doc.get("goal_id"),
             })
+    for fail_marker in sorted(
+        glob.glob(os.path.join(REPO, "inputs", "**", "sources", "*.FAIL"), recursive=True)
+    ):
+        rel = _rel(fail_marker)
+        if rel in seen_fail_markers:
+            continue
+        seen_fail_markers.add(rel)
+        target = fail_marker[: -len(".FAIL")]
+        if os.path.exists(target):
+            continue
+        package = _rel(os.path.dirname(os.path.dirname(fail_marker)))
+        rows.append({
+            "package": package,
+            "provenance_path": None,
+            "source_id": os.path.basename(target),
+            "url": None,
+            "purpose": "artifact_fetch",
+            "retrieved_at": None,
+            "http_status": None,
+            "status": "failed",
+            "bytes": None,
+            "sha256": None,
+            "vendored_path": _rel(target),
+            "reason": _read(fail_marker).strip() or "fetch blocked",
+            "revision_id": None,
+            "task_id": None,
+            "goal_id": None,
+        })
     rows.sort(key=lambda r: (r["package"], r["source_id"], r["url"] or ""))
     return rows
 

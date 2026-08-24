@@ -1,0 +1,618 @@
+idea:
+  id: IDEA-20260807-cbbcfd
+  question_id: RQ-EWALK-8fa147
+  added: '2026-08-07'
+  title: >-
+    THE CONTROL THE WHOLE LANE IS UNINTERPRETABLE WITHOUT: at toy scale the
+    quotient walk's functional graph is small enough to ENUMERATE EXACTLY, so
+    the expected rho length, the useful-collision fraction and the effective
+    per-solve constant can be computed with ZERO sampling error over all
+    starting classes -- turning "is the measured speedup really sqrt(|Aut|)?"
+    from a statistics question into an arithmetic one, with the unquotiented
+    walk on identical seeds as the null, a matched random-function null band,
+    and |Aut| in {2, 4, 6} as a dose-response ladder whose predicted ratios
+    1.000 / 1.414 / 1.732 are exactly computable in advance
+  class: control
+
+  claim: >-
+    (A) THE PROBLEM THIS SOLVES, AND IT IS THE LANE'S BINDING CONSTRAINT. Every
+    other L6 proposal reports a ratio of two heavy-tailed random variables. The
+    rho length distribution has a heavy tail, so 16 or even 200 sampled runs
+    give wide intervals: the audited staged artifact
+    inputs/h100_session/h040_rho_const.json reports negation-arm 95 percent
+    intervals of [0.877, 1.023] at 16 bits and [0.873, 1.014] at 18 bits from
+    200 runs each -- intervals of width about 0.15 around a quantity whose
+    predicted value is 0.886, straddling 1.0. At that resolution one cannot
+    distinguish "the quotient achieves sqrt(2)" from "the quotient achieves
+    1.19" from "the quotient loses". EXP-RHO-60da4f budgets 240 CPU-hours and
+    16 seeds per cell against this same variance. THE VARIANCE IS AVOIDABLE AT
+    TOY SCALE, and avoiding it is what this proposal does.
+
+    (B) THE INSTRUMENT. For p up to about 2^20 the class set G/Aut has at most
+    about 5*10^5 elements. The quotient walk is a DETERMINISTIC MAP on that
+    finite set, so its entire functional graph can be built in O(M) time and
+    memory and then analysed exactly:
+      - rho length from every starting class v: tail(v) + cycle(v), computed
+        for all v in one pass by iterative tail-length propagation over the
+        functional graph (each node has out-degree 1, so the graph is a forest
+        of trees hanging off cycles);
+      - EXPECTED rho length rhobar = (1/M) * sum_v (tail(v) + cycle(v)), with
+        NO sampling error whatsoever;
+      - the empirical collision constant rhobar / sqrt(M), compared against the
+        ideal 1.2533;
+      - the full structural census: number of components, number of fixed
+        points, number of 2-cycles, number of cyclic nodes, maximum cycle
+        length, largest component size;
+      - the USEFUL-COLLISION FRACTION: the fraction of collisions that yield an
+        invertible relation (b_i != b_j mod N) rather than a degenerate one,
+        computed over all starting classes;
+      - the EFFECTIVE PER-SOLVE CONSTANT: expected total steps divided by the
+        expected number of useful collisions, which is the only honest headline
+        number and is what h041 called effective_const_per_solve.
+    This is not a new idea in general -- inputs/h100_session/h041_xonly_walk.json
+    already performed exactly this census for one x-only construction, and
+    REVIEW-H100-20260717 correction C8 independently re-verified its numbers.
+    What is proposed is to make it THE LANE'S STANDARD INSTRUMENT, extend it
+    from x-only to genuine Aut-classes at |Aut| in {2, 4, 6}, and attach the
+    null and dose-response design below.
+
+    (C) THE NULL, AND ITS DECAY PARAMETER. Two nulls, both mandatory:
+      (N1) THE UNQUOTIENTED WALK ON IDENTICAL SEEDS. Same curve, same step
+        table T_s, same partition function, same starting classes lifted to
+        points; the walk runs on G instead of G/Aut. Its functional graph is
+        enumerated by the identical code path. Every reported gain is
+        rhobar(unquotiented) / rhobar(quotient) measured in the same run.
+      (N2) THE MATCHED RANDOM-FUNCTION NULL BAND. Draw uniformly random
+        functions on a set of the SAME SIZE M and enumerate their functional
+        graphs by the identical code. This gives an empirical band for every
+        structural statistic under the ideal random-map hypothesis. h041's
+        design used 50 draws and its bands are informative: at M = 21896 the
+        random-function band for the 2-cycle count was [0, 2] with mean 0.32,
+        while the x-only walk had 239-293, and the band for the largest
+        component was [8525, 21860] with mean 16366 against the x-only walk's
+        1806-3491. THOSE ARE THE NUMBERS THAT SHOW A QUOTIENT WALK IS NOT A
+        RANDOM MAP, and they are the template for this instrument's null.
+      THE DECAY PARAMETER IS |Aut|. The predicted ratio rhobar(unquotiented) /
+      rhobar(quotient) is exactly sqrt(|Aut|) under the ideal-map hypothesis:
+      1.4142 / 2.0000 / 2.4495 at |Aut| = 2 / 4 / 6, i.e. residual headroom
+      1.000 / 1.414 / 1.732 against the program's already-negation-discounted
+      baseline (IDEA-20260807-ebcae6). A measured gain that does NOT MOVE when
+      |Aut| moves is the canonical artifact tell of
+      docs/inventor-protocol.md section 3, and it is the single most likely way
+      this lane produces a false result.
+
+    (D) THE POSITIVE CONTROL, IN BOTH DIRECTIONS, WHICH IS WHAT L14 REQUIRES.
+      (P1) KNOWN-ANSWER DETECTION. On a curve with |Aut| verified equal to 6,
+        the instrument must MEASURE a quotient-set size of exactly
+        (N-1)/6 + 1 and an ideal-map prediction of 1.2533*sqrt(N/6). An
+        instrument that cannot count the class set correctly cannot measure a
+        speedup on it. This is trivial and it is exactly the kind of check
+        whose absence produces the x-coordinate identifiability failure named
+        in IDEA-20260807-ebcae6's observation_collision: in x-coordinates the
+        |Aut| = 4 orbit has size 2, so an x-only instrument silently reports
+        j = 1728 curves as |Aut| = 2. CLASSES ARE COUNTED IN POINTS.
+      (P2) PLANTED-GAIN DETECTION. Build a SYNTHETIC quotient with a chosen
+        orbit size m in {2, 3, 4, 5, 6, 8, 12} by partitioning G into m-element
+        cells using a fixed group-theoretic device that is NOT an automorphism
+        -- specifically the cosets of a subgroup of a DIFFERENT group of the
+        same size, realised as a relabelling -- and run the identical
+        enumeration. The instrument must recover a gain of sqrt(m) on this
+        object across the whole ladder, including values of m that no real
+        curve has. If it recovers sqrt(m) at m = 3, 5, 8, 12 -- where no
+        automorphism group exists -- then the instrument is measuring SET SIZE,
+        which is exactly what it should measure, and its readings on real
+        curves are trustworthy. If it does not, every negative it produces is
+        void, which is instrument failure and not a mathematical result.
+      (P3) PLANTED-NULL DETECTION. Run the identical pipeline on the SHAM
+        QUOTIENT: the same code path with canon replaced by a non-group
+        involution of the encoding. This has the quotient's cost profile and
+        none of its content, so it must show gain 1.0 and a useful-collision
+        fraction near zero.
+
+    (E) WHAT THIS FILLS THAT IS CURRENTLY EMPTY. H-ENDO-001's prediction 4 is
+    "Measured Pollard rho cost on j = 0 and j = 1728 curves lies within 20
+    percent of 0.886*sqrt(N/|Aut|)" and its own basis note says "this campaign
+    has never measured it". EV-ENDO-001 records that EXP-ENDO-001 produced ZERO
+    RUNS and states so explicitly rather than leaving the list empty. So the
+    program has an approved prediction about the |Aut| in {4, 6} rho constant
+    and no measurement of it at all. This instrument closes that gap exactly,
+    at a compute cost of minutes rather than the 240 CPU-hours a sampling
+    approach would need, because enumeration replaces replication.
+
+    (F) THE TWO OUTCOMES.
+      OUTCOME 1 -- the enumerated ratios track sqrt(|Aut|) from below, the
+        structural census sits outside the random-function band in the
+        directions h041 already showed (excess 2-cycles, fragmented components),
+        and the effective per-solve constant is materially worse than the ideal
+        because of degenerate collisions. Then the lane's ceiling is confirmed
+        exactly, the shortfall is quantified with no sampling error, and every
+        other L6 measurement has a reference to be read against.
+      OUTCOME 2 -- the enumerated ratios do NOT track sqrt(|Aut|). Then either
+        the class counting is wrong (checked by P1), the instrument is broken
+        (checked by P2/P3), or the ideal-map hypothesis fails badly enough on
+        quotient walks that the sqrt(|Aut|) prediction does not describe them
+        at all -- which would be a substantive finding about the folklore
+        constant and would need independent review.
+
+  resource_label: >-
+    audit: consumes no resource. This proposal measures instruments, not
+    curves. It touches R3 only in the sense that the objects it measures are
+    Aut-quotients, and it makes no claim that depends on any non-generic
+    structure.
+
+  admissibility: inadmissible_generic_group
+
+  admissibility_argument: >-
+    THE OBJECTS MEASURED ARE INADMISSIBLE AND THE MEASUREMENT MAKES NO
+    ADMISSIBILITY CLAIM OF ITS OWN. Every walk enumerated here is an
+    Aut-quotient rho walk, which applies automorphisms to points of a
+    prime-order G and is therefore Oracle D of KN-FIND-b7e091: generic-group
+    simulable, closed at exponent 1/2 (KN-TECH-005, H-ENDO-001). The instrument
+    itself is an offline analysis of a finite deterministic map and could not
+    be an attack in any model. It is filed as `inadmissible_generic_group`
+    because labelling it otherwise would suggest the lane had found an escape,
+    and it has not. The instrument's value is that it makes the closed family's
+    exact constant measurable, which is the lane's stated purpose.
+
+  discriminated_from:
+    - >-
+      inputs/h100_session/h041_xonly_walk.json. That staged external artifact
+      performed a functional-graph census with a 50-draw random-function null
+      band for ONE x-only construction at 16 and 17 bits, with NO
+      fruitless-cycle escape, and reported useful_fraction 0.07 and 0.05 and
+      effective constants 2.2988 and 3.2189. This proposal adopts its design --
+      explicitly, with credit -- and extends it in four ways it does not have:
+      (i) genuine Aut-classes counted in POINTS, so |Aut| = 4 is visible at
+      all; (ii) the |Aut| in {2, 4, 6} dose-response ladder; (iii) the
+      matched-seed unquotiented arm as the null rather than only a
+      random-function band; (iv) the planted-gain ladder at synthetic orbit
+      sizes m in {2, 3, 5, 8, 12} that no curve realises, which is what
+      converts the census from a description into a calibrated instrument.
+    - >-
+      EXP-RHO-60da4f, which measures by SAMPLING at 2^32-2^48 with 16 seeds per
+      cell and declares heavily censored cells unresolved. That reaches sizes
+      this instrument cannot; this instrument reaches an exactness that
+      sampling cannot. They are complementary and the honest statement is that
+      this one should be run FIRST, because it can tell that experiment what
+      its answer ought to look like before 240 CPU-hours are committed.
+    - >-
+      IDEA-20260802-005's free-representative calibrator. That plants a GAIN
+      WITHOUT ITS COST to test whether the harness can see orbit reduction.
+      This proposal's (P2) plants a gain at orbit sizes NO CURVE HAS, to test
+      whether the instrument measures set size correctly across a ladder. The
+      two are different calibrators aimed at different failure modes and either
+      could pass while the other fails; running both is cheap.
+    - >-
+      IDEA-20260807-6355c6 and -59f5b7 (this batch), which MEASURE cycle rates
+      and charged gains. This proposal measures the MEASURING DEVICE, and its
+      deliverable is a reference table that makes their numbers interpretable.
+    - >-
+      Lane L14 / RQ-INSTR-f8faa0, the campaign's instrumentation lane. This is
+      the L6-specific instance of that lane's mandate ("the instrument must fail
+      to detect a signal in a matched random object, and must detect a PLANTED
+      signal -- both directions") and should be read as a contribution to it,
+      not as a competitor.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE FUNCTIONAL GRAPH OF THE QUOTIENT STEP MAP: the directed graph on
+      G/Aut with one out-edge per class, together with the derived statistics
+      (component count, cyclic nodes, cycle-length spectrum, tail-length
+      distribution, expected rho length, useful-collision fraction).
+    lossiness: >-
+      GENUINELY LOSSY AND THE TEST IS PASSED, with the qualification stated.
+      The graph forgets the group structure entirely: it retains only "which
+      class maps to which", discarding the exponent pairs, the field, the curve
+      equation and the group law. Two different curves can produce isomorphic
+      functional graphs, so nothing about the ECDLP instance is recoverable
+      from the graph. THIS IS EXACTLY WHY IT IS THE RIGHT INSTRUMENT OBJECT:
+      the collision constant is a property of the graph alone, so measuring the
+      graph measures the constant and nothing else, and a random-function null
+      of the same size is a genuinely matched comparison.
+    propagation: >-
+      Trivially deterministic -- the graph IS the propagation, made explicit.
+      The compatibility clause is satisfied in the strongest possible sense
+      because no approximation is involved: the walk's dynamics are exactly the
+      graph's edges.
+    survival_score: >-
+      Survives every change that leaves the step map deterministic and
+      memoryless: curve family, |Aut|, escape rule, r, partition. DIES AT
+      SCALE, and that is the instrument's one hard limit: it needs O(M) memory,
+      so it stops at about 2^20-2^22 classes in pure Python, far below
+      EXP-RHO-60da4f's 2^32-2^48 sampling range and astronomically below crypto
+      size. Also dies if the escape rule is history-dependent, since then the
+      map is not a function on classes -- which is the same memorylessness
+      constraint van Oorschot-Wiener already imposes (KN-TECH-006), so the
+      instrument's applicability boundary coincides with the algorithm's.
+
+  mechanism: >-
+    STEP 1 -- BUILD THE CLASS SET CORRECTLY. Enumerate G explicitly at toy
+    size; verify N is prime and the subgroup order; enumerate Aut_{F_p}(E) by
+    explicit map construction and order check, NOT by reading j; partition
+    G \ {O} into Aut-orbits and verify every orbit has size exactly |Aut|
+    (which is Lemma 2 of IDEA-20260807-ebcae6, here checked rather than
+    assumed); assign each class its canonical representative in POINT
+    coordinates.
+
+    STEP 2 -- BUILD THE FUNCTIONAL GRAPH. Apply the step map once to every
+    class; store the single out-edge. O(M) time, O(M) memory.
+
+    STEP 3 -- ENUMERATE EXACTLY. One pass to find all cycles (each node has
+    out-degree 1); one reverse-BFS pass to assign tail lengths; accumulate
+    rhobar, the cycle-length spectrum, component sizes, fixed points, 2-cycles
+    and cyclic-node count. Compute the useful-collision fraction by, for each
+    starting class, determining whether the collision it reaches yields an
+    invertible relation.
+
+    STEP 4 -- RUN BOTH NULLS. The unquotiented arm through the identical code
+    at set size N; and 50 or more uniformly random functions on a set of size
+    M, giving empirical bands for every statistic. Report every measured
+    statistic together with whether it lies inside its band, exactly as h041's
+    `ec_all_within_minmax` flags do.
+
+    STEP 5 -- RUN THE POSITIVE CONTROLS. (P1) class-count known-answer check;
+    (P2) planted synthetic quotients at m in {2, 3, 4, 5, 6, 8, 12}, requiring
+    recovery of sqrt(m); (P3) sham quotient, requiring gain 1.0.
+
+    STEP 6 -- PUBLISH THE REFERENCE TABLE. For each (curve family, |Aut|, r,
+    escape rule): M, rhobar, rhobar/sqrt(M), the gain against the unquotiented
+    arm, the useful fraction, the effective per-solve constant, and the
+    band-membership flags. THIS TABLE IS THE DELIVERABLE. Every other L6
+    measurement is read against it, and any sampling-based measurement that
+    disagrees with the enumerated value at a size where both are computable is
+    an instrument failure in the sampler.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      grep -ril over ledger/, knowledge/, docs/, inputs/, experiments/,
+      analysis/ on 2026-08-07 for "functional graph", "rho length",
+      "cyclic nodes", "largest component", "null band", "planted control",
+      "useful fraction", "effective const". Records read in full:
+      inputs/h100_session/h041_xonly_walk.json,
+      inputs/h100_session/h040_rho_const.json, REVIEW-H100-20260717 (C5, C8),
+      EXP-RHO-60da4f, H-ENDO-001, EV-ENDO-001, RQ-INSTR-f8faa0, KN-TECH-006,
+      DECOMPOSITION.md lane L14.
+    results: >-
+      Functional-graph enumeration with a random-function null band exists in
+      exactly ONE place in the repository: the staged artifact
+      inputs/h100_session/h041_xonly_walk.json, whose numbers correction C8 of
+      REVIEW-H100-20260717 independently re-verified. It is applied there to an
+      x-only walk at 16-17 bits with no escape rule and no |Aut| ladder. No
+      LEDGER record, no experiment contract and no knowledge entry adopts the
+      technique. "planted control" appears in EXP-ECTD-001's
+      CTRL-PLANTED-OUTLIER and in lane L14's mandate, but never for a walk
+      instrument. The |Aut| in {2, 4, 6} dose-response design appears nowhere.
+    verdict: >-
+      ADAPTATION, with an internal source credited. Functional-graph analysis
+      of random mappings is classical (Flajolet-Odlyzko-style random mapping
+      statistics are the reference frame for the component/cycle numbers) and
+      nothing about it is claimed as new. What is proposed is to promote an
+      existing staged-artifact technique to a ledger-grade instrument, extend
+      it to genuine Aut-classes with a dose-response ladder, and add the
+      planted-gain calibration that makes its negatives citable.
+
+  null_object_control: >-
+    THIS PROPOSAL IS ITSELF A NULL-CONTROL DESIGN, and it still carries its own.
+    THE PRIMARY NULL: the matched-seed unquotiented walk, same curve, same
+    table, same partition, same code path, enumerated exactly. THE DECAY
+    PARAMETER IS |Aut|: the measured gain must move as 1.414 -> 2.000 -> 2.449
+    when |Aut| moves 2 -> 4 -> 6, and a gain that fails to move when |Aut|
+    moves is the canonical artifact tell. THE SECONDARY NULL: 50+ uniformly
+    random functions on a set of the same size M, giving a band for every
+    structural statistic; the quotient walk is expected to sit OUTSIDE that
+    band on 2-cycle count and component structure -- h041 measured 239-293
+    two-cycles against a random band of [0, 2], and largest components of
+    1806-3491 against a random mean of 16366 -- and INSIDE it on fixed-point
+    count. THE INSTRUMENT'S OWN NULL: the sham quotient (P3), which must show
+    gain 1.0. THE INSTRUMENT'S OWN POSITIVE: the planted ladder (P2), which
+    must recover sqrt(m) at orbit sizes no curve has.
+
+  assumptions:
+    - >-
+      The step map is a deterministic memoryless function on classes. A
+      history-dependent escape rule makes the object not a function and the
+      instrument inapplicable; such rules are also inadmissible for
+      van Oorschot-Wiener parallelisation (KN-TECH-006), so the boundary is the
+      same one the algorithm already has.
+    - >-
+      Toy scale: M up to about 2^20-2^22 in pure Python with O(M) memory. Every
+      number produced is scoped there and is NOT crypto-scale validation
+      (AGENTS.md rule 7).
+    - >-
+      Aut is verified F_p-rational per curve by explicit map construction, not
+      inferred from j.
+    - >-
+      N is prime and the subgroup order is verified, so orbits have size exactly
+      |Aut| -- checked in Step 1 rather than assumed.
+    - >-
+      Classes are identified by canonical POINT coordinates. Identifying them by
+      x alone collapses |Aut| = 4 to orbit size 2 and silently voids the
+      j = 1728 arm.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      This is an instrument and control proposal. It asserts no theorem,
+      asymptotic bound, certificate family, reduction or closure argument, so
+      the section-8 audits have no object. The functions the audits would serve
+      -- exact baseline reproduction and a nearby-object control -- are present
+      as first-class experimental components (P1, P3) rather than as a proof
+      map, which is the appropriate form for a measurement contract.
+
+  predictions:
+    - metric: >-
+        enumerated gain rhobar(unquotiented)/rhobar(quotient), as |Aut| varies
+        over {2, 4, 6}
+      direction: different
+      minimum_effect: >-
+        Must TRACK sqrt(|Aut|) = 1.4142 / 2.0000 / 2.4495 from below, with the
+        ordering strict: gain(6) > gain(4) > gain(2). A non-monotone or flat
+        sequence is the artifact tell and voids every L6 measurement read
+        against it until explained.
+    - metric: recovered gain on the planted synthetic ladder
+      direction: different
+      minimum_effect: >-
+        sqrt(m) within 5 percent at every m in {2, 3, 4, 5, 6, 8, 12},
+        including the values no automorphism group realises. Failure at any m
+        is instrument failure and halts the line.
+    - metric: number of fruitless 2-cycles in the quotient walk's graph
+      direction: higher
+      minimum_effect: >-
+        Far outside the random-function band. h041's precedent at M ~ 21896 is
+        239-293 observed against a random band of [0, 2] with mean 0.32. A
+        quotient walk whose 2-cycle count sits INSIDE the random band either
+        has an effective escape rule or is not the object it claims to be, and
+        either way that is the finding.
+    - metric: useful-collision fraction
+      direction: lower
+      minimum_effect: >-
+        Materially below 1. h041's unescaped x-only precedent is 0.05-0.07,
+        i.e. 93-95 percent of collisions were useless. With an escape rule the
+        fraction should rise substantially, and MEASURING HOW MUCH is a
+        deliverable no record currently has.
+    - metric: >-
+        effective per-solve constant of the quotient walk against the
+        unquotiented arm
+      direction: different
+      minimum_effect: >-
+        This is the honest headline. Predicted below sqrt(|Aut|) and, for
+        unescaped or poorly-escaped walks, possibly below 1.0. h041's
+        precedent for the unescaped case is 1.83x and 2.57x WORSE than plain
+        rho theory (REVIEW-H100-20260717 C8).
+    - metric: sham-quotient gain
+      direction: different
+      minimum_effect: >-
+        1.0 within 5 percent, with a near-zero useful fraction. Anything else
+        means the harness credits the code path rather than the mathematics.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (minutes): build the class set on one 14-bit curve of each
+      family; verify Aut order, orbit sizes, class count, and the POINT-based
+      class identifier. This alone catches the x-coordinate identifiability
+      failure and costs almost nothing.
+      STAGE 1 (minutes, HARD GATE): planted ladder (P2) at m in
+      {2, 3, 4, 5, 6, 8, 12} on a synthetic set; require sqrt(m) recovery
+      within 5 percent. IF THIS FAILS, EVERYTHING DOWNSTREAM IN LANE L6 IS
+      UNINTERPRETABLE AND THE LANE STOPS UNTIL IT PASSES.
+      STAGE 2 (minutes): sham-quotient null (P3); require gain 1.0.
+      STAGE 3 (minutes to hours): full enumeration on GEN / J1728 / J0 at
+      14, 16, 18, 20 bits, with the unquotiented arm and 50 random-function
+      draws per size, for r in {4, 20} and escape rules in {none, one simple
+      memoryless rule}.
+      STAGE 4 (minutes): publish the reference table.
+      THIS IS THE CHEAPEST VALID DISCRIMINATOR IN THE ENTIRE LANE. Stage 1
+      alone -- an afternoon, no curve arithmetic at all -- decides whether any
+      L6 number can be believed, and Stages 0-3 together cost minutes of
+      compute where the sampling alternative costs hundreds of CPU-hours and
+      still cannot resolve a 15-percent effect.
+    controls:
+      - matched-seed unquotiented arm through the identical code path (blocking)
+      - 50+ uniformly random functions on a set of the same size (blocking)
+      - planted synthetic-orbit ladder requiring sqrt(m) recovery (blocking)
+      - sham quotient requiring gain 1.0 (blocking)
+      - explicit Aut enumeration and orbit-size verification
+      - class identity in POINT coordinates, verified against an x-only
+        identifier to demonstrate the |Aut| = 4 collapse concretely
+    required_metrics:
+      - M (class-set size), verified against (N-1)/|Aut| + 1
+      - rhobar, exactly, and rhobar/sqrt(M)
+      - gain against the unquotiented arm, exactly
+      - component count, fixed points, 2-cycles, cyclic nodes, max cycle
+        length, largest component, each with its random-function band and an
+        inside/outside flag
+      - full cycle-length spectrum
+      - useful-collision fraction and effective per-solve constant
+      - planted-ladder recovered gains at every m
+      - sham-quotient gain and useful fraction
+      - peak memory and wall clock per enumeration (feasibility bookkeeping)
+
+  falsification_conditions:
+    - >-
+      The planted ladder does not recover sqrt(m). Instrument failure; no L6
+      measurement may be interpreted until it does. This is the single most
+      important gate in the lane.
+    - >-
+      The sham quotient shows a gain above 1.05. The harness credits plumbing.
+    - >-
+      M does not equal (N-1)/|Aut| + 1. Class construction is wrong; every
+      downstream number is void.
+    - >-
+      The enumerated gain fails to track |Aut| monotonically with all controls
+      passing. Either the ideal-map hypothesis fails badly on quotient walks --
+      a substantive finding requiring independent review -- or there is a defect
+      not caught by the controls, and the record must say which before
+      reporting either.
+    - >-
+      Enumeration exceeds memory at the target sizes. INFRASTRUCTURE outcome
+      under AGENTS.md rule 5; report the largest size reached and never
+      extrapolate across the gap.
+    - >-
+      The random-function null band is degenerate (zero width) because too few
+      draws were taken. Design failure, not a result; increase the draws.
+
+  confounders:
+    - >-
+      SMALL-M STRUCTURE. At M ~ 2^13 the random-mapping statistics themselves
+      have large relative fluctuation, so the null bands are wide and the
+      comparison is weak. Four sizes are the minimum and the size dependence of
+      every statistic must be reported, not averaged.
+    - >-
+      CLASS-IDENTIFIER CHOICE. x-only versus point identifiers change |Aut| = 4
+      into orbit size 2. The experiment measures BOTH deliberately and reports
+      the discrepancy as a demonstration rather than discovering it as a bug.
+    - >-
+      ESCAPE-RULE INTERACTION. An escape rule changes the map and therefore the
+      graph; the census must be reported per escape rule and never pooled.
+    - >-
+      ENUMERATION IS NOT SAMPLING. The enumerated rhobar averages over ALL
+      starting classes with equal weight, whereas a real parallel rho starts
+      from randomly chosen points and stops at distinguished points. The two
+      quantities are related but not identical, and the reference table must
+      state which it reports. Treating the enumerated rhobar as a prediction of
+      a distinguished-point run's cost without that caveat would be the
+      instrument's own way of producing a false number.
+    - >-
+      USEFUL-COLLISION DEFINITION. "Useful" must mean an invertible relation
+      (b_i != b_j mod N) verified by recomputing k and checking [k]P = Q
+      (docs/claims-and-verification.md, with harness/toycurve.py as the
+      independent verifier), not merely a repeated class.
+
+  interpretation_limits:
+    - >-
+      ANY MEASURED EXCESS OVER sqrt(|Aut|) IS A SUSPECTED INSTRUMENT ARTIFACT
+      UNTIL THE UNQUOTIENTED NULL, THE RANDOM-FUNCTION BAND, THE PLANTED LADDER
+      AND THE SHAM QUOTIENT ALL PASS (RQ-EWALK-8fa147 decision_target). This
+      record exists precisely to make that rule enforceable rather than
+      aspirational, and it applies to this record's own outputs.
+    - >-
+      Exactness is not scale. Zero sampling error at M = 2^20 says nothing
+      about M = 2^128; enumeration cannot be extrapolated and this record does
+      not extrapolate it. EXP-RHO-60da4f's sampling range at 2^32-2^48 remains
+      the only evidence about larger sizes and is not superseded here.
+    - >-
+      The enumerated expected rho length is not the same quantity as a
+      distinguished-point parallel run's expected cost; see confounders.
+    - >-
+      Constants only. The exponent is 1/2 (KN-TECH-005) and nothing here
+      touches it.
+    - >-
+      The objects measured are in a family closed at exponent 1/2
+      (KN-FIND-b7e091). A clean measurement here tightens a baseline; it is
+      never an attack and may not be summarised as progress toward one.
+
+  reachability_gate: >-
+    DOES NOT MOVE BETWEEN CURVES; it CONSTRUCTS them. The J1728 and J0 arms are
+    generated directly by rejection sampling on p mod 4 and p mod 3 with b = 0
+    or a = 0, at O(1) cost per candidate at toy size. That is legitimate for
+    calibrating a constant and illegitimate as a model of attacker capability,
+    because by T4 the isogeny class fixes D_0 and an attacker facing a target
+    with generic D_0 cannot reach a larger-|Aut| curve by any isogeny walk at
+    any cost -- no such curve exists in the class. The instrument therefore
+    measures a property of curve families, never a route from one family to
+    another, and the reference table must be read that way.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED. The instrument's own cost is O(M) time and
+      O(M) memory per enumerated graph, with M = N/|Aut| -- i.e. LINEAR in the
+      group order, which is exponentially worse than rho and is precisely why
+      it is confined to toy scale. Stating this plainly matters: the instrument
+      is not an algorithm and could never be one.
+    memory_exponent: >-
+      O(M) = O(N/|Aut|). This is the binding constraint and it caps the
+      instrument at about 2^20-2^22 classes in pure Python. Peak memory is a
+      required metric per cell.
+    best_known: >-
+      For the QUANTITY measured, the incumbents are: the ideal random-map value
+      1.2533*sqrt(M) as theory; the program's baseline convention 0.886*sqrt(N)
+      (KN-TECH-006); the sampled staged artifacts at 16-18 bits with their
+      censoring caveat (REVIEW-H100-20260717 C5); and EXP-RHO-60da4f's planned
+      sampling at 2^32-2^48. This instrument dominates all of them on PRECISION
+      at the sizes it reaches and is dominated by all of them on SIZE.
+    hidden_overhead: >-
+      No o(1); no asymptotic claim. Disclosed: the enumerated expected rho
+      length is a different quantity from a distinguished-point run's expected
+      cost, and the difference is not modelled here.
+    tradeoff_note: >-
+      The instrument trades scale for exactness: it removes sampling error
+      entirely at the price of O(N) memory, which is the opposite corner of the
+      tradeoff space from the algorithm it measures. That is the correct corner
+      for a control and the wrong one for an attack, and the record says so.
+
+  dominated_by: >-
+    CHECKED ACROSS TIME, MEMORY AND DATA/QUERIES. As an ATTACK this is not one
+    and is dominated by every frontier row by an exponential margin, since its
+    own cost is O(N): parallel rho with DPs at 0.886*sqrt(N) time and O(1)
+    memory (KN-TECH-001, KN-TECH-006); the automorphism-discounted CM variant
+    (KN-TECH-018, KN-LIT-042); BSGS at sqrt(N) time and sqrt(N) memory;
+    kangaroo and the Galbraith-Ruprai equivalence-class interval variant at a
+    heuristic 1.36*sqrt(N) (KN-LIT-7437). Nothing consumes data or queries. As
+    an INSTRUMENT it is dominated on SIZE by EXP-RHO-60da4f (2^32-2^48 versus
+    2^20) and by the staged artifacts on nothing; it dominates all of them on
+    PRECISION, since it has zero sampling error where they have intervals of
+    width about 0.15 around a quantity of about 0.9. Recorded as a genuine
+    two-sided Pareto relation rather than as a win.
+  sota_delta: >-
+    ZERO against any attack baseline; the instrument is exponentially worse
+    than rho at its own job, by construction. As an instrument delta, in
+    numbers: replaces 95-percent intervals of width about 0.15 (the audited
+    200-run negation cells) with EXACT values; replaces 240 CPU-hours of
+    sampling with minutes of enumeration at the sizes it reaches; supplies the
+    first measurement of any kind for the |Aut| in {4, 6} rho constant, where
+    H-ENDO-001 prediction 4 stands with "this campaign has never measured it"
+    and EV-ENDO-001 records ZERO RUNS; and adds 1 planted-gain ladder over 7
+    orbit sizes, 5 of which no curve realises, converting the lane's negatives
+    from assertions into citable results.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.95 that the planted ladder recovers sqrt(m) -- it is a birthday law on a
+    finite set and the enumeration is exact, so failure would indicate a coding
+    error rather than a mathematical surprise. 0.9 that the enumerated gains
+    track sqrt(|Aut|) monotonically at 14-20 bits. 0.85 that the 2-cycle count
+    lands far outside the random-function band for unescaped walks, following
+    h041's precedent of 239-293 against a band of [0, 2]. 0.5 that the
+    effective per-solve constant on an ESCAPED |Aut| = 6 walk comes out above
+    1.0 relative to the unquotiented arm, i.e. that the quotient actually pays
+    at all -- that is the genuinely open number and it is the one this
+    instrument exists to produce. Highest expected information per unit cost in
+    the lane, which is why it is recommended first.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json;
+    all 126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-EWALK-8fa147
+    - RQ-INSTR-f8faa0
+    - KN-TECH-001
+    - KN-TECH-005
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-TECH-056
+    - KN-FIND-b7e091
+    - KN-LIT-042
+    - KN-LIT-097
+    - KN-LIT-7437
+    - H-ENDO-001
+    - H-RHO-bc6ea6
+    - EV-ENDO-001
+    - EXP-RHO-60da4f
+    - IDEA-20260802-005
+    - IDEA-20260807-ebcae6
+    - IDEA-20260807-6355c6
+    - IDEA-20260807-59f5b7
+    - ledger/REVIEW-H100-20260717.md
+    - inputs/h100_session/h040_rho_const.json
+    - inputs/h100_session/h041_xonly_walk.json
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md

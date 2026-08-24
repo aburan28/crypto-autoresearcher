@@ -1,0 +1,620 @@
+idea:
+  id: IDEA-20260805-4ddd8c
+  question_id: RQ-RELN-001
+  added: '2026-08-05'
+  title: >-
+    The RELN protocol's primary metric is a control that cannot fail --
+    p_exist(B) is pinned by counting, and the one free parameter is the
+    normalized collision ratio Xi, whose value for a random base is exactly
+    1 - 1/M
+  class: control
+
+  claim: >-
+    The frozen GOAL-RELN-001 measurement protocol
+    (coordination/goals/GOAL-RELN-001/batches/BATCH-001/tasks/TASK-20260725-661/
+    decomp_probability_protocol.yaml) declares as its primary discrimination
+    H-HEURISTIC-TRACKS versus H-HEURISTIC-DEVIATES, comparing a measured
+    p_exist(B) against the reported Semaev reference curve
+    HEUR-SEMAEV-2015-4.3, P = 1 - (1 - 1/q)^K with K approximately |V|^t / t!.
+    That reference curve is not a heuristic about elliptic curves. It is the
+    Poisson approximation to a quantity whose first moment is a THEOREM already
+    committed in this repository (KN-FIND-007 / EXP-FB3-001 conservation.md),
+    namely mean_r c_D(r) = binomial(B+m-1, m) / N, exactly, for EVERY base of
+    size B. Consequently p_exist is confined a priori to the band
+    [mu - conc/2, min(1, mu)] with mu = binomial(B+m-1,m)/N, and the ENTIRE
+    deviation of p_exist from the reported curve is carried by one statistic --
+    the excess-collision mass conc = (1/N) sum_r c_D(r)(c_D(r)-1). Normalizing,
+    Xi = conc / mu^2. THE PROPOSAL IS THAT Xi, NOT p_exist, IS THE ONLY
+    INFORMATIVE QUANTITY IN THE PROTOCOL, AND THAT ITS NULL VALUE IS AN EXACT
+    DERIVABLE CONSTANT: for a base whose elements are modelled as independent
+    uniform elements of a group of prime order N, E[Xi] = 1 - 1/M EXACTLY,
+    where M = binomial(B+m-1, m). Under that value the reported Semaev curve
+    is reproduced to within the Poisson error and H-HEURISTIC-TRACKS is
+    satisfied BY ARITHMETIC, before any curve is generated -- i.e. the
+    protocol as frozen cannot emit an informative negative unless the
+    experimenter chooses a base with additive structure, which is a property
+    of the experimenter's choice and not of the elliptic curve. The
+    replacement primary metric proposed here (Xi against 1 - 1/M, with a Sidon
+    arm forced to 0 and a small-multiples arm forced far above 1) CAN fail, is
+    measurable at toy scale in pure Python, and is exactly the quantity the
+    program has never measured.
+
+  object_first_candidate:
+    tracked_object: >-
+      The fibre-size function c_D(r) = #{size-m multisets from D summing to r}
+      as a DISTRIBUTION on the group, followed through: factor base D chosen ->
+      multiset-sum map sigma -> fibre-size histogram {c_D(r)} -> its first two
+      moments (mu, conc) -> coverage p_exist -> the protocol's discrimination.
+      The program has, to date, tracked only the FIRST moment of this object
+      (KN-FIND-007, EV-FB3-001, EV-FBG-001) and the derived coverage. The
+      second moment, normalized, is the tracked object here.
+    established_families_off_limits: >-
+      Off-limits as the primary lens for this proposal: summation-polynomial /
+      Groebner solving-degree instrumentation (the D3 device, the whole
+      EXP-DREG / EXP-SDEG / EXP-SIG lineage); Weil-descent and Gaudry-Diem
+      extension-field index calculus; factor-base GEOMETRY optimization aimed
+      at mean yield (settled by KN-FIND-007 and correctly scoped-rejected by
+      DEC-20260724-020); Pollard rho / BSGS / two-table MITM cost algebra
+      (R10); isogeny and class-group structure (R1, DEC-20260804-fec1e8);
+      expander mixing and spectral gap (R2, DEC-20260804-f320c2); incidence and
+      sum-product certification (THM_INCBARRIER1/2); jet and dual-number
+      oracles (THM_JETBARRIER1); anomalous-curve transfer (R7). None of these
+      is the lens here. The lens is elementary second-moment counting applied
+      to the program's OWN measurement instrument.
+    newness_score: >-
+      The first-moment identity is committed and is NOT claimed as new; it is
+      quoted. What this corpus does not contain, as far as the checks recorded
+      under novelty_screen could see, is (a) the identification of
+      HEUR-SEMAEV-2015-4.3 as the Poisson coverage law of that identity rather
+      than an elliptic-curve heuristic, (b) the exact null value E[Xi] = 1-1/M,
+      (c) the observation that the frozen RELN discrimination is therefore
+      decidable before any run for any structureless base, and (d) any
+      measurement of a normalized second moment anywhere in the factor-base
+      lane. The corpus DOES contain the unnormalized concentration statistic
+      conc and the bound cov >= mu - conc/2 (EXP-FB3-001 conservation.md
+      section 2 (iii)), and it DOES contain the ceiling min(1,mu)/(1-e^-mu)
+      (DEC-20260724-020 next_actions). Those are the nearest prior art and this
+      record builds on them rather than rediscovering them.
+    testability_score: >-
+      Very high and nearly free. Stage 0 is pen-and-paper. Stage 1 is a
+      zero-compute arithmetic check against a COMMITTED number: the red team's
+      Bose-Chowla coverage ratio 1.1071 recorded in DEC-20260724-020,
+      EV-FBG-001, H-FBG-001 and GOAL-ICLIFT-001 must equal mu/(1-e^-mu) at
+      that probe's mu. Stage 2 is exact integer enumeration of multiset sums at
+      N <= 2^18, which needs no solver -- numpy is present in this container
+      and sympy and Sage are NOT (verified this session, see the experiment
+      contract's environment block).
+    survival_score: >-
+      The FIRST-moment part of the object cannot survive as a signal, and that
+      is the finding: it is constant across bases by theorem. The SECOND-moment
+      part survives, because Xi genuinely separates Sidon (0), random (1-1/M)
+      and additively structured (>> 1) bases, which is the definition of a
+      statistic that is not a constant of the apparatus.
+
+  mechanism: >-
+    DERIVED HERE. Every step is elementary and is written out so a reviewer can
+    attack it line by line.
+
+    SETUP. G is a cyclic group of prime order N (a prime-field elliptic curve
+    of prime order, the RELN protocol's declared cell shape). D is a factor
+    base of B distinct nonzero elements. Fix decomposition length m. For r in
+    G let c_D(r) be the number of size-m multisets from D summing to r, and let
+    M = binomial(B+m-1, m) be the total number of such multisets.
+
+    STEP 1 (FIRST MOMENT -- QUOTED, NOT CLAIMED). sum_r c_D(r) = M exactly,
+    because sigma sends each multiset to exactly one target and the fibres
+    partition the domain. Hence mu := mean_r c_D(r) = M/N for EVERY D of size
+    B. This is KN-FIND-007, proved in experiments/EXP-FB3-001/conservation.md
+    section 1 and confirmed there at 144 cells with maximum absolute deviation
+    exactly 0.
+
+    STEP 2 (EXACT ACCOUNTING IDENTITY -- ALSO QUOTED). Splitting the fibre sum
+    by whether a target is covered,
+      N*mu = #{r : c_D(r) >= 1} + sum_r (c_D(r) - 1)^+,
+    so with cov_D = p_exist,
+      cov_D = mu - (1/N) * sum_r (c_D(r) - 1)^+   and   cov_D <= min(1, mu),
+    with equality iff max_r c_D(r) <= 1. conservation.md section 2 (iii).
+
+    STEP 3 (WHAT THE REPORTED SEMAEV CURVE ACTUALLY IS). HEUR-SEMAEV-2015-4.3,
+    as transcribed in the frozen RELN protocol, is
+      P = 1 - (1 - 1/q)^K,  K approximately |V|^t / t!.
+    Substituting the protocol's own prime-field instruction q = p, and using
+    #E(F_p) = N with N = p(1 + O(p^{-1/2})) by Hasse, and
+    |V|^t/t! = B^m/m! = M(1 + O(m^2/B)), this is
+      P = 1 - (1 - 1/N)^{M(1+o(1))} = 1 - e^{-mu} + O(mu^2/M) + O(mu*m^2/B).
+    THAT IS EXACTLY THE POISSON COVERAGE OF THE FIBRE DISTRIBUTION WHOSE MEAN
+    STEP 1 FIXES. The reported curve therefore contains no elliptic-curve
+    content beyond the assertion that the fibre sizes are Poisson -- equivalently
+    that the second moment takes its independent-uniform value.
+
+    STEP 4 (THE FORCED NULL VALUE, THE CORE OF THIS PROPOSAL). Model the base
+    as B independent uniform draws d_1..d_B from G, N prime. Let
+      X = sum_r c_D(r)(c_D(r)-1)
+        = #{ordered pairs (S, S') of DISTINCT size-m multisets with
+            sigma(S) = sigma(S')}.
+    For a fixed ordered pair with S != S', write the difference of indicator
+    vectors e = 1_S - 1_S' in Z^B; e is nonzero and every coordinate satisfies
+    |e_j| <= m < N. Then sigma(S) - sigma(S') = sum_j e_j d_j. Pick any j with
+    e_j != 0; since N is prime and 0 < |e_j| < N, e_j is invertible mod N, so
+    conditioning on the other coordinates the sum is uniform on G. Hence
+    P[sigma(S) = sigma(S')] = 1/N EXACTLY -- not approximately. The number of
+    ordered pairs of distinct multisets is M(M-1), so
+      E[X] = M(M-1)/N   EXACTLY,
+      E[conc] = E[X]/N = M(M-1)/N^2,
+      E[Xi] := E[conc]/mu^2 = (M-1)/M = 1 - 1/M   EXACTLY.
+    NO ASYMPTOTICS, NO POISSON APPROXIMATION, NO HEURISTIC. This is the forced
+    value the whole proposal turns on, and it is falsifiable to arbitrary
+    precision by enumeration.
+
+    STEP 5 (WHAT THE MODEL IN STEP 4 IS NOT). The independent-uniform model
+    allows repeats and allows the identity element. A factor base is a SET of
+    distinct nonzero elements, and -- this is the ECDLP-relevant point -- a
+    Semaev factor base is the set of points with x-coordinate in a prescribed
+    subset of F_p, which is a very particular subset of the group and has no a
+    priori reason to look like a uniform random set. The correction from
+    sampling without replacement is O(B^2/N) on E[X] and is derived and carried
+    explicitly in the experiment contract rather than absorbed. THE RESIDUAL --
+    measured Xi minus (1 - 1/M) minus the derived distinctness correction -- IS
+    THE ONLY PLACE IN THE ENTIRE p_exist MEASUREMENT WHERE A PROPERTY OF THE
+    ELLIPTIC CURVE CAN APPEAR. That is the claim, and it is the reason the
+    proposal is a redesign of the metric rather than an additional arm.
+
+    STEP 6 (FORCED VALUES FOR THE CONTROL GEOMETRIES).
+    (a) SIDON / Bose-Chowla B_m base: by definition all size-m sums are
+        distinct, so c_D(r) is in {0,1}, X = 0, Xi = 0 EXACTLY, and by Step 2
+        cov = min(1, mu) exactly. Substituting into the coverage ratio against
+        a Poisson base gives cov_Sidon / cov_random = mu/(1-e^{-mu}), which is
+        <= 1/(1-e^{-1}) = 1.5820 for mu <= 1. THIS REPRODUCES A COMMITTED
+        NUMBER: the red team's probe recorded in
+        coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/tasks/
+        TASK-20260724-233/objections.md reports coverage 0.207195 versus
+        0.187147, ratio 1.1071, and 0.207195/(1 - e^{-0.207195}) = 1.107172.
+        The agreement is to the printed precision. NOTE HONESTLY: that
+        objections file ITSELF derives the ceiling and quotes the asymptotic
+        1.0856 at mu = 1/6, so this check confirms an existing derivation
+        rather than making a new one. It is used here as a SANITY GATE on the
+        proposed instrument, not as a novelty claim.
+    (b) SMALL-MULTIPLES base D = {P, 2P, ..., BP} with B << N: sums of m
+        elements land in the interval [m, mB] of multipliers, so at most
+        m(B-1)+1 targets are hit out of N, giving cov <= (mB)/N while mu is
+        unchanged; Xi is forced far above 1 and is computable exactly by
+        counting ordered pairs of m-multisets from [B] with equal sum. This is
+        the geometry EV-FBG-001 measured at coverage ratio 0.0021 with a
+        concentration statistic of 1224x at N = 2^18 -- i.e. the corpus already
+        holds one point of the forced curve.
+    (c) A GRADED family mixing (a) and (b) at fractions f in {0, 1/4, 1/2,
+        3/4, 1} gives a monotone ladder in Xi with three interior points, which
+        is what localizes an instrument failure rather than leaving "it did not
+        work".
+
+    STEP 7 (CONSEQUENCE FOR THE GOAL). GOAL-RELN-001's completion criterion
+    admits "a scoped no-go against honest measurement". Steps 1-4 supply the
+    argument for one: as frozen, the p_exist arm of the protocol measures a
+    quantity forced by (B, m, N) up to a single second-moment residual, so a
+    campaign spending its budget on the p_exist-versus-B ladder can only
+    reproduce arithmetic. This is NOT a claim that the goal is dead. It is a
+    claim that the goal's budget belongs on (i) Xi, which is free, and (ii)
+    the charged p_solve arm, which the protocol already declares and which is
+    where the contested KN-LIT-009 exponent content actually lives -- exactly
+    the boundary DEC-20260724-020 records as untouched ("the point-decomposition
+    solve and the linear algebra stage are untouched").
+
+  novelty_status: unverified
+
+  novelty_screen:
+    corpus_checked:
+      - knowledge/findings/KN-FIND-007.md
+      - experiments/EXP-FB3-001/conservation.md
+      - experiments/EXP-FB3-001/analysis.md
+      - ledger/decisions/DEC-20260724-020.yaml
+      - ledger/evidence/EV-FBG-001.yaml
+      - ledger/evidence/EV-RELN-001.yaml
+      - ledger/hypotheses/H-FBG-001.yaml
+      - knowledge/literature/KN-LIT-009.md
+      - knowledge/literature/KN-LIT-025.md
+      - ledger/questions/RQ-RELN-001.yaml
+      - ledger/goals/GOAL-RELN-001.yaml
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-001/tasks/TASK-20260725-661/decomp_probability_protocol.yaml
+      - coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/tasks/TASK-20260724-233/objections.md
+    method: >-
+      Direct reading of the files listed, plus a repository-wide grep for the
+      committed constant 1.1071 and for "Bose". No web search was performed
+      for this record. ABSENCE OF A RESULT IS NOT EVIDENCE THAT SOMETHING WAS
+      NOT TRIED (AGENTS.md retrieval policy), and this screen is further
+      discounted by KN-OPEN-3f7a21: 7809 literature entries carry
+      citation_verified: read while their own bodies say claims are relayed
+      unverified, so a corpus screen cannot establish external novelty at all.
+      What the screen supports is narrow and is all that is asserted: no file
+      read here states E[Xi] = 1 - 1/M, and no file read here measures a
+      normalized second moment of the fibre distribution.
+
+  literature_context:
+    - >-
+      KN-LIT-009 (Semaev, iacr:2015/310). NOT READ -- the corpus entry itself
+      records "Full paper not read". The formula attributed to section 4.3 is
+      transcribed HERE FROM THE FROZEN RELN PROTOCOL FILE, which is a
+      second-hand transcription, and Stage 0 of the paired experiment is to
+      obtain the actual text and replace this paragraph with a quotation or
+      record that it could not be obtained. If the actual formula differs from
+      the transcription, the Step-3 identification must be redone against what
+      the paper says; that is a live failure mode and it is listed under
+      falsification_conditions.
+    - >-
+      KN-LIT-025 (Petit-Kosters-Messeng, PKC 2016). NOT READ -- the corpus
+      entry records "Full paper not read", no ePrint located. The RELN protocol
+      forbids inventing PKM maps; this proposal touches no PKM construction and
+      makes no PKM claim.
+    - >-
+      KN-FIND-007 / EXP-FB3-001. READ IN FULL (conservation.md sections 1-2,
+      analysis excerpts). This is internal, committed, derivation-tier, and is
+      the load-bearing prior art. It is quoted, not re-derived, and this
+      proposal claims no share of it.
+    - >-
+      DEC-20260724-020. READ. Its limitations block explicitly publishes the
+      sentences that may not be quoted from it, and this record quotes none of
+      them. Two of its statements are used: that yield and coverage only were
+      measured, and that relation rank and independence were not measured.
+    - >-
+      The Poisson/random-mapping model for decomposition probability is
+      standard in the index-calculus literature (Gaudry, Diem, and the
+      Semaev line). RECALLED, UNVERIFIED as to any specific attribution; no
+      theorem number, page, or venue is asserted here beyond the two corpus
+      entries above.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full instance (curve E/F_p, factor base D as a set of points, target
+      distribution) --> the pair (mu, Xi), i.e. the first two normalized
+      moments of the fibre-size distribution of the multiset-sum map.
+    what_is_discarded: >-
+      Everything about the curve except the group order N (through mu) and
+      the additive coincidence structure of D (through Xi). The identity of
+      the points, the x-coordinates, the field, the j-invariant, the
+      endomorphism ring and every algebraic property of the decomposition
+      problem are discarded.
+    why_genuinely_lossy: >-
+      Very lossy, and DELIBERATELY so on the first coordinate: mu is provably
+      constant across all bases of size B, so that coordinate carries zero
+      information about D. The whole design question is whether the SECOND
+      coordinate is also constant.
+    why_compatible_with_the_operations: >-
+      Compatible by construction. c_D(r) is defined from the group operation
+      alone and the accounting identity of Step 2 is exact, so both moments
+      propagate deterministically through the counting that the protocol's
+      p_exist metric performs. There is no approximation in the propagation;
+      the approximation is only in the Poisson comparison, which is precisely
+      what Xi quantifies.
+    is_it_only_a_change_of_coordinates: >-
+      NO for Xi, YES for mu, and saying which is which is the point of this
+      audit. mu is not even a change of coordinates -- it is worse, a CONSTANT
+      function of the base (the mirror failure named in the inventor protocol
+      and in KN-TECH-1a5b7e: zero comparator spread). Xi is not a change of
+      coordinates either, because it is not recoverable from mu and it takes
+      three provably different values on three constructible bases of the same
+      size (0, 1-1/M, >> 1), which is a demonstration of nonzero comparator
+      spread rather than an assertion of one. WHICH FAILURE WAS CHECKED: both.
+      The (Delta, Pi) = (x XOR y, x*y) char-2 failure (nothing discarded) does
+      not arise here because the projection is many-to-one by an enormous
+      factor; the mirror failure (nothing retained) DOES arise, and it is
+      exactly what the proposal reports about the protocol's current primary
+      metric.
+
+  assumptions:
+    - >-
+      That the frozen RELN protocol's transcription of HEUR-SEMAEV-2015-4.3 is
+      faithful to KN-LIT-009. NOT VERIFIED. Stage 0 of EXP-RELN-add788 tests
+      it.
+    - >-
+      That the protocol's p_exist is coverage over targets drawn (near-)uniformly
+      from the group. The frozen protocol's claim_boundary speaks of
+      "decomposition probabilities versus factor-base size B"; if p_exist is
+      instead defined over a restricted target set, the Step-2 identity still
+      holds over that set but mu must be recomputed over it, and the analysis
+      must be redone. This is recorded as a definitional risk, not resolved.
+    - >-
+      That the tested cells use prime-order groups. The Step-4 exactness uses
+      N prime (invertibility of e_j). For composite N the argument gives 1/N
+      only when gcd(e_j, N) = 1 for some j, and the correction is derived in
+      the experiment contract rather than assumed away.
+
+  predictions:
+    - metric: >-
+        Xi_random = conc / mu^2 measured by exact enumeration over ALL targets
+        for uniformly drawn factor bases of size B on toy prime-order curves,
+        m = 3
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE, DERIVED BEFORE ANY RUN: E[Xi] = 1 - 1/M with
+        M = binomial(B+2, 3), plus a distinctness correction of size O(B^2/N)
+        which the contract derives explicitly. Numerically at the three FB3
+        rungs this is 0.99979839 (B=30, N=2^14), 0.99992449 (B=42, N=2^16),
+        0.99995475 (B=50, N=2^18). PASS BAND: the mean of Xi over 200
+        independent bases per cell lies within 3 standard errors of
+        1 - 1/M + (derived correction). A deviation outside that band at any
+        cell falsifies the independent-uniform model FOR ELLIPTIC-CURVE FACTOR
+        BASES and is the single most interesting outcome this proposal can
+        produce, because it would be the first curve-specific content ever
+        found in the p_exist measurement.
+    - metric: Xi_Sidon for a Bose-Chowla B_3 base at matched B
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0. Not "small", not "below a threshold": zero, by definition of
+        a B_3 set. Any nonzero measured value means the constructed base is not
+        Sidon and the construction is wrong, which invalidates the arm rather
+        than the hypothesis.
+    - metric: >-
+        Coverage ratio of the Sidon arm to the matched random arm, versus the
+        pre-derived ceiling mu/(1 - e^{-mu})
+      direction: different
+      minimum_effect: >-
+        Ratio equals mu/(1-e^{-mu}) to within the sampling band, and at the
+        already-committed probe point mu = 0.207195 equals 1.107172, matching
+        the committed 1.1071 to the printed precision. THIS IS A REPRODUCTION
+        GATE ON THE INSTRUMENT, NOT A RESULT. If the instrument cannot
+        reproduce a committed number from arithmetic alone, no negative may be
+        reported from it.
+    - metric: Xi_small_multiples for D = {P, 2P, ..., BP}
+      direction: higher
+      minimum_effect: >-
+        Above 100 at every rung, with the exact value computed combinatorially
+        BEFORE the run from the count of ordered pairs of 3-multisets of
+        [1..B] with equal sum, divided by mu^2 N^2. The exact predicted number
+        is entered into the contract at freeze time; a measured value differing
+        from it by more than one part in 10^6 is an implementation fault, not
+        a finding.
+    - metric: >-
+        Monotonicity of Xi across the graded mixing ladder f in {0, 1/4, 1/2,
+        3/4, 1} between the Sidon and small-multiples geometries
+      direction: higher
+      minimum_effect: >-
+        Strictly increasing in f at every rung, all five cells, both N. A
+        non-monotone ladder localizes the failure to a specific mixing
+        fraction instead of leaving a bare negative, which is why the graded
+        arm exists.
+    - metric: >-
+        Dynamic range of p_exist at fixed (B, m, N) across all measured
+        geometries, expressed as max(p_exist)/min(p_exist over non-degenerate
+        arms)
+      direction: lower
+      minimum_effect: >-
+        The UPPER end is bounded by min(1,mu)/(1-e^{-mu}) <= 1.5820, derived
+        pre-run. If any arm exceeds 1.5820, Step 2 is violated and the
+        measurement is invalid, not interesting. There is no lower bound: a
+        degenerate base can drive coverage to near zero, which is why the
+        proposal says the protocol cannot emit an informative POSITIVE, not
+        that it cannot emit any signal.
+
+  minimal_test:
+    design: >-
+      Four stages, ordered cheapest-first, each able to terminate the line.
+      STAGE 0 (reading, zero compute): obtain KN-LIT-009 and quote the section
+      containing the reference formula, or record that it could not be
+      obtained and that the identification in Step 3 rests on the frozen
+      protocol's transcription. STAGE 1 (arithmetic, zero compute): reproduce
+      1.107172 from mu = 0.207195, reproduce mu = 1.1276 / 1.0755 / 1.0436 at
+      the three FB3 rungs from binomial(B+2,3)/N, and derive E[Xi] = 1-1/M with
+      its distinctness correction. If Stage 1 fails, the derivation is wrong
+      and the line stops here at zero cost. STAGE 2 (exact enumeration, minutes
+      to tens of minutes in pure Python plus numpy): measure (mu, conc, Xi,
+      cov) over ALL targets for each arm at N in {2^14, 2^16, 2^18}. STAGE 3
+      (optional, bounded): repeat at one 2^20 cell to report a slope in log2 N
+      for Xi rather than a single-scale point.
+    controls:
+      - >-
+        NULL OBJECT (matched random base). Same B, same N, same curve, elements
+        drawn uniformly from the group rather than from any geometry. FORCED
+        VALUE DERIVED PRE-RUN: E[Xi] = 1 - 1/M plus the derived O(B^2/N)
+        distinctness correction. THIS NULL CAN FAIL: if elliptic-curve factor
+        bases are not exchangeable with uniform group elements at the tested
+        sizes, the measured mean falls outside the band. It is a null and not a
+        decoration.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT (Bose-Chowla B_3 Sidon base). The
+        effect MUST appear here: Xi = 0 exactly and coverage = min(1, mu)
+        exactly. If the instrument does not return exactly 0 on a correctly
+        constructed Sidon base, the instrument is broken and NO negative result
+        may be reported from any other arm. Threshold declared pre-run:
+        Xi_Sidon = 0 with zero tolerance.
+      - >-
+        SECOND POSITIVE CONTROL (small-multiples base). The effect must appear
+        in the opposite direction, at a value computed combinatorially before
+        the run. Two controls that must fire in opposite directions bound the
+        instrument on both sides, which a single null does not.
+      - >-
+        GRADED CONTROL with three interior points (f = 1/4, 1/2, 3/4 mixing of
+        the two positive controls), reporting monotonicity of Xi in f.
+      - >-
+        ORDERING CONTROL. The null arm is generated, measured, hashed and
+        committed BEFORE any structured arm is generated, and the frozen
+        decision rule is executed on the null first. If the rule emits the same
+        label on the null and on the Sidon arm, it discriminates nothing and
+        must be rewritten before the remaining arms are read.
+      - >-
+        ARCHIVE CHECK (zero compute). List every archived measurement of the
+        same observable. AVAILABLE AND USED: EXP-FB3-001 holds mu, cov and the
+        unnormalized conc at 144 cells, and the TASK-20260724-233 probe holds
+        the 1.1071 point. Xi itself is NOT archived anywhere the screen could
+        see, and that absence is recorded as an absence rather than claimed as
+        a passed check.
+    required_metrics:
+      - exact mu, cov, conc, Xi and max_r c_D(r) per arm per cell, over all targets
+      - the pre-run forced value and the derived distinctness correction, recorded before the measured value in the same file
+      - seed, base construction transcript and a hash of the ordered base for every arm
+      - a verbatim quotation of KN-LIT-009's formula with page reference, or a recorded statement that the source could not be obtained
+
+  falsification_conditions:
+    - >-
+      Measured mean Xi for the matched random arm lies outside the pre-declared
+      band around 1 - 1/M at any cell. The independent-uniform model for
+      elliptic-curve factor bases is then wrong at that scale, the Step-3
+      identification of the Semaev curve as forced no longer follows, and the
+      p_exist arm regains genuine content. This proposal would be WRONG in the
+      most useful possible direction and the record must say so.
+    - >-
+      The Sidon arm does not return Xi = 0 exactly. Instrument fault; no
+      negative may be reported.
+    - >-
+      Stage 1 fails to reproduce 1.107172 from mu, or fails to reproduce the
+      committed FB3 means from binomial(B+2,3)/N. The derivation is wrong and
+      the line stops at zero compute.
+    - >-
+      KN-LIT-009's actual formula is materially different from the frozen
+      protocol's transcription. The Step-3 identification must then be redone
+      against the real text; this is the most likely single failure of the
+      record as written.
+    - >-
+      The frozen protocol's p_exist turns out to be defined over a restricted
+      target set rather than the whole group, in a way that breaks the Step-2
+      accounting. The analysis must then be redone over that set.
+
+  confounders:
+    - >-
+      DEFINITION OF THE MULTISET CONVENTION. Unsigned multisets, signed
+      multisets (each factor-base x-coordinate representing +-P), and typed
+      decompositions give different M and therefore different mu and different
+      forced Xi. EXP-FB3-001 froze unsigned multisets and reports that signs
+      raise the mean by a measured factor. Every number in this record is under
+      the UNSIGNED convention and the contract must state the convention before
+      any comparison to a Semaev cell, which uses x-coordinates and is
+      naturally signed.
+    - >-
+      SMALL-N ARTIFACTS. At N = 2^14 the distinctness correction O(B^2/N) is
+      about 0.05 for B = 30 and is NOT negligible relative to 1/M = 0.0002. The
+      correction must be derived exactly, not bounded, or the null band is
+      wrong in the direction that would manufacture a false positive.
+    - >-
+      AUTHORSHIP ASYMMETRY. An audit that concludes "the existing metric is
+      uninformative" is cheap to produce and reads as rigour. The two positive
+      controls and the explicit falsification band exist so that this outcome
+      costs something to reach.
+    - >-
+      SELECTION OF mu. The dynamic range bound 1.5820 is attained only near
+      mu = 1; at the small mu of the ICLIFT probe it is 1.107. Quoting the
+      1.5820 ceiling at a cell whose mu is far from 1 would overstate the
+      protocol's headroom, and the contract reports the ceiling per cell.
+
+  interpretation_limits:
+    - >-
+      This closes NOTHING about ECDLP, about index calculus, or about
+      KN-LIT-009's complexity claims. It is a statement about what one
+      measurement in one frozen protocol can and cannot detect. KN-OPEN-001 is
+      untouched.
+    - >-
+      A confirmation (Xi at its forced value) supports a SCOPED no-go on the
+      p_exist ladder only, at the tested toy cells, under the tested convention,
+      and explicitly does NOT support "the relation-supply question is closed",
+      "factor-base size does not matter", or any sentence DEC-20260724-020
+      already forbids.
+    - >-
+      No status change to any existing record is proposed. The frozen RELN
+      protocol remains as committed; superseding or amending it is a
+      Coordinator decision and nothing here performs one.
+    - >-
+      Toy tier throughout. N <= 2^18 (optionally 2^20). Nothing here transfers
+      to cryptographic scale and no record citing it may raise the tier.
+
+  heuristic_assumptions:
+    - id: HEUR-XI-1
+      statement: >-
+        NONE LOAD-BEARING FOR THE HEADLINE. E[Xi] = 1 - 1/M under the
+        independent-uniform model is an exact identity, proved in Step 4, not a
+        distributional assumption. This entry exists to record that the
+        proposal's central number is unconditional, and that the only
+        assumption in the comparison is an EVIDENTIARY one (the faithfulness of
+        the transcription of KN-LIT-009).
+      rigorous_support: >-
+        Step 4: for e != 0 with |e_j| < N and N prime, sum_j e_j d_j is uniform
+        on G when the d_j are independent uniform. Elementary.
+      validation_plan: >-
+        Exact enumeration at N in {2^14, 2^16, 2^18} over 200 independent bases
+        per cell, comparing the sample mean of Xi to 1 - 1/M plus the derived
+        distinctness correction.
+    - id: HEUR-XI-2
+      statement: >-
+        EXCHANGEABILITY. For the tested (B, N, m), a factor base formed from
+        points of a prime-order elliptic curve with x-coordinates in a
+        prescribed subset of F_p behaves, with respect to the second moment of
+        the multiset-sum fibre distribution, like a uniformly random subset of
+        the group of the same size.
+      rigorous_support: >-
+        NONE OFFERED, AND THIS IS THE RECORD'S WEAKEST LINK, STATED AS SUCH.
+        The usual appeal is that the map x -> the group element is
+        "unstructured"; that is precisely the ECDLP folklore this program
+        exists to test rather than to assume. It is therefore not assumed here:
+        it is the hypothesis under test, and the experiment is designed to
+        detect its failure rather than to rely on it.
+      validation_plan: >-
+        It IS the primary measurement. Failure is a first-class result, not an
+        error; see falsification_conditions item 1.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit. NO EXPONENT IS MOVED AND THE PROPOSAL SAYS SO
+      PLAINLY. It is a measurement-design correction whose value is that it
+      redirects a budgeted campaign away from a metric that is forced by
+      arithmetic and toward the two quantities that are not (Xi, and the
+      charged p_solve).
+    memory_exponent: n/a. No algorithm is proposed.
+    best_known: >-
+      For the underlying problem the incumbent remains Pollard rho at
+      N^{1/2} time and O(1) memory for prime-field ECDLP; nothing here
+      approaches it or claims to.
+    hidden_overhead: >-
+      n/a. The measurement's own cost is exact enumeration of
+      binomial(B+2,3) multiset sums per base, which at B = 117, N = 2^18 is
+      about 2.8 x 10^5 sums per base -- trivially bounded and stated in the
+      contract.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    null, after checking the frontier. Rows checked, on the axis this proposal
+    actually occupies (what a decomposition-probability measurement can
+    detect): (1) EXP-FB3-001 / KN-FIND-007 -- dominates on the FIRST moment
+    completely and is quoted rather than competed with, but measures no second
+    moment; (2) the TASK-20260724-233 red-team probe -- holds one point of the
+    coverage-ceiling curve at one (q, N) and derives the ceiling, but measures
+    no Xi and runs no null census; (3) the frozen RELN protocol itself --
+    dominates on cost accounting and certificate obligations, and this proposal
+    proposes no change to those, but its p_exist metric is the object under
+    audit; (4) DEC-20260724-020's six geometries -- 288 cells of yield and
+    coverage, no second moment, no rank; (5) EV-YIELD / EV-SEMAEV records --
+    the corpus itself notes neither side of that contradiction has a resolvable
+    run. On TIME the proposal costs minutes; on MEMORY it needs an array of N
+    counters, which at 2^18 is trivial and at 2^20 is still under 10 MB; on
+    DATA/QUERIES it consumes no oracle. No row dominates it on all three,
+    because no row measures the same quantity. THIS null IS A CLAIM ABOUT AN
+    AUDIT, NOT ABOUT AN ATTACK: on the attack frontier the proposal does not
+    appear at all, and dominated_by there would be Pollard rho trivially.
+  sota_delta: >-
+    Quantitative, on the measurement axis. The frozen protocol's p_exist ladder
+    has, at fixed (B, m, N), a total admissible dynamic range of at most
+    min(1,mu)/(1-e^{-mu}) <= 1.582x, and at the ICLIFT probe's operating point
+    1.107x, ALL of it accounted for by one statistic. The proposed metric Xi
+    has a demonstrated range of at least 0 to 1224x across constructible bases
+    at matched size (the two endpoints are a definition and a committed
+    measurement respectively) -- a factor of at least 700x more discriminating
+    power per unit of compute, on the same enumeration. On the attack axis:
+    sota_delta is ZERO. No exponent, no constant, no memory, no query
+    advantage. Pollard rho is unaffected.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.80 that the matched random arm returns Xi within the derived band, i.e.
+    that the headline audit is CONFIRMED and the p_exist ladder is shown to be
+    forced. It is not higher because HEUR-XI-2 (exchangeability of an
+    elliptic-curve factor base with a uniform random subset, at the second
+    moment) has no rigorous support and is exactly the kind of assumption this
+    program has repeatedly found to be the interesting one -- and because the
+    tested bases are x-coordinate-derived subsets with a genuine algebraic
+    definition, not random sets. It is not lower because Step 4 is an exact
+    identity under its stated model, because the O(B^2/N) distinctness
+    correction is the only other term and it is derivable, and because the
+    corpus already contains one confirming point (the Sidon ratio 1.1071
+    matching mu/(1-e^{-mu}) to six figures) obtained by an independent agent
+    for an unrelated purpose. Separately: 0.97 that the line reaches a decisive
+    reading at all, because Stages 0 and 1 are pen-and-paper and Stage 2 needs
+    no solver -- numpy is present, sympy and Sage are not, and nothing here
+    needs them.

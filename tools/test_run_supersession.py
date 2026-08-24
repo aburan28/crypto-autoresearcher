@@ -132,6 +132,16 @@ class NoRegistryEntryTests(SupersessionFixture):
 
 
 class RegisteredSupersessionTests(SupersessionFixture):
+    def test_flat_archived_manifest_id_is_bound_to_replacement(self) -> None:
+        self.superseded.write_text(yaml.safe_dump({
+            "run_id": "RUN-SUP-001",
+            "experiment_id": "EXP-SUP-001",
+        }, sort_keys=False), encoding="utf-8")
+        supersessions = self.registry()
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, supersessions)
+        self.assertEqual(ctx.errors, [])
+
     def test_registered_supersession_validates_the_superseding_record(self) -> None:
         supersessions = self.registry()
         ctx = vl.Ctx(set())
@@ -342,7 +352,7 @@ class TierOfRunTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertIsNone(vl.tier_of_run({"field_bits": value}))
 
-    def test_claim_tier_ceiling_uses_the_largest_cell(self) -> None:
+    def test_claim_tier_is_not_an_automatic_scale_ceiling(self) -> None:
         ctx = vl.Ctx(set())
         ctx.run_params["RUN-T-001"] = {"field_bits": [16, 20]}
         ctx.ids["RUN-T-001"] = "x"
@@ -353,8 +363,8 @@ class TierOfRunTests(unittest.TestCase):
             "claim_tier": "crypto",
         }
         vl.check_cross_refs(ctx)
-        self.assertTrue(any("exceeds what its runs' parameters allow" in e
-                            for e in ctx.errors), ctx.errors)
+        self.assertFalse(any("exceeds what its runs' parameters allow" in e
+                             for e in ctx.errors), ctx.errors)
 
 
 class CommittedRegistryTests(unittest.TestCase):
@@ -396,15 +406,46 @@ class CommittedRegistryTests(unittest.TestCase):
     def test_superseding_record_declares_the_supersession_from_its_own_side(self) -> None:
         entries = vl.load_run_supersessions()
         for entry in entries.values():
-            body = yaml.safe_load(
-                Path(entry["superseding_path"]).read_text(encoding="utf-8"))["run"]
-            declared = body.get("supersedes") or {}
-            self.assertEqual(
-                os.path.abspath(os.path.join(
-                    vl.REPO, str(declared.get("prior_manifest_path")))),
-                entry["superseded_path"])
-            self.assertEqual(declared.get("prior_manifest_sha256"),
-                             entry["superseded_sha256"])
+            repo_root = REPO.resolve()
+            registry_original = Path(entry["superseded_path"]).resolve()
+            run_dir = registry_original.parent
+            current = Path(entry["superseding_path"]).resolve()
+            self.assertEqual(current.parent, run_dir, str(current))
+            seen: set[str] = set()
+            while True:
+                self.assertNotIn(str(current), seen, entry["superseding_path"])
+                seen.add(str(current))
+                body = yaml.safe_load(
+                    current.read_text(encoding="utf-8"))["run"]
+                self.assertEqual(body.get("id"), entry["run_id"], str(current))
+                declared = body.get("supersedes") or {}
+                # Three immutable superseding-record vocabularies coexist.
+                # Most records use prior_manifest_*, four early ECDLP
+                # records use prior_manifest/prior_sha256, and SSIQ uses
+                # path/sha256.  One final v3 record honestly names its v2
+                # predecessor, which then names the registry's original.
+                # Follow and hash-check that immutable chain rather than
+                # rewriting history to make every replacement look direct.
+                prior_path = (declared.get("prior_manifest_path")
+                              or declared.get("prior_manifest")
+                              or declared.get("path"))
+                prior_sha256 = (declared.get("prior_manifest_sha256")
+                                or declared.get("prior_sha256")
+                                or declared.get("sha256"))
+                self.assertIsNotNone(prior_path, str(current))
+                self.assertIsNotNone(prior_sha256, str(current))
+                prior = (repo_root / str(prior_path)).resolve()
+                self.assertTrue(prior.is_relative_to(repo_root), str(prior))
+                self.assertEqual(prior.parent, run_dir, str(prior))
+                self.assertTrue(prior.is_file(), str(prior))
+                self.assertEqual(sha256_of(prior), prior_sha256, str(prior))
+                self.assertEqual(vl._run_id_of(str(prior)), entry["run_id"],
+                                 str(prior))
+                if prior == registry_original:
+                    self.assertEqual(prior_sha256,
+                                     entry["superseded_sha256"])
+                    break
+                current = prior
 
 
 if __name__ == "__main__":

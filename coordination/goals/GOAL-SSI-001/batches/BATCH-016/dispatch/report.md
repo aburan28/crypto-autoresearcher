@@ -6,11 +6,11 @@ BATCH-016: preregister ttm-v2 with explicit return-modulus and requested-length 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-035` | red-team | queued | 80 | TASK-20260730-033, TASK-20260730-034 | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-035/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-035/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-035 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-036`: dependency_not_completed:TASK-20260730-035:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-016: preregister ttm-v2 with explicit return-modulus and requested-length 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `603276965f040ecc3345cac54e63b6f8a6dee4cf737b57f062cdba497354033a`
+Plan SHA-256: `d0d5852f0bcf6b808f989487d979bcb64faf1dcaffe1e82e53735c6209e46585`

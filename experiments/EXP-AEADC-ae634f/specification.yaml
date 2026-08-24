@@ -1,0 +1,228 @@
+experiment:
+  id: EXP-AEADC-ae634f
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-a1de9a; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-a1de9a
+  question_id: RQ-AEADC-8db132
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Build a chunk-framing auditor and decide by exhaustion, for six declared framing schemes,
+    whether truncation, reordering, duplication and cross-stream splicing of validly sealed chunks
+    are accepted, emitting witness sequences
+  objective: 'The one uncertainty a run reduces is whether stream-level rearrangement detectability
+    is decidable, cheaply and exhaustively, as a property of a framing scheme paired with a receiver
+    predicate, and which of six declared framings actually detect which of four declared operations.
+    Concretely: (i) for each framing, does there exist within the declared chunk bound a sequence
+    of individually valid sealed chunks, obtained by truncation, transposition, duplication or cross-stream
+    splice, that the receiver accepts, and what is the minimal such witness; (ii) do the decided verdicts
+    agree with the table derived by hand and pre-registered before the auditor exists, since a disagreement
+    falsifies a framing argument that reads as obviously correct and is worth more than the agreements;
+    (iii) is the auditor sound, established by requiring the no-binding positive control to accept
+    all four operations, the random-framing null to reproduce that row exactly, every framing to accept
+    its own honest unmodified sequence, and the verdicts to be identical when the opaque sealer is
+    a real AEAD rather than a seeded ideal object. The run additionally produces the auditor itself,
+    which decides any later framing scheme in minutes.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: for the six declared framing
+      schemes with their declared receiver predicates, at chunk counts up to the declared bound, under
+      the four declared rearrangement operations, the receiver accepted exactly the sequences reported,
+      with the listed minimal witnesses, and the controls behaved as reported. What does NOT follow:
+      nothing about TLS records, any file-encryption format, any library or any named protocol, since
+      the framings are declared models; no attack, break or security consequence, since acceptance
+      of a rearranged sequence is a statement about a declared receiver predicate; nothing about rearrangement
+      operations outside the declared four, which are not exhaustive; nothing about streams longer
+      than the bound, where an exhaustive absence says nothing; and no statement about published designs.'
+  inputs:
+    procedure: 'STAGE 0, zero compute, days of human effort: fix the framing notation and the receiver-predicate
+      language, declare the six framings plus the two control framings, and derive the expected verdict
+      table by hand; hash the file. STAGE 1, hours of human effort: implement the notation interpreter
+      and the auditor, with the honest-path validation and the notation round trip as built-in preconditions.
+      STAGE 2, minutes: seal a reference stream and a second stream per framing under one key with
+      a seeded ideal AEAD object, from disjoint seeds per framing. STAGE 3, minutes: enumerate all
+      sequences reachable by each of the four operations within the chunk bound and run the receiver
+      predicate on each, recording accepted sequences and minimal witnesses. STAGE 4, minutes: run
+      the no-binding positive control and the random-framing null through the identical auditor. STAGE
+      5, minutes: rerun one framing with a pinned real AEAD and diff the verdicts. STAGE 6, zero compute:
+      emit the verdict table, the witnesses, the disagreement count against pre-registration, and
+      both control rows into an immutable run record via harness/runner.py.'
+    instrument: 'Python 3, standard library only: a framing-notation interpreter consuming declared
+      scheme data, a receiver-predicate interpreter, a sequence enumerator over the four operations,
+      and an opaque AEAD interface filled either by a seeded lazily-sampled sealer or by a pinned
+      pure-Python AEAD validated against published test vectors. The auditor never inspects the sealer''s
+      internals, which is enforced by the interface. Manifest emission and seeding through harness/runner.py,
+      following harness/ctrl_valueshuffle.py. No Sage, no network, no external format parsers.'
+    parameters: 'Chunk bound 6, with streams of 2, 4 and 6 chunks. Chunk payload fixed at 16 bytes.
+      Two streams per framing, sealed under one key, with distinct stream identifiers where the framing
+      has one. Six declared framings: no binding, index only, index plus final marker, index plus
+      stream identifier, index plus stream identifier plus total count, and chained binding of the
+      previous chunk''s tag. Two control framings: no-binding positive control and random-per-chunk
+      null. Four operations: truncation at every point, transposition of every pair, duplication of
+      every position, single-chunk splice from the second stream at every position. Eight framings
+      by four operations gives 32 verdict cells; one framing rerun with a real AEAD.'
+  controls:
+  - No-binding positive control framing, which must accept all four operations.
+  - Random-framing null, which must reproduce the positive control's row exactly.
+  - Pre-registered expected verdict table, hashed before the auditor runs.
+  - Real-AEAD column diffed against the ideal-AEAD column for one framing.
+  - 'Honest-path validation: the unmodified sealed sequence must be accepted by every framing''s receiver,
+    checked before any rearrangement is enumerated.'
+  - 'Framing notation round trip: every declared framing is rendered to associated-data strings and
+    parsed back, confirming the notation is unambiguous.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two arms, both driven by the identical auditor in one invocation. POSITIVE
+    CONTROL: the no-binding framing, which must yield an accepted witness for all four operations
+    at chunk count 2; if the auditor finds none, it cannot find witnesses at all and every exhaustive
+    absence it reports elsewhere is worthless. NULL ARM, the shape-matched random object: a framing
+    whose associated-data string is a fresh random value per chunk unrelated to index or stream, paired
+    with a receiver that checks tag validity only. This has the same interface and the same data volume
+    as a real framing but binds nothing, and it must behave exactly like the no-binding control --
+    all four operations accepted. If the random-framing null detects any operation, the receiver predicate
+    is consulting something outside the declared framing and the tool is not auditing what it claims.'
+  independent_variables:
+  - framing scheme
+  - rearrangement operation
+  - stream length in chunks
+  - 'sealer occupant: seeded ideal object versus pinned real AEAD'
+  metrics:
+    primary:
+    - 'verdict per framing per operation: accepted with witness or exhaustive absence within bound'
+    - minimal witness sequence per accepted cell
+    - chunk count at which the first accepted witness appears per framing
+    - count of verdicts disagreeing with the pre-registered table
+    - positive-control and random-null verdict rows
+    secondary:
+    - count of sequences enumerated per framing per operation
+    - honest-path validation result per framing
+    - framing-notation round-trip result per framing
+    - count of verdicts moving between sealer columns
+    - auditor wall-clock per framing
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The verdict rows of the two control framings, and the number of sequences enumerated
+      per operation.
+    formula: 'No-binding positive control and random-per-chunk null: both accept all four operations
+      at every stream length, because their receivers check tag validity alone and every presented
+      chunk is individually valid; both rows are therefore predicted to be four accepted out of four,
+      identical to each other cell by cell. Sequence counts at stream length n: truncation yields
+      n-1 proper prefixes, transposition yields n(n-1)/2 sequences, duplication yields n times n insertion
+      positions bounded to the declared maximum length, and single-chunk splice yields n times n substitutions
+      from the second stream; the exact totals at n equal 2, 4 and 6 are computed in stage 0 and the
+      auditor''s enumerated count must match them exactly.'
+    source: Pre-registered in the parent proposal IDEA-20260816-a1de9a before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'A chunk bound of six with 16-byte payloads is chosen as the smallest bound at
+      which all four operations have non-degenerate instances -- transposition needs two chunks, splice
+      needs a second stream, truncation of a non-final prefix needs at least three -- while keeping
+      the enumeration exhaustive rather than sampled. The transfer assumption is stated and refused:
+      framing structure is combinatorial and the six schemes are defined identically at any stream
+      length, but an exhaustive absence at bound six is an absence at bound six, and a witness requiring
+      longer streams would be missed. That limitation is reported with every absence rather than buried,
+      and the first-witness chunk count is recorded so a reader can see how much slack the bound had.'
+    correspondence: null
+  tail_checks:
+  - Truncation at the final chunk is checked separately, since it is the case a final-marker framing
+    exists to catch.
+  - Duplication of the first and of the last chunk are checked separately from interior duplication.
+  - Splices at position zero are checked, since a framing binding stream identity should reject them
+    immediately.
+  - Streams of length two are checked for degenerate operations -- transposition equals reversal,
+    truncation leaves one chunk -- which are reported but not counted as separate witnesses.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt and report the auditor invalid if the no-binding positive control does not accept all four
+    operations.
+  - Halt if any framing rejects its own honest unmodified sequence.
+  - Halt if the enumerated sequence count disagrees with the closed-form count from stage 0, since
+    the enumeration is then incomplete.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A completed thirty-two-cell verdict table in which both control rows accept all
+    four operations, every framing accepts its honest sequence, enumerated counts match their closed
+    forms, and each cell carries either a minimal witness or an exhaustive absence within the declared
+    bound.
+  falsification_criterion:
+  - The no-binding positive control fails to accept all four operations.
+  - The random-framing null detects any operation, indicating the receiver reads state outside the
+    declared framing.
+  - A framing rejects its own honest sequence.
+  - Enumerated sequence counts disagree with their closed forms.
+  - Verdicts move between the ideal and real sealer columns.
+  - All six framings return identical verdict rows, meaning the declared framing space does not separate
+    at this bound.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-a1de9a
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The receiver-predicate language is described as separate from the framing notation but is not
+    specified; the Coordinator must fix it, since collapsing the two makes every well-formed framing
+    pass trivially and the tool worthless.
+  - The chained framing binds the previous chunk's tag, which introduces an ordering dependency the
+    notation must express without becoming general-purpose; that expressiveness boundary is not drawn.
+  - The chunk bound of six is argued from operation non-degeneracy, not from any argument that a witness
+    cannot require longer streams.
+  - The four operations are declared and no argument is offered that they are the right four; a fifth
+    operation -- splicing a chunk from a stream under a different key -- is deliberately excluded
+    because it would overlap the commitment records already filed under this question, and that exclusion
+    should be confirmed rather than assumed.

@@ -1,0 +1,750 @@
+idea:
+  id: IDEA-20260821-0d1fde
+  question_id: RQ-MLKEM-001
+  added: '2026-08-21'
+  title: >-
+    Instantiate this program's own canonical exemplar against ML-KEM and find out WHICH component
+    fails: track the FIELD NORM N(s) = Res(s, x^256+1) of the secret as a multiplicative object,
+    supply the Wesolowski template's four parts (rigorous size bound = the AM-GM/Minkowski floor
+    ||s||_2 >= |N(s)|^{1/256}; classical distribution theorem = Dickman-de Bruijn for smooth ideals;
+    smoothness splitting; MitM over a norm-keyed table), and measure the two quantities that decide
+    it -- the SLACK of the ML-KEM secret above its own norm floor (predicted ~107 of 1024 bits) and
+    the shortest-element norm of a balanced ideal half -- with a split-prime valuation test that
+    runs at TRUE FIPS PARAMETERS
+  class: mechanism
+  claim: >-
+    (A) WHY THIS EXISTS. docs/target-result-profile.md names Wesolowski's p^{1/3+o(1)} supersingular
+    isogeny result as the canonical exemplar, and its recipe is explicit: a recent rigorous SIZE
+    BOUND on an algebraically defined object, plus a classical SMOOTHNESS DISTRIBUTION theorem for
+    objects of that size, converted into an algorithm by SPLITTING the object into two halves each
+    enumerable in budget and joining them by an EXACT keyed table. Nothing in this lane has ever
+    tried to instantiate that recipe against ML-KEM, and "the exemplar does not apply" is a
+    hypothesis about the search, not a theorem about the problem.
+    (B) THE TRACKED OBJECT. For s in R = Z[x]/(x^256+1), the field norm N(s) = Res(s(x), x^256+1) =
+    prod over the 256 complex embeddings of s(zeta_i), an integer. N is MULTIPLICATIVE, so it
+    propagates exactly through the only nonlinear operation ML-KEM performs on ring elements, and
+    it dies at addition -- which is precisely where the LWE error enters. That is a one-step
+    survival and it is stated as such.
+    (C) THE RIGOROUS SIZE BOUND, WHICH IS THE EXEMPLAR'S THEOREM 1.5 SLOT. For a power-of-two
+    cyclotomic, sum_i |s(zeta_i)|^2 = 256 * ||s||_2^2 in the coefficient basis, so AM-GM gives
+    |N(s)|^{2/256} <= (1/256) sum_i |s(zeta_i)|^2 = ||s||_2^2, i.e. ||s||_2 >= |N(s)|^{1/256}. This
+    is an unconditional inequality, it is the exact analogue of the exemplar's minimal-degree
+    bound, and it runs in the useful direction: it caps how large the norm of a SHORT element can
+    be, hence caps how much room a multiplicative splitting has.
+    (D) THE TWO NUMBERS THAT DECIDE THE TEMPLATE, AND WHAT THEY ARE PREDICTED TO BE.
+    NUMBER ONE, THE SLACK. For ML-KEM-768's CBD_2 secret, ||s||_2 ~ sqrt(256) = 16, so the bound
+    caps |N(s)| at 2^1024. Modelling s(zeta_i) as a complex Gaussian of variance 256 gives
+    E[log2|N(s)|] = 256 * (log2(256) - gamma/ln2)/2 = 256 * 3.5837 = 917.4 bits, so the SLACK,
+    256*log2||s||_2 - log2|N(s)|, is predicted at about 106.6 bits out of 1024 -- roughly 10%. The
+    slack is what a splitting has to spend: a balanced split s = s1*s2 needs both factors short,
+    and the floor says ||s_j||_2 >= |N(s_j)|^{1/256} ~ 2^{458.7/256} = 2^{1.79} ~ 3.46, against a
+    typical short element's 16. Whether ~107 bits of slack is room or is nothing is the question.
+    NUMBER TWO, THE HALF-IDEAL MINIMUM. Even granting a smooth factorisation, the template needs
+    the two halves to be ENUMERABLE, which means short in the coefficient basis, not merely of
+    balanced norm. The measurable proxy is the ratio F = (shortest element of a balanced half-ideal
+    I1, found by LLL) / (its AM-GM floor N(I1)^{1/256}). F = 1 would mean the halves are as short as
+    arithmetic permits; F large means the ideal contains no short element and the MitM table does
+    not exist.
+    (E) A DISCRIMINATOR THAT RUNS AT TRUE FIPS PARAMETERS, WHICH IS RARE IN THIS LANE. Field norms
+    are not random integers, and the difference is measurable at n = 256 even though full
+    factorisation is not. For a rational prime p, the inertia degree f(p) = ord of p in (Z/512)^*
+    controls everything: p splits into 256/f primes of norm p^f, and v_p(N(s)) is always a multiple
+    of f(p). For a SPLIT prime -- p = 1 mod 512, f = 1, 256 primes above it -- the expected
+    valuation is about 256/p, against about 1/(p-1) for a uniformly random integer of the same
+    size: A FACTOR OF ROUGHLY 256. The smallest such prime is 7681 (which is 15*512 + 1 and is
+    prime), giving predicted E[v_7681(N(s))] ~ 0.0333 under the norm model against ~0.00013 under
+    the random-integer model. Distinguishing those two takes a few thousand exact resultants at
+    n = 256 and a trial division -- minutes of single-core time, at the standardised ring.
+    (F) THE THREE OUTCOMES, DECLARED BEFORE THE RUN. E1 (BLOCKED AT THE GEOMETRY): ideal smoothness
+    follows the Dickman rate, but F is large -- balanced half-ideals contain no short element -- so
+    the template dies at the SPLITTING step and the obstruction is geometric, with F as its
+    measured value. E2 (BLOCKED AT THE DISTRIBUTION): the smoothness of (s) departs from the
+    Dickman prediction, so the exemplar's Heuristic-1 slot cannot be filled for ML-KEM at all and
+    the obstruction is distributional. E3 (NOT BLOCKED): smoothness at the Dickman rate AND F near
+    1. Then a multiplicative splitting of the ML-KEM secret into enumerable halves exists, the
+    exemplar's template has an entry point, and that is the highest-value outcome this lane could
+    produce.
+    (G) NOT CLAIMED. No attack, no break, no speedup, no exponent moved. No claim that any of E1-E3
+    is more likely than the honest priors below say. Every number above is the proposer's arithmetic
+    or a standard-model expectation computed on 2026-08-21; NONE is a measurement and none is read
+    from a committed run. No claim about what the literature contains. No direction is declared
+    impossible; in particular E1 would close a TEMPLATE at MEASURED parameters, not a family.
+  mechanism: >-
+    STAGE 0 (derivation, no compute). Write out the four template slots explicitly for ML-KEM and
+    identify, before any data, which one each candidate obstruction would occupy: size bound (C),
+    distribution (Dickman-de Bruijn for smooth ideals, with Landau's prime-ideal theorem supplying
+    the ~pi(B) prime ideals of norm <= B in a degree-256 field), splitting (balanced ideal
+    factorisation), join (an EXACT key -- and the exact key here is the ideal itself, since ideal
+    equality is decidable, which is what makes this a claw and not an approximate match). Derive the
+    slack prediction and the split-prime valuation predictions in closed form.
+    STAGE 1 (TRUE-PARAMETER ARM, n = 256, q irrelevant -- this is about Z, not Z_q). Sample 10^4
+    secrets s ~ CBD_eta for eta in {2,3} over Z[x]/(x^256+1) using the harness's own FIPS 203
+    sampler. Compute N(s) exactly as an integer resultant. Record: log2|N(s)|; ||s||_2; the SLACK
+    256*log2||s||_2 - log2|N(s)|; and, for every prime p <= 10^6, the valuation v_p(N(s)) by trial
+    division, tagged by the inertia degree f(p) = ord of p in (Z/512)^*. Compare the measured mean
+    valuation per prime against BOTH models: random-integer (1/(p-1)) and norm-form ((256/f)/p^f).
+    Report the ratio and its confidence interval per prime class.
+    STAGE 2 (SMOOTHNESS ARM, reduced n, because full factorisation at n = 256 is infeasible and
+    saying so is part of the design). At n in {16, 32, 64} with the analogous ring Z[x]/(x^n+1) and
+    the SAME CBD_eta coefficient law, sample 10^5 secrets, compute N(s) (expected sizes about 25,
+    67 and 165 bits by the same Gaussian calculation), FACTOR THEM COMPLETELY, and build the
+    empirical CDF of log(largest prime factor)/log|N(s)|. Compare against the Dickman-de Bruijn
+    rho(u) prediction with u = ln|N(s)|/ln B, exactly as the exemplar's section 4.2 does. TAIL
+    CONSISTENCY CHECK, mandatory: the smoothest sample observed in each cell against the predicted
+    rho(u) probability for that smoothness bound and that sample size -- the exemplar's own check.
+    Also compute, at the same n, the IDEAL smoothness (largest prime-ideal norm dividing (s)) and
+    compare it against the same rho(u), since the two notions differ and the template needs the
+    ideal one.
+    STAGE 3 (THE SPLITTING ARM, the one that actually decides the template). At n in {16, 32, 64},
+    for every sample whose (s) is B-smooth for a declared B, compute a BALANCED factorisation
+    (s) = I1 * I2 with |log N(I1) - log N(I2)| minimised over the smooth prime-ideal multiset (a
+    subset-sum, cheap at these sizes). Then run LLL on the ideal lattice I1 and record the shortest
+    element found, its coefficient norm, and the ratio F = ||shortest||_2 / N(I1)^{1/n}. Report the
+    distribution of F. THIS IS THE MEASUREMENT THE WHOLE PROPOSAL EXISTS FOR: F near 1 means the
+    halves are enumerable and the template has an entry; F growing with n means it does not, and
+    the growth rate is the obstruction's functional form.
+    STAGE 4 (NULL OBJECTS, three of them, all able to fail). See null_object_control.
+    WHY THE OUTCOMES SEPARATE. Stage 2 alone separates E2 from {E1, E3}: a departure from rho(u) in
+    the ideal-smoothness CDF, beyond the declared threshold, means the exemplar's distributional
+    slot cannot be filled. Stage 3 alone separates E1 from E3: F near 1 versus F growing. Stage 1
+    is the true-parameter sanity arm and is what licenses transferring Stage 2 and 3's reduced-n
+    conclusions at all -- if the split-prime valuation signature at n = 256 does not match the one
+    measured at n = 16, 32, 64, the reduced-n cells are not scale models of ML-KEM and the transfer
+    is refused rather than assumed.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX IS UNAVAILABLE THIS SESSION (in-memory Qdrant, answers
+      nothing) and NO SHELL is available, so all corpus searches were run with the Grep (ripgrep)
+      tool and are recorded as patterns and paths.
+      GREPS RUN:
+      (1) 'Dickman|field norm|N_\{K/Q\}|resultant of the secret|smoothness of the norm|ideal norm|
+      splitting behaviour|inertia degree' -i over ledger/ -> 97 files, of which 46 are proposals.
+      Inspection of the ML-KEM subset (via the RQ-MLKEM-001 file list, 38 files, cross-checked
+      against the 26 pre-extracted lane titles which WERE READ IN FULL) shows the matches in this
+      lane are on the words "ideal" and "norm" in unrelated senses -- IDEA-20260805-e805b6 (the
+      determinant IDEAL of the module lattice), IDEA-20260805-530869, IDEA-20260805-44bc0b,
+      IDEA-20260805-73cccc, IDEA-20260805-250e50, IDEA-20260805-f9e801, IDEA-20260805-a9a95d.
+      NONE takes the field norm of the SECRET as an object, and none mentions Dickman, smoothness,
+      inertia degrees or ideal factorisation of a secret.
+      (2) 'Luo|2605.17412|Module Lattice Security|logical qubit|approximation factor' -i over the
+      repository -> 163 files, used to confirm that the tower-PIP/class-group family is already
+      occupied in this lane by IDEA-20260805-e805b6 so that this record stays out of it.
+      (3) 'RQ-MLKEM-001' over ledger/proposals -> 38 files.
+      FILES READ: ledger/questions/RQ-MLKEM-001.yaml; the 26 lane titles in full;
+      ledger/proposals/IDEA-20260805-e805b6.yaml (title, claim, tracked object, mechanism and
+      proof-map excerpts, confirming it tracks the DETERMINANT IDEAL of the module lattice and not
+      the norm of the secret); ledger/proposals/IDEA-20260805-574cd0.yaml lines 1-141, whose
+      enumeration of what the lane's inherited "the algebra is closed at 17 bits" constraint does
+      NOT reach begins with "nonlinear maps" -- and the field norm is exactly a nonlinear map, so
+      this record is inside a class 574cd0 declares uncovered; docs/target-result-profile.md in
+      full, which is the source of the four-slot template and of the A7 validation requirements
+      (sampling method, scale, comparison distribution, tail checks, transfer assumptions);
+      docs/inventor-protocol.md; knowledge/techniques/KN-TECH-1a5b7e.md.
+      WEB QUERIES RUN (WebSearch): 'Kyber secret field norm smoothness cyclotomic ideal
+      factorization meet-in-the-middle attack Z[zeta_512]'. It returned nothing on the specific
+      combination and explicitly said so; it surfaced only general MITM material, a Kyber
+      correctness proof, a two-step attack case study, and the Luo preprint. That is WEAK EVIDENCE
+      OF ABSENCE and is not treated as more.
+      WEB PAGES FETCHED for this record: none. The exemplar's own text is available locally at
+      inputs/P13-WESOLOWSKI-2026/paper_fulltext.md and is cited as internal; it was NOT re-read in
+      full this session, only its structure as recorded in docs/target-result-profile.md sections
+      A1-A8, and that is stated rather than glossed.
+      NOT DONE, AND SAID SO: no targeted search for prior work on smooth values of cyclotomic norm
+      forms of bounded-coefficient elements, nor on the AM-GM slack of lattice secrets, beyond the
+      one query above. The relevant classical literature (smooth values of norm forms; the number
+      field sieve's own smoothness heuristics for algebraic norms) certainly exists and is not
+      screened here.
+    results: >-
+      No record in this repository takes the field norm of a lattice secret as an object, computes
+      an AM-GM/Minkowski slack for one, or measures the smoothness of anything belonging to ML-KEM.
+      The lane's 26 proposals cover isometry orbits and their DAG ceiling, per-coordinate
+      likelihood scoring, compression-cell decoding, the d_u = 11 two-class mixture, weak-key lanes,
+      failure-oracle reachability, the DFR's two directions, quantum-route pricing and the
+      tower-PIP/determinant-ideal audit, the enumeration/sieving crossover, best-of-M and its Beta
+      law, dense-CBD hybrid decoding, and the ring-deleted null. The nearest neighbour is
+      IDEA-20260805-e805b6, which tracks the DETERMINANT IDEAL of the module lattice M(A) and
+      proves it is (q^k) independently of A, hence carries zero information about s. That is an
+      ideal-theoretic object and it is a different one: the determinant ideal is an invariant of
+      the LATTICE and is constant across instances by that record's own derivation, whereas N(s) is
+      an invariant of the SECRET and varies with it by construction. The two records are
+      complementary and their conclusions are independent: e805b6's forced value would remain true
+      if every outcome here were E3, and vice versa.
+    verdict: >-
+      SPECULATIVE. The mathematics used is classical and none of it is claimed as new: the AM-GM
+      bound on norms, the inertia-degree structure of primes in Q(zeta_512), Landau's prime ideal
+      theorem, Dickman-de Bruijn, and the fact that algebraic norms are smoother than random
+      integers at split primes (the phenomenon the number field sieve is built on) are all
+      textbook. WHAT IS CLAIMED NEW RELATIVE TO THIS REPOSITORY: taking N(s) of the ML-KEM secret
+      as a tracked object; the SLACK above the AM-GM floor as a named, measurable quantity with a
+      derived prediction of ~107 of 1024 bits; the half-ideal minimum ratio F as the quantity that
+      decides whether the exemplar's splitting step has an entry; and a split-prime valuation
+      discriminator that runs at the standardised ring dimension. NOVELTY AGAINST THE EXTERNAL
+      LITERATURE IS NOT ESTABLISHED and one web query is not a screen; a reviewer with retrieval
+      should chase smooth-values-of-norm-forms and NFS smoothness-heuristic literature before this
+      is called new anywhere outside this repository.
+      LABEL FORCED TO `unverified` BY RULE, NOT BY DOUBT: this record rests on citations marked
+      provenance `recalled`, and AGENTS.md rule 9 (enforced by tools/validate_ledger.py
+      check_citations) requires novelty_status `unverified` until such a source is actually read. The
+      substantive assessment above is unchanged; what cannot be asserted is a checked literature
+      negative.
+  object_first_candidate:
+    tracked_object: >-
+      N(s) = Res(s(x), x^256+1), the field norm of the ML-KEM secret polynomial, together with the
+      factorisation type of the ideal (s) in Z[zeta_512] -- followed from the CBD sampler, through
+      ring multiplication, to the point where it dissolves.
+    lossiness: >-
+      EXTREMELY LOSSY AND UNAMBIGUOUSLY SO: 256 integer coordinates are projected onto a single
+      integer (or onto a multiset of prime ideals), with fibres of astronomical size -- all 2^17
+      images of s under the unit-and-Galois isometry group share the same norm up to sign, and vastly
+      more elements than that do. It is not a change of coordinates by any reading. THE DISCARD IS
+      COMPATIBLE WITH ONE OF THE TARGET'S TWO OPERATIONS AND NOT THE OTHER, and this is the honest
+      statement rather than a hidden weakness: N(u*v) = N(u)*N(v) exactly, so the projection
+      commutes with ring multiplication; N(u+v) is not a function of N(u) and N(v), so it does not
+      commute with addition. Since ML-KEM's hardness comes precisely from an addition -- the error
+      -- the object's incompatibility is located exactly at the source of the difficulty, which is
+      why the interesting question is whether anything can be done in the one step it does survive.
+    propagation: >-
+      One step = one ring multiplication, and the law is an identity: the norm of a product is the
+      product of the norms, and the ideal factorisation of a product is the multiset union of the
+      factorisations. Measurable trivially and exactly. The one-step propagation is also what makes
+      the MitM join EXACT rather than approximate -- the keyed table is keyed by an ideal, and ideal
+      equality is decidable -- which is the specific structural feature that the exemplar exploits
+      and that ordinary lattice MitM lacks.
+    survival_score: >-
+      Exactly one step, and the dissolution point is named: the object dies at the first addition of
+      the LWE error, because N is not additive. The proposal does not pretend otherwise; it asks
+      whether the single multiplicative step can be made to carry a splitting, and it measures the
+      two quantities (slack, and the half-ideal minimum ratio F) that decide the answer. A version
+      of this proposal that claimed multi-step survival would be wrong on its face.
+  null_object_control: >-
+    THREE nulls, all able to fail, all run in the same invocation as the signal arm.
+    NULL-1, THE RANDOM-INTEGER NULL (Stage 1's comparator): for each measured statistic of N(s),
+    compute the same statistic for a uniformly random integer of the SAME BIT LENGTH. FORCED VALUE,
+    DERIVED BEFORE THE RUN: E[v_p] = 1/(p-1) for the random integer, against (256/f(p))/p^{f(p)}
+    for the norm model. At p = 7681 (f = 1) the two differ by a factor of about 256, so the contrast
+    is NOT forced to zero and NOT forced to a particular sign by the apparatus -- it is a genuine
+    two-model comparison in which either model can win, and the comparator's spread is the binomial
+    spread over 10^4 samples, which is reported.
+    NULL-2, THE SHAPE-MATCHED NON-CBD NULL: replace CBD_eta coefficients by uniform integers in the
+    same range, matched in variance, keeping n and the ring fixed. The AM-GM slack and the split-prime
+    valuations should be essentially identical, because both depend on s only through the geometry
+    of its embeddings and not on the fine shape of the coefficient law. IF THEY DIFFER, the measured
+    statistic is reading the coefficient law rather than the norm structure, and the whole framing
+    is misdirected. This control can fail and its failure is informative.
+    NULL-3, THE RING-DELETED NULL: replace Z[x]/(x^n+1) by Z[x]/(g) for a random monic irreducible g
+    of the same degree with comparable discriminant. The exemplar's template depends on the
+    cyclotomic tower and on the inertia structure of (Z/2n)^*; a random field has no such structure,
+    so the split-prime signature must VANISH there. If the signature is present in the random field
+    too, it is an artefact of degree and size, not of the cyclotomic structure, and no
+    ML-KEM-specific reading is licensed. This is the application to a new statistic of the principle
+    IDEA-20260805-530869 proposes to instrument.
+    SENSITIVITY, COMPARATOR NAMED AND THRESHOLD DECLARED BEFORE THE RUN: the graded control is n
+    itself. F is measured at n = 16, 32, 64 -- three interior points on a doubling ladder -- and its
+    MONOTONICITY in n is reported. Two endpoints do not give a direction (KN-TECH-1a5b7e); a
+    non-monotone F forbids the reading "the halves get relatively longer as n grows" and only the
+    per-n values may be quoted.
+  discriminated_from:
+    - >-
+      IDEA-20260805-e805b6 tracks the DETERMINANT IDEAL of the module lattice M(A) and derives that
+      it equals (q^k) independently of A, hence carries no information about s -- an audit of an
+      external tower-PIP pipeline. This record tracks the norm of the SECRET, which varies with the
+      secret by construction, and proposes no principal-ideal pipeline, no class group, no unit
+      lattice and no quantum step. e805b6's forced value is unaffected by every outcome here and
+      vice versa. This record deliberately stays out of the class-group/PIP family that e805b6
+      occupies.
+    - >-
+      IDEA-20260805-574cd0 audits the lane's inherited "the algebra is closed at about 17 bits"
+      constraint, proves it for the subfield/trace descent, and names "nonlinear maps" first among
+      the classes the constraint does not reach. The field norm is a nonlinear map, so this record
+      lives in a class 574cd0 explicitly declares uncovered -- and it is careful not to defy the
+      constraint but to work where the constraint's own auditor says it does not range. 574cd0's
+      2^17 isometry count is in fact used here, as the size of the trivial fibre of N.
+    - >-
+      IDEA-20260813-17acdf (dense-CBD hybrid decoding) and any hybrid MITM record split the secret
+      ADDITIVELY by coordinate blocks and join approximately, with the join cost dominated by
+      near-neighbour matching. This record splits MULTIPLICATIVELY and joins EXACTLY on an ideal,
+      which is a different decomposition with a different cost structure; the reason it is worth
+      asking is precisely that the exact join is what the exemplar needed and what additive
+      splitting cannot provide.
+    - >-
+      IDEA-20260805-1d76e9 (the luckiest key is not lucky enough) is about the left tail of the
+      SECRET NORM across many keys and concludes it before any lattice is reduced. This record is
+      about the FIELD NORM of a typical key, not about the tail of the Euclidean norm across keys,
+      and its statistic would be measured on every key rather than on a selected one.
+    - >-
+      IDEA-20260821-019d2f (same batch) tracks the ADDITIVE CRT projection pi_S and its dual
+      functional lattice. This record tracks the MULTIPLICATIVE norm. The two are the additive and
+      multiplicative halves of the same ring structure and their measurements are independent: one
+      could come out null while the other does not.
+    - >-
+      A subfield/norm-descent attack in the Albrecht-Bai-Ducas overstretched-NTRU sense applies the
+      RELATIVE norm to reduce dimension, and is known to require an overstretched modulus. Nothing
+      here reduces dimension, applies a relative norm, or touches the modulus at all -- N is the
+      absolute norm to Q and the object lives in Z, not Z_q.
+  citations:
+    - ref: 'inputs/P13-WESOLOWSKI-2026/paper_fulltext.md (Wesolowski, "The supersingular isogeny problem in time and memory p^{1/3+o(1)}")'
+      provenance: internal
+      claim: >-
+        The four-slot template this proposal instantiates: a rigorous size bound (Theorem 1.5) on
+        an algebraically defined object; a classical smoothness distribution theorem
+        (Canfield-Erdos-Pomerance, Theorem 1.4) for objects of that size; smoothness splitting into
+        two halves each below a threshold; and a meet-in-the-middle claw over a codomain-keyed
+        table; plus the A7 validation pattern (sampling method reaching cryptographic scale, sample
+        sizes, empirical CDF against the predicted distribution, tail consistency checks). THE FULL
+        TEXT WAS NOT RE-READ THIS SESSION; the template as used here is taken from
+        docs/target-result-profile.md sections A1-A8, which is a program document summarising it.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'Dickman-de Bruijn rho(u); Canfield-Erdos-Pomerance Psi(X,B) = X u^{-u(1+o(1))}'
+      provenance: recalled
+      claim: >-
+        The density of B-smooth integers up to X is rho(u) with u = log X / log B, uniformly in a
+        stated range. Recalled, standard, not re-read. Used as the comparison distribution in Stage
+        2 exactly as the exemplar's section 4.2 uses it.
+      verified_by: null
+    - ref: 'Landau prime ideal theorem'
+      provenance: recalled
+      claim: >-
+        The number of prime ideals of norm at most B in a number field is asymptotically B/log B,
+        i.e. comparable to pi(B) irrespective of the degree. Recalled; it is what makes IDEAL
+        smoothness follow the same rho(u) law as integer smoothness and is why Stage 2 measures
+        both notions separately rather than conflating them.
+      verified_by: null
+    - ref: 'Splitting of rational primes in Q(zeta_{2^k})'
+      provenance: recalled
+      claim: >-
+        For p odd unramified, p splits into phi(512)/f primes of residue degree f = ord of p in
+        (Z/512)^*; 2 is totally ramified. Consequently v_p(N(s)) is always a multiple of f(p), and
+        for split primes (p = 1 mod 512) there are 256 primes above p. Recalled, textbook, and to
+        be re-derived symbolically in Stage 0 rather than assumed.
+      verified_by: null
+    - ref: 'NIST FIPS 203 (ML-KEM), CBD sampler and parameter tables'
+      provenance: recalled
+      claim: >-
+        n = 256; secret and error coefficients drawn from CBD_eta with eta in {2,3} per parameter
+        set. Recalled; the harness's own sampler is to be used and its distribution certified.
+      verified_by: null
+    - ref: IDEA-20260805-574cd0
+      provenance: internal
+      claim: >-
+        Names nonlinear maps first among the three classes the lane's inherited algebraic-closure
+        constraint does not reach; establishes the isometry group order as exactly 2^17.
+      verified_by: idea-generator@2026-08-21
+  assumptions:
+    - >-
+      The reduced-parameter rings Z[x]/(x^n+1) for n in {16,32,64} are scale models of n = 256 for
+      the statistics measured. THIS IS NOT ASSUMED, IT IS TESTED: Stage 1's split-prime valuation
+      signature is measured at BOTH n = 256 and the reduced n, and transfer is refused if they
+      disagree. The inertia structure genuinely differs (primes split according to their order in
+      (Z/2n)^*), so the comparison must be made against each ring's own prediction, not against a
+      single number.
+    - >-
+      LLL on an ideal lattice of dimension n <= 64 finds something close enough to the minimum for
+      F to be meaningful. F as measured is an UPPER bound on the true ratio, which is the
+      conservative direction for an E1 verdict and the dangerous direction for an E3 verdict -- so
+      an E3 signal must be re-checked with stronger reduction before it is reported.
+    - >-
+      Exact integer resultants at n = 256 with 917-bit outputs are cheap. They are; this is
+      standard exact arithmetic and no approximation is used.
+    - >-
+      The Gaussian model for the embeddings s(zeta_i) is used only to PREDICT the slack, never to
+      measure it. The slack is measured exactly from the computed resultant and the computed norm.
+    - >-
+      Nothing here constructs an attack, an oracle or a query. All conclusions are about the
+      feasibility of a template's components.
+  proof_search_map:
+    bottleneck: >-
+      The half-ideal minimum ratio F. The exemplar's splitting step works because both halves are
+      below an explicit degree threshold and are therefore enumerable; the ML-KEM analogue works
+      only if a balanced half-ideal contains a SHORT element, and F is exactly that condition
+      quantified. Every other component of the template can be granted and the attack still fails
+      if F is large.
+    baseline_embedding:
+      parameter_slice: >-
+        The exemplar itself at its own parameters is the family baseline, and this proposal is
+        explicitly NOT a family extension of it -- the objects (isogeny degrees versus field norms)
+        and the ambient problems differ. The reproducible boundary slice available here is
+        different and is used instead: n = 1 (the ring is Z, N(s) = s, and every statement becomes
+        an ordinary statement about integers, where the slack is 0 by definition and the split-prime
+        model coincides with the random-integer model).
+      reproduction_check: >-
+        A frozen fixture at n = 1 and at n = 2 (Z[i]) where N(a+bi) = a^2+b^2 and the splitting
+        behaviour of primes is Fermat's classical theorem: the pipeline must reproduce that only
+        primes 1 mod 4 and 2 divide norms with odd valuation and that 3 mod 4 primes appear only to
+        even powers. Exact, symbolic, instant, and a failure means the inertia bookkeeping is wrong.
+    observation_collision:
+      observable: >-
+        N(s), and the ideal factorisation of (s).
+      distinct_preimage_search: >-
+        THE COLLISION IS MASSIVE AND IS ADMITTED: N is invariant under the entire 2^17-element
+        unit-and-Galois isometry group (up to sign), and far beyond that, so vastly many distinct
+        secrets share a norm. The observable is therefore NOT identifying and no conclusion of the
+        form "N(s) determines s" is licensed anywhere. A sharper collision on the side that matters:
+        two ideals of the same norm can have wildly different minima, so N(I1) does not determine
+        the enumerability of I1 -- which is exactly why F is measured directly rather than inferred
+        from norms, and why the AM-GM floor is used only as a LOWER bound.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Move from the additive/lattice model of the secret to the multiplicative/ideal model,
+          where the exemplar's hypothesis (an exact smoothness condition) is an exact factorisation
+          statement rather than an approximate norm condition, and where the MitM join is exact
+          ideal equality rather than approximate matching.
+        predicted_gain: >-
+          Predicted NONE at ML-KEM parameters, with the failure predicted to be at the SIZE
+          obligation rather than the encoding, completeness or soundness obligations: the encoding
+          is exact (a ring isomorphism onto its image), the join is exact, and what is predicted to
+          fail is that the halves are not short. Predicted F growing with n; predicted no
+          enumerable table.
+      - transform: boundary_lift
+        proposed_object: >-
+          Enlarge the certificate family from "s factors into two short elements" to "s lies in a
+          product of two ideals each containing a short element", which is strictly weaker and
+          strictly larger, and ask for a strict inward improvement rather than mere feasibility.
+        predicted_gain: >-
+          The weaker family is what Stage 3 actually measures, and it is chosen because a negative
+          on the WEAKER family is a stronger negative. If even the weakened version fails, the
+          stronger one cannot succeed, and that implication is the argument the closure would rest
+          on.
+    quantifier_order: >-
+      FOR ALL n in the tested ladder and FOR ALL secrets s ~ CBD_eta whose ideal (s) is B-smooth,
+      THERE EXISTS no balanced factorisation (s) = I1*I2 such that I1 contains an element of
+      coefficient norm within a factor F0 of N(I1)^{1/n}, for a declared F0. The negation -- THERE
+      EXISTS n, THERE EXISTS s, THERE EXISTS such a factorisation -- is E3. Note carefully that the
+      witness factorisation is allowed to depend on s: nothing here claims a uniform splitting
+      strategy, and a per-instance witness would suffice for the template, which is why the search
+      in Stage 3 is over all balanced factorisations of that instance and not over a fixed rule.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: "at n in {16,32,64}, with CBD_eta coefficients, at the declared smoothness bound
+        and the declared LLL budget, balanced half-ideals of ML-KEM-shaped secrets contain no
+        element within a factor F of the AM-GM floor, and F behaves as measured in n." It cannot
+        certify anything at n = 256 for Stages 2-3 (full factorisation is infeasible there and the
+        record says so), cannot certify that no multiplicative decomposition works, and cannot
+        certify anything about non-balanced or many-factor splittings unless those are also run.
+      nearby_object_control: >-
+        The nearby object on which the hoped-for conclusion DOES hold is an element deliberately
+        constructed as a product of two short elements, s = s1*s2 with s1, s2 short. There the
+        splitting exists by construction and F must be near 1. A method that cannot distinguish a
+        planted product from a CBD sample has not identified the load-bearing structure, and this
+        planted-product arm is REQUIRED, not optional -- it is the positive control without which
+        an E1 verdict is not interpretable.
+    proof_obligations:
+      - claim: 'sum_i |s(zeta_i)|^2 = n ||s||_2^2 for power-of-two cyclotomics, hence ||s||_2 >= |N(s)|^{1/n}.'
+        responsibility: correctness
+      - claim: 'E[log2|N(s)|] = n*(log2(n sigma^2) - gamma/ln2)/2 under the Gaussian embedding model; ~917.4 bits at n=256, sigma=1.'
+        responsibility: size
+      - claim: 'v_p(N(s)) is a multiple of f(p) = ord of p in (Z/2n)^*; split primes have 2n/2 = n primes above them.'
+        responsibility: correctness
+      - claim: 'E[v_p(N(s))] ~ (n/f)/p^f for the norm model versus 1/(p-1) for a random integer.'
+        responsibility: size
+      - claim: 'Ideal smoothness of (s) follows rho(u) with u = ln|N(s)|/ln B, or it does not.'
+        responsibility: success_probability
+      - claim: 'F = shortest(I1)/N(I1)^{1/n} measured by LLL is an upper bound on the true ratio.'
+        responsibility: scope
+      - claim: 'The planted-product positive control returns F near 1.'
+        responsibility: feasibility
+      - claim: 'Stages 2-3 conclusions are scoped to n <= 64 and are transferred to n = 256 only if Stage 1 licenses it.'
+        responsibility: scope
+  predictions:
+    - metric: 'SLACK = 256*log2||s||_2 - log2|N(s)|, mean over 10^4 CBD_2 secrets at n = 256'
+      direction: different
+      minimum_effect: >-
+        Predicted 106.6 bits with a standard deviation predicted at about 256*(pi/(2 sqrt(6) ln 2))
+        / sqrt(1) -- the per-embedding log-magnitude has a fixed variance, so the sample mean should
+        be tight. A measured mean outside 95-120 bits falsifies the Gaussian embedding model for CBD
+        secrets, which is itself a finding.
+    - metric: 'E[v_p(N(s))] at p = 7681 (f = 1, split), 10^4 samples at n = 256'
+      direction: higher
+      minimum_effect: >-
+        Predicted ~0.0333 under the norm model against ~0.00013 for a random integer of the same
+        size -- a factor of about 256. The declared minimum effect is a factor of 10; anything below
+        that means the norm model is wrong for CBD secrets and every smoothness prediction built on
+        it is void.
+    - metric: 'fraction of samples with v_p(N(s)) not a multiple of f(p), over all p <= 10^6'
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0. This is forced by the splitting theorem and is a correctness check on the
+        pipeline; any nonzero count means the resultant or the inertia-degree computation is wrong.
+    - metric: >-
+        Kolmogorov-Smirnov distance between the empirical CDF of log(largest prime ideal norm
+        dividing (s))/log|N(s)| and the Dickman-de Bruijn prediction, at n in {16,32,64}
+      direction: lower
+      minimum_effect: >-
+        0.05. Agreement below 0.05 supports the distributional slot being fillable (not E2);
+        a distance above it is E2 and means the exemplar's Heuristic-1 analogue fails for ML-KEM
+        secrets.
+    - metric: 'F = shortest(I1)/N(I1)^{1/n} for balanced half-ideals, median over smooth samples, per n'
+      direction: higher
+      minimum_effect: >-
+        Predicted F >= 4 at n = 64 and increasing with n. A median F below 2 at n = 64 is E3 and
+        must be escalated to independent review, with the LLL replaced by stronger reduction first.
+    - metric: 'F on the planted-product positive control'
+      direction: lower
+      minimum_effect: >-
+        At most 1.5. A planted product that does not return small F means the measurement cannot
+        detect a splitting that exists, and no E1 verdict is reportable.
+  minimal_test:
+    design: >-
+      STAGE 1 ONLY, AT TRUE FIPS RING PARAMETERS. Sample 10^4 secrets s ~ CBD_2 over
+      Z[x]/(x^256+1) with the harness's own FIPS 203 sampler. Compute N(s) exactly as an integer
+      resultant. Record log2|N(s)|, ||s||_2 and the slack. Trial-divide each N(s) by all primes up
+      to 10^6, tagging each prime by its inertia degree f(p) = ord of p in (Z/512)^*. Report: the
+      slack distribution against the predicted 106.6 bits; the mean valuation per prime against BOTH
+      the random-integer model 1/(p-1) and the norm model (256/f)/p^f, with the split class
+      (p = 1 mod 512, starting at 7681) as the headline cell; and the count of valuations not
+      divisible by f(p), which must be exactly zero. Run NULL-2 (uniform coefficients at matched
+      variance) and NULL-3 (a random degree-256 field) in the same invocation.
+      COST: 10^4 exact resultants at degree 256 with ~917-bit outputs plus trial division to 10^6;
+      minutes to a small number of hours of single-core time, no lattice, no sieve, no estimator.
+      IT DISCRIMINATES BECAUSE the two models differ by a factor of about 256 at the split primes
+      and by exactly zero at the non-split ones, so a single table of measured-versus-predicted
+      valuations decides which model describes ML-KEM secrets -- and every downstream smoothness
+      prediction in Stages 2 and 3 rests on that model being the norm one. It can come out negative
+      in two clean ways: the split-prime enhancement is absent (the norm model is wrong and the
+      whole template argument must be rebuilt), or the ring-deleted null shows the same signature
+      (the signature is not cyclotomic and no ML-KEM-specific reading is licensed). Stages 2 and 3
+      cost more -- 10^5 full factorisations at n <= 64 plus LLL on ideal lattices -- and are only
+      worth running once Stage 1 has licensed the model and the transfer.
+    controls:
+      - 'NULL-1: random-integer model as the explicit alternative, with its forced values derived before the run.'
+      - 'NULL-2: uniform coefficients at matched variance; the statistic must not read the coefficient law.'
+      - 'NULL-3: random degree-256 number field; the split-prime signature must vanish there.'
+      - 'PLANTED-PRODUCT positive control for Stage 3; without it no E1 verdict is interpretable.'
+      - 'Exactness fixture: v_p(N(s)) divisible by f(p) for every p and every sample, count must be 0.'
+      - 'n = 1 and n = 2 (Gaussian integers) symbolic fixtures for the inertia bookkeeping.'
+      - 'Graded control in n across three interior points, with monotonicity of F reported.'
+    required_metrics:
+      - 'slack distribution at n = 256, mean and spread, against the 106.6-bit prediction'
+      - 'mean v_p(N(s)) per prime class (by inertia degree) against both models, with intervals'
+      - 'count of valuations not divisible by f(p) (must be 0)'
+      - 'NULL-2 and NULL-3 versions of every Stage-1 statistic'
+      - 'empirical CDF of ideal-smoothness at n in {16,32,64} against rho(u), with KS distance'
+      - 'tail check: smoothest observed sample per cell versus predicted rho(u) at that bound and sample size'
+      - 'F distribution per n, median and quartiles, plus the planted-product control value'
+      - 'monotonicity flag for F in n'
+  falsification_conditions:
+    - >-
+      The split-prime valuation enhancement is absent or below a factor 10. The norm model does not
+      describe CBD secrets, every smoothness prediction built on it is void, and Stages 2-3 must not
+      be run as designed. A complete and useful negative.
+    - >-
+      NULL-3 (random degree-256 field) reproduces the split-prime signature. The signature is a
+      function of degree and size, not of the cyclotomic structure, and no ML-KEM-specific reading
+      is licensed.
+    - >-
+      NULL-2 (uniform coefficients) differs materially from CBD. The statistic reads the coefficient
+      law rather than the norm structure and the framing is misdirected.
+    - >-
+      Any valuation is not divisible by its prime's inertia degree. The pipeline is wrong; nothing
+      is reportable.
+    - >-
+      The planted-product positive control does not return F below 1.5. The measurement cannot
+      detect a splitting that exists by construction and no E1 verdict may be issued.
+    - >-
+      The measured slack is outside 95-120 bits. The Gaussian embedding model for CBD secrets is
+      wrong at n = 256, which is a finding about the secret distribution independent of the template.
+    - >-
+      Median F below 2 at n = 64 with the planted control passing. THE PROPOSAL'S OWN PREDICTION IS
+      FALSIFIED and E3 fires: balanced half-ideals of ML-KEM-shaped secrets contain short elements,
+      the exemplar's splitting step has an entry, and the correct response is stronger reduction to
+      confirm, then escalation to independent review -- not a louder claim.
+  confounders:
+    - >-
+      LLL is not an SVP oracle, so F is an upper bound. This biases toward E1 and away from E3,
+      which is the safe direction for a negative and the dangerous one for a positive; any E3 signal
+      must be re-run with BKZ at a declared blocksize before it leaves the run record.
+    - >-
+      Reduced-n rings have genuinely different inertia structure ((Z/2n)^* rather than (Z/512)^*),
+      so a naive comparison of split-prime signatures across n is meaningless. Each n must be
+      compared against its own prediction, and Stage 1's transfer licence is a comparison of
+      RATIOS-TO-PREDICTION, not of raw values.
+    - >-
+      Trial division to 10^6 finds only small primes; the smoothness statements at n = 256 are
+      therefore about small-prime structure only, and nothing about full smoothness at n = 256 is
+      claimed or claimable.
+    - >-
+      Balanced subset-sum factorisation is a choice among many possible splittings; a different
+      balancing criterion could give different F. Report F under at least two balancing criteria so
+      that the verdict is not an artefact of one.
+    - >-
+      Sampling secrets whose ideal is smooth CONDITIONS on a rare event at larger n, and the
+      conditioned population may differ systematically in slack and geometry from the unconditioned
+      one. Report both populations' slack distributions so the conditioning bias is visible rather
+      than absorbed.
+  interpretation_limits:
+    - >-
+      No attack, break, speedup or exponent movement is claimed here or would follow from E1 or E2.
+      E3 would be a feasibility signal for one component of a template, not an attack, and would
+      require the remaining components before anything could be claimed.
+    - >-
+      Stages 2 and 3 run at n in {16,32,64}. TOY SCALE NEVER SPEAKS FOR FIPS PARAMETERS: their
+      conclusions are scoped to those rings, and the only true-parameter statements available are
+      Stage 1's slack and small-prime valuation measurements.
+    - >-
+      N(s) is not identifying: 2^17 isometric images and vastly more elements share it. No statement
+      of the form "the norm reveals the secret" is licensed by anything here.
+    - >-
+      An E1 outcome closes a TEMPLATE at measured parameters with a named obstruction; it does not
+      close the multiplicative/algebraic family, and it must not be written up as if it did. Forward
+      guidance is a required part of the deliverable: what remains open includes many-factor
+      (non-balanced) splittings, splittings of the ERROR rather than the secret, and relative norms
+      to intermediate subfields.
+    - >-
+      The exemplar's full text was not re-read this session; the template is taken from the
+      program's own summary of it, and any mismatch between that summary and the paper is a defect
+      of this record.
+    - >-
+      The lane's claim-tier ceiling is toy-tier and this record does not raise it.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (NORM-FORM SMOOTHNESS) For s drawn from CBD_eta coefficient-wise over Z[x]/(x^n+1), the
+        ideal (s) is B-smooth -- every prime ideal factor has norm at most B -- with probability
+        rho(u)^{1+o(1)}, u = ln|N(s)|/ln B, uniformly for u in a stated range, i.e. (s) behaves
+        with respect to prime-ideal smoothness like a uniformly random ideal of its norm.
+      rigorous_support: >-
+        The rigorous ingredient is the AM-GM/Minkowski size bound of claim (C), which pins
+        log|N(s)| to at most n log||s||_2 and thereby fixes the u-range in which the question is
+        asked -- exactly the role Theorem 1.5 plays in the exemplar. The classical distribution
+        statement it is composed with is Canfield-Erdos-Pomerance / Dickman-de Bruijn, transported
+        to ideals by Landau's prime ideal theorem, which supplies ~B/log B prime ideals of norm at
+        most B in a degree-n field just as there are ~B/log B rational primes. H1 asserts only that
+        the SPECIFIC ideal (s), whose generator has bounded coefficients, is typical for its norm --
+        which is precisely the shape of the exemplar's Heuristic 1 and is precisely what is not
+        obvious, since bounded-coefficient elements are a very thin subset of their norm class.
+      validation_plan: >-
+        Sample 10^5 secrets per cell at n in {16, 32, 64}, eta in {2, 3}, factor N(s) completely
+        (expected sizes ~25, ~67, ~165 bits, so complete factorisation is routine), and build the
+        empirical CDF of log(largest prime ideal norm)/log|N(s)|. COMPARISON DISTRIBUTION: Dickman
+        rho(u) with u = ln|N(s)|/ln B evaluated per sample, plotted as an empirical CDF against the
+        prediction exactly as the exemplar's Figures 1-2 do. TAIL CONSISTENCY CHECK, the exemplar's
+        own: take the smoothest sample in each cell of 10^5, read off its smoothness bound B*, and
+        compare 1/10^5 against the predicted rho(ln|N(s)|/ln B*) -- consistency means the tail is
+        not merely fitted in the bulk. SECOND TAIL CHECK, specific to this object: restrict to
+        samples in the lowest decile of slack (unusually large norm for their coefficient norm) and
+        report whether their smoothness differs, since the slack and the smoothness are both
+        functions of the same embeddings and could be correlated. SAMPLED PARAMETERS AND TRANSFER,
+        DECLARED EXPLICITLY: the validation runs at n <= 64 only, because complete factorisation of
+        a 917-bit norm is infeasible at scale; transfer to n = 256 is NOT assumed -- it is
+        conditioned on Stage 1's split-prime signature at n = 256 matching its own prediction to the
+        same relative accuracy as at n <= 64, and if it does not, no transfer is made and the record
+        says so.
+    - id: H2
+      statement: >-
+        (EMBEDDING GAUSSIANITY) For s with i.i.d. CBD_eta coefficients over Z[x]/(x^n+1), the
+        complex embeddings s(zeta_i) behave, for the purpose of the log-magnitude sum, as
+        independent complex Gaussians of variance n*sigma^2, so that E[log2|N(s)|] =
+        n*(log2(n sigma^2) - gamma/ln2)/2 and the AM-GM slack concentrates around
+        n*(gamma/ln2)/2 * ... i.e. around 106.6 bits at n = 256, sigma = 1.
+      rigorous_support: >-
+        Rigorous ingredient: each embedding is a weighted sum of n bounded independent variables
+        with unimodular weights, so a multivariate CLT applies coordinate-wise and the marginal is
+        asymptotically complex Gaussian of variance n sigma^2. Classical statement imitated: the
+        expectation E[ln|z|^2] = ln(variance) - gamma for a complex Gaussian, which gives the
+        constant. WHAT IS HEURISTIC is the INDEPENDENCE across the n embeddings -- they are not
+        independent, being determined by only n real coefficients -- and whether the dependence
+        moves the mean of the log-sum. It is precisely testable.
+      validation_plan: >-
+        Measure log2|N(s)| directly at n in {16,32,64,128,256} over 10^4 samples each and compare
+        the empirical mean and variance against the Gaussian prediction, reporting the residual as a
+        function of n. The n-dependence of the residual is the diagnostic: an O(1) residual means the
+        dependence contributes a constant and the model is usable; a residual growing with n means it
+        is not. TAIL CHECK: the empirical 1st and 99th percentiles of log2|N(s)| against the
+        Gaussian prediction, since the slack's usefulness for a splitting argument depends on the
+        LEFT tail (unusually small norm at fixed coefficient norm) and not on the mean.
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED, and the honest expectation is that none will be. For
+      completeness the exponent the template WOULD target if E3 fired is written down so that the
+      claim cannot later be inflated: a balanced multiplicative split with an exact ideal-keyed join
+      would cost (table size) + (table size), with table size equal to the number of short elements
+      of norm about |N(s)|^{1/2}, and the AM-GM floor puts that count at the number of lattice
+      points of norm about |N(s)|^{1/(2n)} * sqrt(n) in a 256-dimensional box -- a quantity Stage 3
+      measures a proxy for and which is predicted to be astronomically larger than the primal
+      attack's 2^{0.292 beta}. If E3 fired, the exponent would have to be recomputed then, from the
+      measured F, and not asserted now.
+    memory_exponent: >-
+      No attack memory exponent is claimed. If the template applied, memory would equal table size,
+      i.e. equal to time -- the same claw-finding structure the exemplar reports and the same memory
+      honesty applies. Measurement memory: 10^4 integers of 917 bits plus their factorisations,
+      trivial.
+    best_known: >-
+      For ML-KEM-768 the incumbent attack is the direct primal/dual lattice attack at the published
+      core-SVP blocksize, and nothing here approaches it. For the QUANTITIES introduced -- the AM-GM
+      slack of a lattice secret, and the half-ideal minimum ratio F -- there is no incumbent in this
+      repository and none surfaced by the single web query run.
+    hidden_overhead: >-
+      Three disclosures. (1) F is measured with LLL and is an upper bound, so an E1 verdict is
+      conservative and an E3 verdict is fragile. (2) Stages 2-3 run at n <= 64 and the transfer to
+      n = 256 is conditional on Stage 1, which itself only probes small primes -- so the strongest
+      honest statement about n = 256 is about small-prime structure and slack, not about smoothness.
+      (3) The template's join is exact, which is its attraction, but the table would have to be
+      indexed by ideals, and computing the ideal factorisation of a candidate is itself a
+      factorisation problem whose cost is nowhere charged in this record. Anyone building on an E3
+      outcome must charge it.
+    tradeoff_note: >-
+      The template is a pure claw/meet-in-the-middle structure, so its time and memory are equal by
+      construction and a van Oorschot-Wiener interpolation would apply if it ever existed, giving
+      time sqrt(T^3/w) at memory w. That is stated for completeness and is not a claim; no such
+      algorithm is proposed here.
+  dominated_by: >-
+    On the ATTACK axis: 'n/a (no result claimed)' -- no attack is proposed, no cost triple exists,
+    no frontier row applies, and null would be a fabrication under AGENTS.md rule 5. On the
+    ALGEBRAIC-AUDIT axis, IDEA-20260805-e805b6 dominates on cost and decisiveness within this lane:
+    it settles an entire external pipeline with a one-line forced value and no compute at all,
+    whereas this record needs 10^4 resultants before it says anything. On the RIGOUR axis,
+    IDEA-20260805-574cd0 dominates: it proves its result symbolically where this one measures. On
+    the HEURISTIC-VALIDATION axis the honest comparator is the exemplar's own section 4.2, which
+    validated its heuristic at SQIsign-sized parameters with 100,000 samples using the Deuring
+    correspondence as a sampling shortcut; this proposal has no analogous shortcut for full
+    factorisation at n = 256 and is therefore strictly weaker on scale for its smoothness arm, which
+    is stated here rather than discovered by a reviewer.
+  sota_delta: >-
+    No attack; mechanism-feasibility and measurement contribution only. Quantitatively: this
+    repository contains no value for the AM-GM slack of any lattice secret, no smoothness
+    measurement for any ML-KEM object, and no half-ideal minimum ratio, so the delta is the creation
+    of first numbers -- a predicted slack of ~107 of 1024 bits to be measured at the standardised
+    ring dimension, a split-prime valuation signature with a predicted factor ~256 enhancement, and
+    an F curve -- rather than an improvement on an existing number. Against the published attack
+    frontier the delta on cost is exactly zero and is expected to remain so.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    By part. (i) That the AM-GM bound and the inertia-degree constraint hold as stated: ~0.97,
+    textbook. (ii) That the measured slack lands within 95-120 bits: ~0.75; the embedding dependence
+    could shift it. (iii) That the split-prime valuation enhancement is present at a factor of at
+    least 10 at n = 256: ~0.85 -- this is the number field sieve's own founding phenomenon and I
+    would be surprised if it failed, which is exactly why it is the right licence check. (iv) That
+    NULL-3 (random field) does NOT reproduce the signature: ~0.8. (v) That ideal smoothness follows
+    Dickman within KS distance 0.05 at n <= 64: ~0.7. (vi) That median F exceeds 4 at n = 64 and
+    grows with n, i.e. E1: ~0.8 -- this is the outcome I expect, and the reason is that a random
+    ideal of norm 2^{n/2} in a degree-n field has minimum near its own Minkowski bound only for very
+    special ideals. (vii) That E3 fires: ~0.05, and I would bet against it firmly while insisting
+    the run be built to report it, because a 5% chance at an entry point to this program's own
+    canonical exemplar is worth a day of compute. (viii) That the run produces defensible numbers
+    and a defensible template verdict either way: ~0.85.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+    - RQ-MLKEM-001
+    - GOAL-MLKEM-005
+    - IDEA-20260805-574cd0
+    - IDEA-20260805-e805b6
+    - IDEA-20260805-530869
+    - IDEA-20260805-1d76e9
+    - IDEA-20260813-17acdf
+    - IDEA-20260821-019d2f
+    - KN-TECH-1a5b7e
+    - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+    - docs/target-result-profile.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py --next
+    idea --date 20260821 (random 6-hex token, no state scanned), each id then verified free with
+    --check before assignment. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).

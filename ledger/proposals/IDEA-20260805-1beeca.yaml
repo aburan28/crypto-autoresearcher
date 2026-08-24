@@ -1,0 +1,525 @@
+idea:
+  id: IDEA-20260805-1beeca
+  question_id: RQ-MLKEM-002
+  added: '2026-08-05'
+  title: >-
+    The silent set is the tracked object, and GOAL-MLKEM-002's defining defect
+    does not determine its own mechanism: a zero-compute observation-collision
+    audit of the wolfSSL AVX2 omission across FIPS 203 parameter sets
+  class: control
+
+  claim: >-
+    The archived, thrice-independently-read AVX2 measurement that founded this
+    entire goal -- pre-fix wolfSSL v5.9.1 mlkem_cmp_avx2 has silent set exactly
+    {1536..1567} at ML-KEM-1024 and EMPTY silent set at ML-KEM-512 and
+    ML-KEM-768 (EV-MLKEM-005) -- is reproduced EXACTLY, with no free parameter
+    fitted after the fact, by AT LEAST TWO STRUCTURALLY DIFFERENT MECHANISMS:
+    (C-BND) a hardcoded compare length N = 1536 bytes, whose silent-set size is
+    max(0, L - 1536) = (0, 0, 32) across L = (768, 1088, 1568); and
+    (C-COV, w = 64) a vector body advancing 64 bytes per unrolled iteration with
+    no remainder handling, whose silent-set size is L mod 64 = (0, 0, 32) across
+    the same three L. The two mechanisms are OBSERVATIONALLY INDISTINGUISHABLE
+    on the complete set of FIPS 203 parameter sets, because every ML-KEM
+    ciphertext length satisfies L = 32*(du*k + dv) and the three standardized
+    values happen to place 1536 and 64*floor(L/64) at the same point. This is a
+    direct identifiability collision on the object that DEFINED the goal's
+    "defect-mechanism neighborhood", and it was never noticed: the goal then
+    wrote its second-implementation search predicate in the vocabulary of ONE of
+    the two mechanisms ("fixed-bound hand-written vector comparison tails"),
+    rejected five candidate libraries for being "length-parameterized", declared
+    the neighborhood empty, and closed on second_impl_unavailable. The audit
+    proposed here breaks the collision by READING the pinned assembly and
+    recording the load offsets verbatim, and derives which successor population
+    each resolution implies. It costs one page of arithmetic plus one file read
+    and it claims nothing about ML-KEM security.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE SILENT SET S(impl, L) -- the set of ciphertext byte indices i in
+      [0, L) at which a single-byte differential mutation fails to change the
+      comparison verdict -- followed as a FUNCTION OF THE PARAMETER SET rather
+      than as a single number at one parameter set. The whole of GOAL-MLKEM-002
+      measured |S| at fixed L and reported presence/absence; the object proposed
+      here is the PROFILE L -> |S(L)|, whose shape is what distinguishes
+      mechanisms.
+    established_families_off_limits: >-
+      Off-limits as the primary lens for this proposal: (a) multi-class
+      differential mutation generators used as a DETECTOR -- the entire
+      G1/G2/G3 hardened-gate family of EXP-MLKEM-003..006, whose repeated
+      failure mode was that the gate's own precedence decided the outcome; (b)
+      instrument-adequacy repair by synthetic control, whether harness-level
+      (EXP-MLKEM-004), call-site INTERPOSE_COMPARE (EXP-MLKEM-006, refuted as a
+      probe-local tautology, OBJ-RT006-001/002) or GNU ld --wrap
+      (EXP-MLKEM-009, admitted) -- this proposal CONSUMES the admitted wrap
+      instrument, it does not propose another repair of it; (c) source-syntactic
+      neighborhood predicates of any kind, which is the thing under audit; (d)
+      timing, power, EM, cache, fault, and every cryptanalytic lens -- forbidden
+      by RQ-MLKEM-002's constraints and irrelevant here.
+    newness_score: >-
+      The single-byte differential instrument is old in this corpus and the
+      silent-set numbers are already committed. What is new is treating the
+      three-parameter-set PROFILE as the observable and asking whether it
+      identifies the mechanism. No record in GOAL-MLKEM-001, GOAL-MLKEM-002, or
+      the six MLKEM evidence records in this lane states the profile (0, 0, 32)
+      as a profile, notes that 1568 is the unique standardized length not
+      divisible by 64, or observes that two mechanisms produce it.
+    testability_score: >-
+      Maximal and nearly free. The forced profiles are integer arithmetic on
+      three numbers; the collision-breaking step is reading one assembly file at
+      a pinned peeled commit and recording load offsets. No build, no library,
+      no solver.
+    survival_score: >-
+      The collision itself survives all the way to the standard, because it is a
+      property of the three standardized lengths and not of any implementation.
+      It dissolves only under a parameter set with L not congruent to 0 mod 64
+      other than 1568, or under direct code reading -- which is exactly why
+      code reading is the proposed resolution.
+
+  mechanism: >-
+    DERIVED HERE, ARITHMETIC CHECKED ON THIS MACHINE, SOURCE FACTS QUOTED FROM
+    THE ARCHIVED RECORD.
+
+    (1) CIPHERTEXT LENGTHS ARE STRUCTURALLY MULTIPLES OF 32. FIPS 203
+    ciphertexts are c = (c1, c2) with c1 = ByteEncode_{du} applied to k
+    compressed polynomials and c2 = ByteEncode_{dv} applied to one. A degree-255
+    polynomial encoded at d bits per coefficient occupies 256*d/8 = 32*d bytes.
+    Hence L = 32*(du*k + dv) EXACTLY, for every parameter set of this shape.
+    Evaluating: ML-KEM-512 (k=2, du=10, dv=4) gives 32*24 = 768; ML-KEM-768
+    (k=3, du=10, dv=4) gives 32*34 = 1088; ML-KEM-1024 (k=4, du=11, dv=5) gives
+    32*49 = 1568. The parameter triples (k, du, dv) are RECALLED FROM FIPS 203
+    AND ARE A CANDIDATE TO CHECK, NOT AN AUTHORITY; the three byte lengths 768 /
+    1088 / 1568 are, by contrast, CONFIRMED INSIDE THIS REPOSITORY, because
+    EV-MLKEM-005 records measured NEON silent cardinalities 384, 544 and 784 and
+    an AVX2 silent set {1536..1567} at ML-KEM-1024, which are consistent only
+    with those three lengths. Verifying (k, du, dv) against the standard is a
+    stage of the paired experiment.
+
+    (2) THREE MECHANISM CLASSES, EACH WITH ONE PARAMETER AND A FORCED PROFILE.
+    Let L be the ciphertext length and let the routine accumulate a difference
+    indicator over the input and then reduce it to a verdict.
+      C-BND(N)  -- BOUND LITERAL. The routine compares a hardcoded prefix of N
+                   bytes. Forced: |S(L)| = max(0, L - N), and S is the top
+                   L - N indices.
+      C-COV(w)  -- COVERAGE / BLOCK REMAINDER. The routine consumes w bytes per
+                   iteration over floor(L/w) iterations with absent or defective
+                   remainder handling. Forced: |S(L)| = L mod w, and S is the
+                   top L mod w indices.
+      C-RED(phi)-- REDUCTION DEFICIT. Coverage is complete, but the final
+                   reduction of the SIMD accumulator to a scalar inspects only a
+                   fraction phi of the lanes. Forced: |S(L)| = L*(1 - phi), and
+                   S is a PERIODIC lane-indexed set, not a top-of-buffer suffix.
+    Every forced value above is a closed form in (L, one parameter) and is
+    stated before any measurement.
+
+    (3) THE COLLISION, COMPUTED. Over the standardized L = (768, 1088, 1568):
+      C-BND(1536)  -> (0, 0, 32)
+      C-COV(w=16)  -> (0, 0, 0)
+      C-COV(w=32)  -> (0, 0, 0)
+      C-COV(w=64)  -> (0, 0, 32)      <-- COLLIDES WITH C-BND(1536)
+      C-COV(w=128) -> (0, 64, 32)
+      C-COV(w=256) -> (0, 64, 32)     <-- and w=128 collides with w=256
+      C-RED(1/2)   -> (384, 544, 784)
+      C-RED(1/4)   -> (576, 816, 1176)
+    The archived AVX2 measurement is exactly (0, 0, 32): EV-MLKEM-005 records
+    "mlkem_cmp_avx2 ... ends at vmovdqu 1504(%rdi) and therefore compares 1536
+    of the 1568 ML-KEM-1024 ciphertext bytes", "silent set exactly
+    {1536..1567} (32 indices, empty unstable set, coverage fraction 1.0, 6272
+    mutation events)", and "Pre-fix AVX2 ML-KEM-1024 shows 32 disagreements
+    against its scalar reference; all other pre-fix parameter-set combinations
+    show zero". Both C-BND(1536) and C-COV(64) reproduce that profile with zero
+    residual. The observable does not identify the mechanism.
+
+    (4) WHY 1536 SITS AT THE COLLISION POINT, AND WHY IT IS NOT A COINCIDENCE
+    ONE MAY IGNORE. 1536 = 48*32 = 24*64, and 1568 = 24*64 + 32. The recorded
+    final load offset 1504 = 47*32 is the 48th 32-byte load. A body that
+    advances 32 bytes per step and stops one step early, and a body that
+    advances 64 bytes per step and drops the odd trailing half-block, emit the
+    SAME last offset. The distinguishing evidence is the STRIDE PATTERN of the
+    emitted loads, which is in the file and is not in any ledger record.
+
+    (5) THE CONSEQUENCE THAT MAKES THIS WORTH RUNNING. GOAL-MLKEM-002's strict
+    second-implementation predicate is "fixed-bound hand-written vector
+    comparison tails". That phrase is the C-BND vocabulary. Under it, five
+    candidates were rejected verbatim for being length-parameterized
+    (EXP-MLKEM-009 analysis/second_implementation_selection.md: BoringSSL
+    "length-parameterized CRYPTO_memcmp"; PQClean avx2 "len/32 intrinsic loop +
+    scalar remainder"; PQClean aarch64 "runtime-length scalar loop";
+    mlkem-native and aws-lc "length-parameterized portable compare"), the strict
+    neighborhood was declared empty, and the goal closed on
+    second_impl_unavailable. IF the true mechanism is C-COV(64), the search
+    predicate was written in the wrong vocabulary and the correct population is
+    "vector bodies whose stride does not divide L", which is a DIFFERENT and
+    non-empty set. The audit does not assert that it is; it makes the question
+    answerable by reading one file.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      EV-MLKEM-005 (this repository, READ IN FULL). Source of every quoted
+      measurement above: the v5.9.1 / v5.9.2 peeled commits 1d363f3 and ac01707,
+      the vmovdqu 1504 / 1536 offsets, the AVX2 silent set {1536..1567}, the
+      NEON silent cardinalities 384 / 544 / 784 under an "(i mod 64) >= 32
+      half-block pattern plus the ML-KEM-1024 remainder", and the statement that
+      coordinator, validator and red team each read the assembly independently.
+      The record is internal, empirical, claim_tier
+      laboratory_implementation_conformance.
+    - >-
+      EXP-MLKEM-009 analysis/second_implementation_selection.md (this
+      repository, READ). Source of the five verbatim strict-order rejections and
+      of strict_fixed_bound_disposition = empty_preferred_public_neighborhood.
+    - >-
+      FIPS 203 parameter triples (k, du, dv) for ML-KEM-512/768/1024. NOT READ
+      -- RECALLED, UNVERIFIED. Used only to explain WHY L is a multiple of 32;
+      the three byte lengths themselves are corroborated inside this repository
+      as described in mechanism (1). Checking (k, du, dv) against the published
+      standard is stage S1c of the paired experiment.
+    - >-
+      NVD / CNA records for the wolfSSL ML-KEM comparison issue. NOT READ HERE.
+      EV-MLKEM-005 states that its red team "corroborated both premises against
+      NVD/CNA records"; this proposal relies on the repository's own assembly
+      reading and not on any advisory text, and asserts no CVE identifier,
+      severity, or disclosure fact.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      A comparison routine (a function of 2L input bytes into {equal, not
+      equal}, together with its compiled control flow) --> its silent set
+      S(L) subset of [0, L), and thence to the integer profile
+      (|S(768)|, |S(1088)|, |S(1568)|).
+    what_is_discarded: >-
+      Everything about the routine except which single-byte perturbations it
+      fails to notice: the algorithm, the instruction mix, the constant-time
+      properties, the multi-byte behaviour, all timing, and every joint
+      dependence between positions. The final step to the integer profile
+      additionally discards WHICH indices are silent, keeping only how many.
+    why_genuinely_lossy: >-
+      Massively lossy and demonstrably so: the fibre over the profile (0, 0, 32)
+      provably contains at least two structurally different routines
+      (C-BND(1536) and C-COV(64)), and the fibre over (0, 64, 32) contains at
+      least two more (C-COV(128) and C-COV(256)). Exhibiting non-singleton
+      fibres IS the proposal.
+    why_compatible_with_the_operations: >-
+      The retained part propagates deterministically under the operation that
+      matters -- changing the parameter set. Each mechanism class carries its
+      silent set forward to a new L by a closed form in one parameter, with no
+      dependence on the discarded structure. That is what makes the profile a
+      legitimate tracked object rather than a summary statistic.
+    is_it_only_a_change_of_coordinates: >-
+      NO, and the check was run in both directions. It is not the
+      (Delta, Pi) = (x xor y, x*y) failure -- the routine is NOT recoverable
+      from its silent set, and the whole point of the record is that two
+      routines share one. It is also not the mirror failure: the projection is
+      not constant across instances, because the SET of profiles actually
+      realized in the archived data has at least two distinct members --
+      (0, 0, 32) for pre-fix AVX2 and (384, 544, 784) for pre-fix NEON -- and a
+      third, (0, 0, 0), for both post-fix builds. Comparator spread is therefore
+      nonzero and measured, not assumed. The one place the projection IS
+      near-constant is the sub-family {C-COV(w) : w divides 32}, which is
+      identically (0, 0, 0) at every standardized parameter set -- and that
+      constancy is itself a result, not a defect of the object (see
+      IDEA-20260805-3c957e).
+
+  assumptions:
+    - >-
+      That EV-MLKEM-005's quoted assembly facts are accurate. They were read
+      independently by three roles and the record is committed, so this is the
+      best-supported input available here; the audit nonetheless RE-READS the
+      file, because the specific thing needed -- the stride pattern of the
+      emitted loads -- is not in the record.
+    - >-
+      That a single-byte differential probe is a faithful measurement of the
+      silent set for these routines. EV-MLKEM-005 reports coverage fraction 1.0
+      and an empty unstable set for the AVX2 cell, which supports it for that
+      cell. It is NOT assumed for planted comparators, where the paired
+      experiment re-derives it per arm.
+    - >-
+      That the mechanism classes C-BND / C-COV / C-RED are not exhaustive. They
+      are explicitly NOT claimed to be. A fourth class producing (0, 0, 32) at
+      the standardized lengths would strengthen the collision, not weaken it.
+
+  proof_search_map_note: >-
+    This proposal is an identifiability audit rather than a proof-oriented
+    proposal; the full four-audit proof_search_map is carried on the paired
+    hypothesis H-MLKEM-d9062d, which is where the claim about forced values is
+    stated and where the method ceiling and nearby-object control are bound.
+
+  predictions:
+    - metric: >-
+        collision_multiplicity: the number of distinct (class, parameter) pairs
+        drawn from {C-BND(N) : N in [1, 1568]} union {C-COV(w) : w in
+        {8,16,32,64,128,256,512}} union {C-RED(phi) : phi in
+        {1, 1/2, 1/4, 1/8}} whose forced profile over L = (768, 1088, 1568)
+        equals the archived AVX2 profile (0, 0, 32)
+      direction: higher
+      minimum_effect: >-
+        AT LEAST 2, predicted before any run and derived above: C-BND(1536) and
+        C-COV(64). The prediction is EXACTLY 2 over that enumeration. A value of
+        1 falsifies the collision claim outright and the proposal is withdrawn;
+        a value above 2 means the enumeration missed a member and the record is
+        corrected upward.
+    - metric: >-
+        archived_profile_residual: max over L in (768, 1088, 1568) of
+        |forced |S(L)| - archived |S(L)|| for the best-fitting single member of
+        each class, AVX2 arm
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 for both C-BND(1536) and C-COV(64). Not a tolerance -- an
+        exact integer match on all three cells, with no parameter fitted after
+        the archived numbers were read. Any nonzero residual refutes that class
+        as an account of the archived AVX2 measurement.
+    - metric: >-
+        NEON arm class assignment: which of the three classes reproduces the
+        archived NEON profile (384, 544, 784) exactly
+      direction: different
+      minimum_effect: >-
+        EXACTLY ONE, namely C-RED(1/2), which forces L/2 = (384, 544, 784) with
+        zero residual. Neither C-BND nor C-COV can produce a profile
+        proportional to L: C-BND is L minus a constant and C-COV is bounded by
+        w. If some C-BND(N) or C-COV(w) also reproduces (384, 544, 784), the
+        class taxonomy is wrong and must be rewritten.
+    - metric: >-
+        stride_resolution: the multiset of byte offsets appearing in the
+        vector-load instructions of mlkem_cmp_avx2 at peeled commit 1d363f3,
+        read verbatim from wolfcrypt/src/wc_mlkem_asm.S
+      direction: different
+      minimum_effect: >-
+        A DECISIVE READ, pre-registered in both directions. If consecutive
+        offsets differ by 32 throughout and terminate at 1504, the mechanism is
+        C-BND-like (a body correct in stride, one step short) and the goal's
+        strict predicate was in the right vocabulary. If offsets advance in
+        pairs consuming 64 bytes per unrolled step, the mechanism is C-COV(64)
+        and the goal's strict predicate was in the WRONG vocabulary. Any third
+        pattern is recorded as observed and the taxonomy is amended by a new
+        record.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, each able to terminate. STAGE A (zero
+      compute, minutes): enumerate the forced profiles for every member of the
+      three classes over the standardized lengths and tabulate which reproduce
+      the two archived profiles. Costs three lines of integer arithmetic and was
+      already executed once while writing this record; it is repeated inside the
+      experiment under a frozen script so the numbers are receipted. STAGE B
+      (zero compute): confirm L = 32*(du*k + dv) against the published FIPS 203
+      parameter table, replacing the RECALLED-UNVERIFIED triples with a citation
+      or recording that the standard could not be obtained. STAGE C (one file
+      read, no build): fetch wolfcrypt/src/wc_mlkem_asm.S at peeled commit
+      1d363f3, extract the vector-load offsets of mlkem_cmp_avx2 verbatim, and
+      resolve the collision. STAGE D (optional, minutes, requires only gcc):
+      compile the two candidate mechanisms as standalone C comparators and
+      confirm that the single-byte differential instrument assigns them the
+      SAME profile at the standardized lengths and DIFFERENT profiles at a
+      non-standard length such as L = 1600 -- an executable demonstration that
+      the collision is a property of the parameter set and not of the model.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value derived pre-run, CAN FAIL). The
+        post-fix routines. EV-MLKEM-005 records BUILD-POSTFIX-AVX2 and
+        BUILD-POSTFIX-NEON at "zero silent indices ... at coverage fraction 1.0
+        for all three parameter sets and both seeds". The forced profile for a
+        complete comparison is (0, 0, 0) under every class with its
+        no-defect parameter (N = L, w dividing 32, phi = 1). If the model
+        assigns a nonzero forced profile to a complete comparator, or if the
+        instrument in Stage D reports a nonempty silent set for a comparator
+        that is complete by construction, the model or the instrument is broken
+        and no conclusion may be drawn.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR. The
+        pre-fix NEON arm. Its archived profile (384, 544, 784) is a THIRD,
+        independently measured profile in the same library, the same batch and
+        the same instrument. The taxonomy must assign it to exactly one class
+        with a single parameter and zero residual, and must NOT be able to
+        assign it to C-BND or C-COV. If the taxonomy cannot separate the two
+        archived arms of the SAME library, it has not identified the
+        load-bearing structure and the audit reports that instead of a
+        resolution.
+      - >-
+        GRADED CONTROL, FIVE INTERIOR POINTS, MONOTONICITY REPORTED. Sweep
+        w in {8, 16, 32, 64, 128, 256, 512} and report |S(1568)| = L mod w =
+        (0, 0, 0, 32, 32, 32, 544). Sweep phi in {1, 1/2, 1/4, 1/8} and report
+        |S(1568)| = (0, 784, 1176, 1372). The C-RED sweep is strictly monotone
+        decreasing in phi; the C-COV sweep is NOT monotone in w, and that
+        non-monotonicity is the structural fact that makes coverage defects
+        parameter-set-selective. A model that reports the C-COV sweep as
+        monotone has been implemented wrongly.
+      - >-
+        ORDERING CONTROL. The forced table of Stage A is committed and hashed
+        BEFORE the assembly of Stage C is opened. A resolution chosen after
+        reading the file is not a prediction.
+      - >-
+        ARCHIVE CHECK (zero compute). Enumerate every prior measurement of this
+        observable in the corpus and state whether it agrees: EV-MLKEM-005
+        (AVX2 and NEON, pre- and post-fix), EV-MLKEM-006, EV-MLKEM-007,
+        EV-MLKEM-008, EV-MLKEM-009, EV-MLKEM-010. Disagreements are reported,
+        not adjudicated.
+    required_metrics:
+      - the frozen forced-profile table with the script that produced it
+      - collision multiplicity over the declared enumeration, with the enumeration written out
+      - verbatim vector-load offsets from the pinned assembly, or a recorded statement that the file could not be obtained
+      - class assignment of each archived arm with its exact integer residual
+      - the FIPS 203 parameter-table citation, or a recorded failure to obtain it
+
+  falsification_conditions:
+    - >-
+      Collision multiplicity 1 over the declared enumeration. There is then no
+      identifiability problem, the goal's strict predicate was in the only
+      available vocabulary, and this proposal is withdrawn.
+    - >-
+      A nonzero residual for BOTH C-BND(1536) and C-COV(64) against the archived
+      AVX2 profile. The taxonomy does not describe the founding measurement and
+      must be replaced before anything is built on it.
+    - >-
+      Some C-BND(N) or C-COV(w) reproducing the archived NEON profile
+      (384, 544, 784). The classes are not separated by the observable and the
+      positive control has failed; no negative may be reported.
+    - >-
+      The pinned assembly cannot be obtained. This is an INFRASTRUCTURE outcome,
+      recorded as such, and is never evidence about the mechanism (AGENTS.md
+      rule 5). Stages A, B and D still complete and still yield the collision
+      table.
+
+  confounders:
+    - >-
+      HINDSIGHT. The archived numbers were read before this record was written,
+      so "C-BND(1536) fits exactly" is not a blind prediction. It is stated as a
+      RE-DERIVATION, and the only genuinely pre-registered quantity is the
+      collision multiplicity and the Stage-C stride resolution, both fixed here
+      before the file is opened.
+    - >-
+      MECHANISM CLASSES ARE MODELS OF SOURCE INTENT, NOT OF SEMANTICS. A
+      compiler may turn a length-parameterized loop into a fixed-bound one by
+      constant propagation when L is known at the call site, and may vectorize a
+      scalar loop into a blocked one. So "which class" is a statement about a
+      specific compiled artifact under a specific toolchain, and the record must
+      name the toolchain. This is a limit on the audit, and it is also the
+      strongest single argument that a SOURCE-SYNTACTIC neighborhood predicate
+      was the wrong instrument.
+    - >-
+      SINGLE-BYTE PROBES ONLY. The silent set as defined here is a single-byte
+      notion. A routine can be complete against every single-byte mutation and
+      still miss a multi-byte cancellation. Nothing here bears on that class, and
+      EV-MLKEM-006's multi-byte generator work is neither used nor superseded.
+    - >-
+      THREE PARAMETER SETS IS A SMALL DESIGN. Distinguishing k classes generally
+      needs more than three cells; the collision found here is a direct
+      consequence of that, and the honest statement is that FIPS 203 does not
+      supply enough distinct lengths to identify the mechanism, not that the
+      instrument is bad.
+
+  interpretation_limits:
+    - >-
+      NOTHING HERE IS AN ATTACK, AN ORACLE, AN EXPLOITATION PATH, A COST
+      ESTIMATE, OR A STATEMENT ABOUT MLWE HARDNESS OR PASSIVE ML-KEM SECURITY.
+      RQ-MLKEM-002's constraints bind unchanged. No new implementation defect is
+      alleged and none is sought at this stage.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002, EV-MLKEM-005..010,
+      DEC-20260730-006, DEC-20260731-001, or any hypothesis. The goal met its
+      declared criteria and its closure decision stands; this record addresses
+      what those criteria DID and DID NOT establish about the ecosystem, which
+      the evidence records themselves already scope narrowly ("do not paraphrase
+      EV-MLKEM-008/009/010 as H-MLKEM-004 support").
+    - >-
+      A resolution in favour of C-COV(64) would NOT show that the goal's
+      conclusion was wrong. It would show that the strict search predicate was
+      written in a vocabulary that could not select the successor population, so
+      the emptiness verdict carries less information about the ecosystem than
+      its plain reading suggests. That is a scope statement, not a reversal.
+    - >-
+      Claim tier is laboratory / toy and may not be raised by any downstream
+      citation.
+
+  heuristic_assumptions:
+    - id: HEUR-SS-1
+      statement: >-
+        For a comparison routine in class C-BND(N), C-COV(w) or C-RED(phi), the
+        single-byte silent set is EXACTLY the closed form stated in mechanism
+        (2), with no dependence on the input distribution, the seed, or the byte
+        value used for the mutation.
+      rigorous_support: >-
+        For C-BND and C-COV the statement is not heuristic at all: a byte the
+        routine never loads cannot influence its output, and a byte it does load
+        into an OR/XOR difference accumulator that is fully reduced does
+        influence it, for every nonzero mutation. For C-RED it depends on the
+        lane-to-byte map being a bijection onto the accumulator, which holds for
+        the OR-accumulate shape but not for a routine that folds lanes before
+        reducing. The C-RED closed form is therefore the weakest of the three and
+        is labelled as such.
+      validation_plan: >-
+        Stage D compiles each class as a standalone comparator and measures its
+        silent set exhaustively over all 255 nonzero single-byte deltas at each
+        of L bytes for L = 768; measured equals forced, or the closed form is
+        wrong and is corrected by a new record.
+    - id: HEUR-SS-2
+      statement: >-
+        The archived AVX2 and NEON silent-set numbers in EV-MLKEM-005 are
+        measurements of the compiled routines actually invoked, not of a probe
+        proxy.
+      rigorous_support: >-
+        EV-MLKEM-005 records direct probing of the optimized symbols, and its own
+        red team raised OBJ-003 that "the probe calls optimized symbols
+        directly", which is the property needed here. The later
+        INTERPOSE_COMPARE tautology (EV-MLKEM-009) concerned a DIFFERENT
+        construction and was cured by GNU ld --wrap in EV-MLKEM-010.
+      validation_plan: >-
+        Not independently validated by this proposal. Recorded as an inherited
+        premise with its provenance, and any conclusion that depends on it says
+        so.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit. It moves NO exponent and proposes no algorithm. Stated
+      plainly rather than dressed up: this is defensive implementation
+      conformance under RQ-MLKEM-002, whose own constraints forbid attack-cost
+      estimation. It is worth running because it decides what an existing,
+      committed, three-batch negative actually established.
+    memory_exponent: n/a
+    best_known: >-
+      n/a. There is no competing result, because no record anywhere states the
+      parameter-set profile of the founding defect.
+    hidden_overhead: >-
+      n/a. Total cost is one arithmetic table, one file read, and optionally a
+      few hundred lines of C compiled with gcc.
+    tradeoff_note: n/a
+
+  dominated_by: >-
+    n/a (no result claimed; no attack, no cost, no Pareto point). Rows checked
+    for a prior statement of the same content, all inside this repository on
+    2026-08-05: EV-MLKEM-005, -006, -007, -008, -009, -010; GOAL-MLKEM-002 and
+    its four batch checkpoints; DEC-20260730-005, DEC-20260730-006,
+    DEC-20260731-001 as cited by the goal record; RQ-MLKEM-002;
+    IDEA-20260724-001 and IDEA-20260724-002; and
+    experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md. None
+    states the profile (0, 0, 32) as a profile, none notes that 1568 is the only
+    standardized ciphertext length not divisible by 64, and none observes any
+    collision. Absence of a search result is not evidence that nobody has done
+    this elsewhere (AGENTS.md retrieval policy); no external search was run,
+    and this record does not claim external novelty.
+  sota_delta: >-
+    No attack; measurement and identifiability contribution only. Quantitatively:
+    it converts one committed integer (32 silent bytes at ML-KEM-1024) into a
+    three-cell profile with an explicit fibre of size >= 2, and it prices the
+    resolution at one file read. Against the goal's own deliverable it changes a
+    procedural disposition (second_impl_unavailable, which carries zero bits
+    about isolation-versus-systemic) into either a confirmation that the search
+    vocabulary was right or a named, non-empty successor population.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.85 that the collision as stated survives -- that is, that at least two
+    members of the declared enumeration reproduce (0, 0, 32) exactly. It is that
+    high because both members were computed on this machine before the record
+    was written and the archived numbers are quoted verbatim from a committed
+    record read by three roles; it is not higher because the enumeration is mine
+    and a reader may reasonably deny that C-BND(1536) and C-COV(64) are
+    "structurally different" mechanisms rather than two descriptions of one, and
+    that objection is not settled by arithmetic. Separately, 0.5 that the Stage-C
+    read resolves to C-COV(64) rather than C-BND: the numerology 1536 = 24*64
+    and the parameter-set-selective defect profile favour it, but hand-written
+    assembly frequently does carry per-parameter-set hardcoded lengths and the
+    record has no evidence either way. That the read RESOLVES the question at
+    all: 0.9, conditional on the file being fetchable.

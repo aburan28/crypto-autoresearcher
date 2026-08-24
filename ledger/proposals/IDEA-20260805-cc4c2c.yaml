@@ -1,0 +1,525 @@
+idea:
+  id: IDEA-20260805-cc4c2c
+  question_id: RQ-ECDLP-002
+  added: '2026-08-05'
+  title: >-
+    The transfer-gate instrument needs a graded calibration ladder, not a single
+    anomalous positive control: embedding degree k supplies five interior points
+    whose costs are forced, and the crossover k*(p) where transfer stops beating
+    rho is derivable at zero compute
+  class: control
+
+  claim: >-
+    GOAL-ECDLP-001's committed next_action requires the successor batch to
+    "exercise CTRL-ANOMALOUS-TRACE1 at bits=20 with verified anomalous
+    certificate and C_special = ceil(8*log2(p))". That is one positive control
+    at one point. A single positive control demonstrates that the instrument can
+    fire; it does not demonstrate that the instrument's OUTPUT IS THE QUANTITY
+    IT CLAIMS TO MEASURE, because an anomalous curve is the extreme case where
+    almost any instrument fires. This proposal supplies the graded ladder the
+    contract lacks, and it costs nothing extra because the grading parameter is
+    already a public property of the curve.
+    THE LADDER IS THE EMBEDDING DEGREE k. For a curve with embedding degree k,
+    the MOV/Frey-Ruck transfer moves the DLP into F_{p^k}, where the best known
+    cost is L_{p^k}[1/3, (64/9)^{1/3}], a strictly increasing function of k;
+    the anomalous case (trace 1, N = p) is the k = 0 degenerate rung where the
+    p-adic elliptic logarithm gives polynomial time; and a generic curve is the
+    k ~ N rung where no transfer exists. The instrument's measured
+    "transfer advantage" is therefore FORCED to be monotone decreasing in k, and
+    the forcing function is computable in closed form before any run.
+    THE FORCED VALUES, computed in this record: with rho at 2^{bits/2} and
+    the transfer at L_{p^k}[1/3, 1.923], at p = 256 bits the transfer costs
+    2^{46.7}, 2^{63.9}, 2^{76.5}, 2^{86.8}, 2^{103.4} and 2^{138.7} at
+    k = 1, 2, 3, 4, 6, 12 against rho at 2^{128} -- so k <= 6 beats rho and
+    k = 12 does not, with the crossover at k*(256 bits) = 9.91. The same
+    computation gives k* = 4.01 at 128 bits, 6.74 at 192, 17.46 at 384 and
+    27.14 at 521. THAT k = 12 SITS JUST ABOVE THE CROSSOVER AT 256 BITS IS THE
+    BASELINE-REPRODUCTION CHECK PASSING: it is why BN/BLS12 pairing-friendly
+    curves are specified at k = 12 with 256-bit p for a 128-bit target, and an
+    instrument that does not reproduce it is not calibrated.
+    THE SHARP CONSEQUENCE FOR THIS GOAL: at TOY SIZES THE LADDER INVERTS. At
+    p = 20 bits, rho is 2^{10} while even k = 1 transfer costs 2^{12.7} and
+    k = 2 costs 2^{18.7}. NO EMBEDDING-DEGREE TRANSFER BEATS RHO AT ANY TOY
+    SIZE THIS GOAL CAN RUN -- the crossover k* is below 1 until p exceeds about
+    32 bits. A transfer-gate instrument calibrated only at bits = 20 is
+    therefore being calibrated in the regime where its measurand is
+    identically negative, and a negative result there is forced by arithmetic
+    rather than measured. Stating this before the batch runs is the deliverable.
+
+  object_first_candidate:
+    tracked_object: >-
+      The pair (embedding degree k of the curve, charged cost of the cheapest
+      transfer available at that k), followed across a deliberately constructed
+      LADDER of curves rather than across random curves. The tracked object is
+      the RESPONSE CURVE cost(k), not any single curve's verdict. Prior work in
+      this lane (H-IT-001, EXP-IT-001, the BATCH-046 repair) tracks the
+      per-curve verdict, which is why it has a positive control and no
+      sensitivity curve.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: Semaev summation polynomials and all
+      factor-base index calculus; Weil descent; class-group and volcano
+      structure (that is IDEA-20260805-38aebb's object and is deliberately kept
+      separate); Groebner instrumentation; lattice methods. MOV/Frey-Ruck and
+      Smart/Satoh-Araki are the OBJECTS being used as rulers, not as attacks --
+      this proposal claims no new transfer and proposes no attack on any
+      deployed curve. It is inventor-protocol move 7 (apply the method to the
+      nearest object where the conclusion is known false) plus the planted
+      positive control of section 3, applied to this goal's own live instrument.
+    newness_score: >-
+      The MOV cost model and the anomalous attack are entirely standard and no
+      novelty is claimed for either. What is not in this corpus is their use as
+      a GRADED CALIBRATION LADDER with forced monotone response, and -- more
+      importantly -- the observation that the toy regime this goal actually runs
+      in sits entirely below the crossover, so that a negative transfer-gate
+      result at bits = 20 is arithmetically forced and carries no information
+      about the hypothesis it is meant to test.
+    testability_score: >-
+      Very high. The cost model is closed form; the curve construction at
+      k = 1, 2 is elementary (supersingular curves over F_p have k = 2); MNT and
+      BN constructions at k = 3, 4, 6, 12 are published parameter families and
+      only their PUBLIC parameters are needed, no key material. Verifying a
+      curve's embedding degree is computing the multiplicative order of p mod N
+      -- three lines of pure Python.
+    survival_score: >-
+      The ladder survives as a calibration device at every scale. What does not
+      survive toy scale is the measurand: below about 32 bits the transfer
+      advantage is negative at every k, so the ladder degenerates to a single
+      value there and can only test the instrument's arithmetic, not its
+      discrimination. Naming that boundary is the point.
+
+  mechanism: >-
+    DERIVED IN-REPO THIS SESSION. The cost model is standard and RECALLED,
+    UNVERIFIED as to source; every number below was computed here from the
+    stated formula, not copied.
+
+    THE FIVE RUNGS AND THEIR FORCED COSTS.
+    RUNG 0 -- ANOMALOUS (t = 1, N = p). The Smart / Satoh-Araki / Semaev attack
+    lifts to Q_p and uses the formal-group logarithm; cost is polynomial in
+    log p, conventionally O(log^2 p) bit operations, and it is UNCONDITIONAL.
+    Forced instrument response: success probability 1.0 and charged cost below
+    any rho baseline at every p >= 2^8. RECALLED, UNVERIFIED -- the attack is
+    not re-derived here and verifying it on a constructed anomalous curve is
+    stage 1 of the experiment, exactly as the goal's next_action already
+    requires.
+    RUNG 1 -- SUPERSINGULAR OVER F_p (t = 0, N | p+1, k = 2). MOV pairing into
+    F_{p^2}, then FFDLP. Forced cost L_{p^2}[1/3, 1.923].
+    RUNGS 2-4 -- ORDINARY PAIRING-FRIENDLY (MNT k = 3, 4, 6; BN/BLS k = 12).
+    Forced cost L_{p^k}[1/3, 1.923].
+    RUNG 5 -- GENERIC (k of size N). No transfer; forced cost = rho.
+    Writing L_q[1/3, c] = exp(c (ln q)^{1/3} (ln ln q)^{2/3}), the log2 costs
+    computed here are:
+      p = 20 bits:  k=1 2^{12.7}, k=2 2^{18.7}, k=3 2^{23.1}, k=4 2^{26.7},
+                    k=6 2^{32.6}, k=12 2^{45.3};  rho 2^{10.0}
+      p = 32 bits:  k=1 2^{16.6}, k=2 2^{23.9}, k=3 2^{29.3}, k=4 2^{33.7},
+                    k=6 2^{40.8}, k=12 2^{56.2};  rho 2^{16.0}
+      p = 128 bits: k=1 2^{33.7}, k=2 2^{46.7}, k=3 2^{56.2}, k=4 2^{63.9},
+                    k=6 2^{76.5}, k=12 2^{103.4}; rho 2^{64.0}
+      p = 256 bits: k=1 2^{46.7}, k=2 2^{63.9}, k=3 2^{76.5}, k=4 2^{86.8},
+                    k=6 2^{103.4}, k=12 2^{138.7}; rho 2^{128.0}
+    MONOTONE IN k AT EVERY p, by inspection and by the monotonicity of L_q in q.
+    That monotonicity is the forced response the instrument must reproduce.
+
+    THE CROSSOVER, AND THE BASELINE-REPRODUCTION AUDIT. Solving
+    L_{p^k}[1/3, 1.923] = p^{1/2} for k gives
+      k*(128 bits) = 4.01,  k*(192) = 6.74,  k*(256) = 9.91,
+      k*(384) = 17.46,      k*(521) = 27.14.
+    k*(256) = 9.91 < 12 is the check that matters: BN and BLS12 curves are
+    specified with k = 12 over a 256-bit p precisely so that the F_{p^12} DLP
+    (a 3072-bit field) is not easier than the 128-bit rho bound. The model
+    reproduces the deployed design point without being tuned to it. An
+    instrument or cost model that places k = 12 BELOW the crossover at 256 bits
+    is wrong, and this is the cheapest available check on it.
+
+    THE TOY-SCALE INVERSION, WHICH IS THE FINDING. At p = 20 bits, rho costs
+    2^{10} and the CHEAPEST rung above anomalous, k = 1, costs 2^{12.7} -- a
+    factor 6.5 WORSE. At 24 bits rho is 2^{12} against k=1 at 2^{14.1}. The
+    two curves cross near 32 bits (rho 2^{16.0} versus k=1 2^{16.6}), and only
+    above that does any k >= 1 transfer become advantageous. CONSEQUENCE:
+    within GOAL-ECDLP-001's declared toy ceiling of 20-28 bits, the quantity
+    "transfer advantage" is NEGATIVE AT EVERY NON-ANOMALOUS RUNG BY ARITHMETIC.
+    H-IT-001's falsification condition -- "a path with total charged cost
+    < 0.7 * matched_rho ... on a random sample of >= 20 unplanted toy curves at
+    20-28 bits" -- therefore cannot be met at those sizes for any embedding-degree
+    transfer whatever, independently of isogeny-path length, and a failure to
+    meet it is not evidence about H-IT-001's actual content (which is about path
+    length to a sparse special set). THE INSTRUMENT AND THE HYPOTHESIS ARE
+    MEASURING DIFFERENT THINGS AT THE SIZES WHERE THE INSTRUMENT RUNS.
+    This does not weaken H-IT-001 -- only the Coordinator may do that, and this
+    record proposes no status change. It says that the toy arm's negative is
+    forced and that the ladder is what separates a forced negative from a
+    measured one.
+
+    WHY THE GRADING IS FREE. The rungs need no secret data and no solved DLP:
+    a curve's embedding degree is ord_N(p), computable from public parameters;
+    supersingular curves over F_p are constructed directly (j = 0 with p = 2
+    mod 3, or j = 1728 with p = 3 mod 4); MNT and BN parameter families are
+    published polynomial families whose public parameters can be instantiated at
+    toy sizes. The additional cost over the single anomalous control the
+    next_action already requires is minutes.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      Menezes-Okamoto-Vanstone (MOV) and Frey-Ruck pairing reductions; Smart,
+      Satoh-Araki and Semaev on anomalous curves; Barreto-Naehrig and
+      Miyaji-Nakabayashi-Takano curve families; the L_q[1/3, (64/9)^{1/3}]
+      cost of DLP in F_{p^k} for medium/large characteristic. ALL RECALLED,
+      UNVERIFIED -- NO SOURCE WAS OPENED FOR THIS RECORD. Every number in the
+      mechanism was computed here from the stated closed form, and the closed
+      form itself is a candidate to check. The experiment's stage 0 is to
+      confirm the constant (64/9)^{1/3} = 1.923 and the applicable
+      characteristic regime against a primary source, since the quasi-polynomial
+      small-characteristic results do not apply to prime-field-based F_{p^k} and
+      a reader could wrongly import them.
+    - >-
+      DEC-20260804-2fae6a (R7, anomalous / trace-1 transfer, "Tate isogeny
+      theorem, unconditional; rho_special = 0 is a mathematical certainty, not a
+      finite-scale artifact") is named by this session's ANGLE-BRIEF as a real
+      closure whose untested residual is "degree divisible by p (inseparable /
+      Frobenius itself); isogenies over extensions with descent". NOT READ --
+      relayed from the brief. This proposal does not reopen it; it uses the
+      anomalous case only as rung 0 of a ruler.
+    - >-
+      GOAL-ECDLP-001's own next_action (read in full) and H-IT-001 (read; status
+      weakened, question_id RQ-ECDLP-002) are the internal records this proposal
+      serves. It proposes no change to either.
+    - >-
+      DEC-20260804-6ee18a (MAGCS / Tate pairing, proving a property at k = 2 via
+      Katz-Sarnak and blocking at k ~ N/2 via Balasubramanian-Koblitz, with
+      every intermediate k untested) is named by the ANGLE-BRIEF as a real
+      closure with an untested interior. NOT READ -- relayed. The ladder built
+      here populates exactly that interior with k = 3, 4, 6, 12, and the same
+      curve list serves both purposes; that overlap is stated so the two uses
+      are not double-counted as independent evidence.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      (curve E/F_p, subgroup order N) --> (embedding degree k = ord_N(p),
+      forced transfer cost L_{p^k}[1/3, 1.923], forced rho cost sqrt(N)) -->
+      the single signed number log2(rho) - log2(transfer).
+    what_is_discarded: >-
+      The curve equation, the j-invariant, the endomorphism ring, the point
+      coordinates, the target, and the scalar. Only one integer (k) and two
+      derived costs survive.
+    why_genuinely_lossy: >-
+      Very lossy: all curves sharing an embedding degree map to the same rung,
+      and there are many at each k.
+    why_compatible_with_the_operations: >-
+      Compatible in the required sense: k propagates deterministically under the
+      operation the instrument performs (choosing a transfer target), and the
+      cost is a deterministic function of k and p alone. The forced monotone
+      response is exactly the deterministic one-step propagation the inventor
+      protocol requires of a tracked object.
+    is_it_only_a_change_of_coordinates: >-
+      CHECKED FOR BOTH FAILURE MODES. Not the (Delta, Pi) = (x xor y, x*y)
+      failure: k does not determine the curve, so nothing is recoverable. Not
+      the mirror failure either -- k is emphatically NOT constant across
+      instances, ranging over 0, 1, 2, 3, 4, 6, 12 and ~N by construction, which
+      is precisely why it makes a usable grading parameter and why a single
+      anomalous control cannot substitute for it. THE AUDIT'S ACTUAL FINDING IS
+      A THIRD ONE: the projection is well-behaved, but its RANGE COLLAPSES in
+      the toy regime, because below p ~ 2^{32} the sign of the retained number
+      is negative at every k >= 1. A projection with full spread at crypto scale
+      and zero usable spread at the scale where it is measured is a failure mode
+      the protocol does not name, and it is the one that bites here.
+
+  assumptions:
+    - >-
+      That L_{p^k}[1/3, (64/9)^{1/3}] is the right cost model for the F_{p^k}
+      DLP in the medium-to-large characteristic regime relevant to
+      pairing-friendly prime-field curves. RECALLED, UNVERIFIED. The
+      quasi-polynomial small-characteristic results DO NOT apply and importing
+      them would be a serious error; stage 0 records which regime each rung is
+      in.
+    - >-
+      That the anomalous attack's cost is polynomial and unconditional.
+      RECALLED, UNVERIFIED; verified constructively at stage 1 by actually
+      recovering a planted toy discrete logarithm on an anomalous curve.
+    - >-
+      That toy-size curves at each k can be constructed at 20-28 bits. This is
+      not guaranteed for every k -- MNT and BN families are parameterised by
+      polynomials whose small instantiations may be sparse -- and a rung that
+      cannot be instantiated is reported as an infrastructure absence, never as
+      a mathematical result (AGENTS.md rule 5).
+
+  predictions:
+    - metric: >-
+        Monotonicity of measured charged transfer cost in k across the ladder
+        rungs at each bit size
+      direction: higher
+      minimum_effect: >-
+        STRICTLY INCREASING IN k AT EVERY BIT SIZE, with no inversions. Forced
+        by the cost model. A measured inversion means the instrument's cost
+        accounting is wrong, and NO NEGATIVE RESULT FROM THE INSTRUMENT MAY BE
+        REPORTED until it is fixed.
+    - metric: >-
+        Anomalous-rung success rate and charged cost at bits = 20
+      direction: different
+      minimum_effect: >-
+        Success 20/20 with a verified discrete-log certificate, at charged cost
+        below 2^{16} -- i.e. below the 2^{10} rho baseline times a generous
+        polynomial margin. THIS IS THE POSITIVE CONTROL AND IT MUST FIRE. If it
+        does not, the instrument is broken and the whole BATCH-046 successor is
+        an infrastructure report.
+    - metric: >-
+        Crossover k*(p) recomputed by the instrument's own cost model, at
+        p = 128, 192, 256, 384, 521 bits
+      direction: different
+      minimum_effect: >-
+        4.01, 6.74, 9.91, 17.46, 27.14 to within 5 per cent, and in particular
+        k*(256) strictly between 6 and 12. FORCED VALUES DERIVED IN THIS RECORD
+        BEFORE ANY RUN. A model returning k*(256) > 12 would license attacking
+        deployed BN curves by transfer, which is false, and is the failure this
+        check exists to catch.
+    - metric: >-
+        Sign of (log2 rho - log2 transfer) at every non-anomalous rung, at
+        bits in {20, 24, 28}
+      direction: lower
+      minimum_effect: >-
+        NEGATIVE AT EVERY RUNG AND EVERY BIT SIZE, without exception. Forced:
+        the cheapest non-anomalous rung (k = 1) costs 2^{12.7} against rho
+        2^{10.0} at 20 bits and 2^{14.1} against 2^{12.0} at 24 bits. IF THE
+        INSTRUMENT REPORTS A POSITIVE ADVANTAGE AT ANY TOY RUNG, either its cost
+        model or its rho baseline is wrong. This prediction is the one that
+        converts the toy arm from a hypothesis test into an instrument test, and
+        saying so before the run is the whole contribution.
+    - metric: >-
+        Bit size at which k = 1 transfer first beats rho, by bisection on the
+        cost model
+      direction: different
+      minimum_effect: >-
+        Between 30 and 34 bits (derived: rho 2^{16.0} versus k=1 2^{16.6} at
+        32 bits, so the crossing is just above 32). This is the smallest p at
+        which the instrument has any discriminating power at all, and it is
+        above GOAL-ECDLP-001's declared toy ceiling of 28 bits.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first; stage 0 alone can change what the successor
+      batch may conclude. STAGE 0 (pen and paper, zero compute): tabulate the
+      forced costs and the crossovers; check k*(256) against the deployed BN/BLS
+      design point; state the sign of the toy-rung advantage. STAGE 1 (pure
+      Python, minutes): construct the anomalous rung at bits = 20, plant a
+      discrete logarithm, recover it, verify the certificate -- this is exactly
+      the CTRL-ANOMALOUS-TRACE1 the goal's next_action already requires, and it
+      is the positive control. STAGE 2 (pure Python, minutes): construct or
+      instantiate curves at k = 1, 2, 3, 4, 6, 12 at 20-28 bits, verify each
+      embedding degree as ord_N(p), and record which rungs could not be
+      instantiated. STAGE 3 (arithmetic, minutes): run the instrument's cost
+      accounting over the ladder and compare against the forced table.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE (CAN FAIL). A random ordinary curve at the
+        same bit size with k = ord_N(p) verified to be large (of size N).
+        FORCED VALUE DERIVED BEFORE THE RUN: transfer cost effectively
+        infinite, advantage strictly negative, instrument verdict "no transfer".
+        It can fail: if the instrument reports a finite transfer cost for a
+        large-k curve, it is not computing the embedding degree it claims to.
+      - >-
+        POSITIVE CONTROL WHERE THE EFFECT MUST APPEAR. The anomalous rung, with
+        a PLANTED and independently verified discrete logarithm. Threshold
+        declared before the run: 20/20 recoveries with certificates. IF IT DOES
+        NOT FIRE, NO NEGATIVE RESULT MAY BE REPORTED FROM ANY OTHER RUNG. This
+        is the control the goal's next_action already names; the proposal's
+        addition is the requirement that the negative arms be gated on it.
+      - >-
+        GRADED CONTROL, FIVE INTERIOR POINTS, MONOTONICITY REQUIRED. The k
+        ladder itself: k = 1, 2, 3, 4, 6, 12. Report the measured cost at each
+        and the monotonicity explicitly. THIS IS THE CONTROL THE CONTRACT
+        CURRENTLY LACKS. A failure at one rung localises the fault to that
+        rung's construction; a failure of monotonicity localises it to the cost
+        model; a uniform flat response localises it to the accounting.
+      - >-
+        SCALE ANTI-CONTROL (zero compute). Run the same cost accounting at
+        p = 256 bits on public parameters only. It must show k <= 6 beating rho
+        and k = 12 not. An instrument that gives the same qualitative answer at
+        20 bits and 256 bits is not sensitive to the quantity that actually
+        varies, and the toy arm cannot stand in for the crypto arm.
+      - >-
+        ARCHIVE CHECK (zero compute). Prior transfer-gate measurements in this
+        corpus: EXP-IT-001 and RUN-IT-001-rc45-smoke, whose transfer-gate
+        interpretation DEC-20260803-004 records as VOID (VAL-20260803-021,
+        RT-20260803-022). Recorded as an existing-but-void prior arm, not as a
+        passed check, and its void status is the reason a graded control is
+        being proposed rather than a repeat.
+    required_metrics:
+      - forced cost table (k, p) beside measured/charged cost, same units
+      - ord_N(p) verified per constructed curve, with p, N, a, b recorded
+      - anomalous-rung recovery count, certificates, and charged cost
+      - explicit monotonicity statement across rungs
+      - list of rungs that could not be instantiated, as infrastructure absences
+      - the crossover k*(p) at five bit sizes from the instrument's own model
+
+  falsification_conditions:
+    - >-
+      The anomalous positive control fails to recover a planted logarithm. The
+      instrument is broken; the batch is an infrastructure report and no
+      mathematical conclusion of any sign may be drawn (AGENTS.md rule 5).
+    - >-
+      Measured cost is non-monotone in k. The cost accounting is wrong and every
+      prior charged cost in the lane is suspect.
+    - >-
+      The instrument reports a positive transfer advantage at a non-anomalous
+      toy rung. Its rho baseline or its transfer model is wrong.
+    - >-
+      The instrument's own model returns k*(256 bits) above 12. It would imply
+      deployed BN curves are transfer-attackable, which they are not; the model
+      is wrong.
+    - >-
+      Some rung cannot be instantiated at any toy size. The ladder is
+      incomplete; report the gap as an absence and do not interpolate across it.
+
+  confounders:
+    - >-
+      TOY CROSSOVER INVERSION IS THE CONFOUNDER AND THE FINDING AT ONCE. Because
+      no non-anomalous transfer beats rho below about 32 bits, a toy negative is
+      forced. Any record reading a toy negative as support for H-IT-001 is
+      reading arithmetic as evidence. This must be stated in the run report.
+    - >-
+      MODEL CONSTANT UNCERTAINTY. The 1.923 constant and the L[1/3] form carry
+      unstated o(1) factors and polynomial overheads; at 20-28 bits the
+      asymptotic form is far outside its validity range and the numbers are
+      indicative only. That cuts BOTH ways and is why the toy arm is proposed as
+      an instrument test rather than a cost measurement.
+    - >-
+      RUNG INSTANTIABILITY BIAS. If MNT k = 6 curves are hard to instantiate at
+      24 bits and k = 2 supersingular curves are trivial, the measured ladder
+      will be denser at small k and the monotonicity claim will rest on fewer
+      points at the top. Report counts per rung.
+    - >-
+      OVERLAP WITH DEC-20260804-6ee18a's MAGCS interior. The same k = 3, 4, 6,
+      12 curve list serves that record's untested interior. Using one curve list
+      for two purposes is efficient but the two results are NOT independent
+      evidence and must not be cited as such.
+
+  interpretation_limits:
+    - >-
+      NO ATTACK, NO EXPONENT MOVED, NO NEW TRANSFER. Every transfer used is
+      standard and is used as a ruler. No deployed curve is targeted; only
+      public parameters and planted toy logarithms are used, per RQ-ECDLP-002's
+      constraints.
+    - >-
+      NO STATUS CHANGE to H-IT-001, EXP-IT-001, DEC-20260803-004,
+      DEC-20260804-2fae6a or the goal's next_action is proposed or implied. This
+      record ADDS a control to a batch the Coordinator has already specified; it
+      does not modify that specification, and only the Coordinator may.
+    - >-
+      TOY TIER, and the toy tier is precisely what is being questioned. The
+      claim "a toy negative from this instrument is forced by arithmetic" is
+      itself a toy-scale claim about a toy-scale instrument and establishes
+      nothing at crypto scale.
+    - >-
+      IT DOES NOT CLOSE THE ISOGENY-TRANSFER LANE. H-IT-001's real content is
+      about isogeny PATH LENGTH to a sparse special set; this record says only
+      that the toy arm's transfer-cost term cannot be the binding one there.
+      Forward guidance: what remains open is (a) the path-length distribution
+      itself, which is the hypothesis's actual measurand and which the ladder
+      does not touch; (b) whether any rung above the crossover exists for
+      curves reachable by a SHORT isogeny from a generic curve, which is the
+      composite quantity H-IT-001 defines; (c) the sizes 32-48 bits, above the
+      crossover and still runnable, which no arm in this lane currently covers
+      and which is the cheapest way to give the instrument real discriminating
+      power.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a curve with embedding degree k over F_p in the medium-to-large
+        characteristic regime, the cost of the transferred DLP is
+        L_{p^k}[1/3, (64/9)^{1/3}] = exp((64/9)^{1/3} (ln p^k)^{1/3}
+        (ln ln p^k)^{2/3}) (1+o(1)).
+      rigorous_support: >-
+        The standard NFS/FFDLP heuristic complexity, RECALLED and UNVERIFIED.
+        The o(1) is unbounded at the sizes used, and at 20-28 bits the
+        asymptotic form has no claim to accuracy at all. It is used here only
+        for ORDERING (monotone in k) and for the crypto-scale crossover, both of
+        which are robust to the constant.
+      validation_plan: >-
+        Stage 0 verifies the constant and the characteristic regime against a
+        primary source and records the o(1) caveat. The ordering claim is
+        checked by monotonicity of L_q in q, which needs no constant. The
+        crossover claim is checked against the deployed BN/BLS12 design point,
+        which is an independent, published calibration and is the strongest
+        check available without reading a complexity paper.
+    - id: H2
+      statement: >-
+        The charged cost of the anomalous attack is polynomial in log p and
+        unconditional.
+      rigorous_support: >-
+        RECALLED, UNVERIFIED. It is the one rung whose failure would break the
+        positive control, which is why the experiment verifies it
+        CONSTRUCTIVELY -- by recovering a planted logarithm -- rather than
+        citing it.
+      validation_plan: >-
+        Stage 1: 20 planted recoveries with independently verified certificates
+        at bits = 20. Success rate and charged cost reported.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS MOVED. The exponents involved are all standard and are used
+      as rulers: rho at N^{1/2}; anomalous at poly(log p); MOV/Frey-Ruck at
+      L_{p^k}[1/3]. What the record contributes quantitatively is the crossover
+      k*(p) at which the L[1/3] exponent in F_{p^k} overtakes the 1/2 exponent
+      in E(F_p) -- 9.91 at 256 bits -- and the observation that the crossover is
+      below 1 for every p this goal can run.
+    memory_exponent: >-
+      Charged and stated: rho with distinguished points is negligible-memory;
+      NFS/FFDLP in F_{p^k} needs a linear-algebra stage with memory of the same
+      subexponential order as its time, which no rung of this ladder charges and
+      which would push the crossover k* DOWNWARD under an area-time accounting.
+      That direction is stated rather than computed, and computing it is named
+      as a successor.
+    best_known: >-
+      Pollard rho at N^{1/2} for generic prime-field curves; polynomial time for
+      anomalous curves; L_{p^k}[1/3] after MOV/Frey-Ruck for low embedding
+      degree. All standard, none claimed here.
+    hidden_overhead: >-
+      The L[1/3] o(1) is unbounded and dominates completely at 20-28 bits; the
+      pairing evaluation and the F_{p^k} arithmetic are polynomial and are not
+      separately charged. Both are stated.
+    tradeoff_note: >-
+      Charging memory would move k* down, making transfer LESS attractive than
+      the table shows. The table is therefore optimistic for the attacker, which
+      is the conservative direction for a defensive audit.
+
+  dominated_by: >-
+    n/a (no result claimed; no new attack and no new cost point). Frontier rows
+    checked before writing n/a: TIME -- Pollard rho N^{1/2}, BSGS N^{1/2},
+    anomalous poly(log p), MOV/Frey-Ruck L_{p^k}[1/3]; MEMORY -- rho with
+    distinguished points negligible, BSGS N^{1/2}, van Oorschot-Wiener w memory
+    with sqrt(N^3/w) time, NFS linear algebra subexponential; DATA/QUERIES --
+    all query-free on public parameters, and no rung consumes signatures or
+    oracle access. Each rung of the ladder sits exactly on a known row; the
+    record adds none and improves none.
+  sota_delta: >-
+    ZERO on every attack axis. Quantitatively the deliverable is: a forced,
+    monotone six-point response curve for an instrument that currently has one
+    calibration point; the crossovers k* = 4.01, 6.74, 9.91, 17.46, 27.14 at
+    128/192/256/384/521 bits, derived and checked against the deployed BN/BLS12
+    design point; and the finding that the transfer advantage is negative at
+    every non-anomalous rung below about 32 bits, so that the goal's declared
+    20-28 bit toy ceiling lies entirely inside the region where the instrument's
+    measurand is forced. Against a contract carrying a single positive control,
+    the delta is five interior points and a stated validity boundary.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.90 that the forced cost table and the monotone ordering hold as stated,
+    and 0.85 that the toy-scale inversion (no non-anomalous rung beats rho below
+    ~32 bits) survives contact with a real cost accounting. Not higher because
+    the L[1/3] asymptotic is being evaluated far outside its validity range at
+    20-28 bits, where the o(1) is unbounded and could in principle move the
+    small-p entries by orders of magnitude in either direction -- though not
+    enough to reverse a factor-of-6.5 gap at k = 1, which is why the conclusion
+    is stated as a sign rather than a magnitude. Not lower because the
+    crypto-scale end of the same table reproduces the deployed BN/BLS12 design
+    point without tuning, which is a genuine independent calibration, and
+    because the monotonicity claim needs no constant at all.
+    Separately: 0.60 that the ladder changes what the BATCH-046 successor
+    concludes, since the batch may in any case report only an instrument
+    readout; the value is in preventing a forced negative from being recorded as
+    a measured one.

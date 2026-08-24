@@ -1,0 +1,242 @@
+idea:
+  id: IDEA-20260816-d285e8
+  question_id: RQ-MDFIVE-6870c1
+  added: '2026-08-16'
+  title: Treat MD5's 64-step message schedule alone as the object and measure, across random schedules
+    with the same word-multiplicity profile, whether the collision-favourable statistic and the preimage-favourable
+    statistic are correlated, then ask whether MD5 is an outlier in one coordinate but not the other.
+  class: mechanism
+  claim: '(A) Two scalars can be read off any message schedule sigma: {0..63} -> {0..15} without evaluating
+    the hash even once. The first, call it modification depth D, is the largest step index up to which
+    every step meets a word not consumed by any earlier step, and it upper-bounds how deep into the
+    computation an attacker can force conditions deterministically by choosing message words. The
+    second, call it chunk separation S, is the largest number of consecutive steps that admit a partition
+    into a forward segment and a backward segment such that each segment omits at least one word the
+    other uses, which is the structural precondition a meet-in-the-middle split needs. (B) The claim
+    under test is that D and S are close to statistically independent across the family of schedules
+    with MD5''s shape, and that MD5 occupies a high percentile in D while occupying an ordinary percentile
+    in S. If true, that is a concrete statement of where the asymmetry lives: the same permutation
+    is generous to the collision-side statistic and unremarkable for the preimage-side one, and the
+    two are not tied together by the shape of the family. (C) If instead D and S are strongly correlated
+    across the family, the asymmetry cannot be a schedule property at all, and the record closes the
+    schedule reading and redirects to the step function and the mode, naming the correlation coefficient
+    as the obstruction. (D) EXPLICITLY NOT CLAIMED: that a high D or a low S implies anything about
+    achievable attack complexity, that S is the only precondition a meet-in-the-middle split needs,
+    that MD5''s designers chose the schedule for either reason, or anything at all about MD5''s preimage
+    resistance. D and S are combinatorial statistics of a permutation, and this record claims exactly
+    that.'
+  mechanism: 'Both statistics are decidable by enumeration over a 64-entry table, so the entire mechanism
+    runs without hashing anything. STAGE 1 defines D by a single left-to-right scan maintaining the
+    set of consumed words; for MD5''s round-1 identity schedule the answer is immediate and serves
+    as the instrument''s own sanity check. STAGE 2 defines S by enumerating every contiguous window
+    and every split point inside it, checking the omission condition on both sides; the window count
+    is quadratic in 64 and the check is a set operation, so the whole enumeration is trivial. STAGE
+    3 samples schedules uniformly subject to four uses per word and computes the joint distribution
+    of (D, S), giving both marginals, the rank correlation, and MD5''s percentile in each. STAGE 4
+    repeats on MD4''s 48-step shape. The claim is refuted in one of two clean ways: a high rank correlation
+    between D and S kills the independence part, and an ordinary MD5 percentile in D kills the outlier
+    part. Either outcome is a number, reusable by every other proposal in this bucket, and neither
+    requires a single MD5 evaluation.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Same corpus sweep as the freedom-accounting record in this batch: grep -rl MDFIVE over
+      ledger/proposals/, ledger/hypotheses/, experiments/; grep -ril md5 and md4 over ledger/proposals/;
+      grep -ril ''biclique|meet-in-the-middle'' over ledger/proposals/ and knowledge/techniques/;
+      grep -ril merkle over ledger/proposals/ and knowledge/techniques/. Read RQ-MDFIVE-6870c1 in
+      full and knowledge/techniques/KN-TECH-066.'
+    results: No proposal in ledger/proposals/ mentions MD5, MD4 or MDFIVE. The meet-in-the-middle
+      grep matched a large set of proposals including IDEA-20260805-59fa23, IDEA-20260806-c5d183 and
+      IDEA-20260808-d3eb2a, but inspection of the match context shows these are asymmetric-side records
+      using meet-in-the-middle in the isogeny and discrete-log sense, with no message schedule and
+      no hash function. knowledge/techniques/KN-TECH-066 covers message modification and rebound attacks
+      and names degrees of freedom as the spent resource, but treats the schedule qualitatively and
+      defines neither statistic. KN-TECH-080, the proof-architecture note, supplies the nearby-object
+      control discipline this record's null arm implements.
+    verdict: 'UNVERIFIED. Both statistics are elementary and either could have been written down by
+      anyone who has looked at a message schedule; the concept of independent chunks is standard in
+      the technique family named in RQ-MDFIVE-6870c1''s methods block. What is claimed new is narrow:
+      computing the two statistics jointly, treating their correlation across a shape-matched random
+      family as the quantity of interest, and reporting MD5 as a point inside that joint distribution
+      rather than in isolation. No claim is made about what has or has not been published, and this
+      program cannot check.'
+  object_first_candidate:
+    tracked_object: The message schedule as a bipartite word-usage graph, projected onto the ordered
+      pair (D, S) of modification depth and chunk separation.
+    lossiness: 'Lossy in the strong sense required by inventor-protocol section 2. A 64-entry schedule
+      carries far more information than two small integers, and the fibres are large: many distinct
+      schedules share a given (D, S). The retained part propagates because both statistics are defined
+      purely by which steps meet which words, and one step of the computation advances the scan by
+      exactly one table entry, updating the consumed-set and the window bookkeeping deterministically
+      and without reference to any state value, message value or rotation constant. What is discarded,
+      deliberately, is every value-level fact, which is why the object cannot see condition satisfiability
+      and must not be read as if it could.'
+    propagation: Advancing one step consumes one word. For D, the scan either extends by one because
+      the word is fresh or terminates permanently because it is not. For S, advancing the right edge
+      of a window adds the word to the right segment's usage set, which can only destroy the omission
+      condition for splits already inside the window and can only create it for splits at the new
+      edge. Both updates are monotone and local, which is why the enumeration is cheap and why the
+      statistics are stable rather than chaotic under small schedule edits.
+    survival_score: D dissolves exactly at the first repeated word, which for MD5 is step 16, so the
+      object's first coordinate has a hard and known lifetime of one round. S survives further by
+      construction, since it is defined over windows anywhere in 0..63, but the useful windows shrink
+      as word reuse accumulates, and the enumeration reports the longest surviving window explicitly
+      rather than asserting a bound. Beyond the longest window the projection carries no information
+      and the record says so.
+  null_object_control: The null object is a schedule drawn uniformly at random subject to each of
+    the 16 words appearing exactly 4 times, and the identical enumeration computes (D, S) for it in
+    the same invocation as MD5. The null must show a joint distribution with a stated rank correlation
+    and stated marginal percentiles. For the signal arm to mean anything, MD5's D percentile must
+    be high, its S percentile ordinary, and the null rank correlation must be low enough that the
+    two coordinates are not simply the same measurement twice. A second null, in which the schedule
+    is a fixed periodic pattern with the same multiplicity, bounds how much of the effect is available
+    from regularity alone.
+  discriminated_from:
+  - 'The freedom-versus-conditions accounting proposed as a sibling record in this batch: that one
+    counts bits and conditions per step relative to a path skeleton and needs a skeleton generator;
+    this one uses no skeleton, no conditions and no path, and its deliverable is a joint distribution
+    of two permutation statistics.'
+  - 'KN-TECH-066''s treatment of message modification: that note explains why freedom is the resource
+    and how modification spends it, without defining a schedule statistic or comparing a schedule
+    against a random family.'
+  - 'Generic complexity bounds for collision and preimage search: those depend only on output length
+    and would be identical for every schedule in the null family, so they cannot distinguish any point
+    in the distribution this record measures.'
+  - 'The blacklisted instrument and cost-model audits under RQ-INSTR-f8faa0: no timing, no machine,
+    no cost model appears here; the computation is a set enumeration over a table and is machine-independent
+    by construction.'
+  - 'Semaev-style degree-of-regularity ladders owned by the DREG lane: those measure the growth of
+    an algebraic solving parameter under a Groebner basis computation; this measures combinatorial
+    statistics of a permutation and involves no polynomial system.'
+  assumptions:
+  - MD5's schedule as printed in RFC 1321 is transcribed correctly, verified by two independent transcriptions.
+  - Chunk separation as defined, namely each segment omitting a word the other uses, captures the
+    structural precondition of interest; it is a necessary condition for an independent-chunk split
+    and not a sufficient one, and the record treats it as necessary only.
+  - The uniform multiplicity-preserving family is an appropriate null; alternative nulls preserving
+    round-block structure would give different percentiles and are run as a secondary arm.
+  - Modification depth is an upper bound on deterministic forcing depth and not an achievable depth,
+    since achievability depends on conditions the object cannot see.
+  predictions:
+  - metric: Spearman rank correlation between D and S over 10^5 null schedules
+    direction: lower
+    minimum_effect: 0.3
+  - metric: MD5's percentile in the D marginal
+    direction: higher
+    minimum_effect: 90
+  - metric: MD5's percentile in the S marginal
+    direction: different
+    minimum_effect: predicted to lie between the 25th and 75th percentile; falsified if it exceeds
+      the 90th or falls below the 10th
+  - metric: MD4 percentile in D relative to MD5's
+    direction: higher
+    minimum_effect: 'explicit refusal to pre-commit on the sign: MD4 has 48 steps and a different
+      multiplicity profile, so its percentile is measured against its own null family and the cross-primitive
+      comparison is reported without a pre-registered direction'
+  minimal_test:
+    design: 'The whole discriminating measurement is a single Python program with no dependencies
+      beyond the standard library. Encode MD5''s schedule; compute D by one scan and S by enumerating
+      the 2080 contiguous windows and their interior split points, checking a set-omission condition
+      at each. Draw 10^5 null schedules by shuffling the multiset of 64 slot labels, and compute the
+      same two statistics for each. Report the joint distribution, the rank correlation, and MD5''s
+      two percentiles. Total runtime is seconds to a minute. Discrimination is immediate and two-sided:
+      a rank correlation above 0.3 closes the independence claim, and an MD5 D-percentile below 90
+      closes the outlier claim, either of which is a usable measured obstruction that redirects the
+      bucket toward the step function or the mode. There is no partial-credit outcome and no way for
+      the measurement to be inconclusive at this sample size.'
+    controls:
+    - Uniform multiplicity-preserving random schedules, 10^5 samples, in the same invocation.
+    - A periodic regular schedule with the same multiplicity, bounding the contribution of regularity
+      alone.
+    - The reversed MD5 schedule, which preserves all multiset structure but destroys the round-1 identity,
+      isolating the contribution of that identity to D.
+    - MD4's schedule against its own shape-matched null family, so the instrument is seen to move
+      between primitives.
+    - A deliberately degenerate schedule where one word fills 64 slots, which must produce D = 1 and
+      S = 0 or the implementation is wrong.
+    required_metrics:
+    - D and S for MD5
+    - joint distribution of (D, S) over the null family
+    - Spearman rank correlation of D and S in the null
+    - MD5 percentile in each marginal
+    - D and S for MD4, the reversed schedule, and the periodic control
+  falsification_conditions:
+  - Rank correlation between D and S in the null exceeds 0.3, so the two coordinates are not separable
+    properties.
+  - MD5's D percentile is below 90, so MD5 is unremarkable on the collision-favourable statistic.
+  - MD5's S percentile is above 90 or below 10, so it is not ordinary on the preimage-favourable statistic
+    and the asymmetry story inverts or vanishes.
+  - The reversed-schedule control has a D percentile as high as MD5's, showing the statistic reads
+    the multiset and not the order.
+  - MD4 and MD5 land at indistinguishable percentiles in both coordinates, failing the paired-control
+    filter that RQ-MDFIVE-6870c1 requires.
+  confounders:
+  - 'Definitional slack in S: a different but equally reasonable omission condition can move the percentile
+    substantially, so the definition is frozen before the run.'
+  - 'Null family choice: preserving round-block structure versus preserving only multiplicity gives
+    different bands and different verdicts.'
+  - Sampling error in the tails, which matters precisely because the claim is about a high percentile;
+    the sample size is set to make the 90th percentile stable.
+  - Multiplicity-profile differences between MD4 and MD5 shapes, which make cross-primitive percentiles
+    non-comparable unless each is taken against its own null.
+  - The temptation to read D as an achievable forcing depth, which it is not, and which would import
+    value-level claims the object cannot support.
+  interpretation_limits:
+  - D and S are necessary-condition statistics; neither converts to an attack cost and neither may
+    be quoted as one.
+  - A high D percentile describes the schedule, not the designers' intent and not the primitive's
+    security.
+  - The null family is a modelling choice, so every percentile is scoped to that family and changes
+    if the family changes.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement outputs two integers and a percentile
+      pair.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is the qualitative statement in RQ-MDFIVE-6870c1 that the two frontiers
+      moved by different amounts, which names no schedule statistic. There is no quantitative incumbent
+      for either D or S anywhere in this repository's ledger or knowledge corpus, as the novelty screen
+      records.
+    hidden_overhead: 'The compute is negligible and that is exactly where the overhead hides. The
+      load-bearing work is definitional: S admits several defensible omission conditions and the choice
+      moves MD5''s percentile more than any amount of extra sampling would, so the record is only
+      as good as the discipline of freezing the definition before looking. A second hidden cost is
+      that the null family is itself a design artefact, and constructing one that is neither too structured
+      nor too unstructured takes more judgement than the enumeration takes cycles. Third, these two
+      integers are cheap enough that later records will reuse them casually, and every such reuse
+      silently inherits both choices; the record therefore carries its definitions and null family
+      in full so the inheritance is visible rather than free.'
+  dominated_by: 'n/a (no result claimed). Every frontier row this program holds for MD5 was checked,
+    and there are two: the UNVERIFIED preimage figure near 2^123.4 and the collision figure described
+    as seconds on a laptop, both in RQ-MDFIVE-6870c1. Neither row has an axis this measurement produces
+    a value on, so domination is undefined rather than absent.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a percentile pair,
+    which stands in no numerical relation to any complexity figure.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Split by part. That both statistics are computable and reproducible:
+    about 0.98, since they are set operations over a fixed table. That the null rank correlation comes
+    out below 0.3, making the two coordinates separable: about 0.5, with genuine uncertainty because
+    both statistics are functions of word-reuse spacing and may share more structure than the framing
+    assumes. That MD5''s D percentile exceeds 90: about 0.7, because round 1 of MD5 is the identity
+    on the words and that is a strong structural feature, though the null family may contain many
+    schedules with an equally long fresh prefix. That MD5''s S percentile is ordinary, completing
+    the asymmetry reading: about 0.3. That all three hold together: about 0.12.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-MDFIVE-6870c1
+  - GOAL-MD5-001
+  - KN-TECH-066
+  - KN-TECH-080
+  - KN-TECH-056
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-MDFIVE-b64111

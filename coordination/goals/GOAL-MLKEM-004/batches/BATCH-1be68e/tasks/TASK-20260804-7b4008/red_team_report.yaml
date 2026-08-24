@@ -1,0 +1,363 @@
+red_team_report:
+  id: RT-20260804-3b82cd
+  task_id: TASK-20260804-7b4008
+  reviewed_task_id: TASK-20260804-cbf6e2
+  snapshot_commit: 8b446af26e5658346ba25804e2f1f3181a533d4c
+  batch: BATCH-1be68e
+  goal: GOAL-MLKEM-004
+  role: red-team
+  model: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+  requested_policy: review-adversarial
+  independent_session: true
+  recorded_at: "2026-08-04T23:30:00Z"
+
+  claim_under_review: >
+    Batch-5 paired test: Pearson r = 0.4395 (p = 0.00141) for (T_N_correct, T_N_null)
+    from 50 paired sieve runs. Var[T_N_correct] = 9,097; Var[T_N_null] = 14,059.
+    Neither pre-registered threshold met (H1: r >= 0.8; H2: r <= 0.3).
+    The executor correctly reports no finding and defers interpretation to the Coordinator.
+    Red Team attacks the design, the interpretation of r = 0.44, the variance asymmetry,
+    and the residual campaign path.
+
+  verdict: pass_with_constraints
+
+  # ─── OBJECTION 1 ────────────────────────────────────────────────────────────
+  objection_1:
+    id: OBJ-1-threshold-calibration-failure
+    severity: BLOCKING
+    title: "Pre-registered thresholds lack generative calibration; r = 0.44 is
+      statistically consistent with the pure additive H1 model"
+    full_argument: |
+      The thresholds r >= 0.8 (H1) and r <= 0.3 (H2) were asserted without
+      simulation or closed-form derivation from the actual model parameters.
+
+      Under a minimal additive environmental model Q_i (scalar run-quality shift
+      affecting all N scores in run i equally):
+
+        T_N_correct_i = base_c + Q_i + noise_c_i
+        T_N_null_i    = base_n + Q_i + noise_n_i
+
+      Cov(T_c, T_n) = Var(Q)
+      Var(T_c)      = N·σ²_correct + Var(Q)  =  5,901 + Var(Q)
+      Var(T_n)      = N·σ²_null    + Var(Q)  =  7,987 + Var(Q)
+
+      Calibrating to the OBSERVED ratio_correct = 1.5415:
+        Var(Q) = (1.5415 - 1) × 5,901 = 3,195
+
+      Predicted r under this calibration:
+        r_H1 = Var(Q) / sqrt((5,901+Var(Q)) × (7,987+Var(Q)))
+              = 3,195 / sqrt(9,096 × 11,182)
+              ≈ 0.317
+
+      Fisher-z test for whether observed r = 0.4395 exceeds r_H1 = 0.317:
+        z_obs  = arctanh(0.4395) = 0.4716
+        z_pred = arctanh(0.317)  = 0.3281
+        SE(z)  = 1/sqrt(50-3)   = 0.1459
+        z-stat = (0.4716 - 0.3281) / 0.1459 ≈ 0.98  (p ≈ 0.33)
+
+      CONCLUSION: r = 0.44 is statistically consistent with pure additive H1
+      (environmental) at the ratio_correct that was actually observed. The
+      pre-registered H1 threshold of r >= 0.8 would require Var(Q) ≈ 27,700
+      — roughly 5× the intrinsic Var[T_N_correct] — which was never established
+      as the expected QEMU noise level. The threshold is not achievable under
+      realistic environmental noise magnitudes unless σ_n = σ_c (which they are
+      not by design). The asymmetric per-vector variances (σ²_null = 0.4457 >
+      σ²_correct = 0.3293) systematically dilute r under any additive-Q model,
+      meaning the H1 region r >= 0.8 was likely unreachable at these parameters.
+
+    blocking_question: |
+      Can the Coordinator produce the simulation or derivation that maps the
+      observed QEMU noise level to r >= 0.8 under H1? Without it the design
+      cannot discriminate between H1 and H2 using this statistic.
+
+  # ─── OBJECTION 2 ────────────────────────────────────────────────────────────
+  objection_2:
+    id: OBJ-2-variance-ratio-asymmetry
+    severity: NON_BLOCKING
+    title: "ratio_null (1.760) > ratio_correct (1.541); both exceed 1.0; additive
+      Q model cannot explain this asymmetry"
+    full_argument: |
+      From batch-5 single-score variances and N = 17,919:
+
+        N·σ²_correct = 17,919 × 0.32934 = 5,901
+        N·σ²_null    = 17,919 × 0.44572 = 7,987
+
+        ratio_correct = 9,097 / 5,901 = 1.5415
+        ratio_null    = 14,059 / 7,987 = 1.7602
+
+      ratio_null > ratio_correct (1.760 > 1.541) by 14%.
+
+      Under pure additive Q_i the inflation above independence is Var(Q)/denominator:
+        (ratio_c - 1) = Var(Q) / N·σ²_c  →  Var(Q)_from_c = 3,195
+        (ratio_n - 1) = Var(Q) / N·σ²_n  →  Var(Q)_from_n = 6,072
+
+      These are different (3,195 ≠ 6,072): additive Q implies equal Var(Q) for
+      both streams, which is inconsistent with the data.  Equivalently, under
+      additive Q the excess inflation above 1.0 should satisfy:
+        (ratio_c - 1) / σ²_c  =  (ratio_n - 1) / σ²_n  (= Var(Q)/N for all streams)
+        lhs = 0.5415/0.3293 = 1.644
+        rhs = 0.7602/0.4457 = 1.706
+      These are close but not equal, suggesting the additive model is a rough
+      approximation rather than exact.
+
+      IMPLICATION: Either (a) the environmental model is more complex than simple
+      additive Q (e.g., multiplicative or amplitude-dependent), or (b) the sieve
+      produces within-run inter-vector correlations for null scores that differ
+      from correct scores. Either interpretation is consistent with the observed
+      data. The direction (ratio_null > ratio_correct) is in the opposite
+      direction from naive H2 (which predicts the correct stream is more inflated
+      because it has structured phase clustering).
+
+      WEAK SIGNAL TOWARD H1: Under the asymmetric-σ version of H1, the environmental
+      factor is expected to produce LESS inflation in the higher-σ stream (because
+      the intrinsic noise is larger relative to Var(Q)). But we observe MORE
+      inflation in the null stream. This is a mild inconsistency with H1 in the
+      additive formulation, but does not rule out a more complex environmental model.
+
+    verified_numbers:
+      N_times_sv_correct: 5901.40
+      N_times_sv_null: 7986.94
+      ratio_correct: 1.5415
+      ratio_null: 1.7602
+
+  # ─── OBJECTION 3 ────────────────────────────────────────────────────────────
+  objection_3:
+    id: OBJ-3-variance-partition-correction
+    severity: MINOR_NOTATION
+    title: "Handoff OBJ-3 uses Cov/Var_c for 'shared variance fraction' and
+      Var_n - Cov for 'unexplained variance' — both are numerically wrong"
+    full_argument: |
+      The handoff states:
+        "Cov[T_N_c, T_N_n] / Var[T_N_c] ≈ 4970/9097 ≈ 0.55 (about 55% of
+        T_N_correct variance is shared with T_N_null)"
+
+      This is incorrect. Cov/Var_c = 4,970/9,097 = 0.5463 is the OLS regression
+      SLOPE of T_N_null on T_N_correct, not the shared variance fraction.
+      The shared variance fraction is r² = 0.4395² = 0.1931 = 19.3%.
+
+      The handoff also states:
+        "~9,089 / 14,059 ≈ 65% of T_N_null's variance is NOT shared with correct"
+      using Var_n - Cov = 14,059 - 4,970 = 9,089. This is WRONG.
+
+      Correct unexplained variance of T_N_null:
+        (1 - r²) × Var_n = (1 - 0.1931) × 14,059 = 0.8069 × 14,059 = 11,344
+        Unexplained fraction = 80.7% (not 64.7%)
+
+      The difference matters: 80.7% independent variance in T_N_null (not 65%)
+      makes the "asymmetric independent variance" argument stronger, not weaker.
+      The conclusion that null has more independent variance than correct stands,
+      but the magnitude is larger than the handoff claims.
+
+      CORRECTED PARTITION:
+        T_N_correct: r²×Var_c = 1,757 explained (19.3%), 7,340 independent (80.7%)
+        T_N_null:    r²×Var_n = 2,715 explained (19.3%), 11,344 independent (80.7%)
+
+      Both streams have 80.7% independent variance. The difference is in the
+      ABSOLUTE SIZE of independent variance (7,340 vs 11,344), which directly
+      reflects the per-vector variance difference (σ²_null > σ²_correct) and is
+      a design artifact explained in OBJ-4 below.
+
+    verified_numbers:
+      cov_TN_c_TN_n: 4969.68
+      r_squared: 0.1931
+      unexplained_var_TN_c: 7340.06
+      unexplained_var_TN_n: 11343.62
+      unexplained_fraction_both_streams: 0.8069
+
+  # ─── OBJECTION 4 ────────────────────────────────────────────────────────────
+  objection_4:
+    id: OBJ-4-wrong-secret-distance-formula-error
+    severity: MINOR_NOTATION
+    title: "Handoff OBJ-4 uses wrong formula for E[||s-s*||²]; actual is 46 not 200;
+      null scores are 68% toward uniform, not fully uniform"
+    full_argument: |
+      The handoff states: "E[‖s-s*‖²] = 2 × n × 2η(η+1)/3 ≈ 2×25×2×2×3/3 = 200"
+
+      CORRECTION: For CB(η=2) with values {-2,-1,0,1,2} and probabilities
+      {1/16, 4/16, 6/16, 4/16, 1/16}:
+        E[X²] = Var[CB(2)] = 1.0  (not 8/3 ≈ 2.67)
+
+      Verification: E[X²] = 0×(6/16) + 1×(4/16) + 1×(4/16) + 4×(1/16) + 4×(1/16)
+                           = 0 + 4/16 + 4/16 + 4/16 + 4/16 = 16/16 = 1.0 ✓
+
+      For 23 differing coordinates (s and s* sampled independently from CB(2)):
+        E[||s-s*||²] = 23 × 2 × Var[CB(2)] = 23 × 2 × 1.0 = 46
+        ||s-s*||_rms ≈ 6.78  (not 14 as the handoff assumes)
+
+      The handoff's 200 is off by a factor of 4.3. The formula "2η(η+1)/3 = 8/3"
+      is not the correct variance of CB(η=2).
+
+      IMPACT ON NULL SCORE VARIANCE: The single_score_var_null = 0.44572 (observed)
+      vs Var[cos(2πU/q)] = 0.500 (perfectly uniform). The null scores are 68.2%
+      of the way from correct (0.32934) to uniform (0.50000):
+        (0.44572 - 0.32934) / (0.50000 - 0.32934) = 0.11638 / 0.17066 = 68.2%
+
+      Correct conclusion: the null scores are PARTIALLY but NOT fully randomized
+      by the wrong-secret term. The wrong-secret distance ||s-s*|| ≈ 6.78 is
+      moderate, producing significant phase randomization but not approaching
+      the uniform limit. This still explains why σ²_null > σ²_correct and
+      why Var[T_N_null] > Var[T_N_correct] — this is a DESIGN ARTIFACT, not
+      a research finding.
+
+      DESIGN ARTIFACT STATEMENT (mandatory): The inequality Var[T_N_null] >
+      Var[T_N_correct] is a predetermined consequence of the null construction.
+      Under any score-preserving monotone function of the phase, a wrong secret
+      at distance ≈ 6.78 must produce larger per-vector variance than the correct
+      secret. This propagates to Var[T_N_null] > Var[T_N_correct] regardless of
+      any QEMU effect, sieve structure, or Ducas-Pulles failure. No inference
+      about ML-KEM security or the ECDLP follows.
+
+    verified_numbers:
+      var_cb2: 1.000
+      E_sq_diff: 46.0
+      rms_diff: 6.78
+      null_sv_observed: 0.44572
+      null_sv_uniform: 0.50000
+      null_sv_correct: 0.32934
+      null_pct_toward_uniform: 68.2
+
+  # ─── OBJECTION 5 ────────────────────────────────────────────────────────────
+  objection_5:
+    id: OBJ-5-qemu-only-result
+    severity: BLOCKING
+    title: "ALL variance inflation and paired-test results are QEMU-only; native
+      hardware is required before any campaign conclusion stands"
+    full_argument: |
+      Every non-trivial variance result in this campaign was obtained under QEMU
+      x86_64 emulation on Apple Silicon:
+
+        Batch-2 (QEMU): ratio_correct = 1.2247
+        Batch-3 (QEMU): ratio_correct = 1.3916  (p=0.001)
+        Batch-4 (QEMU): ratio_null    = 1.5332  (p=0.0096)
+        Batch-5 (QEMU): ratio_correct = 1.5415, ratio_null = 1.7602, r = 0.4395
+
+      The one attempt on native hardware (TASK-20260804-27e27b, ARM64 macOS) was an
+      infrastructure failure. No native Linux x86_64 run has been completed.
+
+      QEMU is known to emulate timing, PRNG seeding, floating-point rounding, and
+      memory access patterns imperfectly. For a signal that accumulates over 17,919
+      cosine evaluations per run and shows ratio > 1 by 20-76%, a QEMU artifact
+      cannot be ruled out without at least one native run. The "QEMU artifact"
+      hypothesis is precisely H1, and the paired test was designed to test it, but
+      the test failed to discriminate (r = 0.44).
+
+      The observation that ratio_null > ratio_correct is weakly consistent with
+      a QEMU emulation artifact that inflates high-σ statistics proportionally
+      more than low-σ statistics (e.g., through floating-point rounding that
+      accumulates more error for larger cosines).
+
+      Until at least one native Linux x86_64 run is available, no ratio_correct > 1
+      result can be attributed to a mathematical property of the sieve.
+
+  # ─── OBJECTION 6 ────────────────────────────────────────────────────────────
+  objection_6:
+    id: OBJ-6-missing-control-for-r
+    severity: BLOCKING
+    title: "No null calibration for r itself; the Inventor Protocol requires a
+      same-shape null to establish the baseline distribution of r under each hypothesis"
+    full_argument: |
+      AGENTS.md (Inventor Protocol §3): "Any reported signal is an artifact until
+      the identical measurement has been run against a null object of the same shape."
+
+      The appropriate null object for the paired r test is: computing r(T_c, T_n')
+      where T_n' is computed from INDEPENDENTLY RE-SAMPLED sieve vectors from a
+      DIFFERENT run (not the same run as T_c). Under true independence, this would
+      give r ≈ 0. If the QEMU environment drives r through some temporal or
+      memory-based artifact (correlated random seeds, OS scheduler state), the
+      independent-run r would still be non-zero.
+
+      Without this baseline, r = 0.44 from same-run paired vectors cannot be
+      distinguished from:
+        (a) genuine within-run co-movement of T_c and T_n
+        (b) a QEMU-specific artifact that correlates T_c across runs (with T_n
+            being a bystander)
+
+      A cross-run r (T_c[i], T_n[j] for i ≠ j) should be ≈ 0 unless there is
+      temporal correlation between runs. If cross-run r ≈ 0, same-run r = 0.44
+      is a within-run effect (genuine co-movement). If cross-run r is also > 0,
+      there is temporal QEMU state leakage. This control was not run.
+
+  required_controls:
+    - id: RC-1
+      priority: HIGH
+      description: >
+        Native Linux x86_64 run: reproduce batches 3 and 5 on non-QEMU hardware
+        to determine whether ratio > 1 and r = 0.44 persist outside QEMU.
+    - id: RC-2
+      priority: HIGH
+      description: >
+        Calibrate r thresholds via simulation: for the observed ratio_correct = 1.54
+        and N = 17,919, simulate 1,000 paired-run experiments under (a) pure
+        additive Q model and (b) i.i.d. per-vector model and compute the
+        5th/95th percentile of r under each. Determine whether 0.8 and 0.3 are
+        achievable or whether more informative thresholds should be used in batch 6.
+    - id: RC-3
+      priority: MEDIUM
+      description: >
+        Cross-run r control: compute r(T_c[i], T_n[j]) for i ≠ j (e.g., T_c
+        from odd-indexed runs vs T_n from even-indexed runs). Expected value ≈ 0
+        under H2 (no temporal correlation); positive value indicates temporal
+        QEMU state leakage or systematic drift.
+    - id: RC-4
+      priority: MEDIUM
+      description: >
+        Near-secret null for within-batch discrimination: in batch 6, run a
+        SECOND wrong-secret test with s** differing from s in only 1-2 coordinates
+        (not 23). Under H2 (genuine sieve correlation decorrelated by y·(s-s*)),
+        the near-secret T_n** should have r(T_c, T_n**) ≈ 1. Under H1 (pure
+        environmental), both should give the same r. This provides a within-batch
+        discrimination that does not require native hardware.
+
+  counterexample_or_mutation:
+    description: >
+      Under a pure additive environmental model calibrated to the observed
+      ratio_correct = 1.5415, the predicted Pearson r ≈ 0.317. The observed
+      r = 0.44 exceeds this by < 1 standard error under Fisher-z (z-stat ≈ 0.98,
+      p ≈ 0.33). This means r = 0.44 is NOT statistically distinguishable from
+      pure environmental H1 at this sample size. The pre-registered threshold
+      r >= 0.8 was therefore not a meaningful H1 boundary — it was too extreme
+      to serve as a discriminator given the actual variance structure.
+
+  baseline_comparison:
+    description: >
+      The Inventor Protocol requires comparison against the best known baseline.
+      For this experiment, the relevant baseline is: what r would an iid-score
+      model (Cov = 0) produce, and what r would a pure additive environmental
+      model (H1) produce? Both have been computed:
+        r_iid = 0.0 (by definition)
+        r_H1_additive_calibrated = 0.317
+        r_observed = 0.4395
+      r_observed is marginally above r_H1 (not significantly so). The design
+      provides no evidence that r_observed comes from a mechanism beyond additive
+      environmental co-movement.
+
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges: []
+
+  narrowest_supported_statement: >
+    Within the QEMU linux/amd64 environment: the bgj1_sieve produces T_N_correct
+    and T_N_null that co-vary weakly (r = 0.4395, p = 0.0014). Both streams show
+    variance above the per-vector independence prediction (ratio_correct ≈ 1.54,
+    ratio_null ≈ 1.76 in batch 5; consistent with batches 3 and 4 respectively).
+    Neither hypothesis can be conclusively confirmed or rejected from this batch
+    alone: the observed r is statistically consistent with a pure additive
+    environmental artifact (predicted r ≈ 0.317 from ratio_correct calibration).
+    All results are QEMU-only. No ML-KEM security claim or Ducas-Pulles validation
+    follows.
+
+  next_concrete_action: >
+    Batch 6 should deploy RC-4 (near-secret null alongside the 23-coord null) to
+    achieve within-batch hypothesis discrimination without native hardware. This
+    test: if r(T_c, T_n_near) >> r(T_c, T_n_far) this is consistent with H2;
+    if both r's are equal, consistent with H1. Additionally, record cross-run r
+    (RC-3) on the existing batch-5 data (T_c from first 25 runs vs T_n from last
+    25 runs) — this requires no new execution. If the Coordinator can arrange
+    a native Linux x86_64 Docker run (on any x86_64 Linux VM or CI runner), a
+    single 50-run replication of the variance test (ratio_correct) would resolve
+    the QEMU question entirely.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-1be68e/tasks/TASK-20260804-7b4008/red_team_report.yaml
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-1be68e/tasks/TASK-20260804-7b4008/falsification_review.md

@@ -1,0 +1,435 @@
+run_manifest:
+  task_id: TASK-20260806-e1700f
+  role: executor
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  goal: GOAL-HQC-001
+  batch: BATCH-f8050e
+  run_of: >-
+    V3 planted-correlation control arm for OPEN-6, replacing the V2 arm's
+    (TASK-20260806-047535) two fixed, hand-searched, worst-case templates
+    with a genuinely heterogeneous per-position, per-trial content ensemble
+    built by rejection sampling from Bernoulli(0.35), conditioned on
+    matching the position's intended decode label under the REAL
+    decode_blocks. Produces TWO distinct deliverables: (1) the same
+    MATCH/MISMATCH check against the closed-form log2_A_k(k) V1/V2
+    performed (planted_results.json); (2) a separate injected-defect
+    experiment measuring a calibrated boundary-shift detection RATE, with a
+    confidence interval, directly comparable to the Red Team's
+    independently measured ~8.8%/~19.6% natural flip-rate baselines
+    (EV-HQC-9a30d3) (detection_results.json).
+  claim_tier: toy
+  authority: >-
+    I am the Executor. This manifest records observations only. It
+    concludes NOTHING about A17, HQC's decoding-failure rate, or any
+    standardized HQC parameter set, and it changes no research status.
+    MATCH/MISMATCH per k, and the measured detection rate with its
+    confidence interval, are reported without interpretation; whether this
+    arm closes, partially closes, or leaves open OPEN-6, and whether the
+    control-arm approach itself has reached a ceiling, are judgements for
+    the Coordinator and the two independent reviewers dispatched after this
+    task (TASK-20260806-cdc631 validator, TASK-20260806-7008de red team).
+  dispatch_source: coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/dispatch_queue.json
+  budget_authorized:
+    wall_clock_seconds: 3600
+    core_seconds: 1800
+    memory_gb: 2
+    runs_authorized: 2
+  budget_allocation_this_tasks_own_split:
+    main_run:
+      core_seconds_allocated: 1000.0
+      wall_seconds_allocated: 1800.0
+    detection_run:
+      core_seconds_allocated: 800.0
+      wall_seconds_allocated: 1500.0
+    note: >-
+      This split (summing to the task's authorized 1800 core-seconds) is
+      this task's own allocation decision, recorded here for audit
+      (design.md Section 6), not itself separately coordinator-approved
+      beyond the total.
+
+  execution_count:
+    authorized_runs_executed: 2
+    detail: >-
+      Exactly TWO authorized script invocations against this task's own
+      --out-dir (this directory), each executed EXACTLY ONCE: (1)
+      `--mode main`, producing planted_results.json; (2) `--mode
+      detection`, producing detection_results.json. Both are reported
+      identically here and in detection_rate_report.md/planted_results.json
+      -- no discrepancy (V1's carried-forward, still-unresolved run-count
+      discrepancy, DEC-20260806-cf5102 limitations, is not repeated by this
+      task). In addition, THREE separate, explicitly distinguished
+      pre-run test invocations ran in SCRATCH space
+      (/tmp/.../scratchpad), never against this directory, and none of
+      them wrote a committed artifact: a smoke run (`--mode main --trials
+      2000 --batches 200`), a smoke run (`--mode detection --trials-a
+      20000 --sub-chunk-a 5000 --trials-b 5000 --sub-chunk-b 2500`), and
+      the fail-closed dry-run demonstration (see
+      commands.fail_closed_check_verification). A pre-registration
+      calibration bench (bench_v3.py, bench_v3b.py, also scratch-space,
+      uncharged) preceded all of the above and is cited in design.md
+      Section 3.2.
+
+  pre_registration_ordering:
+    claim: >-
+      design.md was written and frozen (including the closed-form
+      log2_A_k(k) table, the rejection-sampling construction, and the
+      detection-rate experiment design) BEFORE planted_arm_v3.py was run on
+      any real (non-scratch, non-calibration) data.
+    evidence_file_mtimes_utc:
+      design.md: '2026-08-06T17:45:37Z'
+      planted_arm_v3.py_final: '2026-08-06T17:51:03Z (last edit: reverting
+        the deliberate fail-closed-check mismatch demonstration back to the
+        correct sha256 constant, and fixing one self-caught stray-paren
+        syntax error caught by py_compile before any run -- see
+        deviations below; the script''s functional content was otherwise
+        unchanged since its initial write)'
+      planted_results.json_final: '2026-08-06T18:02:32Z'
+      detection_results.json_final: '2026-08-06T18:07:14Z'
+    order_holds: true
+    in_run_reproduction_checks:
+      planted_law: >-
+        planted_law() recomputes mu_bar_k, q, and log2_A_k(k) for k=2..18
+        from the same closed form at run time (in BOTH --mode invocations)
+        and compares it to DESIGN_TABLE_LOG2_A (design.md Section 2.1,
+        transcribed as a module constant) with a 1e-12 tolerance; a
+        mismatch aborts the run before any trial is sampled. Result (both
+        runs): mismatched_keys=[], verdict=PASS.
+      per_block_rejection_verification: >-
+        Every accepted block, in both runs, was individually verified at
+        generation time to decode (via the real decode_blocks) to its
+        intended label before being used -- this IS the rejection-sampling
+        acceptance criterion itself (design.md Section 3.1), not a
+        post-hoc check.
+      full_trial_self_check: >-
+        Every batch of the main run additionally re-decoded the FULL
+        assembled 56-block trial and asserted F == block_fail bit-for-bit
+        (design.md Section 4 step 5); Component B of the detection run did
+        the same before applying any perturbation. Both checks passed on
+        every batch (200/200 main-run batches; 40/40 Component-B batches).
+
+  commands:
+    dependency_install: 'none required; numpy already present in this environment'
+    pre_registration_calibration_bench: >-
+      python3 /tmp/.../scratchpad/bench_v3.py and bench_v3b.py (ad hoc,
+      acceptance-probability probe over 2,000,000 Bernoulli(0.35)
+      candidates, plus rejection-sampling throughput measurements at
+      several batch sizes for both the full-56-position and 2-position
+      architectures -- design.md Section 3.2). Run in scratch space,
+      outside this task's write scope and outside --out-dir; produced no
+      committed artifact; used only to size the planned T's against the
+      1800 core-second budget. Not charged against this task's budget (same
+      convention V1/V2 used for their own throughput/template-search
+      calibration).
+    smoke_run_main: >-
+      python3 planted_arm_v3.py --mode main --out-dir <scratch> --trials
+      2000 --batches 200 (10 trials/batch; ran without error, 17/17 MATCH
+      trivially given the tiny T; used to catch implementation bugs cheaply
+      before spending real budget)
+    smoke_run_detection: >-
+      python3 planted_arm_v3.py --mode detection --out-dir <scratch>
+      --trials-a 20000 --sub-chunk-a 5000 --trials-b 5000 --sub-chunk-b 2500
+      (ran without error; smoke-scale detection rates -- paired_neighbor
+      unconditional phat=0.1026, margin-conditioned phat=0.197 -- were
+      already visibly in the same regime as the eventual authorized-run
+      figures and the Red Team's baseline, giving early confidence the
+      construction was implemented correctly, before the full-scale runs)
+    fail_closed_check_verification: >-
+      MEASURE_PY_EXPECTED_SHA256 in planted_arm_v3.py (this task's own
+      committed script, inside its write_scope) was temporarily edited to
+      an all-zero-digit placeholder, then the script was re-run
+      (PYTHONDONTWRITEBYTECODE=1 python3 planted_arm_v3.py --mode main
+      --out-dir <scratch> --trials 2000 --batches 200); it printed
+      "FAIL-CLOSED: measure.py sha256 mismatch. expected=00...0
+      actual=a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8."
+      to stdout (this script prints fail-closed messages via SystemExit
+      argument, captured on stdout in this invocation's non-redirected
+      terminal run), wrote NO new planted_results.json under the scratch
+      --out-dir, and exited with status 1. The constant was then reverted
+      (via a second Edit, restoring the exact original value) and verified
+      with a passing smoke run (17/17 MATCH) before any authorized run.
+      This demonstrates the check actually reads the field it guards and
+      aborts on a real mismatch (constraint: FAIL-CLOSED, NOT FAIL-OPEN).
+    the_authorized_main_run_command: >-
+      PYTHONDONTWRITEBYTECODE=1 python3 planted_arm_v3.py --mode main
+      --out-dir . --trials 500000 --batches 200 > stdout_main.log 2>
+      stderr_main.log
+    the_authorized_detection_run_command: >-
+      PYTHONDONTWRITEBYTECODE=1 python3 planted_arm_v3.py --mode detection
+      --out-dir . > stdout_detection.log 2> stderr_detection.log
+      (uses this script's own default --trials-a/--sub-chunk-a/--trials-b/
+      --sub-chunk-b, matching design.md Section 1's planned
+      T_DET_A=2,000,000 / T_DET_B=100,000)
+    the_authorized_runs_note: >-
+      Each of the two commands above was executed EXACTLY ONCE, producing
+      the committed stdout/stderr logs and result JSON files. No re-run, no
+      repeat invocation with identical seeds, no discarded/superseded
+      execution of either command exists. Execution count is reported
+      identically here and in detection_rate_report.md: TWO authorized
+      runs, plus the three separate, explicitly distinguished pre-run test
+      invocations in scratch space listed above, none of which wrote a
+      committed artifact.
+
+  git:
+    commit: d1311591686658288e2637b8b197e14e883f08ee
+    branch: claude/hqc-experiments-6unh3p
+    dirty: true
+    dirty_paths:
+    - '?? coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/'
+    dirty_tree_note: >-
+      The only untracked path is this task's own directory (the
+      deliverables this run produced). No other path in the working tree
+      is modified. This task did not commit; the Coordinator's snapshot
+      task (TASK-20260806-c2b509) does that. Recorded identically by both
+      authorized script invocations (main run and detection run), each
+      independently reading git state at their own start time; both report
+      the same commit (no intervening commit occurred between the two
+      runs).
+
+  environment:
+    python: 3.11.15
+    numpy: 2.4.6
+    platform: Linux-6.18.5-fc-v18-x86_64-with-glibc2.39
+    processor: x86_64
+    cpu_count: 4
+    note: >-
+      python/numpy versions match V1's/V2's/measure.py's recorded
+      environments, which is what makes the sha256-pinned imports
+      meaningful here.
+
+  seeds:
+    main_run:
+      seed_prefix: TASK-20260806-e1700f/PLANTED-ARM-V3/main/v1
+      derivation: >-
+        seed(purpose, n) = first 8 bytes, big-endian, of SHA-256 of the
+        ASCII string "<seed_prefix>|<purpose>|<n>".
+      per_batch_seeds: >-
+        seed("batch", i) for i = 0..199, one np.random.Generator(PCG64(seed))
+        per jackknife batch, consumed in order: draw_block_fail (rng.integers
+        then rng.random for subset keys), THEN rejection_sample_content's
+        Bernoulli(0.35) draws (rng.random per round, redraw-only-pending),
+        all within that batch's single 2,500-trial generation call.
+      first_5_batch_seeds:
+      - 5273631306705469779
+      - 10126358557708299874
+      - 844542782760321990
+      - 5977461696760399385
+      - 9615726637637809172
+    detection_run:
+      seed_prefix: TASK-20260806-e1700f/PLANTED-ARM-V3/detection/v1
+      derivation: same formula, distinct prefix
+      component_a_batch_seeds: 'seed("detA_batch", i) for i = 0..19'
+      component_b_batch_seeds: 'seed("detB_batch", i) for i = 0..39'
+    distinctness_from_other_tasks: >-
+      Distinct from V1's ("TASK-20260806-e19f6c/PLANTED-ARM/v1"), V2's
+      ("TASK-20260806-047535/PLANTED-ARM-V2/v1"), and measure.py's
+      ("EXP-HQC-982268/v3/INV-NULL") seed prefixes, so no task's random
+      stream can collide with or be mistaken for another's. The main-run
+      and detection-run prefixes are ALSO distinct from each other within
+      this task, so the two authorized runs' random streams cannot
+      collide either.
+    prng: numpy.random.Generator(numpy.random.PCG64(seed)), one instance
+      per batch, consumed in a fixed order -- deterministic and
+      reproducible from the recorded seeds.
+
+  timings:
+    main_run:
+      started_at_utc: '2026-08-06T17:51:21Z'
+      finished_at_utc: '2026-08-06T18:02:32Z'
+      wall_seconds_measured: 671.541
+      core_seconds_measured: 671.596
+      core_seconds_allocated: 1000.0
+      core_seconds_used_fraction_of_allocation: 0.6716
+      wall_seconds_allocated: 1800.0
+      wall_seconds_used_fraction_of_allocation: 0.3731
+      stage_breakdown:
+      - stage: provenance
+        core_seconds: 0.33
+        wall_seconds: 0.198
+      - stage: fail_closed_integrity_and_import
+        core_seconds: 0.016
+        wall_seconds: 0.016
+      - stage: planted_law_derivation
+        core_seconds: 0.001
+        wall_seconds: 0.001
+      - stage: rejection_sample_generation_and_self_check
+        core_seconds: 671.193
+        wall_seconds: 671.27
+      - stage: estimator_and_jackknife_reused_verbatim
+        core_seconds: 0.007
+        wall_seconds: 0.007
+      peak_rss_mb_self: 385.72265625
+    detection_run:
+      started_at_utc: '2026-08-06T18:02:40Z'
+      finished_at_utc: '2026-08-06T18:07:14Z'
+      wall_seconds_measured: 274.355
+      core_seconds_measured: 274.711
+      core_seconds_allocated: 800.0
+      core_seconds_used_fraction_of_allocation: 0.3434
+      wall_seconds_allocated: 1500.0
+      wall_seconds_used_fraction_of_allocation: 0.1829
+      stage_breakdown:
+      - stage: provenance
+        core_seconds: 0.833
+        wall_seconds: 0.445
+      - stage: fail_closed_integrity_and_import
+        core_seconds: 0.02
+        wall_seconds: 0.02
+      - stage: planted_law_derivation
+        core_seconds: 0.0
+        wall_seconds: 0.0
+      - stage: component_A_interior_position
+        core_seconds: 96.396
+        wall_seconds: 96.408
+      - stage: component_B_full_ensemble
+        core_seconds: 177.427
+        wall_seconds: 177.448
+      peak_rss_mb_self: 500.60546875
+    combined:
+      core_seconds_total_measured: 946.307
+      core_seconds_total_authorized: 1800.0
+      core_seconds_total_used_fraction: 0.5257
+      wall_seconds_total_measured: 945.896
+      wall_seconds_total_authorized: 3600.0
+      wall_seconds_total_used_fraction: 0.2628
+      note: >-
+        Both authorized runs stayed well within budget with substantial
+        margin; no truncation, no budget-driven abort, in either run.
+
+  fail_closed_checks:
+  - name: measure.py sha256 integrity
+    reads: MEASURE_PY_EXPECTED_SHA256 (module-level constant) vs. sha256_file(MEASURE_PY)
+    aborts_on_mismatch: true
+    verified_by: deliberate-mismatch dry run, see commands.fail_closed_check_verification
+    fired_in_authorized_runs: false
+  - name: stage_a.py sha256 integrity
+    reads: STAGE_A_PY_EXPECTED_SHA256 (module-level constant) vs. sha256_file(STAGE_A_PY)
+    aborts_on_mismatch: true
+    fired_in_authorized_runs: false
+  - name: N_JACK_BATCHES cross-check
+    reads: measure.N_JACK_BATCHES (imported module attribute) vs. this task's own N_JACK_BATCHES constant
+    aborts_on_mismatch: true
+    fired_in_authorized_runs: false
+  - name: L = N/n_e parameter sanity (RULE-2)
+    reads: computed L vs. the declared N_2 constant
+    aborts_on_mismatch: true
+    fired_in_authorized_runs: false
+  - name: planted-law reproduction check
+    reads: run-time-recomputed log2_A_k(k) table vs. design.md's frozen
+      DESIGN_TABLE_LOG2_A constant, 1e-12 tolerance
+    aborts_on_mismatch: true
+    fired_in_authorized_runs: false
+    checked_in: both main and detection runs
+  - name: rejection-sampling max-rounds guard
+    reads: per-round pending-block count vs. MAX_REJECTION_ROUNDS=1000
+    aborts_on_mismatch: true
+    fired_in_authorized_runs: false
+    note: >-
+      Max draws actually observed for any single block: 75 (main run),
+      well under the 1000-round guard.
+  - name: full-trial block-partition self-check (F == block_fail)
+    reads: per-batch equality between the REAL decode_blocks output (on
+      the FULL assembled 56-block trial) and the planted block_fail
+      pattern
+    aborts_on_mismatch: true
+    batches_checked: 200 (main run) + 40 (detection run, Component B)
+    fired: false
+
+  deviations:
+  - id: stray_closing_paren_self_caught
+    kind: implementation_error, self-caught, fixed BEFORE any run (including
+      the smoke runs)
+    detail: >-
+      The first draft of planted_arm_v3.py contained one extra, stray
+      closing-paren-plus-comma line immediately after
+      target_block_margin_stats' honesty_note kwarg inside comp_a's dict()
+      construction in run_detection(). This was caught immediately by
+      `python3 -m py_compile` (SyntaxError) before the script was ever
+      executed on any data, and fixed by removing the stray line. No
+      incorrect output was ever produced by this bug -- the script simply
+      failed to parse. Recorded here rather than silently discarded, per
+      AGENTS.md "record, never discard."
+  - id: budget_allocation_is_this_tasks_own_choice
+    kind: disclosed_scope_decision, not an error
+    detail: >-
+      The dispatch queue's task-level budget (1800 core-seconds, 3600
+      wall-clock seconds, 2 authorized runs) does not itself prescribe a
+      split between the main run and the detection run. This task chose
+      the split documented in budget_allocation_this_tasks_own_split above
+      and in design.md Section 6; both runs finished well under their
+      individual allocations (67.2% and 34.3% of allocation respectively),
+      so this choice did not bind in practice, but it is recorded as a
+      disclosed scope decision this task made unilaterally, for the
+      Coordinator/reviewers to assess if desired.
+  - id: none_other
+    kind: n/a
+    detail: >-
+      No other implementation errors, infrastructure failures, or protocol
+      deviations occurred during this task. Both authorized runs completed
+      on their first and only invocation with no truncation, no budget
+      overrun, and no fail-closed check firing.
+
+  validity:
+    main_run:
+      status: valid_measurement
+      reason: >-
+        All fail-closed gates passed (measure.py/stage_a.py integrity,
+        planted-law reproduction, per-batch full-trial block-partition
+        self-check on all 200 batches), T achieved (500,000) equals T
+        planned, and the run stayed within its allocated core-second
+        (671.6/1000) and wall-clock (671.5/1800) budget.
+      result_summary: >-
+        17/17 reported cells (k=2..18) recovered log2_Ahat_k within the
+        adopted 3-jackknife-SE band of the closed-form planted value.
+        Mean draws per accepted block: 2.382 (28,000,000 positions,
+        66,708,617 total decode calls). A random 10,000-block sample of
+        accepted content contained 10,000 distinct values (0 duplicates),
+        confirming the ensemble is genuinely heterogeneous, not a
+        disguised small fixed set (design.md Section 3.3).
+    detection_run:
+      status: valid_measurement
+      reason: >-
+        All fail-closed gates passed, neither Component A nor Component B
+        was wall-clock-truncated, and the run stayed within its allocated
+        core-second (274.7/800) and wall-clock (274.4/1500) budget.
+      result_summary: >-
+        Component A (T=2,000,000, positions 9/10): unconditional flip rate
+        10.47% (paired_neighbor) / 10.46% (independent_foreign_bit);
+        margin(<=4)-conditioned flip rate 20.12% / 20.11%. Component B
+        (T=100,000, full ensemble): global-off-by-one flip rate 10.51%
+        (over 5,600,000 position-level observations); last-block-only flip
+        rate 10.69%. All four unconditional-style figures (two Component A
+        variants, plus global and last-block from Component B) cluster
+        tightly around ~10.5%; the margin-conditioned figure clusters
+        around ~20.1%. See detection_rate_report.md for the full
+        comparison against the Red Team's ~8.8%/~19.6% baselines.
+
+  artifacts:
+    design.md:
+      sha256: 15836e4c379b80f42b4842acb03321b5f1f8132704217011d049410636f94803
+    planted_arm_v3.py:
+      sha256: f21ba4c369a1c4a078409d8e7525a2f82a3e82a9b211b405809818b90952ec51
+    planted_results.json:
+      sha256: 6ca8be474faedb122f47ea4345f5e3ff14ab4332f2b11e96e31da8c47c5993cc
+    detection_results.json:
+      sha256: 35ee2abc686dfb8100cba58f1cbc789d669c11ee53a668b9031eb8ad847c2ebd
+    stdout_main.log:
+      sha256: b8d16b12ca4c158ca45d90a0f94141fa23a329721d6df43981db114f28b62acd
+    stderr_main.log:
+      sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    stdout_detection.log:
+      sha256: 544dd6f083d98b2b6df626764c58540a21ffc0e2ec2966a419916a18835d73d5
+    stderr_detection.log:
+      sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    detection_rate_report.md:
+      sha256: computed and recorded by the Coordinator's snapshot task
+        (TASK-20260806-c2b509), same convention as design.md/planted_arm_v3.py
+        for this task's own final-content files written after this
+        manifest's own initial draft -- see snapshot-receipt.json.
+
+  snapshot_before_review_discipline: >-
+    No result in this manifest, planted_results.json, detection_results.json,
+    or detection_rate_report.md is represented as final before the
+    Coordinator's snapshot task (TASK-20260806-c2b509) exists and commits
+    these artifacts. This task does not commit to the shared worktree
+    itself.

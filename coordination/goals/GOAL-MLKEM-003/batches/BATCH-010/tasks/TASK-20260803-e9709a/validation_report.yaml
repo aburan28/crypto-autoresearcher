@@ -1,0 +1,988 @@
+validation_report:
+  id: VAL-20260803-54b29b
+  task_id: TASK-20260803-e9709a
+  batch_id: BATCH-010
+  goal_id: GOAL-MLKEM-003
+  role: validator
+
+  package_under_review:
+    snapshot_commit: be7ed9e36426517d91e7bb0206e01e52463ddbaf
+    snapshot_task: TASK-20260803-408684
+    producer_task: TASK-20260803-f95b4e
+    snapshot_verified_here: >-
+      The commit is reachable from HEAD, its parent is
+      9b6b6ee8f83fb726ac366ba9b33b53d231044dea (the commit report.md declares as
+      the repository state at execution), and it adds exactly five paths: the
+      four declared artifacts plus
+      coordination/goals/GOAL-MLKEM-003/batches/BATCH-010/archives/TASK-20260803-408684/snapshot_receipt.json.
+      The four artifact blobs in the commit are byte-identical to the working
+      tree (sha256 compared individually). The working tree is clean.
+
+  run_ids: []
+  run_ids_note: >-
+    The package is a pure recomputation over archived bytes and declares no
+    experiment run id. The bound experiment directory whose data it reads is
+    EXP-MLKEM-011 (vendor-lock data). See defect D1 on the absence of a
+    runs/<RUN-ID>/ record and of the provenance fields inside results.json.
+
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-opus-5
+    fallback_used: true
+    fallback_reason: >-
+      orchestration/model-policies.yaml routes review-adversarial to a
+      GPT-5.6-family alias that Claude Code cannot resolve; per CLAUDE.md's model
+      policy note the subagent runs on the inherited Claude model and the
+      substitution is recorded rather than performed silently.
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_note: >-
+      `python3 -m orchestration.adapter doctor --probe` was NOT run; no
+      orchestration backend is reachable from this session. Absence recorded,
+      not substituted for.
+    independent_session: true
+
+  scope_and_constraints_observed:
+    zero_new_sampling: >-
+      TRUE. Only the three archived .out files under
+      experiments/EXP-MLKEM-011/vendor-lock/data/ and the archived Carrier text
+      extracts were read. No network, no G6K, no lattice computation, no
+      Monte-Carlo simulation. The one synthetic curve used (control C-3) is a
+      DETERMINISTIC evaluation of the package's own model, not a sample.
+    resolved_band: >-
+      n=43 scores [0,1802], floor 1/(4000*241^3) = 1.7860305406935986e-11 =
+      2^-35.70445229 reached as exact IEEE-754 equality at 1802 with first zero
+      at 1803. n=50 scores [0,2309], floor 1/(6000*241^3) =
+      1.1906870271290657e-11 = 2^-36.28941479, exact equality at 2309, first
+      zero 2310. Nothing in this validation is fitted, anchored, compared or
+      extrapolated past the last positive score.
+    score_scale: raw undivided cosine-sum scale; no k_fft alignment applied anywhere.
+    claim_tier: toy
+    ml_kem_claim: >-
+      NONE, in either direction. AGENTS.md rule 12 is UNMET and UNWAIVED for this
+      batch; EV-MLKEM-011, EV-MLKEM-013 and EV-MLKEM-017 keep their status and
+      nothing in this report touches them.
+
+  independent_implementation:
+    summary: >-
+      I re-derived the model from the archived text before reading the producer's
+      code, and implemented it independently: the survival function is integrated
+      in u (the producer integrates in v = ln(N/u)), with the clip kink placed
+      exactly at u* = N exp(-K^{-1/p}), the clipped piece in closed form
+      Q(T-u*) - Q(T), and the prediction written as
+      pred(T) = Q(T-u*) + K * INT_{u*}^{N} phi(T-u) (ln(N/u))^p du.
+      Panel layout (geometric near u*, then two linear regimes), Gauss-Legendre
+      order, and the K search (golden section on u*) are all my own. Quadrature
+      convergence was checked by raising GL order 8 -> 12 -> 16 and by roughly
+      trebling panel density: every reported rms and log2 K was identical to
+      9 decimal places across all four settings.
+    derivation_check: >-
+      Integration by parts of E[Q(T-D)] with S(u) = min(1, K (ln(N/u))^p)
+      reproduces the BATCH-009 model statement
+      Pwrong = Q(T) + INT_0^inf N e^{-v} phi(T - N e^{-v}) min(1, K v^p) dv
+      exactly, so the two implementations compute the same object.
+
+  artifact_checks:
+    - artifact: exponent_neighbourhood_scan.py
+      present: true
+      committed: true
+      hash_matches_worktree: true
+    - artifact: jensen_bias_bound.py
+      present: true
+      committed: true
+      hash_matches_worktree: true
+    - artifact: results.json
+      present: true
+      committed: true
+      hash_matches_worktree: true
+      provenance_fields_present:
+        input_file_sha256: true
+        header_raw: true
+        environment_python_platform: true
+        numpy_scipy_absence: true
+        generated_at_utc: true
+        wall_clock_seconds: true
+        captured_stdout: true
+        zero_new_sampling_flag: true
+        git_commit: false
+        dirty_tree_state: false
+        exact_command: false
+        inference_block: false
+        seeds_or_determinism_statement: false
+        memory_measurement: false
+        stderr: false
+        validity_status_and_reason: false
+        run_or_execution_identifier: false
+    - artifact: report.md
+      present: true
+      committed: true
+      hash_matches_worktree: true
+    - artifact: input Pwrong n=43 .out
+      sha256_declared: 50bd293cadf952516b092524c25f4404a1e4ca40983d1751286f96269dbf90bb
+      sha256_recomputed_here: 50bd293cadf952516b092524c25f4404a1e4ca40983d1751286f96269dbf90bb
+      match: true
+    - artifact: input Pwrong n=50 .out
+      sha256_declared: ce23181dca95a1c6a72463c2c39f14f645500a068b3af46c71d5b45af69ab459
+      sha256_recomputed_here: ce23181dca95a1c6a72463c2c39f14f645500a068b3af46c71d5b45af69ab459
+      match: true
+
+  metric_recomputations:
+
+    # ---------- instrument ----------
+    - id: M-01
+      claim: n=43 own exponent p = (beta_1 + n_fft)/2 = (44+8)/2 = 26.0
+      status: reproduced
+      note: read from the .out header in this session.
+    - id: M-02
+      claim: n=50 own exponent p = (41+8)/2 = 24.5
+      status: reproduced
+    - id: M-03
+      claim: >-
+        n=43 counting floor 1.7860305406935986e-11 = 2^-35.70445229335197,
+        exact equality at score 1802, first zero 1803, band 1803 scores
+      status: reproduced
+    - id: M-04
+      claim: >-
+        n=50 counting floor 1.1906870271290657e-11 = 2^-36.28941479407313,
+        band [0,2309], first zero 2310
+      status: reproduced
+    - id: M-05
+      claim: every archived value is an integer multiple of the quantum, max rel dev 2.2e-16
+      status: reproduced
+      recomputed: 2.2143e-16 (n=43), 2.2185e-16 (n=50)
+    - id: M-06
+      claim: >-
+        count>=10 sub-band sizes 1493 (n=43) and 1969 (n=50)
+      status: reproduced
+
+    # ---------- Check A ----------
+    - id: M-07
+      claim: n=43 whole-band rms at own p=26.0 is 0.705494 bits
+      status: reproduced
+      recomputed: 0.705494 (0.7054935 at 7 dp, K profiled on the whole band)
+    - id: M-08
+      claim: n=43 argmin at p=23.25 with rms 0.425715
+      status: reproduced
+      recomputed: argmin p=23.25, rms 0.425714
+    - id: M-09
+      claim: n=43 excess of own exponent over argmin +0.279779 bits
+      status: reproduced
+      recomputed: +0.279780
+    - id: M-10
+      claim: n=50 whole-band rms at own p=24.5 is 0.696881 bits
+      status: reproduced
+    - id: M-11
+      claim: n=50 argmin at p=22.25 with rms 0.427413
+      status: reproduced
+      recomputed: argmin p=22.25, rms 0.427412
+    - id: M-12
+      claim: n=50 excess +0.269468 bits
+      status: reproduced
+      recomputed: +0.269469
+    - id: M-13
+      claim: log2 K at the argmins -67.97057 (n=43) and -63.54163 (n=50)
+      status: reproduced
+      recomputed: -67.97128 and -63.54238
+      note: >-
+        agree to 7.1e-4 and 7.5e-4 bits, inside the producer's declared ~0.002-bit
+        K-fit resolution (DEP-A2). The induced rms difference is below 1e-6 bits.
+    - id: M-14
+      claim: neither argmin is at a grid boundary
+      status: reproduced
+      note: >-
+        n=43 argmin 23.25 on a [20.00, 32.00] grid, n=50 argmin 22.25 on a
+        [18.50, 30.50] grid; rms rises monotonically on both sides of each.
+    - id: M-15
+      claim: both curves are smooth and single-minimum
+      status: reproduced
+      note: >-
+        my 49-point curves are strictly unimodal on both grids: strictly
+        decreasing to the argmin and strictly increasing after it, no local
+        minima, no plateaux.
+    - id: M-16
+      claim: >-
+        cross-exponent control - n=43 data under p=24.5 gives rms 0.496543
+        (better than its own 0.705494); n=50 data under p=26.0 gives 1.020420
+        (worse than its own 0.696881)
+      status: reproduced
+      recomputed: 0.496543 and 1.020420
+    - id: M-17
+      claim: >-
+        log2 K moves essentially linearly with p, slope about -1.73 (n=43) and
+        -1.65 (n=50) bits per unit p
+      status: reproduced
+      recomputed: >-
+        full-grid slope -1.72910 (n=43) and -1.63376 (n=50); local slope near the
+        n=50 own exponent -1.642. Maximum deviation from a straight line over the
+        49-point grid: 0.135 bits (n=43), 0.110 bits (n=50) against a total span
+        of ~20 bits, so "essentially linearly" is fair.
+      see_defect: D3 (the inference drawn from this linearity does not follow)
+    - id: M-18
+      claim: >-
+        count>=10 sub-band argmin p=22.50 with rms 0.369998 (n=43), still below
+        the own exponent
+      status: reproduced
+      recomputed: 22.50 with 0.370102 (producer's protocol - K fitted on the whole band)
+    - id: M-19
+      claim: >-
+        count>=10 sub-band argmin p=21.75 with rms 0.401645 (n=50)
+      status: not_reproduced
+      recomputed: >-
+        21.75 -> 0.401779 and 22.00 -> 0.401772, a tie to 7e-6 bits; my argmin
+        is 22.00, the producer's is 21.75. Producer's own neighbouring values
+        (0.401645 / 0.401868) differ by 2e-4. The gap is consistent with the
+        7.5e-4-bit difference between the two implementations' fitted log2 K,
+        which is not optimal for a sub-band. CONCLUSION: the LOCATION of the
+        n=50 count>=10 argmin is not resolved at either implementation's
+        precision; its DIRECTION (below the own exponent) is unaffected.
+      see_defect: D8
+    - id: M-20
+      claim: >-
+        reproduction cross-check at the archived (p, log2 K_fit): whole-band rms
+        0.7054940 (n=43) and 0.6968845 (n=50)
+      status: reproduced
+      recomputed: 0.7054940 and 0.6968845
+    - id: M-21
+      claim: peak delta +1.5154077 at score 471 (n=43) and +1.7108564 at 420 (n=50)
+      status: reproduced
+      recomputed: +1.515408 and +1.710856
+    - id: M-22
+      claim: clipped fraction at the peak score 0.376547 (n=43) and 0.377878 (n=50)
+      status: reproduced
+      recomputed: 0.376547 and 0.377878
+    - id: M-23
+      claim: v* = 6.948193 / u* = 24.941752 (n=43); v* = 6.698211 / u* = 32.024035 (n=50)
+      status: reproduced
+
+    # ---------- Check B ----------
+    - id: M-24
+      claim: log2 P_out = -13.744464 (n=43 @471) and -10.765140 (n=50 @420)
+      status: reproduced
+      note: >-
+        computed at the archived BATCH-009 K-bar with my own quadrature, and
+        cross-checked against a second quadrature that never uses the exact-kink
+        split; both agree to 6 decimals.
+    - id: M-25
+      claim: log2 measured = -15.259872 (n=43 @471) and -12.475996 (n=50 @420)
+      status: reproduced
+    - id: M-26
+      claim: over-predictions +1.515408 and +1.710856 bits
+      status: reproduced
+    - id: M-27
+      claim: log2 Q(T*) = -15.771008 (n=43) and -13.098605 (n=50)
+      status: reproduced
+    - id: M-28
+      claim: >-
+        reading-free two-sided bound -2.026543 <= Delta <= 0 (n=43) and
+        -2.333466 <= Delta <= 0 (n=50)
+      status: reproduced
+      recomputed: -2.026543 and -2.333466
+    - id: M-29
+      claim: R1 lognormal Delta(s) scan (11 tabulated rows per file)
+      status: reproduced
+      recomputed: >-
+        every tabulated row to 6 decimals from an independent implementation,
+        including s=0 (Delta = 0 to 1e-13), s=1 (-0.107142 / -0.115654),
+        s=4 (-1.312032 / -1.505296) and s>=12 (-2.026543 / -2.333465, the bound).
+    - id: M-30
+      claim: >-
+        dispersion required to absorb the whole over-prediction: s = 4.480840
+        (n=43) and 4.394843 (n=50) nats
+      status: reproduced
+      recomputed: 4.480840 and 4.394843; sd(log2 k) = 6.4645 and 6.3404 bits
+    - id: M-31
+      claim: >-
+        R2 shift-reading Delta scan: -0.001234, -0.004705, -0.031230, -0.122719,
+        -0.434454, -0.804446 (n=43) at a*mu^2 = 0.1, 0.195, 0.5, 1, 2, 3
+      status: reproduced
+      recomputed: identical to 6 decimals at every point
+    - id: M-32
+      claim: R2 n=50 values -0.004614 (alpha=2 equiv), -0.124389 (a*mu^2=1), -0.875745 (a*mu^2=3)
+      status: reproduced
+      recomputed: identical to 6 decimals
+    - id: M-33
+      claim: alpha=2 equivalent is a*mu_lsc^2 = 0.194761 (n=43) and 0.193707 (n=50)
+      status: reproduced
+      recomputed: 2*(pi*mu_lsc/q)^2 = 0.194761 and 0.193707
+    - id: M-34
+      claim: >-
+        at the alpha=2 equivalent the correction is 0.31 % (n=43) and 0.27 %
+        (n=50) of the respective over-predictions
+      status: reproduced
+      recomputed: 0.004705/1.515408 = 0.3105 %; 0.004614/1.710856 = 0.2697 %
+    - id: M-35
+      claim: report.md DEP-B5 quotes P(d_lsc < 0) = 7.2e-13 for n=43
+      status: not_reproduced
+      recomputed: >-
+        Phi(-mu/sigma) = Phi(-7.084584) = 6.973e-13. The producer's OWN
+        results.json records 6.973e-13, so this is a prose/record mismatch inside
+        the package. Immaterial: no reported number depends on it.
+      see_defect: D6
+    - id: M-36
+      claim: K-bar was held fixed at the archived BATCH-009 value, no re-fit
+      status: reproduced
+      note: >-
+        Verified three ways. (a) Code: `Kbar` is assigned exactly once in
+        jensen_bias_bound.py, at line 434, from the hard-coded constant
+        `log2_K_fit_BATCH009`; the file contains no optimiser, and its only SSE
+        accumulator is the reporting-only whole-band rms at fixed K-bar.
+        (b) Arithmetic: my independent P_out at the archived K-bar reproduces the
+        producer's log2 P_out to 12 significant digits - impossible if a
+        different scale were in use. (c) Structure: Delta(s=0) = 0 and
+        Delta(a=0) = 0 to 1e-13, which pins both branches to the same K-bar.
+        E[k] = K-bar holds exactly for R1 (lognormal with the -s^2/2 correction,
+        checked analytically) and to 1.7e-16 for R2 (per-L mean matching).
+    - id: M-37
+      claim: >-
+        the d_lsc integral belongs OUTSIDE min(1,.) - the position (4.22)
+        specifies - and the region integral inside it
+      status: reproduced
+      note: >-
+        Verified directly against the archived extract
+        inputs/MLKEM-DUAL-SOURCES-20260802/extracts/carrier-hal-05406481/page23_approx_4_8_4_9.txt
+        (4.22) and .../page25_pwrong_validation.txt (4.27)-(4.29) plus the closing
+        display P(D>T) = INT psi_lsc(d) P(D>T|d) dd. The producer's W(v) =
+        E_d[min(1, k(d) v^p)] is exactly that order. See defect D7 for the
+        countervailing textual element the package does not mention.
+    - id: M-38
+      claim: >-
+        DEP-B3 - the BATCH-009 STEP-2 form Phi = exp(-(a x^2 + b(d_lsc) y^2)) does
+        not reproduce (4.19)'s exp(-a d_lsc^2) at y = 0, whereas the shift reading
+        Phi = exp(-a(x^2+y^2+d^2)) does
+      status: reproduced
+      note: >-
+        Confirmed at line 91 of the BATCH-009 approx49_comparison.py docstring,
+        and (4.19)'s first factor is verified analytically to be
+        E_{d~N(mu,sigma^2)}[exp(-a d^2)] = exp(-a mu^2/(1+2 a sigma^2))/sqrt(1+2 a sigma^2)
+        with a = alpha pi^2/q^2, so (4.19) does place an exp(-a d_lsc^2) factor
+        inside Phi on the lsc side. I also re-derived the shift consequence: with
+        Phi = exp(-a(x^2+y^2+d^2)), E(u) = {x^2+y^2 <= (L - a d^2)/a}, and
+        INT_E lambda*mu ∝ (L - a d^2)_+^{(beta_sieve+n_fft)/2}, i.e. a shift of L
+        at the same exponent p. Both halves of the producer's claim hold.
+
+    # ---------- self-checks and process ----------
+    - id: M-39
+      claim: >-
+        producer's internal quadrature self-checks (K -> infinity closed form max
+        rel err 2.6e-15; panel halving <= 2.8e-14 bits; R2 mean-match 5.5e-16;
+        R2 d_lsc quadrature 1.0e-11 bits; dropped outer weight 3.4e-17)
+      status: unable_to_check
+      reason: >-
+        These are the producer's own instrument checks and I did not re-execute
+        their script. They are superseded in substance: my independent
+        implementation, at GL orders 8/12/16 and at roughly three times the panel
+        density, returns every reported rms and log2 K identical to 9 decimals,
+        and my independent Check-B quadrature reproduces every Delta to 6
+        decimals. If both implementations were mis-converged they would have to
+        be mis-converged identically by two different panel schemes in two
+        different variables.
+    - id: M-40
+      claim: wall_clock 208.64 s (Check A) and 18.91 s (Check B), memory cap ulimit -v 4 GB
+      status: unable_to_check
+      reason: >-
+        No independent timing receipt exists and my implementation is a different
+        algorithm, so its runtime is not evidence about theirs. NO MEMORY
+        MEASUREMENT IS RECORDED ANYWHERE in the package, only the cap that was
+        applied. See defect D1.
+    - id: M-41
+      claim: >-
+        DEV-3 - each deliverable script was executed exactly once, and those
+        single executions produced every number in the report and results.json
+      status: unable_to_check
+      reason: >-
+        Not checkable from the archive. results.json carries no run counter, no
+        execution identifier and no per-execution artifact, and it is written
+        TWICE by design (each script merges its own top-level key into the same
+        file), so the committed bytes are the state after the second write and
+        cannot witness the first. Timestamps are at least CONSISTENT with the
+        claim: Check A's generated_at 02:32:00Z minus 208.6 s starts at ~02:28:31,
+        after the 02:25 mtime of its script; Check B's 02:35:44Z minus 18.9 s
+        starts at ~02:35:25, after the 02:31 mtime of its script; results.json
+        mtime 02:36 and report.md 02:41 follow both. Consistency is not
+        verification. The substantive risk the disclosure guards against - that a
+        reported number did not come from the committed code - is retired
+        separately: I re-derived every headline number from the archived bytes
+        with an independent implementation.
+    - id: M-42
+      claim: >-
+        DEV-3 - the development probes run outside the repository produced none
+        of the reported numbers
+      status: unable_to_check
+      reason: >-
+        Nothing outside the repository is visible to this session. As above, the
+        claim's practical content is discharged by independent re-derivation
+        rather than by auditing the probes.
+    - id: M-43
+      claim: environment - Python 3.11.15, numpy and scipy not installed
+      status: reproduced
+      recomputed: >-
+        this session reports 3.11.15 (main, Mar 3 2026, 09:26:23) [GCC 13.3.0] and
+        ModuleNotFoundError for numpy, scipy and mpmath. My implementation is
+        therefore also pure-stdlib, including a hand-rolled Gauss-Legendre rule.
+
+  control_checks:
+
+    - id: C-1
+      name: positive control - parameter-free Gaussian component
+      status: reproduced_independently
+      result: >-
+        Q(T) = 0.5*erfc(T/sqrt(N)) alone, with no fitted parameter, tracks the
+        n=43 measurement to within 0.1 bit through score 322 (+0.0029 at T=0,
+        +0.0023 at 100, -0.0157 at 200, -0.0998 at 322) and then diverges as the
+        D component takes over (-0.51 at 471, -14.7 at 800). This independently
+        re-confirms the BATCH-009 O-3 score-scale finding: a factor-of-3 k_fft
+        slip would be immediately visible here and is not present.
+
+    - id: C-2
+      name: nearby-object control (cross-exponent), re-run
+      status: reproduced
+      result: >-
+        n=43 data under the n=50 file's exponent 24.5 gives rms 0.496543, BETTER
+        than its own 26.0 (0.705494). n=50 data under 26.0 gives 1.020420, WORSE
+        than its own 24.5 (0.696881). Discrimination remains one-sided, exactly
+        as EV-MLKEM-019 O-6 recorded, and the n=43 minimum lies a further 1.25
+        below 24.5.
+
+    - id: C-3
+      name: >-
+        IDENTIFIABILITY / NULL-OBJECT CONTROL (added by this validator; the
+        package does not contain it)
+      status: added_and_passed
+      motivation: >-
+        docs/inventor-protocol.md section 3: a reported signal is an artifact
+        until the identical measurement has been run against an object of the
+        same shape whose answer is known. Check A reports an adverse signal - the
+        archived exponent is not the argmin - with no such control. The
+        estimator itself (profile K at every p, unweighted rms over 1803
+        correlated scores) could in principle be biased low in p.
+      method: >-
+        Deterministic, no sampling. Replace the measured curve by the model's own
+        NOISELESS prediction at the file's archived (p, K-bar), then run the
+        identical profiled-rms scan against it. If the estimator is unbiased it
+        must return the generating exponent.
+      result: >-
+        n=43: generating p=26.0, log2 K=-72.712581 -> argmin p=26.00, rms
+        0.00000000, recovered log2 K -72.712581. n=50: generating p=24.5,
+        log2 K=-67.222505 -> argmin p=24.50, rms 0.00000000, recovered log2 K
+        -67.222505. The estimator is exactly unbiased on noiseless data, so the
+        observed 2.75 / 2.25 displacement is NOT an artifact of the fit protocol,
+        the band weighting or the free scale.
+      second_result_worth_recording: >-
+        On the same noiseless data a 2.75 displacement costs 0.535 bits of rms
+        (n=43; 0.537 at 2.25 for n=50). On the REAL data the excess at the own
+        exponent is only 0.280 bits and the BEST ACHIEVABLE rms is 0.426 bits,
+        not zero. So the one-free-parameter family does not fit the archived
+        curve at ANY exponent in the scanned window: the argmin is the least-bad
+        member of a misspecified family, not a competing correct exponent. The
+        package does not make this distinction and it materially changes what
+        Check A licenses.
+      what_this_control_does_NOT_establish: >-
+        It says nothing about noise. The control that would - resampling the
+        survival curve under its counting model and asking how far the argmin
+        moves - is a simulation and is forbidden by the handoff's ZERO NEW
+        SAMPLING constraint. No significance can therefore be attached to the
+        displacement; see limitation L-2.
+
+    - id: C-4
+      name: >-
+        band-weighting robustness (added by this validator; the package reports
+        one alternative weighting, I ran six)
+      status: added
+      method: >-
+        For each weighting, K is profiled and the rms is reported on the SAME
+        index set (a cleaner profile than the package's whole-band-fitted K with
+        sub-band rms), on the same own-p +/- 6.0 step-0.25 grid.
+      result_n43_own_p_26.00: >-
+        whole band (n=1803): argmin 23.25, own 0.705494, excess +0.279779;
+        count>=10 (1493): argmin 22.25, excess +0.394369;
+        count>=100 (1137): argmin 21.25, excess +0.482704;
+        count>=1000 (852): argmin 20.00 AT THE GRID EDGE, excess +0.568423;
+        head T<=600 (601): argmin 20.00 AT THE GRID EDGE, excess +0.200198
+          (18.00, also at the edge, on a wider 0.5-step grid);
+        every 20th (92): argmin 23.25, excess +0.274397;
+        tail T>1000 (802): argmin 26.25, excess only +0.000935 - and on a
+          0.5-step grid the argmin is exactly the own exponent 26.00 with excess
+          0.000000.
+      result_n50_own_p_24.50: >-
+        whole band (2310): argmin 22.25, excess +0.269469;
+        count>=10 (1969): argmin 21.75, excess +0.336507;
+        count>=100 (1525): argmin 21.00, excess +0.375763;
+        count>=1000 (1132): argmin 20.00 (interior), excess +0.452467;
+        head T<=600 (601): argmin 18.50 AT THE GRID EDGE, excess +0.387722;
+        every 20th (117): argmin 22.25, excess +0.257880;
+        tail T>1000 (1309): argmin 23.75, excess +0.028129.
+      interpretation: >-
+        The argmin location is NOT weighting-invariant, and the package's own
+        section 3.3 says so. But every LOW-NOISE weighting moves it FURTHER below
+        the own exponent and makes the excess LARGER, not smaller. The single
+        weighting that reverses the direction is the deep tail T>1000, which is
+        precisely the region where the counting estimate is least resolved:
+        the naive independent-trial sd of log2 P-hat there has rms 0.613 bits
+        (n=43) and 0.445 bits (n=50), against residual rms of 0.266 and 0.244 -
+        i.e. the tail cannot discriminate anything. By contrast the count>=1000
+        sub-band carries a naive sd rms of 0.015 bits and puts the argmin 6.00
+        (n=43) and 4.50 (n=50) BELOW the own exponent. So the weighting
+        dependence does not undercut the Check A conclusion; if anything the
+        whole-band protocol understates it. The tail exception nevertheless
+        belongs on the record - see defect D5.
+
+    - id: C-5
+      name: negative / degenerate controls inside Check B
+      status: reproduced
+      result: >-
+        R1 at s = 0 and R2 at a = 0 must both reproduce the collapsed model
+        exactly; my independent implementation gives Delta = 0 to 1e-13 and 0.0
+        respectively, matching the producer's 9.9e-14 / 2.7e-13 / 0.000000.
+        R1 at s -> infinity must saturate at the Q(T) floor; it does, at
+        -2.026543 and -2.333465, which is the reading-free bound itself.
+
+    - id: C-6
+      name: null-object control in the docs/inventor-protocol.md section 3 sense
+      status: absent_and_not_possible_here
+      note: >-
+        The measured quantity in Check A is an rms misfit, not a correlation or
+        excess, so the canonical "does it decay when the parameter meant to
+        destroy it increases" tell does not directly apply. The nearest available
+        analogue is C-3 (does the estimator recover a known answer on an object of
+        the same shape), which I ran and which passes. A random-instance null -
+        an archived Pwrong curve from a lattice with no dual-attack structure -
+        does not exist in the archive and cannot be produced under ZERO NEW
+        SAMPLING.
+
+  the_two_checks_answered:
+
+    check_A_exponent_neighbourhood:
+      outcome: ONE-SIDED AND ADVERSE TO APPROXIMATION 4.9. Not two-sided, not favourable.
+      independently_reproduced: true
+      statement: >-
+        Recomputing the n=43 rms-vs-p curve from the archived .out bytes with my
+        own implementation - reading the data myself, integrating in a different
+        variable, with my own quadrature and my own K search, and never reading
+        results.json for a value - I obtain the argmin at p = 23.25 with whole-band
+        rms 0.425714, against 0.705494 at the file's own archived exponent 26.0,
+        an excess of +0.279780 bits. I did the same for n=50 and obtain argmin
+        p = 22.25 with rms 0.427412 against 0.696881 at its own 24.5, excess
+        +0.269469. Both curves are strictly unimodal over their 49-point grids,
+        both argmins are interior (13 and 15 grid steps from the nearest edge,
+        with rms rising monotonically on both sides), and quadrature is converged
+        to 9 decimals. The producer's numbers are correct.
+      is_the_argmin_real: >-
+        Yes as a point estimate, and it is not an artifact of the estimator: the
+        identifiability control C-3 shows the same scan returns the generating
+        exponent exactly, with rms 0, on noiseless data generated by the model
+        itself at the archived (p, K-bar). It is also not scan-width limited on
+        the whole band. Its STATISTICAL significance is not established and
+        cannot be under this handoff's constraints (limitation L-2).
+      does_log2_K_absorb_the_exponent_change: >-
+        No, but not for the reason the package gives. I confirm the arithmetic:
+        the fitted log2 K moves at -1.72910 bits per unit p (n=43, full grid) and
+        -1.63376 (n=50 full grid; -1.642 locally, so the report's "-1.65" is the
+        local figure), with maximum departure from a straight line of 0.135 and
+        0.110 bits over a ~20-bit span. But linearity of log2 K in p is a
+        property of the family - K is essentially v_eff^{-p}, so log2 K is
+        -p log2 v_eff by construction - and carries no information about
+        absorption. What actually establishes non-absorption is that K is
+        profiled out at every p and the resulting profiled rms is still strongly
+        non-flat, plus control C-3. The conclusion stands; the stated
+        justification does not support it (defect D3).
+      does_the_sub_band_weighting_undercut_it: >-
+        No. It moves the argmin - I reproduce the package's count>=10 shift for
+        n=43 (22.50) and find the n=50 one to be an unresolved tie between 21.75
+        and 22.00 - but every low-noise weighting I added moves it FURTHER below
+        the own exponent and enlarges the excess (count>=1000: -6.00 and -4.50
+        grid positions, excess +0.568 and +0.452). The only weighting under which
+        the own exponent is competitive is the deep tail T>1000, where for n=43
+        the own exponent IS the argmin to 0.001 bits - and where the counting
+        uncertainty is more than twice the residual, so nothing is discriminated.
+        The package should have said this; it does not (defect D5).
+      what_it_does_and_does_not_license: >-
+        LICENSED: over the resolved band, with the normalisation fitted to the
+        compared data, the archived exponent p = (beta_sieve+n_fft)/2 is not the
+        exponent this shape comparison selects, in EITHER file, and both files
+        select a lower one. This extends EV-MLKEM-019's single-instance O-6 to a
+        full curve and strengthens it. NOT LICENSED: any statement that
+        Approximation 4.9 is refuted, that the true exponent is 23.25 or 22.25, or
+        that the displacement is statistically significant. The best achievable
+        rms is 0.426 bits, not 0, so the family is misspecified at every exponent
+        tested; the argmin is the least-bad member of a family none of whose
+        members fit. That is a weaker claim than "a neighbouring exponent is
+        right" and a different one from "Approximation 4.9's exponent is wrong".
+
+    check_B_jensen_bias:
+      outcome: >-
+        REPRODUCED IN FULL, INCLUDING ITS OWN LIMITATION. The sign is fixed; the
+        magnitude is not, and the package says so correctly.
+      independently_reproduced: true
+      position_of_the_d_lsc_integral: >-
+        CORRECT. Archived (4.22) places min(1, INT_{E(T-t)} lambda mu) inside the
+        d_lsc integral, and (4.27)-(4.29) plus the closing display
+        P(D>T) = INT psi_lsc(d) P(D>T|d) dd say the same. The producer's
+        W(v) = E_d[min(1, k(d) v^p)] is exactly that order, and BATCH-009's
+        min(1, K-bar v^p) is exactly the collapsed one. BATCH-009's own STEP 3
+        note concedes the collapse is exact only "in the unclipped regime", and
+        the clipped fraction at both peak scores is 0.377-0.378, so the collapse
+        is not exact where it matters. See D7 for a textual counterweight the
+        package omits.
+      K_bar_held_fixed: >-
+        YES, verified three independent ways (M-36). There is no re-fit and no
+        silent re-optimisation. Delta therefore isolates the position of
+        min(1,.) alone, which is what the handoff asked for.
+      sign_result: >-
+        CORRECT AND CORRECTLY DERIVED. min(1,.) is concave, so for any family with
+        E_d[k] = K-bar, E_d[min(1, k v^p)] <= min(1, K-bar v^p) pointwise in v,
+        hence P_in <= P_out and Delta <= 0. I verify this numerically at every
+        scanned point of both readings. The (4.22)-position model predicts LESS,
+        i.e. the collapse biases in the SAME direction as the reported
+        over-prediction.
+      magnitude_provenance_audit: >-
+        THE PACKAGE'S ATTRIBUTION IS CORRECT, and this is the claim a reader is
+        most likely to invert. Concavity gives only the sign: with the mean held
+        at K-bar v^p, a two-point mean-preserving spread (Z = M with probability
+        m/M, else 0) drives E[min(1,Z)] to m/M -> 0, so no bound on |Delta|
+        follows from concavity at all. The finite lower bound comes from a
+        different fact - Model 4.7's D component is non-negative, so
+        P_in(T) >= Q(T), hence Delta >= log2 Q(T*) - log2 P_out(T*). I recompute
+        that difference as -15.771008 + 13.744464 = -2.026543 (n=43) and
+        -13.098605 + 10.765140 = -2.333466 (n=50), matching the package. The two
+        over-predictions (+1.515408, +1.710856) do lie inside those bounds, so the
+        collapse is NOT excluded on magnitude grounds.
+      is_the_bias_large_enough_to_account_for_the_over_prediction: >-
+        NOT EXCLUDED, NOT SUPPORTED, AND READING-DEPENDENT WITH THE READING
+        UNAVAILABLE. Three answers at three levels of commitment:
+        (i) Reading-free: yes, arithmetically it could be - but the bound is close
+        to vacuous. It says only that the corrected model cannot fall below its
+        own Gaussian floor Q(T*), and that floor happens to sit just 0.511 bits
+        (n=43) and 0.623 bits (n=50) BELOW the measurement. Saturating it requires
+        the D component to contribute essentially nothing at the peak score,
+        which R1 shows needs s >= 12 nats.
+        (ii) Under R1, the pure-scale dispersion family - which is, notably, the
+        family BATCH-009's own STEP-2 multiplicative Phi implies - absorbing the
+        whole over-prediction needs s = 4.480840 / 4.394843 nats, i.e.
+        sd(log2 k) = 6.46 / 6.34 bits: the effective normalisation would have to
+        swing by ~6.4 bits per standard deviation of d_lsc, on a variable whose
+        own mean-to-sd ratio is only 7.08. Nothing in the archive suggests
+        dispersion of that size.
+        (iii) Under R2, the only reading the archived text motivates ((4.19)
+        forces exp(-a d_lsc^2) inside Phi), evaluated at the only numerically
+        archived candidate for alpha (=2), the correction is -0.004705 and
+        -0.004614 bits: 0.31 % and 0.27 % of the over-predictions. Even at
+        a*mu_lsc^2 = 3 (alpha ~ 31) it reaches only about half.
+        My verdict on the question as posed: the Jensen collapse cannot be
+        excluded as an explanation, but there is no positive evidence for it, and
+        the single textually-motivated calibration accounts for about a
+        three-hundredth of the effect. The BATCH-009 headline over-prediction
+        therefore remains unattributed, which is exactly what the package says.
+      caveats_the_package_states_and_I_confirm: >-
+        R2's per-L mean-matching normalises away the shift reading's additional
+        effect on the unclipped LEVEL (DEP-B4), so 0.31 % bounds only the
+        min-position part of that reading, not its total effect. And Delta is
+        computed with K-bar frozen; the corrected model's best achievable fit is a
+        different question the handoff forbade asking. Both are stated in the
+        package.
+
+  heuristic_validation_checks:
+    - check: pre-registered prediction
+      status: not_applicable_as_stated
+      note: >-
+        Approximation 4.9 is a published theoretical prediction, fixed before the
+        archived simulation and independent of this batch; its exponent
+        p = (beta_sieve + n_fft)/2 is determined entirely by archived integers.
+        In that sense the prediction is pre-registered. What is NOT pre-registered
+        is the normalisation K, which is fitted to the very curve being scored -
+        the decisive scope limit EV-MLKEM-019 already records. Neither check in
+        this batch relaxes it.
+    - check: sample integrity
+      status: partial
+      note: >-
+        The archived .out files carry their own headers (q, m, n, n_fft, k_fft,
+        n_lat, beta_0, beta_1, avg_N, avg_dlat/sdv_dlat, avg_dlsc/sdv_dlsc,
+        nb_iteration) and their sha256 is verified in the package and again here.
+        No seed for the original G6K/polar-code simulation is archived; that is a
+        pre-existing property of the vendor data, not a defect of this batch. Both
+        BATCH-010 scripts are deterministic and correctly record that no seed
+        exists.
+    - check: correspondence validity
+      status: not_applicable
+      note: no substitute-sampling correspondence is used.
+    - check: scale binding
+      status: satisfied_as_a_limitation
+      note: >-
+        q=241, m=40, n=43/50, beta_sieve 41/44 - toy, against Kyber's beta of
+        roughly 384-816. Recorded as a limitation in the package and here, never
+        as scale-matched evidence (AGENTS.md rule 7).
+  cost_model_checks:
+    - check: cost table present
+      status: not_applicable
+      note: >-
+        The package reports no cost model, no operation counts and no security
+        estimate, and explicitly revises none. There is therefore no cost unit to
+        declare and no per-attempt-cost x inverse-success-probability bookkeeping
+        to check. Recorded explicitly rather than left blank.
+
+  proof_architecture_checks:
+    - check: baseline fixture
+      status: passed
+      note: >-
+        The package reproduces the BATCH-009 headline whole-band rms and peak
+        delta at the archived (p, log2 K_fit) to within 0.00066 bits, attributes
+        the residual difference to the exact-kink clip treatment (DEP-A1), and
+        that attribution is corroborated by the BATCH-009 validator's independent
+        recomputation with the same treatment. I reproduce all four numbers.
+    - check: strictness witness
+      status: not_applicable
+      note: no improvement over a baseline is claimed.
+    - check: bounded-search scope
+      status: passed_with_note
+      note: >-
+        The exponent scan is explicitly bounded to own p +/- 6.0 in steps of 0.25
+        and the package reports the grid and the boundary flag. It does not claim
+        a global argmin over all p. Under two of my added weightings (count>=1000
+        for n=43, head T<=600 for both) the argmin runs to the grid edge, so the
+        scan width IS binding there and the package's "neither is scan-width
+        limited" applies only to the whole-band protocol it reports. Recorded.
+    - check: interface preservation
+      status: passed
+      note: >-
+        Every departure from the BATCH-009 implementation (DEP-A1..A4, DEP-B1..B5)
+        is declared with its motivation and its quantified effect on the reported
+        numbers, and each is honoured in the committed code as written. I checked
+        each against the code and found no undeclared departure.
+    - check: quantifier fidelity
+      status: passed
+      note: >-
+        Check A's claims are per-file and stated per-file; no uniform statement
+        over both files is asserted beyond "in neither file", which is what the
+        two per-file results support. Check B's magnitudes are stated as
+        conditional on a declared, scanned parameter and never as a number.
+
+  defects:
+    - id: D1
+      severity: moderate
+      title: >-
+        results.json - the only machine-readable receipt - carries none of the
+        AGENTS.md artifact-policy provenance fields
+      detail: >-
+        Missing from results.json: git commit sha, dirty-tree state, exact
+        command, the `inference` block (requested_policy, resolved_model,
+        fallback_used, model_verified, reasoning_effort), any determinism/seed
+        statement, memory measurement, stderr, validity status and reason, and any
+        run or execution identifier. All of the first group exist only as prose in
+        report.md, which no schema checks; memory, stderr and validity status
+        exist NOWHERE in the package, even though `ulimit -v 4194304` was applied
+        and the handoff budget names memory_gb: 4.
+      on_DEV_1: >-
+        The Coordinator has accepted that the absent runs/<RUN-ID>/ tree is the
+        handoff's fault, and I agree - the handoff declared exactly four artifact
+        paths and a runs/ tree would have expanded scope. But that explains only
+        the missing DIRECTORY. Nothing prevented these fields from being carried
+        INSIDE results.json, which the handoff did declare. So the answer to
+        "are the required provenance fields genuinely present inside
+        results.json" is NO: they are present in report.md prose, partially, and
+        the machine-readable receipt is not self-describing. This is a packaging
+        defect that a schema check would catch, and it is the kind that
+        compounds: a future reader of results.json alone cannot bind it to a
+        commit.
+      not_a_repair_request: reported, not fixed; producer artifacts are untouched.
+    - id: D2
+      severity: minor
+      title: DEV-3's "executed exactly once" is unverifiable from the archive
+      detail: >-
+        See M-41. No run counter, no execution identifier, and results.json is
+        overwritten by the second script by design, so the committed bytes cannot
+        witness the first execution. Timestamps are consistent with the claim but
+        consistency is not verification. The disclosure itself is creditable -
+        it was volunteered, and it directly addresses the BATCH-009 D6 pattern -
+        but the package does not carry the one field (a run tally, as BATCH-009's
+        own package did carry) that would let a reader check it. Recommendation
+        for the successor handoff, not a fault of this executor.
+    - id: D3
+      severity: moderate
+      title: >-
+        "log2 K moves linearly, confirming the free scale does not absorb the
+        exponent change" is a non sequitur
+      detail: >-
+        Report section 3.2, repeated in the snapshot commit message. Linearity of
+        the profiled log2 K in p is forced by the model family (K is essentially
+        v_eff^{-p}) and would hold whether or not the scale absorbed anything. The
+        conclusion is nevertheless TRUE - K is profiled out at every p, so the
+        rms-vs-p curve already is the profiled objective, and control C-3 confirms
+        the estimator recovers a known exponent exactly. But the load-bearing
+        sentence in the headline finding rests on an argument that does not carry
+        it, and a reader auditing only the report would find no valid support for
+        it. Substituting the correct argument costs nothing.
+    - id: D4
+      severity: moderate
+      title: no identifiability / null-object control on an adverse signal
+      detail: >-
+        docs/inventor-protocol.md section 3 requires a signal to be measured
+        against an object of the same shape before belief. The package reports an
+        adverse signal with no such control. I supplied the one that is possible
+        without new sampling (C-3) and it PASSES, so the finding survives - but a
+        validator should not have to be the first to run it, and had it failed the
+        entire Check A result would have been an artifact of the estimator.
+    - id: D5
+      severity: minor
+      title: weighting-robustness picture is understated, and the tail exception is unreported
+      detail: >-
+        Section 3.3 reports one alternative weighting and concludes "the direction
+        of the finding is unchanged". Across the six weightings I ran (C-4) that is
+        true for five and FALSE for one: on the deep tail T>1000 the n=43 own
+        exponent is the argmin to 0.001 bits (exactly the argmin on a 0.5-step
+        grid), and for n=50 the tail argmin is only 0.75 below the own exponent
+        with excess +0.028. That the tail is also the least-resolved region -
+        naive counting sd rms 0.613 / 0.445 bits against residual rms 0.266 /
+        0.244 - is what makes the exception uninformative, and it is what the
+        package would have needed to say. As reported, the sentence is broader
+        than the evidence behind it. The overall direction of Check A is
+        unaffected and is in fact strengthened by the low-noise weightings.
+    - id: D6
+      severity: trivial
+      title: report.md prose disagrees with the package's own results.json
+      detail: >-
+        DEP-B5 in report.md quotes P(d_lsc < 0) = 7.2e-13 for n=43; results.json
+        records 6.973e-13 and I recompute Phi(-7.084584) = 6.973e-13. No reported
+        number depends on it.
+    - id: D7
+      severity: minor
+      title: >-
+        the countervailing textual element for the d_lsc position is not
+        mentioned
+      detail: >-
+        The package's Check-B premise rests on (4.22), (4.27)-(4.29) and the
+        closing display, all of which put the d_lsc integral outside min(1,.), and
+        I confirm that reading. But the same paper's Model 4.7 DEFINES D at (4.18)
+        as D = N INT psi_lsc(d_lsc) max_{i,j: N_{i,j}=1} Phi_{d_lsc}(i,j) d d_lsc -
+        with the d_lsc integral INSIDE, which is the textual basis a defender of
+        the BATCH-009 collapse would cite, and which makes the very phrase
+        "the survival function of D knowing d_lsc" in the (4.27) justification
+        ill-typed. The source is internally inconsistent on precisely the point
+        Check B is about. This changes nothing about the sign or the bound, but it
+        changes how confidently the collapse can be attributed to the BATCH-009
+        IMPLEMENTATION rather than to the SOURCE, and a package whose whole
+        purpose is to locate that integral should have recorded it.
+    - id: D8
+      severity: trivial
+      title: n=50 count>=10 sub-band argmin does not reproduce as a located point
+      detail: >-
+        See M-19. Producer: 21.75 with 0.401645. Mine: 21.75 -> 0.401779 and
+        22.00 -> 0.401772, a 7e-6 tie. Consistent with the 7.5e-4-bit difference
+        in the two implementations' fitted log2 K, which is not optimal for a
+        sub-band. The reported location is below the resolution of the method that
+        produced it; the direction is unaffected. Reporting it to six decimals
+        overstates its determinacy.
+
+  reproduction_tally:
+    reproduced: 37
+    not_reproduced: 2
+    unable_to_check: 4
+    tally_basis: >-
+      Counted over the 43 rows of metric_recomputations (M-01..M-43). The
+      control_checks C-1..C-6 are counted separately below. One further item -
+      the statistical significance of the Check A displacement - is not a
+      producer claim and is recorded as limitation L-2 rather than as a
+      reproduction row.
+    controls_added_by_validator: 2
+    controls_added_that_passed: 1
+    controls_added_that_qualify_the_finding: 1
+
+  limitations:
+    - id: L-1
+      text: >-
+        Shape only, never level. K is fitted to the compared data at every p in
+        Check A and frozen at the BATCH-009 fitted value in Check B. Neither check
+        tests the absolute level of Approximation 4.9. delta(beta_bkz), alpha and
+        the form of Phi_{d_lsc} remain the blockers, exactly as EV-MLKEM-019
+        recorded. Nothing here changes that.
+    - id: L-2
+      text: >-
+        NO SIGNIFICANCE IS ESTABLISHED FOR THE CHECK A DISPLACEMENT. The rms is an
+        unweighted average over 1803 (or 2310) highly correlated survival points
+        with no error model. Control C-3 rules out estimator bias in the absence
+        of noise; it says nothing about noise. The control that would - resampling
+        the survival curve under its counting model - is a simulation and is
+        forbidden by this handoff's ZERO NEW SAMPLING constraint. As an order of
+        magnitude only, the naive independent-trial sd of log2 P-hat is 0.002 bits
+        at score 500, 0.088 at 1000, 0.456 at 1492 and 1.443 at the floor; the
+        counts are strongly positively correlated across scores so this overstates
+        point-to-point scatter and understates coherent level error. Read the
+        2.75 / 2.25 displacement as a point estimate, not as a test.
+    - id: L-3
+      text: >-
+        Check B's magnitude is conditional on a declared reading that the archive
+        does not carry. Phi_{d_lsc} and alpha are UNAVAILABLE; I re-confirmed that
+        the archived page extracts give Phi only as an undefined symbol and give
+        alpha no numeric value. The Pgood header's alpha_secret = alpha_error = 2
+        is not established to be the paper's alpha and neither the package nor I
+        adopt it as such. R1 and R2 differ by a factor of about 3.2 at comparable
+        dispersion, so the reading matters and is not resolved.
+    - id: L-4
+      text: >-
+        Toy scale, both files. q=241, m=40, n=43/50 against Kyber's beta of
+        roughly 384-816. This report establishes nothing about ML-KEM security in
+        either direction and must never be cited as bearing on it.
+    - id: L-5
+      text: >-
+        I re-executed neither producer script. My agreement with them is agreement
+        between two independent implementations of the same mathematics, which is
+        stronger for the numbers and weaker for the code: a bug that lives only in
+        the committed scripts' I/O or bookkeeping (rather than in the model) would
+        not be caught by this method. Byte-level re-execution of the committed
+        scripts remains undone.
+    - id: L-6
+      text: >-
+        The package's own internal self-checks (M-39) were not re-executed; my
+        independent convergence evidence supersedes them in substance but is not
+        the same check.
+
+  verdict: passed
+  package_verdict: ADMISSIBLE_WITH_DEFECTS
+  verdict_scope: >-
+    ADMISSIBLE_WITH_DEFECTS means: the four artifacts exist, are committed, are
+    bound to the snapshot commit, and every headline quantity in them that a
+    deterministic verifier can reach was re-derived here from the archived bytes
+    by an independent implementation and agreed - Check A's argmins, excesses,
+    curves and cross-exponent numbers to 1e-6 bits, and Check B's P_out, Q(T*),
+    bounds, R1 and R2 scans and required dispersions to 6 decimals. The eight
+    defects are packaging (D1, D2), one unsupported inference behind a true
+    conclusion (D3), a missing control that I supplied and that passed (D4), an
+    understated robustness picture with one unreported adverse-to-the-finding
+    exception (D5, D8), a prose/record mismatch (D6), and one omitted textual
+    counterweight (D7). None of them changes a reported number.
+    IT DOES NOT MEAN: that Approximation 4.9 is refuted, that its exponent is
+    wrong, that the collapse explains the BATCH-009 over-prediction, or that
+    anything here bears on ML-KEM. This report authorizes no promotion and no
+    status change. AGENTS.md rule 12 remains UNMET and UNWAIVED; EV-MLKEM-011,
+    EV-MLKEM-013 and EV-MLKEM-017 keep their status.
+
+  headline_for_the_coordinator: >-
+    CHECK A CAME BACK ONE-SIDED AND ADVERSE, AND IT SURVIVES INDEPENDENT
+    RE-DERIVATION. Neither file's own Approximation-4.9 exponent minimises rms
+    against its own data; both argmins lie below, by 2.75 and 2.25, on strictly
+    unimodal interior minima, and the estimator provably recovers a known
+    exponent on noiseless data of the same shape. The finding is if anything
+    understated: every low-noise sub-band weighting pushes the argmin further
+    below. Two qualifications the package does not make and the Coordinator
+    should carry forward: (a) the best achievable rms is 0.426 bits, not 0, so
+    the model family fits at NO exponent in the window - the honest statement is
+    "misspecified family, least-bad member is lower", not "a neighbouring
+    exponent is correct"; and (b) on the deep tail T>1000 the n=43 own exponent
+    IS the argmin, in the one region too noisy to discriminate, which is worth
+    knowing even though it does not overturn anything.
+    CHECK B REPRODUCES EXACTLY AND ITS CAREFUL CLAIM IS CORRECT. Concavity fixes
+    the sign only; the finite two-sided bound genuinely comes from P_in >= Q(T),
+    not from Jensen; K-bar is genuinely held fixed and there is no re-fit; the
+    d_lsc integral is genuinely evaluated in the position (4.22) specifies. Both
+    over-predictions lie inside the reading-free bound, so the collapse is not
+    excluded - but that bound is nearly vacuous, and under the only
+    textually-motivated reading at the only archived candidate alpha the bias is
+    0.31 % and 0.27 % of the effect. The BATCH-009 over-prediction remains
+    unattributed.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-010/tasks/TASK-20260803-e9709a/validation_report.yaml
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-010/tasks/TASK-20260803-e9709a/validation_notes.md
+
+  handoff_to: TASK-20260803-87681a (Coordinator ledger archive)
+  committed_by_validator: false

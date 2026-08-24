@@ -1,0 +1,588 @@
+idea:
+  id: IDEA-20260805-5194f9
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  added: '2026-08-05'
+  title: >-
+    The two arms of SelfTargetMSIS are not commensurable: log2 |B_tau| =
+    192.760 / 225.345 / 257.015 is a forced value, its margin over the lattice
+    arm collapses monotonically across the three categories, and because a
+    lattice-versus-lattice ordering provably CANNOT flip under any monotone
+    cost model while a lattice-versus-hash ordering can, the answer to "which
+    of the three binds" is convention-dependent at exactly one place and nobody
+    has said where
+  class: control
+
+  claim: >-
+    SelfTargetMSIS's concrete hardness is quoted as the minimum over two attack
+    arms that share no resource profile: a LATTICE arm (solve the underlying
+    module-SIS instance at norm budget zeta), whose cost is
+    2^(c_time * b) time with 2^(0.2075 * b) MEMORY and negligible depth, and a
+    HASH arm (grind the self-consistency constraint c = H(mu, w) by guessing),
+    whose cost is |B_tau| operations with NEGLIGIBLE MEMORY and, quantumly, a
+    depth that MAXDEPTH bounds. Two claims follow, one a theorem and one a
+    number.
+    THEOREM (derived below, zero compute): under ANY cost model that is monotone
+    increasing in the BKZ block size and uses the SAME solver family on both,
+    the ordering of two LATTICE arms -- MLWE against MSIS, say -- is INVARIANT.
+    Charging memory, switching to gate counts, applying Wiener AT^2, or moving
+    to a quantum sieve cannot reorder them. So the widely useful move "charge
+    what nobody charged" is provably EMPTY for the MLWE-vs-MSIS half of this
+    goal's first completion criterion, and a record claiming a reordering there
+    has an instrument fault. This is a negative result and it is stated first
+    because it deletes a plausible-looking line of work at no cost.
+    NUMBER: the same move is NOT empty for the lattice-vs-hash half. The hash
+    arm's size is a forced value -- |B_tau| = C(256, tau) * 2^tau, SCOUT-COMPUTED
+    exactly as log2 = 192.760 / 225.345 / 257.015 at ML-DSA-44 / -65 / -87 --
+    and against a RECALLED-UNVERIFIED classical lattice arm of roughly 2^123 /
+    2^182 / 2^252 the margin is roughly 70 / 43 / 5 BITS, collapsing monotonically
+    across the categories. At ML-DSA-87 a five-bit margin is smaller than the
+    disagreement between two ordinary cost conventions. Under an unconstrained
+    Grover reading the hash arm is sqrt(|B_tau|) = 2^96.4 / 2^112.7 / 2^128.5,
+    which is BELOW the recalled quantum lattice arm at every set, so the arms
+    swap and the hash arm binds everywhere; under a MAXDEPTH-bounded reading it
+    swaps back by an amount that depends on the depth budget. THE DELIVERABLE IS
+    NOT A CLAIM THAT THE STANDARD IS WRONG -- the designers plausibly chose tau
+    to make exactly this margin adequate. The deliverable is the table nobody in
+    this corpus has: which arm binds, at which parameter set, under which named
+    convention, with the crossover depth and memory budgets computed.
+
+  object_first_candidate:
+    tracked_object: >-
+      The RESOURCE PROFILE of an attack arm, kept as a 4-tuple (time, memory,
+      circuit depth, oracle queries) and deliberately NOT collapsed to a single
+      bit count, followed through both arms of SelfTargetMSIS from the problem
+      definition to a comparison. The tracked object is the tuple; the standard
+      practice under audit is the projection of that tuple onto its first
+      coordinate.
+    established_families_off_limits: >-
+      OFF-LIMITS as the primary lens: (1) any new lattice algorithm or sieve
+      variant -- this proposal takes the published lattice arm as given and does
+      not try to improve it; (2) any new hash-function cryptanalysis -- SHAKE is
+      modelled as a random oracle throughout and no property of Keccak is used;
+      (3) algebraic attacks on the ring; (4) fault and side-channel attacks
+      (that is IDEA-20260805-818196's lane, and under AGENTS.md rule 7 a fault
+      result may never be scored as a break of any of the three problems);
+      (5) decryption-failure and rejection-sampling statistics. The proposal
+      uses only counting, one binomial coefficient, and the published cost
+      constants.
+    newness_score: >-
+      |B_tau| is quoted in the design literature; the value is not new and this
+      record does not pretend it is. Three things are absent from this corpus,
+      checked: (a) the MARGIN between the two arms, per category, as a number;
+      (b) the observation that the margin collapses monotonically to single
+      digits at the highest category; (c) the non-reordering theorem for
+      lattice-vs-lattice, which is worth stating because it CLOSES a line of
+      work the program's own template T-D would otherwise recommend. The
+      transfer being made is KN-TECH-035 / -044 / -050 / -057 (the Wiener
+      AT-cost family, used repeatedly for ECDLP and code-based work) pointed at
+      a lattice signature for the first time in this corpus, and the honest
+      report of that transfer is that HALF OF IT IS PROVABLY EMPTY.
+    testability_score: >-
+      Very high and free. log2 |B_tau| is one exact integer computation.
+      The theorem is three lines. The crossover budgets are one-dimensional
+      root-finds. Nothing needs a lattice library; numpy is present (measured
+      this session, 2.4.6) and is not needed either.
+    survival_score: >-
+      The theorem survives -- it is elementary and its qualifier ("same solver
+      family") is stated. The forced value survives -- it is exact arithmetic.
+      What may not survive is the MARGIN table, because the lattice-arm figures
+      it is measured against are RECALLED-UNVERIFIED and because
+      IDEA-20260805-591f9d has already found the naive block-size instrument
+      missing its baseline by about 355 in beta. The margin table is therefore
+      explicitly downstream of that calibration and is not computed before it.
+
+  mechanism: >-
+    DERIVED HERE.
+
+    (A) THE HASH ARM AND ITS FORCED VALUE. A SelfTargetMSIS solution must
+    satisfy c = H(mu, [A | t | I] y) where c is itself a block of y. The generic
+    attack is a grind: choose any short z and any c in the challenge set B_tau,
+    compute w = [A | t | I] (z ; -c ; s), query H(mu, w), and win iff the answer
+    equals the c already chosen. The events are independent across queries in
+    the random-oracle model and each succeeds with probability 1/|B_tau|, so the
+    expected number of queries is |B_tau|. The challenge set is the set of
+    polynomials in Z[X]/(X^256 + 1) with exactly tau coefficients in {-1, +1}
+    and the rest zero, so
+      |B_tau| = C(256, tau) * 2^tau,
+    which is EXACT COUNTING, not an estimate. SCOUT-COMPUTED this session with
+    Python exact integers (re-run in-harness before citing):
+      tau = 39 -> log2 |B_tau| = 192.760
+      tau = 49 -> log2 |B_tau| = 225.345
+      tau = 60 -> log2 |B_tau| = 257.015.
+    That these reproduce the widely quoted "at least 2^192 / 2^225 / 2^257" to
+    within a bit is a consistency check on tau and on the ring degree at once,
+    and it is the strongest corroboration available for the recalled parameter
+    table without reading the standard.
+    RESOURCE PROFILE OF THE HASH ARM: memory O(1) -- no table is stored, each
+    trial is independent, and there is no birthday structure to exploit because
+    the target c is CHOSEN by the attacker before the query rather than searched
+    for among stored values. Queries |B_tau|. Depth: classically irrelevant
+    (embarrassingly parallel); quantumly the whole cost, because Grover over
+    this search space costs about sqrt(|B_tau|) sequential iterations and NIST's
+    MAXDEPTH convention caps sequential depth.
+
+    (B) THE LATTICE ARM'S PROFILE. Sieving-based BKZ at block size b: time
+    2^(0.292 b) classical / 2^(0.265 b) quantum, MEMORY 2^(0.2075 b), depth
+    polynomial, queries zero. All three constants RECALLED-UNVERIFIED.
+
+    (C) THE NON-REORDERING THEOREM (this is the negative result, and it is
+    exact). Let P and P' be two problems whose costs under a fixed cost model
+    are f(b) and f(b') where b, b' are their block sizes and f is monotone
+    increasing. Then cost(P) < cost(P') iff b < b'. Any change of cost model
+    that replaces f by another monotone increasing g -- charging memory as
+    2^(0.2075 b), charging Wiener AT^2 as a monotone function of (time, memory)
+    both of which are monotone in b, switching classical to quantum sieve
+    constants, or multiplying by any b-independent constant -- preserves the
+    ordering exactly. HENCE: no cost-convention change whatsoever can make MSIS
+    bind where MLWE bound, or vice versa, at fixed parameters. THE QUALIFIER IS
+    LOAD-BEARING AND IS STATED: this holds when both arms are costed with the
+    SAME SOLVER FAMILY. If one arm is enumeration (polynomial memory,
+    superexponential time) and the other is sieving, the costs are not both of
+    the form f(b) for one f and the ordering CAN flip -- which is exactly the
+    unresolved question KN-OPEN-017 records verbatim ("No source in this corpus
+    computes the crossover under full cost"). So the theorem does not close the
+    lattice-vs-lattice question; it says precisely which residue of it is open,
+    namely the enumeration/sieving crossover, and points at the corpus entry
+    that already owns it.
+
+    (D) THE LATTICE-VS-HASH COMPARISON, WHICH THE THEOREM DOES NOT COVER. The
+    hash arm's cost is not a function of b at all. Writing L(b) for the lattice
+    arm's cost under a convention and Hsh for the hash arm's, the binding arm is
+    min(L(b), Hsh), and because L and Hsh respond to a convention change
+    differently, the argmin CAN change. Three concrete conventions, three
+    different answers, all computable:
+      (i) CLASSICAL, MEMORY FREE. L = 2^(0.292 b). Against RECALLED-UNVERIFIED
+          b giving roughly 2^123 / 2^182 / 2^252, the margins Hsh - L are about
+          +70 / +43 / +5 bits: the lattice arm binds at all three, but the
+          margin collapses monotonically and is within noise at ML-DSA-87.
+      (ii) CLASSICAL, MEMORY CHARGED. Any convention that charges the sieve's
+          2^(0.2075 b) memory RAISES L and leaves Hsh untouched, so it can only
+          push toward the hash arm. The crossover is the memory-price exponent
+          alpha at which 0.292 b + alpha * 0.2075 b = log2 |B_tau|; solving for
+          alpha per parameter set gives the exact price at which the answer to
+          "which binds" changes. At ML-DSA-87 the five-bit gap means a very
+          small alpha suffices, which is the entire point.
+      (iii) QUANTUM. L = 2^(0.265 b) against Hsh = 2^(log2|B_tau| / 2) =
+          2^96.4 / 2^112.7 / 2^128.5. On the recalled block sizes the hash arm
+          is BELOW the lattice arm at every set and therefore binds everywhere,
+          reversing (i). Under MAXDEPTH D the Grover cost rises to about
+          |B_tau| / D total gates, which for D = 2^40 / 2^64 / 2^96 moves the
+          hash arm back up by 40 / 64 / 96 bits and can reverse the reversal.
+    THE DELIVERABLE IS THE TABLE OF THESE THREE ROWS WITH THE CROSSOVERS, NOT A
+    SELECTION AMONG THEM. AGENTS.md's retrieval policy item 7 -- report
+    contradictory sources rather than picking one -- is the model: three
+    conventions give three answers and the honest output says so.
+
+    (E) WHY THIS IS NOT AN ATTACK CLAIM. Every number above is a cost of a
+    KNOWN generic attack under a stated convention. No new attack is proposed,
+    no forgery is produced, and the possibility that the designers analysed
+    exactly this and chose tau accordingly is not merely admitted but is the
+    most likely outcome. What is being audited is whether THIS PROGRAM can say
+    which arm binds, which it currently cannot, because it has never computed
+    either column.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - ledger/proposals
+      - ledger/hypotheses
+      - ledger/evidence
+      - knowledge/literature
+      - knowledge/techniques
+      - knowledge/open-problems
+      - experiments
+    grep_results:
+      - >-
+        |B_tau|, the challenge-set size, appears nowhere in this corpus, and no
+        record computes either arm of SelfTargetMSIS.
+      - >-
+        The Wiener AT-cost technique records KN-TECH-035 / -044 / -050 / -057
+        exist and are used for ECDLP and code-based work; none has ever been
+        pointed at a lattice signature here.
+      - >-
+        KN-OPEN-017 states verbatim that no source in this corpus computes the
+        enumeration/sieving crossover under full cost -- which is precisely the
+        residue this proposal's non-reordering theorem leaves open, and the two
+        records did not previously cite each other.
+    conclusion: >-
+      Control/cost proposal. |B_tau| is quoted in the design literature and no
+      novelty is claimed for its value. The claim of newness is restricted to
+      the per-category MARGIN between the arms, its monotone collapse, and the
+      non-reordering theorem stated so as to CLOSE the lattice-vs-lattice half
+      of the charging question. UNVERIFIED externally and deliberately
+      discounted for the reason KN-OPEN-3f7a21 records.
+
+  parameters_assumed:
+    provenance: >-
+      Identical to IDEA-20260805-591f9d's parameters_assumed block:
+      RECALLED-UNVERIFIED, corroborated in part by the sibling-goal records
+      IDEA-20260805-bb52fa and H-MLDSA-2d4123 and by the |B_tau| consistency
+      check in mechanism (A). KN-LIT-4dadec records the FIPS 204 body as NOT
+      READ; DEC-20260805-0d59ff gate 1 permits ideation on that basis and
+      forbids an experiment claiming to test a FIPS 204 parameter set until the
+      body is obtained. Only tau and the ring degree are load-bearing here.
+    tau: {ML-DSA-44: 39, ML-DSA-65: 49, ML-DSA-87: 60}
+    ring_degree: 256
+    recalled_lattice_bits_classical: >-
+      roughly 123 / 182 / 252 at ML-DSA-44 / -65 / -87. RECALLED-UNVERIFIED,
+      NOT COMPUTED BY THIS PROGRAM, and flagged as the weakest input to the
+      margin table. Stage 2 replaces it with the calibrated instrument from
+      EXP-MLDSA-1c66ac or the audit reports "margin not computable" and stops.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      (attack arm) --> (time, memory, depth, queries) --> and then, in the
+      practice under audit, --> (time). The audited projection is the SECOND
+      arrow: collapsing a resource tuple to its first coordinate.
+    what_is_discarded: >-
+      By the audited projection: memory, depth, and query count. By the
+      proposal's own projection: the algorithm's internal structure, its
+      constants below the exponent, and the instance.
+    why_genuinely_lossy: >-
+      Genuinely lossy and demonstrably so: the two arms have IDENTICAL first
+      coordinates within five bits at ML-DSA-87 while differing in the memory
+      coordinate by more than 350 bits (2^(0.2075 * 1688) versus O(1) on the
+      SCOUT-COMPUTED block size, which is itself uncalibrated). A projection
+      under which two objects that differ by 350 bits in one coordinate become
+      indistinguishable is discarding something.
+    why_compatible_with_the_operations: >-
+      The retained tuple propagates deterministically: each arm's cost model
+      composes coordinatewise under parallelisation and under the standard
+      cost-model transformations (Wiener AT^2 is a fixed function of the tuple),
+      so the tuple is closed under the operations the comparison performs. That
+      is exactly why the tuple is the right tracked object and the scalar is
+      not.
+    is_it_only_a_change_of_coordinates: >-
+      NO. Checked in the forward direction (the (Delta, Pi) = (x xor y, x*y)
+      char-2 failure, in which nothing is discarded because the pair is
+      recoverable): the tuple cannot be recovered from the scalar -- that is
+      the definition of the loss and it is what makes the audit have content.
+      MIRROR FAILURE CHECKED TOO: is the tuple constant across the objects being
+      compared, giving zero comparator spread? NO -- the memory coordinate is
+      2^(0.2075 b) for one arm and O(1) for the other, and the depth coordinate
+      is polynomial for one and sqrt(|B_tau|) for the other. The spread is the
+      largest possible: the two arms are extremal in opposite corners. The
+      NULL OBJECT below is constructed precisely to have zero spread, so that
+      the instrument's ability to report zero can be checked.
+
+  proof_search_map_ref: H-MLDSA-12f563
+
+  assumptions:
+    - >-
+      Random-oracle behaviour of H for the grind argument. If H had exploitable
+      structure the hash arm would be CHEAPER, which moves the conclusion in the
+      direction of "the hash arm binds" and never against it -- so the
+      assumption is conservative for the audit's negative direction and must be
+      flagged when the audit's positive direction is reported.
+    - >-
+      That the generic grind is the best known attack on the self-consistency
+      constraint. RECALLED-UNVERIFIED. A better published attack changes the
+      hash column; finding one would be a strictly better result than this
+      proposal and the audit is designed to surface it (Stage 0).
+    - >-
+      That |B_tau| is the challenge-set size, i.e. that SampleInBall produces
+      exactly tau nonzero coefficients each uniform in {-1, +1}. RECALLED, and
+      independently corroborated by the 192 / 225 / 257 agreement.
+
+  predictions:
+    - metric: "log2 |B_tau| = log2( C(256, tau) * 2^tau ), exact, per parameter set"
+      direction: different
+      minimum_effect: >-
+        EXACTLY 192.760 / 225.345 / 257.015 (three decimals), pre-registered
+        before any in-harness run. Exact integer arithmetic; any deviation means
+        tau or the ring degree in the Stage-0 sourced table differs from
+        parameters_assumed.
+    - metric: >-
+        non_reordering_check: number of (parameter set, convention) pairs in
+        which the MLWE-vs-MSIS ordering differs from the ordering by block size,
+        over 3 sets x 4 conventions {classical, quantum, memory-charged,
+        AT^2-charged}, all costed with the same solver family
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0, forced by the theorem in mechanism (C). This is a control
+        that CAN FAIL: an implementation that applies a convention
+        asymmetrically, or that silently switches solver family between arms,
+        returns a nonzero count. A nonzero count is an INSTRUMENT FAULT and
+        blocks every other number in this proposal.
+    - metric: >-
+        margin_bits = log2 |B_tau| - (classical lattice-arm bits), per set
+      direction: lower
+      minimum_effect: >-
+        The pre-registered SHAPE, fixed before the run: strictly positive at all
+        three sets (the lattice arm binds classically) and STRICTLY DECREASING
+        across ML-DSA-44 -> -65 -> -87. On the recalled inputs those margins are
+        about 70 / 43 / 5 bits. NO MAGNITUDE IS PRE-REGISTERED because the
+        lattice column is recalled and the instrument is uncalibrated; the
+        MONOTONE DECREASE is pre-registered because it follows from tau growing
+        more slowly than the block size across categories, and a violation of
+        monotonicity would falsify that reasoning.
+    - metric: >-
+        alpha_star: the memory-price exponent at which
+        0.292 b + alpha * 0.2075 b = log2 |B_tau|, per set
+      direction: lower
+      minimum_effect: >-
+        Strictly decreasing across the three sets, and below 0.10 at ML-DSA-87.
+        Pre-registered as a shape claim; the numeric value is reported with the
+        calibration residual attached.
+    - metric: >-
+        quantum_swap_count: number of parameter sets at which the hash arm binds
+        under unconstrained Grover but the lattice arm binds classically
+      direction: higher
+      minimum_effect: >-
+        Pre-registered prediction: 3 of 3. If it is 0 of 3 the recalled quantum
+        lattice figures are wrong or the Grover cost of this particular search
+        is not sqrt(|B_tau|), and finding out which is the more valuable outcome.
+    - metric: >-
+        maxdepth_reversal_threshold: the depth budget D at which the
+        MAXDEPTH-bounded hash arm |B_tau| / D rises back above the quantum
+        lattice arm, per set
+      direction: different
+      minimum_effect: >-
+        Reported as a number in bits, per set, against NIST's stated depth
+        budgets 2^40 / 2^64 / 2^96. The pre-registered interpretation, fixed
+        here: if the threshold lies BELOW every stated budget at every set, the
+        quantum swap is an artifact of ignoring MAXDEPTH and the audit says so
+        plainly rather than reporting the swap.
+
+  minimal_test:
+    design: >-
+      Three stages, cheapest-first, each able to terminate the line.
+      STAGE 1 (exact integers, seconds, RUNS FIRST AND CAN END EVERYTHING):
+      compute log2 |B_tau| for the three tau values and execute the
+      non-reordering control. If the control returns nonzero, stop and report an
+      instrument fault. STAGE 2 (pen and paper, zero compute): write out the
+      non-reordering theorem with its solver-family qualifier and have it
+      checked; record explicitly that it does NOT close the enumeration/sieving
+      crossover and cite KN-OPEN-017 as the entry that owns the residue.
+      STAGE 3 (one-dimensional root-finds, seconds, ONLY IF the calibration gate
+      of EXP-MLDSA-1c66ac has passed): the three-convention margin table, the
+      alpha_star crossovers, and the MAXDEPTH thresholds. If that gate has not
+      passed, Stage 3 does not run and the batch's deliverable is Stages 1-2
+      plus the statement that the margin is not computable without a calibrated
+      lattice column.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value pre-derived, CAN FAIL):
+        TWO LATTICE ARMS AGAINST EACH OTHER. Feed the comparison machinery the
+        MLWE arm and the MSIS arm -- two objects of the same shape as the real
+        comparison (two arms, one convention, one parameter set) but for which
+        the answer is FORCED to be "ordering unchanged" under every convention
+        by the theorem. Forced value: reordering count EXACTLY 0 over 12
+        (set, convention) cells. This can genuinely fail: the same code path
+        that would produce a spurious lattice-vs-hash flip produces a spurious
+        lattice-vs-lattice flip here, and this null catches it.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT (the effect MUST appear, or nothing
+        negative may be reported): a CONSTRUCTED arm pair with a known crossover.
+        Take the real hash arm and a synthetic lattice arm whose block size is
+        set so that the classical margin is exactly +1 bit; charging memory at
+        any alpha > 0 must then flip the binding arm. If the machinery does not
+        report a flip on a pair constructed to flip, it cannot detect flips and
+        no "no flip" finding may be reported anywhere.
+      - >-
+        GRADED CONTROL, >= 3 interior points, monotonicity reported:
+        sweep the memory price alpha over {0, 0.05, 0.10, 0.25, 0.50, 1.00} and
+        report, for each parameter set, which arm binds. The sequence of binding
+        arms must be monotone -- once the hash arm binds it must keep binding as
+        alpha grows, because L is increasing in alpha and Hsh is constant. A
+        non-monotone sequence localises the fault to the cost composition rather
+        than leaving "the table looks odd".
+      - >-
+        FORCED-VALUE CROSS-CHECK (zero compute): |B_tau| computed two ways --
+        C(256, tau) * 2^tau by exact binomial, and by the entropy approximation
+        256*H(tau/256) - 0.5*log2(2*pi*256*(tau/256)*(1-tau/256)) + tau. The two
+        must agree to within 0.1 bit. Disagreement means an arithmetic error in
+        one of them and both are reported.
+      - >-
+        ARCHIVE CHECK (zero compute): prior measurements of |B_tau| or of either
+        arm's cost in this corpus. Recorded in advance: NONE FOUND. No MLDSA
+        experiment or evidence record exists; the five BATCH-001 KN-LIT entries
+        are four implementation papers and one unread standard. Recorded as an
+        absence, not as a passed check.
+    required_metrics:
+      - log2 |B_tau| per set, computed two ways, with the exact integer printed
+      - the non-reordering control's cell-by-cell result over 3 sets x 4 conventions
+      - margin_bits per set per convention, each stamped with the provenance class of its lattice column
+      - alpha_star and the MAXDEPTH reversal threshold per set
+      - the graded alpha sweep with its monotonicity verdict
+
+  falsification_conditions:
+    - >-
+      The non-reordering control returns a nonzero count. The instrument is
+      faulty and every number in this proposal is void until it is repaired.
+      This is the cheapest falsifier available and it runs first.
+    - >-
+      The two computations of |B_tau| disagree by more than 0.1 bit.
+    - >-
+      The Stage-0 sourced tau values differ from parameters_assumed. All three
+      forced values are withdrawn and recomputed in a superseding record.
+    - >-
+      margin_bits is NOT monotone decreasing across the three categories. The
+      reasoning in the prediction is then wrong and the "collapsing margin"
+      framing must be withdrawn even if the individual numbers stand.
+    - >-
+      The positive control does not flip. Nothing negative may be reported.
+    - >-
+      A published attack on the self-consistency constraint cheaper than the
+      generic grind is found in Stage 0. The hash column is then replaced by it
+      and this proposal's arithmetic is superseded -- a strictly better outcome
+      than the proposal's own success.
+
+  confounders:
+    - >-
+      THE LATTICE COLUMN IS RECALLED AND THE INSTRUMENT IS UNCALIBRATED. The
+      margin table's second column comes either from memory (roughly 123 / 182 /
+      252 bits) or from an instrument that IDEA-20260805-591f9d has already
+      shown missing its baseline by about 355 in beta. This is the dominant
+      confounder and it is why Stage 3 is gated on the other experiment's
+      calibration passing. The hash column, by contrast, is exact.
+    - >-
+      MAXDEPTH IS A POLICY CONVENTION, NOT PHYSICS. Which depth budget applies
+      at which category is a NIST convention this program has not read. Every
+      quantum row is reported against all three budgets rather than one.
+    - >-
+      GROVER COSTING GRANULARITY. sqrt(|B_tau|) counts ITERATIONS; each
+      iteration evaluates the whole predicate, including a module-matrix
+      multiplication, so the gate count carries a large multiplicative factor
+      that is favourable to the defender and is NOT included here. The audit
+      must state that its quantum hash column is an underestimate of the
+      attacker's true cost, and therefore that a reported "the hash arm binds"
+      is a conservative direction while a reported "it does not" is not.
+    - >-
+      SELECTION OF CONVENTIONS. Three conventions were chosen because they are
+      the ones this corpus already uses; a fourth could give a fourth answer.
+      The table is labelled as a survey of named conventions, never as a
+      complete enumeration.
+
+  interpretation_limits:
+    - >-
+      NO ATTACK, NO FORGERY, NO EXPONENT MOVED. Every cost is that of a known
+      generic attack. The proposal claims no improvement over any published
+      figure and none may be read into it.
+    - >-
+      A row reading "the hash arm binds under convention X" is a statement about
+      convention X, not about ML-DSA's security and NOT a claim that the scheme
+      falls short of its category. Category targets are themselves stated in a
+      convention this program has not read; comparing an arm cost to a category
+      target requires that text and is explicitly OUT OF SCOPE until it is
+      obtained.
+    - >-
+      The non-reordering theorem CLOSES ONLY what it states. It does not close
+      the enumeration-versus-sieving crossover, which remains open and is owned
+      by KN-OPEN-017 in this corpus; the closure standard of the inventor
+      protocol requires naming that residue and it is named.
+    - >-
+      Nothing here is about faults or side channels, and nothing here may be
+      combined with IDEA-20260805-818196 to produce a joint claim: under
+      AGENTS.md rule 7 a fault result is never a break of MLWE, MSIS or
+      SelfTargetMSIS, in either direction.
+
+  heuristic_assumptions:
+    - id: HEUR-ARM-1
+      statement: >-
+        In the random-oracle model, the expected number of grind trials to
+        satisfy c = H(mu, [A | t | I] y) with c a designated block of y is
+        |B_tau| = C(256, tau) * 2^tau, and the trials are independent.
+      rigorous_support: >-
+        Elementary and derived here: for a uniformly random function, each
+        distinct query's output is uniform on the challenge set independently of
+        the others, and the attacker's chosen c is fixed before the query. The
+        counting of B_tau is exact combinatorics. What is NOT rigorous is the
+        step from "random oracle" to "SHAKE-256 as specified", which is the
+        standard modelling gap and is recorded rather than hidden.
+      validation_plan: >-
+        Report the count as exact combinatorics with the modelling gap named.
+        No experiment can validate the random-oracle step and none is claimed to.
+    - id: HEUR-ARM-2
+      statement: >-
+        Sieve cost is 2^(0.292 b) classical, 2^(0.265 b) quantum, memory
+        2^(0.2075 b), uniformly in b; and the published lattice-arm bit figures
+        for the three parameter sets are approximately 123 / 182 / 252 classical.
+      rigorous_support: >-
+        RECALLED-UNVERIFIED throughout; no source read. This is the weakest
+        input in the proposal and it feeds every row of the margin table except
+        the hash column.
+      validation_plan: >-
+        Stage 0 replaces the recalled figures with sourced ones or the margin
+        table is not produced. The non-reordering theorem and the |B_tau| forced
+        values do NOT depend on HEUR-ARM-2 and survive its failure intact --
+        which is why they are ordered first.
+
+  target_complexity:
+    time_exponent: >-
+      n/a -- NO EXPONENT IS MOVED. The proposal recomputes and compares existing
+      exponents; it improves none. Stated plainly as the generation contract
+      requires. It is worth running because the goal's first completion
+      criterion is a comparison, because the non-reordering theorem deletes a
+      line of work at zero cost, and because the ML-DSA-87 margin is small
+      enough that the comparison's answer is currently unknown to this program.
+    memory_exponent: >-
+      0.2075*b for the lattice arm, O(1) for the hash arm. The DIFFERENCE
+      between these two is the entire mechanism, so memory is not a side column
+      here -- it is the independent variable.
+    best_known: >-
+      The published concrete estimates for the two arms of SelfTargetMSIS at the
+      three approved parameter sets. NOT READ. Stage 0.
+    hidden_overhead: >-
+      Grover iteration cost (favourable to the defender, excluded, and declared
+      excluded); sieve constants below the exponent; the random-oracle modelling
+      gap.
+    tradeoff_note: >-
+      The proposal IS a tradeoff analysis: alpha_star is exactly the price of
+      memory at which the tradeoff reverses the answer.
+
+  dominated_by: null
+  dominated_by_check: >-
+    NULL CLAIMED ONLY AFTER LISTING THE ROWS CHECKED. No attack is proposed so
+    no frontier point is occupied; null here means no prior record in this
+    corpus supplies this comparison. Checked on 2026-08-05 across all three
+    axes. TIME: ledger/proposals -- IDEA-20260801-008 (the only prior proposal
+    on RQ-MLDSA-001) brackets a single cost and never separates the arms;
+    IDEA-20260805-591f9d (this session, sibling) handles the lattice arm's norm
+    budget and explicitly defers the tradeoff to this record. MEMORY:
+    knowledge/techniques KN-TECH-035, -044, -050, -057 (the Wiener AT-cost
+    family) -- present in the corpus, applied to ECDLP and code-based work,
+    NEVER APPLIED TO A LATTICE SIGNATURE; KN-OPEN-017 states verbatim that no
+    source in this corpus computes the enumeration/sieving crossover under full
+    cost, which is precisely the residue this proposal's theorem leaves open.
+    DATA / QUERIES: the hash arm is a query-bounded attack and no record in this
+    corpus charges queries for any lattice signature; checked ledger/evidence
+    for any MLDSA record -- none exists. Also checked: the five BATCH-001 KN-LIT
+    entries (all implementation-level except the unread standard) and the
+    sibling goal's five records, none of which mention |B_tau|, tau's role in
+    the challenge space, or either arm's cost. Absence of a result here is not
+    evidence of absence in the literature; KN-OPEN-3f7a21 records how little
+    this corpus's novelty screens actually see.
+  sota_delta: >-
+    QUANTITATIVE AND NOT AN ATTACK DELTA. (1) The hash column: exact values
+    192.760 / 225.345 / 257.015 bits, currently absent from this corpus. (2) The
+    margins: about +70 / +43 / +5 bits classically on recalled inputs, i.e. a
+    65-bit collapse across three categories that no record reports. (3) The
+    theorem: it removes 12 of the 12 (parameter set x convention) cells of the
+    MLWE-vs-MSIS reordering question from the space of things worth computing,
+    at zero compute. (4) alpha_star and the MAXDEPTH thresholds: numbers that do
+    not exist anywhere in this program.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.90 that Stages 1-2 (the forced value, the two-way cross-check, the
+    non-reordering theorem with its qualifier, and the null control) survive
+    review intact -- they are exact combinatorics and three lines of monotonicity
+    argument, and neither depends on any unread document. 0.45 that Stage 3's
+    margin table is produced at all within the campaign budget, because it is
+    gated on a calibration that has already failed once by about 355 in beta and
+    on lattice figures that are currently recalled rather than sourced. NOT
+    HIGHER on Stage 3 for those two reasons and because GOAL-MLDSA-001's second
+    pause condition explicitly contemplates the primary sources being
+    unobtainable. NOT LOWER because the hash column is exact and independent of
+    all of that, so even a total failure of the lattice column leaves a real
+    deliverable: the exact challenge-space sizes and the theorem that half the
+    charging question is empty. 0.10 that the audit finds a published attack on
+    the self-consistency constraint cheaper than the generic grind -- low, but
+    that outcome would dominate everything else in this record and Stage 0 is
+    written to look for it.

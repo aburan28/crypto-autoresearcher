@@ -1,0 +1,705 @@
+idea:
+  id: IDEA-20260821-019d2f
+  question_id: RQ-MLKEM-001
+  added: '2026-08-21'
+  title: >-
+    How many of FIPS 203's 128 rank-2 NTT slots must an attack hold JOINTLY before it can see
+    anything? Two thresholds, both computable, and the gap between them is the measured obstruction
+    to every slot-local / divide-and-conquer attack on ML-KEM: r_info = ceil(H(s)/(2 log2 q)) ~ 23
+    slots by pigeonhole, versus r_alg ~ 45 slots before the S-slot DUAL FUNCTIONAL LATTICE contains
+    a vector short enough to bias <v,s> at all -- with the CBD characteristic function cos^{2eta}
+    giving the bias in closed form, and a ring-deleted random-matrix null that can void the whole
+    reading
+  class: representation
+  claim: >-
+    (A) THE STRUCTURAL FACT THE LANE HAS NEVER TRACKED. q = 3329 = 13*2^8 + 1, so Z_q contains
+    primitive 256th roots of unity but not 512th, and x^256 + 1 splits over F_q into 128
+    IRREDUCIBLE QUADRATICS -- FIPS 203's NTT has 128 rank-2 CRT slots, not 256 rank-1 ones, and
+    each slot is a copy of F_{q^2}. (The irreducibility is not incidental: with zeta a primitive
+    256th root of unity, zeta = g^13 for a generator g, so every zeta^{2i+1} = g^{13(2i+1)} has odd
+    discrete log and is a quadratic non-residue; hence every factor x^2 - zeta^{2i+1} is
+    irreducible and every slot is a field.) Twenty-six existing proposals in this lane cover
+    isometry orbits, per-coordinate likelihoods, compression cells, weak keys, failure oracles,
+    quantum routes, crossovers, best-of-M and dense-CBD hybrids. NONE takes the half-splitting
+    itself as an object.
+    (B) THE OBJECT. For a subset S of the 128 slots with |S| = r, the projection pi_S : R_q ->
+    prod_{i in S} F_{q^2} is reduction modulo f_S = prod_{i in S}(x^2 - zeta_i), a RING
+    HOMOMORPHISM: it commutes with every operation ML-KEM performs on ring elements. Track
+    pi_S(s), the r-slot CRT image of the secret. This is the natural object for any attack that
+    would decompose ML-KEM along its own CRT structure -- and the question nobody has asked is how
+    wide r must be before pi_S(s) carries anything.
+    (C) TWO THRESHOLDS, AND THEY ARE NOT THE SAME NUMBER.
+    r_info, the PIGEONHOLE floor: the image has capacity 2r*log2(q) = 23.401r bits, while a CBD_eta
+    secret polynomial carries H = 256*h(eta) bits with h(2) = 2.0306 and h(3) = 2.3333 bits per
+    coefficient, i.e. 519.8 and 597.3 bits. So r_info = ceil(H/23.401) = 23 slots for eta = 2 and
+    26 for eta = 3. Below r_info the image cannot determine s at all.
+    r_alg, the ALGORITHMIC floor: an attack does not read pi_S(s) directly, it reads F_q-linear
+    functionals of it. The functionals that factor through pi_S are exactly the F_q-span of the
+    rows of the reduction-mod-f_S matrix E_S (2r x 256), and their integer lifts form the DUAL
+    FUNCTIONAL LATTICE L_S = {v in Z^256 : v mod q in rowspace(E_S)}, of dimension 256 and volume
+    q^{256-2r}. For v in L_S the bias of <v,s> mod q against uniform is EXACTLY prod_j
+    cos^{2eta}(pi v_j / q), because that is the characteristic function of CBD_eta evaluated at
+    2 pi v_j / q. So "what can r slots see" has a closed-form answer parameterised by the shortest
+    vector of L_S.
+    (D) THE FALSIFIABLE CLAIM, WITH NUMBERS DERIVED BEFORE ANY RUN. Under the Gaussian heuristic,
+    lambda_1(L_S) ~ sqrt(256/(2 pi e)) * q^{(256-2r)/256} = 3.8586 * 3329^{(256-2r)/256}.
+    Setting that below q gives r > 21.3 -- below about 22 slots L_S contains no vector shorter than
+    the trivial q*e_j and there is no nontrivial functional at all. Setting it below the length
+    q/(pi*sqrt(2*eta/2)) at which the bias reaches e^{-1} -- about 749 for eta = 2 -- gives
+    r ~ 45. THE CLAIM: r_alg is about twice r_info, the gap is about 22 slots, and the gap is a
+    property of the CRT decomposition rather than of any particular attack. CONSEQUENCE, WHICH IS
+    THE POINT: any attack that decomposes ML-KEM along its own NTT slots must hold at least
+    r_alg slots jointly, i.e. must work in a space of size at least q^{2*r_alg} ~ 2^{1053}, which
+    forecloses slot-local, per-slot, and small-window divide-and-conquer strategies with a number
+    rather than with an intuition.
+    (E) THE OTHER OUTCOME, WHICH IS THE INTERESTING ONE. All of (D) assumes lambda_1(L_S) is
+    governed by volume alone. It need not be: L_S is built from a HIGHLY STRUCTURED matrix (a
+    Vandermonde-type evaluation map), not a random one, so the standard leftover-hash and
+    Gaussian-heuristic arguments do not apply to it. If some slot family -- butterfly-aligned
+    subsets (the leaves under one node of the NTT tree, for which f_S = x^{2^j} - c), or subsets
+    closed under the Galois action zeta -> zeta^j -- has systematically shorter lambda_1 at equal
+    r than random subsets and than a ring-deleted random-matrix null, then there is a PREFERRED
+    slot decomposition of ML-KEM, r_alg is family-dependent, and that is the first structure-using
+    handle this lane would have found.
+    (F) NOT CLAIMED. No attack, no break, no speedup, no exponent moved. Every number in (C) and
+    (D) is the proposer's arithmetic on FIPS 203 constants and on the Gaussian heuristic, performed
+    2026-08-21; NONE is a measurement and none is read from a committed run. The Gaussian heuristic
+    is exactly what the experiment tests, so quoting it as fact would defeat the purpose. No claim
+    about what the literature contains. No direction declared impossible.
+  mechanism: >-
+    STAGE 0 (closed form, minutes, no lattice). Verify from FIPS 203 constants that q - 1 = 2^8*13,
+    that x^256+1 has 128 irreducible quadratic factors mod q, and that zeta^{2i+1} is a non-residue
+    for every i. Compute h(eta) exactly for the CBD alphabets (eta=2: probabilities
+    (1,4,6,4,1)/16; eta=3: (1,6,15,20,15,6,1)/64), hence H and r_info per parameter set. Also
+    compute q^2 - 1 = 3328*3330 = 2^9*3^2*5*13*37 and record that every slot's multiplicative group
+    is 37-smooth -- recorded as an observation for the corpus, not used by this proposal.
+    STAGE 1 (the dual functional lattice, the core measurement, cheap). For r = 8, 16, 22, 24, 32,
+    40, 45, 48, 56, 64 and for four slot families -- (F1) uniformly random subsets, (F2)
+    butterfly-aligned subsets (all leaves under one node of the NTT tree, so f_S = x^{2^j} - c),
+    (F3) Galois-orbit-closed subsets (closed under zeta_i -> zeta_i^j for j in a fixed subgroup of
+    (Z/512)^*), (F4) contiguous runs in bit-reversed slot order as FIPS 203 stores them -- build
+    E_S by reducing the monomial basis modulo f_S, construct the q-ary lattice L_S in its standard
+    basis, and run LLL then BKZ at a declared blocksize ladder. Record the shortest vector found,
+    its length, and the EXACT bias prod_j cos^{2eta}(pi v_j / q) computed from its integer entries.
+    Repeat over at least 16 independent subset draws per (r, family) cell so every reported value
+    is an interval and not a point.
+    STAGE 2 (the ring-deleted null, and it can fail). For each (r, family) cell, build a matched
+    null: a UNIFORMLY RANDOM 2r x 256 matrix over F_q in place of E_S, giving a q-ary lattice of
+    IDENTICAL dimension and IDENTICAL volume q^{256-2r} but with no ring, no CRT and no Vandermonde
+    structure. Run the identical LLL/BKZ pipeline with the identical budget. The Gaussian heuristic
+    predicts the SAME lambda_1 in both arms; that is the forced value, derived before the run. Any
+    systematic difference is the finding. The null is drawn at least 16 times per cell and reported
+    as an interval, with the leave-one-out false-positive rate of the "outside the interval" rule
+    derived in advance (exactly 2 of n draws land outside an n-draw min/max interval when the draws
+    are distinct: 2/16 = 12.5%), per KN-TECH-1a5b7e mode 5.
+    STAGE 3 (sensitivity, so the instrument is known to be able to move). Graded control: replace
+    E_S by a matrix that interpolates between the true evaluation matrix and a random one, at
+    mixing parameter t in {0, 0.25, 0.5, 0.75, 1}, and report whether the measured lambda_1 is
+    MONOTONE in t across at least three interior points. Two endpoints do not give a direction. If
+    the statistic is non-monotone, no directional reading ("structure shortens vectors") may be
+    attached to any Stage-2 verdict.
+    STAGE 4 (tie the lattice measurement back to information). For the same cells, estimate the
+    statistical distance between pi_S(s) for s ~ CBD_eta and the uniform distribution on
+    (F_{q^2})^r, using the Poisson-summation bound sum over nonzero v in L_S/qZ^256 of prod_j
+    cos^{2eta}(pi v_j/q), truncated to the LLL/BKZ-enumerated short vectors and reported as a LOWER
+    bound on non-uniformity together with the enumeration radius used. Compare the r at which this
+    lower bound crosses a pre-declared threshold against r_info and against r_alg. A crossing at
+    r < r_info would contradict the pigeonhole bound and would mean the estimator is broken.
+    WHY THE EXPLANATIONS SEPARATE. E1 (VOLUME-ONLY): lambda_1 agrees across all four families and
+    with the random-matrix null within the 16-draw intervals, at every r. Then the CRT
+    decomposition contributes nothing beyond counting, r_alg is family-independent, and the
+    deliverable is the measured gap r_alg - r_info in slots -- a named obstruction with a number,
+    forward guidance ("slot-local decompositions are foreclosed; what remains open is joint
+    treatment of >= r_alg slots, and non-CRT projections entirely"), and an obstruction record.
+    E2 (STRUCTURE-DEPENDENT): some family has lambda_1 systematically below the null's interval at
+    equal r and equal volume. Then FIPS 203's NTT has a preferred decomposition, r_alg depends on
+    which slots you take, and the shortest vector found IS an explicit small-bias functional of the
+    ML-KEM secret that the lane can price directly.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX IS UNAVAILABLE THIS SESSION (in-memory Qdrant, answers
+      nothing) and NO SHELL is available, so every corpus search below was run with the Grep
+      (ripgrep) tool and is recorded as a pattern and a path.
+      GREPS RUN:
+      (1) 'rank-2 slot|rank 2 slot|128 slot|quadratic factor|incomplete NTT|slot marginal|
+      slot-tuple|statistical distance.*uniform' -i over the repository root -> 72 files, of which
+      exactly three are ledger proposals: IDEA-20260816-bd49b9, IDEA-20260813-28cf9c (the
+      CRT-rank-deficient SampleNTT matrices record, which matches on slot vocabulary), and
+      IDEA-20260805-574cd0.
+      (2) 'leftover hash|statistical distance|slot marginal|information-theoretic floor|entropy
+      budget|joint distribution of the NTT' -i over ledger/ -> 20 files, of which 15 are proposals
+      and NONE is in the ML-KEM lane except IDEA-20260805-574cd0 and IDEA-20260805-2bbfb2.
+      (3) 'RQ-MLKEM-001' over ledger/proposals -> 38 files; the lane's 26 pre-extracted titles at
+      scratchpad/ctx/proposals-RQ-MLKEM-001.txt WERE READ IN FULL.
+      FILES READ IN FULL OR IN SUBSTANTIAL PART: ledger/proposals/IDEA-20260805-574cd0.yaml lines
+      1-141 (its PART 3 proves the subfield/trace descent is a strict loss and names the classes
+      the lane's inherited constraint does NOT reach); ledger/proposals/IDEA-20260805-e805b6.yaml
+      excerpts; ideas/rlwe-mlwe-20260806/proposals.draft.yaml entries IDEA-20260806-35d60b and
+      IDEA-20260806-e5e694 in full; knowledge/techniques/KN-TECH-1a5b7e.md in full;
+      docs/inventor-protocol.md; docs/target-result-profile.md.
+      WEB QUERIES RUN (WebSearch): 'how many NTT CRT slots needed statistical distance uniform
+      centered binomial Kyber partial NTT information'. It returned the Kyber specification's own
+      wording -- "for Kyber's prime q = 3329 with q-1 = 2^8*13 ... X^256+1 factors into 128
+      polynomials of degree 2 modulo q and the NTT of f is a vector of 128 polynomials of degree
+      one" -- confirming the structural fact in (A), and returned NOTHING on statistical distance,
+      slot-subset thresholds, or dual functional lattices of slot projections. That is weak
+      evidence of absence and is not treated as more.
+      WEB PAGES FETCHED: none for this record; the structural fact is confirmed by the search
+      snippet of the Kyber specification, which is quoted rather than fetched, hence the
+      specification citation below is marked recalled.
+      NOT DONE, AND SAID SO: no targeted search for prior work on the shortest vector of a CRT-slot
+      dual lattice was run beyond the single query above.
+    results: >-
+      The lane's 26 proposals contain no record that takes the 128 rank-2 slots as an object. The
+      nearest is IDEA-20260813-28cf9c, which selects PUBLIC KEYS whose SampleNTT matrix loses rank
+      in a quadratic slot and prices the resulting exact error-only equations as lattice hints --
+      a weak-key selection over the MATRIX, at slot granularity, with the slot structure used only
+      to locate a rare degeneracy. It measures no threshold, builds no dual functional lattice, and
+      says nothing about how many slots an attack must hold. IDEA-20260805-574cd0 proves the
+      subfield/trace descent (the even-coefficient projection) is a strict loss and names the
+      classes its inherited constraint does not reach; the CRT-projection family it mentions in
+      passing is exactly what this record quantifies, so this proposal is the CRT-family analogue
+      of what 574cd0 supplied for the subfield family. IDEA-20260805-530869 proposes to BUILD the
+      ring-deleted matched null as an instrument; Stage 2 here is an application of that
+      instrument's principle to a new statistic and does not duplicate the instrument's
+      construction. IDEA-20260805-2b94fe uses the CBD characteristic function cos^{2eta} as part of
+      a per-coordinate SCORING functional for candidate errors; this record uses the same function
+      for a different purpose -- the exact bias of a dual functional -- and neither result
+      constrains the other.
+    verdict: >-
+      SPECULATIVE. The structural facts in (A) are textbook and are not claimed as novel; the
+      Kyber specification states the 128-slot decomposition explicitly. What is claimed NEW
+      RELATIVE TO THIS REPOSITORY: the r-slot CRT image as a tracked object; the two thresholds
+      r_info and r_alg and the assertion that they differ by about a factor two; the dual
+      functional lattice L_S of a slot subset as the computable carrier of r_alg; and the
+      family-dependence question with a volume-matched ring-deleted null. NOVELTY AGAINST THE
+      EXTERNAL LITERATURE IS NOT ESTABLISHED -- one web query is not a screen, and dual lattices of
+      partial-NTT projections are close enough to standard dual-attack machinery that prior work
+      would not be surprising. A reviewer with retrieval should chase the partial-NTT and
+      "slot-restricted dual attack" literature (see the neighbouring draft IDEA-20260806-b37e8e,
+      "Slot-restricted dual attack with a ring-native FFT", RQ-RLWE-912fdb, which is the nearest
+      thing in this repository and is discriminated below).
+      LABEL FORCED TO `unverified` BY RULE, NOT BY DOUBT: this record rests on citations marked
+      provenance `recalled`, and AGENTS.md rule 9 (enforced by tools/validate_ledger.py
+      check_citations) requires novelty_status `unverified` until such a source is actually read. The
+      substantive assessment above is unchanged; what cannot be asserted is a checked literature
+      negative. STRUCTURAL PREMISE VERIFIED BY COMPUTATION, not by citation: the orchestrating
+      coordinator session confirmed on 2026-08-21 that x^256 + 1 has ZERO roots in F_3329 (512 does
+      not divide q-1 = 3328 = 2^8 * 13, while 256 does), so the polynomial carries no linear factors
+      and the FIPS 203 NTT decomposition into 128 IRREDUCIBLE QUADRATIC factors -- the 128 rank-2
+      slots this record tracks -- is exact. That fact is therefore not resting on the recalled
+      specification citations.
+  object_first_candidate:
+    tracked_object: >-
+      pi_S(s), the image of the ML-KEM secret polynomial in prod_{i in S} F_{q^2} for a slot subset
+      S of size r -- equivalently s mod f_S -- together with its DUAL FUNCTIONAL LATTICE
+      L_S = {v in Z^256 : v mod q in rowspace(E_S)}, which is what an attack actually reads.
+    lossiness: >-
+      GENUINELY LOSSY BY CONSTRUCTION AND BY A COMPUTABLE AMOUNT: pi_S maps 256 F_q-coordinates to
+      2r, discarding 256 - 2r of them, with fibres of size q^{256-2r}. It is emphatically not a
+      change of coordinates for r < 128; at r = 128 it becomes the identity and the object
+      dissolves into the original problem, which is the honest boundary case. THE DISCARD IS
+      COMPATIBLE WITH THE TARGET'S OPERATIONS FOR THE STRONGEST POSSIBLE REASON: pi_S is a RING
+      HOMOMORPHISM, so it commutes exactly with both operations ML-KEM performs on ring elements --
+      addition and multiplication -- and the retained part propagates deterministically with no
+      side information. This is the cleanest instance of the lossy-projection test available in
+      this lane, and it is why the object is worth measuring even though the measurement may come
+      back null.
+    propagation: >-
+      One step = one ML-KEM ring operation. pi_S(a*s + e) = pi_S(a)*pi_S(s) + pi_S(e), exactly, in
+      prod_{i in S} F_{q^2}. The propagation law is an identity, not an approximation, and it is
+      measurable by construction. What does NOT propagate is SMALLNESS: pi_S(e) is not small in any
+      metric on F_{q^2}, and that is precisely the dissolution point the experiment locates
+      quantitatively -- smallness survives only as the constraint that s lies in a box in the
+      coefficient basis, and the dual functional lattice is exactly the instrument that measures
+      how much of that box constraint an r-slot window can still feel.
+    survival_score: >-
+      Zero steps at r < 22, one step at r >= r_alg, and the boundary is the deliverable. The object
+      is defined for every r but carries no readable information below about 22 slots (no functional
+      shorter than the trivial q*e_j) and no usable bias below about 45 (proposer's arithmetic under
+      the Gaussian heuristic, to be measured). It never survives further than the first addition of
+      a non-small error in the sense of smallness, which is why the interesting quantity is a
+      threshold in r rather than a depth in steps.
+  null_object_control: >-
+    THE RING-DELETED VOLUME-MATCHED NULL, plus a graded sensitivity control, plus a forced value
+    derived before the run.
+    NULL-1 (structure deleted, volume preserved): replace the reduction-mod-f_S matrix E_S by a
+    uniformly random 2r x 256 matrix over F_q. The resulting q-ary lattice has IDENTICAL dimension
+    256 and IDENTICAL volume q^{256-2r}; only the CRT/Vandermonde structure is removed. FORCED
+    VALUE, DERIVED BEFORE THE RUN: under the Gaussian heuristic both arms have lambda_1 =
+    3.8586 * q^{(256-2r)/256}, so the contrast is forced to ZERO and any nonzero contrast is the
+    finding. THE COMPARATOR'S SPREAD IS NOT ZERO -- it is the draw-to-draw spread of lambda_1 over
+    random matrices, which is measurable and is reported as a 16-draw interval, so this is not a
+    control that passes by being constant.
+    CAN IT FAIL? Yes, in both directions and informatively. If the real arm sits below the null's
+    interval, the CRT structure shortens dual vectors and E2 fires. If the real arm sits ABOVE, the
+    CRT structure lengthens them and slot-local attacks are worse off than volume counting says --
+    also a finding. If they agree, the result is a controlled null and the deliverable is the
+    threshold gap.
+    NULL-2 (the object removed entirely): set r = 0. There are no functionals, L_S = qZ^256, the
+    shortest nontrivial vector has length exactly q, and the bias is exactly 1 for the trivial
+    functional and undefined otherwise. This is the degenerate gate with an analytically known
+    output and the pipeline must reproduce it exactly; failure means the construction of L_S is
+    wrong.
+    NULL-3 (maximal removal): set r = 128. L_S = Z^256, lambda_1 = 1 exactly, bias =
+    cos^{2eta}(pi/q) ~ 1. Total retention must be at least as extreme as partial retention and on
+    the same side; if the measured curve is not monotone between r = 0 and r = 128 the statistic is
+    not tracking the object (KN-TECH-1a5b7e mode 2) and the reading is withdrawn.
+    SENSITIVITY, WITH A NAMED COMPARATOR AND A NUMERIC THRESHOLD DECLARED BEFORE THE RUN: the
+    graded control of Stage 3, mixing E_S toward a random matrix at t in {0, 0.25, 0.5, 0.75, 1},
+    scored against the SAME random-matrix spread used for the headline, with monotonicity across
+    the three interior points reported. Threshold: the measured lambda_1 at t = 0 must differ from
+    t = 1 by more than the 16-draw interval width if the instrument is to be called sensitive at
+    all -- and if it does not, the honest conclusion is that the instrument cannot detect
+    structure at this r and no verdict is issued for that cell.
+  discriminated_from:
+    - >-
+      IDEA-20260813-28cf9c selects public keys whose SampleNTT matrix is RANK-DEFICIENT in a
+      quadratic slot and prices the resulting exact equations as hints. That is a rare-event weak-key
+      selection over the MATRIX; this is a threshold measurement over the SECRET's projection, for
+      every key, with no rare event involved. 28cf9c's finding would not move r_alg and this record's
+      finding would not change 28cf9c's rank-deficiency probability.
+    - >-
+      IDEA-20260805-574cd0 proves the subfield/trace descent -- the even-coefficient projection --
+      is a strict loss, and names the classes the lane's inherited "algebra is closed at 17 bits"
+      constraint does not reach. The even-coefficient map is NOT a CRT slot projection (it is not a
+      ring homomorphism), so 574cd0's proof does not cover this family. This record supplies the
+      CRT-family analogue and is explicitly downstream of 574cd0.
+    - >-
+      IDEA-20260805-530869 builds the ring-deleted matched null as an INSTRUMENT and calibrates it
+      against three forced values. Stage 2 here applies that principle to a new statistic; it does
+      not rebuild the instrument, and if 530869's instrument exists it should be used in preference
+      to a bespoke null.
+    - >-
+      IDEA-20260805-2b94fe uses cos^{2eta}, the CBD characteristic function, inside a
+      per-coordinate log-likelihood SCORING functional for candidate errors. Here the same function
+      appears as the exact bias of a dual functional -- a different role, a different quantity, and
+      neither record's outcome constrains the other's.
+    - >-
+      IDEA-20260722-001 and IDEA-20260805-690de8 exploit the negacyclic ISOMETRY group for orbit
+      batching and bound its ceiling by an operation-DAG argument. Those use ring automorphisms to
+      REUSE work at full dimension; this asks how narrow a CRT window can be and still see anything.
+      Orbit batching is not a projection and does not reduce r.
+    - >-
+      IDEA-20260806-b37e8e (DRAFT, RQ-RLWE-912fdb) proposes a SLOT-RESTRICTED DUAL ATTACK with a
+      ring-native FFT and a kappa-curve. That is the nearest neighbour in the repository and it is
+      an ATTACK proposal in a different lane; this record is a threshold MEASUREMENT that would
+      supply an input to it (the smallest r at which a slot-restricted dual attack has any short
+      functional to work with at ML-KEM's parameters). If that draft is promoted, this record should
+      be read as its feasibility precondition rather than as a competitor.
+    - >-
+      A generic dual-attack cost estimate computes the shortest vector of the FULL q-ary lattice
+      and prices a distinguisher. This computes the shortest vector of a SLOT-RESTRICTED sublattice
+      family as a function of the restriction width, and its output is a threshold in r, not a cost.
+  citations:
+    - ref: 'CRYSTALS-Kyber specification (round 3), section on the NTT'
+      provenance: recalled
+      claim: >-
+        For q = 3329 with q-1 = 2^8*13, Z_q contains primitive 256th but not 512th roots of unity,
+        so X^256+1 factors into 128 degree-2 polynomials mod q and the NTT of f in R_q is a vector
+        of 128 polynomials of degree one. This wording was returned as a SEARCH SNIPPET this
+        session, not fetched from the document, so it is recorded as recalled and must be
+        re-verified against FIPS 203 / the specification in-harness before it is quoted.
+      verified_by: null
+    - ref: 'NIST FIPS 203 (ML-KEM) parameter tables and Algorithm 9 (NTT), Algorithm 12 (BaseCaseMultiply)'
+      provenance: recalled
+      claim: >-
+        n = 256, q = 3329; (k, eta1, eta2) = (2,3,2), (3,2,2), (4,2,2); the NTT is stored as 128
+        degree-one polynomials and base multiplication is a degree-2 product modulo x^2 - zeta^{...}.
+        Recalled; all constants to be re-read and certified in-harness.
+      verified_by: null
+    - ref: 'Poisson summation / smoothing bound for the statistical distance of a modular linear image of a bounded distribution'
+      provenance: recalled
+      claim: >-
+        The statistical distance between the image of an independent-coordinate distribution under a
+        modular linear map and the uniform distribution is bounded by the sum over nonzero dual
+        vectors of the product of the coordinate characteristic functions; for CBD_eta the
+        characteristic function is cos^{2eta}(t/2). Standard; recalled and not re-derived here. The
+        experiment uses it only as a LOWER bound via enumerated short vectors, which is the safe
+        direction, and the enumeration radius is reported.
+      verified_by: null
+    - ref: IDEA-20260805-574cd0
+      provenance: internal
+      claim: >-
+        Proves the even-coefficient (subfield/trace) projection is a strict loss and names the
+        classes the lane's inherited constraint does not reach, including CRT projections as being
+        outside the constraint's antecedent.
+      verified_by: idea-generator@2026-08-21
+    - ref: KN-TECH-1a5b7e
+      provenance: kb
+      claim: >-
+        Null sufficiency: forced-value derivation before measurement; a comparator that is generated
+        needs at least 8 draws and an interval; two endpoints do not give a sign; a comparator with
+        zero spread indicates a constant of the apparatus.
+      verified_by: idea-generator@2026-08-21
+  assumptions:
+    - >-
+      The CBD coordinates of s are independent, so the characteristic function factorises. True by
+      construction in FIPS 203's sampler, and it is what makes the bias formula exact rather than
+      approximate.
+    - >-
+      lambda_1 as reported is what LLL/BKZ at the declared blocksize actually finds, which is an
+      UPPER bound on the true lambda_1. Both arms get the identical budget, so the comparison is
+      fair, but an absolute r_alg computed this way is conservative and must be labelled as an
+      upper bound on the true threshold's location.
+    - >-
+      The bias threshold defining r_alg is a declared convention, not a physical constant. It is
+      declared before the run and the whole curve is reported, so the verdict does not hinge on it.
+    - >-
+      Nothing here converts a bias into an attack. A distinguisher with bias B needs on the order of
+      B^{-2} independent samples, and ML-KEM supplies only k*256 equations per key; the sample-count
+      accounting is deliberately NOT done here and no attack cost is implied.
+    - >-
+      All conclusions are scoped to ML-KEM's exact ring, modulus and CBD parameters. Nothing
+      transfers to other rings, moduli or secret distributions without redoing the computation.
+  proof_search_map:
+    bottleneck: >-
+      lambda_1(L_S) as a function of r and of the slot family. Every downstream statement --
+      r_alg, the size of the gap, whether structure matters -- is a function of it, and it is the
+      one quantity that volume counting predicts and structure could move.
+    baseline_embedding:
+      parameter_slice: >-
+        r = 128 (the full NTT), where L_S = Z^256, lambda_1 = 1 exactly, and the projection is the
+        identity -- the exact boundary at which this family degenerates into the unrestricted
+        ML-KEM problem. Second slice: r = 0, where L_S = qZ^256 and lambda_1 = q exactly.
+      reproduction_check: >-
+        A frozen fixture asserting lambda_1 = 1 at r = 128 and lambda_1 = q at r = 0, checked
+        symbolically before any BKZ is run. These are exact and instant; failure means the lattice
+        construction is wrong and nothing else is reportable.
+    observation_collision:
+      observable: >-
+        The shortest vector of L_S and its exact CBD bias.
+      distinct_preimage_search: >-
+        THE COLLISION IS REAL AND IS BUILT INTO THE DESIGN: the true evaluation matrix E_S and a
+        uniformly random 2r x 256 matrix over F_q generate lattices of identical dimension and
+        identical volume, and under the Gaussian heuristic identical lambda_1. So the observable
+        cannot, a priori, distinguish a CRT slot projection from an arbitrary linear projection of
+        the same rank -- which is exactly NULL-1 and exactly the falsifier this design is built
+        around. A second collision: two different slot families at the same r have the same volume,
+        so any difference between them is structural by construction. The design uses the
+        observable only to answer a comparative question between volume-matched arms, never to
+        argue that a single measured lambda_1 means anything on its own.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the volume q^{256-2r} fixed and vary the forgotten structure -- CRT-slot evaluation
+          matrix versus random matrix versus interpolations, and butterfly-aligned versus
+          Galois-closed versus random slot subsets -- and look for an intrinsic invariant
+          (lambda_1, or the bias of the shortest vector) distinguishing them.
+        predicted_gain: >-
+          Predicted NULL: no distinguishing invariant, lambda_1 volume-determined, all families
+          agreeing within the 16-draw interval. A measured difference exceeding 5% in lambda_1
+          between any family and the null is the E2 outcome.
+      - transform: stronger_invariant
+        proposed_object: >-
+          Preserve more than the final goal requires: track not only lambda_1 but the full
+          Gram-Schmidt profile of the reduced L_S basis, since a shape difference at equal lambda_1
+          would still be a structural signal and is what a purely-lambda_1 reading would miss.
+        predicted_gain: >-
+          None predicted; recorded because it costs one extra column in a table that already exists
+          and because a shape difference is not a constant.
+    quantifier_order: >-
+      FOR ALL r < r_alg and FOR ALL slot subsets S with |S| = r, THERE EXISTS no v in
+      L_S \ qZ^256 with prod_j cos^{2eta}(pi v_j / q) above the declared threshold. The negation --
+      THERE EXISTS r < r_alg and THERE EXISTS S with such a v -- is E2, and note that the witness S
+      is allowed to depend on r: nothing here claims uniformity over subsets, and the family
+      comparison exists precisely because non-uniformity over S is the interesting possibility.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: "at the declared blocksize budget and the declared bias threshold, no slot subset
+        of size below r_alg in the four families tested admits a functional above threshold, and
+        the measured lambda_1 agrees/disagrees with the volume-matched null by X." It cannot
+        certify that no such subset exists (the families are a sample, not an enumeration), cannot
+        certify anything about the true lambda_1 as opposed to what the reducer found, and cannot
+        convert any bias into an attack.
+      nearby_object_control: >-
+        The nearby object on which the hoped-for conclusion FAILS is r = 128, where the projection
+        is the identity and every functional is available. A method that reported "no functional"
+        there would be broken; a method that reported the same value at r = 24 and r = 128 would
+        not be reading the object. Both are checked as fixtures before any headline cell is scored,
+        and the frozen decision rule is run on the r = 0 and r = 128 arms FIRST (KN-TECH-1a5b7e
+        mode 4, null-first check).
+    proof_obligations:
+      - claim: 'x^256+1 has 128 irreducible quadratic factors mod 3329, each slot a copy of F_{q^2}.'
+        responsibility: correctness
+      - claim: 'h(2) = 2.0306 and h(3) = 2.3333 bits per CBD coefficient; H = 256 h; r_info = ceil(H/23.401).'
+        responsibility: size
+      - claim: 'The functionals factoring through pi_S are exactly the F_q-rowspace of E_S; L_S has volume q^{256-2r}.'
+        responsibility: correctness
+      - claim: 'For v in Z^256 the bias of <v,s> mod q is exactly prod_j cos^{2eta}(pi v_j/q) for s ~ CBD_eta i.i.d.'
+        responsibility: correctness
+      - claim: 'lambda_1 fixtures at r = 0 and r = 128 reproduce q and 1 exactly.'
+        responsibility: baseline
+      - claim: 'The random-matrix null has identical dimension and volume; the contrast is forced to zero under the heuristic.'
+        responsibility: feasibility
+      - claim: 'Reported lambda_1 is an upper bound on the true value; r_alg is therefore an upper bound on the threshold.'
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: 'r_info = ceil(H(CBD_eta over 256 coefficients) / (2 log2 q)), per eta'
+      direction: different
+      minimum_effect: >-
+        Predicted exactly 23 for eta = 2 and exactly 26 for eta = 3. These are arithmetic; any
+        other value means the entropy or the slot capacity was computed wrong.
+    - metric: 'smallest r at which lambda_1(L_S) < q, i.e. at which a nontrivial functional exists at all'
+      direction: different
+      minimum_effect: >-
+        Predicted 22 +/- 2 under the Gaussian heuristic. A measured value outside 20-24 falsifies
+        the heuristic for this lattice family, which is itself the finding.
+    - metric: 'r_alg, the smallest r at which the shortest found v has bias above e^{-1}'
+      direction: different
+      minimum_effect: >-
+        Predicted 45 +/- 5. The load-bearing prediction is not the exact value but the RATIO:
+        r_alg / r_info predicted near 2. A ratio below 1.2 would mean information and algorithmic
+        access coincide and the gap this proposal is about does not exist.
+    - metric: >-
+        signed relative difference in lambda_1 between the true CRT arm and the volume-matched
+        random-matrix null, at each r, scored against the null's 16-draw interval
+      direction: different
+      minimum_effect: >-
+        5% in lambda_1. Zero is the forced value under the Gaussian heuristic. A negative
+        difference beyond 5% (CRT arm shorter) is E2 and the most interesting outcome.
+    - metric: 'spread in lambda_1 across the four slot families at fixed r'
+      direction: different
+      minimum_effect: >-
+        5%. Family-independence within the interval supports E1; a systematic ordering across
+        families, reproduced at three or more values of r, supports E2.
+    - metric: 'lambda_1 as a function of the graded mixing parameter t in {0, 0.25, 0.5, 0.75, 1}'
+      direction: different
+      minimum_effect: >-
+        Monotone across the three interior points, or the directional reading is withdrawn. No
+        magnitude is predicted; monotonicity is the requirement.
+  minimal_test:
+    design: >-
+      STAGE 0 PLUS ONE ROW OF STAGE 1 AND ITS NULL. Compute r_info in closed form. Then, for r in
+      {16, 22, 24, 32, 40, 48} and slot family F1 (uniformly random subsets) ONLY: build E_S by
+      polynomial reduction modulo f_S, construct the q-ary lattice L_S, run LLL followed by BKZ-20,
+      record the shortest vector, compute its exact bias prod_j cos^{2eta}(pi v_j/q); repeat for 16
+      independent subsets per r; and run the identical pipeline on a uniformly random 2r x 256
+      F_q matrix, 16 draws per r. Check the r = 0 and r = 128 fixtures FIRST and emit the frozen
+      verdict on those degenerate arms before looking at any headline cell. Report, per r: the two
+      16-draw intervals, their signed difference, and the bias curve. COST: six values of r times
+      32 lattice reductions at dimension 256; LLL plus BKZ-20 at dimension 256 is seconds per
+      instance, so this is well under an hour of single-core time.
+      IT DISCRIMINATES BECAUSE the forced value under the Gaussian heuristic is exactly zero
+      contrast between the two arms at equal volume, so any measured contrast beyond the null's own
+      spread is structure and any agreement is a controlled null with a threshold curve attached.
+      It can come out negative in two distinct ways -- agreement with the null (E1, a controlled
+      null plus a measured gap), or fixture failure (construction wrong, nothing reportable) -- and
+      the E1 negative is a usable obstruction, not a blank.
+    controls:
+      - 'NULL-1: volume-matched random-matrix arm, 16 draws per cell, interval reported, never a point.'
+      - 'NULL-2 and NULL-3: the r = 0 and r = 128 degenerate gates with analytically known outputs, run FIRST.'
+      - 'Graded sensitivity in the mixing parameter t with at least three interior points and monotonicity reported.'
+      - 'Identical reduction budget, identical implementation and identical seeds across both arms.'
+      - 'Leave-one-out false-positive rate of the "outside the interval" rule derived before the run (2/16 = 12.5%).'
+      - 'Slot subsets drawn from a declared, seeded generator so the family definitions cannot be adjusted after seeing results.'
+    required_metrics:
+      - 'r_info per eta with the entropy values it came from'
+      - 'lambda_1 interval per (r, family), 16 draws'
+      - 'lambda_1 interval per r for the volume-matched null, 16 draws'
+      - 'signed relative difference real minus null, per r, with the interval'
+      - 'exact bias prod cos^{2eta}(pi v_j/q) of the shortest vector, per cell'
+      - 'the r at which lambda_1 first falls below q, and the r at which bias first exceeds e^{-1}'
+      - 'Gram-Schmidt profile of the reduced basis per cell'
+      - 'fixture results at r = 0 and r = 128'
+      - 'monotonicity flag for the graded control'
+  falsification_conditions:
+    - >-
+      The r = 0 or r = 128 fixture fails. The lattice construction is wrong and nothing else is
+      reportable.
+    - >-
+      The measured r_alg / r_info ratio is below 1.2. The gap this proposal is about does not
+      exist, information and algorithmic access coincide, and the headline framing is withdrawn --
+      leaving the (still useful) single threshold.
+    - >-
+      The real arm and the volume-matched null agree within their intervals at every r and every
+      family. Then E1 holds, the CRT structure is inert for this statistic, and the deliverable is
+      a controlled null plus the measured gap. This is the expected outcome and it is a result.
+    - >-
+      The graded control is non-monotone in t. No directional reading may be attached to any
+      structure verdict; only the non-directional statement survives.
+    - >-
+      lambda_1 does not decrease monotonically in r between the r = 0 and r = 128 gates. The
+      statistic is not tracking the object and the whole reading is withdrawn.
+    - >-
+      Some family shows lambda_1 systematically below the null beyond 5% at three or more values of
+      r. The proposal's own null prediction is FALSIFIED, E2 fires, and the correct response is
+      escalation to independent review, not a louder claim.
+  confounders:
+    - >-
+      Reduction quality: BKZ-20 at dimension 256 does not find lambda_1, it finds something above
+      it, and the gap depends on the basis shape -- which is exactly the thing structure might
+      change. Mitigated by identical budgets on both arms and by reporting the full GS profile, but
+      a structural difference in REDUCIBILITY would masquerade as a difference in lambda_1 and must
+      be reported as such rather than as a lattice-geometry claim.
+    - >-
+      Subset-family definitions are choices, and a family defined after seeing results is not a
+      family. All four are defined and seeded before the run.
+    - >-
+      The bias formula assumes i.i.d. CBD coordinates; if a sampler implementation deviates the
+      formula is wrong. Checked by comparing the empirical bias of <v,s> over 10^6 sampled secrets
+      against the closed form for a handful of v.
+    - >-
+      The Gaussian heuristic is used both to derive the predictions and as the null's forced value.
+      That is circular unless the null is MEASURED rather than assumed -- which is why NULL-1 is
+      run empirically at 16 draws rather than quoted from the formula, and why the formula appears
+      only as the population target reported beside the measured comparator, never as the test
+      reference (KN-TECH-1a5b7e, move 3 caution).
+    - >-
+      Slot subsets of size r near 128 have very small volume and the lattice becomes nearly Z^256,
+      where LLL is trivially optimal; comparisons near the boundary are uninformative and must be
+      flagged rather than averaged in.
+  interpretation_limits:
+    - >-
+      No attack, break, speedup or exponent movement is claimed here or would follow from any
+      outcome. A short functional is not a distinguisher: converting a bias into a distinguisher
+      requires a sample count that ML-KEM does not obviously supply, and that accounting is
+      deliberately not done.
+    - >-
+      r_alg as measured is an UPPER bound on the true threshold, because the reducer's output is an
+      upper bound on lambda_1. Statements of the form "no attack can work below r_alg" are
+      therefore NOT licensed; the licensed statement is about what the tested budget can find.
+    - >-
+      The four slot families are a sample of the 2^128 possible subsets, not an enumeration. E1
+      does not close the family; it reports that four natural families behaved like the null.
+    - >-
+      Every conclusion is scoped to q = 3329, n = 256, the FIPS 203 CBD parameters, the declared
+      blocksize ladder and the declared seeds. The lane's claim-tier ceiling is toy-tier and this
+      record does not raise it.
+    - >-
+      The structural facts in (A) are recalled from the specification via a search snippet, not
+      fetched. They must be re-verified in-harness before any of them is quoted downstream.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (VOLUME-DETERMINED MINIMUM) For every slot subset S with |S| = r in the range
+        22 <= r <= 64, the lattice L_S has lambda_1(L_S) = (1 + o(1)) * sqrt(256/(2 pi e)) *
+        q^{(256-2r)/256}, i.e. its shortest vector is governed by volume alone and not by the
+        Vandermonde structure of the evaluation matrix E_S, uniformly over subsets of that size.
+      rigorous_support: >-
+        Rigorous ingredient: Minkowski's theorem gives lambda_1 <= sqrt(256) * vol^{1/256}
+        unconditionally, so the upper side of H1 is not in doubt up to a constant. Classical
+        distribution statement imitated: the Gaussian heuristic for RANDOM q-ary lattices, which is
+        a theorem in expectation for uniformly random parity checks and is exactly what NULL-1
+        instantiates. H1 asserts that the structured E_S behaves in this respect like a random
+        matrix of the same rank -- and that assertion is the hypothesis under test, not an input.
+      validation_plan: >-
+        Sample 16 independent subsets per (r, family) cell at r in {8,16,22,24,32,40,45,48,56,64},
+        four families, and 16 volume-matched random-matrix nulls per r, all at q = 3329 and n = 256
+        -- i.e. AT TRUE FIPS RING PARAMETERS, which is unusual for this lane and is a deliberate
+        design choice. Compare the empirical distribution of lambda_1 in each cell against the
+        Gaussian-heuristic value AND against the null's empirical distribution, reporting the
+        latter as the test reference and the former only as the population target. TAIL CHECK: the
+        minimum lambda_1 over all 16 draws in each cell against the predicted minimum of 16 draws
+        from the null's fitted distribution -- a structured family that is only occasionally short
+        would show up in the tail and not in the mean. TRANSFER ASSUMPTIONS: none to a larger
+        parameter, because the measurement is already at ML-KEM's ring dimension and modulus; the
+        transfer that IS assumed is from BKZ-20-found vectors to true minima, and it is declared as
+        an upper bound rather than assumed away.
+    - id: H2
+      statement: >-
+        (BIAS EXACTNESS) For s with coordinates drawn i.i.d. from CBD_eta as specified in FIPS 203,
+        and for any v in Z^256, the bias of <v,s> mod q against the uniform distribution on Z_q is
+        exactly prod_j cos^{2eta}(pi v_j / q), with no approximation, for all q and all v.
+      rigorous_support: >-
+        This is an identity, not a heuristic: CBD_eta is the difference of two Binomial(eta,1/2)
+        variables, whose characteristic function is cos^{2eta}(t/2), and the bias of a modular sum
+        of independent variables is the product of their characteristic functions at the
+        corresponding frequency. It is listed here rather than omitted because the whole
+        measurement rests on it and because an implementation that samples CBD differently would
+        break it silently.
+      validation_plan: >-
+        Direct check: for 20 chosen v spanning short, medium and long lengths, sample 10^6 secrets
+        from the harness's own CBD sampler, compute the empirical bias of <v,s> mod q, and compare
+        against the closed form. Predicted agreement to within the 10^6-sample standard error.
+        TAIL CHECK: include at least three v with a single dominant coordinate, where the product
+        is dominated by one factor and any sampler defect in that coordinate is most visible. A
+        disagreement is a sampler bug, not a mathematical finding, and must be reported as such.
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED. What the E1 outcome would produce is a FLOOR statement of
+      exponent type: any attack that decomposes ML-KEM along its own CRT slots must hold at least
+      r_alg slots jointly, hence work in a space of size at least q^{2 r_alg}, which at the
+      predicted r_alg ~ 45 is 2^{1053}. That is a lower bound on a restricted family, not an upper
+      bound on anything, and it must never be quoted as a security claim. Measurement cost:
+      O(cells) lattice reductions at dimension 256, seconds each.
+    memory_exponent: >-
+      No attack memory exponent is claimed. The measurement stores reduced bases of dimension 256,
+      a few megabytes per cell.
+    best_known: >-
+      There is no incumbent for either threshold. No record in this repository, and nothing surfaced
+      by the single web query run, states how many CRT slots an attack on ML-KEM must hold jointly,
+      or computes lambda_1 of a slot-restricted dual functional lattice at FIPS parameters. The
+      nearest comparable object is the ordinary dual attack's shortest vector in the FULL q-ary
+      lattice, which is the r = 128 endpoint of this curve and is therefore contained in it as a
+      boundary case.
+    hidden_overhead: >-
+      Two disclosures. (1) r_alg as measured is an upper bound, because BKZ-20 does not find
+      lambda_1; the true threshold could be lower and the gap is not estimated here. (2) The
+      threshold is defined by a bias convention, and converting bias to attack feasibility needs a
+      sample count that ML-KEM does not obviously provide -- so the floor statement in
+      time_exponent is about the SIZE of the joint slot space, not about attack cost, and the two
+      must not be conflated.
+    tradeoff_note: >-
+      There is a genuine width-versus-quality tradeoff along the curve: larger r gives shorter
+      functionals (better bias) at the cost of a larger joint space to work in. Reporting the whole
+      curve rather than a single threshold is what makes that tradeoff visible, and it is the
+      artifact a later attack proposal would consume. Parallelisation is irrelevant here.
+  dominated_by: >-
+    On the ATTACK axis: 'n/a (no result claimed)' -- no attack is proposed, so no cost triple
+    exists, no frontier row applies, and null would be a fabrication under AGENTS.md rule 5. On the
+    STRUCTURAL-AUDIT axis the honest answer is that IDEA-20260805-574cd0 dominates on rigour and on
+    cost: it proves its subfield result symbolically and numerically for free, whereas this record
+    must measure. On the SLOT axis, IDEA-20260813-28cf9c dominates on directness -- it already
+    prices an exactly-known slot-level event as lattice hints -- but measures a different quantity
+    (matrix rank deficiency, not projection width) and cannot answer this. In the neighbouring RLWE
+    lane the draft IDEA-20260806-b37e8e (slot-restricted dual attack with a ring-native FFT) would
+    dominate this record if it were promoted and executed, because it would compute an attack cost
+    rather than a threshold; it is a draft and is not committed, and a reader comparing them must
+    be told it exists.
+  sota_delta: >-
+    No attack; measurement and representation contribution only. Quantitatively: this repository
+    contains no value for either threshold and no lambda_1 curve for slot-restricted dual functional
+    lattices, so the delta is the creation of first numbers -- r_info = 23/26 slots by arithmetic,
+    and a measured r_alg curve with a volume-matched null -- rather than an improvement on an
+    existing number. Against the published attack frontier the delta on cost is exactly zero and is
+    expected to remain so.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    By part. (i) That the structural facts in (A) hold as stated (128 irreducible quadratics, every
+    slot a field): ~0.97, it is elementary arithmetic and the specification agrees. (ii) That
+    r_info = 23/26 as computed: ~0.95. (iii) That the r = 0 and r = 128 fixtures pass: ~0.95.
+    (iv) That the CRT arm agrees with the volume-matched null within 5% at every r, i.e. E1: ~0.7 --
+    this is the outcome I expect, and the honest reason is that the Vandermonde structure is
+    "random enough" in the ways lattice volume cares about. (v) That some family shows a systematic
+    5% shortening at three or more r, i.e. E2: ~0.15, concentrated on the butterfly-aligned family
+    where f_S = x^{2^j} - c has only two nonzero coefficients and could plausibly produce short
+    functionals. That 0.15 is why the experiment is worth an afternoon. (vi) That the measured
+    r_alg / r_info ratio lands near 2: ~0.6. (vii) That the run produces a defensible curve and a
+    defensible null either way: ~0.9.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+    - RQ-MLKEM-001
+    - GOAL-MLKEM-005
+    - IDEA-20260805-574cd0
+    - IDEA-20260805-530869
+    - IDEA-20260805-2b94fe
+    - IDEA-20260813-28cf9c
+    - IDEA-20260722-001
+    - IDEA-20260805-690de8
+    - KN-TECH-1a5b7e
+    - ideas/rlwe-mlwe-20260806/proposals.draft.yaml
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py --next
+    idea --date 20260821 (random 6-hex token, no state scanned), each id then verified free with
+    --check before assignment. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).

@@ -1,0 +1,201 @@
+coordinator_decision:
+  id: DEC-20260808-c2a470
+  context: >-
+    GOAL-SSIQ-001 BATCH-014. specification_v11.yaml (H-SSIQ-36e970,
+    a floor-straddling truncation sweep amending frozen v10) went through
+    three rounds of independent pre-freeze Red Team review
+    (TASK-20260807-43d16f, -r2, -r3), each returning DO-NOT-FREEZE on real
+    findings, each repaired and re-verified before the next round: round 1
+    PF-11..PF-16 (the drafted 1.1s/1.2s sweep could not observe its own
+    headline effect); round 2 PF-17 (the fix over-corrected to a claimed
+    "necessity" that was actually a preference, at real cost to the
+    delta_E=5 class's observability); round 3 PF-26 (a correction to this
+    Coordinator's own error -- orchestration-host load figures mistaken for
+    execution-host measurements, propagated for two rounds) and PF-27
+    (the "115" reference count restated as a two-sided correction rather
+    than a one-sided upper bound). The round-3 reviewer recommended against
+    a fourth full red-team round, judging both round-3 repairs to be text
+    plus a few lines, and proposed a proportionate Coordinator
+    self-verification instead. This Coordinator agreed, recorded the
+    agreement in the round-4 draft's own round4_verification_plan field,
+    and this decision records that verification's outcome and the
+    resulting freeze.
+  decision: approve
+  decision_label: freeze_specification_v11_after_coordinator_self_verification
+  decision_vocabulary_note: >-
+    `approve` here means the CONTRACT is frozen and admissible for
+    execution -- specification_v11.yaml moves from status: draft to
+    status: approved, approved_by: coordinator, frozen_at: 2026-08-07. It
+    does not itself authorize a specific dispatch; execution is authorized
+    separately via the accompanying handoff to the executor role, per the
+    required handoff envelope (AGENTS.md).
+  target_ids:
+    - EXP-SSIQ-a85692
+    - H-SSIQ-36e970
+    - GOAL-SSIQ-001
+    - BATCH-014
+
+  self_verification:
+    performed_by: coordinator
+    kind: >-
+      Direct verification against the real code and the committed archive,
+      NOT against the specification's own prose -- per the round-3
+      reviewer's explicit instruction and this Coordinator's own recorded
+      agreement to it.
+    items:
+      - id: a
+        check: >-
+          Every occurrence of "upper bound" applied to an archived-derived
+          count is gone, replaced by two-sided reference labelling.
+        method: read every occurrence of the string in specification_v11.yaml in context
+        result: >-
+          CONFIRMED. Surviving occurrences are PF-27's own narrative
+          explaining the withdrawal, one legitimate per-vertex usage (a
+          single truncated search's own returned value genuinely is an
+          upper bound on that vertex's own delta_E -- a different claim
+          from the aggregate count), and a direct quote of
+          two_sided_search's own docstring. None asserts the aggregate
+          archived-derived count (115/133/186) as an upper bound.
+      - id: b
+        check: >-
+          "SAME-HARDWARE" appears nowhere except in attributed description
+          of the superseded title; no execution-host claim rests on an
+          orchestration-host figure.
+        method: read all four occurrences in context
+        result: >-
+          CONFIRMED. The live section title is "EXECUTION-HOST CONTENTION
+          AND HOST-IDENTITY CAVEAT"; every other occurrence explicitly
+          marks the old title as superseded, false, and inverted.
+      - id: c
+        check: hw.ncpu appears nowhere as a live REQUIREMENT.
+        method: read the "required hw.ncpu" occurrence in context
+        result: >-
+          CONFIRMED. Framed explicitly as "the round-1..3 drafts required
+          hw.ncpu... REPLACED BY" -- historical, not live.
+      - id: d
+        check: >-
+          G-0c is ordered with the infrastructure branches and cannot make
+          F_cal undefined; the six-branch gate reduces to an unambiguous
+          defer-or-stamp decision.
+        method: read load_defer_gate_v11 in full
+        result: >-
+          CONFIRMED. G-0c evaluates first, before G-0/G-0b/G-1/G-2/G-2b,
+          immediately after host capture and before the sweep loop. The
+          gate's own text states G-0 firing first is what makes F_cal's
+          qualifier well-defined. Six branches reduce to exactly two
+          outcomes: defer or proceed-stamped.
+      - id: e
+        check: G-2b's threshold reads 58 everywhere and matches P-1/P-2's boundary.
+        method: read G-2b's definition
+        result: >-
+          CONFIRMED. 58 = 0.5 x 115 (P-1/P-2's own frozen boundary),
+          explicitly justified against the round-3 draft's undefended
+          value of 10.
+      - id: f
+        check: The 18/71/133/186 density figures reproduce from probe_delta_e_comparison.json.
+        method: >-
+          independent Python recomputation directly against
+          experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h/probe_delta_e_comparison.json
+          on a freshly checked-out worktree, not trusted from any prior
+          report or from this document's own text
+        result: >-
+          CONFIRMED exactly. Records in [1.45,1.46): 18. Records in
+          [1.45,1.50): 71. Count strictly below 1.46: 133. Count strictly
+          below 1.50: 186.
+      - id: g
+        check: The budget block is unchanged and still correct.
+        method: read the budget block and independently re-derive the arithmetic
+        result: >-
+          CONFIRMED. wall_clock_seconds_per_run 1000, total_cpu_hours 0.33,
+          maximum_memory_gb 2, maximum_runs 1, unchanged since round 2.
+          194*(1.1+1.45) = 494.7; + CAL-1 120.0 + CAL-2 16.0 + graph ~2 =
+          632.7 s; with the +4.2% overshoot on the 630.7 s of search terms,
+          approximately 657-659 s; margin approximately 1.52x; approximately
+          0.183 CPU-hours against 0.33. Comfortably inside budget.
+    net_result: >-
+      All seven items independently confirmed. No defect found in this
+      pass.
+
+  incidental_finding_during_verification: >-
+    While setting the freeze fields, this Coordinator's first edit (adding
+    approved_at/approved_under/frozen_at near the top of the document)
+    silently collided with a PRE-EXISTING, unrelated frozen_at: null /
+    freeze_note: null pair at the tail of the document -- a duplicate YAML
+    key, where the parser's last-value-wins behavior meant the tail's null
+    silently overrode the top's real date on every read. Caught by
+    re-parsing and checking the value immediately after editing, rather
+    than assuming the edit succeeded because no error was raised. Resolved
+    by removing the redundant top-of-document frozen_at (keeping
+    status/approved_by/approved_at/approved_under there, which are not
+    duplicated elsewhere) and setting the real values on the pre-existing
+    tail fields instead, which read as the document's own intended,
+    deliberately-placed freeze block. Confirmed via a full scan for
+    duplicate top-level experiment.* keys afterward: none remain. This is
+    recorded because it is exactly the class of self-contradicting-record
+    defect this lineage's own reviews have repeatedly hunted for in others'
+    work (PF-11 through PF-27 above); it is disclosed here rather than
+    silently fixed, per AGENTS.md rule 8.
+
+  rationale:
+    - >-
+      approve/freeze rather than a fifth review round: the round-3
+      reviewer's own recommendation, made after three genuine rounds each
+      of which found and required fixing a real defect, was that the
+      remaining verification burden was proportionate to a direct
+      Coordinator check rather than another full independent session. That
+      check is now complete and every item passed on independent
+      re-derivation, not on trust of the document's own claims.
+    - >-
+      Not frozen without the self-verification: skipping directly to
+      approved_by: coordinator without performing and recording items
+      (a)-(g) would have converted the round-3 reviewer's conditional
+      recommendation into an unconditional pass this Coordinator never
+      actually earned.
+    - >-
+      The incidental duplicate-key finding is recorded rather than quietly
+      fixed and left unmentioned, consistent with how this lineage has
+      treated its own process errors throughout BATCH-014 (see
+      COORD-CORRECTION-PF26-execution-host.md for the precedent of a
+      Coordinator openly correcting its own prior mistake rather than
+      absorbing it silently into a later edit).
+
+  evidence_refs: []
+  limitations:
+    - >-
+      This decision approves and freezes the CONTRACT. It authorizes no
+      execution by itself; a separate handoff to the executor role
+      (required by AGENTS.md's handoff envelope) is issued alongside this
+      decision and is the actual dispatch authorization.
+    - >-
+      Nothing in this decision constitutes evidence about H-SSIQ-36e970,
+      delta_E convergence, or the p^{1/3+o(1)} exponent budget. No run has
+      executed under this frozen contract as of this decision.
+    - >-
+      The self-verification is a Coordinator check, not an independent
+      review; it corroborates the round-3 reviewer's recommendation rather
+      than substituting for a fourth adversarial pass. If, on execution,
+      the results raise a question the round-1/2/3 reviews did not
+      anticipate, that is grounds for a new review round on the RESULTS,
+      not evidence against this freeze decision.
+
+  next_actions:
+    - >-
+      Issue the handoff to the executor role authorizing execution of the
+      now-frozen specification_v11.yaml exactly as written (per
+      docs/task-lifecycle.md and the run-experiment lifecycle).
+    - >-
+      On completion, a Coordinator-only snapshot archive commits the exact
+      declared run package before any independent review reads it, per
+      AGENTS.md "Durable research commits".
+    - >-
+      Update GOAL-SSIQ-001's next_action to name the dispatched execution
+      as the goal's current state, in the same commit as this decision.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      This decision freezes a contract; it produces no measurement and no
+      durable scientific claim to promote into knowledge/findings/.
+
+  decided_by: coordinator
+  decided_at: '2026-08-07'

@@ -1,0 +1,619 @@
+validation_report:
+  id: TASK-20260806-f53255
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-0a65c0
+  reviews_task: TASK-20260806-6086cb
+  reviews_artifact: AMD-EXP-HQC-982268-v3 (proposed)
+  experiment: EXP-HQC-982268
+  produced_at: '2026-08-06'
+  claim_tier: toy
+  independent_session: true
+  authority: >-
+    I verify. I change no status. Nothing in this report is a statement about HQC,
+    assumption A17 or A5, any decoding-failure rate, or any standardized HQC parameter
+    set. Every number below is about an INSTRUMENT and its decision rule, measured on
+    draws from a declared Binomial null. An admitted instrument is not a result.
+
+  OVERALL_VERDICT: ADMIT
+
+  verdict_summary: >-
+    VF-1 and VF-3 are both genuinely closed. I loaded the constants out of
+    amendment_v3.yaml with a plain yaml.safe_load, confirmed all 174 of them parse as
+    float and none as string, and measured the realized size of THAT rule with my own
+    implementation and my own seed namespace on 2,000,000 validation replicates per
+    configuration: all 87 cells carrying constants fall inside [0.002, 0.004]. The
+    measurement is discriminating rather than tautological -- the same pipeline returns
+    0.6192% / 0.4176% / 0.5590% on v2's actual transcribed constants, and re-breaks v3's
+    own constants when they are rounded back to five decimals. Beyond what was asked, all
+    87 cells reproduce BIT-FOR-BIT from the amendment's normative procedure re-implemented
+    from its prose alone, so the mandatory blocking run-time reproduction check is
+    satisfiable by an independent implementation -- which is the deeper form of the
+    property VF-1 was about. I admit with two findings the Coordinator must rule on before
+    TASK-20260806-cde749 runs (F-1, CTRL-IDXMAP's blocking status; F-2, the reproduction
+    command mutates a frozen artifact) and one reading constraint that must travel into
+    every downstream record (the ~1.0% familywise size).
+
+  what_I_did_not_do:
+    - I did not re-derive the constants from recalibrate.py's procedure in order to measure
+      size. Size was measured on the values parsed out of the amendment file, as instructed.
+    - I did not execute recalibrate.py at all. Its inject() opens amendment_v3.yaml in write
+      mode, so running it would have mutated a snapshot-committed frozen artifact (see F-2).
+    - I ran no measurement arm, constructed no HQC object, and computed no log2_A_k on any
+      space-(T) arm. Every draw is from S ~ Binomial(n_e, q_hat) or an explicitly shifted q.
+
+  artifact_integrity:
+    snapshot_receipt: coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/archives/TASK-20260806-ae094e/snapshot-receipt.json
+    all_four_declared_path_sha256_match: true
+    amendment_v3_yaml: 16e8b73a7790e271020e5cd7065753792f8cff549104705e35500d671266f2ae
+    recalibrate_py: 8a411b4acbfd441cbd8ba485da1e9f3d0fe8a225a738a51b5ce1b2cebb94f86c
+    transcribed_size_json: 379cd28aeec1f9672026f4fd45795a2cb57077f93ce3d0e348a802c8f03eb4aa
+    fix_report_md: f53777130bbd2a9dff5a0514e985e873f355ee5ee1f087a17cead81f47957141
+    snapshot_commit: 7a862cf9
+    snapshot_parent: 9d5de4a0bd9f4c95f42f206bd788ab4a50aa637a
+    parent_matches_receipt: true
+    commit_touched_exactly: 5 files -- the four task artifacts and the receipt. No other path.
+
+  my_method:
+    implementation: >-
+      Written from the estimator definition in the amendment and in the approved contract
+      (metrics.log2_A_k, specification.yaml line 284). recalibrate.py was neither imported,
+      executed, nor copied. Estimator:
+      log2 Ahat_k = log2( (sum_s C(s,k) H_s) / (T C(n_e,k)) ) - k log2( (sum_s s H_s) / (T n_e) ).
+      Firing is STRICT: l2 < c_lo or l2 > c_hi.
+    seed_namespace: >-
+      'VALIDATOR-TASK-20260806-f53255/independent-size-check' (and '/qsens', '/fwer'),
+      SHA-256 -> first 8 bytes big-endian -> PCG64. Disjoint from the producer's
+      'EXP-HQC-982268/v3/INV-NULL' namespace by construction, so my draws are independent
+      of both their calibration and their validation draws.
+    n_validation_replicates_per_configuration: 2000000
+    note_on_correlation: >-
+      Like the producer, I share one histogram replicate across every k within a
+      configuration. Sharing cannot bias a marginal quantile, but it does correlate the
+      per-cell Monte-Carlo errors, so the 87 cells are NOT 87 independent checks.
+    environment: python3.11, numpy 2.4.6, PyYAML 6.0.1
+    compute_used_wall_seconds_approx: 420
+    budget_wall_clock_seconds: 1800
+
+  item_1_VF1_transcribed_constant_size:
+    verdict: PASS -- VF-1 IS CLOSED
+    constants_loaded_from: coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-6086cb/amendment_v3.yaml
+    loader: yaml.safe_load, PyYAML 6.0.1, no custom resolver
+    type_check:
+      interval_constants_parsed: 174
+      cells_carrying_constants: 87
+      parsed_as_float: 174
+      parsed_as_str: 0
+      q_hat_values_parsed_as_float: 5
+      dotless_exponent_scalars_anywhere_in_file: 0
+    pyyaml_trap_independently_confirmed_real:
+      claim: PyYAML resolves a dotless-mantissa exponent as a STRING, not a float.
+      my_test: "yaml.safe_load('x: 1e-05')['x'] -> str; '5e-05' -> str; '-5e-05' -> str; '1E-05' -> str; '1e-5' -> str; '1e+05' -> str"
+      contrast: "'1.0e-05' -> float; '5.0e-05' -> float; '0.00005' -> float"
+      verdict: >-
+        The trap is REAL and is exactly as described. v3 avoids it: every constant is
+        emitted with a decimal point in the mantissa and I found no dotless-exponent
+        scalar anywhere in the file. This was a genuine defect caught by the guard, not
+        a decorative claim. The producer's second reported catch (a YAML indentation
+        error reparenting the constants) I cannot verify independently -- it is an
+        event in their run log, not a property of the artifact -- but the artifact's
+        current parent structure is correct, which is the checkable part.
+    my_measured_sizes:
+      acceptance_gate: [0.002, 0.004]
+      nominal_size: 0.0026997960632601866
+      cells_measured: 87
+      cells_outside_gate: 0
+      range_over_80_REPORTED_cells: [0.002531, 0.002803]
+      range_over_all_87_measured_cells: [0.002531, 0.002803]
+      producer_range_over_REPORTED: [0.002567, 0.002808]
+    agreement_with_producer:
+      test: two-sample binomial z on each cell, my 2e6 draws against their 1e6 draws
+      cells_with_abs_z_gt_3: 0
+      cells_with_abs_z_gt_2: 2
+      of_cells: 87
+      largest_disagreements:
+        - {cell: PS-A@1e8 k=4, mine: 0.002532, theirs: 0.002751, z: 2.04, note: 'NOT REACHED cell, only ~366k finite replicates'}
+        - {cell: PS-R5@2e7 k=16, mine: 0.002678, theirs: 0.002808, z: 2.04}
+        - {cell: PS-R3@1e7 k=14, mine: 0.002693, theirs: 0.002567, z: 2.00}
+      verdict: Fully consistent. No cell disagrees beyond Monte-Carlo error.
+    the_three_v2_failure_cells:
+      - {cell: PS-R1@1e8 k=2, v2_size_validator: 0.0061, v3_size_producer: 0.002674, v3_size_MINE: 0.002769}
+      - {cell: PS-R3@2e7 k=2, v2_size_validator: 0.00419, v3_size_producer: 0.002681, v3_size_MINE: 0.002671}
+      - {cell: PS-R5@2e7 k=2, v2_size_validator: 0.00551, v3_size_producer: 0.002691, v3_size_MINE: 0.002693}
+    POSITIVE_CONTROL_the_measurement_is_not_a_tautology:
+      why_this_matters: >-
+        VF-2 established that calibrate-on-a-law / validate-on-the-same-law returns
+        ~0.25-0.29% for almost any continuous law, so "all 87 cells read 0.27%" is worth
+        nothing unless the same pipeline can be shown to FAIL on a known-bad encoding. I
+        ran that control two ways and my pipeline fails both, so the pass is informative.
+      a_v2s_actual_transcribed_constants_through_MY_pipeline:
+        - {cell: PS-R1@1e8 k=2, constants: [-0.00005, 0.00005], my_size: 0.006192, v2_validator_size: 0.0061, in_gate: false}
+        - {cell: PS-R3@2e7 k=2, constants: [-0.00005, 0.00005], my_size: 0.004176, v2_validator_size: 0.00419, in_gate: false}
+        - {cell: PS-R5@2e7 k=2, constants: [-0.00002, 0.00002], my_size: 0.005590, v2_validator_size: 0.00551, in_gate: false}
+        - {cell: PS-A@1e8 k=2, constants: [-0.04079, 0.03979], my_size: 0.002629, in_gate: true, note: 'v2 passed here too; the defect was magnitude-dependent, as diagnosed'}
+      b_v3s_own_constants_rounded_back_to_5_decimals:
+        - {cell: PS-A@1e8 k=2, full_precision_size: 0.002680, rounded_size: 0.002679, breaks: false}
+        - {cell: PS-R1@1e8 k=2, full_precision_size: 0.002749, rounded_size: 0.006192, breaks: true}
+        - {cell: PS-R3@1e7 k=2, full_precision_size: 0.002732, rounded_size: 0.004568, breaks: true}
+        - {cell: PS-R3@2e7 k=2, full_precision_size: 0.002648, rounded_size: 0.004176, breaks: true}
+        - {cell: PS-R5@2e7 k=2, full_precision_size: 0.002640, rounded_size: 0.005590, breaks: true}
+      verdict: >-
+        The pipeline detects the exact defect class VF-1 named, including at the NEW
+        PS-R3@1e7 k=2 cell that did not exist in v2. The v3 pass is therefore a real
+        differential result, not an artifact of the measurement style.
+    UNREQUESTED_CHECK_procedure_to_table_bit_identity:
+      why_I_ran_it: >-
+        The amendment makes a MANDATORY BLOCKING run-time check: before any (T) datum is
+        scored the run re-derives the constants from the recorded seed and asserts
+        BIT-IDENTITY with the table, and a mismatch is FAILED_IMPLEMENTATION. On the final
+        batch that is a live abort risk, so I tested whether the check can actually pass.
+      method: >-
+        I implemented the normative procedure from the amendment's own prose alone --
+        PCG64(calibration_seed), 2,000,000 replicates in fixed chunks of 100,000,
+        multinomial(T, pmf) with pmf built as C(n_e,i) q^i (1-q)^(n_e-i) normalised by its
+        own sum, order-statistic quantiles at i = floor(alpha/2 * R) with
+        alpha = 0.0026997960632601866. I did NOT run recalibrate.py.
+      result:
+        PS-A@1e8: 3 of 3 cells bit-identical
+        PS-R1@1e8: 16 of 16 cells bit-identical
+        PS-R3@1e7: 17 of 17 cells bit-identical
+        PS-R3@2e7: 21 of 21 cells bit-identical
+        PS-R5@2e7: 30 of 30 cells bit-identical
+        total: 87 of 87
+      what_this_establishes: >-
+        Strong, and stronger than what was asked for. The transcribed table and the
+        generating procedure agree exactly, and the procedure is specified completely
+        enough in prose that a reviewer who never saw recalibrate.py reproduces every
+        constant bit-for-bit. VF-1 was the file and the procedure disagreeing; they now
+        provably agree, verified from the outside. It also disposes of the disclosed
+        read-scope excursion: the constants demonstrably do not depend on stage_a.py,
+        because I derived all 87 of them without it.
+    my_per_cell_measurements:
+    - {set: PS-A, allocation: '1e8', k: 2, status: 'REPORTED', firings: 5452, finite: 2000000, size: 0.002726, ci95: [0.002654, 0.002798], in_gate: true}
+    - {set: PS-A, allocation: '1e8', k: 3, status: 'REPORTED', firings: 5325, finite: 2000000, size: 0.002662, ci95: [0.002591, 0.002734], in_gate: true}
+    - {set: PS-A, allocation: '1e8', k: 4, status: 'NOT REACHED', firings: 927, finite: 366092, size: 0.002532, ci95: [0.002369, 0.002695], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 2, status: 'REPORTED', firings: 5538, finite: 2000000, size: 0.002769, ci95: [0.002696, 0.002842], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 3, status: 'REPORTED', firings: 5370, finite: 2000000, size: 0.002685, ci95: [0.002613, 0.002757], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 4, status: 'REPORTED', firings: 5484, finite: 2000000, size: 0.002742, ci95: [0.002670, 0.002814], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 5, status: 'REPORTED', firings: 5501, finite: 2000000, size: 0.002750, ci95: [0.002678, 0.002823], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 6, status: 'REPORTED', firings: 5368, finite: 2000000, size: 0.002684, ci95: [0.002612, 0.002756], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 7, status: 'REPORTED', firings: 5371, finite: 2000000, size: 0.002685, ci95: [0.002614, 0.002757], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 8, status: 'REPORTED', firings: 5224, finite: 2000000, size: 0.002612, ci95: [0.002541, 0.002683], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 9, status: 'REPORTED', firings: 5239, finite: 2000000, size: 0.002619, ci95: [0.002549, 0.002690], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 10, status: 'REPORTED', firings: 5175, finite: 2000000, size: 0.002587, ci95: [0.002517, 0.002658], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 11, status: 'REPORTED', firings: 5062, finite: 2000000, size: 0.002531, ci95: [0.002461, 0.002601], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 12, status: 'REPORTED', firings: 5061, finite: 2000000, size: 0.002531, ci95: [0.002461, 0.002600], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 13, status: 'REPORTED', firings: 5251, finite: 2000000, size: 0.002625, ci95: [0.002555, 0.002696], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 14, status: 'REPORTED', firings: 5250, finite: 2000000, size: 0.002625, ci95: [0.002554, 0.002696], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 15, status: 'REPORTED', firings: 5368, finite: 2000000, size: 0.002684, ci95: [0.002612, 0.002756], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 16, status: 'NOT REACHED', firings: 5405, finite: 2000000, size: 0.002703, ci95: [0.002631, 0.002774], in_gate: true}
+    - {set: PS-R1, allocation: '1e8', k: 18, status: 'NOT REACHED', firings: 5298, finite: 2000000, size: 0.002649, ci95: [0.002578, 0.002720], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 2, status: 'REPORTED', firings: 5483, finite: 2000000, size: 0.002742, ci95: [0.002669, 0.002814], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 3, status: 'REPORTED', firings: 5473, finite: 2000000, size: 0.002736, ci95: [0.002664, 0.002809], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 4, status: 'REPORTED', firings: 5489, finite: 2000000, size: 0.002744, ci95: [0.002672, 0.002817], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 5, status: 'REPORTED', firings: 5532, finite: 2000000, size: 0.002766, ci95: [0.002693, 0.002839], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 6, status: 'REPORTED', firings: 5548, finite: 2000000, size: 0.002774, ci95: [0.002701, 0.002847], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 7, status: 'REPORTED', firings: 5560, finite: 2000000, size: 0.002780, ci95: [0.002707, 0.002853], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 8, status: 'REPORTED', firings: 5601, finite: 2000000, size: 0.002801, ci95: [0.002727, 0.002874], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 9, status: 'REPORTED', firings: 5592, finite: 2000000, size: 0.002796, ci95: [0.002723, 0.002869], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 10, status: 'REPORTED', firings: 5528, finite: 2000000, size: 0.002764, ci95: [0.002691, 0.002837], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 11, status: 'REPORTED', firings: 5458, finite: 2000000, size: 0.002729, ci95: [0.002657, 0.002801], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 12, status: 'REPORTED', firings: 5445, finite: 2000000, size: 0.002723, ci95: [0.002650, 0.002795], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 13, status: 'REPORTED', firings: 5395, finite: 2000000, size: 0.002697, ci95: [0.002626, 0.002769], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 14, status: 'REPORTED', firings: 5386, finite: 2000000, size: 0.002693, ci95: [0.002621, 0.002765], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 15, status: 'REPORTED', firings: 5338, finite: 2000000, size: 0.002669, ci95: [0.002597, 0.002741], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 16, status: 'REPORTED', firings: 5381, finite: 2000000, size: 0.002691, ci95: [0.002619, 0.002762], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 17, status: 'REPORTED', firings: 5432, finite: 2000000, size: 0.002716, ci95: [0.002644, 0.002788], in_gate: true}
+    - {set: PS-R3, allocation: '1e7', k: 18, status: 'REPORTED', firings: 5379, finite: 2000000, size: 0.002690, ci95: [0.002618, 0.002761], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 2, status: 'REPORTED', firings: 5341, finite: 2000000, size: 0.002671, ci95: [0.002599, 0.002742], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 3, status: 'REPORTED', firings: 5368, finite: 2000000, size: 0.002684, ci95: [0.002612, 0.002756], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 4, status: 'REPORTED', firings: 5392, finite: 2000000, size: 0.002696, ci95: [0.002624, 0.002768], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 5, status: 'REPORTED', firings: 5378, finite: 2000000, size: 0.002689, ci95: [0.002617, 0.002761], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 6, status: 'REPORTED', firings: 5451, finite: 2000000, size: 0.002726, ci95: [0.002653, 0.002798], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 7, status: 'REPORTED', firings: 5501, finite: 2000000, size: 0.002750, ci95: [0.002678, 0.002823], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 8, status: 'REPORTED', firings: 5470, finite: 2000000, size: 0.002735, ci95: [0.002663, 0.002807], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 9, status: 'REPORTED', firings: 5427, finite: 2000000, size: 0.002714, ci95: [0.002641, 0.002786], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 10, status: 'REPORTED', firings: 5507, finite: 2000000, size: 0.002753, ci95: [0.002681, 0.002826], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 11, status: 'REPORTED', firings: 5450, finite: 2000000, size: 0.002725, ci95: [0.002653, 0.002797], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 12, status: 'REPORTED', firings: 5449, finite: 2000000, size: 0.002724, ci95: [0.002652, 0.002797], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 13, status: 'REPORTED', firings: 5430, finite: 2000000, size: 0.002715, ci95: [0.002643, 0.002787], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 14, status: 'REPORTED', firings: 5366, finite: 2000000, size: 0.002683, ci95: [0.002611, 0.002755], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 15, status: 'REPORTED', firings: 5470, finite: 2000000, size: 0.002735, ci95: [0.002663, 0.002807], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 16, status: 'REPORTED', firings: 5529, finite: 2000000, size: 0.002765, ci95: [0.002692, 0.002837], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 17, status: 'REPORTED', firings: 5541, finite: 2000000, size: 0.002770, ci95: [0.002698, 0.002843], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 18, status: 'REPORTED', firings: 5561, finite: 2000000, size: 0.002780, ci95: [0.002708, 0.002853], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 19, status: 'REPORTED', firings: 5606, finite: 2000000, size: 0.002803, ci95: [0.002730, 0.002876], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 20, status: 'REPORTED', firings: 5551, finite: 2000000, size: 0.002776, ci95: [0.002703, 0.002848], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 22, status: 'NOT REACHED', firings: 5481, finite: 2000000, size: 0.002740, ci95: [0.002668, 0.002813], in_gate: true}
+    - {set: PS-R3, allocation: '2e7', k: 25, status: 'NOT REACHED', firings: 5501, finite: 2000000, size: 0.002750, ci95: [0.002678, 0.002823], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 2, status: 'REPORTED', firings: 5386, finite: 2000000, size: 0.002693, ci95: [0.002621, 0.002765], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 3, status: 'REPORTED', firings: 5322, finite: 2000000, size: 0.002661, ci95: [0.002590, 0.002732], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 4, status: 'REPORTED', firings: 5292, finite: 2000000, size: 0.002646, ci95: [0.002575, 0.002717], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 5, status: 'REPORTED', firings: 5323, finite: 2000000, size: 0.002661, ci95: [0.002590, 0.002733], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 6, status: 'REPORTED', firings: 5343, finite: 2000000, size: 0.002671, ci95: [0.002600, 0.002743], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 7, status: 'REPORTED', firings: 5364, finite: 2000000, size: 0.002682, ci95: [0.002610, 0.002754], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 8, status: 'REPORTED', firings: 5403, finite: 2000000, size: 0.002701, ci95: [0.002630, 0.002773], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 9, status: 'REPORTED', firings: 5294, finite: 2000000, size: 0.002647, ci95: [0.002576, 0.002718], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 10, status: 'REPORTED', firings: 5271, finite: 2000000, size: 0.002635, ci95: [0.002564, 0.002707], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 11, status: 'REPORTED', firings: 5217, finite: 2000000, size: 0.002609, ci95: [0.002538, 0.002679], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 12, status: 'REPORTED', firings: 5270, finite: 2000000, size: 0.002635, ci95: [0.002564, 0.002706], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 13, status: 'REPORTED', firings: 5358, finite: 2000000, size: 0.002679, ci95: [0.002607, 0.002751], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 14, status: 'REPORTED', firings: 5417, finite: 2000000, size: 0.002708, ci95: [0.002636, 0.002781], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 15, status: 'REPORTED', firings: 5365, finite: 2000000, size: 0.002682, ci95: [0.002611, 0.002754], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 16, status: 'REPORTED', firings: 5356, finite: 2000000, size: 0.002678, ci95: [0.002606, 0.002750], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 17, status: 'REPORTED', firings: 5348, finite: 2000000, size: 0.002674, ci95: [0.002602, 0.002746], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 18, status: 'REPORTED', firings: 5327, finite: 2000000, size: 0.002664, ci95: [0.002592, 0.002735], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 19, status: 'REPORTED', firings: 5253, finite: 2000000, size: 0.002626, ci95: [0.002556, 0.002697], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 20, status: 'REPORTED', firings: 5303, finite: 2000000, size: 0.002652, ci95: [0.002580, 0.002723], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 21, status: 'REPORTED', firings: 5357, finite: 2000000, size: 0.002678, ci95: [0.002607, 0.002750], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 22, status: 'REPORTED', firings: 5294, finite: 2000000, size: 0.002647, ci95: [0.002576, 0.002718], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 23, status: 'REPORTED', firings: 5310, finite: 2000000, size: 0.002655, ci95: [0.002584, 0.002726], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 24, status: 'REPORTED', firings: 5348, finite: 2000000, size: 0.002674, ci95: [0.002602, 0.002746], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 25, status: 'REPORTED', firings: 5362, finite: 2000000, size: 0.002681, ci95: [0.002609, 0.002753], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 26, status: 'REPORTED', firings: 5373, finite: 2000000, size: 0.002687, ci95: [0.002615, 0.002758], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 27, status: 'REPORTED', firings: 5446, finite: 2000000, size: 0.002723, ci95: [0.002651, 0.002795], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 28, status: 'REPORTED', firings: 5470, finite: 2000000, size: 0.002735, ci95: [0.002663, 0.002807], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 29, status: 'REPORTED', firings: 5532, finite: 2000000, size: 0.002766, ci95: [0.002693, 0.002839], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 30, status: 'NOT REACHED', firings: 5532, finite: 2000000, size: 0.002766, ci95: [0.002693, 0.002839], in_gate: true}
+    - {set: PS-R5, allocation: '2e7', k: 35, status: 'NOT REACHED', firings: 5549, finite: 2000000, size: 0.002775, ci95: [0.002702, 0.002847], in_gate: true}
+  item_2_VF3_q_sensitivity_and_dropping_PS_A:
+    verdict: PASS -- VF-3 IS CLOSED, AND DROPPING PS-A IS A REAL FIX, NOT A RELABELLING
+    coverage_check_rows_exist_at_every_reported_k:
+      method: compared the q_sensitivity per_k key list against the REPORTED k list in frozen_intervals, per configuration
+      PS-A@1e8: {reported_ks: 2, qsens_rows: 2, identical: true}
+      PS-R1@1e8: {reported_ks: 14, qsens_rows: 14, identical: true}
+      PS-R3@1e7: {reported_ks: 17, qsens_rows: 17, identical: true}
+      PS-R3@2e7: {reported_ks: 19, qsens_rows: 19, identical: true}
+      PS-R5@2e7: {reported_ks: 28, qsens_rows: 28, identical: true}
+      total: 80 q-sensitivity rows against 80 REPORTED cells -- complete, with no gaps
+      contrast_with_v2: v2 ran sensitivity at a sparse subset of k. This is the defect VF-3 named and it is fixed.
+    SE_arithmetic_traced_to_committed_data:
+      formula: SE(q_hat)/q_hat = sqrt((1-q)/block_failures)
+      source_record: experiments/EXP-HQC-982268/runs/RUN-HQC-982268-STAGEA-a/raw-result.json
+      block_failure_totals_match_record:
+        PS-A: {amendment: 8122, sum_of_block_failure_counts_in_run_record: 8122}
+        PS-R1: {amendment: 5200049, sum_of_block_failure_counts_in_run_record: 5200049}
+        PS-R3: {amendment: 9159668, sum_of_block_failure_counts_in_run_record: 9159668}
+        PS-R5: {amendment: 13187613, sum_of_block_failure_counts_in_run_record: 13187613}
+      q_hat_values_match_record: all four, to the last digit
+      my_3SE: {PS-A: 0.033283, PS-R1: 0.001179, PS-R3: 0.000817, PS-R5: 0.000632}
+      amendment_3SE: {PS-A: 0.033283, PS-R1: 0.001179, PS-R3: 0.000817, PS-R5: 0.000632}
+      verdict: reproduces exactly. No fabricated inputs; every first moment traces to the committed Stage-A record.
+    PS_A_failure_independently_reproduced:
+      my_draws: 1,000,000 validation replicates per shift point, my own seeds, constants read from the amendment
+      k2: {at_q_hat: 0.00275, minus_3SE: 0.00381, plus_3SE: 0.00196, leaves_band: true, side: 'conservative, at +3 SE'}
+      k3: {at_q_hat: 0.00268, minus_3SE: 0.00404, plus_2SE: 0.00190, plus_3SE: 0.00154, leaves_band: true, side: 'BOTH -- anti-conservative at -3 SE (>0.004), conservative already at +2 SE (<0.002)'}
+      triple_agreement_on_PS_A_k3_at_minus_3SE:
+        v2_validator_TASK_20260806_301f68: 0.00404
+        v3_producer: 0.00409
+        me: 0.00404
+      verdict: >-
+        VF-3 is real and reproduces on three independent implementations with three
+        independent seed streams. PS-A cannot be certified at the Stage-A q_hat. The
+        producer's characterisation -- k=2 breaks at 3.0 SE, k=3 already at 2.0 SE -- is
+        exactly what I measure.
+    is_dropping_PS_A_a_real_fix_or_a_relabelling:
+      answer: A REAL FIX, and the producer stated its cost more plainly than it had to.
+      reasoning: >-
+        A relabelling would be widening the acceptance band until PS-A fitted inside it,
+        or moving PS-A's cells to some softer status while still counting them toward
+        (iv). Neither happened. The band is unchanged at [0.002, 0.004], the alpha is
+        unchanged, PS-A's constants and measured sizes are retained in the frozen table,
+        and PS-A is still run and still reported if funded -- marked NOT CERTIFIED UNDER
+        (iv) with its sensitivity rows attached. Nothing was made to pass; a set that
+        cannot be certified was removed from the criterion that certifies. That is the
+        honest move.
+    IS_CRITERION_iv_STILL_MEANINGFUL_WITHOUT_ITS_ANCHOR:
+      the_judgement_the_Coordinator_asked_for: >-
+        YES as a statement about the instrument. NO as a statement anchored to real HQC
+        parameters. Those are different claims and after this amendment only the first
+        one is available, so the second must stop being implied anywhere downstream.
+      what_survives: >-
+        Criterion (iv) still does real work. It now demands log2 Ahat_k at EVERY k in
+        2..k_max at PS-R3, each with a frozen interval whose realized size I have
+        independently confirmed, its null mean, its out-of-sample size and its T_stab
+        reachability verdict. That is a stronger and more auditable demand than v2's
+        single k=m cell, and it is the demand RT2-OBJ-1 makes necessary. The instrument
+        claim -- "this estimator, at these reduced parameters, behaves as the analytic
+        model says under the tested null" -- is fully supported.
+      what_is_lost_and_must_not_be_glossed: >-
+        PS-A was the ONLY configuration in the contract at true HQC-1 parameters rather
+        than a reduced surrogate. After this change NO cell at true HQC parameters is
+        certified under (iv). Criterion (iv) now rests entirely on order-matched reduced
+        sets, and this stacks on v2's already-recorded narrowing that anchoring (iv) on
+        PS-R3 anchors it on HQC-3's shape rather than HQC-1's. BOTH narrowings must
+        travel into EV-HQC-b71230, DEC-20260806-2947ba and the GOAL-HQC-001 record. The
+        producer says exactly this in VF_3_resolution and I am corroborating it, not
+        softening it.
+      the_mitigating_fact_checked: >-
+        PS-A was never going to deliver an order-matched cell regardless. I independently
+        recomputed T_stab(16) at PS-A as 1.246e45 against T = 1e8 -- infeasible by 37
+        orders of magnitude under v1 and v2 alike. What criterion (iv) loses at the
+        anchor is two low-order cells (k=2, k=3), not an order-matched anchor cell it
+        ever had. That materially limits the damage and it is a checkable fact, not a
+        consolation.
+      the_successor_is_real_and_correctly_costed: >-
+        Deriving PS-A's interval at the Stage-B realized q_hat (about 1.538e6 block
+        failures against Stage A's 8,122; 3 SE falls 3.33% -> 0.242%, a factor 13.8) would
+        give margins of 13.8x and 9.2x. The producer names the risk this buys -- the
+        interval becomes a function of the data it scores, reintroducing the
+        numerator/denominator coupling R1 removed from the Wald rule -- and declines to
+        adopt it unmeasured. I agree with declining it at the batch cap, and I agree it is
+        the right successor.
+    breakdown_margins_ONE_CAVEAT:
+      claim_in_amendment: breakdown margins 7.9x - 48.9x over 3 SE at PS-R1/R3/R5
+      my_finding: >-
+        The margins are real and large, but they are GRID-RESOLUTION figures and should be
+        read as upper bounds. The probe grid is +/-0.25/0.5/1/2/4%, so a cell whose
+        reported breakdown is 1% has a true breakdown somewhere in (0.5%, 1%]. The honest
+        floor at PS-R3@1e7 is therefore about 6.1x, not 12.2x. My own grid reproduces the
+        producer's breakdown points almost everywhere (PS-R3@1e7 k=8/11 at 2%, k=14..18 at
+        1%; at k=2 I got 4% where they got 2%, i.e. in the amendment's favour).
+      is_this_blocking: >-
+        No. Even the conservative floor is ~6x the relevant 3 SE, and the +/-3 SE rows
+        themselves -- which are the primary evidence and need no grid interpolation -- are
+        all comfortably in band on my draws. But "12.2x" should be reported as "at least
+        6.1x, measured at grid resolution", not as a measured breakdown.
+
+  item_3_PS_R3_at_T_1e7_the_funded_cell:
+    verdict: PASS -- THE NEW CONFIGURATION IS PROPERLY CALIBRATED AND k = m = 17 IS GENUINELY REACHED
+    why_this_item_exists: >-
+      v2 froze PS-R3 only at T = 2e7 and gave T = 1e7 a single k=17 row inside a cost
+      table. The measurement this campaign funds therefore had no frozen rule to run under
+      at any order but one. v3 freezing k = 2..k_max here is not a bonus; without it the
+      final batch had nothing to execute.
+    reachability_recomputed_independently:
+      rule: "contract's own pre-registered rule: s_90 = min{s : sum_{s'<=s} P[S=s'] C(s',k) >= 0.90 E[C(S,k)]}; T_stab = 30 / P[S >= s_90]; reachable iff T >= T_stab"
+      k_max_at_T_mine: 18
+      k_max_at_T_amendment: 18
+      all_five_configurations_k_max_reproduce: true
+      every_s_90_and_T_stab_in_the_record_reproduce: true
+      k_equals_m_17: {T_stab_mine: 1000010.0, T_stab_amendment: 1000010.0, T: 10000000, margin: 10.0x, reached: true}
+      k_18: {T_stab_mine: 3238480.0, T: 10000000, margin: 3.1x, reached: true}
+      claimed_margin_of_10x_at_k_m_17: CONFIRMED
+    calibration_quality_at_this_configuration:
+      cells: 17
+      k_range: 2..18
+      all_status_REPORTED: true
+      undefined_null_replicate_fraction: 0.0 at every cell
+      my_measured_size_range: [0.002669, 0.002803]
+      cells_outside_gate: 0
+      distance_to_nearest_gate_edge: 18.3 to 21.4 SE at every cell
+      constants_reproduce_bit_for_bit_from_the_procedure: 17 of 17
+    q_robustness_at_this_configuration:
+      three_SE_rel: 0.0008174345630622756
+      all_17_cells_in_band_across_pm_3SE_on_my_own_draws: true
+      my_per_k_rows:
+      - {k: 2, at_q_hat: 0.002749, minus_3SE: 0.002669, plus_3SE: 0.002625, minus_1pct: 0.003213, plus_1pct: 0.002324, minus_2pct: 0.00358, plus_2pct: 0.002126, in_band_over_pm3SE: true}
+      - {k: 3, at_q_hat: 0.002765, minus_3SE: 0.002687, plus_3SE: 0.002674, minus_1pct: 0.003239, plus_1pct: 0.002357, minus_2pct: 0.003638, plus_2pct: 0.002132, in_band_over_pm3SE: true}
+      - {k: 4, at_q_hat: 0.002779, minus_3SE: 0.002703, plus_3SE: 0.002636, minus_1pct: 0.003208, plus_1pct: 0.002353, minus_2pct: 0.003667, plus_2pct: 0.002079, in_band_over_pm3SE: true}
+      - {k: 5, at_q_hat: 0.002782, minus_3SE: 0.002766, plus_3SE: 0.002665, minus_1pct: 0.003218, plus_1pct: 0.002363, minus_2pct: 0.00372, plus_2pct: 0.00206, in_band_over_pm3SE: true}
+      - {k: 6, at_q_hat: 0.002768, minus_3SE: 0.002743, plus_3SE: 0.002675, minus_1pct: 0.003191, plus_1pct: 0.002347, minus_2pct: 0.003804, plus_2pct: 0.002044, in_band_over_pm3SE: true}
+      - {k: 7, at_q_hat: 0.002828, minus_3SE: 0.002749, plus_3SE: 0.002638, minus_1pct: 0.003207, plus_1pct: 0.002355, minus_2pct: 0.003883, plus_2pct: 0.001947, in_band_over_pm3SE: true}
+      - {k: 8, at_q_hat: 0.002803, minus_3SE: 0.002777, plus_3SE: 0.002667, minus_1pct: 0.003319, plus_1pct: 0.002323, minus_2pct: 0.004023, plus_2pct: 0.001918, in_band_over_pm3SE: true}
+      - {k: 9, at_q_hat: 0.002757, minus_3SE: 0.00276, plus_3SE: 0.002642, minus_1pct: 0.003357, plus_1pct: 0.002295, minus_2pct: 0.004086, plus_2pct: 0.001842, in_band_over_pm3SE: true}
+      - {k: 10, at_q_hat: 0.002728, minus_3SE: 0.002736, plus_3SE: 0.002614, minus_1pct: 0.003279, plus_1pct: 0.002189, minus_2pct: 0.004148, plus_2pct: 0.001732, in_band_over_pm3SE: true}
+      - {k: 11, at_q_hat: 0.002731, minus_3SE: 0.002687, plus_3SE: 0.002602, minus_1pct: 0.003279, plus_1pct: 0.002124, minus_2pct: 0.004237, plus_2pct: 0.001669, in_band_over_pm3SE: true}
+      - {k: 12, at_q_hat: 0.002768, minus_3SE: 0.002738, plus_3SE: 0.002616, minus_1pct: 0.003432, plus_1pct: 0.002082, minus_2pct: 0.004505, plus_2pct: 0.001597, in_band_over_pm3SE: true}
+      - {k: 13, at_q_hat: 0.002737, minus_3SE: 0.002737, plus_3SE: 0.002577, minus_1pct: 0.003462, plus_1pct: 0.002033, minus_2pct: 0.00467, plus_2pct: 0.001523, in_band_over_pm3SE: true}
+      - {k: 14, at_q_hat: 0.002765, minus_3SE: 0.002724, plus_3SE: 0.0026, minus_1pct: 0.003574, plus_1pct: 0.001924, minus_2pct: 0.004888, plus_2pct: 0.001442, in_band_over_pm3SE: true}
+      - {k: 15, at_q_hat: 0.002672, minus_3SE: 0.002659, plus_3SE: 0.002523, minus_1pct: 0.00366, plus_1pct: 0.001877, minus_2pct: 0.004936, plus_2pct: 0.001335, in_band_over_pm3SE: true}
+      - {k: 16, at_q_hat: 0.002657, minus_3SE: 0.002708, plus_3SE: 0.002517, minus_1pct: 0.003658, plus_1pct: 0.001843, minus_2pct: 0.00511, plus_2pct: 0.001308, in_band_over_pm3SE: true}
+      - {k: 17, at_q_hat: 0.002661, minus_3SE: 0.002732, plus_3SE: 0.002553, minus_1pct: 0.003646, plus_1pct: 0.001886, minus_2pct: 0.00518, plus_2pct: 0.001321, in_band_over_pm3SE: true}
+      - {k: 18, at_q_hat: 0.002711, minus_3SE: 0.002703, plus_3SE: 0.0026, minus_1pct: 0.003756, plus_1pct: 0.001929, minus_2pct: 0.005301, plus_2pct: 0.001375, in_band_over_pm3SE: true}
+  item_4_familywise_size_of_the_multi_k_battery:
+    verdict: CONFIRMED, MATERIAL, AND THE AMENDMENT DOES STATE IT
+    what_I_measured:
+      definition: "P(at least one REPORTED cell fires) under the EXACT binomial null used to calibrate, my own seeds, 2,000,000 replicates per configuration"
+      per_cell_nominal: 0.0026997960632601866
+      results:
+        - {configuration: PS-A@1e8, cells: 2, k_range: 2..3, familywise_size: 0.00537, ci95_halfwidth: 0.00010, multiple_of_nominal: 1.99}
+        - {configuration: PS-R1@1e8, cells: 14, k_range: 2..15, familywise_size: 0.01127, ci95_halfwidth: 0.00015, multiple_of_nominal: 4.17}
+        - {configuration: PS-R3@1e7, cells: 17, k_range: 2..18, familywise_size: 0.01017, ci95_halfwidth: 0.00014, multiple_of_nominal: 3.77}
+        - {configuration: PS-R3@2e7, cells: 19, k_range: 2..20, familywise_size: 0.01099, ci95_halfwidth: 0.00014, multiple_of_nominal: 4.07}
+        - {configuration: PS-R5@2e7, cells: 28, k_range: 2..29, familywise_size: 0.01084, ci95_halfwidth: 0.00014, multiple_of_nominal: 4.02}
+      producer_reported: {PS-R1: 0.0109, PS-R3: 0.0103}
+      agreement: >-
+        Consistent. My PS-R1 1.127% against their 1.09%; my PS-R3@1e7 1.017% against their
+        1.03%. The finding is real and is not understated by the producer.
+    does_the_amendment_state_it:
+      answer: YES, in two binding places, and it draws the right conclusion from it.
+      where:
+        - "open_items RT2-OBJ-1: 'A battery reading is therefore NOT a 0.27% test and must never be reported as one.'"
+        - "amended_required_artifacts.amended_manifest_requirements: 'the familywise flag rate of the multi-k battery, whenever a battery reading is relied upon'."
+      and_critically: >-
+        The amendment does NOT make the battery the falsification criterion, on the stated
+        ground that doing so would need its own calibration. That restraint is correct and
+        is the single most important thing v3 got right about RT2-OBJ-1.
+    WHAT_THIS_MEANS_FOR_READING_THE_FORTHCOMING_MEASUREMENT:
+      binding_on_TASK_20260806_cde749_and_on_EV_HQC_b71230: >-
+        Criterion (iv) v3 requires all 17 PS-R3@1e7 cells to be reported. The moment
+        anyone reads those 17 cells as a set and treats "some cell fired" as evidence
+        against log2 A_k = 0, the operative false-positive rate is about 1.0%, not 0.27%
+        -- I measured 1.017% at exactly the funded configuration. Concretely:
+      rules_for_the_reader:
+        - A SINGLE fired cell out of 17 is weak evidence. Under the exact null it happens
+          about 1 run in 100, not 1 in 370.
+        - Any per-cell claim must name WHICH k was pre-specified. Criterion (iv) pre-specifies
+          k = m = 17 as the cell of interest; that cell alone retains its 0.27% size, which I
+          independently measured at 0.002716. Cells discovered after looking do not.
+        - The familywise rate must be printed in the run manifest alongside any battery reading,
+          which the amendment already requires.
+        - This is a SIZE caveat, not a power caveat. The producer notes v2 filed it under the
+          wrong heading; that correction is right and should survive into the evidence record.
+      what_it_does_NOT_undermine: >-
+        It does not undermine the per-cell calibration, which is what I was asked to verify
+        and which holds. A 0.27% per-cell rule and a 1.0% familywise rate over 17 correlated
+        cells are both correct statements about the same instrument. The defect would be
+        reporting the second as the first.
+
+  item_5_CTRL_IDXMAP_specified_but_never_run:
+    verdict: ADMISSIBLE AS WRITTEN -- but its BLOCKING status needs a Coordinator ruling before the measurement runs (see F-1)
+    may_an_unrun_control_be_specified_as_active:
+      answer: >-
+        Yes -- provided it is never cited as a control that PASSED, and provided its
+        blocking status is not asserted over a run that structurally cannot satisfy it.
+        v3 meets the first condition cleanly and fails the second, which is a dispatch
+        defect rather than a defect in the amendment's reasoning.
+      why_the_first_condition_is_met: >-
+        This is precisely the failure the red team caught in v2, where CTRL-ORACLE was
+        promoted to PRIMARY in the same record that admitted it was unverified. v3 inverts
+        that. CTRL-IDXMAP's unverified status is carried in THREE places, including the one
+        that matters most -- the control ranking itself reads "SPECIFICATION ONLY until a
+        run emits index_map.json (OPEN-9)" -- and the producer names it in fix_report as the
+        second thing a reviewer should attack. A control cannot be silently trusted when the
+        record says three times that it has not been run. Recording a needed control as
+        specified-and-unverified is better than omitting it: omission loses the design, and
+        overstatement is what was actually forbidden.
+      the_demonstration_is_honestly_scoped: >-
+        Toy ring n=71, N=60, n_e=6, L=10; silent on the correct map, fires on V1 (60+60
+        index mismatches), V2 (58), V3 (10). The record states this demonstrates the
+        MECHANISM only and nothing about stage_a.py, which the task never executed. That is
+        the correct scope statement and I have no quarrel with it. I did not re-run the toy
+        demonstration; it is a deterministic array comparison and is not where the risk lies.
+      the_real_residual_risk_stated_by_the_producer_against_itself: >-
+        An implementation that emits a correct index map and reads by other means passes
+        CTRL-IDXMAP vacuously. The gather requirement is what forecloses that, and it is an
+        IMPLEMENTATION obligation on stage_a.py that no run has met. Until a run meets it,
+        the shift-equivariant blind class that CTRL-POSHOM cannot see remains uncovered in
+        practice, whatever the amendment specifies on paper. OPEN-9 says so; I am agreeing
+        with OPEN-9, not softening it.
+    CTRL_POSHOM_list_checked_against_the_cited_evidence:
+      method: compared the v3 detection list line by line against red team TASK-20260806-42c153 section 3
+      V1_off_by_one_truncation: {v3: BLIND, red_team: BLIND, q_shift: -0.01%, Q_df: 0.933, match: true}
+      V2_interleaved_partition: {v3: BLIND, red_team: BLIND, q_shift: +0.03%, Q_df: 1.262, match: true}
+      V3_last_block_early: {v3: BLIND as tested, red_team: BLIND, q_shift: +0.00%, Q_df: 1.046, match: true}
+      V4_wrap_error: {v3: fires with zero marginal value, red_team: fires, Q_df: 35141.7, match: true}
+      V5_block_0_tie_rule: {v3: FIRES, red_team: FIRES, Q_df: 571.5, match: true}
+      V6_masked_coordinate: {v3: FIRES, red_team: FIRES, Q_df: 17.31, match: true}
+      V7_sign_blind_acceptance: {v3: inert, no conclusion, red_team: injection was inert, match: true}
+      dup_stride: {v3: UNTESTED, v2: listed as CAUGHT, match: corrected, and correctly NOT moved to the blind side either}
+      verdict: >-
+        The corrected list is faithful to the injection evidence at every row. No blind
+        defect is relisted as caught, and the untested dup-stride case is moved to UNTESTED
+        rather than being quietly reclassified in either direction. This was the third
+        blocking item and it is discharged.
+    on_the_structural_blindness_argument:
+      my_position: >-
+        The G-invariance argument in fix_report section 4.2 is sound as far as it goes: if
+        the law of e'' is invariant under the ring shift and a defect replaces the windows
+        by a single G-orbit with the same increments, both CTRL-POSHOM clauses hold exactly
+        and detection probability equals size. The producer states plainly that it is an
+        argument written after the measurements, and flags its own clause (3) -- that V3 is
+        a power failure rather than a structural one -- as the part most likely to be
+        wrong. I accept that framing. Attacking the argument itself is the red team's
+        assignment, not mine, and I defer to TASK-20260806-250b29 on it.
+
+  item_6_scope:
+    verdict: PASS -- CLEAN
+    contract_untouched:
+      path: experiments/EXP-HQC-982268/specification.yaml
+      sha256_now: 9b93108c0fd0dc907622225917edaf644cb50f4808b6c0c2af2228a457092958
+      sha256_asserted_in_receipt: 9b93108c
+      last_commit_touching_it: cab9633e (BATCH-6fddee, before this batch)
+      uncommitted_modifications_under_experiments: none
+    no_log2_A_k_on_any_T_arm:
+      how_I_checked: >-
+        Read every file-access site in recalibrate.py. It opens exactly three paths:
+        amendment_v3.yaml, transcribed_size.json, and a cache state file under $RECAL_WORK
+        (default $TMPDIR). It reads NO run artifact, NO histogram, and NO space-(T) sample.
+        Every draw in the deliverables is multinomial from an explicit Binomial pmf.
+      the_only_T_inputs: >-
+        First moments only -- q_hat and the per-set block-failure totals -- which are
+        chartered Stage-A diagnostics in RUN-HQC-982268-STAGEA-a. I verified all eight
+        values against that committed record and all eight match exactly.
+      verdict: No log2_A_k was computed on any space-(T) arm. Confirmed.
+    writes_confined:
+      snapshot_commit_7a862cf9_changed: the four task artifacts plus the snapshot receipt, nothing else
+      ledger_untouched: true
+      experiments_untouched: true
+    read_scope_excursion:
+      what_was_disclosed: ~60 lines of BATCH-6fddee/.../stage_a.py, outside the task's declared read_scope
+      disclosed_in: both fix_report section 0 and amendment budget_and_provenance.read_scope_excursion_disclosed
+      my_assessment: >-
+        Disclosed unprompted and immaterial to every number in the deliverables. I can
+        assert immateriality by construction rather than on trust: I reproduced all 87
+        frozen constants bit-for-bit without ever reading stage_a.py, so no constant can
+        depend on it. It remains a scope breach and should be recorded as one, but it
+        contaminates nothing.
+    budget: 568.6 of 1200 authorized core-seconds, with three aborted runs reported rather than hidden.
+
+  findings_requiring_a_Coordinator_ruling:
+    - id: F-1
+      severity: BLOCKING FOR TASK-20260806-cde749, NOT for admitting the amendment
+      title: CTRL-IDXMAP is declared blocking, and requires an artifact the measurement task cannot produce.
+      detail: >-
+        The amendment declares CTRL-IDXMAP "Blocking", says "any mismatch is
+        FAILED_IMPLEMENTATION before any measurement is scored", and lists
+        experiments/EXP-HQC-982268/runs/<RUN-ID>/index_map.json under
+        amended_required_artifacts.added_per_run, with the elementwise comparison required
+        in the manifest. But satisfying it needs the (T) sampler in stage_a.py to express
+        truncation and block extraction as explicit index arrays and gather through them.
+        TASK-20260806-cde749's write_scope is its own task directory alone, and its
+        read_scope does not include stage_a.py at all. That task therefore CANNOT implement
+        the gather requirement, CANNOT emit index_map.json, and under a strict reading of
+        "blocking" must abort -- on the final batch under the cap.
+      same_applies_to: >-
+        pair_counts_by_position.csv, also newly required per run, for CTRL-POSHOM clause
+        (b), which the amendment itself records as unevaluated.
+      what_I_recommend: >-
+        Rule explicitly, in the dispatch or in DEC-20260806-2947ba, that CTRL-IDXMAP and
+        CTRL-POSHOM clause (b) are FORWARD obligations on a future instrumented run and are
+        NOT gates on TASK-20260806-cde749; that the measurement reports both as NOT RUN with
+        the reason; and that no evidence record cites either as a passing control. That
+        preserves OPEN-9's warning exactly while letting the funded measurement proceed. A
+        one-line ruling; without it the run is ambiguous at best and aborts at worst.
+    - id: F-2
+      severity: OPERATIONAL HAZARD
+      title: The documented reproduction command rewrites a snapshot-committed frozen artifact in place.
+      detail: >-
+        recalibrate.py's inject() does open(AMENDMENT, "w") unconditionally, and
+        fix_report section 6 documents "python3 recalibrate.py all" as the reproduction
+        route, noting it "regenerates the two machine-generated blocks of
+        amendment_v3.yaml". Anyone following those instructions -- the red team this batch,
+        or any later reviewer -- mutates an artifact that is frozen by
+        snapshot-receipt.json and committed at 7a862cf9. The content hash would then no
+        longer match the receipt.
+      note: >-
+        This is a hazard, not a defect in the rule, and it is why I did not execute
+        recalibrate.py at any point. The round-trip design that closed VF-1 is exactly what
+        creates it: the program must write the file to verify it.
+      what_I_recommend: >-
+        Reproduce only against a COPY of the task directory, and state that in the ledger
+        record. If v3 is ever superseded, the writer should refuse to run unless the target
+        file is outside a committed path or an explicit --force flag is given.
+    - id: F-3
+      severity: REPORTING PRECISION
+      title: Breakdown margins are grid-resolution figures and should be stated as lower bounds.
+      detail: >-
+        See item_2.breakdown_margins_ONE_CAVEAT. "12.2x - 48.9x" should read "at least
+        ~6.1x, measured on a +/-0.25/0.5/1/2/4% probe grid". The conclusion is unaffected.
+
+  what_this_admission_does_and_does_not_authorize:
+    does: >-
+      It authorizes TASK-20260806-cde749 to run the PS-R3 joint-moment measurement at
+      T = 1e7 under the v3 frozen table, using the constants byte-identical to those in
+      amendment_v3.yaml, without re-tuning them.
+    does_not:
+      - It says nothing about HQC, A17, A5, any DFR, or any standardized parameter set. Toy tier, hard ceiling.
+      - It does not certify any cell at true HQC parameters. PS-A is out of criterion (iv) and nothing replaced it.
+      - It does not close RT2-OBJ-1. The size of INV-NULL under the COMPOSITE null is unknown,
+        and the run-time size guard is drawn from the same binomial law and cannot see this by
+        construction. A firing at order k is scoped to the TESTED NULL BATTERY, not to order k as such.
+      - It does not close OPEN-6, which remains the largest hole in the instrument -- no arm tests
+        the (T) joint law against an answer known in advance.
+      - It does not certify CTRL-IDXMAP or CTRL-POSHOM clause (b) as passing gates.
+      - An admitted instrument is not a result. If the measurement runs, what it produces is one
+        reduced-parameter curve with a stated discrepancy against the model, and nothing more.
+
+  attestation:
+    independent_session: true
+    role: validator
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    fallback_used: false
+    i_did_not_produce_the_artifact_under_review: true
+    every_number_in_this_report_was_measured_by_me_or_is_attributed: true
+    numeric_tables_generated_programmatically_from_my_own_result_files: >-
+      Deliberate. Hand-transcription of constants is the defect under review, so the
+      per-cell tables here were emitted by script from my raw JSON rather than retyped.

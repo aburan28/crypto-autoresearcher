@@ -1,0 +1,225 @@
+experiment:
+  id: EXP-BLAKE-7f9d51
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-2dfc3a; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-2dfc3a
+  question_id: RQ-BLAKE-584719
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure minimum differential trail weight per round for BLAKE3-parameterised and BLAKE2s-parameterised
+    instantiations of one generator, plus two random-parameterised nulls, at three seeds each, sweeping
+    rounds until a declared ceiling binds.
+  objective: 'The one uncertainty a run reduces is whether the BLAKE2-to-BLAKE3 margin transfer survives
+    a like-for-like measurement over the rounds a solver can actually reach. Decomposed: (i) whether
+    a single encoding generator parameterised only by the design triple can be instantiated at both
+    primitives and shown, by constraint-level structural diff under a parameter swap, to be the same
+    program -- because without that demonstration every subsequent number compares two analyses rather
+    than two designs; (ii) what the per-round minimum trail weight curves W3(r) and W2(r) are over
+    r = 1..Rmax, with each row carrying its optimality status, and what their pointwise difference
+    D(r) is when read against a reproducibility band measured from seed repetition rather than assumed;
+    (iii) whether the instrument resolves design differences at all, established by running the identical
+    pipeline against random-parameter ARX nulls of the same shape in the same invocation -- if the
+    nulls match both real arms, the run is a controlled null and the divergence question is not answered
+    by this instrument. A run does NOT reduce uncertainty about attack cost, about full-round behaviour,
+    or about the adequacy of seven rounds; those are outside the object this experiment tracks.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: under encoding E at hash H,
+      solver S at version V, ceiling C seconds per point, on machine M, the minimum differential trail
+      weight for the BLAKE3-parameterised instantiation is W3(r) and for the BLAKE2s-parameterised
+      instantiation is W2(r) for r = 1..Rmax, with optimality status per row and a seed-to-seed spread
+      of s(r), and the random-parameter null arm gave Wn(r) with spread sn(r). What does NOT follow:
+      any statement about the existence, cost or nonexistence of an attack on either primitive; any
+      statement about seven-round BLAKE3 or about any deployed system that uses it; any extrapolation
+      of either curve beyond Rmax; any claim that a coincidence of curves validates the design decision,
+      since the decision concerns rounds this run did not reach.'
+  inputs:
+    procedure: 'STAGE 0 (cost: hours of agent time, zero compute): pin BLAKE3 and BLAKE2s reference
+      implementations, validate against published test vectors including keyed and multi-chunk cases,
+      record hashes. STAGE 1 (cost: high agent time, zero compute): write the single encoding generator
+      taking only (operation sequence with rotation constants, schedule table, round count); emit
+      constraint sets for both parameterisations. STAGE 2 (cost: minutes of compute): parameter-swap
+      structural diff -- substitute BLAKE2s''s schedule table into the BLAKE3 instantiation and diff
+      against the schedule-swapped chimera constraint set; HALT the experiment on mismatch. STAGE
+      3 (cost: minutes to low hours): solve r = 1,2,3 on all four arms at three seeds; check the forced-zero
+      seed-spread prediction and null distinguishability. STAGE 4 (cost: the bulk of the compute budget):
+      sweep r upward on all four arms, three seeds each, enforcing the per-point ceiling, until both
+      real arms fail to return even a certified lower bound; that defines Rmax. STAGE 5 (cost: low):
+      compute D(r), increments, bands; write the run record with encoding hash, solver version, seeds,
+      ceilings, machine, and per-row optimality status.'
+    instrument: 'Python 3.11. PySAT with CaDiCaL for the CNF arm; the constraint generator written
+      as plain Python emitting DIMACS, with no primitive-specific branches outside the parameter tuple.
+      Reference implementations: the pinned C reference for BLAKE3 and for BLAKE2s driven through
+      ctypes, with a pure-Python re-implementation cross-checked against it for the encoding''s ground
+      truth. Run orchestration, seed recording and manifest emission through harness/runner.py so
+      the inference and environment blocks are captured as for every other run in this repository.
+      No Sage. No solver-specific tuning applied to one arm and not the other.'
+    parameters: 'Rounds r swept from 1 upward, ceiling-bound, expected Rmax in the range 3 to 6. Four
+      arms: BLAKE3-parameterised, BLAKE2s-parameterised, and two independent random-parameter nulls
+      (rotation constants uniform on 1..31, schedule tables uniform random permutations of 0..15).
+      Three seeds per (arm, r) point. Two constraint-emission orderings on the identity control only.
+      Per-point wall-clock ceiling: 1800 seconds, declared before the run and identical across arms.
+      Peak memory cap 8 GB per solve. Total point budget: 4 arms x 3 seeds x up to 6 rounds = up to
+      72 solves plus 6 identity-control solves.'
+  controls:
+  - Random-parameter null arm (random rotation constants, random schedule tables) run in the same
+    invocation, same solver, same ceiling, same seeds.
+  - Seed repetition (three seeds per point) and, where supported, two solver variable orderings, giving
+    a measured reproducibility band rather than an assumed one.
+  - 'Parameter-swap structural diff: BLAKE2s''s schedule table substituted into the BLAKE3 instantiation
+    must reproduce the schedule-swapped chimera constraint set exactly; a mismatch halts the comparison.'
+  - Test-vector precondition on both reference implementations, including keyed and multi-chunk vectors,
+    before any encoding is generated.
+  - 'An identity control: the encoding run twice on the SAME primitive with different constraint-emission
+    orderings must return identical optima.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The null object is a permutation of identical shape with structure
+    removed: same 16-word state, same number of ARX operations per round, same round count, but with
+    rotation constants drawn uniformly at random from 1..31 and the schedule table drawn as uniformly
+    random permutations of 0..15, sampled under a recorded seed. The IDENTICAL encoding generator
+    produces its constraint set, and the identical solver, ceiling, seeds and orderings run against
+    it in the same invocation. What the null must show for the signal arm to mean anything: the null''s
+    W(r) curve must be distinguishable from at least one of the two real curves by more than the measured
+    reproducibility band at some r inside Rmax. If randomly parameterised ARX gives the same per-round
+    curve as both real designs, the instrument is measuring the shape of the encoding, not either
+    design, and D(r) means nothing. The null is also run at three independent random parameterisations
+    so its own spread is measured, giving the band against which D(r) is judged.'
+  independent_variables:
+  - round count r
+  - design parameterisation (BLAKE3 | BLAKE2s | null-1 | null-2)
+  - solver seed
+  - constraint-emission ordering (identity control only)
+  metrics:
+    primary:
+    - W(r) minimum trail weight per arm per round
+    - optimality status per row (proved_optimum | certified_lower_bound | ceiling_hit)
+    - D(r) = W3(r) - W2(r)
+    - seed-to-seed spread s(r) per arm per round
+    - Rmax
+    secondary:
+    - per-round increment dW/dr
+    - solver wall-clock per point
+    - peak memory per point
+    - constraint count per arm per round
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'Predicted: the seed-to-seed spread s(r) on every row marked proved_optimum, and the
+      decision rule by which D(r) is later read.'
+    formula: 's(r) = max over seeds of W(r) minus min over seeds of W(r), on proved_optimum rows,
+      is predicted to equal exactly 0 for every arm and every r. Definition of the reading rule, frozen
+      before the sweep: D(r) is reported as a divergence if and only if |W3(r) - W2(r)| > 2 * max(s3(r),
+      s2(r), sn(r)) where sn(r) is the larger null arm''s spread, and both rows carry the same optimality
+      status. Rows of differing optimality status are never differenced.'
+    source: Pre-registered in the parent proposal IDEA-20260816-2dfc3a before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested parameters are round counts 1..Rmax with Rmax expected between 3 and 6,
+      against designs shipping at 7 and 10 rounds. This is a toy tier and is labelled as such. THE
+      TRANSFER ASSUMPTION IS NOT MADE: no extrapolation from Rmax to 7 or 10 rounds is performed,
+      offered, or implied, and the record explicitly states that the rounds the design argument concerns
+      are rounds this run did not reach. The only transfer assumed is within-run: that both arms experience
+      the same solver regime at the same r, which is checked by comparing optimality status and constraint
+      counts rather than assumed.'
+    correspondence: null
+  tail_checks:
+  - Inspect the largest-r rows individually for solver regime change (constraint count, restart counts,
+    memory) rather than trusting the curve's shape.
+  - Check whether any arm's Rmax is set by memory cap rather than wall-clock, since those are different
+    failures and only one is time-buyable.
+  - Re-solve the single largest-r proved-optimum row on a second machine to confirm the optimum, not
+    the timing.
+  - Examine whether D(r) at the largest reached r is dominated by a single arm switching from proved_optimum
+    to certified_lower_bound.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Stop the sweep at the first r where BOTH real arms fail to return even a certified lower bound
+    inside the ceiling; that r-1 is Rmax.
+  - HALT the entire experiment at STAGE 2 if the parameter-swap structural diff fails.
+  - HALT at STAGE 3 if any proved_optimum row shows nonzero seed spread.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run succeeds if the parameter-swap diff holds, every proved_optimum row has
+    zero seed spread, at least one null arm is distinguishable from at least one real arm somewhere
+    in 1..Rmax, and both real curves are reported with per-row optimality status out to a stated Rmax
+    of at least 3 -- irrespective of whether D(r) shows a divergence, since both outcomes are complete
+    results.
+  falsification_criterion:
+  - Parameter-swap structural diff mismatch.
+  - Nonzero seed spread on a proved_optimum row.
+  - Both nulls indistinguishable from both real arms across all r <= Rmax.
+  - Rmax < 3, making the curve too short to carry any comparison.
+  - Reference implementation fails a published test vector at STAGE 0.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-2dfc3a
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The BLAKE3 and BLAKE2s primary specifications and the BLAKE2 cryptanalysis the transfer argument
+    cites are not filed as KN-LIT entries in this repository. RQ-BLAKE-584719's first constraint blocks
+    approval until they are; a Coordinator must resolve acquisition first.
+  - The XOR-difference model of modular addition is adopted without a written argument that it is
+    equally adequate for both round functions; that argument must be supplied or the model's asymmetry
+    must be measured.
+  - Rmax is unknown before the run, so the compute budget is a guess. A Coordinator must set the ceiling
+    and the total point budget explicitly rather than inheriting the placeholder here.
+  - Whether GOAL-MD5-001's calibrated instrument can be reused directly, or must be re-derived for
+    a 32-bit ARX state, is unresolved and changes the implementation cost substantially.

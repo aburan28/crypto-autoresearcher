@@ -6,6 +6,7 @@
     python -m orchestration.adapter doctor   --probe
     python -m orchestration.adapter models   --backend zai
     python -m orchestration.adapter complete --policy research-deep --prompt-file q.md
+    python -m orchestration.adapter probe-codex-session --help
 
 `resolve`, `matrix`, `env`, and offline `doctor` touch no network.
 """
@@ -20,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from . import config as config_module
+from . import codex_runtime as codex_runtime_module
 from . import manifest as manifest_module
 from . import resolver as resolve_module
 from . import transport as transport_module
@@ -226,6 +228,34 @@ def cmd_complete(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_probe_codex_session(args: argparse.Namespace) -> int:
+    """Verify one new Codex exec session; never verify a backend catalog."""
+    cfg = _load(args)
+    try:
+        codex_runtime_module.probe_codex_session(
+            cfg=cfg,
+            codex_bin=args.codex_bin,
+            state_db=args.state_db,
+            workdir=args.workdir,
+            model=args.model,
+            effort=args.effort,
+            policy=args.policy,
+            role=args.role,
+            task_id=args.task_id,
+            receipt=args.receipt,
+            independent_session=args.independent_session,
+            timeout_seconds=args.timeout_seconds,
+            backend=args.backend,
+        )
+    except codex_runtime_module.CodexRuntimeProbeError as exc:
+        suffix = f"; receipt={exc.receipt}" if exc.receipt_written else ""
+        print(f"codex session probe failed: {', '.join(exc.codes)}{suffix}",
+              file=sys.stderr)
+        return 3
+    print(f"verified exact Codex session; receipt={args.receipt}")
+    return 0
+
+
 def _role_contract(cfg: config_module.Config, role: str) -> str:
     """Assemble a system prompt from the runtime-neutral role contracts."""
     parts = []
@@ -291,6 +321,41 @@ def build_parser() -> argparse.ArgumentParser:
     p_complete.add_argument("--system-file")
     p_complete.add_argument("--max-tokens", type=int)
     p_complete.set_defaults(func=cmd_complete)
+
+    p_codex = sub.add_parser(
+        "probe-codex-session",
+        help="verify one exact new Codex CLI session (not a backend catalog)",
+        description=(
+            "Create and verify one non-ephemeral read-only Codex exec session. "
+            "The immutable receipt applies only to that session ID; it does "
+            "not verify a backend catalog or mutate model bindings."))
+    p_codex.add_argument("--codex-bin", required=True,
+                         help="existing Codex executable path")
+    p_codex.add_argument("--state-db", required=True,
+                         help="existing Codex SQLite state DB (queried read-only)")
+    p_codex.add_argument("--workdir", required=True,
+                         help="existing repository directory")
+    p_codex.add_argument("--backend", default="openai",
+                         help="repository backend key (default: openai)")
+    p_codex.add_argument("--model", required=True,
+                         help="exact requested model identifier")
+    p_codex.add_argument("--effort", required=True,
+                         choices=config_module.DEFAULT_EFFORT_ORDER,
+                         help="exact requested reasoning effort")
+    p_codex.add_argument("--policy", required=True,
+                         help="canonical policy ID or permanent alias")
+    p_codex.add_argument("--role", required=True,
+                         help="runtime-neutral role bound into the receipt")
+    p_codex.add_argument("--task-id", required=True,
+                         help="task identifier bound into the receipt")
+    p_codex.add_argument("--receipt", required=True,
+                         help="new immutable receipt path; existing paths fail")
+    p_codex.add_argument(
+        "--independent-session", action="store_true", required=True,
+        help="required assertion: create a new non-ephemeral independent session")
+    p_codex.add_argument("--timeout-seconds", type=int, default=300,
+                         help="positive subprocess timeout (default: 300)")
+    p_codex.set_defaults(func=cmd_probe_codex_session)
     return parser
 
 

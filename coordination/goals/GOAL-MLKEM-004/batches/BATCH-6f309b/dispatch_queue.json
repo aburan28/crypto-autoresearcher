@@ -1,0 +1,402 @@
+{
+  "schema": "crypto.autoresearch.dispatch_queue.v1",
+  "goal_id": "GOAL-MLKEM-004",
+  "batch_id": "BATCH-6f309b",
+  "batch_number": 2,
+  "objective": "BATCH-6f309b (batch 2 of 6): test the independence assumption underlying MATZOV.Nf by running ≥50 independent bgj1_sieve realizations on the SAME LWE instance (instance seed 20260803001) with DIFFERENT g6k Siever seeds, computing T_N per run, and comparing empirical Var[T_N] against N·Var[single score]. Also run CTRL-RT-4 (known-answer test on estimator.lwe_dual.matzov callable) before any comparison.",
+  "max_concurrent": 3,
+  "tasks": [
+    {
+      "id": "TASK-20260804-27e27b",
+      "title": "Execute BATCH-6f309b: independence variance test and CTRL-RT-4",
+      "role": "executor",
+      "state": "failed_infrastructure",
+      "priority": 100,
+      "review_required": true,
+      "depends_on": [],
+      "read_scope": [
+        "AGENTS.md",
+        "ledger/goals/GOAL-MLKEM-004.yaml",
+        "ledger/decisions/DEC-20260803-d810d0.yaml",
+        "ledger/evidence/EV-MLKEM-da9e3b.yaml",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-e53ce2/measure_scores.py",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-e53ce2/raw_scores.json",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-bc2f41/red_team_report.yaml",
+        "knowledge/techniques/KN-TECH-14efa5.md",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/dispatch_queue.json"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/variance_test.py",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/ctrl_rt4_test.py",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/rebuild_transcript.txt",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/variance_results.json",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/ctrl_rt4_results.json",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/report.md",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/receipt.json"
+      ],
+      "handoff": {
+        "id": "TASK-20260804-27e27b",
+        "from": "coordinator",
+        "to": "executor",
+        "objective": "Run the independence variance test: 50 independent bgj1_sieve runs on the SAME LWE instance (instance_seed=20260803001) with 50 DIFFERENT g6k Siever seeds. Compute T_N = sum of correct-candidate cosine scores for each run. Record T_N per run. Compute N·Var[single score] from batch-1 raw_scores.json phases_t (correct candidate). Report empirical Var[T_N] vs N·Var[single score]. ALSO run CTRL-RT-4 before any sieve work. State no finding. Emit the raw T_N values, not just the summary.",
+        "uncertainty_reduced": "Whether inter-sieve-vector scores are positively correlated (Var[T_N] > N·Var[single score]), i.e., whether MATZOV.Nf's independence assumption holds.",
+        "inputs": [
+          "BATCH-d2a728 raw_scores.json (phases_t[0] = correct candidate phases, N=17919)",
+          "measure_scores.py from batch-1 as reference implementation",
+          "KN-TECH-14efa5 instrument rebuild recipe",
+          "red_team_report.yaml OBJ-1, OBJ-2, OBJ-3, OBJ-4, B2-1, B2-2 constraints"
+        ],
+        "constraints": [
+          "Never fabricate a command, output, timing, statistic, citation, or run (AGENTS.md rule 9).",
+          "CTRL-RT-4 is a COMPLETION GATE. Run it BEFORE any sieve work. It must pass before proceeding.",
+          "CTRL-RT-4 zero-error: generate LWE instance with e=zeros(m). Run measure_scores.py or equivalent. Every correct-candidate per-vector cosine score must be exactly 1.0 (cos(2π·0/q)). Record pass/fail with exact values.",
+          "CTRL-RT-4 uniform-error: generate LWE instance with e=uniform(Z_q^m). Expected correct-candidate mean score ≈ 0. Record mean and compare against 3σ of expectation.",
+          "CTRL-RT-4 matzov callable: call estimator.lwe_dual.matzov (or its equivalent) on a synthetic instance where N_f is analytically derivable. Record whether the callable returns the analytically expected value to within floating-point tolerance.",
+          "For the 50 variance runs: use the SAME instance seed (20260803001) and SAME fpylll seed (20260803005). VARY ONLY the g6k Siever seed. Seeds must be deterministic and recorded: use range(50) or similar, recorded in receipt.",
+          "Each sieve run produces N=17919 vectors (match batch-1 exactly). If a run produces a different count, record the count and use it — do not discard the run.",
+          "Compute T_N = sum_{i=1}^{N} cos(2π·t_i(s)/q) for the CORRECT CANDIDATE only. t_i(s) is from phases_t[0] in each run's score output. T_N is a SCALAR per run.",
+          "Record all 50 T_N values in variance_results.json. Also record the single-score Var[s_i] = Var[cos(2π·t_i/q)] computed from batch-1 raw_scores.json phases_t[0]. Compute independence-predicted N·Var[s_i]. Compare empirical Var[T_N] against N·Var[s_i].",
+          "State NO FINDING. Do NOT compare against MATZOV.Nf's N formula. Record only: 'empirical Var[T_N] = X; independence predicts N·Var[s_i] = Y; ratio = X/Y'. The comparison against the model is batch 3.",
+          "Emit dual vectors (x,y) in output if feasible (batch-1 red-team DEF-1). If memory budget prohibits it, record why.",
+          "All seeds recorded in receipt.json. Rebuild transcript recorded verbatim.",
+          "Memory cap: 6 GB (RLIMIT_AS enforced). Each sieve run ~240 MB; 50 runs sequentially is fine.",
+          "Wall clock budget: 50 × 20s = 1000s ≈ 17 min for sieve; add CTRL-RT-4 overhead. Total budget 3600s.",
+          "This is dimension-60 data. NOT crypto-scale evidence (AGENTS.md rule 7).",
+          "AGENTS.md rule 12 is UNMET and UNWAIVED. Nothing here changes the status of any predecessor EV-* or KN-* record.",
+          "Do NOT run git commit — a Coordinator archive task commits the work.",
+          "requested_policy: executor-implementation. Record fallback_used if model differs.",
+          "independent_session: false (executor owns the run)"
+        ],
+        "deliverables": [
+          "variance_test.py — script that runs 50 sieve realizations and computes Var[T_N] vs N·Var[single score]",
+          "ctrl_rt4_test.py — CTRL-RT-4 checks (zero-error, uniform-error, matzov callable)",
+          "rebuild_transcript.txt — verbatim instrument rebuild output",
+          "variance_results.json — T_N values per run, Var[T_N], N·Var[s_i], ratio, seeds",
+          "ctrl_rt4_results.json — CTRL-RT-4 pass/fail with exact values",
+          "report.md — narrative: CTRL-RT-4 outcome, variance ratio, what was observed; NO finding",
+          "receipt.json — run parameters, seeds, git commit, budget usage"
+        ],
+        "completion_gate": [
+          "CTRL-RT-4 zero-error: all N per-vector scores = cos(0) = 1.0; any deviation is a failing result recorded as such",
+          "CTRL-RT-4 uniform-error: mean correct-candidate score within 3σ of 0; recorded",
+          "50 T_N values recorded (or as many as budget allows with exact count)",
+          "variance_results.json contains raw T_N array, not just summary statistics",
+          "states_a_finding: false in receipt.json",
+          "compared_against_matzov_nf: false in receipt.json"
+        ],
+        "budget": {
+          "wall_clock_seconds": 3600,
+          "memory_gb": 6,
+          "maximum_runs": 55
+        },
+        "inference": {
+          "policy": "executor-implementation",
+          "reasoning_effort": null,
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        }
+      }
+    },
+    {
+      "id": "TASK-20260804-6ad417",
+      "title": "Snapshot archive of BATCH-6f309b producer",
+      "role": "coordinator",
+      "state": "completed",
+      "priority": 90,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260804-27e27b"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-6ad417"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-6ad417/snapshot_receipt.json"
+      ],
+      "handoff": {
+        "objective": "Commit the exact BATCH-6f309b producer artifacts before independent review.",
+        "uncertainty_reduced": "Whether Validator and Red Team read an immutable snapshot.",
+        "constraints": [
+          "Run alone; stage only declared producer artifact paths plus this receipt",
+          "Do not interpret results"
+        ],
+        "deliverables": [
+          "snapshot_receipt.json"
+        ],
+        "budget": {
+          "wall_clock_seconds": 600,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Git verifies parent, paths, hashes, and reachable commit"
+        ]
+      },
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260804-27e27b"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": []
+      }
+    },
+    {
+      "id": "TASK-20260804-f18269",
+      "title": "Independently validate BATCH-6f309b: CTRL-RT-4 and variance computation",
+      "role": "validator",
+      "state": "queued",
+      "priority": 80,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260804-27e27b",
+        "TASK-20260804-6ad417"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-6ad417",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-e53ce2/raw_scores.json"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-f18269"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-f18269/validation_report.yaml",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-f18269/validation_notes.md"
+      ],
+      "handoff": {
+        "objective": "Hash-verify all artifacts. Re-derive Var[single score] from batch-1 raw_scores.json. Re-derive Var[T_N] from the 50 T_N values. Verify CTRL-RT-4 zero-error claim (all scores = 1.0). Confirm states_a_finding: false.",
+        "uncertainty_reduced": "Whether the variance measurement is admissible and arithmetically correct.",
+        "constraints": [
+          "Independent session from executor",
+          "requested_policy: review-adversarial",
+          "Do not change official status"
+        ],
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "accept / accept_with_qualifications / reject verdict with hash check and arithmetic re-derivation"
+        ],
+        "inference": {
+          "policy": "review-adversarial",
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        }
+      }
+    },
+    {
+      "id": "TASK-20260804-d7bdb1",
+      "title": "Red-team the variance measurement and CTRL-RT-4",
+      "role": "red-team",
+      "state": "queued",
+      "priority": 80,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260804-27e27b",
+        "TASK-20260804-6ad417"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-6ad417",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-bc2f41/red_team_report.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-d7bdb1"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-d7bdb1/red_team_report.yaml",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-d7bdb1/falsification_review.md"
+      ],
+      "handoff": {
+        "objective": "Does Var[T_N] > N·Var[single score] actually test what OBJ-1 says it does? Is there a confound between runs (e.g., the same sieve truncation at N=17919 across all 50 runs introducing a shared stopping artifact)? Does the CTRL-RT-4 actually verify the right callable? Name the cheapest alternative interpretation of any finding.",
+        "uncertainty_reduced": "Whether the variance ratio admits an artifact interpretation that does not involve inter-vector correlation.",
+        "constraints": [
+          "Independent session from executor and validator",
+          "requested_policy: review-adversarial",
+          "Do not change official status",
+          "No ML-KEM break claim regardless of ratio value"
+        ],
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "pass_with_constraints / blocking_objections verdict with named cheapest checks"
+        ],
+        "inference": {
+          "policy": "review-adversarial",
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        }
+      }
+    },
+    {
+      "id": "TASK-20260804-2dc49f",
+      "title": "Ledger archive of BATCH-6f309b",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 70,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260804-f18269",
+        "TASK-20260804-d7bdb1"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b",
+        "ledger/goals/GOAL-MLKEM-004.yaml",
+        "ledger/evidence",
+        "ledger/decisions"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-2dc49f",
+        "ledger/evidence/EV-MLKEM-cca527.yaml",
+        "ledger/decisions/DEC-20260804-1a2a1d.yaml",
+        "ledger/goals/GOAL-MLKEM-004.yaml"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-2dc49f/ledger_commit_receipt.json",
+        "ledger/evidence/EV-MLKEM-cca527.yaml",
+        "ledger/decisions/DEC-20260804-1a2a1d.yaml",
+        "ledger/goals/GOAL-MLKEM-004.yaml"
+      ],
+      "rule12_status": "AGENTS.md rule 12 UNMET and UNWAIVED. No status change to any predecessor EV-* or KN-* record.",
+      "handoff": {
+        "objective": "Archive both reviews and record EV-MLKEM-cca527 (scoped to the variance ratio and CTRL-RT-4 outcome only). State no finding about ML-KEM security in either direction.",
+        "constraints": [
+          "Never fabricate outputs, statistics, or runs",
+          "Variance ratio is NOT a finding about ML-KEM security",
+          "Rule 12 UNMET and UNWAIVED",
+          "Do NOT run git commit"
+        ],
+        "deliverables": [
+          "ledger_commit_receipt.json",
+          "EV-MLKEM-cca527",
+          "DEC-20260804-1a2a1d"
+        ],
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "both reviews archived",
+          "evidence scoped to variance ratio and CTRL-RT-4",
+          "no ML-KEM security claim in either direction"
+        ],
+        "inference": {
+          "policy": "coordinator-archive",
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        }
+      },
+      "archive": {
+        "kind": "ledger",
+        "source_task_ids": [
+          "TASK-20260804-f18269",
+          "TASK-20260804-d7bdb1"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": [
+          "EV-MLKEM-cca527",
+          "DEC-20260804-1a2a1d",
+          "GOAL-MLKEM-004"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260804-736f46",
+      "title": "REPAIR: run variance test on linux/amd64 via Docker",
+      "role": "executor",
+      "state": "queued",
+      "priority": 95,
+      "review_required": true,
+      "repair_of": "TASK-20260804-27e27b",
+      "repair_rationale": "TASK-20260804-27e27b failed_infrastructure because g6k requires x86 SIMD not available on ARM64. Docker linux/amd64 provides the required platform.",
+      "depends_on": ["TASK-20260804-27e27b"],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/variance_test.py",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-27e27b/ctrl_rt4_test.py",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-e53ce2/raw_scores.json",
+        "knowledge/techniques/KN-TECH-14efa5.md",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/dispatch_queue.json"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-736f46"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-736f46/rebuild_transcript.txt",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-736f46/variance_results.json",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-736f46/report.md",
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-736f46/receipt.json"
+      ],
+      "handoff": {
+        "objective": "Run the BATCH-6f309b variance test on Docker linux/amd64. Build the g6k environment per KN-TECH-14efa5 inside a container, then run variance_test.py with --n-runs 50.",
+        "constraints": [
+          "Use docker run --platform linux/amd64 python:3.11-slim",
+          "CTRL-RT-4c already DONE (matzov callable pass) — do not re-run it",
+          "Run CTRL-RT-4 1a and 1b (zero-error and uniform-error) inside Docker",
+          "states_a_finding: false",
+          "compared_against_matzov_nf: false",
+          "Do not git commit"
+        ],
+        "budget": {
+          "wall_clock_seconds": 4800,
+          "memory_gb": 6,
+          "maximum_runs": 55
+        },
+        "inference": {
+          "policy": "executor-implementation",
+          "fallback_allowed": true,
+          "independent_session_required": false
+        }
+      }
+    },
+    {
+      "id": "TASK-20260804-42e24b",
+      "title": "Snapshot archive of BATCH-6f309b repair producer",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 88,
+      "review_required": false,
+      "depends_on": ["TASK-20260804-736f46"],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-42e24b"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-42e24b/snapshot_receipt.json"
+      ],
+      "handoff": {
+        "objective": "Commit the repair producer artifacts before independent review.",
+        "constraints": ["Run alone; stage only declared paths"],
+        "budget": {"wall_clock_seconds": 600, "memory_gb": 1, "maximum_runs": 1},
+        "completion_gate": ["Git verifies parent, paths, hashes, reachable commit"]
+      },
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": ["TASK-20260804-736f46"],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": []
+      }
+    }
+  ]
+}

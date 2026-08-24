@@ -23,6 +23,22 @@ those records are immutable.
 always described. It is standard library only: no vendor SDK is a dependency of
 this research program.
 
+## Cost guardrail: Amazon Bedrock is prohibited
+
+Amazon Bedrock is disabled for all new inference. The adapter rejects any
+backend name, provider label, configured or overridden endpoint, or model ID
+containing `bedrock` (case-insensitive) before transport can build a request.
+OpenCode independently disables the `amazon-bedrock` provider in the project
+`opencode.json` and selects OpenAI models by default.
+
+Use an allowed configured API backend such as `openai` or `local`, or an
+authenticated direct Codex or Claude Code session whose resolved provider is
+not Bedrock. If no allowed API or direct runtime satisfies the requested
+policy, the task stops as an infrastructure failure; fallback or downgrade
+permission never permits Bedrock. Historical run receipts that mention prior
+Bedrock use remain immutable evidence and are not rewritten by this prospective
+rule.
+
 ## Credentials and endpoints
 
 Every backend needs two things: an **API key** in a named environment variable,
@@ -106,6 +122,40 @@ This reaches the wire, not just the manifest. On the Anthropic protocol a
 binding maps effort to a thinking budget (`budget_by_effort`), and `low` maps to
 `0`, which disables extended thinking and lets `temperature: 0.0` through. On
 the OpenAI protocol the effort maps to `reasoning_effort`.
+
+### Per subagent, where the runtime can express it
+
+Calibrating effort per role only pays off if a role's effort follows the role.
+When effort can be set only per process, a session runs every subagent at
+whatever depth it was launched with: an Executor replaying a frozen protocol
+thinks as hard as a Validator, and a Validator dispatched from an Executor
+session reviews at Executor depth — the exact two errors this table exists to
+prevent, reintroduced by the harness.
+
+`runtime_reasoning_effort` in `orchestration/roles.yaml` records which runtimes
+can carry effort in the agent definition itself:
+
+| runtime | how | effect |
+|---|---|---|
+| `claude_code` | `effort:` in `.claude/agents/<role>.md` frontmatter | per subagent; one session dispatches all five roles at their own depths |
+| `codex_cli` | `-c model_reasoning_effort=…` from `adapter env` | per session |
+| `opencode` | `adapter env` at launch | per session |
+| `api_direct` | the resolved policy, per call | per task |
+
+The frontmatter value is **derived, never chosen there**: role →
+`default_policy` → `reasoning_effort`, the same requested column as the table
+above. `tools/check_runtime_bindings.py` fails the build while an agent file
+and its policy disagree, and `--list` prints, per role and runtime, whether
+effort comes from the agent file or from the session. Retune by editing the
+policy; a hand-tuned agent file is exactly the drift the check exists to catch.
+
+Two limits are deliberate. A policy requesting effort outside a runtime's
+vocabulary (`none`, in Claude Code's case) is a build error rather than a
+silent nearest match — the role runs on a runtime that can express it, or the
+policy states something expressible. And per-task escalation to
+`review-breakthrough` at `max` stays out of frontmatter: it is a Coordinator
+decision recorded in the handoff, and it requires an independent session, so
+binding it to an agent file would let a session promote its own review.
 
 ### Choosing between the two coordinator policies
 
@@ -247,6 +297,58 @@ Declared capabilities are assertions too. The resolver can catch a binding that
 *admits* it is too weak; it cannot catch one that overstates itself. Inflating
 `max_reasoning_effort` to make a review gate pass is an evidence-integrity
 failure, in the same class as overstating a claim tier.
+
+### Verifying one Codex CLI session
+
+Backend catalog verification and session runtime verification answer different
+questions. `doctor --probe` asks a configured API backend which model IDs it
+serves. The session probe instead proves which exact model, reasoning effort,
+provider, CLI version, working directory, source, and sandbox were persisted
+for one newly created Codex CLI thread:
+
+```sh
+python3 -m orchestration.adapter probe-codex-session \
+  --codex-bin /absolute/path/to/codex \
+  --state-db /absolute/path/to/.codex/state.sqlite \
+  --workdir /absolute/path/to/repository \
+  --model gpt-5.6-sol \
+  --effort xhigh \
+  --policy review-adversarial \
+  --role validator \
+  --task-id TASK-YYYYMMDD-NNN \
+  --receipt /new/path/runtime-session-receipt.json \
+  --independent-session
+```
+
+The command launches exactly one non-ephemeral `codex exec --json` process
+with the fixed public `PROBE_OK` prompt and a read-only sandbox. It obtains the
+new thread ID from exactly one `thread.started` event, queries only that ID in
+the supplied SQLite database (URI `mode=ro` plus `PRAGMA query_only=ON`), and
+streams only that row's rollout file. The requested values must agree exactly
+with the single state row, `session_meta`, and probe-turn `turn_context`.
+Unknown metadata and every missing, ambiguous, or mismatched value fail closed.
+
+The receipt is created exclusively and is never overwritten, including after a
+failed attempt. It stores allowlisted facts, canonical-path hashes, event-line
+hashes, output byte counts and hashes, and safe argument vectors. It does not
+store raw stdout/stderr, raw rollout events, prompts other than the fixed public
+probe, environment variables, credentials, base instructions, or unrelated
+thread IDs. `tools/check_runtime_bindings.py` must also pass before the receipt
+can set `runtime_resolution_verified: true`.
+
+A verified receipt always states:
+
+```yaml
+verification_scope: exact_codex_session_only
+global_backend_verified: false
+model_bindings_mutated: false
+```
+
+It is valid only for its `independent_session_id`. It neither upgrades
+`model-bindings.yaml` nor proves that a provider serves the model generally.
+Each independent Validator or Red Team session therefore needs its own new
+receipt and must conduct or resume its review in that exact receipt-bound
+thread.
 
 ## Running the program on GLM
 

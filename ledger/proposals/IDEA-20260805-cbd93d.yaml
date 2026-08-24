@@ -1,0 +1,649 @@
+idea:
+  id: IDEA-20260805-cbd93d
+  question_id: RQ-SDITH-001
+  added: '2026-08-05'
+  title: >-
+    The d-split admissibility ratio: a zero-compute forced value that bounds the
+    ENTIRE advantage a split-aware decoder can extract from SDitH's d-split
+    constraint, derived before any run and checkable in exact integer arithmetic
+  class: theory
+
+  claim: >-
+    For d-split syndrome decoding -- n coordinates partitioned into d blocks of
+    n/d, error weight forced to exactly w/d in EACH block, versus plain SD which
+    forces only total weight w -- the whole information-theoretic difference
+    between the two problems is the single ratio
+    R(n,w,d) = C(n/d, w/d)^d / C(n,w),
+    which is the probability that a plain-SD error's block-weight profile happens
+    to be balanced. Because C(n,w) = sum over compositions of the same product
+    (Vandermonde), and the balanced term is the LARGEST term of that sum,
+    R is bounded below by 1/C(w+d-1, d-1) UNCONDITIONALLY. Hence -log2 R is at
+    most (d-1)*log2(w+d-1): a LOGARITHMIC quantity, never an exponent.
+    Stronger and more useful: the Prange-level advantage a split-aware attacker
+    gains is NOT -log2 R but the far smaller ratio of two such quantities,
+    G(n,k,w,d) = R(n-k, w, d) / R(n, w, d)
+              ~= [ ((n-w)/(n-1)) * ((n-k-1)/(n-k-w)) ]^{(d-1)/2},
+    derived here by a local-CLT argument in which every d-dependent constant
+    cancels. At the illustrative parameter set n=256, k=128, w=80, d=2 the exact
+    integer computation gives log2 G = 0.433 bits and the closed form gives
+    0.434 bits. FOUR TENTHS OF ONE BIT. If SDitH's real d is 2, and if the real
+    (n,k,w) resemble any set of this shape, the d-split structure is worth less
+    than half a bit of Prange advantage and the "is it as hard as plain SD"
+    question is answered in the affirmative at Prange level by one line of
+    arithmetic -- which is the derivation half of GOAL-SDITH-001's first
+    completion criterion, obtainable today, at zero compute, before any decoder
+    is written.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE BLOCK-WEIGHT PROFILE. For an error vector e in F_q^n and a partition of
+      the coordinates into d blocks, the tracked object is the integer vector
+      pi(e) = (wt(e_1), ..., wt(e_d)) in Z^d, followed through the one operation
+      that ISD actually performs: the choice of an information set I and the
+      event "supp(e) does not meet I". Everything else about e -- which positions
+      inside a block, which nonzero field values -- is dropped. The d-split
+      constraint is precisely the statement pi(e) = (w/d, ..., w/d), so the
+      tracked object IS the difference between the two problems, and nothing
+      else is.
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens for this proposal:
+      (1) information-set decoding as an algorithm to be improved -- Prange,
+      Lee-Brickell, Stern, Dumer, MMT, BJMM, May-Ozerov, and every
+      representation-technique descendant; (2) index calculus, which for
+      syndrome decoding IS ISD under another name (columns of H are the factor
+      base, a relation is a subset summing to the syndrome) and claiming novelty
+      for it would be false; (3) algebraic / Groebner modelling of the SD
+      instance; (4) statistical decoding and its dual-distance variants;
+      (5) generic birthday and MITM framings; (6) side-channel, fault, and
+      implementation attacks. This proposal proposes NO decoder. It computes a
+      quantity that upper-bounds what any decoder in family (1) whose
+      per-iteration success factorizes over blocks can gain from the split.
+    newness_score: >-
+      The identity C(n,w) = sum over compositions of prod C(n/d, w_j) is
+      Vandermonde and is certainly known. The concentration of a multivariate
+      hypergeometric profile is standard. What is not in this corpus -- verified
+      against the prior-art list for RQ-SDITH-001, which contains exactly one
+      proposal (IDEA-20260801-017) -- is either quantity written down as a
+      PRE-REGISTERED FORCED VALUE for SDitH's own question, or the observation
+      that the attacker-relevant quantity is the RATIO of two admissibility
+      ratios rather than one of them. IDEA-20260801-017 proposes to MEASURE a
+      cost ratio at toy sizes with an unspecified solver; this proposal DERIVES
+      the ratio in closed form at the real sizes and makes the toy measurement a
+      check on the derivation rather than the deliverable. That is a different
+      record, not a variant.
+    testability_score: >-
+      Maximal. Both quantities are exact rational functions of binomial
+      coefficients; Python's math.comb evaluates them at SDitH's real sizes in
+      microseconds with no floating point in the critical path. There is no
+      solver dependency, no library dependency (this container has numpy 2.4.6
+      but NOT sympy -- measured this session -- and neither is needed), and no
+      scale gap: the derivation is evaluated AT the deployed parameters, not
+      extrapolated to them.
+    survival_score: >-
+      The object survives the whole of any block-factorizing ISD iteration,
+      because the per-block avoidance events are conditionally independent given
+      the profile. It DIES the moment an algorithm's success probability stops
+      factorizing over blocks -- representation-technique ISD (MMT/BJMM) splits
+      the error by VALUE rather than by POSITION, and its intermediate objects
+      are not block-local. That failure boundary is stated as the proposal's
+      declared limit, not hidden: see interpretation_limits.
+
+  mechanism: >-
+    DERIVED IN THIS RECORD. Every number below was computed here with exact
+    integer binomials; the illustrative parameter sets are labelled as such and
+    are NOT SDitH's, which this program has not read.
+
+    SETUP. Fix n, k, w, q and d with d | n, d | k and d | w. Plain SD: given
+    H in F_q^{(n-k) x n} and y = H e, find e of Hamming weight w. d-split SD:
+    the same, with the additional promise wt(e_j) = w/d in each of the d blocks
+    of size n/d. (THE PRECISE FORM OF SDitH'S SPLIT IS RECALLED-UNVERIFIED --
+    exactly-w/d-per-block versus at-most or a weight vector -- and Stage 0 of
+    the paired experiment is to read it. The derivation below is stated for the
+    exactly-w/d form and is re-derived for whatever form the specification
+    actually uses.)
+
+    STEP 1 -- THE ADMISSIBILITY RATIO. Number of plain weight-w vectors:
+    A_plain = C(n,w) (q-1)^w. Number of d-split-admissible vectors:
+    A_split = [C(n/d, w/d) (q-1)^{w/d}]^d = C(n/d, w/d)^d (q-1)^w. The field
+    values contribute (q-1)^w to BOTH and cancel exactly, so
+      R(n,w,d) = A_split / A_plain = C(n/d, w/d)^d / C(n,w),
+    a purely combinatorial quantity independent of q. Note what this says: the
+    split constrains POSITIONS ONLY, so no amount of increasing q changes the
+    gap. That is already a non-trivial structural statement and it is free.
+
+    STEP 2 -- THE UNCONDITIONAL BOUND. Vandermonde:
+      C(n,w) = sum_{w_1 + ... + w_d = w, 0 <= w_j <= n/d} prod_j C(n/d, w_j).
+    Every term is non-negative, the number of terms is at most C(w+d-1, d-1),
+    and the balanced term prod_j C(n/d, w/d) is the maximum term (each
+    j -> C(n/d, j) is log-concave, so a majorization/rearrangement argument
+    makes the balanced composition the maximizer). Therefore
+      1 / C(w+d-1, d-1) <= R(n,w,d) <= 1,
+    i.e. 0 <= -log2 R <= (d-1) log2(w+d-1). THIS IS A THEOREM, NOT A HEURISTIC,
+    and it already settles the exponent question: the d-split promise removes at
+    most O(d log w) bits of search space, which is o(n) for any d that is not
+    itself growing with n. Checked here at n=256, w=80: d=2 gives -log2 R =
+    3.222 against the bound 6.340; d=4 gives 8.675 against 16.487; d=8 gives
+    17.623 against 32.444. The bound holds and is loose by roughly a factor of
+    two, as expected from a crude term count.
+
+    STEP 3 -- THE ATTACKER-RELEVANT QUANTITY IS NOT R. This is the step that
+    makes the record worth having, and it is easy to get wrong. Prange on plain
+    SD picks a uniform information set I, |I| = k, and succeeds iff supp(e)
+    misses I: expected iterations T_plain = C(n,w) / C(n-k,w). Prange on the
+    d-split instance can do better: it picks I with exactly k_j columns from
+    block j. Conditioned on the split promise, the per-block avoidance events
+    are independent, so the success probability is
+      prod_j C(n/d - k_j, w/d) / C(n/d, w/d),
+    and by the same log-concavity the balanced allocation k_j = k/d maximizes
+    it. Hence T_split = [ C(n/d, w/d) / C((n-k)/d, w/d) ]^d, and the gain is
+      G(n,k,w,d) = T_plain / T_split
+                 = [ C((n-k)/d, w/d)^d / C(n-k, w) ] * [ C(n,w) / C(n/d, w/d)^d ]
+                 = R(n-k, w, d) / R(n, w, d).
+    THE GAIN IS A RATIO OF TWO ADMISSIBILITY RATIOS, NOT ONE OF THEM. Confusing
+    R with G is the specific error this record exists to prevent: at
+    n=256,k=128,w=80,d=2 the two differ by a factor of more than seven in bits
+    (3.222 versus 0.433).
+
+    STEP 4 -- CLOSED FORM, AND WHY THE CONSTANTS CANCEL. R(N,w,d) is exactly the
+    probability that the multivariate-hypergeometric profile obtained by
+    dropping w errors uniformly into d equal blocks of size N/d comes out
+    balanced. That profile has mean w/d per block and per-block variance
+      Var = w (1/d)(1 - 1/d) (N - w)/(N - 1) = c_N / d * (1 - 1/d),
+    with c_N := w (N - w)/(N - 1). A local central limit theorem gives
+    R(N,w,d) ~= (2 pi)^{-(d-1)/2} (det Sigma_{d-1})^{-1/2}, and det Sigma_{d-1}
+    is c_N^{d-1} times a factor depending on d alone. In the RATIO
+    G = R(n-k,w,d) / R(n,w,d) every d-only factor and every power of 2 pi
+    cancels identically, leaving
+      G ~= ( c_n / c_{n-k} )^{(d-1)/2}
+         = [ ((n-w)/(n-1)) * ((n-k-1)/(n-k-w)) ]^{(d-1)/2}.
+    This is the FORCED VALUE. It is a closed form in (n,k,w,d) with no fitted
+    parameter, derived before any run, and it can be wrong.
+
+    STEP 5 -- IT IS NOT WRONG AT SMALL d, AND IT DEGRADES PREDICTABLY. Exact
+    integer evaluation against the closed form, computed in this record at
+    n=320, k=160, w=80 (chosen so that d divides gcd(n,k,w)):
+      d=1  : exact 0.000  closed form 0.000   [forced: both must be EXACTLY 0]
+      d=2  : exact 0.291  closed form 0.290
+      d=4  : exact 0.868  closed form 0.871
+      d=5  : exact 1.155  closed form 1.161
+      d=8  : exact 2.008  closed form 2.032
+      d=10 : exact 2.570  closed form 2.612
+      d=16 : exact 4.228  closed form 4.353
+      d=20 : exact 5.308  closed form 5.514
+      d=40 : exact 10.421 closed form 11.318
+      d=80 : exact 19.317 closed form 22.927
+    (all log2 G, bits). The closed form is accurate to under 0.01 bits while
+    w/d >= 16 and drifts upward as w/d falls toward 1, which is exactly where a
+    Gaussian approximation to a hypergeometric must fail. The drift is therefore
+    diagnostic rather than embarrassing: it localizes the approximation's
+    breakdown to the small-per-block-weight regime and tells a reader precisely
+    when to use the exact binomials instead.
+
+    STEP 6 -- THE OTHER END OF THE AXIS, WHERE THE EFFECT IS ENORMOUS. Push
+    d to w with block size 2 (n = 2w, k = w): each block holds exactly one
+    error among two positions, the information set takes one column per block,
+    and T_split = 2^w while T_plain = C(2w, w). Then log2 G = w - (1/2)
+    log2(pi w) exactly to the accuracy of Stirling. Computed here: at w=80 the
+    exact value is 76.011 bits and the closed form w - (1/2) log2(pi w) gives
+    76.013. SEVENTY-SIX BITS. So the mechanism is not vacuous and the instrument
+    that computes it is not blind: the same code that must return 0.433 at d=2
+    must return 76.011 at d=w. A quantity that returns "small" everywhere is a
+    constant of the apparatus; this one is not.
+
+    STEP 7 -- WHAT THE DERIVATION DOES NOT COVER, STATED PLAINLY. The
+    factorization in Step 3 requires the algorithm's per-iteration success event
+    to decompose into block-local events. Prange, Lee-Brickell and
+    Stern/Dumer-with-a-block-aligned-window satisfy this. The representation
+    technique (MMT, BJMM, May-Ozerov) does NOT obviously satisfy it: it splits
+    the error by value into overlapping halves whose supports are not
+    block-local, and its gain from a block promise is not computed here and is
+    not claimed to be bounded by G. That is the honest boundary of this
+    proposal and it is where the next proposal should start.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - ledger/proposals (prior art for RQ-SDITH-001)
+      - ledger/hypotheses, ledger/experiments, ledger/evidence (area SDITH)
+      - the session ANGLE-BRIEF's F8 and F9 tables and its TRAPS section
+    grep_results:
+      - >-
+        RQ-SDITH-001 has exactly one prior proposal, IDEA-20260801-017, which
+        proposes a MEASURED toy cost ratio with an unspecified best-known
+        solver. It contains no derivation, no closed form, and no forced value,
+        and its own predictions field asks only whether the measured ratio falls
+        outside [0.5, 2].
+      - >-
+        Areas SDITH has no hypotheses, no experiments and no evidence records.
+      - >-
+        The ANGLE-BRIEF TRAPS table flags "index calculus for syndrome decoding"
+        as NOT new (it is ISD renamed) and names as genuinely unattempted "the
+        ratio of d-split-admissible error vectors to plain weight-w vectors --
+        binomial products, exact in pure Python. That ratio IS the entire
+        information-theoretic difference between the two problems." This
+        proposal takes that angle and then goes past it, because the brief's
+        quantity is R and the attacker-relevant quantity is G = R(n-k)/R(n).
+    conclusion: >-
+      NOVELTY IS UNVERIFIED AGAINST THE EXTERNAL LITERATURE AND MUST BE ASSUMED
+      LOW. The coding-theory literature on regular and split syndrome decoding
+      is large and this session did not read it; a published statement that
+      d-split ISD gains only O(log w) bits would surprise nobody. The corpus
+      novelty screen is additionally discounted per the ANGLE-BRIEF's measured
+      finding that 7,420 of 7,809 literature entries carry a bulk-seed caveat
+      and 5,582 have all four identifier fields null, so "not in the corpus" is
+      a statement about the corpus, not about the world. The proposal's value is
+      not novelty; it is that GOAL-SDITH-001's first completion criterion asks
+      for exactly this derivation and no record in this program contains it.
+
+  literature_context:
+    - >-
+      SDitH SPECIFICATION: NOT READ. No SDitH document of any round is in this
+      corpus. Consequently n, k, w, q, d, the exact form of the split
+      constraint, and the claimed security levels are ALL UNKNOWN to this
+      record. Every numeric parameter set appearing above is labelled
+      ILLUSTRATIVE and is a shape chosen to exercise the derivation, not a claim
+      about SDitH. RQ-SDITH-001's own constraints field already requires this:
+      "No experiment may be designed until the relevant primary sources are
+      filed as KN-LIT entries." The paired experiment therefore makes source
+      acquisition Stage 0 and makes the derivation's evaluation at the real
+      parameters conditional on it, while keeping the closed-form derivation and
+      its controls executable regardless -- so a failed fetch costs the
+      parameter table, not the deliverable.
+    - >-
+      REGULAR SYNDROME DECODING: RECALLED-UNVERIFIED. It is recalled that RSD
+      (one error per block, i.e. the d = w endpoint of this axis) is the subject
+      of dedicated algebraic attacks and is generally believed to be strictly
+      easier than plain SD at matched parameters. NO CITATION IS ASSERTED, no
+      author, no venue, no year. This is a candidate to check and it is the
+      nearby-object control of IDEA-20260805-7504c6, where checking it is a
+      declared stage.
+    - >-
+      ESSER-BELLINI-STYLE CONCRETE ISD TABLES: NOT READ. The ANGLE-BRIEF records
+      that GOAL-MCE-001's checkpoint has TASK-20260803-f3aece reading such a
+      table and declining to transcribe it, so the corpus contains no
+      transcription either. Nothing in this record depends on one.
+    - >-
+      KN-TECH-035 (full-cost accounting; charging memory, wiring and
+      communication): READ, front matter and Method section, this session. Its
+      stated anchor -- BSGS needs n^{1/2} processor steps but has full cost
+      n^{2/3+o(1)} -- is used as a baseline-reproduction target in the companion
+      proposal IDEA-20260805-43d6df. KN-LIT-094 (Wiener) itself: NOT READ.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      e in F_q^n, of weight w  -->  pi(e) = (wt(e_1), ..., wt(e_d)) in Z^d.
+    what_is_discarded: >-
+      The positions of the errors within each block and all q-1 possible nonzero
+      values at each position. The fibre over a fixed profile (w_1,...,w_d) has
+      size prod_j C(n/d, w_j) (q-1)^{w_j}; at the illustrative n=256, w=80, d=2
+      the balanced fibre has size C(128,40)^2 * 255^80, which is about 2^{823}
+      elements. The projection discards essentially the entire instance.
+    why_genuinely_lossy: >-
+      Overwhelmingly lossy, and NOT recoverable: e cannot be reconstructed from
+      pi(e) by any means, since the fibre is astronomically large. This is the
+      opposite pole from the canonical failure of the lossy-projection test.
+    why_compatible_with_the_operations: >-
+      The one operation ISD performs on the error -- "does supp(e) meet the
+      chosen information set I" -- is, once I's per-block column counts
+      (k_1,...,k_d) are fixed, a function of the profile alone in the sense that
+      its PROBABILITY factorizes as prod_j C(n/d - k_j, w_j) / C(n/d, w_j).
+      The retained part therefore propagates deterministically through exactly
+      the step whose cost is being bounded. It does NOT propagate through a
+      representation-technique split, and Step 7 of the mechanism says so.
+    is_it_only_a_change_of_coordinates: >-
+      CHECKED FOR, AND IT IS NOT. The canonical failure named in
+      docs/inventor-protocol.md section 2 is (Delta, Pi) = (x xor y, x*y) in
+      characteristic 2, where the unordered pair is recoverable as the roots of
+      t^2 + Delta t + Pi, so nothing is discarded and nothing is gained. Here
+      the map is many-to-one with fibres of size ~2^{823} at the illustrative
+      parameters; it is a genuine quotient, not a reparametrization.
+    mirror_failure_checked: >-
+      CHECKED, AND THIS IS THE REAL RISK FOR THIS OBJECT. The mirror failure --
+      a projection so lossy that its value is CONSTANT across instances, giving
+      zero comparator spread -- is exactly what a block-weight profile does
+      under the d-split promise: on d-split instances pi(e) is IDENTICALLY
+      (w/d,...,w/d), a constant. If the proposal tried to use pi(e) as a
+      distinguishing statistic it would be measuring a constant of the
+      apparatus. It does not. The object here is used as the domain over which a
+      COUNTING measure is compared between two instance families, and the
+      comparator spread is the spread of R and G as (n,k,w,d) vary -- which is
+      demonstrated non-zero by construction in Step 6 (0.433 bits at d=2 against
+      76.011 bits at d=w on the same code path).
+
+  assumptions:
+    - >-
+      That SDitH's split is a per-block EXACT weight constraint on a partition
+      into equal blocks. RECALLED-UNVERIFIED. If it is at-most-w/d, or a
+      published weight vector, or a partition into unequal blocks, the counting
+      changes and Stage 0 of the paired experiment re-derives it. The bound of
+      Step 2 survives any of these variants because Vandermonde does.
+    - >-
+      That d | n, d | k and d | w, so that a balanced information set exists.
+      Where the specification's parameters do not divide, the floor/ceiling
+      allocation must be optimized over instead of assumed, and the exact
+      computation handles that without any change to the argument.
+    - >-
+      That the comparison of interest is at MATCHED (n, k, w, q) between the two
+      problems. If SDitH chose its (n,k,w) to compensate for the split, the
+      matched comparison is still the right one for the hardness question but
+      the deployed-security question additionally needs the specification's own
+      parameters, which Stage 0 supplies.
+
+  predictions:
+    - metric: >-
+        log2 G at d = 1 (the degenerate split), computed by the exact integer
+        code path, at every parameter set tested
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0.000000, bit for bit, because T_plain and T_split are the same
+        expression when d = 1. This is a forced value with zero tolerance and it
+        is the primary correctness gate on the implementation. Any nonzero
+        output here invalidates every other number the run produces.
+    - metric: >-
+        log2 G at the illustrative n=256, k=128, w=80, d=2, exact integer
+        computation
+      direction: different
+      minimum_effect: >-
+        0.433 bits, within 0.001 of the value derived in this record before any
+        run. The closed form must independently return 0.434 within 0.002. A
+        disagreement between the two at this cell means the local-CLT derivation
+        of Step 4 is wrong and must be withdrawn.
+    - metric: >-
+        log2 G at SDitH's ACTUAL parameter sets, once Stage 0 supplies them,
+        assuming d is small (2 or 3)
+      direction: lower
+      minimum_effect: >-
+        BELOW 3.0 bits at every parameter set. This is the pre-registered
+        headline prediction. It is stated as a threshold rather than a point
+        because the real (n,k,w) are unknown. If the measured value EXCEEDS 10
+        bits at any parameter set, the prediction is falsified, the d-split
+        structure is a measurable security loss at Prange level, and
+        GOAL-SDITH-001 has its first substantive result in the other direction.
+    - metric: >-
+        -log2 R at SDitH's actual parameters versus the unconditional bound
+        (d-1) log2(w+d-1)
+      direction: lower
+      minimum_effect: >-
+        The bound must hold with strict inequality at every cell, and the ratio
+        (-log2 R) / ((d-1) log2(w+d-1)) is predicted to lie in [0.4, 0.7] based
+        on the three illustrative cells computed here (0.508, 0.526, 0.543 at
+        d=2,4,8 for n=256, w=80). A violation of the bound is an implementation
+        error, not a discovery.
+    - metric: >-
+        log2 G at the d = w, block-size-2 positive control with w = 80
+      direction: higher
+      minimum_effect: >-
+        76.011 bits, within 0.01, matching the independently derived closed form
+        w - (1/2) log2(pi w) = 76.013. If the instrument returns anything under
+        60 bits here it cannot detect a split advantage at all and NO negative
+        conclusion about SDitH's d may be drawn from it.
+
+  minimal_test:
+    design: >-
+      Pen and paper plus exact integer arithmetic in the standard library. Four
+      stages, cheapest first, and stage 1 alone can settle the headline.
+      STAGE 0 (reading, no compute): obtain an SDitH specification, transcribe
+      (q, n, k, w, d) and the exact split constraint with a page reference, and
+      record the fetch provenance. If it cannot be obtained, record that as
+      infrastructure signal and proceed with the ILLUSTRATIVE grid only -- the
+      derivation and all controls remain executable and the deliverable degrades
+      from "SDitH's number" to "the closed form plus its validated range".
+      STAGE 1 (seconds): evaluate R and G exactly at the real parameters if
+      available and at the illustrative grid regardless; check both against the
+      closed form and against the Vandermonde bound.
+      STAGE 2 (seconds): the graded d-sweep and the two forced-value controls.
+      STAGE 3 (optional, minutes): a brute-force verification at tiny sizes
+      (n <= 24) that the counting is right -- enumerate all weight-w vectors,
+      count the balanced ones, compare with C(n/d,w/d)^d, and separately
+      simulate Prange on both instance families and compare the measured
+      iteration counts with T_plain and T_split.
+    controls:
+      - >-
+        NULL OBJECT (d = 1). The same code path with the split degenerate. The
+        forced value is log2 G = 0 EXACTLY, derived before the run, and it CAN
+        FAIL: an implementation that mis-indexes blocks, or that optimizes the
+        information-set allocation with an off-by-one, returns something other
+        than zero here. This is a null of the same shape, not a decoration.
+      - >-
+        SECOND NULL (unconstrained blocks). Partition the coordinates into d
+        blocks but do NOT impose the per-block weight constraint -- a "split"
+        that splits nothing. Forced value: G = 1 exactly, because T_split is then
+        computed against the same instance distribution as T_plain. This
+        separates "the partition exists" from "the partition constrains", which
+        is the whole content of the question.
+      - >-
+        POSITIVE CONTROL (d = w, block size 2, n = 2w, k = w). The effect MUST
+        appear: log2 G = 76.011 bits at w = 80, independently predicted by
+        w - (1/2) log2(pi w) = 76.013. If it does not appear the instrument is
+        broken and no negative result about SDitH's d may be reported at all.
+      - >-
+        GRADED CONTROL, 8 INTERIOR POINTS, MONOTONICITY REPORTED. At n=320,
+        k=160, w=80 sweep d in {1,2,4,5,8,10,16,20,40,80} and report log2 G at
+        each. Pre-registered values, derived here: 0.000, 0.291, 0.868, 1.155,
+        2.008, 2.570, 4.228, 5.308, 10.421, 19.317. The sequence must be
+        strictly increasing in d. A non-monotone point localizes an
+        implementation fault to a specific block size instead of leaving "it did
+        not work"; a monotone sequence that misses the pre-registered values by
+        more than 0.01 bits falsifies the exact derivation rather than the code.
+      - >-
+        CLOSED-FORM-VERSUS-EXACT DIVERGENCE PROFILE. Report the difference
+        between the closed form and the exact value at every graded point. The
+        pre-registered pattern is agreement under 0.01 bits while w/d >= 16 and
+        growth to about 3.6 bits at w/d = 1. A closed form that agrees
+        EVERYWHERE would mean the local-CLT step was not doing any work and the
+        two expressions are algebraically identical, which they are not.
+    required_metrics:
+      - exact log2 R and log2 G per cell, as rationals converted once at the end
+      - the Vandermonde bound per cell and the ratio to it
+      - closed-form value and its signed deviation from exact, per cell
+      - the graded d-sweep with an explicit monotonicity verdict
+      - the two null values and the positive-control value against their forced targets
+      - provenance record for the parameter source, including a failed-fetch record if that is what happened
+
+  falsification_conditions:
+    - >-
+      log2 G at d = 1 is not exactly 0. Everything else in the run is void.
+    - >-
+      The graded sweep is non-monotone in d, or misses a pre-registered value by
+      more than 0.01 bits. The exact derivation of Step 3 is wrong.
+    - >-
+      The Vandermonde bound of Step 2 is violated at any cell. Step 2 is a
+      theorem, so this is an implementation failure and must be reported as one.
+    - >-
+      The positive control at d = w returns under 60 bits. No negative may be
+      reported from this instrument.
+    - >-
+      log2 G at SDitH's real parameters exceeds 10 bits. The headline prediction
+      is falsified and the d-split structure costs measurable security at Prange
+      level. This is the outcome that would make the goal interesting and it is
+      pre-registered here so that it cannot be reinterpreted after the fact.
+    - >-
+      Stage 0 reveals the split constraint is not per-block exact weight. The
+      derivation as written does not apply and must be redone; the Vandermonde
+      bound survives but the closed form may not.
+
+  confounders:
+    - >-
+      PRANGE IS NOT THE BEST ATTACK. G bounds the split advantage for
+      block-factorizing ISD only. A small G says nothing directly about
+      representation-technique ISD, and the record must not be cited as though
+      it did. This is the single largest confounder and it is why
+      IDEA-20260805-43d6df exists.
+    - >-
+      MATCHED-PARAMETER AMBIGUITY. Comparing d-split SD at (n,k,w) with plain SD
+      at the same (n,k,w) is one of several defensible matchings; another is to
+      match the number of admissible errors, which would move plain SD's w. Both
+      are computed and reported; picking one silently would be the error.
+    - >-
+      DIVISIBILITY. Illustrative grids were chosen so d divides gcd(n,k,w).
+      SDitH's real parameters may not divide, and an unbalanced-allocation
+      optimum is slightly better for the attacker than the balanced one. The
+      exact computation must optimize over allocations rather than assume
+      balance whenever divisibility fails.
+    - >-
+      AUTHORSHIP ASYMMETRY. A derivation that concludes "the scheme is fine" is
+      cheap to produce and reads as rigour. The positive control at d = w and
+      the pre-registered falsifier at 10 bits exist precisely so that the
+      comfortable conclusion costs something to reach.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER: this proposal supports a DERIVATION about a counting quantity
+      and a Prange-level cost ratio. It is not a decoding attempt, produces no
+      certificate, and makes no crypto-scale claim about SDitH. Under
+      docs/claims-and-verification.md the evaluation is exact at deployed sizes,
+      which removes the toy-to-crypto extrapolation problem for the DERIVED
+      quantity only -- it does not license any statement about SDitH's actual
+      security level, which depends on the best attack and not on Prange.
+    - >-
+      A small G is EVIDENCE FOR the inherited-hardness claim at Prange level and
+      is NOT a proof that d-split SD is as hard as plain SD. The correct summary
+      sentence is: "at the tested parameters, no block-factorizing ISD can gain
+      more than G from the split, and G is under one bit."
+    - >-
+      Nothing here bears on the MPCitH transform, on the forgery cost, or on the
+      soundness of the proof system. Those are IDEA-20260805-bf6448.
+    - >-
+      FORWARD GUIDANCE, MANDATORY EVEN IF THE PREDICTION HOLDS. What remains
+      open after a confirming run: (a) the representation-technique gain from a
+      block promise, which is not bounded by G and is not computed anywhere in
+      this program; (b) whether an algebraic model exploiting the per-block
+      structure beats ISD at SDitH's specific w/d, which is the RSD question of
+      IDEA-20260805-7504c6; (c) the charged baseline, which is a different
+      question from the split question and is IDEA-20260805-43d6df.
+
+  heuristic_assumptions:
+    - id: HEUR-SDITH-CBD-1
+      statement: >-
+        NOT LOAD-BEARING FOR THE HEADLINE. The bound of Step 2 and the exact
+        values of Steps 3 and 5 are theorems and exact integer computations
+        respectively; no heuristic enters them. This entry exists to record that
+        the proposal's primary claim is UNCONDITIONAL, which is unusual in this
+        corpus and should be stated rather than assumed.
+      rigorous_support: >-
+        Vandermonde's identity and the log-concavity of j -> C(N, j); both
+        elementary and both re-derivable in one line.
+      validation_plan: >-
+        Brute-force enumeration at n <= 24 confirming the counts, plus the
+        d = 1 forced-value gate.
+    - id: HEUR-SDITH-CBD-2
+      statement: >-
+        LOCAL CLT. For fixed d and w -> infinity with w/n bounded away from 0
+        and 1, the multivariate hypergeometric block-weight profile satisfies a
+        local central limit theorem, so R(N,w,d) = (2 pi)^{-(d-1)/2}
+        (det Sigma_{d-1})^{-1/2} (1 + o(1)) with Sigma the profile covariance.
+        This heuristic supports ONLY the closed form of Step 4, never the exact
+        values.
+      rigorous_support: >-
+        Local limit theorems for the multivariate hypergeometric are classical
+        in the regime stated; the specific error term is not derived here and is
+        not needed, because the closed form is checked against exact integers at
+        every cell rather than relied upon.
+      validation_plan: >-
+        The graded control IS this heuristic's test: the pre-registered
+        divergence profile (agreement under 0.01 bits while w/d >= 16, growing
+        to about 3.6 bits at w/d = 1) is a falsifiable prediction about where
+        the heuristic fails, and it fails in the direction the theory predicts
+        or the heuristic is refuted.
+    - id: HEUR-SDITH-CBD-3
+      statement: >-
+        BLOCK-FACTORIZATION. For the ISD algorithms in scope, the per-iteration
+        success probability conditioned on the block-weight profile factorizes
+        as a product of block-local terms. This is what makes G an upper bound
+        on the split advantage for those algorithms.
+      rigorous_support: >-
+        Immediate for Prange and Lee-Brickell by conditional independence of
+        per-block avoidance. NOT ESTABLISHED for Stern/Dumer with a window that
+        straddles blocks, and FALSE-OR-UNKNOWN for MMT/BJMM/May-Ozerov, whose
+        intermediate representations are not block-local.
+      validation_plan: >-
+        Stage 3's brute-force Prange simulation validates the factorization for
+        Prange directly. For Dumer the paired hypothesis states the
+        window-alignment condition explicitly and does not assert the bound
+        outside it. THIS IS THE WEAKEST LINK IN THE PROPOSAL AND IS RECORDED AS
+        SUCH.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS MOVED, AND THE PROPOSAL SAYS SO PLAINLY. The deliverable is
+      a bound showing that a candidate exponent movement DOES NOT EXIST at
+      Prange level: the d-split promise changes the ISD iteration exponent by
+      log2 G bits, which is under one bit at d = 2 and O(d log w) in the worst
+      case, hence o(n). Stating this quantitatively is the point; the house bias
+      toward exponent-first work (docs/target-result-profile.md) is served here
+      by ESTABLISHING that an exponent claim in this direction is unavailable,
+      cheaply, before anyone spends a batch looking for one.
+    memory_exponent: >-
+      n/a. Prange's memory is the working matrix, O(n(n-k)) field elements,
+      polynomial, and identical on both instance families. The split changes no
+      memory exponent. Memory is the subject of IDEA-20260805-43d6df.
+    best_known: >-
+      Plain-SD ISD at the same (n,k,w). Concretely the best known is a
+      representation-technique variant whose exponent this proposal does not
+      compute and does not claim to bound; at Prange level the baseline is
+      C(n,w)/C(n-k,w) iterations, computed exactly here.
+    hidden_overhead: >-
+      None hidden: every quantity is an exact rational in binomial
+      coefficients. The per-iteration cost model (Gaussian elimination) is
+      COMMON to both arms and cancels in G exactly, which is why G is
+      cost-model-independent -- a property worth stating, because it means the
+      headline cannot be attacked through the cost model.
+    tradeoff_note: >-
+      No time-memory tradeoff is claimed or affected.
+
+  dominated_by: null
+  dominated_by_check: >-
+    null is asserted only after the following check, and the check is listed
+    rather than claimed. THIS PROPOSAL CLAIMS NO ATTACK AND OCCUPIES NO POINT ON
+    ANY PARETO FRONTIER, so there is nothing for a frontier row to dominate; the
+    field is null in the sense of "not applicable", and the rows checked are
+    those that could contain a PRIOR DERIVATION of the same quantity, which
+    would make this record redundant rather than dominated. Rows checked, all
+    three cost axes considered where a candidate existed: (1) TIME -- the
+    corpus's ISD-adjacent records: none exist; grep for an SDitH, HQC or MCE
+    experiment or evidence record returns nothing, and the ANGLE-BRIEF's F9
+    section states this independently ("grep proves no such experiment or
+    evidence record exists -- only goal/question/decision prose").
+    (2) MEMORY -- KN-TECH-035 and KN-TECH-044 are the corpus's charging
+    vehicles; KN-TECH-035 was read this session and contains no split-SD
+    content. (3) DATA/QUERIES -- syndrome decoding is a single-instance problem
+    with no query axis; there is no frontier row to check. External literature
+    was NOT searched from this session and a published version of this counting
+    may well exist; absence of a corpus result is not evidence of absence in the
+    world (AGENTS.md knowledge-retrieval policy).
+  sota_delta: >-
+    Quantitative, and stated as the size of the question it removes rather than
+    as an attack gain. Before: GOAL-SDITH-001 records the d-split-versus-plain-SD
+    hardness question as OPEN with no computed bound anywhere in the program, and
+    its only prior proposal budgets a "medium" implementation and "medium"
+    compute to MEASURE a cost ratio at toy sizes. After: the Prange-level split
+    advantage is bounded in closed form, evaluated exactly at deployed sizes, at
+    a cost of seconds -- 0.433 bits at the illustrative d=2 cell against a
+    worst-case bound of (d-1) log2(w+d-1) bits. The delta against the program's
+    prior state is therefore: one of the goal's two completion criteria moves
+    from "no derivation exists" to "a derivation exists, is exact at deployed
+    sizes, and is falsifiable at a pre-registered 10-bit threshold", for
+    approximately zero compute. The delta against the external state of the art
+    is UNKNOWN and presumed zero or negative, because the literature was not
+    searched.
+
+  estimated_cost:
+    implementation: low
+    compute: negligible
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.85 that the headline prediction holds, i.e. that log2 G at SDitH's real
+    parameters comes out under 3 bits. It is not higher because (a) SDitH's real
+    d and w are unknown and a larger d than 2 moves G up quickly -- at w/d = 4
+    the illustrative grid already gives 5.3 bits; (b) the split constraint's
+    exact form is RECALLED-UNVERIFIED and a different form changes the counting;
+    (c) the block-factorization assumption HEUR-SDITH-CBD-3 is not established
+    beyond Prange and Lee-Brickell, so a reviewer may reasonably refuse the
+    "no block-factorizing ISD can gain more than G" phrasing. It is not lower
+    because the Vandermonde bound of Step 2 is unconditional and already forces
+    O(d log w), the exact evaluation has no free parameter and no solver
+    dependency, and the closed form reproduced the exact values to 0.001 bits at
+    every cell with w/d >= 16 in this record. Separately: 0.98 that the run
+    reaches a decisive number, because Stage 1 is seconds of standard-library
+    integer arithmetic and does not depend on Stage 0 succeeding.

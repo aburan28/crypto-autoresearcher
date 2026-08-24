@@ -1,0 +1,323 @@
+--- /home/user/crypto-autoresearcher/coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_pfx.c	2026-08-05 17:13:17.603745367 +0000
++++ /home/user/crypto-autoresearcher/coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_ideal.c	2026-08-05 17:19:59.651761531 +0000
+@@ -302,6 +302,194 @@
+     return NULL;
+ }
+ 
++/* ================================================================
++ * TASK-20260805-8fa4c6 addition: IDEAL-PERMUTATION NULL OBJECT.
++ *
++ * Independently re-derived from the specification in
++ * ledger/evidence/EV-AES-e4c091.yaml's OBS-B9-2 ("a lazily-sampled uniform
++ * random bijection on 128 bits, realised with exactly four oracle queries
++ * per trial ... forward draws (injectivity-rejection on the second
++ * ciphertext) and the inverse draws (exact domain-exclusion sets)"), NOT
++ * by reading yoyo_sbox_v4.c. This substitutes rc8probe's own enc_r/dec_r
++ * pair with a single shared, growing, explicitly-tabulated random
++ * bijection F: {0,1}^128 -> {0,1}^128, queried exactly 4 times per trial
++ * (encrypt p0, encrypt p1, decrypt swapped c0, decrypt swapped c1), reusing
++ * rc8probe's own PW/CW geometry and plaintext/active-word draw structure
++ * (not the round function). A forward query on a fresh domain point draws
++ * a uniformly random 128-bit candidate and REJECTS it if it collides with
++ * any range value already assigned to a DIFFERENT domain point
++ * (injectivity-rejection), guaranteeing the realised function stays a
++ * bijection. An inverse query on a fresh range point draws a uniformly
++ * random 128-bit candidate and rejects it if it collides with any domain
++ * point that already has an assigned image (domain-exclusion), for the
++ * same reason. Both directions cache and reuse a point already queried.
++ * Because 128-bit draws over an already-queried set of at most
++ * O(4*trials) points collide with negligible probability, the rejection
++ * loops are expected to run in O(1) amortised iterations; they are
++ * nonetheless implemented for exactness, not asserted away.
++ * ================================================================ */
++typedef struct { uint8_t b[16]; } blk128;
++
++static inline int blk_eq(const blk128 *a, const blk128 *b){
++    return memcmp(a->b, b->b, 16) == 0;
++}
++static inline uint64_t blk_hash(const blk128 *v){
++    /* FNV-1a over the 16 bytes, reduced to 64 bits. Independent of, and
++     * unrelated to, splitmix64 -- this is a table hash, not an RNG. */
++    uint64_t h = 1469598103934665603ULL;
++    for(int i = 0; i < 16; i++){
++        h ^= v->b[i];
++        h *= 1099511628211ULL;
++    }
++    return h;
++}
++static inline blk128 blk_random(uint64_t *st){
++    blk128 v;
++    uint64_t a = sm64(st), b = sm64(st);
++    for(int i = 0; i < 8; i++) v.b[i]     = (uint8_t)(a >> (8*i));
++    for(int i = 0; i < 8; i++) v.b[8 + i] = (uint8_t)(b >> (8*i));
++    return v;
++}
++
++/* Open-addressed index into a shared (dom[], rng[]) pair array. idx[] maps
++ * a hash slot to a pair id (UINT32_MAX = empty); the pair array holds the
++ * actual 128-bit key so hash collisions are resolved by exact compare, not
++ * by trusting the hash. */
++typedef struct {
++    blk128 *dom, *rng;         /* parallel pair arrays, index = pair id */
++    uint32_t *dom_idx, *rng_idx;
++    uint64_t cap_pairs;         /* allocated pair slots (== max 4*trials) */
++    uint64_t idx_cap, idx_mask; /* hash-index table size (power of two) */
++    uint64_t count;             /* pairs realised so far */
++} perm128;
++
++static uint64_t next_pow2_u64(uint64_t x){
++    uint64_t p = 1;
++    while(p < x) p <<= 1;
++    return p;
++}
++
++static int perm128_init(perm128 *P, uint64_t max_pairs){
++    P->cap_pairs = max_pairs;
++    P->idx_cap = next_pow2_u64(max_pairs * 2 + 16);
++    P->idx_mask = P->idx_cap - 1;
++    P->count = 0;
++    P->dom = (blk128*)malloc(sizeof(blk128) * max_pairs);
++    P->rng = (blk128*)malloc(sizeof(blk128) * max_pairs);
++    P->dom_idx = (uint32_t*)malloc(sizeof(uint32_t) * P->idx_cap);
++    P->rng_idx = (uint32_t*)malloc(sizeof(uint32_t) * P->idx_cap);
++    if(!P->dom || !P->rng || !P->dom_idx || !P->rng_idx) return 0;
++    memset(P->dom_idx, 0xFF, sizeof(uint32_t) * P->idx_cap); /* UINT32_MAX = empty */
++    memset(P->rng_idx, 0xFF, sizeof(uint32_t) * P->idx_cap);
++    return 1;
++}
++static void perm128_free(perm128 *P){
++    free(P->dom); free(P->rng); free(P->dom_idx); free(P->rng_idx);
++}
++/* Probes idx[] for key against side[]; returns 1 and *slot=found hash
++ * slot if present, else 0 and *slot=the first empty slot on the probe
++ * path (a valid insertion point). */
++static int perm128_probe(const uint32_t *idx, const blk128 *side,
++                          uint64_t idx_mask, const blk128 *key, uint64_t *slot){
++    uint64_t h = blk_hash(key) & idx_mask;
++    while(idx[h] != UINT32_MAX){
++        if(blk_eq(&side[idx[h]], key)){ *slot = h; return 1; }
++        h = (h + 1) & idx_mask;
++    }
++    *slot = h;
++    return 0;
++}
++static void perm128_forward(perm128 *P, const blk128 *x, uint64_t *st, blk128 *y_out){
++    uint64_t dslot;
++    if(perm128_probe(P->dom_idx, P->dom, P->idx_mask, x, &dslot)){
++        *y_out = P->rng[P->dom_idx[dslot]];
++        return;
++    }
++    blk128 y; uint64_t rslot;
++    do { y = blk_random(st); } while(perm128_probe(P->rng_idx, P->rng, P->idx_mask, &y, &rslot));
++    uint64_t pid = P->count++;
++    P->dom[pid] = *x; P->rng[pid] = y;
++    P->dom_idx[dslot] = (uint32_t)pid;
++    P->rng_idx[rslot] = (uint32_t)pid;
++    *y_out = y;
++}
++static void perm128_inverse(perm128 *P, const blk128 *y, uint64_t *st, blk128 *x_out){
++    uint64_t rslot;
++    if(perm128_probe(P->rng_idx, P->rng, P->idx_mask, y, &rslot)){
++        *x_out = P->dom[P->rng_idx[rslot]];
++        return;
++    }
++    blk128 x; uint64_t dslot;
++    do { x = blk_random(st); } while(perm128_probe(P->dom_idx, P->dom, P->idx_mask, &x, &dslot));
++    uint64_t pid = P->count++;
++    P->dom[pid] = x; P->rng[pid] = *y;
++    P->dom_idx[dslot] = (uint32_t)pid;
++    P->rng_idx[rslot] = (uint32_t)pid;
++    *x_out = x;
++}
++
++/* Single-threaded trial loop over the shared ideal permutation, reusing
++ * rc8probe's own PW/CW geometry and plaintext/active-word draw structure
++ * (copied in spirit, not by editing worker(), so worker() is untouched).
++ * Single-threaded because the permutation table is one shared oracle
++ * state queried by every trial -- the direct analogue of "one key, one
++ * fixed function, queried by every trial" that the live-cipher arms use,
++ * whereas rc8probe's threaded worker() partitions independent RNG streams
++ * across threads because enc_r/dec_r need no shared mutable state. */
++static void run_ideal(uint64_t N, uint64_t seed_thread, int amask, int smask,
++                       perm128 *P, uint64_t out_whist[5], uint64_t out_wword[4],
++                       uint64_t *out_trivial, uint64_t *out_wge1){
++    uint64_t st = seed_thread;
++    uint8_t p0[16], p1[16], c0[16], c1[16], q0[16], q1[16], d[16];
++    for(uint64_t t = 0; t < N; t++){
++        uint64_t a = sm64(&st), b = sm64(&st);
++        for(int i = 0; i < 8; i++) p0[i]     = (uint8_t)(a >> (8*i));
++        for(int i = 0; i < 8; i++) p0[8 + i] = (uint8_t)(b >> (8*i));
++        memcpy(p1, p0, 16);
++        int ok = 0;
++        while(!ok){
++            ok = 1;
++            for(int j = 0; j < 4; j++) if(amask & (1 << j)){
++                uint64_t rnd = sm64(&st); int nz = 0;
++                for(int row = 0; row < 4; row++){
++                    uint8_t nb = (uint8_t)(rnd >> (8*row));
++                    p1[PW[j][row]] = nb;
++                    if(nb != p0[PW[j][row]]) nz = 1;
++                }
++                if(!nz) ok = 0;
++            }
++        }
++        blk128 X0, X1, Y0, Y1;
++        memcpy(X0.b, p0, 16); memcpy(X1.b, p1, 16);
++        perm128_forward(P, &X0, &st, &Y0);
++        perm128_forward(P, &X1, &st, &Y1);
++        memcpy(c0, Y0.b, 16); memcpy(c1, Y1.b, 16);
++        int trivial = 1;
++        for(int j = 0; j < 4; j++) if(smask & (1 << j))
++            for(int row = 0; row < 4; row++){
++                int i = CW[j][row];
++                uint8_t x = c0[i], y = c1[i];
++                if(x != y) trivial = 0;
++                c0[i] = y; c1[i] = x;
++            }
++        blk128 C0p, C1p, Q0, Q1;
++        memcpy(C0p.b, c0, 16); memcpy(C1p.b, c1, 16);
++        perm128_inverse(P, &C0p, &st, &Q0);
++        perm128_inverse(P, &C1p, &st, &Q1);
++        memcpy(q0, Q0.b, 16); memcpy(q1, Q1.b, 16);
++        for(int i = 0; i < 16; i++) d[i] = (uint8_t)(q0[i] ^ q1[i]);
++        int W = 0;
++        for(int j = 0; j < 4; j++){
++            int z = 1;
++            for(int row = 0; row < 4; row++) if(d[PW[j][row]]) { z = 0; break; }
++            if(z){ W++; if(!trivial) out_wword[j]++; }
++        }
++        if(trivial){ (*out_trivial)++; continue; }
++        out_whist[W]++;
++        if(W >= 1) (*out_wge1)++;
++    }
++}
++
+ /* ---------------- S-box loader ------------------------------------------ */
+ static int load_sbox(const char *spec, uint64_t *out_seed){
+     *out_seed = 0;
+@@ -379,8 +567,125 @@
+           "usage: rc8probe pin  <sboxspec> <rtseed>\n"
+           "       rc8probe sbox <sboxspec>\n"
+           "       rc8probe arm  <name> <sboxspec> <rounds> <amask> <smask> <log2N> <seed> <armid> <threads>\n");
++        /* TASK-20260805-8fa4c6 addition: usage line for the new mode,
++         * appended after the pre-existing usage block rather than editing
++         * it, so the original three lines above are untouched. */
++        fprintf(stderr,
++          "       rc8probe armideal <name> <amask> <smask> <log2N> <seed> <armid>   (TASK-20260805-8fa4c6 addition; ideal-permutation null object, single-threaded)\n");
+         return 2;
+     }
++    /* TASK-20260805-8fa4c6 addition: an independent correctness control
++     * for perm128, re-deriving the required properties directly (rather
++     * than by comparing this code to any other instrument): every queried
++     * (x,y) pair round-trips in both directions, all queried domain points
++     * are pairwise distinct, all queried range points are pairwise
++     * distinct (== the bijection property on the queried subset), and
++     * repeat queries of an already-queried point are idempotent (return
++     * the same answer, not a fresh draw). Also exercises the cross case
++     * of inverse-querying a y that was never forward-queried, and then
++     * forward-querying the x that inverse call returned. */
++    if(!strcmp(argv[1], "permcheck")){
++        uint64_t M = (argc >= 3) ? strtoull(argv[2], NULL, 10) : 200000ULL;
++        uint64_t cseed = (argc >= 4) ? strtoull(argv[3], NULL, 10) : 424242ULL;
++        perm128 P; perm128_init(&P, M * 4ULL + 16);
++        uint64_t st = cseed;
++        blk128 *xs = (blk128*)malloc(sizeof(blk128) * M);
++        blk128 *ys = (blk128*)malloc(sizeof(blk128) * M);
++        uint64_t fails_roundtrip = 0, fails_idempotent = 0;
++        for(uint64_t i = 0; i < M; i++){
++            blk128 x = blk_random(&st);
++            blk128 y, y2, xback;
++            perm128_forward(&P, &x, &st, &y);
++            perm128_forward(&P, &x, &st, &y2);         /* repeat: must be idempotent */
++            if(!blk_eq(&y, &y2)) fails_idempotent++;
++            perm128_inverse(&P, &y, &st, &xback);       /* must round-trip */
++            if(!blk_eq(&x, &xback)) fails_roundtrip++;
++            xs[i] = x; ys[i] = y;
++        }
++        uint64_t dup_x = 0, dup_y = 0;
++        for(uint64_t i = 0; i < M; i++)
++            for(uint64_t j = i + 1; j < M; j++){
++                if(blk_eq(&xs[i], &xs[j])) dup_x++;
++                if(blk_eq(&ys[i], &ys[j])) dup_y++;
++            }
++        /* cross case: inverse on M fresh (never forward-queried) points,
++         * then forward on the recovered x, must give back the same y. */
++        uint64_t fails_cross = 0;
++        uint64_t M2 = M < 20000 ? M : 20000; /* cross check is O(M2^2) below, keep it small */
++        for(uint64_t i = 0; i < M2; i++){
++            blk128 y = blk_random(&st);
++            blk128 x, yback;
++            perm128_inverse(&P, &y, &st, &x);
++            perm128_forward(&P, &x, &st, &yback);
++            if(!blk_eq(&y, &yback)) fails_cross++;
++        }
++        int pass = (fails_roundtrip == 0) && (fails_idempotent == 0) &&
++                   (dup_x == 0) && (dup_y == 0) && (fails_cross == 0);
++        printf("{\n  \"probe\": \"rc8probe\",\n  \"mode\": \"permcheck\",\n");
++        printf("  \"forward_queries\": %llu,\n  \"cross_inverse_queries\": %llu,\n",
++               (unsigned long long)M, (unsigned long long)M2);
++        printf("  \"roundtrip_failures\": %llu,\n", (unsigned long long)fails_roundtrip);
++        printf("  \"idempotence_failures\": %llu,\n", (unsigned long long)fails_idempotent);
++        printf("  \"cross_roundtrip_failures\": %llu,\n", (unsigned long long)fails_cross);
++        printf("  \"duplicate_domain_pairs_O(M^2)_scan\": %llu,\n", (unsigned long long)dup_x);
++        printf("  \"duplicate_range_pairs_O(M^2)_scan\": %llu,\n", (unsigned long long)dup_y);
++        printf("  \"pairs_realised\": %llu,\n", (unsigned long long)P.count);
++        printf("  \"permcheck_pass\": %s\n}\n", pass ? "true" : "false");
++        free(xs); free(ys); perm128_free(&P);
++        return pass ? 0 : 1;
++    }
++    /* TASK-20260805-8fa4c6 addition: the ideal-permutation arm, dispatched
++     * before the pre-existing "if(strcmp(argv[1], \"arm\"))" guard below so
++     * it does not fall through to "bad mode". Single-threaded: the shared
++     * perm128 table is one oracle state queried by every trial, mirroring
++     * "one key, one fixed function" rather than worker()'s independent
++     * per-thread RNG streams. */
++    if(!strcmp(argv[1], "armideal")){
++        if(argc < 8){ fprintf(stderr, "armideal needs 6 args\n"); return 2; }
++        const char *name = argv[2];
++        int amask = atoi(argv[3]), smask = atoi(argv[4]);
++        int log2N = atoi(argv[5]);
++        uint64_t seed = strtoull(argv[6], NULL, 10);
++        int armid = atoi(argv[7]);
++        if(smask == 0 || smask == 15){ fprintf(stderr, "degenerate smask forbidden\n"); return 3; }
++        if(amask == 0){ fprintf(stderr, "empty amask forbidden\n"); return 3; }
++        if(log2N > 26){
++            fprintf(stderr, "armideal: log2N=%d exceeds the 26 soft cap (memory: max_pairs=4*2^log2N blk128 pairs plus 2x that many hash-index slots)\n", log2N);
++            return 6;
++        }
++        uint64_t N = 1ULL << log2N;
++        uint64_t max_pairs = N * 4ULL;
++        perm128 P;
++        if(!perm128_init(&P, max_pairs)){
++            fprintf(stderr, "armideal: allocation failed for max_pairs=%llu\n", (unsigned long long)max_pairs);
++            return 7;
++        }
++        uint64_t seed_thread = seed ^ ((uint64_t)armid * 0x1234567891ULL) ^ 0x9E3779B97F4A7C15ULL;
++        uint64_t wh[5] = {0}, wword[4] = {0}, trivial = 0, wge1 = 0;
++        run_ideal(N, seed_thread, amask, smask, &P, wh, wword, &trivial, &wge1);
++        printf("{\n  \"probe\": \"rc8probe\",\n  \"mode\": \"ideal_permutation\",\n  \"arm\": \"%s\",\n", name);
++        printf("  \"construction\": \"lazily-sampled uniform random bijection on 128 bits, forward injectivity-rejection, inverse exact domain-exclusion, re-derived from EV-AES-e4c091 OBS-B9-2\",\n");
++        printf("  \"amask\": %d,\n  \"smask\": %d,\n", amask, smask);
++        printf("  \"trials\": %llu,\n  \"log2N\": %d,\n  \"seed\": %llu,\n  \"arm_id\": %d,\n  \"threads\": 1,\n",
++               (unsigned long long)N, log2N, (unsigned long long)seed, armid);
++        printf("  \"seed_thread\": %llu,\n", (unsigned long long)seed_thread);
++        printf("  \"trivial_swaps_excluded\": %llu,\n", (unsigned long long)trivial);
++        printf("  \"nontrivial_trials\": %llu,\n", (unsigned long long)(N - trivial));
++        printf("  \"W_ge1_nontrivial\": %llu,\n", (unsigned long long)wge1);
++        printf("  \"W_ge1_by_word\": [%llu,%llu,%llu,%llu],\n",
++               (unsigned long long)wword[0], (unsigned long long)wword[1],
++               (unsigned long long)wword[2], (unsigned long long)wword[3]);
++        printf("  \"whist\": [");
++        for(int i = 0; i < 5; i++) printf("%llu%s", (unsigned long long)wh[i], i < 4 ? "," : "");
++        printf("],\n");
++        printf("  \"oracle_queries_total\": %llu,\n", (unsigned long long)(4ULL * N));
++        printf("  \"perm_pairs_realised\": %llu,\n", (unsigned long long)P.count);
++        printf("  \"perm_pairs_capacity\": %llu,\n", (unsigned long long)P.cap_pairs);
++        printf("  \"null_expectation_analytic\": %.10f\n", (double)(N - trivial) * 4.0 / 4294967296.0);
++        printf("}\n");
++        perm128_free(&P);
++        return 0;
++    }
+     if(!strcmp(argv[1], "pin")){
+         uint64_t ss; int is_aes = load_sbox(argv[2], &ss);
+         int bij = check_bijective();

@@ -1,0 +1,239 @@
+qm_error_advance:
+  task_id: TASK-20260804-b3552a
+  goal_id: GOAL-SSI-001
+  lane: QM-ERROR
+  batch_id: BATCH-045
+  idea_id: IDEA-20260729-001
+  role: idea-generator
+  recorded_at: '2026-08-04'
+  current_state: f_union_ledger_partial
+  current_state_source: coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/f_union_ledger.yaml
+
+  proposed_advance: >-
+    Record the coverage direction F ⊆ U (and thus F = U) as a derivable
+    consequence of recovery_spec's "All exits are typed" constraint (line 19-20),
+    combined with the existing R2 (U ⊆ F). Then construct an explicit residual
+    obligation register decomposing the gap between f_union_ledger_partial and
+    QM-ERROR clearance into individually named, dependency-typed obligations.
+
+  advance_type: ledger_obligation
+
+  derivation:
+    claim: F = U (exhaustive coverage of operational failure by the seven-channel union)
+    established_direction: U ⊆ F (Rule R2, f_union_ledger.yaml, BATCH-025)
+    new_direction: F ⊆ U (coverage / completeness)
+    argument:
+      - step: 1
+        statement: >-
+          F is defined as { the procedure fails to return a k' with
+          Verify(x,k')=true within its declared stopping policy } (recovery_spec line 14-17).
+      - step: 2
+        statement: >-
+          recovery_spec line 19-20 states: "All exits are typed either success
+          (a true verification result) or a named failure constituent of F."
+      - step: 3
+        statement: >-
+          The named failure constituents of F are exactly: F_input (stage 1),
+          F_oracle (stage 2), F_cleanup (stage 3a), F_stop (stage 3b),
+          F_recovery (stage 4), F_tail (stage 5), F_verify (stage 6).
+          These are the members of U per f_union_ledger.yaml symbolic_union.members.
+      - step: 4
+        statement: >-
+          Any exit in F is a non-success exit. By step 2, it is a named failure
+          constituent. By step 3, it is in at least one F_*. Therefore it is in U.
+      - step: 5
+        statement: >-
+          Therefore F ⊆ U. Combined with R2 (U ⊆ F): F = U.
+    assumptions_required:
+      - id: A-COV-1
+        statement: >-
+          recovery_spec's "All exits are typed" is taken as specification-level
+          definitional truth, not an implementation claim.
+        status: specification_level_definitional
+        discharge_method: none_required_at_specification_level
+      - id: A-COV-2
+        statement: >-
+          The stage enumeration (stages 1-6) is exhaustive — no unlisted stage
+          exists in the recovery_spec.
+        status: specification_level_definitional
+        discharge_method: >-
+          Verifiable by inspection of recovery_spec §2 "Required stages and
+          object schedule" (six numbered items, each with a named failure map).
+    source_citations:
+      - coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/recovery_spec.md
+      - coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/f_union_ledger.yaml
+
+  practical_significance: >-
+    F = U is a logical prerequisite for bounding Pr[F] via Pr[U]: unless the
+    union exhaustively covers all failure modes, a probability bound on U would
+    undercount Pr[F] by the measure of F\U. Recording F = U eliminates that gap
+    and confirms that future probability composition over the seven channels will
+    be complete (no residual leakage through uncovered failure modes).
+
+  residual_obligation_register:
+    description: >-
+      Obligations that remain between f_union_exhaustive_partial (after this
+      advance) and QM-ERROR clearance. Each is individually named with its
+      dependency type and current blocker status.
+    obligations:
+      - id: OB-PROB
+        name: Per-channel probability bounds
+        description: >-
+          Assign Pr[F_*] to each of the seven channels. Requires either a
+          distributional model (from literature/theory) or experimental
+          measurement.
+        type: needs_computation_or_literature
+        blocked_by: absence of distributional model for channel failure rates
+        actionable_without_compute: false
+        actionable_without_implementation: false
+        notes: >-
+          F_stop probability specifically depends on τ / stopping bound
+          (blocked by QM-STOPPING REV-1/REV-2). Other channels may have
+          independent paths but still require either literature bounds or
+          experimental data.
+
+      - id: OB-BOUND
+        name: Union probability bound
+        description: >-
+          Derive Pr[F] = Pr[U] ≤ Σ Pr[F_*] (union bound) or tighter via
+          inclusion-exclusion. Structurally blocked until OB-PROB provides
+          per-channel bounds.
+        type: ledger_satisfiable_once_OB_PROB_discharged
+        blocked_by: OB-PROB
+        actionable_without_compute: true_once_OB_PROB_done
+        actionable_without_implementation: true_once_OB_PROB_done
+        notes: >-
+          The union bound itself is a purely algebraic step once channel
+          probabilities exist. The "overlaps_among_F_star_permitted_without_
+          independence_claim" assumption (BATCH-025) means the union bound is
+          valid without disjointness — this is conservative.
+
+      - id: OB-STOP-PROB
+        name: F_stop probability (τ / stopping bound)
+        description: >-
+          The probability that the stopping policy is breached. Requires a
+          Verify-relative τ or jointly finite ΣQ/ΣS/ΣP/ΣC(+H) — which is
+          exactly QM-STOPPING.
+        type: blocked_by_other_lane
+        blocked_by: QM-STOPPING (REV-1/REV-2 unmet; lane paused_pending_revisit)
+        actionable_without_compute: false
+        actionable_without_implementation: false
+        notes: >-
+          This obligation is gated by QM-STOPPING. Do NOT re-queue
+          QM-STOPPING while REV-1 (admissible CollimationSieve pin) and
+          REV-2 (host-independent collision/mixing result) remain unmet.
+
+      - id: OB-VERIFY
+        name: Verify body / instantiation
+        description: >-
+          Connect the abstract Verify(x,k')=true criterion to a concrete
+          verification procedure. Currently scaffold_no_crypto_Verify_token_
+          semantics (dependency assumption from BATCH-025).
+        type: needs_implementation_or_pin
+        blocked_by: >-
+          No crypto Verify body implemented; scaffold is read-only;
+          CollimationSieve@6f9188e4 extracted behavior ends in statistics
+          report not key verification (recovery_spec line 5-6).
+        actionable_without_compute: false
+        actionable_without_implementation: false
+        pin_seekable: true
+        pin_seeking_note: >-
+          A committed Verify-like construct in CollimationSieve@6f9188e4
+          could serve as a pin without API invention. Pin-seeking is
+          permitted but not attempted in this ledger step.
+
+      - id: OB-INSTANTIATE
+        name: Instantiation (end-to-end trace)
+        description: >-
+          recovery_spec states the error composition obligation is "only a
+          checklist until an end-to-end implementation and verification trace
+          instantiate it" (line 89-90).
+        type: needs_implementation
+        blocked_by: no end-to-end implementation exists
+        actionable_without_compute: false
+        actionable_without_implementation: false
+        notes: >-
+          This is the terminal obligation. It cannot be satisfied by any
+          number of ledger steps. It requires a real implementation that
+          exercises all stages and produces a verification trace.
+
+  dependency_assumption_status:
+    description: >-
+      Status of the four dependency assumptions identified in BATCH-025
+      f_union_ledger.yaml after this advance.
+    assumptions:
+      - id: scaffold_no_crypto_Verify_token_semantics
+        can_discharge_in_ledger: false
+        blocked_by: OB-VERIFY
+        note: Factual observation about current scaffold; requires implementation to change
+      - id: symbolic_stopping_policy_halt_without_verify_true
+        can_discharge_in_ledger: false
+        blocked_by: OB-STOP-PROB (QM-STOPPING)
+        note: Related to QM-STOPPING; blocked by REV-1/REV-2
+      - id: batch024_path_justified_on_scaffold_prior
+        can_discharge_in_ledger: not_a_gap
+        blocked_by: null
+        note: Historical lineage marker, not a gap to close
+      - id: overlaps_among_F_star_permitted_without_independence_claim
+        can_discharge_in_ledger: not_a_gap
+        blocked_by: null
+        note: >-
+          Conservative assumption (permits overlaps). Strengthens the union
+          bound validity. Not a gap but a feature.
+
+  constraints_respected:
+    - bounded_zero_compute_only: true
+    - does_not_requeue_qm_stopping: true
+    - does_not_iterate_toy_peak_byte_width: true
+    - does_not_attempt_fake_tau_gate_B: true
+    - retains_FC0_QUERY_MEMORY_SEMANTICS_UNRECONCILED: true
+    - no_collimationsieve_api_invention: true
+    - no_curve_computation: true
+    - no_experiment: true
+    - no_implementation: true
+  constraints_violated: []
+
+  outcome: >-
+    A genuine ledger advance exists: the coverage direction F ⊆ U is derivable
+    from recovery_spec's "All exits are typed" constraint (line 19-20) combined
+    with the exhaustive stage enumeration (stages 1-6). This upgrades the
+    existing one-directional inclusion (R2: U ⊆ F) to the equality F = U.
+    The advance is a logical prerequisite for valid probability composition.
+    Beyond this, five residual obligations remain (OB-PROB, OB-BOUND,
+    OB-STOP-PROB, OB-VERIFY, OB-INSTANTIATE), all of which require computation,
+    implementation, or resolution of blocked lanes. No further zero-compute
+    ledger advance beyond the obligation register itself is achievable.
+
+  next_state: f_union_exhaustive_obligation_registered_partial
+  next_state_meaning: >-
+    The seven-channel union is confirmed exhaustive (F = U); the residual
+    obligation register is recorded; composition remains partial pending
+    probability bounds and implementation. QM-ERROR is NOT cleared.
+
+  non_claims:
+    - not_qm_error_clearance
+    - not_query_memory_clearance
+    - not_probability_composition
+    - not_implementation
+    - not_crypto_verify_body
+    - not_tau_or_stopping_bound
+    - not_breakthrough_or_completion
+    - not_collimationsieve_api_invention
+    - not_pin_seeking_attempted
+
+  dominated_by: null
+  sota_delta: not_applicable
+  inventor_protocol:
+    objects_considered:
+      - recovery_spec_all_exits_typed_constraint
+      - stage_enumeration_exhaustiveness
+      - f_union_ledger_R2_prior_direction
+      - five_residual_obligations
+    pareto_check: >-
+      No alternative zero-compute ledger advance was identified that advances
+      QM-ERROR further. The coverage equality F = U is the unique ledger-
+      satisfiable advance; all remaining obligations require compute or
+      implementation. Checked against: pin-seeking (permitted but not yielding
+      a ledger step without reading CollimationSieve source for Verify pins),
+      probability schema (requires distributional model — not ledger-only),
+      dependency discharge (all blocked as analyzed above).

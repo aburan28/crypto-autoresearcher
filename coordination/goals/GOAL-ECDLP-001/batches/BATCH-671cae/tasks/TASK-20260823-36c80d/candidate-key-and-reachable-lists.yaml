@@ -1,0 +1,85 @@
+artifact:
+  task_id: TASK-20260823-36c80d
+  kind: candidate_key_and_reachable_lists
+  zero_run: true
+  freeze_order: "The key and tau below are frozen before distribution or success analysis."
+  parameters:
+    group: "G=<P> subset E(F_p), |G|=N prime, Q=xP"
+    list_length: "L=ceil(N^(1/3))"
+    bucket_width: "w=ceil(p/L)"
+    canonical_encoding: "enc_p(z) is the unique integer in {0,...,p-1} representing z"
+    accepted_bucket: 0
+  key:
+    id: K-EC-XINTERVAL-1
+    domain: "G x G"
+    codomain: "{0,...,L-1}"
+    formula: >-
+      K_EC(U,V)=0 if U+V=O; otherwise
+      min(L-1,floor(enc_p(x(U+V))/w)).
+    public: true
+    target_scalar_independent: true
+    target_independence_meaning: >-
+      The formula, encoding, width, and accepted bucket are declared without x,
+      without output-derived tuning, and without advice trained on Q. Inputs may
+      contain Q because they are the public ECDLP instance.
+    dlp_free_evaluation: true
+    per_pair_cost: "one EC addition plus coordinate encoding and integer bucket computation"
+    sign_invariant: true
+    bounded_auxiliary_state:
+      - p
+      - L
+      - w
+      - curve parameters
+      - canonical encoding
+      - accepted bucket tau
+    forbidden_state_absent:
+      scalar_labels: true
+      output_trained_advice: true
+      hidden_pair_table: true
+      undeclared_oracle: true
+  lists:
+    generation: >-
+      For j in {1,2,3,4} and i in {1,...,L}, sample declared coefficients
+      (a_ji,b_ji) in Z_N^2 and retain the labelled leaf
+      R_ji=a_ji P+b_ji Q.
+    independence_required: "all coefficient pairs independent before duplicate handling"
+    retained_leaf_record: "(j,i,a_ji,b_ji,R_ji)"
+    left_reachable_pairs: >-
+      F_12={(i,k,A,B,S): S=R_1i+R_2k, A=a_1i+a_2k,
+      B=b_1i+b_2k, K_EC(R_1i,R_2k)=0}.
+    right_reachable_pairs: >-
+      F_34={(i,k,A,B,S): S=R_3i+R_4k, A=a_3i+a_4k,
+      B=b_3i+b_4k, K_EC(R_3i,R_4k)=0}.
+    opposite_sum_join: "Select u in F_12 and v in F_34 only when S_u+S_v=O."
+  exact_reachability:
+    direct_method: "inspect every one of L^2 source pairs per side"
+    direct_time: "Theta(L^2) EC additions/key evaluations per side"
+    direct_memory: "O(L+output) if streamed, Theta(L^2) if materialized"
+    output_sensitive_method: null
+    clause_status: unestablished
+    reason: >-
+      K_EC depends on the rational EC addition of both leaves. No separately
+      sortable leaf contribution or bounded-bucket complement rule has been
+      supplied. Large fibres do not expose their source pairs.
+  dependency_graph:
+    nodes:
+      - source_coefficients
+      - labelled_leaves
+      - pair_sum
+      - frozen_key_bucket
+      - filtered_pair_with_coefficients
+      - opposite_sum_collision
+      - scalar_candidate
+      - public_verification
+    edges:
+      - "source_coefficients -> labelled_leaves"
+      - "labelled_leaves -> pair_sum"
+      - "pair_sum -> frozen_key_bucket"
+      - "source_coefficients + pair_sum + bucket -> filtered_pair_with_coefficients"
+      - "two filtered pairs -> opposite_sum_collision"
+      - "opposite_sum_collision -> scalar_candidate"
+      - "scalar_candidate -> public_verification"
+  scope_ceiling: >-
+    This file freezes one formula and its exact direct reachable lists. It does
+    not assert an output-sensitive algorithm, a distribution theorem, or an
+    ECDLP improvement.

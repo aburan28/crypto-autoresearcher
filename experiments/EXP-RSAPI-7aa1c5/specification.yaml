@@ -1,0 +1,203 @@
+experiment:
+  id: EXP-RSAPI-7aa1c5
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-c9e5d2; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-c9e5d2
+  question_id: RQ-RSA-d46f02
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Sample the success-probability curve of a reproduced small-root construction densely in the
+    leaked fraction at two or more modulus sizes, report the transition width with bootstrap intervals,
+    and partition it using fixed-instance multi-seed re-runs.
+  objective: 'The one uncertainty a run reduces is whether the reach of a small-root construction
+    behaves like a threshold at reachable sizes or like a broad transition whose reported location
+    depends on an arbitrary quantile choice. Concretely: (i) whether the measurement pipeline can
+    report zero width when the underlying truth is a genuine step, which the synthetic step-function
+    oracle establishes and without which no measured width is credible; (ii) what the width w is at
+    each tested modulus size and dimension, with bootstrap intervals over instances, a skew statistic,
+    and a coarse-grid re-analysis confirming the width is not a grid artifact; (iii) how much of that
+    width is attributable to the reducer rather than to the instances, measured by holding each instance
+    fixed and re-running with several reducer seeds or precision settings, since a width dominated
+    by the reducer is a fact about the instrument and belongs to a different contract. A run also
+    determines whether the single-quantile summary used by the rest of this bucket is safe, which
+    is a prerequisite for interpreting every other entry that reports r_hat.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: for this construction,
+      this reducer configuration, these modulus sizes, this dimension, this instance generator and
+      this budget, the measured 10-to-90-percent transition width in the leaked fraction, its skew,
+      its partition into reduction-attributable and instance-attributable components, and the direction
+      of its movement across the tested sizes. WHAT DOES NOT FOLLOW: no claim that a published bound
+      is wrong or right, since a sufficient condition may be approached through any width; no scaling
+      law and no extrapolation beyond the tested sizes; no claim that the variance sources measured
+      are exhaustive; and nothing about deployed RSA or any security consequence.'
+  inputs:
+    procedure: 'STAGE 0 (zero compute): declare construction, dimension, sizes, the u grid, seeds,
+      the quantile definitions and the bootstrap procedure. STAGE 1 (minutes): run the synthetic step-function
+      oracle through the full measurement and analysis path; GATE on it reporting zero width within
+      one grid step. STAGE 2 (CPU-hours): dense-grid sampling of P(u) at n = 128 on 60 paired seeded
+      instances. STAGE 3 (CPU-hours): the same at n = 256. STAGE 4 (CPU-hours, same invocation): fixed-instance
+      multi-seed re-runs at the three midpoint u values of each cell, five reducer seeds or precision
+      settings each. STAGE 5 (CPU-hours, same invocation): random-revealed-bits null across the same
+      grid. STAGE 6 (zero compute): quantiles, widths, skews, bootstrap intervals, the variance partition,
+      and the coarse-grid re-analysis. STAGE 7 (optional, CPU-days): extend to n = 512 and 1024 only
+      if STAGE 2 and 3 widths do not already overlap.'
+    instrument: Python 3.11. fpylll 0.6.4 for reduction via the route in KN-TECH-14efa5, with seed
+      and precision exposed as parameters for the STAGE 4 re-run arm. python-flint or gmpy2 for exact
+      integers and verification by exact division. numpy for quantiles and bootstrap resampling only;
+      no model fitting library is used and no parametric curve is fitted anywhere. harness/runner.py
+      for manifests and seeds; harness/run.py as the bounded-run wrapper. No Sage.
+    parameters: Modulus bit-length n in {128, 256}, optionally extended to {512, 1024}. One fixed
+      lattice dimension in the range 16 to 32. Leaked fraction u swept on a grid of 0.005 spanning
+      at least 0.05 either side of the expected transition, with the grid also reported in whole bits.
+      60 paired known-answer instances per (n, D), shared across all u. Five reducer seeds or precision
+      settings per instance at three midpoint u values. 2000 bootstrap resamples over instances. Per-instance
+      wall-clock cap 900 seconds, memory cap 8 GB.
+  controls:
+  - Synthetic step-function oracle through the identical measurement code path, which must report
+    zero width.
+  - Random-revealed-bits null, for which no quantiles may be definable.
+  - Paired instances shared across every u value at a given (n, D).
+  - Fixed-instance multi-seed re-runs at three u values inside the transition, partitioning the width.
+  - 'Grid-resolution control: the whole analysis repeated at a coarser u grid to confirm reported
+    widths are not grid artifacts.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical curve-sampling runs against a null constructed so that
+    the true success probability is known in advance and is a genuine step: a synthetic oracle that
+    reports success exactly when u exceeds a fixed constant, wired into the same measurement, bisection,
+    quantile and bootstrap code path. The null must return w equal to zero within one grid step; if
+    the pipeline reports a nonzero width for a synthetic step, the measured widths are an artifact
+    of the measurement code and every number is void. A second null is the random-revealed-bits arm
+    from entry one, which must produce P(u) identically near zero so that no quantiles are defined
+    at all, confirming that the curve being measured is a recovery curve.'
+  independent_variables:
+  - leaked fraction u on a dense grid
+  - modulus bit-length n
+  - reducer seed or precision setting (re-run arm only)
+  - arm (signal, synthetic step null, random-bits null)
+  metrics:
+    primary:
+    - u_0.1 and u_0.9 with exact binomial intervals
+    - transition width w with bootstrap interval
+    - reduction-attributable share of w
+    - width reported on the synthetic step-function null
+    secondary:
+    - skew of the transition
+    - coarse-grid re-analysis width
+    - reduction wall time and peak resident memory per cell
+    - count and identity of time-capped instances excluded from the quantile fit
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: w(n, D) = u_0.9 - u_0.1, the 10-to-90-percent transition width in the leaked fraction
+      at fixed modulus size and lattice dimension.
+    formula: 'w(128, D) >= 0.01 in u. The synthetic step-function null returns w <= one grid step.
+      The pre-registered two-sided reading of the direction in n: w(256, D) < w(128, D) minus their
+      combined bootstrap intervals supports the threshold picture; w(256, D) >= w(128, D) within intervals
+      is recorded as the structural tell of inventor-protocol section 3 and no threshold value is
+      thereafter reported without its width.'
+    source: Pre-registered in the parent proposal IDEA-20260816-c9e5d2 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Two modulus sizes, 128 and 256 bits, with balanced primes and one lattice dimension,
+      optionally extended to 512 and 1024 only if the first two do not separate. Ground truth is exact
+      by construction. NO SCALING LAW IS FITTED and no extrapolation beyond the tested sizes is made;
+      the direction of w over at most four sizes is read as a direction only, with the bootstrap intervals
+      shown, and any statement about behaviour at cryptographic sizes is outside this contract entirely.
+    correspondence: null
+  tail_checks:
+  - Instances failing at u well above u_0.9, examined individually for structural peculiarity in the
+    true prime
+  - Instances succeeding at u well below u_0.1, verified by exact division to rule out read-off error
+  - Maximum as well as median reduction time at each u, since slow instances near the transition drive
+    the cap exclusions
+  - Spread of within-instance success rates across the five reducer settings
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 10800
+    total_cpu_hours: 12.0
+    maximum_memory_gb: 8
+    maximum_runs: 60
+  stopping_rules:
+  - Stop at the STAGE 1 gate if the synthetic step-function null reports nonzero width
+  - Halt an instance at the wall-clock cap, record it as budget-limited, exclude it from the quantile
+    fit and report the exclusion count
+  - Do not proceed to STAGE 7 if the STAGE 2 and 3 widths already separate
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A run succeeds if the synthetic null reports zero width, P(u) is monotone on
+    the dense grid, w is reported with bootstrap intervals at every tested size, the variance partition
+    is computed, and the coarse-grid re-analysis agrees within intervals.
+  falsification_criterion:
+  - Nonzero width on the synthetic step null voids all results
+  - Non-monotone P(u) at more than one cell dissolves the quantile object
+  - Coarse-grid disagreement beyond bootstrap intervals shows the widths are grid artifacts
+  - A reduction-attributable share above one indicates a partition bug and voids the run
+  - w below one grid step at every size means only an upper bound on w may be reported
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-c9e5d2
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The construction must be filed as a KN-LIT entry from primary text before approval, per RQ-RSA-d46f02's
+    constraints.
+  - The u grid placement requires knowing roughly where the transition sits, which comes from entry
+    one's bisection; without it STAGE 2 may sample entirely outside the transition.
+  - Whether the chosen reducer exposes a seed or a precision setting that varies output without changing
+    the construction is an implementation question a Coordinator must settle, since the entire STAGE
+    4 partition depends on it.
+  - The compute budget for STAGE 7 at 512 and 1024 bits is not costed here and should be estimated
+    from STAGE 2 and 3 timings before authorisation.

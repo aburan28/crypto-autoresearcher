@@ -1,0 +1,246 @@
+idea:
+  id: IDEA-20260816-ba5bd8
+  question_id: RQ-MLKEM-003
+  added: '2026-08-16'
+  title: 'Replace the contested dual-attack probability model with an ordinal statistic: the rank
+    of the true secret''s FFT score among all enumerable candidates, measured directly at dimensions
+    where the secret is known by construction, against the rank law the independence heuristic forces'
+  class: measurement
+  claim: '(A) The object contested in KN-OPEN-016 is a probability model over wrong-candidate scores.
+    This proposal replaces it with an ordinal statistic that needs no probability model to be defined.
+    For an FFT dual distinguisher run on an LWE instance whose secret is known by construction, let
+    R be the rank of the true candidate''s score in the sorted list of all q^{k_fft} candidate scores,
+    with R=1 meaning the attack succeeds at guess budget one. R is a function of a run, not of a heuristic,
+    and it is computable exactly whenever the candidate space is enumerable. (B) The claim is that
+    the independence-style heuristic family objected to in KN-LIT-111 is equivalent, for costing purposes,
+    to one prediction about R: that P(R <= r) equals the curve obtained by treating the q^{k_fft}-1
+    wrong-candidate scores as independent draws from the null score law and the true score as an independent
+    draw from the signal law. We propose to measure the empirical distribution of R directly at dimensions
+    where full enumeration is affordable, and to report the signed discrepancy D(r) = P_measured(R
+    <= r) - P_iid(R <= r) as a function of dimension n, dual-vector count N and k_fft. (C) R is invariant
+    under any strictly increasing rescaling of the score. KN-FIND-014 recorded that verifyModel''s
+    Pwrong used FFT/k_fft while Pgood used raw cosine sums, and that aligning the two scales did not
+    close the KN-FIND-012 coverage gap. An ordinal statistic is immune to exactly that defect class,
+    which is the reason for tracking it rather than a score. (D) NOT CLAIMED: nothing about ML-KEM
+    security, no attack, no speedup, no statement about what any publication contains, and no extrapolation
+    of a measured rank law from small n to FIPS 203 dimensions. A discrepancy measured at n=40 is
+    a statement about n=40 and about the prediction at n=40, and nothing else.'
+  mechanism: 'STAGE 1. Generate LWE instances (A, b = As + e mod q) at small n with the secret s retained,
+    in both a plain and a module-structured family, with parameters chosen so that q^{k_fft} candidates
+    can be enumerated exhaustively. STAGE 2. Produce short dual vectors by exact-integer LLL-style
+    reduction of the q-ary dual lattice in pure Python, recording each vector''s exact integer coordinates
+    and squared norm, so no floating-point sieve is on the critical path. STAGE 3. Score every candidate
+    in Z_q^{k_fft} by the standard cosine sum over the retained dual vectors, using a fixed-point
+    integer cosine table so scores are exactly reproducible from the seed. STAGE 4. Read off R for
+    the known true candidate and record the sorted score vector''s summary statistics. STAGE 5. Build
+    P_iid(R <= r) from the same run''s own empirical null score law, estimated from wrong candidates
+    in a disjoint held-out coordinate block, so prediction and measurement come from the same instance
+    and no external cost model enters. STAGE 6. Repeat over seeds and a grid in (n, N, k_fft); report
+    D(r) with bootstrap intervals and its drift in n. Refutation: D(r) within its interval of zero
+    across the grid means the heuristic''s rank consequence is measured to hold in the tested regime,
+    which is recorded as the result.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rilE 'dual.?attack|dual.?sieve' ledger/proposals/ (21 files); grep -rilE 'waterfall'
+      ledger/ knowledge/; grep -rilE 'estimator.*(disagree|instrument)|instrument.*estimator' ledger/proposals/.
+      Read in full knowledge/open-problems/KN-OPEN-016.md, KN-OPEN-017.md, KN-OPEN-026.md, ledger/questions/RQ-MLKEM-003.yaml,
+      docs/inventor-protocol.md. Read title and claim head of IDEA-20260805-a102ec, IDEA-20260805-5a4409,
+      IDEA-20260808-0eb075, IDEA-20260805-bb7668.
+    results: The corpus attacks this heuristic three ways, all on the score scale and none on the
+      rank scale. IDEA-20260805-a102ec audits three constants inside MATZOV.Nf (single-representative-length,
+      a bits/nats union-bound term, an N-versus-database consistency condition). IDEA-20260805-5a4409
+      derives a Parseval energy budget forcing the across-candidate second moment. IDEA-20260808-0eb075
+      computes an effective trial count N_eff from the Fourier support of the score polynomial. KN-FIND-012,
+      KN-FIND-013 and KN-FIND-014 (EV-MLKEM-011, EV-MLKEM-012, EV-MLKEM-013) are all statements about
+      Pwrong and Pgood as score-scale quantities, and KN-FIND-014 explicitly reports that scale alignment
+      did not close the coverage gap. No record found measures the rank of the true candidate or states
+      the heuristic as a rank law.
+    verdict: 'UNVERIFIED. No agent in this harness can read external literature, so nothing is asserted
+      about whether rank statistics for this distinguisher appear elsewhere. Claimed new relative
+      to this repository: the choice of tracked object, an ordinal rank rather than a score or a probability,
+      chosen because it is invariant under exactly the rescaling defect KN-FIND-014 measured. Assembled
+      from known parts: the FFT dual distinguisher, exact-integer q-ary lattice reduction, and the
+      empirical-null construction, all already used in this corpus.'
+  object_first_candidate:
+    tracked_object: R, the rank of the true secret's candidate score within the sorted vector of all
+      q^{k_fft} candidate scores produced by one distinguisher run on one instance, together with
+      the run's seed and its exact dual-vector set.
+    lossiness: 'Genuinely lossy. The full state of a run is the entire real-valued score vector of
+      length q^{k_fft}; R retains only the position of one distinguished entry, discarding every score
+      magnitude, the shape of the score distribution, and all scale information. What is discarded
+      is discarded compatibly with the operation of interest: the attack''s success event is a threshold
+      on rank (the guess budget), so success is a function of R alone, and R is preserved exactly
+      by any strictly increasing reparametrisation of the score, which is the transformation class
+      in which the k_fft normalisation dispute lives. The retained part therefore still determines
+      the quantity the cost model consumes while being blind to the ambiguity that broke the score-scale
+      comparison.'
+    propagation: One step of the target operation is adding one more dual vector to the score sum.
+      Adding w perturbs every candidate score by cos(2*pi*<w, .>/q), a single Fourier mode; R changes
+      only when the perturbation reorders the true candidate past a neighbour. One step therefore
+      acts on R as a birth-death walk whose step law is set by the local density of scores near the
+      true candidate's score, and the rate at which R descends toward 1 as N grows is exactly the
+      observable the cost model needs.
+    survival_score: R is exactly defined and exactly computable while q^{k_fft} candidates can be
+      enumerated. At q=3329 and k_fft=2 that is about 1.1e7 candidates, affordable in pure Python
+      within minutes per instance; at k_fft=3 it is 3.7e10 and dissolves. The structure survives to
+      k_fft <= 2 at ML-KEM's modulus and to k_fft <= 4 at small toy moduli q <= 64. Beyond that R
+      is only estimable by sampling and the invariance argument weakens, which is stated as the survival
+      boundary rather than papered over.
+  null_object_control: 'The identical pipeline is run on a null instance of the same shape: same A,
+    same q, same dimensions, same dual-vector set, same scoring code, same seed schedule, but with
+    b drawn uniformly from Z_q^m instead of As+e, and a nominal secret s'' drawn independently. R
+    is computed for s''. The null must show R uniform on {1, ..., q^{k_fft}} within its bootstrap
+    interval and D(r) indistinguishable from zero. If the null shows a non-uniform R, the scoring
+    or reduction pipeline imprints a preference independent of any planted secret, every signal-arm
+    number is an artifact, and the result is recorded as a controlled null under inventor-protocol
+    section 3.'
+  discriminated_from:
+  - 'IDEA-20260805-a102ec: audits three named constants inside a cost script and derives a closed-form
+    correction factor; it never runs a distinguisher and never observes a success event. This entry
+    runs the distinguisher and its output is an empirical rank law, not a correction to a formula.'
+  - 'IDEA-20260808-0eb075: computes N_eff exactly from the Fourier support, a correction to the false-positive
+    floor on the score scale. Here an N_eff correction would be one candidate explanation for a measured
+    D(r), not the deliverable.'
+  - 'IDEA-20260805-5a4409: a Parseval second-moment conservation law, again a score-scale identity
+    computed without running the attack. A rank statistic is not a moment and is not recoverable from
+    moments.'
+  - 'KN-FIND-012 / KN-FIND-014 (EV-MLKEM-011, EV-MLKEM-013): archived-CDF coverage and score-scale
+    alignment audits of someone else''s figures. This entry generates its own instances with the secret
+    known, so no coverage gap can arise: the operating point is the one measured.'
+  - 'A bare lattice-estimator rerun: no estimator is invoked anywhere. The prediction P_iid is built
+    from the instance''s own held-out empirical null.'
+  assumptions:
+  - Exact-integer LLL-style reduction in pure Python yields dual vectors short enough that the true
+    candidate is distinguishable at some N in range; if not, the measurement returns R uniform in
+    both arms and the entry reports a reachability floor rather than a heuristic verdict.
+  - The empirical null score law estimated from a held-out coordinate block is a valid stand-in for
+    the wrong-candidate law in the scored block; violation is detectable by the null arm.
+  - Candidate enumeration at the chosen (q, k_fft) is exhaustive, not sampled, in the primary grid.
+  - Fixed-point integer cosine tables of stated precision do not reorder candidates whose true scores
+    differ by more than the quantisation step; runs whose top two scores fall inside that step are
+    flagged, excluded from R, and counted.
+  - Small-n behaviour of a rank law carries no automatic implication for cryptographic dimensions,
+    and none is drawn.
+  predictions:
+  - metric: D(r) = P_measured(R<=r) - P_iid(R<=r) at r=1, signal arm, largest tested n
+    direction: different
+    minimum_effect: 0.05
+  - metric: drift of D(1) per unit increase in n across the tested range
+    direction: different
+    minimum_effect: 'refusal to pre-commit on sign: the drift''s sign is precisely the contested quantity
+      and pre-committing would import the conclusion the measurement must supply. Magnitude threshold
+      0.01 per dimension step; smaller is reported as no measured drift.'
+  - metric: Kolmogorov-Smirnov distance between the null arm's R distribution and the uniform distribution
+      on the candidate index set
+    direction: lower
+    minimum_effect: 0.03
+  - metric: fraction of runs excluded for quantisation ties
+    direction: lower
+    minimum_effect: 0.02
+  minimal_test:
+    design: 'One instance family, one dimension, one budget. Fix q=97, module rank 1, n=32, m=64,
+      k_fft=2 so the candidate space is 9409 entries. Generate 200 seeds. For each seed produce dual
+      vectors by exact-integer reduction, score all 9409 candidates, and record R for the true secret.
+      Immediately, in the same invocation and from the same seed stream, run the null arm: identical
+      A, identical reduction output, b uniform, nominal secret independent, record R. Build P_iid
+      from a held-out coordinate block of the same run. Report D(1) with a 2000-resample bootstrap
+      interval in both arms. This discriminates because the two arms differ in exactly one bit of
+      the generator, whether b carries a planted secret, and every other byte of the pipeline is shared.
+      If the null arm''s R is not uniform the experiment stops there and reports an instrument defect.
+      Cost is minutes of pure-Python compute with no external dependency.'
+    controls:
+    - Null arm with b uniform and an independent nominal secret, executed in the same invocation from
+      the same seed stream.
+    - Positive control with error e identically zero, where R must equal 1 at every N above the rank
+      threshold; failure indicts the scoring code.
+    - 'Scale control: rerun scoring with the score divided by k_fft and confirm R is bit-identical,
+      exercising the invariance that motivates the object.'
+    - 'Vector-order permutation control: reorder the dual vectors before summation and confirm R is
+      unchanged up to quantisation ties.'
+    - 'Enumeration completeness assertion: the scored candidate multiset has cardinality exactly q^{k_fft}.'
+    required_metrics:
+    - R per run, signal arm
+    - R per run, null arm
+    - D(r) for r in {1,2,4,8,16} with bootstrap intervals
+    - KS distance of null-arm R to uniform
+    - dual-vector count N and exact squared norms
+    - quantisation-tie exclusion count
+    - wall clock and peak memory per run
+  falsification_conditions:
+  - 'Null-arm R is measurably non-uniform: the instrument is imprinting and no signal-arm number is
+    interpretable.'
+  - 'Signal-arm R is uniform at every tested N: reduction never produced usable dual vectors, and
+    the entry reports a reachability floor rather than a heuristic result.'
+  - 'D(1) lies within its bootstrap interval of zero across the entire grid: the heuristic''s rank
+    consequence is measured to hold in the tested regime, refuting the entry''s motivating expectation.'
+  - 'The zero-error positive control does not give R=1: the scoring implementation is wrong and every
+    other number is void.'
+  - 'R changes when the score is divided by k_fft: the invariance claim in part (C) is false as implemented.'
+  - 'Quantisation-tie exclusions exceed 20 percent of runs: the fixed-point table is too coarse and
+    the statistic is not being measured.'
+  confounders:
+  - Reduction quality varies with seed, so N and vector norms co-vary with R; norms are reported and
+    D(r) is conditioned on them.
+  - Small q makes the cosine score take few distinct values, inflating ties and biasing rank.
+  - The held-out block used to build P_iid may share dual vectors with the scored block, correlating
+    prediction and measurement.
+  - Pure-Python reduction may plateau at fixed quality, making apparent n-drift a drift in reduction
+    quality instead.
+  - Module-structured instances have correlated dual vectors, so an apparent structure effect could
+    be a reduction-quality effect.
+  interpretation_limits:
+  - A rank law measured at n<=48 and q<=97 is not a statement about FIPS 203 parameters, about ML-KEM,
+    or about any deployed system.
+  - A measured D(r) localises a discrepancy; it does not identify which heuristic in the family is
+    responsible.
+  - Nothing here is evidence about what any external publication assumes or reports.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement's own cost is O(seeds * (reduction
+      + q^{k_fft})) elementary operations.
+    memory_exponent: No attack memory exponent is claimed. The measurement stores O(q^{k_fft}) fixed-point
+      scores, 1e4 to 1e7 entries in the tested grid.
+    best_known: No incumbent is challenged. The nearest incumbent in this corpus is the pinned-estimator
+      primal_bdd baseline recorded in KN-FIND-015 / EV-MLKEM-015; this entry makes no comparison against
+      it. The incumbent for the rank prediction itself is the independence-style heuristic model as
+      reconstructed from the corpus's own MATZOV.Nf notes.
+    hidden_overhead: 'The human cost of getting exact-integer reduction to produce usable dual vectors
+      in pure Python at n=48 dominates and may exceed the compute cost by an order of magnitude. Secondary:
+      the fixed-point cosine table''s precision must be tuned per q, and tie handling is a per-parameter
+      judgement that will not generalise across the grid without work.'
+  dominated_by: 'n/a (no result claimed). No cost frontier row is contested because this entry produces
+    no attack cost. Corpus dual-attack frontier rows checked and found irrelevant to this deliverable:
+    KN-FIND-015''s primal_bdd versus dual_hybrid+fft comparison and KN-FIND-016''s Carrier Table 5.1
+    arithmetic.'
+  sota_delta: no attack; conceptual/measurement contribution only. The deliverable is a measured rank-law
+    discrepancy D(r) with intervals at stated small parameters, plus a null.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Three separable parts. (i) That the pipeline runs and the null arm is
+    clean: about 0.75, the main risk being pure-Python reduction quality since neither numpy nor fpylll
+    is installed here. (ii) That the signal arm produces non-uniform R at some tested N, i.e. the
+    regime is reachable at all: about 0.6, since reachability at n=32-48 with hand-rolled reduction
+    is untested here. (iii) That D(r) is measurably nonzero rather than consistent with zero: about
+    0.35, and I decline to raise it, because KN-FIND-015 found the public dual instrument behaving
+    conservatively rather than optimistically at the parameters it tested.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - KN-OPEN-016
+  - KN-FIND-012
+  - KN-FIND-013
+  - KN-FIND-014
+  - KN-FIND-015
+  - EV-MLKEM-011
+  - EV-MLKEM-013
+  - RQ-MLKEM-003
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-LATDUAL-194b83

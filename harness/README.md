@@ -1,7 +1,8 @@
 # harness — executable spine
 
-Minimal, correct ECDLP experiment substrate. Everything here is toy-scale,
-deterministic, and independently verifiable.
+Minimal, correct ECDLP experiment substrate. The included implementations are
+deterministic and independently verifiable; each run records the parameters
+and evidence scope needed to interpret results at the scale actually tested.
 
 | module | role |
 |---|---|
@@ -13,8 +14,9 @@ deterministic, and independently verifiable.
 
 Run tests with `python -m pytest -q`. Metrics honesty: the Groebner
 `*_max_degree_proxy` is the reduced-basis max degree, an implementation-bound
-proxy, **not** the theoretical degree of regularity (see KN-TECH-004). Only
-trends versus parameters are interpreted; absolute timings are not crypto-scale.
+proxy, **not** the theoretical degree of regularity (see KN-TECH-004). Trends
+and absolute timings are interpreted only with their tested parameters, cost
+model, and any stated transfer assumptions.
 
 ## Exemplar-aligned experiment classes (optional manifest metadata)
 
@@ -48,13 +50,13 @@ run:
     prediction: null               # pre-registered before the run
     theoretical_distribution: null # e.g. "dickman_de_bruijn rho(u)"
     sample_size: null
-    scale_relevance: null          # toy-scale vs crypto-scale; never overclaim
+    scale_relevance: null          # tested parameters and transfer assumptions
   cost_model:                      # optional; key absent => not this class
     operation_unit: null           # e.g. "group_operation", "Fp2_operation"
     assumptions: []                # optimistic assumptions flagged explicitly
     notes: null
 ```
 
-Toy-scale results recorded under these fields remain toy-scale evidence: a
-toy-scale heuristic check supports the shape of an experiment, never the
-heuristic at cryptographic size (AGENTS.md rule 7).
+Results recorded under these fields may be used for direct or conditional
+claims when the tested parameters, evidence scope, and transfer assumptions
+are stated explicitly (AGENTS.md rule 7).

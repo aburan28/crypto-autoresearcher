@@ -1,0 +1,155 @@
+idea:
+  id: IDEA-20260808-d6d973
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  title: 'Elimination-yield duality: for prime-field point decomposition, keeping an intermediate
+    sum as a windowed variable costs a factor B''/p in yield and eliminating it doubles the
+    per-variable degree, so degree and yield are two ends of one conserved budget.'
+  class: mechanism
+  claim: 'Let a decomposition R = P_1 + ... + P_m be organised by a binary addition tree with
+    internal nodes I. For any subset S of I retained as explicit variables windowed to size
+    B'', and the rest eliminated by resultants: (i) the expected number of decompositions
+    of a uniform target drops by exactly (B''/p)^{|S|} relative to the unwindowed count C(B+m-1,m)/N;
+    (ii) each eliminated internal node of subtree height h contributes per-variable degree
+    2^h to the resulting equation, with the empty-S extreme giving S_{m+1} of per-variable
+    degree 2^{m-1}. Consequently the two extremes are both dead by arithmetic and BEFORE any
+    solver is chosen: S = I forces B'' >= p^{1/2} for the yield to be nonzero, hence B >=
+    p^{1/2} and C_LA >= N, while S = {} gives degree 2^{m-1} and caps any degree-sensitive
+    solver''s reach at ~2^{1-m}. The claim is that this is a genuine trade with an interior
+    optimum at group size c ~ sqrt(m), not a pair of independent knobs, and that it is the
+    solve-stage analogue of KN-FIND-007.'
+  mechanism: 'Yield side: given the m leaves, every internal node value is determined, so
+    requiring it to land in a window of size B'' is an independent event of probability B''/p;
+    the events multiply. Degree side: S_3 is bidegree (2,2) and each resultant elimination
+    of one internal variable squares the degree in the surviving variables, which is the standard
+    recursive construction of Semaev polynomials and is why S_{m+1} has per-variable degree
+    2^{m-1}. Any solver whose reachable box scales like p^{c/deg} therefore pays exactly what
+    the yield saves. Grouping the m leaves into g groups of c = m/g balances the two exponents
+    at 2^{c-1} and 2^{g-1}, minimised at c = g = sqrt(m).'
+  why_not_a_renamed_known_approach: 'KN-FIND-007 is the nearest known statement and is disjoint:
+    it conserves MEAN YIELD as a function of factor-base geometry at fixed arity and explicitly
+    says it "says nothing about the cost of finding a decomposition". This record conserves
+    a different quantity (degree x yield across tree shapes at fixed factor base) and lives
+    entirely in the stage KN-FIND-007 excludes. It is also not the BKK/sparse-elimination
+    line (KN-FIND-8f2c90, KN-FIND-2a8b7e, KN-FIND-c7d31e): those measure constant-factor speedups
+    at fixed system shape, whereas this varies the system shape and predicts where the shape
+    family dies.'
+  predictions:
+  - observable: yield of the fully windowed caterpillar tree at m = 4
+    metric: expected decompositions per uniform target with all internal nodes windowed
+    predicted: B^m (B'/p)^{m-2} / N; zero to within Poisson noise for any B, B' < p^{1/2}
+  - observable: per-variable degree along the grouping family
+    metric: max per-variable degree of the resulting system as a function of c
+    predicted: max(2^{c-1}, 2^{m/c-1}), minimised at c = sqrt(m); for m = 9 this is 4, versus
+      256 for the unwindowed S_10
+  - observable: toy-scale relation rate at matched B for three tree shapes
+    metric: relations per 10^6 targets, empty vs grouped(c=2) vs full windowing
+    predicted: strictly decreasing in |S| by the factor (B'/p)^{|S|}, matching the closed
+      form to within Poisson error; a departure falsifies the yield half
+  minimal_test: 'Zero-compute: write the closed form and the two extreme corollaries. Toy-compute:
+    at p ~ 2^22 and m = 4, enumerate all windowed 4-tuples for B in {2^4, 2^5, 2^6} and count
+    decompositions under each of the three windowing patterns; compare each measured count
+    against the predicted (B''/p)^{|S|} factor with a Poisson error bar.'
+  controls:
+  - 'Random-subset null for V and for the internal windows: the (B''/p)^{|S|} factor must
+    be identical, since it is a counting fact and not a window property. If the windowed and
+    random arms differ, additive structure in the window is leaking and must be reported.'
+  - 'Degree cross-check: compute the actual per-variable degree of the eliminated system symbolically
+    at m = 3, 4, 5 and confirm 4, 8, 16.'
+  confounders:
+  - Windowing an internal node also constrains the LEAVES (the events are not independent
+    once B^m is comparable to p^{|S|+1}); at the toy sizes chosen this must be checked, not
+    assumed.
+  - 2-torsion and the x-coordinate 2:1 fibre inflate counts by small factors that must be
+    divided out before comparing to the closed form.
+  falsification_conditions:
+  - Measured yield under windowed internal nodes exceeds the (B'/p)^{|S|} prediction by more
+    than a factor of 2 at any tested cell => the duality as stated is wrong.
+  - Some tree shape achieves BOTH per-variable degree <= 4 and yield within a constant of
+    the unwindowed mean => the trade is not conserved and the interior optimum is better than
+    predicted, which would be a positive result for E1-01.
+  interpretation_limits: This is a statement about a specific solver-shape family (binary
+    addition trees with windowed internal nodes) and about solvers whose reach degrades with
+    degree. A solver insensitive to degree would escape it entirely; none is known.
+  assumptions:
+  - Semaev polynomials constructed by iterated resultants; degrees as in KN-TECH-002.
+  - Targets uniform in <P>; window is an interval or an AP.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: For uniform leaves in the window, the internal-node values are equidistributed
+      in F_p, so P(internal node in window) = B'/p + O(p^{-1/2}) uniformly.
+    rigorous_ingredient: Weil/Bombieri square-root cancellation for character sums on the
+      curve S_3 = 0, which is absolutely irreducible for generic parameters.
+    distribution_imitated: Equidistribution of x-coordinates of sums of random points, the
+      same assumption behind the KN-TECH-016 quasirandomness expectation.
+    validation_route: 'Toy p in [2^18, 2^26]: sample 10^6 random windowed pairs, histogram
+      x(P_1 + P_2) into p/B'' bins, chi-square against uniform. Label toy.'
+    tail_checks: The most-populated bin must not exceed the uniform expectation by more than
+      O(sqrt(log p)) standard deviations; a persistent excess would be a real finding.
+  target_complexity:
+    time_exponent: 'Moves no exponent by itself. It bounds the family in E1-01: any windowed-tree
+      scheme has total exponent >= 2/(2 + (m-1)(1 - sigma_eff)) with sigma_eff determined
+      by the max per-variable degree the retained tree produces.'
+    memory_exponent: '"N^{beta} (factor base), unchanged by the tree shape."'
+    best_known_baseline: '"Pollard rho N^{1/2}, memory O(1) (KN-TECH-006)."'
+    hidden_overhead_disclosure: No o(1) claim is made. The (B'/p)^{|S|} factor is exact up
+      to the equidistribution error of HA-1, which is O(p^{-1/2}) and negligible at the operating
+      point.
+    time_memory_tradeoff: '"Not applicable; this is a structural law, not an algorithm."'
+  sota_delta: 'Zero directly. Its value is negative-space: it removes two entire extremes
+    of the windowed family before compute, and predicts where the survivors sit. It is filed
+    as a required building block for E1-01 under the brief''s clause for non-exponent-moving
+    records.'
+  dominated_by: n/a (no algorithm claimed). As a barrier it is not dominated by KN-FIND-007
+    because it covers a disjoint stage; as an algorithmic claim it makes none.
+  estimated_cost: '"Implementation low; compute low (minutes to hours at toy p)."'
+  recommended_priority: high
+  honest_prior_of_survival: ~0.75 that the closed form holds as stated (it is a counting argument
+    plus equidistribution). ~0.3 that the interior optimum is good enough to matter for E1-01.
+  novelty_status: screened
+  novelty_screen: Screened against EXISTING_PROPOSALS.txt, REJECTED_TITLES.txt, CATALOGUE_TITLES.txt,
+    EXISTING_HYPOTHESES.txt, KNOWLEDGE_BARRIERS.txt, and the full text of knowledge/findings/KN-FIND-007.md
+    and knowledge/techniques/KN-TECH-015.md. No record states a degree-versus-yield trade
+    across tree shapes. External literature UNVERIFIED (no web access this session).
+  discriminated_from: KN-FIND-007 (mean-yield conservation, different stage and different
+    variable); KN-FIND-8f2c90 / c7d31e / 2a8b7e (BKK constant factors at fixed shape); IDEA-20260727-003
+    (free-oracle floor, assumes the solve away rather than pricing it).
+  source_refs:
+  - KN-FIND-007 (in-repo, read in full)
+  - KN-TECH-002, KN-TECH-007, KN-TECH-016 (in-repo index)
+  proof_search_map:
+    bottleneck: '"Per-variable degree of the decomposition system, which sets any small-root
+      solver''s reach."'
+    baseline_embedding:
+      parameter_slice: '"S = {} reproduces the standard Semaev system exactly."'
+      reproduction_check: '"Symbolic degree check at m = 3,4,5 against 4, 8, 16."'
+    observation_collision:
+      observable: '"The pair (max per-variable degree, yield factor)."'
+      distinct_preimage_search: Two distinct trees with the same (degree, yield) pair would
+        show the pair is not a complete invariant of the tree; search over all binary trees
+        on m <= 6 leaves.
+    constructive_transforms:
+    - transform: telescoping_potential
+      proposed_object: '"Phi(tree) = log_p(yield factor) + log_2(max per-variable degree)."'
+      predicted_gain: '"Phi is claimed near-constant along the family; a tree with strictly
+        smaller Phi is the target."'
+    quantifier_order: 'FOR ALL m, FOR ALL binary addition trees T on m leaves, FOR ALL windowing
+      patterns S subset I(T): yield(T,S) = C(B+m-1,m)/N * (B''/p)^{|S|} * (1+o(1)) AND maxdeg(T,S)
+      = 2^{h(T,S)} where h is the largest eliminated subtree height.'
+    method_ceiling:
+      strongest_certifiable_claim: '"A trade law for this family; never a lower bound on all
+        solvers."'
+      nearby_object_control: 'Genus-2 index calculus, where the analogous tree has degree
+        growth but the base field is smaller: the same law holds and yet index calculus wins
+        there, which shows the law alone does not close prime fields — the missing factor
+        is the subfield.'
+    proof_obligations:
+    - claim: '"yield factor is exactly (B''/p)^{|S|} up to equidistribution error"'
+      responsibility: success_probability
+    - claim: '"maxdeg = 2^{h}"'
+      responsibility: size
+    - claim: '"both extremes violate the C_LA <= N^{1/2} budget or the reach budget"'
+      responsibility: strictness

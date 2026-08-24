@@ -1,0 +1,889 @@
+idea:
+  id: IDEA-20260821-6d1b97
+  question_id: RQ-MLDSA-ffa0f5
+  goal_id: GOAL-MLDSA-002
+  added: '2026-08-21'
+  title: >-
+    Stop reporting a zero count as a bound: exponentially tilt the CHALLENGE
+    distribution around a REAL key's t0 and measure the ML-DSA-44 ct0 rejection
+    rate directly at 1e-9, from about 1e5 tilted samples instead of the 1e9
+    signatures the honest estimator needs - which is the only affordable test
+    of IDEA-20260805-bb52fa's H1 AT THE QUANTILE WHERE H1 IS ACTUALLY USED, and
+    which returns a PER-KEY rate rather than one number for the parameter set
+  class: measurement
+
+  claim: >-
+    (A) THE PROBLEM THIS SOLVES, STATED AS THIS QUESTION'S OWN CONSTRAINT.
+    RQ-MLDSA-ffa0f5 requires that "a zero observed count is reported as an
+    upper bound with its sample size, never as a measured rate of zero", and
+    GOAL-MLDSA-002's first completion criterion asks for a measured rate with a
+    confidence interval at each of ML-DSA-44 / -65 / -87. At ML-DSA-65 and -87
+    that criterion is already met at zero compute by IDEA-20260805-bb52fa's
+    envelope theorem (the rate is exactly 0 as arithmetic, not as a zero
+    count). At ML-DSA-44 it is unreachable by honest sampling: the same record
+    derives a rate of 7.34e-9 and prices a two-sided interval at of order 1e9
+    signatures against a campaign budget of 10,800 wall-clock seconds, and
+    states plainly that its own H1 "at 10^-12 is not validated by anything in
+    the design and cannot be within budget". THIS PROPOSAL CLOSES THAT NAMED
+    GAP.
+
+    (B) THE MOVE. For a FIXED key, t0 is fixed and the only randomness in the
+    Line-28 predicate is the challenge c, drawn by SampleInBall uniformly from
+    B_tau (exactly tau coefficients in {-1,+1}). So the quantity
+        p(sk) := Pr_{c <- B_tau}[ ||<<c t0>>||_inf >= gamma2 ]
+    is a rare-event probability under a KNOWN, SAMPLEABLE distribution with a
+    FIXED, KNOWN deterministic object t0 - the textbook setting for
+    exponentially tilted importance sampling. Sample c from an Esscher-tilted
+    law that pushes the signed sum toward the threshold, weight each sample by
+    its exact likelihood ratio, and average. The estimator is UNBIASED, returns
+    a positive number with a confidence interval, and needs a sample size that
+    grows polynomially rather than as 1/p.
+
+    (C) THE FALSIFIABLE CLAIM, WITH NUMBERS. From about 1e5 to 1e6 tilted
+    challenge draws per key - minutes of single-core compute - the estimator
+    returns p(sk) at ML-DSA-44 with relative standard error below 10%, against
+    a naive requirement of order 1/p = 1.4e8 signing attempts for a single
+    expected event and of order 1e9 for an interval. That is a reduction of
+    roughly 1e3 in samples and, because a tilted challenge draw costs a
+    polynomial multiplication rather than a full signing attempt, considerably
+    more than that in wall clock. The claim is falsifiable in the ordinary way:
+    if the tilted estimator's relative variance does not fall - importance
+    sampling fails catastrophically when the tilt is misaimed, and a MAXIMUM
+    over 256k coefficients is exactly the structure that can misaim it - the
+    measurement stays out of budget and that is what gets reported.
+
+    (D) THE DISCRIMINATION, WHICH IS THE POINT. IDEA-20260805-bb52fa's
+    R_44 = 7.34e-9 is derived under an assumption that the 256k coefficients of
+    a REAL t0 behave as independent uniforms. This proposal measures the same
+    quantity on REAL keys. THREE OUTCOMES, EACH WITH A DIFFERENT MEANING.
+    E1, agreement within the interval: H1 holds in the tail where it is used,
+    at the sampled keys; R_44 is upgraded from derived to measured and every
+    downstream number that consumes it - IDEA-20260821-60ba98's crossover
+    N* = 1.36e8, GOAL-MLDSA-002's sample sizing - is put on measured footing.
+    E2, disagreement by an order of magnitude or more: H1 fails in the tail,
+    R_44 is withdrawn, and the direction of the failure says which half of H1
+    (uniformity or independence) is responsible, because the synthetic control
+    isolates them.
+    E3, large dispersion of p(sk) across keys: the rate is a PER-KEY quantity
+    and no single number is a correct answer to the completion criterion. This
+    outcome is invisible to any design that measures one pooled rate, and the
+    corpus currently contains no per-key measurement of anything in this lane.
+
+    NOT A BREAK. A rejection condition's firing rate is a conformance and
+    correctness quantity. Nothing here bears on MLWE, MSIS or SelfTargetMSIS in
+    any direction, no signature is forged, and every object is produced with
+    the private key in hand.
+
+  mechanism: >-
+    (1) THE EVENT, EXACTLY. FIPS 204 Algorithm 7 Line 28 rejects when
+    ||<<c t0>>||_inf >= gamma2 (or the hint weight exceeds omega, which is a
+    different object and is measured separately here because it is common). In
+    R_q = Z_q[X]/(X^256 + 1), coefficient j of c t0 is a signed sum of exactly
+    tau distinct coefficients of t0, one per nonzero coefficient of c, with
+    signs from c and from the negacyclic wrap. The event is a MAXIMUM over the
+    256k coefficients of the vector, which matters for the tilt design and is
+    where a naive scheme fails.
+
+    (2) THE TILT. Fix the key, hence t0. For a target coefficient j, write the
+    linear form as sum over the tau selected positions of eps_i * a_i where
+    a_i is the relevant t0 coefficient and eps_i in {-1,+1}. Sample the support
+    and signs SEQUENTIALLY with conditional probabilities proportional to
+    exp(theta * eps_i * a_i), normalised exactly at each step over the
+    remaining positions; the product of the realised conditional ratios against
+    the uniform-over-B_tau conditionals is the exact likelihood ratio, so no
+    approximation enters the estimator. Choose theta by the standard saddle-
+    point condition that the tilted mean of the sum equals the threshold, i.e.
+    tilted-E[sum] = gamma2; at ML-DSA-44 that is gamma2/tau = 95232/39 = 2441.8
+    per summand against a t0 coefficient scale of 2^(d-1) = 4096, so the
+    required tilt is moderate and the scheme is in its well-behaved regime.
+    GENERATOR-COMPUTED, RE-DERIVATION REQUIRED.
+
+    (3) HANDLING THE MAXIMUM OVER 256k COEFFICIENTS. Two routes, both run.
+    ROUTE A (union, conservative and simple): estimate the per-coefficient
+    exceedance probability p_1 for a stratified sample of coefficient positions
+    j, and combine by inclusion-exclusion to first order. This is exactly the
+    combination IDEA-20260805-bb52fa performs analytically (it reports union
+    bound and independence approximation agreeing to six figures), so route A
+    is directly comparable to that record and isolates whether any discrepancy
+    lives in p_1 or in the combination.
+    ROUTE B (direct, and the one that can surprise): tilt toward the maximum by
+    sampling j itself from a distribution proportional to a cheap upper proxy
+    for the per-coefficient exceedance, and correct by the likelihood ratio.
+    Route B is sensitive to correlations ACROSS coefficients, which route A
+    assumes away and which is precisely the half of H1 that is unproved. A
+    material gap between route A and route B is therefore not an inconsistency
+    to be reconciled - it is the measurement.
+
+    (4) WHY THIS IS NOT JUST RECOMPUTING A KNOWN CONVOLUTION. If t0 were drawn
+    synthetically as independent uniforms, tilting would only re-derive
+    bb52fa's exact closed form more slowly, and the exercise would be
+    pointless. The whole content is that t0 comes from
+    ML-DSA.KeyGen_internal - t0 = Power2Round(A s1 + s2).low for a real seed -
+    and is then held FIXED while the challenge is randomised. That is the
+    quantity the standard's rejection condition actually faces, and it is not
+    the convolution's quantity unless H1 is true.
+
+    (5) WHAT THE PER-KEY DISPERSION WOULD MEAN, AND WHY IT IS NOT ASSUMED AWAY.
+    p(sk) depends on t0 through quantities like the largest partial sums of its
+    coefficients, which vary from key to key. Under H1 the across-key spread of
+    log p(sk) is derivable and small; if the measured spread is materially
+    larger, some keys sit at a rate orders of magnitude above the pooled one.
+    That is a structural finding about the standard's own check - it would mean
+    the correct answer to "measure the rate" is a distribution, not a number -
+    and it is available from this design at no extra cost because the estimator
+    is per-key by construction.
+
+    (6) THE HINT-WEIGHT DISJUNCT IS MEASURED THE ORDINARY WAY, IN THE SAME RUN.
+    IDEA-20260805-630606 derives expected hint weights 63.4 / 38.7 / 57.1 with
+    standard deviations 7.71 / 6.14 / 7.45 against omega = 80 / 55 / 75, i.e.
+    2.16 / 2.65 / 2.40 standard deviations of headroom, so that predicate fires
+    at per-cent rates and needs no tilting at all. Measuring it beside the
+    tilted arm is what keeps the record honest about which of the two Line-28
+    disjuncts is rare: only one of them is.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      crypto-kb MCP index UNAVAILABLE this session (in-memory Qdrant per the
+      operating brief); not called and nothing attributed to it.
+      GREPS RUN WITH COUNTS: (i) -i "linear program|polytope|bounded noise|
+      bounded-noise|Chebyshev center" over ledger/ -> 54 files, none in area
+      MLDSA; (ii) -i "bit-plane|bit plane|per-key dispersion|ACVP|interoperab"
+      over the repository -> 39 files, none under RQ-MLDSA-ffa0f5, and in
+      particular NO record in this lane measures anything per key;
+      (iii) "MLDSA" over ledger/hypotheses -> 8 files, two under this question.
+      READ IN FULL: RQ-MLDSA-ffa0f5, GOAL-MLDSA-002, IDEA-20260805-bb52fa (all
+      619 lines, including its Stage 3 design, its H1 statement and its
+      explicit "neither validates the tail at 10^-12" admission),
+      IDEA-20260805-630606; read in large part IDEA-20260805-031ce2,
+      IDEA-20260808-4f83f6, IDEA-20260808-e5f947; read the lane's full 5-row
+      proposal inventory and knowledge/techniques/KN-TECH-1a5b7e.md.
+      WEB QUERIES RUN (6): S1 (eprint 2024/1373, 8 links); S2 (t0 recovery /
+      bounded noise, 8); S3 (t0 attack method, 10); S4 (ACVP ML-DSA sigVer
+      vectors, 9); S5 (per-bit-plane recovery cost, 8); S6 (ML-DSA differential
+      testing and conformance, 10). NO SEARCH WAS RUN specifically on rare-event
+      simulation for lattice-signature rejection rates, and that is a stated
+      gap in this screen rather than an absence of prior art.
+      FETCHED AND READ (LANDING/ABSTRACT PAGES ONLY): eprint.iacr.org/2026/1333
+      (the paper RQ-MLDSA-ffa0f5 attributes the billion-signature observation
+      to), eprint.iacr.org/2024/1373, eprint.iacr.org/2024/2046,
+      eprint.iacr.org/2025/195. FETCH FAILURES RECORDED AS FAILURES: both
+      eprint PDFs unparseable binary; the Springer chapter 303 to an
+      authentication endpoint.
+    results: >-
+      IN-CORPUS: IDEA-20260805-bb52fa is the direct predecessor and this
+      proposal exists because of one sentence in it - that its H1's tail
+      behaviour at 1e-12 "is not validated by anything in the design and cannot
+      be within budget". Its Stage 3 samples 1e6 (c, t0) pairs and compares
+      empirical upper quantiles against the exact convolution, which tests H1
+      at accessible quantiles and explicitly not at the one that matters. No
+      corpus record uses importance sampling, exponential tilting or any
+      rare-event technique, and no corpus record in any lane reports a per-key
+      rate.
+      EXTERNAL: the fetch of eprint 2026/1333 confirmed the paper's title,
+      authors (Riou, Park, Anwar, Poschmann, Hutter) and that it is a
+      benchmarking-methodology paper concerned with rejection-sampling-induced
+      timing variability - but its "Pitfall 12" and the over-one-billion-
+      signature observation that RQ-MLDSA-ffa0f5 attributes to it are NOT in
+      the abstract and were NOT verified. That figure remains relayed.
+    verdict: >-
+      UNVERIFIED. Exponential tilting and Esscher transforms are classical
+      rare-event machinery (Siegmund; Bucklew) and are NOT claimed as
+      invention. What is claimed as new relative to this corpus: applying them
+      to a fielded standard's own rejection predicate with the key FIXED and
+      the challenge randomised; turning a zero count into an unbiased positive
+      estimate with an interval; the route-A-versus-route-B contrast as a
+      direct test of the cross-coefficient half of bb52fa's H1; and the per-key
+      rate as an object. Whether anyone has estimated ML-DSA rejection rates by
+      importance sampling in the literature was NOT searched and is recorded as
+      an unchecked axis.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE TILTED MEASURE ON THE CHALLENGE SPACE B_tau - equivalently the
+      likelihood-ratio process of that tilt against SampleInBall's uniform law -
+      carried with the key's t0 held fixed. What is followed through the
+      computation is not a signature and not a rejection, but the WEIGHT a
+      sampled challenge carries. Established families declared off-limits as
+      the primary lens: lattice reduction and estimator differencing; fault
+      injection and physical side channels (GOAL-MLDSA-001's scope; nothing
+      here glitches anything); nonce misuse and the HNP family; forgery search;
+      and, specifically, decryption/verification-failure boosting, which is the
+      family a reader will reach for because "steer the sampler toward a rare
+      event" sounds like it - it is not, because nothing here is adversarially
+      chosen or fed to an oracle, the key is known, and the output is an
+      unbiased estimate of a probability rather than an event.
+    lossiness: >-
+      LOSSY, AND THE LOSS IS THE MECHANISM RATHER THAN A SIDE EFFECT. The
+      projection sends the full signing state to the single scalar
+      max_j |<<c t0>>_j| together with its importance weight, discarding the
+      message, the nonce y, the commitment, s1, s2 and every emitted byte -
+      indeed discarding the signature entirely, since no signature is ever
+      produced. The discard is COMPATIBLE with the target's operation because
+      the Line-28 predicate is a function of (c, t0) ALONE: everything
+      discarded is provably irrelevant to the event being estimated, which is
+      what makes the sampler able to skip signing altogether and is where the
+      1e3-plus speedup actually comes from. It is not a change of coordinates:
+      neither c nor t0 is recoverable from the scalar, and the fibre over a
+      value is the whole of B_tau at that level set. THE MIRROR FAILURE - a
+      projection so lossy it is constant - does not occur: the tracked scalar
+      has a measurable spread across challenges and, per outcome E3, possibly
+      across keys, and a measured across-key spread of zero is the
+      pre-registered tell that the projection is uninformative.
+    propagation: >-
+      One step is one sequential coordinate decision in the tilted sampler, and
+      its propagation law is exact: the conditional tilted probability of
+      selecting position i with sign eps, normalised over the remaining
+      positions, against the uniform-over-B_tau conditional. The product of
+      those ratios is the sample's weight, so the object propagates
+      deterministically and without approximation from the first coordinate to
+      the tau-th. That the weights are EXACT rather than approximate is what
+      keeps the estimator unbiased and is the property the design checks first.
+    survival_score: >-
+      Survives the whole estimation and is the answer. It dissolves at exactly
+      one identified place, and the place is named rather than discovered: the
+      MAXIMUM over 256k coefficients. A tilt aimed at one coefficient is a bad
+      proposal distribution for the maximum, so the likelihood ratio's variance
+      can blow up and the estimator silently degrades to worse than naive. The
+      design detects this by monitoring the effective sample size and the
+      weight-concentration ratio at every stage, and reports the estimate as
+      unusable if the effective sample size falls below a pre-declared floor.
+
+  null_object_control: >-
+    NULL-1, THE ONE WITH A DERIVED EXACT FORCED VALUE, AND IT CAN FAIL: run the
+    IDENTICAL tilted estimator with t0 replaced by a synthetic vector of
+    independent uniforms on [-2^(d-1)+1, 2^(d-1)]. The forced value is not
+    "zero" and not "something small" - it is the EXACT rational that
+    IDEA-20260805-bb52fa computes in closed form by inclusion-exclusion,
+    p_1 = 7.1656e-12 per coefficient at ML-DSA-44 (log2 = -37.02), with the
+    union combination giving 7.3376e-9 per Line-28 evaluation. THE ESTIMATOR
+    MUST RETURN THAT NUMBER TO WITHIN ITS OWN INTERVAL. This is the strongest
+    control available anywhere in this lane, because it scores a Monte Carlo
+    estimator against an exactly known answer at exactly the quantile of
+    interest, and it fails loudly if the tilt, the weights or the combination
+    is wrong.
+    NULL-2, THE RQ-MANDATED RESAMPLED-t0 ARM, RUN AND CORRECTLY LABELLED: the
+    same estimator on a t0 resampled independently of the key. Its answer is
+    NULL-1's by construction, so under KN-TECH-1a5b7e it cannot fail as a test
+    of any key-specific effect; it is reported as a plumbing check and never
+    cited as evidence about the leak.
+    NULL-3, CALIBRATION AGAINST NAIVE MONTE CARLO WHERE NAIVE STILL WORKS, WITH
+    THREE INTERIOR POINTS: run both the tilted and the naive estimator at
+    lowered thresholds gamma2' chosen so the true rate is near 1e-3, 1e-4 and
+    1e-5. The two must agree at every point, and the ratio of their sample
+    sizes at fixed relative error must GROW as the threshold rises - that
+    growth is the efficiency claim, and it is what a single-threshold
+    comparison cannot show. Monotonicity is reported explicitly.
+    NULL-4, THE INSTRUMENT'S OWN FAILURE DETECTOR: effective sample size and
+    the top-1% weight share reported at every cell, against pre-declared
+    floors. An estimate produced below the floor is reported as unusable, not
+    as a number with a wide interval.
+    NULL-5, COMPARATOR REPLICATION (mode 5): the estimator is stochastic, so
+    every cell is drawn at least 8 times with independent seeds and reported as
+    an interval; the leave-one-out false-positive rate of any OUTSIDE-the-
+    interval rule is derived before the run and checked after it.
+    VERDICT-ON-THE-NULL-FIRST: NULL-1's verdict is computed and committed
+    before any real-key estimate is examined.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-bb52fa derives R_44 = 7.34e-9 analytically under H1 and
+      proves the rate is exactly 0 at ML-DSA-65 and -87. Its Stage 3 samples
+      1e6 (c, t0) pairs and compares ACCESSIBLE upper quantiles against the
+      exact convolution. This proposal measures the event ITSELF, at the real
+      threshold, on real keys, which that record states it cannot afford and
+      names as an unclosed gap. The two also differ in what is random: bb52fa's
+      Stage 3 randomises both c and t0 and compares against a model; this fixes
+      t0 at a real key and randomises only c, which is what the signing loop
+      actually does.
+    - >-
+      IDEA-20260805-630606 derives hint weights and entropy floors. Its hint-
+      weight numbers are consumed here as the non-rare arm's forced values and
+      are not re-derived; its floors concern t0 recovery and are a different
+      object entirely.
+    - >-
+      IDEA-20260808-4f83f6 measures a deviation in the accepted CHALLENGE law
+      induced by conditioning on the ct0 predicate. That is the challenge law
+      AFTER rejection under the true sampler; this proposal deliberately
+      DISTORTS the challenge law and corrects by an exact weight, and estimates
+      a probability rather than a deviation. The two are adjacent enough to be
+      worth one sentence of separation and they share no statistic: 4f83f6's
+      observable is a 256-bin histogram of accepted supports, this one's is a
+      weighted mean of an indicator.
+    - >-
+      IDEA-20260821-60ba98 (this batch) uses p_R as an input to a security
+      term. This proposal produces p_R. If this run returns E2, that record's
+      crossover table is withdrawn, which is the dependency direction and is
+      stated in both.
+    - >-
+      IDEA-20260821-6109f8 and -65739b (this batch) concern t0 RECOVERY. This
+      concerns a rejection RATE. No shared statistic, no shared observation
+      model - in particular this proposal does not depend on the u = c t0 + r0
+      identity and survives untouched if that identity fails.
+
+  citations:
+    - ref: 'IDEA-20260805-bb52fa (this corpus)'
+      provenance: internal
+      claim: >-
+        Supplies: the unconditional envelope ||<<c t0>>||_inf <= tau 2^(d-1)
+        and the resulting reachability verdict (True, False, False) at
+        ML-DSA-44 / -65 / -87; the exact inclusion-exclusion closed form for
+        the tau-fold convolution; the derived p_1 = 7.1656e-12 and
+        R_44 = 7.3376e-9; and the explicit statement that its H1's tail at
+        1e-12 is not validated by its own design and cannot be within budget.
+        All of it is labelled generator-computed and re-derivation-required in
+        that record, and is treated the same way here.
+      verified_by: >-
+        coordinator@2026-08-21 (orchestrating session opened the cited record and confirmed the
+        quoted values verbatim; the reachability verdict was additionally RECOMPUTED here from FIPS
+        204 constants -- tau*2^(d-1) = 159744 vs gamma2 = 95232 at ML-DSA-44, 200704 vs 261888 at
+        -65, 245760 vs 261888 at -87, giving reachable = True/False/False -- and p_R <= 7.34e-9 with
+        its reciprocal 1.36e8 signatures was located in bb52fa written as '7.34 x 10^-9' and '1.4 x
+        10^8')
+    - ref: 'IDEA-20260805-630606 (this corpus)'
+      provenance: internal
+      claim: >-
+        Supplies the derived hint weights 63.4 / 38.7 / 57.1 with standard
+        deviations 7.71 / 6.14 / 7.45 against omega = 80 / 55 / 75, used here
+        as the forced values of the non-rare arm.
+      verified_by: >-
+        coordinator@2026-08-21 (orchestrating session opened the cited record and confirmed the
+        quoted values verbatim; the reachability verdict was additionally RECOMPUTED here from FIPS
+        204 constants -- tau*2^(d-1) = 159744 vs gamma2 = 95232 at ML-DSA-44, 200704 vs 261888 at
+        -65, 245760 vs 261888 at -87, giving reachable = True/False/False -- and p_R <= 7.34e-9 with
+        its reciprocal 1.36e8 signatures was located in bb52fa written as '7.34 x 10^-9' and '1.4 x
+        10^8')
+    - ref: 'eprint 2026/1333 — Riou, Park, Anwar, Poschmann, Hutter, "Apples,
+        Oranges, and Signatures: Pitfalls and Methodology in ML-DSA
+        Benchmarking"'
+      provenance: retrieved
+      claim: >-
+        ABSTRACT PAGE ONLY. Title, authors and dates verified this session; the
+        abstract concerns benchmarking methodology and rejection-sampling
+        timing variability. THE "PITFALL 12" TEXT AND THE OVER-ONE-BILLION-
+        SIGNATURE OBSERVATION ATTRIBUTED TO IT BY RQ-MLDSA-ffa0f5 WERE NOT
+        VERIFIED - not present in the abstract, full text not read. This
+        proposal's outcome bears directly on that figure (an estimated rate of
+        7e-9 predicts about 7 events per 1e9 signatures at ML-DSA-44 and
+        exactly 0 at the other two sets), so obtaining the paper and
+        establishing which parameter set the count was taken at is a stated
+        deliverable rather than an assumption.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'FIPS 204 Algorithm 7 Line 28, Algorithm 29 (SampleInBall), Section
+        2.3 (B_tau), Table 1, Algorithm 24/25 (t0 range)'
+      provenance: internal
+      claim: >-
+        Taken from the transcription in IDEA-20260805-bb52fa (fetch receipt
+        nvlpubs.nist.gov, 3,291,746 bytes, sha256 5723...6b6b, 2026-08-06).
+        THIS SESSION DID NOT FETCH FIPS 204. Stage 0 re-reads tau, d, gamma2
+        and the SampleInBall specification, because the tilt is built directly
+        on SampleInBall's output law and a mis-transcribed sampler makes the
+        likelihood ratios wrong in a way the estimator cannot detect.
+      verified_by: >-
+        coordinator@2026-08-21 (orchestrating session read the cited TRANSCRIPTION records, not the
+        FIPS 204 PDF; confirmed the fetch receipt nvlpubs.nist.gov 2026-08-06, HTTP 200, 3,291,746
+        bytes, sha256 57239b9f84c03227eda3ca0991204dc7764c79af9ce2e6824eda774918d46b6b, and the
+        quoted Table 1 / algorithm-line values recorded there)
+    - ref: 'Siegmund, "Importance sampling in the Monte Carlo study of
+        sequential tests" (1976); Bucklew, "Introduction to Rare Event
+        Simulation"; the Esscher transform and exponential tilting'
+      provenance: recalled
+      claim: >-
+        RECALLED, NOT OPENED. The standard results relied on: exponential
+        tilting with the saddle-point parameter is asymptotically optimal for
+        large-deviation probabilities of sums of independent terms, and gives
+        logarithmically efficient estimators whose sample size grows
+        polynomially rather than as 1/p. Named so a reviewer with retrieval can
+        chase the exact efficiency statement, and because the sampling here is
+        WITHOUT replacement over positions, which is a departure from the
+        textbook i.i.d. setting and is the technical risk of the design.
+
+  assumptions:
+    - >-
+      SampleInBall's output law is exactly uniform on B_tau as specified, so
+      the likelihood ratios are computable exactly. If the realised sampler
+      deviates - it is a hash-driven Fisher-Yates-style construction - the
+      ratios are wrong and the estimator is biased in an undetectable
+      direction. The design measures the realised sampler's marginal position
+      and sign frequencies against uniform as a precondition.
+    - >-
+      t0 is fixed per key and known to the instrument (it is in the private
+      key). This is a measurement with ground truth in hand and is not an
+      attack.
+    - >-
+      Sampling positions WITHOUT replacement can be tilted with exact
+      sequential conditionals at cost O(tau * 256) per draw. If the exact
+      normalisation turns out to be too expensive, an approximate tilt with an
+      exact correction weight is used instead and the correction is reported;
+      an approximate tilt WITHOUT an exact weight would bias the estimator and
+      is prohibited.
+    - >-
+      The Line-28 predicate as transcribed (||<<c t0>>||_inf >= gamma2 with the
+      centred sup-norm) is correct. IDEA-20260805-bb52fa flags the centred-norm
+      reading as a named falsifier of its own results and the same flag applies
+      here.
+
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes the cost is the maximum over 256k
+      coefficients: for a single coefficient the tilt is textbook and provably
+      efficient, and for the maximum it is not, because the optimal proposal
+      must spread across coefficients in proportion to their individual
+      exceedance probabilities, which are themselves unknown.
+    baseline_embedding:
+      parameter_slice: >-
+        The exact old-method boundary is naive Monte Carlo at a lowered
+        threshold, where both estimators are affordable. NULL-3 reproduces it
+        at three thresholds (rates near 1e-3, 1e-4, 1e-5) and requires
+        agreement at each.
+      reproduction_check: >-
+        Frozen fixture: the synthetic-uniform-t0 arm must return
+        p_1 = 7.1656e-12 to within its interval, an exactly known value from a
+        closed form, at the true threshold. This is a symbolic-strength check,
+        not a plot comparison.
+    observation_collision:
+      observable: >-
+        The certificate is a weighted-mean estimate with a confidence interval.
+        Two distinct situations with the SAME observable: (i) a genuinely small
+        rate correctly estimated, and (ii) a badly aimed tilt whose weight mass
+        sits on non-exceeding samples, which returns a small number with a
+        deceptively narrow interval because the rare large weights were never
+        drawn. THIS COLLISION IS THE CHARACTERISTIC FAILURE OF IMPORTANCE
+        SAMPLING and a confidence interval alone cannot separate the two.
+      distinct_preimage_search: >-
+        Separated by the effective sample size and the top-1% weight share,
+        which differ by orders of magnitude between the two situations and are
+        reported at every cell against pre-declared floors; and by NULL-1,
+        where the true answer is known exactly, so case (ii) is caught before
+        any real key is touched.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the intractable model (sample signatures, count rejections)
+          by an exactly equivalent one (sample challenges under a tilted law,
+          average weighted indicators), where the hypothesis becomes an
+          expectation under a known measure. Obligations: encoding (the
+          predicate depends only on (c, t0)); completeness (every challenge has
+          positive tilted probability); soundness (the weights are exact);
+          transfer (the tilted law's support equals B_tau); cost loss (none -
+          the tilted draw is cheaper than a signing attempt).
+        predicted_gain: >-
+          Sample size falls from order 1/p = 1.4e8 to order 1e5-1e6 per key,
+          and the per-sample cost falls from a full signing attempt to one
+          sparse polynomial multiplication.
+      - transform: specialization_pack
+        proposed_object: >-
+          Stratify the coefficient index j and charge the estimate only over
+          strata that are disjoint by construction, so route A's combination is
+          an addition over disjoint blocks rather than an independence
+          assumption.
+        predicted_gain: >-
+          Makes the route-A-versus-route-B gap attributable to
+          cross-coefficient dependence specifically, rather than to the
+          combination rule.
+    quantifier_order: >-
+      FOR EACH parameter set and FOR EACH key sk sampled from
+      ML-DSA.KeyGen_internal, THERE EXISTS p(sk) such that FOR ALL challenges
+      drawn by SampleInBall the Line-28 first disjunct fires with probability
+      p(sk); the estimator returns p(sk) for the sampled keys. NOTE WHAT IS NOT
+      CLAIMED: no uniformity over keys - that is outcome E3 and is measured -
+      and no statement about the SIGNING rate, which differs from p(sk) by the
+      probability that Line 28 is reached at all, a factor the design reports
+      separately rather than folding in silently.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest certifiable claim is an unbiased estimate of p(sk) with a
+        confidence interval for the sampled keys at the sampled parameter set,
+        plus a per-key spread. It cannot certify anything about a key it did not
+        sample, and it cannot certify that the estimator is efficient - only
+        that it was, at the thresholds where NULL-3 could check it.
+      nearby_object_control: >-
+        The nearby object where the conclusion fails: ML-DSA-65 and -87, where
+        the true answer is exactly 0 by IDEA-20260805-bb52fa's envelope
+        theorem. The tilted estimator MUST return 0 there - not a small
+        positive number - because no challenge whatsoever achieves the
+        threshold, so every weight multiplies a zero indicator. An estimator
+        returning any positive value at -65 or -87 has a bug or the envelope
+        theorem is false, and this is a free, decisive, zero-cost control that
+        no other design in this lane has available.
+    proof_obligations:
+      - claim: 'the sequential tilt''s likelihood ratios are exact for sampling without replacement over B_tau'
+        responsibility: correctness
+      - claim: 'the estimator is unbiased and its relative standard error falls below 10% at 1e5-1e6 draws'
+        responsibility: success_probability
+      - claim: 'the synthetic-uniform arm reproduces p_1 = 7.1656e-12'
+        responsibility: baseline
+      - claim: 'the estimator returns exactly 0 at ML-DSA-65 and -87'
+        responsibility: strictness
+      - claim: 'per-draw cost is O(tau * 256) and the whole per-key estimate fits in minutes'
+        responsibility: runtime
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        tilted estimate of p_1 (per-coefficient exceedance at gamma2) on a
+        SYNTHETIC independent-uniform t0 at ML-DSA-44
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE, KNOWN EXACTLY IN ADVANCE: 7.1656e-12 (log2 = -37.02),
+        from IDEA-20260805-bb52fa's inclusion-exclusion closed form. Agreement
+        to within the estimator's own interval is the precondition for reading
+        any other arm. Disagreement in the first significant figure means the
+        tilt or the weights are wrong and the run stops.
+    - metric: >-
+        tilted estimate of p(sk) on REAL keys at ML-DSA-44, median over at
+        least 32 keys
+      direction: different
+      minimum_effect: >-
+        The comparison value is the derived 7.3376e-9 per Line-28 evaluation.
+        Agreement within a factor of 2 is outcome E1 (H1 validated in the
+        tail); disagreement by a factor of 10 or more is outcome E2 (H1 fails
+        in the tail, R_44 withdrawn). Both are reportable and neither is a
+        failure of the design.
+    - metric: >-
+        across-key spread of log10 p(sk) at ML-DSA-44, over at least 32 keys,
+        against the within-key seed spread
+      direction: higher
+      minimum_effect: >-
+        A spread exceeding 0.5 decades across keys, materially above the
+        within-key replication spread, is outcome E3 and means the rate is a
+        per-key quantity. Under H1 the spread is small and derivable, so this
+        prediction has a forced value in both directions.
+    - metric: >-
+        tilted estimate at ML-DSA-65 and ML-DSA-87
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: exactly 0, with every sampled indicator zero, by the
+        envelope theorem. A positive estimate falsifies either the theorem or
+        the instrument.
+    - metric: >-
+        effective sample size and top-1% weight share at each cell
+      direction: higher
+      minimum_effect: >-
+        Effective sample size above a pre-declared floor of 1% of the nominal
+        draws. Below it, the estimate is reported as UNUSABLE rather than as a
+        wide interval - importance sampling's characteristic failure returns a
+        narrow interval around a wrong answer, so the interval is not the
+        instrument's own safety check.
+    - metric: >-
+        ratio of naive to tilted sample size at fixed 10% relative error, at
+        thresholds giving rates near 1e-3, 1e-4 and 1e-5
+      direction: higher
+      minimum_effect: >-
+        Must GROW monotonically across the three thresholds, roughly as 1/p up
+        to polynomial factors. A flat ratio means the tilt buys nothing at the
+        true threshold either, and the efficiency claim is withdrawn before it
+        is used.
+    - metric: >-
+        measured hint-weight distribution (the OTHER Line-28 disjunct) over 1e4
+        signatures per parameter set
+      direction: different
+      minimum_effect: >-
+        FORCED VALUES from IDEA-20260805-630606: means 63.4 / 38.7 / 57.1 and
+        standard deviations 7.71 / 6.14 / 7.45. Deviation beyond three standard
+        errors means the same underlying uniformity model is wrong in the BULK,
+        which invalidates the tail arm regardless of what the tail arm returns.
+
+  minimal_test:
+    design: >-
+      FIVE STAGES, CHEAPEST FIRST, EACH ABLE TO TERMINATE THE LINE. STAGES 0-3
+      ARE MINUTES OF SINGLE-CORE COMPUTE.
+      STAGE 0 (reading, zero compute, TERMINATING): re-read tau, d, gamma2 and
+      the SampleInBall specification from FIPS 204 primary text under a run
+      record; verify the centred-sup-norm reading of Line 28. Re-derive the
+      exact p_1 = 7.1656e-12 independently in Python integers from the
+      inclusion-exclusion form. If the re-derivation differs in the first two
+      significant figures, stop and reconcile with IDEA-20260805-bb52fa before
+      building anything.
+      STAGE 1 (sampler check, minutes): measure the realised SampleInBall's
+      marginal position and sign frequencies over 1e5 challenges against
+      uniform; a biased sampler invalidates every likelihood ratio.
+      STAGE 2 (NULL-1, minutes, TERMINATING AND THE MOST IMPORTANT ARM): run
+      the tilted estimator on a SYNTHETIC independent-uniform t0 and require
+      7.1656e-12 within interval. Commit this verdict before any real key is
+      loaded.
+      STAGE 3 (NULL-3 calibration, minutes): tilted versus naive at three
+      lowered thresholds, agreement at each, and the sample-size ratio's growth
+      reported.
+      STAGE 4 (the measurement, tens of minutes): 32 real keys at ML-DSA-44,
+      1e5 to 1e6 tilted draws each, route A and route B both, 8 seed
+      replications per cell; and the free zero-check at ML-DSA-65 and -87. Run
+      the hint-weight arm in the same invocation.
+      WHAT DISCRIMINATES: Stage 2 alone decides whether the instrument works,
+      against an exactly known answer, before any interpretation is possible.
+      Stage 4's comparison against 7.3376e-9 separates E1 from E2, and its
+      across-key spread separates both from E3. The route-A/route-B contrast
+      separates a failure of uniformity from a failure of independence, which a
+      single pooled number cannot do.
+    controls:
+      - NULL-1, synthetic-uniform t0 against the exactly known 7.1656e-12, verdict committed first.
+      - NULL-2, RQ-mandated resampled-t0 arm, run and explicitly labelled as a plumbing check that cannot fail as a test of any key-specific effect.
+      - NULL-3, naive-versus-tilted calibration at three thresholds with the sample-size ratio's growth reported (a single threshold cannot demonstrate efficiency).
+      - NULL-4, effective sample size and weight concentration against pre-declared floors at every cell, with UNUSABLE as a permitted verdict.
+      - NULL-5, 8-draw seed replication per cell, intervals rather than points, with the leave-one-out false-positive rate of the OUTSIDE rule derived before the run.
+      - ZERO-CHECK at ML-DSA-65 and -87, where the forced answer is exactly 0 and where any positive estimate is decisive against the instrument or the envelope theorem.
+      - SAMPLER-UNIFORMITY precondition on SampleInBall.
+    required_metrics:
+      - independently re-derived p_1 as an exact rational and as a float, with the closed form used
+      - NULL-1 estimate with its interval against 7.1656e-12
+      - realised SampleInBall marginals against uniform
+      - naive-versus-tilted agreement and sample-size ratio at three thresholds
+      - per-key p(sk) for at least 32 keys with intervals, route A and route B separately
+      - across-key and within-key spread of log10 p(sk)
+      - effective sample size and top-1% weight share per cell
+      - the ML-DSA-65 and -87 zero-check outcome
+      - hint-weight mean and standard deviation per parameter set against 63.4/38.7/57.1 and 7.71/6.14/7.45
+
+  falsification_conditions:
+    - >-
+      NULL-1 misses 7.1656e-12 in the first significant figure. The estimator
+      is wrong and no real-key number is reportable; this is the primary
+      falsifier and it is cheap.
+    - >-
+      The effective sample size falls below the declared floor at the true
+      threshold. Importance sampling has failed for this event, the measurement
+      remains out of budget, and THAT is the reported result - a budget
+      outcome under AGENTS.md rule 3, never evidence that the rate is small.
+    - >-
+      Naive and tilted disagree at any calibration threshold. The tilt is
+      biased and everything downstream is withdrawn.
+    - >-
+      The estimator returns a positive value at ML-DSA-65 or -87. Either
+      IDEA-20260805-bb52fa's envelope theorem is wrong - a far more interesting
+      outcome than this proposal - or the instrument is; deciding which comes
+      first.
+    - >-
+      The real-key median differs from 7.3376e-9 by a factor of 10 or more.
+      bb52fa's H1 fails in the tail; R_44 is withdrawn; IDEA-20260821-60ba98's
+      crossover table is withdrawn with it.
+    - >-
+      The hint-weight arm deviates beyond three standard errors from the
+      derived means. The underlying uniformity model is wrong in the bulk and
+      no tail statement may be made at all.
+    - >-
+      SampleInBall's realised marginals are not uniform. The likelihood ratios
+      are wrong and the whole design is invalid until the sampler is modelled
+      correctly.
+
+  confounders:
+    - >-
+      THE SILENT-FAILURE MODE OF IMPORTANCE SAMPLING. A badly aimed tilt
+      returns a SMALL number with a NARROW interval - it looks like a clean
+      measurement. Only the effective sample size and the exactly-known NULL-1
+      answer distinguish it, which is why both are preconditions and not
+      diagnostics.
+    - >-
+      SAMPLING WITHOUT REPLACEMENT IS NOT THE TEXTBOOK SETTING. The classical
+      efficiency results are for sums of independent terms; B_tau selects tau
+      DISTINCT positions, so the summands are exchangeable but not independent.
+      The exact sequential conditionals keep the estimator unbiased regardless,
+      but the EFFICIENCY claim inherits an unproved step, which is why NULL-3
+      measures efficiency rather than assuming it.
+    - >-
+      THE MAXIMUM'S COMBINATION RULE. Route A's inclusion-exclusion assumes
+      near-independence across the 256k coefficients, which is exactly what
+      bb52fa's H1 leaves unproved. Quoting a route-A number as "the measured
+      rate" would smuggle the assumption back in; both routes are reported, and
+      where they differ, the difference is the finding.
+    - >-
+      32 KEYS IS A SMALL SAMPLE FOR A SPREAD. An across-key spread estimated
+      from 32 draws has a wide interval of its own, and outcome E3 requires a
+      spread MATERIALLY above the within-key one, with both intervals reported.
+    - >-
+      AGREEMENT WITH A NUMBER DERIVED BY THE SAME PROGRAM IS NOT INDEPENDENT
+      CONFIRMATION. p_1 and R_44 come from IDEA-20260805-bb52fa, which labels
+      them generator-computed. Stage 0's independent re-derivation is what makes
+      the comparison mean anything, and even then it is one derivation checked
+      twice, not two independent sources.
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK. A rejection-condition firing rate is a conformance and
+      correctness quantity; nothing here bears on MLWE, MSIS or SelfTargetMSIS
+      in any direction, and any downstream sentence readable as such is
+      defective regardless of what was measured.
+    - >-
+      p(sk) is the probability over CHALLENGES at a fixed key. The
+      per-signature rate additionally requires the probability that Line 28 is
+      reached, which is reported separately and never folded in silently.
+    - >-
+      Scoped to the sampled keys. The whole point of the per-key arm is that a
+      pooled number may not exist; a median over 32 keys is a median over 32
+      keys.
+    - >-
+      An unbiased estimate at 1e-9 is still an estimate of a MODEL of the
+      signing loop unless the instrument is the real signer. The design uses the
+      real SampleInBall and a real key's t0, so the only modelling step is that
+      the challenge is drawn independently of the key - which is true by
+      construction in ML-DSA only up to the message-dependent hashing, and that
+      caveat is stated in the result sentence.
+    - >-
+      The relayed "over one billion signatures without observation" figure is
+      NOT confirmed by this design even under outcome E1: 7e-9 predicts about 7
+      events per 1e9 signatures at ML-DSA-44 and exactly 0 at -65/-87, so the
+      relayed figure is consistent with the derivation only if the count was
+      taken at -65 or -87. Establishing which is a deliverable and remains open
+      until eprint 2026/1333 is obtained.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING FOR THE ESTIMATE. The tilted estimator is unbiased
+        for any fixed t0 and any tilt with full support, by the exactness of
+        the likelihood ratios; no distributional assumption about t0 is used,
+        which is the entire reason the proposal exists as a test of
+        IDEA-20260805-bb52fa's H1 rather than as an application of it.
+      rigorous_support: >-
+        Change of measure: E_P[1_A] = E_Q[1_A dP/dQ] for any Q whose support
+        contains A. Exact sequential conditionals give dP/dQ exactly for
+        sampling without replacement.
+      validation_plan: >-
+        NULL-1 against the exactly known 7.1656e-12, and NULL-3 against naive
+        Monte Carlo at three thresholds. Both are direct tests of unbiasedness
+        at scales where the answer is independently available.
+    - id: H2
+      statement: >-
+        The tilted sampler with the saddle-point parameter theta solving
+        tilted-E[sum] = gamma2 is efficient enough that the relative standard
+        error of the estimate falls below 10% at 1e5-1e6 draws, UNIFORMLY over
+        real keys at ML-DSA-44. LOAD-BEARING FOR THE COST CLAIM ONLY.
+      rigorous_support: >-
+        Rigorous ingredient: the exact envelope ||<<c t0>>||_inf <=
+        tau * 2^(d-1) = 159744 against gamma2 = 95232 at ML-DSA-44, so the
+        threshold sits at 0.596 of the maximum attainable value and the
+        required tilt is moderate rather than extreme - GENERATOR-COMPUTED and
+        the reason the scheme is expected to be well behaved here and would not
+        be at a threshold near the envelope. Classical statement imitated:
+        exponential tilting at the saddle point is asymptotically optimal for
+        large-deviation probabilities of sums of bounded independent terms
+        (Siegmund; Bucklew), with the honest caveat that B_tau samples WITHOUT
+        replacement so the summands are exchangeable rather than independent.
+      validation_plan: >-
+        Measured, not assumed: NULL-3 reports the naive-to-tilted sample-size
+        ratio at three thresholds and requires it to grow; NULL-4 reports the
+        effective sample size at every cell against a pre-declared floor, with
+        UNUSABLE as a permitted verdict. Sampled parameters: ML-DSA-44 real
+        parameters throughout, 32 keys, 1e5-1e6 draws per key, 8 seeds per
+        cell. Transfer assumption: none between parameter sets - -65 and -87
+        are handled by the envelope theorem and need no sampling.
+    - id: H3
+      statement: >-
+        The challenge c is independent of the key's t0. In ML-DSA the challenge
+        is a hash of (mu, w1) and w1 depends on the key through A and y, so
+        independence is an idealisation of the same kind the scheme's own
+        analysis makes.
+      rigorous_support: >-
+        SampleInBall's output is uniform on B_tau for a uniform seed, and the
+        seed is a SHAKE output. The classical statement imitated is the random
+        oracle idealisation of the challenge hash.
+      validation_plan: >-
+        Compare the tilted estimate for a key against a direct measurement at a
+        lowered threshold using REAL signing (where the challenge is generated
+        the real way, from real messages) rather than direct challenge
+        sampling. Agreement at the accessible threshold is the only available
+        test of H3 and it is cheap; it is not a test at the true threshold and
+        that gap is stated rather than closed.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED OR MOVED. The cost axis that moves is
+      SAMPLES-TO-MEASURE: naive estimation of a probability p to fixed relative
+      error costs Theta(1/p) draws, i.e. 1.4e8 for one expected event and of
+      order 1e9 for a two-sided interval at ML-DSA-44; tilted estimation costs
+      a number of draws growing polynomially in log(1/p), predicted at 1e5-1e6
+      here. Per-draw cost also falls, from a full signing attempt to
+      O(tau * 256) integer operations, because the predicate depends only on
+      (c, t0) and no signature need be produced.
+    memory_exponent: >-
+      Negligible: one accumulator per key plus the 256k-coefficient t0, under
+      10 MB for 32 keys. No transcript is stored because none is generated.
+    best_known: >-
+      IN-CORPUS: the incumbent method for this quantity is IDEA-20260805-bb52fa's
+      analytic derivation under H1 (zero samples, but conditional and
+      unvalidated in the tail) and its Stage 3 empirical arm (1e6 samples, but
+      at accessible quantiles only). There is no measured rate anywhere in the
+      corpus. EXTERNAL: NOT SCREENED for rare-event simulation of lattice-
+      signature rejection rates, and that is recorded as an unchecked axis
+      rather than as an absence.
+    hidden_overhead: >-
+      Two honest disclosures. (i) The efficiency claim inherits an unproved
+      step: the classical optimality results are for independent summands and
+      B_tau samples without replacement, so H2 is a heuristic with a
+      measurement route and not a theorem. (ii) The MAXIMUM over 256k
+      coefficients is where the scheme can silently degrade, and the honest
+      possible outcome is that it does, leaving the measurement out of budget
+      exactly as before - in which case the deliverable is the effective sample
+      size curve, which is itself a usable obstruction.
+    tradeoff_note: >-
+      The trade is variance against bias-freedom: the tilt buys variance
+      reduction at the price of a weight whose own variance must be monitored,
+      and the design refuses to trade any bias for it. Parallelisation is
+      embarrassing - draws are independent - so the estimate scales linearly in
+      cores, which is the right scaling and is why 32 keys is affordable.
+
+  dominated_by: >-
+    n/a on the attack axis (no attack, no cost triple claimed). Rows actually
+    checked: (i) IDEA-20260805-bb52fa DOMINATES ON COST for the ct0 rate - it
+    obtains 7.34e-9 with zero samples - and this proposal does not compete with
+    it on cost; what it supplies that bb52fa cannot is an estimate that does
+    not assume H1, which is a different axis (assumption-freedom) and is
+    exactly the axis bb52fa itself names as its open gap. (ii) On the DATA axis
+    against the honest sampling route implied by GOAL-MLDSA-002's first
+    completion criterion, this dominates by roughly 1e3 in draws and more in
+    wall clock. (iii) IDEA-20260805-630606 and IDEA-20260808-4f83f6 measure
+    different quantities and neither dominates. (iv) IDEA-20260821-60ba98 (this
+    batch) consumes this proposal's output and does not compete. EXTERNALLY:
+    NOT CHECKED, AND SAID SO - no search was run on rare-event simulation for
+    rejection-sampling rates, so a published estimate of exactly this quantity
+    could exist and would dominate.
+  sota_delta: >-
+    no attack; measurement-method contribution only. Quantitatively: this
+    question's own constraint says a zero count is a bound and not a
+    measurement, and at ML-DSA-44 no affordable design in this corpus produces
+    anything but a zero count. This produces an UNBIASED POSITIVE ESTIMATE WITH
+    AN INTERVAL at a rate near 1e-9 from about 1e5-1e6 draws, against the
+    order-1e9 signatures the direct route needs - and it produces it PER KEY,
+    which no record in this program does for any quantity. It also closes, or
+    fails to close, an unclosed gap that an existing proposal names in its own
+    text, which is the cheapest kind of progress this lane has available.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    BY PART. (i) That the exact sequential tilt over B_tau is implementable
+    with exact weights at O(tau * 256) per draw: ~0.8 - the normalisation over
+    remaining positions is the fiddly part and is where an approximation will
+    be tempting. (ii) That NULL-1 reproduces 7.1656e-12 within interval:
+    ~0.7, conditional on (i). (iii) That the effective sample size stays above
+    the floor for the MAXIMUM over 256k coefficients rather than for a single
+    coefficient: ~0.55, and this is the part I would bet against most readily;
+    it is the named dissolution point of the tracked object. (iv) That the
+    real-key median agrees with 7.3376e-9 within a factor of 2 (outcome E1):
+    ~0.6. (v) That the across-key spread is material (outcome E3): ~0.25, and
+    it would be the most interesting outcome of the five. (vi) That the whole
+    thing runs in under an hour on one core if it works at all: ~0.85.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+    - RQ-MLDSA-ffa0f5
+    - GOAL-MLDSA-002
+    - IDEA-20260805-bb52fa
+    - IDEA-20260805-630606
+    - IDEA-20260805-031ce2
+    - IDEA-20260808-4f83f6
+    - IDEA-20260821-60ba98
+    - H-MLDSA-2d4123
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - knowledge/techniques/KN-TECH-1a5b7e.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with
+    python3 tools/allocate_id.py --next idea --date 20260821 (random 6-hex
+    token, no state scanned), each id then verified free with --check before
+    assignment. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).

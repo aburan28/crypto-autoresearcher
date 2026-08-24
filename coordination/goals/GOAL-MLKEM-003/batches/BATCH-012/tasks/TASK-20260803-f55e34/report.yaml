@@ -1,0 +1,838 @@
+red_team_report:
+  id: RT-20260803-f55e34
+  task_id: TASK-20260803-f55e34
+  role: red-team
+  goal_id: GOAL-MLKEM-003
+  batch_id: BATCH-012
+  reviewed_snapshot: 1cd863b14368d828a02e9059ecbd6dda419ec529
+  reviewed_package: coordination/goals/GOAL-MLKEM-003/batches/BATCH-012/tasks/TASK-20260803-69f3cd
+  independent_session: true
+  requested_policy: review-adversarial
+  reasoning_effort: xhigh
+  fallback_used: true
+  fallback_reason: >-
+    Handoff sets fallback_allowed: true. This session is served by claude-opus-5.
+    Recorded, not silently accepted.
+
+  measurement_class: >-
+    COST-MODEL ESTIMATES, not measurements. Nothing in this report is an ML-KEM
+    break, a security proof in either direction, a demonstration that any FIPS 203
+    parameter set does or does not meet its NIST category, or a validated heuristic.
+    AGENTS.md rule 12 is UNMET and UNWAIVED; ANOM-3 remains gated and this report
+    proposes no status change to EV-MLKEM-011/013/015/017/018/019/020/021 or any KN-* entry.
+
+  # =====================================================================
+  # VERDICT
+  # =====================================================================
+  verdict: blocking_objections
+  verdict_scope: >-
+    The objections block one specific act: recording ANOM-3's internal comparison as
+    a FINDING, at any parameter set, on this batch's evidence. They do NOT block
+    archiving the package, and they do not block closing the goal. The package is
+    honest, self-critical, and correct in its arithmetic; every number I could
+    re-derive reproduced. What it cannot support is the conclusion the campaign is
+    being tempted to draw from it. OBJ-1 and OBJ-2 are new evidence produced in this
+    session, not re-readings of the producer's transcript, and OBJ-1 in particular
+    was reachable for under three minutes of compute in any of the last four batches.
+
+  claim_under_review: >-
+    That the ANOM-3 internal comparison -- estimator.lwe_dual.matzov cheaper than
+    estimator.lwe_primal.primal_bdd by 0.543432 / 4.592472 / 8.387943 bits at
+    Kyber-512/768/1024 under RC.MATZOV -- is a finding about this program's own
+    evidence rather than an artifact of an asymmetric cost model, given that S2, S3
+    and S4 were run as falsifiers and none of them killed it.
+
+  # =====================================================================
+  # THE CENTRAL QUESTION THE CARD ASKS
+  # =====================================================================
+  real_or_merely_unfalsified:
+    answer: MERELY UNFALSIFIED, and now demonstrably fragile in a direction nobody tested.
+    reasoning: >-
+      S2, S3 and S4 are three probes along three axes: the optimiser's search box, the
+      reduction cost model, and the dual attack's required sample count N. All three
+      hold the LWE parameters FIXED at the three Kyber sets. Not one of them varies the
+      parameter that the comparison is actually a function of. I varied it. Holding the
+      Kyber shape fixed (q=3329, eta=2, m=n) and sweeping n from 256 to 1536, the margin
+      is -1.421 / -0.765 / +0.823 / +3.038 / +4.592 / +7.019 / +8.388 / +13.089 / +17.882
+      bits at n = 256/384/512/640/768/896/1024/1280/1536. It is monotone increasing,
+      roughly linear in n, and it CHANGES SIGN between n=384 and n=512. Kyber's three
+      sets are three samples from a function that crosses zero about 60-130 dimensions
+      below Kyber-512.
+      A survivor of three probes that all fix the one variable the quantity depends on is
+      unfalsified, not corroborated. The producer says the same thing in its own words
+      ("Deciding whether that makes the internal comparison a finding or an artifact is
+      the Reviewer's and Coordinator's call") and is right to.
+    what_would_make_it_real: >-
+      A demonstration that the growth in n is a real exponent-level separation between
+      the dual-sieve and primal-BDD attacks under one gate-count model, reconciled
+      against the literature's position that these two attacks agree to lower-order
+      terms. That is a much larger claim than 0.543/4.592/8.388 bits at three points,
+      the campaign has never stated it, and it is the claim its own numbers imply.
+
+  # =====================================================================
+  # OBJECTIONS
+  # =====================================================================
+  objections:
+
+    - id: OBJ-1
+      severity: blocking
+      title: >-
+        The margin grows monotonically in n and changes sign inside the same family.
+        The inventor-protocol artifact tell IS triggered; S4 tested the wrong parameter.
+      status_of_evidence: new, produced in this session, reproducible in ~4 minutes
+      argument: >-
+        docs/inventor-protocol.md section 3 asks what the reported quantity SHOULD do as
+        the parameter meant to destroy it increases. S4 chose N-inflation as that
+        parameter and reports decay, and the snapshot commit message concludes "the
+        inventor-protocol artifact tell is not triggered". But N-inflation is a
+        hypothesised CORRECTION to one term, not the parameter that destroys a spurious
+        ordering. The parameter that does that is n: it drives both attacks deeper into
+        their asymptotic regimes, where a dropped O() is relatively larger and where two
+        attacks believed to agree to lower-order terms must converge.
+        Measured (my own run, real Sage, shim off PYTHONPATH, pin 3e48ef4, q=3329,
+        Xs=Xe=CenteredBinomial(2), m=n): margin in bits
+        n=256 -1.4213 | n=384 -0.7651 | n=512 +0.8232 | n=640 +3.0376 |
+        n=768 +4.5925 | n=896 +7.0194 | n=1024 +8.3879 | n=1280 +13.0893 | n=1536 +17.8816.
+        Slope approx 0.0151 bits per unit n over the range, with no sign of flattening.
+        The ratio beta_matzov/beta_primal falls monotonically 1.028, 1.008, 0.992, 0.975,
+        0.972, 0.964, 0.963, 0.958, 0.952 -- the dual side's required block size is a
+        SHRINKING FRACTION of the primal side's as n grows. Since both sides are costed
+        by the SAME RC.MATZOV gate-count function, an unbounded margin in n is equivalent
+        to an asymptotic exponent gap between the two attacks.
+        Two readings, and the campaign owes one of them:
+        (a) it is a real exponent separation -- an enormous, unstated claim the campaign
+            has never made and cannot support from three data points; or
+        (b) it is systematic drift of the truncated model against the untruncated one --
+            exactly what OBJ-2 predicts.
+        Under EITHER reading the quantity does not do what a genuine bounded
+        constant-factor advantage would do, which is stay roughly constant in n. That is
+        the artifact tell in its canonical form.
+      what_it_blocks: >-
+        Recording ANOM-3's internal comparison as a finding, and the snapshot commit
+        message's unqualified sentence "the inventor-protocol artifact tell is not
+        triggered".
+      cheapest_check: >-
+        Already run; ~4 minutes. To extend: the same sweep with primal_usvp added as a
+        third curve, and a log-log fit of margin against n, to separate "linear in n"
+        (exponent gap) from "linear in log n" (lower-order drift). One estimator sweep,
+        no new infrastructure, under 10 minutes.
+
+    - id: OBJ-2
+      severity: blocking
+      title: >-
+        The asymmetry is worse than stated. The dual side is not just truncated -- 99.94%
+        of its Kyber-768 cost is a free-sieve modelling assumption the primal side never
+        invokes, and only 0.06% is the machinery being compared.
+      status_of_evidence: new, produced in this session from the pinned source and a run
+      argument: >-
+        The two sides do not use the same short-vector accounting, and this is a
+        structural asymmetry, not a numerical one.
+        - primal_bdd (lwe_primal.py:886, = primal_hybrid(zeta=0, mitm=False, babai=False))
+          pays costf(red_cost_model, beta, d) plus ONE SVP call in dimension eta.
+        - matzov (lwe_dual.py:496, instantiated :689) pays
+          red_cost_model.short_vectors(beta, N=N, ...), and for RC.MATZOV that resolves
+          through the MRO MATZOV -> GJ21 -> Kyber to GJ21.short_vectors
+          (reduction.py:863), which sizes sieve_dim so that ONE SIEVE COSTS ABOUT ONE BKZ
+          CALL and then hands back floor(2^(0.2075*sieve_dim)) short vectors essentially
+          for free. That free-vector bonus is what the distinguisher consumes.
+        Measured decomposition of matzov's own reported cost at the pinned optima:
+          Kyber-512:  red 139.5466, guess 135.8809, guess share 7.304%,  guess contributes 0.1094 bits
+          Kyber-768:  red 196.3653, guess 185.7707, guess share 0.0646%, guess contributes 0.00093 bits
+          Kyber-1024: red 261.9473, guess 260.2526, guess share 23.600%, guess contributes 0.3884 bits
+        So at Kyber-768 -- the set the campaign leans on hardest -- 99.94% of the claimed
+        matzov cost is lattice reduction plus one sieve. The FFT distinguisher, the N
+        short vectors and the disputed independence law together account for 0.0009 bits
+        of the cost while carrying 100% of the modelling risk. The 4.59-bit "undercut" is
+        not "the dual distinguisher is cheap"; it is "short_vectors(beta=589,
+        sieve_dim=583) under GJ21's free-sieve model beats BKZ-606 + SVP-640 under the
+        same gate count".
+        This matters because the O() truncation at lwe_dual.py:551 is not a small
+        perturbation of a cost term. Nf sets N, N sets the required sieve_dim through the
+        capacity constraint, and sieve_dim sets the cost. The dropped O() acts directly on
+        the block size, which is the only thing the comparison is actually measuring.
+        Corroborating structural tell: at all three optima N sits immediately below the
+        free-sieve capacity 2^(0.2075*beta_sieve). log2 N = 81.0788 / 119.7530 / 165.9385
+        against capacity 81.1325 / 120.9725 / 166.8300 -- slack 0.054 / 1.220 / 0.891
+        bits. The optimiser drives N to the very edge of what one sieve emits for free.
+        The whole comparison sits on the seam of the model that Ducas-Pulles dispute.
+      answer_to_the_card_question: >-
+        "Does a comparison between a truncated model and an untruncated one support any
+        ordering claim, at any parameter set?" It supports an ordering claim only where
+        the margin exceeds the model's own admitted uncertainty in the direction the
+        truncation acts. The only quantified handle on that in this package is S4's
+        delta_flip: 2.7773 (factor 6.86 in N) at Kyber-512, 19.6716 (factor 8.35e5) at
+        Kyber-768, and no flip within 2^32 at Kyber-1024.
+        THE LINE, stated exactly: NO ordering claim is defensible at Kyber-512. A factor
+        of 6.9 in a sample-count formula that admits dropping an O() is not merely
+        possible, it is unremarkable; and OBJ-1 shows the margin's own sign flips within
+        130 dimensions of that set. At Kyber-768 and Kyber-1024 the ordering is robust to
+        N-misestimation by factors of 8.4e5 and >4e9, which no plausible O() reaches, so
+        the ordering survives THAT perturbation. What makes it defensible there is
+        therefore narrow and must be stated as such: "the ordering at Kyber-768/1024 is
+        robust to misestimation of N", NOT "matzov is cheaper at Kyber-768/1024". OBJ-1
+        supplies a second perturbation direction under which the ordering moves without
+        bound and changes sign, and no batch has tested it.
+      cheapest_check: >-
+        Re-run S3 NULL-2 with the ordering recomputed after replacing GJ21.short_vectors
+        with ReductionCost.short_vectors_simple (rho=1.0, N sieves at full price) on the
+        dual side only. That prices both sides' short vectors identically and isolates
+        exactly how many of the 0.543/4.592/8.388 bits are the free-sieve bonus. Two
+        estimator calls per set, under two minutes.
+
+    - id: OBJ-3
+      severity: blocking
+      title: >-
+        "Neither side exposes a success probability" is not accurate, and the true
+        asymmetry runs against matzov.
+      status_of_evidence: not_reproduced -- the package's statement is contradicted by the pinned source and by a run
+      argument: >-
+        report.md's closing read states "neither exposes a success probability". From the
+        pinned source and from execution:
+        - primal_bdd DOES. PrimalHybrid.cost (lwe_primal.py:599-628) computes
+          probability = hit_probability * babai_probability * mitm_probability, writes it
+          to ret["prob"], and then executes
+          ret = ret.repeat(prob_amplify(0.99, probability)) under the comment
+          "# Repeat whole experiment ~1/prob times". Its reported rop is therefore a TOTAL
+          EXPECTED COST at a declared 0.99 success probability. Measured at the three
+          optima: prob = 1.0 and repetitions = 1 on all three sets, so the multiplier is
+          numerically 1 -- but the accounting is present, declared, and would bite.
+        - matzov does NOT. MATZOV.__call__ (lwe_dual.py:628) takes no success_probability
+          argument at all; MATZOV.cost builds Cost(rop=T_sample + T_guess) with no prob
+          key, no repetitions key, and no amplification anywhere. Its advantage enters
+          only implicitly through mu = 0.5 in the log(1/mu) term of Nf (lwe_dual.py:539),
+          and mu is a distinguishing advantage, not a success probability. The
+          BATCH-011 coordinator note's finding that there is no false-positive cost
+          anywhere in the class is confirmed.
+        This is red-team responsibility 5 (cost bookkeeping) firing: one side reports
+        per-attempt cost times inverse success probability, the other reports per-attempt
+        cost alone. The numerical effect is nil TODAY only because primal_bdd's prob comes
+        out exactly 1.0. Any correction to the dual side's success probability -- which is
+        precisely what Ducas-Pulles is about -- enters matzov's number as nothing, because
+        there is no slot for it.
+      subsidiary_finding_that_partly_DEFENDS_the_producer: >-
+        The obvious repair (make mu conservative) is numerically inert and would be a red
+        herring. Pushing mu from 0.5 to 2^-40 changes N by only 0.4147 / 0.2828 / 0.2164
+        bits, because log(1/mu) is an additive term inside a bracket already dominated by
+        k_fft*log(p). Any real Ducas-Pulles correction must act multiplicatively on N,
+        which is exactly the knob S4 chose. S4's DESIGN is the right one. Its coverage
+        (fixed Kyber parameters) is what OBJ-1 faults.
+      cheapest_check: >-
+        Add success_probability as an explicit argument to a MATZOV subclass, set it to
+        0.99, and amplify by prob_amplify(0.99, mu) to put both sides in the same
+        bookkeeping frame. Confirm my prediction that it moves matzov by <0.5 bits and
+        therefore that the asymmetry is structural rather than numerical. Under a minute.
+
+    - id: OBJ-4
+      severity: blocking
+      title: >-
+        NULL-2 is not a substitute for NULL-1, and I ran NULL-1. It gives 13 of 24, not
+        17 of 18. The two nulls answer different questions and disagree.
+      status_of_evidence: new, produced in this session
+      argument: >-
+        The card asks whether NULL-2's success at implausible magnitudes shows the
+        comparison "finds an ordering wherever you point it". Answer: NO -- and the reason
+        matters more than the answer.
+        NULL-2 varies the REDUCTION COST MODEL at fixed Kyber parameters and reports the
+        ordering in 17/18 cells. NULL-1 varies the LWE PARAMETERS at the fixed RC.MATZOV
+        frame, which is the null DEF-7 asked for and which failed on
+        AttributeError: NoiseDistribution has no attribute CenteredBinomial. I
+        re-implemented the producer's stated NULL-1 design independently (this is my own
+        control, NOT a repair of the package: same seed 20260803, same 24-point ensemble
+        shape, with the module-level import the producer identified) and ran it to
+        completion under real Sage.
+        RESULT: 24 of 24 evaluated, 0 errors. Margin positive in 13, negative in 11.
+        Range -207.036 to +13.162 bits. Fraction 0.542, a coin flip.
+        Two consequences, pulling in opposite directions and both required for honesty:
+        (a) AGAINST the artifact reading: the ordering is NOT a generic property of the
+            two cost functions. It is regime-dependent, and NULL-2's 0.944 must not be
+            read as covering the Kyber-specificity question. It does not.
+        (b) AGAINST the finding reading: NULL-1's positive cells cluster at large n and
+            its negative cells at small n, which is OBJ-1's monotone-in-n structure seen
+            again through a random ensemble. The "specificity" NULL-1 detects is
+            specificity to LARGE DIMENSION, not to Kyber. It is the same phenomenon.
+        On the card's "not credible as attack comparisons" point: NULL-2's +76 to +280 bit
+        cells under CheNgu12/ABLR21 have an identifiable cause, not a mysterious one.
+        Those classes do not override short_vectors, so they inherit
+        ReductionCost.short_vectors (reduction.py:275), a rerandomize+LLL model returning
+        rho=2.0 and cost + N*LLL(d). Comparing an enumeration-priced primal against a
+        dual that buys N vectors at LLL prices is a category error in the harness, not a
+        finding about the ordering. Those six cells should be struck from the 17/18 count
+        rather than reported alongside the sieve cells. Recomputing on the sieve-model
+        cells only (ADPS16, BDGL16, LaaMosPol14, ChaLoy21) gives 11 of 12.
+      cheapest_check: >-
+        Already run; ~7 minutes for the ensemble. To sharpen: rerun my NULL-1 with n
+        stratified rather than uniform (four points each at n = 256, 512, 1024, 1536,
+        q and eta randomised) and report the ordering fraction PER STRATUM. If the
+        fraction climbs monotonically with n, NULL-1 and OBJ-1 are the same result and
+        the campaign has one finding, not two.
+
+    - id: OBJ-5
+      severity: moderate
+      title: >-
+        S1 buys less than "VERIFIED" reads, and the section heading contradicts the
+        section's own ANOM-A.
+      status_of_evidence: reproduced -- I obtained the same numbers, which is my point
+      argument: >-
+        I independently installed nothing and re-ran the estimator under
+        /tmp/sagevenv (passagemath-standard 10.8.7, sage.all resolving to
+        /tmp/sagevenv/lib/python3.11/site-packages/sage/all.py) with PYTHONPATH cleared,
+        and obtained 139.65604148085845 / 196.36624335005874 / 262.3356800074737 and
+        140.1994731076207 / 200.9587149140538 / 270.7236234535225. Exact agreement with
+        the producer.
+        That is now THREE runs of the SAME pinned estimator source under two arithmetic
+        backends. It excludes: mpmath precision loss, a shim stub returning a wrong
+        find_root / RealDistribution / RealField, and a shim-specific optimiser path.
+        It cannot exclude: a defect in the pinned estimator itself, any modelling error,
+        or divergence from upstream sagemath 10.9. Agreement between backends running one
+        source is reproducibility, not independence -- and that applies to my own run
+        too, which is why I am not offering it as corroboration of anything but the
+        arithmetic.
+        Two wording faults in the package:
+        (a) The S1 heading reads "the gap is closed, and the numbers verify", but ANOM-A
+            in the same document records that the known-answer control still covers the
+            matzov callable at NO parameter set and that the needed MATZOV_REFERENCE
+            block was "recorded as needed, not made". The INSTRUMENT gap is closed; the
+            CONTROL-COVERAGE gap is not. The heading overstates its own section.
+        (b) "196.3662433540 and 262.3356800075 are VERIFIED, not unverified" is bolded
+            and unqualified for one sentence before the correct qualification arrives.
+            In an immutable artifact the bolded sentence is what gets quoted.
+        Also: the delta figures are quoted against two different conventions. results.json
+        compares against ROUNDED shim anchors (196.366243354, 262.3356800075) giving
+        3.94e-09 and 2.63e-11, while report.md's table compares full-precision shim values
+        giving 3.938e-09 and exactly 0.0. The snapshot commit message uses the rounded
+        convention. Immaterial at 1e-9 bits; it should still be one convention.
+      cheapest_check: >-
+        Add the MATZOV_REFERENCE block the producer specified
+        (139.6560414808584 / 196.3662433500587 / 262.3356800074737, tolerance 1e-8) to
+        known_answer_control.py. It is a five-line change to a file that is currently
+        byte-identical to the committed tree, it closes ANOM-A and DEF-9 together, and it
+        is the single cheapest durable improvement this campaign can still make.
+
+    - id: OBJ-6
+      severity: moderate
+      title: >-
+        The snapshot commit message 1cd863b1 contains one unqualified sentence that
+        clears the package of an obligation it does not meet. This is immutable.
+      status_of_evidence: quoted verbatim from the commit; OBJ-1 supplies the counter-evidence
+      argument: >-
+        The commit message reads: "S4 decays on all three parameter sets under full
+        re-optimisation, so the inventor-protocol artifact tell is not triggered."
+        The premise is true and I reproduce it. The conclusion is not scoped. The artifact
+        tell is not a property of one parameter; it is the question of whether the
+        quantity does what it should as the destroying parameter increases. S4 tested
+        N-inflation. OBJ-1 tests n and the tell fires. As written, an immutable commit
+        message asserts that the package discharged docs/inventor-protocol.md section 3,
+        and it did not.
+        report.md is better: its "What survives" entry says "does decay under N-inflation
+        ... so the canonical inventor-protocol artifact tell is not triggered", naming the
+        knob. The commit message dropped that qualifier. This is the same class of defect
+        as the BATCH-010 commit-message overclaim corrected by supersession, at smaller
+        magnitude.
+        AUDIT OF EVERY OTHER SENTENCE THAT COULD READ AS A SECURITY CLAIM, in report.md,
+        results.json, receipt.json, the snapshot receipt and the commit message: I found
+        no other. The non-claim blocks are present and correctly worded in all five
+        artifacts; measurement_class is explicit in results.json and receipt.json; the
+        snapshot receipt's scope_note is exemplary and pre-emptively states that S1 leaves
+        the model objection untouched; and S5's transfer_prohibition correctly refuses to
+        move EV-MLKEM-020's 0.0071 onto matzov. On the specific hazard the card names --
+        a sentence that reads as a security claim -- the package is clean apart from OBJ-6.
+      cheapest_check: >-
+        A superseding coordination note under the batch directory restating the sentence
+        as "the N-inflation artifact tell is not triggered; the n-sweep tell was not
+        tested at snapshot time and is addressed in RT-20260803-f55e34 OBJ-1". Costs
+        nothing and does not require rewriting history.
+
+    - id: OBJ-7
+      severity: minor
+      title: >-
+        S2's own conclusion is correctly hedged, but the hedge does not go far enough in
+        one respect that will matter if anyone cites it.
+      argument: >-
+        The producer states plainly that both stages truncated and that neither incumbent
+        beta was scanned, and I confirm the coverage arithmetic exactly: Kyber-768
+        8127*14 + 6727*11 = 187,775 and Kyber-1024 8127*15 + 3472*19 = 187,873, matching
+        the reported point counts to the unit, with all four remainder checks zero. That
+        annotation is sound and the producer deserves credit for reconstructing it.
+        The unstated part: the scanned beta bands (413-517 and 565-575 at Kyber-768;
+        647-759 and 799-817 at Kyber-1024) lie ENTIRELY BELOW the incumbent on both sets.
+        A scan that only ever looks below the optimum in beta, in a cost function that is
+        convex-ish in beta with the optimum interior, cannot find an improvement by
+        construction -- for the same structural reason the Coordinator's prior 1701-point
+        scan could not, which the producer correctly diagnoses. S2 therefore removes less
+        of the prior scan's failure mode than "materially wider box" suggests: it widens
+        k_enum / k_fft / p genuinely, and it repeats the beta failure mode in a new place.
+      cheapest_check: >-
+        Rerun stage B centred on the incumbent (beta in [incumbent-5, incumbent+5], step
+        1, full k_enum/k_fft/p plane) instead of starting below it. About 70k points, and
+        it is the only slice that can actually beat the incumbent.
+
+  # =====================================================================
+  # REQUIRED CONTROLS
+  # =====================================================================
+  required_controls:
+    - id: CTRL-RT-1
+      priority: 1
+      what: >-
+        The n-sweep of OBJ-1, extended: margin vs n for the Kyber-shaped family with a
+        log-log fit, plus primal_usvp as a third curve. Separates an exponent gap from
+        lower-order drift.
+      why: >-
+        It is the only control that distinguishes the two readings of the campaign's
+        headline number, and neither reading has ever been stated.
+      cost: one estimator sweep, under 10 minutes
+      status: partially run by me (9 points, linear scale, no fit)
+    - id: CTRL-RT-2
+      priority: 2
+      what: >-
+        Same-frame short-vector control: recompute the three margins with the dual side
+        priced by short_vectors_simple (rho=1.0, N sieves at full price) instead of
+        GJ21's free-sieve model.
+      why: >-
+        Isolates how many of the 0.543/4.592/8.388 bits are the free-sieve bonus rather
+        than a difference between the attacks. OBJ-2 predicts most of them.
+      cost: two estimator calls per set, under 2 minutes
+      status: NOT RUN by anyone
+    - id: CTRL-RT-3
+      priority: 3
+      what: NULL-1 stratified by n, four points per stratum at n = 256/512/1024/1536.
+      why: Tests whether NULL-1 and OBJ-1 are one phenomenon or two.
+      cost: ~10 minutes
+      status: NOT RUN; my unstratified NULL-1 (13/24) is the input to it
+    - id: CTRL-RT-4
+      priority: 4
+      what: MATZOV_REFERENCE block in known_answer_control.py, per OBJ-5.
+      why: Closes ANOM-A and BATCH-011 DEF-9. The harness has never had a control on the callable it argues about.
+      cost: five lines
+      status: NOT RUN; specified by the producer, correctly left unmade under its constraints
+
+  counterexample_or_mutation: >-
+    The counterexample is inside the claim's own family. Fix Kyber's shape exactly
+    (q=3329, Xs=Xe=CenteredBinomial(2), m=n, RC.MATZOV, pinned estimator 3e48ef4) and
+    move only n. At n=384 the margin is -0.765 bits: primal_bdd is CHEAPER than matzov,
+    by the same machinery, in the same frame, at a dimension 128 below Kyber-512. The
+    ordering ANOM-3 reports is therefore not a property of the pair (matzov, primal_bdd)
+    nor of the RC.MATZOV frame; it is a property of where on the n axis you stand, and
+    Kyber-512 stands 0.543432 bits from the crossing.
+
+  # =====================================================================
+  # BASELINE COMPARISON / PARETO
+  # =====================================================================
+  baseline_comparison:
+    note: >-
+      Pollard-rho and BSGS are not the relevant baselines for an LWE cost-model
+      comparison; the closest specialized baselines are the estimator's own attack set
+      and the published dual-attack literature.
+    against_the_estimators_own_attack_set: >-
+      The comparison is scoped to primal_bdd and matzov ONLY. The producer correctly
+      records that arora_gb, dual and primal_hybrid are unavailable in this harness
+      (verified by running them, per the control's own output), so no "best attack
+      overall" claim is possible and the package makes none. primal_usvp was available
+      and was never run as a third point of comparison; it should have been, because it
+      is the cheapest way to see whether primal_bdd is itself the right primal baseline.
+    against_the_literature: >-
+      Ducas-Pulles dispute whether the dual-sieve attack as costed works at all. The
+      relevant baseline for a claim that matzov undercuts primal is therefore not
+      primal_bdd but "the dual attack as repaired", and no repaired constant exists in
+      this package or anywhere the campaign has cited. The producer states this and
+      declines to invent one, which is correct.
+    dominated_by: >-
+      NOT null. The ANOM-3 internal comparison is dominated, as a statement about ML-KEM
+      security, by EV-MLKEM-020: at memory-charge exponent c* = 0.0373 / 0.0817 / 0.0548
+      (Model A, matzov's own, reproduced by me) the undercut dissolves, and every value is
+      one to two orders of magnitude below 1/3. It is dominated as a statement about the
+      dual attack by the Ducas-Pulles objection, which acts on the term that sets the
+      whole cost (OBJ-2). It survives ONLY as a statement about this program's internal
+      evidence -- that EV-MLKEM-015 concluded from dual_hybrid+fft (class DualHybrid) while
+      the public name LWE.dual_hybrid resolves to MATZOV -- and even there OBJ-1 shows the
+      surviving statement is parameter-local.
+    sota_delta: >-
+      Zero against any external state of the art. This is a comparison between two
+      estimator functions at three parameter sets; no attack was implemented, no instance
+      solved, no measurement taken, and the two functions are both re-implementations of
+      published estimates. certificate.kind: none. Quantitatively the only delta is
+      internal: +0.543432 / +4.592472 / +8.387943 bits of estimated gate count between two
+      callables, of which OBJ-2 attributes essentially all to a free-sieve accounting the
+      primal side does not receive.
+
+  # =====================================================================
+  # HEURISTIC AND COST-MODEL CHALLENGES
+  # =====================================================================
+  heuristic_challenges:
+    - id: HC-1
+      heuristic: >-
+        Nf's independence law (lwe_dual.py:525-558): N is derived from a closed-form
+        advantage with mu = 0.5 and no correlation term, as though the N score
+        contributions were independent.
+      explicit_and_numbered: NO. It is a hard-coded literal inside a method, with no
+        statement, no number, no falsification condition, and no validation plan. Under
+        docs/target-result-profile.md this alone disqualifies any conditional claim built
+        on it from being stated as a result.
+      random_model_transfer: >-
+        FAILS the transfer test in the manner my role contract names. The N short vectors
+        are not independent samples: they are produced by ONE sieve in dimension
+        sieve_dim, over one lattice, and reused across targets. A sieve output is a
+        structured, correlated set, not N independent draws -- structurally the same
+        error as treating a minimal-degree isogeny as a uniform random integer. Ducas-Pulles
+        is precisely the argument that the deviation is not benign.
+      cheapest_exposure: >-
+        Not mu. I measured it: moving mu from 0.5 to 2^-40 changes N by 0.4147 / 0.2828 /
+        0.2164 bits only, because log(1/mu) is additive inside a bracket dominated by
+        k_fft*log(p). The exposure is CTRL-RT-2 plus S4's multiplicative delta knob, and
+        S4 already picked the right knob.
+    - id: HC-2
+      heuristic: The dropped O() at lwe_dual.py:551 ("# p.29, we're ignoring O()").
+      explicit_and_numbered: Present as a source comment; unnumbered, unbounded, never sized.
+      why_it_is_load_bearing: >-
+        Per OBJ-2 the truncation does not perturb a cost term, it perturbs N, which
+        perturbs the required sieve dimension, which IS the cost. And the optima sit
+        0.054 / 1.220 / 0.891 bits below the free-sieve capacity, so there is almost no
+        headroom before the model changes regime.
+      asymmetry: primal_bdd carries no comparable truncation, so the comparison is not
+        two estimates in one frame.
+    - id: HC-3
+      heuristic: No false-positive / no repetition anywhere in class MATZOV.
+      status: CONFIRMED against source (independently of the BATCH-011 coordinator note).
+        MATZOV.__call__ takes no success_probability; MATZOV.cost applies no repeat.
+        primal_bdd does both. See OBJ-3.
+
+  cost_model_challenges:
+    - id: CMC-1
+      challenge: total expected cost vs per-attempt cost
+      finding: >-
+        Asymmetric. primal_bdd = per-attempt * amplify(0.99, prob) with prob and
+        repetitions reported (measured 1.0 and 1 at all three optima). matzov = per-attempt
+        only, no probability slot. See OBJ-3.
+    - id: CMC-2
+      challenge: memory beside time
+      finding: >-
+        Present and correctly done, and this is the package's strongest section. S5's c*
+        values reproduce exactly under my recomputation: Model A 0.03726128 / 0.08169770 /
+        0.05476123 and Model P 0.02880329 / 0.08169688 / 0.04026800, all six from the
+        stated definition. The free-memory margins also cross-check against EV-MLKEM-020:
+        2.800527 + 0.543432 = 3.343959, 6.041285 + 4.592472 = 10.633757, and
+        1.276377 + 8.387943 = 9.664320, all exact.
+      residual_caution: >-
+        NOT an objection to this package, which explicitly refuses the comparison, but a
+        trap for the next reader. matzov's Model A memory uses the reported beta_ (391 /
+        583 / 804), which is GJ21's UPWARD-adjusted sieve_dim, while EV-MLKEM-020's
+        primal_bdd memory used d4f-REDUCED effective dimensions (385.08 / 590.13 / 825.24).
+        The two c* families are computed in different sieve-dimension conventions and must
+        never be differenced. The producer's transfer_prohibition already forbids the
+        substitution; this adds the reason it would be wrong even with the right owner label.
+    - id: CMC-3
+      challenge: time-memory interpolation
+      finding: >-
+        The van Oorschot-Wiener style question -- what the ordering does at bounded memory
+        rather than free memory -- is answered only through c*, which is a threshold, not
+        an interpolation curve. At Kyber-1024 Model P's FFT table is 2^240 cells against a
+        claimed total cost of 2^262.34, i.e. the attack stores 1 word per 4.6 operations.
+        No machine does that. This is the BATCH-011 OBJ-4 point and it stands unchanged;
+        it is a stronger practical objection to the matzov number than anything in this
+        batch, and this batch did not weaken it.
+    - id: CMC-4
+      challenge: what the eliminated dimension cost (KN-LIT-7593)
+      finding: >-
+        GJ21.short_vectors eliminates the cost of producing N short vectors by asserting
+        one sieve emits 2^(0.2075*sieve_dim) of them for approximately one BKZ call. The
+        invariant's own cost IS charged (the sieve is sized to cost about the BKZ call) --
+        so this is not an uncharged elimination. But it is charged under a model the primal
+        side never invokes, which is OBJ-2, and the optima sit within 0.05-1.2 bits of the
+        capacity the model asserts.
+
+  reduction_and_scope_challenges:
+    - id: RSC-1
+      challenge: scope inflation, affected vs safe
+      finding: >-
+        NO INFLATION FOUND. The package claims no affected scheme and clears none. The
+        non-claim block is repeated in report.md, results.json, receipt.json, the snapshot
+        receipt and the commit message. Rule 12 is stated as UNMET and UNWAIVED in all of
+        them. This is the correct handling and I record it as such.
+    - id: RSC-2
+      challenge: does the internal finding validly instantiate its own reduction
+      finding: >-
+        The chain is: LWE.dual_hybrid (lwe.py:13) IS lwe_dual.matzov IS class MATZOV
+        (:496, :689), while module-level lwe_dual.dual_hybrid dispatches to
+        DH = DualHybrid() (:493). I verified every locus. EV-MLKEM-015 used
+        reproduce_estimates.py which imports the MODULE-LEVEL dual_hybrid, so it costed
+        DualHybrid, not MATZOV. That identity claim is SOUND and is the one thing in this
+        campaign that is a fact about the archive rather than an estimate.
+        It does not follow that EV-MLKEM-015 is wrong. It followed correctly from the
+        function it named. The narrowest true statement is that it is INCOMPLETE about a
+        different callable reachable through the public name -- and per the task
+        constraints that statement may not be recorded as a correction on this batch.
+    - id: RSC-3
+      challenge: passagemath vs upstream sagemath 10.9
+      finding: >-
+        RUN-MLKEM-015-001 ran upstream sagemath 10.9. S1 verified against passagemath
+        10.8.7, a redistribution. So S1 does not verify what EV-MLKEM-015 computed; it
+        verifies the shim against a third implementation. The producer states this
+        precisely and does not overclaim it. Not an objection, a scope boundary that must
+        travel with any citation of S1.
+
+  proof_architecture_challenges:
+    - id: PAC-1
+      attack: observation-fiber
+      result: >-
+        SUCCEEDS AS A FALSIFIER of identifiability. Hold the observable fixed -- "margin =
+        log2 primal_bdd - log2 matzov under RC.MATZOV at Kyber shape" -- and vary the
+        underlying object along n. One preimage (n=384) gives margin < 0; another (n=512)
+        gives margin > 0. The observable does not separate "the dual attack is better" from
+        "the dual model drifts upward in n". The missing separator is an independent
+        estimate of the O() at lwe_dual.py:551, which does not exist.
+    - id: PAC-2
+      attack: quantifier-order
+      result: >-
+        The claim as the campaign is tempted to state it -- "matzov undercuts primal_bdd"
+        -- reads as forall parameter sets. What is supported is exists three parameter sets
+        (chosen after seeing the outcome, since they are the ones ANOM-3 was found at).
+        The witness was selected after the instance. OBJ-1 and OBJ-4 both demonstrate the
+        universal reading is false.
+    - id: PAC-3
+      attack: nearby-object
+      result: >-
+        The nearest object for which the conclusion is FALSE is Kyber-shaped LWE at n=384,
+        128 dimensions from Kyber-512, which no batch ever evaluated. The method does not
+        distinguish it, and that is the missing problem-specific ingredient.
+    - id: PAC-4
+      attack: method-ceiling
+      result: >-
+        Under ideal tuning the method -- differencing two estimator outputs -- can only ever
+        support "these two functions order this way at these inputs". It cannot reach "this
+        attack is cheaper", because one function admits dropping an unbounded O() and the
+        other does not. The ceiling does not reach the headline, and it never could have.
+        Recognising that before spending BATCH-009 through BATCH-012 was available at
+        section-8-audit cost.
+
+  # =====================================================================
+  # PER-CLAIM STATUS
+  # =====================================================================
+  quantitative_claims:
+    - claim: "matzov log2(rop) Kyber-512 = 139.6560414808584 (real Sage)"
+      status: reproduced
+      my_value: 139.65604148085845
+      how: my own run, /tmp/sagevenv passagemath 10.8.7, PYTHONPATH cleared, /tmp/le at 3e48ef4 clean
+    - claim: "matzov log2(rop) Kyber-768 = 196.36624335005874 (real Sage)"
+      status: reproduced
+      my_value: 196.36624335005874
+    - claim: "matzov log2(rop) Kyber-1024 = 262.3356800074737 (real Sage)"
+      status: reproduced
+      my_value: 262.3356800074737
+    - claim: "primal_bdd log2(rop) = 140.1994731076207 / 200.9587149140538 / 270.7236234535225"
+      status: reproduced
+      my_value: identical to all 13 decimals on all three sets
+    - claim: "margins +0.543432 / +4.592472 / +8.387943 bits"
+      status: reproduced
+      my_value: 0.5434316267622421 / 4.592471563995048 / 8.387943446048837
+      note: >-
+        My Kyber-768 margin uses the Sage matzov value; the report's 4.592472 uses the
+        shim's, differing by 3.94e-09 bits. Identical to the reported precision.
+    - claim: "passagemath-standard 10.8.7 provides a real sage.all; shim off PYTHONPATH"
+      status: reproduced
+      my_value: >-
+        sage.all -> /tmp/sagevenv/lib/python3.11/site-packages/sage/all.py, sage.version 10.8.7
+    - claim: "public LWE.dual_hybrid IS lwe_dual.matzov; module-level lwe_dual.dual_hybrid is DualHybrid"
+      status: reproduced
+      my_value: "lwe.py:13 'from .lwe_dual import matzov as dual_hybrid'; lwe_dual.py:493 'DH = DualHybrid()'; :496 'class MATZOV'; :689 'matzov = MATZOV()'"
+    - claim: "lwe_dual.py:551 reads '# p.29, we're ignoring O()'"
+      status: reproduced
+    - claim: "mu = 0.5 in Nf"
+      status: reproduced_with_correction
+      my_value: >-
+        mu = 0.5 is at lwe_dual.py:539, not :526. The BATCH-011 coordinator note and the
+        task brief both cite :526, which is inside the Nf docstring ('def Nf' is at :525).
+        Immaterial to the argument; recorded so the locus is right in any future citation.
+    - claim: "CenteredBinomial is module-level at nd.py:296, not a NoiseDistribution attribute (DEF-A root cause)"
+      status: reproduced
+      my_value: "nd.py:69 'class NoiseDistribution'; nd.py:296 'class CenteredBinomial(NoiseDistribution)'"
+    - claim: "S2 evaluated 187,775 (K768) and 187,873 (K1024) points; beta coverage annotation"
+      status: reproduced
+      my_value: >-
+        Arithmetic reconstructs exactly: 8127*14 + 6727*11 = 187775 and
+        8127*15 + 3472*19 = 187873, all four remainder checks zero. The scan itself I did
+        not re-run.
+    - claim: "S2 improvement over incumbent = +0.000000 bits on both sets"
+      status: unable_to_check
+      reason: >-
+        Re-running ~376k MATZOV.cost evaluations exceeds this task's budget. The claim is
+        also self-limiting: the scanned beta bands lie entirely below both incumbents
+        (OBJ-7), so a null result there is structurally guaranteed and re-running it would
+        add nothing.
+    - claim: "S3 NULL-2: ordering in 17 of 18 cost-model cells; LaaMosPol14/K512 = -1.6229"
+      status: reproduced_by_spot_check
+      my_value: "LaaMosPol14 K512 margin -1.622882 (report -1.6229); BDGL16 K512 +0.4093625 (report +0.4094)"
+      reason_not_full: >-
+        The CheNgu12/ABLR21 cells are slow and, per OBJ-4, are a category error I would not
+        count anyway. Two sieve-model cells spot-checked exactly.
+    - claim: "S3 NULL-1 produced 0 of 24 points, all AttributeError"
+      status: reproduced
+      my_value: >-
+        The failure mode is real and the diagnosed repair is correct. I applied that repair
+        in MY OWN independent re-implementation (not a repair of the package) and got
+        24/24 evaluated: 13 positive, 11 negative, range -207.036 to +13.162. See OBJ-4.
+    - claim: "S4 delta=0 rows reproduce the pinned optima to <= 4.2e-11 bits"
+      status: reproduced
+      my_value: covered by my exact reproduction of all three delta=0 margins
+    - claim: "S4 flip points 2.77728 / 19.67163 / no flip within 32"
+      status: unable_to_check
+      reason: >-
+        Requires re-running the 14-iteration bisection with full re-optimisation at each
+        fractional delta, outside this task's budget. The delta=0 anchor and the monotone
+        direction of the table are consistent with everything I did reproduce, and the
+        producer's correction of the BATCH-011 red team's 2.3732 (linear interpolation)
+        to 2.7773 (re-optimised) is arithmetically checkable from the published rows:
+        2 + 2*0.076049/(0.076049+0.331512) = 2.3732 exactly, so the diagnosis is right.
+    - claim: "S5 c* Model A = 0.037261 / 0.081698 / 0.054761 and Model P = 0.028803 / 0.081697 / 0.040268"
+      status: reproduced
+      my_value: >-
+        All six recomputed from the stated definition and the reported optima:
+        A (143-139.65604148)/89.74352 = 0.03726128, (207-196.36624335)/130.15985 = 0.08169770,
+        (272-262.33568001)/176.48105 = 0.05476123;
+        P /116.09640 = 0.02880329, /130.16111 = 0.08169688, /240.0 = 0.04026800.
+    - claim: "EV-MLKEM-020's 0.0316 / 0.0459 / 0.0071 belong to primal_bdd, not matzov"
+      status: reproduced
+      my_value: >-
+        EV-MLKEM-020 what_survives records log2 M_peak 88.494071 / 131.657286 / 180.924993
+        with c* 0.03164649 / 0.04588645 / 0.00705473, computed from primal_bdd's own
+        d4f-reduced svp dimensions 385.08 / 590.13 / 825.24. The ownership label is correct
+        and the refusal to transfer 0.0071 onto matzov is correct.
+    - claim: "matzov free-memory margins +3.343959 / +10.633757 / +9.664320"
+      status: reproduced
+      my_value: >-
+        Cross-checks exactly against EV-MLKEM-020's primal margins plus the ANOM-3 deltas:
+        2.800527+0.543432, 6.041285+4.592472, 1.276377+8.387943.
+    - claim: "neither side exposes a success probability"
+      status: not_reproduced
+      my_value: >-
+        primal_bdd does: PrimalHybrid.cost writes ret['prob'] and applies
+        ret.repeat(prob_amplify(0.99, probability)); measured prob = 1.0, repetitions = 1
+        on all three sets. matzov does not: MATZOV.__call__ has no success_probability
+        parameter and MATZOV.cost applies no repetition. See OBJ-3.
+    - claim: "NEW (mine): guess-stage share of matzov's total cost"
+      status: reproduced
+      my_value: "7.304% (K512, 0.1094 bits) / 0.0646% (K768, 0.00093 bits) / 23.600% (K1024, 0.3884 bits)"
+    - claim: "NEW (mine): log2 N vs free-sieve capacity 0.2075*beta_sieve"
+      status: reproduced
+      my_value: "81.0788 vs 81.1325 (slack 0.0537) / 119.7530 vs 120.9725 (1.2195) / 165.9385 vs 166.8300 (0.8915)"
+    - claim: "NEW (mine): margin vs n on the Kyber-shaped family"
+      status: reproduced
+      my_value: >-
+        n=256 -1.4213 | 384 -0.7651 | 512 +0.8232 | 640 +3.0376 | 768 +4.5925 |
+        896 +7.0194 | 1024 +8.3879 | 1280 +13.0893 | 1536 +17.8816.
+        beta_matzov/beta_primal = 1.028 / 1.008 / 0.992 / 0.975 / 0.972 / 0.964 / 0.963 /
+        0.958 / 0.952.
+    - claim: "NEW (mine): sensitivity of N to mu"
+      status: reproduced
+      my_value: "mu 0.5 -> 2^-40 changes N by 0.4147 / 0.2828 / 0.2164 bits only"
+    - claim: "snapshot archive integrity"
+      status: reproduced
+      my_value: >-
+        All 8 declared path_sha256 values in
+        coordination/goals/GOAL-MLKEM-003/batches/BATCH-012/archives/TASK-20260803-3fac41/snapshot_receipt.json
+        recomputed from the blobs at 1cd863b1 and matched byte-for-byte, including
+        sage_attempt_transcript.txt (fe2ed1a3...) and run_stdout_raw.log (d9f419fe...).
+        Parent 079bdb8b confirmed. Content-verified.
+
+  # =====================================================================
+  # SCOPE LIMITS
+  # =====================================================================
+  narrowest_supported_statement: >-
+    Under the pinned lattice-estimator 3e48ef421ec2 and the reduction cost model
+    RC.MATZOV, evaluated at exactly the three FIPS 203 parameter shapes and under two
+    arithmetic backends that run the same estimator source, estimator.lwe_dual.matzov
+    reports a smaller log2(rop) than estimator.lwe_primal.primal_bdd by
+    0.543432 / 4.592472 / 8.387943 bits. That difference is a property of the estimator's
+    two functions at those three inputs; it is not stable across the parameter family
+    those inputs are drawn from (it changes sign at n between 384 and 512 on the same
+    Kyber shape), it is not costed in a common frame (the dual side receives a free-sieve
+    accounting and drops an admitted O() that the primal side does not, and the primal
+    side alone is amplified to a declared success probability), and essentially all of it
+    at Kyber-768 is lattice reduction rather than the dual machinery being compared.
+    Separately and independently: the public name LWE.dual_hybrid resolves to class MATZOV
+    while EV-MLKEM-015's reproduce_estimates.py imported the module-level dual_hybrid
+    (class DualHybrid). That is a verified fact about the archive. It makes EV-MLKEM-015
+    incomplete about a different callable; it does not make it wrong, and this batch does
+    not have authority to record it either way.
+    No ML-KEM break. No security proof. No FIPS 203 parameter set affected or cleared.
+    Cost-model estimates, not measurements. certificate.kind: none.
+
+  scope_limits:
+    - Everything above is scoped to lattice-estimator 3e48ef421ec2. A different pin is a different question.
+    - arora_gb, dual and primal_hybrid do not run in this harness, so no "best attack" claim of any kind is available.
+    - My re-derivations used passagemath 10.8.7, the same third implementation the producer used. Upstream sagemath 10.9, which RUN-MLKEM-015-001 used, remains unobtainable here and I did not obtain it.
+    - My n-sweep fixes q=3329 and eta=2 and varies only n. It does not establish behaviour off that line, and n is not a free parameter of a deployed scheme.
+    - I did not re-run S2's 376k-point scan or S4's bisection; those are marked unable_to_check with reasons above.
+    - Nothing here is a statement about whether the dual-sieve attack works. That is Ducas-Pulles's question and this campaign never had the means to answer it.
+
+  # =====================================================================
+  # CLOSE OR CONTINUE
+  # =====================================================================
+  close_or_continue:
+    recommendation: CLOSE, and close it as a completed goal rather than as a budget exhaustion.
+    this_is_not_premature_closure_because: >-
+      docs/inventor-protocol.md section 4 requires a named obstruction, an argument, and
+      forward guidance -- not a count of screened mechanisms. All three are available here
+      and none of them is "we tried and got tired".
+      NAMED OBSTRUCTION: the campaign's instrument cannot answer the campaign's question.
+      Every quantity it can produce is a difference of two estimator outputs, one of which
+      explicitly drops an unbounded O() (lwe_dual.py:551) on the term that sets its own
+      block size, and neither of which was ever intended to be differenced at 0.5-bit
+      resolution. That is a method ceiling, and PAC-4 shows it does not reach the headline
+      under ANY tuning. It is a statement about the problem, not about the search.
+      ARGUMENT: OBJ-2 locates the truncation on the load-bearing term; OBJ-1 shows the
+      resulting quantity has no stable value, growing without bound in n and changing sign
+      inside the claim's own family; OBJ-3 shows the two sides use different cost
+      bookkeeping. Three independent reasons, each checkable in minutes, that a further
+      batch of the same kind produces a more precise number of the same unusable sort.
+      FORWARD GUIDANCE, naming what remains open: KN-OPEN-016's actual question -- whether
+      the dual-sieve attack works as costed -- is UNTOUCHED by twelve batches and is not
+      closed by this recommendation. It is not reachable through the estimator at all; it
+      needs experimental work on the score distribution of sieve-produced dual vectors,
+      which is a different instrument and a different goal. That is the successor, and it
+      is a good one.
+    what_would_have_justified_a_13th_batch_and_does_not: >-
+      CTRL-RT-1 through CTRL-RT-4 total well under 30 minutes of compute. If a batch were
+      free I would spend it on CTRL-RT-2 (does the free-sieve accounting explain the whole
+      margin?) and CTRL-RT-4 (put a control on the callable the campaign argues about).
+      But neither can change the recommendation: CTRL-RT-2 can only reallocate the margin
+      between two model components, both of which are inside the truncated side, and
+      CTRL-RT-4 is harness hygiene. Neither reaches the obstruction. Spending batch 13 on
+      them would be honest work aimed at a question the instrument cannot settle. They
+      belong in the successor goal's setup, not in an extension of this one.
+    the_honest_closing_statement: >-
+      GOAL-MLKEM-003 set out to test whether the pinned lattice estimator's cost figures
+      for ML-KEM are stable under independent re-derivation. It answered that, thoroughly
+      and in the negative-for-the-interesting-part: the ARITHMETIC is stable to
+      floating-point equality across two backends, three sessions and a wider parameter
+      box than anyone had checked; the ORDERING between primal and dual is not stable at
+      all, because it is a difference between a truncated model and an untruncated one and
+      it changes sign inside ML-KEM's own parameter family 128 dimensions below Kyber-512.
+      The campaign's most durable products are three facts and one correction, none of them
+      the headline: that LWE.dual_hybrid and lwe_dual.dual_hybrid are different callables
+      and EV-MLKEM-015 costed the latter; that memory charging at an exponent of order 1e-2
+      dissolves every free-memory margin in the campaign (EV-MLKEM-020); that the harness
+      has never had a known-answer control on the callable it spent four batches arguing
+      about; and that Sage was obtainable here all along by a route four sessions did not
+      try. No ML-KEM parameter set was shown to miss its NIST category and none was
+      cleared. Rule 12 was never met and ANOM-3 was never promoted, which is the process
+      working rather than failing.
+    what_must_not_be_written_at_closure: >-
+      Any sentence of the form "matzov is cheaper than primal_bdd", unqualified by
+      parameter set, frame, pin and the truncation asymmetry. Any citation of S4's decay as
+      discharging the inventor-protocol artifact-tell obligation (OBJ-6). Any reading of
+      NULL-2's 17/18 as covering the Kyber-specificity question (OBJ-4). Any use of the
+      word "verified" for S1 without "the arithmetic, not the model" attached (OBJ-5).
+
+  next_concrete_action: >-
+    Coordinator: archive this report and the producer package, then close GOAL-MLKEM-003 on
+    a decision whose findings section carries the closing statement above, whose commit
+    message replaces "the inventor-protocol artifact tell is not triggered" with "the
+    N-inflation artifact tell is not triggered; the n-sweep tell fires, see
+    RT-20260803-f55e34 OBJ-1", and which opens a successor goal on KN-OPEN-016's actual
+    question with CTRL-RT-2 and CTRL-RT-4 as its first two setup tasks. Do not record
+    ANOM-3 as a finding, do not touch EV-MLKEM-015, and do not retire the goal as
+    closed_at_budget -- it met a declared criterion and understating it is its own contract
+    violation.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-012/tasks/TASK-20260803-f55e34/report.yaml
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-012/tasks/TASK-20260803-f55e34/notes.md

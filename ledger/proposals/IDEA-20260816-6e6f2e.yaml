@@ -1,0 +1,256 @@
+idea:
+  id: IDEA-20260816-6e6f2e
+  question_id: RQ-NTRU-9015ee
+  added: '2026-08-16'
+  title: 'Reduce what ring structure buys to one scalar per instance: the log-determinant gap between
+    the rotation orbit''s correlation matrix and the matched Wishart correlation of an independent
+    plant of identical rank and identical per-vector norm, and measure how that scalar grows with
+    n'
+  class: mechanism
+  claim: '(A) Take the n rotations of the NTRU secret (f,g) as a rank-n planted sublattice, form their
+    Gram matrix G, and split it as covol^2 = det(G) = (prod_i G_ii) * det(C) where C = D^{-1/2} G
+    D^{-1/2} is the correlation matrix and D = diag(G). For NTRU, G_ii is the same for every i because
+    rotation preserves norm, so the first factor is exactly (||f||^2 + ||g||^2)^n and carries no structural
+    information at all. Every structural fact about the orbit lives in the single scalar S = -log
+    det(C) >= 0, the orbit''s log orthogonality defect in nats.
+
+    (B) The claim is that S is the right one-number summary of what ring structure contributes to
+    sublattice density, because the matched control is exactly computable: replace the rotations by
+    n independent samples of the same secret distribution and the same construction yields S_null
+    with the identical per-vector norm factor divided out. The quantity Delta = S - E[S_null] is then
+    a difference of two log-determinants of correlation matrices of the same size, from the same per-vector
+    distribution, differing only in whether the vectors are one orbit or n independent draws. Delta
+    is the measured discount that KN-OPEN-026 asks for, expressed in nats of covolume rather than
+    in bits of a cost model, and therefore free of the cross-model incomparability that KN-TECH-040
+    warns about.
+
+    (C) Because G is circulant for the ring Z[x]/(x^n - 1), C''s eigenvalues are |fhat_j|^2 + |ghat_j|^2
+    normalised, where fhat is the length-n DFT of f. So S = n log(||f||^2 + ||g||^2) - sum_j log(|fhat_j|^2
+    + |ghat_j|^2), computable exactly, with no lattice reduction, in O(n log n).
+
+    (D) What is NOT claimed: no attack, no block-size prediction, no security consequence, and specifically
+    not that Delta converts into bits of security. It is not claimed that Delta is positive; the sign
+    is the first thing measured and a negative Delta, meaning the orbit is more orthogonal than an
+    independent plant, would be an equally reportable and more surprising outcome. It is not claimed
+    that the ring Z[x]/(x^n - 1) is representative of other rings; that is entry-level future work
+    and is why the coefficient-embedding distortion is treated separately.'
+  mechanism: 'Stage 1, algebra with no compute: derive the factorisation det(G) = (prod G_ii) det(C)
+    and show that for a rotation orbit the diagonal is constant, so the split is exact and clean.
+    Derive the circulant spectral form of C for Z[x]/(x^n - 1) and check it numerically against a
+    direct exact determinant on small n; a disagreement kills the analytic route and forces the direct
+    route, which still works but costs O(n^3).
+
+    Stage 2, the matched control by construction: sample n independent (f_i, g_i) from the same distribution,
+    condition on matching total Frobenius norm to within a declared tolerance by rejection, and compute
+    S_null by the same code path. Because the per-vector norms are matched and divided out, the only
+    remaining difference between the arms is the correlation structure, which is the isolation the
+    whole entry exists to achieve.
+
+    Stage 3, the growth direction: sweep n over a range and fit Delta(n) against three shapes, extensive
+    (a*n), sub-extensive (a*log n) and bounded (a - b/n), reporting which is preferred by an information
+    criterion together with the range over which the preference is stable. KN-OPEN-026 Q2 asks precisely
+    whether the discount grows with dimension or is a bounded constant, so the deliverable is the
+    shape and its uncertainty, not a point value.
+
+    Stage 4, refutation: if Delta is within the Monte-Carlo error of zero at every n, the record is
+    a controlled null saying that at matched per-vector norm and matched rank the rotation orbit is
+    no denser than an independent plant, which would be a strong and clean negative statement about
+    where ring structure does not act.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Same corpus screen as the first entry: all nine RQ-NTRU-9015ee proposals read by title
+      and class; grep -ril ''Gram-Schmidt'', ''orthogonality defect'', ''correlation matrix'', ''Wishart'',
+      ''DFT'', ''circulant'', ''discount'' over ledger/proposals/ and ledger/hypotheses/; KN-OPEN-026
+      read in full including its source_refs list.'
+    results: KN-OPEN-026 explicitly frames the open question as the size and growth direction of the
+      structure discount and names KN-LIT-7663, KN-LIT-7667, KN-LIT-7666 as reported mechanisms and
+      KN-TECH-040 as the standing warning that cross-model bit figures are incomparable. No proposal
+      under RQ-NTRU-9015ee computes an orbit correlation determinant. 'Gram-Schmidt' matched IDEA-20260809-24eec3
+      and several FN-DSA and ECDLP proposals, none of which form a correlation matrix of a planted
+      orbit. IDEA-20260809-2866e0 covers module and matrix NTRU as a fatigue-point question, not as
+      a matched-norm correlation comparison. No hit for a Wishart or random-matrix null anywhere in
+      ledger/proposals/ on this screen.
+    verdict: 'UNVERIFIED. Nothing is asserted about the external literature; the circulant spectral
+      identity is elementary and the orthogonality-defect decomposition is standard linear algebra.
+      What is claimed new relative to this repository is using the norm-divided correlation log-determinant
+      as the definition of the structure discount, so that the discount is measured in nats of covolume
+      rather than in bits of an estimator cost model, and pairing it with a rank-matched and norm-matched
+      independent-plant null in the same invocation. Assembled from known parts: circulant diagonalisation,
+      orthogonality defect, and the matched-control discipline of IDEA-20260809-28289c.'
+  object_first_candidate:
+    tracked_object: The normalised correlation matrix C of the planted sublattice's generating set,
+      reduced to its single invariant S = -log det C. Followed through the operation of enlarging
+      the ring degree n at fixed secret distribution and fixed per-coefficient statistics.
+    lossiness: 'Strongly lossy and deliberately so. C discards all per-vector norms (divided out by
+      construction), the entire lattice outside the planted sublattice, the modulus q, and every phase
+      of the DFT: only the moduli |fhat_j|^2 + |ghat_j|^2 survive, so any two secrets with the same
+      power spectrum have the same S. The retained part propagates compatibly with the operation of
+      interest because ring multiplication acts on the spectrum coordinatewise, so the orbit''s correlation
+      structure is exactly a function of the spectrum and nothing that was discarded is needed to
+      compute how S changes. What is lost is precisely what would be needed to reconstruct the secret,
+      which is the honest statement that S cannot support any recovery claim.'
+    propagation: 'One step of the target operation, multiplying the generating vector by x, permutes
+      the orbit cyclically and leaves C invariant up to simultaneous row and column permutation, hence
+      leaves S exactly invariant. That invariance is the propagation statement: S is a class function
+      on the orbit, not a property of a chosen generator. Under the second operation, incrementing
+      n, S changes by the added spectral term and the renormalisation, giving the growth law that
+      Stage 3 fits.'
+    survival_score: 'S is exact and invariant for every circulant ring and every n, so the structure
+      survives arbitrarily far as an algebraic object. It dissolves at two named points: for non-circulant
+      rings the spectral shortcut fails and only the O(n^3) direct determinant remains, and as a predictor
+      of anything about reduction it has no established survival at all, which is stated rather than
+      assumed. Concretely: exact for all n tested up to 512 by the direct route and up to any n by
+      the spectral route; predictive survival unmeasured and presumed zero until shown otherwise.'
+  null_object_control: 'The independent-plant null: n vectors drawn independently from the identical
+    secret distribution, rejection-conditioned to match the orbit''s total Frobenius norm within 0.1
+    percent, run through the identical correlation and log-determinant code path in the same invocation.
+    The null must show a distribution of S_null whose Monte-Carlo standard error at 500 replicates
+    is smaller than the claimed Delta; if it is not, no signal can be claimed at that n. A second,
+    cheaper null validates the instrument: for n orthogonal vectors S must be exactly 0, and for a
+    deliberately rank-deficient set S must diverge, both of which the code path must reproduce before
+    any measurement is recorded.'
+  discriminated_from:
+  - IDEA-20260809-2866e0 asks where the fatigue point moves for module and matrix NTRU; this entry
+    does not locate a fatigue point at all and instead measures an orbit invariant at fixed q, so
+    the two are complementary rather than overlapping.
+  - IDEA-20260809-24eec3 reads the Gram-Schmidt profile of a reduced basis; C is the correlation of
+    the planted generating set before any reduction and is basis-independent given the orbit, so it
+    is a different object measured by a different operation.
+  - KN-OPEN-026's reported mechanisms KN-LIT-7663 and KN-LIT-7667 are described in that entry as amortisation
+    of hybrid-attack preprocessing and acceleration of guessing and decoding, both cost-model quantities
+    in bits; S is a covolume quantity in nats and is not commensurable with them, which is stated
+    as a limitation rather than papered over.
+  - IDEA-20260809-2b4624 varies the secret distribution as an independent variable against the transition;
+    here the secret distribution is held fixed and matched between arms precisely so that it cannot
+    be the explanation.
+  - A plain determinant-ratio comparison of the whole planted sublattice against a random sublattice
+    does not divide out the per-vector norms, so it confounds 'the secret is short' with 'the orbit
+    is correlated'; the norm division is the entire methodological content.
+  assumptions:
+  - Rotation preserves the coefficient norm in the ring used, which is exact for Z[x]/(x^n - 1) and
+    must be re-checked for any other ring before the diagonal-constancy step is used.
+  - The rejection conditioning on total Frobenius norm does not itself bias the null's correlation
+    structure; this is checked by comparing conditioned and unconditioned nulls.
+  - 500 Monte-Carlo replicates suffice to resolve Delta at the n range tested, which is verified by
+    reporting the standard error rather than assumed.
+  - Exact integer inner products are affordable at n up to 512, so the direct determinant route is
+    always available as a check on the spectral route.
+  predictions:
+  - metric: sign of Delta = S(orbit) - mean S(independent plant) at n = 64
+    direction: higher
+    minimum_effect: no numeric pre-commitment on magnitude; the sign is pre-committed as positive,
+      meaning the orbit is less orthogonal, and a measured negative sign falsifies the pre-commitment
+      outright
+  - metric: Delta(n) fitted shape preference among {a*n, a*log n, a - b/n} by AIC over n in {16,...,256}
+    direction: different
+    minimum_effect: an AIC weight of at least 0.7 for a single shape, otherwise the growth direction
+      is reported as unresolved
+  - metric: agreement between spectral and direct-determinant computations of S, in relative error
+    direction: lower
+    minimum_effect: 1.0e-09
+  - metric: S for an exactly orthogonal generating set
+    direction: different
+    minimum_effect: forced value 0 to within 1e-12; any deviation invalidates the instrument
+  minimal_test:
+    design: One invocation, no lattice reduction, no modulus involved. For n in {16, 32, 64, 128,
+      256} and a ternary fixed-weight secret distribution, sample 500 NTRU secrets; for each, compute
+      S by the spectral route and, for n <= 64, also by the exact integer determinant route, and require
+      agreement. In the same invocation sample 500 independent plants per n, rejection-matched on
+      total Frobenius norm, and compute S_null by the identical code. Report Delta(n) with Monte-Carlo
+      standard errors, fit the three growth shapes, and report AIC weights. The instrument nulls,
+      an orthogonal set forced to S = 0 and a rank-deficient set forced to diverge, run first and
+      gate the rest. The discriminating comparison is Delta's sign and its n-dependence; total cost
+      is minutes, which is why this is the cheapest available probe of KN-OPEN-026's growth-direction
+      question inside this program.
+    controls:
+    - Independent-plant null, rank-matched and Frobenius-norm-matched, same code path, same invocation.
+    - Unconditioned independent plant, to check that the norm conditioning does not bias the correlation
+      structure.
+    - Orthogonal generating set, forced S = 0, as an instrument calibration that gates the run.
+    - Rank-deficient generating set, forced divergence, as the opposite-end instrument calibration.
+    - Spectral versus exact-integer determinant cross-check at every n where the latter is affordable.
+    required_metrics:
+    - S per instance
+    - mean and standard error of S per arm and n
+    - Delta(n) with CI
+    - AIC weights for the three growth shapes
+    - relative error between spectral and direct routes
+    - instrument-null values for the orthogonal and rank-deficient sets
+  falsification_conditions:
+  - 'Delta''s CI contains zero at every tested n, recording a controlled null: at matched rank and
+    matched norm the orbit is no denser than an independent plant.'
+  - Delta is negative with a CI excluding zero, falsifying the pre-committed sign.
+  - No growth shape reaches AIC weight 0.7, leaving the growth direction unresolved and the KN-OPEN-026
+    Q2 contribution unmade.
+  - Spectral and direct routes disagree beyond 1e-9, invalidating the analytic identity and the measurement
+    with it.
+  - The orthogonal-set instrument null does not return 0, invalidating the pipeline before any comparison
+    is made.
+  - The norm-conditioned and unconditioned nulls differ significantly, meaning the matching procedure
+    created the effect.
+  confounders:
+  - The factor x - 1 in x^n - 1 gives an all-ones spectral coordinate whose magnitude scales with
+    the secret's coefficient sum, which for fixed-weight ternary secrets is tightly concentrated but
+    not constant; this coordinate can dominate S and must be reported both included and excluded.
+  - Norm matching by rejection changes the effective secret distribution in the null arm; the unconditioned
+    null exists to bound this.
+  - Numerical conditioning of the spectral route for near-degenerate spectra, controlled by the exact-integer
+    cross-check.
+  - Fixed-weight versus Gaussian secrets change the spectral flatness independently of ring structure,
+    so mixing them across n would confound the growth fit.
+  interpretation_limits:
+  - Delta is a covolume quantity in nats and is not convertible into bits of security or into any
+    cost-model figure; KN-TECH-040's incomparability warning applies in both directions.
+  - The result is scoped to the tested ring family and secret distributions; the spectral identity
+    does not hold for the non-circulant rings that the deployed NTRU Prime shape uses.
+  - A positive Delta says the orbit is correlated, not that any algorithm exploits the correlation.
+  target_complexity:
+    time_exponent: No attack exponent claimed. Measurement cost is O(n log n) per instance by the
+      spectral route and O(n^3) by the exact-integer check route.
+    memory_exponent: No attack memory exponent claimed. O(n) for the spectral route, O(n^2) exact
+      integers for the check route.
+    best_known: The incumbent inside this repository for 'how large is the structure discount' is
+      the set of reported figures relayed in KN-OPEN-026, which that entry itself marks as unverified
+      and model-relative. There is no in-repository measured discount to beat, which is the point.
+    hidden_overhead: 'The whole entry hides its difficulty in the matched-null construction: making
+      ''same distribution, same norm, independent'' precise enough to be executable is the real work,
+      and a sloppy match produces a confident wrong Delta. The all-ones spectral coordinate is a second
+      hiding place, capable of carrying most of S in the wrong ring.'
+  dominated_by: 'n/a (no attack result claimed). Frontier check across time, memory and data for in-repository
+    discount measurements: nothing else in the repository measures a discount at all, so there is
+    no row to be dominated by; against the reported external figures relayed in KN-OPEN-026 no comparison
+    is possible because the units differ, and asserting dominance either way would be a fabrication.'
+  sota_delta: 'No attack; conceptual and measurement contribution only. The quantitative delta offered
+    is a unit change: a discount expressed as nats of covolume with a matched null, versus bits from
+    an estimator cost model with no null, and the two are explicitly not compared numerically.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Part (A), the exact decomposition and constant diagonal: 0.95, pure algebra.
+    Part (C), the circulant spectral identity: 0.9, with the residual risk in indexing and the x -
+    1 factor. Part (B), that Delta is measurably nonzero with the pre-committed positive sign: 0.55,
+    because a rotation orbit of a random ternary vector may be close to orthogonal on average and
+    the effect could be genuinely small. That the growth direction resolves to one shape at AIC weight
+    0.7: 0.45, because three shapes over one decade of n is a hard model-selection problem. Joint
+    prior for a clean signed, shaped result: about 0.25. The controlled-null outcome is worth nearly
+    as much and its probability is the complement.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-NTRU-9015ee
+  - KN-OPEN-026
+  - KN-TECH-040
+  - KN-LIT-7663
+  - KN-LIT-7667
+  - IDEA-20260809-28289c
+  - IDEA-20260809-2866e0
+  - docs/inventor-protocol.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-NTRUL-8183f2

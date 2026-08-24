@@ -1,0 +1,234 @@
+schema: source-access-log/v1
+task_id: TASK-20260805-c89efb
+goal_id: GOAL-SSIQ-001
+batch_id: BATCH-002
+role: executor
+recorded_at: 2026-08-05T03:40:00Z
+repo_commit: ab8e3ad8f93b84f197aef647746a36ef0d7cd359
+repo_dirty: false
+timezone: UTC
+egress: >-
+  All requests via the session HTTPS proxy at http://127.0.0.1:43309 with the CA
+  bundle /root/.ccr/ca-bundle.crt. TLS verification was never disabled and
+  HTTPS_PROXY was never unset. Proxy /__agentproxy/status reported
+  recentRelayFailures: [] throughout, so the 403s below are origin-side, not
+  organization egress denials.
+hashing: sha256 of the exact response body written to disk, successful or not
+artifact_retention: >-
+  Response bodies were written to the session scratchpad, NOT into the
+  repository: this task declares exactly four artifacts and none of them is a
+  PDF. Each entry is re-obtainable from its url and verifiable against
+  sha256_of_body.
+
+attempts:
+
+  - n: 1
+    timestamp: 2026-08-05T03:29:57Z
+    purpose: obtain reference [35] from IACR ePrint (identifier from KN-LIT-131, not from the frozen text)
+    url: https://eprint.iacr.org/2023/1399.pdf
+    method: GET
+    client: curl (default user-agent)
+    http_status: 403
+    content_type: text/html; charset=UTF-8
+    bytes: 5402
+    sha256_of_body: 60ed284743d396bd49477ddccd7f8a8f4ce665c3a2bcec0e6122ddff119a7a6e
+    obtained: false
+    outcome: >-
+      Cloudflare "Just a moment..." managed-challenge page (cType: managed,
+      cZone: eprint.iacr.org). Origin bot challenge, not a proxy denial.
+    classification: infrastructure_outcome
+
+  - n: 2
+    timestamp: 2026-08-05T03:30:24Z
+    purpose: obtain the author preprint of [35] (arXiv identifier from KN-LIT-131, not from the frozen text)
+    url: https://arxiv.org/pdf/2309.10432
+    method: GET
+    client: curl -L
+    http_status: 200
+    content_type: application/pdf
+    bytes: 599126
+    sha256_of_body: afa0ad19f2af4a418150648f9556cfc01c773d6d01672d526a1fc397db4541d9
+    obtained: true
+    document: "arXiv:2309.10432v2 [cs.CR] 16 Oct 2023 - Page & Wesolowski, 53 pages"
+    outcome: >-
+      Preprint version. Numbers the two cited results as Proposition 8.4
+      (Isogeny reduces to EndRing) and Theorem 8.5 (EndRing reduces to Isogeny);
+      main theorem is Theorem 1.1. Does NOT match the citation
+      "[35, Proposition 8.5]".
+    classification: success
+
+  - n: 3
+    timestamp: 2026-08-05T03:32:19Z
+    purpose: check the arXiv version history for a post-proceedings revision
+    url: https://arxiv.org/abs/2309.10432
+    method: GET
+    client: curl -L
+    http_status: 200
+    content_type: text/html
+    bytes: 41625
+    sha256_of_body: 279fc98508d6dc4544db95145797b99f76e883233fb05e24ac9b10c837e78bc0
+    obtained: true
+    outcome: >-
+      Submission history shows only v1 (2023-09-19) and v2 (2023-10-16). No
+      post-proceedings arXiv revision exists.
+    classification: success
+
+  - n: 4
+    timestamp: 2026-08-05T03:32:34Z
+    purpose: second and final attempt at IACR ePrint, with a browser user-agent
+    url: https://eprint.iacr.org/2023/1399.pdf
+    method: GET
+    client: curl -L -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    http_status: 403
+    content_type: text/html; charset=UTF-8
+    bytes: 5615
+    sha256_of_body: 8f17449e74d44b190a049ef04aa55972a79f28784ec57eae7c4224aa6bb784fc
+    obtained: false
+    outcome: >-
+      Same Cloudflare managed challenge. NOT RETRIED FURTHER. IACR ePrint
+      2023/1399 is recorded as UNOBTAINED by this task; no statement in
+      cascade_cost_note.md is sourced from it.
+    classification: infrastructure_outcome
+
+  - n: 5
+    timestamp: 2026-08-05T03:32:40Z
+    purpose: locate an author deposit of [35] by exact title
+    url: https://api.archives-ouvertes.fr/search/?q=title_t:"One Endomorphism problems are equivalent"&fl=halId_s,title_s,version_i,fileMain_s,files_s,submittedDate_s,producedDate_s&wt=json
+    method: GET
+    client: curl -G
+    http_status: 200
+    content_type: application/json
+    bytes: 607
+    sha256_of_body: d058bcb6e97ecf5dbea8f34445511fe6c6dbfcaa1a63f91dfc7212a7b1b2d699
+    obtained: true
+    outcome: "numFound 1 -> hal-04209824 v2, producedDate 2024-05-26"
+    classification: success
+
+  - n: 6
+    timestamp: 2026-08-05T03:32:46Z
+    purpose: obtain the HAL author version of [35]
+    url: https://inria.hal.science/hal-04209824/document
+    method: GET
+    client: curl -L
+    http_status: 200
+    content_type: application/pdf
+    bytes: 696792
+    sha256_of_body: 97d80b8ef7cd6c5665944a9273c1cce3842213f21b1b28b377365d7cd1b70f28
+    obtained: true
+    document: "HAL hal-04209824v2, 54 pages incl. cover; cover cites EUROCRYPT 2024 pp.388-417, DOI 10.1007/978-3-031-58751-1_14"
+    outcome: >-
+      Author full version. Same numbering as the arXiv preprint
+      (Proposition 8.4 / Theorem 8.5 / Theorem 1.1). Does NOT match
+      "[35, Proposition 8.5]".
+    classification: success
+
+  - n: 7
+    timestamp: 2026-08-05T03:33:12Z
+    purpose: obtain the EUROCRYPT 2024 proceedings version that the frozen reference entry actually names
+    url: https://link.springer.com/content/pdf/10.1007/978-3-031-58751-1_14.pdf
+    method: GET
+    client: curl -L
+    http_status: 200
+    content_type: application/pdf
+    bytes: 524996
+    sha256_of_body: 55c054a8b4e75041fc2aef62438ac1bd5071f34fec7dea298bafecd6a62280ff
+    obtained: true
+    document: "EUROCRYPT 2024, LNCS 14656, pp. 388-417; full 30-page chapter (not a preview); PDF page n = printed page n+387"
+    outcome: >-
+      PRIMARY SOURCE FOR THIS TASK. Contains Proposition 8.5 (Isogeny reduces to
+      EndRing, p.413), Theorem 8.6 (EndRing reduces to Isogeny, p.414),
+      Theorem 1.1 (p.389) and Theorem 7.2 (p.409). Matches the citation
+      "[35, Proposition 8.5]" exactly. Contains no result numbered "Theorem 1".
+    classification: success
+
+  - n: 8
+    timestamp: 2026-08-05T03:33:15Z
+    purpose: look for an open-access copy of [35] by DOI
+    url: https://api.semanticscholar.org/graph/v1/paper/DOI:10.1007/978-3-031-58751-1_14?fields=title,openAccessPdf,externalIds
+    method: GET
+    client: curl -L
+    http_status: 404
+    content_type: application/json
+    bytes: 69
+    sha256_of_body: 4fbb453621f412339bf9738151b49208a98b58e567b4524e75e14da25c5c04ac
+    obtained: false
+    outcome: '{"error":"Paper with id DOI:10.1007/978-3-031-58751-1_14 not found"}'
+    classification: infrastructure_outcome
+
+  - n: 9
+    timestamp: 2026-08-05T03:35:51Z
+    purpose: obtain reference [33] (named at frozen line 127 and 326; candidate target of the "Theorem 1" citation)
+    url: https://link.springer.com/content/pdf/10.1007/978-3-032-12296-4_9.pdf
+    method: GET
+    client: curl -L
+    http_status: 200
+    content_type: text/html; charset=utf-8
+    bytes: 319150
+    sha256_of_body: 2297649fd337d873a128d9d52f98d0f00cb98f5ebaa93dc322ab7027bad781e7
+    obtained: false
+    outcome: >-
+      HTTP 200 but the body is HTML, not a PDF - a landing page. A 200 status is
+      not evidence that a PDF was obtained.
+    classification: infrastructure_outcome
+
+  - n: 10
+    timestamp: 2026-08-05T03:36:04Z
+    purpose: locate an author deposit of [33] by exact title
+    url: https://api.archives-ouvertes.fr/search/?q=title_t:"Unconditional Foundations for Supersingular Isogeny-Based Cryptography"&fl=halId_s,title_s,version_i,fileMain_s,producedDate_s&wt=json
+    method: GET
+    client: curl -G
+    http_status: 200
+    content_type: application/json
+    bytes: 373
+    sha256_of_body: d3fd1ff4c8d6d81701b7cc7f0ce5d82e73af03f71bbafb2bec2d1444852b72a7
+    obtained: true
+    outcome: "numFound 1 -> hal-04954150 v3, producedDate 2025-12-01"
+    classification: success
+
+  - n: 11
+    timestamp: 2026-08-05T03:36:11Z
+    purpose: obtain reference [33]
+    url: https://hal.science/hal-04954150/document
+    method: GET
+    client: curl -L
+    http_status: 200
+    content_type: application/pdf
+    bytes: 892420
+    sha256_of_body: 6d8d0c309a5916b1124702a9caa46191b5060870b09b2a8ab17981a19684ee90
+    obtained: true
+    document: "Herledan Le Merdy & Wesolowski, 'Unconditional foundations for supersingular isogeny-based cryptography', HAL hal-04954150v3, 34 pages"
+    outcome: >-
+      Obtained. Contains a literal 'Theorem 1' (unconditional equivalence of
+      Isogeny, EndRing, MaxOrder, MaxOrder_Q, HomModule, OneEnd, MOER) and
+      'Theorem 2' (worst-case to average-case). Recorded in
+      cascade_cost_note.md section 6 as context; [33] is NOT cited by the frozen
+      Corollary 1.2 and its per-arrow costs were not audited by this task.
+    classification: success
+
+summary:
+  attempts_total: 11
+  obtained: 8
+  not_obtained: 3
+  unobtained_sources:
+    - id: "IACR ePrint 2023/1399"
+      reason: "HTTP 403, Cloudflare managed challenge, two attempts (n=1, n=4)"
+      classification: infrastructure_outcome
+      note: >-
+        Recorded as UNOBTAINED. Never reconstructed from memory. Its numbering,
+        which may differ from both the preprint and the proceedings, remains
+        unchecked by this program.
+    - id: "Semantic Scholar record for DOI 10.1007/978-3-031-58751-1_14"
+      reason: "HTTP 404"
+      classification: infrastructure_outcome
+    - id: "Springer PDF for DOI 10.1007/978-3-032-12296-4_9 ([33])"
+      reason: "HTTP 200 but HTML landing page, not a PDF"
+      classification: infrastructure_outcome
+      note: "[33] was subsequently obtained from HAL (n=11)."
+  primary_source_used_for_quotations:
+    document: "[35] EUROCRYPT 2024 proceedings chapter, pp. 388-417"
+    sha256: 55c054a8b4e75041fc2aef62438ac1bd5071f34fec7dea298bafecd6a62280ff
+    attempt_n: 7
+  frozen_in_repo_source:
+    path: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+    fetched: false
+    note: "Already frozen in the repository; read at commit ab8e3ad8f93b84f197aef647746a36ef0d7cd359. No network access needed."

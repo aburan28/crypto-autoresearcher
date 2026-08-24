@@ -1,0 +1,203 @@
+idea:
+  id: IDEA-20260808-ae34ad
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  title: The memory charge against multi-target FORS attacks is much smaller than this program
+    has assumed - approximate set membership needs about 10 bits per target, not a full cell,
+    and the search parallelises with no shared memory, so the memory defence is worth roughly
+    3-4 bits, not 20.
+  class: mechanism
+  claim: IDEA-20260805-88ecef takes the position that the FORS multi-target attack buys its
+    advantage with a table holding roughly q*k revealed leaf indices with random access, and
+    treats that memory as a charge against the attack. THE CLAIM HERE IS THAT THE CHARGE IS
+    LARGELY REFUTABLE, in three quantified steps. (1) The attack never needs to RETRIEVE a
+    stored index; it only needs to TEST membership, and a false positive costs one cheap re-derivation,
+    so an approximate membership structure with about 1.44*log2(1/eps) bits per element suffices
+    - at eps = 2^-10 that is about 14.4 bits per target versus a 64-bit cell, a factor about
+    4.4 reduction, and the false-positive overhead is a factor (1 + eps*C) on time, negligible
+    for eps at most 2^-10. (2) Membership testing can be REPLACED ENTIRELY by a distinguished-prefix
+    partition - accept only digests whose FORS indices lie in a pre-agreed sparse pattern
+    - trading a factor in success probability for O(1) memory, which is the van Oorschot-Wiener
+    move applied to a covering problem rather than a collision problem. (3) The grinding search
+    itself is embarrassingly parallel with NO shared state, so under any parallel cost model
+    the memory term does not multiply the processor count. NET CLAIM - the memory-based security
+    credit for SLH-DSA's FORS layer is at most about 3-4 bits under approximate membership
+    and about 0 bits under the prefix partition, not the 15-20 bits a full-cell table charge
+    would suggest.
+  mechanism: 'A multi-target forgery against FORS succeeds when a ground digest''s k tree-indices
+    are all covered by leaves already revealed across q signatures. The adversary grinds candidate
+    (randomizer, message) pairs and tests coverage. Coverage testing is a pure membership
+    predicate over a static set, which is the canonical Bloom-filter workload: no deletions,
+    no retrieval, and a false positive is caught by the subsequent exact check at negligible
+    cost because the exact check happens only on surviving candidates. This is why charging
+    a full cell per target overstates the memory. The second step is sharper: if the adversary
+    restricts attention to digests whose indices all fall into a fixed thin subset of each
+    tree, it does not need the table at all - it needs only the thin subset''s description
+    - at the price of a reduced hit probability. That is exactly the memoryless-versus-memory
+    trade the exemplar profile requires to be stated, and it says the memory axis is not a
+    hard defence.'
+  why_not_a_renamed_known_approach: Nearest known method - Bloom filters and van Oorschot-Wiener
+    parallel collision search, both classical; the novelty is not the tools but the TARGET,
+    namely this program's own committed position that the FORS table is a chargeable cost.
+    Nearest internal record - IDEA-20260805-88ecef, which this record is written to CONTRADICT
+    quantitatively rather than to extend. LOSSY-PROJECTION TEST - the tracked object is the
+    membership FILTER STATE, a projection of the revealed-leaf set onto a hash-image bit vector.
+    It discards which target matched and keeps only that some target may have matched, which
+    is compatible with the attack's operations precisely because the attack's next step (re-derivation
+    and exact check) reconstructs the discarded information on demand. Genuinely lossy - many
+    possible index values map to one bit. PASSES.
+  predictions:
+  - observable: bits per stored target needed for false-positive rate eps at the FIPS 205
+      parameter sets
+    metric: bits
+    predicted: about 1.44*log2(1/eps); at eps = 2^-10, about 14.4 bits versus 64 for a cell
+  - observable: time overhead from false positives
+    metric: multiplicative factor on grinding time
+    predicted: 1 + eps*(cost of exact check divided by cost of one grind), at most 1.01 at
+      eps = 2^-10
+  - observable: memory-based security credit
+    metric: bits
+    predicted: at most 4 bits under approximate membership; about 0 under the prefix partition;
+      the record is falsified if a correct accounting shows 10 bits or more
+  - observable: prefix-partition success-probability penalty
+    metric: bits of extra grinding
+    predicted: exactly the log2 of the thinning factor, computed in closed form and traded
+      against memory on an explicit curve
+  - observable: parallel scaling
+    metric: speedup with n independent workers and no shared memory
+    predicted: linear in n for the grinding stage, so the memory term does not scale with
+      n - the point at which a memory defence would have to bite and does not
+  minimal_test: Pure accounting plus a small simulation. (1) Write the exact multi-target
+    FORS attack cost with THREE memory models - full cell, approximate membership, prefix
+    partition - at all six FIPS 205 parameter sets, with the cost of the exact check charged
+    explicitly. (2) Simulate at TOY parameters (16 or 24 bit hash output, small k and a) to
+    confirm the false-positive overhead formula and the prefix-partition penalty empirically.
+    (3) State the resulting credit in bits and compare directly against IDEA-20260805-88ecef's
+    figure, resolving the discrepancy in one direction or the other.
+  controls:
+  - Toy simulation with the filter DISABLED, to confirm the exact-check path alone reproduces
+    the same forgeries - a filter that changes the answer rather than the cost is a bug.
+  - A deliberately undersized filter (eps = 2^-2) to confirm the overhead formula tracks eps
+    rather than being flat, which is the decay control for this instrument.
+  - Independent re-derivation of the bits-per-element figure, since it is the standard Bloom
+    bound and using it without re-derivation would import an unchecked constant.
+  confounders:
+  - Real cost models charge memory ACCESS, not only memory size; a filter with random access
+    across a large array may cost more per query than a compact sorted structure. The record
+    must charge access, not just bits.
+  - The prefix partition changes the attack's success probability in a way that interacts
+    with the signature budget q; treating them as independent would overstate the gain.
+  - FIPS 205's actual index derivation may not permit the thin-subset restriction if the index
+    bits are not independently controllable by the adversary - THIS IS THE CLAIM'S MAIN VULNERABILITY
+    and must be pinned from the standard's text, not assumed.
+  falsification_conditions:
+  - The FIPS 205 index derivation prevents a prefix partition - step (2) dies and only the
+    roughly 4-bit Bloom saving survives.
+  - Charging memory access rather than size restores a 10-bit-or-more credit - the record
+    is refuted and IDEA-20260805-88ecef's position stands.
+  - The toy simulation shows the false-positive overhead does not follow the stated formula
+    - the cost model is wrong.
+  interpretation_limits: This is an accounting claim about ATTACK COST, not an attack. It
+    does not show SLH-DSA is broken or weakened below its category; it shows that one specific
+    DEFENSIVE argument (memory) is worth fewer bits than assumed. Fault and memory-corruption
+    results remain in a strictly separate claim class per GOAL-SLHDSA-001's objective.
+  assumptions:
+  - FIPS 205's message-digest-to-index split and the FORS index derivation are obtainable
+    as primary text under the network policy (GOAL-SLHDSA-001 names inability to obtain it
+    as a pause condition).
+  - The randomizer is adversary-choosable in a forgery, which is what makes grinding possible;
+    this must be confirmed from the standard, not assumed.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: FOR ALL FIPS 205 parameter sets, the k FORS indices derived from a uniformly
+      random digest are uniformly distributed and mutually independent across the k trees.
+    rigorous_ingredient: The digest is produced by a hash modelled as a random oracle in the
+      scheme's own security argument, so uniformity of the derived indices is the model's
+      own assumption and not an extra one.
+    distribution_imitated: the balls-in-bins occupancy law for k independent draws from 2^a
+      cells each.
+    validation_route: TOY, LABELLED. Instantiate the FIPS 205 index derivation with a truncated
+      hash (16-24 bits) and sample 10^7 digests, comparing the empirical joint index distribution
+      against uniform-independent by chi-square per tree pair. This tests the DERIVATION FUNCTION's
+      structure at small output size, and is explicitly NOT a crypto-scale validation.
+    tail_checks: Report the most-loaded and least-loaded cell counts against the expected
+      extremes for the sample size, since a coverage attack lives in the tail, not the mean.
+  - id: HA-2
+    statement: the exact re-check cost on a filter hit is at most C times one grinding step,
+      with C at most 100.
+    rigorous_ingredient: The re-check is a bounded number of hash evaluations fixed by the
+      parameter set (k tree lookups), so C is computable rather than assumed.
+    distribution_imitated: not applicable.
+    validation_route: compute C directly from the parameter set's k and the hash cost, and
+      confirm in the toy simulation by counting operations.
+    tail_checks: report C at the parameter set with the largest k, since the overhead is worst
+      there.
+  target_complexity:
+    time_exponent: The attack's TIME exponent is unchanged by this record; what changes is
+      the MEMORY exponent and hence the position of the attack under memory-charged accounting.
+      Concretely - memory drops from about log2(q*k) + 6 bits (full cells) to about log2(q*k)
+      + 3.85 bits (approximate membership) to O(1) (prefix partition, at a stated time penalty).
+    memory_exponent: See above; the deliverable is a TIME-MEMORY CURVE across the three models
+      at all six FIPS 205 parameter sets, not a single point.
+    best_known_baseline: IDEA-20260805-88ecef's full-cell table charge, which this record
+      contradicts and must therefore reproduce exactly before departing from it.
+    hidden_overhead_disclosure: The prefix-partition variant's penalty depends on whether
+      the adversary can steer index bits, which is a property of the deployed derivation and
+      is the single unresolved input. If it cannot, the O(1)-memory arm vanishes and only
+      the roughly 4-bit Bloom arm survives - and the record says so rather than presenting
+      the best case.
+    time_memory_tradeoff: This record IS a time-memory tradeoff statement, and it explicitly
+      places the attack on a van Oorschot-Wiener-style curve rather than at a single memory
+      point. Parallelisation is linear with no shared state in the grinding stage.
+  sota_delta: Against this program's own committed position - a quantified contradiction worth
+    roughly 10-16 bits of claimed memory credit. Against the published literature - UNVERIFIED;
+    whether the Bloom-filter observation appears in published FORS analyses is unknown to
+    this session and the record does not claim priority.
+  dominated_by: For the ATTACK, nothing here beats the standard multi-target grinding attack
+    in time; the record only re-prices its memory. IDEA-20260805-88ecef DOMINATES on the defensive
+    reading and is the row this record challenges; IDEA-20260805-fbe36a (the k-th moment of
+    FORS key-pair collisions) and IDEA-20260805-705614 (the ITSR quantifier audit) address
+    the PROOF side and are complementary rather than dominating. Checked all four RQ-SLHDSA-001
+    proposals plus IDEA-20260801-009 and IDEA-20260807-c4f1fc.
+  estimated_cost: implementation LOW (accounting plus a toy simulation); compute LOW; one
+    producer slot.
+  recommended_priority: high
+  honest_prior_of_survival: The Bloom-filter arm surviving review - 0.8 (it is standard and
+    hard to argue against). The prefix-partition arm surviving - 0.4, gated entirely on whether
+    index bits are steerable in FIPS 205. A net credit of at most 4 bits being accepted -
+    0.6. Producing a determinate resolution against IDEA-20260805-88ecef either way - 0.85.
+  novelty_status: unverified
+  novelty_class: adaptation
+  novelty_screen: EXISTING_PROPOSALS.txt lines 68, 174, 192, 257, 413 (all five RQ-SLHDSA-001
+    records read); EXISTING_HYPOTHESES.txt H-SLHDSA-3a403a (FORS layer at six FIPS 205 sets
+    under a random-oracle idealisation of the digest split, against known generic attacks
+    - the closest, and it does not address memory representation); CATALOGUE_TITLES.txt (no
+    hash-based signature entries); REJECTED_TITLES.txt, DEFERRED_TITLES.txt, KNOWLEDGE_BARRIERS.txt
+    (no KN-FIND on hash-based signatures). EXTERNAL LITERATURE NOT SCREENED.
+  discriminated_from: IDEA-20260805-88ecef - same object (the attack's table), OPPOSITE conclusion,
+    with the disagreement reduced to two checkable quantities (bits per element and whether
+    index bits are steerable). That is the cleanest kind of internal contradiction this program
+    can have, and it is proposed as such deliberately.
+  source_refs:
+  - ref: IDEA-20260805-88ecef - the FORS multi-target attack buys its advantage with a table
+      of about q*k cells with random access
+    status: internal_committed
+    use: the position this record contradicts; reproduced exactly before departure.
+  - ref: FIPS 205 (SLH-DSA), finalized 2024-08-13
+    status: named_but_not_read_this_session
+    use: the index derivation must be pinned from primary text before any arm depending on
+      steerability is asserted.
+  - ref: Bloom filter space bound of about 1.44*log2(1/eps) bits per element; van Oorschot-Wiener
+      parallel collision search
+    status: recalled_standard
+    use: re-derived in the minimal test rather than imported.
+  proof_search_map:
+    not_applicable_reason: 'Not proof-oriented - it is a cost-model correction. The applicable
+      audits are discharged inline: baseline reproduction is the requirement to reproduce
+      IDEA-20260805-88ecef''s figure exactly before departing from it; the observation collision
+      is that memory in bits and memory access cost are two different observables that this
+      record insists on separating; the method ceiling is that it re-prices an attack and
+      never produces one.'

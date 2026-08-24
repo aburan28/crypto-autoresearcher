@@ -1,0 +1,217 @@
+experiment:
+  id: EXP-AOM-e057f7
+  hypothesis_id: H-AOM-8d4a83
+  version: 1
+  title: >-
+    Measuring the simulability threshold T(p) of the degree-budgeted algebraic
+    oracle model, with the F_p^* instantiation as the zero-compute killer
+  status: review_required
+  objective: >-
+    Run three zero-compute gates that can refute the model outright; then
+    implement AOM_d in its three variants over toy curves, sweep d to locate the
+    threshold at which the generic simulator's per-query failure rate crosses the
+    pre-registered band, fit the threshold exponent against the predicted 1/t,
+    compare simulator overhead on Semaev systems against matched random systems,
+    and place every oracle in this program's history on the resulting ladder.
+  experiment_class: measurement
+  inputs:
+    curves: >-
+      Toy prime-field curves at the primes already used for the program's rho
+      baselines, spanning at least a factor 16 in p, frozen into curves.json.
+    multiplicative_group: >-
+      F_p^* at matched sizes, for the nearby-object control. This is not
+      optional and not secondary: it is the object on which the model is most
+      likely to die.
+    oracle_variants:
+      - AOM_d_bit: returns whether f vanishes on the queried tuple's coordinates
+      - AOM_d_pt: returns one uniformly random F_p-point of {f = 0}
+      - AOM_d_enum: returns all F_p-points of {f = 0}
+    variant_note: >-
+      Semaev decomposition is an AOM_pt-style oracle -- it wants ONE
+      decomposition, not the whole fibre. The program's closed oracles are mostly
+      bit or pt at bounded degree. Every theorem, measurement and table names its
+      variant; conflating them is the most likely way to produce a threshold
+      about nothing.
+    arities: [2, 3]
+    d_sweep: from 1 upward until the failure rate crosses the band
+    semaev_arities: [3, 4]
+    historical_oracles: >-
+      Every oracle this program has considered: jet, endomorphism, incidence,
+      Semaev decomposition, pairing transfer, formal-logarithm. Each is assigned
+      (t, d, variant) and its recorded verdict.
+  controls:
+    - id: C0a_fp_star_gate
+      description: >-
+        ZERO COMPUTE, FIRST, BLOCKING. Instantiate the ladder over F_p^*, where
+        index calculus provably beats the generic bound. The model must FAIL to
+        certify hardness there. If it certifies hardness, the model is refuted
+        and the experiment ends at zero cost -- the intended cheap death.
+    - id: C0b_known_attack_location
+      description: >-
+        ZERO COMPUTE, BLOCKING. Locate MOV/Frey-Ruck on a low-embedding-degree
+        curve and Smart's anomalous attack on the ladder, and confirm the model
+        does not block either. Both draw their power from group-ORDER structure,
+        not coordinate degree, and the model must express that distinction. If it
+        cannot, it is not a model.
+    - id: C0c_shoup_reproduction
+      description: >-
+        ZERO COMPUTE, BLOCKING. d = 1 must be literally Shoup's simulator, and
+        the implemented AOM_1 must reproduce the sqrt(N) query count on a toy
+        ECDLP within the pre-registered band.
+    - id: C1_random_system_null
+      description: >-
+        Random polynomial systems matched to S_m on total degree, per-variable
+        degree, support size and arity, measured on the identical simulator.
+        Predicted: identical overhead within a factor 2, which is the intended
+        reading and must be confirmed rather than assumed.
+    - id: C2_two_implementations
+      description: >-
+        Two independent simulator implementations must agree on query counts for
+        a frozen seed before any threshold is fitted. BLOCKING: otherwise the
+        fitted threshold measures the programmer.
+    - id: C3_arity_pinning
+      description: >-
+        Arity is held constant within each fit. Any run in which t grows with p
+        is excluded and its exclusion recorded -- a low-degree high-arity oracle
+        can be as powerful as a high-degree low-arity one and would silently
+        change the claim under test.
+  independent_variables:
+    - degree d (swept)
+    - arity t (2 values)
+    - oracle variant (3 values)
+    - prime p (>= 4 values spanning a factor 16)
+    - group type (elliptic curve, F_p^*)
+  metrics:
+    primary:
+      - >-
+        threshold_T(p, t): the least d at which the instrumented per-query
+        failure rate crosses the pre-registered band, per prime and arity.
+      - >-
+        fitted_threshold_exponent: the exponent in T(p) ~ p^alpha fitted across
+        primes, compared against the predicted alpha = 1/t.
+    secondary:
+      - per-query failure rate versus the union bound Q*d^t/N
+      - simulator overhead on Semaev S_m versus matched random systems
+      - ladder position (t, d, variant) for every historical oracle
+      - count of recorded verdicts inconsistent with the conjectured threshold
+      - exhaustive #V(F_p) counts versus the Lang-Weil envelope
+  measured_vs_modeled:
+    measured:
+      - failure rates, query counts, simulator overheads
+      - exhaustive #V(F_p) at toy p by enumeration
+      - fitted threshold exponents with confidence intervals
+    modeled:
+      - the Bezout bound d^t and the Lang-Weil envelope (HEUR-AOM-1)
+      - the union bound Q*d^t/N (HEUR-AOM-2)
+      - the predicted threshold T(p) ~ p^{1/t}
+    rule: measured and modeled never share a column; every modeled entry names its source
+  optimistic_assumptions:
+    - >-
+      The simulator is a reasonable rather than an optimal one. BIAS: a weak
+      simulator produces a LOW measured threshold. Direction: understates the
+      model's reach, so a measured threshold is a lower bound on the true one.
+    - >-
+      Arity is capped at 3 for feasibility. BIAS: the p^{1/t} prediction is
+      tested only at two arities, so the fitted dependence on t is weakly
+      constrained.
+    - >-
+      #V(F_p) is enumerated exhaustively only for p <= 2^13 and t <= 3. BIAS:
+      HEUR-AOM-1 is validated on a narrow slice and asserted nowhere else.
+  optimistic_assumption_rule: >-
+    Any threshold reported under these assumptions is labeled a LOWER BOUND on
+    the true threshold, not an estimate of it, and the list is reproduced in the
+    results report with the direction of each bias.
+  heuristic_under_test: HEUR-AOM-1
+  preregistered_prediction:
+    quantity: >-
+      The simulability threshold T(p, t), i.e. the degree at which the generic
+      simulator's per-query failure rate ceases to be negligible.
+    formula: T(p, t) ~ p^{1/t}, i.e. fitted exponent alpha = 1/t.
+    source: >-
+      H-AOM-8d4a83, from the Bezout point count d^t compared against the
+      subgroup order N ~ p. Frozen before execution; a revision is a
+      protocol_amendment and never a re-scoring of executed runs.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The threshold is measured at toy primes because the sweep requires
+      exhaustive point counts on the queried varieties. What is claimed to
+      transfer is the FUNCTIONAL FORM p^{1/t}, not any measured value, and the
+      fit across four primes is what tests it. Resulting evidence is capped at
+      claim_tier toy; no statement about cryptographic parameters follows from
+      any measured threshold.
+    correspondence: null
+  tail_checks:
+    - >-
+      The largest observed per-query failure rate against the union bound. A
+      rate above the bound refutes HEUR-AOM-2 and halts the fit.
+    - >-
+      The single largest deviation of an exhaustive #V(F_p) count from the
+      Lang-Weil envelope, against the predicted O(d^c p^{-1/2}) term.
+    - >-
+      The historical oracle whose recorded verdict is furthest from its
+      ladder-predicted verdict, reported by name whether or not it is
+      inconsistent.
+  replication:
+    seeds: [3, 9, 27, 81, 243]
+    independent_instances: 5
+    note: >-
+      5 seeds per (p, t, d, variant) cell. Failure rates are proportions, so the
+      binomial interval at the executed query volume is reported alongside the
+      seed spread, and a threshold is declared only where the two agree.
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 120
+    maximum_memory_gb: 16
+    maximum_runs: 3000
+  stopping_rules:
+    - >-
+      HALT at Stage 0 if any of C0a, C0b, C0c fails. This is the intended cheap
+      death and costs nothing; report it as a refutation of the model, not as an
+      experiment failure.
+    - >-
+      Stop the d-sweep at a cell once the failure rate has crossed the band and
+      stayed above it for three consecutive d, to avoid spending budget past the
+      threshold.
+    - Stop at the CPU-hour cap; report completed cells and name the incomplete ones.
+  invalidation_rules:
+    - Any BLOCKING control failing invalidates every downstream number.
+    - >-
+      Disagreement between the two simulator implementations invalidates the run
+      set until reconciled.
+    - >-
+      Any run in which arity grew with p is excluded; it tests a different claim.
+    - >-
+      Crashes, timeouts and memory exhaustion are infrastructure outcomes under
+      AGENTS.md rule 5, never evidence about simulability.
+  success_criterion: >-
+    C0a-C0c and C2 pass, and the experiment reports T(p, t) with intervals for
+    every completed cell, the fitted threshold exponent against 1/t, the
+    Semaev-versus-random overhead ratio, and the ladder-location table for every
+    historical oracle with inconsistencies named. The experiment succeeds
+    whichever way the fit comes out; a Stage-0 refutation also counts as a
+    successful, and very cheap, outcome.
+  falsification_criterion: >-
+    CONJECTURE AOM is REFUTED by any of: the F_p^* instantiation certifying
+    hardness; the model blocking MOV or Smart; an observation collision with no
+    declared separating condition; a fitted threshold exponent outside 1/t +- 0.1
+    across the prime ladder; or an exhibited degree-polylog(p) oracle that is
+    provably not simulable with poly overhead. HEUR-AOM-1 and HEUR-AOM-2 are
+    refuted independently by their own conditions, and refuting either does not
+    by itself refute the conjecture -- the record must not conflate them.
+  required_artifacts:
+    - frozen curves.json and the F_p^* parameter sets
+    - the three Stage-0 gate write-ups with their verdicts
+    - per-run manifest with command, commit, environment, seed, resolved model
+    - raw per-query failure logs sufficient to recompute every rate
+    - exhaustive #V(F_p) tables for the validated slice
+    - the two implementations' frozen-seed agreement record
+    - ladder-location table for every historical oracle, with variant and arity
+    - control outcomes C0a-C3 with pass/fail
+    - measured-vs-modeled table, columns unmixed
+  assigned_to: executor
+  approved_by: null
+  approval_note: >-
+    Status is review_required. Approval authorises compute and is the user's
+    call; it has not been given. Note that Stage 0 is zero-compute and can
+    refute the model before any budget is spent.

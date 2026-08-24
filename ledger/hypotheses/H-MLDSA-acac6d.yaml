@@ -1,0 +1,593 @@
+hypothesis:
+  id: H-MLDSA-acac6d
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+
+  statement: >-
+    SCOPE: published fault attacks on ML-DSA implementations, classified by an
+    invariant of the SCHEME'S OWN DATAFLOW rather than of any device. CLAIM TIER:
+    the arithmetic (constraint ranks, signature-count brackets, the invertibility
+    floor) is exact at the real parameter sets and is not toy; each TAXONOMY ROW
+    inherits the provenance of its source, and rows built on abstracts are
+    reported at the strength of abstracts. THIS IS AN IMPLEMENTATION-LEVEL
+    HYPOTHESIS. Under AGENTS.md rule 7 nothing in it is evidence about MLWE,
+    MSIS or SelfTargetMSIS in EITHER direction -- not as a weakening and not as
+    a reassurance. NO FAULT IS INJECTED, SIMULATED, OR ENABLED.
+    THE CLAIM, IN FIVE PARTS.
+    (P1) THE INVARIANT EXISTS AND IS COMPUTABLE. For a fault F on an ML-DSA
+    signer, define r(F) = the number of independent F_q-linear functionals of
+    the secret (s1, s2) that ONE faulty signature makes computable from public
+    data. r(F) is a property of Algorithm 7's dataflow and of the fault's
+    effect, and is independent of device, technique and success rate.
+    (P2) SIGNATURE COST IS r-DETERMINED, WITH AN EXACT BRACKET. Recovery of s1
+    by linear algebra alone needs N_LA = ceil(256*l / r) faulty signatures; the
+    information-theoretic floor using ||s1||_inf <= eta is
+    N_IT = ceil(256*l*log2(2*eta+1) / (r*log2 q)). The unrounded ratio
+    N_LA/N_IT = log2 q / log2(2*eta+1) is INDEPENDENT of r and of l, equal to
+    9.9050 at eta = 2 and 7.2554 at eta = 4.
+    (P3) A SINGLE-SIGNATURE RECOVERY FORCES ITS OWN INJECTION SITE. Because s1
+    occurs exactly once in the published transcript, through z = y + c*s1, and
+    because c is invertible in R_q with probability at least 1 - 256/q, a
+    reported full-s1 recovery from ONE faulty signature forces r = 256*l, hence
+    forces the whole of y to be computable, hence places the injection site on
+    the y-generation path (the seed rho', ExpandMask, or the hedged RNG) and NOT
+    at an internal function boundary of the NTT or of the polynomial arithmetic.
+    (P4) THE PUBLISHED SUCCESS PROBABILITY IS HARDWARE, NOT ALGEBRA. The
+    algebraic step of that recovery succeeds with probability at least
+    1 - 256/q = 0.99996945. The canonical figure recorded by
+    DEC-20260805-0d59ff for the Jendral 2024 attack is 0.582. The two differ by
+    orders of magnitude, so 0.582 is a fault-landing probability and bounds
+    nothing mathematical.
+    (P5) WHAT CANNOT BE CLAIMED, STATED UP FRONT. The fault-security proof
+    itself is NOT in this corpus -- no KN-LIT entry corresponds to it, and
+    KN-LIT-8ce0b5 is a machine-checked rank bound for one fault class, a
+    different object. So GOAL-MLDSA-001's second completion criterion is
+    currently UNREACHABLE from the filed material, and the boundary statement is
+    written as a CONDITIONAL whose antecedent is relayed. The taxonomy stands
+    without it; the boundary does not.
+
+  mechanism: >-
+    DERIVED IN-REPO. The Algorithm 7 dataflow is RECALLED-UNVERIFIED (KN-LIT-4dadec
+    records the FIPS 204 body as NOT READ; DEC-20260805-0d59ff gate 1 permits
+    ideation on that basis). Every algebraic step is derived given that
+    structure, and the structure itself is a checkable stage rather than an
+    authority.
+
+    STEP 1 -- WHERE THE SECRET TOUCHES PUBLIC DATA. Signing samples y with
+    ||y||_inf < gamma1, sets w = A*y, w1 = HighBits(w), c = SampleInBall(H(mu,w1)),
+    z = y + c*s1, and rejects unless the norm checks pass; the published objects
+    are (c-tilde, z, h) plus the public key. In an UNFAULTED transcript,
+    rejection sampling makes the distribution of z independent of s1, so the
+    honest transcript has rank EXACTLY ZERO on the secret. s1 appears in the
+    published data only inside z = y + c*s1; s2 appears only inside
+    LowBits(A*y - c*s2), which is not published. EVERY FAULT ATTACK IS THEREFORE
+    A METHOD OF LEARNING PART OF y, OR OF MOVING THE SECRET SOMEWHERE THE
+    TRANSCRIPT EXPOSES IT. That single structural observation is what makes rank
+    the right coordinate, and it is also the single point a reviewer should
+    attack -- if a second channel exists, P3 collapses and finding it is the
+    better result.
+
+    STEP 2 -- RANK FROM PARTIAL KNOWLEDGE OF y. q = 8380417 and
+    q - 1 = 8380416 = 2^13 * 3 * 11 * 31, so 512 divides q - 1, X^256 + 1 splits
+    into 256 linear factors mod q, and R_q is isomorphic to F_q^256. In that
+    basis multiplication by c is diagonal, and invertible exactly when none of
+    c's 256 NTT coefficients vanishes -- probability at least 1 - 256/q by a
+    union bound. Suppose a fault makes w of the 256*l coefficients of y
+    computable. Restricting z - y = c*s1 to those w coordinates yields w
+    F_q-linear functionals of s1; restricting an invertible linear map to w
+    coordinates has rank exactly w. Hence r = w per faulty signature, and over N
+    signatures with independent challenges the ranks add until saturation:
+      N_LA = ceil(256*l / w),
+      N_IT = ceil( 256*l*log2(2*eta+1) / (w*log2 q) ),   log2 q = 22.9986.
+    SCOUT-COMPUTED at ML-DSA-44 (256*l = 1024, eta = 2, s1 entropy 2377.6 bits):
+      w = 1 -> (N_LA, N_IT) = (1024, 104)
+      w = 8 -> (128, 13)
+      w = 64 -> (16, 2)
+      w = 256 -> (4, 1)
+      w = 1024 -> (1, 1).
+    The unrounded ratio is log2 q / log2(2*eta+1) = 22.9986/2.321928 = 9.9050 at
+    every w and every l -- a forced invariance that is the arithmetic's own
+    check. After the ceilings it is only approximately 9.9 (at w = 64 the pair
+    is 16 and 2, ratio 8); the invariance is asserted for the unrounded
+    quantities. That ratio is exactly the room a side-information lattice attack
+    (KN-TECH-047) has to work in, and this hypothesis MEASURES the room without
+    filling it.
+
+    STEP 3 -- THE FORCING ARGUMENT. Set N = 1 in STEP 2: full recovery of s1
+    from one faulty signature requires w = 256*l, i.e. 1024 / 1280 / 1792 at
+    ML-DSA-44 / -65 / -87. By STEP 1 there is no alternative channel. So the
+    fault must render y computable IN FULL, which the y-generation path can do
+    (a faulted or predictable rho', a faulted ExpandMask, a faulted hedged RNG)
+    and which a bounded intra-transform fault cannot -- a twiddle-factor fault
+    perturbs a bounded number of coefficients of one NTT and therefore has r
+    bounded by construction, which is precisely the SHAPE of the machine-checked
+    bound KN-LIT-8ce0b5 relays. (ITS VALUE IS NOT KNOWN TO THIS PROGRAM; the
+    entry records "Full text not obtained". The bound is a checkable input, not
+    an assumption.) THE CLASSIFICATION IS THEREFORE FORCED BY THE REPORTED
+    SIGNATURE COUNT ALONE, before any fault model is read -- which is what makes
+    the taxonomy survive not having the proof.
+
+    STEP 4 -- THE SEPARATION OF HARDWARE FROM ALGEBRA. Given y, the recovery is
+    s1 = c^{-1}(z - y), failing only on non-invertible c, i.e. with probability
+    at most 256/q = 3.0547e-5. The canonical reported success probability is
+    0.582. Since 0.582 is nowhere near 0.99996945, the reported figure is
+    dominated by the physical fault landing where intended. FORCED CONCLUSION:
+    0.582 is an implementation statistic and bounds nothing about any of the
+    three problems. Writing this down with the arithmetic is the rule-7
+    discipline GOAL-MLDSA-001's next_action demands, and it converts a number
+    already sitting in this ledger as an attack statistic into a number
+    correctly attributed.
+
+    STEP 5 -- THE TAXONOMY AND ITS HONEST GAPS. Each published attack gets one
+    row: (site in the dataflow DAG; what the fault makes computable; w; r;
+    N_LA; N_IT; site class in {ALGORITHM INPUT, INTERNAL FUNCTION BOUNDARY,
+    INTRA-FUNCTION DATAPATH}; provenance class per cell). Rows whose site is not
+    determinable from the material actually obtained are marked UNDETERMINED and
+    STAY undetermined. A taxonomy with three determined and two undetermined
+    rows is a result; a taxonomy with five rows of which two are inferred is a
+    fabrication. The boundary statement is then the conditional: IF the proof's
+    fault model is "faults at internal function boundaries", THEN every row
+    whose site class is ALGORITHM INPUT lies outside the guarantee. The
+    antecedent is relayed from RQ-MLDSA-001's motivation and is currently
+    unsourced; obtaining it is a stage that may fail, and the failure is
+    reported as a named gap in the goal's own completion criterion rather than
+    papered over.
+
+  assumptions:
+    - >-
+      ALGORITHM 7 DATAFLOW as in STEP 1. RECALLED-UNVERIFIED. If the structure
+      differs, the rank arithmetic is unchanged in form and is re-instantiated
+      mechanically; if s1 or s2 has a second published occurrence, P3 collapses
+      and that is the finding.
+    - >-
+      q = 8380417 with q - 1 = 2^13 * 3 * 11 * 31, hence 512 | q - 1 and
+      X^256 + 1 splits completely. The modulus is recalled; the divisibility was
+      checked here and is re-checked in-harness as the cheapest gate in the
+      contract.
+    - >-
+      GENERICITY: the w restricted functionals are independent, and challenges
+      across signatures are independent so ranks add. Generic over F_q, failing
+      on a set of density O(1/q) per collision. Stated per row rather than
+      assumed silently.
+    - >-
+      The four filed implementation entries (KN-LIT-340675, -4f3b80, -180ad5,
+      -8ce0b5) each record "Full text not obtained". Every site assignment made
+      from an abstract is a guess and is entered as UNDETERMINED.
+    - >-
+      No claim whatsoever about any fielded product, any deployed
+      implementation, or the presence or absence of countermeasures. A
+      countermeasure changes the landing probability, never the rank.
+
+  proof_search_map:
+    bottleneck: >-
+      The step that converts a fault's effect into a count of independent
+      constraints on the secret. Every signature-count bracket, every site
+      classification, and the entire boundary conditional pass through it. It is
+      also the step that lets the classification be performed WITHOUT the
+      fault-security proof, which is the only reason this line is affordable at
+      all given that the proof is not in the corpus.
+    baseline_embedding:
+      parameter_slice: >-
+        The y-known fault at ML-DSA-44, where the answer is known independently:
+        s1 = c^{-1}(z - y) recovers the full secret from one signature. This is
+        the classical, unfaulted-mathematics limit of the whole family -- the
+        case where the fault has removed all of the rejection sampling's
+        protection -- and it is the slice against which the rank procedure must
+        reproduce a known answer.
+      reproduction_check: >-
+        SYMBOLIC AND EXACT: the procedure must return r = 1024, N_LA = 1,
+        N_IT = 1 on that slice, and must exhibit the recovery map. It must
+        SIMULTANEOUSLY return r = 0 on the unfaulted transcript. Reproducing one
+        without the other is not a passed baseline: a procedure that returns
+        full rank on everything and a procedure that returns zero on everything
+        each pass half of this check.
+    observation_collision:
+      observable: >-
+        The published claim shape "full key recovery from N faulty signatures at
+        success probability p on device D".
+      distinct_preimage_search: >-
+        THE COLLISION IS THE POINT AND IT IS RESOLVED BY THE INVARIANT. Two
+        attacks with the same reported (N, p) can have entirely different site
+        classes, and two attacks on the same site can report wildly different p
+        because p is a hardware quantity. So the published observable does NOT
+        determine the security-relevant object, which is why classifying by it
+        -- the informal practice this hypothesis replaces -- cannot place
+        attacks inside or outside a proof. The invariant (site, w, r) is
+        proposed as the finer observable. THE SEARCH FOR A COLLISION IN THE FINER
+        OBSERVABLE IS AN EXPLICIT DELIVERABLE: if two attacks with different
+        site classes share (w, r), the invariant does not separate them either
+        and the taxonomy must be refined or abandoned. A SECOND, PRE-DERIVED
+        COLLISION CHECK: the unfaulted transcript and the message-digest fault
+        share the observable r = 0 while being different objects -- correctly,
+        since neither constrains the secret, and a procedure that separates them
+        is counting something that is not a constraint.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          The w-ladder: five synthetic fault classes making w in
+          {1, 8, 64, 256, 1024} coefficients of y computable at ML-DSA-44, with
+          pre-derived (N_LA, N_IT) = (1024,104) / (128,13) / (16,2) / (4,1) /
+          (1,1).
+        predicted_gain: >-
+          Turns a single classification into a monotone curve with five interior
+          points, so an arithmetic fault localises to either the linear-algebra
+          count or the entropy count instead of leaving "the numbers look wrong",
+          and so a departure from ceil(256*l/w) at a specific w localises the
+          failure of the independence assumption to that w.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold r fixed and vary the site: are there two distinct site classes
+          producing the same r? If yes, name the intrinsic quantity that still
+          separates them (candidate: whether the site is reachable without
+          controlling the algorithm's inputs); if no such quantity exists, the
+          taxonomy's site column is not determined by its rank column and must
+          be sourced independently for every row.
+        predicted_gain: >-
+          Decides, before any reading, whether the taxonomy needs one column or
+          two -- and therefore whether the classification can be completed from
+          reported signature counts alone or requires the papers' bodies.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER. FOR ALL faults F on an ML-DSA signer, THERE EXISTS
+      an integer r(F) such that FOR ALL N, the rank available from N faulty
+      signatures is min(N*r(F), 256*l). The witness r may depend on F -- that is
+      the definition -- but MAY NOT depend on N, on the device, or on the
+      success probability. That independence is the whole content: a "rank" that
+      had to be re-fitted per signature count would be a curve fit, not an
+      invariant.
+      THE CONVERSE IS EXPLICITLY NOT CLAIMED. It is NOT claimed that for all
+      attacks with a given r there exists an algorithm achieving N_IT; N_IT is a
+      FLOOR from counting and no algorithm attaining it is exhibited (see
+      HEUR-FLT-2). A published attack sitting near N_LA is therefore not
+      evidence of inefficiency, and the write-up may not read it as such.
+      THE BOUNDARY CLAIM IS A CONDITIONAL, NOT A UNIVERSAL: IF the proof's model
+      is "internal function boundaries" THEN algorithm-input sites are outside
+      it. The antecedent is relayed and unsourced; asserting the consequent
+      unconditionally would be exactly the quantifier error this audit exists to
+      avoid.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a hardware-independent classification of the published fault
+        attacks this program can actually obtain, by injection site and
+        constraint rank, with an exact signature-count bracket per class; plus a
+        conditional boundary statement whose antecedent is named and whose
+        provenance is stated. It CANNOT certify that any attack is or is not
+        covered by a proof this program has not read. It cannot certify that a
+        given implementation is vulnerable. It says nothing about MLWE, MSIS or
+        SelfTargetMSIS, and it moves no exponent.
+      nearby_object_control: >-
+        THE UNFAULTED SIGNER is the nearest object at which the hoped conclusion
+        must FAIL: rejection sampling makes the honest transcript's rank exactly
+        0, so a procedure that extracts positive rank there has reproduced a
+        break of ML-DSA by bookkeeping error and must be stopped at once. A
+        SECOND nearby object, one step further: the MESSAGE-DIGEST fault, which
+        IS a fault and IS injected at a real site and still yields r = 0. A
+        procedure that cannot hold "a fault occurred" apart from "the secret is
+        constrained" has not identified the load-bearing structure.
+    proof_obligations:
+      - claim: "In an unfaulted transcript the rank on (s1,s2) is exactly 0."
+        responsibility: correctness
+      - claim: "s1 appears in published data only via z = y + c*s1; s2 appears in no published value."
+        responsibility: correctness
+      - claim: "512 | q-1, R_q splits completely, c invertible with probability >= 1 - 256/q."
+        responsibility: correctness
+      - claim: "r = w for a fault exposing w coefficients of y, generically."
+        responsibility: strictness
+      - claim: "N_LA = ceil(256l/w), N_IT = ceil(256l log2(2eta+1)/(w log2 q)), unrounded ratio log2 q / log2(2eta+1)."
+        responsibility: correctness
+      - claim: "A reported N = 1 full-s1 recovery forces w = 256l and hence the y-generation site."
+        responsibility: feasibility
+      - claim: "N_IT is a floor only; no attaining algorithm is claimed."
+        responsibility: strictness
+      - claim: "Each taxonomy cell carries its provenance; undetermined rows stay undetermined."
+        responsibility: interface
+      - claim: "No statement here is evidence about MLWE, MSIS or SelfTargetMSIS in either direction."
+        responsibility: scope
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. NO COMPLEXITY CLAIM AND NO EXPONENT. This is a
+    classification instrument plus exact counting. It proposes no algorithm,
+    improves no attack, and enables no fault. sota_delta on every attack axis is
+    exactly zero; the deliverable lives on the DATA/QUERY axis as a signature
+    count, which is where the corpus has never charged a fault attack.
+
+  heuristic_assumptions:
+    - id: HEUR-FLT-1
+      formal_statement: >-
+        For a fault making w coefficients of y computable, the induced w
+        F_q-linear functionals of s1 are independent, so one faulty signature
+        contributes rank exactly w; and over N signatures with independently
+        sampled challenges the total rank is min(N*w, 256*l).
+      random_model_justification: >-
+        DERIVED, NOT RECALLED. In the completely split NTT basis, multiplication
+        by an invertible c is a diagonal invertible map; restricting an
+        invertible linear map to w coordinates gives rank exactly w.
+        Independence across signatures is the statement that restricted row
+        spaces for independently drawn c are in general position, which is
+        generic over F_q with failure density O(1/q) per collision. What is NOT
+        proved is that every physically realisable fault exposes a set of
+        coefficients in general position rather than a structured one.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLDSA-15866e]
+      falsification_condition: >-
+        The w-ladder departs from N_LA = ceil(256*l/w) at any of the five
+        points. Independence fails at that w and that row is reported with a
+        measured rank rather than a derived one; the derivation is not adjusted
+        to fit.
+    - id: HEUR-FLT-2
+      formal_statement: >-
+        Every published attack's faulty-signature count lies in the bracket
+        [N_IT, N_LA], with N_IT attainable in principle by an attacker
+        exploiting the norm bound ||s1||_inf <= eta.
+      random_model_justification: >-
+        THE COUNTING IS EXACT; ATTAINABILITY IS NOT PROVED AND IS NOT CLAIMED.
+        N_IT is an information-theoretic floor only, and no algorithm reaching
+        it is exhibited. THIS IS THE WEAKEST LINK IN THE HYPOTHESIS and is
+        recorded as such rather than smoothed over. The bracket's lower end is a
+        floor; the honest reading of an attack near N_LA is "it used linear
+        algebra", not "it was inefficient".
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLDSA-15866e]
+      falsification_condition: >-
+        A published attack reporting a signature count strictly below N_IT for
+        its class. Either the class assignment is wrong or the counting is
+        wrong; both are reported, and neither is resolved by adjusting the
+        bracket after the fact.
+    - id: HEUR-FLT-3
+      formal_statement: >-
+        The site classes {ALGORITHM INPUT, INTERNAL FUNCTION BOUNDARY,
+        INTRA-FUNCTION DATAPATH} partition the injection sites finely enough
+        that the fault-security proof's model is a union of classes.
+      random_model_justification: >-
+        NONE. This is a guess about a document this program has not obtained,
+        and it is the assumption most likely to be wrong. A proof may instead
+        partition by which postcondition is violated, by which variable is
+        corrupted, or by a timing window.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLDSA-15866e]
+      falsification_condition: >-
+        The proof, once obtained, partitions faults by a coordinate other than
+        injection site. The rank invariant remains correct but becomes an
+        auxiliary, and the boundary statement is rebuilt on the proof's own
+        coordinate. This does not falsify P1-P4.
+
+  structural_ingredients:
+    - description: >-
+        Complete splitting of X^256 + 1 modulo q = 8380417, giving
+        R_q isomorphic to F_q^256 and a union bound on c's invertibility.
+      citation: >-
+        DERIVED IN-REPO from q - 1 = 8380416 = 2^13 * 3 * 11 * 31, checked here.
+        No external citation asserted.
+      role: makes multiplication by c a diagonal invertible map, so rank = w
+    - description: >-
+        Lattice attacks with side information (partial secret knowledge folded
+        into a lattice), the technique that occupies the gap between N_IT and
+        N_LA.
+      citation: >-
+        knowledge/techniques/KN-TECH-047.md, present in this corpus and, by the
+        check recorded in IDEA-20260805-818196, NEVER APPLIED TO ANY SIGNATURE
+        SCHEME here. Cited as an existing internal technique record; its own
+        provenance is not re-verified by this hypothesis.
+      role: identifies what could occupy the bracket, without claiming it does
+    - description: >-
+        A machine-checked upper bound on the independent linear constraints an
+        NTT twiddle-factor fault can reveal.
+      citation: >-
+        knowledge/literature/KN-LIT-8ce0b5.md. ABSTRACT ONLY -- the entry itself
+        records "Full text not obtained", so THE BOUND'S VALUE IS NOT KNOWN TO
+        THIS PROGRAM. Consumed as a relayed claim to be checked, never as an
+        authority, and never quoted as a number.
+      role: candidate r for the intra-function NTT fault class
+
+  reduction_chain:
+    core_problem: >-
+      Classify the published fault attacks on ML-DSA by a hardware-independent
+      invariant of the scheme's dataflow, produce an exact faulty-signature
+      bracket per class, and state the fault-security proof's boundary as a
+      conditional on that classification.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY, AND THE EMPTINESS IS THE POINT. Under AGENTS.md rule 7
+      there is NO reduction from anything here to any statement about MLWE,
+      MSIS or SelfTargetMSIS, in either direction. In particular P4 -- that
+      0.582 is a hardware statistic -- must not be read as reassurance about the
+      mathematics any more than the attack itself may be read as a weakening of
+      it. Nothing here reduces to GOAL-MLDSA-002's objects either: no rejection
+      predicate is evaluated and no leak rate is measured.
+
+  predictions:
+    - metric: "K0 -- ring-split check: does 512 divide q - 1 for q = 8380417"
+      direction: different
+      minimum_effect: "Pre-registered YES (q - 1 = 2^13 * 3 * 11 * 31). One modulus operation; the cheapest gate in the contract."
+    - metric: "K1 -- c-invertibility floor 1 - 256/q"
+      direction: higher
+      minimum_effect: "EXACTLY 0.99996945 to eight places."
+    - metric: "K2 -- the separation: |published success probability - invertibility floor|"
+      direction: higher
+      minimum_effect: >-
+        At least 0.4 using the canonical 0.582 from DEC-20260805-0d59ff. The
+        pre-registered conclusion, fixed before the run: a gap this size forces
+        the reported probability to be a hardware quantity.
+    - metric: "K3 -- the w-ladder N_LA at ML-DSA-44 for w in {1,8,64,256,1024}"
+      direction: lower
+      minimum_effect: "EXACTLY 1024 / 128 / 16 / 4 / 1, strictly non-increasing."
+    - metric: "K4 -- the w-ladder N_IT at ML-DSA-44 for the same w"
+      direction: lower
+      minimum_effect: "EXACTLY 104 / 13 / 2 / 1 / 1, strictly non-increasing."
+    - metric: "K5 -- unrounded N_LA/N_IT ratio, over all w and all three parameter sets"
+      direction: different
+      minimum_effect: "EXACTLY log2 q / log2(2*eta+1): 9.9050 at ML-DSA-44 and -87, 7.2554 at ML-DSA-65, independent of w and l. Any drift is an arithmetic fault."
+    - metric: "K6 -- single-signature forcing: the w forced by a reported N = 1 full-s1 recovery"
+      direction: different
+      minimum_effect: "EXACTLY 1024 / 1280 / 1792. If a published attack reports N = 1 from a site contaminating fewer coefficients, the forcing argument is WRONG and that is the finding."
+    - metric: "K7 -- NULL CONTROL: rank assigned to the message-digest fault"
+      direction: lower
+      minimum_effect: "EXACTLY 0, N_LA and N_IT infinite. Positive rank here means the procedure counts non-constraints and every row is void."
+    - metric: "K8 -- NULL CONTROL: rank assigned to an unfaulted transcript"
+      direction: lower
+      minimum_effect: "EXACTLY 0. Positive rank here is a bookkeeping break of ML-DSA and halts the contract immediately."
+    - metric: "K9 -- POSITIVE CONTROL: the y-known fault"
+      direction: higher
+      minimum_effect: "r = 256*l, N_LA = N_IT = 1, with the recovery map s1 = c^{-1}(z-y) exhibited. If it does not fire, NO negative signature-count statement may be made anywhere."
+    - metric: "K10 -- taxonomy_determined_fraction"
+      direction: higher
+      minimum_effect: >-
+        No threshold, and none may be set: it depends on what can be fetched.
+        The pre-registered RULE is that undetermined rows are published as
+        undetermined and the fraction is reported. Reaching 100 per cent by
+        inference is a contract violation, not a success.
+    - metric: "K11 -- was the fault-security proof obtained"
+      direction: different
+      minimum_effect: >-
+        A boolean with the search recorded. Pre-registered expectation: NOT
+        OBTAINED, because no KN-LIT entry corresponds to it and
+        GOAL-MLDSA-001's own pause conditions contemplate primary sources being
+        unreachable. If not obtained, the deliverable is the taxonomy plus the
+        explicit statement that the goal's second completion criterion is not
+        currently reachable from the filed corpus.
+
+  test_boundary:
+    instances:
+      - "ML-DSA-44 / -65 / -87 as PARAMETER TABLES and as an algorithm description. No key generated, no signature produced, no device touched, no fault injected or simulated."
+      - "Five synthetic fault classes on the w-ladder w in {1, 8, 64, 256, 1024}, as pure counting objects."
+      - "Two null objects: the message-digest fault and the unfaulted transcript."
+      - "One positive control: the y-known fault."
+      - "The four filed implementation entries KN-LIT-340675, -4f3b80, -180ad5, -8ce0b5, as documents to be read if obtainable."
+    parameters:
+      q: 8380417
+      ring_degree: 256
+      log2_q: 22.9986
+      ML-DSA-44: {k: 4, l: 4, eta: 2, tau: 39, s1_coeffs: 1024, s1_entropy_bits: 2377.6}
+      ML-DSA-65: {k: 6, l: 5, eta: 4, tau: 49, s1_coeffs: 1280, s1_entropy_bits: 4057.5}
+      ML-DSA-87: {k: 8, l: 7, eta: 2, tau: 60, s1_coeffs: 1792, s1_entropy_bits: 4160.9}
+      w_ladder: [1, 8, 64, 256, 1024]
+      canonical_jendral: {year: 2024, success_probability: 0.582, source: DEC-20260805-0d59ff}
+      parameter_provenance: "RECALLED-UNVERIFIED; corroborated in part by sibling-goal records; replaced by a sourced table or relabelled."
+    implementation: >-
+      Pen and paper for STEP 1, STEP 3 and the site taxonomy; Python 3.11
+      standard library (exact integers, math.log) for the ladder and the
+      invertibility floor. NO solver, NO lattice library, NO simulation of any
+      implementation, NO device. Environment measured this session: numpy 2.4.6
+      present and unused; sympy, fpylll, Sage, gmpy2 absent and not needed.
+    budget:
+      stage_1_wall_clock_seconds: 120
+      stage_2_wall_clock_seconds: 900
+      stage_3_wall_clock_seconds: 2400
+      stage_4_wall_clock_seconds: 600
+      maximum_memory_gb: 1
+      note: >-
+        Total ceiling 4020 s, of which 3000 s is reading and may be spent
+        without result under the network policy. GOAL-MLDSA-001's
+        campaign_budget carries a budget_risk_note about BATCH-001's ceilings
+        consuming 83 per cent of the campaign; this contract's non-reading
+        stages total 1620 s, under 15 per cent of the 10800 s campaign total.
+
+  falsification_conditions:
+    - >-
+      FC1 (ZERO COMPUTE, THE STRONGEST) -- a second occurrence of s1 or of s2 in
+      the published transcript is exhibited. The forcing argument P3 collapses;
+      locating that channel is a more valuable result than the taxonomy and is
+      reported as such.
+    - >-
+      FC2 -- 512 does not divide q - 1 in the sourced table. The invertibility
+      floor and P4's separation are withdrawn and recomputed.
+    - >-
+      FC3 -- K7 or K8 returns positive rank. The rank procedure counts
+      non-constraints; every row is void until it is repaired. K8 in particular
+      halts the contract on the spot.
+    - >-
+      FC4 -- K9 does not fire. NO negative statement about any attack's
+      signature count may be reported, in any direction.
+    - >-
+      FC5 -- the w-ladder departs from its pre-registered values at any point.
+      HEUR-FLT-1 fails at that w and the row is reported measured, not derived.
+    - >-
+      FC6 -- a published attack reports N = 1 full recovery from a site
+      contaminating fewer than 256*l coefficients of y. P3 is wrong; report it
+      wrong.
+    - >-
+      FC7 -- a published attack's signature count falls strictly below its
+      class's N_IT. HEUR-FLT-2's bracket or the class assignment is wrong; both
+      are reported and neither is repaired by widening the bracket afterwards.
+    - >-
+      FC8 -- every obtained attack lands in one site class. The invariant does
+      not discriminate over the actual population; the taxonomy's value is
+      reported as nil, together with the observation that the published fault
+      literature concentrates on one site. THIS IS A RESULT.
+    - >-
+      FC9 -- the fault-security proof, once obtained, partitions by a coordinate
+      other than injection site. HEUR-FLT-3 falls; the boundary is rebuilt on
+      the proof's coordinate; P1-P4 stand.
+    - >-
+      FC10 (THE PLANNED NEGATIVE) -- the proof cannot be obtained. The batch does
+      NOT get to report a boundary, and a package that reports one anyway is
+      defective. The deliverable is the taxonomy, the brackets, the separation,
+      and an explicit named gap in GOAL-MLDSA-001's second completion criterion.
+      A negative that does not produce that named gap HAS NOT FINISHED.
+
+  interpretation_limits:
+    - >-
+      IMPLEMENTATION LEVEL, RULE 7 BINDING IN BOTH DIRECTIONS. No result here is
+      evidence about MLWE, MSIS or SelfTargetMSIS -- not a weakening, and
+      equally not a reassurance. GOAL-MLDSA-001's next_action requires every
+      proposal to declare which it attacks; this one attacks the implementation
+      and never the mathematics.
+    - >-
+      NO FAULT IS INJECTED, SIMULATED OR ENABLED. No attack is improved and no
+      countermeasure is proposed. The deliverable is a classification of
+      published work by a computed invariant.
+    - >-
+      A row placing an attack OUTSIDE a proof's guarantee is NOT a criticism of
+      the proof. A proof that covers one fault class and says so is doing its
+      job; the value of a boundary is that it is stated, not that it is wide.
+    - >-
+      NO STATEMENT ABOUT ANY DEPLOYED PRODUCT. The taxonomy is about what a
+      landed fault CONSTRAINS, not about whether a fault lands anywhere.
+      Countermeasures change landing probability and not rank.
+    - >-
+      PROVENANCE TRAVELS WITH EVERY ROW. Rows built on abstracts are reported at
+      the strength of abstracts. KN-LIT-8ce0b5's rank bound is never quoted as a
+      number, because its value is not known to this program.
+    - >-
+      CLAIM TIER. The counting is exact at the real parameter sets and is not
+      toy; the taxonomy's rows are only as strong as their sources; and the
+      boundary statement is a conditional whose antecedent is currently
+      unsourced.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-818196.yaml
+    - ledger/questions/RQ-MLDSA-001.yaml
+    - ledger/goals/GOAL-MLDSA-001.yaml
+    - ledger/decisions/DEC-20260805-0d59ff.yaml
+    - ledger/evidence/EV-MLDSA-faf2ec.yaml
+    - knowledge/literature/KN-LIT-4dadec.md
+    - knowledge/literature/KN-LIT-340675.md
+    - knowledge/literature/KN-LIT-4f3b80.md
+    - knowledge/literature/KN-LIT-180ad5.md
+    - knowledge/literature/KN-LIT-8ce0b5.md
+    - knowledge/techniques/KN-TECH-047.md
+    - knowledge/open-problems/KN-OPEN-015.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; per-role model selection under this
+      runtime is process-level. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; `python3 -m
+      orchestration.adapter doctor --probe` was not run.

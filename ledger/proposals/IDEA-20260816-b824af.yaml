@@ -1,0 +1,255 @@
+idea:
+  id: IDEA-20260816-b824af
+  question_id: RQ-MLKEM-003
+  added: '2026-08-16'
+  title: Measure the module-structure discount as a ratio between matched structured and unstructured
+    instances of identical dimension, modulus, secret law, error law and sample count, using the required
+    BKZ blocksize for primal recovery as the per-instance observable where recovery actually happens
+  class: control
+  claim: '(A) KN-OPEN-026 asks how large the concrete discount from module/ring structure is, and
+    records that every figure it relays is model-relative and unverified by this program. The object
+    this proposal tracks is a ratio, not a bit count: D = beta*(unstructured) / beta*(structured),
+    where beta*(I) is the smallest BKZ blocksize at which primal recovery of the planted secret succeeds
+    on instance I, measured by actually attempting recovery and checking the recovered vector against
+    retained ground truth. (B) The claim is that D is directly measurable at dimensions where recovery
+    is observable, and that it is the right quantity because it is dimensionless, is defined per matched
+    pair rather than per cost model, and is therefore immune to the cross-model incomparability KN-TECH-040
+    warns about and KN-OPEN-026 restates. The matched pair is constructed so that exactly one thing
+    differs: in the structured arm the public matrix is the block-negacyclic rotation matrix of a
+    ring element; in the unstructured arm it is a uniform matrix of the same shape over the same Z_q.
+    Dimension, modulus, secret distribution, error distribution and sample count are identical by
+    construction from the same seed. (C) The entry commits to reporting D even when D = 1, treating
+    D = 1 within its interval as the measured result rather than a failed run. It also commits to
+    reporting the paired distribution of beta*, not only its ratio of medians, because a discount
+    appearing only in a tail is a different object from one that shifts the whole distribution. (D)
+    NOT CLAIMED: no attack, no speedup, no bit-security figure, no statement that ML-KEM or any FHE
+    parameter set is affected, no claim that a discount measured at n <= 64 persists at deployed dimensions,
+    and no assertion about what the sources KN-OPEN-026 relays actually contain. A measured D at n
+    = 48 is a statement about n = 48.'
+  mechanism: 'STAGE 1. From one seed emit a matched pair: sample a ring element, form the structured
+    public matrix as its block-negacyclic rotation matrix of shape (k*d) x (k*d); independently sample
+    a uniform matrix of identical shape over the same Z_q. Sample one secret s and one error e and
+    use the same s and e in both arms. Emit b = A s + e in each arm. STAGE 2. Build the primal embedding
+    lattice in each arm with an identical embedding factor. STAGE 3. Run progressive BKZ in pure Python
+    from blocksize 2 upward; after each blocksize attempt Babai decoding and compare the candidate
+    against the retained s. Record beta* as the first blocksize at which the comparison succeeds exactly.
+    STAGE 4. If no blocksize up to the ceiling succeeds, record beta* as right-censored at the ceiling
+    and carry the censoring through the statistics rather than discarding the pair. STAGE 5. Repeat
+    over seeds and a dimension grid; compute D per pair and the paired distribution. STAGE 6. Run
+    the sanity arm in which the structured matrix''s ring is deleted by permuting the entries within
+    each rotation block, preserving the entry multiset and destroying the ring: D must return to 1.
+    Refutation: D = 1 within interval across the grid means no discount is measurable by this observable
+    at these parameters.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rilE 'module.structure|structure discount|ring structure|coefficient isometr' ledger/proposals/
+      (20+ files); grep -rilE 'dual.?attack|dual.?sieve' ledger/proposals/. Read KN-OPEN-026 in full.
+      Read the title and claim head of IDEA-20260805-530869, IDEA-20260808-dd4d30, IDEA-20260805-fc6361,
+      IDEA-20260805-f7c912.
+    results: 'IDEA-20260805-530869 is the closest record found and is genuinely close in construction:
+      it builds a ring-deleted matched null, plain LWE with a uniform matrix matched in dimension,
+      modulus, secret law, error law and sample count, and calibrates it against forced algebraic
+      values including that the rotation matrix commutes exactly with the rotation operator and that
+      the Gram matrix''s eigenvalues have even multiplicity. Its deliverable is an instrument and
+      a precondition on other measurements. It measures no cost and reports no ratio. IDEA-20260808-dd4d30
+      observes that FrodoKEM''s matrix secret plants rank-nbar structure and contrasts plain LWE with
+      ML-KEM, but on the rank axis rather than a measured discount. IDEA-20260805-fc6361 and IDEA-20260805-f7c912
+      measure lattice constants on ML-KEM-shaped lattices without a structured/unstructured contrast.
+      No record found reports a measured beta* ratio between matched arms.'
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature. Claimed new relative to this
+      repository: the observable. IDEA-20260805-530869 already owns the matched-null construction
+      and its forced algebraic calibrations, and this entry adopts that construction wholesale and
+      says so; what is new is running a recovery to completion in both arms and reporting the dimensionless
+      blocksize ratio with its paired distribution and its censoring. Assembled from known parts:
+      the matched-null generator, progressive BKZ, Babai decoding and paired-difference statistics.'
+  object_first_candidate:
+    tracked_object: beta*(I), the smallest BKZ blocksize at which primal recovery of the planted secret
+      succeeds exactly on instance I, recorded per instance with the seed that generated the matched
+      pair, and the per-pair ratio D formed from it.
+    lossiness: Genuinely lossy. The full state is the entire reduced basis at every blocksize, roughly
+      n^2 integers per step; beta* retains one integer per instance and discards every basis. The
+      discard is compatible with the operation of interest because the quantity the concrete-security
+      question consumes is precisely the blocksize at which recovery becomes possible, and blocksize
+      is the argument of every cost model in use, so the retained integer still propagates deterministically
+      into whatever cost convention one later chooses while the discarded bases do not enter any of
+      them. It also discards the reduction's internal path, which means a discount arising from faster
+      reduction at fixed blocksize is invisible to this object. That blind spot is stated and is why
+      a separate entry in this batch tracks the technique axis instead.
+    propagation: One step of the target operation is incrementing the blocksize by one. Under that
+      step the basis profile flattens by a predictable increment and the projected norm of the target
+      shrinks; recovery becomes possible when the target's projected norm falls below the local Gaussian
+      heuristic radius. In the structured arm the same step acts simultaneously on d rotations of
+      the same secret, because the rotation matrix commutes with the rotation operator, so one blocksize
+      increment supplies d correlated chances rather than one. That is the entire mechanism by which
+      D could exceed 1 and it is what the measurement is pointed at.
+    survival_score: Progressive BKZ with exact-integer arithmetic in pure Python is affordable to
+      about n = 64 and blocksize about 30 within an hour per instance; beyond that the enumeration
+      inside each block dominates and the object dissolves into censored observations. The structure
+      survives to n in {24, 32, 40, 48, 56, 64} with cyclotomic degree d in {8, 16, 32} and module
+      rank k = n/d, enough to see whether D drifts with n. Above the ceiling beta* is right-censored,
+      and the entry carries censoring rather than pretending to a measurement.
+  null_object_control: 'Two nulls, both executed in the same invocation as the signal arm from the
+    same seed stream. NULL 1, the matched unstructured instance: identical n, q, s, e and sample count,
+    differing only in that the rotation matrix is replaced by a uniform matrix. This is the denominator
+    of D. NULL 2, the ring-deleted structured instance: the structured matrix''s entries are permuted
+    within each rotation block by a seeded permutation, preserving the exact entry multiset and destroying
+    the negacyclic structure. NULL 2 must show D indistinguishable from 1 against NULL 1. If NULL
+    2 shows a discount, the measured effect is a property of the entry multiset or block layout rather
+    than of the ring, and the signal arm''s D is an artifact recorded as a controlled null under inventor-protocol
+    section 3.'
+  discriminated_from:
+  - 'IDEA-20260805-530869: builds the same matched null but as an instrument calibrated against forced
+    algebraic values, and makes passing it a precondition on other measurements. It measures no recovery
+    and reports no cost ratio. This entry adopts its generator and adds the recovery observable.'
+  - 'IDEA-20260808-dd4d30: contrasts FrodoKEM''s rank-nbar planted sublattice with ML-KEM''s ring
+    structure, a structural claim about the primal lattice''s rank. This is a measured blocksize ratio
+    between two arms of one seed.'
+  - 'KN-OPEN-026 as relayed: its 2-3 bit and 13-15 bit figures are bit-security numbers under estimator
+    cost models. D is dimensionless and model-free, so it is not a reproduction of any of those figures
+    and must not be compared to them without an explicit conversion this entry does not perform.'
+  - 'KN-TECH-046 and the class-group line: structure exploitation at approximation factor exp(Otilde(sqrt(n))).
+    This entry measures at approximation factors reachable by BKZ at blocksize under 30 and has nothing
+    to say about that line; KN-OPEN-026 warns explicitly against conflating them.'
+  - 'NTRU ring-structure work: out of scope by construction. No NTRU instance, no overstretched regime,
+    and no ternary-secret convolution lattice appears in this design.'
+  assumptions:
+  - Exact recovery of the planted secret, checked against retained ground truth, is the right success
+    event; near-misses are recorded separately and not counted.
+  - Progressive BKZ in pure Python reaches blocksizes at which recovery occurs for at least the smaller
+    grid points; if not, every pair is censored and the entry reports a reachability floor rather
+    than a discount.
+  - The same s and e in both arms is the correct matching; the alternative of independent s and e
+    per arm is run as a secondary condition to check that the pairing is not itself creating the effect.
+  - beta* is well defined, i.e. recovery is monotone in blocksize on a given instance; violations
+    are detected by continuing past the first success and are reported.
+  - A ratio measured at n <= 64 carries no implication for deployed dimensions, and none is drawn.
+  predictions:
+  - metric: median D = beta*(unstructured)/beta*(structured) at the largest uncensored grid point
+    direction: higher
+    minimum_effect: 1.05
+  - metric: median D for NULL 2 (ring-deleted, entry multiset preserved) against NULL 1
+    direction: different
+    minimum_effect: 'forced value: 1.00, with the interval required to contain 1. Any departure indicts
+      the generator rather than establishing a discount.'
+  - metric: fraction of matched pairs right-censored at the blocksize ceiling
+    direction: lower
+    minimum_effect: 0.4
+  - metric: slope of median D against n across the grid
+    direction: different
+    minimum_effect: 'refusal to pre-commit on sign: KN-OPEN-026''s Q2 is exactly whether the discount
+      grows with dimension or is a bounded constant, and pre-committing would answer the question
+      the measurement exists to ask. A slope whose interval excludes zero is the threshold for reporting
+      drift.'
+  minimal_test:
+    design: One dimension, three arms, one seed stream. Fix q = 3329, d = 16, k = 2, n = 32, m = 2n,
+      centered binomial eta = 2, blocksize ceiling 24. Draw 60 seeds. From each seed emit the structured
+      instance, NULL 1 (uniform matrix, same s and e) and NULL 2 (entry-permuted rotation blocks,
+      same s and e). Run progressive BKZ plus Babai on all three in the same invocation, recording
+      beta* or censoring for each. Report the paired median D against NULL 1 for both the structured
+      arm and NULL 2, with a paired bootstrap interval, and the censoring rate. This discriminates
+      because the three arms differ from each other in exactly one construction step apiece, ground
+      truth is retained so success is exact rather than inferred, and NULL 2 separates a ring effect
+      from an entry-distribution effect, which is the single confound most likely to manufacture a
+      spurious discount. Cost is hours of pure-Python compute with no external dependency.
+    controls:
+    - 'NULL 1: matched unstructured instance, identical n, q, s, e, sample count, uniform public matrix;
+      the denominator of D.'
+    - 'NULL 2: ring-deleted structured instance with entry multiset preserved by a seeded within-block
+      permutation.'
+    - 'Independent-secret condition: a secondary run with s and e drawn independently per arm, to
+      check the pairing is not producing the effect.'
+    - 'Monotonicity check: continue reduction past the first success on a subsample and confirm recovery
+      does not un-succeed.'
+    - Positive control with error e identically zero, where beta* must be minimal in both arms; failure
+      indicts the recovery code.
+    required_metrics:
+    - beta* per instance per arm, or censoring flag
+    - paired ratio D per seed
+    - median D with paired bootstrap interval per grid point
+    - censoring rate per arm per grid point
+    - exact match flag of recovered secret against ground truth
+    - root-Hermite factor achieved at beta* per arm
+    - wall clock and peak memory per instance
+  falsification_conditions:
+  - 'NULL 2''s D interval excludes 1: the effect tracks the entry multiset or block layout, not the
+    ring, and the signal arm''s D is an artifact.'
+  - 'Censoring exceeds 80 percent in both arms at every grid point: the observable is unreachable
+    at these parameters and a reachability floor is reported rather than a discount.'
+  - 'Recovered secret does not match retained ground truth on the zero-error positive control: the
+    recovery code is wrong and every beta* is void.'
+  - 'Monotonicity violations exceed 5 percent: beta* is not well defined as implemented.'
+  - 'Median D interval contains 1 at every grid point: no discount is measurable by this observable
+    at these parameters, refuting the entry''s motivating expectation and supplying a measured obstruction.'
+  - 'The independent-secret condition reproduces the same D as the paired condition with a materially
+    different censoring pattern: the pairing is doing work the design did not intend.'
+  confounders:
+  - Structured instances have correlated rows, so their reduced bases differ systematically from unstructured
+    ones in ways unrelated to any exploitable discount.
+  - The embedding factor interacts with the arm because the two lattices have different shortest-vector
+    geometries at the same determinant.
+  - Censoring is asymmetric between arms if one arm is systematically easier, biasing the naive median
+    upward.
+  - Pure-Python BKZ's blocksize granularity is coarse relative to the expected effect, quantising
+    D.
+  - Seed-level instance hardness varies more than the arm difference, so an underpowered design would
+    report noise as a ratio.
+  interpretation_limits:
+  - A ratio measured at n <= 64 with blocksize ceiling 30 is not a statement about ML-KEM, FHE parameter
+    selection or any deployed system.
+  - D is dimensionless and model-free and is therefore NOT comparable to any bit figure without a
+    conversion this contract does not perform.
+  - The observable is blind to discounts realised as faster reduction at fixed blocksize.
+  - Nothing here bears on the class-group line, whose approximation factors are far outside this design's
+    reach.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement's own cost is O(seeds * arms * BKZ)
+      counted operations.
+    memory_exponent: No attack memory exponent is claimed. One basis of O(n^2) integers per instance.
+    best_known: No incumbent attack is challenged. The incumbent for the question is the MLWE-approximately-LWE
+      heuristic that KN-OPEN-026 records as underpinning parameter selection, together with the 2-3
+      bit and 13-15 bit figures it relays; this entry measures a dimensionless ratio and neither reproduces
+      nor contests those numbers.
+    hidden_overhead: 'Hidden in the lower-order terms: the embedding factor and the blocksize granularity
+      together set the resolution of D, and at ceiling 24 the achievable resolution may be coarser
+      than the effect. Hidden in human cost: writing a progressive BKZ in pure Python whose behaviour
+      is comparable across two lattice families is the bulk of the work, and defending that comparability
+      is harder than measuring the ratio.'
+  dominated_by: 'n/a (no result claimed). Every structure-related row this corpus records was checked
+    for whether this entry sits on it: KN-OPEN-026''s relayed bit figures (a different scale entirely),
+    KN-TECH-046''s exp(Otilde(sqrt(n))) class-group line (a different approximation-factor regime),
+    IDEA-20260805-530869''s matched-null instrument (no cost axis), and IDEA-20260808-dd4d30''s rank
+    contrast (a structural claim). None is a cost frontier this entry occupies, because the deliverable
+    is a dimensionless ratio and not a cost.'
+  sota_delta: no attack; conceptual/measurement contribution only. The deliverable is a measured paired
+    blocksize ratio with an interval, its censoring map, and two nulls one of which is forced to 1.
+  estimated_cost:
+    implementation: medium
+    compute: high
+  recommended_priority: high
+  honest_prior_of_survival: 'Three separable parts. (i) That the pipeline runs with acceptable censoring
+    and NULL 2 lands on 1: about 0.65, the censoring being the binding risk at n >= 48. (ii) That
+    D is measurable with an interval narrow enough to distinguish 1.00 from 1.05 at any grid point:
+    about 0.45, since blocksize granularity may exceed the effect. (iii) That the measured D exceeds
+    1 with an interval excluding 1: about 0.3, and I decline to raise it, because the corpus''s own
+    relayed figures put the ML-KEM-like regime at 2-3 bits, which at these blocksizes is close to
+    the quantisation floor of the observable.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - KN-OPEN-026
+  - KN-OPEN-012
+  - KN-TECH-040
+  - KN-TECH-046
+  - KN-LIT-7663
+  - KN-LIT-7667
+  - IDEA-20260805-530869
+  - IDEA-20260808-dd4d30
+  - RQ-MLKEM-003
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-LATDUAL-65c31b

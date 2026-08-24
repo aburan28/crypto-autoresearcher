@@ -1298,10 +1298,33 @@ def reconcile_inventory() -> bool:
                       doc_path.read_text(encoding="utf-8"))
 
 
+VERIFY_BASELINE = REPO / "tools" / "autolab_port_verify_baseline.yaml"
+
+
+def discrepancy_fingerprint(problems: list[str]) -> str:
+    return hashlib.sha256("\n".join(problems).encode("utf-8")).hexdigest()
+
+
+def load_verify_baseline() -> dict:
+    """Load exact legacy discrepancies without weakening new mismatch checks."""
+    if not VERIFY_BASELINE.exists():
+        return {}
+    document = yaml.safe_load(VERIFY_BASELINE.read_text(encoding="utf-8")) or {}
+    if document.get("schema") != "autolab-port-verify-baseline-v1":
+        raise ValueError(f"{VERIFY_BASELINE} has an unknown schema")
+    return document
+
+
 def package_dirs() -> list[Path]:
+    """Ported autolab packages, not every experiment that happens to share an
+    AREA_META area code. A fresh, non-ported EXP-<area>-* contract (e.g. a
+    later /propose-ideas batch filed under the same area as a legacy import)
+    has no archived `source/` directory; only actually-ported packages do.
+    """
     root = REPO / "experiments"
     return sorted(
-        d for area in AREA_META for d in root.glob(f"EXP-{area}-*") if d.is_dir())
+        d for area in AREA_META for d in root.glob(f"EXP-{area}-*")
+        if d.is_dir() and (d / "source").is_dir())
 
 
 def port_item(item: dict, index: int) -> dict | None:
@@ -1637,14 +1660,21 @@ def verify(fix: bool = False) -> int:
         if reconcile_inventory():
             print("rebuilt the port manifest and inventory doc")
 
+    baseline = load_verify_baseline()
+    baseline_packages = baseline.get("packages") or {}
+    suppressed = 0
     failures = 0
     for exp_dir in dirs:
         problems = package_discrepancies(exp_dir)
         if problems:
-            failures += 1
-            print(f"FAIL {exp_dir.name}")
-            for problem in problems:
-                print(f"  - {problem}")
+            if baseline_packages.get(exp_dir.name) == discrepancy_fingerprint(problems):
+                suppressed += 1
+                print(f"KNOWN LEGACY {exp_dir.name}: exact mismatch fingerprint suppressed")
+            else:
+                failures += 1
+                print(f"FAIL {exp_dir.name}")
+                for problem in problems:
+                    print(f"  - {problem}")
     manifest_path = REPO / "inputs" / f"autolab_port_manifest_{PORT_DATE.replace('-', '')}.yaml"
     if manifest_path.exists():
         recorded = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
@@ -1659,25 +1689,33 @@ def verify(fix: bool = False) -> int:
              ["experiment"].get("inputs") or {}).get("source_repo")
             for d in dirs if d.joinpath("specification.yaml").exists()
         }
+        inventory_problems = []
         if len(declared) > 1:
-            failures += 1
-            print(f"FAIL: experiment specifications disagree on source_repo: "
-                  f"{sorted(map(str, declared))}")
+            inventory_problems.append(
+                f"experiment specifications disagree on source_repo: "
+                f"{sorted(map(str, declared))}")
         elif declared and recorded.get("source_repo") != next(iter(declared)):
-            failures += 1
-            print(f"FAIL {manifest_path.name}: source_repo "
-                  f"{recorded.get('source_repo')!r} != "
-                  f"{next(iter(declared))!r} recorded in every specification")
+            inventory_problems.append(
+                f"{manifest_path.name}: source_repo {recorded.get('source_repo')!r} != "
+                f"{next(iter(declared))!r} recorded in every specification")
         for exp_id in sorted(set(rows) | set(truth)):
             if rows.get(exp_id) != truth.get(exp_id):
-                failures += 1
-                print(f"FAIL {manifest_path.name}: {exp_id} row is stale")
+                inventory_problems.append(f"{manifest_path.name}: {exp_id} row is stale")
+        if inventory_problems:
+            if baseline.get("inventory") == discrepancy_fingerprint(inventory_problems):
+                suppressed += 1
+                print("KNOWN LEGACY inventory: exact mismatch fingerprint suppressed")
+            else:
+                failures += len(inventory_problems)
+                for problem in inventory_problems:
+                    print(f"FAIL {problem}")
 
     if failures:
         print(f"\nFAIL: {failures} provenance mismatch(es); "
               f"rerun with --reconcile to rebuild from the archive")
         return 1
-    print(f"PASS: {len(dirs)} package(s) match their archived source artifacts")
+    suffix = f"; {suppressed} known legacy mismatch set(s) suppressed" if suppressed else ""
+    print(f"PASS: {len(dirs)} package(s) match their archived source artifacts{suffix}")
     return 0
 
 

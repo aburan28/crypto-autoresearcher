@@ -43,8 +43,8 @@ where:
 - `tape_position` is a nonnegative integer: the number of typed symbols
   already consumed.  It begins at zero and advances by one on every draw
   transition.
-- `phase` is one of `enter`, `spawn_left`, `await_left`,
-  `spawn_right`, `await_right`, `collimate`, `decide`, `return`, or
+- `phase` is one of `enter`, `spawn_left`, `await_left`, `spawn_right`,
+  `await_right`, `collimate`, `decide`, `return`, or
   `retry_horizon_exhausted`.
 - `r` is the schedule index of the active call.
 - `retry_count` is in `{0, 1}` at the designated retry site and is zero at
@@ -73,10 +73,10 @@ Two distinct failure modes are named so they are not conflated:
    the same explicit no-transition rules as in `ttm-v1`.
 2. **Ill-typed modulus return (closed in `ttm-v2`).**  Under `ttm-v1`, a
    child could emit a vector whose production modulus differed from the
-   parent's `child_store` type `Z/s_r Z` with no coercion rule, so the
-   return was undefined / ill-typed rather than an enumerated invalid-label
-   branch.  Under `ttm-v2`, every successful labeled return first applies
-   the return-modulus rule below; after that coercion the stored vector lies in
+   parent's `child_store` type `Z/s_r Z` with no coercion rule, so the return
+   was undefined / ill-typed rather than an enumerated invalid-label branch.
+   Under `ttm-v2`, every successful labeled return first applies the
+   return-modulus rule below; after that coercion the stored vector lies in
    the declared parent state space.  There is therefore no separate
    ill-typed-modulus refusal branch once the coercion is applied.
 
@@ -87,8 +87,8 @@ Two distinct failure modes are named so they are not conflated:
 When a child frame emits a keep-return of a sorted vector `v*` whose
 coordinates are integer representatives produced in that child's production
 domain (base: residues in `{0, ..., n-1}` after reduction modulo `n`;
-internal: residues produced by that child's collimation modulo its own active
-modulus), and the awaiting parent has active modulus `s_r`, the return
+internal: residues produced by that child's collimation modulo its own
+active modulus), and the awaiting parent has active modulus `s_r`, the return
 transition stores
 
 ```text
@@ -120,23 +120,22 @@ by the row-level `L` when a recursive call has a different length request.
 
 ### Propagation
 
-Let `ell` be the active frame's `requested_length`.
+Let `ℓ` be the active frame's `requested_length`.
 
-1. **Root.** `requested_length = L` (panel row).
-2. **Left child.** On `spawn_left`, the child frame is created with
+1. **Root.**  `requested_length = L` (panel row).
+2. **Left child.**  On `spawn_left`, the child frame is created with
    ```text
-   requested_length_left = ceil_sqrt(3 * ell)
+   requested_length_left = ceil_sqrt(3 * ℓ)
    ```
-   where `ceil_sqrt(a)` is the least nonnegative integer `x` with
-   `x*x >= a`.
-3. **Right child.** On `spawn_right`, after `v1` has been stored in the
+   where `ceil_sqrt(a)` is the least nonnegative integer `x` with `x*x >= a`.
+3. **Right child.**  On `spawn_right`, after `v1` has been stored in the
    parent, the right child is created with
    ```text
-   requested_length_right = ceil( (3 * ell) / |v1| )
+   requested_length_right = ceil( (3 * ℓ) / |v1| )
    ```
    using ordinary integer ceiling division.  Well-formed keep-returns have
    `|v1| >= 1`, so the denominator is nonzero.
-4. **Retry.** A same-level retry frame inherits the same `requested_length`
+4. **Retry.**  A same-level retry frame inherits the same `requested_length`
    as the discarded attempt.
 
 This propagation matches the length-indexed family used by the BATCH-014
@@ -146,44 +145,44 @@ audits can relate to that family without silent amendment.  It addresses
 
 ### BaseDraw count
 
-A base frame (`r = d`) with `requested_length = ell` consumes exactly
+A base frame (`r = d`) with `requested_length = ℓ` consumes exactly
 
 ```text
-base_draw_count(ell) = round(log2 ell)
+base_draw_count(ℓ) = round(log2 ℓ)
 ```
 
 typed `BaseDraw` symbols, where `round` is the ordinary nearest-integer map
 with the finite panel table
 
 ```text
-ell | base_draw_count(ell)
-1   | 0
-2   | 1
-3   | 2
-4   | 2
+ℓ | base_draw_count(ℓ)
+1 | 0
+2 | 1
+3 | 2
+4 | 2
 ```
 
-(and the same `round(log2 ·)` rule for any larger positive `ell` that a
+(and the same `round(log2 ·)` rule for any larger positive `ℓ` that a
 propagated request may produce).  After those symbols are consumed, the
 source-compatible subset-sum construction (all subset sums of the drawn
 values in `{0, ..., n-1}`), followed by sorting and reduction modulo `n`,
 yields the base output vector `v*` before the return-modulus coercion into
 the parent.
 
-When `base_draw_count(ell) = 0`, the base frame consumes no tape symbols and
+When `base_draw_count(ℓ) = 0`, the base frame consumes no tape symbols and
 emits the length-1 vector `(0)` over `Z/nZ` (empty subset sum), then returns
 through `reduce-mod-parent`.
 
 ### Decision threshold
 
-At `decide`, let `ell` be the **frame's** `requested_length` (not merely
-the row-level `L` when they differ).  Keep is
+At `decide`, let `ℓ` be the **frame's** `requested_length` (not merely the
+row-level `L` when they differ).  Keep is
 
 ```text
-alwaysKeep OR (|v| / ell >= theta)
+alwaysKeep OR (|v| / ℓ >= theta)
 ```
 
-equivalently `|v| >= ceil(theta * ell)` when comparing cardinalities.
+equivalently `|v| >= ceil(theta * ℓ)` when comparing cardinalities.
 
 ## Typed tape alphabet
 
@@ -209,10 +208,10 @@ have this distribution.
    `r < d`, move to `spawn_left`.
 2. **Recursive children.** `spawn_left` creates a child frame with history
    `call_history + [left]`, index `r + 1`, phase `enter`, and
-   `requested_length = ceil_sqrt(3 * ell)`.  On its labeled return, apply
+   `requested_length = ceil_sqrt(3 * ℓ)`.  On its labeled return, apply
    `reduce-mod-parent`, store `v1`, and move to `spawn_right`.
    `spawn_right` analogously creates the `right` child with
-   `requested_length = ceil((3 * ell) / |v1|)`; on return apply
+   `requested_length = ceil((3 * ℓ) / |v1|)`; on return apply
    `reduce-mod-parent`, store `v2`, and move to `collimate`.
 3. **Collimation draw.** From `collimate`, consume one valid `LeftIndex(i)`
    then one valid `RightIndex(j)`.  Set
@@ -225,9 +224,9 @@ have this distribution.
    is a parent frame).  A non-keep transition is a discard event.
 5. **Retry.** A discard at the row-designated site with `retry_count = 0`
    creates a fresh same-level frame at the same `r`, with history appended by
-   `retry(1)`, empty child store and attempt, the same
-   `requested_length`, and `retry_count = 1`.  This is the sole enabled
-   retry successor.  A discard at that site with `retry_count = 1` moves to
+   `retry(1)`, empty child store and attempt, the same `requested_length`,
+   and `retry_count = 1`.  This is the sole enabled retry successor.  A
+   discard at that site with `retry_count = 1` moves to
    `retry_horizon_exhausted` and has no further retry successor.  At every
    non-designated non-root call, the bounded audit records the first decision
    and requires its keep branch; a non-keep branch is recorded as an

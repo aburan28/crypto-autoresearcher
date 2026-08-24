@@ -1,0 +1,116 @@
+correction:
+  id: CORR-20260807-df0585
+  recorded_at: '2026-08-07'
+  recorded_by: coordinator (GOAL-ENDO-001, BATCH-cb71b5)
+  type: invalid_measurement
+  supersedes: []
+  corrects:
+  - experiments/EXP-EWALK-cc0353/runs/RUN-EWALK-p1009-a/manifest.yaml
+  - experiments/EXP-EWALK-cc0353/runs/RUN-EWALK-p1009-a/raw-result.json
+  - harness/run_jinv.py
+  record_type: run
+  record_id: RUN-EWALK-p1009-a
+  field: run.result.metrics (the whole EXP-EWALK-cc0353 automorphism-quotient arm)
+  prior_value: >-
+    RUN-EWALK-p1009-a was written with status `completed` and valid `true`, and its
+    metrics report an automorphism-quotient walk on j = 1728 taking a mean of
+    1675.96 steps against 9.00 steps for the plain walk on the same curve, seeds and
+    trials -- reported as `j1728:speedup.observed = 0.00537`. It also reports
+    `j0:speedup.observed = 0.990` and `generic:speedup.observed = 0.991`.
+  corrected_value: >-
+    THE ENTIRE QUOTIENT ARM OF RUN-EWALK-p1009-a IS AN INVALID MEASUREMENT AND IS
+    NOT EVIDENCE ABOUT THE sqrt(|Aut|) CEILING IN EITHER DIRECTION. The numbers are
+    an artifact of an implementation defect described below. The superseding
+    measurement is EXP-EWALK-4fc679 / RUN-EWALK-p100003-a, which reports, for j = 0
+    at p = 100003 with N of 14+ bits and a 100% solve rate on every trial, an
+    observed quotient-over-plain speedup of 1.641 against an incremental ceiling of
+    sqrt(|Aut|/2) = sqrt(3) = 1.732, i.e. 94.7% of the ceiling, with no arm
+    exceeding its ceiling.
+  the_defect:
+    location: harness/run_jinv.py, function `rho_steps`, the `canon` closure.
+    what_it_did: >-
+      The walk canonicalised each point R to the lexicographically smallest element
+      of its orbit under Aut(E), and then looked that representative up in the
+      collision table WITHOUT applying the corresponding transformation to the
+      exponents (a, b) with R = [a]P + [b]Q.
+    why_that_is_wrong: >-
+      An automorphism phi acts on a prime-order subgroup as multiplication by a
+      scalar lambda -- this is exactly H-ENDO-001's scalar-action fact, used here
+      against the implementation rather than as a research claim. Replacing R by
+      phi^i(R) therefore replaces the exponent pair by (lambda^i a, lambda^i b).
+      Omitting the multiplier makes every orbit collision yield an exponent relation
+      that does not hold. The code detected the failure (the recovered k did not
+      satisfy [k]P = Q), classified it as a fruitless cycle, and kept walking. On
+      j = 1728, where the orbit has four elements and three of the four
+      canonicalisations are wrong, this converted a 9-step solve into a 1676-step
+      one and reported the 260x SLOWDOWN as a measurement.
+    how_it_was_caught: >-
+      By the arm's own internal consistency, not by review: a quotient walk cannot
+      be 260x SLOWER than the plain walk it is a quotient of, and the generic arm's
+      speedup of 0.991 -- where the two modes are identical by construction and the
+      value must be exactly 1.000 -- showed the collision bookkeeping was not sound.
+      The certificate discipline did not catch it because the arm claims no solve;
+      a walk that fails to find k simply reports a step count.
+  classification: >-
+    This is an IMPLEMENTATION FAILURE, and under AGENTS.md rule 5 it is never
+    negative mathematical evidence. Specifically it is NOT evidence that
+    automorphism-quotient walks are slow, NOT evidence about fruitless-cycle rates,
+    and NOT evidence for or against anything in RQ-EWALK-8fa147. It bounds nothing.
+  what_this_does_not_affect:
+  - >-
+    EXP-JINV-6c5b8e / RUN-JINV-p1009-a is UNAFFECTED. The defect is confined to
+    `rho_steps`; the j-invariant algebraic-cost arm shares no code with it and its
+    S_3 monomial-support counts (9 for j=0, 10 for j=1728, 13 for generic) are
+    exact symbolic computations independently checkable by hand.
+  - >-
+    EXP-ICINV-180a0d / RUN-ICINV-p4001-a and EXP-INSTR-2d32ba / RUN-INSTR-p4001-a
+    are UNAFFECTED. Neither uses any walk code.
+  - >-
+    No hypothesis status, no evidence record, and no knowledge entry rested on
+    RUN-EWALK-p1009-a at any point; the defect was found before the batch's
+    evidence records were written, so nothing downstream requires retraction.
+  required_action:
+  - >-
+    NEVER cite RUN-EWALK-p1009-a's quotient-arm numbers -- in particular the
+    1675.96-step j = 1728 figure and the three `*:speedup.observed` values -- in any
+    evidence record, knowledge entry, decision, or proposal. Cite
+    RUN-EWALK-p100003-a instead.
+  - >-
+    experiments/EXP-EWALK-cc0353/runs/RUN-EWALK-p1009-a IS NOT EDITED OR DELETED
+    (AGENTS.md rule 4: corrections supersede, never overwrite). Its correct reading,
+    going forward, is this record.
+  - >-
+    harness/run_jinv.py retains `rho_steps` unchanged so the superseded artifact
+    stays reproducible, with a docstring pointer to this correction. The corrected
+    walk lives in harness/run_ewalk2.py and is the only one that may be used for
+    new EWALK measurements.
+  - >-
+    Any future automorphism-quotient walk in this program must carry the eigenvalue
+    multiplier through the exponents and must include the generic-curve arm as a
+    self-check, where a speedup of exactly 1.000 is the required output.
+  evidence_artifacts:
+  - experiments/EXP-EWALK-cc0353/runs/RUN-EWALK-p1009-a/raw-result.json
+  - experiments/EXP-EWALK-4fc679/runs/RUN-EWALK-p100003-a/raw-result.json
+  - harness/run_ewalk2.py
+  refs:
+  - EXP-EWALK-cc0353
+  - EXP-EWALK-4fc679
+  - RQ-EWALK-8fa147
+  - GOAL-ENDO-001
+  - BATCH-cb71b5
+  - KN-TECH-018
+  - H-ENDO-001
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one model
+      the session runs on. Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session.

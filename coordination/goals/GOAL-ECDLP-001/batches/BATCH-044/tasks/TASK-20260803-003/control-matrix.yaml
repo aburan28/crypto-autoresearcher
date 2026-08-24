@@ -1,0 +1,80 @@
+control_matrix:
+  amendment_id: PA-IT-001-v3-rc44-repair-4
+  experiment_id: EXP-IT-001
+  task_id: TASK-20260803-003
+  claim_tier: toy
+  closes_review: RT-20260802-314
+
+  controls:
+    - id: CTRL-ANOMALOUS-TRACE1
+      role: positive_control
+      repair: [R4-FIX-B1, R4-FIX-B2]
+      pinned_bits: 20
+      c_smart: 8
+      matched_rho_formula_id: ceil_0_886_sqrt_Nstar
+      requirement: >-
+        Verified Smart trace-1 plant at bits=20 only. Pass threshold is
+        C_special_smart=ceil(8*log2(p)), which supersedes spec v3
+        20*(log2 N)^2. Field-DLP/MOV formulas forbidden as pass threshold.
+        Headroom: C_path+C_pullback ≤ floor(0.45*matched_rho).
+      certificate_artifact: anomalous_trace1_certificate.json
+      pass_criterion: >-
+        verified:true; c_special_formula_id:C_special_smart; R_xfer<0.7;
+        C_special_smart/matched_rho<0.7 on the constant alone at bits=20.
+      null_object: >-
+        Same measurement on a random ordinary curve with a≢1 (mod N) must not
+        satisfy the anomalous certificate.
+
+    - id: CTRL-TRANSFER-NONSPECIAL
+      role: positive_control
+      repair: R4-FIX-PRESERVE-M1
+      requirement: >-
+        Planted isogeny walk non-special→non-special; reverse-of-planted;
+        pullback evaluated; relation re-verified.
+      pass_criterion: >-
+        start_j_speciality:nonspecial; end_j_speciality:nonspecial;
+        path_is_reverse_of_planted:true; pullback_evaluated:true;
+        relation_reverified:true; planted_path_recovered:true.
+
+    - id: CTRL-NULL-PACKAGING-GATE
+      role: packaging_gate
+      repair: R4-FIX-PRESERVE-NULL
+      requirement: Reject pre-registered synthetic R_xfer<0.7 claim.
+      pass_criterion: null_packaging_gate_rejected_synthetic:true
+
+    - id: CTRL-NULL-IT-PLANT
+      role: null_recomputation
+      repair: [R4-FIX-PRESERVE-NULL, R4-FIX-PRESERVE-M2]
+      ledger_artifact: ctrl_null_it_plant_edge_ledger.jsonl
+      recompute_script: experiments/EXP-IT-001/implementation/recompute_null_plant_from_ledger.py
+      pass_criterion: >-
+        Ledger non-empty when edges_expanded>0; script present in pre-run archive.
+
+    - id: CTRL-DENSITY-SCAN
+      role: estimand_protocol
+      repair: R4-FIX-B3
+      bits: [20, 24, 28]
+      n_curves_per_bits: 5
+      ci: Wilson_95
+      multiplicity: bonferroni_3
+      pass_criterion: >-
+        density_scan_report.json bits exactly [20,24,28];
+        multiplicity_method:bonferroni_3; HEUR freeze before path search.
+
+    - id: CTRL-PARETO-FIELDS
+      role: report_integrity
+      repair: R4-FIX-PRESERVE-PARETO
+      pass_criterion: >-
+        dominated_by plus time/memory/data sota_delta axes on every deliverable.
+
+    - id: CTRL-BINDING-COMMAND
+      role: harness_integrity
+      repair: R4-FIX-PRESERVE-CMD
+      pass_criterion: Exact smoke/measure strings; no CLI discretion.
+
+  invalidation_rules:
+    - anomalous_plant_bits ≠ 20 for CTRL-ANOMALOUS-TRACE1
+    - Using 20*(log2 N)^2 or field-DLP/MOV as anomalous pass threshold
+    - Density abscissa ≠ {20,24,28}
+    - Executor CLI/entrypoint deviation
+    - Timeout/crash reported as mathematical negative evidence

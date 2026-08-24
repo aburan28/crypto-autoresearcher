@@ -1,0 +1,217 @@
+proposals:
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-28c15f
+  # ECCG security implies H-PSEUDO (conditional proof route)
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-28c15f
+    goal_id: GOAL-ECDLP-001
+    direction: novel
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-141
+
+    avoids_tate_obstruction: not_applicable
+
+    mechanism: >-
+      The Elliptic Curve Congruential Generator (ECCG) security assumption:
+      given x([j]G) for j=0,1,...,t, it is computationally infeasible to predict
+      x([t+1]G) (or equivalently, to distinguish the sequence from uniform random).
+
+      CONDITIONAL REDUCTION: If H-PSEUDO is FALSE — i.e., there exists k such that
+      |Σ_{j: x([j]G)<threshold} e^{2πi kj/N}| >> sqrt(B) — then:
+      1. The DFT of the small-x indicator 1_{x([j]G)<t} has a large k-th Fourier coefficient
+      2. Observing the sequence x([j]G) for j=0,...,N-1 allows constructing the DFT
+      3. A large DFT coefficient at frequency k means the sequence 1_{x([j]G)<t} is
+         "k-periodic biased" — it predicts the pattern of when x([j]G) < t with frequency k
+      4. This MIGHT give a prediction algorithm for future x([j]G) values
+
+      IF this reduction is valid: H-PSEUDO follows CONDITIONALLY from ECCG security
+      (because H-PSEUDO false → ECCG predictable → contradicts ECCG security assumption).
+
+    predictions:
+      - metric: eccg_to_hpseudo_reduction_validity
+        direction: different
+        minimum_effect: >-
+          A computationally efficient algorithm that, given large |Σ_{j: x([j]G)<t} e^{2πi kj/N}|,
+          predicts x([t+1]G) with non-negligible advantage. If such an algorithm exists:
+          H-PSEUDO false → ECCG insecure. ECCG security → H-PSEUDO.
+
+    minimal_discriminating_test:
+      description: >-
+        Mathematical analysis: does knowing that the small-x indicator has a large
+        Fourier coefficient at frequency k give an algorithm to predict x([j]G)?
+        
+        Specifically: if Σ_{j<N: x([j]G)<t} e^{2πi kj/N} = A >> sqrt(B), then
+        knowing the first j values of x([j]G) (including whether each is in F),
+        can we predict the (j+1)-th value?
+        
+        The DFT coefficient A encodes a correlation between the set S={j: x([j]G)<t}
+        and the arithmetic progression {j: kj ≡ 0 (mod N)}. If S is correlated with
+        this AP, knowing that j is in this AP (i.e., kj ≡ 0 mod N) predicts x([j]G)<t
+        with bias A/B >> 1/sqrt(B).
+        
+        For the prediction algorithm: given j₀ such that kj₀ ≡ 0 mod N, predict
+        x([j₀]G) < t with probability B/N + A/(NB^{1/2}) (above the base rate B/N).
+        
+        This IS a distinguisher for the ECCG (better than random on specific indices),
+        which contradicts ECCG security.
+        
+        ANALYSIS: Is this reduction circular? The problem: to check whether kj₀ ≡ 0 mod N
+        and use the bias, the predictor needs to know k (the "bias frequency"). Finding k
+        requires computing the Fourier transform of the observed sequence, which requires
+        seeing ALL N values of x([j]G) — but the ECCG security assumption only gives a
+        SHORT prefix. So the reduction is not circular but requires a LONG observation window.
+      estimated_cost: "Mathematical analysis; no experiment needed"
+      pass_criterion: >-
+        A valid polynomial-time reduction: given large |hat{1_F}(k)|, an efficient
+        ECCG distinguisher that contradicts ECCG security assumption.
+      fail_criterion: >-
+        The reduction is circular (requires seeing all N values to compute the DFT).
+
+    null_object_control:
+      description: >-
+        For a RANDOM bijection psi: Z/N → E(F_p) (replacing [j]G), the small-x indicator
+        has DFT bounded by O(sqrt(B)) (as expected from random bijection). If H-PSEUDO
+        holds for the ECCG sequence ([j]G) but fails for random permutation: H-PSEUDO
+        is a SPECIAL property of EC multiplication, not a generic property of bijections.
+      expected_null_result: >-
+        Random bijection psi: max_k |hat{1_{psi^{-1}(F)}}(k)| ≈ C_random * sqrt(B)
+        where C_random = O(sqrt(log N)) by standard random bijection bounds. If
+        C_ECCG ≈ C_random: H-PSEUDO is a generic property of random bijections,
+        not specific to EC multiplication.
+
+    falsification_criteria:
+      - >-
+        The reduction from large DFT to ECCG distinguisher requires seeing all N values
+        of x([j]G) (not just a short prefix): reduction circular for practical ECCG security.
+      - >-
+        Empirically: C(p) ~ p^{0.079} for both ECCG and random permutation sequences:
+        H-PSEUDO is a generic random-bijection property, not specific to EC.
+
+    dominated_by: >-
+      This is a conditional proof attempt, not an algorithm. No dominated_by applicable.
+    sota_delta:
+      time_exponent: not_applicable
+      note: >-
+        CONDITIONAL: if valid reduction exists, H-PSEUDO follows from ECCG security.
+        No computational implication for ECDLP beyond H-PSEUDO itself.
+
+    target_class: conditional
+    target_class_reason: >-
+      Conditional proof of H-PSEUDO → sub-rho Semaev index calculus becomes provably
+      tight at exp(c*sqrt(log N*log log N)). Not an algorithm improvement, but a
+      theoretical tightening.
+
+    recommended_priority: high
+
+    proof_search_map:
+      observation_collision_search: >-
+        Has any reduction from ECCG security to character sum bounds been proposed?
+        Search: Shparlinski ECCG papers, NIST SP 800-90B entropy estimation for EC-DRBG.
+        If absent: novel direction.
+      exact_baseline_reproduction: >-
+        Formalize the reduction: given |Σ_{j∈S} e^{2πi kj/N}| = A, construct the
+        ECCG distinguisher explicitly. Check whether it requires seeing all N outputs.
+      quantifier_order_statement: >-
+        The claim: FOR ALL p, N, G, F as in H-PSEUDO: if max_k |hat{1_F}(k)| > C*sqrt(B)
+        THEN there exists an efficient ECCG distinguisher. Verify the quantifier order:
+        the distinguisher must work for ALL possible primes p and curves, not just
+        SOME curve.
+      method_ceiling: >-
+        If the reduction is valid: H-PSEUDO follows from ECCG security assumption
+        (an assumption already believed by the cryptographic community). This gives
+        H-PSEUDO as a CONDITIONAL THEOREM, not just empirical support.
+
+    interpretation_limits:
+      - >-
+        Even if H-PSEUDO is proved conditionally from ECCG: it gives a tight bound
+        on Semaev complexity but does NOT give a sub-rho algorithm (the bound
+        exp(c*sqrt(log N*log log N)) is already known to be achievable).
+      - >-
+        A conditional proof is theoretically valuable but does not change the
+        practical security of prime-field ECDLP.
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-24b025
+  # Linear complexity of ECCG sequence as proxy for H-PSEUDO
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-24b025
+    goal_id: GOAL-ECDLP-001
+    direction: novel
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-141
+
+    avoids_tate_obstruction: not_applicable
+
+    mechanism: >-
+      The ECCG sequence x([j]G) mod p has "high linear complexity" (Shparlinski 1999):
+      the minimal LFSR that generates it has degree ≥ N/2 (provably). High linear
+      complexity means no small LFSR can predict the sequence.
+
+      PROPOSED MECHANISM: High linear complexity IMPLIES bounded DFT coefficients
+      (H-PSEUDO). The argument: if the DFT of 1_{x([j]G)<t} had a large coefficient
+      at frequency k, then the indicator sequence would be "k-periodic biased" and
+      hence have a short LFSR (of period lcm(N/k, ...)) — contradicting high linear
+      complexity.
+
+      ANALYSIS: Does high linear complexity of x([j]G) imply bounded DFT of 1_{x<t}?
+      These are different sequences:
+      - x([j]G): values in F_p (x-coordinates)
+      - 1_{x([j]G)<t}: binary indicator in {0,1}
+
+      High linear complexity of x([j]G) over F_p does NOT directly imply anything
+      about the DFT of the BINARY indicator 1_{x([j]G)<t} over Z/N.
+
+      HOWEVER: there might be a version of this connection. The "boolean linear
+      complexity" of the binary sequence 1_{x([j]G)<t} (as a sequence in GF(2)) is
+      a different quantity from the linear complexity over F_p. Can the F_p linear
+      complexity of x([j]G) bound the Z/N DFT of its binary indicator?
+
+    minimal_discriminating_test:
+      description: >-
+        Mathematical analysis: does high linear complexity of x([j]G) bound the
+        DFT of 1_{x([j]G)<t}? Test empirically at p=1009:
+        1. Compute linear complexity of x([j]G) mod p (should be ~N/2)
+        2. Compute DFT of 1_{x([j]G)<t}
+        3. Check whether linear complexity predicts the DFT bound
+      estimated_cost: "~1 hour analytical + 5 minutes computational at p=1009"
+      pass_criterion: >-
+        A theorem: linear complexity L of x([j]G) implies max_k |hat{1_F}(k)| ≤ f(L,B,N).
+        For L ~ N/2: this gives C ≤ f(N/2, B, N)/sqrt(B).
+      fail_criterion: >-
+        No connection between F_p linear complexity of x([j]G) and Z/N DFT of 1_{x<t}.
+
+    null_object_control:
+      description: >-
+        For a random sequence y_j (linear complexity N): does the DFT of 1_{y_j<t}
+        also satisfy H-PSEUDO? If yes: linear complexity is irrelevant (random sequences
+        satisfy H-PSEUDO anyway). If no: the EC structure provides extra information.
+      expected_null_result: >-
+        Random sequence: high linear complexity but DFT of indicator might be large
+        (depends on distribution). EC sequence: high linear complexity AND DFT bounded
+        (by H-PSEUDO). The EC structure adds specific DFT flatness beyond random.
+
+    falsification_criteria:
+      - >-
+        The F_p linear complexity of x([j]G) and the Z/N DFT of 1_{x([j]G)<t} are
+        in unrelated algebraic settings (F_p vs Z/N); no general connection exists.
+      - >-
+        Empirically: sequences with high LC but large DFT coefficients exist.
+
+    dominated_by: not_applicable
+    sota_delta: {time_exponent: not_applicable, note: "Proof attempt, not algorithm"}
+    target_class: conditional
+    recommended_priority: medium
+
+    proof_search_map:
+      observation_collision_search: >-
+        Has anyone connected ECCG linear complexity to additive DFT bounds? Search
+        Shparlinski's papers on ECCG pseudorandomness.
+      exact_baseline_reproduction: >-
+        Compute LC(x([j]G)) and max_k |hat{1_F}(k)| at p=1009 and verify empirically.
+      quantifier_order_statement: >-
+        Claim: LC ≥ N/2 (proved) + X → max_k |hat| ≤ C*sqrt(B). What is X?
+      method_ceiling: >-
+        If valid: first non-ECCG-security conditional proof of H-PSEUDO.

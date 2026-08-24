@@ -1,0 +1,615 @@
+idea:
+  id: IDEA-20260805-a749bc
+  question_id: RQ-CRYPTO-001
+  added: '2026-08-05'
+  title: >-
+    The embedding-degree admission census: compute ord_r(p) for every curve in a
+    declared registry of recognized cryptographic prime-field curves, and decide
+    curve-by-curve whether a textbook pairing transfer ALREADY meets
+    GOAL-CRYPTO-001's literal objective -- with the memory column charged, which
+    is the part nobody has
+  class: measurement
+
+  claim: >-
+    GOAL-CRYPTO-001 asks for "an ECDLP algorithmic mechanism that ... demonstrates
+    a reproducible advantage over the best matched Pollard-rho baseline on a
+    recognized cryptographic-size prime-field curve." Read literally, that
+    objective is a statement about a SET OF CURVES, and the set has never been
+    enumerated by this goal. The MOV / Frey-Ruck pairing transfer sends the ECDLP
+    in E(F_p)[r] into the DLP in F_{p^k}^*, k = ord_r(p), where index calculus of
+    NFS type applies; whether it beats matched rho on a given curve is decided by
+    one integer, k, and one cost comparison. This proposal is: (1) transcribe a
+    declared registry of recognized prime-field curves from primary standards;
+    (2) compute k for each by the bounded one-sided test "is p^i = 1 mod r for
+    some i <= K"; (3) evaluate the transfer cost against matched rho under BOTH
+    an operation-count charge and a memory-charged (Wiener AT^2) charge; and
+    (4) report the resulting partition of the registry. THE PROPOSAL CLAIMS NO
+    NEW ATTACK AND BREAKS NOTHING: the pre-derived forced prediction is that
+    secp256k1, NIST P-256 and NIST P-384 have k far beyond any usable bound and
+    are untouched, and the interesting cells are the deployed pairing-friendly
+    curves at small k, where the transfer's status against rho is a
+    quantitative question this program has never asked. The deliverable that
+    matters to the goal is a scope adjudication: either the objective's literal
+    reading is already satisfiable by a 1993 mechanism -- in which case
+    thirteen batches of FINAL_NO_CANDIDATE were screening against an unwritten
+    exclusion, and the exclusion should be written into the goal record by the
+    Coordinator -- or the charged comparison shows the transfer loses on every
+    registry row, in which case the goal acquires the first quantitative
+    admission gate it has ever had.
+
+  object_first_candidate:
+    tracked_object: >-
+      The multiplicative order of p modulo r -- equivalently the embedding degree
+      of the prime-order subgroup -- followed through the transfer: the curve
+      subgroup E(F_p)[r], the Weil/Tate pairing e: E[r] x E[r] -> mu_r, the
+      target group mu_r inside F_{p^k}^*, and finally the cost of index calculus
+      in F_{p^k}. The object is a single integer attached to the curve, and every
+      downstream cost is a function of that integer and the bit sizes.
+    established_families_off_limits: >-
+      Off-limits as the primary lens for this proposal: Semaev summation
+      polynomials and every prime-field index-calculus variant built on them;
+      Groebner/Macaulay solving-degree instrumentation; BKK/mixed-volume sparse
+      elimination; xedni/lifting; Weil descent over composite-degree fields;
+      generic-group and birthday/rho refinements; discrete-Morse and spectral-gap
+      arguments; the anomalous-curve (trace-1) transfer. Those are the families
+      the prior CRYPTO batches and GOAL-ECDLP-001 have worked, and every one of
+      them has a recorded closure or fatigue report. The pairing transfer is
+      deliberately NOT off-limits, and the reason is stated rather than assumed:
+      this proposal does not invent anything in that family, it CENSUSES an
+      existing textbook family against a curve registry the program never wrote
+      down. That is the one move the "declare the family off-limits" rule does
+      not forbid, and it is the same move IDEA-20260805-e805b6 makes.
+    newness_score: >-
+      The mechanism is textbook and roughly thirty years old, and this record
+      says so in its first paragraph rather than dressing it as new. What is
+      absent from this corpus, checked and reported below, is (a) a computed
+      embedding degree for ANY named standardized curve, (b) any registry of
+      recognized prime-field curves at all, and (c) any memory charge on the
+      NFS-side cost of a transfer. The novelty is in the census and the charge,
+      not the map.
+    testability_score: >-
+      Maximal. Stage 1 is pure-Python modular exponentiation over a registry of
+      order ten curves and terminates in under a second; it was executed in
+      pre-derivation form during this ideation session (results below, labelled).
+      Every forced value is an integer with a pre-registered predicted value.
+    survival_score: >-
+      The object survives the entire transfer by construction -- k is exactly the
+      degree of the field the pairing lands in, so it propagates deterministically
+      and is not an approximation of anything. Where it dissolves is at the cost
+      model: k decides WHICH field, and the cost in that field carries an
+      unread o(1) and an uncharged memory term. That is where this proposal
+      expects to spend its uncertainty, and the experiment is designed around it.
+
+  mechanism: >-
+    SETUP. Let E/F_p be an elliptic curve over a prime field with a subgroup of
+    prime order r, r > 3, r ~ p (the standard near-prime-order case). The
+    reduced Tate pairing gives a non-degenerate bilinear map
+    E(F_{p^k})[r] x E(F_{p^k})/rE(F_{p^k}) -> mu_r subset F_{p^k}^*, where k is
+    the SMALLEST integer with r | p^k - 1, i.e. k = ord_r(p) in (Z/r)^*. Fixing
+    P of order r and a suitable Q, the map psi(X) = e(X, Q) is an injective group
+    homomorphism from <P> into mu_r, so log_P(R) = log_{psi(P)}(psi(R)) and the
+    ECDLP is reduced to a DLP in F_{p^k}^*. Cost of the reduction: two pairing
+    evaluations, i.e. O(k^2 log p) field operations by Miller's algorithm --
+    NEGLIGIBLE relative to either side. The whole question is the cost in the
+    target group. THE ABOVE IS TEXTBOOK; the sources are named under
+    literature_context and are NOT READ in this session.
+
+    THE DECIDING INTEGER, AND WHY IT IS A ONE-SIDED TEST. k is defined by an
+    order computation modulo r, and computing ord_r(p) in general needs the
+    factorization of r - 1, which is infeasible for a 256-bit r. But the
+    ADMISSION question does not need ord_r(p); it needs only to distinguish
+    "k <= K" from "k > K" for a usable bound K. That is decided by K modular
+    multiplications: iterate x <- x*p mod r from x = p and test x = 1. The test
+    is one-sided and exact -- a hit proves k is the hit index, a miss proves
+    k > K -- and it needs no factoring, no library, and no solver. This is why
+    the gate is cheap, and it is why its absence from the corpus is a coverage
+    failure rather than a budget decision.
+
+    THE COST COMPARISON, STATED AS AN INEQUALITY, NOT A NUMBER. Matched rho on a
+    group of prime order r costs C_rho = sqrt(pi r / 4) group operations with
+    memory polylog(r) under the distinguished-point parallelization. NFS-family
+    DLP in F_Q with Q = p^k costs
+      C_nfs = L_Q(1/3, c) = exp( (c + o(1)) (ln Q)^{1/3} (ln ln Q)^{2/3} )
+    with a memory cost dominated by the sparse linear-algebra stage on a matrix
+    whose dimension is of order L_Q(1/3, c') for the relevant c'. The transfer
+    beats matched rho at that curve, under an OPERATION-COUNT charge, iff
+      C_nfs < C_rho,
+    and under a WIENER AT^2 charge (KN-TECH-035/044/050/057 lineage) iff
+      M_nfs * C_nfs^2 < M_rho * C_rho^2,
+    where M_rho is polylogarithmic. THE SECOND INEQUALITY IS THE ONE NOBODY IN
+    THIS CORPUS HAS EVALUATED FOR A TRANSFER, and it can flip the verdict: rho
+    is memory-free and therefore very hard to beat once memory is charged
+    quadratically, while NFS carries a linear-algebra matrix of subexponential
+    dimension. A transfer that wins on operation count and loses on AT^2 is a
+    Pareto fact, and recording it is the deliverable even when the answer is
+    "no advantage anywhere".
+
+    THE FORCED SPLIT, DERIVED BEFORE ANY REGISTRY IS TRANSCRIBED.
+    (a) SUPERSINGULAR SHAPE, k = 2 EXACTLY, PROVED NOT MEASURED. If E/F_p is
+        supersingular with p > 3 then trace t = 0 and #E = p + 1, so any prime
+        r | p + 1 satisfies p = -1 mod r; hence p^2 = 1 mod r, and p = 1 mod r is
+        impossible for r > 2. Therefore k = 2 exactly. This is a two-line proof
+        and it is the positive control: an instrument that does not return 2 on
+        this family is broken and no negative from it may be reported.
+    (b) PAIRING-FRIENDLY FAMILIES, k SMALL BY CONSTRUCTION. BN and BLS12 curves
+        are constructed to satisfy r | p^12 - 1, MNT curves r | p^k - 1 for
+        k in {3,4,6}. Their k values are FORCED BY THE CONSTRUCTION, so the
+        census must return exactly the constructed k or the transcribed
+        parameters are wrong. This is a self-check on the registry, not a
+        discovery.
+    (c) GENERIC / STANDARDIZED NON-PAIRING CURVES, k ENORMOUS. Under the
+        Balasubramanian-Koblitz result (RECALLED, NOT READ) a randomly chosen
+        curve of prime order r ~ p has k of order r with overwhelming
+        probability. The forced prediction is a MISS at every tested bound: the
+        one-sided test returns "k > K" for secp256k1, NIST P-256, NIST P-384.
+        This is the null arm and it CAN fail: a hit at any i <= K would be a
+        catastrophic and instantly-verifiable finding about a deployed curve,
+        which is exactly why the arm is worth running rather than assuming.
+
+    SESSION-COMPUTED PRE-DERIVATION (LABELLED, NOT EVIDENCE, RE-RUN IN HARNESS).
+    Executed in this ideation session in pure Python 3.11 outside the harness, on
+    RECALLED-UNVERIFIED curve parameters that the experiment must re-transcribe
+    from primary standards before anything is cited: the one-sided test at
+    K = 10000 returned k = 12 for BN254 (alt_bn128) and k = 12 for BLS12-381 --
+    matching the forced construction values -- and MISS (k > 10000) for
+    secp256k1, NIST P-256 and NIST P-384. A separate exhaustive check over the
+    supersingular shape p = 4r - 1 with r, p prime, p = 3 mod 4, r < 5000,
+    returned k = 2 at 106 of 106 instances, confirming (a). NONE OF THIS IS
+    EVIDENCE: the parameters are recalled, the run is outside the harness, and
+    it is recorded here only because a forced value that has already been
+    checked once is a stronger pre-registration than one that has not.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      Menezes, Okamoto, Vanstone, "Reducing elliptic curve logarithms to
+      logarithms in a finite field" (the MOV reduction, ~1993), and Frey, Ruck,
+      "A remark concerning m-divisibility and the discrete logarithm in the
+      divisor class group of curves" (~1994). NOT READ IN THIS SESSION --
+      RECALLED, UNVERIFIED. The statement used above (the pairing gives an
+      injective homomorphism into F_{p^k}^*, k = ord_r(p)) is standard textbook
+      material, but this record does not treat memory as an authority: quoting
+      the reduction from a primary source is Stage 0 of the experiment.
+    - >-
+      Balasubramanian and Koblitz, on the embedding degree of a random curve
+      being large. NOT READ -- RECALLED, UNVERIFIED. The corpus's own
+      DEC-20260804-6ee18a asserts "k = ord_N(p) ~ N/2 (Balasubramanian-Koblitz
+      theorem)" without a citation to a read source; that assertion is itself
+      one of the things this census checks empirically at the bounded-K level.
+    - >-
+      Kim and Barbulescu, extended tower NFS (exTNFS), ~2016, and the subsequent
+      re-evaluation of BN-curve security. NOT READ -- RECALLED, UNVERIFIED. The
+      relevant constants are relayed as c = (64/9)^{1/3} ~ 1.923 for the general
+      NFS case and c = (32/9)^{1/3} ~ 1.526 for the special tower cases. THESE
+      TWO NUMBERS ARE THE MOST LOAD-BEARING UNVERIFIED ITEMS IN THIS PROPOSAL
+      and Stage 0 must obtain them from a primary source or the cost comparison
+      is reported as underived.
+    - >-
+      IN-CORPUS: DEC-20260804-6ee18a (GOAL-ECDLP-001, BATCH-087) closes the
+      MAGCS/Tate-pairing route for "generic prime-field curves" and states its
+      obstruction as large k. Its partial result is scoped to "k=2 curves" with
+      the parenthetical "but k=2 curves are MOV-vulnerable and excluded from
+      cryptographic use." THAT SENTENCE IS THE EXACT TESTED BOUNDARY THIS
+      PROPOSAL STEPS OUTSIDE: it conflates k = 2 (supersingular) with the whole
+      small-k range, and deployed pairing-friendly curves sit at k in {3,4,6,12}
+      and are emphatically NOT excluded from cryptographic use. Nothing here
+      contradicts that decision inside its stated scope; the census simply
+      covers the range the scope omits.
+    - >-
+      IN-CORPUS: IDEA-20260731-008 and H-IT-001 build an "isogeny-transfer cost
+      gate" covering anomalous, MOV and Weil-descent special families. Their
+      declared boundary is GENERIC random curves, and IDEA-20260731-008 states
+      explicitly that "Structured public curves (explicit CM, pairing-friendly)
+      are out of the GENERIC claim and must be [excluded]". So the deployed
+      pairing-friendly registry is outside their tested scope by their own
+      words. This proposal takes exactly that complement.
+    - >-
+      NOVELTY SCREEN, WITH ITS LIMITS STATED. Greps over ledger/, knowledge/,
+      experiments/ and src/ on 2026-08-05 found "embedding degree" and "MOV"
+      discussed in roughly twenty records, and found NO record that computes
+      ord_r(p) for any named standardized curve, NO curve registry, and NO
+      memory charge applied to a transfer's NFS side. What that screen could see
+      is file text in this repository. It could not see the 7,809-entry
+      literature corpus's actual contents in any reliable way: KN-OPEN-3f7a21
+      and this session's literature sweep both measure that ~95% of those
+      entries carry a bulk-seeding caveat, that 75.2% have all four identifier
+      fields null, and that 2,000 of 2,000 sampled carry
+      "citation_verified: read" while their own body says the claims are
+      relayed without verification. So "no prior work does X" is NOT asserted
+      here for the external literature, only for this repository's own records.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      (E/F_p, P, Q) with P of prime order r --> (mu_r subset F_{p^k}^*,
+      psi(P), psi(Q)), i.e. the curve is replaced by a cyclic subgroup of the
+      multiplicative group of a finite field, retaining only the embedding
+      degree and the images.
+    what_is_discarded: >-
+      The entire geometry of the curve: the Weierstrass coefficients, the
+      j-invariant, the endomorphism ring, the group law's chord-and-tangent
+      realization, and the x-coordinate structure on which every summation-
+      polynomial method in this corpus depends. What is retained is a cyclic
+      group of order r together with an embedding into a field that HAS a
+      multiplicative smoothness notion.
+    why_genuinely_lossy: >-
+      Strictly lossy and not invertible: many non-isomorphic curves over F_p with
+      the same r and the same k map to the same abstract subgroup mu_r, and there
+      is no map back -- recovering E from mu_r would require inverting the
+      pairing, which is not a group-theoretic operation on the image. Contrast
+      the canonical failure the inventor protocol names, (Delta, Pi) = (x + y,
+      x*y) in characteristic 2, where the unordered pair is recovered as the
+      roots of t^2 + Delta t + Pi and nothing was gained. Here the fibre over a
+      given image is a positive-dimensional family of curves.
+    why_compatible_with_the_operations: >-
+      Compatibility is not heuristic here, it is bilinearity: e(aP, Q) =
+      e(P, Q)^a exactly, so the group operation on the tracked object propagates
+      deterministically and the discrete logarithm is preserved on the nose. This
+      is the strongest possible form of the compatibility requirement and is why
+      the projection is useful at all.
+    is_it_only_a_change_of_coordinates: >-
+      NO, and the discriminating fact is that the image lives in a structure with
+      a subexponential DLP algorithm while the source has none. A change of
+      coordinates cannot change the complexity class of the best known algorithm.
+    which_failure_was_checked_for: >-
+      BOTH were checked. (1) The change-of-coordinates failure: rejected, by the
+      non-invertibility argument plus the complexity-class argument above.
+      (2) The MIRROR failure -- a projection so lossy that it is CONSTANT across
+      instances, giving zero comparator spread, which is the failure mode
+      IDEA-20260805-e805b6 caught in the determinant-ideal case: rejected, and
+      rejected with a measured spread rather than an assertion. The tracked
+      quantity k takes the values 2, 3, 4, 6, 12 and "> 10000" across the
+      registry; the session-computed pre-derivation already exhibits a spread of
+      at least {12, >10000}. A constant projection is exactly what a
+      pairing-friendly curve is engineered to avoid producing, and the census
+      measures that engineering.
+
+  assumptions:
+    - >-
+      That a "recognized cryptographic-size prime-field curve" includes deployed
+      pairing-friendly curves. This is a SCOPE assumption about GOAL-CRYPTO-001's
+      objective and it is the proposal's central interpretive move. It is
+      defensible -- BN254 and BLS12-381 are prime-field short-Weierstrass curves
+      of cryptographic size in production use -- but it is an interpretation, not
+      a fact, and only the Coordinator may settle it. The experiment therefore
+      reports the census and the adjudication question SEPARATELY, and asserts no
+      goal-state consequence.
+    - >-
+      That r is prime and r ~ p (near-prime order). Cofactor handling and
+      composite-order subgroups are out of scope and are recorded as such.
+    - >-
+      That the transcribed registry parameters are correct. They are recalled in
+      this record and must be re-transcribed from primary standards; the
+      construction self-check (b) above is what catches a transcription error.
+
+  predictions:
+    - metric: >-
+        k_hit_index for the supersingular positive-control family: the value
+        returned by the one-sided test on at least 100 instances of the shape
+        p = 4r - 1 with p, r prime and p = 3 mod 4
+      direction: different
+      minimum_effect: >-
+        EXACTLY 2, at 100/100 instances. Derived by proof before any run
+        (p = -1 mod r). Any instance returning anything other than 2 means the
+        implementation is wrong and NO negative result from any other arm may be
+        reported.
+    - metric: >-
+        k for BN254 (alt_bn128) and for BLS12-381, from re-transcribed primary
+        parameters
+      direction: different
+      minimum_effect: >-
+        EXACTLY 12 for both. Forced by the curve constructions. A different value
+        means the transcription is wrong, and the registry must be repaired
+        before any cost comparison is computed.
+    - metric: >-
+        k_found within K = 10^6 for secp256k1, NIST P-256, NIST P-384
+      direction: different
+      minimum_effect: >-
+        NONE FOUND, at all three curves. This is the null arm's forced value and
+        it can genuinely fail. A hit at any i <= 10^6 on any of those three
+        curves would be an immediately certificate-checkable structural fact
+        about a deployed curve and would be routed to rule-12
+        review-breakthrough before any other work in this proposal continues.
+    - metric: >-
+        operation-count verdict: sign of log2(C_nfs) - log2(C_rho) per registry
+        row, with C_nfs the L_Q(1/3, c) evaluation at the transcribed c and the
+        o(1) term set to zero and DECLARED as set to zero
+      direction: different
+      minimum_effect: >-
+        A pre-registered SPLIT, not a single number: NEGATIVE (transfer wins) for
+        at least one deployed small-k row, and POSITIVE by a margin exceeding
+        1000 bits for secp256k1. The session-computed pre-derivation, at c =
+        1.526 with o(1) = 0, gave BN254 log2 C_nfs ~ 110 against rho ~ 127
+        (transfer wins by ~2^17), BLS12-381 ~ 130 against rho ~ 127.5 (transfer
+        LOSES), and secp256k1 ~ 1987 against 128. THOSE THREE NUMBERS ARE THE
+        PRE-REGISTERED PREDICTION and the run either reproduces them from
+        re-transcribed inputs or the derivation is wrong. Reproducing the BN254
+        and BLS12-381 rows on OPPOSITE sides of zero is a much harder target to
+        hit by accident than either row alone.
+    - metric: >-
+        AT^2 verdict: sign of log2(M_nfs * C_nfs^2) - log2(M_rho * C_rho^2) on
+        every row where the operation-count verdict was negative
+      direction: different
+      minimum_effect: >-
+        NO PREDICTION IS PRE-REGISTERED FOR THIS METRIC, and the absence is
+        deliberate and declared: the NFS linear-algebra memory exponent is the
+        quantity this proposal admits it does not know, and pre-registering a
+        guess would manufacture a confirmation. What IS pre-registered is the
+        DECISION RULE: the row is reported as an operation-count win and an
+        AT^2 loss, or a win under both, or a loss under both, and the reported
+        verdict names which charge produced it. A row that flips between the two
+        charges is the single most valuable output of this proposal.
+
+  minimal_test:
+    design: >-
+      Five stages, cheapest first, each able to terminate the line.
+      STAGE 0 (reading, zero compute): transcribe the registry from primary
+      standards, and obtain the MOV/Frey-Ruck statement and the NFS constants
+      from primary sources. If the constants cannot be obtained, the cost stages
+      are reported as UNDERIVED and only the k-census is reported -- which is
+      still a complete deliverable.
+      STAGE 1 (proof, zero compute): write out the k = 2 supersingular argument
+      and the one-sidedness argument for the bounded test.
+      STAGE 2 (seconds, pure Python): run the one-sided test at K = 10^6 over the
+      registry, plus the supersingular positive control and the matched random
+      null. TERMINATES THE RUN in the good case: if every non-pairing row misses
+      and every pairing row hits its constructed k, the census is complete.
+      STAGE 3 (minutes, pure Python): evaluate the two cost inequalities per row
+      with the o(1) explicitly set to zero and that choice declared in every
+      output line.
+      STAGE 4 (writing): the scope adjudication memo, stated as a question for
+      the Coordinator and never as a goal-state change.
+    controls:
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT (supersingular shape, k = 2). Forced
+        value 2, PROVED before the run, on >= 100 instances. The effect MUST
+        appear here. If it does not, the instrument is broken and no negative
+        result may be reported from any arm. This is the sensitivity
+        demonstration KN-TECH-1a5b7e requires, and its threshold (100/100) is
+        declared before the run.
+      - >-
+        MATCHED NULL (random ordinary curve of the same size). For each
+        standardized row, draw a random prime p of the same bit length and a
+        random prime r of the same bit length with no constructed relation, and
+        run the identical bounded test. FORCED VALUE: MISS at K = 10^6, and the
+        null CAN fail -- a hit would mean the test is finding coincidences and
+        the standardized rows' misses mean nothing. The null is matched on bit
+        length and on primality, not merely "random", because an unmatched null
+        would answer a different question.
+      - >-
+        GRADED CONTROL, >= 3 interior points, monotonicity reported. Run the
+        census across the ladder k = 2 (supersingular), k = 3, 4, 6 (MNT-shape,
+        constructed toy instances if standardized parameters cannot be
+        transcribed), k = 12 (BN, BLS12), k > 10^6 (standardized non-pairing).
+        Report log2(C_nfs) as a function of k at fixed r-size and confirm it is
+        MONOTONE INCREASING. A non-monotone cost curve localizes an error in the
+        cost evaluation instead of leaving "the numbers looked odd".
+      - >-
+        CONSTRUCTION SELF-CHECK. Each pairing-friendly row's measured k must
+        equal its constructed k. This checks the transcription, not the
+        mathematics, and it is reported separately so a transcription failure is
+        never read as a mathematical result.
+      - >-
+        ORDER-OF-LOOKING RULE. The null arm and the positive control are run,
+        recorded and hash-committed BEFORE the standardized registry rows are
+        computed. If the decision rule emits the same label on the null and on a
+        standardized row, the rule discriminates nothing and must be rewritten
+        before the registry is read.
+    required_metrics:
+      - per-row k or "miss at K", with K stated and the exact test loop recorded
+      - the transcription source (document, section) for every registry parameter
+      - log2 C_rho, log2 C_nfs with c and the o(1)=0 declaration, per row
+      - the AT^2 comparison per row, with the memory model named and its source
+      - positive-control pass rate and null-arm miss rate, reported before the registry rows
+
+  falsification_conditions:
+    - >-
+      The supersingular positive control returns anything other than 2 at any
+      instance. The instrument is broken; nothing else in the package may be
+      reported as a result.
+    - >-
+      The matched null hits at K = 10^6. The bounded test is finding
+      coincidences at this size and the standardized rows' misses carry no
+      information.
+    - >-
+      BN254 or BLS12-381 returns k != 12. The transcription is wrong and the
+      census is void until repaired.
+    - >-
+      The cost evaluation does not reproduce the pre-registered split (BN254 and
+      BLS12-381 on opposite sides of zero under the same c). The cost derivation
+      is wrong, and the proposal's quantitative content is withdrawn while the
+      k-census stands.
+    - >-
+      The NFS constants cannot be obtained from a primary source. Then the cost
+      stages are reported as UNDERIVED. This is a scope reduction, not a
+      falsification, and it is listed here so that reporting a cost comparison
+      built on recalled constants is visibly out of contract.
+
+  confounders:
+    - >-
+      RECALLED PARAMETERS. Every curve parameter and every NFS constant in this
+      record is recalled, not read. The session-computed pre-derivation inherits
+      that: it is a check of a derivation against recalled inputs and is labelled
+      as such everywhere it appears. Stage 0 exists solely to remove this
+      confounder.
+    - >-
+      THE o(1) TERM. L_Q(1/3, c) has a subexponential o(1) that is not small at
+      3000-bit fields. Setting it to zero is a declared modelling choice, it is
+      NOT conservative in a known direction, and every reported margin must
+      carry the declaration. A margin of a few bits between C_nfs and C_rho is
+      inside the o(1) and must be reported as UNDECIDED rather than as a verdict.
+      This is the single largest threat to the BN254 row.
+    - >-
+      COST-MODEL SHOPPING. Two charges (operation count, AT^2) admit the
+      temptation to quote whichever gives the more interesting verdict. The
+      contract requires BOTH be reported for every row where either is computed,
+      in a fixed order, with the operation-count row first.
+    - >-
+      SCOPE DRIFT. "The transfer beats rho on BN254" is a statement about a
+      curve, not about ECDLP. It moves no exponent for secp256k1 and this record
+      must never be cited as if it did.
+    - >-
+      PUBLISHED-ALREADY RISK. If exTNFS-era security re-evaluations of BN254 are
+      real and read the way this proposal recalls them, the operation-count row
+      is a re-derivation of a published number and must be reported as a
+      REPRODUCTION, not a finding. That is a good outcome (a validated
+      instrument) and a bad headline, and the contract fixes which one gets
+      written.
+
+  interpretation_limits:
+    - >-
+      NOTHING HERE IS AN ATTACK ON secp256k1, P-256, P-384 OR ANY NON-PAIRING
+      STANDARDIZED CURVE. The forced prediction for those curves is a null
+      result, and a null result is what is expected.
+    - >-
+      A negative census -- no registry row where the transfer beats matched rho
+      under both charges -- closes exactly the transcribed registry under the
+      declared cost model with o(1) = 0. It does not close the pairing-transfer
+      family, it does not close small-k curves outside the registry, and it says
+      nothing about curves whose parameters were not transcribed. Forward
+      guidance is mandatory in that case and is named now: the residual is
+      (i) MNT and other k in {3,4,6} deployed parameters, (ii) the o(1) term,
+      and (iii) the NFS memory exponent, which this proposal does not know.
+    - >-
+      The scope adjudication is a QUESTION FOR THE COORDINATOR (AGENTS.md rule
+      1). This record proposes no change to GOAL-CRYPTO-001's objective,
+      next_action, status, or completion criteria, and no reading of this record
+      authorizes one.
+    - >-
+      Executing a real NFS computation in F_{p^12} at 3000+ bits is far outside
+      any campaign budget and IS NOT PROPOSED. The census produces a costed
+      admission verdict, not a solve, and it therefore cannot by itself satisfy
+      GOAL-CRYPTO-001's completion criterion, which requires an executed
+      certificate-verified solve.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE IS LOAD-BEARING FOR THE CENSUS. k = ord_r(p) is a definition, the
+        bounded test is exact and one-sided, and the supersingular k = 2 result
+        is a two-line proof. The census half of this proposal is unconditional.
+      rigorous_support: >-
+        p = -1 mod r whenever r | p + 1 and r > 2, hence ord_r(p) = 2.
+        Bilinearity of the Tate pairing gives log-preservation exactly.
+      validation_plan: >-
+        The 100-instance supersingular control is a check of the derivation, not
+        a distributional validation, and is reported as such.
+    - id: H2
+      statement: >-
+        For a random ordinary curve over F_p with prime subgroup order r ~ p,
+        ord_r(p) exceeds 10^6 with probability 1 - o(1).
+      rigorous_support: >-
+        RECALLED from the Balasubramanian-Koblitz line, NOT READ. The support
+        offered here instead is elementary and self-contained: the number of
+        elements of (Z/r)^* of order at most K is at most sum_{d <= K} d <= K^2,
+        so a uniformly random element has order <= K with probability at most
+        K^2 / (r - 1); at K = 10^6 and r ~ 2^256 that bound is below 2^-215.
+        This is a rigorous bound on the UNIFORM model, and it is offered in
+        place of the recalled theorem precisely so nothing rests on the recall.
+      validation_plan: >-
+        The matched-null arm measures it directly at the tested bit sizes. The
+        prediction is a miss at every null instance, and the bound above says a
+        hit would be an event of probability below 2^-215 under the uniform
+        model -- so a hit falsifies the uniform model rather than being noise.
+    - id: H3
+      statement: >-
+        The cost of DLP in F_{p^k} is L_{p^k}(1/3, c)(1 + o(1)) with c as
+        transcribed, and the o(1) is set to zero in every reported figure.
+      rigorous_support: >-
+        NONE OFFERED HERE. This is a relayed asymptotic with an unquantified
+        cofactor at the sizes in question, and it is the weakest link in the
+        cost half of the proposal. It is stated as a numbered heuristic rather
+        than used silently.
+      validation_plan: >-
+        It CANNOT be validated within this program's budget -- validating it
+        would mean running NFS at 3000 bits. The honest plan is therefore
+        (a) transcribe c from a primary source, (b) report every margin together
+        with the declaration that o(1) = 0, and (c) declare any margin under 20
+        bits UNDECIDED. The inability to validate H3 is recorded as a limit on
+        the claim, not as a passed check.
+
+  target_complexity:
+    time_exponent: >-
+      No exponent is moved for the curves the goal is really about. For a curve
+      of embedding degree k, the transfer replaces sqrt(r) = r^{1/2} with
+      L_{p^k}(1/3), which IS an exponent move from exponential to subexponential
+      -- but only on curves engineered to admit it, and it is a thirty-year-old
+      move that this proposal censuses rather than invents. For secp256k1 and
+      P-256 the exponent is unchanged at 1/2 and the census predicts exactly
+      that.
+    memory_exponent: >-
+      rho: polylog(r). NFS: dominated by the sparse linear-algebra stage,
+      subexponential, EXPONENT NOT KNOWN TO THIS PROPOSAL and declared as not
+      known. Determining it well enough to evaluate the AT^2 inequality is a
+      stated obligation of the experiment, and if it cannot be determined the
+      AT^2 row is reported as UNDERIVED rather than guessed.
+    best_known: >-
+      Matched Pollard rho at sqrt(pi r / 4) group operations with negligible
+      memory, parallelizable with linear speedup under distinguished points.
+    hidden_overhead: >-
+      The subexponential o(1) in L, which at 3000-4600 bit fields is not a small
+      correction; the Miller-loop cost of the pairing itself (negligible); and
+      the communication cost of NFS's relation collection and linear algebra,
+      which the AT^2 charge is meant to expose and which no record in this corpus
+      has charged for a transfer.
+    tradeoff_note: >-
+      This is precisely a time-memory tradeoff question and that is the point.
+      rho sits at (time r^{1/2}, memory ~0); the transfer sits at (time
+      subexponential, memory subexponential). The two are Pareto-INCOMPARABLE
+      until a charge is fixed -- the same structural situation
+      docs/target-result-profile.md records for the house exemplar, which is
+      time >= 2^106.5 AND memory >= 2^92.5 against a prior p^{1/2} at ~2^128
+      with negligible memory.
+
+  dominated_by: >-
+    NOT NULL, and here is the frontier check row by row. On the TIME axis for
+    the deployed small-k rows, this proposal is dominated by the published
+    exTNFS-era security re-evaluations of BN-family curves, IF those exist as
+    recalled -- they would already state the operation-count number and would
+    state it with the o(1) handled properly, which this proposal does not.
+    RELAYED, NOT READ; confirming or refuting their existence is Stage 0. On the
+    TIME axis for secp256k1/P-256/P-384 nothing dominates because nothing is
+    claimed: the predicted result is a null. On the MEMORY axis and the
+    DATA/QUERY axis, no row was found in this corpus or in the recalled
+    literature that charges the transfer's memory against rho's, which is why
+    that column is the proposal's actual contribution rather than a duplicate.
+    Rows checked: this repository's ledger/, knowledge/, experiments/ and src/
+    by grep on 2026-08-05 (no computed embedding degree for any named curve, no
+    registry, no memory-charged transfer); DEC-20260804-6ee18a; IDEA-20260731-008
+    and H-IT-001; the prior CRYPTO ideas IDEA-20260723-001..006 and
+    IDEA-20260801-001; and recall of the external literature, which is labelled
+    as recall throughout. Absence of a search result is not evidence that no
+    prior work exists (AGENTS.md retrieval policy).
+  sota_delta: >-
+    Quantitatively, on the census half: this program currently holds ZERO
+    computed embedding degrees for named standardized curves and zero curve
+    registries; the deliverable is ~10 exact integers plus a 100-instance
+    positive control, at a compute cost under one second. On the cost half, the
+    pre-registered figures to beat or reproduce are log2 C_rho = 127.0 (BN254),
+    127.5 (BLS12-381), 128.0 (secp256k1) against log2 C_nfs at c = 1.526 and
+    o(1) = 0 of 109.8, 130.0 and 1987 respectively -- i.e. a claimed
+    operation-count margin of about 2^17 in favour of the transfer on ONE
+    registry row and about 2^-2.5 against it on the adjacent row. On the memory
+    axis the delta is currently UNDEFINED because no incumbent number exists to
+    compare against, and supplying the first one is the contribution.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.90 that the census completes and returns the forced values (this is
+    arithmetic, and a pre-derivation already returned them once). 0.55 that the
+    operation-count comparison reproduces the pre-registered split from
+    re-transcribed constants -- not higher, because the NFS constant and the
+    o(1) are both unread and the BLS12-381 row sits within a few bits of zero,
+    exactly where the o(1) dominates; not lower, because the BN254 and
+    secp256k1 rows are far from the boundary and the qualitative split does not
+    depend on the constant's third digit. 0.25 that the AT^2 row can be
+    evaluated at all within budget, because the NFS memory exponent is not known
+    to this proposal and may not be obtainable from abstracts. 0.10 that the
+    Coordinator's scope adjudication concludes the goal's objective is already
+    literally satisfiable -- low because the goal's plain intent is clearly
+    curves without a designed transfer, but not near zero, because the objective
+    as WRITTEN contains no such exclusion and thirteen batches have been screened
+    against an exclusion that is nowhere in the record.

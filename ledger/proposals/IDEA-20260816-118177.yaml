@@ -1,0 +1,297 @@
+idea:
+  id: IDEA-20260816-118177
+  question_id: RQ-MCE-b38a8b
+  added: '2026-08-16'
+  title: Build and exhaustively certify a valid binary Goppa key pair at m in 4..6 in dependency-free
+    Python -- support L, squarefree g, the GF(2^m) parity check, its GF(2) trace expansion, a syndrome
+    decoder -- so that every later structural claim in this bucket has a hash-pinned fixture whose
+    ground truth is known by enumeration rather than asserted in prose.
+  class: tooling
+  claim: '(A) A complete binary Goppa instance Gamma(L,g) with m in {4,5,6}, n <= 2^m, and squarefree
+    g of degree t in {2,3,4} irreducible over GF(2^m), can be constructed end to end using only the
+    Python 3.11 standard library: GF(2^m) as exp/log tables from a fixed primitive polynomial, GF(2)
+    linear algebra with rows held as Python integers and elimination by XOR, polynomial arithmetic
+    over GF(2^m) as coefficient lists, and an extended-Euclid key-equation decoder. numpy is absent
+    from this environment (verified by import failure), so dependency-freedom is a hard constraint
+    rather than a preference. (B) Validity is CERTIFIED BY ENUMERATION rather than asserted. For every
+    cell whose dimension k = n - rank(H2) satisfies k <= 20 the entire codebook is enumerated and
+    the minimum distance is computed exactly, so the statement d >= 2t+1 becomes a measured integer
+    with a cell label attached. For every cell the decoder is run on ALL error patterns of weight
+    <= t (at m=4, t=2, n=16 that is 1+16+120 = 137 patterns) and ''unique correct recovery'' is a
+    counted fact with a denominator. (C) NOT CLAIMED, explicitly: nothing about Classic McEliece''s
+    parameter sets; no key recovery, no decoding attack, no distinguisher, no speedup, and no security
+    consequence of any kind; no assertion about what any published paper contains; and no claim that
+    any statistic measured at m <= 6 extrapolates to m = 13. A fixture that works at m <= 6 supports
+    statements about m <= 6 and about the correctness of the instrument, and nothing else. (D) The
+    deliverable is a frozen JSON artifact plus its sha256 carrying (m, field polynomial, ordered L,
+    coefficients of g, H over GF(2^m), H2 over GF(2), systematic G, column permutation, seed), together
+    with a self-check script that re-derives every field of the artifact from the seed alone. The
+    point of the hash pin is that every other proposal in this bucket then runs against bytes rather
+    than against a description, which is the condition none of the twelve existing MCE-area proposals
+    currently enjoys.'
+  mechanism: 'STAGE A. Build GF(2^m) from a fixed primitive polynomial per m (x^4+x+1, x^5+x^2+1,
+    x^6+x+1) as exp/log tables; verify exhaustively over all 2^m elements that multiplication is associative
+    on a random sample, that every nonzero element has an inverse, and that the table round-trips.
+    STAGE B. Find monic g of degree t irreducible over GF(2^m) by exhaustive trial: reject if g has
+    a root in GF(2^m), and for t >= 4 also trial-divide by every monic polynomial of degree <= t/2,
+    which is at most 2^(2m) = 4096 candidates at m=6. STAGE C. Choose L as an ordered n-subset of
+    GF(2^m) with g(a) != 0 for all a in L; record the draw. STAGE D. Form H over GF(2^m) as the t-by-n
+    matrix with entries a_j^i / g(a_j), i = 0..t-1. STAGE E. Expand each GF(2^m) entry to a column
+    of m bits in the declared polynomial basis, giving H2 in GF(2)^(mt x n); row-reduce over GF(2)
+    and record the rank r and the pivot column set. r <= mt always; r = mt is expected generically
+    and any deficiency is reported per cell rather than averaged. STAGE F. Compute a basis of the
+    null space of H2 as G, set k = n - r, permute columns to systematic form and record the permutation.
+    STAGE G. Implement the decoder and MEASURE it: run every weight-<=t error pattern, classify each
+    outcome as correct / detected-failure / silent-miscorrection, and count. STAGE H. Run the matched
+    random-code null through STAGES E-G unchanged in the same invocation. STAGE I. Freeze the artifact,
+    hash it, and re-derive it from seed in a separate process to prove reproducibility rather than
+    assert it.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Ran: grep -ril ''goppa'' ledger/proposals/ (6 hits); grep -ril ''goppa'' --include=''*.py''
+      . (ZERO hits, repository-wide); grep -ril ''patterson'' ledger/ knowledge/ experiments/ (one
+      literature note, KN-LIT-7361); ls harness/ (32 modules, all elliptic-curve, isogeny or instrument
+      work); grep -ril ''Niederreiter|keygen|key pair|fixture'' ledger/proposals/. Read in full or
+      in substantial part: ledger/questions/RQ-MCE-b38a8b.yaml, RQ-MCE-e65b3c.yaml, RQ-MCE-3f7c02.yaml,
+      RQ-MCE-f8fca0.yaml, RQ-MCEQ-fcb504.yaml; the objective, what_this_is_not and claim_ceiling blocks
+      of experiments/EXP-MCE-350abf/specification.yaml and experiments/EXP-MCE-3ffdf9/specification.yaml;
+      docs/inventor-protocol.md sections 1-5. Checked the environment directly: python3 -c ''import
+      numpy'' fails with ModuleNotFoundError, python3 is 3.11.15.'
+    results: 'Six proposals mention Goppa codes: IDEA-20260805-9704d9, IDEA-20260805-554b9d, IDEA-20260805-f58517,
+      IDEA-20260808-b9a74c, IDEA-20260808-b6ba7a, IDEA-20260808-3d3be9. Every one of them reasons
+      ABOUT Goppa codes from transcribed parameters, published exponents or symbolic identities; not
+      one constructs an instance. EXP-MCE-3ffdf9 is a draft contract at status review_required, frozen
+      false, that requires ''exact GF(2) linear algebra'' on Gamma(L,g) versus Gamma(L,g^2) at m in
+      {4,5,6}, t in {2,3,4,5}, n <= 64 -- it presupposes exactly the construction proposed here and
+      does not supply it, and it has no decoder arm at all. EXP-MCE-350abf is arbitrary-precision
+      arithmetic on published exponents and touches no code object. No .py file anywhere in the repository
+      contains the string ''goppa''; harness/ holds toycurve.py, semaev.py, rho.py, isogeny_class.py
+      and instrument modules, all elliptic-curve side. RQ-MCE-b38a8b itself fixes the toy boundary
+      m <= 6, n <= 64, t <= 4 and lists a structural feature panel to be measured, but names no constructor.'
+    verdict: 'UNVERIFIED, and deliberately modest. Constructing a small binary Goppa code is standard
+      textbook material and is certainly implemented in computer-algebra systems this environment
+      does not have; this record asserts nothing about what exists outside the repository, in either
+      direction, because no agent here can read external literature. What is claimed new is entirely
+      local and checkable: this repository contains zero code-theoretic modules, one draft contract
+      already depends on a construction that does not exist, and no committed record in the MCE area
+      has ever instantiated the object it argues about. The assembled parts are all known -- exp/log
+      field tables, bitmask GF(2) elimination, trace expansion, key-equation decoding, full-codebook
+      enumeration -- and the assembly''s only non-routine choices are (i) making full enumeration
+      of the weight-<=t sphere the validity certificate instead of a spot check, and (ii) hash-pinning
+      the artifact so downstream contracts bind to bytes.'
+  object_first_candidate:
+    tracked_object: The pair (row-reduced form of H2 in GF(2)^(mt x n) together with its pivot column
+      set, decoding-outcome indicator over the enumerated error sphere), carried per cell (m, t, n,
+      seed). Concretely the thing followed through the computation is the GF(2) row space of the trace-expanded
+      parity check plus the pivot set that fixes a systematic presentation of it; every downstream
+      statistic proposed in this bucket -- square-code defect, hull dimension, shortening chains,
+      ISD iteration counts -- reads that one object and nothing else.
+    lossiness: Genuinely lossy, and the loss is the point. The secret (L, g) is an ordered support
+      of n distinct field elements plus a degree-t polynomial, roughly (n+t)*m bits; the tracked object
+      retains only a GF(2) subspace of dimension mt inside F_2^n. The entire reparametrisation orbit
+      of (L,g) under the substitutions that preserve the code collapses to one tracked value, and
+      the GF(2^m) field structure is discarded outright -- H2's row space is a plain binary subspace
+      with no field action attached. What survives propagates because every operation an adversary
+      can legally apply to a public key (row operations, column permutation, shortening, puncturing,
+      forming Schur products) acts on the row space alone and requires no knowledge of (L, g). The
+      discarded part is discarded compatibly with those operations, which is precisely the section
+      2 test.
+    propagation: 'Take the cheapest family-preserving operation: shorten the public code at one coordinate.
+      On the tracked object this is ''delete column j from H2, then re-reduce''. The rank either stays
+      or drops by one and the pivot set changes in a determined way, so the operation is a well-defined
+      map on tracked objects. Because a binary Goppa code shortened at a support point is again a
+      binary Goppa code -- Gamma(L,g) shortened at a_j is Gamma(L minus {a_j}, g) -- the map is an
+      endomorphism of the family, and the tracked object of the shortened code is again the tracked
+      object of a Goppa code with the same g. That closure is what makes the object usable as a chain
+      of readings rather than a single reading, and it is the hinge on which proposal 7 of this set
+      turns.'
+    survival_score: Stated as a chain length, measured rather than asserted. The object survives shortening
+      while n - j > mt, i.e. while the code still has positive dimension; below that the row space
+      is everything and the object is vacuous. At m=4, t=2, n=16 the usable chain has 16 - 8 = 8 steps;
+      at m=5, t=3, n=32 it has 32 - 15 = 17; at m=6, t=4, n=64 it has 64 - 24 = 40. The experiment
+      reports the measured step at which each cell's statistic becomes degenerate, which may be earlier
+      than the arithmetic bound and is exactly the number a later reader wants.
+  null_object_control: 'For every cell, in the SAME process invocation and from a domain-separated
+    seed, generate a matched random binary [n, k] code by sampling a uniformly random (n-k)-by-n GF(2)
+    matrix and resampling on rank deficiency, with n and k taken from the Goppa cell after its rank
+    is measured. Run the identical rank-profile extraction, systematic-form reduction, codebook enumeration
+    and -- for the decoder arm -- an exhaustive coset-leader syndrome-table decoder against it. For
+    the fixture claim to mean anything the null must show BOTH: (a) the same generic rank mt, so that
+    rank alone is not the signal; and (b) at least one metric on which it differs, most plausibly
+    a smaller enumerated minimum distance and a bounded-distance decoder that fails some weight-t
+    pattern. If the random null matches the Goppa arm on every metric in a cell, that cell is recorded
+    as UNINFORMATIVE and discarded from comparative reading -- not reported as a Goppa property.'
+  discriminated_from:
+  - 'EXP-MCE-3ffdf9 (draft, review_required, frozen false): it requires exact GF(2) linear algebra
+    on Gamma(L,g) versus Gamma(L,g^2) at m in {4,5,6} and n <= 64 but builds no construction and has
+    no decoder arm. This proposal supplies the constructor and the enumerated decoding certificate
+    that contract would have to consume, and claims none of that contract''s doubling-identity content.'
+  - 'IDEA-20260805-9704d9: the squarefree-doubling audit argues symbolically that the alternant degree
+    is 2t and reasons from transcription. It produces no key pair, runs no decoder, and its conclusions
+    are about degrees rather than about a fixture.'
+  - 'IDEA-20260808-3d3be9: proposes evaluating a square-code defect on real standardized public keys.
+    Real standardized keys are exactly what this environment cannot obtain; this proposal deliberately
+    builds a small object whose ground truth is enumerable instead of pursuing one whose ground truth
+    is unavailable.'
+  - 'harness/toycurve.py and the ECDLP toy-object modules: same ''build the smallest honest instance
+    first'' discipline, entirely different object (elliptic curves over small fields, not linear codes).
+    No code-theoretic routine exists anywhere in harness/.'
+  - 'An ordinary textbook Goppa implementation: this differs in that validity is certified by full
+    codebook enumeration and full weight-<=t error enumeration rather than by spot tests, that a matched
+    random null runs in the same invocation, and that the artifact is hash-pinned so later contracts
+    bind to bytes.'
+  assumptions:
+  - Python 3.11 standard library only; numpy and galois are absent from this environment (verified
+    by import failure) and no external dependency may be introduced.
+  - Full codebook enumeration is possible only where k = n - rank(H2) <= 20; at m=6, t=4, n=64 the
+    dimension is 40 and 2^40 codewords are NOT enumerable, so those cells get exhaustive weight-<=t
+    error enumeration but only a sampled minimum-distance lower bound, and the difference is reported
+    per cell.
+  - A monic irreducible g of degree t over GF(2^m) exists and is findable by exhaustive trial inside
+    the declared budget at m <= 6, t <= 4.
+  - The chosen decoder route -- extended-Euclid key equation on the degree-2t alternant presentation,
+    or Patterson with a square root modulo g -- is implementable correctly in pure Python; correctness
+    is measured by enumeration, never assumed.
+  - The stdlib random.Random Mersenne Twister is adequate for sampling supports and null codes at
+    these sizes; this is an assumption about the sampler, and proposal 10 of this set exists to test
+    the ensemble side of it.
+  predictions:
+  - metric: fraction of weight-<=t error patterns uniquely and correctly decoded on the Goppa arm
+      at m=4, t=2, n=16
+    direction: higher
+    minimum_effect: 1.0
+  - metric: enumerated minimum distance of the Goppa codebook at m=4, t=2, n=16, minus 2t+1
+    direction: higher
+    minimum_effect: 0
+  - metric: GF(2)-rank of the trace-expanded parity check H2 relative to mt
+    direction: different
+    minimum_effect: 'forced value: rank = m*t in at least 90 percent of cells; every deficient cell
+      is reported individually with its (m,t,n,seed) rather than folded into an average'
+  - metric: fraction of weight-t patterns corrected by the matched random-code null under its own
+      coset-leader decoder
+    direction: lower
+    minimum_effect: 'explicit refusal to pre-commit: at n=16, k=8 a random binary code may well have
+      most weight-2 patterns as unique coset leaders, so the honest pre-registration is only that
+      the Goppa arm is forced to 1.0 while the null value is measured. A null also at 1.0 is recorded
+      as the cell being too small to discriminate, never as a Goppa property.'
+  minimal_test:
+    design: 'One cell decides everything downstream: m=4, t=2, n=16, k=8. Build GF(16) from x^4+x+1,
+      find a monic irreducible quadratic g over GF(16) by exhaustive trial, take L as all sixteen
+      field elements ordered by their integer representation after checking g(a) != 0, form the 2-by-16
+      parity check over GF(16), trace-expand to 8-by-16 over GF(2), reduce and confirm rank 8. Enumerate
+      all 256 codewords and compute the exact minimum distance. Enumerate all 137 error patterns of
+      weight <= 2 and run the decoder on each, counting correct, detected-failure and silent-miscorrection
+      outcomes. In the same process, sample a matched random [16,8] binary code and run the identical
+      enumerations with an exhaustive coset-leader decoder. Total cost is seconds on one core and
+      no dependency. If the Goppa arm does not reach 1.0 on its enumerated sphere, or its enumerated
+      minimum distance is below 5, the construction is wrong and every proposal in this bucket that
+      would consume it is void. That is the discrimination, and it is nearly free.'
+    controls:
+    - Matched random binary [n,k] code, same n and k, same enumerations, same invocation, domain-separated
+      seed.
+    - 'Deliberately corrupted fixture positive control: a g with a root inside L, which the validity
+      gate MUST reject; if it passes, the gate is not measuring what it claims.'
+    - 'Column-permuted copy of the Goppa code: must decode identically after applying the inverse
+      permutation, catching index bugs that would otherwise read as structure.'
+    - 'Second field-polynomial basis for the trace expansion: every reported invariant must be unchanged,
+      or the implementation is basis-dependent and unusable as a fixture.'
+    - Five independent (L, g, seed) draws per cell so that any per-cell number carries a spread rather
+      than a single reading.
+    required_metrics:
+    - rank(H2) and the pivot column set per cell
+    - k = n - rank(H2)
+    - exact minimum distance where k <= 20, sampled lower bound otherwise, labelled which
+    - fraction of weight-<=t error patterns decoded correctly, with denominator
+    - silent-miscorrection count at weight <= t (must be zero on the Goppa arm)
+    - wall-clock and GF(2^m) multiplication count per stage
+    - sha256 of the frozen fixture artifact and of the re-derived artifact
+    - count of cells where the irreducible-g search failed inside budget
+  falsification_conditions:
+  - Any weight-<=t error pattern the Goppa decoder fails to correct, in any cell that passed the validity
+    gate, falsifies the construction as built.
+  - An enumerated minimum distance below 2t+1 in any fully enumerated cell falsifies the construction.
+  - rank(H2) exceeding mt in any cell falsifies the trace expansion.
+  - A nonzero silent-miscorrection count at weight <= t on the Goppa arm falsifies the decoder.
+  - Any reported invariant that changes under the second field-polynomial basis falsifies the artifact's
+    usability as a fixture.
+  - If the matched random null equals the Goppa arm on every metric in every cell, the comparative
+    content of the deliverable is void and the claim is downgraded to 'an instance was built', with
+    no separation asserted.
+  - Failure of the corrupted-g positive control to be rejected falsifies the validity gate.
+  confounders:
+  - An implementation bug is indistinguishable from absence of structure; this is why the corrupted-g
+    positive control and the permuted-copy control are mandatory rather than optional.
+  - Cells with n = 2^m use the full field as support and are a degenerate special case, not a generic
+    one; folding them into an average would misstate the generic behaviour.
+  - Mersenne Twister quality in the null sampler could bias rank or weight statistics at small n.
+  - The decoder route choice (Patterson versus alternant key equation) could itself produce a failure
+    that is then attributed to the code rather than to the route.
+  - 'Small-n effects: at n=16 the difference between a Goppa code and a random code of the same rate
+    may be genuinely small, so an absent separation is a statement about n, not about Goppa codes.'
+  interpretation_limits:
+  - Statistics measured at m <= 6 say nothing whatsoever about m = 13, and no extrapolation is offered
+    or permitted.
+  - A passing fixture certifies the instrument; it certifies no structural claim about any code family.
+  - Cells with n = 2^m are the full-field-support special case and must be read separately from n
+    < 2^m cells.
+  - The construction being correct does not make any downstream statistic meaningful; each downstream
+    proposal carries its own null.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Construction is polynomial in n and m; the enumeration
+      arms are exponential in k by design (2^k codewords), which is exactly why full enumeration is
+      confined to k <= 20.
+    memory_exponent: No attack memory exponent is claimed. Peak memory is dominated by the null arm's
+      coset-leader syndrome table, 2^(n-k) entries, bounded by 2^24 at the declared cells and enforced
+      by a hard cap.
+    best_known: 'For constructing binary Goppa instances the incumbent is any general-purpose computer-algebra
+      system (Sage or Magma style), which this environment does not have and which the task constraints
+      exclude. For this repository specifically the incumbent is nothing: no code-theoretic module
+      exists, and the draft contract EXP-MCE-3ffdf9 assumes one.'
+    hidden_overhead: 'The real expense is human: getting the GF(2^m) polynomial-basis convention and
+      the trace expansion right, because a wrong basis silently yields a valid-looking code that is
+      not the Goppa code claimed and every downstream statistic then measures a different object.
+      Also hidden: irreducible-g search can fail at the tightest (m,t) cells, and the honest response
+      is to report the cell as unavailable rather than silently substituting a reducible g.'
+  dominated_by: 'n/a (no result claimed). The Pareto check was performed in the only sense available:
+    this proposal emits no time, memory or data figure for any adversary against any scheme, so there
+    is no frontier row it could occupy or be dominated on. As tooling it is dominated on every axis
+    by a general computer-algebra system except availability in this environment, which is the axis
+    that decides.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. The only quantitative delta is
+    availability: zero code-theoretic fixtures in this repository before, one hash-pinned family of
+    certified fixtures across up to 45 cells after, each with an enumerated decoding certificate and
+    a matched null measured beside it.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Separate parts, separate numbers. P(a valid Goppa key pair is built and
+    decodes 100 percent of the enumerated weight-<=2 sphere at m=4, t=2, n=16) = 0.85: the mathematics
+    is settled and the entire risk is implementation, concentrated in the trace expansion and the
+    key-equation step. P(the full grid m in {4,5,6}, t in {2,3,4} completes inside a four-CPU-hour
+    budget) = 0.6: irreducible-g search and the larger enumerations are where it stalls, and the honest
+    failure mode is an incomplete grid rather than a wrong answer. P(the matched random null differs
+    measurably from the Goppa arm on decoding at the smallest cell) = 0.4: at n=16 a random code may
+    correct most weight-2 patterns too, which would make that cell uninformative rather than negative.
+    P(the artifact is actually consumed by a later approved contract) = 0.5, and that is entirely
+    a Coordinator decision this proposal cannot make.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-MCE-b38a8b
+  - RQ-MCE-e65b3c
+  - RQ-MCE-3f7c02
+  - RQ-MCE-f8fca0
+  - EXP-MCE-3ffdf9
+  - EXP-MCE-350abf
+  - IDEA-20260805-9704d9
+  - IDEA-20260808-3d3be9
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-MCEGOP-eda5d6

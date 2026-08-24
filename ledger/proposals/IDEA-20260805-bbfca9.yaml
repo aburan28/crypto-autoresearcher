@@ -1,0 +1,542 @@
+idea:
+  id: IDEA-20260805-bbfca9
+  question_id: RQ-SIG-001
+  added: '2026-08-05'
+  title: >-
+    The trivial-syzygy family is enumerated with polynomial-ring degree
+    arithmetic inside a boolean ring: repair the subtraction instead of rebuilding
+    the null, and the blocked D>=6 baseline may not need a baseline at all
+
+  class: control
+
+  claim: >-
+    GOAL-SIG-001 has been blocked for two batches on constructing a D >= 6 null
+    that validates (extra_D = 0), and every attempted construction has failed.
+    This proposal attacks the OTHER side of the identity. extra_D is defined as
+    kernel_D - rank(K_D), where K_D is the "model"/rewritable syzygy family built
+    by koszul_principal_vectors in
+    experiments/EXP-SIG-006/src/h013_f5_signatures.sage. That function enumerates
+    multiplier monomials with the bounds `md in range(0, D - di - dj + 1)`
+    (pairwise Koszul) and `md in range(0, D - 2*di + 1)` (principal Frobenius,
+    the (1+f_i) mu e_i family). Both bounds are POLYNOMIAL-RING degree arithmetic:
+    they assume deg(mu * c) = |mu| + |c|. The ring is boolean, where the product
+    is set union and |mu UNION c| <= |mu| + |c| with EQUALITY ONLY WHEN mu AND c
+    ARE DISJOINT. Whenever equation supports overlap the multiplier monomial --
+    which is exactly what a block-structured, support-concentrated system like the
+    chained Semaev ideal maximises -- there exist multipliers mu with
+    |mu| > D - d_i - d_j for which every required row (i, mu UNION c) and
+    (j, mu UNION c) still exists at degree <= D. Those are genuine trivial
+    syzygies of degree <= D that K_D never enumerates. K_D is therefore a
+    SUBSET of the boolean trivial syzygy module, rank(K_D) is an undercount, and
+    extra_D = kernel_D - rank(K_D) is a corresponding OVERCOUNT. The correction is
+    computable from the frozen equation supports by set arithmetic alone -- no
+    echelon, no solver, no null arm, no new instance. If the correction accounts
+    for the below-freeze null defect (extra_6 = 7110 at n = 12 seed 2), then the
+    "no D6 null baseline can validate" blocker is an instrument artifact and the
+    D >= 6 cascade axis reopens. If it does not, the blocker survives with a
+    quantified residue and the next null construction knows what it must explain.
+    BOTH OUTCOMES ADVANCE THE GOAL AND NEITHER IS CLAIMED HERE.
+
+  object_first_candidate:
+    tracked_object: >-
+      A single trivial syzygy vector, followed from its algebraic identity to its
+      row-index bitmask: the identity f_j * (mu f_i) + f_i * (mu f_j) = 0 (and
+      its Frobenius companion (1 + f_i) * mu * f_i = 0, valid because every
+      element of F_2[x]/(x_i^2 + x_i) is idempotent), tracked through
+      (a) the set of Macaulay rows it needs, (b) whether every one of those rows
+      exists at degree <= D under BOOLEAN union degree rather than polynomial
+      additive degree, and (c) whether the enumerating loop's bound admits it.
+      The tracked object is the multiplier mu and the question asked of it is a
+      membership question, not a rank question.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: constructing yet another null system (three
+      constructions -- N0 old, N2 forced-consistent, N1 exact-column-matched --
+      have failed at D6 and a fourth is the move this proposal deliberately
+      refuses); semi-regularity / Hilbert-series recalibration as the repair
+      route (EV-SIG-006 already established that NO histogram-only recalibration
+      of sr_pred exists, and this proposal accepts that finding rather than
+      reopening it); F5 signature theory as the lens (it is the instrument under
+      audit); variety-size / saturation arguments (they explain the AT-freeze
+      failure at n = 9 and explicitly do not explain the BELOW-freeze failure at
+      n = 12, which is the target here); Groebner d_reg estimation.
+    newness_score: >-
+      The mathematics is elementary and certainly known to anyone who has
+      implemented a boolean Macaulay matrix; that is not the claim. What does not
+      exist is the audit: EV-SIG-008's own unresolved_confounds list opens with
+      "Mechanism of the below-freeze null D6 collapse (7,110) at n=12: neither
+      semiregular nor variety-saturating; decomposition OPEN", and EV-SIG-006
+      records the sibling puzzle as "the column-matching safety constraint itself
+      induces syzygies -- N1's D5 extra = 369 ... Measured confound". Two
+      committed records name an open decomposition; no record examines the
+      enumerator's degree bound.
+    testability_score: >-
+      Very high and almost free. The correction is a set-intersection count over
+      the frozen supports; the pinned instrument, its supports and its determinism
+      are all committed under experiments/EXP-SIG-006/. Stage 0 is arithmetic on
+      committed numbers and can end the line.
+    survival_score: >-
+      The object survives trivially -- a syzygy is a syzygy -- and that is the
+      point. The risk is entirely magnitude: the omitted multipliers may exist in
+      tiny numbers, or may add no rank beyond what K_D already spans, in which
+      case the audit returns a small number and the blocker stands. That outcome
+      is written into the predictions with a threshold.
+
+  mechanism: >-
+    SETUP. Rows of the degree-D Macaulay matrix are tagged (i, u) for equation
+    f_i of degree d_i and squarefree multiplier monomial u with |u| <= D - d_i;
+    row (i, u) is the boolean polynomial u * f_i, whose support is
+    { u UNION c : c in supp(f_i) }. The row count identity checks out exactly:
+    at n = 12, D = 6, nrows = 12 * sum_{k<=4} C(24,k) + 12 * sum_{k<=3} C(24,k)
+    = 155412 + 27900 = 183312, which is the value EV-SIG-008 records
+    (SESSION-COMPUTED, pure Python).
+    THE OMISSION. The pairwise Koszul vector for (i, j, mu) is
+    XOR_{c in supp(f_j)} e_{(i, mu UNION c)} XOR_{c in supp(f_i)} e_{(j, mu UNION c)}.
+    It is a valid element of the kernel provided every tag it names is a real
+    row, i.e. provided max_{c in supp(f_j)} |mu UNION c| <= D - d_i AND
+    max_{c in supp(f_i)} |mu UNION c| <= D - d_j. The loop bound
+    |mu| <= D - d_i - d_j is SUFFICIENT for that (|mu UNION c| <= |mu| + d_j <=
+    D - d_i) but is NOT NECESSARY. Write
+    U_D = { (i, j, mu) : the two max-union conditions hold and
+            |mu| > D - d_i - d_j }.
+    Every element of U_D is a trivial syzygy of degree <= D that K_D omits.
+    Symmetrically for the Frobenius family with condition
+    max_{c in supp(f_i)} |mu UNION c| <= D - d_i and |mu| <= D - d_i, against the
+    loop bound |mu| <= D - 2 d_i.
+    WHEN U_D IS NONEMPTY. For |mu| = D - d_i - d_j + 1 the condition
+    |mu UNION c| <= D - d_i for all c in supp(f_j) requires |mu \ c| <= |mu| - 1,
+    i.e. mu must MEET EVERY support monomial of f_j (a hitting-set condition), and
+    symmetrically for f_i. For a support spread uniformly over 2n variables that
+    is rare; for a support concentrated in a few blocks -- which is precisely what
+    the chained Semaev construction produces, and what the column-matched null
+    construction was built to imitate -- it is common. THIS PREDICTS THE ORDERING
+    THE PROGRAM ALREADY MEASURED WITHOUT EXPLAINING: at n = 9 D6, extra_6 is
+    4986 for the spread-support old null N0, 7226 for the column-matched null N1,
+    and 8897 for the sem, i.e. monotone in support concentration. The audit turns
+    that qualitative match into a number.
+    THE SECOND, INDEPENDENT OMISSION. Both families are enumerated with MONOMIAL
+    multipliers only. The mixed relation mu * f_j * (1 + f_i) * e_i -- a
+    polynomial multiplier -- is a trivial syzygy the enumerator never builds. Its
+    degree-admissible count under the conservative polynomial bound
+    2 d_i + d_j + |mu| <= D is 132 at (n = 12, D = 6) and 72 at (n = 9, D = 6)
+    (quad-quad ordered pairs, |mu| = 0; SESSION-COMPUTED). Small, but it is a
+    whole family omitted by construction, and its boolean-overlap extension is
+    subject to the same undercount.
+    CORROBORATING COINCIDENCE, EXACT AND UNEXPLAINED IN THE CORPUS. EV-SIG-006
+    records that the pinned series gives sr_pred = 1674 / 9504 / 28068 at
+    n = 9 D4/D5/D6 while "the textbook Bardet series (1,683/9,675/28,239) does
+    NOT match the measured nulls". The differences are 9, 171, 171. The principal
+    Frobenius family count under the instrument's own bound,
+    sum_i sum_{k <= D - 2 d_i} C(2n, k), evaluates at n = 9 to EXACTLY 9 at
+    D = 4 and EXACTLY 171 at D = 5 (SESSION-COMPUTED; the D6 difference is 171
+    again only because both cumulative sums have frozen at the freeze degree).
+    So the two candidate baselines differ by precisely the idempotency family:
+    one accounts for f^2 = f and the other does not. The program kept the
+    matching one and recorded the discrepancy as unexplained. That is direct
+    evidence that trivial-family ACCOUNTING is the load-bearing axis of this
+    goal's baseline, which is the axis this proposal audits. It is a coincidence
+    of two numbers and is offered as motivation, not proof.
+    WHAT THE REPAIR WOULD MEAN. If rank(K_D^bool) - rank(K_D^poly) = 7110 at
+    (n = 12, D = 6, null), the null validates after correction, the freeze theory
+    is NOT falsified, the D >= 6 baseline exists, and the sem's corrected extra_6
+    and residual_6 become admissible for the first time. If the difference is
+    much smaller, the below-freeze collapse is a real phenomenon with a
+    quantified residue and the next null construction has a target.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      INTERNAL, READ IN FULL:
+      experiments/EXP-SIG-006/src/h013_f5_signatures.sage lines 165-205
+      (koszul_principal_vectors, both loop bounds quoted verbatim above) and
+      lines 207+ (semireg_rank_pred, whose semantics were independently
+      reproduced this session). ledger/evidence/EV-SIG-006.yaml and
+      ledger/evidence/EV-SIG-008.yaml supply every measured number used here.
+    - >-
+      NOT READ -- relayed claim. The standard treatment of trivial/Koszul
+      syzygies for boolean systems (the setting in which the semi-regular series
+      (1+z)^n / prod (1+z^{d_i}) is derived) is attributed in this corpus to the
+      Bardet-Faugere-Salvy line. NO SOURCE FROM THAT LINE WAS READ IN THIS
+      SESSION, no theorem number is asserted, and whether the standard treatment
+      already uses the boolean union bound rather than the additive bound is
+      UNKNOWN TO THIS PROPOSAL. Establishing it is an explicit, cheap step of the
+      paired experiment and could reduce this proposal to a known implementation
+      correction -- which would still be worth having, and the record must then
+      say so.
+    - >-
+      The corpus-wide caveat in the ANGLE-BRIEF (T-H) applies: this corpus's
+      literature entries carry citation_verified: read while their bodies say
+      claims are relayed without verification, so "no prior work states this" is
+      not a sentence this proposal writes.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The boolean trivial syzygy module in degree <= D --> the finite set of
+      multiplier triples (i, j, mu) admitted by a degree bound, and thence to the
+      single integer rank(K_D).
+    what_is_discarded: >-
+      The module structure, the signatures, and every syzygy that is trivial for
+      a reason the enumerator does not model.
+    why_genuinely_lossy: >-
+      Genuinely lossy in the direction that matters: two different enumeration
+      bounds give two different integers for the same mathematical object, and
+      the integer is what every downstream record uses. The whole proposal is the
+      observation that this projection is not faithful.
+    why_compatible_with_the_operations: >-
+      Compatible by construction -- rank(K_D) enters the pipeline only through
+      the subtraction extra_D = kernel_D - rank(K_D), a linear operation on
+      dimensions, so a corrected rank propagates deterministically to every
+      downstream quantity (extra, deficit, residual) with no re-derivation.
+    is_it_only_a_change_of_coordinates: >-
+      Checked for BOTH failure modes and neither applies, but the second is the
+      one that nearly bit. NOT a change of coordinates: the corrected family
+      K_D^bool strictly contains K_D^poly whenever a support overlap admits an
+      extra multiplier, so the two are not related by a relabelling and the
+      correction is not recoverable from the uncorrected count. NOT the mirror
+      failure (constant across instances) either, and this had to be checked
+      carefully because a correction that is the same for every system would
+      shift all extras equally and change no comparison: the count |U_D| depends
+      on the SUPPORT GEOMETRY through a hitting-set condition, and the three
+      systems at n = 9 D6 have measurably different support concentration
+      (ncols 31180 spread / 29332 matched / 29332 sem, with the sem missing 1848
+      top-slice monomials in specific balanced block compositions). A correction
+      that came out equal on all three would be the constant-of-the-apparatus
+      tell and is written into the falsification conditions as such.
+
+  assumptions:
+    - >-
+      That the pinned instrument recovered under experiments/EXP-SIG-006/src/ is
+      the one that produced the committed numbers. EV-SIG-008 records a drift
+      episode in which a reimplemented closure path gave A4_5 = 242 against the
+      recorded 444, and records the fix as reverting to the pinned
+      full-kernel semantics (hash 1ba96fe4). Re-establishing that the pinned copy
+      reproduces the committed D5 anchors is a required gate before any
+      correction is computed, and it is the same gate that already caught this
+      failure once.
+    - >-
+      That extra_D is computed as kernel_D - rank(K_D) with K_D exactly the
+      output of koszul_principal_vectors plus the caller-appended zero-row unit
+      vectors. If the caller augments K_D with families not visible in that
+      function, the undercount may already be partly repaired and the audit's
+      first step -- reading the caller -- will say so.
+
+  predictions:
+    - metric: >-
+        |U_5| at (n = 12, null arm): number of boolean-admissible multiplier
+        triples omitted by the polynomial bound at D = 5
+      direction: different
+      minimum_effect: >-
+        PRE-KNOWN ANSWER, AND IT IS EXACTLY ZERO RANK. EV-SIG-008 records the
+        n = 12 column-matched null as extra_5 = 0 with rank == sr_pred at
+        D3/D4/D5. Since K_D^bool is contained in the kernel, a correction adding
+        rank at this cell would push extra_5 below zero, which is impossible.
+        Therefore rank(K_5^bool) - rank(K_5^poly) MUST be 0 here. If the
+        computation returns a positive rank correction at this cell, THE
+        COMPUTATION IS WRONG and the audit stops -- this is the instrument's own
+        validation gate and it can fail.
+    - metric: >-
+        rank(K_5^bool) - rank(K_5^poly) at (n = 9, N1 column-matched null arm)
+      direction: higher
+      minimum_effect: >-
+        Between 1 and 369 inclusive. EV-SIG-006 measured extra_5 = 369 there and
+        called it "the column-matching safety constraint itself induces
+        syzygies". Under this proposal that phrase names a real mechanism and the
+        correction must be positive; it cannot exceed 369 without contradicting
+        K^bool contained in kernel. A value of 0 means support overlap admits no
+        extra multipliers at that cell and the mechanism is not operating where
+        it was most expected.
+    - metric: >-
+        rank(K_6^bool) - rank(K_6^poly) at (n = 12 seed 2, column-matched null)
+      direction: higher
+      minimum_effect: >-
+        THE DECISIVE NUMBER. Ceiling 7110 (the measured extra_6). Three
+        pre-declared outcome bands, all useful: (a) >= 6400 (>= 90% of 7110) --
+        the below-freeze collapse is an enumeration artifact, the freeze theory
+        stands, the D >= 6 baseline exists and GOAL-SIG-001's blocker dissolves;
+        (b) 700 to 6400 -- a partial explanation, the residue is the real
+        phenomenon and is now quantified for the next null construction;
+        (c) < 700 (< 10%) -- the mechanism is not the explanation, the audit
+        returns a clean negative, and the next_action's null recalibration
+        proceeds unchanged with one candidate explanation eliminated.
+    - metric: >-
+        Ordering of the correction across the three n = 9 D6 systems
+        (N0 spread-support, N1 column-matched, sem)
+      direction: different
+      minimum_effect: >-
+        Strictly increasing with support concentration:
+        corr(N0) < corr(N1) <= corr(sem). Equal values across all three are the
+        constant-of-the-apparatus tell and falsify the support-geometry
+        mechanism even if the magnitudes are large.
+    - metric: >-
+        Corrected extra_6 for the sem at (n = 12, seed 2), i.e.
+        17982 - (rank(K_6^bool) - rank(K_6^poly))
+      direction: lower
+      minimum_effect: >-
+        Reported, not thresholded, because a corrected sem extra is a CASCADE
+        quantity and this proposal makes no cascade claim. It is recorded so that
+        a later Coordinator decision has the corrected number available. Under
+        outcome band (a) the corrected sem residual_6 becomes admissible for the
+        first time; that admission is a Coordinator decision, not this record's.
+
+  minimal_test:
+    design: >-
+      Five stages, cheapest first; stages 0 and 1 can each end the line.
+      STAGE 0 (reading + arithmetic, ~1 hour, ZERO compute, TERMINATES ON
+      FAILURE): read koszul_principal_vectors and its caller in full, confirm the
+      two loop bounds and that no other trivial family is appended; re-derive the
+      row-count and sr_pred identities in-harness (targets: nrows(12,6) = 183312,
+      nrows(12,5) = 31512, sr_pred(12,6) = 156520, HF_9 = [1,18,144,645,1566,738]).
+      If the enumerator already uses a union-degree bound, STOP and record the
+      audit as answered in the negative.
+      STAGE 1 (pen and paper): prove or refute K_D^poly subset-of K_D^bool
+      subset-of kernel_D and the two max-union admissibility conditions. A
+      refutation here ends the line at zero compute.
+      STAGE 2 (set arithmetic over frozen supports, minutes to an hour, NO
+      LINEAR ALGEBRA): compute |U_D| at the five audit cells. This is the
+      cheapest decisive stage and it produces the pre-known-zero check.
+      STAGE 3 (rank only, bounded): rank(K_D^bool) at the same cells. Rank of a
+      bitmask family, not an echelon of the Macaulay matrix; the D6 n=12 cell is
+      the expensive one and is staged with checkpoints.
+      STAGE 4 (only if stage 3 lands in band (a) or (b)): recompute extra and
+      residual at the affected committed cells and report both corrected and
+      uncorrected values side by side.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE WITH A FORCED VALUE THAT CAN FAIL: the
+        (n = 12, D = 5) null cell, whose forced correction is EXACTLY ZERO
+        (derived above from extra_5 = 0 and K contained in kernel). A positive
+        correction there is an implementation error and invalidates the run. This
+        is a null that can actually fail and it costs seconds.
+      - >-
+        SECOND NULL, DISJOINT MECHANISM: a synthetic system with the same degree
+        histogram and the same number of variables but PAIRWISE DISJOINT supports
+        wherever the degree budget allows. Forced value: |U_D| = 0 exactly,
+        because the union bound and the additive bound coincide when supports do
+        not overlap the multiplier. If the computation returns a positive |U_D|
+        on a disjoint-support system, the enumeration is wrong.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: a
+        hand-built two-equation boolean system whose supports are chosen so that
+        exactly one omitted multiplier is admissible, computed by hand first.
+        Forced value: |U_D| = 1, and the omitted vector verified to lie in the
+        kernel by direct substitution. If the pipeline does not find it, the
+        instrument is blind and NO negative may be reported from stages 2-4.
+      - >-
+        GRADED CONTROL, >= 3 INTERIOR POINTS: sweep support concentration on
+        synthetic systems at fixed (n, D, histogram) -- supports drawn from
+        1, 2, 3, 4 blocks -- and report |U_D| and the rank correction as a
+        function of concentration. Monotone increase is predicted; a flat curve
+        localises the failure to the support-geometry mechanism rather than
+        leaving "the correction was small".
+      - >-
+        ORDERING CONTROL: the null cells and their forced values are computed,
+        recorded and hash-committed before any sem cell is computed.
+      - >-
+        ARCHIVE CHECK: the pinned instrument's D5 anchors (A3_5 = 242 at n = 9
+        via the pinned path, A4_5 = 444, residual_5 = 878 at n = 12) are
+        reproduced before any new number is computed. EV-SIG-008 records exactly
+        this check catching a reimplementation drift once already.
+    required_metrics:
+      - the two loop bounds quoted verbatim from the source with line numbers
+      - "|U_D| per cell, with the hitting-set condition that admitted each element"
+      - rank(K_D^bool) and rank(K_D^poly) per cell, and their difference
+      - corrected extra_D and residual_D beside the uncorrected values, never replacing them
+      - the disjoint-support null and hand-built positive control results, reported first
+
+  falsification_conditions:
+    - >-
+      The enumerator already uses a boolean union bound (stage 0). The proposal
+      is void and the record says so.
+    - >-
+      A positive rank correction at the (n = 12, D = 5) null cell, where extra_5
+      is measured as 0. The computation is wrong; nothing may be reported.
+    - >-
+      |U_D| > 0 on the disjoint-support synthetic null. Same disposition.
+    - >-
+      The hand-built positive control's single omitted syzygy not found. The
+      instrument is blind and no negative result may be reported.
+    - >-
+      The correction coming out equal across N0, N1 and the sem at n = 9 D6.
+      That is a constant of the apparatus and refutes the support-geometry
+      mechanism regardless of magnitude.
+    - >-
+      A rank correction exceeding the measured extra_D at any cell. That
+      contradicts K^bool contained in kernel and is an implementation failure.
+
+  confounders:
+    - >-
+      OMITTED-BUT-DEPENDENT. An omitted multiplier can be a genuine trivial
+      syzygy and still lie inside the span of K_D^poly, adding no rank. Counting
+      |U_D| therefore bounds the correction from above but does not deliver it;
+      that is why stage 3 measures rank and stage 2 alone is not treated as the
+      answer.
+    - >-
+      THE FREEZE CONFOUND. At n = 9 D6 the system is AT the freeze degree and
+      EV-SIG-006 already explains 3111 of N0's 4986 by the D5-quotient collapse,
+      leaving 1875 open. Those cells mix two mechanisms and the audit must report
+      the correction against the 1875 residue, not against the full 4986. The
+      n = 12 D6 cell is BELOW freeze and is clean in this respect, which is why
+      it is the decisive one.
+    - >-
+      QUOTED-ONLY INPUTS. Every n = 12 D6 number comes from EV-SIG-008, whose own
+      artifact_absence_statement records that its run manifests do not register
+      and that its experiment specification is Markdown with a .yaml extension.
+      The audit's targets are therefore quoted ledger values, and the contract
+      must re-measure extra_6 rather than assume 7110 if the correction lands
+      near a band boundary.
+    - >-
+      SEED SCOPE. n = 12 D6 is seed 2 only.
+    - >-
+      MOTIVATED REASONING. This proposal would, in its most favourable outcome,
+      dissolve a blocker that has cost this goal two batches. That is precisely
+      the situation in which an auditor finds what they want, which is why the
+      pre-known-zero null and the disjoint-support null are ordered first and
+      hash-committed.
+
+  interpretation_limits:
+    - >-
+      Toy scale (AGENTS.md rule 7). Boolean chained Semaev, m = 3, t = 3,
+      n <= 12 for the decisive cells.
+    - >-
+      A successful correction does NOT establish that the sem's residual_6 is
+      cascade content, does NOT change H-SIG-001's status, and does NOT make any
+      D >= 6 quantity admissible by itself. It removes one named obstruction to a
+      baseline; admission remains a Coordinator decision on a validated null.
+    - >-
+      A failed correction does NOT close the below-freeze collapse question. It
+      eliminates one candidate mechanism and quantifies the residue. Per inventor
+      protocol section 4 the forward guidance is stated now: if the correction is
+      small, the remaining candidates in priority order are (i) polynomial-
+      multiplier trivial families (the mixed Frobenius-Koszul relations, 132
+      degree-admissible at n=12 D6, never enumerated), (ii) the top-slice
+      relation conjecture EV-SIG-006 states and leaves unchecked for the 1875
+      residue at n = 9, and (iii) an instance-dependent baseline built from the
+      measured variety rather than the histogram, which EV-SIG-006 shows is the
+      only kind that could work and which nobody has attempted.
+    - >-
+      The 9 / 171 coincidence between the pinned and "textbook Bardet" series is
+      a match of two numbers computed this session against two numbers quoted
+      from a record. It is motivation. It is not evidence and no record may cite
+      it as such until the "textbook Bardet" formula itself is identified.
+
+  heuristic_assumptions:
+    - id: HEUR-BOOL-1
+      statement: >-
+        None load-bearing for the headline. The containment
+        K_D^poly subset-of K_D^bool subset-of kernel(M_D) is an algebraic
+        statement about the boolean quotient ring, provable by direct
+        substitution, not a distributional assumption. This entry exists to
+        record that the proposal is UNCONDITIONAL where the goal's prior work is
+        conditional on semi-regularity, and that the only assumption is
+        evidentiary: that the pinned source recovered on disk is the source that
+        produced the committed numbers.
+      rigorous_support: >-
+        f_j (mu f_i) + f_i (mu f_j) = 0 in any commutative ring; every term of
+        the expansion is a row of the Macaulay matrix exactly when its boolean
+        degree |mu UNION c| respects the row bound. Idempotency f^2 = f holds for
+        every element of F_2[x_1..x_N]/(x_i^2 + x_i), which is isomorphic to
+        F_2^{2^N} as a ring.
+      validation_plan: >-
+        Direct substitution on the hand-built two-equation positive control, plus
+        the pre-known-zero and disjoint-support nulls.
+      falsification_condition: >-
+        Any element of the computed U_D that fails to lie in the measured kernel.
+    - id: HEUR-BOOL-2
+      statement: >-
+        The number of omitted admissible multipliers grows with support
+        concentration at fixed (n, D, degree histogram).
+      random_model_justification: >-
+        Under a uniform random support of size s over 2n variables the hitting-set
+        condition mu MEETS every support monomial has probability decaying in s
+        and in 2n; under a support confined to b blocks it does not decay in the
+        same way. This is a plausibility argument, NOT a derivation, and it is
+        the load-bearing heuristic of the support-geometry reading.
+      validation_plan: >-
+        The graded concentration sweep (1, 2, 3, 4 blocks) at fixed histogram.
+      falsification_condition: >-
+        A flat or non-monotone |U_D| across the concentration sweep.
+
+  proof_search_map_ref: >-
+    Carried in full on the paired hypothesis H-SIG-8f7399; not duplicated here.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit -- no algorithm is proposed and no exponent moves. What
+      the audit governs is whether a DIFFERENT proposal is entitled to talk about
+      an exponent: every D >= 6 cascade quantity in this goal is currently
+      inadmissible, and admissibility is what this audit is trying to restore or
+      permanently qualify. Stating the exponent plainly, as required: this
+      proposal moves none, and its value is that it decides whether the goal's
+      D >= 6 axis is measurable at all.
+    memory_exponent: >-
+      The audit's own cost is dominated by rank(K_6^bool) at n = 12, a rank
+      computation over ~27000 bitmask vectors of length 183312 bits. That is the
+      one stage that can exceed budget and it is checkpointed; a memory failure
+      there is infrastructure signal and never negative evidence (AGENTS.md
+      rule 5).
+    best_known: >-
+      The incumbent is the pinned K_D enumeration itself, which is what is being
+      audited. There is no competing published construction in scope.
+    hidden_overhead: >-
+      |U_D| is an upper bound on the correction, and the gap between the count
+      and the rank is entirely hidden until stage 3 runs. If most omitted
+      multipliers are dependent, the audit costs the same and returns a small
+      number.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    null, after the following check. TIME: no algorithm is proposed, so no
+    time-frontier row applies; the incumbent for the underlying question (what is
+    the correct D >= 6 null baseline) is the SIG-D6-NULL-RECAL-v2 protocol
+    recorded in EV-SIG-009 and EV-SIG-010, and this proposal is CHEAPER on every
+    axis than that protocol's calibration executor -- set arithmetic and one rank
+    against a full null construction plus a ~200k-column echelon -- so it is not
+    dominated by it; it is complementary and its negative outcome hands that
+    protocol a quantified residue. MEMORY: the recal protocol's echelon is the
+    binding memory cost in this lane and this audit avoids it entirely at stages
+    0-2. DATA / QUERIES: this audit requires ZERO new instances at every stage
+    except the synthetic controls, against the recal protocol's full null
+    construction; it is strictly better on the data axis. Rows checked for a
+    prior audit of the enumerator: EV-SIG-001 through EV-SIG-010, all eight
+    EXP-SIG specifications, EXP-SIG-006's implementation.md and analysis.md,
+    ledger/proposals/, and a repository grep for idempotency / Frobenius /
+    union-degree language (SESSION-CHECKED 2026-08-05). None found. Absence of a
+    search result is not evidence that nothing exists.
+  sota_delta: >-
+    Quantitative. The incumbent path to the goal's completion criterion is the
+    SIG-D6-NULL-RECAL-v2 calibration executor, which EV-SIG-010 authorises only
+    under a further Coordinator ledger decision and which the goal's next_action
+    explicitly DEFERS "until campaign capacity prioritizes D >= 6 null
+    recalibration". Its decisive cell is a ~200k-column echelon that has already
+    been scope-censored once (EV-SIG-006) and killed by platform caps twice
+    (EXP-SIG-005 RUN-f/g). This audit's decisive stage is set arithmetic over
+    frozen supports with no echelon, no null construction and no new instance --
+    an estimated three-orders-of-magnitude reduction in the compute needed to
+    move the same blocker, with the honest caveat that it can only move it if the
+    mechanism is the right one, which is what outcome band (c) covers. Delta
+    against doing nothing: the goal is currently deferred with no cheap gate; this
+    supplies one.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.30 that the omitted-multiplier correction accounts for at least half of the
+    n = 12 D6 null's extra_6 = 7110. It is not higher because the hitting-set
+    condition is genuinely restrictive -- a multiplier one size above the bound
+    must meet EVERY support monomial of the partner equation, and the recorded
+    supports have 13 to 33 monomials each, so many pairs will admit nothing;
+    because omitted multipliers may be linearly dependent on K^poly and add no
+    rank at all; and because the (n = 12, D = 5) cell has extra_5 = 0, which
+    forces the correction to vanish there and shows the mechanism is not
+    universally active. It is not lower because the containment K^poly strictly
+    inside K^bool is a theorem rather than a conjecture whenever any admissible
+    overlap exists, so the correction is not zero in general; because the
+    measured ordering of extra_6 across the three n = 9 systems tracks support
+    concentration exactly as the mechanism predicts; because 7110 is only 4% of
+    the row count and does not require many admissible multipliers per pair; and
+    because two committed records name this decomposition as OPEN, which means
+    no one has yet checked the enumerator. Separately: 0.90 that the audit
+    reaches a decisive reading, because stages 0-2 are reading and set arithmetic
+    and the pre-known-zero null makes an implementation error self-announcing.

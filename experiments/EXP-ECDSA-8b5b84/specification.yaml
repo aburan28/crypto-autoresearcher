@@ -1,0 +1,505 @@
+experiment:
+  id: EXP-ECDSA-8b5b84
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-ECDSA-7ccd4b
+  question_id: RQ-ECDSA-87625f
+  goal_id: GOAL-ECDSA-001
+  batch_id: null
+
+  title: >-
+    Certified nonce-leakage recovery ladder with a pre-derived success WINDOW,
+    a no-leakage matched null, a lattice-free bias arm with an exact-zero
+    extinction null, and an exact-arithmetic gate separating numerical failure
+    from mathematical failure
+
+  objective: >-
+    If separately approved, frozen and authorized, establish that an HNP key
+    recovery pipeline written in this environment recovers ECDSA keys AT ALL
+    under assumed partial nonce leakage -- with a certificate the wrapper
+    re-verifies independently -- and then use that instrument to test the two
+    pre-registered laws of H-ECDSA-7ccd4b: that the success region in signature
+    count is a bounded window whose edges follow from (l, log2 n, measured
+    delta_0), and that the Bleichenbacher bias contracts exactly as
+    sinc(2^{-l})(1 - e 2^l/(2^l-1)) while the naive-lattice success probability
+    falls exactly as (1-e)^m. This contract is a DESIGN DRAFT. No run has
+    occurred, no implementation exists, and nothing here is evidence.
+
+  what_this_is_not:
+    - Not an ECDLP attack, an ECDLP cost claim, or any statement about ECDLP hardness in either direction. KN-TECH-019 records the boundary; KN-OPEN-011 owns the transfer question and it stays with GOAL-ECDLP-001 and GOAL-PATH-001.
+    - Not a statement about 256-bit deployed curves. The primary grid stops at 96 bits.
+    - Not a break of ECDSA. Every recovery here is a recovery GIVEN an ASSUMED side channel supplying l nonce bits per signature at error rate e, and that clause must appear in the same sentence as any result (GOAL-ECDSA-001.next_action).
+    - Not a claim about the predicate-augmented lattice family or the Fourier/Bleichenbacher family's real implementations. Neither is implemented here; the bias arm simulates the leakage distribution, not any published pipeline.
+    - Not a reproduction of any published record instance. No published instance is executed, and no published figure is confirmed or contradicted by this contract.
+    - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No approved_by field is present.
+    - Not a claim that any leakage level is unreachable. An empty predicted window is a statement about a measured reduction constant, never about reachability.
+
+  claim_ceiling:
+    tier: medium
+    scope: >-
+      MEDIUM ONLY, by the mechanical rule in docs/claims-and-verification.md:
+      every primary cell uses a prime order of 48, 64 or 96 bits, all at or
+      below the 96-bit medium ceiling. A future run could support, at most:
+      (a) that this specific pure-Python pipeline recovers keys at the tested
+      (N, l, m) cells under exactly-known leakage, each recovery carrying an
+      independently recomputed certificate; (b) that the success region in m
+      is or is not an interval at those cells; (c) that the measured bias
+      follows or does not follow the frozen contraction law over the tested
+      (l, e) grid. It could NOT support any statement about 112-bit or larger
+      curves, about l = 1 lattice recovery at any size, about the predicate or
+      Fourier families, about where the 1-bit boundary sits at 256 bits, or
+      about the ECDLP. A single certified recovery at 64 bits is a MEDIUM-tier
+      claim about the LEAKAGE MODEL and nothing more.
+    optional_crypto_rung: >-
+      NOT AUTHORIZED BY THIS CONTRACT AND NOT IN ANY SUCCESS CRITERION. A
+      recognized 112-bit curve would cross the crypto-tier threshold and would
+      require a separate contract, because a crypto-tier certificate carries
+      review obligations this draft does not discharge.
+
+  inputs:
+    field_bits: [48, 64, 96]
+    l_exact_leakage: [8, 4, 3, 2]
+    l_bias_arm: [1, 2, 3, 8]
+    error_rates_bias_arm: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+    error_rates_lattice_arm: [0.0, 0.005, 0.01, 0.02, 0.05]
+    bias_samples_per_cell: 4194304
+    seeds_per_lattice_cell: 40
+    seeds_positive_control: 20
+    seeds_delta0_estimation: 20
+    master_seed: 8825684
+    domain: EXP-ECDSA-8b5b84/v1
+    seed_derivation_rule: >-
+      Every random quantity is derived by SHA-256 over the ASCII byte string
+      domain || "|" || label || "|" || decimal(field_bits) || "|" ||
+      decimal(l) || "|" || decimal(m) || "|" || decimal(counter), interpreting
+      the digest as a big-endian unsigned integer and reducing modulo the
+      required range by rejection sampling (discard any draw at or above
+      floor(2^256 / R) * R, then reduce mod R). Labels are drawn from the fixed
+      set {"prime", "curve-a", "curve-b", "basepoint", "secret", "nonce",
+      "message", "leak-error", "decoy", "null-nonce"}. Counters advance once
+      per digest consumed and never reset within a cell. A third party
+      reproduces every instance bit-for-bit from (master_seed, domain, label,
+      field_bits, l, m, counter) with no other input.
+    curve_construction: >-
+      For each field_bits value: h = int(SHA256(seed("prime", bits, 0, 0, 0)));
+      L = 2^(bits-1), U = 2^bits; c_0 = L + 1 + 2*(h mod 2^(bits-2)); test
+      c_k = c_0 + 2k in increasing k by deterministic Miller-Rabin with the
+      fixed base set [2,3,5,7,11,13,17,19,23,29,31,37], accepting the first
+      prime p. Then for t = 0,1,...,65535 set a_t, b_t from
+      seed("curve-a"/"curve-b", bits, 0, 0, t) mod p, reject if
+      4a^3 + 27b^2 = 0 mod p, compute #E(F_p) by exhaustive character sum for
+      bits <= 24 and by baby-step-giant-step on a random point otherwise, and
+      ACCEPT the first curve whose order n is PRIME with log2(n) within 1 of
+      bits. If no candidate is accepted by t = 65535, the cell terminates as
+      CONSTRUCTION_FAILURE; no fallback curve, no wrap, no reseed. The
+      basepoint G is the first point found by scanning x = 1, 2, 3, ... with
+      the smaller square root of the ordinate. Record p, a, b, n, G and the
+      SHA-256 of their canonical decimal encoding.
+    instance_construction: >-
+      Per cell and seed: draw d = secret mod (n-1) + 1; draw m nonces k_i
+      uniformly on [0, n) by rejection; compute the leaked value
+      v_i = floor(k_i * 2^l / n); in the erroneous arm replace v_i with a
+      uniformly chosen different value in [0, 2^l) with probability e, using
+      the "leak-error" stream; draw message hashes h_i uniformly on [0, n);
+      compute r_i, s_i by the standard ECDSA equations, rejecting and redrawing
+      any signature with r_i = 0 or s_i = 0.
+    environment_declaration: >-
+      MEASURED BY THE PROPOSING SESSION ON 2026-08-06, OUTSIDE THE HARNESS, AND
+      TO BE RE-MEASURED IN-HARNESS AT STAGE S2 BEFORE ANY COST STATEMENT: python3
+      3.11.15; numpy 2.4.6 PRESENT; sympy, fpylll, gmpy2, ecdsa ALL ABSENT
+      (ImportError on each); 4 cores; 15 GiB RAM. The session ANGLE-BRIEF
+      records that two prior sweeps DISAGREED about this container's package
+      set, so the in-harness re-measurement is mandatory and its result is
+      recorded in the run manifest whatever it says.
+
+  stage_order_and_cheapest_decisive_gate:
+    principle: >-
+      Stages are ordered cheapest-first and each names whether it can terminate
+      the run. S1 and S3B are the cheapest decisive gates: both are minutes and
+      either can end the corresponding part of the line.
+    stages:
+      - id: S0
+        purpose: >-
+          Source acquisition, ZERO COMPUTE. Attempt, in this declared
+          preference order: (1) the public repository README table named in
+          RQ-ECDSA-87625f.provenance; (2) ePrint ABSTRACT pages (the session
+          ANGLE-BRIEF measures these at HTTP 200 while
+          eprint.iacr.org/YYYY/NNNN.pdf returns 403); (3) arXiv; (4)
+          author-hosted copies. Record, per source, the exact URL, the HTTP
+          status, and either a verbatim quotation or an explicit
+          non-acquisition statement. Specifically sought: the predicate-
+          augmented route's stated handling of ERRONEOUS leakage bits, because
+          H-ECDSA-7ccd4b pre-commits to restricting its crossing statement to
+          the naive route if that reading shows a different law.
+        can_terminate: >-
+          No. A total acquisition failure is an infrastructure outcome
+          (AGENTS.md rule 5), is recorded as one, and the remaining stages
+          proceed on derivations that do not depend on any source.
+      - id: S1
+        purpose: >-
+          Freeze and independently recompute every closed form: the gap-ratio
+          formula, the information-edge integers, the window solver, the bias
+          law, the contraction law, the lattice law, and the crossing weight.
+          Recomputation is by a second implementation written without reference
+          to the first. ZERO COMPUTE beyond integer and float arithmetic.
+        can_terminate: >-
+          YES. An arithmetic error in the closed forms ends the line for the
+          cost of an afternoon, and that is the cheapest possible refutation of
+          H-ECDSA-7ccd4b.
+      - id: S2
+        purpose: >-
+          Instrument gate. Re-measure the environment in-harness. Implement
+          curve arithmetic, the HNP lattice builder, a float64-GSO LLL, an
+          exact-rational reducedness verifier, an independent scalar-
+          multiplication certificate verifier, and the bias estimator. Measure
+          delta_0 per dimension on the DECOY family (no planted target) at
+          dimensions 11, 20, 30, 40, 60, 90 with 20 seeds each, and report its
+          value and spread BEFORE any window is evaluated.
+        can_terminate: >-
+          YES, as an infrastructure outcome. If the reducer cannot be made to
+          work, or measured delta_0 falls outside [1.005, 1.035], the package
+          halts as failed_infrastructure and reports NO mathematical result.
+      - id: S3A
+        purpose: >-
+          POSITIVE CONTROL. N = 64, l = 8, m = 16, dimension 18, 20 seeds. The
+          effect MUST appear. This cell is also the deliverable
+          GOAL-ECDSA-001.next_action asks the first batch for: a certified key
+          recovery from partial nonce leakage with peak memory, wall clock and
+          sample count reported.
+        can_terminate: >-
+          YES. Below 18/20 certified recoveries the instrument is broken and NO
+          NEGATIVE RESULT FROM ANY LATER STAGE MAY BE REPORTED.
+      - id: S3B
+        purpose: >-
+          BIAS ARM POSITIVE CONTROL AND EXTINCTION NULL, lattice-free, minutes.
+          Measure |Bhat| at (l=1, e=0) against the forced 2/pi, and at the
+          extinction point e = (2^l-1)/2^l against the forced exact zero.
+        can_terminate: >-
+          YES for Part B. Either failure halts the bias arm and voids every
+          number in it, at a cost of minutes. This is the cheapest decisive
+          gate in the contract.
+      - id: S4
+        purpose: >-
+          MATCHED NULLS. NULL-NOLEAK at the positive-control cell (nonces
+          uniform on [0,n), claimed leak bits drawn independently), 20 seeds.
+          NULL-BOUNDARY: a cell whose predicted gamma sits below delta_0^D by a
+          stated margin, 20 seeds. Both committed and hashed BEFORE the
+          treatment arms of S5 and S6 are generated or looked at.
+        can_terminate: >-
+          YES. Any certified recovery in NULL-NOLEAK voids every positive
+          result in the package.
+      - id: S5
+        purpose: >-
+          GRADED WINDOW SWEEP. N = 64, l = 4 across the declared m grid; then
+          N = 96, l = 4; then the empty-cell prediction N = 64, l = 3. 40 seeds
+          per m.
+        can_terminate: No; it is the main measurement.
+      - id: S6
+        purpose: >-
+          ERROR ARMS. Bias arm across the full (l, e) grid including the
+          nearby-object control at l = 8, e = 0.05, the graded l = 1 sweep, the
+          bias-multiplication checks at weights 2 and 4 (disjoint and
+          overlapping support), and the secondary +/-1 error model at l = 3.
+          Lattice error arm at N = 64, l = 4, m inside the window, e on the
+          declared grid, 40 seeds per cell.
+        can_terminate: No; it is the main measurement.
+      - id: S7
+        purpose: >-
+          Derivation-only combination of the measured laws into S_L, S_F and
+          w*, recorded as a DERIVED CONSEQUENCE with its inputs cited, never as
+          a measurement.
+        can_terminate: No.
+
+  independent_variables:
+    - field_bits N in {48, 64, 96}
+    - leaked bits l
+    - signature count m
+    - leakage error rate e
+    - lattice dimension D = m + 2 (dependent on m; recorded separately because delta_0 is measured per dimension)
+
+  arms_and_controls:
+    treatment: >-
+      Planted-leakage HNP instances at each declared cell, reduced by the
+      implemented LLL, with the top candidate coordinates tested by
+      certificate.
+    measured_null_noleak: >-
+      Identical code path, identical m, l, N, identical certificate check;
+      nonces drawn uniformly on [0, n) and claimed leaked bits drawn from an
+      independent stream. FORCED VALUE DERIVED BEFORE THE RUN: 0/20 certified
+      recoveries, because no vector of norm about n sqrt((m+4)/3) exists in the
+      lattice. THIS NULL CAN FAIL: a recovery here means the pipeline reads d
+      through an unintended path (a shared seed stream between instance
+      generation and solver is the concrete suspected defect), and every
+      positive result in the package is void.
+    measured_null_boundary: >-
+      A cell chosen so that predicted log2 gamma is below D log2 delta_0 by at
+      least 2 bits at the MEASURED delta_0, with curve, code path, l and
+      certificate identical. FORCED VALUE: 0/20. This is the null the
+      lossy-projection audit of IDEA-20260805-787c8b demands, because it varies
+      the quantity gamma actually depends on rather than varying a seed --
+      gamma is nearly constant within a cell, so a same-cell reseeded null
+      could not fail informatively.
+    measured_null_extinction: >-
+      Bias arm at e = (2^l - 1)/2^l: e = 0.5 at l = 1 and e = 0.75 at l = 2.
+      Same simulator, estimator, sample count and seeds. FORCED VALUE: EXACTLY
+      ZERO, so |Bhat| < 4/sqrt(M) = 0.00098 at M = 2^22. CAN FAIL: a residual
+      bias at extinction means the report and the nonce are correlated through
+      an unmodelled path, i.e. a simulator defect, and voids the arm.
+    positive_control_lattice: >-
+      N = 64, l = 8, m = 16. THRESHOLD DECLARED PRE-RUN: at least 18 of 20
+      certified recoveries. If not met, the instrument is broken and no
+      negative may be reported.
+    positive_control_bias: >-
+      (l = 1, e = 0): |Bhat| = 0.6366198 +/- 0.002 over M = 2^22 samples
+      (tolerance is 8x the sampling floor 1/sqrt(M) = 0.000244). If not met,
+      the bias arm is broken and no negative from it may be reported.
+    graded_control_window: >-
+      m grid at N = 64, l = 4 spanning m_lo - 6 to m_hi + 30 with at least
+      three interior points and at least two points beyond each edge, m_lo and
+      m_hi computed from the MEASURED delta_0 and frozen before the sweep is
+      read. Monotonicity is reported as a curve SHAPE (rise, plateau, fall),
+      not as a single number, so a failure localises to an edge.
+    graded_control_bias: >-
+      e in {0, 0.1, 0.2, 0.3, 0.4, 0.5} at l = 1: six points, forced values
+      0.6366 / 0.5093 / 0.3820 / 0.2546 / 0.1273 / 0.0000, with the fitted
+      slope reported against the forced -1.27324 and the fitted zero-crossing
+      against the forced 0.5. Reporting decay alone would be weak; the law is
+      reported.
+    nearby_object_control: >-
+      l = 8 at e = 0.05, where the forced contraction factor is
+      1 - 0.05*256/255 = 0.94980, essentially 1 - e, against l = 1's
+      1 - 2e = 0.90. An estimator returning the l = 1 law at l = 8 is fitting
+      the wrong parameter. This is the cheapest available separation of
+      "contraction depends on l" from "contraction is 1 - 2e".
+    structural_control_second_error_model: >-
+      The +/-1-in-reported-value channel at l = 3. The derivation of the
+      contraction law does NOT apply there (the vanishing-sum identity needs
+      the complete residue system), so the forced value must be re-derived
+      before the cell runs and it will not be a pure scalar contraction.
+      Returning a scalar contraction there means the estimator cannot
+      distinguish the two channels.
+    ordering_control: >-
+      Generate, run, verify and HASH-COMMIT every null arm (NULL-NOLEAK,
+      NULL-BOUNDARY, NULL-EXTINCTION) and record its verdict under the frozen
+      decision rule BEFORE any treatment arm is generated or looked at. If the
+      frozen rule emits the same label on a null as on a treatment cell, the
+      rule discriminates nothing and must be rewritten before any treatment
+      arm is read. Absence of the pre-commitment hash is invalid_measurement.
+    comparability_policy: >-
+      No cross-cell comparison of raw solve times is admissible without
+      matching dimension, because solve cost grows steeply in D and the m grid
+      deliberately varies D. Timings are reported per cell with D attached and
+      are never aggregated across dimensions. No comparison to any published
+      figure is made anywhere in this contract; the published figures are
+      EXP-ECDSA-dad4fd's object, not this one's.
+
+  metrics:
+    primary:
+      - Certified recovery count and rate per cell, verified by independent scalar multiplication (d*G == Q), with the verifier's code path declared distinct from the solver's.
+      - Measured root-Hermite factor delta_0 per dimension on the decoy family, with seed spread, reported before any window is evaluated.
+      - Predicted [m_lo, m_hi] per cell from the frozen formula at the measured delta_0, frozen before the corresponding sweep is read.
+      - Empirical bias magnitude |Bhat| per (l, e) cell with its sample count and noise floor.
+      - Fitted contraction slope and zero-crossing against the forced values.
+      - Naive-lattice recovery ratio versus e against the forced (1-e)^m.
+    secondary:
+      - Peak RSS and wall clock per solve, per cell, with D attached (this goal charges memory as a first-class axis).
+      - Sample count m per cell, recorded as a charged axis, not as a free parameter.
+      - Exact-arithmetic reducedness verdict for every failing cell.
+      - Bias-multiplication ratios at weights 2 and 4, disjoint and overlapping support.
+      - Measured shortest-vector norm on the decoy family versus the Gaussian heuristic (the HEUR-EC-1 validation).
+      - In-harness environment re-measurement, whatever it shows.
+
+  heuristic_under_test: HEUR-EC-1, HEUR-EC-2, HEUR-EC-5, HEUR-EC-7
+
+  preregistered_prediction:
+    quantity: >-
+      (P1) the feasible m-interval per cell; (P2) the bias magnitude per
+      (l, e) cell; (P3) the lattice recovery ratio per e.
+    formula: >-
+      P1: feasible iff 0.5 log2(3(m+2)/(2 pi e (m+4))) + ((l+1)m - N)/(m+2)
+          > (m+2) log2 delta_0, with delta_0 MEASURED at stage S2.
+      P2: |B(e,l)| = sinc(2^{-l}) (1 - e 2^l/(2^l-1)), sinc(x) = sin(pi x)/(pi x).
+      P3: rate(e)/rate(0) = (1-e)^m.
+    source: >-
+      All three DERIVED IN-REPO in H-ECDSA-7ccd4b.mechanism from the lattice
+      determinant, the expected target norm, the Gaussian heuristic, the
+      character-sum identity sum_u B(Unif I_u) = 0, and a size argument on the
+      target vector. No external theorem is cited for any of them; the
+      root-Hermite description underlying P1 and the bias-multiplication
+      property underlying the S7 derivation are labelled RECALLED-UNVERIFIED
+      and are measured rather than assumed.
+    frozen_reference_values: >-
+      Information edges at N = 64: 9 / 19 / 25 / 39 / 92 for l = 8/4/3/2/1.
+      sinc(2^{-l}): 0.6366198 / 0.9003163 / 0.9744954 / 0.9935869 at
+      l = 1/2/3/4. Graded bias forced values at l = 1: 0.6366 / 0.5093 /
+      0.3820 / 0.2546 / 0.1273 / 0.0000. Interior points 0.78027 at
+      (l=2, e=0.1) and 0.86311 at (l=3, e=0.1). Bias multiplication
+      0.4052847 at weight 2 and 0.1642556 at weight 4. Lattice ratios at
+      m = 30: 1.000 / 0.860 / 0.740 / 0.545 / 0.215.
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      The lattice-geometry prediction P1 is scale-covariant by construction:
+      log2 gamma depends on N only through the term ((l+1)m - N)/(m+2), so a
+      validation at N = 48, 64, 96 tests the FORM of the dependence over a
+      factor of two in N and can be extrapolated in form but never in value.
+      The bias law P2 does not depend on N at all beyond the continuous
+      approximation, which was checked here by exact finite summation at
+      n = 65537 (0.636629) and n = 1000003 (0.636620) against 0.6366198, so it
+      is expected to transfer exactly -- and the contract still measures it at
+      the tested N rather than asserting the transfer.
+    limit: >-
+      NOTHING TRANSFERS TO 256 BITS AS A VALUE. RQ-ECDSA-87625f's 1-bit-at-
+      256-bit question is untouched, and any citation of this contract toward
+      it must carry that gap in the citing sentence.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      At the cell nearest the predicted upper edge, report the distribution of
+      log2||b_1|| - log2(det)/D rather than only the recovery indicator: the
+      model predicts the reducer's output crosses the target norm there, and a
+      recovery failure with the output norm well BELOW the target norm would
+      mean something other than reduction strength is failing.
+    - >-
+      Report the smallest observed gamma at which a recovery still occurred and
+      the largest at which none did. If those two brackets overlap by more than
+      1 bit, the gamma-versus-delta_0^D criterion is not sharp at these
+      dimensions and the window edges must be reported as brackets.
+    - >-
+      For the bias arm, report the empirical distribution of the phase of Bhat,
+      not only its magnitude. The derivation predicts NO phase distortion under
+      the error model, so a systematic phase drift with e is an unmodelled
+      effect and is reported.
+
+  replication:
+    seeds: [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946]
+    seeds_note: >-
+      The first 20 seeds above are used for 20-seed cells; 40-seed cells extend
+      the same generator by counter, so the 20-seed set is a prefix of the
+      40-seed set and results are nested rather than incomparable.
+    independent_instances: 40
+
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 12
+    maximum_memory_gb: 8
+    maximum_runs: 1
+    maximum_wall_seconds_total: 28800
+    maximum_lattice_dimension: 110
+    no_network_after_S0: true
+    budget_basis: >-
+      Anchored to timings MEASURED by the proposing session on this machine on
+      2026-08-06, one instance each on a knapsack-shaped lattice with 70-bit
+      entries, seed 1: float64-GSO LLL took 1.4 s at dimension 20, 19.6 s at
+      40, 59.2 s at 60; the exact-Fraction reducer took 62.2 s at dimension 20
+      and did not reach 40 inside a 120 s probe. THESE ARE PRE-EXPERIMENT
+      PROBES TAKEN OUTSIDE THE HARNESS and are re-measured at stage S2. Cells
+      requiring dimension above 110 are OUT OF BUDGET and are DECLARED
+      UNREACHED rather than attempted.
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, and authorized. It carries no approved_by field.
+    - Stop before any treatment arm if the null arms and their commitment hashes are absent.
+    - Stop the whole package if the S3A positive control returns fewer than 18/20 certified recoveries.
+    - Stop the bias arm if S3B's positive control or extinction null fails.
+    - Stop the lattice arm at the declared wall-clock ceiling and report which cells were reached; an unreached cell is UNREACHED, never a negative.
+    - Stop and report as failed_infrastructure if measured delta_0 falls outside [1.005, 1.035] or if the in-harness environment re-measurement contradicts the declared environment in a way that invalidates the implementation plan.
+    - Stop any single solve at 900 s wall clock and record it as a budget-exhausted cell, never as a non-recovery.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any claimed recovery whose certificate d*G == Q fails, or whose certificate was computed by code sharing a path with the solver. Such a run is invalid_measurement, NOT a negative observation.
+    - Any failing cell reported as a mathematical non-recovery without an exact-arithmetic reducedness verdict on its returned basis.
+    - Any missing null-before-treatment commitment hash.
+    - Any post-hoc adjustment to the frozen formulas, the m grid, the tolerance bands, or the seed set after any measurement has been observed.
+    - Any comparison of a timing across cells of different lattice dimension.
+    - Any statement of a result that does not carry its leakage assumption in the same sentence.
+
+  infrastructure_failure_disposition: >-
+    A timeout, a crash, a missing dependency, a float-GSO numerical failure, an
+    unreachable lattice dimension, or an unobtainable source is INFRASTRUCTURE
+    SIGNAL and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+    Specifically: a cell whose returned basis fails the exact reducedness check
+    is classified failed_numerical and is EXCLUDED from the negative class
+    entirely; a cell exceeding the dimension ceiling is reported UNREACHED, in
+    exactly the sense GOAL-ECDSA-001.pause_conditions clause 3 anticipates; and
+    a total S0 acquisition failure is reported as such and does not stop the
+    derivation-based stages. None of these outcomes may appear in any sentence
+    about whether an attack works.
+
+  success_criterion: >-
+    This draft has no current success outcome: it is not authorized for
+    execution. If a separately approved, frozen successor is executed, its only
+    positive disposition is a complete package in which (1) the S3A positive
+    control returns at least 18/20 certified recoveries with peak memory, wall
+    clock and sample count recorded; (2) both lattice nulls return 0 certified
+    recoveries and both were committed before any treatment arm was read; (3)
+    the S3B bias positive control returns 0.6366198 +/- 0.002 and the
+    extinction null returns below 0.00098; (4) delta_0 was measured and
+    reported before any window was evaluated; (5) every failing cell carries an
+    exact-arithmetic reducedness verdict; and (6) the graded window sweep and
+    the graded bias sweep are reported as curves with their pre-registered
+    forced values alongside. That disposition establishes NO ECDLP claim, NO
+    crypto-scale claim, and NO claim about the predicate or Fourier families.
+
+  falsification_criterion: >-
+    H-ECDSA-7ccd4b is falsified, in the specific parts named, by any of: the
+    recovery curve being monotone non-decreasing out to m_hi + 30 at a cell
+    predicting an upper edge (Part A1); any certified recovery below the
+    information edge (the derivation); recovery in a cell predicted empty at
+    the measured delta_0 (A2 or HEUR-EC-1/2); |Bhat| at (l=1, e=0) outside
+    0.6366198 +/- 0.002, or a missed interior point at l = 2 or 3, or a
+    non-zero bias at extinction (B1); a missed bias-multiplication forced value
+    (HEUR-EC-5, and with it the S7 crossing derivation); or measured lattice
+    recovery under errors exceeding (1-e)^m by more than 1.5x (HEUR-EC-7). Each
+    falsifier names the part it kills; none of them licenses any statement that
+    a leakage level is unreachable.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition: review_required draft, no run, no evidence,
+      no mathematical inference.
+    future_validated_instrument_and_laws: >-
+      Only after separate approval, freezing, authorization and valid
+      execution; medium-tier, scoped to the tested cells, and never a
+      crypto-scale or ECDLP conclusion.
+    planned_negative: >-
+      A DELIVERABLE, NOT A FAILURE. If the laws are refuted the package must
+      still emit (a) the exact (l, N, m) boundary at which the frozen formula
+      stops describing this reducer, (b) the measured contraction law that
+      replaces the frozen one, and (c) a named successor object. A negative
+      that does not emit those three HAS NOT FINISHED.
+    infrastructure_or_integrity_failure: >-
+      Inconclusive infrastructure signal; never evidence against H-ECDSA-7ccd4b
+      or any proposition about ECDSA, the leakage model, or the ECDLP.
+
+  required_artifacts:
+    - Frozen approved specification and a freeze receipt binding its SHA-256.
+    - S0 acquisition log: per source, the URL, HTTP status, and either a verbatim quotation or an explicit non-acquisition statement.
+    - S1 independent recomputation of every closed form, by a second implementation, with both outputs.
+    - In-harness environment re-measurement (interpreter, package presence/absence, cores, RAM).
+    - Curve construction transcript per field_bits with p, a, b, n, G and their canonical digest.
+    - delta_0 measurement table per dimension with seeds and spread, timestamped before the window evaluations.
+    - Null-arm commitment hashes, generated and recorded before any treatment arm.
+    - Per-instance records: seed, cell, D, det, predicted gamma, returned log2||b_1||, candidate d, certificate verdict, wall clock, peak RSS.
+    - Exact-arithmetic reducedness verdict for every failing cell.
+    - Bias arm raw counts and |Bhat| per (l, e) cell with sample count, noise floor and phase distribution.
+    - Manifest, environment, exact command, stdout, stderr, and an execution report.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the frozen formulas are correctly transcribed and that no forced value was derived from an observation.
+    - Independent review confirms the null arms can actually fail and that the ordering control is enforceable.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+    - User separately authorizes execution after receiving the approved frozen package.
+
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is not
+    approved, and only the Coordinator may approve it (AGENTS.md rule 1).
+
+  assigned_to: executor

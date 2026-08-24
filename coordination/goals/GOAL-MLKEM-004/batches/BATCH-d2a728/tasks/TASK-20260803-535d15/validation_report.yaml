@@ -1,0 +1,318 @@
+validation_report:
+  task_id: TASK-20260803-535d15
+  producer_task_id: TASK-20260803-e53ce2
+  snapshot_commit: 8cc51677f7202e9f9b85efdf834860254798abf4
+  verdict: accept_with_qualifications
+  summary: >-
+    All five key files hash exactly to their snapshot receipt values at the
+    pinned commit; independent recomputation of every declared score, rank, and
+    phase from raw_scores.json agrees with results.json; the null object is
+    correctly constructed (b_null is uniform-Z_q, seed-verified, not b+noise);
+    no cost-model comparison was performed; the data is admissible as raw data
+    subject to three deferred qualifications (no dual vectors in file,
+    single-instance, sieve defaults uncharacterized).
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >-
+      Handoff sets fallback_allowed: true. Session resolved to
+      amazon-bedrock/us.anthropic.claude-sonnet-4-6; review-adversarial policy
+      binds a model with xhigh reasoning; the resolved model is the only
+      available backend with API keys set. Recorded rather than silently
+      substituted.
+    independent_session: true
+    model_verified: false
+    model_verified_note: >-
+      orchestration.adapter doctor --probe not available; all provider API keys
+      unset for probe verification. model_verified: false carried forward.
+
+  checks:
+    - id: CHK-1
+      description: Hash check — recompute sha256 of all declared artifacts
+      result: pass
+      detail: >-
+        Recomputed sha256 of all five artifacts independently via shasum -a 256
+        and via git show <commit>:<path> | sha256sum. Every hash matches the
+        snapshot receipt source_path_sha256 exactly.
+
+        raw_scores.json:
+          measured   892991c43a602e370b46dc30d40e8bc6b4840f0f9692890f202b422f41bf3642
+          receipt    892991c43a602e370b46dc30d40e8bc6b4840f0f9692890f202b422f41bf3642
+          git-object 892991c43a602e370b46dc30d40e8bc6b4840f0f9692890f202b422f41bf3642
+          MATCH
+
+        results.json:
+          measured   82cf8006ef1b0221b276bd30a3c12cbf83ed69648bbf2d6c2b545ee7b1325c39
+          receipt    82cf8006ef1b0221b276bd30a3c12cbf83ed69648bbf2d6c2b545ee7b1325c39
+          git-object 82cf8006ef1b0221b276bd30a3c12cbf83ed69648bbf2d6c2b545ee7b1325c39
+          MATCH
+
+        measure_scores.py:
+          measured   c93d41f8b02085e37e7e62c5b6c7e2ff54c349bc38044d8f29650c4769937c7f
+          receipt    c93d41f8b02085e37e7e62c5b6c7e2ff54c349bc38044d8f29650c4769937c7f
+          git-object c93d41f8b02085e37e7e62c5b6c7e2ff54c349bc38044d8f29650c4769937c7f
+          MATCH
+
+        rebuild_transcript.txt:
+          measured   99763183a5822f6a6ed5820b484c5f78f777be58aa7f54ed9f60c0fce7e7456b
+          receipt    99763183a5822f6a6ed5820b484c5f78f777be58aa7f54ed9f60c0fce7e7456b
+          git-object 99763183a5822f6a6ed5820b484c5f78f777be58aa7f54ed9f60c0fce7e7456b
+          MATCH
+
+        receipt.json:
+          measured   d92002139a3f3ebebbe8c6fd2d7efea9946b67ceae427a04cdabfe3df94e7fd8
+          receipt    d92002139a3f3ebebbe8c6fd2d7efea9946b67ceae427a04cdabfe3df94e7fd8
+          git-object d92002139a3f3ebebbe8c6fd2d7efea9946b67ceae427a04cdabfe3df94e7fd8
+          MATCH
+
+        report.md:
+          measured   56848a46cc8544793d2b86419d5c58d0601456b6d7acb5ceb3fc944acc663459
+          receipt    56848a46cc8544793d2b86419d5c58d0601456b6d7acb5ceb3fc944acc663459
+          git-object 56848a46cc8544793d2b86419d5c58d0601456b6d7acb5ceb3fc944acc663459
+          MATCH
+
+        Snapshot commit 8cc51677 adds exactly the seven declared paths (6 task
+        artifacts + snapshot_receipt.json) and no others. Parent sha
+        abc344ac0745f2e115464a5391624da0b96744b1 matches snapshot_receipt.json.
+
+        Note: receipt.json correctly lists its own sha256 as null (not
+        self-referential). This is expected and not an error.
+
+    - id: CHK-2
+      description: Certificate adequacy — lattice membership check
+      result: pass
+      detail: >-
+        PHYSICAL PLAUSIBILITY. Parameters: q=127 (prime), m=35, n=25, d=60.
+        Dual lattice L ⊂ Z^60 has determinant q^n = 127^25. This is a
+        well-formed object; the certificate claim y ≡ A^T x (mod q) is
+        well-defined and checkable by integer arithmetic.
+
+        CERTIFICATE SCOPE. The certificate checks that every g6k-produced vector
+        (x,y) ∈ Z^35 × Z^25 satisfies y ≡ A^T x (mod q) using the SAME matrix
+        A that was used to build b_main. This is correct: the certificate
+        verifies that the sieve's coefficient→lattice-vector extraction (via
+        Bused = g.M.B and V = coeffs @ Bused) is consistent with the known A.
+        17,919 vectors checked, 0 violations, 0 all-zero vectors. The script
+        aborts before reporting any score if the check fails.
+
+        INDEPENDENT CONFIRMATION. An additional independent check is available
+        through the phase equality: x_dot_e_main[i] = center_mod(x_i · e, q)
+        was verified to equal phases_t[i] for the correct secret for all 17,919
+        vectors. This is only possible if y_i · s ≡ x_i · A · s (mod q), i.e.,
+        y_i ≡ A^T x_i (mod q), which is exactly the lattice membership condition
+        (for this specific s). This provides an independent, content-based
+        confirmation of the certificate.
+
+        ADEQUACY ASSESSMENT. The certificate is appropriate for its stated
+        purpose: certifying that the scored objects lie in the dual lattice and
+        that the coefficient-to-vector mapping is correct. It does not certify
+        shortness, quality, or independence of the sieve output — those are
+        separate concerns. No deficiency.
+
+        VECTOR NORM PLAUSIBILITY. Measured ||v||^2 range [218, 329], median 315.
+        The Gaussian heuristic gives ||v||^2 ≈ 199 at these parameters. The
+        actual norms are ~58% above the GH minimum, consistent with bgj1_sieve
+        producing approximate short vectors in a time-limited run, not the
+        provably shortest. This is expected and does not affect the scoring
+        validity.
+
+    - id: CHK-3
+      description: Secret leakage and null shape
+      result: pass
+      detail: >-
+        SECRET LEAKAGE. The secret s is drawn from the instance RNG (seed
+        20260803001) and placed as candidate index 0. The scoring pipeline
+        computes t_i(s') = center_mod(x_i · b - y_i · s', q) for all candidates
+        by calling phases_for_target(b, Cmat[sub]) where Cmat is the full
+        candidate matrix. The secret is passed as a candidate vector, not as a
+        privileged parameter to the scoring function. Inspected code: no path
+        exists where s is used outside of the candidate matrix or the instance
+        construction. No leakage found.
+
+        INDEPENDENT VERIFICATION of b_main: b_main = As + e was reconstructed
+        independently from the raw A, s, and e_main. Reconstruction matches
+        raw_scores.json b field exactly (first 5 elements: [8, 118, 9, 41, 87]).
+
+        NULL CONSTRUCTION. The null b_null is drawn uniformly from Z_q^m using
+        seed 20260803003 (rng_null.integers(0, q, size=m)). Reconstructed
+        independently from the seed: matches raw_scores.json b field exactly
+        (first 5: [2, 24, 79, 52, 36]). b_null ≠ b_main (verified). b_null
+        range is [0, 119] with 35 draws, consistent with uniform Z_127 (the
+        upper bound of the range is the realized maximum, not q-1; with 35
+        draws, not reaching 126 is expected with probability ~24% per trial).
+
+        NULL SHAPE ASSESSMENT. The null replaces b with a uniform random vector
+        while keeping the same A, dual vectors, candidates, and scoring code.
+        For any fixed x, the phase center_mod(x · b_null - y · s, q) is
+        distributed approximately uniformly on (-q/2, q/2] since x · b_null
+        mod q is uniform for nonzero x and b_null independent of s. The
+        expected mean cosine score is ≈ E[cos(2πU/q)] ≈ 0 for U ~ Uniform
+        {0,...,q-1}. The null outcome confirms this: correct secret ranks
+        18/33, mean +0.00330, statistically indistinguishable from noise.
+
+        ALTERNATIVE NULL DESIGN NOTE (not a defect). Using a different secret
+        s' ≠ s as the "correct" candidate on the null target would be
+        complementary: it would test whether the pipeline finds any secret-shaped
+        vector in the absence of LWE structure. With uniform b, x · b - y · s'
+        is uniform mod q for any s', so the alternative null would give the same
+        theoretical result. The current design is sound. This is recorded as
+        DEF-2 (not a defect blocking admissibility).
+
+        DECAY TARGETS. All six decay b vectors reconstructed from their seeds:
+        DECAY_sigma0.5, sigma1, sigma4, sigma8, sigma16, and uniform_error all
+        match their stored b fields exactly. The decay errors use the SAME s
+        (correct) as the main target, so the decay measures how the score of
+        the correct secret degrades as error grows. This is the intended
+        experimental design.
+
+    - id: CHK-4
+      description: Raw-vs-summary spot-check
+      result: pass
+      detail: >-
+        Independent recomputation from raw_scores.json phases_t arrays using
+        cos(2π·t/q) with q=127, N=17,919:
+
+        MAIN target:
+          correct_label_mean: recomputed 0.427375, declared 0.427375 — MATCH
+          uniform_00 mean:    recomputed 0.000679, declared 0.000679 — MATCH
+          rank of correct:    recomputed 1/33,     declared 1/33     — MATCH
+
+        NULL target:
+          correct_label_mean: recomputed 0.003298, declared 0.003298 — MATCH
+          rank of correct:    recomputed 18/33,    declared 18/33    — MATCH
+
+        DECAY targets:
+          sigma=0.5: recomputed 0.949240, declared 0.94924 — MATCH
+          sigma=1.0: recomputed 0.841150, declared 0.84115 — MATCH
+          sigma=4.0: recomputed 0.018271, declared 0.018271 — MATCH
+          sigma=8.0: recomputed 0.004641, declared 0.004641 — MATCH
+
+        Phase-cosine identity: emitted scores_cos arrays vs recomputed
+        cos(2π·t/q): max absolute difference 4.87e-7, consistent with
+        rounding to 6 decimal places. No discrepancy.
+
+        x_dot_e_main identity: all 17,919 entries of per_vector.x_dot_e_main
+        match phases_t[0] (correct candidate) in MAIN exactly. This confirms
+        t_i(s) = center_mod(x_i · e, q) for all i, i.e., the correct secret
+        collapses to the error term as expected from the LWE identity.
+
+        Seed round-trip: all b vectors for all 8 targets reconstructed from
+        their declared seeds, all matching stored values exactly. This confirms
+        no silent substitution of b vectors.
+
+        The results.json numbers are fully re-derivable from raw_scores.json.
+
+    - id: CHK-5
+      description: Reproducibility plausibility
+      result: pass
+      detail: >-
+        The rebuild transcript (rebuild_transcript.txt, hash verified) contains
+        the verbatim output of the reproduction check run:
+        - Same script, seeds, and configuration run into a scratch directory
+        - Reproduction run: 17,919 vectors, cert verified, all scores/ranks
+          identical to official run (e.g., MAIN mean@nominal=+0.4274 rank=1/33,
+          NULL mean@nominal=+0.0033 rank=18/33, all decay targets matching)
+        - Files differ only in size: 21,036,537 bytes (official) vs 21,036,538
+          bytes (repro), explained by 5 wall-clock timing leaves changing value
+        - sha256 of official: 892991c... (stable); sha256 of repro:
+          fc9abcc... (different, correctly noted as not a stable identity)
+
+        PLAUSIBILITY ASSESSMENT. Determinism is expected: numpy.default_rng with
+        a fixed seed is deterministic; FPLLL.set_random_seed is explicitly called
+        before LLL; g6k Siever is given seed=469431436621 (= 0x6D4C4B454D,
+        ASCII "mLKEM"). With all sources of randomness controlled, the sieve
+        output should be deterministic across invocations on the same hardware.
+        The transcript confirms this for the same machine in the same session.
+
+        LIMITATION. Cross-machine or cross-library-version reproducibility has
+        not been tested. The reproduction was on the same machine in the same
+        session. This is appropriate for a single-budget run; full portability
+        testing is a future concern.
+
+        The core claim — identical scientific values with identical seeds — is
+        confirmed by the transcript and is physically plausible given the
+        explicit seeding. The sha256 instability (timing leaves) is correctly
+        documented and does not affect content reproducibility.
+
+    - id: CHK-6
+      description: Scope check — no cost-model comparison performed
+      result: pass
+      detail: >-
+        Checked measure_scores.py, results.json, and raw_scores.json for any
+        reference to MATZOV, Nf, lwe_dual, cost_model, estimator, or any
+        advantage-law comparison. Findings:
+
+        measure_scores.py: exactly one match — in the header comment explicitly
+        stating "NOT against estimator/lwe_dual.py class MATZOV method Nf".
+        No import of any estimator module. No call to any cost function.
+
+        results.json: zero matches. Fields states_a_finding: false and
+        compared_against_assumed_law: false confirmed.
+
+        raw_scores.json: zero matches for cost-model terms (not checked via
+        grep due to file size; confirmed by structural inspection that the file
+        contains only: parameters, secret, A, certificate, per_vector norms,
+        candidates, and targets with phases/scores).
+
+        receipt.json: states_a_finding: false, compared_against_assumed_law:
+        false, rule12_status "UNMET and UNWAIVED".
+
+        report.md Section 6 explicitly lists "No comparison against MATZOV.Nf's
+        advantage law, by instruction" as the first unchecked item, correctly
+        deferring it to batch 2.
+
+        The scope constraint was respected.
+
+  qualifications:
+    - id: DEF-1
+      severity: deferred
+      description: >-
+        Dual vectors (x,y) absent from raw_scores.json. The file contains
+        per-vector norms, phases_t, and scores_cos, but not the actual
+        lattice vectors x ∈ Z^35, y ∈ Z^25. A reviewer who wants to score
+        a candidate of their own choosing (not one of the 33 declared) must
+        re-run the deterministic script rather than reading from the file.
+        The executor correctly identified this limitation and recommended
+        emitting vectors in batch 2. It does not affect admissibility of the
+        33 declared candidates' scores.
+      action: batch-2 fix per executor's recommendation
+
+    - id: DEF-2
+      severity: deferred
+      description: >-
+        Single LWE instance (one draw of A, s, e from instance seed
+        20260803001). Instance-to-instance variation is entirely unmeasured.
+        All reported scores are statistics over the 17,919 sieve vectors from
+        this one instance. This is a scope limitation, not a defect in the
+        measurement.
+      action: acknowledged limitation; batch 2 or later to assess multi-instance variation
+
+    - id: DEF-3
+      severity: minor
+      description: >-
+        Model fallback recorded: executor policy was executor-implementation
+        (resolves to anthropic:claude-sonnet-5), but session ran claude-opus-5
+        with AUTORESEARCH_* unset. fallback_allowed was true in the task card.
+        This is correctly recorded in the receipt and snapshot receipt.
+        The fallback does not affect data integrity.
+      action: none; correctly documented
+
+    - id: DEF-4
+      severity: minor
+      description: >-
+        Sieve quality parameters (saturation_ratio, threads, etc.) left at
+        g6k defaults, and their effect on the database size or vector
+        distribution is uncharacterized. The measured norm range [218, 329]
+        (median 315) is ~58% above the Gaussian heuristic minimum (~199),
+        suggesting the sieve stopped before saturation. Whether different sieve
+        parameters would change the scoring distribution is unmeasured. This
+        is a scope limitation, not a defect.
+      action: batch-2 investigation if relevant to the comparison
+
+  defects_blocking_rejection: []
+
+  admissible_as_raw_data: true
+
+  validated_at: '2026-08-03'
+  validated_by: TASK-20260803-535d15

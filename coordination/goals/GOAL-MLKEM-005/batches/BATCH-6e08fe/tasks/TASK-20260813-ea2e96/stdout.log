@@ -1,0 +1,105 @@
+==============================================================================
+TASK-20260813-ea2e96 -- THE LEAD PRODUCER, BATCH-6e08fe
+CLAIM TIER: TOY. Nothing here bears on ML-KEM security, on any
+FIPS 203 parameter set, on any attack cost, or on any cost model.
+==============================================================================
+
+[env] checking for fpylll and alternative lattice-reduction libraries
+    fpylll available: False (ModuleNotFoundError: No module named 'fpylll')
+
+==============================================================================
+IMPLEMENTATION_CHOICE_DECLARATION (PREREG-4 2.2) -- READ BEFORE ANY D_route' NUMBER BELOW
+==============================================================================
+ROUTE-I' implementation choice (PREREG-4 section 2.2), declared here BEFORE any D_route' number is computed and checkable against the committed script below:
+
+1. Environment check performed FIRST: this run environment has NO fpylll installed (`import fpylll` fails with ModuleNotFoundError) and no other independently maintained lattice-reduction library is installed (checked: no sagemath, no python-flint/pari lattice routines, no third-party BKZ/LLL package). Options 2.2(2)(i) and 2.2(2)(ii) are therefore UNAVAILABLE in this environment and are not used. This is recorded as an infrastructure fact, not asserted.
+2. This script instead uses option 2.2(2)(iii): a from-scratch reduction/enumeration routine in pure Python/numpy, written without consulting make_A/build_basis/hkz_profile's source in measure_am4.py/measure_relvar.py/replicate_l7l8.py or any descendant (including BATCH-4ed139's replicate_l7l8.py). Specifically:
+   (a) basis construction reconstructs the SAME numeric matrix A from the frozen, already-public seed formula (default_rng([1,d,k,i]).integers(0,q,(k,d-k))) -- per PREREG-4 2.2(3), this is explicitly NOT code-sharing: it is producing an identical, publicly declared input independently, which is what every route in this corpus (including ROUTE-P) already does. The same [[I_k,A],[0,qI_{d-k}]] block structure is used because that is the definition of the lattice being measured, not a copied routine.
+   (b) the reduction/enumeration step itself -- the step hkz_profile() performs in the barred lineage -- is replaced by a SEPARATE, INDEPENDENTLY WRITTEN implementation: (i) a standard floating-point LLL reduction (Lenstra-Lenstra-Lovasz, delta=0.99) written from the textbook algorithm with incremental Gram-Schmidt/mu-matrix bookkeeping, using only numpy dot products and no fpylll call anywhere; and (ii) a from-scratch depth-first Schnorr-Euchner-style enumeration search (also textbook, not fpylll's Enumeration class) run on top of the LLL basis to find the EXACT shortest nonzero lattice vector (lambda_1), bounded by the LLL vector's own norm as the starting search radius, with per-basis time caps.
+3. lam1n' is computed from the EXACT enumerated lambda_1 (not merely an LLL approximation) wherever enumeration completes within its per-basis cap: lam1n'(L,i) = exp(0.5*log(lambda_1^2) - logdet/d). Because HKZ reduction's own defining property makes its first vector equal to lambda_1 exactly, an exact independent lambda_1 is mathematically the identical quantity ROUTE-P's HKZ pipeline reports at index 0, regardless of which algorithm found it -- so this is a genuine, algorithm-independent check for lam1n specifically. Where the per-basis enumeration cap is hit before an exact result is found, the LLL basis's own first-vector norm is reported instead, EXPLICITLY FLAGGED per basis as 'LLL_UPPER_BOUND (exact enumeration timed out)' and distinguished from an exact result in every output row; a flagged basis is excluded from that cell's matched-basis count for D_route' rather than silently included as if exact.
+4. hkz'(L,beta,i) is computed from the GSO tail of the SAME LLL-reduced (delta=0.99) basis: hkz'(L,beta,i) = mean_{j>=d-beta}(log||b*_j||) - logdet/d, exactly PREREG-4/PREREG-3's own formula for the observable, but evaluated on an LLL-quality reduced basis rather than a full BKZ+explicit-HKZ-sweep+verification basis. THIS IS DECLARED HERE AS AN EXPLICIT LIMITATION, NOT HIDDEN: unlike lam1n (whose index-0 value is algorithm-independent by definition once the true minimum is found), the GSO tail profile at indices 1..d-1 of a merely-LLL-reduced basis is not certified to equal the profile of an HKZ-reduced basis, so hkz' D_route' may reflect real reduction-quality differences between LLL and full BKZ/HKZ, in addition to (or instead of) genuine cross-implementation noise. This is reported as part of the result, not smoothed over: hkz' is a genuinely independent, non-code-shared measurement of the SAME lattice under a DIFFERENT (and by construction weaker) reduction depth than ROUTE-P's HKZ pipeline, and any resulting disagreement is reported as measured, without claiming it isolates code-sharing from reduction-quality as a cause.
+5. logdet(L) = (d-k)*log(q) is used as the closed-form determinant (exact for B = [[I_k,A],[0,qI_{d-k}]], independent of A and of any reduction) -- a basic linear-algebra fact, not a transcription of any barred function.
+6. No fpylll import, no fpylll call, and no import of measure_am4.py / measure_relvar.py / replicate_l7l8.py or any function from them appears anywhere in this script (checkable by grep against the committed file).
+7. results_l7l8.json and results_am4.json are NEVER read anywhere in this script (checkable by grep); they are excluded as a ROUTE-P source per PREREG-4 2.1.
+
+[a] RC-3 -- carried verbatim from PREREG-4 section 1, sourced from the Red Team's own committed probe. NO RECOMPUTATION.
+    hkz/L9_b22 true_abs_deviation (carried) = 0.0
+    hkz/L11_b30 true_abs_deviation (carried) = 0.0
+    hkz/L9_b15, hkz/L11_b20 restated UNCOVERED (carried)
+
+[b0] obligation 0 -- coverage audit of results_relvar.json's OWN G_REL1 block (results_l7l8.json / results_am4.json are NEVER read as a ROUTE-P source anywhere in this script)
+    18 cells audited; ROUTE-P (G_REL1) covered: 12 / 18
+    lam1n/L7_b5    beta=5   covered=True  n_bases=8
+    lam1n/L7_b10   beta=10  covered=False n_bases=0
+    lam1n/L7_b15   beta=15  covered=True  n_bases=8
+    lam1n/L9_b7    beta=7   covered=True  n_bases=8
+    lam1n/L9_b15   beta=15  covered=False n_bases=0
+    lam1n/L9_b22   beta=22  covered=True  n_bases=8
+    lam1n/L11_b10  beta=10  covered=True  n_bases=8
+    lam1n/L11_b20  beta=20  covered=False n_bases=0
+    lam1n/L11_b30  beta=30  covered=True  n_bases=8
+    hkz/L7_b5      beta=5   covered=True  n_bases=8
+    hkz/L7_b10     beta=10  covered=False n_bases=0
+    hkz/L7_b15     beta=15  covered=True  n_bases=8
+    hkz/L9_b7      beta=7   covered=True  n_bases=8
+    hkz/L9_b15     beta=15  covered=False n_bases=0
+    hkz/L9_b22     beta=22  covered=True  n_bases=8
+    hkz/L11_b10    beta=10  covered=True  n_bases=8
+    hkz/L11_b20    beta=20  covered=False n_bases=0
+    hkz/L11_b30    beta=30  covered=True  n_bases=8
+
+[b0] s_c^fib path resolution note:
+    PREREG-4 2.1 names the s_c^fib path as 'results_relvar.json.per_candidate.<X>.per_cell.<L>_<b>.float_sd'; results_relvar.json has no top-level per_candidate key. The field matching PREREG-4's own description (float_sd of X over the 8 frozen bases at fixed L,beta) is found at G_VAR.per_candidate.<X>.per_cell.<L>_<b>.float_sd and is used here, read-only, with this resolution stated rather than assumed.
+
+[b1] obligation 1 -- building ROUTE-I' (from-scratch LLL + exact enumeration) for every lattice with >=1 covered cell
+    L7   i=0  LLL   1.25s  enum   0.00s (exact=True, 398 nodes)  lam1n'=1.201575
+    L7   i=1  LLL   1.15s  enum   0.00s (exact=True, 500 nodes)  lam1n'=1.255623
+    L7   i=2  LLL   1.23s  enum   0.00s (exact=True, 743 nodes)  lam1n'=1.275452
+    L7   i=3  LLL   1.15s  enum   0.00s (exact=True, 207 nodes)  lam1n'=1.128966
+    L7   i=4  LLL   1.22s  enum   0.00s (exact=True, 461 nodes)  lam1n'=1.197678
+    L7   i=5  LLL   1.23s  enum   0.00s (exact=True, 448 nodes)  lam1n'=1.215471
+    L7   i=6  LLL   1.34s  enum   0.00s (exact=True, 391 nodes)  lam1n'=1.215129
+    L7   i=7  LLL   1.20s  enum   0.00s (exact=True, 597 nodes)  lam1n'=1.207406
+    L9   i=0  LLL   8.53s  enum   0.16s (exact=True, 26694 nodes)  lam1n'=1.398858
+    L9   i=1  LLL   7.46s  enum   0.28s (exact=True, 40495 nodes)  lam1n'=1.249455
+    L9   i=2  LLL   7.69s  enum   0.07s (exact=True, 12015 nodes)  lam1n'=1.372569
+    L9   i=3  LLL   7.61s  enum   0.21s (exact=True, 32560 nodes)  lam1n'=1.497094
+    L9   i=4  LLL   8.49s  enum   0.14s (exact=True, 21996 nodes)  lam1n'=1.442141
+    L9   i=5  LLL   8.03s  enum   0.14s (exact=True, 22400 nodes)  lam1n'=1.485456
+    L9   i=6  LLL   7.98s  enum   0.26s (exact=True, 41460 nodes)  lam1n'=1.507113
+    L9   i=7  LLL   8.52s  enum   0.09s (exact=True, 13830 nodes)  lam1n'=1.437764
+    L11  i=0  LLL  30.41s  enum  44.26s (exact=True, 5866911 nodes)  lam1n'=1.610488
+    L11  i=1  LLL  30.02s  enum 150.98s (exact=False, 19600000 nodes)  lam1n'=1.699711
+    L11  i=2  LLL  30.51s  enum  52.49s (exact=True, 6838340 nodes)  lam1n'=1.674689
+    L11  i=3  LLL  31.59s  enum  28.99s (exact=True, 3839570 nodes)  lam1n'=1.676542
+    L11  i=4  LLL  31.97s  enum  37.58s (exact=True, 4891267 nodes)  lam1n'=1.584549
+    L11  i=5  LLL  33.00s  enum 150.68s (exact=False, 18400000 nodes)  lam1n'=1.680343
+    L11  i=6  LLL  29.42s  enum 150.73s (exact=False, 19400000 nodes)  lam1n'=1.617865
+    L11  i=7  LLL  31.93s  enum  41.45s (exact=True, 5437330 nodes)  lam1n'=1.637418
+
+[b1] D_route'/VERDICT' -- PREREG-3 3.3's formula, verbatim, ties resolve to DOES NOT EXCEED
+    lam1n/L7_b5    n_matched=8/8  s_c^fib=0.04339249931620648  D_route'=2.220446e-15  VERDICT'=EXCEEDS
+    lam1n/L7_b15   n_matched=8/8  s_c^fib=0.04339249931620648  D_route'=2.220446e-15  VERDICT'=EXCEEDS
+    lam1n/L9_b7    n_matched=8/8  s_c^fib=0.0847592417001852  D_route'=2.664535e-15  VERDICT'=EXCEEDS
+    lam1n/L9_b22   n_matched=8/8  s_c^fib=0.0847592417001852  D_route'=2.664535e-15  VERDICT'=EXCEEDS
+    lam1n/L11_b10  n_matched=5/8  s_c^fib=0.0388473945796316  D_route'=9.992007e-15  VERDICT'=EXCEEDS
+    lam1n/L11_b30  n_matched=5/8  s_c^fib=0.0388473945796316  D_route'=9.992007e-15  VERDICT'=EXCEEDS
+    hkz/L7_b5      n_matched=8/8  s_c^fib=0.023887966155964283  D_route'=5.861709e-02  VERDICT'=DOES NOT EXCEED
+    hkz/L7_b15     n_matched=8/8  s_c^fib=0.00887973739872481  D_route'=1.529305e-02  VERDICT'=DOES NOT EXCEED
+    hkz/L9_b7      n_matched=8/8  s_c^fib=0.012888012185756612  D_route'=1.076313e-01  VERDICT'=DOES NOT EXCEED
+    hkz/L9_b22     n_matched=8/8  s_c^fib=0.0038926583565756278  D_route'=4.993140e-02  VERDICT'=DOES NOT EXCEED
+    hkz/L11_b10    n_matched=8/8  s_c^fib=0.010109435646034129  D_route'=2.234585e-01  VERDICT'=DOES NOT EXCEED
+    hkz/L11_b30    n_matched=8/8  s_c^fib=0.003818306775026579  D_route'=9.637448e-02  VERDICT'=DOES NOT EXCEED
+
+[b2] obligation 2 -- aggregate
+    COVERED = 12/18  ALL-SURVIVE=False  SOME-ARTIFACT=True
+    EXCEEDS cells: ['lam1n/L7_b5', 'lam1n/L7_b15', 'lam1n/L9_b7', 'lam1n/L9_b22', 'lam1n/L11_b10', 'lam1n/L11_b30']
+    DOES NOT EXCEED cells: ['hkz/L7_b5', 'hkz/L7_b15', 'hkz/L9_b7', 'hkz/L9_b22', 'hkz/L11_b10', 'hkz/L11_b30']
+    UNCOVERED cells: ['lam1n/L7_b10', 'lam1n/L9_b15', 'lam1n/L11_b20', 'hkz/L7_b10', 'hkz/L9_b15', 'hkz/L11_b20']
+    NOT COMPUTED (budget) cells: []
+
+[term] termination branch (PREREG-4 2.6 precedence)
+    BRANCH: T-INDVERIFY-ARTIFACT-PARTIAL
+
+wrote results_route_reimpl.json
+total 981.52 s

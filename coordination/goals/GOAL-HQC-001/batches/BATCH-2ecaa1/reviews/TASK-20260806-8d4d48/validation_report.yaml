@@ -1,0 +1,459 @@
+validation_report:
+  id: TASK-20260806-8d4d48
+  task_id: TASK-20260806-8d4d48
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-2ecaa1
+  experiment_id: EXP-HQC-982268
+  validates: TASK-20260806-77a574
+  snapshot_commit_validated: 17d5fb54bc2a3d19080e27e475705e4699802cf4
+  snapshot_receipt: coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/archives/TASK-20260806-1281e1/snapshot-receipt.json
+  claim_tier: toy
+  independent_session: true
+  reasoning_effort_used: xhigh
+
+  scope_note: >-
+    Reviewed the Coordinator-committed snapshot at 17d5fb54, NOT any
+    working-tree-only artifact. This report validates ONE pilot: 5,000
+    defect-injected + 5,000 undefected trials of the V3 (last-block-window-
+    read-early) defect at decode_blocks's last block, PS-R3, one seed
+    family. It draws no conclusion about A17, HQC's DFR, or any
+    standardized parameter set. All independent code run for this review is
+    scratch-only and writes nothing under experiments/, stage_a.py,
+    measure.py, or any producer's task directory.
+
+  run_ids: []
+  run_ids_note: >-
+    No experiments/ run record exists for this task; per this campaign's
+    convention (see EV-HQC-bfb257), coordination-task artifacts are cited by
+    path and hash.
+
+  artifact_checks:
+    - artifact: design.md
+      present: true
+      sha256_matches_snapshot_receipt: true
+      predates_pilot_results_json: true
+      note: >-
+        Confirmed by content: design.md's Section 5 mechanically-sound/
+        needs-redesign criteria are stated with no reference to any
+        specific numeric outcome, and its Section 4 expected-effect
+        reasoning (k/n_e dilution argument) is a priori, not fitted after
+        seeing z-scores. No internal indication of retroactive editing.
+    - artifact: pilot_injection.py
+      present: true
+      sha256_matches_snapshot_receipt: true
+      reuses_stage_a_and_measure_read_only: true
+      new_code_is_thin_wrapper: true
+      note: >-
+        Read in full. The only new logic beyond driver/reporting scaffolding
+        is make_defected_decode_blocks(), which slices/reassigns one bit
+        window and then calls the imported original_decode_blocks object
+        directly -- confirmed not a reimplementation (see
+        metric_recomputations below).
+    - artifact: pilot_results.json
+      present: true
+      sha256_matches_snapshot_receipt: true
+      stdout_log_matches_reported_numbers: true
+      stderr_log_empty: true
+    - artifact: pilot_report.md
+      present: true
+      sha256_matches_snapshot_receipt: true
+    - artifact: run_manifest.yaml
+      present: true
+      sha256_matches_snapshot_receipt: true
+      command_git_dirty_seeds_environment_present: true
+      dirty_tree_at_run_time: true
+      dirty_tree_explanation_checked: >-
+        run_manifest.yaml states the sole dirty entry at run time was this
+        task's own untracked output directory, pre-snapshot. Verified
+        against git history: commit edaf4946 (BATCH-2ecaa1 opened) is the
+        parent of the snapshot commit 17d5fb54, and the snapshot commit's
+        diff adds exactly the seven declared artifact paths and nothing
+        else. Consistent with the stated explanation.
+    - artifact: stdout.log / stderr.log
+      present: true
+      sha256_matches_snapshot_receipt: true
+
+  independent_reproduction:
+    method: >-
+      Wrote an ENTIRELY SEPARATE script (not derived from pilot_injection.py's
+      source) that loads stage_a.py/measure.py fresh via the same sha256 pins,
+      re-verifies the pins independently against the files on disk, and
+      implements its own defect wrapper coded directly from design.md
+      Section 3's stated mechanism (shift the last block's bit window left by
+      one position) rather than by reading pilot_injection.py's
+      make_defected_decode_blocks(). All independent runs used scratch shard
+      indices and wrote no artifacts under any task's write_scope.
+    checks_performed:
+      - name: sha256 re-verification
+        result: >-
+          Independently recomputed sha256 of both stage_a.py and measure.py
+          at their read-scope paths; both match the pins in pilot_injection.py
+          and run_manifest.yaml exactly
+          (06a0a618...681405 / a4fd1ecb...4f5dc8).
+      - name: no-op check
+        result: >-
+          On synthetic random bit arrays at multiple densities (p=0.5, 0.36,
+          0.1, 0.05), the independently-written wrapper changes decode
+          outcomes on block n_e-1 at a rate that varies with p (0.5%-10.7% of
+          trials at p in [0.5,0.36], 0 at p<=0.1) and NEVER changes any other
+          block's outcome (0/5000 in every density tested). Confirms the
+          defect is genuinely active (not a no-op) and genuinely confined to
+          block n_e-1, exactly as design.md Section 3 claims.
+      - name: exact reproduction of the executor's committed shards
+        result: >-
+          Called stage_a.py's real, unmodified _t_shard with shard=5000 under
+          my own defect wrapper and shard=6000 under the real unmodified
+          decode_blocks, at 5,000 trials each (same shard indices, same
+          MASTER_SEED, same PS-R3 parameters the executor used). The resulting
+          S-histograms are BIT-IDENTICAL to pilot_results.json's committed
+          MEASUREMENT.defected.S_histogram and
+          MEASUREMENT.undefected.S_histogram arrays. D2/D3 violations: 0/0 on
+          both arms in my reproduction, matching the committed run.
+        significance: >-
+          This is the strongest available confirmation that (a) the pipeline
+          is genuinely deterministic as claimed, (b) an independently-coded
+          wrapper implementing only design.md's stated mechanism reproduces
+          the executor's numbers exactly, and therefore (c) the executor's
+          wrapper is not silently doing something different from what
+          design.md and pilot_report.md describe.
+      - name: fresh independent sample (shards never used by the executor)
+        result: >-
+          Ran a NEW 2,000-vs-2,000-trial defected/undefected pair at shards
+          7777/7778 (disjoint from every shard cited in design.md Section 6:
+          0-3, 900, 999, 1000-1007, 4900, 4901, 5000, 6000). Result at k=17:
+          diff = +0.5082, combined jackknife SE = 0.8292, z = +0.613 -- a
+          clean null, same conclusion as the committed run, but with the
+          OPPOSITE SIGN from the committed run's diff (-0.207). This is
+          consistent with design.md Section 4's explicit a priori statement
+          that "no sign is predicted"; a resampled null flipping sign while
+          staying inside noise is exactly what an honest null looks like, and
+          argues against the committed run's specific negative sign being a
+          hidden systematic artifact of the injection mechanism.
+          D2/D3 = 0/0 on both fresh arms.
+
+  metric_recomputations:
+    - metric: log2_Ahat_k point estimates and combined jackknife SE/z at k in
+        {2, 10, 17, 24} on the executor's own committed shards (5000/6000)
+      method: >-
+        Reproduced the raw per-trial F arrays via my own wrapper (see above),
+        then computed log2_Ahat_k, per-arm jackknife SE (leave-one-batch-out,
+        200 batches, via sa.hist_of/sa.batch_hists and measure.comb_matrix/
+        measure.log2_A_from_hists -- the same estimator functions, called
+        directly on MY OWN reproduced raw data rather than on the numbers in
+        pilot_results.json).
+      result: EXACT MATCH at every k checked.
+      table:
+        - k: 17
+          reported: {diff: -0.2069, se: 0.4437, z: -0.4663}
+          recomputed: {diff: -0.2069, se: 0.4437, z: -0.4663}
+        - k: 10
+          reported: {diff: -0.0057, se: 0.0873, z: -0.0649}
+          recomputed: {diff: -0.0057, se: 0.0873, z: -0.0649}
+        - k: 24
+          reported: {diff: -0.8429, se: 1.2045, z: -0.6998}
+          recomputed: {diff: -0.8429, se: 1.2045, z: -0.6998}
+        - k: 2
+          reported: {diff: -0.0003, se: 0.0014, z: -0.1863}
+          recomputed: {diff: -0.0003, se: 0.0014, z: -0.1863}
+      verdict: PASS -- the paired diff/SE/z statistic in pilot_report.md and
+        pilot_results.json is reproducible bit-for-bit from raw trial data by
+        an independently-written driver.
+    - metric: throughput (trials/core-second), defect-injected pipeline
+      method: >-
+        Independent single re-benchmark (3,000 trials, warmed) plus a
+        4-repeat A/B benchmark (3,000 trials each, alternating defected/
+        undefected, each preceded by its own warm-up), all via my own
+        wrapper and the real _t_shard, on the same machine, same session.
+      result:
+        single_rebenchmark_defected_t_per_cs: 1953.7
+        repeated_defected_t_per_cs: [2028.5, 2164.6, 2086.9, 2083.0]
+        repeated_undefected_t_per_cs: [2088.9, 2161.7, 2109.0, 2026.9]
+        repeated_defected_mean_std: {mean: 2090.8, std: 48.5}
+        repeated_undefected_mean_std: {mean: 2096.6, std: 48.2}
+        executor_reported: {defected: 2097.6, undefected: 2105.6}
+      verdict: >-
+        CORROBORATED, WITHIN NOISE. My repeated measurements bracket the
+        executor's single-measurement figures closely (executor's 2097.6/
+        2105.6 fall inside my observed range for both arms). More
+        importantly, my own run-to-run standard deviation (~48 t/cs, ~2.3%)
+        is more than 5x LARGER than the executor's reported defected-vs-
+        undefected gap (2097.6 vs 2105.6, ~0.4%, ~8 t/cs) -- this
+        independently substantiates the executor's own conclusion that the
+        defect's measured throughput cost is not distinguishable from
+        ordinary timing noise, rather than my having to take that
+        conclusion on faith. Both my means and the executor's figures sit
+        3-5% below the cost model's optimistic band (2168-2227 t/cs) and
+        roughly 2.6x the pessimistic figure (788 t/cs), consistent with
+        pilot_report.md Section 5's own comparison.
+    - metric: injection-invariant and sha256 fail-closed selftests
+      method: >-
+        Read pilot_injection.py's selftest_fail_closed_sha_mismatch() and
+        selftest_injection_invariant_fail() in full and traced their control
+        flow by hand rather than trusting the recorded verdict string.
+      result: >-
+        Both selftests genuinely construct a real mismatch (a deliberately
+        wrong sha256 constant; a wrapper whose applied shift is 2 positions
+        while its invariant check asserts shift-by-1) and genuinely call the
+        SAME load_module()/injection-invariant-check code path used by the
+        real run, not a separate, weaker check. Both raise SystemExit with a
+        message that names the mismatch, and main() re-raises
+        FAILED_IMPLEMENTATION if either verdict is not PASS BEFORE the real
+        module load / real injection wrapper is used. stdout.log confirms
+        both selftests actually executed and printed PASS during the
+        authorized run (not merely asserted in the JSON afterward).
+      verdict: PASS -- these are genuine fail-closed checks, not
+        rubber-stamped no-ops.
+
+  control_checks:
+    - control: paired undefected control arm (negative-control-style
+        isolation of the injection's own effect from finite-T estimator
+        noise)
+      pre_registered: true (design.md Section 1, before any data generated)
+      correctly_applied: true
+      note: >-
+        Confirmed necessary and correctly used: BOTH arms individually
+        deviate from the theoretical null log2_A_k=0 at k=17 (z=-3.84
+        defected, z=-2.57 undefected) -- reading either arm alone against 0
+        would have looked like "signal." The paired difference correctly
+        isolates the injection's own marginal effect. This matches this
+        campaign's own prior finding (cited in EV-HQC-bfb257's provenance
+        chain) that the undefected PS-R3 estimator is not exactly 0 at
+        finite T, so a bare arm-vs-0 comparison would have been
+        misleading; design.md pre-registered the paired-control design for
+        exactly this reason, before running anything.
+    - control: deliberate-mismatch dry runs (sha256 pin, injection
+        invariant)
+      pre_registered: true
+      correctly_applied: true
+      see: metric_recomputations (injection-invariant/sha256 selftests)
+    - control: D2 (exact generation weight) / D3 (support cap) hard
+        invariants
+      pre_registered: true (inherited unmodified from stage_a.py, run
+        upstream of decode_blocks on every trial)
+      correctly_applied: true
+      note: >-
+        0 violations on both arms in both the committed run and my
+        independent reproduction -- confirms the injection, which only
+        touches decode_blocks's input, did not silently perturb the
+        upstream generation phase (fixed_weight_support, ring_mul_sparse),
+        as design.md Section 3 predicted it could not.
+    - control_gap_noted: >-
+        No POSITIVE control was run demonstrating the estimator has power to
+        DETECT a comparably-narrow injected effect at this trial count (e.g.
+        an artificially larger single-block perturbation planted and
+        confirmed detectable at N=5,000). Its absence does not invalidate
+        the clean null reported here, because design.md Section 4
+        pre-registered a clean null as the PRIMARY EXPECTED outcome (not an
+        unexpected one requiring extra scrutiny) and pilot_report.md
+        explicitly declines to interpret the null for OPEN-6. But it means
+        this pilot cannot itself distinguish "no injection effect" from
+        "injection effect present but this trial count lacks power to see
+        it" -- which is fine for a MECHANICAL-SOUNDNESS pilot (the
+        question this task was scoped to answer) but is a live question the
+        full T_req-scale run, not this pilot, is what supplies the power to
+        resolve. Flagged as a limitation, not a defect.
+
+  heuristic_validation_checks: not_applicable
+  heuristic_validation_checks_note: >-
+    This pilot is a defect-injection mechanical/throughput check, not a
+    Dickman-de Bruijn-style heuristic validation against a pre-registered
+    theoretical CDF; docs/target-result-profile.md's checklist items 1-3 do
+    not apply to this artifact class. Item 4 (scale binding) is checked
+    below under limitations, and item 6 (cost bookkeeping) is checked under
+    cost_model_checks.
+
+  cost_model_checks:
+    - check: unit and comparison honesty
+      result: >-
+        Both throughput figures reported in trials/core-second, the same
+        unit EV-HQC-bfb257 used; both cost-model bands (optimistic
+        2168-2227, pessimistic 788) are cited, not re-derived, and clearly
+        labeled as citations. No unit ambiguity found.
+    - check: total-cost bookkeeping for a hypothetical full run
+      result: >-
+        pilot_report.md and pilot_injection.py do NOT attempt a full
+        T_req-scale cost projection (T_req~3.09e5 trials) from this pilot's
+        throughput -- correctly out of scope per design.md Section 1 and the
+        dispatch queue's constraints. No per-attempt-cost x
+        inverse-success-probability bookkeeping was required or offered
+        here; that belongs to a future full-run cost table, not this pilot.
+    - check: cost model corroboration claim
+      result: >-
+        The claim "this pilot corroborates the optimistic band as the more
+        accurate planning figure" is checked against my own independent
+        measurement: both my repeated-benchmark mean (2090.8/2096.6) and the
+        executor's figures (2097.6/2105.6) sit 3-6% below the optimistic
+        band's low end and roughly 2.6-2.7x the pessimistic figure -- I
+        confirm this comparison independently rather than accepting the
+        executor's arithmetic on trust.
+
+  proof_architecture_checks: not_applicable
+
+  inventor_protocol_section6_ladder_check:
+    - item: "each assumption the complexity analysis rests on was isolated
+        and measured separately, with the specific failure mode named"
+      status: partially_met
+      finding: >-
+        The pilot correctly isolates and measures the injection mechanism
+        (mechanically sound, verified above) and the throughput cost of the
+        injected branch (negligible, verified above) as SEPARATE claims, each
+        with its own pre-registered pass/fail criterion. One assumption is
+        NOT isolated or measured here: whether the module-attribute
+        monkey-patch this injection technique depends on survives under the
+        multiprocessing.Pool architecture stage_a.py's own main() and
+        measure.py's T-arm phase both use for any run at real scale. This
+        pilot deliberately ran single-process (run_manifest.yaml states this
+        explicitly, citing fork/spawn ambiguity as the reason to avoid it
+        rather than resolve it). On this Linux environment, the default
+        multiprocessing start method is fork, under which a parent's already
+        -patched sys.modules entry is inherited by child processes and the
+        patch should propagate correctly -- but this pilot does not
+        demonstrate that empirically, and it is exactly the kind of
+        assumption this protocol section asks to be measured rather than
+        reasoned through. NOT a mechanical-soundness failure of what was
+        actually run; IS a gap in what would need to be true for the
+        SAME injection technique to be reused, as currently written, inside
+        stage_a.py's own parallel _t_shard dispatch at T_req scale.
+    - item: "the whole pipeline was run on a scaled-down instance of the
+        same shape, with the claimed improvement/effect as a measured ratio,
+        not a projection"
+      status: met, within this pilot's own declared scope
+      finding: >-
+        No speedup or improvement is claimed here (the claim under test is
+        "mechanical soundness," not a complexity gain), so the "measured
+        ratio against baseline" requirement maps onto the
+        defected-vs-undefected paired comparison, which IS measured
+        end-to-end on the real pipeline at small scale (verified above), not
+        projected.
+    - item: "any cheat in a real-scale partial run is named individually and
+        classified as completeness-preserving or soundness-losing"
+      status: met
+      finding: >-
+        run_manifest.yaml's protocol_deviations section names three
+        deliberate departures from the strict task card (added undefected
+        control arm, alternate sha256-mismatch demonstration mechanism, no
+        multiprocessing pool) and justifies each; none of the three trades
+        away soundness of the reported measurement itself (verified above by
+        independent reproduction).
+    - item: "the reproducibility pointer was exercised -- artifacts rebuilt
+        from scratch and listed, not asserted"
+      status: met, exceeded
+      finding: >-
+        This review rebuilt the defect wrapper from scratch (independent
+        implementation), reproduced the committed shards bit-for-bit, and
+        additionally generated a fresh independent sample at shards never
+        used before -- going beyond re-running the executor's own script.
+
+  limitations:
+    - >-
+      Toy-scale, hard ceiling: PS-R3 only, one defect class (V3), one
+      injection point (decode_blocks last-block window), 5,000+5,000
+      trials -- roughly 1.6% of the T_req~3.09e5 trial count named in
+      DEC-20260806-1ac8fa. Nothing here is a statement about HQC, A17, its
+      decoding-failure rate, or any standardized parameter set.
+    - >-
+      Multiprocessing propagation of the module-attribute monkey-patch this
+      injection technique relies on is UNTESTED (pilot ran single-process
+      throughout). If the full T_req run reuses stage_a.py's own
+      mp.Pool-based dispatch (as its own main() and measure.py's T-arm phase
+      both do), this specific untested assumption should be checked before
+      or during that run, not assumed from this pilot's single-process
+      result.
+    - >-
+      No positive control was run to establish the estimator's detection
+      power at this trial count for an injected effect of plausible size;
+      the reported clean null is consistent with, but does not itself rule
+      out, "insufficient power to see anything at N=5,000" as an alternative
+      explanation for the null. This is squarely a question for the
+      statistically-powered full run, not a defect in this pilot, which
+      pre-registered the clean null as its primary expected outcome.
+    - >-
+      A rare, low-frequency edge case in Floyd's algorithm, CTRStream, or
+      the injection invariant that fails to appear across 10,000 total
+      trials cannot be ruled out at ~30-60x greater trial count. The
+      fail-closed design of every relevant check (injection invariant,
+      D2, D3) means such an edge case would most likely present as an abort
+      partway through the full run (an infrastructure outcome per AGENTS.md
+      rule 5) rather than as a silently wrong result -- but the full run's
+      task design should preserve these same fail-closed checks rather than
+      relaxing them for speed.
+    - >-
+      This review's own independent code is scratch-only, not committed,
+      and reproduces only a subset of the executor's reported cells (k in
+      {2,10,17,24} of 25 reported); all four checked cells matched exactly,
+      which is strong but not exhaustive evidence that every reported cell
+      would also match.
+
+  admissibility_verdict: ADMIT
+  admissibility_verdict_rationale: >-
+    Every artifact is present, hash-bound to the Coordinator-committed
+    snapshot (17d5fb54), and internally consistent (stdout.log, pilot_
+    results.json, run_manifest.yaml, and pilot_report.md all agree on every
+    number checked). The defect is genuinely injected exactly as design.md
+    and pilot_report.md describe -- confirmed by an independently-written
+    wrapper that reproduces the committed run bit-for-bit and by a fresh,
+    never-before-used sample that shows the same clean-null pattern with an
+    (expected, pre-registered-as-possible) opposite sign. The paired
+    diff/SE/z statistic recomputes exactly from raw data at every k
+    spot-checked. The throughput claim is corroborated within this
+    reviewer's own measured noise floor. design.md's Section 5 criteria were
+    applied as pre-registered, with no evidence of post-hoc shading -- every
+    "mechanically sound" criterion maps to a specific, checkable field in
+    pilot_results.json, and pilot_report.md's Section 2 table cites those
+    fields rather than restating a conclusion. This receipt is admissible
+    evidence for the campaign's stopping-rule decision.
+
+  independent_mechanical_soundness_judgement: MECHANICALLY_SOUND
+  independent_mechanical_soundness_judgement_rationale: >-
+    Based on my own checks, not the executor's characterization: (1) the
+    injection is real, correctly confined to block n_e-1, and not a no-op,
+    confirmed on both real pipeline data (exact reproduction of committed
+    shards) and fresh synthetic/real data I generated myself; (2)
+    decode_blocks is genuinely called unmodified -- confirmed by
+    independently reproducing its exact output on both the committed and
+    fresh shards using an unmodified import, not merely by trusting the
+    id()-equality check the executor's own code reports; (3) the fail-closed
+    fail-closed selftests are real checks with real failure conditions, not
+    rubber stamps, verified by tracing their control flow; (4) D2/D3 are
+    clean in both the committed run and my reproduction; (5) the throughput
+    delta the executor calls "negligible" is smaller than my own measured
+    run-to-run noise floor, which independently substantiates rather than
+    merely repeats that conclusion; (6) design.md's pre-registered criteria
+    were applied as written, with no sign of retroactive classification
+    shading. This supports proceeding toward the full T_req-scale run AS A
+    MECHANICAL MATTER. Two items are NOT yet independently verified and
+    should be closed before or during that run rather than assumed: whether
+    the monkey-patch injection technique survives stage_a.py's own
+    mp.Pool-based dispatch (untested here, single-process only), and whether
+    the estimator has adequate power at whatever trial count is actually
+    planned to distinguish a true small effect from no effect (a question
+    the full run's own statistical design, not this pilot, must answer).
+    Neither of these two open items constitutes a structural-redesign
+    trigger under design.md Section 5's own pre-registered criteria, and I
+    did not find evidence of any criterion in that list having fired.
+
+  verdict: passed
+  verdict_note: >-
+    "passed" per agents/validator.md's terminal-verdict vocabulary maps to
+    this report's ADMIT recommendation above. This verdict certifies the
+    RECEIPT's integrity and the FACTUAL claims checked above; per
+    agents/validator.md and AGENTS.md, it authorizes nothing beyond that --
+    not an ECDLP claim, not a demonstrated speedup, not a promotion of
+    H-HQC-18d1b4's status, and not the campaign's go/no-go call, which
+    remains the Coordinator's and the Red Team's alongside this report.
+
+  artifact_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-8d4d48/validation_report.yaml
+  reviewed_snapshot_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/design.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_injection.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_report.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/run_manifest.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/stdout.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/stderr.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+    - ledger/evidence/EV-HQC-bfb257.yaml
+    - ledger/decisions/DEC-20260806-1ac8fa.yaml
