@@ -1,0 +1,277 @@
+experiment:
+  id: EXP-SBRG-60c55e
+  hypothesis_id: H-SBRG-63a704
+  question_id: RQ-SBRG-f31cb2
+  goal_id: null
+  version: 1
+  title: >-
+    Syzygy-aware, batched relation generation screen for Weil-descended Semaev systems
+  status: draft
+  claim_tier: toy_structural
+  confirmatory_status: exploratory
+
+  objective: >-
+    Determine whether the fixed structural portion of Weil-descended Semaev
+    point-decomposition systems has reproducible low-degree Macaulay rank
+    structure beyond degree-profile-matched planted Boolean controls, and
+    whether that structure can be reused across many target specializations at
+    measurably lower sparse-linear-algebra cost. This first experiment is a
+    structural gate only. It does not claim an ECDLP speedup.
+
+  hypothesis_under_test: >-
+    For ordinary curves over F_{2^n}, recursive S_3 point-decomposition systems
+    contain target-independent low-degree dependencies that survive changes in
+    n, basis, factor-base orientation, and addition-tree topology. At one or
+    more degrees D, the real systems will show persistent positive excess
+    fall_dim or syzygy_dim relative to matched planted controls, while a fixed
+    Macaulay basis can be precomputed once and reused across target points.
+
+  mechanism: >-
+    Split each descended system as I_R = <S_struct, P_R>, where S_struct
+    contains all S_3 constraints independent of the target x(R), and P_R is
+    the final target-specialized block. For each Macaulay layer D, compare the
+    rank of the degree-D projection H_D with the full degree-<=D matrix M_D.
+    The identity fall_dim(D)=rank(M_D)-rank(H_D) counts independent degree
+    falls without assuming first-fall degree approximates solving degree;
+    syzygy_dim(D)=rows-rank(M_D) counts exact dependencies among the sampled
+    Macaulay rows. Build the row basis of S_struct once, then reduce each P_R
+    batch against that fixed basis.
+
+  claim_ceiling: >-
+    The strongest outcome of this experiment is a toy-scale structural signal:
+    persistent excess low-degree dependencies and/or exact row-space reuse under
+    the frozen matrix construction. No result from this experiment alone may
+    be described as a faster ECDLP algorithm, a lower asymptotic exponent, a
+    cryptographic-scale attack, or evidence that first-fall degree equals degree
+    of regularity.
+
+  representations:
+    - id: chain_t3
+      t: 3
+      construction: two chained S_3 equations with one full-field auxiliary x-coordinate
+      target_independent_groups: 1
+    - id: direct_t3
+      t: 3
+      construction: direct S_4 obtained as a resultant of two S_3 equations
+      target_independent_groups: 0
+      purpose: control for variable-vs-degree tradeoff; no batching benefit is expected
+    - id: chain_t4
+      t: 4
+      construction: left-associated chain of three S_3 equations with two auxiliaries
+      target_independent_groups: 2
+    - id: balanced_t4
+      t: 4
+      construction: two pair sums joined by a final S_3 equation
+      target_independent_groups: 2
+
+  algebraic_metrics:
+    boolean_ring: F_2[z_1,...,z_N]/(z_i^2-z_i)
+    macaulay_layer: >-
+      For generator f_i of Boolean degree d_i and requested degree D, include
+      every square-free multiplier m of degree D-d_i and Boolean-reduce m*f_i.
+    fall_dim: rank(M_D) - rank(H_D)
+    syzygy_dim: row_count(M_D) - rank(M_D)
+    rank_defect_top: row_count(H_D) - rank(H_D)
+    sparse_density: nnz(M_D)/(rows*columns)
+    batch_reuse:
+      - fixed_rank
+      - target_rank
+      - rowspace_intersection_dim
+      - fixed_precompute_xors
+      - baseline_total_xors
+      - batched_total_xors
+      - xor_speedup
+    interpretation: >-
+      XOR counts are deterministic implementation-level operation counts for the
+      in-tree bitset eliminator. They are not machine-independent time bounds.
+
+  controls:
+    - id: CTRL-SBRG-DEGREE-PROFILE
+      method: >-
+        For every descended Boolean equation, sample a random polynomial with
+        the same monomial count at each degree. Plant a Boolean root by a
+        same-degree support swap whenever possible; if a constant toggle is
+        required, flag degree_histogram_exact=false.
+      purpose: >-
+        Distinguish Semaev-specific dependencies from generic behavior caused
+        only by variable count, Boolean reduction, and degree profile.
+    - id: CTRL-SBRG-KNOWN-DECOMPOSITION
+      method: >-
+        Generate R as a sum of t factor-base points and reconstruct the exact
+        Boolean assignment for factor-base x-coordinates and internal tree
+        x-coordinates. Every descended real equation must evaluate to zero.
+      failure_effect: harness_void
+    - id: CTRL-SBRG-FIXED-FINGERPRINT
+      method: >-
+        Hash S_struct after Boolean descent and require the identical hash for
+        every R in a batch.
+      failure_effect: harness_void
+    - id: CTRL-SBRG-DIRECT
+      method: >-
+        At t=3 compare the chained representation with direct S_4/resultant form.
+      purpose: >-
+        Separate true low-degree structure from an artifact introduced only by
+        auxiliary variables.
+
+  independent_variables:
+    - n
+    - t
+    - representation
+    - field_basis
+    - factor_base_orientation
+    - target_seed
+    - macaulay_degree
+
+  metrics:
+    primary:
+      - excess_fall_dim = fall_dim(real) - fall_dim(control)
+      - excess_syzygy_dim = syzygy_dim(real) - syzygy_dim(control)
+      - first_excess_fall_degree
+      - xor_speedup for 8-target batches
+    secondary:
+      - fall_dim and syzygy_dim at each Macaulay layer D
+      - rank_defect_top
+      - sparse_density
+      - fixed_precompute_xors, batched_total_xors, baseline_total_xors
+      - fixed structural fingerprint invariance across targets
+    observation_status: >-
+      Phase A only. Metrics are exact Boolean Macaulay rank counts and
+      deterministic bitset XOR operation counts; no wall-clock solver time or
+      ECDLP cost is measured in this contract.
+
+  phase_a_structural_screen:
+    cells:
+      n: [8, 10, 12, 14, 16]
+      t: [3, 4]
+      representations:
+        t3: [chain, direct]
+        t4: [chain, balanced]
+      field_basis: [power, normal]
+      factor_base_orientation: [prefix, random]
+      targets_per_cell: 8
+      master_seeds: [20260824, 20260825, 20260826]
+      default_factor_base_dimension: ceil(n/t)+1
+      macaulay_degrees:
+        chain_or_balanced: [2, 3, 4, 5]
+        direct_t3: [4, 5, 6, 7, 8, 9]
+    resource_guards:
+      max_columns: 200000
+      max_rows: 200000
+      budget_skip_is_evidence: false
+    primary_statistics:
+      - excess_fall_dim = fall_dim(real) - fall_dim(control)
+      - excess_syzygy_dim = syzygy_dim(real) - syzygy_dim(control)
+      - first_excess_fall_degree
+      - xor_speedup for target batches
+      - sparse_density
+    advance_gate: >-
+      Advance at least one representation family to Phase B only if, for at
+      least three increasing n values and at least two master seeds, the same
+      degree-relative structural signal is positive versus matched controls,
+      the fixed fingerprint is invariant across all targets, and 8-target
+      batch reuse gives xor_speedup >= 1.25 without a >4x density increase over
+      the matched control at the selected degree.
+    stop_gate: >-
+      If excess fall/syzygy signals disappear or move upward at least as fast as
+      the random-control prediction across all representation families, or if
+      batching gives <1.10x XOR reuse in every valid cell, record a scoped
+      negative and do not promote the structural mechanism to a solver claim.
+
+  phase_b_solver_gate:
+    status: not_implemented_in_this_patch
+    prerequisite: phase_a advance_gate
+    required_measurements:
+      - actual F4/F5 or equivalent Gröbner wall time under fixed solver version
+      - peak memory
+      - maximum observed Macaulay/solver degree, not inferred from first fall
+      - number of zero reductions
+      - solver success/certificate rate
+      - preprocessing time separated from per-target online time
+    advance_gate: >-
+      Preprocessed real Semaev cells must show a reproducible >=1.5x median
+      online solver speedup over both no-precompute real systems and matched
+      random controls while preserving solution correctness.
+
+  phase_c_relation_and_attack_gate:
+    status: future
+    prerequisite: phase_b advance_gate
+    required_measurements:
+      - empirical decomposition probability for random R
+      - factor-base size and relation count required for full rank
+      - sparse relation-matrix construction and solve cost
+      - individual-log descent cost if applicable
+      - matched Pollard rho and BSGS operation counts
+    cost_model: >-
+      T_total = T_relation_collection + T_relation_matrix + T_linear_algebra +
+      T_individual_log. Every preprocessing cost is charged and amortized only
+      over the explicitly measured number of targets/relations.
+    final_go_no_go: >-
+      Only continue toward a speedup claim if the fully charged measured/scaled
+      cost is competitive with the matched rho baseline after all relation
+      probability and preprocessing factors are included.
+
+  falsification_criteria:
+    - >-
+      No persistent positive excess fall_dim or syzygy_dim relative to matched
+      controls across increasing n under any tested representation family.
+    - >-
+      Target-independent preprocessing fails the fixed-fingerprint invariant or
+      yields no reproducible amortization across target batches.
+    - >-
+      Any positive Phase-A structural signal vanishes under basis/orientation
+      changes, indicating a coordinate artifact rather than robust structure.
+
+  success_criterion: >-
+    Phase A succeeds structurally if, for at least one representation family,
+    at least three increasing n values and two master seeds show a persistent
+    positive excess fall_dim or excess_syzygy_dim versus degree-profile-matched
+    planted controls, the S_struct fingerprint is invariant across all targets
+    in each batch, and 8-target batch reuse yields xor_speedup >= 1.25 without
+    >4x sparse_density growth over the matched control at the selected degree.
+    Phase A succeeds as a scoped negative if every valid cell fails the advance
+    gate and satisfies the stop_gate (no persistent excess, or <1.10x XOR reuse
+    everywhere). Resource-guard skips are infrastructure outcomes only. This
+    success criterion authorizes at most a Phase-B solver gate or a scoped
+    structural rejection; it does not authorize any ECDLP speedup claim.
+
+  invalidation_rules:
+    - Known decomposable target does not satisfy every descended equation.
+    - Matched planted control does not evaluate to zero at its planted assignment.
+    - S_struct fingerprint changes across target R values in the same batch.
+    - Matrix resource guard is exceeded but the cell is reported as a mathematical failure.
+    - Direct and chained systems are treated as cost-equivalent without charging their different variable/degree profiles.
+
+  required_artifacts:
+    - exact command and seed
+    - git commit and dirty-tree state
+    - Sage/Python versions
+    - JSON result per cell
+    - fixed structural fingerprint
+    - real/control equation degree histograms
+    - Macaulay row/rank/fall/syzygy tables
+    - batch reuse operation counts
+    - stdout/stderr
+
+  budget:
+    phase_a_wall_clock_hours: 12
+    phase_a_max_memory_gb: 16
+    per_cell_timeout_seconds: 900
+    no_unbounded_degree_expansion: true
+
+  references:
+    - id: SEMA-2015
+      provenance: retrieved
+      citation: Igor Semaev, New algorithm for the discrete logarithm problem on elliptic curves, arXiv:1504.01175
+      relevance: chained S_3 Boolean systems and first-fall heuristic context
+    - id: KOSTERS-YEO-2015
+      provenance: retrieved
+      citation: Michiel Kosters and Sze Ling Yeo, Notes on summation polynomials, arXiv:1503.08001
+      relevance: first-fall-degree caution and characteristic-2 structural relation
+    - id: KOUSIDIS-WIEMERS-2019
+      provenance: retrieved
+      citation: Stavros Kousidis and Andreas Wiemers, On the first fall degree of summation polynomials, Journal of Mathematical Cryptology 13(3-4)
+      relevance: rigorous first-fall bounds for descended summation-polynomial systems
+    - id: HODGES-PETIT-SCHLATHER-2014
+      provenance: retrieved
+      citation: Timothy Hodges, Christophe Petit, Jacob Schlather, First fall degree and Weil descent, Finite Fields and Their Applications 30
+      relevance: general Weil-descent first-fall framework and limits of inference
