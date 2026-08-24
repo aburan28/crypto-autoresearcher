@@ -1,0 +1,160 @@
+merge_decision:
+  task_id: TASK-20260822-9d9a69
+  archived_by: TASK-20260822-a5de47
+  verdict: REPAIR_REQUIRED
+  decided_by: coordinator
+  decided_on: '2026-08-22'
+  producer_snapshot:
+    commit: 3e51f62a78689f79fac3d005264f55accbbff7c9
+    parent: e67217bd7f00b080e8df708d6a086421c8c7220f
+    tree: 34e9d36da37369e3f080f67e2b045d5700384e95
+    merge_eligible: false
+    disposition: requires_candidate_state_asymmetry_repair
+  red_team:
+    task_id: TASK-20260822-c4a73c
+    archive_task: TASK-20260822-85a5d5
+    archive_commit: ef8dcc4d3ce6316f832d906762ebde9fdd7d361d
+    adversarial_report_sha256: 3d454497e54bb150cb60b3b1730206e496007f0111a1af9407554123e83b059f
+    task_report_sha256: b5af4034018e879010cc8561fe8f62eac606d21c79786aed250ccfe6091d618d
+    blocking_findings:
+      - id: B2-CANDIDATE-ASYMMETRY
+        title: HEAD, candidate-index, and initialized-worktree disagreement bypasses validation
+        observation: >-
+          HEAD contains an exact initialized mode-160000 entry at ledger or
+          ledger/goals. The candidate index replaces it with ordinary
+          descendants or a rename destination while the initialized working
+          tree remains. Validation trusts index descendants, traverses the
+          target, registers both hidden goals, and parses malformed target YAML.
+        alternate_reproduction: >-
+          A benign alternate GIT_INDEX_FILE presents ordinary descendants while
+          traversal still consumes the actual initialized checkout target.
+        disposition: blocks_merge
+    retained_findings:
+      - Merge hygiene still rejects the mode-160000 HEAD candidate.
+      - Direct exact-prefix gitlink controls hold when HEAD and index agree.
+      - B1, B2-symlink, N1, N2, and N4 controls hold.
+    nonblocking_findings:
+      - id: DESCENDANT-GITLINK-SCOPE
+        disposition: deferred_not_waived
+        boundary: arbitrary descendant gitlinks are outside this exact-prefix repair
+      - id: STABLE-WORKTREE-PRECONDITION
+        disposition: incorporate_narrowly
+        requirement: fail closed unless protected HEAD, index, and filesystem states are coherent
+      - id: NESTED-NON_GIT-OVERBREADTH
+        disposition: defer_and_avoid
+        requirement: do not blanket-reject ordinary nested non-Git directories
+  validator:
+    task_id: TASK-20260822-16abff
+    archive_task: TASK-20260822-4a3239
+    archive_commit: a93016b2fa59d774b14c5f6edd4b99af4146edea
+    validation_report_sha256: 285297db7d731bf63499cc24e37e5cfd20357b9e643c06654493e79dab4cc398
+    task_report_sha256: 10c11e2cc18c1a4c513952ba21fddfdb5d102f83bb7beb35f6e968962620c2b4
+    verdict: PASS
+    passed_gates: 22
+    total_gates: 22
+    blindness:
+      red_team_report_read: false
+    retained_scope: >-
+      Receipt-bound snapshot, declared direct gitlink/symlink cases,
+      regular-path behavior, allocator controls, immutable roots, and
+      zero-new-error matrix.
+    limitation: >-
+      The matrix omitted the reverse HEAD-gitlink/index-descendant/worktree
+      target split and alternate GIT_INDEX_FILE reproduction.
+  red_team_procedure_deviation:
+    description: >-
+      After report writing, a broad git status command enumerated predeclared
+      sibling artifact pathnames.
+    not_observed:
+      - contents
+      - parsed fields
+      - hashes
+      - stat metadata
+      - verdict or gates
+    effect_on_reasoning: none_supported
+    independence_effect: preserved_with_recorded_deviation
+    report_usable: true
+    replacement_required: false
+    future_requirement: status inspection must be scoped to owned paths
+  composition:
+    reports_consistent: true
+    explanation: >-
+      The Validator proves its matrix and Red Team supplies a reproducible
+      three-state disagreement outside it. The pathname-only post-report
+      deviation exposed no substance and does not invalidate the blocker.
+    merge_authorized: false
+    mark_pr_ready: false
+    erank_goal_allocation_authorized: false
+    erank_materialization_authorized: false
+    research_dispatch_authorized: false
+    rank_search_authorized: false
+    scientific_claim_effect: none
+  successor_scope:
+    source_test_write_scope:
+      - tools/validate_ledger.py
+      - tools/test_goal_id_random_suffix.py
+    explicitly_excluded:
+      - tools/check_merge_hygiene.py
+      - allocator code and tests
+      - projection, MCP, dispatch, documentation, templates, skills, closure, quorum
+      - all research and immutable record roots
+  protected_prefix_state_policy:
+    protected_prefixes:
+      - ledger
+      - ledger/goals
+    metadata_sources:
+      - committed HEAD tree entry
+      - effective candidate or index entry
+      - non-following working-tree object type
+    required_before_traversal:
+      - inspect exact HEAD entry for each protected prefix
+      - inspect exact effective index entry for each protected prefix
+      - inspect working-tree object without following aliases
+      - prove states coherent for the declared validation mode
+    hard_fail_conditions:
+      - HEAD or index has exact mode 160000
+      - HEAD or index has exact mode 120000
+      - candidate metadata and traversed worktree contents are not proven coherent
+      - alternate index or Git environment changes classification without changing checkout
+      - protected-prefix metadata cannot be determined in a Git worktree
+    behavior_on_fail:
+      - explicit candidate-state trusted-prefix error
+      - no protected-prefix traversal
+      - no target-only goal registration or YAML parsing
+      - no target-derived malformed-record errors
+  alternate_index_policy: >-
+    Choose and document one coherent model: sanitize or reject caller-supplied
+    alternate indexes for protected-prefix provenance, or validate the supplied
+    candidate entirely without mixing its metadata with ordinary checkout
+    contents.
+  required_controls:
+    - reverse HEAD gitlink to index descendants at ledger/goals and ledger
+    - rename destination under the same reverse transition
+    - hidden legacy/random goals, both interpretation markers, and malformed target YAML
+    - benign alternate GIT_INDEX_FILE with actual initialized checkout target
+    - ordinary HEAD and ordinary index agreement
+    - exact gitlink agreement and exact symlink in either metadata source
+    - coherent ordinary worktree traversal and mismatched-state fail closed
+    - prior direct gitlink, B1, B2-symlink, migration, N1, N2, N4, and regular-path controls
+    - exact scope boundaries for descendant gitlinks and nested non-Git directories
+  claim_scope:
+    supported_if_gates_pass: >-
+      Whole-ledger validation does not traverse protected ledger or
+      ledger/goals worktree contents when HEAD, candidate-index, and filesystem
+      states are inconsistent or either Git state identifies an exact alias.
+      Objects available only through such an alias are not accessed or registered.
+    not_supported:
+      - arbitrary descendant gitlink rejection beyond existing rules
+      - globally stable worktree outside protected prefixes
+      - no filesystem access outside protected aliases
+      - blanket rejection of ordinary nested non-Git directories
+  campaign_gate:
+    infrastructure_merge_authorized: false
+    erank_goal_allocation_authorized: false
+    erank_materialization_authorized: false
+    research_dispatch_authorized: false
+    rank_search_authorized: false
+    next_action: >-
+      Archive this decision, allocate fresh task IDs, execute only the two-path
+      candidate-asymmetry repair, archive it, and obtain fresh blind reviews.
+

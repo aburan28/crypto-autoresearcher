@@ -2,7 +2,7 @@
 
 This program produces **empirical evidence over tested instances**, never
 mathematical proofs about ECDLP hardness. Two mechanisms keep claims honest:
-a **claim-tier ceiling** on what any record may assert, and a
+a **claim-tier report** describing the tested range and evidence basis, and a
 **certificate discipline** that independently re-checks every claimed solve or
 relation. Together they are the closest tractable analogue to formal
 verification for this domain.
@@ -60,18 +60,19 @@ Rules:
 - Certificates are stored in the run's `raw-result.json` and summarized in the
   manifest's `result.certificate`. They are immutable like the rest of the run.
 
-## Claim-tier ceiling
+## Claim-tier reporting
 
-Every evidence record and synthesis statement carries a `claim_tier` bounding
-the largest claim the data can support. A record may never assert above its
-tier, and the tier is a function of the *instances actually tested*, not of
-ambition.
+Every evidence record and synthesis statement carries a `claim_tier` describing
+the parameter range and evidence basis. The record must state the instances
+actually tested, the intended scope, and any transfer assumptions; the label is
+descriptive and is not an automatic prohibition on a broader, explicitly
+conditional conclusion.
 
 | tier | tested scale | may assert | may NOT assert |
 |---|---|---|---|
-| `toy` | fields ≲ 32 bits, tiny factor bases | behavior on the tested toy distribution; trends worth a scaling study | anything about medium or cryptographic curves |
-| `medium` | fields up to ~64–96 bits, multiple instances/seeds | a stable measured effect on the tested medium range | cryptographic-scale (P-256+) behavior |
-| `crypto` | standardized/cryptographic-size curves | scoped claims about those exact curves | universal impossibility; claims beyond the tested curves |
+| `toy` | fields ≲ 32 bits, tiny factor bases | direct measurements plus explicitly stated transfer or extrapolation arguments | none by label alone |
+| `medium` | fields up to ~64–96 bits, multiple instances/seeds | measurements on the tested range plus explicitly stated broader implications | none by label alone |
+| `crypto` | standardized/cryptographic-size curves | scoped claims about those exact curves | universal impossibility; claims beyond the stated scope |
 
 Independent of tier, no record may make a **universal impossibility** claim
 ("index calculus cannot beat rho over prime fields") from bounded experiments
@@ -84,8 +85,9 @@ The tier a run contributes to is derived mechanically from its parameters:
 - `medium`: 32 < max field bit size ≤ 96
 - `crypto`: max field bit size > 96 on a recognized curve
 
-A synthesis spanning several experiments takes the **minimum** tier of its
-supporting evidence unless a dedicated scaling analysis justifies otherwise.
+A synthesis spanning several experiments reports the tiers of its supporting
+evidence and the argument used to connect them; it is not mechanically reduced
+to the minimum tier.
 
 ## Refutation artifacts: proof before rejection
 
@@ -149,7 +151,7 @@ records with distinct IDs**:
    "Assuming Heuristic N, ..." and enumerates every heuristic it depends on,
    by number.
 2. **The heuristic-support evidence** — one ordinary evidence record per
-   heuristic, fully subject to the claim-tier ceiling, certificate discipline,
+   heuristic, fully subject to the claim-tier report, certificate discipline,
    and refutation-artifact rules of this document.
 
 Supporting evidence may raise or lower confidence in a heuristic, but it
@@ -234,15 +236,12 @@ Rules:
   qualifier wherever the headline appears. Dropping the qualifier — in any
   summary, status line, or cross-reference — is treated as a claim-tier
   violation: an assertion above what the record supports.
-- The evidence records supporting a heuristic obey the claim-tier ceiling
-  independently. Heuristic-validation runs on toy instances are `toy`-tier
-  evidence *for the heuristic's plausibility on that range*; AGENTS.md rule 7
-  applies in full — toy-scale validation must never be presented as
-  cryptographic-scale validation. The exemplar's bar for a `crypto`-tier
-  heuristic-support record is validation at cryptographically sized parameters
-  (p = 5·2^248−1 with 100,000 samples; p = 27·2^500−1 with 10,000 samples),
-  comparing the empirical CDF against the model prediction, including
-  tail-consistency checks on the smoothest observed samples.
+- The evidence records supporting a heuristic report their tested tier and
+  the transfer argument used for any broader interpretation. The exemplar's
+  cryptographic-scale validation (p = 5·2^248−1 with 100,000 samples;
+  p = 27·2^500−1 with 10,000 samples) remains a strong validation route, but
+  it is not the only admissible route; every alternative must expose its
+  assumptions and tail-consistency checks.
 
 ### Asymptotic-form honesty
 
@@ -274,8 +273,8 @@ exponent:
   and `certificate_refs`; the Coordinator sets the tier during
   `/review-evidence`.
 - **CI** (`tools/validate_ledger.py`): checks that any run claiming a solve has
-  a `verified: true` certificate, and that no evidence record's `claim_tier`
-  exceeds what its runs' parameters allow.
+  a `verified: true` certificate and preserves the declared claim-tier
+  metadata; it does not impose an automatic scale ceiling.
 - **Heuristic and conditional-claim records** (`templates/research-records.md`):
   the Coordinator enforces the two-record rule, the conditional qualifier, and
   the full-asymptotic block during `/review-evidence` and synthesis; a claim

@@ -1,0 +1,261 @@
+idea:
+  id: IDEA-20260816-30b3fd
+  question_id: RQ-WFS-e776b6
+  added: '2026-08-16'
+  title: Compute, with zero compute budget, the exact soundness bits lost when a Fiat-Shamir challenge
+    is derived by reducing a k-bit hash output modulo a prime, tabulated as a signed bit discrepancy
+    over named pairs of output length and field prime and over named repetition counts
+  class: theory
+  claim: '(A) When a Fiat-Shamir challenge is produced as the integer value of a k-bit hash output
+    reduced modulo a prime p, the resulting distribution on the challenge set is not uniform: exactly
+    r equal to 2 to the k mod p residues receive probability ceil(2^k/p)/2^k and the remaining p minus
+    r receive floor(2^k/p)/2^k. This is elementary arithmetic and is treated here as known. (B) The
+    consequence for soundness accounting is computable exactly and, as far as this repository''s records
+    go, is nowhere tabulated: a cheating prover chooses the attainable set A of size d to be the d
+    most probable residues, so its per-attempt success is not d/p but the sum of the d largest masses,
+    and the soundness error inflates by a factor that is exactly computable from k, p and d with no
+    experiment. (C) The deliverable is a table of the signed quantity delta_bits equal to log2 of
+    the biased success probability minus log2 of d/p, evaluated over a named grid of k in {64, 128,
+    192, 256}, p over a named list of small and large primes including primes just above and just
+    below a power of two, d in {1, 2, 4, 16}, and repetition count t in {1, 8, 32, 128} where the
+    t-fold error compounds as the t-th power, together with the identification of which (k, p) shapes
+    make delta_bits negligible and which make it exceed a named threshold such as one bit. (D) NOT
+    CLAIMED: no attack and no security consequence for any system; no assertion that any real implementation
+    derives challenges this way, since this record examines no third-party code and names none; no
+    claim that rejection sampling or wide reduction is absent from practice; and no claim that the
+    tabulated inflation is reachable by any adversary against anything other than the reference accounting
+    written here, since an adversary must also be able to choose A freely, which is a property of
+    the protocol and not of the reduction.'
+  mechanism: 'STAGE A: derive the exact mass function. For hash output interpreted as an integer u
+    uniform on 0 to 2^k minus 1, the challenge is u mod p. Residue c receives mass equal to the count
+    of u in its class divided by 2^k, and that count is floor((2^k minus 1 minus c)/p) plus 1. Write
+    this in exact integer arithmetic with Python fractions, never floating point, since the quantities
+    differ from uniform in the fiftieth bit and floating point would erase the entire effect being
+    measured. STAGE B: compute the adversary-optimal per-attempt probability as the sum of the d largest
+    masses, which by the two-value structure is min(d, r) times the high mass plus max(0, d minus
+    r) times the low mass. STAGE C: form delta_bits equal to log2 of that sum minus log2 of d/p, using
+    exact rationals converted to high-precision decimal only at the final print, and tabulate over
+    the named grid. STAGE D: compound over repetitions. For t independent challenges each drawn the
+    same way, the t-fold optimal success is the t-th power of the single-shot value when the protocol
+    is a parallel repetition with independent challenge derivations, so delta_bits multiplies by t;
+    state and check the independence condition, and mark the shared-salt case as out of scope because
+    a sibling record owns it. STAGE E: identify the worst shape. Maximise delta_bits over p for fixed
+    k by noting the extremal case is p just above 2^k/m for integer m, and produce the extremal p
+    for each k as a closed-form candidate plus an exhaustive check over the named list. STAGE F: run
+    the null control of stage below and record whether the same pipeline reports zero bits for an
+    unbiased sampler, which is the only thing that shows the pipeline is not manufacturing the effect.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Grepped ledger/proposals/ and ledger/hypotheses/ case-insensitively for modulo bias, rejection
+      sampling, challenge space, soundness error, and union bound. Listed and read the titles of all
+      thirteen RQ-WFS-e776b6 proposals via a PyYAML scan of ledger/proposals/. Read ledger/questions/RQ-WFS-e776b6.yaml
+      in full including its four named targets. Checked the recent 2026-08-16 hits on rejection sampling
+      to see whether any is about challenge derivation rather than about signature nonce sampling.
+    results: The exact string modulo bias returned ZERO hits across ledger/proposals/ and ledger/hypotheses/.
+      The string rejection sampling hits IDEA-20260805-2a669e and three 2026-08-16 records including
+      IDEA-20260816-49b818, IDEA-20260816-50d270 and IDEA-20260816-967721, all of which sit outside
+      RQ-WFS and, from their question ids, concern signature and lattice sampling rather than proof-system
+      challenge derivation. Among the thirteen RQ-WFS proposals, IDEA-20260809-82e7ba varies the size
+      of the challenge space and IDEA-20260816-f05ef2 treats grinding as the image of a fixed function
+      on G points; neither computes the mass function of a reduced hash output. The blacklisted IDEA-20260815-85378c
+      is about which values enter the hash, not how the digest becomes a field element.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature; modulo bias in reduction
+      is elementary and universally known, and rejection sampling is the standard remedy, both treated
+      here as known. What is claimed new is only that no record in this repository carries the number:
+      the assembled parts are the exact two-value mass function, the greedy adversary choice of the
+      d most probable residues, and t-fold compounding, all standard, combined into one tabulated
+      signed bit discrepancy over a named grid.'
+  object_first_candidate:
+    tracked_object: 'The mass vector m of the challenge distribution: the length-p vector of exact
+      rational probabilities that the reduction assigns to each residue. Everything downstream is
+      a functional of m, specifically the sum of its d largest entries.'
+    lossiness: Genuinely lossy, and the loss is the point. The underlying state is the full k-bit
+      digest, 2^k outcomes; m keeps only the p-way partition induced by reduction and, because the
+      partition has exactly two distinct cell sizes, m is further compressed without loss to the triple
+      (r, high mass, low mass) with r equal to 2^k mod p. So a 2^k-dimensional object becomes three
+      integers. The discard is compatible with the target operation because Fiat-Shamir acceptance
+      depends on the digest only through its residue, so no information outside the residue class
+      can affect the verifier; the retained triple propagates deterministically through repetition
+      and through any sum over a subset of residues.
+    propagation: 'One step of the target operation is one challenge derivation. On the tracked object
+      it acts as: draw a residue with probability given by m, and the adversary succeeds if the residue
+      lies in its chosen A. Under t independent repetitions the object propagates as the t-fold product
+      measure, and the adversary-optimal success is the t-th power of the single-shot optimum, so
+      the triple (r, high, low) determines the whole t-round accounting with no further structure.
+      Under a shared-salt derivation the product form breaks, which is exactly why that case is declared
+      out of scope here.'
+    survival_score: 'The object survives exactly and forever in the sense that no approximation is
+      ever introduced: the triple is exact for every k and p representable, including k equal to 256
+      and p of cryptographic size, and the derived delta_bits is an exact rational. It dissolves in
+      two places, both named: when the challenge is not a plain reduction but rejection-sampled or
+      wide-reduced with extra bits, in which case the two-value structure is replaced by a different
+      and usually much flatter one; and when repetitions share randomness, where the product form
+      fails and the object no longer determines the accounting.'
+  null_object_control: 'NULL OBJECT: an unbiased challenge sampler of the same shape, realised as
+    the identical pipeline applied to k chosen so that p divides 2^k exactly, which happens only for
+    p equal to a power of two, and additionally as a synthetic mass vector set to exactly 1/p in every
+    coordinate and pushed through the identical delta_bits computation in the same invocation. The
+    null must return delta_bits identically zero to the last exact digit for every d and every t.
+    If the null returns anything nonzero, the pipeline itself is manufacturing bits, likely through
+    a floating-point conversion, and no signal-arm number may be reported. A second null uses a random
+    permutation of the true mass vector, which must return the same delta_bits as the true vector
+    because the greedy sum is permutation-invariant, confirming that the measurement reads mass and
+    not residue identity.'
+  discriminated_from:
+  - IDEA-20260809-82e7ba varies the size of the challenge space and measures forgery cost against
+    assumed entropy. Here the challenge space size is fixed and the object is the non-uniformity of
+    the distribution over it, which entropy sweeps do not see.
+  - IDEA-20260816-f05ef2 treats grinding as the image of a fixed function on G counter values, a statement
+    about how many distinct challenges a budget buys. This record is about how the mass is distributed
+    among challenges before any budget is spent, and applies at G equal to one.
+  - IDEA-20260815-85378c enumerates which values enter the hash. This record leaves the input set
+    complete and correct and asks what happens on the output side, when a digest becomes a field element.
+  - Deterministic-nonce and nonce-bias window records on RQ-ECDSA-87625f, which concern biased scalars
+    feeding a lattice recovery. Here nothing is recovered and there is no lattice; the biased quantity
+    is a verifier challenge and the consequence is an accounting inflation, not a key.
+  - 'A generic remark that one should use rejection sampling: that is guidance. This record produces
+    the number that says at which (k, p, d, t) shapes the guidance is load-bearing and at which it
+    is negligible.'
+  assumptions:
+  - The hash output is modelled as uniform on k bits; any deviation of a concrete hash from uniform
+    is a separate effect and is explicitly not included, so the tabulated delta_bits is attributable
+    to reduction alone.
+  - The adversary can choose its attainable set A freely among residues, which is a property of the
+    protocol; where A is forced by structure the tabulated inflation is an upper bound and is labelled
+    as such.
+  - Repetitions in the compounding column derive challenges independently; the shared-salt case is
+    excluded by scope and not approximated.
+  - Exact rational arithmetic is used end to end, so no reported digit is a floating-point artifact.
+  - The named prime list, including primes adjacent to powers of two, is representative enough for
+    the extremal claim to be a candidate rather than a proof; the extremal p is reported as the maximiser
+    over the named list, not over all primes.
+  predictions:
+  - metric: delta_bits for k equal to 256 and p a 255-bit prime, d equal to 1, t equal to 1
+    direction: higher
+    minimum_effect: 'forced value: strictly positive but below 2 to the minus 250 bits, that is, numerically
+      negligible; this is the pre-registered boring case and it must come out boring'
+  - metric: delta_bits for k equal to 64 and p just above 2 to the 63, d equal to 1, t equal to 1
+    direction: higher
+    minimum_effect: 0.9
+  - metric: delta_bits scaling in the repetition count t at a fixed adverse (k, p, d)
+    direction: higher
+    minimum_effect: 'forced value: exactly linear in t, since the product form makes the bit discrepancy
+      additive; any deviation from exact linearity is an instrument fault'
+  - metric: null-arm delta_bits for the uniform synthetic mass vector
+    direction: different
+    minimum_effect: 'forced value: exactly zero; any nonzero output voids the run'
+  minimal_test:
+    design: 'Zero compute in the ordinary sense: one Python script using only the fractions module,
+      running in under a second. For each (k, p) in the grid compute r equal to 2^k mod p, the high
+      mass as (floor(2^k/p) plus 1)/2^k and the low mass as floor(2^k/p)/2^k as exact Fractions. For
+      each d compute the greedy sum as min(d, r) times high plus max(0, d minus r) times low, then
+      delta_bits as the exact log2 of the ratio of that sum to d/p, evaluated with the decimal module
+      at 60 digits of precision only at print time. Tabulate over k in {64, 128, 192, 256}, twelve
+      named primes spanning small toy primes, primes adjacent to powers of two, and a 255-bit prime,
+      d in {1, 2, 4, 16}, and t in {1, 8, 32, 128} with the linear-in-t column. Run the two null arms
+      in the same script. The discriminating output is the pair of columns showing where delta_bits
+      is below 2 to the minus 40 bits and therefore irrelevant, and where it exceeds one bit and therefore
+      is not. If every entry in the grid is negligible, that is the measured obstruction: reduction
+      bias cannot be made to matter at these shapes and the record closes with that boundary stated.'
+    controls:
+    - Uniform synthetic mass vector pushed through the identical delta_bits code, which must return
+      exactly zero.
+    - Permuted true mass vector, which must return an identical delta_bits, confirming permutation
+      invariance of the greedy sum.
+    - p equal to a power of two, where the reduction is exactly uniform and r equals zero, giving
+      delta_bits exactly zero.
+    - Independent recomputation of the mass function by direct enumeration over all 2^k residues at
+      a tiny k such as 12, compared exactly against the closed form.
+    - A floating-point recomputation of the whole table run alongside the exact one, reported only
+      to show how many entries floating point silently rounds to zero.
+    required_metrics:
+    - r equal to 2^k mod p per grid cell
+    - exact high and low masses as rationals
+    - greedy adversary success sum as an exact rational
+    - delta_bits to 40 significant digits per (k, p, d, t)
+    - count of grid cells with delta_bits above one bit and below 2 to the minus 40
+    - the maximising p over the named list for each k
+    - null-arm delta_bits values
+  falsification_conditions:
+  - 'The uniform null returns nonzero delta_bits: the pipeline manufactures bits and no number may
+    be reported.'
+  - Direct enumeration at k equal to 12 disagrees with the closed-form mass function.
+  - delta_bits is not exactly linear in t at fixed (k, p, d), indicating the product form was mis-implemented.
+  - 'Every cell in the named grid has delta_bits below 2 to the minus 40, which closes the record
+    as a stated obstruction: at all shapes examined, reduction bias is unreachable in the accounting
+    and the direction is exhausted for those shapes.'
+  - The permuted-mass control returns a different delta_bits, showing the measurement depends on residue
+    identity and is therefore wrong.
+  confounders:
+  - Floating-point evaluation of log2 on near-unity ratios destroys the effect entirely; only exact
+    rationals followed by high-precision decimal avoid it.
+  - Conflating the adversary-optimal greedy sum with the average residue mass would report zero inflation
+    for every shape.
+  - A concrete hash's own non-uniformity is a separate source of bias and would be miscredited to
+    reduction if the two were measured together.
+  - The choice of the named prime list determines the extremal entry, so a list without primes adjacent
+    to powers of two would report a falsely negligible maximum.
+  - Repetition compounding assumes independence; applying the linear-in-t column to a shared-salt
+    protocol would overstate or understate the accounting.
+  interpretation_limits:
+  - The table is a statement about reduction arithmetic, not about any implementation; this record
+    examines no third-party code and names none.
+  - An inflation of delta_bits is only reachable by an adversary that can choose its attainable set;
+    where the protocol fixes A the number is an upper bound only.
+  - No claim follows about whether rejection sampling is or is not used anywhere, and no security
+    consequence for any system is asserted.
+  - The extremal p is a maximiser over a named finite list, not a proven global maximum over all primes
+    of a given size.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Table generation is O(number of grid cells) exact-rational
+      operations, effectively constant.
+    memory_exponent: No attack memory exponent is claimed. Memory is O(1) beyond the printed table;
+      the length-p mass vector is never materialised because the two-value structure collapses it
+      to three integers.
+    best_known: The incumbent is the standard practice of quoting soundness as d/p with reduction
+      bias absorbed into an unstated slack, together with the standard remedy of rejection sampling
+      or wide reduction. This record does not beat that practice; it computes the size of the slack
+      at named shapes.
+    hidden_overhead: 'Almost all of the cost is human: choosing a prime list that actually contains
+      the adverse shapes rather than only comfortable ones, and stating the adversary-choice assumption
+      precisely enough that the number is not silently promoted from an upper bound to an attained
+      value. The exact-arithmetic discipline is cheap but unforgiving; one float conversion voids
+      the table.'
+  dominated_by: n/a (no result claimed). Nothing is solved and no cost is claimed, so there are no
+    time, memory, or data frontier rows to compare; writing null here would be a fabrication.
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a table of signed
+    bit discrepancies at named parameters and carries no cost comparison against any algorithm.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Part A, that the exact two-value mass function and its greedy sum are
+    correctly derivable and implementable in exact arithmetic: about 0.97, this is arithmetic. Part
+    B, that the table contains at least one named shape with delta_bits above one bit: about 0.85,
+    since small k against a prime just above a power of two is constructible almost by definition,
+    though whether such a shape is a realistic protocol parameterisation is a separate and much weaker
+    claim I do not make. Part C, that the table contains any shape at cryptographic size, k equal
+    to 256 against a 255-bit prime, where delta_bits is non-negligible: about 0.03, and I expect this
+    to fail; the honest expectation is that the effect is astronomically small exactly where it would
+    matter, and the value of the record is that this becomes a computed boundary rather than an assumption.
+    Part D, that the table is reused by other RQ-WFS contracts as a standing correction term: about
+    0.5.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-WFS-e776b6
+  - IDEA-20260809-82e7ba
+  - IDEA-20260816-f05ef2
+  - IDEA-20260815-85378c
+  - IDEA-20260805-2a669e
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/README.md
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ZKARG-7af954

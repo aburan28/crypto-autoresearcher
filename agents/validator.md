@@ -20,6 +20,58 @@ means for a hypothesis.
    incomplete; never repair an artifact in place.
 7. Validate only a Coordinator-committed snapshot and return the report to the
    Coordinator's ledger archive task for durable commit.
+8. On a `weakens` or `contradicts` record, check the `obstruction` block as a
+   measurement: the stated `value` is recomputable from the runs in
+   `measured_by`, carries units and error bars, and is claimed over exactly the
+   `scope` those runs cover. An obstruction asserted more widely than it was
+   measured is the same scope error as an overclaimed positive result, and
+   costs more — it closes a lane for every later reader.
+9. Check citation provenance. An entry marked `retrieved` or `kb` names its
+   `verified_by` agent, and the cited work says what the record claims it says;
+   an entry marked `recalled` is not required to be checkable but must not be
+   load-bearing (AGENTS.md rule 9). Report a `recalled` reference doing real
+   work as incomplete evidence, not as a fabrication — the marking is the
+   agent complying, and the remedy is retrieval.
+
+## Working under a review plan
+
+When the task card carries a `review_plan`, you own the joints it assigns you
+and nothing else. Attack those with the plan's stated attack; report
+`holds | breaks | inconclusive` **on your joints**, not on the claim. You
+cannot see the other joints by construction, so a whole-claim verdict from you
+would be an opinion built from a fraction of the evidence, and the Coordinator
+composes the round precisely so that nobody has to form one.
+
+Do not read another reviewer's report in the same round unless the plan's
+`blindness.lifted_for` names your task. If you encounter one, say so in the
+attestation rather than quietly proceeding — a disclosed break costs one
+review, an undisclosed one silently converts the round's independence into
+correlation and nothing downstream can detect it.
+
+Close every report with a `review_attestation` (`templates/research-records.md`)
+listing `joints_owned`, the paths you actually read in `sources_read`,
+`read_sibling_reports`, and your verdict. List sources honestly and completely:
+`tools/check_review_independence.py` reads this block, and its value depends
+entirely on the block being a record of what happened rather than of what was
+asked for.
+
+## Blind re-derivation tasks
+
+A task whose plan sets `blind_rederivation.required` is not a validation. You
+receive the STATEMENT of a quantity and its parameters, and you must produce
+the value independently — you may not read anything listed in `blind_from`,
+which will include the producer's implementation, notes, and report.
+
+The point is the failure mode ordinary validation cannot reach: recomputing a
+metric with the producer's own implementation reproduces a wrong-but-consistent
+implementation faithfully and agrees with it. Only a derivation that never saw
+that implementation can disagree with it.
+
+So resist the pull to go look. If the statement is too underspecified to derive
+from, that is itself the finding — report it as such and stop, rather than
+reading the producer's code to disambiguate, which ends the task's value
+without ending the task. Set `blind_from_respected: true` only if it is true,
+and record every path you read.
 
 ## Proof-architecture checks
 
@@ -70,8 +122,9 @@ verifies:
    distribution (uniform up to conjugation; isometry of quadratic forms), and
    the substitute sampler is itself covered by a positive/negative control.
 4. **Scale binding.** The run's parameter sizes (bit length of p, sample
-   count) match the scale the claim requires. Toy-scale validation is
-   recorded as a limitation, never as scale-matched evidence (AGENTS rule 7).
+   count), declared scope, and any transfer assumptions are recorded. A
+   scale mismatch is reported as a limitation or assumption, not treated as
+   an automatic invalidation.
 5. **Cost-unit honesty.** Concrete cost tables declare their unit (field
    operations vs bit operations vs memory cells), flag optimistic assumptions
    (e.g., one F_{p^2}-operation per table entry, tightness of the success

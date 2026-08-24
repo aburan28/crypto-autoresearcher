@@ -1,0 +1,104 @@
+handoff:
+  id: TASK-20260810-c64cf0
+  recorded_at: '2026-08-10'
+  from: coordinator
+  to: executor
+  objective: >-
+    Gather, from git history alone, the factual record needed to reconcile stale
+    goal-head fields and stale dispatch-queue task states across the active
+    GOAL-* portfolio. This task ESTABLISHES FACTS ONLY. It writes no ledger
+    record, changes no goal or hypothesis status, opens no batch, and makes no
+    research claim of any kind.
+  uncertainty_reduced: >-
+    For each active goal: whether `research_goal.current_batch_id` and
+    `research_goal.next_action` still describe the true head of that campaign,
+    and for each dispatch-queue entry still at `state: queued` whether its
+    declared artifacts already exist in committed history under a real commit.
+    The reconciling Coordinator cannot answer either question: the coordinator
+    role has no `run_commands` capability, which is exactly why
+    TASK-20260807-dcfaee stopped short and recorded that filing reconstructed
+    hashes would itself be a fabrication under AGENTS.md core rule 5.
+  inputs:
+    - AGENTS.md
+    - agents/executor.md
+    - ledger/goals/
+    - coordination/goals/*/batches/*/dispatch_queue.json
+    - coordination/goals/GOAL-MLDSA-001/batches/BATCH-001/tasks/TASK-20260807-dcfaee/reconciliation.md
+    - ledger/handoffs/TASK-20260807-48b8f2.yaml
+  constraints:
+    - >-
+      READ-ONLY against the repository's records. Use only read-only git
+      subcommands (log, show, rev-parse, cat-file, ls-tree, hash-object).
+      Do not commit, do not stage, do not amend, do not rewrite history.
+    - >-
+      Write ONLY beneath the assigned write_scope. Do not edit any goal record,
+      dispatch queue, ledger record, or experiment contract. The stale fields
+      you are auditing must be left exactly as they are; correcting them is the
+      Coordinator's act in TASK-20260810-1b82fe, not yours.
+    - >-
+      NEVER RECONSTRUCT, INFER, OR GUESS A COMMIT SHA, PARENT SHA, OR PATH
+      HASH. Every sha you report must come from a git command you actually ran,
+      and the report must state the command. Where git cannot answer, write
+      UNRESOLVED and say what blocked it. A plausible-looking sha that no
+      command produced is a fabrication under AGENTS.md core rule 5 and is the
+      specific failure this task exists to avoid.
+    - >-
+      Report `queued` entries whose artifacts are ALREADY COMMITTED as
+      ARTIFACTS_PRESENT. Do not infer from that alone that the task "completed"
+      -- an artifact existing and a task being discharged are different claims,
+      and only the Coordinator may make the second.
+    - >-
+      Distinguish evidence strength explicitly. `current_batch_id` differing
+      from a later batch DIRECTORY is weak (a directory can be created by a
+      concurrent session and never used). A later batch with a COMMITTED
+      DECISION citing it is strong. Label every row.
+    - >-
+      Do not use directory mtime as evidence of anything. In a fresh clone it
+      records checkout time, not authorship.
+  deliverables:
+    - goal_head_audit.yaml
+    - queue_state_audit.yaml
+    - method.md
+  artifact_paths:
+    - coordination/reconciliation/RECON-20260810-001/tasks/TASK-20260810-c64cf0/goal_head_audit.yaml
+    - coordination/reconciliation/RECON-20260810-001/tasks/TASK-20260810-c64cf0/queue_state_audit.yaml
+    - coordination/reconciliation/RECON-20260810-001/tasks/TASK-20260810-c64cf0/method.md
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 2400
+    memory_gb: 2
+    maximum_runs: 1   # one execution of this task; experiment runs authorized = 0
+  completion_gate:
+    - >-
+      goal_head_audit.yaml covers EVERY goal whose status is `active`, one row
+      each, with: goal id, committed current_batch_id, committed next_action
+      (first 200 chars), the batches found under coordination/goals/<id>/batches/,
+      which of those are cited by a committed decision under ledger/decisions/,
+      a verdict of HEAD_CURRENT | HEAD_STALE | UNRESOLVED, and the evidence
+      strength label for that verdict.
+    - >-
+      queue_state_audit.yaml covers every dispatch_queue.json reachable from an
+      active goal's `dispatch_queue_path` plus any queue in that goal's batch
+      directories, listing each task entry still at `state: queued` with:
+      task id, role, declared artifact paths, whether each path exists in the
+      working tree, whether each is committed (and in which commit sha, from
+      `git log --diff-filter=A`), and ARTIFACTS_PRESENT | ARTIFACTS_ABSENT |
+      PARTIAL.
+    - >-
+      Every sha in both files is accompanied by the exact command that produced
+      it, and no field contains a value that no command produced.
+    - >-
+      method.md states the commands run, the repository commit the audit was
+      taken at (`git rev-parse HEAD`), and every limitation of the audit in
+      plain terms, including anything it could not resolve.
+  return_format: >-
+    A short YAML terminal verdict: counts of HEAD_CURRENT / HEAD_STALE /
+    UNRESOLVED, counts of ARTIFACTS_PRESENT queued entries, the three goals
+    whose staleness is already documented (GOAL-MLDSA-001, GOAL-ECDLP-001,
+    GOAL-AES-003) confirmed or contradicted, and the exact paths written.
+    No recommendation about what to change: that is the Coordinator's call.

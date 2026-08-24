@@ -1,0 +1,225 @@
+experiment:
+  id: EXP-SIDECH-58efa3
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-e9caa7; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-e9caa7
+  question_id: RQ-ECDSA-87625f
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Compute the exact posterior of a nonce under a simulated Hamming-weight-plus-Gaussian channel
+    at 16- and 32-bit widths, and report the induced effective leaked-bit count and error rate as
+    a function of assumed noise, against an independent-observation null.
+  objective: 'The one uncertainty a run reduces: whether the pair (l, e) that every nonce-leakage
+    cost model in this lane consumes can be DERIVED from an explicitly declared channel rather than
+    assumed, and what shape that derivation has. Concretely: (i) does the factorised-plus-carry-convolution
+    posterior agree with exhaustive brute force at a width where both are computable, which decides
+    whether the method is sound before it is used at any larger width; (ii) does the independent-observation
+    null return exactly zero effective leaked bits at every assumed noise level, which decides whether
+    the effective-bit statistic is measuring the observation or merely re-reading the nonce''s own
+    top-bit prior induced by truncation to the curve order; (iii) what is the shape of l_eff(sigma)
+    at target error rates 0.01 and 0.1 -- monotone and gradual, or a cliff -- since a cliff would
+    mean the map carries almost no information and the whole framing adds nothing to simply declaring
+    (l, e). The run answers these three and stops. It computes no attack, recovers no key, and produces
+    no cost.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''UNDER THE ASSUMED CHANNEL o_i =
+      HW(k_i) + N(0, sigma^2) with independent limbs and perfect alignment, at nonce width 16 and
+      32 bits with 8-bit limbs, the exact posterior yields effective leaked-bit counts l_eff(sigma)
+      at target error rates e, as tabulated, with the independent-observation null returning zero
+      at every cell.'' What does NOT follow: that any device emits such a channel; that any sigma
+      here corresponds to a measurable signal-to-noise ratio; that any key is recoverable; that the
+      numbers transfer to 256-bit nonces; that ECDSA as deployed is affected in any way; and anything
+      about what any published attack assumes. The antecedent of the conditional is UNVERIFIED AND
+      UNVERIFIABLE IN THIS ENVIRONMENT, which has no physical measurement capability, and every reported
+      number must be quoted with its antecedent attached.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~1 hour): write the channel definition and the assumption block verbatim
+      into the contract and the run manifest; fix limb width b=8 and L in {2, 4}. STAGE 1 (cost: ~2
+      hours): implement the log-domain per-limb likelihood and the exact carry convolution to the
+      top-l-bit distribution; implement the brute-force joint posterior for L=2. STAGE 2 (cost: minutes
+      CPU): agreement check between the two at L=2 over 2000 random observation vectors, tolerance
+      1e-9. STAGE 3 (cost: ~10 minutes CPU): sweep sigma in {0, 0.25, 0.5, 1, 2, 4, 8} and l in 1..12,
+      computing MAP accuracy over 20000 nonces per cell with recorded seeds, at L=2 and L=4. STAGE
+      4 (cost: minutes CPU): run the independent-observation null and the pure-noise null at every
+      cell; run the zero-observation top-bit prior control and the permuted-alignment control. STAGE
+      5 (cost: minutes): read off l_eff at e in {0.01, 0.05, 0.1}; report the curve with binomial
+      intervals from the 20000-nonce sample. STAGE 6 (cost: ~30 minutes): trace the instrumented nonce-consuming
+      routine to verify limb order matches the channel''s assumption, and record the verification
+      in the run record.'
+    instrument: Python 3 with numpy for log-domain likelihood arithmetic and convolution; the exact
+      posterior needs no special library at these widths. Toy curve arithmetic and the nonce-consuming
+      reference routine from harness/toycurve.py; run-record emission and seed handling through harness/runner.py
+      and src/crypto_autoresearcher/runner.py; sys.settrace or sys.monitoring from the standard library
+      for the STAGE 6 limb-order verification. No Sage. No lattice library is used and none is needed,
+      because no lattice step occurs anywhere in this contract. No physical measurement apparatus
+      is used, referenced, or simulated as if physical.
+    parameters: 'Limb width b = 8 bits. Limb counts L in {2, 4}, giving nonce widths 16 and 32 bits.
+      Noise levels sigma in {0, 0.25, 0.5, 1, 2, 4, 8} in Hamming-weight units. Target error rates
+      e in {0.01, 0.05, 0.1}. Leaked-bit counts l in 1..12. Nonces per cell: 20000, drawn uniformly
+      from [1, n-1] for a toy curve order n of the corresponding width. Brute-force agreement check:
+      2000 observation vectors at L=2, tolerance 1e-9. Seeds: 5 recorded master seeds. Null arms:
+      independent-observation and pure-noise, both at every cell.'
+  controls:
+  - Independent-observation null arm at every (sigma, l, e) cell, same code path.
+  - 'Pure-noise null: observations replaced by draws unrelated to any nonce.'
+  - 'Exhaustive ground truth at L=2: brute-force joint posterior compared to the factorised-plus-convolution
+    posterior, agreement required to 1e-9.'
+  - 'Top-bit prior control: l_eff computed for a hypothetical observer given zero observations, which
+    must return exactly 0 and quantifies the truncation-induced prior.'
+  - 'Alignment control: a run in which limb observations are randomly permuted before inference, which
+    must collapse l_eff toward the null.'
+  - Trace verification that the instrumented routine consumes nonce limbs in the assumed order.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical posterior computation run on an observation vector generated
+    INDEPENDENTLY of the nonce: o_i drawn from the marginal distribution of HW(uniform b-bit value)
+    plus the same Gaussian noise, but not from the actual nonce. Executed in the same invocation,
+    with the same code path and the same sigma grid. For the signal arm to mean anything the null
+    must show l_eff = 0 at every sigma and every target e, and the posterior entropy of the top l
+    bits must equal the prior entropy l to within numerical tolerance. A null that yields l_eff >
+    0 means the MAP-accuracy estimator is biased by the top-bit prior -- for instance because uniform
+    nonces truncated to a curve order are not uniform in their top bits -- and no signal number is
+    reportable until that is fixed. A second null uses sigma = infinity operationally (observations
+    replaced by pure noise) and must reproduce the same result.'
+  independent_variables:
+  - assumed noise level sigma
+  - limb count L (nonce width)
+  - leaked-bit count l
+  - target error rate e
+  - arm (signal, independent-observation null, pure-noise null)
+  metrics:
+    primary:
+    - l_eff at each (sigma, e)
+    - MAP accuracy of the top l bits per (sigma, l)
+    - posterior entropy of the top l bits in bits
+    - null-arm l_eff at every cell
+    secondary:
+    - maximum absolute posterior deviation, factorised versus brute force
+    - truncation-induced top-bit prior from the zero-observation control
+    - permuted-alignment arm l_eff
+    - wall time per cell, reported as cost only
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: l_eff(sigma) at each target error rate, and the null arm's value at the same cells.
+    formula: 'Predicted law: under the stated channel, the per-limb posterior entropy is H(k_i | o_i)
+      = H(k_i) - I(k_i ; o_i), and because the limbs are independent under the model the total pre-carry
+      posterior entropy is the sum of the per-limb terms. At sigma = 0 the observation reveals HW(k_i)
+      exactly, so the per-limb residual entropy is exactly log2(binom(8, HW)) averaged over the binomial
+      weight distribution, giving sum_w binom(8,w)/256 * log2(binom(8,w)) bits per limb -- a number
+      the run computes in closed form and must reproduce numerically to 1e-9. As sigma grows the per-limb
+      mutual information is predicted to decay smoothly toward zero and l_eff to be non-increasing.
+      The run PRE-COMMITS the sigma=0 closed form and the monotonicity, and explicitly does NOT pre-commit
+      the location of the l_eff transition, because that is the quantity the experiment exists to
+      measure and pre-committing it would make the run confirmatory.'
+    source: Pre-registered in the parent proposal IDEA-20260816-e9caa7 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at 16- and 32-bit nonce widths with 8-bit limbs, chosen because that is
+      exactly where the posterior is exactly computable and, at L=2, checkable against exhaustive
+      brute force. NO transfer to 256-bit nonces is claimed. The obstacle to transfer is stated: the
+      top-l-bit distribution depends on carry propagation across all limbs, and the exact convolution''s
+      cost and the shape of its result both change with L in ways this run measures at only two points,
+      which is not enough to fit a law. Any extrapolation would additionally have to assume the channel
+      model holds identically at cryptographic widths, which is an assumption about hardware this
+      environment cannot examine at all.'
+    correspondence: null
+  tail_checks:
+  - Examine the sigma=0 cell against the closed-form residual entropy, since that is the only cell
+    with an independent analytic prediction.
+  - Examine the largest-l cells, where MAP accuracy approaches the binomial floor and the 20000-nonce
+    sample is least informative.
+  - Examine nonces in the top and bottom 1 percent of the order range, where truncation effects are
+    strongest.
+  - Examine the largest sigma cell for numerical underflow in the log-domain likelihood.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt before any sweep if the L=2 brute-force agreement check exceeds 1e-9; the fast path is wrong
+    and no result is reported.
+  - Halt and report if the independent-observation null returns nonzero l_eff at any cell.
+  - Stop at L=4; do not extend to larger L in search of a smoother curve.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The factorised posterior agrees with brute force to 1e-9 at L=2, both null arms
+    return l_eff = 0 at every cell, the sigma=0 cell reproduces the closed-form residual entropy to
+    1e-9, and l_eff(sigma) is non-increasing -- yielding a reportable channel-to-(l_eff, e) table
+    under its stated antecedent.
+  falsification_criterion:
+  - Brute-force agreement worse than 1e-9 at L=2.
+  - Either null arm returns l_eff greater than 0 at any cell.
+  - The sigma=0 cell disagrees with the closed-form residual entropy beyond 1e-9.
+  - l_eff is non-monotone in sigma beyond binomial error.
+  - The permuted-alignment control does not collapse l_eff toward the null, showing the inference
+    ignores limb order.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-e9caa7
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - How the exact carry convolution scales past L=4 is not derived, and the contract states no growth
+    law; a Coordinator must decide whether two L points are worth reporting at all.
+  - The choice of an independent-Gaussian channel over any correlated alternative is a modelling decision
+    with no justification inside this program and must be recorded as such.
+  - Whether l_eff at a target e is the right summary of a posterior, as opposed to reporting the full
+    posterior entropy curve, is unresolved; the two can disagree about which sigma is 'better' for
+    an adversary.
+  - The alignment assumption is flagged but no cost is attached to relaxing it, leaving a gap between
+    this object and anything an attack would consume.

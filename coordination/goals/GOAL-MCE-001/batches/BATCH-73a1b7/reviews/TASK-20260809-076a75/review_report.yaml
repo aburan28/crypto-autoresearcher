@@ -1,0 +1,505 @@
+review_report:
+  task_id: TASK-20260809-076a75
+  goal_id: GOAL-MCE-001
+  batch_id: BATCH-73a1b7
+  role: reviewer
+  reviewer_independent_session: true
+  reviewed_snapshot:
+    commit: 92d238396d38a07a4c117acf71a5870be67735c7
+    commit_title: >-
+      GOAL-MCE-001 BATCH-73a1b7: snapshot-archive TASK-20260809-3e30b8's
+      claim-class audit deliverables (TASK-20260809-0b6630)
+    worktree_head_at_time_of_review: 469ab6e0e
+    worktree_head_note: >-
+      469ab6e0e is the immediate child of the reviewed snapshot commit; it
+      only backfills TASK-20260809-0b6630's commit_sha/path_sha256 into
+      dispatch_queue.json and does not touch any of the 8 declared
+      claim-class artifacts. Confirmed by `git show 469ab6e0e --stat`
+      (touches only dispatch_queue.json).
+    produced_by_me: >-
+      Exactly one file, this report, under my declared write_scope
+      coordination/goals/GOAL-MCE-001/batches/BATCH-73a1b7/reviews/TASK-20260809-076a75/.
+      No commit was made. All scratch construction (my independent evasion
+      probe, the mutation test) lives under the session scratchpad, outside
+      both the repository and any git worktree, and was not written to
+      knowledge/, tools/, or any producer's task directory.
+
+  # ===========================================================================
+  # COMPLETION-GATE ITEM 1: independently reconstructed evasion case
+  # ===========================================================================
+  reconstructed_evasion_case:
+    form_chosen: B4
+    why_this_form: >-
+      Picked B4 (block sequence with a trailing comment) because it exercises
+      a distinct failure mode from B2/B3/B5 -- it breaks AUDIT-2's
+      `[[:space:]]*$` anchor rather than AUDIT-1's delimiter-adjacency
+      regex -- and because it is easy to build a version that is structurally
+      distinguishable from the Executor's fixture (different tag order, an
+      extra decoy tag, different frontmatter fields, different comment
+      wording) while remaining a faithful instance of the specification.
+    specification_source: >-
+      coordination/goals/GOAL-MCE-001/batches/BATCH-a68f79/reviews/TASK-20260808-ea7bed/validation_report.yaml
+      lines 644-652, control_checks C-4, entry `id: B4`: form "block sequence
+      with a trailing comment -- `  - distinguisher  # claim class`"; why
+      "AUDIT-2 anchors with [[:space:]]*$. A comment after the token breaks
+      the anchor." Read directly from that file by me before writing the
+      fixture below; not copied from tools/fixtures/claim_class_evasions/b4_block_trailing_comment.md
+      (which I also read, separately, for the "does the fixture correctly
+      live outside knowledge/" check -- but did not use as a template).
+    my_constructed_yaml_verbatim: |
+      ---
+      id: KN-LIT-zz9999
+      title: "Reviewer-constructed R-CC-1 evasion probe (independent reconstruction of C-4 form B4)"
+      tags:
+        - key-recovery  # deliberately listed first, opposite order from the executor's fixture
+        - some-other-tag
+        - distinguisher  # trailing inline comment breaks AUDIT-2's [[:space:]]*$ anchor
+      supersedes: null
+      superseded_by: null
+      ---
+
+      This file is a REVIEWER-BUILT (not executor-copied) regression probe. It was
+      constructed directly from validation_report.yaml's control_checks C-4 entry
+      for evasion B4: "block sequence with a trailing comment -- `  - distinguisher
+      # claim class` ... AUDIT-2 anchors with [[:space:]]*$. A comment after the
+      token breaks the anchor." The exact wording, tag order, extra decoy tag
+      (`some-other-tag`), and surrounding frontmatter fields here are my own and do
+      not appear in tools/fixtures/claim_class_evasions/b4_block_trailing_comment.md.
+      It is a genuine R-CC-1 violation under the vocabulary in
+      knowledge/TAG-CLAIM-CLASS.md section 1: both `distinguisher` and
+      `key-recovery` are top-level list tags on this entry.
+    file_location: >-
+      <scratchpad>/reviewer-independent-check/probe_root/knowledge/literature/my_b4_reconstruction.md
+      -- session scratchpad only, outside the repository; nothing written
+      under the repo's knowledge/ or elsewhere.
+    step_1_semantic_sanity_check:
+      command: |
+        python3 -c "
+        import yaml
+        text = open('.../my_b4_reconstruction.md').read()
+        block = text.split('---', 2)[1]
+        fm = yaml.safe_load(block)
+        print('parsed frontmatter tags:', fm['tags'])
+        print('is a violation under R-CC-1 (both tokens present)?', {'distinguisher','key-recovery'} <= set(fm['tags']))
+        "
+      output: |
+        parsed frontmatter tags: ['key-recovery', 'some-other-tag', 'distinguisher']
+        is a violation under R-CC-1 (both tokens present)? True
+    step_2_confirm_old_audit_1_misses_it:
+      command: |
+        cd <probe_root>
+        grep -rlE '^tags:.*(\[|,) ?distinguisher(,|\])' knowledge/ \
+        | xargs -r grep -lE '^tags:.*(\[|,) ?key-recovery(,|\])' \
+        | while read -r f; do
+            grep -qE '^superseded_by: *KN-' "$f" && continue
+            id=${f##*/}; id=${id%.md}
+            grep -rhE '^supersedes:' knowledge/ \
+              | grep -oE 'KN-[A-Z]+-[0-9A-Za-z]+' \
+              | grep -qx "$id" || printf '%s\n' "$f"
+          done
+      output: "(empty)"
+      result: MISSED, as expected -- confirms the evasion is genuine against AUDIT-1, verbatim from knowledge/TAG-CLAIM-CLASS.md section 2.
+    step_3_confirm_old_audit_2_misses_it:
+      command: |
+        grep -rlE '^[[:space:]]*-[[:space:]]+(distinguisher|key-recovery)[[:space:]]*$' knowledge/
+      output: "(empty)"
+      result: MISSED, as expected -- the trailing `# ...` comment breaks the `$` anchor, verbatim from knowledge/TAG-CLAIM-CLASS.md section 3.
+    step_4_confirm_new_audit_catches_it:
+      command: |
+        cd /Volumes/SSD990/wt-mce-reviewer
+        python3 tools/claim_class_audit.py <probe_root>/knowledge --report-skipped
+      output: >-
+        <probe_root>/knowledge/literature/my_b4_reconstruction.md
+      exit_code: 0
+      result: CAUGHT. tools/claim_class_audit.py, run exactly as committed in the
+        reviewed snapshot (no modification), reports the path of my
+        independently constructed fixture. No skip was reported, so the
+        catch is not an accidental parse-error side effect.
+    conclusion: >-
+      PASS on this completion-gate item. I built a B4-form evasion myself
+      directly from the validation_report.yaml specification text, verified
+      it is semantically a genuine R-CC-1 violation, confirmed both legacy
+      regex audits miss it, and confirmed tools/claim_class_audit.py (the
+      committed, unmodified script) catches it. This is independent of, and
+      was performed before consulting the outcome of, the Executor's own
+      test suite.
+
+  # ===========================================================================
+  # COMPLETION-GATE ITEM 2: byte-identity of TAG-CLAIM-CLASS.md
+  # ===========================================================================
+  byte_identity_check:
+    method: >-
+      git history + sha256, not a visual diff. First found every commit that
+      ever touched the file, then compared its content across three points:
+      the commit that introduced it, this batch's parent commit, and HEAD.
+    commands_and_output:
+      - command: "git log --oneline -- knowledge/TAG-CLAIM-CLASS.md"
+        output: "c32b4b5dc research: GOAL-MCE-001 — \"distinguisher is not break\" is now machine-enforceable"
+        note: >-
+          Exactly ONE commit in the file's entire history. It was never
+          touched again, including by this batch.
+      - command: "git diff 86eeab38b -- knowledge/TAG-CLAIM-CLASS.md"
+        output: "(empty)"
+        exit_code: 0
+        note: "86eeab38b is BATCH-73a1b7's opening commit, i.e. this batch's starting point."
+      - command: "git diff HEAD -- knowledge/TAG-CLAIM-CLASS.md"
+        output: "(empty)"
+        exit_code: 0
+      - command: "git diff --exit-code c32b4b5dc HEAD -- knowledge/TAG-CLAIM-CLASS.md"
+        output: "(empty)"
+        exit_code: 0
+      - command: "git show c32b4b5dc:knowledge/TAG-CLAIM-CLASS.md | shasum -a 256"
+        output: "94d2aeb1aa06e9ec57059fb5e9b02d3469e38c2169c12f2704d6330213492ecd"
+      - command: "git show 86eeab38b:knowledge/TAG-CLAIM-CLASS.md | shasum -a 256"
+        output: "94d2aeb1aa06e9ec57059fb5e9b02d3469e38c2169c12f2704d6330213492ecd"
+      - command: "git show HEAD:knowledge/TAG-CLAIM-CLASS.md | shasum -a 256"
+        output: "94d2aeb1aa06e9ec57059fb5e9b02d3469e38c2169c12f2704d6330213492ecd"
+      - command: "shasum -a 256 knowledge/TAG-CLAIM-CLASS.md   # working tree"
+        output: "94d2aeb1aa06e9ec57059fb5e9b02d3469e38c2169c12f2704d6330213492ecd"
+    result: >-
+      CONFIRMED BYTE-IDENTICAL across its introducing commit, this batch's
+      parent commit, HEAD, and the working tree -- four independent sha256
+      computations agree, plus a zero-exit-code git diff at three different
+      base points. This is a re-derivation, not a re-assertion of the
+      Executor's or Coordinator's own "git diff --exit-code" claim.
+
+  # ===========================================================================
+  # COMPLETION-GATE ITEM 3: fixtures live outside knowledge/
+  # ===========================================================================
+  fixture_location_check:
+    command: "find tools/fixtures/claim_class_evasions -type f; find knowledge -iname '*evasion*' -o -iname 'b[1-5]_*'"
+    result: >-
+      All 5 fixtures (b1_nested_flow.md, b2_multiline_flow.md,
+      b3_quoted_flow.md, b4_block_trailing_comment.md, b5_block_quoted.md)
+      are under tools/fixtures/claim_class_evasions/. The knowledge/ search
+      returns nothing. Also confirmed by code inspection:
+      `DEFAULT_ROOT = os.path.join(REPO_ROOT, "knowledge")` in
+      tools/claim_class_audit.py, so a default (no-argument) run never
+      touches tools/fixtures/ at all, and a default run of
+      tools/build_knowledge_index.py (which only walks knowledge/) would
+      never index them either.
+    status: pass
+
+  # ===========================================================================
+  # COMPLETION-GATE ITEM 4 (part A): GATE-A break-attempt genuineness
+  # ===========================================================================
+  gate_a_assessment:
+    what_gate_a_required: >-
+      Per the original TASK-20260809-3e30b8 handoff (read from
+      dispatch_queue.json): "(i) Recorded attempt to break YOUR OWN new
+      script -- try genuinely adversarial cases beyond B1-B5 ... and report
+      the outcome for each, whether or not it broke the script. (ii)
+      Positive control ... 'it prints nothing' is not by itself a result."
+      completion_gate literally requires "a recorded attempt ... with
+      outcomes reported whether or not they succeeded."
+    what_i_could_actually_check: >-
+      tools/claim_class_audit.py's and tools/test_claim_class_audit.py's
+      docstrings/comments repeatedly cite "the execution report" as the
+      authoritative source of the GATE-A log (e.g. "See the execution
+      report's GATE-A log (case G11)"; "GATE-A case G12 (see execution
+      report)"; "GATE-A case G13"). I searched the entire reviewed commit
+      and the whole repository for any file literally named
+      execution_report* or containing the string "execution report" that
+      is NOT tools/claim_class_audit.py or tools/test_claim_class_audit.py
+      themselves, and found none for this task. TASK-20260809-3e30b8's
+      write_scope in dispatch_queue.json is exactly
+      [tools/claim_class_audit.py, tools/test_claim_class_audit.py,
+      tools/fixtures/claim_class_evasions, knowledge/TAG-CLAIM-CLASS-v2.md]
+      -- there was never a declared path for a durable execution-report
+      artifact, even though the task's own return_format asked for
+      "the GATE-A break-attempt log with outcomes." That log therefore
+      only ever existed, at best, in the Executor's own chat response,
+      which AGENTS.md's messaging section is explicit is not a durable
+      deliverable ("a result that exists only in a peer's message never
+      happened"). CONSEQUENCE: the citations to "the execution report" in
+      the committed code are DANGLING -- they point at a document that was
+      never committed and is not recoverable from this repository.
+    what_IS_verifiable_and_genuine: >-
+      The specific adversarial cases that got baked into
+      tools/test_claim_class_audit.py (which IS committed and IS in
+      write_scope) are real, non-decorative, and cover genuinely distinct
+      failure modes:
+      - G11 (tags as a YAML `!!set` node): I MUTATION-TESTED this claim
+        rather than trusting the docstring. I copied claim_class_audit.py,
+        removed `set`/`frozenset` from the isinstance check in `tag_set()`
+        (simulating the "before the fix" version the docstring describes),
+        and re-ran `tag_set({'tags': {'distinguisher', 'key-recovery'}})`
+        against both versions. The mutated (naive) version returns `set()`
+        (MISSES the violation); the real, committed version returns
+        `{'distinguisher', 'key-recovery'}` (CATCHES it). This directly
+        confirms the docstring's claim that "the set/frozenset branch is
+        load-bearing, not decorative" and that G11 was a genuine
+        find-and-fix, not padding.
+      - G12 (mapping-shaped tags, `tags: {distinguisher: true, key-recovery:
+        true}`): disclosed as a KNOWN, DELIBERATELY UNFIXED gap, both in
+        the script's docstring and in TAG-CLAIM-CLASS-v2.md section 4. A
+        padding-only GATE-A attempt would not disclose an unfixed gap in
+        the artifact it is trying to look thorough for; disclosing it
+        against one's own interest is evidence of genuineness, not against
+        it.
+      - G13 (`!!python/tuple` type tag): security-relevant -- confirms
+        `yaml.safe_load` (never `yaml.load`/`full_load`) is used and that
+        an attempt to smuggle an arbitrary Python object through the tags
+        value is refused, not executed or silently accepted. I confirmed
+        by direct import that `extract_frontmatter` on this input returns
+        `(None, "YAML parse error: ...")`, i.e. rejected, not raised.
+      - Additional genuinely distinct cases exercised in
+        ExtractFrontmatterTests/ScanRobustnessTests/TagSetUnitTests: two
+        `---`-delimited blocks in one file (only the first is frontmatter),
+        a non-mapping frontmatter block (bare YAML list), unterminated
+        frontmatter, invalid YAML syntax, a bare-string `tags` value (the
+        classic `set("distinguisher")` character-exploding bug), non-string
+        list members (int/dict/bool), and a nonexistent scan root. These
+        are not near-duplicates of each other or of B1-B5; each targets a
+        different code path (type confusion, YAML security, malformed
+        input, scan robustness).
+    genuineness_verdict: >-
+      SUBSTANCE: genuinely adversarial, not trivial padding -- confirmed by
+      a mutation test on the one case (G11) where genuineness was
+      independently checkable, and by the disclosed-but-unfixed status of
+      G12, which a padding exercise would not produce.
+      TRACEABILITY: broken. The completion gate asks for "a recorded
+      attempt ... with outcomes reported," and what is actually recorded is
+      only the subset of cases that survived into permanent unit tests
+      (all "caught"/"handled correctly" outcomes), plus dangling citations
+      to a non-existent "execution report" that would have been the only
+      place a case that was TRIED AND DID NOT NEED FIXING, or tried and
+      abandoned, would show up. I cannot rule out that some attempted case
+      is missing from this account, because the only place that would be
+      recorded is gone. This is a real, in-kind gap (comparable to
+      VAL-20260808-71bdb1's S-1b: a citation that does not resolve to what
+      it claims to), not a fabrication -- everything the citations point at
+      that I COULD check turned out to be true.
+    status: genuine_but_incompletely_traceable
+
+  # ===========================================================================
+  # COMPLETION-GATE ITEM 4 (part B): does v2 correctly supersede v1?
+  # ===========================================================================
+  superseding_relationship_check:
+    non_edit_of_v1_confirmed: see byte_identity_check above -- v1 is untouched.
+    scope_of_supersession_as_declared: >-
+      TAG-CLAIM-CLASS-v2.md states explicitly it "supersedes sections 2 and
+      3 ONLY" (AUDIT-1, AUDIT-2) and carries section 1 (the vocabulary,
+      R-CC-1 through R-CC-6) forward "unchanged," restating it in full for
+      readability, and restates+extends section 4 ("what the audit does NOT
+      do").
+    vocabulary_diff_performed: >-
+      I extracted each RULE R-CC-N block from both files by regex and diffed
+      them programmatically rather than eyeballing.
+    vocabulary_diff_result:
+      R-CC-1: "identical content; only line-wrap whitespace differs."
+      R-CC-2: "identical content; only line-wrap whitespace differs."
+      R-CC-3: "identical content; only line-wrap whitespace differs (one 'below' dropped, harmless -- v2 no longer has an 'AUDIT below' to refer to)."
+      R-CC-4: >-
+        Core normative sentence preserved verbatim ("A tag that merely
+        *contains* one of these strings is a different tag and is
+        unaffected," same three example tags). v2 ADDS a paragraph
+        explaining the new audit satisfies the same rule structurally (set
+        membership) rather than by regex boundary logic. Addition, not
+        contradiction.
+      R-CC-5: >-
+        Core normative sentence preserved verbatim ("Every new or
+        superseding entry writes `tags` as a YAML flow list..."). v2 ADDS
+        that the new audit does not depend on this rule for correctness
+        (since it parses any legal serialisation) but the rule itself still
+        binds for readability/other tooling. Addition, not contradiction --
+        and this addition is important: it correctly does NOT claim R-CC-5
+        is obsolete, which would have been the actual contradiction risk.
+      R-CC-6: >-
+        Core normative sentence preserved verbatim ("A wrongly-classified
+        entry is never re-tagged in place..."). v2 REMOVES v1's explanation
+        of how AUDIT-1's shell pipeline specifically parsed `supersedes:`
+        lines (no longer applicable -- the new script does not implement a
+        supersession-drop stage at all) and REPLACES it with an explicit
+        statement that this is so, cross-referenced to section 4. This is
+        the one rule where v2's restatement is NOT merely additive -- it
+        drops operative detail because the new mechanism genuinely doesn't
+        do what that detail described. This is disclosed accurately, not
+        silently: v2 states in its own "Why this file exists" preamble and
+        again in section 4 that the new audit "does NOT replicate AUDIT-1's
+        supersession-drop stage, and this is a deliberate scope decision."
+    consequence_of_dropping_supersession_awareness_independently_verified: >-
+      Ran `python3 tools/claim_class_audit.py` (default root, i.e. against
+      the real knowledge/ corpus) myself. Output: exactly
+      knowledge/literature/KN-LIT-13a01d.md, KN-LIT-71d1a0.md,
+      KN-LIT-7ee1a9.md, KN-LIT-e37d4c.md -- four lines, matching
+      TAG-CLAIM-CLASS-v2.md section 4's stated consequence exactly. I then
+      independently confirmed each of these four IS already retired via a
+      `supersedes:` pointer from a live entry (KN-LIT-3c9f21 supersedes
+      13a01d; KN-LIT-a4d70e supersedes 71d1a0; KN-LIT-6b1fc8 supersedes
+      7ee1a9; KN-LIT-d82a53 supersedes e37d4c), i.e. these four "hits" are
+      the same four VAL-20260808-71bdb1 control_check C-3 identified as
+      real-but-retired, not a new or hidden regression. So v2's disclosure
+      is accurate and its behavior claim reproduces exactly.
+    contradiction_check: >-
+      No sentence in v2 asserts something v1 denies, or vice versa. v2's
+      "What this audit does NOT do" (section 4) is a superset of v1's four
+      original bullets plus new ones specific to the new mechanism
+      (mapping-shaped tags, unsafe YAML type tags, no supersession-drop
+      stage, `*.md`-only scope) -- it does not delete or soften any of v1's
+      original four.
+    status: correctly_supersedes_no_duplication_no_contradiction
+
+  # ===========================================================================
+  # TEST SUITE INDEPENDENT RERUN -- NOT my independent evasion case
+  # ===========================================================================
+  test_suite_independent_rerun:
+    label: >-
+      THIS IS NOT THE INDEPENDENT EVASION CASE REQUIRED BY THE TASK CARD.
+      It is a rerun, by me, of the Executor's OWN test file
+      (tools/test_claim_class_audit.py), which the task card explicitly
+      says does not by itself count as independent verification. Recorded
+      separately and labeled as such, per instructions.
+    command: "python3 -m unittest tools.test_claim_class_audit -v"
+    test_count_declared_by_executor: 27
+    test_count_confirmed_by_grep: 27
+    grep_command: "grep -c 'def test_' tools/test_claim_class_audit.py"
+    result: "Ran 27 tests in 0.003s -- OK. 27/27 pass, matching the Executor's and Coordinator's claim."
+    status: confirmed_but_not_independent_evidence_on_its_own
+
+  # ===========================================================================
+  # ADDITIONAL CHECKS PERFORMED (not required by the completion gate, done for coverage)
+  # ===========================================================================
+  additional_checks:
+    - id: AC-1
+      what: "python3 tools/validate_ledger.py, rerun by me"
+      result: "OK: validated 5564 records, no new violations -- matches the Coordinator's snapshot receipt claim exactly."
+      status: pass
+    - id: AC-2
+      what: "Direct (non-unittest) invocation of the audit script against the fixture directory."
+      command: "python3 tools/claim_class_audit.py tools/fixtures/claim_class_evasions --report-skipped"
+      output: |
+        tools/fixtures/claim_class_evasions/b2_multiline_flow.md
+        tools/fixtures/claim_class_evasions/b3_quoted_flow.md
+        tools/fixtures/claim_class_evasions/b4_block_trailing_comment.md
+        tools/fixtures/claim_class_evasions/b5_block_quoted.md
+      result: >-
+        B2/B3/B4/B5 caught, B1 correctly not caught, zero skips reported --
+        matches the positive-control claim (GATE-A ii) independently of the
+        unittest runner.
+      status: pass
+    - id: AC-3
+      what: >-
+        Dispatch-queue bookkeeping observation, not part of the completion
+        gate, recorded per AGENTS.md rule 8 (unexpected observations are
+        recorded, not silently discarded).
+      finding: >-
+        In dispatch_queue.json, TASK-20260809-3e30b8's own `state` field
+        reads "queued," not "completed," even though its declared
+        deliverables are committed and archived in 92d238396 /
+        TASK-20260809-0b6630 (whose state IS "completed"). This is a
+        bookkeeping inconsistency in the coordination record, not a defect
+        in the audit tool or its tests: every artifact I checked is present,
+        hash-bound, and correct. Flagged for the Coordinator to correct the
+        queue state, not scored against this review's verdict.
+      status: observation
+
+  # ===========================================================================
+  verdict: CONDITIONAL_PASS
+  # ===========================================================================
+  verdict_reasons:
+    - >-
+      All four of the completion gate's directly-checkable items hold under
+      independent re-derivation, not producer assertion: (1) I built my own
+      B4-form evasion from the validation_report.yaml specification text,
+      confirmed both legacy audits miss it, and confirmed
+      tools/claim_class_audit.py catches it. (2) knowledge/TAG-CLAIM-CLASS.md
+      is byte-identical across its single commit, the batch's parent
+      commit, HEAD, and the working tree, by sha256 and by `git diff
+      --exit-code` at three base points. (3) The five fixtures verifiably
+      live under tools/fixtures/claim_class_evasions/, not knowledge/, and
+      the script's default root cannot reach them. (4) TAG-CLAIM-CLASS-v2.md
+      supersedes only AUDIT-1/AUDIT-2, carries the R-CC-1..R-CC-6 vocabulary
+      forward with only additive (never contradictory) changes verified by
+      a programmatic rule-by-rule diff, and its one non-additive change
+      (dropping supersession-awareness) is disclosed and its stated
+      consequence (4 known legacy hits) reproduces exactly when I ran the
+      real script against the real corpus myself.
+    - >-
+      The GATE-A break-attempt's SUBSTANCE is genuine, not trivial padding:
+      I mutation-tested the load-bearing claim about case G11 (YAML !!set
+      tags) by removing the fix and confirming the naive version really
+      does miss the violation while the committed version catches it; case
+      G12 is a disclosed, deliberately-unfixed gap, which a padding exercise
+      would not produce; case G13 is a real security-relevant check
+      (safe_load refusing an unsafe type tag); and the remaining cases in
+      the test suite cover genuinely distinct failure modes (parse
+      robustness, type confusion, malformed input).
+    - >-
+      However, the GATE-A break-attempt's TRACEABILITY is broken:
+      tools/claim_class_audit.py and tools/test_claim_class_audit.py
+      repeatedly cite "the execution report" as the authoritative source of
+      the GATE-A log, and no such document exists anywhere in this
+      repository, is not in TASK-20260809-3e30b8's write_scope, and was not
+      part of the Coordinator's snapshot commit. Per AGENTS.md's messaging
+      rules, anything that existed only in the Executor's chat response is
+      not a durable artifact. This means the completion gate's explicit
+      requirement -- "a recorded attempt ... with outcomes reported whether
+      or not they succeeded" -- is only partially satisfiable from the
+      committed record: I can verify the cases that survived into permanent
+      tests, but not whether other adversarial cases were tried and
+      abandoned, or whether the full account the dangling citations promise
+      ever existed as claimed. This is a real, in-kind gap (comparable to
+      VAL-20260808-71bdb1 finding S-1b: a citation that does not resolve to
+      what it claims), not a fabrication of any result I was able to check.
+    - >-
+      This gap does not touch the correctness of the shipped script, tests,
+      fixtures, or the superseding document -- all of which I independently
+      re-derived as correct -- so it does not warrant FAIL. It does mean the
+      claim "GATE-A was satisfied" rests on dangling citations rather than
+      an inspectable artifact, which is exactly the kind of thing a
+      completion gate is supposed to make checkable.
+  required_fixes:
+    - >-
+      Either (a) produce and archive a genuine execution_report artifact
+      for TASK-20260809-3e30b8 under its task directory, containing the
+      full GATE-A break-attempt log (every case tried, including any tried
+      and found not to break the script, and any tried and abandoned) with
+      outcomes -- reconstructed honestly from memory/notes if the original
+      is truly gone, and explicitly marked as reconstructed if so; or (b)
+      amend the "see the execution report" citations in
+      tools/claim_class_audit.py and tools/test_claim_class_audit.py to
+      point at what actually exists and is committed (e.g. "see
+      TagSetUnitTests / ExtractFrontmatterTests in
+      tools/test_claim_class_audit.py") so a future reader is not sent to a
+      document that resolves to nothing. Either fix closes this item; doing
+      neither leaves a dangling citation in a file whose whole purpose is
+      auditability.
+    - >-
+      Correct dispatch_queue.json's `state` field for TASK-20260809-3e30b8
+      from "queued" to "completed" (or whatever state the dispatcher's
+      convention uses once a task's deliverables are archived), so the
+      coordination record matches the committed reality. Minor, does not
+      block promotion of this review's substantive findings, but should not
+      be carried forward silently.
+
+  claim_boundary: >-
+    This report establishes nothing about Classic McEliece, ECDLP, or any
+    cryptosystem's security. It establishes only whether a claim-class
+    tag-audit tool and its supporting artifacts do what they are claimed to
+    do, and whether a knowledge-corpus bookkeeping supersession was done
+    correctly. It licenses no promotion beyond that scope.
+
+  tools_used:
+    - "python3 3.13 (yaml, unittest, hashlib via shasum)"
+    - "git (read-only: log, show, diff --exit-code, status)"
+    - "BSD grep / xargs / zsh (for re-running the two legacy regex audits verbatim)"
+    - "shasum -a 256"
+    - "python3 tools/validate_ledger.py (read-only)"
+
+  artifact_paths:
+    - coordination/goals/GOAL-MCE-001/batches/BATCH-73a1b7/reviews/TASK-20260809-076a75/review_report.yaml
+
+  artifacts_reviewed:
+    - tools/claim_class_audit.py
+    - tools/test_claim_class_audit.py
+    - tools/fixtures/claim_class_evasions/b1_nested_flow.md
+    - tools/fixtures/claim_class_evasions/b2_multiline_flow.md
+    - tools/fixtures/claim_class_evasions/b3_quoted_flow.md
+    - tools/fixtures/claim_class_evasions/b4_block_trailing_comment.md
+    - tools/fixtures/claim_class_evasions/b5_block_quoted.md
+    - knowledge/TAG-CLAIM-CLASS.md
+    - knowledge/TAG-CLAIM-CLASS-v2.md
+    - coordination/goals/GOAL-MCE-001/batches/BATCH-a68f79/reviews/TASK-20260808-ea7bed/validation_report.yaml
+    - coordination/goals/GOAL-MCE-001/batches/BATCH-73a1b7/dispatch_queue.json
+    - coordination/goals/GOAL-MCE-001/batches/BATCH-73a1b7/archives/TASK-20260809-0b6630/snapshot-receipt.json
