@@ -430,14 +430,15 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
     assert len(diagnostics.registered_source_paths) >= 70
     assert diagnostics.matched_registered_source_paths == diagnostics.registered_source_paths
     assert diagnostics.unmatched_registered_source_paths == []
-    registered_set = set(diagnostics.registered_source_paths)
-    redirects_into_registered_targets = sum(
-        1
+    # A redirect still contributes one artifact-bearing canonical document.
+    # Only a redirect whose target is itself another registered source merges
+    # two registrations into one staged document (the H-XOR chain below).
+    redirects_into_registered_sources = sum(
+        item.target_path in diagnostics.registered_source_paths
         for item in diagnostics.redirect_suppressions
-        if item.target_path in registered_set
     )
     assert sum(bool(item.metadata.get("verification_artifacts")) for item in documents) == (
-        len(diagnostics.registered_source_paths) - redirects_into_registered_targets
+        len(diagnostics.registered_source_paths) - redirects_into_registered_sources
     )
 
     # The debt stays exact where the counts became floors. Disclosed debt is
@@ -505,10 +506,10 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
     # debt and must be reviewed into this pin. The SSI rows restore two
     # historical experiment aliases that validate_ledger already required;
     # H-XOR-YIELD remains the sole ledger-side alias redirect.
-    assert sorted(item.source_path for item in diagnostics.redirect_suppressions) == [
+    assert [item.source_path for item in diagnostics.redirect_suppressions] == [
+        "ledger/hypotheses/H-XOR-YIELD.yaml",
         "experiments/EXP-SSI-16649/specification.yaml",
         "experiments/EXP-SSI-a6132d/specification.yaml",
-        "ledger/hypotheses/H-XOR-YIELD.yaml",
     ]
     assert {
         (item.source_path, item.target_path, item.redirect_id)
