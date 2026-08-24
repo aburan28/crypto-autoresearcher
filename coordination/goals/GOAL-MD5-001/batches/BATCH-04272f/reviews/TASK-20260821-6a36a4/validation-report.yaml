@@ -1,0 +1,408 @@
+# Validation report -- TASK-20260821-6a36a4 (RANK 6, independent run-integrity validation).
+#
+# GOAL-MD5-001 / BATCH-04272f / RQ-MDFIVE-6870c1.
+# Joint L6 (run-integrity seven checks) per the pre-committed review plan
+# (review-plan-02d397.yaml, joint L6, assigned_to: TASK-20260821-6a36a4).
+# Sibling-blind: TASK-20260821-02d397 (red team) runs concurrently; its
+# report was NOT read. The MD5 quarantined payload was NEVER read (hash-only).
+# Every check was RE-RUN in this session; the grounding for each verdict is
+# the command + output produced below.
+
+validation_report:
+  task_id: TASK-20260821-6a36a4
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  batch_id: BATCH-04272f
+  role: validator
+  joint: L6
+  snapshot_commit: 059a1920971adf1e6a1af9f0078f2e769f6d7fb0
+  snapshot_parent: 0ceb4fa75c2178ecd6307fc166f5000d9690179c
+  run_ids:
+    - RUN-MDFIVE-md4-v0-s0
+    - RUN-MDFIVE-md4-v16-s0
+
+  # ========================================================================
+  # CHECK 1: Archive binding
+  # ========================================================================
+  check_1_archive_binding:
+    verdict: PASS
+    description: >-
+      The queue archive block's commit_sha/parent_sha are reachable from HEAD
+      with the expected parent; every path_sha256 was recomputed from the
+      freeze commit's tree (git show 059a19209:<path>) and matched; all
+      declared record_ids are present in the commit message.
+    grounding:
+      - command: "git merge-base --is-ancestor 059a1920971adf1e6a1af9f0078f2e769f6d7fb0 HEAD"
+        output: "exit 0 (059a19209 is ancestor of HEAD)"
+      - command: "git rev-parse 059a1920971adf1e6a1af9f0078f2e769f6d7fb0^"
+        output: "0ceb4fa75c2178ecd6307fc166f5000d9690179c (matches queue parent_sha)"
+      - command: "python3 recompute path_sha256 from git show 059a19209:<path>"
+        output: |
+          MATCH: ledger/decisions/DEC-20260821-ddaa33.yaml
+                computed=45591b8be8d27f88831c44b5d12765a20baebd6235c8d16ddbcb7e2a376037f1
+          MATCH: .../inputs/rfc1320-md4.txt
+                computed=f727b15e19ab8ac5036ab7921476e8d8644512190ade32a2e0a2fb9d8a2421c7
+          MATCH: .../frontier-ledger.yaml
+                computed=54e0e928fd5a5293aea236de4de1af383a741e1ce68c39322e816fde2ff91e68
+          MATCH: .../acquisition-report.yaml
+                computed=4a86e8105ad8113bf97a1c4cd279a7889b85450541c47f3c048fa1c99937091d
+          MATCH: .../instrument-class-scope.yaml
+                computed=29897c93d9ee1d760857f30e8049f1bcff8fc286a5aa0972a1ae0cd4ae9c0548
+          MATCH: harness/run_md4_calib.py
+                computed=a8ebb8e80ef1eaf8e61b82195ff4e06dd231092ae98d85e31fce28682dce3b17
+          MATCH: .../md4-control-run-report.yaml
+                computed=63a1cbaab8230369cc684f0b1587ae5f63ae26ca976ca0442401c3708aed7f02
+          MATCH: .../snapshot-receipt.json
+                computed=046ed177f704ee51074843de7c4d9f3c973b028b7af84dcc45eed5d34ce04e3d
+          ALL PATHS MATCH: True
+      - command: "grep record_ids in commit message (git log -1 --format='%B' 059a19209)"
+        output: |
+          FOUND: GOAL-MD5-001, RQ-MDFIVE-6870c1, BATCH-04272f, DEC-20260821-ddaa33,
+                 TASK-20260821-cbb510, TASK-20260821-229643, TASK-20260821-c4a158,
+                 TASK-20260821-86c2ba (all 8 present)
+
+  # ========================================================================
+  # CHECK 2: Standalone MD4 correctness (my own driver, md4_hex directly)
+  # ========================================================================
+  check_2_standalone_md4:
+    verdict: PASS
+    description: >-
+      The instrument's MD4 core (harness.run_md4_calib.md4_hex) was driven
+      directly by the validator's own driver script against ALL 7 RFC 1320
+      section A.5 test vectors, with the expected digests transcribed from the
+      filed RFC 1320 text (inputs/rfc1320-md4.txt lines 1054-1062). The
+      module's gate function (run_test_vector_gate) was NOT used as the check.
+    grounding:
+      command: "python3 -c 'from harness.run_md4_calib import md4_hex; ...' (own driver)"
+      output: |
+        Vector 1: PASS  message=""           expected=31d6cfe0d16ae931b73c59d7e0c089c0  observed=31d6cfe0d16ae931b73c59d7e0c089c0
+        Vector 2: PASS  message="a"         expected=bde52cb31de33e46245e05fbdbd6fb24  observed=bde52cb31de33e46245e05fbdbd6fb24
+        Vector 3: PASS  message="abc"       expected=a448017aaf21d8525fc10ae87aa6729d  observed=a448017aaf21d8525fc10ae87aa6729d
+        Vector 4: PASS  message="message digest"  expected=d9130a8164549fe818874806e1c7014b  observed=d9130a8164549fe818874806e1c7014b
+        Vector 5: PASS  message="abc...xyz"  expected=d79e1c308aa5bbcdeea8ed63df412da9  observed=d79e1c308aa5bbcdeea8ed63df412da9
+        Vector 6: PASS  message="ABC...789"  expected=043f8582f241db351ce627e153e7f0e4  observed=043f8582f241db351ce627e153e7f0e4
+        Vector 7: PASS  message="1234567890"x8  expected=e33b4ddc9c38f2199c3e7b164fcc0536  observed=e33b4ddc9c38f2199c3e7b164fcc0536
+        ALL 7 VECTORS PASS: True
+
+  # ========================================================================
+  # CHECK 3: T-prime table recomputation
+  # ========================================================================
+  check_3_t_prime_table:
+    verdict: PASS
+    description: >-
+      T'[i] = T[(i+16) mod 48] was recomputed over the ruled 48-entry
+      sequence (16x0, 16x0x5A827999, 16x0x6ED9EBA1) and diffed entry-by-entry
+      against variant-definition.yaml. All 48 entries match. Round boundaries
+      are clean: round 1 -> 0x5A827999, round 2 -> 0x6ED9EBA1, round 3 -> 0.
+    grounding:
+      command: "python3 recompute T'[i] = T[(i+16) mod 48] and diff vs variant-definition.yaml"
+      output: |
+        T sequence (48 entries): 16x0, 16x0x5A827999, 16x0x6ED9EBA1
+        T'[i] = T[(i+16) mod 48] computed:
+          i= 0..15: 0x5a827999 x 1 unique
+          i=16..31: 0x6ed9eba1 x 1 unique
+          i=32..47: 0x00000000 x 1 unique
+        Declared T-prime (variant-definition.yaml):
+          i= 0..15: 0x5a827999 x 1 unique
+          i=16..31: 0x6ed9eba1 x 1 unique
+          i=32..47: 0x00000000 x 1 unique
+        ALL 48 ENTRIES MATCH: True
+        Round boundary check:
+          Round 1 (i=0..15):  all 0x5A827999 = True
+          Round 2 (i=16..31): all 0x6ED9EBA1 = True
+          Round 3 (i=32..47): all 0x0        = True
+
+  # ========================================================================
+  # CHECK 4: Wrapper timing
+  # ========================================================================
+  check_4_wrapper_timing:
+    verdict: PASS
+    description: >-
+      Both run records carry timing_source: wrapper. wall_seconds <= 900 on
+      both. The start/finish timestamp deltas agree with wall_seconds to
+      within ~0.5 ms (sub-millisecond, consistent with monotonic-clock vs
+      system-clock precision). R = t_null/t_target = 0.9935513427 recomputed
+      from the manifests matches the report's quoted value. R is within
+      [0.5, 2.0] (TOL = 2, COMPARABLE).
+    grounding:
+      command: "python3 load manifests, recompute R, check timestamps"
+      output: |
+        TARGET (v0):
+          timing_source: wrapper
+          wall_seconds:  38.85491
+          started_at:    2026-08-22T02:11:30.408221+00:00
+          finished_at:   2026-08-22T02:12:09.263650+00:00
+          timestamp delta: 38.855429 s
+          delta vs wall_seconds diff: 0.000519 s
+          wall_seconds <= 900: True
+        NULL (v16):
+          timing_source: wrapper
+          wall_seconds:  38.604348
+          started_at:    2026-08-22T02:20:40.655768+00:00
+          finished_at:   2026-08-22T02:21:19.260630+00:00
+          timestamp delta: 38.604862 s
+          delta vs wall_seconds diff: 0.000514 s
+          wall_seconds <= 900: True
+        R = t_null / t_target = 38.604348 / 38.85491 = 0.9935513427
+        R in [0.5, 2.0] (TOL=2): True
+      report_quoted_values_match:
+        target_wall_seconds: "report 38.85491 = manifest 38.85491 (MATCH)"
+        null_wall_seconds: "report 38.604348 = manifest 38.604348 (MATCH)"
+        R_value: "report 0.9935513427 = recomputed 0.9935513427 (MATCH)"
+
+  # ========================================================================
+  # CHECK 5: Sealing + completeness
+  # ========================================================================
+  check_5_sealing_completeness:
+    verdict: PASS
+    description: >-
+      Both input manifests were sealed pre-run (sealed_at: 2026-08-21; runs
+      started 2026-08-22). The manifests' sha256 sets intersect the MD5
+      quarantine MANIFEST sha256 list (e44a3fed...) in NO entries (empty
+      intersection on both). The pre-registered answer-digest reference
+      (2ea0083b...) is NOT present in any manifest's sha256_set (it is a
+      distinct field, not a file-level hash). The quarantined payload file's
+      sha256 still matches the MANIFEST (hash-only, the payload was NEVER
+      opened). All manifest-listed file hashes match their committed bytes.
+    grounding:
+      command: "python3 load manifests + quarantine MANIFEST, check intersections, hash-only payload"
+      output: |
+        --- Sealing check ---
+          TARGET: sealed_at=2026-08-21, run_start=2026-08-22T02:11:30 -> sealed before run: True
+          NULL:   sealed_at=2026-08-21, run_start=2026-08-22T02:20:40 -> sealed before run: True
+        --- Hash set intersection check ---
+          Quarantine file-level sha256 set: {e44a3fed81e9e7621697432b2124b357fc2c3f502f4bc6779df5c377b0a3e3c5}
+          Pre-registered answer digest: 2ea0083baa99e0af841f09e14ed5a5ab0488f2b8df0c5ffe1512e0be5cc05002
+          TARGET manifest sha256_set: {f727b15e..., a8ebb8e8...}
+          TARGET ∩ quarantine file-level shas: set() (EMPTY)
+          TARGET contains pre_reg_digest: False
+          NULL manifest sha256_set: {f727b15e..., a8ebb8e8..., c82a882f...}
+          NULL ∩ quarantine file-level shas: set() (EMPTY)
+          NULL contains pre_reg_digest: False
+        --- Quarantined payload hash-only check ---
+          Quarantined file: coordination/goals/GOAL-MD5-001/quarantine/MD5-COLLISION-PATH-WANG-2004-199.yaml
+          Expected sha256:  e44a3fed81e9e7621697432b2124b357fc2c3f502f4bc6779df5c377b0a3e3c5
+          Computed sha256:  e44a3fed81e9e7621697432b2124b357fc2c3f502f4bc6779df5c377b0a3e3c5
+          Match: True  (hash-only via shasum -a 256; payload NEVER read)
+        --- Manifest-listed file hash verification ---
+          TARGET rfc1320-md4.txt: MATCH (f727b15e...)
+          TARGET run_md4_calib.py: MATCH (a8ebb8e8...)
+          NULL rfc1320-md4.txt: MATCH (f727b15e...)
+          NULL run_md4_calib.py: MATCH (a8ebb8e8...)
+          NULL variant-definition.yaml: MATCH (c82a882f...)
+
+  # ========================================================================
+  # CHECK 6: Cost transfer recomputation
+  # ========================================================================
+  check_6_cost_transfer:
+    verdict: PASS
+    description: >-
+      The MD4 pair R ratio and the MD5 anchor R ratio were recomputed from
+      the four wrapper timings in the run manifests (NOT the reports). MD4
+      R = 38.604348/38.85491 = 0.9935513427 (matches expected). MD5 R =
+      55.156728/54.179836 = 1.018031 (matches expected). Both R values are
+      within [0.5, 2.0] (TOL = 2, COMPARABLE). The MD4/MD5 anchor ratios
+      (0.717147 target, 0.699903 null) are directionally consistent with the
+      48/64 step ratio (0.75): MD4 is cheaper, as expected.
+    grounding:
+      command: "python3 recompute R ratios and anchor ratios from manifest timings"
+      output: |
+        Four wrapper timings (from run manifests):
+          MD4 target wall_seconds: 38.85491
+          MD4 null   wall_seconds: 38.604348
+          MD5 target wall_seconds: 54.179836
+          MD5 null   wall_seconds: 55.156728
+        R ratios (t_null / t_target):
+          MD4 R = 38.604348 / 38.85491 = 0.9935513427 (expected 0.9935513427, MATCH)
+          MD5 R = 55.156728 / 54.179836 = 1.0180305455 (expected 1.018031, MATCH)
+        TOL = 2 check (R in [0.5, 2.0]):
+          MD4 R in [0.5, 2.0]: True
+          MD5 R in [0.5, 2.0]: True
+        MD4/MD5 anchor ratios:
+          MD4_target / MD5_target = 0.717147 (report: 0.7171470582, MATCH)
+          MD4_null   / MD5_null   = 0.699903 (report: 0.6999027934, MATCH)
+          MD4 ~28.3% cheaper than MD5 anchor
+          Step ratio (48/64): 0.75
+          Directionally consistent (MD4 cheaper): True
+      report_quoted_values_match:
+        md4_R: "report 0.9935513427 = recomputed 0.9935513427 (MATCH)"
+        md5_R: "report 1.018031 = recomputed 1.018031 (MATCH)"
+        md4_md5_ratios: "report 0.7171470582/0.6999027934 = recomputed 0.717147/0.699903 (MATCH)"
+
+  # ========================================================================
+  # CHECK 7: No-regression suite
+  # ========================================================================
+  check_7_suite:
+    verdict: PASS
+    description: >-
+      python3 -m pytest tests/test_harness.py at the current tree: 35 tests
+      passed in 25.44 s. The MD5 instrument (harness/run_md5_calib.py,
+      sha256 50f75444...) and tests/test_harness.py (sha256 5214c87f...) are
+      byte-identical at the snapshot commit and the current tree (untouched
+      by this batch). harness/runner.py (sha256 4c07abfd...) is likewise
+      unchanged.
+    grounding:
+      command: "python3 -m pytest tests/test_harness.py -v"
+      output: "35 passed in 25.44s (exit code 0)"
+      byte_identity_check:
+        harness/run_md5_calib.py:
+          snapshot_commit_sha256: 50f75444c7c9a80e2fc15c5f06649b7af9c51201ab0ac49fed4eb9e6aa26aed1
+          current_tree_sha256: 50f75444c7c9a80e2fc15c5f06649b7af9c51201ab0ac49fed4eb9e6aa26aed1
+          match: True
+        tests/test_harness.py:
+          snapshot_commit_sha256: 5214c87f45268d654e382b4de3d2677e01386579f1e883c88b47343e2abfae38
+          current_tree_sha256: 5214c87f45268d654e382b4de3d2677e01386579f1e883c88b47343e2abfae38
+          match: True
+        harness/runner.py:
+          snapshot_commit_sha256: 4c07abfd90fca233d3f436f2577e027a8a7a03294f19928819941caf810a8575
+          current_tree_sha256: 4c07abfd90fca233d3f436f2577e027a8a7a03294f19928819941caf810a8575
+          match: True
+
+  # ========================================================================
+  # ADDITIONAL CROSS-VERIFICATIONS (report vs manifests)
+  # ========================================================================
+  cross_verifications:
+    instrument_sha256_identical_across_manifests:
+      verdict: PASS
+      note: >-
+        harness/run_md4_calib.py sha256 a8ebb8e80ef1eaf8e61b82195ff4e06dd231092ae98d85e31fce28682dce3b17
+        is identical in both run manifests (target and null) and in the
+        archive block's path_sha256.
+    b1_hex_identical_across_runs:
+      verdict: PASS
+      note: >-
+        b1_hex (cd072cd8be6f9f62ac4c09c28206e7e3...) is identical in both
+        raw-result.json files, confirming the same seed-derived first block
+        (the variant is the ONLY difference).
+    command_txt_matches_manifest:
+      verdict: PASS
+      note: >-
+        TARGET command.txt: harness/run_md4_calib.py --seed 0 --variant-shift 0 --deadline 900 --out-root ...
+        NULL command.txt:   harness/run_md4_calib.py --seed 0 --variant-shift 16 --deadline 900 --out-root ...
+        Both match the manifest code.command fields.
+    outcomes_match_report:
+      verdict: PASS
+      note: >-
+        Both runs: outcome=FAIL, stop_reason=table_full, blocks_evaluated=2097152,
+        ceiling_reached=false. Target: partial_hits=3, best_prefix_bits=0.
+        Null: partial_hits=1, best_prefix_bits=1. All match the report.
+    rank3_ruling_present:
+      verdict: PASS
+      note: >-
+        The rank3_ruling key is present in the committed dispatch_queue.json
+        with fields: recorded_by, recorded_at, rules_for, basis, amendments,
+        run_scope, build_scope, consumption, budget, refuse_gate. The REFUSE
+        gate was satisfied before dispatch.
+
+  # ========================================================================
+  # RUN-INTEGRITY DETERMINATION
+  # ========================================================================
+  run_integrity_determination: HOLDS
+  determination_rationale: >-
+    All seven checks PASS. The frozen batch-4 package at snapshot commit
+    059a19209 is mechanically what its reports claim:
+    (1) the archive binding is intact -- commit reachable from HEAD, parent
+    matches, all 8 path_sha256 recomputed from the freeze tree and matched,
+    all 8 record_ids present in the commit message;
+    (2) the standalone MD4 core passes all 7 RFC 1320 A.5 test vectors when
+    driven by the validator's own driver (md4_hex directly, not the gate
+    function);
+    (3) the T-prime table is exactly T[(i+16) mod 48] over the ruled 48-entry
+    sequence, all 48 entries matching variant-definition.yaml, round
+    boundaries clean;
+    (4) both runs carry timing_source: wrapper, wall_seconds <= 900, the
+    start/finish timestamp deltas agree with wall_seconds to sub-millisecond
+    precision, and R = 0.9935513427 recomputed from the manifests matches the
+    report;
+    (5) both manifests were sealed pre-run, the sha256 sets intersect the
+    quarantine MANIFEST's file-level sha256 list in NO entries (empty on
+    both), the pre-registered answer-digest reference is NOT in any manifest's
+    sha256_set, the quarantined payload's sha256 still matches the MANIFEST
+    (hash-only, never opened), and all manifest-listed file hashes match
+    their committed bytes;
+    (6) the cost-transfer ratios recomputed from the four wrapper timings
+    (MD4 R = 0.9935513427, MD5 R = 1.018031) match the expected values and
+    the report, both within TOL = 2, with the MD4/MD5 anchor ratios
+    directionally consistent with the 48/64 step ratio;
+    (7) the 35-test suite passes, and the MD5 instrument, test file, and
+    runner are byte-identical at the snapshot commit and the current tree
+    (untouched by this batch).
+    No defects found. No gaps named. The run-integrity HOLDS.
+
+  # ========================================================================
+  # DEFECT LIST
+  # ========================================================================
+  defects: []
+
+  # ========================================================================
+  # REVIEW ATTESTATION
+  # ========================================================================
+  review_attestation:
+    task_id: TASK-20260821-6a36a4
+    joints_owned:
+      - L6
+    sources_read:
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/review-plan/review-plan-02d397.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/task-cards/TASK-20260821-6a36a4.md
+      - ledger/handoffs/TASK-20260821-6a36a4.yaml
+      - AGENTS.md
+      - agents/validator.md
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/dispatch_queue.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/inputs/rfc1320-md4.txt
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/variant-definition.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/input-manifest-target.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/input-manifest-null.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/md4-control-run-report.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/runs/RUN-MDFIVE-md4-v0-s0/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/runs/RUN-MDFIVE-md4-v0-s0/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/runs/RUN-MDFIVE-md4-v0-s0/command.txt
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/runs/RUN-MDFIVE-md4-v16-s0/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/runs/RUN-MDFIVE-md4-v16-s0/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/tasks/TASK-20260821-c4a158/runs/RUN-MDFIVE-md4-v16-s0/command.txt
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-c91be2/runs/RUN-MDFIVE-calib-v0-s0/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-93cc38/runs/RUN-MDFIVE-calib-v16-s0/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/quarantine/MANIFEST.yaml
+      - harness/run_md4_calib.py
+    read_sibling_report: false
+    sibling_blind_note: >-
+      TASK-20260821-02d397 (red team) is running concurrently in this round.
+      Nothing under reviews/TASK-20260821-02d397/ was read. The attestation
+      is true: read_sibling_report is false.
+    quarantine_payload_read: false
+    quarantine_note: >-
+      The MD5 quarantined payload (MD5-COLLISION-PATH-WANG-2004-199.yaml) was
+      NEVER read. Its sha256 was computed via `shasum -a 256` (hash-only) and
+      matched the MANIFEST. The MANIFEST.yaml (metadata, not the payload) was
+      read for the sha256 list only.
+    requested_policy: review-adversarial
+    resolved_model_id: zai/glm-5.2
+    reasoning_effort: xhigh
+    independent_session: true
+    blind_from_respected: true
+    blind_from_note: >-
+      This task is not a blind re-derivation task (the plan's blind_rederivation
+      is assigned to TASK-20260821-02d397, not to this validator). The
+      sibling-blindness rule (within_round) is respected: the red team's report
+      was not read.
+    reviewed_records:
+      - GOAL-MD5-001
+      - RQ-MDFIVE-6870c1
+      - BATCH-04272f
+      - DEC-20260821-ddaa33
+      - TASK-20260821-cbb510
+      - TASK-20260821-229643
+      - TASK-20260821-c4a158
+      - TASK-20260821-86c2ba
+      - RUN-MDFIVE-md4-v0-s0
+      - RUN-MDFIVE-md4-v16-s0
+      - RUN-MDFIVE-calib-v0-s0
+      - RUN-MDFIVE-calib-v16-s0
+    per_check_verdicts:
+      check_1_archive_binding: PASS
+      check_2_standalone_md4: PASS
+      check_3_t_prime_table: PASS
+      check_4_wrapper_timing: PASS
+      check_5_sealing_completeness: PASS
+      check_6_cost_transfer: PASS
+      check_7_suite: PASS
+    verdict: HOLDS

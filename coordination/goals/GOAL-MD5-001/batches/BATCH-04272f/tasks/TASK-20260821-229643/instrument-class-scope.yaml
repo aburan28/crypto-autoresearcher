@@ -1,0 +1,443 @@
+task_id: TASK-20260821-229643
+goal_id: GOAL-MD5-001
+question_id: RQ-MDFIVE-6870c1
+batch_id: BATCH-04272f
+recorded_by: idea-generator (RANK 2)
+recorded_at: "2026-08-21"
+part: "complete"
+
+section_1_candidates:
+  - rank: 1
+    id: CAND-1
+    mechanism: >-
+      Differential-guided collision enumeration. Concretely: fix the published
+      Wang et al. 2004/199 MD5 differential characteristic (message difference
+      non-zero at word positions 4, 11, 14; works for any given initial value —
+      frontier-ledger MD5/collision entry), sample message pairs (M, M')
+      constrained to follow that characteristic, and enumerate the free
+      second-block message words to close the full 128-bit digest equality
+      MD5(M) = MD5(M'). This is the same method family as the frontier-ledger
+      collision entries (MD4/collision and MD5/collision, both differential,
+      Wang et al. 2004/199) and is the class the published literature uses to
+      achieve full MD5 collisions. Unlike the current bounded meet-table
+      enumeration (which shows a random-collision signature — one 40-bit partial
+      hit with a 0-bit MSB prefix — and fails to discriminate target from null at
+      R = 1.018031), the differential constraint is a structural property of MD5
+      that should produce a non-random partial-hit signature. The executor
+      implements it by fixing the message-word differences and running a bounded
+      nested enumeration over the free words, reusing the frozen MD5/MD4
+      Merkle-Damgard harness.
+    asymptotic_time: >-
+      No asymptotic 2^N stated in the primary text (frontier-ledger MD5/collision
+      entry, Wang et al. 2004/199: measured ~1 hour on IBM P690 for the first
+      pair, then 15 s–5 min for subsequent pairs). From general knowledge
+      (provenance: recalled, pointer only): O(2^p * c) MD5 compression
+      evaluations, where p is the bit-cost of the differential characteristic
+      (trials needed for it to hold) and c is the per-pair second-block
+      completion cost; the published MD5 characteristic is recalled to have p in
+      the 39–64 range (i.e., 2^39–2^64).
+    asymptotic_memory: >-
+      O(1) working memory beyond the current message pair and digest (the
+      differential characteristic is fixed and the completion enumeration is a
+      small nested loop over a few free words; no large meet table is required).
+      (provenance: recalled — the primary text states no memory figure.)
+    feasibility_at_declared_hardware: >-
+      Not executable at campaign scale (recalled 2^39–2^64 >> the 2^21-block
+      budget that runs in ~54 s); measurable at bounded scale only by measuring
+      the per-attempt success probability and MSB-prefix distribution at 2^21
+      blocks, with the transfer caveat stated.
+    quantitative_prediction: >-
+      If the differential-guided enumeration is the right instrument, the MD4
+      control run at 2^21 blocks should find >= 1 full 128-bit MD4 collision (the
+      Wang et al. MD4 collision is findable "with hand calculation", i.e., at a
+      block count << 2^21 — frontier-ledger MD4/collision entry), whereas the
+      current meet-table instrument found 0 full collisions and only 1 random
+      40-bit partial hit with a 0-bit MSB prefix.
+    minimal_discriminating_test: >-
+      Run the differential-guided enumeration on MD4 at 2^21 blocks using the
+      Wang et al. 2004/199 MD4 message difference (C, C' = (0, 2^31,
+      2^28-2^31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2^16, 0, 0, 0) — frontier-ledger
+      MD4/collision entry), and measure whether the full-collision count or
+      partial-hit MSB-prefix length exceeds the null-object baseline by a factor
+      >= 2 (TOL = 2).
+    falsification_condition: >-
+      The candidate is killed if the differential-guided enumeration on MD4 at
+      2^21 blocks yields a partial-hit rate and MSB-prefix distribution
+      statistically indistinguishable from the null object (R within TOL = 2 of
+      the random baseline), i.e., the differential constraint produces no
+      non-random signature.
+  - rank: 2
+    id: CAND-2
+    mechanism: >-
+      State-level meet-in-the-middle (MITM) on the Merkle-Damgard compression
+      path. Concretely: split the message (or the compression-function step
+      sequence) into two halves, enumerate forward from the initial state IV over
+      the first half and backward from a target state over the second half, and
+      meet on a mid-state (a partial 128-bit state) to reconstruct a full
+      collision path or preimage. This is the Aoki-Sasaki / Guo et al. MITM
+      framework — the method family of the frontier-ledger preimage entries
+      (MD4/preimage multi-block 2^78.4, MD4/preimage one-block 2^94.98,
+      MD5/preimage full 2^123.4). Unlike CAND-1's differential-guided
+      message-pair enumeration, the MITM instrument navigates the state space
+      directly and does not require a published differential characteristic. The
+      executor implements it by fixing the split point, building the forward and
+      backward meet tables on a partial state, and joining them, reusing the
+      frozen MD5/MD4 Merkle-Damgard harness.
+    asymptotic_time: >-
+      From the frontier ledger (retrieved): MD4/preimage multi-block 2^78.4 MD4
+      computations with 2^128 precomputation (2^99.7 without); MD4/preimage
+      one-block 2^94.98 (Zhong-Lai 2010/583); MD5/preimage full 2^123.4
+      (Sasaki-Aoki 2009, provenance: recalled). In big-O: O(2^w) time for a meet
+      on a w-bit mid-state, where the MD4/MD5 step structure reduces w below the
+      generic 128/2 = 64; the meet-table join is O(2^w).
+    asymptotic_memory: >-
+      O(2^w) where w is the mid-state meet width (the meet table stores 2^w
+      partial states); the frontier ledger cites 2^81 storage for the MD4
+      multi-block 2^78.4 result (with 2^128 precomputation) and 2^72 memory for
+      the MD4 second-preimage 2^69.4 result (retrieved, Guo et al. 2010/016).
+      (provenance: retrieved for the MD4 figures; the MD5 full-preimage memory is
+      not stated in the recalled entry.)
+    feasibility_at_declared_hardware: >-
+      Not executable at campaign scale (2^64–2^123.4 >> the 2^21-block budget
+      that runs in ~54 s); the meet-table memory O(2^w) exceeds the 4 GB declared
+      budget for any mid-state width w that would close the 128-bit gap (4 GB
+      holds only ~2^27 16-byte states); measurable at bounded scale only by
+      measuring the per-meet success probability at a reduced w, with the
+      transfer caveat stated.
+    quantitative_prediction: >-
+      If the MITM instrument is the right class, the MD4 control run at 2^21
+      blocks with a mid-state width w = 20 should produce a mid-state meet-count
+      exceeding the null-object random-state baseline by a factor >= 2 (TOL) due
+      to the MD4 step structure (frontier-ledger MD4/preimage entries 3, 4).
+    minimal_discriminating_test: >-
+      Run the state-level MITM on MD4 at 2^21 blocks with a mid-state width
+      w = 20 (feasible in the 4 GB budget), building the forward meet table and
+      joining against the backward enumeration, and measure whether the
+      mid-state meet-count exceeds the null-object (random-state) baseline by a
+      factor >= 2 (TOL = 2).
+    falsification_condition: >-
+      The candidate is killed if the state-level MITM on MD4 at 2^21 blocks with
+      w = 20 yields a mid-state meet-count statistically indistinguishable from
+      the null-object random-state baseline (R within TOL = 2), i.e., the MD4
+      step structure produces no meet-count advantage over a random function.
+  - rank: 3
+    id: CAND-3
+    mechanism: >-
+      Step-reduced / reduced-round preimage demonstration. Concretely: invert a
+      step-reduced version of the MD4/MD5 compression function (e.g., 47 of 64
+      steps for MD5 per Aumasson-Meier-Mendel 2008/183, or 40–43 steps for MD4
+      per Zaikin 2022 cube-and-conquer) to measure the per-attempt structure and
+      success probability of the preimage/collision-path at bounded scale. This
+      is the method family of the frontier-ledger step-reduced entries
+      (MD5/preimage step-reduced 47-of-64 2^96; MD4/MD5/preimage step-reduced,
+      cube-and-conquer, no 2^N stated). Unlike CAND-1 (full differential
+      enumeration) and CAND-2 (full MITM), the step-reduced instrument does not
+      claim to close the full 128-bit gap; it measures the structure that the
+      full attack would exploit, at a scale the campaign can actually run. The
+      executor implements it by truncating the compression function to the stated
+      step count and running the cited inversion (SAT/cube-and-conquer or the
+      Aumasson-Meier-Mendel step-inversion) on the truncated function, reusing
+      the frozen MD5/MD4 harness.
+    asymptotic_time: >-
+      From the frontier ledger (retrieved): MD5/preimage step-reduced (47 of 64
+      steps) 2^96 trials (Aumasson-Meier-Mendel 2008/183); MD4/MD5/preimage
+      step-reduced (40–43 step MD4, 28-step MD5) no 2^N stated in the abstract
+      (Zaikin 2022, cube-and-conquer). In big-O: O(2^s) where s is the number of
+      steps inverted (s < 64 for MD5, s < 48 for MD4); the step-reduced cost is
+      a lower bound on the full cost, with the transfer from step-reduced to full
+      being the open question.
+    asymptotic_memory: >-
+      O(2^s) working memory for the step-inversion search tree / SAT assignment
+      space, where s is the number of steps inverted; the frontier ledger states
+      no explicit memory figure for the step-reduced entries (provenance:
+      retrieved for the exponents, memory not stated). For the cube-and-conquer
+      (SAT) variant, memory is the SAT solver's clause/assignment space, O(2^s)
+      in the worst case (provenance: recalled — the abstract states no memory
+      figure).
+    feasibility_at_declared_hardware: >-
+      Partially executable at campaign scale: the cube-and-conquer (SAT) variant
+      actually inverted 40–43-step MD4 and 28-step MD5 (frontier-ledger
+      MD4/MD5/preimage step-reduced entry, retrieved), so it is runnable at
+      bounded scale for those reduced targets; the 47-step MD5 (2^96,
+      MD5/preimage step-reduced entry) is NOT runnable (>> the 2^21-block
+      budget). Measurable at bounded scale by measuring the per-step inversion
+      success probability, with the transfer caveat (step-reduced -> full)
+      stated explicitly.
+    quantitative_prediction: >-
+      If the step-reduced instrument is the right class, the MD4 control run
+      should invert 40 steps of MD4 (the frontier-ledger MD4/MD5/preimage
+      step-reduced entry's demonstrated capability) at a bounded block count,
+      with the per-step inversion success probability dropping by a factor >= 2
+      (TOL) from 40 to 43 steps — i.e., the success probability at 43 steps
+      should be <= half that at 40 steps, confirming the step count is the
+      controlling parameter (unlike the current meet-table instrument, where the
+      0-bit MSB prefix did not decay).
+    minimal_discriminating_test: >-
+      Run the cube-and-conquer (SAT) inversion on MD4 at 40 steps and 43 steps
+      (the frontier-ledger MD4/MD5/preimage step-reduced entry's demonstrated
+      range), and measure whether the inversion success probability drops by a
+      factor >= 2 (TOL = 2) from 40 to 43 steps, confirming the step count is
+      the controlling parameter.
+    falsification_condition: >-
+      The candidate is killed if the step-reduced inversion on MD4 shows no
+      decay in success probability from 40 to 43 steps (R within TOL = 2 of
+      flat), i.e., the step count is not the controlling parameter and the
+      step-reduced structure does not measure a real bottleneck.
+
+section_2_pareto_honesty:
+  - candidate_id: CAND-1
+    dominated_by: null
+    rows_checked:
+      - "MD4/collision (Wang et al. 2004/199, differential, no 2^N stated, 'hand calculation')"
+      - "MD5/collision (Wang et al. 2004/199, differential, no 2^N stated, ~1 hour on IBM P690)"
+      - "MD4/preimage multi-block (Guo et al. 2010/016, MITM, 2^78.4 with 2^128 precomputation / 2^99.7 without)"
+      - "MD4/preimage one-block (Zhong-Lai 2010/583, MITM, 2^94.98)"
+      - "MD4/preimage one-block Aoki-Sasaki baseline (recalled, 2^107)"
+      - "MD5/preimage full (Sasaki-Aoki 2009, MITM, 2^123.4 recalled)"
+      - "MD5/preimage step-reduced 47-of-64 (Aumasson-Meier-Mendel 2008/183, 2^96)"
+      - "MD4/MD5/preimage step-reduced (Zaikin 2022, cube-and-conquer, no 2^N stated)"
+      - "instrument row: bounded 2^21-block MD5 collision-path enumeration, 54.179836 s / 2^21 blocks (target), 55.156728 s (null), R = 1.018031"
+    sota_delta: >-
+      Nearest frontier entry is MD5/collision (Wang et al. 2004/199), which states
+      no 2^N (measured ~1 hour on IBM P690 for the first pair, 15 s–5 min for
+      subsequent); CAND-1 is the same method family (differential), so the
+      asymptotic delta is ~0 (same class, same cost) — the candidate's recalled
+      cost 2^39–2^64 (provenance: recalled, not traceable to a ledger 2^N) is
+      consistent with the measured ~1 hour but is not a precise 2^N delta.
+    where_it_is_weak: >-
+      The published MD5/collision result already achieves the full collision at a
+      measured cost, so CAND-1 adds no asymptotic improvement over the state of the
+      art; its only value is the bounded-scale measurement, and its cost exponent is
+      recalled, not grounded in primary text.
+  - candidate_id: CAND-2
+    dominated_by: null
+    rows_checked:
+      - "MD4/collision (Wang et al. 2004/199, differential, no 2^N stated, 'hand calculation')"
+      - "MD5/collision (Wang et al. 2004/199, differential, no 2^N stated, ~1 hour on IBM P690)"
+      - "MD4/preimage multi-block (Guo et al. 2010/016, MITM, 2^78.4 with 2^128 precomputation / 2^99.7 without)"
+      - "MD4/preimage one-block (Zhong-Lai 2010/583, MITM, 2^94.98)"
+      - "MD4/preimage one-block Aoki-Sasaki baseline (recalled, 2^107)"
+      - "MD5/preimage full (Sasaki-Aoki 2009, MITM, 2^123.4 recalled)"
+      - "MD5/preimage step-reduced 47-of-64 (Aumasson-Meier-Mendel 2008/183, 2^96)"
+      - "MD4/MD5/preimage step-reduced (Zaikin 2022, cube-and-conquer, no 2^N stated)"
+      - "instrument row: bounded 2^21-block MD5 collision-path enumeration, 54.179836 s / 2^21 blocks (target), 55.156728 s (null), R = 1.018031"
+    sota_delta: >-
+      Nearest frontier entries are the MITM preimage results: MD4/preimage
+      multi-block 2^78.4 (with 2^128 precomputation, 2^81 storage, Guo et al.
+      2010/016) and MD4/preimage one-block 2^94.98 (Zhong-Lai 2010/583); CAND-2 is
+      the same method family (MITM), so for the preimage problem the delta is ~0
+      (same class), and for the collision problem (CAND-2's stated target) no
+      frontier entry uses MITM, so there is no same-class collision entry to
+      compute a delta against (the generic MITM cost O(2^w) is not traceable to a
+      ledger 2^N).
+    where_it_is_weak: >-
+      MITM does not beat the 2^64 birthday bound for collisions, so CAND-2 is not
+      an obvious improvement over the generic collision bound; its value is only for
+      the preimage problem, where the published MITM results already set the state
+      of the art.
+  - candidate_id: CAND-3
+    dominated_by: null
+    rows_checked:
+      - "MD4/collision (Wang et al. 2004/199, differential, no 2^N stated, 'hand calculation')"
+      - "MD5/collision (Wang et al. 2004/199, differential, no 2^N stated, ~1 hour on IBM P690)"
+      - "MD4/preimage multi-block (Guo et al. 2010/016, MITM, 2^78.4 with 2^128 precomputation / 2^99.7 without)"
+      - "MD4/preimage one-block (Zhong-Lai 2010/583, MITM, 2^94.98)"
+      - "MD4/preimage one-block Aoki-Sasaki baseline (recalled, 2^107)"
+      - "MD5/preimage full (Sasaki-Aoki 2009, MITM, 2^123.4 recalled)"
+      - "MD5/preimage step-reduced 47-of-64 (Aumasson-Meier-Mendel 2008/183, 2^96)"
+      - "MD4/MD5/preimage step-reduced (Zaikin 2022, cube-and-conquer, no 2^N stated)"
+      - "instrument row: bounded 2^21-block MD5 collision-path enumeration, 54.179836 s / 2^21 blocks (target), 55.156728 s (null), R = 1.018031"
+    sota_delta: >-
+      Nearest frontier entries are the step-reduced results: MD5/preimage
+      step-reduced 47-of-64 2^96 (Aumasson-Meier-Mendel 2008/183) and
+      MD4/MD5/preimage step-reduced (Zaikin 2022, no 2^N stated); CAND-3 is the
+      same method family (step-reduced / cube-and-conquer), so the delta is ~0
+      (same class) — the candidate's cost O(2^s) is not traceable to a ledger 2^N
+      for the step-reduced entries (no 2^N stated in the Zaikin abstract).
+    where_it_is_weak: >-
+      CAND-3 is a reduced-round measurement, not a full-gap closer; it does not
+      address the full 128-bit collision, and the step-reduced -> full transfer is
+      the open question, so its value is limited to measuring the per-step
+      structure at bounded scale.
+
+section_3_obstruction:
+  status: named
+  statement: >-
+    The partial-hit MSB-prefix length (the number of matching high bits in the
+    128-bit digest beyond the 40-bit meet-table key) is bounded by the
+    random-collision floor (0 bits) at the current scale (2^21 blocks, 40-bit meet
+    table, seed 0). This bounds the bounded differential/collision-path enumeration
+    because if the MSB-prefix length does not grow with the constrained-bit count,
+    the enumeration cannot close the gap to a full 128-bit collision — it is hitting
+    the random-collision floor, not the MD5/MD4 differential structure. The MD4
+    control run will measure this quantity on MD4 (where the differential structure
+    is known to help, per the frontier-ledger MD4/collision entry 'hand
+    calculation').
+  quantity: >-
+    partial-hit MSB-prefix length (bits), measured as the distribution of matching
+    high-bit prefix lengths over all 40-bit-key partial hits per 2^21 blocks.
+  predicted_behavior: >-
+    If the obstruction is real, the MSB-prefix length on the MD4 target should grow
+    (exceed the random 0-bit baseline by a factor >= 2, TOL) because the MD4
+    differential structure helps, while on the null object (random function) the
+    MSB-prefix length stays at 0 bits (random). The artifact tell is the current
+    MD5 run, where the MSB-prefix length was 0 bits (did not decay/grow) — the
+    quantity meant to be destroyed by the MD5 structure did not change.
+  argument: >-
+    The bounded enumeration with a 40-bit meet table produces partial hits that
+    match on the low 40 bits. If the method is measuring MD5/MD4 differential
+    structure, the high bits should also match (the MSB-prefix length should grow),
+    indicating a real collision path. If the method is measuring random-collision
+    structure, the high bits should not match (the MSB-prefix length stays at 0),
+    indicating a random partial hit. The current MD5 run produced one random
+    40-bit-key partial hit with a 0-bit MSB prefix, which is the random-collision
+    signature. This bounds the method because if the MSB-prefix length doesn't
+    grow, the enumeration can't close the gap to a full 128-bit collision.
+  forward_guidance: >-
+    If the run confirms the obstruction (MSB-prefix length grows on MD4 but not on
+    the null object), the method is bounded by the random-collision floor, and the
+    instrument class that would evade it is CAND-1 (differential-guided collision
+    enumeration), which uses the published differential characteristic to constrain
+    the message-pair space and should produce a non-random MSB-prefix signature.
+    Alternatively, CAND-2 (state-level MITM) could evade it by navigating the state
+    space directly, but it does not beat the birthday bound for collisions.
+  scope_claimed: >-
+    Claimed over MD4 and MD5 Merkle-Damgard compression at the current scale (2^21
+    blocks, 40-bit meet table, seed 0); not claimed over other block budgets,
+    meet-table widths, or hash functions.
+
+section_4_md4_run_spec:
+  instrument:
+    module: harness/run_md4_calib.py
+    mirror_notes: >-
+      Single module, runnable as script, importable; mirrors the frozen
+      harness/run_md5_calib.py structure. Runs driven through
+      harness.runner.run_wrapped (charged wall_seconds is wrapper-measured per
+      BCP-2 charging_convention: compute-only solver-process wall clock, excluding
+      authoring/review/coordination overhead). The solver core uses NO
+      standard-library hash binding; the pinned independent pair in
+      harness/runner.py is used ONLY for certificate verification by the wrapper,
+      never for the search.
+    search_strategy: >-
+      Identical-prefix 2-block messages M1 = B1||B2, M2 = B1||B2' (B1 fixed 512-bit
+      seed-derived block; B2, B2' distinct seeded random 512-bit blocks; messages
+      hex-encoded, 128 hex chars). Bounded BIRTHDAY search (NOT meet-in-the-middle,
+      NOT differential) over the 128-bit digest space: enumerate up to N = 2^21
+      distinct seeded random second blocks, compute each FULL 2-block digest,
+      insert (digest, block) into a hash table keyed by the digest's low k = 40
+      bits; a table hit (two distinct blocks, same 40-bit key) is a 40-bit
+      PARTIAL; track longest matching prefix of the full 128-bit digests and the
+      cost (blocks evaluated) at which achieved; full 128-bit match = SUCCESS.
+      Memory: table holds at most N = 2^21 entries. Stopping rule: (a) --deadline
+      monotonic clock reached (checked each block), or (b) table full, or (c) full
+      match — (a)/(b) are budgeted FAILs with the declared reason.
+  md4_core:
+    source: >-
+      Standalone MD4 written FROM the filed RFC 1320 text at
+      coordination/goals/GOAL-MD5-001/batches/BATCH-04272f/inputs/rfc1320-md4.txt
+      (sha256 f727b15e19ab8ac5036ab7921476e8d8644512190ade32a2e0a2fb9d8a2421c7) —
+      NOT hashlib, NOT the MD5 module's code path.
+    structure: >-
+      3 rounds x 16 ops = 48 steps (vs MD5's 64). Round functions
+      F(X,Y,Z)=(X&Y)|(~X&Z), G(X,Y,Z)=(X&Y)|(X&Z)|(Y&Z), H(X,Y,Z)=X^Y^Z. Round 1
+      has NO additive constant; round 2 constant 0x5A827999 (floor(2^30*sqrt(2)));
+      round 3 constant 0x6ED9EBA1 (floor(2^30*sqrt(3))). The 48-entry MD4 constant
+      sequence is 16x0, 16x0x5A827999, 16x0x6ED9EBA1. The MD5 instrument's
+      64-entry sine table does NOT apply to MD4 (task-card instruction defect,
+      ruled).
+    test_vector_gate: >-
+      The instrument's MD4 self-test must include the RFC 1320 test vectors (filed
+      text, section on the test suite) passing BEFORE the search runs (a gate,
+      recorded in the manifest).
+  runs:
+    target:
+      seed: 0
+      N: 2^21
+      k: 40
+      deadline_seconds: 900
+      encoding: "hex 512-bit blocks, full 128-bit digest equality (128 hex chars per message)"
+      constants: "standard MD4 constants (shift 0): 16x0, 16x0x5A827999, 16x0x6ED9EBA1"
+    null_object:
+      seed: 0
+      N: 2^21
+      k: 40
+      deadline_seconds: 900
+      encoding: "hex 512-bit blocks, full 128-bit digest equality (128 hex chars per message)"
+      constants: >-
+        BCP-2 null structure: round-constant sequence cyclically shifted by 16,
+        T'[i] = T[(i+16) mod 48] over the 48-entry sequence (clean round-boundary
+        shift: round 1 gets 0x5A827999, round 2 gets 0x6ED9EBA1, round 3 gets 0).
+        Everything else identical (same 48-step structure, same rotations, same
+        F/G/H, same search, same seed, same N = 2^21, same k = 40, same encoding).
+    execution: >-
+      Two runs, SEQUENTIAL, deterministic seed 0, 900 s deadline each, run_wrapped,
+      batch memory 4 GB.
+  metrics:
+    charged:
+      - "wrapper wall_seconds"
+    observed:
+      - "blocks evaluated"
+      - "table_full vs deadline stop reason"
+      - "partial hits (count, the 40-bit key, the longest full-digest-prefix match length in bits — the MSB-prefix quantity from section 3)"
+      - "certificate kind (none / 40-bit-partial / full-128)"
+  expected_row: >-
+    The pair is EXPECTED on R5/R6 (FAIL/FAIL at the declared space) with the
+    null/target cost ratio R = t_null / t_target COMPARABLE. A full-128 SUCCESS on
+    either run would be a row above R5 and must be treated per the protocol's
+    weaker-acceptance-path disclosure (a success at this declared space is the
+    informative result, not an error — but it would change the audit's scope and is
+    flagged for the Coordinator).
+  comparison_protocol:
+    R_ratio: "R = t_null / t_target"
+    TOL: 2
+    comparable_interval: "[0.5, 2.0]"
+    anchor: >-
+      MD5 calibration anchor for cost transfer: 54.179836 s (target) / 55.156728 s
+      (null), R = 1.018031, row R6.
+  consumption_check: >-
+    The MD4 runs consume NO MD5 payload; the completeness check is that the MD4
+    manifests' input hashes intersect the MD5 quarantined payload sha256 set in
+    EMPTY (hash-only; the payload is never read).
+  cost_model_exposure: >-
+    RANK 1 ran ~5.4x its declared 900 s ceiling (accepted as a disclosed budget
+    outcome). The two MD4 runs share ONE 1800 s declared envelope (900 s each); a
+    repeat overrun is expected-possible. The wrapper deadline is the HARD stop
+    inside each run (the deadline is checked every block, so a run cannot overrun
+    its own 900 s — the exposure is in authoring/verification overhead around the
+    runs, which the charging convention excludes from the charged cost).
+
+section_5_scope_record:
+  claim_ceiling_respected: >-
+    frontier_ledger_and_md4_control_scoping_only — this record makes no MD5
+    evidence claim, no MD4 security claim, and no method-ceiling STATEMENT; the
+    statement needs the run's data and must meet the closure standard (named
+    obstruction + argument + forward guidance).
+  will_show:
+    - "The partial-hit MSB-prefix length distribution (the section 3 obstruction quantity) on the MD4 target vs the null object, per 2^21 blocks."
+    - "The section 4 metrics per run: wrapper wall_seconds, blocks evaluated, table_full vs deadline stop reason, partial hits (count, 40-bit key, longest full-digest-prefix match length in bits), certificate kind (none / 40-bit-partial / full-128)."
+    - "The null/target cost ratio R = t_null / t_target, compared against the MD5 calibration anchor R = 1.018031 (row R6) at TOL = 2."
+    - "Whether the MD4 differential structure produces a non-random MSB-prefix signature (the section 3 obstruction test)."
+  will_not_show:
+    - "No statement about MD4 security (the run is a control, not a security assessment)."
+    - "No transfer to MD5 (the MD4 result does not bound or confirm the MD5 frontier)."
+    - "No method-ceiling statement (the statement needs the run's data and must meet the closure standard)."
+    - "No closure of any lane (closure is the Coordinator's decision, not this record's)."
+    - "Nothing about the quarantined MD5 payload (the payload is never read; hash-only completeness check)."
+  cost_model_exposure: >-
+    RANK 1 ran ~5.4x its declared 900 s ceiling (accepted as a disclosed budget
+    outcome). The two MD4 runs share ONE 1800 s declared envelope (900 s each). If
+    the overrun repeats at the close, it is flagged, recorded, and ruled by the
+    Coordinator (the wrapper deadline is the HARD stop inside each run, so the
+    exposure is in authoring/verification overhead around the runs, which the
+    charging convention excludes from the charged cost).
+  handoff_to: >-
+    The Coordinator's ruling step: the run scope is ruled from this spec; the
+    ruling is recorded before RANK 3 dispatch.
+
+meta:
+  requested_policy: research-deep
+  resolved_model: vllm/qwen3.8-27b
+  budget:
+    declared_seconds: 900
+    actual_account: "not measured by the agent"
+  part: "complete — sections 1-5 + meta"
