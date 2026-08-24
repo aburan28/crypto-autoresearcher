@@ -422,13 +422,22 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
     # Registered supersessions are immutable and write-once, so the registry
     # only ever grows; a shrink means a correction was dropped. The binding
     # that matters is not the registry's size but its shape: every registration
-    # resolves to exactly one staged document, except a suppressed redirect,
-    # whose lineage merges into a target carrying its own registration.
+    # resolves to exactly one staged document with verification_artifacts,
+    # except a suppressed redirect whose target is itself registered (lineage
+    # merges into that already-counted document). A redirect onto an ordinary
+    # unregistered discovery path still contributes one artifact-bearing
+    # document via lineage on the target.
     assert len(diagnostics.registered_source_paths) >= 70
     assert diagnostics.matched_registered_source_paths == diagnostics.registered_source_paths
     assert diagnostics.unmatched_registered_source_paths == []
+    registered_set = set(diagnostics.registered_source_paths)
+    redirects_into_registered_targets = sum(
+        1
+        for item in diagnostics.redirect_suppressions
+        if item.target_path in registered_set
+    )
     assert sum(bool(item.metadata.get("verification_artifacts")) for item in documents) == (
-        len(diagnostics.registered_source_paths) - len(diagnostics.redirect_suppressions)
+        len(diagnostics.registered_source_paths) - redirects_into_registered_targets
     )
 
     # The debt stays exact where the counts became floors. Disclosed debt is
@@ -492,9 +501,35 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
         and not item.identical_bytes
         for item in diagnostics.duplicate_source_ids
     )
-    assert [item.source_path for item in diagnostics.redirect_suppressions] == [
-        "ledger/hypotheses/H-XOR-YIELD.yaml"
+    # Exact membership, not a floor: a new suppressed redirect is disclosed
+    # debt and must be reviewed into this pin. The SSI rows restore two
+    # historical experiment aliases that validate_ledger already required;
+    # H-XOR-YIELD remains the sole ledger-side alias redirect.
+    assert sorted(item.source_path for item in diagnostics.redirect_suppressions) == [
+        "experiments/EXP-SSI-16649/specification.yaml",
+        "experiments/EXP-SSI-a6132d/specification.yaml",
+        "ledger/hypotheses/H-XOR-YIELD.yaml",
     ]
+    assert {
+        (item.source_path, item.target_path, item.redirect_id)
+        for item in diagnostics.redirect_suppressions
+    } == {
+        (
+            "ledger/hypotheses/H-XOR-YIELD.yaml",
+            "ledger/hypotheses/H-XOR-d1a480.yaml",
+            "H-XOR-d1a480",
+        ),
+        (
+            "experiments/EXP-SSI-a6132d/specification.yaml",
+            "experiments/EXP-SSI-2d8583/specification.yaml",
+            "EXP-SSI-2d8583",
+        ),
+        (
+            "experiments/EXP-SSI-16649/specification.yaml",
+            "experiments/EXP-SSI-16649a/specification.yaml",
+            "EXP-SSI-16649a",
+        ),
+    }
 
     # Count is already floored above as `ledgers/goal-checkpoints`; what these
     # pin is the shard addressing scheme -- goal directory plus filename, so a
@@ -522,4 +557,28 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
         "541bda542e20b161d3bdd606cd88c18ee65cb857f8fcd5ae6d39d459962b0ac7",
         "ledger/hypotheses/H-XOR-d1a480.yaml@sha256:"
         "655c01aa05986f760b2a348ba5e3cfdb1103cdb1af4eb27f97610db9217cd1f8",
+    ]
+
+    ssi_a6132d_target = [
+        item for item in documents if item.metadata["source_id"] == "experiment:EXP-SSI-2d8583"
+    ]
+    assert len(ssi_a6132d_target) == 1
+    assert ssi_a6132d_target[0].metadata["supersedes"] == ["EXP-SSI-a6132d"]
+    assert ssi_a6132d_target[0].metadata["verification_artifacts"] == [
+        "experiments/EXP-SSI-2d8583/specification.yaml@sha256:"
+        "d36a9cd14e4dc450f282118d6243d925fe8dd589fbdd16949183252aa2df27b7",
+        "experiments/EXP-SSI-a6132d/specification.yaml@sha256:"
+        "531b0a647a3354c7a303d47c5c97923fafeff8a819df6257e4c1e7f5f1405d4e",
+    ]
+
+    ssi_16649_target = [
+        item for item in documents if item.metadata["source_id"] == "experiment:EXP-SSI-16649a"
+    ]
+    assert len(ssi_16649_target) == 1
+    assert ssi_16649_target[0].metadata["supersedes"] == ["EXP-SSI-16649"]
+    assert ssi_16649_target[0].metadata["verification_artifacts"] == [
+        "experiments/EXP-SSI-16649/specification.yaml@sha256:"
+        "1422e744fd76454e17901a08a6f5c1d5f436476abb122de07840cffe1c6c8f89",
+        "experiments/EXP-SSI-16649a/specification.yaml@sha256:"
+        "76a5d0e9adffae8ab5d011387e19f2572f62a1e49af4fc863860ed813def123e",
     ]
