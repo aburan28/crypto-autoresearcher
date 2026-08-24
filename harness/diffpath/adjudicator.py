@@ -216,12 +216,21 @@ def ctl_plant(adj: Adjudicator, census: Census) -> dict:
     misses: list[dict] = []
     per_class: dict = {}
     orbit_sizes: dict = {}
+    canon_counts: dict = {}
     for e in census.shadow:
         cases = [("planted", e.obj)]
         for img in orbit_images(e.obj, adj.strict):
             cls = (img.path_data or {}).get("kind", "image")
             cases.append((cls, img))
-        orbit_sizes[e.id] = len({canonical(o, adj.strict) for _, o in cases})
+        # ORBIT SIZE = how many DISTINCT objects the equivalence identifies,
+        # measured against the FINEST identity (serialize with no generator in
+        # force).  Reported alongside the number of distinct CANONICAL forms in
+        # the same orbit, which is a correctness check and must be 1.  Both are
+        # integers, and an orbit of size 1 -- an equivalence doing no work on
+        # this object -- is visible as such rather than hidden.
+        raw = {serialize(o, frozenset()) for _, o in cases}
+        orbit_sizes[e.id] = len(raw)
+        canon_counts[e.id] = len({canonical(o, adj.strict) for _, o in cases})
         for cls, o in cases:
             attempts += 1
             a = adj.adjudicate(o)
@@ -248,11 +257,17 @@ def ctl_plant(adj: Adjudicator, census: Census) -> dict:
         "misses": misses,
         "orbit_size_distribution": {str(k): v for k, v in sorted(dist.items())},
         "orbit_size_note": (
-            "Orbit size is measured as the number of DISTINCT canonical forms "
-            "among {planted path} u {its images under every verified "
-            "generator}. A verified generator whose canonicaliser undoes it "
-            "exactly contributes size 1 -- which is what an equivalence doing "
-            "no work looks like, and it is reported rather than hidden."),
+            "Orbit size is the number of DISTINCT OBJECTS, under the FINEST "
+            "identity (serialisation with no generator in force), among "
+            "{planted path} u {its images under every verified generator}. It "
+            "measures how much work the equivalence does. An orbit of size 1 "
+            "means the equivalence identifies nothing for that object and is "
+            "reported as such rather than hidden."),
+        "distinct_canonical_forms_per_orbit": canon_counts,
+        "distinct_canonical_forms_note": (
+            "A CORRECTNESS check, not a measure of work: every orbit must "
+            "collapse to exactly 1 canonical form, or CTL-OBS direction (ii) "
+            "has found a canonicaliser defect."),
         "orbit_image_count_per_entry": {e.id: len(orbit_images(e.obj, adj.strict))
                                         for e in census.shadow},
     }
