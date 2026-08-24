@@ -97,3 +97,41 @@ The mathematics is NOT declared closed. What is closed, each with a named
 obstruction: C2 via elliptic K3s (proven ceiling); reconstruction from the moduli
 point (level-79 structure unpublished); high-geometric-rank substitution (descent,
 measured here).
+
+---
+
+# Addendum: Kihara rank-14 is PAYWALLED, and the substitute lane closes too
+
+The scoping named Kihara, *On an elliptic curve over Q(t) of rank >= 14*,
+Proc. Japan Acad. Ser. A 77 (2001) 50-51, DOI 10.3792/pjaa.77.50, as the best
+remaining substitute and listed it as Open Access. **That listing is wrong.**
+
+- The Project Euclid `.full` page shows title, author and abstract only, then
+  login and subscription prompts. Verbatim: access "requires either an
+  institutional subscription or individual purchase".
+- The direct download endpoint returns a **PDF encrypted with the Standard
+  security handler** (`/Encrypt` present, `/Filter /Standard`). Its streams are
+  not zlib-readable; 32 FlateDecode streams decompress to nothing without the
+  decryption key.
+
+**I did not attempt to decrypt it, and the cached copy was deleted.** The paper
+is paywalled copyrighted work; circumventing an access control to read it is not
+something this program will do to complete a task, and whether an empty-password
+trick would succeed technically is beside the point.
+
+## Consequence
+
+The substitute lane is blocked by access, not by mathematics. Standing:
+
+- Kihara rank 14 over Q(t): **paywalled**, model and generators unread.
+- Mestre rank 14: citation **unknown**, never retrieved.
+- Nagao rank 13 over Q(T): access status **contradictory** in retrieval; and it
+  is the paper whose exponents this program's tooling has already mangled twice.
+- Kloosterman geometric 15: **measured arithmetic rank 0**, dead as a vehicle.
+
+So this program still holds **no verified explicit high-rank family over Q(t)**,
+and the cheapest route to one now runs through a library subscription rather
+than through any computation.
+
+None of this moves the objective. Even a clean rank-14 family sits **18 rungs
+below rank 32** and four below the Q(t) record.
