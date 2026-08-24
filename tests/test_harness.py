@@ -11,6 +11,7 @@ import os
 import random
 
 import pytest
+import sympy
 
 from harness import rho, semaev
 from harness.runner import RunResult, curve_id, write_run
@@ -66,6 +67,57 @@ def test_summation_polynomial_vanishing_identity():
         assert semaev.s3_eval(2, 3, A[0], B[0], C[0], 101) == 0
         checked += 1
     assert checked > 20
+
+
+def test_s4_has_exact_support_degree_and_frozen_witness():
+    x4 = sympy.symbols("x4")
+    s4 = semaev.s4_expr(2, 3)
+
+    assert s4.free_symbols == {semaev.x1, semaev.x2, semaev.x3, x4}
+    assert semaev._t not in s4.free_symbols
+    assert sympy.Poly(
+        s4, semaev.x1, semaev.x2, semaev.x3, x4
+    ).total_degree() == 12
+    witness = {
+        semaev.x1: 1,
+        semaev.x2: 3,
+        semaev.x3: 5,
+        x4: 41,
+    }
+    assert int(s4.subs(witness)) % 101 == 0
+
+
+def test_factor_base_legacy_and_target_subgroup_scopes():
+    inst = generate_instance(seed=1, field_bits=6)
+    E = inst.curve()
+    expected_legacy = [34, 4, 25, 40, 30]
+    expected_subgroup = {12, 13, 18, 24, 33}
+
+    assert inst.n == 11
+    assert E.order() // inst.n == 5
+    assert semaev.build_factor_base(inst, 5) == expected_legacy
+    assert semaev.build_factor_base(
+        inst, 5, scope="full_curve"
+    ) == expected_legacy
+
+    subgroup_base = semaev.build_factor_base(
+        inst, 5, scope="target_subgroup"
+    )
+    assert subgroup_base == semaev.build_factor_base(
+        inst, 5, scope="target_subgroup"
+    )
+    assert len(subgroup_base) == 5
+    assert len(set(subgroup_base)) == 5
+    assert set(subgroup_base) == expected_subgroup
+    for x in subgroup_base:
+        canonical_lift = E.lift_x(x)
+        assert canonical_lift is not None
+        assert E.mul(inst.n, canonical_lift) is None
+
+    with pytest.raises(ValueError):
+        semaev.build_factor_base(inst, 6, scope="target_subgroup")
+    with pytest.raises(ValueError):
+        semaev.build_factor_base(inst, 5, scope="unknown")
 
 
 def test_decomposition_certificate_verifies_independently():
@@ -367,7 +419,7 @@ def test_cairn_bridge_failure_is_not_attempted_not_a_crash(tmp_path):
     rr = _discrete_log_result("cairn-broken-b8-s7")
     with patch.object(cairn_bridge, "available", return_value=True), \
          patch.object(cairn_bridge, "score_certificate",
-                       side_effect=cairn_bridge.CairnUnavailableError("mocked timeout")):
+                      side_effect=cairn_bridge.CairnUnavailableError("mocked timeout")):
         run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
                             command="pytest", started=1.0, finished=2.0, out_root=str(tmp_path))
     import yaml
@@ -376,3 +428,626 @@ def test_cairn_bridge_failure_is_not_attempted_not_a_crash(tmp_path):
     cross_check = manifest["result"]["certificate"]["cairn_cross_check"]
     assert cross_check["status"] == "not_attempted"
     assert "mocked timeout" in cross_check["reason"]
+
+
+# --- GOAL-MD5-001 F-6(a): md5_collision_pair pin-mechanism tests ------------
+# DEC-20260820-32bf19 F-2(2), landed by TASK-20260821-f5f96a (BATCH-1f30fe).
+# The md5_collision_pair certificate kind (BCP-2 collision_certificate_format)
+# is exercised here on KNOWN-FALSE objects through the PRODUCTION path --
+# write_run's own _verify dispatch, not a re-implementation of the checks --
+# and the pin-mechanism distinctness assertion (BCP-2
+# pin_mechanism_requirement, INV-13) is exercised with the REAL pinned
+# registry and with ALIASED registries that must be detected as not distinct.
+
+_MD5_BLOCK_A = "00" * 64          # one 512-bit block, hex-encoded
+_MD5_BLOCK_B = "01" * 64          # a different 512-bit block, hex-encoded
+
+
+def _md5_hex(data: bytes) -> str:
+    import hashlib
+    return hashlib.md5(data, usedforsecurity=False).hexdigest()
+
+
+def _md5_pair_result(run_suffix, m1_hex, m2_hex, digest_hex,
+                     verified_by=None):
+    """A RunResult carrying an md5_collision_pair certificate, ready for the
+    production write_run path. `verified_by` (when given) is a SOLVER-
+    SUPPLIED value at the certificate's top level (a sibling of `statement`,
+    per the BCP-2 schema) that the wrapper must clear (BCP-2's J5 fix)."""
+    statement = {"messages": [m1_hex, m2_hex], "digest": digest_hex,
+                 "implementations": ["IMPL-1", "IMPL-3"]}
+    certificate = {"kind": "md5_collision_pair", "statement": statement}
+    if verified_by is not None:
+        certificate["verified_by"] = verified_by
+    return RunResult(
+        run_suffix=run_suffix, curve_id="MD5", seed=0,
+        parameters={"kind": "md5_collision_pair"}, metrics={},
+        certificate=certificate,
+        stdout="ok\n")
+
+
+def _read_run(out_root, run_id):
+    import yaml, json
+    run_dir = os.path.join(out_root, "runs", run_id)
+    manifest = yaml.safe_load(
+        open(os.path.join(run_dir, "manifest.yaml")))["run"]
+    raw = json.load(open(os.path.join(run_dir, "raw-result.json")))
+    return manifest, raw
+
+
+def test_md5_collision_pair_noncolliding_pair_fails_with_named_checks(tmp_path):
+    """Known-false object 1: two distinct blocks whose digests differ. The
+    claimed digest is the TRUE digest of m1, so exactly the two m2 checks
+    must fail and be named; the run is completed_invalid, not a result."""
+    digest = _md5_hex(bytes.fromhex(_MD5_BLOCK_A))
+    rr = _md5_pair_result("md5pair-nocoll-s0", _MD5_BLOCK_A, _MD5_BLOCK_B, digest)
+    out = str(tmp_path)
+    run_id = write_run("EXP-MDFIVE-001", "MDFIVE", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+    manifest, raw = _read_run(out, run_id)
+    cert = manifest["result"]["certificate"]
+    assert manifest["status"] == "completed_invalid"
+    assert manifest["result"]["valid"] is False
+    assert cert["verified"] is False
+    assert cert["failing_checks"] == ["digest_mismatch_impl1_m2",
+                                      "digest_mismatch_impl3_m2"]
+    # The pin-mechanism block is recorded at run time with the real registry.
+    assert raw["certificate"]["pin_mechanism"]["distinct"] is True
+
+
+def test_md5_collision_pair_tampered_digest_fails_with_named_checks(tmp_path):
+    """Known-false object 2: a tampered claimed digest (one hex digit
+    flipped). All four pinned-implementation digests mismatch and each is
+    named."""
+    digest = _md5_hex(bytes.fromhex(_MD5_BLOCK_A))
+    tampered = ("0" if digest[0] != "0" else "1") + digest[1:]
+    rr = _md5_pair_result("md5pair-tamper-s0", _MD5_BLOCK_A, _MD5_BLOCK_B, tampered)
+    out = str(tmp_path)
+    run_id = write_run("EXP-MDFIVE-001", "MDFIVE", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+    manifest, _ = _read_run(out, run_id)
+    cert = manifest["result"]["certificate"]
+    assert manifest["status"] == "completed_invalid"
+    assert cert["verified"] is False
+    assert cert["failing_checks"] == [
+        "digest_mismatch_impl1_m1", "digest_mismatch_impl1_m2",
+        "digest_mismatch_impl3_m1", "digest_mismatch_impl3_m2"]
+
+
+def test_md5_collision_pair_identical_messages_fail_m1_equals_m2(tmp_path):
+    """Known-false object 3: m1 == m2 with the TRUE digest claimed. All four
+    digests agree, so the ONLY failing check must be m1_equals_m2 -- a
+    collision certificate for identical messages is not a collision."""
+    digest = _md5_hex(bytes.fromhex(_MD5_BLOCK_A))
+    rr = _md5_pair_result("md5pair-same-s0", _MD5_BLOCK_A, _MD5_BLOCK_A, digest)
+    out = str(tmp_path)
+    run_id = write_run("EXP-MDFIVE-001", "MDFIVE", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+    manifest, raw = _read_run(out, run_id)
+    cert = manifest["result"]["certificate"]
+    assert manifest["status"] == "completed_invalid"
+    assert cert["verified"] is False
+    assert cert["failing_checks"] == ["m1_equals_m2"]
+    # Even a failing certificate carries the run-time pin-mechanism record.
+    assert raw["certificate"]["pin_mechanism"]["distinct"] is True
+
+
+def test_md5_pin_mechanism_real_registry_is_distinct():
+    """The REAL pinned registry (IMPL-1 hashlib/OpenSSL vs IMPL-3 _md5/
+    CPython) must be distinct at the mechanism level: distinct module files
+    and distinct runtime types, probed through the runner's own callables."""
+    from harness import runner
+
+    record, distinct = runner._md5_pin_mechanism(runner._MD5_IMPL_FUNCS)
+    assert distinct is True
+    f1, f3 = record["IMPL-1"]["module_file"], record["IMPL-3"]["module_file"]
+    t1, t3 = record["IMPL-1"]["runtime_type"], record["IMPL-3"]["runtime_type"]
+    assert f1 and f3 and f1 != f3
+    assert t1 != t3
+    # The mechanism, not the names: IMPL-1 resolves into the OpenSSL-backed
+    # _hashlib extension, IMPL-3 into CPython's standalone _md5 extension.
+    assert "_hashlib" in os.path.basename(f1)
+    assert os.path.basename(f3).startswith("_md5")
+    assert t1.startswith("_hashlib.")
+    assert t3.startswith("_md5.")
+
+
+def test_md5_pin_mechanism_real_registry_library_linkage_distinct():
+    """Library linkage (BCP-2 pin_mechanism_requirement, third axis): the
+    IMPL-1 extension links a crypto library (libcrypto); the IMPL-3
+    extension links no crypto library (libSystem only). Checked with
+    otool -L on the resolved module files -- Darwin only, where the pin was
+    made; on other platforms the linkage axis is not re-checked here."""
+    import platform
+    import shutil
+    import subprocess
+
+    from harness import runner
+
+    record, distinct = runner._md5_pin_mechanism(runner._MD5_IMPL_FUNCS)
+    assert distinct is True
+    if platform.system() != "Darwin" or shutil.which("otool") is None:
+        import pytest
+        pytest.skip("otool -L linkage check is Darwin-only; the pin's "
+                    "linkage determination was made on Darwin")
+    linkage = {}
+    for impl_id in runner.PINNED_MD5_IMPLEMENTATIONS:
+        out = subprocess.run(["otool", "-L", record[impl_id]["module_file"]],
+                             capture_output=True, text=True).stdout
+        linkage[impl_id] = out
+    assert "libcrypto" in linkage["IMPL-1"]
+    assert "libcrypto" not in linkage["IMPL-3"]
+    assert "libSystem" in linkage["IMPL-3"]
+
+
+def test_md5_pin_mechanism_aliased_registry_is_detected_not_distinct():
+    """An ALIASED registry -- both slots pointing at one implementation's
+    code path -- must be detected as NOT distinct. This is the edit BCP-2's
+    pin_mechanism_requirement exists to catch: the names would still read
+    IMPL-1/IMPL-3, but the mechanism (module file + runtime type) does not."""
+    from harness import runner
+
+    for aliased in (
+        {"IMPL-1": runner._md5_impl1_hash, "IMPL-3": runner._md5_impl1_hash},
+        {"IMPL-1": runner._md5_impl3_hash, "IMPL-3": runner._md5_impl3_hash},
+    ):
+        record, distinct = runner._md5_pin_mechanism(aliased)
+        assert distinct is False
+        assert record["IMPL-1"]["module_file"] == record["IMPL-3"]["module_file"]
+        assert record["IMPL-1"]["runtime_type"] == record["IMPL-3"]["runtime_type"]
+
+
+def test_md5_collision_pair_verified_by_is_wrapper_populated(tmp_path):
+    """BCP-2's J5 fix: any solver-provided verified_by is CLEARED and
+    replaced exclusively with the wrapper's own recomputation, per pinned
+    implementation. The solver's value must not survive into the record."""
+    digest = _md5_hex(bytes.fromhex(_MD5_BLOCK_A))
+    solver_claim = [{"implementation": "SOLVER-CLAIMED",
+                     "computed_digest_m1": "0" * 32,
+                     "computed_digest_m2": "0" * 32}]
+    rr = _md5_pair_result("md5pair-vby-s0", _MD5_BLOCK_A, _MD5_BLOCK_A, digest,
+                          verified_by=solver_claim)
+    out = str(tmp_path)
+    run_id = write_run("EXP-MDFIVE-001", "MDFIVE", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0, out_root=out)
+    import json
+    _, raw = _read_run(out, run_id)
+    verified_by = raw["certificate"]["verified_by"]
+    assert [e["implementation"] for e in verified_by] == ["IMPL-1", "IMPL-3"]
+    assert all(e["computed_digest_m1"] == digest and e["computed_digest_m2"] == digest
+               for e in verified_by)
+    assert "SOLVER-CLAIMED" not in json.dumps(raw)
+
+
+# ---------------------------------------------------------------------------
+# harness/run_md4_ceiling.py (GOAL-MD5-001 BATCH-af29f6 TASK-20260821-de817d,
+# EXP-MDFIVE-88f7d1). Additive only. These are the two audit-1 correctness
+# gates the frozen contract requires to pass BEFORE any statistical run is
+# trusted: the RFC 1320 published test vectors, and HEUR-H2's deterministic
+# backward-inversion regression fixture.
+# ---------------------------------------------------------------------------
+
+def test_rfc1320_md4_vectors():
+    """The standalone MD4 core (no hashlib) must reproduce every published
+    RFC 1320 Appendix A.5 test vector exactly."""
+    from harness.run_md4_ceiling import check_rfc1320_vectors
+
+    result = check_rfc1320_vectors()
+    assert result["all_ok"] is True, result
+    assert len(result["vectors"]) == 7
+
+
+def test_h2_backward_inversion_regression_fixture_md4_and_md5():
+    """HEUR-H2 (H-MDFIVE-bf7767): forward_step/backward_step composition
+    must be an exact identity on every sampled tuple for BOTH primitives'
+    Round-1 conventions (MD4: no trailing '+= b'; MD5: with it) -- a single
+    failure invalidates all downstream MITM search results."""
+    from harness.run_md4_ceiling import h2_regression_fixture
+
+    for mode in ("md4", "md5"):
+        result = h2_regression_fixture(seed=8975317, n=10000, mode=mode)
+        assert result["all_ok"] is True, (mode, result["failures"][:3])
+        assert result["n"] == 10000
+
+
+def test_md4_forward_backward_step_add_b_convention():
+    """Regression pin for the specific bug this module's first draft hit:
+    MD4's Round-1 operation (RFC 1320 sec 3.4, "[abcd k s]" notation) has NO
+    trailing '+= b' term, unlike MD5's RFC 1321 FF/GG/HH/II macros. Using
+    MD5's formula for MD4 fails every RFC 1320 A.5 vector -- this test pins
+    the two conventions directly against a hand-computed example so a future
+    edit that re-merges them is caught immediately, not just via the vector
+    self-test."""
+    from harness.run_md4_ceiling import (MD4_ADD_B, MD5_ADD_B, _IV,
+                                         backward_step, forward_step)
+
+    assert MD4_ADD_B is False
+    assert MD5_ADD_B is True
+    state = _IV
+    xk, s, t = 0x11223344, 7, 0
+    md4_next = forward_step(state, xk, s, t, add_b=False)
+    md5_next = forward_step(state, xk, s, t, add_b=True)
+    assert md4_next != md5_next
+    assert backward_step(md4_next, xk, s, t, add_b=False) == state
+    assert backward_step(md5_next, xk, s, t, add_b=True) == state
+
+
+def test_md4_ceiling_brute_force_control_result_sets_equal():
+    """The correctness control this contract requires before any k1=k2=10
+    search result is trusted (invalidation_rules): the MITM hash-table
+    search's result set must be IDENTICAL to the naive all-pairs search's
+    result set on the fully brute-forceable k1=k2=6 subset."""
+    from harness.run_md4_ceiling import (fixed_word_generation,
+                                         generate_target, mitm_search,
+                                         naive_all_pairs_search)
+
+    fixed = fixed_word_generation(seed=20260821, free_bits=6)
+    target = generate_target(8975316, fixed, "md4", free_bits=6)
+    mitm = mitm_search(fixed, target, "md4", 6, 6, 6, 20)
+    naive = naive_all_pairs_search(fixed, target, "md4", 6, 6, 20)
+    assert sorted(mitm["solutions"]) == sorted(naive["solutions"])
+    assert mitm["solutions"], "control target must be reachable in-window"
+
+
+# ===========================================================================
+# harness/run_md4_ceiling_v2.py -- R1-SEP10 instrument
+# (GOAL-MD5-001 / BATCH-7215fa / TASK-20260821-372d67, EXP-MDFIVE-a8e71e).
+# ADDITIVE ONLY: nothing above this banner is modified, and
+# harness/run_md4_ceiling.py (BATCH-af29f6's frozen instrument, IR-7) is
+# neither edited nor imported by these tests.
+# ===========================================================================
+
+def test_v2_rfc1320_vectors_and_md5_t16():
+    """CTL-PO7. All seven RFC 1320 Appendix A.5 MD4 vectors, plus MD5's
+    T[1..16] against the RFC 1321 sec 3.4 sine definition."""
+    from harness.run_md4_ceiling_v2 import check_md5_t16, check_rfc1320_vectors
+
+    vec = check_rfc1320_vectors()
+    assert vec["all_ok"], vec
+    assert len(vec["vectors"]) == 7
+    assert check_md5_t16()["all_ok"]
+
+
+def test_v2_input_pins_match_committed_sha256():
+    """The two RFC pins are re-hashed, never re-fetched."""
+    from harness.run_md4_ceiling_v2 import check_input_pins
+
+    pins = check_input_pins()
+    assert pins["all_ok"], pins
+
+
+def test_v2_h2_exact_invertibility_both_primitives():
+    """CTL-PO6. backward_step is the exact inverse of forward_step for both
+    add_b conventions; a single failure invalidates everything downstream."""
+    from harness.run_md4_ceiling_v2 import h2_regression_fixture
+
+    for primitive in ("md4", "md5"):
+        res = h2_regression_fixture(8975327, 2000, primitive)
+        assert res["all_ok"], res["failures"][:3]
+
+
+def test_v2_component_step_convention():
+    """The rotating-tuple convention, pinned as arithmetic: state_S[1] is the
+    register produced at step S, [2] at S-1, [3] at S-2, [0] at S-3."""
+    from harness.run_md4_ceiling_v2 import component_step
+
+    assert component_step(8, 3) == 6      # R1-SEP10 reads v6
+    assert component_step(9, 1) == 9      # batch-4 slice reads v9
+    assert component_step(8, 2) == 7
+    assert component_step(8, 0) == 5
+
+
+def test_v2_component_identity_against_independent_reference():
+    """CTL-PO9. Tuple position p of state_S from the module's own forward
+    chain equals the register produced at step component_step(S,p) as
+    computed by the independent straight-line named-register reference."""
+    import random as _random
+
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            component_identity_check)
+
+    rng = _random.Random(20260821)
+    probes = [[rng.getrandbits(32) for _ in range(16)] for _ in range(16)]
+    for primitive in ("md4", "md5"):
+        for S, p in ((8, 3), (9, 1)):
+            params = ConstructionParams(primitive=primitive, i_word=2,
+                                        j_word=12, S=S, p=p, k1=4, k2=4,
+                                        m=12, k=20)
+            res = component_identity_check(params, None, probes)
+            assert res["all_ok"], res
+
+
+def test_v2_observables_are_the_single_code_path():
+    """A-6 / PO-8. Both observable functions take the parameter tuple and are
+    the only readers of the declared observable; the fingerprint names them
+    fully-qualified together with the exact tuple they were invoked with."""
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            code_path_fingerprint)
+
+    params = ConstructionParams("md4", 2, 12, 8, 3, 4, 4, 12, 20)
+    fp = code_path_fingerprint(params)
+    assert fp["chunk1_observable"].endswith(
+        "run_md4_ceiling_v2.chunk1_observable")
+    assert fp["chunk2_observable"].endswith(
+        "run_md4_ceiling_v2.chunk2_observable")
+    assert fp["parameter_tuple"] == {
+        "primitive": "md4", "i_word": 2, "j_word": 12, "S": 8, "p": 3,
+        "k1": 4, "k2": 4, "m": 12, "k": 20}
+
+
+def test_v2_chunk1_observable_does_not_read_free_word_B():
+    """Recorded honestly rather than presented as a passed test: the forward
+    observable structurally cannot read free word B (index j_word >= S), so
+    CTL-PO3's four repetitions are byte-identical by construction."""
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            chunk1_observable,
+                                            fixed_word_generation)
+
+    params = ConstructionParams("md4", 2, 12, 8, 3, 4, 4, 12, 20)
+    fixed = fixed_word_generation(20260821, (2, 12), 4)
+    base = [chunk1_observable(fixed["high"][2] | low, params, fixed)
+            for low in range(16)]
+    perturbed = dict(fixed)
+    words = list(fixed["words"])
+    words[12] ^= 0xFFFF0000
+    perturbed["words"] = words
+    assert base == [chunk1_observable(fixed["high"][2] | low, params,
+                                      perturbed) for low in range(16)]
+
+
+def test_v2_forward_backward_halves_meet_on_the_planted_pair():
+    """HEUR-H2 at the construction level: for the planted pair the forward and
+    backward halves produce the SAME declared observable, for both slices and
+    both primitives -- feasibility (PO-10), not a gate result."""
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            chunk1_observable,
+                                            chunk2_observable,
+                                            fixed_word_generation,
+                                            generate_target)
+
+    for primitive in ("md4", "md5"):
+        for (i, j, S, p) in ((2, 12, 8, 3), (8, 9, 9, 1)):
+            params = ConstructionParams(primitive, i, j, S, p, 4, 4, 12, 20)
+            fixed = fixed_word_generation(20260821, (i, j), 4)
+            target = generate_target(8975322, fixed, params)
+            fwd = chunk1_observable(target["true_word_i"], params, fixed)
+            bwd = chunk2_observable(target["true_word_j"], target["Y"],
+                                    params, fixed)
+            assert fwd == bwd == target["component_full32"]
+
+
+def test_v2_naive_baseline_is_independent_of_the_observable():
+    """CTL-PO4's baseline must not read what the MITM reads. BATCH-af29f6's
+    baseline compared low_k_fwd against low_k_bwd and was vacuous (ANOM-1
+    caveat); this one compares an independent straight-line 16-step forward
+    output against Y. Checked against the SOURCE, not a docstring."""
+    import ast
+    import inspect
+    import textwrap
+
+    from harness import run_md4_ceiling_v2 as mod
+
+    def _body(fn):
+        """Source with the docstring stripped -- the docstring MENTIONS the
+        forbidden names in order to say it does not use them."""
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+        node = tree.body[0]
+        if (node.body and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+                and isinstance(node.body[0].value.value, str)):
+            node.body = node.body[1:]
+        return ast.unparse(node)
+
+    src = _body(mod.naive_y_reproducing_search)
+    assert "backward_step" not in src
+    assert "chunk1_observable" not in src
+    assert "chunk2_observable" not in src
+    attrs = {n.attr for n in ast.walk(ast.parse(src))
+             if isinstance(n, ast.Attribute)}
+    assert "p" not in attrs, "the naive baseline must not read component p"
+    assert "m" not in attrs, "the naive baseline must not read the window"
+    assert "_reference_round1_output" in src
+
+    ref_src = _body(mod._reference_round1_output)
+    assert "forward_step" not in ref_src
+
+
+def test_v2_naive_and_certificate_verified_mitm_agree_at_k4():
+    """A cheap, non-gate correctness check of the two independent search
+    paths at k1=k2=4 on the R1-SEP10 slice: the certificate-verified MITM set
+    equals the naive Y-reproducing set, and the planted pair is in-window
+    (PO-10 feasibility). This is a code-correctness test, not CTL-PO4, which
+    the contract fixes at k1=k2=6 with its own seed."""
+    from harness.run_md4_ceiling_v2 import (ConstructionParams,
+                                            fixed_word_generation,
+                                            generate_target, mitm_search,
+                                            naive_y_reproducing_search,
+                                            verify_certificate)
+
+    params = ConstructionParams("md4", 2, 12, 8, 3, 4, 4, 12, 20)
+    fixed = fixed_word_generation(20260821, (2, 12), 4)
+    target = generate_target(8975322, fixed, params)
+    mitm = mitm_search(params, fixed, target)
+    verified = sorted(
+        (a, b) for (a, b) in mitm["raw_solutions"]
+        if verify_certificate(params, fixed, target, a, b)["verified"])
+    naive = sorted(naive_y_reproducing_search(params, fixed,
+                                              target)["solutions"])
+    assert verified == naive
+    assert (target["true_word_i"], target["true_word_j"]) in naive
+
+
+def test_v2_variance_classification_is_the_frozen_three_way_split():
+    """The three-way split is applied mechanically and labels, never
+    concludes: below 64 is INSTRUMENT DEGENERACY and a STOP, explicitly NOT
+    an H1 falsification."""
+    from harness.run_md4_ceiling_v2 import classify_variance
+
+    assert "INSTRUMENT_DEGENERACY" in classify_variance(0.0)
+    assert "INSTRUMENT_DEGENERACY" in classify_variance(63.9)
+    assert classify_variance(256.0) == "inside_[128,512]_H1_consistent_band"
+    assert classify_variance(100.0) == "outside_[128,512]_and_not_below_64"
+    assert classify_variance(None) == "not_computable"
+
+
+def test_v2_manifest_output_carries_caveat_refs(tmp_path):
+    """SC-5 / IR-8, checked on the MANIFEST ITSELF rather than on prose: a run
+    written by this module carries `caveat_refs`, and it names KN-TECH-bb7e9f
+    and DEC-20260821-1215e5 F-4."""
+    import yaml as _yaml
+
+    from harness.run_md4_ceiling_v2 import _main
+
+    out_root = str(tmp_path / "out")
+    rc = _main(["--mode", "primary", "--primitive", "md4", "--k1", "4",
+                "--k2", "4", "--target-seed", "8975322",
+                "--run-suffix", "unit-caveat-check", "--out-root", out_root])
+    assert rc == 0
+    manifest_path = os.path.join(out_root, "runs",
+                                 "RUN-MDFIVE-unit-caveat-check",
+                                 "manifest.yaml")
+    manifest = _yaml.safe_load(open(manifest_path))
+    refs = manifest["run"]["inputs"]["parameters"]["caveat_refs"]
+    assert any("KN-TECH-bb7e9f" in r for r in refs)
+    assert any("DEC-20260821-1215e5 F-4" in r for r in refs)
+    assert manifest["run"]["cost_model"]["caveat_refs"] == refs
+
+
+# ---------------------------------------------------------------------------
+# harness/run_md4_seed_sweep.py -- RC-1/RC-4/RC-5 phase-1 sweep
+# (GOAL-MD5-001 / BATCH-ebac02 / TASK-20260822-767bb1, EXP-MDFIVE-b6-phase1).
+# Additive block; appends only.
+# ---------------------------------------------------------------------------
+
+def test_b6_sweep_null_object_forward_channel_is_fully_injective():
+    """RC-5 null object (additive non-multiplexer mixer): the forward channel
+    is fully injective at gate scale (k1=4) at BOTH resolutions on fixed
+    seeds -- the control shows the 16-distinct behavior the multiplexer
+    object can fail to reach."""
+    import time
+    from harness.run_md4_seed_sweep import measure_seed_null
+
+    t0 = time.monotonic()
+    for prim in ("md4", "md5"):
+        for seed in (20260821, 20260850, 20260919):
+            n = measure_seed_null(prim, seed, t0, 120)
+            for row in n["direction_A_rows"]:
+                assert row["distinct_fwd_32bit"] == 16
+                assert row["distinct_fwd_12bit"] == 16
+
+
+def test_b6_sweep_null_object_backward_channel_is_structurally_degenerate():
+    """The additive mixer makes the Round-1 state affine in the words, and at
+    the declared component position the backward 12-bit window projection has
+    zero coefficient in the free word's low bits: distinct_bwd_12bit == 1 for
+    all held-fixed indices, both primitives. Recorded as a structural
+    property (the bwd-12 null comparison is degenerate, not a control pass)."""
+    import time
+    from harness.run_md4_seed_sweep import measure_seed_null
+
+    t0 = time.monotonic()
+    for prim in ("md4", "md5"):
+        for seed in (20260821, 20260850, 20260919):
+            n = measure_seed_null(prim, seed, t0, 120)
+            for row in n["direction_B_rows"]:
+                assert row["distinct_bwd_12bit"] == 1
+
+
+def test_b6_sweep_primary_object_diverges_from_null_at_12bit():
+    """The measurement responds to substitution: on the same fixed seeds the
+    primary (multiplexer) object's forward 12-bit distinct count is strictly
+    below the null object's -- the collapse is object-specific, not an
+    artifact of the instrument."""
+    import time
+    from harness.run_md4_seed_sweep import measure_seed, measure_seed_null
+
+    t0 = time.monotonic()
+    for seed in (20260821, 20260850, 20260919):
+        p = measure_seed("md4", seed, t0, 120)
+        n = measure_seed_null("md4", seed, t0, 120)
+        assert p["direction_A_rows"][0]["distinct_fwd_12bit"] < \
+            n["direction_A_rows"][0]["distinct_fwd_12bit"]
+
+
+def test_b6_sweep_measure_seed_is_deterministic():
+    import time
+    from harness.run_md4_seed_sweep import measure_seed
+
+    t0 = time.monotonic()
+    a = measure_seed("md4", 20260821, t0, 120)
+    b = measure_seed("md4", 20260821, t0, 120)
+    assert a == b
+
+
+def test_b6_sweep_adjudicate_boundary_at_declared_tolerance():
+    """Term (b): TOLERANCE=1 is a strict inequality -- departure 1 stays
+    inside, departure 2 crosses."""
+    from harness.run_md4_seed_sweep import adjudicate, TOLERANCE
+
+    assert TOLERANCE == 1
+    assert not adjudicate(5, 4)["beyond_declared_tolerance"]
+    assert adjudicate(6, 4)["beyond_declared_tolerance"]
+    assert not adjudicate(3, 4)["beyond_declared_tolerance"]
+    assert adjudicate(2, 4)["beyond_declared_tolerance"]
+
+
+def test_b6_sweep_predicted_distinct_is_capped_at_window_size():
+    """The pre-registered prediction is 2^(surviving bits) capped at 2^4=16,
+    applied at both resolutions (RC-4 basis)."""
+    from harness.run_md4_seed_sweep import predicted_distinct
+
+    assert predicted_distinct({"surviving_bit_count": 4})[
+        "predicted_distinct_32bit"] == 16
+    assert predicted_distinct({"surviving_bit_count": 2})[
+        "predicted_distinct_12bit"] == 4
+    assert "MODELED" in predicted_distinct(
+        {"surviving_bit_count": 4})["basis"]
+
+
+def test_b6_sweep_null_rc4_all_low_bits_survive():
+    """The additive mixer transmits every low bit of the free word into the
+    component (linearity): rc4_bit_sensitivity reports all 4 surviving on the
+    fixed seeds, both primitives."""
+    import time
+    from harness.run_md4_seed_sweep import measure_seed_null
+
+    t0 = time.monotonic()
+    for prim in ("md4", "md5"):
+        for seed in (20260821, 20260919):
+            n = measure_seed_null(prim, seed, t0, 120)
+            assert n["rc4"]["surviving_bit_count"] == 4
+            assert n["rc4"]["implied_distinct_32bit_bound"] == 16
+            # the affine mixer carries every bit on every path: the
+            # carry-free model is exact enough to agree with the
+            # measurement here, with no adjudication
+            assert n["rc4"]["modeled_predicted_surviving_bits"] == \
+                [0, 1, 2, 3]
+            assert n["rc4"]["modeled_vs_measured_adjudications"] == []
+
+
+def test_b6_sweep_manifest_carries_declared_params_and_caveats(tmp_path):
+    """The manifest itself carries the declared eps/threshold/tolerance, the
+    armed deadline, and the SC-5 caveat_refs -- checked on the manifest, not
+    on prose."""
+    import yaml as _yaml
+    from harness.run_md4_seed_sweep import _main
+
+    out_root = str(tmp_path / "out")
+    rc = _main(["--primitive", "md4", "--object", "primary",
+                "--seeds", "20260821", "20260822", "--deadline", "120",
+                "--out-root", out_root, "--run-suffix", "unit-b6-check",
+                "--command", "python3 -m harness.run_md4_seed_sweep unit"])
+    assert rc == 0
+    manifest_path = os.path.join(out_root, "runs",
+                                 "RUN-MDFIVE-b6-primary-md4-unit-b6-check",
+                                 "manifest.yaml")
+    m = _yaml.safe_load(open(manifest_path))
+    p = m["run"]["inputs"]["parameters"]
+    assert p["declared_eps"] == 0.25
+    assert p["injectivity_threshold"] == 12
+    assert p["declared_tolerance"] == 1
+    assert p["armed_deadline_seconds"] == 120
+    assert any("KN-TECH-bb7e9f" in r for r in p["caveat_refs"])
+    assert any("DEC-20260822-40bf14" in r for r in p["caveat_refs"])
+    assert m["run"]["cost_model"]["caveat_refs"] == p["caveat_refs"]
+    assert m["run"]["status"] == "completed_valid"

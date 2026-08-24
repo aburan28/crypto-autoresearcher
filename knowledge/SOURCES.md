@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7852 |
-| — with a resolvable external identifier | 2242 |
+| Literature entries (`KN-LIT-*`) | 7858 |
+| — with a resolvable external identifier | 2248 |
 | — with no identifier recorded | 5610 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1323, doi 148, eprint 738, url 33. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1324, doi 149, eprint 741, url 34. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7481, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7485, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -106,7 +106,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2242 of 7852 `KN-LIT-*` entries carry an
+2248 of 7858 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1440,6 +1440,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-326 | On the Distribution of the Subset Sum Pseudorandom Number Generator on Elliptic Curves | 2011 | `arxiv:1102.1053` | read |
 | KN-LIT-327 | ON THE GENERALISED TATE CONJECTURE FOR PRODUCTS OF ELLIPTIC CURVES OVER FINITE FIELDS | 2011 | `arxiv:1101.1730` | read |
 | KN-LIT-328 | On the number of elliptic curves with prescribed isogeny or torsion group over number fields of prime degree | 2011 | `arxiv:1109.6278` | read |
+| KN-LIT-328239 | Inverting Cryptographic Hash Functions via Cube-and-Conquer | 2022 | `arxiv:2212.02405` | read |
 | KN-LIT-329 | ON THE PULLBACK OF AN ARITHMETIC THETA FUNCTION | 2011 | `arxiv:1106.4732` | read |
 | KN-LIT-32fb9b | Efficient decryption architecture for Classic McEliece | 2023 | `doi:10.1109/isqed57927.2023.10129325` | web |
 | KN-LIT-330 | OPTIMALITY OF THE WIDTH-w NON-ADJACENT FORM: | 2011 | `arxiv:1110.0966` | read |
@@ -1724,6 +1725,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-581 | Watermarking Cryptographic Functionalities from Standard Lattice Assumptions | 2017 | `eprint:2017/380` | read |
 | KN-LIT-582 | A First-Order SCA Resistant AES without Fresh Randomness | 2018 | `eprint:2018/172` | read |
 | KN-LIT-5823 | PQConnect: Automated Post-Quantum End-to-End Tunnels |  | `doi:10.14722/ndss.2025.241879` | read |
+| KN-LIT-582d77 | Finding Preimages in Full MD5 Faster Than Exhaustive Search | 2009 | `doi:10.1007/978-3-642-01001-9_8` | metadata |
 | KN-LIT-583 | A LOCAL-GLOBAL PRINCIPLE FOR ISOGENIES OF COMPOSITE DEGREE | 2018 | `arxiv:1801.05355` | read |
 | KN-LIT-584 | A New Algorithm for Double Scalar Multiplication over Koblitz Curves | 2018 | `arxiv:1801.08589` | read |
 | KN-LIT-585 | A note on the security of CSIDH | 2018 | `arxiv:1806.03656` | read |
@@ -2153,6 +2155,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-867 | Extending the GLS endomorphism to speed up GHS Weil descent using Magma Jesús-Javier Chi-Domı́nguezb,a,, Francisco Rodrı́guez-Henrı́quezb,a,1, Benjamin Smithc,2 | 2021 | `arxiv:2106.09967` | read |
 | KN-LIT-868 | FACTORIZATION OF MEASURES AND APPLICATIONS TO THE WEAK | 2021 | `arxiv:2108.06034` | read |
 | KN-LIT-869 | Faster Key Generation of Supersingular Isogeny Diffie-Hellman | 2021 | `eprint:2021/1320` | read |
+| KN-LIT-86e77b | Cofactor-torsion attacks on hinted scalar multiplications in SNARK circuits | 2026 | `eprint:2026/1776` | read |
 | KN-LIT-870 | Filtered deformations of elliptic algebras | 2021 | `arxiv:2107.13540` | read |
 | KN-LIT-871 | Fully projective radical isogenies in constant-time | 2021 | `eprint:2021/259` | read |
 | KN-LIT-872 | Fundamenta Informaticae 184(2) : 107–139 (2021) | 2021 | `arxiv:2111.04533` | read |
@@ -2163,6 +2166,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-877 | INFINITE FAMILIES OF ISOGENY-TORSION GRAPHS | 2021 | `arxiv:2104.01128` | read |
 | KN-LIT-878 | Internet Computer Consensus Jan Camenisch, Manu Drijvers, Timo Hanke | 2021 | `eprint:2021/632` | read |
 | KN-LIT-879 | ISOGENIES OF CERTAIN K3 SURFACES OF RANK | 2021 | `arxiv:2109.03189` | read |
+| KN-LIT-87e00e | Collisions for Hash Functions MD4, MD5, HAVAL-128 and RIPEMD | 2004 | `eprint:2004/199` | read |
 | KN-LIT-880 | Isogeny-based Group Signatures and | 2021 | `eprint:2021/1368` | read |
 | KN-LIT-881 | IWASAWA INVARIANTS FOR ELLIPTIC CURVES OVER | 2021 | `arxiv:2103.16005` | read |
 | KN-LIT-882 | KOLYVAGIN CLASSES VERSUS NON-CRISTALLINE DIAGONAL CLASSES | 2021 | `arxiv:2103.11492` | read |
@@ -2322,6 +2326,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-cd9880 | McEliece cryptosystem implementation: theory and practice | 2008 | `doi:10.1007/978-3-540-88403-3_4` | web |
 | KN-LIT-ced593 | On the complexity of some cryptographic problems based on the general decoding problem | 2002 | `doi:10.1109/isit.1998.709047` | web |
 | KN-LIT-d15818 | FPGA-based Niederreiter cryptosystem using binary Goppa codes | 2018 | `eprint:2017/1180` | web |
+| KN-LIT-d3ec68 | Preimage Attacks on 3-Pass HAVAL and Step-Reduced MD5 | 2008 | `eprint:2008/183` | read |
 | KN-LIT-d4f467 | Embedded Elliptic Curves and Embedded Families for SNARK-Friendly Elliptic Curves | 2024 | `eprint:2024/1737` | read |
 | KN-LIT-d5b1a7 | Fast hardware architecture with efficient matrix computations for the key generation of Classic McEliece | 2025 | `doi:10.1109/tcsi.2025.3528119` | web |
 | KN-LIT-d5baac | Post-quantum WireGuard | 2021 | `eprint:2020/379` | web |
@@ -2346,6 +2351,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-f390dc | A new algorithm for finding minimum-weight words in a linear code: application to McEliece's cryptosystem and to narrow-sense BCH codes of length 511 | 1998 | `doi:10.1109/18.651067` | web |
 | KN-LIT-f50ab3 | Leaky McEliece: secret key recovery from highly erroneous side-channel information | 2025 | `eprint:2023/1536` | web |
 | KN-LIT-f51628 | Sieving method for SDP with the zero window: an improvement in low memory environments | 2024 | `doi:10.1007/978-981-97-7737-2_9` | web |
+| KN-LIT-f6de4b | Bombieri–Weil bound (additive / Artin–Schreier case) — attempted verification of hypothesis (H1') | 1966 | `url:encyclopediaofmath.org/wiki/bombieri-weil_bound` | secondary_only |
 | KN-LIT-f7d7dd | Improved quantum information set decoding | 2018 | `arxiv:1808.00714v1` | web |
 | KN-LIT-fa9bc8 | Analysis of information set decoding for a sub-linear error weight | 2016 | `doi:10.1007/978-3-319-29360-8_10` | web |
 | KN-LIT-fab214 | Punctured syndrome decoding problem: Efficient side-channel attacks against Classic McEliece | 2023 | `eprint:2023/308` | web |

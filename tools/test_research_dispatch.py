@@ -702,8 +702,8 @@ class DispatchPlannerTests(unittest.TestCase):
     def test_goal_id_is_optional_and_echoed_into_the_plan(self) -> None:
         worker = task("WORK", 1)
         archive = archive_task("ARCHIVE", [worker])
-        plan = dispatch.select(queue(worker, archive, goal_id="GOAL-20260718-001"))
-        self.assertEqual(plan["goal_id"], "GOAL-20260718-001")
+        plan = dispatch.select(queue(worker, archive, goal_id="GOAL-DISPATCH-a1b2c3"))
+        self.assertEqual(plan["goal_id"], "GOAL-DISPATCH-a1b2c3")
 
     def test_repository_queue_template_validates(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -711,7 +711,7 @@ class DispatchPlannerTests(unittest.TestCase):
             (root / "templates" / "subagent-task-queue.json").read_text(encoding="utf-8")
         )
         plan = dispatch.select(source)
-        self.assertEqual(plan["goal_id"], "GOAL-EXAMPLE-001")
+        self.assertEqual(plan["goal_id"], "GOAL-EXAMPLE-a1b2c3")
         self.assertEqual([task["id"] for task in plan["dispatches"]], ["TASK-EXEC-001"])
 
     def test_plan_is_stable_for_identical_input(self) -> None:

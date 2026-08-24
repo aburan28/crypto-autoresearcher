@@ -1,0 +1,887 @@
+idea:
+  id: IDEA-20260821-e46061
+  title: >-
+    Round-1-restricted, symbolically-verified splice-and-cut MITM
+    partial-preimage instrument, applied identically to MD4 (control) and
+    MD5 (nearby object) at a declared 2-free-word bounded scale
+  class: control
+  recorded_at: '2026-08-21'
+  task_id: TASK-20260821-420070
+  batch_id: BATCH-af29f6
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  role: idea-generator
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-sonnet-5
+    fallback_used: false
+    degraded: false
+    bedrock: >-
+      Amazon Bedrock was not selected, configured, probed, or contacted in
+      this session (SC-8).
+
+  claim: >-
+    A meet-in-the-middle ("splice-and-cut") chunk-separation instrument,
+    restricted to Round 1 (the first 16 steps) of MD4/MD5 and searching over
+    exactly two message words fixed to a declared small bit-window each,
+    finds a match on a declared k-bit partial target using
+    O(2^{k1}+2^{k2}+2^{k1+k2-m}) chunk evaluations against a naive
+    all-pairs baseline of O(2^{k1+k2}) evaluations over the SAME restricted
+    2-word search space, where (S=9, k1=k2=10, m=12, k=20) is the declared
+    bounded parameter slice for this batch. This claim is about a tiny,
+    self-contained, RFC-schedule-derived model problem, NOT about full
+    48-step MD4 or full 64-step MD5, and is falsifiable at every one of the
+    numbered predictions below. It further claims that applying the
+    IDENTICAL instrument (same S, k1, k2, m, k) to MD5's own Round-1
+    step/constant set constitutes a legitimate nearby-object control per
+    KN-TECH-080 audit 4, because MD5's Round-1 shares MD4's Round-1 word
+    schedule and F-function exactly but differs in shift amounts and
+    additive constants (RFC 1321 section 5, points 2 and 6) — the precise
+    two structural changes RFC 1321 itself names as MD5's hardening over
+    MD4.
+
+  mechanism: >-
+    RFC 1320 (MD4) and RFC 1321 (MD5) both specify Round 1 as 16 steps that
+    use message words X[0..15] in strict sequential order (step k+1 uses
+    word k), cycling register updates (A,D,C,B) every 4 steps, with the
+    IDENTICAL auxiliary function F(X,Y,Z) = (X AND Y) OR (NOT-X AND Z) in
+    both primitives' Round 1 (verified directly against both RFC texts in
+    this session, see baseline_embedding below). Because Round 1's word
+    schedule uses each of the 16 words exactly once and in index order,
+    splitting the 16 steps at any interior step S=9 produces two
+    STRUCTURALLY DISJOINT word sets by construction: chunk1 (steps 1-9)
+    uses only words {0..8}; chunk2 (steps 10-16) uses only words {9..15}.
+    Word 8 (last used at step 9, the chunk1/chunk2 boundary) is therefore
+    usable as chunk1's free/neutral word (varying it recomputes only
+    chunk1's forward pass; chunk2's backward pass never touches it), and
+    word 9 (first used at step 10) is chunk2's symmetric free word. Fixing
+    the other 14 words to a declared pre-registered constant lets chunk1 be
+    enumerated forward over word8's declared k1-bit window and chunk2
+    enumerated backward over word9's declared k2-bit window independently,
+    then joined via a hash table keyed on an m-bit window of register A
+    (which step 9 just updated, since 9 = 1 mod 4). This IS the
+    "chunk-separation via neutral message words plus a matching-point hash
+    table" mechanism both KN-LIT-4878 and KN-LIT-582d77 report using at full
+    scale (splice-and-cut / meet-in-the-middle preimage cryptanalysis, a
+    documented technique family — see citations); this proposal reproduces
+    the MECHANISM exactly and symbolically from the RFC schedules
+    themselves, at a scale and location (one round, two free words) far
+    smaller and structurally simpler than the multi-round, "initial
+    structure" / partial-matching constructions those papers report, whose
+    exact word choices are NOT independently verified here (KN-LIT-4878:
+    unverified bulk-seed relay; KN-LIT-582d77: metadata-only provenance).
+
+  novelty_status: unverified
+  novelty_note: >-
+    The splice-and-cut / meet-in-the-middle preimage technique itself is a
+    KNOWN, published technique family (Aoki & Sasaki, "Preimage Attacks on
+    One-Block MD4, 63-Step MD5 and More", FSE 2009 — found via WebSearch
+    this session, not read in primary text; related to KN-LIT-582d77's
+    "related work" per RQ-MDFIVE-6870c1's provenance block). This proposal's
+    SPECIFIC construction — restricting to Round 1 only, splice point S=9,
+    the exact free-word choice (word8/word9), and the declared bounded
+    scale (k1=k2=10, m=12, k=20) — was not found in this program's corpus
+    or in the WebSearch excerpts retrieved this session; it is treated as
+    this program's own bounded instantiation of a known method family, not
+    independently checked against any specific published toy-model paper.
+    Classified `unverified`, not `adaptation`, per AGENTS.md rule 9 /
+    idea-generator.md's citation-provenance rule: the only citation backing
+    the general mechanism (Aoki & Sasaki, FSE 2009) is provenance `recalled`
+    (a WebSearch title/venue/summary, no primary text read this session), and
+    a `recalled` reference may not back `novelty_status: adaptation` -- it is a
+    pointer for a future reader, not a checked source. A session that reads
+    the primary FSE 2009 text could upgrade this citation to `retrieved` and
+    this record's classification to `adaptation` in a new record; this one
+    does not claim that verification.
+
+  citations:
+    - ref: KN-LIT-4878
+      provenance: kb
+      claim: >-
+        Partial pseudo-preimage on the MD4 compression function via
+        chunk-separation ideas ("some ideas from previous cryptanalysis of
+        MD4"); reported complexities 2^96 (compression function) and 2^102
+        (full MD4).
+      verified_by: idea-generator (this session, read the filed KN-LIT-4878.md record directly)
+      note: >-
+        KN-LIT-4878 is itself filed at provenance `read` but explicitly
+        UNVERIFIED bulk-seed relay (entry's own text: "claims are relayed
+        from the paper's abstract without independent verification"). Not
+        upgraded here.
+    - ref: KN-LIT-582d77
+      provenance: kb
+      claim: >-
+        Meet-in-the-middle / splice-and-cut preimage attack on full MD5;
+        reported complexities ~2^116.9 (pseudo-preimage) and ~2^123.4
+        (preimage).
+      verified_by: idea-generator (this session, read the filed KN-LIT-582d77.md record directly)
+      note: >-
+        KN-LIT-582d77 is filed at provenance_level "metadata only" — title,
+        authors, year, DOI verified; abstract, full text, complexity
+        figures, and method description are explicitly NOT verified. Not
+        upgraded here.
+    - ref: "RFC 1321 (MD5), https://www.rfc-editor.org/rfc/rfc1321"
+      provenance: retrieved
+      claim: >-
+        Exact MD5 Round 1 (FF) operation list, word order X[0..15]
+        sequential, shift constants S11=7,S12=12,S13=17,S14=22, per-step
+        additive constants T[1..16], and F(x,y,z)=(x&y)|(~x&z).
+      verified_by: idea-generator (this session)
+      note: >-
+        Read directly from the local pinned copy at
+        coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/inputs/rfc1321-md5.txt
+        (sha256 284a79d148400d9cd2a423211d1103b5cef0fb9256a4cbe6d7ebe5197c3149dd
+        per the calibration run's sealed_input_manifest), full text read
+        this session.
+    - ref: "RFC 1320 (MD4), https://www.rfc-editor.org/rfc/rfc1320.txt"
+      provenance: retrieved
+      claim: >-
+        Exact MD4 Round 1 (F-round) operation list, word order X[0..15]
+        sequential, shift constants S11=3,S12=7,S13=11,S14=19, additive
+        constant 0 (no per-step constant in Round 1; single per-round
+        constants 0x5a827999 / 0x6ed9eba1 apply only to Rounds 2/3), and
+        F(X,Y,Z)=XY OR (NOT X)Z.
+      verified_by: idea-generator (this session)
+      note: >-
+        Fetched via WebFetch this session (redirect from
+        https://www.ietf.org/rfc/rfc1320.txt to
+        https://www.rfc-editor.org/rfc/rfc1320.txt); WebFetch passes content
+        through a summarizing model rather than returning byte-exact raw
+        text, so this is NOT a sha256-pinnable acquisition. A best-effort
+        transcript of the round-schedule excerpt is filed at
+        coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/inputs/rfc1320-md4-round-schedule-excerpt.md
+        for the Executor's reference; RFC 1320's raw text still needs to be
+        fetched and sha256-pinned by a session with Bash/network tools
+        (this idea-generator session has neither) before any run cites it
+        as a frozen input — recorded as an open acquisition item, not
+        silently treated as done.
+    - ref: "Aoki, Sasaki, 'Preimage Attacks on One-Block MD4, 63-Step MD5 and More', FSE 2009"
+      provenance: recalled
+      claim: >-
+        General splice-and-cut / initial-structure / partial-matching MITM
+        preimage technique family for MD4/MD5-style compression functions.
+      verified_by: null
+      note: >-
+        Surfaced via WebSearch this session (title, venue, and a
+        search-engine-generated summary only — no primary text read). Named
+        as the nearest external work for the general technique per
+        idea-generator.md's citation-provenance rule; not independently
+        verified and not used as authority for any specific number in this
+        proposal.
+
+  assumptions:
+    - >-
+      The Executor implements MD4/MD5 Round-1 step arithmetic with explicit
+      `& 0xFFFFFFFF` masking after every addition and rotation, matching
+      RFC 1320/1321's modulo-2^32 semantics (Python integers are
+      arbitrary-precision and will silently give wrong answers without
+      explicit masking) — validated by a dedicated Round-1-only regression
+      fixture (no standard MD4/MD5 test vector covers a truncated 16-step,
+      no-feedforward primitive, so a fresh fixture must be built and is
+      itself part of the deliverable, per audit 1 below).
+    - >-
+      The declared 14 fixed message words (all of words {0..15} except the
+      two free words 8 and 9) are pre-registered from a documented seed
+      BEFORE any run (fixed_before_acquisition), and are NOT all-zero (see
+      confounders: an all-zero fix risks degenerate F-function collapse).
+    - >-
+      The declared bounded scale (k1=k2=10, m=12, k=20) is a MINIMUM,
+      budget-safe baseline; given this batch's throughput anchor (see
+      cost_scaling_sketch), it likely under-uses the 300 s per-run ceiling
+      by roughly four orders of magnitude, so the Coordinator gate
+      (TASK-20260821-a288f8) may reasonably scale k1, k2, m, k upward
+      (keeping k1+k2=k for a birthday-tuned expected single true match, or
+      k1+k2>k for a birthday-tuned distribution of matches usable for the
+      H1 statistical check) without exceeding budget; this idea proposes
+      the safe floor, not a ceiling on what the gate may approve.
+
+  proof_search_map:
+    bottleneck: >-
+      The step at which Round 1's word schedule stops being usable to
+      partition the 16 steps into two disjoint, independently-enumerable
+      word sets. Because Round 1 uses every word exactly once in index
+      order, ANY interior split point S (1<=S<=15) yields two disjoint word
+      sets {0..S-1} and {S..15} for free — the actual "bottleneck" this
+      program's compute budget imposes is not finding SOME split (trivial
+      within Round 1) but finding one that (a) leaves a large-enough
+      matching window m to keep false-positive matching-point collisions
+      rare, (b) lands the matching point on a register that was just
+      updated (so the comparison is meaningful, not comparing a stale
+      value), and (c) stays inside a single round, because crossing a round
+      boundary destroys the "each word used once" property that makes a
+      neutral word available at all (verified below: extending the split
+      to include a full round eliminates every candidate free word, since
+      every one of the 16 words is used at least once inside any full
+      round).
+    baseline_embedding:
+      parameter_slice: >-
+        Round 1 (steps 1-16) of MD4 and MD5, split at S=9: chunk1 = steps
+        1-9 uses words {0,1,2,3,4,5,6,7,8}; chunk2 = steps 10-16 (computed
+        backward from the declared Round-1 output state) uses words
+        {9,10,11,12,13,14,15}. Free word for chunk1 = word 8 (last used at
+        step 9, the boundary step); free word for chunk2 = word 9 (first
+        used at step 10). All other 14 words are held to a declared,
+        pre-registered, non-zero constant.
+      reproduction_check: >-
+        Symbolic, done in this session by direct line-by-line reading of
+        both RFC texts (RFC 1321 read locally in full; RFC 1320 read via
+        WebFetch this session — see citations). MD5 Round 1's 9th operation
+        is literally "FF (a, b, c, d, x[8], S11, 0x698098d8); /* 9 */" and
+        10th is "FF (d, a, b, c, x[9], S12, 0x8b44f7af); /* 10 */" (RFC
+        1321 Appendix A.3) — word 8 used exactly at step 9, word 9 exactly
+        at step 10, confirming the disjoint split. MD4 Round 1's
+        corresponding entries ([ABCD 8 3] at step 9, [DABC 9 7] at step 10,
+        per the RFC 1320 schedule read this session) match the identical
+        word-index pattern, differing only in shift amount (3 vs MD5's
+        S11=7) and the absence of a per-step additive constant (MD4 Round 1
+        adds 0; MD5 Round 1 adds T[9]=0x698098d8, T[10]=0x8b44f7af). Both
+        primitives' Round 1 F function is textually identical:
+        F(X,Y,Z)=(X AND Y) OR ((NOT X) AND Z), confirmed by direct
+        comparison of RFC 1320's "F(X,Y,Z) = XY v not(X) Z" and RFC 1321's
+        "#define F(x,y,z) (((x)&(y))|((~x)&(z)))". A NEGATIVE control was
+        also checked by hand: extending chunk1 to include an entire round
+        (e.g. S=16, all of Round 1) leaves NO free word for chunk1 at all,
+        because Round 1 alone already uses every one of words {0..15}
+        exactly once — this confirms the bottleneck statement above (no
+        neutral word survives a full-round chunk) and is itself a useful
+        negative fact worth carrying forward: any multi-round extension of
+        this instrument needs a genuinely different (not full-round)
+        chunking strategy, which this bounded proposal does not attempt.
+    observation_collision:
+      observable: >-
+        Matching-point equality: the low m=12 bits of register A after step
+        9, compared between chunk1's forward-computed value (a function of
+        free word8) and chunk2's backward-computed value (a function of
+        free word9, computed by inverting steps 16 down to 10 from the
+        declared target state).
+      distinct_preimage_search: >-
+        Two DISTINCT (word8, word9) candidate pairs can agree on the 12-bit
+        matching window while disagreeing on the declared k=20-bit full
+        target (the remaining 8 bits, bits 13-20 of register A) — this is
+        the expected, EXPLICITLY PREDICTED case under the birthday
+        heuristic (H1 below): with k1=k2=10, expected matching-window hits
+        ≈ 2^(10+10-12) = 2^8 = 256, of which only ≈2^8 x 2^-8 = 1 is
+        expected to also satisfy the full 20-bit target. The observable (12
+        bit match) is therefore explicitly NOT sufficient on its own to
+        certify a solution; the separating condition is exact equality on
+        the FULL declared k=20 bits, checked independently after the
+        matching-window filter, never inferred from the filter alone. The
+        paired heuristic-validation task (TASK-20260821-de817d) is required
+        to report BOTH counts (matching-window hits and full-target hits)
+        for every sampled target, precisely to search for and characterize
+        this collision rate rather than assume it away.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the naive O(2^{k1+k2}) all-pairs (word8,word9) equality
+          search over the restricted 20-bit space with a windowed hash
+          table keyed on the 12-bit matching-point value of register A,
+          built from chunk1's 2^{k1} forward candidates and probed by
+          chunk2's 2^{k2} backward candidates.
+        predicted_gain: >-
+          O(2^{k1}+2^{k2}+2^{k1+k2-m}) ≈ O(2^11 + 2^11 + 2^8) chunk
+          evaluations at the declared scale, versus O(2^{k1+k2}) = O(2^20)
+          for the naive pairwise baseline — a modeled ~2^9-fold (~500x)
+          reduction, but ONLY over this tiny, artificially restricted
+          20-bit slice; this ratio does not extrapolate to the full 128-bit
+          primitive (see target_complexity hidden_overhead).
+      - transform: not_selected
+        proposed_object: null
+        predicted_gain: >-
+          The other five KN-TECH-080 transform cards (baseline-as-boundary
+          lift, stronger compositional invariant, telescoping-potential
+          replacement, specialize-measure-pack, observable-fiber
+          counterexample) are not selected: this proposal is a bounded
+          computational demonstration and method-ceiling control, not a
+          recursive/compositional proof, a martingale-style probabilistic
+          argument, a packed-measure lower bound, or a rigidity/fiber
+          question — none of those cards' prerequisites (a recursive
+          property, a rare-event denominator, a target-specific packable
+          measure, or a forgotten-structure rigidity claim) are present in
+          a direct meet-in-the-middle search over a fixed, small object.
+    quantifier_order: >-
+      EXISTS (word8, word9) in {0,1}^10 x {0,1}^10 such that the
+      matching-window observable agrees AND the full k=20-bit target
+      agrees, FOR A FIXED, DECLARED, PRE-REGISTERED TARGET STATE (fixed
+      before the run, per this campaign's BCP-2 convention) — an
+      existential, per-target claim, NOT "for all targets, a match exists
+      at this declared cost." The paired heuristic-validation experiment
+      (TASK-20260821-de817d) independently repeats this existential search
+      over MANY independently-drawn targets and reports the EMPIRICAL
+      SUCCESS RATE across that sample; that rate is an empirical estimate
+      of Pr_target[EXISTS...], never a proof of a universal (forall-targets)
+      guarantee, and the witness (word8, word9) is explicitly allowed to
+      (and is expected to) depend on the specific target instance searched.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        Against MD4's Round 1 restricted to this declared 20-bit,
+        two-free-word slice, the strongest claim this bounded instrument
+        could certify is: "a partial preimage on the declared 20-bit window
+        of register A after step 9 of MD4's Round 1 was found using
+        O(2^11) chunk evaluations, independently re-verified against the
+        naive O(2^20) all-pairs baseline on a small control subset
+        (k1=k2=6)." This says NOTHING about full 48-step MD4, nothing about
+        the compression function's real 128-bit output, and nothing about
+        MD4's actual (reported, unverified) 2^96/2^102 preimage complexity.
+      nearby_object_control: >-
+        MD5's Round 1, run through the IDENTICAL bounded instrument (same
+        S=9, k1=k2=10, m=12, k=20; MD5's own shift constants
+        S11=7,S12=12,S13=17,S14=22 and per-step additive constants T[1..16]
+        substituted for MD4's S11=3,S12=7,S13=11,S14=19 and zero constant),
+        is the declared nearby object. Predicted result UNDER THE NULL
+        HYPOTHESIS that Round 1 alone carries none of MD5's added security
+        margin (which the literature attributes to the 4th round and the
+        avalanche-tuned shift/constant changes acting over MANY rounds, not
+        one): MD4-round1 and MD5-round1 should show STATISTICALLY
+        INDISTINGUISHABLE cost/success rates at this scale (a controlled
+        null per docs/inventor-protocol.md section 3, not a "ceiling"
+        finding). A result distinguishing this pair here would mean this
+        bounded instrument, restricted to one round, has ALREADY found
+        load-bearing structure that separates MD4 from MD5 — a genuinely
+        surprising and reportable outcome that would need a null-object
+        replication (both primitives' constants replaced by the SAME
+        BCP-2-style shifted variant) before being credited, since RFC
+        1321's stated design changes (unique per-step constants, distinct
+        optimized shifts) are exactly what a spurious constant-dependent
+        artifact could also mimic.
+    proof_obligations:
+      - claim: >-
+          Word 8 is unused in steps 1-9 in neither direction... (word 8 IS
+          used in chunk1, at step 9; word 9 is unused in chunk1's range
+          steps 1-9, and word 8 is unused in chunk2's range steps 10-16) —
+          the two free-word sets are disjoint from the OTHER chunk's word
+          set by construction of Round 1's sequential schedule.
+        responsibility: baseline
+      - claim: >-
+          The MITM hash-table search's result set (candidate full-20-bit
+          matches) is IDENTICAL to the naive all-pairs search's result set
+          on a shared small control subset (k1=k2=6, fully brute-forceable
+          in both modes).
+        responsibility: correctness
+      - claim: >-
+          The declared search space (2^10 x 2^10 over words 8 and 9, with
+          the other 14 words and the high 22 bits of words 8/9 fixed)
+          contains at least one TRUE solution, by construction: the target
+          generation protocol must restrict the true word8/word9 to the
+          same declared 10-bit low-order window used by the search, with
+          only the low bits drawn at random per target.
+        responsibility: feasibility
+      - claim: >-
+          Backward step inversion (H2) is an exact algebraic identity, not
+          a heuristic, and is unit-tested by composing forward and backward
+          steps over a random sample and checking exact equality.
+        responsibility: correctness
+      - claim: >-
+          The matching-window collision COUNT per target is well
+          approximated by Poisson(lambda = 2^{k1+k2-m}) under heuristic H1;
+          the conditional probability that a matching-window hit also
+          satisfies the full k-bit target is well approximated by
+          2^{-(k-m)}.
+        responsibility: success_probability
+      - claim: >-
+          Any MD4-vs-MD5 cost/success comparison from this instrument is
+          scoped strictly to the declared Round-1, 20-bit, two-free-word
+          slice; it is not evidence about full-primitive preimage
+          resistance and must not be reported as such.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        chunk-evaluation count to first full-20-bit-target match (MITM
+        instrument) versus naive all-pairs search over the same restricted
+        20-bit space
+      direction: lower
+      minimum_effect: >-
+        at least 4x fewer chunk/step evaluations than the naive O(2^20)
+        all-pairs baseline (a conservative floor well below the ~500x
+        symbolic prediction, to absorb hash-table and Python-level
+        overhead)
+    - metric: >-
+        chi-square goodness-of-fit deviation between the observed
+        matching-window-collision-count distribution (across N independent
+        target draws) and the predicted Poisson(lambda=2^{k1+k2-m})
+      direction: lower
+      minimum_effect: >-
+        deviation statistic below the alpha=0.05 critical value for the
+        declared degrees of freedom (failure to reject H1's uniformity
+        prediction is the validating outcome; a reproducible, non-shrinking
+        excess tail across >=3 independent target draws is the falsifier)
+    - metric: >-
+        ratio R of MD5-Round-1 to MD4-Round-1 cost/success rate to find a
+        full-20-bit-target match, at the identical declared scale
+      direction: different
+      minimum_effect: >-
+        R outside [0.5, 2.0] across repeated trials, AND not reproduced
+        when both primitives' constants are replaced by the SAME
+        BCP-2-style null variant (the nearby-object control's own control),
+        is the threshold for treating R as a genuine, reportable
+        early-divergence finding rather than noise or an artifact of the
+        specific constant values chosen.
+
+  minimal_test:
+    design: >-
+      Implement Round-1-only MD4 and MD5 step functions (forward and
+      backward/inverse) as a standalone module; freeze the declared
+      parameters (S=9, k1=k2=10, m=12, k=20, the 14 fixed words' seed) into
+      an EXP contract; run (a) the MD4 instrument against one declared
+      target, (b) the paired heuristic-validation sampling run (many
+      independent targets, empirical vs Poisson comparison per H1), and
+      — only if TASK-20260821-a288f8 approves — (c) the identically-scaled
+      MD5 instrument run as the nearby-object control.
+    controls:
+      - >-
+        Brute-force-equality control: on a small subset (k1=k2=6, fully
+        enumerable both ways), confirm the MITM hash-table result set is
+        IDENTICAL to the naive all-pairs result set (audit 1's
+        reproduction_check, executed).
+      - >-
+        Null-object control: repeat the matching-window-collision
+        statistics and the MD4-vs-MD5 comparison with round constants
+        cyclically shifted (BCP-2's established null-variant convention
+        from this same goal), to check that any observed MD4-vs-MD5
+        difference is not an artifact of the specific constant values.
+      - >-
+        MD4-vs-MD5 nearby-object control (audit 4), executed only if
+        approved and at the identical bounded scale, never larger.
+    required_metrics:
+      - chunk-evaluation counts and wall-clock per run (wrapper-measured)
+      - matching-window (12-bit) collision counts per target
+      - full-target (20-bit) hit counts per target, and their bit positions
+      - brute-force-vs-MITM result-set equality (boolean, on the k1=k2=6 control)
+      - MD4-vs-MD5 cost/success ratio R, with and without the null-constant control
+
+  falsification_conditions:
+    - >-
+      The MITM result set differs from the naive brute-force all-pairs
+      result set on the k1=k2=6 control subset — falsifies the
+      implementation or the mechanism as designed (audit 1 baseline
+      reproduction fails).
+    - >-
+      The empirical matching-window-collision distribution shows a
+      reproducible (>=3 independent target draws), non-shrinking
+      heavier-than-Poisson tail — falsifies heuristic H1 at this scale for
+      this primitive (a structural tell per docs/inventor-protocol.md
+      section 3: something that should look random does not).
+    - >-
+      The declared search space (2^10 x 2^10) fails to contain the true
+      solution for the target-generation protocol used — falsifies the
+      feasibility proof obligation and invalidates any reported success
+      rate.
+    - >-
+      Backward step inversion fails the regression fixture (forward-then-
+      backward does not recover the identity) — falsifies correctness
+      before any search result can be trusted.
+    - >-
+      R (MD5/MD4 cost ratio) falls outside [0.5, 2.0] and survives the
+      null-constant control — this would falsify the null hypothesis that
+      Round 1 alone carries no MD4/MD5 security-margin difference, and is a
+      reportable finding, not a defect to be explained away.
+
+  confounders:
+    - >-
+      All-zero fixed words risk a DEGENERATE F-function collapse: MD4/MD5
+      Round 1's F(X,Y,Z)=(X AND Y) OR (NOT X AND Z) evaluates identically
+      to 0 whenever Y=Z=0, regardless of X — if too many of the 14 fixed
+      words drive intermediate B/C/D register values toward 0, the
+      "independent, unbiased output bits" property RFC 1321 section 3.4
+      states for F (conditioned on independent unbiased inputs) could fail
+      to hold, biasing the matching-window statistics independent of the
+      MITM mechanism itself. Mitigation: the 14 fixed words MUST be a
+      declared, pre-registered, NON-ZERO pseudorandom constant, not
+      all-zero.
+    - >-
+      32-bit modular arithmetic bugs (missing `& 0xFFFFFFFF` masking after
+      addition/rotation in a Python implementation) would silently corrupt
+      both forward and backward computations in a way that could still
+      produce internally-consistent-looking (but wrong) matches. Mitigated
+      by the backward-inversion regression fixture (H2) and the
+      brute-force-equality control.
+    - >-
+      RNG seed correlation between target generation and the search's own
+      free-word enumeration could inflate apparent success rates if not
+      independently seeded and declared before the run.
+
+  interpretation_limits:
+    - >-
+      All results characterize ONLY the declared Round-1-restricted,
+      2-free-word, 20-bit bounded slice of MD4/MD5; no claim is made, and
+      none should be inferred, about full 48-step MD4 or full 64-step MD5.
+    - >-
+      A "no significant difference" (R within [0.5,2.0]) result for the
+      MD4-vs-MD5 nearby-object control is a CONTROLLED NULL, not evidence
+      that MD4 and MD5 are equally weak — it means this bounded instrument
+      has not yet found load-bearing structure at this scale, which is the
+      currently-expected outcome (KN-TECH-080 audit 4's own framing: "a
+      method that cannot distinguish the pair has not yet identified the
+      load-bearing structure").
+    - >-
+      This proposal does not attempt, and explicitly should not be read as
+      progress toward, RQ-MDFIVE-6870c1's actual full-primitive
+      method-ceiling question; it is a necessary but far from sufficient
+      mechanism-verification step, and the gap to a real multi-round
+      instrument is named explicitly in cost_scaling_sketch below.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a fixed target and fixed non-free words, as the free word
+        (word8 in chunk1, word9 in chunk2) ranges uniformly over its
+        declared k1- or k2-bit window, the resulting m-bit matching-window
+        value of register A after step 9 behaves as a uniformly random,
+        pairwise-independent sample from {0,1}^m; consequently the count of
+        matching-window collisions across the 2^{k1} x 2^{k2} candidate
+        pairs is well approximated by Poisson(lambda = 2^{k1+k2-m}), and the
+        conditional probability that a matching-window hit also satisfies
+        the remaining (k-m) target bits is well approximated by
+        2^{-(k-m)}.
+      rigorous_support: >-
+        RFC 1321 section 3.4 states, as a proved property of F, that "if
+        the bits of X, Y, and Z are independent and unbiased, then each bit
+        of F(X,Y,Z) ... will be independent and unbiased" — a genuine,
+        RFC-stated single-step balance property. H1 extrapolates this
+        single-step fact to the iterated 9-step composition (the classical
+        move from "one mixing step is balanced" to "the iterated function
+        looks like a random function," imitating the same heuristic that
+        underlies every birthday-paradox argument for hash collisions:
+        treat a real, structured mixing function's outputs as if drawn from
+        the uniform distribution assumed by the classical
+        birthday/coupon-collector theorem). This extrapolation is NOT
+        proved here and is exactly what the validation route below tests.
+      validation_plan: >-
+        Sample N in [200, 2000] (budget-permitting within the paired
+        de817d task's declared 300 s heuristic-validation ceiling)
+        independently-drawn random targets at the declared bounded scale
+        (S=9, k1=k2=10, m=12, k=20). For each target, record the
+        matching-window collision count and the full-target hit count.
+        Compare the empirical distribution of matching-window collision
+        counts against Poisson(lambda=2^8=256) via a chi-square
+        goodness-of-fit test (alpha=0.05); compare the empirical
+        conditional full-target-hit rate given a matching-window hit
+        against the predicted 2^-8. Tail check: compare the single largest
+        observed collision count across the N targets against the Poisson
+        tail probability (explicit p-value), and require the check to be
+        run at k1=k2=10 (minimum declared scale) with a note recommending
+        repetition at a larger k1=k2 (e.g. 13) if budget allows, since a
+        larger sample of matches gives a materially stronger tail check —
+        this is the H1-specific instance of docs/inventor-protocol.md
+        section 6's validation-ladder rung 1 (isolate and measure a single
+        assumption at a small, fully-measurable scale) executed within this
+        batch's budget; extending it to larger k1,k2 is explicitly NOT
+        executed here (see H3, an extrapolation assumption, not validated
+        in this batch).
+    - id: H2
+      statement: >-
+        Given (a_new, b, c, d, X[k], shift s, additive constant T), the
+        pre-step value of register a is uniquely recoverable as
+        a_old = (((a_new - b) mod 2^32) >>> s) - F(b,c,d) - X[k] - T (mod
+        2^32), i.e. the MD4/MD5 Round-1 step function is exactly invertible
+        given all other inputs.
+      rigorous_support: >-
+        This is a proved algebraic fact, not a distributional heuristic:
+        left-rotation by s bits is a bijection on Z/2^32Z with inverse
+        right-rotation by s bits, and addition mod 2^32 is invertible via
+        subtraction mod 2^32. No conjecture is involved; it is recorded as
+        a numbered assumption only because it is exactly the kind of
+        implementation detail (sign handling, masking, rotation direction)
+        that silently breaks in practice.
+      validation_plan: >-
+        Deterministic regression fixture, not a statistical sample:
+        implement forward_step and backward_step; for a sample of >=10,000
+        uniformly random 32-bit (a,b,c,d,X[k],s,T) tuples (feasible well
+        within budget — pure arithmetic, no search), assert
+        backward_step(forward_step(a,b,c,d,X[k],s,T), b,c,d,X[k],s,T) == a
+        EXACTLY for every sample (no tail check needed since this is an
+        exact identity, not a distribution; any single failure falsifies
+        the implementation, per the falsification_conditions above).
+    - id: H3
+      statement: >-
+        H1's uniformity/Poisson prediction, if confirmed at k1=k2=10,
+        continues to hold with no new correlations emerging as k1, k2 grow
+        toward the much larger values a real multi-round, full-primitive
+        instrument would need.
+      rigorous_support: >-
+        None beyond H1's own (unproved) extrapolation from RFC 1321's
+        single-step balance property; H3 is a SECOND-ORDER extrapolation
+        (of an already-unproved heuristic) and is explicitly weaker than
+        H1.
+      validation_plan: >-
+        NOT executed within this batch's budget (validating it at a
+        materially larger k1,k2 would itself require most of the compute
+        this bounded design is built to avoid spending). The validation
+        route, for a future batch if warranted, is to repeat H1's sampling
+        protocol at successive k1=k2 checkpoints (e.g. 10, 13, 16, ...) and
+        confirm the Poisson/collision-rate prediction continues to hold
+        with no systematic drift — docs/inventor-protocol.md section 6's
+        validation-ladder rung 2 (run the pipeline at increasing but still
+        fully-measurable scale and check the predicted ratio holds as a
+        measured ratio, not an extrapolation). Recorded here as an open
+        direction, not attempted.
+
+  target_complexity:
+    bounded_scale_this_batch:
+      time_exponent: >-
+        ~2^11.0 chunk evaluations (2^10 forward + 2^10 backward) plus
+        ~2^8.0 expected verification checks, at the declared k1=k2=10,
+        m=12, k=20 parameters — versus a ~2^20.0 naive all-pairs baseline
+        OVER THE SAME RESTRICTED 20-bit two-free-word search space (not
+        versus full-primitive brute force).
+      memory_exponent: ~2^10.0 (one hash table, ~1024 entries, 12-bit keys)
+      best_known_at_this_bounded_scale: >-
+        2^20.0 (naive all-pairs enumeration of the same restricted 2-word
+        space) — this program's own baseline, established and reproduced
+        in audit 1 above, not a literature figure.
+      hidden_overhead: >-
+        The bounded ~2^9-fold speedup ratio is specific to
+        (k1,k2,m,k)=(10,10,12,20) and does NOT extrapolate linearly to
+        full-primitive exponents. It demonstrates only the elementary
+        MITM/hash-table mechanism operating correctly on the real RFC
+        schedule; it reproduces NONE of the additional techniques the
+        literature reports needing to reach full-primitive scale (multi-
+        round chunk separation across round boundaries, "initial
+        structure"/biclique extensions, partial-matching over
+        non-full-width windows, message modification, or tree-based
+        amplification of partial preimages into full preimages) — see the
+        negative baseline-embedding fact above (no neutral word survives a
+        full-round chunk), which is exactly why those additional
+        techniques exist and why this bounded slice cannot be naively
+        rescaled to estimate them.
+    full_scale_literature_reference_points_UNVERIFIED:
+      md4_compression_function: "2^96 (KN-LIT-4878, unverified bulk-seed relay)"
+      md4_full: "2^102 (KN-LIT-4878, unverified bulk-seed relay)"
+      md5_pseudo_preimage: "2^116.9 (KN-LIT-582d77, metadata-only provenance)"
+      md5_preimage: "2^123.4 (KN-LIT-582d77, metadata-only provenance)"
+      status: >-
+        Cited ONLY as reference points establishing the scale this program
+        is nowhere near attempting. Never treated as verified, never
+        upgraded by assertion, never a target this batch executes toward.
+    tradeoff_note: >-
+      At bounded scale, memory (2^10 table entries) is negligible; no
+      time-memory tradeoff is exercised. See cost_scaling_sketch for the
+      MODELED tradeoff position if this instrument class were ever scaled
+      toward the literature's full-scale figures.
+
+  cost_scaling_sketch:
+    label: MODELED, NOT MEASURED — RANK 3 (executor) produces the measured entries.
+    anchor: >-
+      BATCH-1f30fe's calibration run (TASK-20260821-c91be2):
+      2,097,152 (2^21) second-blocks enumerated in 54.179836 s wrapper-
+      measured wall clock, single core, unoptimized Python — throughput
+      ~38,711 blocks/sec, approx 2^15.24 ops/sec.
+    cross_method_caveat: >-
+      This anchor is a BIRTHDAY/COLLISION search over full 512-bit blocks
+      (a materially different computational unit from this idea's Round-1,
+      9-step or 7-step CHUNK evaluation). It is used here ONLY for
+      order-of-magnitude wall-clock/throughput calibration, not as a
+      like-for-like extrapolation — explicitly flagged per the task card's
+      instruction.
+    modeled_time_to_2_64_ops_single_core: >-
+      2^64 / 2^15.24 ops/sec = 2^48.76 s (modeled) ~= 4.76e14 s ~= 1.5e7
+      years on a single core at this instrument's measured (Python,
+      unoptimized, cross-method) throughput.
+    modeled_time_with_parallelization:
+      - cores: 1e6
+        modeled_wall_clock: ~4.76e8 s (~15.1 years), ASSUMING linear scaling
+      - cores: 1e9
+        modeled_wall_clock: ~4.76e5 s (~5.5 days), ASSUMING linear scaling
+    optimistic_assumptions_flagged:
+      - >-
+        Linear multi-core/multi-machine scaling with no memory-bandwidth or
+        network-communication wall — false at real cluster scale; actual
+        scaling for meet-in-the-middle/birthday searches is typically
+        sublinear once shared-table communication dominates.
+      - >-
+        The throughput anchor is unoptimized single-threaded Python; a
+        compiled, vectorized, or hardware (FPGA/ASIC) implementation could
+        plausibly gain 1e2-1e4x per-core throughput — NOT measured here,
+        NOT applied to any number above, named only as an unverified
+        multiplier that would proportionally reduce the modeled wall-clock
+        if realized.
+      - >-
+        "2^64 block operations" (birthday-search unit, calibration
+        instrument) is not literally the same cost unit as "chunk
+        evaluations" (this idea's MITM method); the translation above is
+        an order-of-magnitude cross-method calibration, not an exact
+        unit conversion.
+    time_memory_tradeoff_position: >-
+      A literal 2^64-entry meet-in-the-middle table (even at a minimal
+      ~16 bytes/entry) would require ~2^68 bytes (~2.9e20 GB) — clearly
+      memory-bound and infeasible to store directly. Real large-scale
+      birthday/MITM searches at this scale are parallelized via
+      van Oorschot-Wiener-style distinguished-point methods, trading
+      memory for extra recomputation (effective memory reduced by a
+      tunable factor at the cost of a constant-factor time increase); this
+      program's instrument does not implement or measure that tradeoff, and
+      any real attempt to close this gap would need to, which is itself a
+      substantial additional engineering effort not modeled by a simple
+      throughput multiplication.
+    conclusion: >-
+      Closing the ~2^64-block gap between BATCH-1f30fe's demonstrated
+      2^21-block scale and a real 128-bit-scale effort is, at this
+      instrument class's measured (cross-method) throughput, on the order
+      of 1e7 single-core-years or 5-15 years at 1e6-1e9-way parallelism
+      UNDER OPTIMISTIC (linear-scaling) assumptions — several orders of
+      magnitude beyond any budget this program charges, and beyond what
+      hardware-acceleration multipliers alone (flagged, not applied) would
+      plausibly close for a Python-class instrument. This models the gap
+      honestly as currently unclosable within this program's means; it
+      does not model a path to closing it.
+
+  md5_specific_step_decision:
+    decision: NAMED
+    statement: >-
+      YES — this idea names a concrete MD5-specific step: the identical
+      bounded instrument (S=9, k1=k2=10, m=12, k=20, same 14-fixed-word
+      seed convention) applied to MD5's own Round 1 (MD5's F function is
+      textually identical to MD4's Round-1 F; the only substitutions are
+      MD5's shift constants S11=7,S12=12,S13=17,S14=22 in place of MD4's
+      S11=3,S12=7,S13=11,S14=19, and MD5's per-step additive constants
+      T[1..16] in place of MD4's constant-0 Round 1). Scale is IDENTICAL
+      to the MD4 run, never larger, per the task card's constraint.
+    justification: >-
+      (1) It costs no additional implementation effort beyond swapping two
+      RFC-declared constant tables into the same code path already built
+      for MD4, so it does not enlarge the batch's de817d sub-budget
+      meaningfully. (2) It is decisive for KN-TECH-080 audit 4 specifically
+      because the two substituted elements (shift amounts, per-step
+      constants) are the EXACT two changes RFC 1321 section 5 names as
+      MD5's own hardening over MD4 ("shift amounts ... approximately
+      optimized, to yield a faster avalanche effect" and "each step now
+      has a unique additive constant") — testing whether those changes are
+      detectable at this reduced, single-round scale is a meaningful, if
+      small, piece of evidence either way, and a genuinely informative
+      nearby-object comparison rather than an arbitrary one.
+    expected_result_stated_in_advance: >-
+      Under the stated null hypothesis (Round 1 alone carries none of
+      MD5's added multi-round security margin), MD4-round1 and MD5-round1
+      are predicted to be STATISTICALLY INDISTINGUISHABLE at this bounded
+      scale (R within [0.5, 2.0]) — this is stated as the EXPECTED,
+      UNSURPRISING outcome before any run, precisely so that if it occurs
+      it is correctly recorded as a controlled null (inventor-protocol
+      section 3), not spun as a "ceiling" finding; and so that if it does
+      NOT occur, the surprise is visible against a pre-declared prediction
+      rather than fitted after the fact.
+    gate_note: >-
+      This idea NAMES the step and its exact bounded parameters; approving
+      it, freezing the exact EXP contract, and deciding whether to actually
+      spend the conditional 300 s MD5 run is TASK-20260821-a288f8's
+      authority alone, not this idea-generator's.
+
+  knowledge_retrieval:
+    query_1: >-
+      Grep across knowledge/ and ledger/ for "MITM|splice-and-cut|neutral
+      word|matching point|meet-in-the-middle|biclique" (this session's
+      available tools do not include the kb/ MCP search_knowledge server;
+      Read/Grep/Glob/Write/WebSearch/WebFetch/SendMessage only).
+      Outcome: 94 files matched broadly (mostly AES/ECDLP-domain reuse of
+      "biclique"/"round" terminology, and this goal's own prior batch
+      files); no prior record of a Round-1-restricted or otherwise bounded
+      splice-and-cut MD4/MD5 toy instrument was found in ledger/proposals,
+      ledger/hypotheses, or knowledge/.
+    query_2: >-
+      WebSearch "step-reduced MD4 MD5 round-1 meet-in-the-middle
+      splice-and-cut toy demonstration neutral word". Outcome: surfaced
+      Aoki & Sasaki FSE 2009 ("Preimage Attacks on One-Block MD4, 63-Step
+      MD5 and More") and a 2023 automated-MITM-framework survey
+      (Designs, Codes and Cryptography) confirming "initial structure",
+      "neutral words", and "partial matching" are established, named
+      techniques in this literature, and that toy/step-reduced
+      demonstrations of these techniques are a recognized practice — but no
+      specific citable source for THIS exact bounded parameter slice
+      (S=9, k1=k2=10, m=12, k=20) was found. Absence of a hit licenses no
+      inference beyond what is stated in novelty_note above (AGENTS.md
+      knowledge retrieval policy: "Absence of a search result is not
+      evidence that something was not tried").
+    query_3: >-
+      Grep knowledge/ for "round-1|round1|R1-restricted|reduced-step".
+      Outcome: 7 matches, all confirmed (by targeted grep for
+      "MD4|MD5|hash" within the top hit) to be ECDLP/AES-domain reuse of
+      "round" terminology, not MD4/MD5-relevant.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+
+  recommended_priority: medium
+  priority_note: >-
+    This is a methodological gate/audit deliverable for an active,
+    already-approved batch (BATCH-af29f6, rank 1 of 7 ranked tasks), not an
+    exponent-moving proposal against a central hard problem in the sense of
+    docs/target-result-profile.md's Wesolowski exemplar — GOAL-MD5-001 is
+    explicitly framed as instrument calibration plus a named-obstruction
+    research question for a withdrawn symmetric primitive, a different
+    class of goal from the ECDLP-exponent search this profile primarily
+    targets. Priority is set by the goal's own next_action and budget, not
+    by the exponent-first search heuristics in agents/idea-generator.md
+    section "Search heuristics", which are noted here as explicitly NOT
+    the applicable lens for this particular goal.
+
+  status: proposed
+  dominated_by: >-
+    For the GENERAL splice-and-cut/MITM preimage method applied to FULL
+    MD4/MD5 (the object this program's actual research question,
+    RQ-MDFIVE-6870c1, is about), the best-known dominating results in this
+    program's corpus are KN-LIT-4878 (MD4, 2^96/2^102) and KN-LIT-582d77
+    (MD5, 2^116.9/2^123.4) — both explicitly UNVERIFIED at the
+    exact-figure level (bulk-seed relay / metadata-only respectively), so
+    "dominated_by" is asserted here only as "the corpus's best cited
+    reference points, themselves unverified," not as a checked fact. For
+    THIS proposal's actual object (the Round-1-restricted, 20-bit,
+    two-free-word toy slice), no other result in this program's corpus
+    attempts the same object, so no dominating result was found on that
+    object specifically — checked against every KN-LIT/ledger record this
+    session's Grep and WebSearch surfaced (see knowledge_retrieval above).
+  sota_delta: >-
+    Not comparable in a single number: this proposal targets a
+    deliberately tiny, self-contained model problem (a ~2^9-fold modeled
+    speedup over a ~2^20 baseline restricted to 2 free words), not an
+    attack on full MD4/MD5. For RQ-MDFIVE-6870c1's actual method-ceiling
+    question, sota_delta is "unmeasured — this record is a
+    mechanism-verification instrument design, not a ceiling measurement";
+    no attack, ceiling, or ratio versus the full-primitive literature
+    figures is claimed.
+  honest_accounting:
+    object_studied: >-
+      The tracked object is the Round-1-restricted, 2-free-word MITM
+      matching-point construction over MD4/MD5's Round 1 schedule: a genuine
+      LOSSY projection (per docs/inventor-protocol.md section 2) of the full
+      16-step Round-1 state — it discards 14 of 16 message words (fixed to a
+      declared constant) and discards everything past step 16, retaining only
+      the (word8, word9, register-A-after-step-9) triple, which propagates
+      deterministically through the retained chunk1/chunk2 arithmetic exactly
+      because the discarded words are held fixed and the retained words'
+      influence on the retained state is a well-defined function (verified
+      symbolically above, not merely a coordinate change: the discarded 14
+      words genuinely change what is computable from the retained triple
+      alone, since without fixing them the retained state is under-determined
+      — this is not lossless, and is not a mere renaming of the full state).
+    depth_of_verified_structure: >-
+      Symbolic/deterministic verification only, done by direct reading of
+      both RFC texts this session (word-usage-per-step tables, F-function
+      text comparison, the negative full-round-has-no-free-word check). No
+      code has been run and no run record exists yet (this is a 0-run,
+      design-only task per its budget); the empirical/statistical claims
+      (H1, H2, predictions) are UNTESTED as of this record and are proposals
+      for TASK-20260821-de817d, not results.
+    enumerated_closures: []
+    closures_note: >-
+      No closure is claimed or attempted by this record. It proposes an
+      instrument and a control; it does not conclude that any avenue is
+      exhausted.
+    open_directions_for_next_session: >-
+      (1) TASK-20260821-a288f8 must decide whether to approve, revise
+      (e.g. scale k1/k2 up for a more statistically powerful H1 check within
+      the same 300 s ceiling — see the recommendation in `assumptions`), or
+      reject this design before any run. (2) RFC 1320's raw text remains
+      un-pinned (no sha256) in this program's corpus — a session with
+      Bash/network tools should acquire and pin it before it is cited as a
+      frozen input to any run. (3) H3 (uniformity extrapolation to larger
+      k1,k2) is explicitly unvalidated and is the natural next
+      validation-ladder rung if this bounded slice's H1 check passes. (4) A
+      genuine multi-round (round-crossing) instrument is a substantially
+      harder design problem than this proposal solves — the negative fact
+      established in baseline_embedding (no neutral word survives a
+      full-round chunk) means any future multi-round extension needs a
+      different chunking strategy than "split within one round," which this
+      record does not attempt to design.

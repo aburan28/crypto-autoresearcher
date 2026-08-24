@@ -32,6 +32,8 @@ The formal worker never writes authoritative state. It returns a `FormalProofRes
 
 `orchestration.formal.pipeline.formalize_and_verify` is the whole join: generate, screen, verify. `orchestration.formal.cli` (`autoresearch formal`) runs one task from the shell and prints the proof artifact.
 
+A task is frozen as a `crypto.autoresearch.formal_task.v1` spec under `formal/targets/`, which both the CLI (`--task-file`) and `tools/formal_task.py` consume — so what the Coordinator queues and what the executor runs are the same text. A formal task is an ordinary `executor` stanza in the existing dispatch queue: it needs no new role, and giving it one would hand the lane authority it does not have.
+
 ## Frontier task kinds
 
 - `formalize_claim`: encode a human claim as a precise theorem statement and attempt a proof.

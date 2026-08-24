@@ -1,0 +1,698 @@
+execution_report:
+  # =====================================================================
+  # THE GATE VERDICT, FIRST, BECAUSE IT IS THE POINT (SC-A).
+  # =====================================================================
+  gate_verdict_one_line: >-
+    GATE-PO2 PASS (all nine pass-predicate clauses true) -- then a HARD STOP
+    one phase later: CTL-PO5 part (b) FAILED with 8 raw pre-certificate
+    candidates against a declared ceiling of 4, so NO declared-scale run, NO
+    HEUR-H1 validation run and NO MD5 search arm were executed, and 900 s of
+    run ceiling is UNSPENT.
+
+  experiment_id: EXP-MDFIVE-a8e71e
+  hypothesis_id: H-MDFIVE-0ca596
+  task_id: TASK-20260821-372d67
+  batch_id: BATCH-7215fa
+  goal_id: GOAL-MD5-001
+  approving_decision: DEC-20260821-333267
+  contract_status_checked: approved, approved_by coordinator TASK-20260821-fad775
+  gate_decision_checked: >-
+    coordination/goals/GOAL-MD5-001/batches/BATCH-7215fa/tasks/TASK-20260821-fad775/gate-decision.yaml
+    ledger_decision_to_be_filed.coordinator_decision.decision == approve.
+    Execution therefore permitted.
+  implementation_commit: 12b2abf661ac9061a0e5b6e8429b9895e6dbcd01
+  implementation_commit_note: >-
+    Both run manifests record commit 12b2abf661ac9061a0e5b6e8429b9895e6dbcd01
+    with dirty: true. The dirt is exactly the two files this task wrote
+    (harness/run_md4_ceiling_v2.py, tests/test_harness.py), both of which the
+    wrapper pins by sha256 in manifest.run.code.source (all_pinned: true), so
+    the executed source is bound by content hash and stays bound after the
+    Coordinator's snapshot commit.
+  claim_ceiling: analyzed
+  requested_policy: executor-implementation
+  resolved_model_id: claude-opus-5
+  fallback_used: false
+  degraded: false
+
+  # =====================================================================
+  # RUN ORDER, AS EXECUTED. Checkable from the artifacts alone.
+  # =====================================================================
+  run_order_as_executed:
+    - '1. RUN-MDFIVE-b5-buildcheck (CTL-PO6 both primitives, CTL-PO7, CTL-PO9)'
+    - >-
+      2. RUN-MDFIVE-b5-gate_and_controls, whose internal phase_log records, in
+      monotonic order: phase A (CTL-PO1 null control) -> phase B (MD4
+      two-directional) -> phase C (MD5) -> GATE_VERDICT_RECORDED ->
+      k1_k2_6_controls_md4. The gate verdict entry precedes the control phase
+      entry in the log, so the ordering is mechanically checkable by joint V1
+      from raw-result.json rather than from this narrative.
+    - '3. NOTHING ELSE RAN. See runs.not_run below.'
+
+  runs:
+    completed:
+      - run_id: RUN-MDFIVE-b5-buildcheck
+        plan_item: 'run 1 (suffix buildcheck)'
+        status: completed_valid
+        wrapper_measured_wall_seconds: 0.029058
+        timing_source: wrapper
+        peak_rss_bytes: 62078976
+        ceiling_seconds: 60
+        certificate: {kind: none, note: 'pure correctness run; no solve claimed'}
+        outcome: all correctness gates passed
+        metrics:
+          input_pins_ok: true
+          CTL_PO7_rfc1320_all_ok: true
+          CTL_PO7_md5_t16_all_ok: true
+          CTL_PO6_h2_md4_all_ok: true
+          CTL_PO6_h2_md5_all_ok: true
+          CTL_PO9_all_ok: true
+          all_gates_passed: true
+        deviation_recorded_against_this_run: DEV-3 (see protocol_deviations)
+      - run_id: RUN-MDFIVE-b5-gate_and_controls
+        plan_item: 'run 2 (suffix gate_and_controls)'
+        status: completed_valid
+        wrapper_measured_wall_seconds: 0.028070
+        timing_source: wrapper
+        ceiling_seconds: 120
+        certificate:
+          kind: none
+          note: >-
+            No discrete-log solve and no factor-base relation is claimed. The
+            instrument's own MITM candidates ARE independently re-verified
+            inside the run by `verify_certificate`, which uses
+            `_reference_registers` (a straight-line named-register 16-step
+            forward pass) and never touches forward_step, backward_step,
+            chunk1_observable, chunk2_observable or mitm_search. That
+            re-verification is reported below; certificate.kind stays `none`
+            because the run wrapper's certificate kinds do not cover this
+            claim type, and this is stated explicitly rather than left blank.
+        outcome: >-
+          GATE PASS, then CTL-PO5 FAIL -- a hard stop under the contract's
+          stopping_rules before any declared-scale run.
+    not_run:
+      - plan_item: 'run 3 (suffix primary-md4), ceiling 300 s'
+        status: not_run
+        reason: >-
+          EXP-MDFIVE-a8e71e stopping_rules: "If CTL-PO4 or CTL-PO5 fails, the
+          executor stops before any declared-scale run and reports." CTL-PO5
+          part (b) failed. No run directory was created.
+        ceiling_seconds_unspent: 300
+      - plan_item: 'run 4 (suffix h1-md4), ceiling 300 s'
+        status: not_run
+        reason: same CTL-PO5 stop; HEUR-H1's first genuine test did NOT occur.
+        ceiling_seconds_unspent: 300
+      - plan_item: 'run 5 (suffix md5-conditional), ceiling 300 s'
+        status: not_run
+        reason: >-
+          same CTL-PO5 stop. The MD5 search arm was authorized by
+          md5_run_authorization but never became eligible, because its
+          gate_condition chain runs through the declared-scale phase that did
+          not happen. ZERO MD5 SEARCH COMPUTATION OCCURRED.
+        ceiling_seconds_unspent: 300
+    invalid: []
+    failed: []
+    superseded: []
+
+  # =====================================================================
+  # OBSERVATIONS -- measurements only. No interpretation, no verdict.
+  # =====================================================================
+  observations:
+
+    - id: O-1
+      what: 'GATE-PO2 phase A (CTL-PO1), the batch-4-slice DETECTOR NULL CONTROL, MD4'
+      parameters: 'i_word=8, j_word=9, S=9, p=1, k1=k2=4, m=12, k=20, fixed_word_generation(20260821,(8,9),4), target seed 8975321'
+      code_path: >-
+        harness.run_md4_ceiling_v2.chunk1_observable and
+        harness.run_md4_ceiling_v2.chunk2_observable -- the SAME two functions
+        every other phase in this batch called; the only difference is the
+        parameter tuple (A-6/PO-8).
+      predicate_returned: FAIL
+      required_outcome: FAIL
+      distinct_fwd_32bit_at_the_four_held_fixed_values: [16, 16, 16, 16]
+      distinct_fwd_12bit_at_the_four_held_fixed_values: [16, 16, 16, 16]
+      distinct_bwd_32bit_at_the_four_held_fixed_values: [1, 1, 1, 1]
+      distinct_bwd_12bit_at_the_four_held_fixed_values: [1, 1, 1, 1]
+      distinct_fiber_sets: 1
+      agreement_with_the_pre_run_derivation: >-
+        The contract derived distinct_bwd = EXACTLY 1 and distinct_fwd = 16 in
+        advance, twice independently (TASK-20260821-6b78d4,
+        TASK-20260821-fad775). Both numbers are reproduced exactly. The
+        detector can see a degeneracy that is already proved to exist; it did
+        not pass on the null object.
+
+    - id: O-2
+      what: 'GATE-PO2 phase B, R1-SEP10, MD4 -- the two-directional dependence gate'
+      parameters: 'i_word=2, j_word=12, S=8, p=3 (v6, the register produced at step 6), k1=k2=4, m=12, k=20, fixed_word_generation(20260821,(2,12),4), target seed 8975322'
+      direction_A_held_fixed_free_word_B_lows: [0, 5, 10, 15]
+      distinct_fwd_32bit: [9, 9, 9, 9]
+      distinct_fwd_12bit: [4, 4, 4, 4]
+      direction_A_criterion_ge_2_met: true
+      CTL_PO3_byte_identical_across_the_four_repetitions: true
+      direction_A_honesty_note: >-
+        chunk1_observable STRUCTURALLY DOES NOT READ free word B, so the four
+        held-fixed repetitions in direction A are inert by construction and buy
+        no quantifier strength. Stated, per the contract, rather than presented
+        as a passed test; CTL-PO3 is what converts them into a real check and
+        it passed.
+      direction_B_held_fixed_free_word_A_lows: [0, 5, 10, 15]
+      direction_B_target_regeneration: >-
+        performed as specified -- the target was regenerated per held-fixed
+        index a, giving four distinct Y_a, so these four repetitions are
+        genuinely different backward computations.
+      distinct_bwd_32bit: [6, 4, 7, 11]
+      distinct_bwd_12bit: [6, 4, 7, 11]
+      direction_B_criterion_ge_2_met: true
+      distinct_fiber_sets: 2
+      joint_fiber_criterion_ge_2_met: true
+      fiber_sets_observed: >-
+        Fifteen empty fibers and one non-empty fiber [11, 12, 13, 14] at the
+        free-word-B window value that carries the planted match.
+      forbidden_substitution_check: >-
+        No simultaneous both-word sweep was run, reported, or substituted for
+        any part of this gate.
+
+    - id: O-3
+      what: 'GATE-PO2 phase C, R1-SEP10, MD5 (md5_run_authorization F3)'
+      parameters: 'identical to O-2 except primitive=md5 and target seed 8975328'
+      distinct_fwd_32bit: [16, 16, 16, 16]
+      distinct_fwd_12bit: [16, 16, 16, 16]
+      distinct_bwd_32bit: [16, 16, 16, 16]
+      distinct_bwd_12bit: [8, 11, 7, 7]
+      distinct_fiber_sets: 2
+      predicate_returned: PASS
+      same_verdict_as_phase_B: true
+
+    - id: O-4
+      what: THE FROZEN PASS PREDICATE, evaluated clause by clause
+      verdict: PASS
+      clauses:
+        phase_A_returned_FAIL: true
+        phase_A_distinct_bwd_32bit_exactly_1: true
+        phase_A_distinct_bwd_12bit_exactly_1: true
+        phase_A_distinct_fwd_32bit_gt_1: true
+        phase_B_direction_A_criterion: true
+        phase_B_CTL_PO3_byte_identity: true
+        phase_B_direction_B_criterion: true
+        phase_B_joint_fiber_ge_2: true
+        phase_C_md5_same_verdict_as_phase_B: true
+      failing_clauses: []
+      what_this_licenses_and_nothing_more: >-
+        Quoting the contract's own interpretation limit: a passing gate
+        licenses only "the declared observable varies with each free word
+        separately at k1 = k2 = 4, on this fixed-word seed, at these four
+        held-fixed values". It does not license "the construction works", does
+        not validate HEUR-H1, and says nothing about MD4's preimage resistance.
+
+    - id: O-5
+      what: 'CTL-PO4, COMPLETENESS CONTROL at k1 = k2 = 6, MD4, target seed 8975323'
+      certificate_verified_mitm_solutions: [[331791343, 1135165152]]
+      naive_Y_reproducing_solutions: [[331791343, 1135165152]]
+      sets_equal: true
+      planted_pair: [331791343, 1135165152]
+      planted_pair_recovered: true
+      naive_evaluations: 4096
+      naive_baseline_independence: >-
+        The naive side enumerated all 4096 pairs and, for each, ran an
+        INDEPENDENT straight-line 16-step forward recomputation
+        (`_reference_round1_output`) comparing the Round-1 OUTPUT STATE to Y.
+        It never called backward_step, never read component p, and never read
+        the matching window. This is machine-checked against the SOURCE (not a
+        docstring) by tests/test_harness.py::
+        test_v2_naive_baseline_is_independent_of_the_observable, which parses
+        the function body's AST. BATCH-af29f6's baseline compared low_k_fwd
+        against low_k_bwd and was vacuous (EV-MDFIVE-ab007d O-2; ANOM-1
+        CAVEAT, KN-TECH-bb7e9f) -- that is not reproduced here.
+      stated_limit_carried_from_the_contract: >-
+        CTL-PO4 tests COMPLETENESS, NOT NON-DEGENERACY, and would still pass
+        vacuously against an ANOM-1-style degeneracy. Its pass therefore
+        carries no non-degeneracy weight.
+
+    - id: O-6
+      what: 'CTL-PO5, DEGENERACY CONTROL ON THE RAW PRE-CERTIFICATE SOLUTION SET, k1 = k2 = 6, MD4'
+      result: FAIL
+      failing_part: 'part (b)'
+      raw_pre_certificate_candidate_count: 8
+      declared_ceiling_for_part_b: 4
+      modeled_expected_raw_count: 1.00390625
+      distinct_wA_appearing_in_the_raw_set: 4
+      distinct_wB_appearing_in_the_raw_set: 2
+      window_size: 64
+      part_a_both_projections_strictly_below_64: true
+      part_b_raw_count_at_most_4: false
+      structure_of_the_raw_set: >-
+        Exactly the 4 x 2 product of 4 forward window values with 2 backward
+        window values. All eight candidates carry the SAME 20-bit observable
+        value 677474 decimal. Seven of the eight fail the independent 16-step
+        certificate; only the planted pair reproduces Y.
+      contract_language_this_triggers: >-
+        EXP-MDFIVE-a8e71e stopping_rules: "If CTL-PO4 or CTL-PO5 fails, the
+        executor stops before any declared-scale run and reports. A CTL-PO5
+        failure in particular means a degenerate word channel survived the
+        gate, which is a finding about the GATE and must be reported as such."
+        It is also falsification_criterion (d), "CTL-PO5's raw projections
+        cover a full window or the raw count exceeds 4". BOTH ARE QUOTED, NOT
+        ADJUDICATED. Whether this is a finding about R1-SEP10, about GATE-PO2,
+        or about the ceiling of 4 is a Reviewer and Coordinator judgment; the
+        Executor reports the integers.
+      it_is_not_the_batch_4_failure_mode: >-
+        Recorded so the two are not conflated. BATCH-af29f6's raw set was a
+        FULL ROW -- one wA paired with every wB, which fails CTL-PO5 part (a)
+        (EV-MDFIVE-ab007d O-1; ANOM-1 CAVEAT). Here part (a) PASSES (4 and 2,
+        both far below 64) and only part (b), the absolute count, fails.
+
+    - id: O-7
+      what: 'CTL-OBS, EXHAUSTIVE OBSERVATION-COLLISION ENUMERATION, k1 = k2 = 6, MD4'
+      pairs_enumerated: 4096
+      exhaustiveness_argument: >-
+        The MITM sweeps all 2^6 forward and all 2^6 backward window values and
+        its m = 12 filter is a strict superset of the k = 20 filter (same low
+        bits), so the reported 20-bit-colliding set is the complete set over
+        all 4096 pairs. The naive side independently enumerated all 4096.
+      twenty_bit_colliding_pairs: 8
+      twenty_bit_colliding_pairs_reproducing_Y: 1
+      twenty_bit_colliding_NON_Y_reproducing_pairs: 7
+      full_list_artifact: >-
+        runs/RUN-MDFIVE-b5-gate_and_controls/raw-result.json ->
+        raw.k1_k2_6_controls.CTL_OBS_observation_collisions.
+        twenty_bit_colliding_non_Y_reproducing_pairs (all seven, with their
+        reference component values). THE SEARCH WAS RUN, NOT REASONED ABOUT.
+      modeled_expectation_for_comparison: 0.00390625 non-planted collisions
+      matching_window_hits_12bit: 16
+
+    - id: O-8
+      what: 'CTL-H1B, HEUR-H1b PAIRED CONTRAST, 64-value sweeps, k1 = k2 = 6, MD4'
+      forward_v6_step: 6
+      forward_v6_distinct_32bit: 33
+      forward_v6_distinct_12bit: 6
+      backward_v6_distinct_32bit: 24
+      backward_v6_distinct_12bit: 24
+      backward_v8_step: 8
+      backward_v8_distinct_32bit: 2
+      backward_v8_distinct_12bit: 2
+      sweep_size: 64
+      reported_as: >-
+        numbers only. The Executor composes no verdict on HEUR-H1b. For the
+        Reviewer's convenience the contract's own frozen threshold is quoted
+        without being applied: falsification_criterion (h) reads "v6 below 48
+        distinct 32-bit values over a 64-value sweep on either side".
+
+    - id: O-9
+      what: HEUR-H1 VALIDATION
+      result: NOT MEASURED. The run did not happen.
+      frozen_prediction_reference: >-
+        EXP-MDFIVE-a8e71e preregistered_prediction -- Poisson(lambda =
+        2^(k1+k2-m) = 2^8 = 256) for the matching-window (12-bit) collision
+        count across N targets at k1 = k2 = 10, from H-MDFIVE-0ca596 HEUR-H1.
+        UNCHANGED, UNADJUSTED, AND UNSCORED. No chi-square statistic, no
+        p-value, no sample variance, no tail check and no achieved N exist for
+        this batch, because run 4 was never executed.
+      missing_data_stays_missing: true
+
+    - id: O-10
+      what: MD5 COMPUTATION PERFORMED IN THIS TASK, exhaustively enumerated
+      md5_search_computation: >-
+        ZERO. No MD5 declared-scale run, no MD5 primary run, no MD5 H1 arm, no
+        MD5 k1=k2=6 control, and no MD5 execution of the phase-A null control.
+      md5_computation_that_did_occur:
+        - 'F1 (authorized by name): CTL-PO6 HEUR-H2 backward-inversion regression fixture in MD5 mode, seed 8975327, 10000 tuples, 0 failures. Run 1.'
+        - 'F2 (authorized by name): MD5 T[1..16] self-check against the RFC 1321 sec 3.4 sine definition, at module import and reported in run 1. All 16 entries match.'
+        - 'F3 (authorized by name): GATE-PO2 phase C, k1 = k2 = 4, m = 12, k = 20, target seed 8975328. Run 2. See O-3.'
+        - 'NOT NAMED IN F1/F2/F3 AND THEREFORE DISCLOSED AS DEV-3: CTL-PO9 component-identity assertion executed in MD5 mode in run 1.'
+      ratio_R: >-
+        NOT COMPUTED and NOT REPORTED. R is pre-declared uninformative and
+        FORBIDDEN as a finding by IR-9; with no MD4 and no MD5 declared-scale
+        arm there is nothing to form it from in any case.
+
+    - id: O-11
+      what: MEASURED COST TABLE for this instrument (labeled measured throughout)
+      measured:
+        run1_buildcheck_wrapper_wall_seconds: 0.029058
+        run2_gate_and_controls_wrapper_wall_seconds: 0.028070
+        total_wrapper_measured_wall_seconds_across_all_charged_runs: 0.057128
+        run1_peak_rss_bytes: 62078976
+        gate_phase_A_internal_wall_seconds: 0.000625
+        gate_phase_B_internal_wall_seconds: 0.000580
+        gate_phase_C_internal_wall_seconds: 0.000638
+        k1_k2_6_controls_internal_wall_seconds: 0.025988
+        k1_k2_6_mitm_chunk_evaluations: 128
+        k1_k2_6_mitm_step_evaluations: 1024
+        k1_k2_6_naive_pair_evaluations: 4096
+      modeled_kept_separate:
+        naive_all_pairs_cost_at_k1_k2_6: 4096 pair evaluations (arithmetic 2^(k1+k2), NOT a timed measurement)
+        expected_raw_candidate_count: 1.00390625
+        expected_non_planted_20bit_collisions: 0.00390625
+      optimistic_assumptions_restated_next_to_the_numbers:
+        - single-core, unoptimized CPython; no vectorization, no compiled inner loop
+        - no memory-bandwidth accounting; the chunk1 table fits trivially in cache at every scale run here
+        - no time-memory tradeoff exercised at this scale
+        - 'the naive figure is a pair COUNT, not a timing; the two units are never mixed'
+      prohibited_and_not_done: >-
+        NO cost figure here or anywhere in this task projects toward the
+        approximately 2^64-block instrument-class gap (IR-10, SC-3,
+        DEC-20260821-1215e5 F-8). No BATCH-af29f6 or BATCH-1f30fe figure is
+        extrapolated. Every BATCH-af29f6 raw metric referenced in this report
+        (EV-MDFIVE-ab007d O-1, O-2) carries the ANOM-1 caveat inline (SC-4).
+
+  # =====================================================================
+  # ANOMALIES -- recorded, not discarded, whether or not they fit.
+  # =====================================================================
+  anomalies:
+
+    - id: ANOM-B5-1
+      severity: material
+      what: >-
+        THE MD4 FORWARD OBSERVABLE COLLAPSES FAR BELOW ITS PRE-REGISTERED
+        PREDICTED VALUE, WHILE THE MD5 ONE DOES NOT.
+      frozen_prediction_being_compared_against: >-
+        EXP-MDFIVE-a8e71e mandatory_dependence_gate.
+        predicted_values_stated_before_any_run: "distinct_fwd_32bit = 16 and
+        distinct_bwd_32bit = 16 ... the 12-bit counts are predicted 16 as well,
+        with 15 acceptable". FROZEN; NOT ADJUSTED; NOT RE-SCORED.
+      observed_md4_phase_B: 'distinct_fwd_32bit = 9 of 16; distinct_fwd_12bit = 4 of 16; distinct_bwd_32bit = 6, 4, 7, 11; distinct_bwd_12bit = 6, 4, 7, 11'
+      observed_md5_phase_C: 'distinct_fwd_32bit = 16 of 16; distinct_fwd_12bit = 16 of 16; distinct_bwd_32bit = 16 of 16; distinct_bwd_12bit = 8, 11, 7, 7'
+      collision_multiplicity_md4_forward_sweep_32bit: [2, 2, 2, 2, 2, 2, 2, 1, 1]
+      collision_multiplicity_md4_forward_sweep_12bit: [5, 4, 4, 3]
+      at_k1_k2_6_the_same_effect: 'forward v6 gives 33 distinct 32-bit and only 6 distinct 12-bit values over a 64-value sweep (O-8)'
+      why_it_matters_procedurally: >-
+        The gate's CRITERION is >= 2 and was met, so the gate passed as
+        written. But the observed values are a large deviation from the
+        numbers the contract recorded in advance, and the contract's stated
+        reason for recording them was "so a deviation is legible as a result
+        rather than absorbed". It is recorded here rather than absorbed.
+      relation_to_CTL_PO5: >-
+        STATED AS A CO-OCCURRENCE, NOT A CAUSAL CLAIM. The CTL-PO5 raw set is
+        exactly a 4 x 2 product sharing one 20-bit observable value, and the
+        forward channel independently shows 12-bit collapse at both k = 4 and
+        k = 6. Whether one explains the other is for the Reviewer.
+      not_an_implementation_error: >-
+        Every correctness control passed independently: all seven RFC 1320
+        A.5 MD4 vectors, the MD5 T[1..16] sine self-check, HEUR-H2 exact
+        invertibility on 10000 tuples per primitive, CTL-PO9 component
+        identity against an independent named-register reference, and CTL-PO4
+        (certificate-verified MITM set == independent naive Y-reproducing set
+        == the planted pair). The Executor therefore does not classify this
+        as implementation_error; it classifies it as an observation about the
+        construction and hands the classification question onward.
+
+    - id: ANOM-B5-2
+      severity: informational
+      what: >-
+        The joint fiber count came out at EXACTLY 2 in both phase B and phase
+        C, matching the COORDINATOR GATE's pre-registered derivation and not
+        IDEA-20260821-ea35d1's pre-registered "about 16".
+      both_predictions_were_on_record_before_any_run: true
+      recorded_because: >-
+        the contract required that whichever value was observed, the deviation
+        from the other prediction be legible rather than absorbed. The
+        criterion (>= 2) was unchanged and not weakened.
+
+    - id: ANOM-B5-3
+      severity: informational
+      what: >-
+        harness/runner.py's effective `_inference_block()` (the second
+        definition, at line 695, which shadows the adapter-aware one at line
+        183) hard-codes requested_policy "executor-terra" into EVERY manifest
+        it writes. This task's requested policy is executor-implementation.
+      consequence: >-
+        manifest.run.inference.requested_policy reads "executor-terra" in both
+        of this task's run manifests and is WRONG for this task. It is not
+        editable from here: harness/runner.py is outside this task's
+        write_scope. The correct value is recorded in
+        manifest.run.inputs.parameters.requested_policy =
+        executor-implementation, written by
+        harness/run_md4_ceiling_v2.py, and in this report's header.
+      flagged_for: Coordinator disposition; affects every harness run in the repository, not just this batch.
+
+    - id: ANOM-B5-4
+      severity: informational
+      what: >-
+        The phase-A null control's single constant backward value happened to
+        coincide with forward window value 9, so its sixteen fibers were all
+        the non-empty set [9] rather than all empty. distinct_fiber_sets is 1
+        either way, which is the number the criterion reads, and the contract
+        anticipated exactly this ("A degenerate backward channel yields
+        EXACTLY 1 whether or not its constant value happens to match").
+        Recorded because it is the kind of coincidence that looks like a bug
+        on a later reading.
+
+  # =====================================================================
+  # PROTOCOL DEVIATIONS -- every one, including those that changed nothing.
+  # =====================================================================
+  protocol_deviations:
+
+    - id: DEV-1
+      what: RUN ID SUFFIXES CARRY A `b5-` PREFIX not present in the contract's run_plan.
+      contract_text: 'run_plan suffixes: buildcheck, gate_and_controls, primary-md4, h1-md4, md5-conditional'
+      as_executed: 'RUN-MDFIVE-b5-buildcheck, RUN-MDFIVE-b5-gate_and_controls'
+      reason: >-
+        RUN-MDFIVE-buildcheck, RUN-MDFIVE-primary-md4, RUN-MDFIVE-h1-md4 and
+        RUN-MDFIVE-md5-conditional ALREADY EXIST as immutable BATCH-af29f6
+        records under
+        coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/.
+        Emitting the bare suffixes would have minted duplicate run IDs for
+        different runs, which CLAUDE.md forbids absolutely (IDs immutable,
+        never reused). The contract does not contemplate the collision. The
+        prefix is the minimal change that keeps every ID globally unique.
+      effect_on_results: none.
+      flagged_for: Coordinator; a future contract should mint run suffixes per batch.
+
+    - id: DEV-2
+      what: >-
+        `caveat_refs` is emitted INSIDE manifest.run.inputs.parameters and
+        manifest.run.cost_model rather than as a top-level manifest key.
+      reason: >-
+        harness/runner.py builds the manifest and is OUTSIDE this task's
+        write_scope; a top-level key cannot be added without editing it, and
+        IR-7 / the write_scope forbid that. `parameters` and `cost_model` are
+        the two blocks the wrapper records VERBATIM, so the field is present,
+        named exactly `caveat_refs`, and machine-readable from manifest.yaml
+        alone. It names KN-TECH-bb7e9f and DEC-20260821-1215e5 F-4, plus IR-9
+        and IR-10. Pinned by tests/test_harness.py::
+        test_v2_manifest_output_carries_caveat_refs, which asserts against the
+        written manifest rather than against prose.
+      effect_on_results: none. SC-5 / IR-8 are satisfied in substance; the placement is disclosed so a reviewer checking for a top-level key is not surprised.
+
+    - id: DEV-3
+      what: >-
+        MD5-MODE COMPUTATION NOT NAMED IN md5_run_authorization F1/F2/F3 WAS
+        EXECUTED. Run 1's CTL-PO9 component-identity assertion was run in MD5
+        mode as well as MD4 mode (both slices, 64 probe word-lists each).
+      why_it_happened: >-
+        The contract lists run 1's contents as "CTL-PO6 (both primitives),
+        CTL-PO7, CTL-PO9" without a primitive qualifier on CTL-PO9, and
+        CTL-PO9's own text names no primitive. This Executor ran it for both,
+        for symmetry with CTL-PO6, before weighing it against
+        md5_run_authorization's closing "NOTHING ELSE".
+      what_it_actually_computed: >-
+        A deterministic arithmetic identity only: that tuple position p of
+        state_S equals the register produced at step component_step(S,p) in an
+        independent named-register reference. No target, no search, no seeded
+        target draw, no use of any of the nine frozen target seeds, no result
+        that anything downstream depends on. Probe word-lists were drawn from
+        random.Random(20260821), a procedure the contract does not declare
+        (declared procedures cover fixed words, free-word high bits and
+        targets only, none of which this touched).
+      disposition: >-
+        DISCLOSED, NOT REPAIRED. Run records are immutable and the run is
+        preserved as written. Whether this trips IR-4 ("ANY MD5-SIDE
+        COMPUTATION executed without md5_run_authorization ... is invalid
+        regardless of outcome") for the CTL-PO9-md5 sub-result, or for run 1
+        as a whole, is a Coordinator and Reviewer judgment and is NOT
+        adjudicated here. The Executor notes only that the MD4-mode CTL-PO9
+        result, which is what the contract needs, is independently present and
+        passed, and that no MD5 search arm ran.
+
+    - id: DEV-4
+      what: >-
+        The k1 = k2 = 6 control phase RAN, inside run 2, before CTL-PO5's
+        failure was known.
+      why_this_is_not_a_deviation_from_run_order: >-
+        Recorded for clarity rather than as a breach. The contract's order is
+        gate -> (on PASS) k1=k2=6 controls -> declared-scale runs. The gate
+        PASSED, so the control phase was the correct next step, and CTL-PO5 is
+        one of those controls -- its failure is discoverable only by running
+        it. The phase_log shows GATE_VERDICT_RECORDED strictly before
+        k1_k2_6_controls_md4. The stop took effect at the next boundary, which
+        is where stopping_rules places it: "stops before any declared-scale
+        run".
+
+    - id: DEV-6
+      what: >-
+        `code_path_fingerprint` records the observable functions as
+        `__main__.chunk1_observable` / `__main__.chunk2_observable` rather
+        than `harness.run_md4_ceiling_v2.*`.
+      reason: >-
+        The fingerprint is built from the live `__module__` attribute, and
+        both runs were launched with `python3 -m harness.run_md4_ceiling_v2`,
+        which binds the module as `__main__`. The names are still fully
+        qualified with respect to the executing module, the identity of the
+        file is pinned by sha256 in manifest.run.code.source, and command.txt
+        records the invocation, so PO-8's question -- which functions ran, with
+        which tuple -- is answerable from the artifacts.
+      not_repaired_by_rerunning: >-
+        DELIBERATE. Run records are immutable and a rerun would mint a new run
+        ID for numerically identical results purely to make an artifact read
+        more nicely. That is not a reason to run anything. Disclosed instead.
+      effect_on_results: none.
+      note: >-
+        tests/test_harness.py::test_v2_observables_are_the_single_code_path
+        asserts the fully qualified names under normal import, where they read
+        harness.run_md4_ceiling_v2.*.
+
+    - id: DEV-5
+      what: 'No amendment was requested and no parameter was retried.'
+      recorded_because: >-
+        The contract and the task card both anticipate the temptation. After
+        the CTL-PO5 failure no parameter was adjusted, no seed was changed, no
+        alternative free-word pair was tried, and no run was repeated. Exactly
+        two runs were executed in this task, both reported, neither
+        superseded.
+
+  # =====================================================================
+  # BUDGET -- measured against declared ceilings; unspent reported as unspent.
+  # =====================================================================
+  budget:
+    declared_task_wall_clock_seconds: 1800
+    declared_maximum_runs: 5
+    runs_executed: 2
+    runs_not_executed: 3
+    declared_memory_gb: 8
+    measured_peak_rss_bytes: 62078976
+    measured_peak_rss_gb: 0.058
+    per_run:
+      - {plan_item: 'run 1 buildcheck', ceiling_seconds: 60, wrapper_measured_seconds: 0.029058, unspent_seconds: 59.97}
+      - {plan_item: 'run 2 gate_and_controls', ceiling_seconds: 120, wrapper_measured_seconds: 0.028070, unspent_seconds: 119.97}
+      - {plan_item: 'run 3 primary-md4', ceiling_seconds: 300, wrapper_measured_seconds: null, unspent_seconds: 300, status: NOT RUN}
+      - {plan_item: 'run 4 h1-md4', ceiling_seconds: 300, wrapper_measured_seconds: null, unspent_seconds: 300, status: NOT RUN}
+      - {plan_item: 'run 5 md5-conditional', ceiling_seconds: 300, wrapper_measured_seconds: null, unspent_seconds: 300, status: NOT RUN}
+    total_run_ceiling_seconds_declared: 1080
+    total_wrapper_measured_run_seconds: 0.057128
+    unspent_run_ceiling_seconds: 900
+    unspent_budget_statement: >-
+      900 s of run ceiling (runs 3, 4 and 5) is UNSPENT and is reported as
+      unspent. It was NOT reallocated to any other run, and no run was
+      lengthened, repeated or widened with it. No ceiling was exhausted; no
+      run halted on a deadline; no result in this report is a budget outcome.
+    enforcement: >-
+      Both runs were launched under `timeout --signal=KILL <ceiling>` at their
+      declared per-run ceilings. Neither approached it. Memory was not capped
+      by ulimit (macOS does not honour -v reliably); the wrapper-recorded peak
+      RSS of 0.058 GB against an 8 GB ceiling is the measurement of record.
+
+  # =====================================================================
+  # SUCCESS CRITERIA -- reported, not graded.
+  # =====================================================================
+  success_criteria_status:
+    SC-A: >-
+      MET. The gate ran FIRST (after buildcheck), before any k1=k2=6 control
+      and before any declared-scale run, in both directions separately plus
+      the joint fiber, on the same observable through the same code path, with
+      phase A returning FAIL on the batch-4 slice, and its pass predicate
+      satisfied. Both directions' distinct-value counts are reported as
+      integers at 32-bit and 12-bit resolution for every held-fixed value
+      (O-1, O-2, O-3).
+    SC-B: MET. CTL-PO6 passed exactly on all 10000 sampled tuples for both primitives; CTL-PO7 and CTL-PO9 passed.
+    SC-C: >-
+      PARTIALLY MET AND REPORTED AS SUCH. CTL-PO4 holds (O-5). CTL-PO5 DOES
+      NOT HOLD -- part (a) passes, part (b) fails at 8 raw candidates against
+      a ceiling of 4 (O-6). CTL-OBS's full collision list and CTL-H1B's paired
+      contrast are reported (O-7, O-8).
+    SC-D: NOT APPLICABLE -- the MD4 primary run did not execute, because CTL-PO5 failed. No substitute figure is offered.
+    SC-E: NOT APPLICABLE -- the H1 validation run did not execute. No chi-square, variance, tail p-value or achieved N exists for this batch (O-9).
+    SC-F: NOT APPLICABLE -- the MD5 search arm did not execute (O-10).
+    SC-G: >-
+      MET with DEV-2 disclosed. Every run manifest carries `caveat_refs` (at
+      the disclosed nesting) and `code_path_fingerprint` per phase; every cost
+      figure is labeled measured or modeled and the two are in separate fields
+      (O-11); no figure projects toward the approximately 2^64-block gap;
+      every BATCH-af29f6 raw metric cited carries the ANOM-1 caveat; the
+      quarantine non-reading attestation is present below and inside every run
+      manifest.
+
+  quarantine_attestation: >-
+    ATTESTED. This task did NOT read
+    coordination/goals/GOAL-MD5-001/quarantine/MD5-COLLISION-PATH-WANG-2004-199.yaml
+    or any other file under
+    coordination/goals/GOAL-MD5-001/quarantine/, in whole or in part, and
+    derived nothing from it (SC-6, IR-5). No quarantine consumption finding
+    exists. The attestation is also emitted into every run manifest by
+    harness/run_md4_ceiling_v2.py so it is checkable from the run record
+    alone.
+
+  input_pin_attestation: >-
+    Both RFC pins were RE-HASHED, NOT RE-FETCHED, at run time by
+    check_input_pins() and both matched:
+    coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/inputs/rfc1320-md4.txt
+    = f727b15e19ab8ac5036ab7921476e8d8644512190ade32a2e0a2fb9d8a2421c7 and
+    coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/inputs/rfc1321-md5.txt
+    = 284a79d148400d9cd2a423211d1103b5cef0fb9256a4cbe6d7ebe5197c3149dd.
+    No network access occurred.
+
+  frozen_instruments_untouched:
+    - harness/run_md4_ceiling.py -- NOT edited, NOT imported (IR-7). Verified by `git status`: unmodified.
+    - harness/run_md5_calib.py -- NOT edited, NOT imported. Verified by `git status`: unmodified.
+
+  interpretation_limits_carried_forward:
+    - Claim ceiling is `analyzed`, never `supported`, for every record derived from this task.
+    - A passing gate licenses only the narrow statement quoted in O-4 and does not validate HEUR-H1, which was not tested at all in this batch.
+    - The instrument can only ever recover a PLANTED pair. No run of it is a preimage of anything.
+    - >-
+      A decoupled non-MITM construction at (word8, word9, S = 9) STRICTLY
+      DOMINATES R1-SEP10 on the narrow object "recover the two planted words",
+      in both time and memory. Recorded, not buried. Nothing here may be
+      presented as evidence that R1-SEP10 is the cheapest way to recover two
+      planted words.
+    - NOVELTY IS UNVERIFIED. Nothing here is described as novel, new, or first.
+    - Everything is scoped to MD4 and MD5 Round 1, 2 of 16 words free, one fixed-word seed, k1 = k2 in {4, 6}, m = 12, k = 20. NO transfer or extrapolation to the full primitive is claimed anywhere.
+    - >-
+      The Executor composes NO verdict on HEUR-H1, HEUR-H1b, HEUR-H2 or
+      HEUR-H3, and does not declare the hypothesis supported, rejected or
+      closed. HEUR-H3 was not tested and no run here bears on it.
+
+  artifact_paths:
+    - harness/run_md4_ceiling_v2.py
+    - tests/test_harness.py
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-7215fa/tasks/TASK-20260821-372d67/execution-report.yaml
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-7215fa/tasks/TASK-20260821-372d67/runs/RUN-MDFIVE-b5-buildcheck/
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-7215fa/tasks/TASK-20260821-372d67/runs/RUN-MDFIVE-b5-gate_and_controls/
+
+  reproduction:
+    - 'python3 -m pytest tests/test_harness.py -q   # 51 passed, 12 of them new for this instrument'
+    - 'python3 -m harness.run_md4_ceiling_v2 --mode buildcheck --run-suffix b5-buildcheck --out-root coordination/goals/GOAL-MD5-001/batches/BATCH-7215fa/tasks/TASK-20260821-372d67'
+    - 'python3 -m harness.run_md4_ceiling_v2 --mode gate_and_controls --run-suffix b5-gate_and_controls --out-root coordination/goals/GOAL-MD5-001/batches/BATCH-7215fa/tasks/TASK-20260821-372d67'
+    - 'Both commands are recorded verbatim in each run directory''s command.txt. Runs are deterministic: re-running against a fresh --out-root reproduces every integer in this report.'
+
+  executor_assessment:
+    protocol_complete: true
+    protocol_complete_basis: >-
+      All planned runs have terminal states: two completed, three explicitly
+      not_run with the contract clause that stopped them. Required artifacts
+      exist. Raw data and the summary tables above agree (every integer here
+      was read out of raw-result.json, not retyped from memory). The result
+      reproduces from the recorded commands and the pinned source hashes.
+    data_quality: good
+    data_quality_basis: >-
+      All correctness controls passed independently, timing is
+      wrapper-measured, no run approached a ceiling, no run halted on a
+      deadline, and no metric is estimated. The one wrong field in the run
+      manifests (inference.requested_policy) is an upstream harness defect,
+      disclosed as ANOM-B5-3, and does not affect any measurement.
+    requires_rerun: false
+    requires_rerun_basis: >-
+      Nothing measured here is unreliable. The stop is a contract stop, not a
+      failure of the measurement. A rerun of the same configuration would
+      reproduce the same integers.
+    failure_classification: >-
+      The CTL-PO5 outcome is classified `negative_observation`: a valid run
+      produced a result contrary to a pre-registered expectation (8 raw
+      candidates against a declared ceiling of 4, versus a modeled expectation
+      of about 1.004). It is NOT infrastructure_error, NOT
+      resource_exhaustion, NOT invalid_measurement and NOT
+      implementation_error -- every correctness control passed and the
+      certificate re-verification, run through an independent code path,
+      agreed exactly with the independent naive baseline.
+    what_the_coordinator_must_decide_and_the_executor_did_not: >-
+      (1) whether the CTL-PO5 failure is a finding about R1-SEP10, about
+      GATE-PO2, or about the ceiling of 4; (2) the disposition of DEV-3 under
+      IR-4; (3) whether the unspent 900 s becomes a new bounded task or is
+      released. The Executor states the numbers and stops.
