@@ -4,11 +4,12 @@ idea:
   added: '2026-08-21'
   title: >-
     ML-KEM has a finite REDUCTION BUDGET of log2(q/sigma) = 11.70 bits (768/1024) and 11.41 bits
-    (512), and every published Module-LWE <-> Ring-LWE reduction spends a computable part of it in
-    a single step: build the rung-by-rung ledger of the Albrecht-Deo chain (MLWE_{256,k,q} ->
-    RLWE_{256,q^k} -> RLWE_{256/2^i, q^{k*2^i}}), which moves lattice DIMENSION down exponentially
-    in i while moving log2(q/sigma) down only linearly, and decide whether the composed chain ever
-    lands on an instance cheaper to solve than ML-KEM itself
+    (512), and the Albrecht-Deo Module-LWE <-> Ring-LWE reduction spends a CONCRETELY COMPUTABLE
+    part of it in a single step: read the constants off Corollary 2 and Corollary 3 of the CURRENT
+    (01/2020) version of eprint 2017/612, not off the informal abstract, build the rung-by-rung
+    ledger of the chain (MLWE_{256,k,q} -> RLWE_{256,q^k} -> RLWE_{n',q^{k*(n/n')}} via Corollary
+    5's SINGLE-SHOT descent), and decide whether the composed chain ever lands on an instance
+    cheaper to solve than ML-KEM itself
   class: composition
   claim: >-
     (A) THE OBJECT. Define the HARDNESS COORDINATE of an LWE-type instance as the pair
@@ -26,29 +27,69 @@ idea:
     reductions, ever, before the image instance is information-theoretically dead. That number is
     a property of the standard, not of an algorithm, and it is the quantity this proposal
     computes, publishes and hands to every future reduction-cascade proposal as a precondition.
-    (C) THE SPECIFIC FALSIFIABLE CLAIM. For the Albrecht-Deo chain -- MLWE in ring dimension n,
-    rank k, modulus q reduces to RLWE in dimension n, modulus q^k; and RLWE self-reduces by
-    halving n and squaring q -- the composed action on C is
-    d: 2n -> 2n/2^i   (exponential in the descent depth i)
-    R: R_0 -> R_0 - log2 B_A(n,k) - sum_{j=1..i} log2 B_B(n/2^{j-1})
-    with B_A, B_B the error-rate blow-ups the two theorems state. The claim is that the FIRST
-    step alone, B_A, either does or does not exhaust ML-KEM's entire budget, and that which of
-    those holds is decided by reading one theorem statement. Two readings of the same source are
-    in circulation and THEY STRADDLE THE BUDGET: the abstract as returned by web search says the
-    blow-up is n^{c+1/2}*sqrt(d) for any constant c>0, which at n=256, k=3, c->0 gives
-    log2 B_A -> 4.79 bits and leaves ~6.9 bits of budget; the author's own blog summary says
-    "a quadratic factor in the ring dimension n and a square root in the module rank d", which
-    gives log2 B_A = 2*8 + 0.79 = 16.79 bits and OVERSPENDS the 11.70-bit budget by 5.1 bits in
-    one step. Under the second reading the entire reduction network is closed to ML-KEM before it
-    starts; under the first it is open for one step and then closes after at most i = 2 further
-    descents. THE CHEAPEST DECISIVE ACT IN THIS LANE IS READING THAT THEOREM AND DOING THE
-    SUBTRACTION.
+    (C) ONE THEOREM, TWO VERSIONS, RESOLVED BY THE PAPER'S OWN CHANGELOG -- AND A THIRD NUMBER
+    THAT IS NEITHER OF THEM. An earlier draft of this record treated two circulating readings of
+    the Albrecht-Deo blow-up as a live dichotomy that straddled the budget. THAT WAS A VERSION
+    CONFUSION AND IT IS RESOLVED HERE AT ZERO COST, by reading the primary source. There is one
+    theorem in two published versions:
+    -- SUPERSEDED (ASIACRYPT 2017 wording, held VERBATIM inside this repository at
+    research_digest/chunks/chunk_007.txt line 134 and relayed in KN-LIT-4628's Contribution
+    section): "Our reduction increases the LWE error rate alpha by a quadratic factor in the ring
+    dimension n and a square root in the module rank d for power-of-two cyclotomics. ... We also
+    present a self reduction for RLWE in power-of-two cyclotomic rings that halves the dimension
+    and squares the modulus while increasing the error rate by a similar factor as our MLWE to
+    RLWE reduction."
+    -- CURRENT (01/2020 revision of eprint 2017/612, fetched and read this session):
+    "Our reduction increases the LWE error rate alpha by a factor of n^{c+1/2} * sqrt(d) for ring
+    dimension n, module rank d and any constant c > 0 in the case of power-of-two cyclotomics."
+    The paper's own Changelog (01/2020) decides between them outright: "the error rate expansion
+    is improved from a factor of n^2 sqrt(d) to a factor of n^{c+1/2} sqrt(d) (for any constant
+    c > 0)", and separately that the dimension-halving self-reduction "was originally reported to
+    have an error rate expansion factor of n^{9/4} ... However in this updated version, we show
+    that a factor of n^{c+1/2} ... suffices." So the 16.79-bit "quadratic" reading is the
+    SUPERSEDED text and carries no live weight; the n^{c+1/2} form is current. NEITHER informal
+    form is the number the budget must be spent against, because both drop the theorem's
+    concrete constants: see (C2).
+    (C2) THE SPECIFIC FALSIFIABLE CLAIM, STATED IN CONCRETE CONSTANTS. Corollary 2 of the current
+    version states (alpha')^2 >= alpha^2 (1 + 2 (r q n^c)^2 d) with the admissibility conditions
+    r >= (1/q)||Btilde_R|| sqrt(2 ln(2 n d (1 + 1/eps))/pi), ||Btilde_R|| = sqrt(n) for
+    power-of-two cyclotomics (Section 3.4), and an advantage loss of at most
+    [1 - (1-delta)^d] + (2d+10) eps m with delta = 2n exp(-pi n^{2c}). Instantiating c "at its
+    most favourable admissible value" is UNBOUNDED as written -- c -> 0 gives
+    delta = 512 e^{-pi} = 22, a vacuous bound -- so c is fixed by a declared negligibility
+    requirement, not by taste. Requiring delta <= 2^-40 forces n^c >= 3.29 (c >= 0.215) and
+    requiring (2d+10) eps m <= 2^-40 at d = 3, m = 768 forces eps <= 2^-53.6, whence
+    ln(2 n d (1+1/eps)) ~ 44.5 and alpha'/alpha ~ sqrt(2d) * r q * n^c ~ 686. THE CLAIM IS THAT
+    log2 B_A AT ML-KEM PARAMETERS IS ABOUT 9.4 BITS -- 9.25 to 9.53 over eps in [2^-64, 2^-40] at
+    d = 3, and 9.1 (d = 2) to 9.6 (d = 4) across the parameter sets -- which is STRICTLY INSIDE
+    the interval (4.79, 16.79) spanned by the two informal readings, and that the asymptotic form
+    n^{c+1/2} sqrt(d) understates the concrete cost at n = 256 by about 4.6 bits.
+    (C3) THE SECOND, LARGER OMISSION: THE SPHERICAL-ERROR CORRECTION. Section 4 of the current
+    version states that "the reduction presented in Theorem 1 results in a skewed, but bounded
+    error distribution", and that "the extra blow-up factor incurred when targeting a strictly
+    spherical distribution can be as low as (mn)^{1/4} where m is the number of MLWE samples
+    provided". At n = 256, m = 768 that is about 4.4 bits. This proposal's Stage 2 scores each
+    rung with a standard lattice estimator, which has no input for a skewed (ellipsoidal) error,
+    so THE CORRECTION IS MANDATORY FOR THIS PIPELINE and it was absent from the earlier draft.
+    Corollary 3 carries it via a Renyi-divergence argument and therefore applies ONLY to SEARCH
+    variants of MLWE -- a restriction that is itself part of the ledger.
+    (C4) THE ARITHMETIC CONSEQUENCE, WHICH CLOSES THE CHAIN AT RUNG ONE FOR REASONS NEITHER
+    INFORMAL READING IDENTIFIES. 11.70 - 9.4 - 4.4 < 0. Under the concrete constants the budget is
+    exhausted at rung one, so the "leaves ~6.9 bits and at most two further descents" branch of the
+    earlier draft is VOID. Even setting the spherical correction aside, 11.70 - 9.4 = 2.3 bits does
+    not buy one descent: Corollary 5's SINGLE-SHOT reduction RLWE_n -> RLWE_{n'} costs a factor
+    n^{3/2}/(n')^{1-c}, i.e. 6.5 bits for 256 -> 128 at c = 0.215. All of these are the proposer's
+    arithmetic on the primary source performed 2026-08-21, NOT measurements; recomputing and
+    certifying them in-harness is Stage 0's first obligation and any of them may be overturned
+    there.
     (D) WHY THE ANSWER IS NOT OBVIOUSLY "REDUCTIONS NEVER HELP". A reduction from problem P to
     problem P' means an algorithm for P' solves P. If the image instance were cheaper to attack
     than ML-KEM, that WOULD be an attack on ML-KEM, and nothing forbids it a priori: the chain
     trades R linearly for d exponentially, and lattice cost is exponential in a blocksize that
     grows with d and shrinks with R. A monotone loss is the expected outcome, not a theorem, and
-    the deliverable is the per-step exchange rate in bits, not the verdict.
+    the deliverable is the per-step exchange rate in bits, not the verdict. The budget-relaxed
+    control (NULL-2) exists precisely so that the mechanism can be exercised where it is not
+    starved.
     (E) WHAT IS NOT CLAIMED. No attack, no break, no speedup, no exponent moved. No claim that
     the reduction chain is the only one; no claim that the literature has not done this. Every
     number in this record is ARITHMETIC ON PUBLISHED CONSTANTS performed by the proposer on
@@ -56,28 +97,60 @@ idea:
     obligation is to recompute all of it in-harness and certify it. No direction is declared
     impossible.
   mechanism: >-
-    STAGE 0 (paper arithmetic, no compute, this is the decider). Fix the FIPS 203 constants:
-    n = 256, q = 3329; (k, eta1) = (2,3), (3,2), (4,2) for ML-KEM-512/768/1024; sigma(CBD_eta) =
-    sqrt(eta/2). Compute R_0 = log2(q/sigma) per parameter set. Then obtain the EXACT theorem
-    statements of both reductions from the primary source (Albrecht-Deo, "Large Modulus Ring-LWE
-    >= Module-LWE", eprint 2017/612 / ASIACRYPT 2017; the corpus already holds a bulk-seeded,
-    self-declared-unverified entry KN-LIT-4628) and record log2 B_A and log2 B_B with the free
-    constant c instantiated at its most favourable admissible value. Subtract. Report the number
-    of rungs before R crosses zero, and the value of R at each rung. This stage alone
-    discriminates the two readings in (C) and is minutes of arithmetic.
-    STAGE 1 (the two-coordinate ledger). For i = 0, 1, 2, ... emit the rung
-    (d_i, R_i, q_i, sigma_i, ring dimension n_i, module rank) with q_i = q^{k 2^i} written as an
-    exact integer power, and mark each rung ALIVE (R_i > 0), MARGINAL (0 < R_i <= 1) or DEAD
-    (R_i <= 0). Also mark rungs whose ring dimension has fallen below the point where the
-    self-reduction's own hypotheses still hold.
+    STAGE 0 (paper arithmetic, no compute, this is the decider -- AND IT READS COROLLARIES, NOT
+    ABSTRACTS). Fix the FIPS 203 constants: n = 256, q = 3329; (k, eta1) = (2,3), (3,2), (4,2) for
+    ML-KEM-512/768/1024; sigma(CBD_eta) = sqrt(eta/2). Compute R_0 = log2(q/sigma) per parameter
+    set. Then read the following off the CURRENT (01/2020) version of eprint 2017/612 and record
+    each with its locator and verbatim text, REFUSING the informal abstract form as a source of
+    constants:
+    (0a) From Corollary 2: the inequality (alpha')^2 >= alpha^2 (1 + 2 (r q n^c)^2 d); the
+    admissibility condition r >= (1/q)||Btilde_R|| sqrt(2 ln(2 n d (1 + 1/eps))/pi); the value
+    ||Btilde_R|| = sqrt(n) for power-of-two cyclotomics from Section 3.4; and the advantage loss
+    [1 - (1-delta)^d] + (2d+10) eps m with delta = 2n exp(-pi n^{2c}) (Lemma 7).
+    (0b) THE INEQUALITY THAT FIXES c, declared before any number is quoted. c is NOT free to be
+    taken to zero: record a target negligibility level nu for the advantage loss, then solve
+    2n exp(-pi n^{2c}) <= nu for the smallest admissible n^c, and (2d+10) eps m <= nu for the
+    largest admissible eps. At nu = 2^-40, n = 256, d = 3, m = 768 this gives n^c >= 3.29
+    (c >= 0.215, costing +1.72 bits) and eps <= 2^-53.6. Report the ledger at nu in
+    {2^-40, 2^-64, 2^-128} so the c-choice's contribution is visible as a column and not buried.
+    (0c) The sqrt(2d) * r q prefactor evaluated per parameter set, giving log2 B_A directly. At
+    d = 3, nu = 2^-40 the proposer's arithmetic is r q = sqrt(n) sqrt(2 ln(2nd(1+1/eps))/pi) =
+    85.1, alpha'/alpha = sqrt(6) * 85.1 * 3.29 = 686, log2 B_A = 9.42.
+    (0d) A SEPARATE LEDGER COLUMN, NOT FOLDED INTO B_A: the spherical-error correction of
+    Corollary 3, with its m-dependence and its search-only restriction recorded explicitly.
+    Corollary 3 defines t := sqrt(alpha^2 + (r B (mn)^{1/4})^2) while Section 4's prose describes
+    "the extra blow-up factor ... as low as (mn)^{1/4}". THE RELATION BETWEEN THE TWO IS AN OPEN
+    READING QUESTION AND STAGE 0 MUST SETTLE IT FROM THE COROLLARY, NOT THE PROSE: whether
+    (mn)^{1/4} MULTIPLIES Corollary 2's sqrt(2d) prefactor or REPLACES it (Corollary 3's proof
+    takes beta = B (mn)^{1/4} sqrt(d), which its own statement of t does not show). Report the
+    column both ways, with the corollary text quoted verbatim, and mark the ledger's total as a
+    range until the reading is settled. At n = 256, m = 768, (mn)^{1/4} = 21.1, i.e. 4.40 bits.
+    Record also that Corollary 3 rests on a Renyi-divergence argument and so applies to SEARCH
+    MLWE only, and that a decision-variant ledger may not use it.
+    (0e) The DESCENT step, taken from Corollary 5 in its SINGLE-SHOT form and never by composing
+    halvings: RLWE_n -> RLWE_{n'} at error-rate factor n^{3/2}/(n')^{1-c} for normal-form secrets.
+    Composing two halvings 256 -> 128 -> 64 overcharges the descent relative to the single-shot
+    256 -> 64 by 5.0 bits at c = 0.215 and 3.5 bits at c -> 0 (proposer's arithmetic), so a
+    rung-by-rung composition model is PESSIMISTIC IN THE PROPOSAL'S OWN FAVOUR and is forbidden.
+    Subtract. Report the number of rungs before R crosses zero, and the value of R at each rung,
+    with and without the (0d) column, at each nu.
+    STAGE 1 (the two-coordinate ledger). For each admissible target dimension n' = n/2^i emit the
+    rung (d_i, R_i, q_i, sigma_i, ring dimension n_i, module rank) with q_i written as an exact
+    integer power, and mark each rung ALIVE (R_i > 0), MARGINAL (0 < R_i <= 1) or DEAD (R_i <= 0).
+    Also mark rungs whose ring dimension has fallen below the point where Corollary 5's own
+    hypotheses still hold, and rungs that are reachable only under the search-variant restriction
+    of (0d).
     STAGE 2 (cost evaluation on the ALIVE rungs only). For each ALIVE rung run a standard primal
     and dual cost estimate over the sample-count parameter m, and compare with the same estimator
     run on ML-KEM itself at i = -1 (no reduction applied). Report the signed difference in
-    estimated blocksize beta and in log2(cost), per rung, per parameter set. The estimator is used
-    as a COMPARATOR under matched accounting, not as an authority: the same estimator, same
-    version, same cost model, same reduction-shape assumptions on both arms, and the reported
-    quantity is a DIFFERENCE, so a systematically wrong estimator that is wrong the same way on
-    both arms does not move it.
+    estimated blocksize beta and in log2(cost), per rung, per parameter set. NOTE THE COUPLING
+    THAT STAGE 0 EXPOSED: m enters both the estimator's own optimisation and the (0d) correction,
+    so the two must be optimised jointly and the chosen m reported. The estimator is used as a
+    COMPARATOR under matched accounting, not as an authority: same estimator, same version, same
+    cost model, same reduction-shape assumptions on both arms, and the reported quantity is a
+    DIFFERENCE, so a systematically wrong estimator that is wrong the same way on both arms does
+    not move it. If Stage 0 returns zero ALIVE rungs for every parameter set and every nu, Stage 2
+    runs on NULL-2 only.
     STAGE 3 (the control that can fail). Apply the identical ledger to an instance where the
     answer is known by construction: a plain LWE instance with NO module or ring structure, at
     matched (d, R). The Albrecht-Deo chain does not apply to it, so its ledger must have exactly
@@ -98,7 +171,11 @@ idea:
     baseline. Then the exponential dimension reduction can outrun the linear ratio loss, the
     optimal descent depth is a real free parameter, and a published polynomial-time reduction
     leaks estimated security -- which is an exponent-relevant finding and the most interesting
-    outcome available here.
+    outcome available here. NOTE HONESTLY THAT STAGE 0's OWN ARITHMETIC ALREADY PREDICTS ZERO
+    ALIVE RUNGS ON ML-KEM, so on ML-KEM itself the live discrimination is between "Stage 0's
+    concrete constants are right and the chain is dead at rung one" and "the in-harness
+    recomputation overturns one of them"; the E1/E2 separation is carried by NULL-2, where the
+    budget does not bind, and that is why NULL-2 is not optional.
   novelty_status: unverified
   novelty_screen:
     method: >-
@@ -129,19 +206,30 @@ idea:
       IDEA-20260806-e5e694 in full; docs/inventor-protocol.md; docs/target-result-profile.md;
       agents/idea-generator.md; knowledge/techniques/KN-TECH-1a5b7e.md;
       ledger/goals/GOAL-MLKEM-005.yaml lines 1-130.
+      READ IN THE 2026-08-21 REPAIR PASS AND LOAD-BEARING FOR CLAIM (C): the in-repo verbatim 2017
+      abstract at research_digest/chunks/chunk_007.txt line 134 (which the original screen's grep
+      (1) had returned and which the original draft did not read -- that omission is the direct
+      cause of the misattribution the repair corrects).
       WEB QUERIES RUN (WebSearch): 'Albrecht Deo "Large modulus Ring-LWE" module-LWE to ring-LWE
       reduction modulus q^k'; 'Kirchner Espitau Fouque "algebraic lattice reduction" cyclotomic
       module lattices faster than BKZ crossover'.
-      WEB PAGES ACTUALLY FETCHED AND READ (WebFetch): (a)
+      WEB PAGES ACTUALLY FETCHED AND READ (WebFetch, original pass): (a)
       https://raw.githubusercontent.com/malb/blog/master/large-modulus-ring-lwe-and-module-lwe.org
-      -- SUCCESS, this is the source of the "quadratic factor in the ring dimension n and a square
-      root in the module rank d" reading and of the authors' own remark that the result is
-      theoretical rather than practical; (b) https://eprint.iacr.org/2017/612.pdf -- FAILED, the
-      server returned 301 to iacr.org/you_have_been_blocked.txt, SO THE PRIMARY SOURCE WAS NOT
-      READ AND EVERY STATEMENT ABOUT ITS EXACT THEOREM IS SECOND-HAND IN THIS RECORD.
+      -- SUCCESS; (b) https://eprint.iacr.org/2017/612.pdf -- FAILED in the original pass, the
+      server returned 301 to iacr.org/you_have_been_blocked.txt.
+      PRIMARY SOURCE, NOW READ (2026-08-21 repair pass): the eprint 2017/612 PDF (30pp) was
+      fetched successfully by curl during the red-team screen of this record and text-extracted to
+      the session scratchpad; the abstract, the 01/2020 Changelog, the Contributions section,
+      Lemma 7, Corollary 1, Corollary 2, Section 3.4, Section 4, Lemma 8, Corollary 3, Theorem 2,
+      Corollary 4 and Corollary 5 were READ VERBATIM in this repair pass and are the source of
+      every constant now in claim (C2)-(C4) and in Stage 0. THE SCRATCHPAD PATH IS EPHEMERAL AND
+      IS NOT A CITATION: a run must re-fetch the PDF, re-extract, and re-verify every quoted
+      string against it before any number here is quoted downstream.
     results: >-
       The corpus contains exactly one Albrecht-Deo record, KN-LIT-4628, and it is a bulk-seeded
-      abstract relay that explicitly asks to be upgraded after a careful read. NO ledger proposal,
+      abstract relay that explicitly asks to be upgraded after a careful read; the repair pass
+      establishes that what it relays is the SUPERSEDED 2017 abstract, so upgrading it is now a
+      concrete, cheap knowledge-curation task with a known defect to fix. NO ledger proposal,
       hypothesis, experiment or evidence record anywhere in the repository applies that reduction,
       or any reduction, to ML-KEM's parameters, and no record anywhere defines or computes a
       modulus-to-noise BUDGET for any scheme. The nearest prior art is in a NEIGHBOURING lane and
@@ -163,17 +251,21 @@ idea:
       proposal is the named successor to 574cd0 and is not blocked by the inherited constraint.
     verdict: >-
       UNVERIFIED, and deliberately so. The two web queries above are weak evidence of absence and
-      no claim is made that the literature has not costed this chain; the primary source was NOT
-      readable from this session, which is recorded above rather than papered over. CLAIMED NEW
+      no claim is made that the literature has not costed this chain. The primary source IS now
+      read, so the theorem statements are no longer second-hand; what remains unscreened is
+      whether anyone else has computed a per-scheme reduction budget in these terms. CLAIMED NEW
       RELATIVE TO THIS REPOSITORY: the hardness coordinate (d, R) as a tracked object; the
       definition and computation of a per-scheme reduction budget R_0 with an information-
       theoretic floor at R = 0; the rung-by-rung ledger of a composed reduction chain applied to
-      FIPS 203 parameters; and the observation that two circulating readings of the same theorem's
-      blow-up factor straddle that budget, which turns a literature-reading task into the lane's
-      cheapest available discriminator. ASSEMBLED FROM KNOWN PARTS: both reductions are published
-      and neither is claimed here; the estimator is standard; the budget arithmetic is elementary;
-      the positioning inside 574cd0's named-uncovered classes is 574cd0's contribution, not this
-      record's.
+      FIPS 203 parameters; and the CONCRETE-CONSTANT evaluation of Corollary 2, Corollary 3 and
+      Corollary 5 at n = 256, which is the part the informal abstract form cannot supply and which
+      differs from the asymptotic reading by about 4.6 bits. WITHDRAWN FROM THE EARLIER DRAFT: the
+      claim that two circulating readings of the blow-up straddle the budget and that resolving
+      them is the lane's cheapest discriminator. That was a version confusion; the changelog
+      settles it, and the surviving discriminator is arithmetic on the corollaries. ASSEMBLED FROM
+      KNOWN PARTS: both reductions are published and neither is claimed here; the estimator is
+      standard; the budget arithmetic is elementary; the positioning inside 574cd0's
+      named-uncovered classes is 574cd0's contribution, not this record's.
   object_first_candidate:
     tracked_object: >-
       THE HARDNESS COORDINATE C = (d, R) of an LWE-type instance -- lattice dimension and
@@ -188,23 +280,31 @@ idea:
       reduction's action on C is a total function of C and the reduction's own parameters, stated
       in its theorem, with no dependence on the discarded material. This is not a change of
       coordinates -- the map from instances to C is many-to-one with fibres of astronomical size.
-      IT IS ALSO NOT LOSSLESS IN THE OTHER DIRECTION AND THE PROPOSAL SAYS SO: C does not
-      determine attack cost, only bounds the estimator's inputs, and Stage 2 is where the
-      discarded material re-enters through the estimator's own assumptions.
+      ONE HONEST EXCEPTION, EXPOSED BY THE REPAIR PASS: Corollary 3's spherical-error correction
+      depends on the SAMPLE COUNT m, which C discards. The ledger therefore carries m as an
+      explicit side parameter of the propagation rule rather than pretending the rule is a
+      function of C alone. IT IS ALSO NOT LOSSLESS IN THE OTHER DIRECTION AND THE PROPOSAL SAYS
+      SO: C does not determine attack cost, only bounds the estimator's inputs, and Stage 2 is
+      where the discarded material re-enters through the estimator's own assumptions.
     propagation: >-
-      One step = one reduction. The propagation law is the theorem: Albrecht-Deo step A sends
-      (d, R) = (2n, R) to (2n, R - log2 B_A(n,k)) while replacing rank k by rank 1 and q by q^k;
-      step B sends (2n, R) to (n, R - log2 B_B(n)) while squaring q. Both are deterministic,
-      closed-form, and composable, and the composition of the rules is the composition of the
-      reductions. Measurable in one line of arithmetic per rung; falsifiable by the Stage-3
-      control, which applies the pipeline where the propagation law has no right to fire.
+      One step = one reduction. The propagation law is the theorem: Corollary 2's step A sends
+      (d, R) = (2n k, R) to (2n, R - log2 B_A(n, k, c, eps)) while replacing rank k by rank 1 and
+      q by q^k; Corollary 5's step B sends dimension n to n' in ONE shot at
+      R - log2(n^{3/2}/(n')^{1-c}), and is never composed out of halvings. Corollary 3's spherical
+      correction is a third, separately-tracked charge with its own m-dependence and its own
+      search-variant restriction. All are deterministic and closed-form given (c, eps, m), which
+      are declared before the ledger is built. Measurable in one line of arithmetic per rung;
+      falsifiable by the Stage-3 control, which applies the pipeline where the propagation law has
+      no right to fire.
     survival_score: >-
       Finitely many steps, and the number is the deliverable. C dissolves absolutely at R <= 0
       (the instance carries no information about its secret and no further rung means anything),
-      and dissolves practically earlier, when the ring dimension falls below the regime where the
-      self-reduction's hypotheses hold or where the estimator's reduction-shape model applies.
+      and dissolves practically earlier, when the ring dimension falls below the regime where
+      Corollary 5's hypotheses hold or where the estimator's reduction-shape model applies.
       The proposal's headline number IS the survival count: how many rungs ML-KEM's 11.70-bit
-      budget buys. Under one of the two circulating readings of B_A that count is ZERO.
+      budget buys. Under the concrete constants of (C2)-(C4) that count is predicted to be ZERO,
+      and the predicted margin (about -2.1 bits with the spherical correction, +2.3 bits without
+      it and still short of one 6.5-bit descent) is the quantity Stage 0 must certify.
   null_object_control: >-
     TWO controls, both able to fail, both run in the same invocation as the signal arm.
     NULL-1, THE STRUCTURE-DELETED INSTANCE: a plain (unstructured) LWE instance at matched (d, R),
@@ -217,12 +317,15 @@ idea:
     tracking the reduction and not merely tracking arithmetic on two numbers.
     NULL-2, THE BUDGET-RELAXED INSTANCE: the same ML-KEM shape with q raised at fixed sigma so
     that R_0 is about 40 bits instead of 11.70, i.e. an artificially overstretched instance where
-    the budget is not the binding constraint. This control CAN fail in the informative direction:
-    if Stage 2 shows monotone cost increase even here, then the dimension-for-ratio trade never
-    pays for any parameters, which is a stronger claim than the ML-KEM one and would mean the
-    ML-KEM result is not about ML-KEM at all. If instead NULL-2 shows a cost dip at some i > 0
-    while ML-KEM does not, the mechanism is real and ML-KEM is merely too poor to afford it --
-    which is the precise, scoped statement this design exists to produce.
+    the budget is not the binding constraint. THIS CONTROL IS NOW LOAD-BEARING, NOT AUXILIARY:
+    Stage 0's concrete constants predict zero ALIVE rungs on ML-KEM itself, so NULL-2 is the only
+    arm on which Stage 2's E1/E2 discrimination can be exercised at all. It CAN fail in the
+    informative direction: if Stage 2 shows monotone cost increase even here, then the
+    dimension-for-ratio trade never pays for any parameters, which is a stronger claim than the
+    ML-KEM one and would mean the ML-KEM result is not about ML-KEM at all. If instead NULL-2
+    shows a cost dip at some i > 0 while ML-KEM does not, the mechanism is real and ML-KEM is
+    merely too poor to afford it -- which is the precise, scoped statement this design exists to
+    produce.
     WHY NEITHER IS A CONSTANT OF THE APPARATUS: NULL-1's outcome is a rung count and its spread
     across seeds is not zero only if the pipeline is broken, which is exactly the failure being
     hunted; NULL-2's outcome is a signed blocksize difference with a comparator (the i = -1
@@ -272,37 +375,82 @@ idea:
       between two arms under matched accounting, and its Stage 0 decider needs no estimator at
       all.
   citations:
+    - ref: 'eprint.iacr.org/2017/612, version of 01/2020 (Albrecht and Deo, "Large Modulus Ring-LWE >= Module-LWE"); PDF fetched 2026-08-21'
+      provenance: retrieved
+      claim: >-
+        THE PRIMARY SOURCE, READ VERBATIM IN THE 2026-08-21 REPAIR PASS. Abstract: "Our reduction
+        increases the LWE error rate alpha by a factor of n^{c+1/2} * sqrt(d) for ring dimension
+        n, module rank d and any constant c > 0 in the case of power-of-two cyclotomics."
+        Changelog (01/2020): "the error rate expansion is improved from a factor of n^2 sqrt(d) to
+        a factor of n^{c+1/2} sqrt(d) (for any constant c > 0)" and "the RLWE to RLWE
+        dimension-halving, modulus-squaring reduction [AD17] was originally reported to have an
+        error rate expansion factor of n^{9/4} ... However in this updated version, we show that a
+        factor of n^{c+1/2} (for any constant c > 0) suffices."
+        Lemma 7: Pr[max_i |sigma_i(s)| > sigma n^c] <= 2n exp(-pi n^{2c}).
+        Corollary 2: "(alpha')^2 >= alpha^2 (1 + 2 (r q n^c)^2 d)" under
+        "r >= (1/q) ||Btilde_R|| sqrt(2 ln(2nd(1 + 1/eps))/pi)", with advantage loss at most
+        "[1 - (1-delta)^d] + (2d + 10) eps m where delta = 2n exp(-pi n^{2c})".
+        Section 3.4: for power-of-two cyclotomic rings "in the canonical embedding
+        ||Btilde_R|| = sqrt(n)".
+        Section 4: "the reduction presented in Theorem 1 results in a skewed, but bounded error
+        distribution"; "Corollary 3 below shows that the extra blow-up factor incurred when
+        targeting a strictly spherical distribution can be as low as (mn)^{1/4} where m is the
+        number of MLWE samples provided"; "we will be using the Renyi divergence to carry out this
+        analysis. As a result, the analysis only applies to the search variants of the MLWE
+        problem."
+        Corollary 3: "define t := sqrt(alpha^2 + (r B (mn)^{1/4})^2)".
+        Corollary 5: reduction from RLWE in dimension n to RLWE in dimension n/2^i with
+        "alpha'' = 2^{i(1-c)} n^{c+1/2} * alpha"; and, for normal-form secrets, "the error rate
+        grows roughly by a factor of (n/n')^{3/2} * (n')^{c+1/2} = n^{3/2}/(n')^{1-c}".
+        The PDF was fetched with curl during the red-team screen of this record on 2026-08-21 and
+        text-extracted to an ephemeral session scratchpad; the scratchpad path is NOT a durable
+        citation and a run must re-fetch and re-verify every string above.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'research_digest/chunks/chunk_007.txt line 134 (in-repo verbatim text of the SUPERSEDED ASIACRYPT 2017 abstract of Albrecht-Deo)'
+      provenance: internal
+      claim: >-
+        The 2017 abstract, held verbatim inside this repository: "Our reduction increases the LWE
+        error rate alpha by a quadratic factor in the ring dimension n and a square root in the
+        module rank d for power-of-two cyclotomics. ... We also present a self reduction for RLWE
+        in power-of-two cyclotomic rings that halves the dimension and squares the modulus while
+        increasing the error rate by a similar factor as our MLWE to RLWE reduction." THIS IS THE
+        SUPERSEDED VERSION, as the 01/2020 Changelog of the current eprint states directly. It is
+        cited to locate the superseded wording inside the repository, never as a live theorem
+        statement; the earlier draft of this record attributed the CURRENT formula to a web-search
+        snippet while this in-repo verbatim source went unread, and that misattribution is what
+        the repair corrects.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'WebSearch query (2026-08-21): Albrecht Deo "Large modulus Ring-LWE" module-LWE to ring-LWE reduction modulus q^k'
+      provenance: retrieved
+      claim: >-
+        A result snippet returned by this query in the original pass carried the n^{c+1/2}*sqrt(d)
+        form of the blow-up. THE SNIPPET''S EXACT TEXT WAS NOT PRESERVED IN THE ORIGINAL RECORD AND
+        IS THEREFORE NOT QUOTED HERE; no formula in this record is attributed to it. It is filed as
+        a citation entry only so that the query is auditable and so that the earlier draft's
+        attribution of "n^{c+1/2}*sqrt(d)" to "the abstract as returned by web search" is visibly
+        superseded: that formula is now attributed to the 01/2020 eprint abstract, quoted verbatim
+        above, which does contain it.
+      verified_by: idea-generator@2026-08-21
     - ref: 'https://raw.githubusercontent.com/malb/blog/master/large-modulus-ring-lwe-and-module-lwe.org'
       provenance: retrieved
       claim: >-
-        Author's own summary of eprint 2017/612: a reduction from MLWE in dimension d, modulus q
-        to RLWE with modulus q^d, with the LWE error rate alpha increased by "a quadratic factor in
-        the ring dimension n and a square root in the module rank d" for power-of-two cyclotomics;
-        plus "a self reduction for RLWE in power-of-two cyclotomic rings that halves the dimension
-        and squares the modulus" with a similar error-rate increase; plus the authors' explicit
-        remark that the result is theoretical rather than practical, since an algorithm exploiting
-        RLWE structure at the large modulus would also solve arbitrary LWE.
+        An author's blog summary describing the error-rate increase as "a quadratic factor in the
+        ring dimension n and a square root in the module rank d", plus the authors' remark that
+        the result is theoretical rather than practical since an algorithm exploiting RLWE
+        structure at the large modulus would also solve arbitrary LWE. THE FIRST HALF IS THE
+        SUPERSEDED 2017 STATEMENT and is retained here only to record where the superseded wording
+        also circulates; it is not used as a source of any constant. The practicality remark is
+        version-independent and is the one part still relied on.
       verified_by: idea-generator@2026-08-21
     - ref: KN-LIT-4628
       provenance: kb
       claim: >-
-        The corpus's own Albrecht-Deo entry, recording the same abstract-level claims. THE ENTRY
-        SELF-DECLARES that it was bulk-seeded on 2026-07-24 from the first two pages of a local PDF
-        and that its claims are relayed without independent verification; it must not be cited as
-        a verified theorem statement and is cited here only to establish what the corpus already
-        holds.
+        The corpus's own Albrecht-Deo entry. THE ENTRY SELF-DECLARES that it was bulk-seeded on
+        2026-07-24 from the first two pages of a local PDF and that its claims are relayed without
+        independent verification; the repair pass establishes further that what it relays is the
+        SUPERSEDED 2017 abstract. It must not be cited as a verified theorem statement, and it is
+        cited here only to establish what the corpus already holds and to flag it for correction.
       verified_by: idea-generator@2026-08-21
-    - ref: 'eprint.iacr.org/2017/612 (Albrecht and Deo, "Large Modulus Ring-LWE >= Module-LWE", ASIACRYPT 2017)'
-      provenance: recalled
-      claim: >-
-        The exact theorem statements, the exact error-rate blow-up factors including the role of
-        the free constant c, whether the reductions are for search or decision, and what error
-        distribution they require. NOT READ IN THIS SESSION -- the fetch was blocked by the
-        publisher (301 to iacr.org/you_have_been_blocked.txt). A WebSearch result summary quoted a
-        blow-up of n^{c+1/2}*sqrt(d) for any constant c>0, which DISAGREES with the author's blog
-        wording relied on above; resolving that disagreement is Stage 0's job and this record
-        asserts neither reading.
-      verified_by: null
     - ref: 'NIST FIPS 203 (ML-KEM), parameter tables for ML-KEM-512/768/1024'
       provenance: recalled
       claim: >-
@@ -335,6 +483,18 @@ idea:
       the Gaussian instance of matched sigma. THIS IS A REAL GAP AND IS DECLARED, NOT ABSORBED:
       Stage 0 must record which of the two it does.
     - >-
+      The free constant c and the smoothing parameter eps are NOT free: they are pinned by a
+      declared negligibility level nu through delta = 2n exp(-pi n^{2c}) <= nu and
+      (2d+10) eps m <= nu. The ledger is reported at three values of nu so that the choice's
+      contribution in bits is a visible column. Any ledger that instantiates c "favourably"
+      without exhibiting the inequality that bounds it is invalid, because c -> 0 makes delta
+      vacuous (delta = 512 e^{-pi} = 22 at n = 256).
+    - >-
+      Corollary 3's spherical-error correction is REQUIRED by this pipeline, because the Stage-2
+      estimator has no input for a skewed (ellipsoidal) error. Its search-only restriction
+      (Renyi-divergence argument) therefore propagates into the ledger: a decision-variant rung
+      may not use it, and rungs are tagged accordingly.
+    - >-
       The estimator used in Stage 2 is applied identically to both arms, at the same version and
       cost model, and the reported quantity is a difference. No absolute cost from it is quoted.
     - >-
@@ -342,22 +502,29 @@ idea:
       (module-SIS, worst-case-to-average-case, quantum routes) are untouched.
   proof_search_map:
     bottleneck: >-
-      The single step whose cost decides everything is the error-rate blow-up factor B_A of the
-      MLWE -> RLWE reduction at (n, k) = (256, 3). If log2 B_A > R_0 = 11.70 the entire chain is
-      dead at rung one and nothing downstream can revive it; if log2 B_A < R_0 the chain is open
-      and the descent depth becomes a free parameter. Removing or lowering B_A is exactly what
-      would change the theorem's applicability to FIPS parameters.
+      The total per-step charge against R at (n, k) = (256, 3): Corollary 2's log2 B_A plus
+      Corollary 3's spherical-error column. If that total exceeds R_0 = 11.70 the entire chain is
+      dead at rung one and nothing downstream can revive it; if it falls below R_0 the chain is
+      open and the descent depth becomes a free parameter -- though Corollary 5's single-shot
+      descent then charges a further 6.5 bits for the first halving at c = 0.215. Lowering the
+      concrete prefactor sqrt(2d) r q n^c, or removing the spherical-error requirement by
+      supplying an estimator that scores skewed errors natively, are the two things that would
+      change the theorem's applicability to FIPS parameters.
     baseline_embedding:
       parameter_slice: >-
         i = -1: the un-reduced ML-KEM instance itself, at (d, R) = (2*256*k, log2(q/sigma)). This
         is the exact boundary of the family -- the chain applied zero times -- and every rung is
         compared against it under identical accounting.
       reproduction_check: >-
-        A frozen fixture asserting that the Stage-2 estimator, run on the i = -1 rung, reproduces
-        the published Kyber/ML-KEM core-SVP blocksize for the same cost model to within a declared
+        Two frozen fixtures. (a) The Stage-2 estimator, run on the i = -1 rung, reproduces the
+        published Kyber/ML-KEM core-SVP blocksize for the same cost model to within a declared
         tolerance recorded before the run. If it does not, the estimator arm is void and only
-        Stage 0 and Stage 1 are reportable -- which is stated in advance precisely so that a
-        Stage-2 failure cannot silently downgrade into a Stage-0 conclusion.
+        Stage 0 and Stage 1 are reportable -- stated in advance precisely so that a Stage-2
+        failure cannot silently downgrade into a Stage-0 conclusion. (b) SYMBOLIC FIXTURE ON THE
+        PAPER'S OWN ASYMPTOTICS: the Stage-0 evaluator, run in the limit that suppresses the
+        logarithmic and constant factors the paper itself ignores, must reproduce the abstract's
+        n^{c+1/2} sqrt(d) form. If it does not, the concrete-constant implementation disagrees with
+        the source's own summary of itself and nothing is reportable.
     observation_collision:
       observable: >-
         The hardness coordinate C = (d, R). It is the certificate carrying the whole argument, and
@@ -379,91 +546,136 @@ idea:
           structure is exchanged for a rank-1 ring instance at an exponentially larger modulus and
           an exponentially smaller ring dimension.
         predicted_gain: >-
-          Predicted NEGATIVE at ML-KEM parameters: an estimated-blocksize increase at every rung,
-          with the per-rung loss equal to the theorem-stated blow-up expressed in bits. The
-          proposal's value is the size of that loss, and the transform is selected precisely
-          because its encoding, completeness, soundness and cost-loss obligations are already
-          discharged by a published theorem, leaving only the cost-loss to be measured.
+          Predicted NEGATIVE at ML-KEM parameters, and now predicted negative AT RUNG ONE: the
+          concrete constants of Corollary 2 and Corollary 3 charge about 9.4 + 4.4 = 13.8 bits
+          against an 11.70-bit budget. The proposal's value is the size of that loss and its
+          decomposition into named columns (prefactor, c-choice, eps-choice, spherical
+          correction), and the transform is selected precisely because its encoding, completeness,
+          soundness and cost-loss obligations are already discharged by a published theorem,
+          leaving only the cost-loss to be measured.
     quantifier_order: >-
       FOR ALL parameter sets P in {ML-KEM-512, 768, 1024}, FOR ALL descent depths i >= 0 for which
       the chain's hypotheses hold, THERE EXISTS no i such that the estimated attack cost of the
       i-th rung of P, scored by the frozen estimator under matched accounting, is strictly below
       the estimated attack cost of P itself. The negation -- THERE EXISTS P and THERE EXISTS i
       with strictly lower cost -- is the E2 outcome and is what the run is built to be able to
-      report. Note the witness i is allowed to depend on P; nothing here claims a uniform i.
+      report. Note the witness i is allowed to depend on P; nothing here claims a uniform i. Note
+      also that under Stage 0's concrete constants the quantifier is vacuously satisfied on ML-KEM
+      (no rung is ALIVE), which is why the same statement is also posed over NULL-2, where it is
+      not vacuous.
     method_ceiling:
       strongest_certifiable_claim: >-
-        At most: "under the frozen cost model and the theorem-stated blow-up factors, no rung of
-        THIS chain improves on the direct attack at these parameter sets, and the per-rung
-        exchange rate is X bits of log2(q/sigma) for a factor 2^i of dimension." It cannot certify
-        that no reduction helps, cannot certify anything about reductions not evaluated, and
-        cannot certify anything about actual attack cost as opposed to estimated cost.
+        At most: "under the frozen cost model, the concrete constants of Corollary 2 and Corollary
+        3 at declared (c, eps, nu, m), and Corollary 5's single-shot descent, no rung of THIS chain
+        improves on the direct attack at these parameter sets, and the per-rung exchange rate is X
+        bits of log2(q/sigma) for a factor 2^i of dimension." It cannot certify that no reduction
+        helps, cannot certify anything about reductions not evaluated, cannot certify anything
+        about actual attack cost as opposed to estimated cost, and cannot certify anything about
+        the DECISION variant of any rung that used Corollary 3.
       nearby_object_control: >-
         The nearby object on which the hoped-for conclusion FAILS is NULL-2, the budget-relaxed
         instance with R_0 about 40 bits. If the method reports "no rung improves" for both ML-KEM
         and NULL-2 identically, the method has not identified ML-KEM's small budget as the
         load-bearing structure and its ML-KEM verdict carries no scheme-specific content. Running
-        both is required, not optional.
+        both is required, not optional, and is doubly so now that Stage 0 predicts ML-KEM's own
+        ledger to be empty.
     proof_obligations:
       - claim: 'R_0 = log2(q/sigma) computed from FIPS 203 constants: 11.70 (768/1024), 11.41 (512).'
         responsibility: baseline
       - claim: 'At sigma >= q/2 the LWE samples are independent of the secret, so R = 0 is an absolute floor.'
         responsibility: correctness
-      - claim: 'log2 B_A and log2 B_B read from the primary theorem statements, with c instantiated.'
+      - claim: 'Corollary 2 transcribed verbatim with its admissibility condition on r and its advantage-loss term.'
+        responsibility: correctness
+      - claim: 'c and eps pinned by delta = 2n exp(-pi n^{2c}) <= nu and (2d+10) eps m <= nu at declared nu; the bounding inequality exhibited.'
         responsibility: size
-      - claim: 'The composed action on (d, R) is the composition of the per-step rules.'
+      - claim: 'log2 B_A = log2(sqrt(2d) * r q * n^c) evaluated per parameter set; ~9.4 bits at d = 3, nu = 2^-40.'
+        responsibility: size
+      - claim: 'Corollary 3''s spherical-error column, with its m-dependence, its multiply-or-replace reading settled from the corollary, and its search-only restriction.'
+        responsibility: size
+      - claim: 'The descent charge is read from Corollary 5 in single-shot form; composing halvings is forbidden and its overcharge (5.0 bits at depth 2, c = 0.215) is reported.'
         responsibility: correctness
       - claim: 'The estimator reproduces the published i = -1 baseline within a pre-declared tolerance.'
         responsibility: baseline
+      - claim: 'The Stage-0 evaluator reproduces the abstract''s n^{c+1/2} sqrt(d) form in the paper''s own asymptotic limit.'
+        responsibility: baseline
       - claim: 'NULL-1 emits exactly one rung; the pipeline checks hypotheses before applying them.'
         responsibility: interface
-      - claim: 'The verdict is scoped to this chain, this cost model, and these parameter sets.'
+      - claim: 'The verdict is scoped to this chain, this cost model, these (c, eps, nu, m), and these parameter sets.'
         responsibility: scope
     not_applicable_reason: null
   predictions:
     - metric: >-
-        log2 B_A, the error-rate blow-up of the MLWE -> RLWE step at (n,k) = (256,3), read from the
-        primary theorem and expressed in bits
+        log2 B_A, the error-rate blow-up of the MLWE -> RLWE step at (n,k) = (256,3), computed
+        from Corollary 2's concrete constants at declared (c, eps) and expressed in bits
       direction: different
       minimum_effect: >-
-        The two circulating readings give 4.79 bits and 16.79 bits. The prediction is that the
-        measured value is one of these two and NOT between them; any value strictly inside
-        (4.79, 16.79) falsifies the proposer's reading of BOTH sources and is itself the finding.
-    - metric: 'number of ALIVE rungs (R_i > 0) for ML-KEM-768 under the composed chain'
+        A THREE-WAY PREDICTION, stated so that each branch names what it would mean.
+        (i) ASYMPTOTIC READING 4.79 bits = log2(n^{1/2} sqrt(d)) at n = 256, d = 3, c -> 0: this
+        is what the abstract's form gives when the concrete constants are dropped AND c is taken
+        to zero. A measured 4.79 would mean the concrete constants are not load-bearing at n = 256
+        and the record's Stage-0 arithmetic is wrong.
+        (ii) CONCRETE READING ~9.4 bits (9.25-9.53 over eps in [2^-64, 2^-40] at d = 3): the
+        prediction. Declared tolerance +/- 0.3 bits at fixed nu.
+        (iii) SUPERSEDED READING 16.79 bits = log2(n^2 sqrt(d)): the 2017 wording. A measured
+        16.79 would mean the implementation is reading the superseded version.
+        Any value outside all three branches by more than the declared tolerance is itself the
+        finding and must be reported as an error in the proposer's arithmetic.
+    - metric: 'Corollary 3 spherical-error column, in bits, at n = 256 and the Stage-2-optimal m'
+      direction: different
+      minimum_effect: >-
+        Predicted 4.40 bits at m = 768 under the (mn)^{1/4} reading, with the column reported both
+        as a multiplier of and as a replacement for Corollary 2's sqrt(2d) prefactor until the
+        reading is settled from the corollary text. A column below 3 bits or above 6 bits at
+        m = 768 means the m-dependence was mis-transcribed.
+    - metric: 'number of ALIVE rungs (R_i > 0) for ML-KEM-768 under the composed chain, with the spherical-error column included'
       direction: lower
       minimum_effect: >-
-        Predicted at most 2 under the favourable reading of B_A and exactly 0 under the
-        unfavourable one. A count of 3 or more falsifies the arithmetic of Stage 0.
+        Predicted EXACTLY 0 at every declared nu. A count of 1 or more falsifies the Stage-0
+        arithmetic and re-opens the chain, which is the outcome that would most change this
+        record's priority. Reported separately WITHOUT the spherical column, where the prediction
+        is also 0 because the residual 2.3 bits does not buy Corollary 5's 6.5-bit first descent.
     - metric: >-
-        signed difference in estimated primal blocksize, rung i minus the i = -1 baseline, per
-        parameter set, under matched accounting
+        signed difference in estimated primal blocksize, rung i minus the i = -1 baseline, on
+        NULL-2 (budget-relaxed, R_0 ~ 40 bits), under matched accounting
       direction: higher
       minimum_effect: >-
-        +1 blocksize unit. A difference of zero or negative at any ALIVE rung is the E2 outcome
-        and must be escalated rather than absorbed.
+        +1 blocksize unit. This is where the E1/E2 discrimination actually lives, because ML-KEM
+        itself is predicted to have no ALIVE rung to score. A difference of zero or negative at
+        any ALIVE NULL-2 rung is the E2 outcome and must be escalated rather than absorbed.
     - metric: >-
-        signed difference in estimated primal blocksize on NULL-2 (budget-relaxed, R_0 ~ 40 bits),
-        rung i minus its own baseline
-      direction: different
+        overcharge in bits from composing Corollary 5 halvings versus its single-shot form, at
+        descent depth 2 (256 -> 64)
+      direction: higher
       minimum_effect: >-
-        No magnitude is predicted. What is predicted is that NULL-2 and ML-KEM must NOT return the
-        same sign at every i; if they do, the method is insensitive to the budget and its ML-KEM
-        verdict is void.
+        Predicted 5.0 bits at c = 0.215 and 3.5 bits at c -> 0. A measured overcharge of zero
+        would mean the composition and single-shot forms agree and the earlier draft's
+        rung-by-rung model was not pessimistic after all.
   minimal_test:
     design: >-
       STAGE 0 ONLY, as the minimal test, and it needs no lattice, no estimator and no sieve.
-      One person-hour: obtain the primary theorem statements of the two Albrecht-Deo reductions;
-      record log2 B_A and log2 B_B exactly, with the free constant instantiated and the reading
-      quoted verbatim; recompute R_0 for all three ML-KEM parameter sets from FIPS 203 constants;
-      subtract; emit the rung table with each rung marked ALIVE/MARGINAL/DEAD. Compute time:
-      seconds of arithmetic, single core, well under an hour including the reading.
-      THIS DISCRIMINATES BECAUSE the two circulating readings of B_A straddle R_0: one closes the
-      chain at rung one, the other leaves roughly 6.9 bits and at most two further descents. The
-      subtraction is not a heuristic and has no confidence interval. Stages 1-3 are the follow-on
-      and are only worth running if Stage 0 returns ALIVE rungs; if Stage 0 returns zero ALIVE
-      rungs the deliverable is a closure with a named obstruction, a number, and forward guidance
-      (any future reduction-cascade proposal against ML-KEM must exhibit total error-rate blow-up
-      below 11.70 bits, or it is dead on arrival), and no compute is spent at all.
+      One to two person-hours: re-fetch eprint 2017/612 (current version), transcribe Corollary 2,
+      Corollary 3 and Corollary 5 with their admissibility conditions and locators, declare nu,
+      solve the two inequalities that pin c and eps, evaluate sqrt(2d) * r q * n^c per parameter
+      set, evaluate the spherical-error column at the Stage-2-optimal m both ways, recompute R_0
+      for all three ML-KEM parameter sets from FIPS 203 constants, subtract, and emit the rung
+      table with each rung marked ALIVE/MARGINAL/DEAD and tagged search-only where Corollary 3 was
+      used. Compute time: seconds of arithmetic, single core.
+      IT DISCRIMINATES BECAUSE the three-way prediction above assigns a DIFFERENT MEANING to each
+      of three separated values of one number computed from one source: 4.79 says the concrete
+      constants do not bind at n = 256, ~9.4 says they do and the chain is dead at rung one,
+      16.79 says the implementation read the superseded version. It is not a straddle and it is
+      not a version dispute -- the version question is settled by the changelog before the run --
+      it is an arithmetic question with three named answers and three named consequences. The
+      subtraction has no confidence interval; what it has is a declared dependence on nu, and that
+      dependence is reported as a column.
+      Stages 1-3 are the follow-on. On ML-KEM they are only worth running if Stage 0 returns ALIVE
+      rungs, which is predicted not to happen; on NULL-2 they are worth running regardless,
+      because that is where the mechanism can be exercised. If Stage 0 returns zero ALIVE rungs on
+      ML-KEM the deliverable is a closure with a named obstruction, a number, a decomposition of
+      that number into named columns, and forward guidance (any future reduction-cascade proposal
+      against ML-KEM must exhibit total error-rate blow-up below 11.70 bits INCLUDING whatever
+      correction its own scoring pipeline requires, or it is dead on arrival), and no compute is
+      spent at all.
     controls:
       - >-
         NULL-1, the structure-deleted instance at matched (d, R): the chain's hypotheses fail, the
@@ -471,44 +683,64 @@ idea:
       - >-
         NULL-2, the budget-relaxed instance at R_0 ~ 40 bits, swept over at least four R_0 values
         between 11.70 and 40 so the monotonicity of the blocksize difference in R_0 is reported
-        rather than assumed.
+        rather than assumed. Load-bearing, since ML-KEM itself is predicted to have no ALIVE rung.
       - >-
         Estimator baseline fixture: the i = -1 rung must reproduce the published core-SVP
         blocksize within a tolerance declared before the run.
       - >-
-        Reading control: the exact source text for each blow-up factor is quoted verbatim into the
-        run record with a page or theorem locator, so a later reader can check the subtraction
-        against the source without re-fetching.
+        ASYMPTOTIC-LIMIT FIXTURE: the Stage-0 evaluator, run in the paper's own asymptotic limit,
+        must reproduce n^{c+1/2} sqrt(d). This is what separates "the concrete constants are large"
+        from "the transcription is wrong".
+      - >-
+        Reading control: the exact source text for each blow-up factor, admissibility condition
+        and advantage-loss term is quoted verbatim into the run record with a corollary or section
+        locator AND the version date, so a later reader can check the subtraction against the
+        source without re-fetching, and so that a superseded version cannot re-enter unnoticed.
       - >-
         Both arms of every comparison scored by the same estimator invocation, same version, same
         cost model, same seed policy.
     required_metrics:
       - 'R_0 per parameter set, to two decimals, with the constants it was computed from'
-      - 'log2 B_A and log2 B_B with the verbatim source text and locator'
-      - 'the full rung table (i, ring dimension, module rank, log2 q_i, log2 sigma_i, d_i, R_i, status)'
-      - 'ALIVE rung count per parameter set'
-      - 'signed blocksize difference per ALIVE rung versus the i = -1 baseline'
+      - 'the declared nu, and the c and eps it pins, with the two inequalities exhibited'
+      - 'log2 B_A per parameter set at each nu, with the verbatim Corollary 2 text and locator'
+      - 'the spherical-error column at the Stage-2-optimal m, both readings, with verbatim Corollary 3 text and the search-only tag'
+      - 'the descent charge per target dimension from Corollary 5 single-shot, and the composition overcharge'
+      - 'the full rung table (i, ring dimension, module rank, log2 q_i, log2 sigma_i, d_i, R_i, status, variant tag)'
+      - 'ALIVE rung count per parameter set, with and without the spherical column'
+      - 'signed blocksize difference per ALIVE rung versus the i = -1 baseline (NULL-2 in practice)'
       - 'the same for NULL-2 at each swept R_0, with monotonicity in R_0 reported'
       - 'NULL-1 rung count'
-      - 'estimator baseline fixture pass/fail and the tolerance declared beforehand'
+      - 'estimator baseline fixture and asymptotic-limit fixture, pass/fail with tolerances declared beforehand'
   falsification_conditions:
     - >-
-      The primary theorem gives log2 B_A > R_0 for every parameter set. The chain is closed at
-      rung one, the E2 branch is unreachable for this chain, and the deliverable is the budget and
-      the closure -- a complete and useful negative.
+      Stage 0 gives total per-step charge > R_0 for every parameter set. The chain is closed at
+      rung one, the E2 branch is unreachable for this chain on ML-KEM, and the deliverable is the
+      budget, its column decomposition, and the closure -- a complete and useful negative. THIS IS
+      THE PREDICTED OUTCOME.
     - >-
-      Every ALIVE rung shows a strictly positive blocksize difference and NULL-2 shows the same
-      sign at every rung. The method is insensitive to the budget, the ML-KEM verdict carries no
-      scheme-specific content, and no scheme-specific conclusion may be reported.
+      Every ALIVE NULL-2 rung shows a strictly positive blocksize difference and the sign does not
+      change across the swept R_0. The method is insensitive to the budget, and no scheme-specific
+      conclusion may be reported.
     - >-
       The estimator baseline fixture fails. Stage 2 is void; only Stages 0 and 1 are reportable,
       and this is declared before the run so the downgrade cannot be presented as a result.
     - >-
+      The asymptotic-limit fixture fails: the Stage-0 evaluator does not reproduce n^{c+1/2}
+      sqrt(d) in the paper's own limit. The transcription of Corollary 2 is wrong and every number
+      in claim (C2) is void.
+    - >-
       NULL-1 emits more than one rung. The pipeline applies transformations without checking their
       hypotheses; no ledger it produced is reportable at all.
     - >-
-      The measured log2 B_A falls strictly between the two circulating readings. The proposer
-      misread at least one source, which is recorded as an error and reported.
+      The recomputed log2 B_A at (256, 3) falls outside 9.4 +/- 0.3 bits at the declared nu while
+      the asymptotic-limit fixture passes. The proposer's concrete arithmetic in (C2) is wrong,
+      which is recorded as an error and reported with the corrected value.
+    - >-
+      The spherical-error column turns out NOT to be required -- e.g. an estimator that scores
+      ellipsoidal errors natively is available and reproduces the baseline fixture. Then 4.4 bits
+      come back onto the budget, the margin flips from about -2.1 to about +2.3 bits, and the
+      chain must be re-scored against Corollary 5's 6.5-bit first descent rather than declared
+      dead. This is the most likely route by which the predicted closure would be overturned.
     - >-
       Some ALIVE rung shows a blocksize difference of zero or below on ML-KEM itself. The
       proposal's headline prediction is FALSIFIED, and this is the single most valuable outcome
@@ -522,20 +754,29 @@ idea:
       largest single threat to the arithmetic and is why Stage 0 must declare which instance it is
       costing.
     - >-
-      The free constant c in the blow-up factor is a genuine degree of freedom; choosing it to
-      flatter the chain is exactly the analyst freedom KN-TECH-1a5b7e warns about. It must be
-      instantiated at its most favourable admissible value and that choice recorded, so the ledger
-      reports the BEST case for the chain and a negative verdict is not an artefact of a
-      pessimistic constant.
+      THE FREE CONSTANT c IS NOT ACTUALLY FREE, AND TREATING IT AS FREE IS THE FAILURE THE REPAIR
+      PASS FOUND. "Instantiate c at its most favourable admissible value" is unbounded as an
+      instruction: c -> 0 gives delta = 2n e^{-pi} = 22 at n = 256, a vacuous probability bound.
+      c is admissible only relative to a declared negligibility target, and the ledger must
+      exhibit the inequality that pins it. The same applies to eps through the (2d+10) eps m term.
+      Reporting at three values of nu is the mitigation; a single "favourable" c is not reportable.
+    - >-
+      The spherical-error correction's magnitude depends on m, which the Stage-2 estimator also
+      optimises. Optimising m for the estimator and then charging the correction at a different m
+      would understate the total. The two must be optimised jointly and the chosen m reported.
+    - >-
+      Corollary 3's search-only restriction means a ledger that uses it says nothing about the
+      decision variant. Mixing search-tagged and decision-tagged rungs in one verdict is a
+      category error and the rung table must keep them separate.
     - >-
       Estimator version drift and cost-model choice can move absolute numbers by tens of bits.
       Mitigated by reporting differences only, but a model whose error depends on log q would
       still bias the comparison, since the rungs differ enormously in log q. This is a real
       residual and must be reported, not waved at.
     - >-
-      The self-reduction's hypotheses may fail long before R reaches zero (very small ring
-      dimension, modulus no longer of the required shape). Marking rungs ALIVE purely by R > 0
-      would then overcount. The rung status must carry a separate hypotheses-hold flag.
+      Corollary 5's hypotheses may fail long before R reaches zero (very small target dimension,
+      modulus no longer of the required shape). Marking rungs ALIVE purely by R > 0 would then
+      overcount. The rung status must carry a separate hypotheses-hold flag.
     - >-
       Sample-count optimisation: the estimator's m-optimisation is itself a search, and a rung
       whose optimum m sits at a boundary is not comparable to one whose optimum is interior.
@@ -547,48 +788,63 @@ idea:
       require independent verification before any security claim.
     - >-
       Every conclusion is scoped to the exact reduction chain, the exact parameter sets, the exact
-      cost model and the exact estimator version used, and says nothing about other reductions,
-      other schemes, or quantum routes.
+      cost model, the exact estimator version, and the exact (c, eps, nu, m) used, and says
+      nothing about other reductions, other schemes, or quantum routes.
     - >-
       The hardness coordinate C does not determine attack cost. Conclusions may rest on the R = 0
       floor (which is unconditional) and on estimator-relative differences (which are conditional
       on the estimator), and on nothing in between.
     - >-
-      Stage 0's conclusion depends on a reading of a published theorem that this session could not
-      fetch. Until the primary source is read in-harness, Stage 0's numbers are the proposer's
-      arithmetic on second-hand statements and must be labelled as such wherever they appear.
+      Stage 0's numbers in claim (C2)-(C4) are the proposer's arithmetic on verbatim theorem text
+      read on 2026-08-21 from a PDF held only in an ephemeral session scratchpad. They are NOT
+      measurements and no committed run supports them. Until a run re-fetches the source and
+      recomputes them, they must be labelled as proposer arithmetic wherever they appear.
+    - >-
+      An earlier draft of this record presented two readings of the blow-up as a live dichotomy
+      straddling the budget, and set recommended_priority: high on that basis. That was a version
+      confusion resolved by the paper's own changelog, and the straddle no longer supports
+      anything. Any downstream text quoting the straddle is quoting a withdrawn claim.
     - >-
       The claim-tier ceiling for this lane is toy-tier. Nothing here upgrades it: the ledger is a
       derivation, and the estimator arm is a model evaluation, not a solve.
   heuristic_assumptions:
     - id: H1
       statement: >-
-        (BLOW-UP FIDELITY) For all n a power of two, all module ranks k >= 1 and all error rates
-        alpha in the range the source theorem quantifies over, the multiplicative error-rate
-        blow-up of the MLWE -> RLWE reduction is exactly the factor B_A(n,k) stated in that
-        theorem, with no additional instance-dependent factor, and in particular no factor
-        depending on the secret distribution's shape beyond its standard deviation.
+        (BLOW-UP FIDELITY) For all n a power of two, all module ranks d >= 1, all admissible
+        (c, eps) and all error rates alpha in the range Corollary 2 quantifies over, the
+        multiplicative error-rate blow-up of the MLWE -> RLWE step is exactly the factor
+        sqrt(1 + 2 (r q n^c)^2 d) stated there, with no additional instance-dependent factor, and
+        in particular no factor depending on the secret distribution's shape beyond its standard
+        deviation.
       rigorous_support: >-
-        The published theorem itself, which is a rigorous statement and not a heuristic. What is
-        heuristic here is only the TRANSFER to ML-KEM's centred-binomial noise: the theorem
-        quantifies over a Gaussian family, and H1 asserts that a CBD_eta error of standard
-        deviation sqrt(eta/2) behaves under the reduction like a Gaussian of the same standard
+        Corollary 2 itself, which is a rigorous statement and not a heuristic, together with
+        Lemma 7's tail bound Pr[max_i |sigma_i(s)| > sigma n^c] <= 2n exp(-pi n^{2c}) that supplies
+        its (B, delta) pair. What is heuristic here is only the TRANSFER to ML-KEM's
+        centred-binomial noise: the corollary quantifies over a discrete-Gaussian secret
+        D_{(R^v)^d, alpha q}, and H1 asserts that a CBD_eta secret of standard deviation
+        sqrt(eta/2) behaves under the reduction like a discrete Gaussian of the same standard
         deviation. The classical statement this imitates is the standard smoothing/Renyi-divergence
         argument by which CBD and discrete-Gaussian noise of matched variance are interchangeable
-        for LWE hardness up to a small multiplicative loss in the distinguishing advantage.
+        for LWE hardness up to a small multiplicative loss in the distinguishing advantage. NOTE
+        THAT THE CBD TAIL IS BOUNDED WHILE THE GAUSSIAN TAIL IS NOT, so Lemma 7's (B, delta) is
+        conservative for CBD -- which is the safe direction for the ledger and must be stated as
+        such rather than claimed as an improvement.
       validation_plan: >-
         Sample at reduced parameters where the reduction can be executed end to end: ring
-        dimension n in {8, 16, 32}, k in {2, 3}, q = 3329, secret and error CBD_eta with eta in
+        dimension n in {8, 16, 32}, d in {2, 3}, q = 3329, secret and error CBD_eta with eta in
         {2, 3}, 10^4 instances per cell. Apply the reduction as implemented, MEASURE the empirical
         standard deviation of the image error, and compare the measured blow-up against
-        B_A(n, k). Compare the same quantity for a discrete-Gaussian error of matched sigma; the
+        sqrt(1 + 2 (r q n^c)^2 d) with (c, eps) instantiated exactly as the ledger instantiates
+        them. Compare the same quantity for a discrete-Gaussian secret of matched sigma; the
         CBD-versus-Gaussian ratio is the transfer factor H1 asserts to be 1 + o(1). TAIL CHECK:
         compare the empirical 99.9th percentile of the image error's absolute value against the
         Gaussian prediction, since a heavier image tail would break the ledger even at matched
-        variance. TRANSFER ASSUMPTION, DECLARED: n in {8,16,32} is three to five doublings below
-        256 and the blow-up is claimed polynomial in n, so the measured cells constrain the
-        EXPONENT of n and not the constant at n = 256; the extrapolation to n = 256 is an
-        assumption and must be labelled as one in every downstream use.
+        variance; and measure the empirical rate of the event max_i |sigma_i(s)| > sigma n^c
+        against Lemma 7's delta, since that is the bound c is pinned by. TRANSFER ASSUMPTION,
+        DECLARED: n in {8,16,32} is three to five doublings below 256 and the blow-up's dominant
+        concrete factor r q = sqrt(n) sqrt(2 ln(2nd(1+1/eps))/pi) grows with n, so the measured
+        cells constrain the FUNCTIONAL FORM in n and not the value at n = 256; the extrapolation
+        to n = 256 is an assumption and must be labelled as one in every downstream use.
     - id: H2
       statement: >-
         (ESTIMATOR MONOTONICITY) For instances in the region swept by the ledger, the frozen cost
@@ -614,9 +870,9 @@ idea:
       NO ATTACK EXPONENT IS CLAIMED, and the honest statement is that the expected result is the
       absence of one. The quantity computed is a ledger; its cost is O(number of rungs) arithmetic
       operations for Stages 0-1, plus one estimator evaluation per ALIVE rung per parameter set
-      for Stage 2 (at most a few dozen evaluations). If the E2 branch fired, the claimed exponent
-      would be whatever the estimator returns at the winning rung and would have to be stated
-      then, not now.
+      for Stage 2 (predicted zero on ML-KEM itself, a few dozen on NULL-2). If the E2 branch
+      fired, the claimed exponent would be whatever the estimator returns at the winning rung and
+      would have to be stated then, not now.
     memory_exponent: >-
       No attack memory exponent is claimed. Stages 0-1 hold a table of a few dozen rows. Stage 2's
       memory is the estimator's own.
@@ -627,19 +883,27 @@ idea:
       record in this repository states a modulus-to-noise budget for any scheme -- so on that axis
       the delta is the creation of a first number, not an improvement on one.
     hidden_overhead: >-
-      Three things hide here and all three are declared. (1) The free constant c in B_A: the
-      "for any constant c>0" form means the blow-up is n^{1/2+o(1)} only in a limit, and at n = 256
-      the o(1) is not negligible -- instantiating c is a choice that moves the answer by bits.
-      (2) The Gaussian-versus-CBD transfer, which is a real step with a real cost that the ledger
-      does not currently charge. (3) The reductions are polynomial-time but their POLYNOMIAL is
-      not costed anywhere here; a reduction that is polynomial with a large exponent could be more
-      expensive than the attack it enables, and the ledger as designed would not see that.
+      Four things hide here and all four are declared. (1) The free constant c: "for any constant
+      c > 0" is an ASYMPTOTIC licence, and at n = 256 the admissible c is bounded away from zero by
+      delta = 2n exp(-pi n^{2c}); pinning it at nu = 2^-40 costs +1.72 bits, and the o(1) in
+      n^{1/2+o(1)} is therefore not negligible at FIPS parameters. (2) The smoothing parameter eps
+      enters through ln(2nd(1+1/eps)) inside r and is pinned by the advantage-loss term
+      (2d+10) eps m; it contributes about 0.3 bits of spread over eps in [2^-64, 2^-40]. (3) The
+      Gaussian-versus-CBD transfer, which is a real step with a real cost that the ledger does not
+      currently charge. (4) The reductions are polynomial-time but their POLYNOMIAL is not costed
+      anywhere here; a reduction that is polynomial with a large exponent could be more expensive
+      than the attack it enables, and the ledger as designed would not see that. The
+      spherical-error correction is NOT in this list because it is no longer hidden: it is an
+      explicit ledger column.
     tradeoff_note: >-
       The chain IS a time-memory-like tradeoff of a different kind: it trades lattice dimension
       (which sets both sieve time and sieve memory, at 2^{0.292 beta} and 2^{0.208 beta} in the
       standard model) against modulus-to-noise ratio. That is precisely why a monotone answer is
-      not automatic and why the ledger is worth writing. Parallelisation is irrelevant at Stage 0
-      and is the estimator's own concern at Stage 2.
+      not automatic and why the ledger is worth writing. There is a second, sharper tradeoff the
+      repair pass exposed: m buys estimator quality and simultaneously costs (mn)^{1/4} of
+      spherical-error correction, so m is a genuine optimisation variable of the ledger and not a
+      free parameter. Parallelisation is irrelevant at Stage 0 and is the estimator's own concern
+      at Stage 2.
   dominated_by: >-
     'n/a (no result claimed)' for the attack axis: this proposal claims no attack, so no cost
     triple exists and there is no frontier row to be dominated by; writing null there would be a
@@ -657,27 +921,71 @@ idea:
     contains NO value, no bound and no floor for the modulus-to-noise budget of any standardised
     scheme, and no rung-by-rung accounting of any reduction chain applied to FIPS 203 parameters.
     The delta is therefore the creation of a first pair of numbers -- R_0 = 11.70 / 11.41 bits and
-    the per-step spend of a named published reduction -- together with an information-theoretic
-    floor that every future reduction-cascade proposal in this lane must clear. Against the
-    published state of the art the delta on attack cost is exactly zero and is expected to remain
-    so.
+    the per-step spend of a named published reduction, evaluated in CONCRETE constants (about 9.4
+    bits from Corollary 2 plus about 4.4 bits from Corollary 3 at m = 768, against an asymptotic
+    reading of 4.79) -- together with an information-theoretic floor that every future
+    reduction-cascade proposal in this lane must clear. A second, smaller delta is a correction to
+    the corpus: KN-LIT-4628 relays the SUPERSEDED 2017 abstract and should be superseded by an
+    entry reading the 01/2020 version. Against the published state of the art the delta on attack
+    cost is exactly zero and is expected to remain so.
   estimated_cost:
     implementation: low
     compute: low
-  recommended_priority: high
+  recommended_priority: medium
   honest_prior_of_survival: >-
-    By part. (i) That R_0 is correctly 11.70 / 11.41 bits from FIPS 203 constants: ~0.97 (it is
-    arithmetic, and the only risk is a wrong sigma convention for CBD). (ii) That the primary
-    theorem's blow-up matches one of the two circulating readings rather than something between:
-    ~0.8. (iii) That the chain has ZERO ALIVE rungs for ML-KEM-768, i.e. the budget is exhausted
-    at rung one: ~0.55 -- this is the outcome I would bet on, but it turns entirely on (ii).
-    (iv) That, conditional on ALIVE rungs existing, every one of them shows a strictly positive
-    blocksize difference: ~0.9. (v) That the E2 branch fires on ML-KEM itself: ~0.03, and I would
-    bet against it hard while insisting the run be built to report it. (vi) That the run produces
-    a defensible ledger and a defensible budget number either way: ~0.95.
+    By part, with the straddle removed and the priority re-justified without it.
+    (i) That R_0 is correctly 11.70 / 11.41 bits from FIPS 203 constants: ~0.97 (it is arithmetic,
+    and the only risk is a wrong sigma convention for CBD).
+    (ii) That the in-harness recomputation of log2 B_A from Corollary 2's concrete constants lands
+    within 9.4 +/- 0.3 bits at the declared nu, i.e. that the proposer's transcription and
+    arithmetic are right: ~0.85. The residual risk is transcription of the admissibility
+    condition on r and of the ||Btilde_R|| = sqrt(n) instantiation, not the version question,
+    which the changelog settles.
+    (iii) That the chain has ZERO ALIVE rungs for ML-KEM-768 once the Corollary 3 column is
+    charged: ~0.9. This is no longer a coin-flip between two readings; it is the near-direct
+    consequence of (ii) plus a 4.4-bit column, and the dominant way it fails is the
+    falsification condition that an ellipsoidal-error-capable estimator removes the column
+    (which would return the margin to about +2.3 bits, still short of Corollary 5's 6.5-bit
+    first descent -- so even then the ALIVE count is probably 0, and the prior on "zero ALIVE
+    rungs" barely moves).
+    (iv) That, conditional on ALIVE rungs existing at all (on NULL-2 in practice), every one of
+    them shows a strictly positive blocksize difference: ~0.9.
+    (v) That the E2 branch fires on ML-KEM itself: ~0.02, and I would bet against it hard while
+    insisting the run be built to report it.
+    (vi) That the run produces a defensible ledger and a defensible budget number either way:
+    ~0.95.
+    PRIORITY RE-JUSTIFICATION. The earlier draft rated this HIGH because two readings of the
+    theorem straddled the budget and one cheap act decided between them. That justification is
+    withdrawn: the changelog settles the version at zero cost and the concrete arithmetic already
+    predicts closure at rung one with ~0.9 confidence, so the expected information gain from
+    running Stage 0 is much lower than the draft claimed. What survives is worth MEDIUM, not high:
+    the ledger is still the only artifact in the repository that states a per-scheme reduction
+    budget, the closure it would record is a reusable precondition for every future
+    reduction-cascade proposal in this lane, the column decomposition (prefactor, c-choice,
+    eps-choice, spherical correction) tells a later proposer exactly which factor to attack, and
+    the cost is one to two person-hours with no compute. It is not high because its predicted
+    outcome is now known with ~0.9 confidence and because the one branch that could overturn it --
+    an estimator that scores ellipsoidal errors natively -- is a tooling question that could be
+    asked directly and more cheaply.
   status: proposed
   proposed_by: idea-generator
   proposed_at: '2026-08-21'
+  repair_provenance: >-
+    REPAIRED IN PLACE ON 2026-08-21 under a red-team screen of this record, at the orchestrating
+    session's instruction, keeping the same identifier and path. Two BLOCKING findings were
+    cleared. (1) Claim (C)'s headline discriminator -- "two readings straddle the budget" -- was a
+    VERSION confusion, not a live dichotomy; it is replaced by one theorem in two versions resolved
+    by the paper's own 01/2020 changelog, with both abstracts quoted verbatim and located (in-repo
+    path for the superseded 2017 text; eprint plus fetch date for the current text), and the
+    WebSearch snippet re-filed as its own citation entry that no longer backs any formula.
+    honest_prior (ii)/(iii) were recomputed and recommended_priority was lowered from high to
+    medium with the straddle removed from its justification. (2) The budget arithmetic omitted
+    Corollary 2's concrete constants and Corollary 3's mandatory spherical-error correction, under
+    which BOTH circulating readings are wrong; Stage 0 now reads constants off the corollaries,
+    prediction 1 is a three-way with a named meaning per branch, the descent is taken from
+    Corollary 5 in single-shot form, and the eliminated "leaves ~6.9 bits" branch is marked void.
+    The record is not a new idea and is not renamed; readers of any earlier copy should treat the
+    straddle framing and the 16.79-bit branch as withdrawn.
   source_refs:
     - RQ-MLKEM-001
     - GOAL-MLKEM-005
@@ -687,6 +995,7 @@ idea:
     - IDEA-20260807-abacec
     - KN-LIT-4628
     - KN-TECH-1a5b7e
+    - research_digest/chunks/chunk_007.txt
     - docs/inventor-protocol.md
     - docs/target-result-profile.md
     - docs/claims-and-verification.md
@@ -695,4 +1004,4 @@ idea:
     Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py --next
     idea --date 20260821 (random 6-hex token, no state scanned), each id then verified free with
     --check before assignment. No identifier was chosen by looking for the next free number
-    (CLAUDE.md, Conventions).
+    (CLAUDE.md, Conventions). The identifier is UNCHANGED by the 2026-08-21 in-place repair.
