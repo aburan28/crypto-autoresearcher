@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+import hashlib
 
 import pytest
 import subprocess
@@ -33,6 +34,34 @@ def test_flat_goal_projection_is_hash_bound_and_read_only(tmp_path: Path) -> Non
     assert first.projection_hash == second.projection_hash
     assert first.source_files[0].path == "ledger/goals/GOAL-TEST-001.yaml"
     assert not (tmp_path / ".local").exists()
+
+
+def test_random_suffix_flat_goal_projects_unchanged(tmp_path: Path) -> None:
+    goal_id = "GOAL-ERANK-a1b2c3"
+    _write(
+        tmp_path / "ledger/goals" / f"{goal_id}.yaml",
+        f"research_goal:\n  id: {goal_id}\n  status: active\n",
+    )
+
+    goal = load_materialized_goal(tmp_path, goal_id)
+
+    assert goal.goal_id == goal_id
+    assert goal.layout == "flat"
+    assert goal.source_files[0].path == f"ledger/goals/{goal_id}.yaml"
+
+
+def test_random_suffix_sharded_goal_projects_unchanged(tmp_path: Path) -> None:
+    goal_id = "GOAL-ERANK-deadbe"
+    _write(
+        tmp_path / "ledger/goals" / goal_id / "goal.yaml",
+        f"research_goal:\n  id: {goal_id}\n  status: active\n",
+    )
+
+    goal = load_materialized_goal(tmp_path, goal_id)
+
+    assert goal.goal_id == goal_id
+    assert goal.layout == "sharded"
+    assert goal.source_files[0].path == f"ledger/goals/{goal_id}/goal.yaml"
 
 
 def test_sharded_goal_projection_merges_write_once_checkpoint_files(tmp_path: Path) -> None:

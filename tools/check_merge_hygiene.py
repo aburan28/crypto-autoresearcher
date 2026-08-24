@@ -43,6 +43,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import stat
 import subprocess
 import sys
 
@@ -75,6 +77,13 @@ PARSE_RULES = (
 # same basename with different content is the collision we are hunting.
 ID_DIRS = ("ledger", "experiments", "knowledge")
 
+GOAL_HEAD_PATTERNS = (
+    re.compile(r"^ledger/goals/(GOAL-[^/]+)\.yaml$"),
+    re.compile(r"^ledger/goals/(GOAL-[^/]+)/goal\.yaml$"),
+)
+
+TRUSTED_GOAL_PREFIXES = ("ledger", "ledger/goals")
+
 
 def _run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(args, cwd=REPO, capture_output=True, text=True)
@@ -86,27 +95,278 @@ def tracked_files() -> list[str]:
             if p and not os.path.basename(p).startswith("._")]
 
 
+def _diff_destination_paths(*arguments: str) -> set[str]:
+    """Paths holding the post-image of an A/C/M/R/T diff entry.
+
+    ``--name-status -z`` emits the status, then one path for ordinary entries
+    and the source plus destination for copies and renames.  Only destinations
+    can hold the candidate object that the scoped checks must inspect.
+    """
+    result = _run(
+        "git", "diff", "--name-status", "-z", "--find-renames",
+        "--find-copies", "--diff-filter=ACMRT", *arguments, "--",
+    )
+    if result.returncode != 0:
+        return set()
+
+    fields = result.stdout.split("\0")
+    destinations: set[str] = set()
+    index = 0
+    while index < len(fields) and fields[index]:
+        status = fields[index]
+        index += 1
+        if not status or index >= len(fields):
+            break
+        if status[0] in {"C", "R"}:
+            if index + 1 >= len(fields):
+                break
+            index += 1  # source path
+            destination = fields[index]
+            index += 1
+        else:
+            destination = fields[index]
+            index += 1
+        if destination:
+            destinations.add(destination)
+    return destinations
+
+
+def _index_symlink_paths() -> set[str]:
+    """Tracked goal paths whose staged object has Git mode 120000."""
+    result = _run(
+        "git", "ls-files", "--stage", "-z", "--", "ledger/goals"
+    )
+    if result.returncode != 0:
+        return set()
+    symlinks = set()
+    for entry in result.stdout.split("\0"):
+        if not entry or "\t" not in entry:
+            continue
+        metadata, path = entry.split("\t", 1)
+        mode = metadata.split(" ", 1)[0]
+        if mode == "120000":
+            symlinks.add(path)
+    return symlinks
+
+
+def _tree_mode(ref: str, path: str) -> str | None:
+    """Git mode for one exact path in a committed tree, without checkout."""
+    result = _run("git", "ls-tree", "-z", ref, "--", path)
+    if result.returncode != 0:
+        return None
+    for entry in result.stdout.split("\0"):
+        if not entry or "\t" not in entry:
+            continue
+        metadata, candidate = entry.split("\t", 1)
+        if candidate == path:
+            return metadata.split(" ", 1)[0]
+    return None
+
+
+def _index_mode(path: str) -> str | None:
+    """Conceptual index mode for a required prefix, without reading targets.
+
+    Git stores no directory entries in the index.  Descendants therefore prove
+    the ordinary tree case; an exact entry is necessarily a file or symlink and
+    its real mode is returned.
+    """
+    result = _run("git", "ls-files", "--stage", "-z", "--", path)
+    if result.returncode != 0:
+        return None
+    descendants = False
+    for entry in result.stdout.split("\0"):
+        if not entry or "\t" not in entry:
+            continue
+        metadata, candidate = entry.split("\t", 1)
+        if candidate == path:
+            return metadata.split(" ", 1)[0]
+        if candidate.startswith(path + "/"):
+            descendants = True
+    return "040000" if descendants else None
+
+
+def _mode_description(mode: str | None) -> str:
+    if mode is None:
+        return "missing"
+    if mode == "120000":
+        return "symlink (Git mode 120000)"
+    if mode == "040000":
+        return "ordinary directory (Git mode 040000)"
+    return f"non-directory Git mode {mode}"
+
+
+def check_trusted_goal_prefixes() -> list[str]:
+    """Prove ledger and ledger/goals are ordinary candidate directories.
+
+    HEAD and index inspection use Git metadata only.  Filesystem inspection is
+    component-by-component with lstat, and stops at the first forbidden object,
+    so a symlink target is never resolved, opened, globbed, or traversed.
+    """
+    bad: list[str] = []
+    for state, mode_for in (("committed HEAD tree", lambda p: _tree_mode("HEAD", p)),
+                            ("staged index", _index_mode)):
+        for prefix in TRUSTED_GOAL_PREFIXES:
+            mode = mode_for(prefix)
+            if mode != "040000":
+                bad.append(
+                    f"{prefix}: trusted goal prefix in {state} is "
+                    f"{_mode_description(mode)}; required ordinary directory "
+                    "and target was not read"
+                )
+                break
+
+    for prefix in TRUSTED_GOAL_PREFIXES:
+        full = os.path.join(REPO, *prefix.split("/"))
+        try:
+            mode = os.lstat(full).st_mode
+        except OSError:
+            description = "missing"
+        else:
+            if stat.S_ISLNK(mode):
+                description = "symlink"
+            elif stat.S_ISDIR(mode):
+                continue
+            elif stat.S_ISREG(mode):
+                description = "regular file"
+            else:
+                description = "special file"
+        bad.append(
+            f"{prefix}: trusted goal prefix in tracked worktree/absolute tree "
+            f"is {description}; required ordinary directory and target was "
+            "not read"
+        )
+        break
+    return bad
+
+
+def _first_path_component(path: str, candidates: set[str]) -> str | None:
+    normalized = path.replace(os.sep, "/")
+    if not normalized.startswith("ledger/goals/"):
+        return None
+    components = normalized.split("/")
+    for length in range(3, len(components) + 1):
+        component = "/".join(components[:length])
+        if component in candidates:
+            return component
+    return None
+
+
+def goal_symlink_component(path: str) -> str | None:
+    """First symlink component below ledger/goals, inspected without follow."""
+    normalized = path.replace(os.sep, "/")
+    if not normalized.startswith("ledger/goals/"):
+        return None
+    current = REPO
+    for component in normalized.split("/"):
+        current = os.path.join(current, component)
+        try:
+            mode = os.lstat(current).st_mode
+        except OSError:
+            return None
+        if stat.S_ISLNK(mode):
+            return os.path.relpath(current, REPO).replace(os.sep, "/")
+    return None
+
+
+def check_goal_symlinks(paths: list[str]) -> list[str]:
+    """Reject every index or worktree symlink at or below a goal path."""
+    bad = []
+    index_symlinks = _index_symlink_paths()
+    for rel in paths:
+        index_component = _first_path_component(rel, index_symlinks)
+        component = index_component or goal_symlink_component(rel)
+        if component is not None:
+            representation = (
+                f"traverses symlink {component} in staged index "
+                "(object mode 120000)"
+                if index_component is not None
+                else f"traverses symlink {component}"
+            )
+            bad.append(
+                f"{rel}: tracked goal path {representation}; "
+                "goal records must be ordinary files and directories and "
+                "symlink targets are never read"
+            )
+    return bad
+
+
+def goal_id_from_head_path(path: str) -> str | None:
+    """Return the semantic GOAL id represented by a flat or sharded head."""
+    normalized = path.replace(os.sep, "/")
+    for pattern in GOAL_HEAD_PATTERNS:
+        match = pattern.match(normalized)
+        if match:
+            return match.group(1)
+    return None
+
+
+def goal_ids_from_paths(paths: list[str]) -> set[str]:
+    return {
+        goal_id
+        for path in paths
+        if (goal_id := goal_id_from_head_path(path)) is not None
+    }
+
+
+def goal_ids_at_ref(ref: str) -> set[str] | None:
+    """Semantic goal-head identities in one committed tree."""
+    probe = _run("git", "rev-parse", "--verify", "--quiet", ref + "^{commit}")
+    if probe.returncode != 0:
+        return None
+    result = _run("git", "ls-tree", "-r", "--name-only", "-z", ref, "--",
+                  "ledger/goals")
+    if result.returncode != 0:
+        return None
+    return goal_ids_from_paths([path for path in result.stdout.split("\0") if path])
+
+
+def check_prospective_goal_ids(base: str) -> list[str]:
+    """Reject only semantic GOAL identities newly introduced after ``base``.
+
+    The candidate set comes from Git's tracked index/worktree view, so a staged
+    candidate is checked before commit and a committed candidate is checked in
+    CI. Comparing identities, rather than added paths, preserves a legacy goal
+    moved from its flat head to the sharded layout.
+    """
+    base_ids = goal_ids_at_ref(base)
+    if base_ids is None:
+        return [f"SKIPPED: no such ref {base!r}; prospective GOAL ids unchecked"]
+    candidate_ids = goal_ids_from_paths(tracked_files())
+    newly_introduced = sorted(candidate_ids - base_ids)
+    return [
+        f"{goal_id}: newly introduced GOAL identifier does not use the "
+        "required random six-hex suffix. Mint new goals with "
+        "tools/allocate_id.py --next goal --area AREA; legacy three-digit "
+        "identifiers remain valid only when already present on the base."
+        for goal_id in newly_introduced
+        if not vl.GOAL_RANDOM_ID.fullmatch(goal_id)
+    ]
+
+
 def touched_files(base: str) -> list[str] | None:
-    """Tracked files this branch adds or modifies relative to `base`.
+    """Committed, staged, or tracked-worktree candidate destinations.
 
     Returns None when `base` cannot be resolved, so the caller falls back to the
-    absolute sweep rather than silently checking nothing.
+    absolute sweep rather than silently checking nothing.  Untracked paths are
+    intentionally absent until they enter the index.
     """
     if _run("git", "rev-parse", "--verify", "--quiet", base + "^{commit}").returncode:
         return None
     merge_base = _run("git", "merge-base", "HEAD", base).stdout.strip()
     if not merge_base:
         return None
-    out = _run("git", "diff", "--name-only", "--diff-filter=ACMR", "-z",
-               merge_base, "HEAD").stdout
-    touched = {p for p in out.split("\0") if p}
-    return [p for p in tracked_files() if p in touched]
+    committed = _diff_destination_paths(merge_base, "HEAD")
+    staged = _diff_destination_paths("--cached", "HEAD")
+    tracked_worktree = _diff_destination_paths()
+    return sorted(committed | staged | tracked_worktree)
 
 
 def check_markers(paths: list[str]) -> list[str]:
     """Any tracked text file carrying an unresolved conflict marker."""
     bad = []
     for rel in paths:
+        if goal_symlink_component(rel) is not None:
+            continue
         full = os.path.join(REPO, rel)
         try:
             with open(full, "r", encoding="utf-8", errors="strict") as fh:
@@ -169,6 +429,8 @@ def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
     for rel in paths:
         if not _wanted(rel):
             continue
+        if goal_symlink_component(rel) is not None:
+            continue
         full = os.path.join(REPO, rel)
         try:
             with open(full, "r", encoding="utf-8") as fh:
@@ -211,6 +473,8 @@ def check_collisions(base: str) -> list[str]:
 
     bad = []
     for rel in added:
+        if goal_symlink_component(rel) is not None:
+            continue
         # Does `base` already have a record under this exact identifier?
         on_base = _run("git", "cat-file", "-e", f"{base}:{rel}")
         if on_base.returncode != 0:
@@ -269,17 +533,30 @@ def main() -> int:
     scoped = touched_files(args.base) if args.base and not args.absolute else None
     parse_paths = paths if scoped is None else scoped
     if scoped is not None:
-        print(f"note: parseability scoped to {len(scoped)} file(s) this branch "
-              f"adds or modifies vs {args.base}; the absolute sweep runs on main",
+        print(f"note: parseability scoped to {len(scoped)} committed, staged, "
+              f"or tracked-worktree candidate path(s) vs {args.base}; the "
+              "absolute sweep runs on main",
               file=sys.stderr)
 
+    trusted_prefix_problems = check_trusted_goal_prefixes()
+    if trusted_prefix_problems:
+        # No later filesystem check may touch ledger: an invalid ledger prefix
+        # could redirect every open/glob beneath it. Git-only prefix inspection
+        # above is the complete and blocking result for that candidate.
+        parse_paths = [p for p in parse_paths
+                       if p != "ledger" and not p.startswith("ledger/")]
+
     groups = [
+        ("invalid trusted goal prefixes", trusted_prefix_problems),
+        ("symlinked goal paths", check_goal_symlinks(parse_paths)),
         ("unresolved conflict markers", check_markers(parse_paths)),
         ("unparseable records", check_parses(parse_paths,
                                              report_stale=scoped is None)),
     ]
-    if args.base:
+    if args.base and not trusted_prefix_problems:
         groups.append(("identifier collisions", check_collisions(args.base)))
+        groups.append(("new legacy GOAL identifiers",
+                       check_prospective_goal_ids(args.base)))
 
     failed = False
     for label, problems in groups:
@@ -296,7 +573,8 @@ def main() -> int:
     if failed:
         return 1
     print("PASS: no conflict markers, no unparseable records"
-          + (", no identifier collisions" if args.base else ""))
+          + (", no identifier collisions, no new legacy GOAL identifiers"
+             if args.base else ""))
     return 0
 
 

@@ -1,0 +1,256 @@
+idea:
+  id: IDEA-20260816-258c69
+  question_id: RQ-POLYMAC-7c89e4
+  added: '2026-08-16'
+  title: Treat key commitment and forgery as two predicates on the same key space and measure whether
+    the keys that make one cheap are the keys that make the other cheap, computing the joint distribution
+    exhaustively in both fields rather than reasoning about the two failures separately
+  class: composition
+  claim: '(A) Two distinct failure predicates are defined on the same authentication-key space. FORGERY:
+    for a key k, the largest fraction of the key space covered by a single achievable difference polynomial''s
+    root set containing k - equivalently, how exposed k is to a forger who guesses well. COMMITMENT:
+    for a pair of keys, whether a single ciphertext and tag can be made to verify under both, and
+    at what construction cost. The claim is that these are genuinely different functions on the key
+    space and that their JOINT structure is measurable, not merely describable. (B) The specific measurable
+    object is the joint distribution over the key space of the forgery-exposure statistic and the
+    commitment-participation statistic (how many colliding partners a key has within the tested space,
+    at a bounded construction budget). The claim is that this joint distribution can be computed exhaustively
+    at scaled-down parameters in both fields, and that its correlation coefficient and its conditional
+    profiles are the deliverable. (C) The paired claim: the two constructions may exhibit different
+    joint structure even if their marginals match, and a construction-level model of either failure
+    must reproduce both marginals AND the joint in both fields. A model that reproduces the marginals
+    but not the joint has not identified the load-bearing structure. (D) The most useful outcome is
+    likely negative: if the two statistics are independent to within the null''s spread, then commitment
+    failure and forgery exposure are carried by disjoint structure, and the practice of reasoning
+    about them under one heading is measurably wrong at these parameters - a usable obstruction. (E)
+    WHAT IS NOT CLAIMED: no key-commitment attack on any deployed AEAD, which is RQ-AEADC-8db132''s
+    territory and is not re-derived here; no forgery; no claim that any key in any deployment has
+    either property; and no security consequence whatever. The commitment statistic here is a counted
+    structural quantity on a toy key space, not a certificate.'
+  mechanism: 'STAGE 1 defines both statistics as pure functions on the toy key space and implements
+    them independently, with no shared code path, so that a correlation cannot come from a shared
+    bug. STAGE 2 computes the forgery-exposure statistic for every key by enumerating achievable difference
+    polynomials and, for each key, recording the maximum root-set fraction over polynomials whose
+    root set contains it. This is exhaustive at the tested widths. STAGE 3 computes the commitment-participation
+    statistic for every key by, for each other key, solving the toy construction''s collision condition
+    under a bounded search budget and counting successes; at toy width this is a quadratic pass over
+    the key space, which is why the width is capped lower here than in the other entries. STAGE 4
+    forms the joint histogram, the Spearman and Pearson correlations, and the conditional profile
+    of one statistic given deciles of the other. STAGE 5 runs the null: the identical pipeline where
+    the commitment statistic is computed against a randomly relabelled key space, destroying any real
+    association while preserving both marginals exactly. STAGE 6 compares. Refutation: if the null''s
+    correlation distribution covers the signal''s correlation, the association is not distinguishable
+    from marginal structure and the record reports independence with an interval.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read all nine RQ-AEADC-8db132 proposal titles and the full text of IDEA-20260809-3a39bc;
+      read RQ-AEADC-8db132's scope and targets section; greps for commitment, committing, key-commitment
+      across ledger/proposals and ledger/questions; greps for joint, correlation, predicate across
+      ledger/proposals filtered to symmetric-area records; read the anchor question's opening list,
+      which names key-commitment failure as a separate predicate from forgery.
+    results: 'RQ-AEADC-8db132 owns key commitment and has nine proposals: certificates at full parameters
+      (IDEA-20260809-313546), context versus key commitment (IDEA-20260809-3a5c29), committing-construction
+      overhead (IDEA-20260809-3da508), a committing-by-construction null (IDEA-20260809-47a08e), the
+      k-way cost curve (IDEA-20260809-33f26f), the ChaCha20-Poly1305 algebra comparison (IDEA-20260809-3a39bc),
+      padding-fix bounds (IDEA-20260809-439aa8), a commitment test harness (IDEA-20260809-4719b8),
+      and query-elimination counting (IDEA-20260809-44b750). Every one of them treats commitment alone.
+      NONE computes any quantity jointly with forgery exposure, and no record in the repository holds
+      a joint distribution over a MAC key space. The anchor question explicitly lists key-commitment
+      failure as a separate predicate from forgery, which is the opening this record takes.'
+    verdict: 'UNVERIFIED. No claim about external literature is made. What is claimed new WITHIN THIS
+      REPOSITORY is the JOINT object: the two predicates as functions on one key space, with their
+      correlation and conditional profiles measured exhaustively, and a relabelling null that preserves
+      marginals. What is assembled from known parts: the commitment collision condition is the same
+      algebra IDEA-20260809-313546 and IDEA-20260809-3a39bc use, and is used here as a counting tool
+      rather than restated as a contribution; the forgery-exposure statistic reuses this batch''s
+      enumeration module.'
+  object_first_candidate:
+    tracked_object: 'The PAIR OF SCALAR STATISTICS attached to each key: (forgery exposure, commitment
+      participation). The object followed is the resulting point cloud in the two-dimensional statistic
+      plane, one point per key, and specifically its dependence structure rather than either marginal.'
+    lossiness: 'Lossy in both coordinates. The forgery coordinate discards which polynomial achieved
+      the maximum and everything about messages; the commitment coordinate discards which partner
+      keys collide and the structure of the colliding ciphertexts, retaining only a count. This is
+      compatible with the target operations because both predicates are defined by existence over
+      a search, and a count of witnesses is the natural projection of an existence question. It is
+      not a change of coordinates: two keys with identical statistic pairs can have completely disjoint
+      witness sets, and the projection is precisely what makes a correlation computable at all.'
+    propagation: One step of the target operation - appending a block - raises the achievable degree,
+      which can only increase a key's forgery exposure (more root sets can contain it) and can only
+      increase or leave unchanged its commitment participation (more freedom in the colliding ciphertext).
+      Both coordinates are therefore monotone in message length, which means any correlation measured
+      at fixed length must be checked for being an artifact of both coordinates responding to the
+      same monotone driver. The contract measures the correlation at fixed L and also the partial
+      correlation controlling for L, and that distinction is the whole reason the propagation had
+      to be written down.
+    survival_score: 'The point cloud survives at every tested width and length, but its resolution
+      degrades fast: the commitment statistic requires a quadratic pass over the key space, so the
+      tested width is capped near 2^14 where 2^28 pairs at a bounded per-pair budget is still a bounded
+      computation. It DISSOLVES above that width for compute reasons, not mathematical ones, and that
+      boundary is stated rather than hidden. It also dissolves if the toy commitment condition is
+      not a faithful analogue of the full one, in which case the second coordinate measures a different
+      predicate and the joint is meaningless - the contract''s first control exists for exactly that
+      risk.'
+  null_object_control: 'The RELABELLING NULL: recompute the commitment statistic against a uniformly
+    random relabelling of the key space, so that both marginal distributions are preserved exactly
+    and any real key-to-key association is destroyed. Run 200 relabellings in the same invocation
+    and record the resulting distribution of the correlation coefficient. For the signal to mean anything,
+    the observed correlation must lie outside the central 99 percent of the null distribution; if
+    it lies inside, the record reports independence with that interval, which is the useful negative.
+    A second control computes both statistics for a random-function digest, where neither predicate
+    has algebraic structure - both marginals should collapse to their generic values, and if they
+    do not, the statistics are picking up something other than the construction.'
+  discriminated_from:
+  - 'All nine RQ-AEADC-8db132 proposals (313546, 3a5c29, 3da508, 47a08e, 33f26f, 3a39bc, 439aa8, 4719b8,
+    44b750): each measures a commitment quantity alone. None computes anything jointly with forgery,
+    and this record produces no certificate at any parameters.'
+  - 'IDEA-20260809-33f26f specifically, the k-way collision cost curve: that is the commitment marginal
+    as a function of k. This record holds k fixed at 2 and varies the key instead, which is an orthogonal
+    slice.'
+  - 'The ratio-surface entry in this batch: that measures the maximum over keys; this measures the
+    distribution across keys and joins it to a second predicate.'
+  - 'The weak-key counting entry in this batch: that partitions the key space by multiplicative order,
+    an algebraic predicate. This record partitions by two operational predicates and can be cross-tabulated
+    against the order classes as a secondary output.'
+  - 'A verbal statement that commitment and forgery are different properties: true and content-free.
+    The content here is a measured dependence structure with a marginal-preserving null.'
+  assumptions:
+  - The toy commitment condition is a faithful analogue of the full construction's collision condition.
+    This is the single most load-bearing assumption and is checked at the smallest width against a
+    hand-verified example set.
+  - A bounded per-pair search budget does not systematically bias which pairs are found. Checked by
+    sweeping the budget and confirming the statistic saturates.
+  - Counting witnesses is an adequate proxy for cost in the commitment coordinate at these parameters.
+    Where it is not, the record reports the count and refrains from calling it a cost.
+  - Both statistics are computable exhaustively at the capped width, so all reported dependence is
+    exact up to the search budget.
+  predictions:
+  - metric: Spearman correlation between forgery exposure and commitment participation, per field,
+      at fixed L
+    direction: different
+    minimum_effect: the contract pre-commits to declaring a correlation real only if it lies outside
+      the central 99 percent of the 200-relabelling null distribution; no effect size is pre-committed
+      because no prior exists that was not invented
+  - metric: relabelling-null correlation distribution median
+    direction: different
+    minimum_effect: must be centred on zero to within 0.02; a shifted null means the relabelling does
+      not destroy the association it is supposed to destroy
+  - metric: partial correlation controlling for message length L
+    direction: lower
+    minimum_effect: if the raw correlation is real but the partial correlation falls inside the null
+      interval, the association is attributed to the shared monotone driver and reported as such
+  - metric: cross-tabulation of commitment participation against multiplicative-order class
+    direction: different
+    minimum_effect: no pre-commitment; reported as a contingency table with its exact counts and a
+      permutation p-value from the same relabelling machinery
+  minimal_test:
+    design: 'Cap the width at n = 12 in both fields, fix L = 4, and compute both statistics for every
+      key: forgery exposure by the shared enumeration, commitment participation by a full quadratic
+      pass over the 4096-by-4096 key pairs with a bounded per-pair search. That is 16 million pair
+      evaluations per field, which is minutes in pure Python and seconds with bitmap tricks. Emit
+      the joint histogram, the Spearman correlation, and the 200-relabelling null distribution, plus
+      the random-function control. The discrimination is a single comparison: does the observed correlation
+      fall outside the null''s central 99 percent, in each field? Four readings follow. Outside in
+      both fields with the same sign is a construction-level association and is the strongest outcome.
+      Outside in one field only is a field or encoding effect and names which. Inside in both fields
+      is the independence result - the two failure predicates are carried by disjoint structure at
+      these parameters, which measurably undermines treating them under one heading. A shifted or
+      non-zero-centred null means the machinery is broken and nothing is read.'
+    controls:
+    - Relabelling null preserving both marginals exactly, 200 draws, same invocation.
+    - Random-function digest control where neither predicate has algebraic structure.
+    - Independent implementations of the two statistics with no shared code path, so a correlation
+      cannot arise from a common bug.
+    - Search-budget sweep on the commitment statistic to confirm saturation rather than budget-driven
+      counts.
+    - Hand-verified example set at the smallest width confirming the toy commitment condition reproduces
+      known-by-construction collisions.
+    required_metrics:
+    - forgery-exposure statistic per key, both fields
+    - commitment-participation count per key, both fields
+    - joint histogram and Spearman and Pearson correlations
+    - relabelling-null correlation distribution with its central 99 percent interval
+    - partial correlation controlling for L
+    - cross-tabulation against multiplicative-order class
+  falsification_conditions:
+  - The relabelling-null correlation distribution is not centred on zero, indicating the null does
+    not destroy the association.
+  - The commitment statistic does not saturate under the budget sweep, so counts are budget artifacts.
+  - The random-function control shows structured marginals, indicating the statistics measure something
+    other than the construction.
+  - The two independently written statistic implementations disagree on a shared sanity case.
+  - The toy commitment condition fails to reproduce the hand-verified collision examples, so the second
+    coordinate is not the predicate it claims to be.
+  - The observed correlation lies inside the null interval in both fields, which refutes the association
+    claim and is recorded as the independence result rather than as an inconclusive run.
+  confounders:
+  - Both statistics increase with L, so any fixed-L correlation may reflect a shared monotone driver;
+    the partial correlation is the defence and may be underpowered.
+  - The bounded per-pair search may find collisions preferentially for keys with particular structure,
+    manufacturing an association between the search and the first coordinate.
+  - The two fields have different achievable-difference families due to padding, which shifts the
+    first marginal before any joint structure is measured.
+  - Width capping to n = 12 makes both statistics coarse and the correlation estimate noisy relative
+    to the exhaustive framing.
+  - Multiplicative-order structure could drive both coordinates independently, which is why the cross-tabulation
+    is required rather than optional.
+  interpretation_limits:
+  - This is a statement about the joint structure of two toy statistics on a toy key space at one
+    width and one length, not about either failure in any deployment.
+  - The commitment coordinate is a witness count, not a cost, and must not be read as a cost anywhere.
+  - A measured independence is a statement about these parameters and these statistic definitions;
+    a different commitment statistic could associate where this one does not.
+  - Running only one field would leave the joint structure inseparable from that field's own arithmetic,
+    and the record would be materially weaker.
+  target_complexity:
+    time_exponent: 'No attack exponent is claimed. The measurement is quadratic in the key space:
+      O(2^2n * b) operations at bounded per-pair budget b, which is what caps the width at 12 to 14.'
+    memory_exponent: No attack memory exponent is claimed. O(2^n) statistic values plus transient
+      bitmaps; well under a gigabyte at the capped width.
+    best_known: The incumbent is the practice of treating commitment failure and forgery under one
+      security heading without measuring their relationship. Within this repository the incumbent
+      set is the nine RQ-AEADC-8db132 proposals, all of which measure commitment alone.
+    hidden_overhead: The quadratic pass hides the real cost, and the bounded per-pair budget is the
+      knob that decides whether the run is minutes or days. The human overhead is in writing two statistics
+      twice, independently, which is the only defence against a shared-bug correlation and is easy
+      to skip.
+  dominated_by: 'n/a (no result claimed). Pareto check performed against every polymac and AEADC row
+    this repository holds: the nine RQ-AEADC-8db132 proposals plus KN-LIT-4060, KN-LIT-5652, KN-LIT-7035,
+    KN-LIT-1337, KN-LIT-4188 and KN-LIT-1445. None states a joint statistic and none occupies a frontier
+    this record competes on, since this record produces a correlation and not an algorithm. No attack
+    is claimed.'
+  sota_delta: No attack; measurement contribution only. Delta is from nine records measuring commitment
+    alone and zero measuring forgery exposure per key, to one joint distribution per field with a
+    marginal-preserving null and an order-class cross-tabulation.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'By part. That both statistics can be computed exhaustively at n = 12
+    within budget: about 0.85, with the risk concentrated in the per-pair search. That the toy commitment
+    condition is a faithful analogue, verified against the hand-checked examples: about 0.6, and this
+    is the load-bearing uncertainty. That the relabelling null behaves (centred on zero): about 0.9.
+    That a real correlation appears outside the null interval: about 0.3, because there is no strong
+    reason the two predicates should share structure, and the independence outcome is both more likely
+    and genuinely useful. That the whole record survives red team without drifting into RQ-AEADC-8db132''s
+    territory: about 0.6, and the discriminated_from list is what carries that.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-POLYMAC-7c89e4
+  - GOAL-POLYMAC-001
+  - RQ-AEADC-8db132
+  - IDEA-20260809-313546
+  - IDEA-20260809-33f26f
+  - IDEA-20260809-3a39bc
+  - IDEA-20260809-47a08e
+  - IDEA-20260809-44b750
+  - KN-LIT-7035
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-POLYMAC-f5114e

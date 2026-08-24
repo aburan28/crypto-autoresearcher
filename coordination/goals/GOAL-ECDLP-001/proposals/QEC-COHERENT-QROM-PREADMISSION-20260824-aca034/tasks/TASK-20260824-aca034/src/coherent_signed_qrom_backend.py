@@ -1,0 +1,736 @@
+"""Concrete reversible coherent signed-window qROM circuit IR.
+
+This module intentionally has no dependency on a quantum SDK.  It emits a
+fully materialized X/CX/MCX basis-permutation circuit.  Host-side loops compile
+a fixed truth table; no emitted operation reads or branches on a run-time
+address.  The tiny curve is a deterministic semantic-control instance, not a
+scientific experiment or a resource estimate for a cryptographic parameter.
+"""
+
+from __future__ import annotations
+
+from collections import Counter, defaultdict
+from dataclasses import dataclass, replace
+from fractions import Fraction
+from itertools import product
+from typing import Iterable, Mapping, Sequence
+
+
+Point = tuple[int, int] | str
+O: Point = "O"
+
+
+@dataclass(frozen=True)
+class Curve:
+    p: int
+    a: int
+    b: int
+
+    @property
+    def coordinate_width(self) -> int:
+        return (self.p - 1).bit_length()
+
+    def is_on_curve(self, point: Point) -> bool:
+        if point == O:
+            return True
+        x, y = point
+        return 0 <= x < self.p and 0 <= y < self.p and (
+            y * y - (x * x * x + self.a * x + self.b)
+        ) % self.p == 0
+
+    def neg(self, point: Point) -> Point:
+        if point == O:
+            return O
+        x, y = point
+        return (x, (-y) % self.p)
+
+    def add(self, left: Point, right: Point) -> Point:
+        if left == O:
+            return right
+        if right == O:
+            return left
+        x1, y1 = left
+        x2, y2 = right
+        if x1 == x2 and (y1 + y2) % self.p == 0:
+            return O
+        if left == right:
+            if y1 % self.p == 0:
+                return O
+            slope = (3 * x1 * x1 + self.a) * pow(2 * y1, -1, self.p)
+        else:
+            slope = (y2 - y1) * pow(x2 - x1, -1, self.p)
+        slope %= self.p
+        x3 = (slope * slope - x1 - x2) % self.p
+        y3 = (slope * (x1 - x3) - y1) % self.p
+        result: Point = (x3, y3)
+        if not self.is_on_curve(result):
+            raise AssertionError("group law produced an off-curve result")
+        return result
+
+    def mul(self, scalar: int, point: Point) -> Point:
+        if scalar < 0:
+            return self.mul(-scalar, self.neg(point))
+        result: Point = O
+        addend = point
+        while scalar:
+            if scalar & 1:
+                result = self.add(result, addend)
+            addend = self.add(addend, addend)
+            scalar >>= 1
+        return result
+
+    def points(self) -> tuple[Point, ...]:
+        affine = tuple(
+            (x, y)
+            for x in range(self.p)
+            for y in range(self.p)
+            if self.is_on_curve((x, y))
+        )
+        return (O,) + affine
+
+
+@dataclass(frozen=True)
+class Gate:
+    kind: str
+    controls: tuple[str, ...]
+    target: str
+    phase: str
+    tag: str
+    logical_access: str | None = None
+    table_key: tuple[int, int] | None = None
+    branch: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in {"X", "CX", "MCX"}:
+            raise ValueError(f"unsupported gate kind {self.kind}")
+        expected = {"X": 0, "CX": 1}.get(self.kind)
+        if expected is not None and len(self.controls) != expected:
+            raise ValueError(f"{self.kind} requires {expected} controls")
+        if self.kind == "MCX" and len(self.controls) < 2:
+            raise ValueError("MCX requires at least two controls")
+        if self.target in self.controls or len(set(self.controls)) != len(self.controls):
+            raise ValueError("gate wires must be distinct")
+
+
+@dataclass(frozen=True)
+class Circuit:
+    wires: tuple[str, ...]
+    registers: Mapping[str, tuple[str, ...]]
+    operations: tuple[Gate, ...]
+    table: Mapping[tuple[int, int], Point]
+    curve: Curve
+    base: Point
+    window_width: int
+    arithmetic_metadata: Mapping[str, object]
+
+
+@dataclass(frozen=True)
+class BasisState:
+    bits: tuple[int, ...]
+
+    @classmethod
+    def zero(cls, width: int) -> "BasisState":
+        return cls((0,) * width)
+
+    def bit(self, index: int) -> int:
+        return self.bits[index]
+
+    def flipped(self, index: int) -> "BasisState":
+        data = list(self.bits)
+        data[index] ^= 1
+        return BasisState(tuple(data))
+
+
+def encode_point(curve: Curve, point: Point) -> tuple[int, ...]:
+    n = curve.coordinate_width
+    if point == O:
+        return (0,) * (2 * n) + (1,)
+    x, y = point
+    return tuple((x >> i) & 1 for i in range(n)) + tuple(
+        (y >> i) & 1 for i in range(n)
+    ) + (0,)
+
+
+def decode_point(curve: Curve, bits: Sequence[int]) -> Point | None:
+    n = curve.coordinate_width
+    if len(bits) != 2 * n + 1:
+        raise ValueError("wrong point-code width")
+    x = sum(bits[i] << i for i in range(n))
+    y = sum(bits[n + i] << i for i in range(n))
+    o = bits[-1]
+    if o:
+        return O if x == 0 and y == 0 else None
+    point: Point = (x, y)
+    return point if curve.is_on_curve(point) else None
+
+
+class Emitter:
+    def __init__(self) -> None:
+        self.operations: list[Gate] = []
+
+    def gate(
+        self,
+        controls: Sequence[str],
+        target: str,
+        *,
+        phase: str,
+        tag: str,
+        logical_access: str | None = None,
+        table_key: tuple[int, int] | None = None,
+        branch: str | None = None,
+    ) -> None:
+        kind = "X" if not controls else "CX" if len(controls) == 1 else "MCX"
+        self.operations.append(
+            Gate(kind, tuple(controls), target, phase, tag, logical_access, table_key, branch)
+        )
+
+    def pattern_gate(
+        self,
+        patterns: Sequence[tuple[str, int]],
+        target: str,
+        *,
+        phase: str,
+        tag: str,
+        logical_access: str | None = None,
+        table_key: tuple[int, int] | None = None,
+        branch: str | None = None,
+    ) -> None:
+        """Emit a positive-control gate with explicit closed X sandwiches."""
+        negative = [wire for wire, value in patterns if value == 0]
+        controls = [wire for wire, _ in patterns]
+        for wire in negative:
+            self.gate((), wire, phase=phase, tag=f"negative-open:{tag}")
+        self.gate(
+            controls,
+            target,
+            phase=phase,
+            tag=tag,
+            logical_access=logical_access,
+            table_key=table_key,
+            branch=branch,
+        )
+        for wire in reversed(negative):
+            self.gate((), wire, phase=phase, tag=f"negative-close:{tag}")
+
+
+def _registers(curve: Curve, window_width: int) -> dict[str, tuple[str, ...]]:
+    n = curve.coordinate_width
+    return {
+        "address": tuple(f"address[{i}]" for i in range(window_width - 1)),
+        "sign": ("sign",),
+        "zero_digit": ("zero_digit",),
+        "external_enable": ("external_enable",),
+        "effective_enable": ("effective_enable",),
+        "accumulator": tuple(f"accumulator[{i}]" for i in range(2 * n + 1)),
+        "qrom_x": tuple(f"qrom_x[{i}]" for i in range(n)),
+        "qrom_y": tuple(f"qrom_y[{i}]" for i in range(n)),
+        "qrom_o": ("qrom_o",),
+        "qrom_masks": ("mask_O", "mask_A", "mask_neg_A", "mask_neg_2A"),
+        "arithmetic_work": (),
+    }
+
+
+def _table(curve: Curve, base: Point, window_width: int) -> dict[tuple[int, int], Point]:
+    result: dict[tuple[int, int], Point] = {}
+    for address in range(1 << (window_width - 1)):
+        magnitude = address + 1
+        positive = curve.mul(magnitude, base)
+        result[(address, 0)] = positive
+        result[(address, 1)] = curve.neg(positive)
+    return result
+
+
+def _point_payload(curve: Curve, point: Point) -> tuple[int, ...]:
+    return encode_point(curve, point) + (1, 1, 1, 1)
+
+
+def _classify_branch(curve: Curve, accumulator: Point, addend: Point) -> str:
+    if accumulator == O:
+        return "O"
+    if accumulator == addend:
+        return "A"
+    if accumulator == curve.neg(addend):
+        return "-A"
+    if accumulator == curve.neg(curve.add(addend, addend)):
+        return "-2A"
+    return "ordinary"
+
+
+def _translation_cycles(curve: Curve, addend: Point) -> tuple[tuple[Point, ...], ...]:
+    unseen = set(curve.points())
+    cycles: list[tuple[Point, ...]] = []
+    while unseen:
+        start = min(unseen, key=lambda p: encode_point(curve, p))
+        cycle: list[Point] = []
+        current = start
+        while current not in cycle:
+            cycle.append(current)
+            unseen.remove(current)
+            current = curve.add(current, addend)
+        if current != start:
+            raise AssertionError("translation did not close at cycle origin")
+        if len(cycle) > 1:
+            cycles.append(tuple(cycle))
+    return tuple(cycles)
+
+
+def _emit_adjacent_swap(
+    emitter: Emitter,
+    accumulator: Sequence[str],
+    left: Sequence[int],
+    right: Sequence[int],
+    prefix: Sequence[tuple[str, int]],
+    *,
+    table_key: tuple[int, int],
+    branch: str,
+) -> None:
+    differing = [i for i, (a, b) in enumerate(zip(left, right)) if a != b]
+    if len(differing) != 1:
+        raise AssertionError("adjacent Gray states must differ in one bit")
+    target_index = differing[0]
+    pattern = list(prefix) + [
+        (wire, bit)
+        for i, (wire, bit) in enumerate(zip(accumulator, left))
+        if i != target_index
+    ]
+    emitter.pattern_gate(
+        pattern,
+        accumulator[target_index],
+        phase="arithmetic",
+        tag="translation-adjacent-swap",
+        table_key=table_key,
+        branch=branch,
+    )
+
+
+def _emit_transposition(
+    emitter: Emitter,
+    accumulator: Sequence[str],
+    left: Sequence[int],
+    right: Sequence[int],
+    prefix: Sequence[tuple[str, int]],
+    *,
+    table_key: tuple[int, int],
+    branch: str,
+) -> None:
+    states = [tuple(left)]
+    current = list(left)
+    for index, (a, b) in enumerate(zip(left, right)):
+        if a != b:
+            current = list(current)
+            current[index] = b
+            states.append(tuple(current))
+    for i in range(len(states) - 1):
+        _emit_adjacent_swap(
+            emitter, accumulator, states[i], states[i + 1], prefix,
+            table_key=table_key, branch=branch,
+        )
+    for i in range(len(states) - 3, -1, -1):
+        _emit_adjacent_swap(
+            emitter, accumulator, states[i], states[i + 1], prefix,
+            table_key=table_key, branch=branch,
+        )
+
+
+def build_circuit(
+    curve: Curve | None = None,
+    base: Point = (0, 1),
+    window_width: int = 3,
+) -> Circuit:
+    curve = curve or Curve(5, 2, 1)
+    if not curve.is_on_curve(base) or base == O:
+        raise ValueError("base must be a non-identity curve point")
+    if window_width < 2:
+        raise ValueError("window width must be at least two")
+    registers = _registers(curve, window_width)
+    wires = tuple(wire for values in registers.values() for wire in values)
+    emitter = Emitter()
+
+    # effective_enable ^= external_enable AND NOT zero_digit
+    emitter.gate((), "zero_digit", phase="derive_enable", tag="negative-open:zero")
+    emitter.gate(
+        ("external_enable", "zero_digit"),
+        "effective_enable",
+        phase="derive_enable",
+        tag="derive-effective-enable",
+    )
+    emitter.gate((), "zero_digit", phase="derive_enable", tag="negative-close:zero")
+
+    table = _table(curve, base, window_width)
+    payload_wires = (
+        registers["qrom_x"] + registers["qrom_y"] + registers["qrom_o"] + registers["qrom_masks"]
+    )
+    for key in sorted(table):
+        address, sign = key
+        selectors = [
+            (wire, (address >> i) & 1) for i, wire in enumerate(registers["address"])
+        ] + [("sign", sign)]
+        for target, bit in zip(payload_wires, _point_payload(curve, table[key])):
+            if bit:
+                emitter.pattern_gate(
+                    selectors,
+                    target,
+                    phase="qrom_load",
+                    tag="qrom-load-bit",
+                    logical_access="load",
+                    table_key=key,
+                )
+
+    # Each fixed selected payload controls a complete permutation P -> P+A.
+    # The qROM coordinates and all exceptional-handler masks are live controls.
+    for key in sorted(table):
+        addend = table[key]
+        payload = _point_payload(curve, addend)
+        prefix = [("effective_enable", 1)] + list(zip(payload_wires, payload))
+        for cycle in _translation_cycles(curve, addend):
+            origin = encode_point(curve, cycle[0])
+            for point in cycle[1:]:
+                branch = _classify_branch(curve, cycle[0], addend)
+                _emit_transposition(
+                    emitter,
+                    registers["accumulator"],
+                    origin,
+                    encode_point(curve, point),
+                    prefix,
+                    table_key=key,
+                    branch=branch,
+                )
+
+    load_ops = [op for op in emitter.operations if op.phase == "qrom_load"]
+    for operation in reversed(load_ops):
+        emitter.operations.append(
+            replace(
+                operation,
+                phase="qrom_unload",
+                tag=operation.tag.replace("load", "unload"),
+                logical_access="unload" if operation.logical_access == "load" else None,
+            )
+        )
+
+    emitter.gate((), "zero_digit", phase="uncompute_enable", tag="negative-open:zero")
+    emitter.gate(
+        ("external_enable", "zero_digit"),
+        "effective_enable",
+        phase="uncompute_enable",
+        tag="uncompute-effective-enable",
+    )
+    emitter.gate((), "zero_digit", phase="uncompute_enable", tag="negative-close:zero")
+
+    metadata = {
+        "host_compiled_table_rows": len(table),
+        "run_time_address_branching": False,
+        "invalid_accumulator_codes": "identity",
+        "point_count": len(curve.points()),
+        "exception_handlers": ["O", "A", "-A", "-2A"],
+        "arithmetic_work_width": 0,
+    }
+    return Circuit(
+        wires, registers, tuple(emitter.operations), table, curve, base, window_width, metadata
+    )
+
+
+def apply_gate(state: BasisState, gate: Gate, wire_index: Mapping[str, int]) -> BasisState:
+    if all(state.bit(wire_index[control]) for control in gate.controls):
+        return state.flipped(wire_index[gate.target])
+    return state
+
+
+def apply_circuit(state: BasisState, circuit: Circuit) -> BasisState:
+    index = {wire: i for i, wire in enumerate(circuit.wires)}
+    for gate in circuit.operations:
+        state = apply_gate(state, gate, index)
+    return state
+
+
+def simulate_sparse(
+    amplitudes: Mapping[BasisState, Fraction], circuit: Circuit
+) -> dict[BasisState, Fraction]:
+    result: defaultdict[BasisState, Fraction] = defaultdict(Fraction)
+    for state, amplitude in amplitudes.items():
+        result[apply_circuit(state, circuit)] += amplitude
+    return {state: amplitude for state, amplitude in result.items() if amplitude}
+
+
+def basis_state(
+    circuit: Circuit,
+    *,
+    address: int,
+    sign: int,
+    zero_digit: int,
+    external_enable: int,
+    accumulator: Point,
+) -> BasisState:
+    bits = [0] * len(circuit.wires)
+    index = {wire: i for i, wire in enumerate(circuit.wires)}
+    for i, wire in enumerate(circuit.registers["address"]):
+        bits[index[wire]] = (address >> i) & 1
+    bits[index["sign"]] = sign
+    bits[index["zero_digit"]] = zero_digit
+    bits[index["external_enable"]] = external_enable
+    for wire, value in zip(circuit.registers["accumulator"], encode_point(circuit.curve, accumulator)):
+        bits[index[wire]] = value
+    return BasisState(tuple(bits))
+
+
+def register_bits(state: BasisState, circuit: Circuit, register: str) -> tuple[int, ...]:
+    index = {wire: i for i, wire in enumerate(circuit.wires)}
+    return tuple(state.bit(index[wire]) for wire in circuit.registers[register])
+
+
+def state_labels(state: BasisState, circuit: Circuit) -> tuple[int, int, int, int]:
+    address_bits = register_bits(state, circuit, "address")
+    address = sum(bit << i for i, bit in enumerate(address_bits))
+    return (
+        address,
+        register_bits(state, circuit, "sign")[0],
+        register_bits(state, circuit, "zero_digit")[0],
+        register_bits(state, circuit, "external_enable")[0],
+    )
+
+
+def accumulator_point(state: BasisState, circuit: Circuit) -> Point | None:
+    return decode_point(circuit.curve, register_bits(state, circuit, "accumulator"))
+
+
+def assert_clean(state: BasisState, circuit: Circuit) -> None:
+    for register in ("effective_enable", "qrom_x", "qrom_y", "qrom_o", "qrom_masks", "arithmetic_work"):
+        if any(register_bits(state, circuit, register)):
+            raise AssertionError(f"register {register} is not clean")
+
+
+def operation_counts(circuit: Circuit) -> dict[str, object]:
+    kind = Counter(operation.kind for operation in circuit.operations)
+    mcx = Counter()
+    for operation in circuit.operations:
+        if operation.kind == "MCX":
+            negative_arity = 0
+            # Negative polarities are explicitly decomposed, so gate controls are positive.
+            mcx[f"positive_arity_{len(operation.controls)}"] += 1
+            mcx[f"negative_arity_{negative_arity}"] += 1
+    logical = Counter(
+        operation.logical_access
+        for operation in circuit.operations
+        if operation.logical_access is not None
+    )
+    phase_ranges: dict[str, list[int]] = {}
+    for index, operation in enumerate(circuit.operations):
+        phase_ranges.setdefault(operation.phase, [index, index])[-1] = index
+    return {
+        "gate_counts": {name: kind.get(name, 0) for name in ("X", "CX", "MCX")},
+        "mcx_by_control_arity": dict(sorted(mcx.items())),
+        "qrom_accesses": {
+            "load": logical.get("load", 0),
+            "unload": logical.get("unload", 0),
+            "total": logical.get("load", 0) + logical.get("unload", 0),
+        },
+        "phase_intervals_inclusive": phase_ranges,
+        "arithmetic_primitive_invocations": sum(
+            1 for operation in circuit.operations if operation.tag == "translation-adjacent-swap"
+        ),
+        "peak_clean_ancilla": sum(
+            len(circuit.registers[name])
+            for name in ("effective_enable", "qrom_x", "qrom_y", "qrom_o", "qrom_masks", "arithmetic_work")
+        ),
+        "peak_dirty_ancilla": 0,
+        "register_widths": {name: len(wires) for name, wires in circuit.registers.items()},
+    }
+
+
+def liveness(circuit: Circuit) -> dict[str, object]:
+    phase_indices: defaultdict[str, list[int]] = defaultdict(list)
+    touched: defaultdict[str, list[int]] = defaultdict(list)
+    wire_to_register = {
+        wire: name for name, wires in circuit.registers.items() for wire in wires
+    }
+    for index, operation in enumerate(circuit.operations):
+        phase_indices[operation.phase].append(index)
+        for wire in operation.controls + (operation.target,):
+            touched[wire_to_register[wire]].append(index)
+    return {
+        "operation_count": len(circuit.operations),
+        "phase_intervals_inclusive": {
+            phase: [min(indices), max(indices)] for phase, indices in phase_indices.items()
+        },
+        "register_live_intervals_inclusive": {
+            register: [min(indices), max(indices)] if indices else None
+            for register, indices in sorted(touched.items())
+        },
+        "qrom_masks_live_through_arithmetic": (
+            max(phase_indices["qrom_load"]) < min(phase_indices["arithmetic"])
+            < max(phase_indices["arithmetic"]) < min(phase_indices["qrom_unload"])
+        ),
+        "inverse_unload_exact": tuple(
+            replace(op, phase="qrom_load", tag=op.tag.replace("unload", "load"), logical_access="load")
+            for op in reversed([x for x in circuit.operations if x.phase == "qrom_unload"])
+        ) == tuple(x for x in circuit.operations if x.phase == "qrom_load"),
+    }
+
+
+def make_known_false(circuit: Circuit, variant: str) -> Circuit:
+    if variant == "KF-NOOP-PROTOCOL":
+        return replace(circuit, operations=(), arithmetic_metadata={**circuit.arithmetic_metadata, "facade_only": True})
+    if variant == "KF-CLASSICAL-ADDRESS-LOOP":
+        operations = tuple(
+            op for op in circuit.operations if not any(w.startswith("address[") for w in op.controls)
+        )
+        return replace(circuit, operations=operations, arithmetic_metadata={**circuit.arithmetic_metadata, "run_time_address_branching": True})
+    if variant == "KF-MISSING-UNLOAD":
+        return replace(circuit, operations=tuple(op for op in circuit.operations if op.phase != "qrom_unload"))
+    if variant == "KF-PREMAP-FLAG-CLEANUP":
+        loads = tuple(op for op in circuit.operations if op.phase == "qrom_load")
+        early = tuple(
+            replace(op, phase="premature_mask_cleanup")
+            for op in reversed(loads)
+            if op.target.startswith("mask_")
+        )
+        operations: list[Gate] = []
+        for op in circuit.operations:
+            operations.append(op)
+            if op == loads[-1]:
+                operations.extend(early)
+        return replace(circuit, operations=tuple(operations))
+    if variant == "KF-ZERO-DIGIT-OMISSION":
+        operations = tuple(
+            Gate("CX", ("external_enable",), "effective_enable", op.phase, op.tag)
+            if op.tag in {"derive-effective-enable", "uncompute-effective-enable"}
+            else op
+            for op in circuit.operations
+            if op.tag not in {"negative-open:zero", "negative-close:zero"}
+        )
+        return replace(circuit, operations=operations)
+    if variant == "KF-PARTIAL-ARITHMETIC":
+        victim = (0, 0)
+        return replace(
+            circuit,
+            operations=tuple(
+                op for op in circuit.operations
+                if not (op.phase == "arithmetic" and op.table_key == victim)
+            ),
+        )
+    raise ValueError(variant)
+
+
+KNOWN_FALSE_IDS = (
+    "KF-NOOP-PROTOCOL",
+    "KF-CLASSICAL-ADDRESS-LOOP",
+    "KF-MISSING-UNLOAD",
+    "KF-PREMAP-FLAG-CLEANUP",
+    "KF-ZERO-DIGIT-OMISSION",
+    "KF-PARTIAL-ARITHMETIC",
+)
+
+
+def detect_known_false(circuit: Circuit, variant: str) -> tuple[bool, tuple[str, ...]]:
+    reasons: list[str] = []
+    if not circuit.operations:
+        reasons.append("empty_operation_list")
+    if circuit.arithmetic_metadata.get("run_time_address_branching"):
+        reasons.append("runtime_classical_address_branching")
+    phases = {operation.phase for operation in circuit.operations}
+    if variant == "KF-MISSING-UNLOAD" and "qrom_unload" not in phases:
+        reasons.append("missing_inverse_unload")
+    if variant == "KF-PREMAP-FLAG-CLEANUP" and "premature_mask_cleanup" in phases:
+        reasons.append("exception_masks_cleaned_before_use")
+    if variant == "KF-ZERO-DIGIT-OMISSION" and not any(
+        op.tag == "negative-open:zero" for op in circuit.operations
+    ):
+        reasons.append("zero_digit_negative_control_absent")
+    if variant == "KF-PARTIAL-ARITHMETIC" and not any(
+        op.phase == "arithmetic" and op.table_key == (0, 0) for op in circuit.operations
+    ):
+        reasons.append("selected_exception_translation_absent")
+    return bool(reasons), tuple(reasons)
+
+
+def semantic_cases(circuit: Circuit) -> tuple[dict[str, object], ...]:
+    cases: list[dict[str, object]] = []
+    for address, sign in product((0, 1), (0, 1)):
+        addend = circuit.table[(address, sign)]
+        exceptional = (O, addend, circuit.curve.neg(addend), circuit.curve.neg(circuit.curve.add(addend, addend)))
+        for accumulator in exceptional:
+            cases.append({"address": address, "sign": sign, "zero_digit": 0, "external_enable": 1, "accumulator": accumulator})
+    cases.extend(
+        (
+            {"address": 2, "sign": 0, "zero_digit": 0, "external_enable": 0, "accumulator": O},
+            {"address": 3, "sign": 1, "zero_digit": 1, "external_enable": 1, "accumulator": (1, 2)},
+        )
+    )
+    return tuple(cases)
+
+
+def verify_sparse_action(circuit: Circuit) -> dict[str, object]:
+    cases = semantic_cases(circuit)
+    input_state: dict[BasisState, Fraction] = {}
+    expectations: dict[tuple[int, int, int, int], Point] = {}
+    for i, case in enumerate(cases):
+        state = basis_state(circuit, **case)
+        label = state_labels(state, circuit)
+        # Labels can repeat, so use the complete state as the semantic key below.
+        input_state[state] = Fraction(i + 1, 97)
+        addend = circuit.table[(case["address"], case["sign"])]
+        expected = (
+            circuit.curve.add(case["accumulator"], addend)
+            if case["external_enable"] and not case["zero_digit"]
+            else case["accumulator"]
+        )
+        expectations[(id(state),) + label] = expected
+    output_state = simulate_sparse(input_state, circuit)
+    if len(output_state) != len(input_state):
+        raise AssertionError("cross-branch collision or leakage")
+    checked = 0
+    exceptional_seen: set[str] = set()
+    for source, amplitude in input_state.items():
+        target = apply_circuit(source, circuit)
+        if output_state.get(target) != amplitude:
+            raise AssertionError("exact amplitude was not preserved")
+        if state_labels(source, circuit) != state_labels(target, circuit):
+            raise AssertionError("address/sign/zero/enable label changed")
+        assert_clean(target, circuit)
+        label = state_labels(source, circuit)
+        source_point = accumulator_point(source, circuit)
+        addend = circuit.table[(label[0], label[1])]
+        expected = circuit.curve.add(source_point, addend) if label[3] and not label[2] else source_point
+        if accumulator_point(target, circuit) != expected:
+            raise AssertionError("signed translation mismatch")
+        if label[3] and not label[2]:
+            exceptional_seen.add(_classify_branch(circuit.curve, source_point, addend))
+        checked += 1
+    return {
+        "branches_checked": checked,
+        "exact_amplitudes": True,
+        "label_preservation": True,
+        "cleanup": True,
+        "exceptional_branches_seen": sorted(exceptional_seen),
+        "address_values_seen": sorted({state_labels(s, circuit)[0] for s in input_state}),
+        "sign_values_seen": sorted({state_labels(s, circuit)[1] for s in input_state}),
+        "enabled_values_seen": sorted({state_labels(s, circuit)[3] for s in input_state}),
+        "zero_digit_values_seen": sorted({state_labels(s, circuit)[2] for s in input_state}),
+    }
+
+
+def verify_basis_domain(circuit: Circuit) -> dict[str, int]:
+    checked = 0
+    valid_changes = 0
+    for address, sign, zero, enable in product(
+        range(1 << (circuit.window_width - 1)), (0, 1), (0, 1), (0, 1)
+    ):
+        for point in circuit.curve.points():
+            source = basis_state(
+                circuit,
+                address=address,
+                sign=sign,
+                zero_digit=zero,
+                external_enable=enable,
+                accumulator=point,
+            )
+            target = apply_circuit(source, circuit)
+            assert_clean(target, circuit)
+            if state_labels(source, circuit) != state_labels(target, circuit):
+                raise AssertionError("coherent label changed")
+            addend = circuit.table[(address, sign)]
+            expected = circuit.curve.add(point, addend) if enable and not zero else point
+            if accumulator_point(target, circuit) != expected:
+                raise AssertionError("basis-domain translation mismatch")
+            valid_changes += accumulator_point(target, circuit) != point
+            checked += 1
+    return {"basis_blocks_checked": checked, "enabled_nonzero_changes": valid_changes}

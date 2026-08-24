@@ -53,24 +53,68 @@ def s4_expr(a: int, b: int):
     """Fourth summation polynomial via resultant S4 = Res_t(S3(x1,x2,t), S3(x3,x4,t))."""
     x4 = sympy.symbols("x4")
     left = s3_expr(a, b).subs(x3, _t)
-    right = s3_expr(a, b).subs({x1: x3, x2: x4, x3: _t})
+    right = s3_expr(a, b).subs(
+        {x1: x3, x2: x4, x3: _t}, simultaneous=True
+    )
     return sympy.resultant(left, right, _t)
 
 
-def build_factor_base(inst: ECDLPInstance, size: int, seed: int = 0) -> list[int]:
-    """Deterministic factor base: `size` distinct on-curve x-coordinates."""
+def build_factor_base(inst: ECDLPInstance, size: int, seed: int = 0, *,
+                      scope: str = "full_curve") -> list[int]:
+    """Deterministic factor base of distinct on-curve x-coordinates.
+
+    ``full_curve`` preserves the legacy seeded sampling behavior.  The
+    opt-in ``target_subgroup`` scope enumerates nonzero multiples of ``P``
+    and verifies each canonical lift is in the order-``n`` subgroup.
+    """
+    if scope == "full_curve":
+        E = inst.curve()
+        p = E.p
+        xs: list[int] = []
+        j = 0
+        while len(xs) < size and j < 50 * size + 1000:
+            x = _seed_int(seed if seed else inst.seed, f"fb{j}") % p
+            j += 1
+            if x in xs:
+                continue
+            if E.lift_x(x) is not None:
+                xs.append(x)
+        return xs
+
+    if scope != "target_subgroup":
+        raise ValueError(f"unknown factor-base scope: {scope}")
+
+    maximum_size = (inst.n - 1) // 2
+    if size > maximum_size:
+        raise ValueError(
+            f"target_subgroup factor-base size {size} exceeds maximum "
+            f"{maximum_size} for subgroup order {inst.n}"
+        )
+    if size == 0:
+        return []
+
     E = inst.curve()
-    p = E.p
-    xs: list[int] = []
-    j = 0
-    while len(xs) < size and j < 50 * size + 1000:
-        x = _seed_int(seed if seed else inst.seed, f"fb{j}") % p
-        j += 1
+    xs = []
+    for scalar in range(1, inst.n):
+        R = E.mul(scalar, inst.P)
+        if R is None:
+            continue
+        x = R[0]
         if x in xs:
             continue
-        if E.lift_x(x) is not None:
-            xs.append(x)
-    return xs
+        canonical_lift = E.lift_x(x)
+        if canonical_lift is None or E.mul(inst.n, canonical_lift) is not None:
+            raise ValueError(
+                f"canonical lift for x={x} is not in the target subgroup"
+            )
+        xs.append(x)
+        if len(xs) == size:
+            return xs
+
+    raise ValueError(
+        f"target_subgroup factor-base shortfall: requested {size}, "
+        f"constructed {len(xs)}"
+    )
 
 
 @dataclass

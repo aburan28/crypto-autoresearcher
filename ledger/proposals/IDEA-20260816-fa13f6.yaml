@@ -1,0 +1,246 @@
+idea:
+  id: IDEA-20260816-fa13f6
+  question_id: RQ-SHAONE-081e3a
+  added: '2026-08-16'
+  title: 'Ask whether the birthday phase is reusable across targets: measure the marginal cost of
+    the Nth chosen-prefix collision when the search state is retained, at analogue scale where all
+    N collisions can be produced and verified, and report the amortization exponent against a cold-start
+    baseline.'
+  class: mechanism
+  claim: '(A) Chosen-prefix costs are quoted per collision, which implicitly assumes each collision
+    costs the same as the first. An attacker wanting N collisions against N different prefix pairs
+    may or may not be able to reuse the birthday-phase search state -- the distinguished-point table,
+    the accumulated trails, or the near-collision block chains -- and whether they can is a structural
+    property of the attack, not a matter of opinion. (B) Define the amortization exponent alpha by
+    fitting total cost for N collisions as C(N) proportional to N^alpha at fixed parameters. Cold
+    start gives alpha = 1 by construction. Any alpha below 1 means per-collision cost falls with N,
+    and the gap between the measured alpha and 1 is the quantity a per-collision quotation omits when
+    the attacker''s actual goal is many collisions. (C) The claim is that alpha is measurable at analogue
+    scale, where all N collisions can be produced and each verified by direct recomputation, that
+    it can be measured separately for the birthday phase and the near-collision phase so the reuse
+    is localised to a phase rather than asserted globally, and that a null arm with deliberately independent
+    search state pins alpha = 1 and validates the measurement. (D) WHAT IS NOT CLAIMED: no attack,
+    no cost figure for SHA-1, no claim that multi-target attacks are or are not practical anywhere,
+    no assertion about published multi-target results, and no security consequence. Alpha measured
+    at analogue scale for a particular reuse policy is a statement about that policy at that scale.
+    (E) A measured alpha indistinguishable from 1 is a fully valuable result: it would say the per-collision
+    quotation convention is sound for this attack, which is currently untested in this repository.'
+  mechanism: 'STAGE 1: define the reuse policy explicitly and enumerate its variants -- no reuse (cold
+    start), table reuse only, trail reuse, and near-collision-chain suffix reuse. These are distinct
+    policies with distinct correctness obligations, and conflating them is the main way an amortization
+    claim goes wrong. STAGE 2: implement each policy over a shared analogue pipeline and a shared
+    evaluation counter, so that policy is the only thing varying. STAGE 3: for each policy, produce
+    N collisions for N distinct prefix pairs at increasing N, recording cumulative evaluations after
+    each success and verifying each collision by direct recomputation. STAGE 4: fit alpha for each
+    policy over the measured C(N) curve, with bootstrap intervals, and report the fit''s residuals
+    rather than only its exponent. STAGE 5: the null arm -- the cold-start policy, in which each collision
+    is produced with freshly seeded independent state, must return alpha indistinguishable from 1.
+    If it does not, the measurement or the fitting is broken and no other policy''s alpha is admissible.
+    STAGE 6: phase decomposition -- report alpha separately for birthday-phase evaluations and for
+    near-collision-phase evaluations, so that any observed amortization is attributed to a phase and
+    a mechanism rather than reported as a bare aggregate.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Read RQ-SHAONE-081e3a and GOAL-SHA1-001 in full. Ran: grep -ril ''amortization|amortisation''
+      ledger/proposals (73 hits, titles sampled); grep -ril ''multi-target'' ledger/proposals (111
+      hits, sampled); grep -l ''RQ-SHAONE'' ledger/proposals/*.yaml (zero); grep -ril ''chosen-prefix''
+      ledger/proposals (four elliptic-curve false matches). Read knowledge/literature/KN-LIT-91b680.md
+      and knowledge/techniques/KN-TECH-066.md; read ledger/goals/GOAL-MD5-001.yaml for pipeline ownership.'
+    results: Amortization and multi-target vocabulary is common (73 and 111 proposals) but every sampled
+      record is an elliptic-curve, isogeny or lattice record; multi-target in this repository almost
+      always means multiple discrete-log instances against one group, and the batch blacklist confirms
+      that space is owned elsewhere. No record measures a cost curve C(N) for repeated hash collisions,
+      and no record defines an amortization exponent for a two-phase collision attack. GOAL-MD5-001
+      owns executable end-to-end collision generation and explicitly assigns the chosen-prefix cost
+      model to GOAL-SHA1-001, which is where this proposal sits. Zero proposals against RQ-SHAONE-081e3a.
+    verdict: 'UNVERIFIED. Nothing is asserted about whether multi-collision amortization for chosen-prefix
+      attacks appears in published work; multi-target amortization is a standard concern in cryptanalysis
+      generally and it plausibly does. What is new internally is specific: this repository holds no
+      C(N) curve for any hash attack, and the design of measuring alpha separately per phase against
+      a cold-start null that must return alpha = 1 is assembled from the program''s own null-control
+      discipline rather than from any external source.'
+  object_first_candidate:
+    tracked_object: 'The retained search state and its provenance: the distinguished-point table entries,
+      trails and near-collision chain suffixes carried across collision instances, each tagged with
+      the instance that created it. What is followed is which retained items are REUSED by a later
+      instance and how many evaluations that reuse saves, which is the object whose accumulation determines
+      alpha.'
+    lossiness: 'Genuinely lossy. The projection retains, per state item, only its creating instance
+      and its reuse count, discarding the item''s contents entirely. It is compatible with the operation
+      because reuse accounting depends only on identity and hit count, not on content, so the retained
+      tags propagate as the search proceeds. What is lost is any ability to say WHY a particular item
+      was reusable -- whether it was structurally general or merely lucky -- which is why the phase
+      decomposition in STAGE 6 is required: it recovers, at the coarse level of phase, the attribution
+      the tag-level projection discards.'
+    propagation: One step of the target operation is producing one more collision for a new prefix
+      pair. It acts on the tracked object by adding newly created state items with the current instance's
+      tag, and by incrementing reuse counts on items inherited from earlier instances. The cumulative
+      evaluation counter advances by the work not saved by reuse, so C(N) is a direct readout of the
+      object's accumulation and alpha is its fitted growth exponent.
+    survival_score: The retained-state object survives across instances as long as retained items
+      remain valid for new prefix pairs. It dissolves at the point where a new prefix pair's target-difference
+      requirement no longer intersects the retained table's coverage -- concretely, once the accumulated
+      table's target coverage saturates, further instances gain nothing and alpha returns to 1 from
+      above that N. Locating that saturation N is a required metric and is arguably the most informative
+      single number the experiment produces.
+  null_object_control: 'Cold-start policy: produce each of the N collisions with freshly seeded, wholly
+    independent search state, using the IDENTICAL pipeline, kernel and counter in the same invocation.
+    By construction this must yield C(N) proportional to N and alpha indistinguishable from 1. The
+    null validates the counter, the fitting procedure and the instance-generation process all at once;
+    if cold start does not return alpha = 1 within its bootstrap interval, the instrument is broken
+    and no reuse policy''s alpha may be reported. A second null uses randomly drawn, mutually unrelated
+    prefix pairs to confirm alpha is not an artifact of correlated targets.'
+  discriminated_from:
+  - 'The identical-prefix versus chosen-prefix ratio proposal in this batch: that compares two different
+    attacks at one collision each; this measures one attack repeated N times. Different operation,
+    different object, and neither may borrow the other''s counts.'
+  - 'The birthday-phase efficiency proposal in this batch: that measures within-run waste at fixed
+    N = 1; this measures cross-run reuse. The shared analogue methodology is deliberate and the shared
+    kernel is a requirement, but the measured quantities are disjoint.'
+  - 'The 111 multi-target proposals in the repository: all concern multiple discrete-log or lattice
+    instances, an entirely different object; the batch blacklist confirms those spaces are owned by
+    other questions and nothing here touches them.'
+  - 'GOAL-MD5-001''s end-to-end collision generation: that goal owns making the pipeline produce a
+    collision; this consumes a working pipeline and measures how cost accumulates over repeated use,
+    which that goal does not address.'
+  - 'A generic claim that attacks amortize: that is an assertion; this produces a fitted exponent
+    per policy per phase with residuals, bootstrap intervals, a saturation N, and a cold-start null
+    that must return 1.'
+  assumptions:
+  - Retained state remains CORRECT for new prefix pairs under each declared reuse policy; correctness
+    is verified by direct recomputation of every collision, not assumed from the policy's description.
+  - The analogue's two-phase structure is faithful enough that phase-level attribution of amortization
+    is meaningful; this is an extrapolation assumption and no numeric transfer to full scale is performed.
+  - N can be taken large enough for a power-law fit to be meaningful, which STAGE 3 must establish
+    rather than assume.
+  - Prefix pairs are drawn independently, so any measured amortization is not an artifact of correlated
+    targets; the second null checks this.
+  - Evaluation counts, not wall clock, are the cost unit, making the result machine-independent.
+  predictions:
+  - metric: amortization exponent alpha for the cold-start null policy
+    direction: different
+    minimum_effect: predicted indistinguishable from 1.0 within its bootstrap interval; any material
+      deviation is an instrument failure that voids every other policy
+  - metric: amortization exponent alpha for the table-reuse policy
+    direction: lower
+    minimum_effect: 0.95
+  - metric: saturation N at which per-collision marginal cost returns to the cold-start level
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit a value: the saturation point depends on table
+      capacity and target-set cardinality in ways the design deliberately does not fix in advance,
+      and a pre-committed number would prejudge the result.'
+  - metric: birthday-phase alpha relative to near-collision-phase alpha under table reuse
+    direction: lower
+    minimum_effect: 0.1
+  minimal_test:
+    design: The cheapest discriminating run measures only the cold-start null and the table-reuse
+      policy at the smallest analogue width, for N up to a modest declared value, in one invocation
+      with a shared kernel and counter. Each collision is verified by direct recomputation. This costs
+      CPU-hours and no GPU, and it answers the two gating questions at once. First, does cold start
+      return alpha indistinguishable from 1, validating the counter and the fit? Second, does table
+      reuse produce any measurable departure at all? If cold start fails to return 1, nothing else
+      in the design is admissible and the run's whole value is that diagnosis, delivered cheaply.
+      If table reuse returns alpha indistinguishable from cold start, the per-collision quotation
+      convention is validated at this scale and the line closes with a measured number rather than
+      a verdict, which under the closure standard is exactly the kind of negative result worth having.
+    controls:
+    - Cold-start policy as the primary null, same invocation, same kernel and counter, which must
+      return alpha = 1.
+    - Independently drawn, mutually unrelated prefix pairs as a second null against correlated-target
+      artifacts.
+    - Direct recomputation verification of every collision produced under every policy.
+    - Shared compression kernel with its byte hash recorded, so no policy benefits from a different
+      implementation.
+    - Reporting the C(N) curve and fit residuals, not only alpha, so a reader can see whether a power
+      law is even the right form.
+    required_metrics:
+    - cumulative evaluations after each of the N successes, per policy
+    - fitted alpha with bootstrap interval and fit residuals, per policy
+    - alpha decomposed into birthday-phase and near-collision-phase contributions
+    - saturation N where marginal cost returns to the cold-start level
+    - retained state item count and reuse hit counts
+    - collisions verified by direct recomputation as a fraction of collisions produced
+    - peak memory per policy, reported beside cost and never folded into alpha
+  falsification_conditions:
+  - Cold start does not return alpha indistinguishable from 1, voiding the instrument and every other
+    policy's exponent.
+  - Table reuse returns alpha indistinguishable from cold start, closing the amortization hypothesis
+    at this scale with a measured null.
+  - Any collision produced under a reuse policy fails direct recomputation, showing the policy is
+    not correctness-preserving and voiding its cost curve.
+  - Fit residuals show C(N) is not a power law, so alpha is the wrong summary and must not be reported
+    as one.
+  - N cannot be taken far enough within budget for a fit with usable intervals -- a budget outcome,
+    explicitly not evidence about amortization.
+  confounders:
+  - Memory growth under reuse policies can hit the ceiling and throttle later instances, producing
+    an apparent return to alpha = 1 that is a resource artifact rather than saturation.
+  - Correlated prefix pairs would create spurious amortization; the second null exists solely to detect
+    this.
+  - A reuse policy that is subtly incorrect can look cheap precisely because it is skipping necessary
+    work, which is why every collision is recomputed independently.
+  - Fitting a power law over a short N range is unreliable and can return a confident exponent from
+    noise.
+  interpretation_limits:
+  - Alpha measured at analogue scale under a declared reuse policy is a statement about that policy
+    at that scale; no transfer to full-scale parameters is performed or licensed.
+  - A low alpha describes cost accumulation, not feasibility, and says nothing about whether any multi-collision
+    attack is practical anywhere.
+  - Phase-level attribution is coarse and does not identify which structural feature enables reuse.
+  - Nothing here bears on SHA-1's security, on any detector, or on any deployed system.
+  target_complexity:
+    time_exponent: No attack exponent in the cryptanalytic sense is claimed. Alpha is an amortization
+      exponent describing how measured cost accumulates over repeated runs at analogue scale, and
+      must not be read as an attack complexity exponent.
+    memory_exponent: No attack memory exponent is claimed. Peak memory per policy is reported as a
+      measured quantity beside the cost curve, since reuse policies trade memory for cost and collapsing
+      them would hide the trade.
+    best_known: The incumbent is the convention of quoting chosen-prefix cost per collision, which
+      RQ-SHAONE-081e3a treats as an inherited quantity. No algorithm is beaten; a per-collision convention
+      is tested against a measured curve.
+    hidden_overhead: 'Correctness of each reuse policy is the real burden: an incorrect policy looks
+      fast, so every collision must be independently recomputed, and that verification cost scales
+      with N and is easy to under-budget. Memory growth under reuse is unpredictable and can silently
+      become the binding constraint. Fitting a power law honestly over a short range requires reporting
+      residuals that will often be unflattering.'
+  dominated_by: 'n/a (no result claimed). Checked across time, memory and data/query axes: the deliverable
+    is an amortization exponent at analogue scale and places no point on any attack frontier, so the
+    single UNVERIFIED chosen-prefix cost row this repository holds in RQ-SHAONE-081e3a lies on a disjoint
+    axis set. Not null; inapplicable, and stated so.'
+  sota_delta: no attack; conceptual/measurement contribution only. Quantitatively the repository moves
+    from no C(N) data at all to a measured cost curve per reuse policy, a fitted exponent with intervals
+    and residuals, a phase decomposition, a saturation N, and a cold-start null pinned at 1. There
+    is no speed comparison to state because no algorithm is proposed.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'Separable parts. (1) That cold start returns alpha indistinguishable
+    from 1, validating the instrument: about 0.8, and if it does not the run still delivers a cheap
+    and important diagnosis. (2) That at least one reuse policy is implementable in a correctness-preserving
+    way, verified by recomputation: about 0.55 -- reuse across different prefix pairs has real correctness
+    obligations and this is where I expect the design to strain. (3) That table reuse shows alpha
+    materially below 1 before saturation: about 0.45; the birthday phase''s target-difference dependence
+    on the prefix pair may make retained trails largely useless, which would be a clean measured null.
+    (4) That N can be taken far enough for a fit with usable intervals: about 0.5. Composite roughly
+    0.10; the minimal cold-start-plus-table-reuse test sits near 0.44.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SHAONE-081e3a
+  - GOAL-SHA1-001
+  - GOAL-MD5-001
+  - RQ-MDFIVE-6870c1
+  - KN-LIT-91b680
+  - KN-TECH-066
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SHAONE-07376f

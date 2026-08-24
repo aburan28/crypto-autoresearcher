@@ -50,10 +50,9 @@ contract is in `AGENTS.md`. Read both before acting, and follow them exactly.
   each pairing a rigorous bound with the classical distribution theorem it
   imitates, and each carrying a concrete experimental validation route: what
   to sample and at what scale, via which shortcut (e.g. the Deuring
-  correspondence for crypto-scale sampling), against which predicted
+  correspondence for larger-parameter sampling), against which predicted
   distribution (e.g. Dickman–de Bruijn ρ(u)), with tail consistency checks.
-  Toy-scale validation must be labeled as such, never presented as
-  crypto-scale validation.
+  Record the sampled parameters and any transfer assumptions explicitly.
 - **State the target complexity.** Every idea must fill `target_complexity`:
   time and memory exponents versus the best known algorithm, honest disclosure
   of superpolynomial overhead hiding in o(1), and — when memory is large —

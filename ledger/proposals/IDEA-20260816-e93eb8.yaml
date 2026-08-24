@@ -1,0 +1,265 @@
+idea:
+  id: IDEA-20260816-e93eb8
+  question_id: RQ-ALECF-001
+  added: '2026-08-16'
+  title: Affine point addition has an exceptional set that uniform random sampling can never reach
+    at cryptographic size, so a benchmark validating on 9024 random shots is silent about it; measure
+    the exceptional set's density at toy scale and the exact miss probability of shot-based validation
+    as a function of the caller's input distribution.
+  class: control
+  claim: '(A) The imported ALECF benchmark validates a submitted point-addition circuit by simulating
+    it on 9024 random test points, with inputs derived from a Fiat-Shamir hash of the submitted op
+    stream so they cannot be tuned against, as its committed README states. That is a strong anti-overfitting
+    device and a weak coverage device, and the two properties are independent. (B) Affine short-Weierstrass
+    point addition is not a total function: it has an exceptional set where the chord-and-tangent
+    formula degenerates, namely inputs with P equal to Q, P equal to minus Q, either operand at infinity,
+    and any intermediate with a zero denominator under the implemented formula. On a curve of order
+    n the exceptional set has density on the order of a small constant over n, which at 256 bits is
+    around 2 to the minus 254 and at 13 bits is around 2 to the minus 11. (C) The claim is that the
+    miss probability of shot-based validation for a defect supported only on the exceptional set is
+    exactly (1 minus d) raised to the shot count, and is therefore a property of the benchmark''s
+    input distribution, not of the circuit: at 256 bits with 9024 shots the probability of ever sampling
+    an exceptional input is indistinguishable from zero, while at 13 bits the same 9024 shots would
+    hit it with near certainty. The validation gate''s coverage is thus a decreasing function of the
+    very scale at which the result matters. (D) The claim is that this is measurable exactly at toy
+    scale, where the exceptional set is enumerable, and that the measurement is a statement about
+    benchmark design and about the gap between a uniform input distribution and any structured caller''s
+    distribution. (E) WHAT IS NOT CLAIMED: no claim that any submitted circuit mishandles exceptional
+    inputs, no claim that the benchmark is wrong to sample uniformly, no claim about which input distribution
+    a real caller presents (this repository holds no such caller), no claim about Shor''s algorithm''s
+    inner loop, and no attack, break or feasibility statement of any kind. The result is a coverage
+    number attached to a validation rule.'
+  mechanism: 'STAGE 1: enumerate the exceptional set. For toy curves over F_p with p from 8 to 17
+    bits, enumerate all ordered pairs of curve points and classify each as generic or exceptional,
+    recording which degeneracy applies, and compute the exact density d(p) as a rational number rather
+    than an estimate. STAGE 2: fit the density law. Check d(p) against the expected form c over n
+    plus lower-order terms, where n is the group order, and report c with its variation across curves
+    rather than assuming it. STAGE 3: build a defective circuit. Implement a reversible affine point-add
+    circuit and a variant that is correct on generic inputs and wrong on the exceptional set only,
+    so the defect''s support is exactly the enumerated set. STAGE 4: run the benchmark''s own validation
+    rule. Sample N inputs uniformly, simulate, and record whether the defect is caught, repeating
+    many times to estimate the miss rate; compare against the closed form (1 minus d) to the N. STAGE
+    5: run the null arm, a defect supported on a random subset of the same density, through the identical
+    pipeline, to separate density-blindness from structure-blindness. STAGE 6: report d(p), the measured
+    versus predicted miss rates, the null comparison, and the extrapolated shot count that would be
+    needed for a stated coverage at each width, with the extrapolation labelled as arithmetic on d
+    and not as a claim about 256-bit circuits.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read experiments/EXP-ALECF-001/source/README.md in full, including the four validity conditions
+      and the stated 9024-shot count and Fiat-Shamir input derivation. Read harness/toycurve.py's
+      header and class definition, which implements short-Weierstrass arithmetic over F_p with an
+      explicit point at infinity. Confirmed RQ-ALECF-001 carries zero proposals. Grepped ledger/proposals/
+      for 'exceptional', 'point at infinity', 'complete addition', 'edge case' and 'coverage'.
+    results: No proposal in ledger/proposals/ was found concerning exceptional cases of the affine
+      addition law or the coverage of a random-shot validation gate. The nearest adjacent records
+      are IDEA-20260807-df906f and the group-law rigidity theorem lane, which the session brief lists
+      as established internal results about tracked-object taxonomy and one-step propagation for the
+      ECDLP; those concern the algebraic rigidity of the group law itself, not the coverage of a validation
+      sampler, and this proposal does not re-derive them. The mutation-testing contract elsewhere
+      in this same batch contains a rare-set row that overlaps arithmetically with the law used here,
+      and is named in discriminated_from below. harness/toycurve.py already represents the point at
+      infinity as None, which makes the enumeration straightforward and is the reason the toy-scale
+      arm is cheap.
+    verdict: 'UNVERIFIED. Exceptional cases of the affine addition law and complete addition formulas
+      are standard material outside this repository, and nothing is asserted about what has been published
+      on them or on validation coverage. What is claimed new here is only the pairing: enumerating
+      the exceptional set exactly at toy scale and measuring the miss probability of this specific
+      benchmark''s stated validation rule against a structure-matched null, so that the coverage gap
+      becomes a number attached to the rule. Assembled from known parts: the degeneracies of the chord-and-tangent
+      law, elementary sampling probability, and defect injection.'
+  object_first_candidate:
+    tracked_object: 'The input-distribution support pair: the exceptional set E of ordered point pairs
+      on which the implemented addition formula degenerates, together with the probability mass the
+      validation sampler assigns to E. The object followed is that mass as the curve size and shot
+      count vary.'
+    lossiness: 'The projection from a full circuit-plus-benchmark system to the pair (E, mass assigned
+      to E) discards the circuit entirely, the scoring functional, the gate counts, and all of the
+      arithmetic. It keeps a set and a measure. This is compatible with the operation of interest,
+      which is ''draw N inputs and check'', because that operation consumes exactly a distribution
+      and a set. The retained part propagates deterministically: enlarging the curve shrinks the mass
+      as a known function of the group order, and increasing N raises the coverage as (1 minus d)
+      to the N, both exact. What is discarded, the circuit, is precisely what a coverage number must
+      not depend on if it is to be a property of the benchmark, so the lossiness is the point rather
+      than a cost.'
+    propagation: 'One step of the target operation is a single validation shot: draw one input from
+      the benchmark''s distribution and check the circuit on it. Acting on the tracked object, one
+      shot converts the mass d into a detection event with probability d and leaves the state otherwise
+      unchanged, so N independent shots compose to coverage 1 minus (1 minus d) to the N. The second
+      operation, scaling the curve, acts on d by replacing n with a larger group order, and because
+      the exceptional set grows only linearly in n while the ordered-pair space grows quadratically,
+      d falls like one over n. The composition of these two propagations is the entire content: coverage
+      falls exponentially in the curve''s bit width at fixed shot count.'
+    survival_score: The structure survives every increase in curve size as an exact formula and never
+      dissolves algebraically; what dissolves is its usefulness, at a locatable point. Concretely,
+      at 13 bits with d around 2 to the minus 11 and N equal to 9024, coverage is essentially one;
+      at 32 bits coverage is around 2 to the minus 18 times 9024, that is roughly 0.03; at 256 bits
+      it is around 2 to the minus 241, which is zero for every practical purpose. So the validation
+      rule's coverage of the exceptional set survives to roughly 24 bits and is gone by 32, and that
+      crossover is the concrete survival number the experiment reports.
+  null_object_control: 'The null object is a defect supported on a uniformly random subset of ordered
+    point pairs having exactly the same cardinality as the exceptional set E, but no algebraic structure.
+    The identical circuit-injection, sampling and detection pipeline runs on it in the same invocation.
+    For the signal arm to mean anything the null must show the SAME miss rate: if it does, the measurement
+    has established that shot-based validation is blind to any rare defect purely by density, and
+    the exceptional set is unremarkable except that it is the rare set an implementer is most likely
+    to get wrong. If instead the exceptional-set arm is missed more often than the density-matched
+    random arm, the sampler is not merely density-blind and the difference must be explained before
+    either number is reported, most likely as a bug in the sampler or in the enumeration.'
+  discriminated_from:
+  - 'The mutation-detection-matrix contract elsewhere in this batch: that one measures a simulator''s
+    per-defect-class detection rates over an authored catalogue, with rare-set support density as
+    one row among seven; this one takes a specific algebraically defined set, enumerates it exactly,
+    and measures the benchmark''s own stated validation rule against it, with a structure-matched
+    null the other contract does not have.'
+  - 'IDEA-20260807-df906f (group-law rigidity, an established internal result named in the session
+    brief): concerns the algebraic rigidity of the group law and its four escapes; this proposal makes
+    no statement about rigidity and does not re-derive it, using only the elementary fact that the
+    affine formula has degeneracies.'
+  - 'IDEA-20260809-5de637 (pre-register a tolerance and try to reproduce published totals): a reproduction
+    contract for headline estimates; this measures a coverage probability of a validation sampler
+    and reproduces nothing.'
+  - 'Standard test-coverage practice: coverage is normally reported over code paths; here it is reported
+    over an algebraically characterized input set whose density is computed exactly, which makes the
+    miss probability a closed form rather than an empirical percentage.'
+  assumptions:
+  - harness/toycurve.py's short-Weierstrass arithmetic over F_p, with the point at infinity represented
+    explicitly, correctly identifies the degeneracies of the implemented formula; the enumeration
+    is only as good as that implementation and is cross-checked by recomputation.
+  - The benchmark's stated validation sampler is uniform over valid input pairs, as the committed
+    README implies; a non-uniform sampler would change d's effective value and the contract must report
+    which reading it assumed.
+  - Toy curves of 8 to 17 bits have exceptional sets of the same qualitative character as larger curves;
+    only the density law is extrapolated, and it is extrapolated as arithmetic on the group order
+    rather than as a claim about circuits.
+  - A defect can be constructed whose support is exactly the exceptional set, which is straightforward
+    in a simulator but is an assumption about the injection mechanism.
+  predictions:
+  - metric: exact density d of the exceptional set among ordered point pairs, at curve order n
+    direction: lower
+    minimum_effect: Predicted to lie within a factor of 4 of 3 divided by n across the tested curves;
+      the constant is not pre-committed more tightly because it depends on the count of order-2 points
+      and on the formula's intermediate degeneracies, which vary by curve.
+  - metric: measured miss rate of 9024-shot uniform validation for an exceptional-set-only defect
+      at 17-bit curve size
+    direction: higher
+    minimum_effect: 0.0
+  - metric: absolute difference between measured miss rate and the closed form (1 minus d) to the
+      N, across all tested widths
+    direction: lower
+    minimum_effect: 0.02
+  - metric: difference in miss rate between the exceptional-set arm and the density-matched random-subset
+      null
+    direction: lower
+    minimum_effect: 0.02
+  - metric: curve bit width at which 9024-shot coverage of the exceptional set falls below 0.5
+    direction: lower
+    minimum_effect: 26
+  minimal_test:
+    design: 'Pick three toy curves via harness/toycurve.py at 8, 13 and 17 bits. Enumerate all ordered
+      pairs of points at 8 bits exhaustively and by structured enumeration at the larger widths, classifying
+      each as generic or as one of the named degeneracies, and compute d exactly as a rational. Implement
+      one reversible affine point-add circuit plus one variant that is wrong exactly on E. Then run
+      the benchmark''s own rule: draw N inputs uniformly with N in {64, 512, 4096, 9024}, simulate,
+      record detection; repeat 2000 times per cell to estimate the miss rate with a Wilson interval.
+      In the same invocation, repeat the entire procedure with the defect moved to a random subset
+      of identical cardinality. The discriminating comparison is threefold and cheap: measured miss
+      rate against the closed form, exceptional arm against the density-matched null, and the fitted
+      crossover width. Total compute is minutes; the enumeration at 17 bits is the only part that
+      needs care, and it is structured rather than brute force.'
+    controls:
+    - Density-matched random-subset null defect, injected and validated in the same invocation as
+      the exceptional-set defect.
+    - A generic-support defect (support density 0.5) as a positive control, whose miss rate must be
+      indistinguishable from zero at every tested shot count.
+    - An undefective circuit control, whose detection rate must be zero at every shot count, checking
+      that the harness does not report spurious failures.
+    - 'Exact enumeration cross-check: d computed by two independent routes (direct classification
+      and a count of degeneracy causes) which must agree exactly.'
+    - Both arms use the same seed stream and the same sampler code path.
+    required_metrics:
+    - exact exceptional-set cardinality and density per curve
+    - measured miss rate per (width, shot count) cell
+    - closed-form predicted miss rate per cell
+    - null-arm miss rate per cell
+    - positive-control miss rate
+    - fitted crossover bit width for 0.5 coverage at 9024 shots
+  falsification_conditions:
+  - The measured miss rate departs from (1 minus d) to the N by more than 0.02 in absolute value at
+    any cell, indicating the sampling model is wrong.
+  - The positive control (density 0.5 defect) is missed at any measurable rate, falsifying the harness.
+  - The undefective circuit is reported as failing at any shot count.
+  - The two independent computations of d disagree.
+  - The exceptional-set arm and the density-matched null differ by more than 0.02, which would mean
+    the sampler is sensitive to structure and the coverage story is more complicated than density
+    alone.
+  confounders:
+  - Which degeneracies exist depends on the addition formula implemented; a projective or complete
+    formula has a different, possibly empty, exceptional set, so d is a property of the formula and
+    must be reported with it.
+  - Curve-specific structure such as the number of points of order 2 shifts the constant in d, so
+    a single curve per width would confound curve choice with width.
+  - At 8 bits the group is small enough that finite-size corrections to the density law are not negligible,
+    which will show up as a poor fit at the smallest width rather than as a failure of the law.
+  - The benchmark's Fiat-Shamir input derivation may not be exactly uniform, and this repository holds
+    only the README description rather than the sampler code, so the uniformity assumption cannot
+    be verified here and must be reported as assumed.
+  interpretation_limits:
+  - Nothing here says any real circuit mishandles exceptional inputs; the defect is injected by the
+    experimenter for the purpose of measuring the sampler.
+  - The crossover width is arithmetic on the density law, not a measurement at that width, and must
+    not be quoted as a measured property of 256-bit validation.
+  - The result is scoped to the affine formula implemented; it says nothing about circuits built on
+    complete addition formulas, for which the exceptional set may be empty and the entire coverage
+    question moot.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The contract measures a validation sampler's coverage
+      probability.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: 'The incumbent is the ALECF benchmark''s own validation rule as stated in its committed
+      README: 9024 random shots with Fiat-Shamir-derived inputs, plus the ancilla, phase and forward-then-reverse
+      checks. This contract does not replace that rule; it attaches a coverage number to it for one
+      algebraically defined input set.'
+    hidden_overhead: 'The enumeration at 17 bits is the hidden engineering cost: naive enumeration
+      of ordered pairs is quadratic in the group order and must be replaced by a structured count,
+      which is easy to get subtly wrong and is why two independent computations of d are required.
+      A second hidden cost is definitional: the exceptional set depends on the formula, so the contract
+      must fix and publish the exact formula, and any later citation that omits it is misleading.'
+  dominated_by: n/a (no result claimed). I checked this bucket's only committed resource frontier,
+    the two ALECF points (1316081, 1152) and (1423723, 1141), and this contract adds no circuit and
+    therefore no row. No attack is proposed, so no time/memory/data frontier applies.
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative content is a coverage
+    probability and a crossover width for a validation rule, neither of which has an incumbent value
+    in this repository to be compared against.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Part (B), that the affine formula''s exceptional set has density of order
+    a small constant over the group order: 0.92, since it is elementary counting, with residual risk
+    in the exact constant and in intermediate degeneracies specific to an implementation. Part (C),
+    that measured miss rates match the closed form within 0.02: 0.85, the main risk being a non-uniform
+    sampler in the reimplementation. That the density-matched null shows the same miss rate, establishing
+    pure density-blindness: 0.8. That the crossover width lands below 32 bits: 0.85. That anything
+    in this program changes as a result, for instance a later contract adopting structured validation
+    inputs: 0.3, since this repository holds no circuit submissions to validate.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ALECF-001
+  - EXP-ALECF-001
+  - EXP-ALECF-002
+  - EXP-ALECF-003
+  - EV-ALECF-001
+  - IDEA-20260807-df906f
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/toycurve.py
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ALECF-34caeb

@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-LATDUAL-269788
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-08eda1; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-08eda1
+  question_id: RQ-MLKEM-003
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Pair every estimator call with a completed recovery on the same LWE instance at dimensions
+    24 to 56, and report the signed cost residual, its interquartile range and its drift with dimension
+    against a forced-cost calibration arm
+  objective: 'The run reduces one uncertainty: how far a pinned lattice estimator''s predicted cost
+    sits from a directly observed cost on the same instance, in the band where a completed recovery
+    exists. Stated as parts: (i) does the forced-cost arm, where a planted vector is short enough
+    for LLL alone and the true cost is analytically bounded, return a residual within two bits of
+    zero, which is the precondition establishing that the committed unit conversion is right; (ii)
+    at each dimension and family, what is the median residual and its interquartile range over rows
+    that have both an observed and a predicted cost, with the censoring fraction reported beside them;
+    (iii) what is the fitted slope of median residual against dimension, with an interval, over the
+    band. The run is not asked whether the estimator is right at cryptographic dimensions, is not
+    asked to compare any attack against any other, and is not asked anything about ML-KEM parameter
+    sets. A run returning a residual within interval of zero with a flat slope is a complete run:
+    it measures the instrument as calibrated in the tested band, which is directly usable by anyone
+    citing it near those parameters.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: for the pinned estimator commit
+      and named cost model, under the committed unit conversion, on the tested instance families over
+      the tested dimension band, the signed residual between predicted and observed cost had the reported
+      distribution and drift, with the forced-cost arm within its stated tolerance and the censoring
+      fraction as reported. WHAT DOES NOT FOLLOW: no claim that the estimator is accurate or inaccurate
+      at any dimension outside the band; no claim that any published cost figure is wrong; no attack,
+      speedup or security consequence; nothing about ML-KEM-512/768/1024 or FIPS 203; and no separation
+      of attack-selection error from pricing error, which this scalar residual cannot perform.'
+  inputs:
+    procedure: 'STAGE 0 (cost: 0 compute, ~6h human). Provision and pin the estimator, record its
+      commit hash and dependency closure, and write and commit the unit conversion. This stage is
+      a gate: without it the contract cannot run. STAGE 1 (cost: low). Instance generation with retained
+      secret and error across families and dimensions, plus forced-cost instances and no-secret null
+      instances. STAGE 2 (cost: high, dominant). Progressive BKZ plus Babai to exact recovery with
+      counted-operation instrumentation. STAGE 3 (cost: low). Estimator calls on identical parameters
+      under the pinned commit; record selected attack and parameters. STAGE 4 (cost: low). Conversion
+      and residual computation per row; attack-mismatch flagging. STAGE 5 (cost: low). Forced-cost
+      arm residuals and tolerance check. STAGE 6 (cost: low). No-secret null censoring check. STAGE
+      7 (cost: low). Median, interquartile range, drift fit and censoring map. STAGE 8 (cost: low).
+      Pinned-commit rerun on ten rows and emission of immutable run records through harness/runner.py.'
+    instrument: 'Recovery side: Python 3.11 standard library only, exact-integer primal embedding,
+      fractions.Fraction Gram-Schmidt, progressive BKZ with integer block enumeration, Babai nearest-plane
+      decoding, exact comparison against the retained secret, with an explicit operation counter as
+      the instrumentation boundary. Prediction side: a pinned lattice-estimator checkout invoked as
+      a black box, its commit hash and cost model recorded per row; it is NOT installed in this environment
+      and provisioning it is stage 0. No Sage is used on the recovery side. Records and seeds through
+      harness/runner.py.'
+    parameters: 'q in {769, 3329}; families: plain LWE and module LWE with cyclotomic degree 16; n
+      in {24, 32, 40, 48, 56}; m = 2n; centered binomial eta = 2; blocksize ceiling 28; 40 instances
+      per (family, dimension); 40 forced-cost instances per dimension with a planted vector at a stated
+      norm ratio guaranteeing LLL recovery; 20 no-secret null instances per dimension; ten rows reserved
+      for the pinned-commit reproducibility rerun.'
+  controls:
+  - Forced-cost calibration arm where LLL alone provably recovers and r must be near zero.
+  - No-secret null where b is fixed before s is resampled, so the observed-cost side must be uniformly
+    censored.
+  - 'Pinned-commit control: the estimator commit hash and cost-model name recorded in every row, with
+    a rerun of ten rows at the end confirming bit-identical predictions.'
+  - 'Attack-agreement control: rows where the estimator''s selected attack differs from the one actually
+    run are flagged and reported separately rather than pooled.'
+  - 'Unit-conversion control: the committed conversion applied in both directions on a synthetic pair
+    with a known answer.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The forced-cost arm, run in the same invocation: instances constructed
+    with a planted vector so short relative to the lattice determinant that LLL alone provably recovers
+    it, so the observed cost is bounded by a known polynomial and the predicted cost should be too.
+    On this arm r must lie within a stated tolerance of zero. If it does not, the unit conversion
+    is wrong and every r on the signal arm is an artifact of the conversion rather than a property
+    of the estimator, and the whole table is recorded as a controlled null under inventor-protocol
+    section 3. A second null runs the identical pipeline on instances whose secret is resampled after
+    b is fixed, so no recovery is possible: the observed-cost side must be uniformly censored, confirming
+    the recovery detector cannot fire without a planted secret.'
+  independent_variables:
+  - lattice dimension n
+  - instance family (plain versus module)
+  - modulus q
+  - arm (signal, forced-cost, no-secret null)
+  metrics:
+    primary:
+    - observed counted-operation cost per instance
+    - estimator-predicted cost per instance under the pinned commit
+    - signed residual r per instance
+    - median r with interquartile range per (family, dimension)
+    secondary:
+    - estimator's selected attack, blocksize and sample count
+    - censoring fraction per grid point
+    - attack-mismatch row count
+    - beta* achieved per instance
+    - wall clock and peak memory per instance
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'The calibration table: median r with interquartile range at each (family, dimension),
+      the fitted slope of median r against dimension with a 95 percent interval, and the forced-cost
+      arm''s median r with its two-bit tolerance check.'
+    formula: r(I) = log2(Obs(I)) - log2(Pred(I)), where Obs(I) is the total counted operations to
+      exact recovery in the committed unit U, and Pred(I) = phi(E(I)) with E(I) the estimator's cost
+      output under pinned commit C and cost model M, and phi the committed conversion from the estimator's
+      unit to U. The drift statistic is the slope of the regression of median-per-family r on dimension
+      n, reported with a 95 percent interval; the forced-cost check requires |median r on the forced
+      arm| <= 2 bits. No value of r is extrapolated outside the fitted band, and any citation of the
+      table must carry the band with it.
+    source: Pre-registered in the parent proposal IDEA-20260816-08eda1 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Calibration is performed at n in {24, 32, 40, 48, 56}, q in {769, 3329}, blocksize
+      ceiling 28, plain and module families, in pure Python; neither numpy nor fpylll nor the estimator
+      itself is installed in this environment. The transfer assumption is stated explicitly and is
+      the point of the entry rather than a weakness of it: the table describes the instrument in the
+      tested band only, and the entry''s content is that quoting an estimator figure at dimension
+      700 while the nearest calibration point is dimension 56 is an extrapolation that should be visible.
+      No figure is projected to ML-KEM-512/768/1024, and no claim is made that the estimator is wrong
+      at those parameters.'
+    correspondence: null
+  tail_checks:
+  - The smallest dimension, where the conversion constant dominates r and the estimator is near its
+    regime boundary.
+  - The largest dimension, where censoring is heaviest and the surviving instances are a biased easy
+    subset; the censoring fraction is reported alongside every median.
+  - Rows where the estimator selects an attack other than the one run, checked as a group.
+  - The forced-cost arm's own tail, where an anomalously long LLL run would mean the planted vector
+    was not as short as constructed.
+  - Module-family rows at the largest dimension, where censoring and structure may interact.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Stop a grid point at 40 instances or 6 wall-clock hours, reporting the achieved count.
+  - Halt and report a conversion defect if the forced-cost arm's median |r| exceeds 2 bits.
+  - Report a grid point as unusable rather than reporting a biased median if its censoring fraction
+    exceeds 0.5.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The forced-cost arm's median r lies within 2 bits of zero, and median r with
+    an interquartile range is reported at a minimum of three dimensions with censoring below 0.5,
+    yielding a drift slope with a stated interval, whatever the sign and size of r turn out to be.
+  falsification_criterion:
+  - 'Forced-cost arm''s median |r| exceeds 2 bits: the conversion is wrong and no signal-arm residual
+    is a statement about the estimator.'
+  - 'The no-secret null produces a non-censored observed cost: the recovery detector is broken and
+    every observed cost is void.'
+  - 'Censoring exceeds 0.5 at every dimension: the residual is unmeasurable and a calibration floor
+    is reported.'
+  - 'Pinned-commit rerun does not reproduce predictions bit-identically: the instrument is not pinned
+    and the table is not reproducible.'
+  - 'Median r within interval of zero with a flat slope at every dimension: the estimator is calibrated
+    in the tested band, which is the reported result.'
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-08eda1
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The estimator is not installed in this environment and provisioning it, pinning a commit and recording
+    its dependency closure is work a Coordinator must schedule before approval; without it this contract
+    cannot run at all.
+  - The conversion phi from the estimator's cost unit to the run instrumentation's counted-operation
+    unit is named as committed but is not derived here, and it is the single most load-bearing undefined
+    object in the contract.
+  - How to treat rows where the estimator selects a different attack than the one executed, whether
+    by separate table, exclusion or a second conversion, is undecided.
+  - Whether a residual table measured to n = 56 may be cited alongside any figure quoted at cryptographic
+    dimensions is a claim-tier decision under docs/claims-and-verification.md.

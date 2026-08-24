@@ -1,0 +1,251 @@
+experiment:
+  id: EXP-SLHDSA-ca85bf
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-466631; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-466631
+  question_id: RQ-SLHDSA-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the reachable tweak-set cardinality of a scaled-down hypertree signer as a curve
+    in signature count, and bracket a generic multi-target search against untweaked and maximally-tweaked
+    constructed comparison signers run in one invocation
+  objective: 'The one uncertainty a run reduces is whether the multi-target target count that this
+    repository''s cost arguments take as input is measurable, and what it actually is for a transcript
+    of bounded length. Concretely: (i) how the reachable tweak-set cardinality grows with signature
+    count, where its growth bends as subtree reuse begins, and how far it sits below both the nominal
+    address-space size and the structural upper bound of calls-per-signature times q, all three of
+    which are reported together so that no one of them can be quoted alone; (ii) whether a generic
+    multi-target search instrument is sensitive to target count at all at toy output sizes, established
+    by requiring the untweaked arm to be flat in q while the maximally-tweaked arm falls, and calibrated
+    by fitting the maximally-tweaked arm''s exponent against subsampled target cardinality with an
+    expected value of -1; (iii) where the real signer''s search cost lies within that bracket, and
+    whether the informative content is its position or the location of the reuse bend. A run reduces
+    (i) to a curve with a decomposition, (ii) to a pass-or-fail plus a fitted exponent with a band,
+    and (iii) to a fraction of the bracket interval with its uncertainty.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'At most, a completed run supports: at the tested toy parameter
+      sets and output sizes, the measured reachable tweak-set cardinality curve with its per-layer
+      decomposition, its relation to the nominal address size and the structural bound, the evaluations-to-hit
+      distributions for the three constructed arms, the fitted scaling exponent against subsampled
+      target cardinality, and the real arm''s position within the bracket. WHAT DOES NOT FOLLOW: nothing
+      about any FIPS 205 parameter set, no security level, no bit count, no attack on any real scheme,
+      no forgery, no speedup, no statement about SHA-2 or SHAKE, no statement about what the literature
+      contains, and nothing about the fault or memory-corruption claim class. The untweaked and maximally-tweaked
+      signers are constructed comparison objects built for this contract; they are not SLH-DSA, not
+      any standardized algorithm, and no artifact may present them as variants of one. A reachable
+      count far below the nominal address size is an ordinary structural fact about bounded transcripts
+      and does not follow as a statement about the countermeasure''s adequacy in either direction.'
+  inputs:
+    procedure: 'STAGE 0, freeze (zero compute): register the three signer constructions, the target-count
+      sweep, the expected calibration exponent, the labelling discipline for the constructed arms,
+      and the bracket requirement, before any code runs. STAGE 1, dependency check (~30min): confirm
+      the companion null harness has cleared its self-consistency battery; block if not. STAGE 2,
+      reachable set (~1h compute): record tweaks over transcripts to the harness cap at every toy
+      parameter set, emitting the cardinality curve and per-layer decomposition. STAGE 3, bracket
+      construction (~4h human): build the untweaked and maximally-tweaked signers behind the same
+      interface and verify by call-trace comparison that they differ from the real signer only in
+      the tweak field. STAGE 4, sensitivity check (~1h compute): untweaked flat-in-q check and maximally-tweaked
+      falls-with-q check, at the minimal configuration first; halt if the bracket does not open. STAGE
+      5, search sweep (~6h compute): identical generic search against all three arms across the q
+      grid and across subsampled target cardinalities, 10^3 repetitions per point, three seeds, one
+      invocation. STAGE 6, ideal-backend repeat (~3h compute): the entire bracket repeated with the
+      ideal-oracle backend to isolate any hash-specific contribution. STAGE 7, report (zero compute).'
+    instrument: Python 3.11. The toy signer and the tweak-recording table come from the companion
+      null-harness module under harness/, imported rather than reimplemented, which is a stated dependency.
+      numpy for the search loop, the evaluations-to-hit accumulation, the exponent fit and its band;
+      hashlib for SHA-256 and SHAKE-128 truncated to the toy output size in the concrete arms; random.Random
+      for input sampling and for the subsampling of target sets. The generic search is a plain evaluate-and-test-membership
+      loop against a Python set, counting evaluations and never timings, since timings would differ
+      between arms for memory reasons unrelated to the object. Executed through harness/runner.py
+      so seeds, parameters and the resolved inference block land in the run manifest. No Sage, no
+      external cryptographic library, no network.
+    parameters: 'Toy signer: hash output n in {12, 16, 20} bits; h in {4, 6, 8}; d in {1, 2}; a in
+      {2, 3}; k in {2, 3, 4}; w in {4, 16}. Signature count q on a logarithmic grid from 2^3 to 2^13,
+      capped per parameter set by the harness''s 2^24-entry table limit and by the maximally-tweaked
+      arm''s faster materialization, with the binding cap reported. Arms: untweaked, real, maximally
+      tweaked, each at two backends (concrete truncated hash, ideal oracle). Subsampled target cardinalities:
+      8 points logarithmically spaced from 2^2 to the full reachable count at fixed q. Search: 10^3
+      evaluations-to-hit repetitions per point, three seeds. Exhaustive at n up to 20 bits; no arm
+      is run above 20 bits.'
+  controls:
+  - 'Untweaked signer arm: all tweaks collapsed to one constant, executed in the same invocation,
+    expected flat in q.'
+  - 'Maximally-tweaked signer arm: a globally unique tweak per call, same invocation, expected to
+    fall with the full structural target count.'
+  - 'Subsampled-target-set control: the real arm''s reachable set truncated to chosen cardinalities,
+    decoupling target count from signer structure so the exponent is measured on a curve.'
+  - Call-trace comparison across the three signers, requiring identical call-type and address-structure
+    sequences so that only domain separation differs.
+  - Ideal-oracle backend arm from the companion null harness, so that the whole bracket can be repeated
+    with the hash replaced by an ideal object and any hash-specific contribution isolated.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two constructed comparison signers bracket the real one, both executed
+    in the same invocation with the identical search. The untweaked arm collapses every tweak to a
+    single constant, so all targets coincide and the search sees exactly one target regardless of
+    q: it is the null in which the countermeasure is entirely absent. The maximally-tweaked arm assigns
+    every call a globally unique tweak, so no two targets ever coincide: it is the ceiling in which
+    the countermeasure is perfect. For the real arm''s number to mean anything, the untweaked arm
+    must show search cost independent of q and the maximally-tweaked arm must show cost falling with
+    the full structural target count; if either fails, the search instrument is not sensitive to target
+    count at all and the real arm''s position in the bracket carries no information. A third control
+    subsamples the real arm''s reachable set to a chosen cardinality, decoupling target count from
+    signer structure, so that the scaling exponent is measured on a curve rather than read from three
+    points.'
+  independent_variables:
+  - signer arm (untweaked / real / maximally tweaked)
+  - signature count q
+  - subsampled target-set cardinality
+  - hash backend (concrete truncated / ideal oracle)
+  - toy parameter set and output size n
+  metrics:
+    primary:
+    - reachable tweak-set cardinality as a curve in q, overall and per layer
+    - evaluations-to-first-hit distribution per arm per q
+    - fitted scaling exponent against subsampled target cardinality with band, per arm
+    - position of the real arm within the untweaked-to-maximally-tweaked bracket
+    - nominal address size and structural bound reported alongside the measured count
+    secondary:
+    - location in q of the bend where subtree reuse begins
+    - call-trace equality across the three signers
+    - binding cap per parameter set and which arm hit it first
+    - concrete-versus-ideal-backend difference on every arm
+    - between-seed spread of every distribution
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The fitted scaling exponent alpha in the relation (median evaluations-to-first-hit)
+      proportional to T^alpha, where T is the subsampled target-set cardinality, measured in the maximally-tweaked
+      arm at fixed output size n.
+    formula: 'Predicted value alpha = -1, within the fit''s 99 percent confidence band. The relation
+      is defined by fitting log(median evaluations-to-first-hit) against log(T) by ordinary least
+      squares over the eight subsampled cardinalities at fixed n and fixed q, with the median taken
+      over 10^3 repetitions and three seeds. This is the generic expectation for a search against
+      T distinct independent targets at fixed output size and is used purely as an instrument calibration:
+      an alpha far from -1 means the search does not measure target count, and no arm''s result may
+      be interpreted until it does.'
+    source: Pre-registered in the parent proposal IDEA-20260816-466631 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at hash output sizes of 12 to 20 bits, hypertree heights 4 to 8, one or
+      two layers, and transcripts to 2^13 signatures. These sizes are chosen so the generic search
+      is exhaustive rather than estimated and so the reachable tweak set fits inside the null harness''s
+      table without eviction, which is what makes the cardinality exact. The transfer assumption,
+      stated and not established: that the reachable-set growth law and its reuse bend are properties
+      of the hypertree''s structural call pattern and not of the absolute output size, so that a curve
+      measured at n = 16 describes the same structural phenomenon at larger n with the search cost
+      rescaled. That assumption is about combinatorics, not about security. Under AGENTS.md rule 4
+      no output of this contract is phrased as a statement about any deployed parameter set, and the
+      two bracketing signers are labelled as constructed comparison objects in every artifact, following
+      the discipline recorded in EXP-SLHDSA-9cbad4.'
+    correspondence: null
+  tail_checks:
+  - Verify by call-trace comparison at every parameter set, not once, that the three signers differ
+    only in the tweak field.
+  - Verify the untweaked arm is flat in q before reading any other arm.
+  - Verify the maximally-tweaked arm's fitted exponent is near -1 before reading the real arm.
+  - Report which arm hit the table cap first at each parameter set, and never compare arms across
+    different binding caps without saying so.
+  - Repeat the whole bracket on the ideal-oracle backend and require the bracket structure to be unchanged;
+    a bracket that exists only with a concrete hash is an artifact.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Halt the entire contract if the companion null harness has not cleared its self-consistency battery.
+  - 'Halt after the minimal configuration if the untweaked and maximally-tweaked arms are indistinguishable:
+    no bracket, nothing further is worth running.'
+  - Halt any arm at the table cap rather than evicting, recording the binding q per arm and parameter
+    set.
+  - Hard wall-clock stop at 24 CPU-hours; a stop is an infrastructure outcome and is never negative
+    mathematical evidence.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A reachable tweak-set cardinality curve reported together with the nominal address
+    size and the structural bound, an open bracket demonstrated by a flat untweaked arm and a falling
+    maximally-tweaked arm, a calibration exponent near -1, and the real arm's position within the
+    bracket reported with its band and with the reuse bend located.
+  falsification_criterion:
+  - 'Untweaked and maximally-tweaked arms are indistinguishable: no bracket, no interpretation.'
+  - 'The untweaked arm varies with q: the search responds to something other than target count.'
+  - 'The calibration exponent is far from -1: the instrument does not measure target cardinality.'
+  - 'Call traces differ across the arms beyond the tweak field: the arms differ in more than domain
+    separation.'
+  - 'The real arm falls outside the bracket: instrument failure to be diagnosed, explicitly not reported
+    as a finding.'
+  - 'The bracket exists on the concrete backend but not on the ideal backend: the effect is an artifact
+    of the toy hash and is reported as such rather than as a countermeasure measurement.'
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-466631
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - This contract depends on the companion null-harness contract clearing first, and the Coordinator
+    must decide whether to approve them as a sequence with an explicit gate or to allow parallel development
+    with the gate enforced at run time.
+  - The nominal address-space size depends on the address encoding width taken from a structural description
+    this repository marks UNVERIFIED; a Coordinator must decide whether the gap may be reported at
+    all before a primary source is filed, or only the reachable count and the structural bound.
+  - Whether the maximally-tweaked arm should be capped at the real arm's q or run to its own cap is
+    a design decision with real consequences for the bracket's interpretation and must be fixed before
+    freezing.
+  - Whether a generic evaluate-and-test search is the right instrument, or whether a memory-bounded
+    variant is required to make the bracket meaningful given IDEA-20260808-ae34ad's argument about
+    per-target memory, is a Coordinator scoping decision that changes the instrument rather than the
+    parameters.
