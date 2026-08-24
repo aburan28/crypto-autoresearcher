@@ -145,6 +145,21 @@ evidence rules above apply unchanged.
   for chronology.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
+- **A test that counts the whole corpus asserts a floor, never an exact
+  number.** The corpus grows with every research batch and is a different
+  size in every concurrent worktree, so an exact count fails on branches that
+  changed nothing and cannot be right in two worktrees at once. It also decays
+  silently: the first such assertion to fail masks the rest, which is how four
+  pins in `kb/tests/unit/test_repo_corpus.py` drifted together unnoticed.
+  Assert a floor plus per-family coverage read back off the rule table, so a
+  family that collapses to zero still fails while ordinary growth does not.
+  Exactness belongs on **disclosed debt** — unparseable records, duplicate
+  identifiers, suppressed redirects — which is closed and never grown, so any
+  addition there is a regression. Raise a floor only from a reviewed corpus,
+  and **never to turn a red test green**: a floor you moved to match what you
+  just measured has stopped being a check. Cost, stated plainly: a floor
+  cannot see a small partial loss, so keep the debt sets and structural
+  invariants exact to carry that precision.
 - The Coordinator alone stages declared research paths in the shared worktree:
   snapshot before review, then ledger commit before a state transition. Commit
   messages reference the task and record IDs; never rewrite history over

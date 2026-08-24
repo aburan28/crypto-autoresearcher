@@ -79,8 +79,11 @@ LAP_T = 25.0
 GL_NODES = 96
 EULER_GAMMA = 0.5772156649015328606
 
-RAW_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "runs", "RUN-WESOVOW-001", "raw-result.json")
+RAW_PATH = os.environ.get(
+    "WESOVOW_RAW_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                 "runs", "RUN-WESOVOW-201692-001", "raw-result.json"),
+)
 
 _GL_X, _GL_W = leggauss(GL_NODES)
 _GL_S = 0.5 * (_GL_X + 1.0)     # nodes mapped to [0,1]
@@ -223,7 +226,7 @@ def main():
 
     results = {
         "experiment_id": "EXP-WESOVOW-001",
-        "run_id": "RUN-WESOVOW-001",
+        "run_id": "RUN-WESOVOW-201692-001",
         "seed": SEED,
         "model": {
             "unit_of_cost": "F_{p^2}-operations",
@@ -233,7 +236,7 @@ def main():
                 "log2M": "2*log2X + log2(rho(w)), w = log2X/log2B",
                 "log2P0": "-u*log2(u), u = (log2p-1)/(3*log2B)",
                 "log2Tfull": "log2M - log2P0",
-                "T_w_vOW": "T_full / sqrt(min(w, M))",
+                "T_w_vOW": "T(w) = T_full * sqrt(M / min(w, M))",
                 "T_DG_baseline": "p^{1/2} = 2^{log2p/2}",
                 "overhead": "multiply T(w) by 2^{c*sqrt(log2p)}",
             },
@@ -267,7 +270,9 @@ def main():
             entry = {}
             for c in OVERHEAD_C:
                 overhead_bits = c * math.sqrt(b2p)
-                log2Tw = log2Tfull - 0.5 * min(lw, log2M) + overhead_bits
+                log2Tw = (log2Tfull
+                          + 0.5 * max(0.0, log2M - lw)
+                          + overhead_bits)
                 log2speedup = log2TDG - log2Tw
                 entry[f"c={c}"] = {
                     "overhead_bits": float(overhead_bits),
@@ -280,7 +285,7 @@ def main():
         crossovers = {}
         for c in OVERHEAD_C:
             overhead_bits = c * math.sqrt(b2p)
-            log2w_star = 2.0 * (log2Tfull + overhead_bits - log2TDG)
+            log2w_star = log2M + 2.0 * (log2Tfull + overhead_bits - log2TDG)
             feasible = bool(log2w_star <= log2M)
             crossovers[f"c={c}"] = {
                 "log2w_star_entries": float(log2w_star),
