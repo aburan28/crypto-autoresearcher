@@ -50,6 +50,7 @@ import json
 import os
 import shutil
 import subprocess
+from functools import lru_cache
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -97,6 +98,26 @@ class CairnUnavailableError(RuntimeError):
     `score_certificate` raises when there was no answer to return, and
     `available()` is the non-raising way to check for the same condition
     first.
+    """
+
+
+class CairnNotApplicableError(RuntimeError):
+    """This certificate's statement is not the shape the pinned checker reads.
+
+    A THIRD thing, and the distinction is the whole point of this class. A
+    `reject` means the checker read the artifact and found the witness wrong;
+    that is a disagreement and the harness is right to refuse the run over it.
+    This means the checker could not read the artifact at all -- a shape Stage 0
+    never wrote a checker for -- which says exactly nothing about the witness.
+
+    Collapsing the two turns a coverage gap into an accusation. The pinned
+    checker reports `malformed artifact: 'curve'` for a discrete_log statement
+    that names its curve by `curve_id` a level up, and for a decomposition over
+    an additive group rather than a curve; neither is a wrong witness and
+    neither should refuse a run. cairn draws this line itself for the case it
+    can see (a crashed verifier is `unavailable`, not `reject`) -- the schema
+    mismatch is the half only the caller can see, because only the caller knows
+    which objective it was about to score against.
     """
 
 
@@ -225,6 +246,24 @@ def _ensure_objectives_posted(bin_path: str, log_path: str) -> dict[str, str]:
     return ids
 
 
+@lru_cache(maxsize=None)
+def _required_fields(kind: str) -> frozenset[str]:
+    """The objective's own `artifact_schema.required`, read from the committed
+    objective file rather than restated here -- the objective is the contract,
+    and a second copy of it in this module is a second thing to drift."""
+    with open(_OBJECTIVE_FILES[kind]) as fh:
+        schema = json.load(fh).get("artifact_schema") or {}
+    return frozenset(schema.get("required") or ())
+
+
+def _missing_required_fields(kind: str, artifact: dict[str, Any]) -> list[str]:
+    """Required keys this artifact does not have. Deliberately a key-presence
+    check and nothing more: deciding whether a value is *right* is the pinned
+    checker's job, and duplicating that judgement here is how a second,
+    unpinned verifier grows inside the bridge that exists to avoid one."""
+    return sorted(_required_fields(kind) - set(artifact))
+
+
 def _artifact_for(cert: dict[str, Any]) -> dict[str, Any]:
     """The certificate's `statement`, unmodified -- see cairn/checkers/*.py's
     own docstrings for why no translation happens between what this program
@@ -253,6 +292,14 @@ def score_certificate(cert: dict[str, Any]) -> CairnVerdict:
             f"cairn_bridge only re-verifies {sorted(SUPPORTED_KINDS)}, got kind={kind!r}"
         )
     artifact = _artifact_for(cert)
+    missing = _missing_required_fields(kind, artifact)
+    if missing:
+        raise CairnNotApplicableError(
+            f"{kind} statement is missing {missing} -- the shape "
+            f"{os.path.basename(_OBJECTIVE_FILES[kind])} pins a checker for requires "
+            f"{sorted(_required_fields(kind))}. Not scored: a checker that cannot read "
+            f"an artifact has said nothing about it."
+        )
 
     bin_path = _cairn_mcp_bin()
     if bin_path is None:

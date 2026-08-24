@@ -492,6 +492,12 @@ def _cairn_cross_check(cert: dict, verified: bool) -> dict | None:
         return {"status": "not_attempted", "reason": f"{cairn_bridge.ENV_BIN} not set"}
     try:
         verdict = cairn_bridge.score_certificate(cert)
+    except cairn_bridge.CairnNotApplicableError as exc:
+        # A shape Stage 0 has no checker for. Recorded so the gap is visible
+        # in the run rather than inferred from its absence, and NOT fatal:
+        # refusing a run because a checker could not read its artifact would
+        # report a coverage gap as a disagreement about a witness.
+        return {"status": "not_attempted", "reason": str(exc)}
     except cairn_bridge.CairnUnavailableError as exc:
         # A bridge-level failure (binary present but unreachable, timeout,
         # unparseable response) is the same "says nothing about the
