@@ -1,0 +1,1192 @@
+red_team_report:
+  id: RT-20260824-3bd362
+  task_id: TASK-20260824-3bd362
+  batch_id: BATCH-f8bf86
+  goal_id: GOAL-DIFFP-84d641
+  question_id: RQ-DIFFP-a5c483
+  experiment_id: EXP-DIFFP-fe894e
+  round: 1
+  role: red-team
+  reviewed_snapshot_commit: 35c2159eee566f05c176e79ddfe7f1a2642d604e
+  reviewed_branch: claude/differential-cryptanalysis-harness-5b5fdq
+  review_plan: coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/review-plan/review-plan-f8bf86.yaml
+  joints_owned: [J5, J6, J7, proves_too_much(O1-O4), blind_rederivation]
+  composes_no_whole_claim_verdict: >-
+    CORRECT AND DELIBERATE. J1-J4 are owned by TASK-20260824-c40847, whose report
+    I have not read and may not read. Nothing below is a verdict on the batch.
+
+  claim_under_review: >-
+    As the producer states it, quoted through the review plan: "the adjudicator
+    recalls planted paths and their verified-generator images, and rejects the
+    declared null draws, at these parameters, against this census." My joints
+    attack whether the SECOND half of that sentence is informative (J5), which
+    direction the equivalence errs in (J6), and whether the firewall held as
+    content (J7).
+
+  # =====================================================================
+  headline: >-
+    THE CONTROL SUITE PROVES TOO MUCH. An adjudicator whose canonical key CANNOT
+    SEE THE MESSAGE DIFFERENCE AT ALL scores CTL-PLANT 96/96 and CTL-NULL 0/3000 --
+    the same two integers the honest adjudicator scores, to the digit. So the
+    inference "the controls passed, therefore the adjudicator discriminates" goes
+    through unchanged on an object where its conclusion is known false, and the
+    batch's control suite cannot distinguish the delivered instrument from one
+    that is blind to the primary object of a differential characteristic. This is
+    a fifth proves-too-much object, not on the plan's list, and it is the single
+    most consequential thing I found.
+
+  # =====================================================================
+  joint_findings:
+
+    - joint: J5
+      statement_from_the_plan: >-
+        CTL-NULL measured the adjudicator and not the decoys. 0/1000 strict and
+        0/1000 permissive across three families is evidence that the adjudicator
+        discriminates, rather than evidence that the declared null families had no
+        achievable false-positive probability to begin with.
+      verdict: breaks
+      verdict_in_one_sentence: >-
+        0/3000 IS EVIDENCE THAT THE DECOYS WERE NEVER NEAR THE BOUNDARY, not
+        evidence that the adjudicator discriminates -- and I can say that as a
+        measurement rather than an impression, because I built the decoys the
+        contract did not and ran the identical control against adjudicators that
+        are known to be wrong.
+
+      part_A_what_the_null_could_have_done:
+        the_mechanism_that_decides_everything: >-
+          Membership is EXACT CANONICAL-KEY EQUALITY -- a dict lookup of
+          canonical(obj, gens) in Adjudicator._index (harness/diffpath/adjudicator.py,
+          class Adjudicator). It is not a threshold. `closest_distance` is computed
+          and reported beside the verdict and never enters it. So the acceptance
+          region is not a ball: it is a SINGLE POINT in every retained key
+          component and UNBOUNDED in every dropped one. A null drawn uniformly in
+          the retained directions can only measure the volume of a point.
+        measured_achievability_per_family:
+          md5_delta_m:
+            draws: 1000
+            draws_matching_a_planted_MESSAGE_DIFFERENCE_exactly: 6
+            of_those_that_also_matched_step_delta: 0
+            best_case_reached_by_the_declared_null: >-
+              Draw #81 matched PLANT-MD5-05's message difference exactly and agreed
+              with it on 16 of 64 step_delta words, at bit distance 733 of 2560.
+              That is the closest the entire declared null ever came to the
+              boundary, and it is 733 bits away.
+            why_the_delta_m_component_is_reachable_at_all: >-
+              All 8 planted MD5 entries carry a WEIGHT-1 message difference
+              (measured: weights [1,1,1,1,1,1,1,1], 8 distinct), because
+              pathobj.seeded_pair sets one bit of one word when delta_m is None.
+              adjudicator._null_draw_md5 then draws a weight-1 pattern uniformly
+              over 512 bit positions, so P(delta_m hit) = 8/512 = 1/64 per draw.
+              THE NULL DID HAVE A REACHABLE COMPONENT AND REACHED IT 6 TIMES. What
+              it could never reach is the 64-word step_delta.
+          sha1_dv_in_code:
+            draws: 1000
+            draws_in_linearized_code: 1000
+            draws_matching_a_planted_DV_exactly: 0
+            achievable_probability_per_draw: <= 8 / 2**512
+            note: >-
+              The seed window is 16 uniform words, so the draw is uniform over 2^512
+              codewords against 8 targets. This family has the LOWEST achievable
+              probability of the three, not the highest.
+          sha1_dv_unconstrained:
+            draws: 1000
+            draws_in_linearized_code: 0
+            planted_sha1_entries_in_linearized_code: true (all 8)
+            malformedness_finding: >-
+              CONFIRMED AND WORSE THAN THE PLAN SUSPECTED. In
+              adjudicator._null_draw_sha1(in_code=False) the DV is overwritten with
+              80 uniform words AFTER step_delta was derived from the seeded pair.
+              Measured on 20 draws: 20/20 have a DV that is not the expansion of
+              their own seed window. NO MESSAGE PAIR INDUCES THESE OBJECTS. A third
+              of the declared null is not a hard negative, it is a malformed input
+              that no candidate path could ever resemble.
+        the_integer_the_plan_asked_for: >-
+          HOW MANY OF THE 3000 DRAWS HAD AN ACHIEVABLE FALSE-POSITIVE PROBABILITY?
+          Stated three ways because one number would hide the structure.
+          (i) By exact-key hit: NONE at any probability distinguishable from zero at
+          1000 draws. The largest is family (a)'s, bounded by 1/64 x P(64-word
+          step_delta coincidence).
+          (ii) By partial reach: 6 of 3000 reached the boundary in one key component
+          and 0 reached it in two. All 6 are in family (a); families (b) and (c)
+          contributed 0.
+          (iii) By what the control can DETECT -- the only version that answers the
+          joint. See part D.
+
+      part_B_the_decoys_I_built_and_their_verdicts_as_data:
+        method: >-
+          Constructed against the committed source at the snapshot commit, using the
+          declared seeds (planted 84064101/84064102). No search over the difference
+          space; no collision attempted (IR-8 respected).
+        D1_E2_rotation_images_of_PLANT-SHA1-00:
+          verdicts:
+            - {rotation_b: 1,  strict: NON-MEMBER, permissive: MEMBER, closest_distance: 1277}
+            - {rotation_b: 7,  strict: NON-MEMBER, permissive: MEMBER, closest_distance: 1291}
+            - {rotation_b: 16, strict: NON-MEMBER, permissive: MEMBER, closest_distance: 1297}
+            - {rotation_b: 31, strict: NON-MEMBER, permissive: MEMBER, closest_distance: 1321}
+          reading: >-
+            THE DECLARED TWO-SIDED ANSWER IS MET ON ALL FOUR. No IR-5 breach: the
+            strict group did not admit the excluded generator, and the permissive
+            canonicaliser does implement its own declared generator. THIS IS A
+            GENUINE POSITIVE FINDING ABOUT THE INSTRUMENT that the contract's own
+            null was too weak to produce, and I report it as such.
+        D2_E6_reindexed_images_block_index_3:
+          verdicts:
+            - {primitive: md5,  strict: NON-MEMBER, permissive: MEMBER, closest_distance: 0}
+            - {primitive: sha1, strict: NON-MEMBER, permissive: MEMBER, closest_distance: 0}
+          reading: Two-sided answer met. Also the first case of MEMBER-vs-NON-MEMBER at distance 0.
+        D3_near_neighbours_in_step_delta_of_PLANT-MD5-00:
+          - {bits_flipped: 1,  strict: NON-MEMBER, permissive: NON-MEMBER, closest_distance: 1}
+          - {bits_flipped: 2,  strict: NON-MEMBER, permissive: NON-MEMBER, closest_distance: 2}
+          - {bits_flipped: 4,  strict: NON-MEMBER, permissive: NON-MEMBER, closest_distance: 4}
+          - {bits_flipped: 8,  strict: NON-MEMBER, permissive: NON-MEMBER, closest_distance: 8}
+          - {bits_flipped: 16, strict: NON-MEMBER, permissive: NON-MEMBER, closest_distance: 16}
+        D3b_near_neighbours_in_the_MESSAGE_DIFFERENCE:
+          verdicts:
+            - {bits_flipped: 1, strict: NON-MEMBER, closest_distance: 1}
+            - {bits_flipped: 2, strict: NON-MEMBER, closest_distance: 2}
+            - {bits_flipped: 4, strict: NON-MEMBER, closest_distance: 4}
+          reading_of_D3_and_D3b: >-
+            THIS IS WHAT A NULL WITH A TAIL LOOKS LIKE, and it is what the contract's
+            families never produced. The declared null's closest approach was 711
+            bits (MD5) and 2402/2413 bits (SHA-1); mine are at 1, 2, 4, 8, 16. The
+            distance at which the adjudicator starts accepting is NOT SMALL AND NOT
+            LARGE -- IT IS ZERO. It never accepts at any nonzero perturbation of a
+            retained key component, and it always accepts at any perturbation,
+            however large, of a dropped one. That is the answer to "where is the
+            boundary", and it is a statement about the key's support, not about a
+            margin.
+        D4_E4_boundary_object_differing_ONLY_in_signed_representation:
+          with_E4_in_the_strict_group:    {strict: MEMBER, permissive: MEMBER, closest_distance: 0}
+          with_E4_removed_from_the_strict_group: {strict: NON-MEMBER}
+          reading: >-
+            Known answer met on both sides. ONE OBJECTION ATTACHED, narrow: I set the
+            signed representation to a value that DECODES TO A DIFFERENT MODULAR
+            DIFFERENCE and it was still MEMBER. E4's statement licenses identifying
+            two representations OF THE SAME modular difference; serialize() is
+            implemented as "delete the field when E4 is in force", which is strictly
+            coarser. Not active on this census -- every object here is built from a
+            real pair, so the field is always consistent -- so this is a schema
+            laxity, not a live defect, and I scope it there.
+        decoys_the_plan_did_not_ask_for_and_where_two_of_them_land:
+          N1_md5_step_range_offset_changed_0_63_to_8_71:
+            verdict: {strict: MEMBER, permissive: MEMBER, closest_distance: 0}
+            THIS_IS_A_DECOY_ADJUDICATING_MEMBER_UNDER_STRICT: true
+            mechanism: >-
+              adjudicator.serialize() drops ("step_start", obj.step_range[0]) whenever
+              "E1" in gens, WITH NO PRIMITIVE GUARD. E1 is declared
+              `step_shift_sha1`, its statement begins "A SHA-1 DV is a codeword of the
+              linearized expansion", and its scope_limit says a different step_range
+              extent "is a declared_non_generator and is never absorbed". For MD5 the
+              generator does not act at all, yet its presence in the strict set
+              deletes the extent from the MD5 key. THE ADJUDICATOR ABSORBS A DECLARED
+              NON-GENERATOR ON THE PRIMITIVE WHERE THE GENERATOR IS NOT DECLARED.
+            severity_and_honest_scope: >-
+              This is a real unlicensed identification and it is LATENT rather than
+              active on this census: every MD5 entry here is at (0,63), so no two
+              census objects differ only in extent, and PathObject has no
+              well-formedness predicate that would have rejected my (8,71) object. It
+              becomes active the moment a real sub-range MD5 characteristic enters the
+              census, which is exactly what batch 2's acquisition is for.
+          N2_condition_set_replaced_by_one_unrelated_condition: {strict: MEMBER, closest_distance: 0}
+          N2b_condition_set_emptied_3531_conditions_to_0: {strict: MEMBER, closest_distance: 0}
+          N3_witness_pair_cv_m_mp_replaced_by_an_unrelated_pair: {strict: MEMBER, closest_distance: 0}
+          N4_sha1_step_range_relabelled_0_79_to_5_84_dv_untouched: {strict: NON-MEMBER, closest_distance: 0}
+          the_N4_result_is_the_sharpest_single_line_in_this_report: >-
+            AN OBJECT AT BIT DISTANCE 0 FROM A CENSUS ENTRY ADJUDICATES NON-MEMBER,
+            while an object at bit distance 1277 adjudicates MEMBER under permissive
+            (D1). `closest_distance` neither bounds nor tracks the verdict IN EITHER
+            DIRECTION. Every sentence in this batch that reads a reported distance as
+            a margin -- including "the null's closest miss sits at essentially random
+            distance", which is true and is not about the boundary -- is reading a
+            decision-irrelevant quantity.
+
+      part_C_the_conclusion_as_a_direction:
+        answer: >-
+          (ii) WITH A MEASURED EXCEPTION. 0/3000 is overwhelmingly evidence that the
+          decoys were never near the boundary. It is NOT zero evidence: the null
+          retains exactly one unit of discriminating power, quantified in part D,
+          and it is not the unit anyone would have guessed.
+        what_would_settle_it_and_it_is_cheap: >-
+          The ablation battery in part D, run as a standing control. It converts
+          "the null passed" from an outcome into a measurement of the null's power,
+          costs six re-runs of an 80-second suite, and needs no new objects.
+
+      part_D_the_ablation_battery_the_measurement_that_replaces_0_of_3000:
+        what_it_is: >-
+          Run the IDENTICAL control suite against adjudicators whose canonical key
+          has one component deleted. A control that cannot tell the honest
+          adjudicator from a broken one has no power against that failure.
+        results_measured_at_the_declared_seeds:
+          - key_ablation: "HONEST (unmodified)"
+            CTL_PLANT: 96/96
+            CTL_NULL_strict_of_3000: 0
+            control_suite_detects_the_ablation: n/a
+          - key_ablation: "message_difference DELETED"
+            CTL_PLANT: 96/96
+            CTL_NULL_strict_of_3000: 0
+            control_suite_detects_the_ablation: NO
+          - key_ablation: "step_delta DELETED"
+            CTL_PLANT: 96/96
+            CTL_NULL_strict_of_3000: 6
+            control_suite_detects_the_ablation: YES
+          - key_ablation: "in_linearized_code DELETED"
+            CTL_PLANT: 96/96
+            CTL_NULL_strict_of_3000: 0
+            control_suite_detects_the_ablation: NO
+          - key_ablation: "message_difference AND in_linearized_code DELETED"
+            CTL_PLANT: 96/96
+            CTL_NULL_strict_of_3000: 0
+            control_suite_detects_the_ablation: NO
+          - key_ablation: "EVERYTHING but primitive+length DELETED"
+            CTL_PLANT: 96/96
+            CTL_NULL_strict_of_3000: 3000
+            control_suite_detects_the_ablation: YES
+        the_number_that_should_replace_0_of_3000: >-
+          THE DECLARED CONTROL SUITE DETECTS 2 OF THE 5 KEY-COMPONENT ABLATIONS
+          TESTED. It cannot detect the deletion of the message difference; it cannot
+          detect the deletion of in_linearized_code; it cannot detect both deleted at
+          once. It detects the deletion of step_delta (with 6 false positives, all in
+          family (a)) and total collapse (3000). That is the null's power, stated as
+          a power rather than as an outcome.
+        the_cheapest_control_that_would_close_the_gap: >-
+          A FOURTH NULL FAMILY, `md5_delta_m_perturbed`: take a planted entry, flip
+          k bits of its MESSAGE DIFFERENCE, hold step_delta and everything else
+          fixed, adjudicate. Known answer NON-MEMBER at every k >= 1. My D3b at k=1
+          is exactly this decoy and the delta_m-blind adjudicator calls it MEMBER
+          (measured), so the family detects the ablation on its first draw. Cost:
+          one function, no new seeds, no search. The symmetric family for SHA-1
+          perturbs the DV at fixed step_delta.
+
+    - joint: J6
+      statement_from_the_plan: >-
+        The declared equivalence errs in a KNOWN direction; every covering number
+        this goal ever computes inherits whether the canonical form is too coarse or
+        too fine.
+      verdict: breaks
+      verdict_in_one_sentence: >-
+        BOTH ERRORS ARE PRESENT ON DIFFERENT AXES, THEY DO NOT CANCEL, AND THERE IS A
+        THIRD ERROR THE PLAN DID NOT ANTICIPATE -- so the net direction is NOT
+        determinable from this batch's numbers, and any covering number quoted
+        without naming which components were in force is not reproducible.
+      item_1_coarseness_made_concrete:
+        objects_the_canonicaliser_IDENTIFIES_with_the_differing_component_named:
+          - {object: PLANT-MD5-00 vs N2b, differing_component: "conditions, 3531 -> 0", verdict: MEMBER, distance: 0}
+          - {object: PLANT-MD5-00 vs N3,  differing_component: "witness pair cv/m/mp, replaced wholesale", verdict: MEMBER, distance: 0}
+          - {object: PLANT-MD5-00 vs D4,  differing_component: "signed_representation, replaced by an inconsistent one", verdict: MEMBER, distance: 0}
+        does_coarseness_threaten_the_NON-MEMBER_verdict:
+          answer: >-
+            NO, AND I AGREE WITH THE COORDINATOR'S REASONING AS STATED. Coarsening
+            the key merges index buckets, so it can only turn NON-MEMBER into MEMBER,
+            never the reverse. PD-5 therefore threatens the MEMBER verdict's PRECISION
+            and not the NON-MEMBER verdict's SOUNDNESS.
+          the_part_that_still_matters_and_is_not_in_PD-5: >-
+            THE DIRECTION OF THE HARM IS THE OPPOSITE OF THE ONE PD-5 IMPLIES A READER
+            SHOULD WORRY ABOUT. Coarseness makes MEMBER over-inclusive, and MEMBER is
+            the verdict a covering number counts. So coarseness UNDER-DECLARES
+            NOVELTY: it makes the census look like it covers more of the difference
+            space than it does. With 0 readable entries a NON-MEMBER verdict carries
+            no information anyway, so the only verdict whose soundness is at stake in
+            this goal's eventual deliverable is the one coarseness damages.
+      item_2_the_fine_direction_measured:
+        E2_excluded_so_the_rotation_index_stays_in_the_strict_key:
+          distinct_strict_canonical_forms_among_the_32_E2_rotations_of_PLANT-SHA1-00: 32
+          distinct_permissive_canonical_forms_among_the_same_32: 1
+        E6_excluded_so_block_index_stays_in_the_strict_key:
+          distinct_strict_canonical_forms_among_4_block_indices: 4
+          distinct_permissive_canonical_forms_among_the_same_4: 1
+        combined:
+          distinct_strict_forms_over_32_rotations_x_4_block_indices: 128
+          distinct_permissive_forms_over_the_same_128_objects: 1
+        the_inflation_factor_the_plan_asked_for: >-
+          EXACTLY 32k, MEASURED AND NOT ESTIMATED, where k is the number of block
+          indices a DV family spans: the strict object count is inflated by a factor
+          of 32 x k relative to the permissive one, with no rotational or block
+          degeneracy observed on a generic planted entry. For a two-block SHA-1
+          collision (k = 2) that is a factor of 64. THE PRODUCER CALLS THIS "THE SAFE
+          DIRECTION"; IT IS SAFE IN THE SENSE THAT IT OVER-DECLARES NOVELTY RATHER
+          THAN UNDER-DECLARING IT, AND IT IS A FACTOR OF 64, WHICH IS NOT SMALL.
+      item_3_the_E1_interpretation_and_the_distance_function:
+        E1_is_load_bearing_in_a_hidden_way_on_the_WRONG_PRIMITIVE: >-
+          SEE J5 DECOY N1. This is the third error and it is neither of the two the
+          plan anticipated: E1's presence in the strict set removes `step_start` from
+          the MD5 key even though E1 is declared for SHA-1 only. Direction: TOO
+          COARSE, on an axis the declaration explicitly says is never absorbed.
+          Conversely N4 shows the SHA-1 side is genuine -- relabelling a step range
+          without re-deriving the DV correctly yields NON-MEMBER -- so E1 is honest
+          where it is declared and unlicensed where it is not.
+        hamming_distance_returns_None_across_lengths_could_any_reported_distance_be_affected:
+          in_this_batch: >-
+            NO. Every object in this batch is a full-range path -- MD5 (0,63) giving
+            a diff_vector of 80 words, SHA-1 (0,79) giving 160 -- so no reported
+            distance crossed a length boundary and none is affected.
+          the_latent_defect_I_found_while_checking_it: >-
+            Adjudicator.adjudicate()'s closest-entry loop has NO PRIMITIVE GUARD:
+            it compares diff_vector(candidate) against diff_vector(entry) for every
+            plantable entry and filters only on vector length. diff_vector length is
+            16 + L for MD5 and 2L' for SHA-1, so a 40-step SHA-1 object (length 80)
+            is COMPARABLE to a full 64-step MD5 object (length 80) -- verified: the
+            distance is computed, not skipped. `closest_entry` can therefore name an
+            entry of the wrong primitive the moment sub-range paths enter the census.
+            Not active now; active as soon as batch 2 acquires a real near-collision
+            path over a step sub-range, which is the normal shape of one.
+      item_4_the_direction_as_a_direction_not_a_hedge:
+        answer: >-
+          THIS BATCH'S NUMBERS ARE EXPOSED TO BOTH ERRORS AND THE NET IS NOT
+          DETERMINABLE, and I say that as a positive finding rather than as a refusal
+          to commit. The two errors act on DISJOINT AXES and therefore cannot cancel
+          even in principle -- they are not opposite signs of one quantity, they are
+          two different quantities:
+          TOO COARSE on the condition set, the witness pair, the signed
+          representation, and (unlicensed) the MD5 step extent -- magnitude UNKNOWN
+          and unmeasured, because it depends on how often real distinct paths share
+          (delta_m, step_delta), which nobody has measured;
+          TOO FINE on the rotation index and the block index -- magnitude EXACTLY 32k,
+          measured above.
+          A net direction would require the coarse magnitude, and the only number
+          bearing on it in this batch is PD-5's 9904/19999, which measures how often
+          condition sets differ at fixed (delta_m, step_delta) among WITNESSES OF THE
+          SAME PATH -- the opposite question. THE COORDINATOR ASKED FOR THE EVIDENCE
+          IF I FOUND A CLEAN DIRECTION; I DID NOT, AND THE REASON IS THAT ONE OF THE
+          TWO MAGNITUDES HAS NEVER BEEN MEASURED.
+        what_would_settle_it: >-
+          CTL-OBS direction (i) enlarged and re-aimed. It already searches for
+          distinct ground-truth objects with equal canonical form and found 0 in 1024
+          -- but over a slice of INDEPENDENT random pairs, where a collision is
+          hopeless. Re-aim it at pairs that SHARE a message difference (the 8 planted
+          delta_m values, many witnesses each): that is the population where a coarse
+          collision can occur, and its collision rate is the missing magnitude.
+
+    - joint: J7
+      statement_from_the_plan: >-
+        The firewall held as CONTENT, not as a path. No Tier-A content, and no
+        reconstruction of it, entered ANY artifact of BATCH-f8bf86 by ANY route, and
+        no work has drifted into territory GOAL-MD5-001 or GOAL-SHA1-001 owns.
+      verdict: holds
+      established_by_search_not_by_attestation: true
+      what_I_actually_searched:
+        - >-
+          (1) STRUCTURAL SEARCH FOR PATH DATA over all 73 batch files (excluding the
+          sibling reviewer's directory, unread). Zero files contain any 8-hex-digit
+          word token. Zero contain a delta_m table, a DV table, a
+          sufficient-conditions table, a step/difference row table, or any decimal
+          integer array of length >= 6 with entries >= 6 digits. THE BATCH CONTAINS
+          NO WORD TABLE OF ANY KIND. The only regex hit anywhere is the string
+          `md5_delta_m:` naming a null FAMILY in execution-report.yaml line 304,
+          whose payload is {closest_entry, distance_bits: 711, vector_length_bits:
+          2560} -- three integers about synthetic objects.
+        - >-
+          (2) THE QUARANTINED ENTRY, EVERY APPEARANCE. CEN-QUAR-KN-LIT-87e00e appears
+          with path_data: null, orbit: UNDETERMINED, tier A, and the single whole-file
+          sha256. I traced every other occurrence of the token 87e00e across the batch
+          and the harness: all are the KN-LIT id, the citation string, or the file
+          path. NOTHING ELSE ABOUT IT APPEARS ANYWHERE.
+        - >-
+          (3) THE ONE FILE THAT WORRIED ME, CHECKED WITHOUT READING IT.
+          knowledge/literature/KN-LIT-87e00e.md is the corpus entry for the Wang paper
+          and it is NOT under the quarantine prefix, so census.scan_corpus() opened it
+          and read its full text. I did not read it. I ran a STRUCTURAL-ONLY probe
+          that prints counts and booleans: 3565 bytes, ONE 8-hex-digit token in the
+          whole file, no delta_m table, no DV table, no condition table, no step-row
+          table, no long numeric array. It carries no path data, so the scanner's read
+          of it obtained no Tier-A content. I record the method because "I checked
+          whether the firewall leaked by reading the file" would itself be the leak.
+        - >-
+          (4) THE NON-READING WAS NON-READING, FROM THE CODE. census.quarantine_
+          attestation() opens 'rb', streams 64 KiB chunks into a sha256 context,
+          never calls decode, never parses, and returns only the digest and the byte
+          count. census.scan_corpus() tests `rel_dir.startswith(QUARANTINE_DIR)`,
+          prunes dirnames, and re-tests the file path -- ALL BEFORE THE open() CALL.
+          The exclusion is structurally before the read, not merely asserted.
+        - >-
+          (5) THE NETWORK BOUNDARY, PER CALL, FROM THE LOG AND NOT THE SUMMARY.
+          TASK-20260824-873dc9's retrieval-log.yaml records exactly 2 WebSearch calls
+          and 0 WebFetch. R2 (Manuel DV classification, Tier C): 8 URLs returned, all
+          eprint/springer/researchgate SHA-1 items, NONE is eprint 2004/199 or any MD5
+          item; urls_followed NONE; retained = 3 ePrint numbers and 1 DOI. R3
+          (Chabaud-Joux SHA-0, Tier C): 10 URLs returned, all SHA-0/SHA-1, NONE is
+          2004/199; urls_followed NONE, including two direct PDF links that were Tier
+          C and permitted; retained = one full citation, one DOI, one title. I checked
+          every returned URL myself against the Tier-A list. NOTHING RETAINED EXCEEDS
+          TITLE, AUTHORS, VENUE, YEAR, PAGES, DOI OR EPRINT NUMBER.
+        - >-
+          (6) AN AFFIRMATIVE MARK FOR THE PRODUCER, since a red team that only
+          subtracts is miscalibrated: R3's log records that the search tool's summary
+          asserted a complexity figure for Chabaud-Joux and that the figure was
+          DELIBERATELY NOT RETAINED, because it came from a summary rather than the
+          paper. That is AGENTS.md rule 5 applied to the exact surface the plan
+          predicted would break (a result listing whose contents the agent does not
+          control), and it is applied against the agent's own interest.
+        - >-
+          (7) CROSS-GOAL DRIFT AND CLOSURE LANGUAGE. Every occurrence of "blind
+          rediscovery", "solver validation", "chosen-prefix cost" and "detector
+          coverage" in the batch is a boundary DISCLAIMER, not work. The acquisition
+          gap is 8 tier-labelled pointers, every one with path_data null, reported
+          beside the census as `pointer_entries_excluded: 9` and never added into
+          any count -- `orbit_count_readable_census` is {orbits: 0,
+          pointer_entries_excluded: 9} with a note that 0 orbits carries no
+          information. No sentence anywhere reads Tier B as closed; proposal-set-part2
+          line 1226 affirmatively states the MD5 lane is not exhausted and names two
+          live routes.
+      the_one_objection_and_it_is_minor:
+        item: "`bytes_hashed: 5583` in execution-report.yaml ctl_quar and in the run records."
+        why_it_is_an_objection_at_all: >-
+          The plan asked for "any digest, count or fingerprint of the payload beyond
+          the single whole-file sha256 the contract authorises", and the byte count
+          is literally such a count. AMD-20260824-DIFFP-ACQ-1 Tier A authorises
+          "hashing the quarantined file's BYTES without parsing them" and carrying
+          "its sha256"; it does not name the length.
+        why_it_is_de_minimis_and_I_say_so_rather_than_inflating_it: >-
+          A file length reveals no path word, no difference, no condition, and it is
+          recoverable by any process that may compute the sha256 at all. It is not a
+          leak and I am not calling it one. THE REASON TO RECORD IT IS PRECEDENT, NOT
+          RISK: this is the derived quantity that a later task will cite when
+          proposing a second derived quantity, and the digest_mediated_census design
+          proposal in the amendment is exactly a proposal to make a derived quantity
+          load-bearing. Fix: one line in the contract either authorising the byte
+          count explicitly or dropping it.
+      escalation_status: >-
+        NO ESCALATION. No finding under J7 triggers the plan's second escalation
+        trigger. No cross-goal contamination finding is reported to GOAL-MD5-001, and
+        I state that affirmatively rather than by silence.
+      what_I_could_NOT_establish_and_the_honest_limit: >-
+        THIS IS A SEARCH FOR RECONSTRUCTIBILITY FROM THE BATCH'S OWN ARTIFACTS AND
+        THAT IS ALL IT IS. It cannot establish that no agent in any session ever held
+        the content in context and declined to write it down; no artifact search can.
+        The strongest true statement is: nothing in the 73 committed batch files, and
+        nothing in the eleven harness modules, permits reconstruction of any part of
+        the Wang characteristic, in whole or in part, by any route I could construct.
+
+  # =====================================================================
+  proves_too_much:
+    argument_under_test: "the adjudicator's controls passed, therefore the adjudicator discriminates"
+    O1:
+      object: A SHA-0 codeword presented as a SHA-1 disturbance vector.
+      declared_failure_signature: NON-MEMBER in both modes AND sha1_in_linearized_code False.
+      measured:
+        in_linearized_code_recomputed: false
+        strict: NON-MEMBER
+        permissive: NON-MEMBER
+        closest_distance: 1267
+      which_key_component_decided_it_the_plan_s_sharpening:
+        answer: >-
+          NOT THE BOOLEAN ALONE. I re-adjudicated the identical object with
+          in_linearized_code FORCED to True: still NON-MEMBER in both modes at the
+          same distance. The DV content separates it independently. THE VERDICT IS
+          OVER-DETERMINED, WHICH IS THE STRONGER OF THE TWO POSSIBLE ANSWERS.
+      argument_survives_here: NO -- the argument correctly fails on this object.
+      standing_limit_restated_not_overstated: >-
+        SHA-0's expansion is implemented in this package from the stated one-rotation
+        difference and is not gated on a published SHA-0 digest (IR-10 forbids
+        acquiring one). O1 tests separation of the two expansions AS THIS PACKAGE
+        DEFINES THEM and certifies nothing about SHA-0.
+    O2:
+      object: A null draw from INSIDE the linearized code (family (b)).
+      measured_unmodified: {strict: NON-MEMBER, permissive: NON-MEMBER, closest_distance: 2556}
+      the_required_perturbation_that_makes_it_MEMBER:
+        construction: >-
+          The same family-(b) object with its dv and step_delta replaced by
+          PLANT-SHA1-00's.
+        measured: {strict: MEMBER, permissive: MEMBER, closest_distance: 0}
+      reading: >-
+        A MEMBER-reachable perturbation EXISTS, so the object is not vacuously
+        negative. But the perturbation required is the replacement of all 80 DV words
+        and all 80 step_delta words -- i.e. the replacement of the object. The
+        reachable region is a single point, which is J5's finding restated on a
+        known-false object.
+      argument_survives_here: NO on the verdict; YES on the inference, per J5 part D.
+    O3:
+      object: An E2-rotation image of a planted SHA-1 entry (the only two-sided object in the plan).
+      declared_failure_signature: strict = NON-MEMBER and permissive = MEMBER.
+      measured_at_b_in_1_7_16_31: strict NON-MEMBER on all four; permissive MEMBER on all four.
+      signature_met: true
+      consequences_that_do_NOT_fire: >-
+        NO IR-5 BREACH. The strict group did not admit the excluded generator, so no
+        strict verdict in this batch is voided on this ground; and the permissive
+        canonicaliser does implement its own declared generator, so the claim that
+        the two verdicts bound the error in a visible direction stands. THE PLAN'S
+        THIRD ESCALATION TRIGGER DOES NOT FIRE.
+      argument_survives_here: NO -- and this object is the strongest evidence in the
+        batch that the instrument is not degenerate, because a degenerate adjudicator
+        cannot pass it in either direction.
+    O4:
+      object: A family-(c) draw whose recomputed in_linearized_code is False.
+      measured: {in_linearized_code: false, strict: NON-MEMBER, permissive: NON-MEMBER, closest_distance: 2500}
+      the_required_output_which_component_decided:
+        answer_and_it_departs_from_the_coordinator_s_expectation: >-
+          THE BOOLEAN DID NOT CARRY IT. Forcing in_linearized_code to True leaves the
+          verdict NON-MEMBER at the same distance, and deleting in_linearized_code
+          from the key ENTIRELY leaves CTL-NULL at 0/3000 and CTL-PLANT at 96/96
+          (ablation battery, J5 part D). So the boolean is SUFFICIENT and REDUNDANT:
+          it describes all 1000 family-(c) draws (0/1000 in code, against 8/8 planted
+          entries in code) but it is not the mechanism, because the DV content
+          excludes them anyway.
+      argument_survives_here: >-
+        NO on this object as stated -- but the plan's underlying worry is CONFIRMED in
+        a stronger form than the boolean version, by O5 below.
+    O5_ADDED_BY_THIS_REVIEW:
+      object: >-
+        THE DELTA-M-BLIND ADJUDICATOR. The identical package with one line changed:
+        ("message_difference", diff_part) removed from serialize(). MEMBER is KNOWN
+        FALSE for the identifications this adjudicator makes -- it calls two MD5
+        paths with completely different message differences the same object, and the
+        message difference is the primary datum of a differential characteristic.
+      why_it_belongs_on_the_list: >-
+        The plan's four objects all vary the OBJECT and hold the argument fixed. This
+        one varies the INSTRUMENT and holds the control suite fixed, which is the
+        form the argument "the controls passed, therefore the adjudicator
+        discriminates" is actually stated in. It became constructible only after
+        reading the committed source.
+      measured:
+        CTL_PLANT: 96/96 (passed)
+        CTL_NULL_strict: 0/3000
+        CTL_NULL_permissive: 0/3000
+        per_family: {md5_delta_m: 0, sha1_dv_in_code: 0, sha1_dv_unconstrained: 0}
+        identical_to_the_honest_adjudicator_to_the_digit: true
+      the_known_false_MEMBER_exhibited: >-
+        D3b, PLANT-MD5-00 with ONE bit of its message difference flipped: the honest
+        adjudicator returns NON-MEMBER; the delta_m-blind adjudicator returns MEMBER.
+        Measured, both.
+      ARGUMENT_SURVIVES_HERE: >-
+        YES. THIS IS THE FINDING. The argument goes through unchanged on an object
+        where its conclusion is false.
+      where_in_the_argument_the_survival_happens: >-
+        AT THE STEP "the null draws were rejected, therefore the key separates the
+        census". The null draws are rejected by the step_delta component alone --
+        family (a)'s 6 delta_m hits die on step_delta, families (b) and (c) die on the
+        DV. NO DECLARED NULL DRAW EVER TESTS WHETHER THE MESSAGE DIFFERENCE IS IN THE
+        KEY, because no declared draw is ever built to agree with a census entry
+        everywhere except there. The argument's conclusion is about the key; its
+        evidence is about one component of the key; the gap is invisible in 0/3000
+        and visible in one line of the ablation battery.
+
+  # =====================================================================
+  blind_rederivation:
+    artifact: coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/reviews/TASK-20260824-3bd362/blind-rederivation.yaml
+    sealed_before_reading_any_blind_from_code_path: true
+    blind_from_respected: false
+    THE_BLINDNESS_PROTOCOL_WAS_UNSATISFIABLE_AS_WRITTEN:
+      finding: >-
+        THIS IS A REVIEW-ARCHITECTURE DEFECT, REPORTED AS A FINDING AND NOT AS AN
+        EXCUSE. blind_from lists "this plan's coordinator_prior.
+        prior_for_this_review_round, item BLIND RE-DERIVATION" -- an item INSIDE the
+        document the same plan says I "must read", and which my task card and
+        dispatch instruction both order me to read FIRST because it carries my joint
+        assignments. There is no read order that satisfies both instructions.
+      and_it_is_worse_than_one_item: >-
+        The producer's answers to the blinded quantity appear in TWO FURTHER places
+        OUTSIDE blind_from, so they are not even flagged: joint J3's attack plan
+        states "the reported orbit sizes 2 and 10" and predicts E4 and E5 emit no
+        orbit image, and joint J5's decoy D4 discloses that signed_representation is
+        a key component. A blind_from list cannot protect a quantity whose answer is
+        printed three times in the mandatory-read assignment.
+      consequence_for_composition: >-
+        THE COORDINATOR MUST NOT COMPOSE THIS AS A BLIND RE-DERIVATION. Agreement
+        between my number and the producer's is worth nothing, because I knew the
+        producer's number before I derived mine. What survives is the derivation's
+        structure and the design choices it localises, below.
+      fix_for_round_2: >-
+        Split the plan into an assignment document containing no producer-reported
+        value for any blinded quantity, and a sealed prior the reviewer never
+        receives. Or blind a quantity the plan has no occasion to quote.
+    my_numbers_from_the_generator_statements:
+      md5_planted_orbit_size: 3 (primary branch); 4 if the condition set is serialised; 2 if neither E4 nor E5 has a constructible image
+      sha1_planted_orbit_size: 13 (primary branch, 11 verified shifts); 14 if conditions are serialised; unbounded if E1's statement is read literally
+      distribution: 8 entries at 3 and 8 entries at 13, under the stated genericity assumption
+    producer_numbers_measured_after_sealing: {md5: 2, sha1: 10}
+    where_the_disagreement_LOCALISES_which_is_the_part_worth_having:
+      sha1_13_vs_10: >-
+        E1_SHIFTS = (1,2,3,4,5,6,7,8) in harness/diffpath/equivalence.py -- EIGHT
+        FORWARD SHIFTS. The declaration's verification_check for E1 verifies "forward
+        shifts (1..8) and backward shifts (1,4,8)" -- ELEVEN. The three missing images
+        are EXACTLY THE BACKWARD SHIFTS. This is not automatically an error: an
+        orbit-image set need not equal a verification test set. It IS an undeclared
+        design choice in a load-bearing quantity, and it is asymmetric -- the tested
+        orbit is a one-sided sample of a two-sided group. If backward shifts are
+        omitted because the backward refill is ill-defined at the window start, that
+        is a scope_limit and it belongs in equivalence-declaration.yaml, where it is
+        not.
+      md5_2_vs_3_and_this_is_the_larger_one: >-
+        adjudicator.orbit_images() emits an image for E3, E6, E1 and E2 ONLY. E4 AND
+        E5 -- BOTH VERIFIED, BOTH IN THE STRICT GROUP -- EMIT NO ORBIT IMAGE AT ALL.
+        So an MD5 planted entry's orbit is generated by a single involution and has
+        size 2; HALF THE STRICT GROUP DOES NO WORK IN ANY ORBIT THIS BATCH
+        CONSTRUCTS. On the merits I now think the producer's 2 is DEFENSIBLE and my 3
+        is arguable: E4's own statement says "the canonical form is the modular
+        difference itself", under which E4's image genuinely IS the object. But
+        then E4 and E5 are canonicalisation rules rather than group generators, and
+        calling them "verified generators" of an equivalence whose orbits they never
+        enlarge overstates what the equivalence does.
+      the_consequence_for_every_covering_number_this_goal_will_report: >-
+        On the MD5 side the entire declared equivalence is a factor-2 quotient. A
+        covering number quoted without naming the shift set and the serialised
+        components is not reproducible: the same declaration supports 2 or 3-4 on
+        MD5 and 10, 13 or 14 on SHA-1.
+    genericity_assumption_used_and_its_failure_direction: >-
+      Used as instructed: planted objects not self-negating, not fixed by a
+      nontrivial shift, pairwise distinct. Every failure makes an orbit SMALLER, so
+      all figures above are upper bounds within their branch and a failure produces a
+      left tail rather than a shift.
+
+  # =====================================================================
+  objections:
+    - id: OBJ-1
+      severity: HIGH
+      joint: J5 / proves_too_much
+      objection: >-
+        The batch's control suite has NO POWER against the deletion of the message
+        difference from the canonical key. Measured: the delta_m-blind adjudicator
+        scores CTL-PLANT 96/96 and CTL-NULL 0/3000, identical to the honest one.
+      what_would_settle_it: >-
+        The `md5_delta_m_perturbed` null family (J5 part D). Its first draw
+        separates the two adjudicators; D3b at one bit already does.
+    - id: OBJ-2
+      severity: HIGH
+      joint: J5
+      objection: >-
+        `closest_distance` is reported beside every verdict and in the null summary
+        as though it were a margin. It is decision-irrelevant in both directions:
+        NON-MEMBER at distance 0 (N4), MEMBER at distance 1277 (D1 permissive).
+      what_would_settle_it: >-
+        Either drop it, or relabel it in every artifact as "reported diagnostic, not
+        a decision variable and not a margin", and never quote it as evidence about
+        the null's difficulty.
+    - id: OBJ-3
+      severity: MEDIUM
+      joint: J6
+      objection: >-
+        serialize() drops `step_start` whenever E1 is in the generator set, with no
+        primitive guard, so the MD5 key loses the step extent to a generator declared
+        for SHA-1 only -- absorbing a declared_non_generator. Decoy N1 adjudicates
+        MEMBER under strict at distance 0.
+      what_would_settle_it: >-
+        One condition: drop step_start only when E1 is in gens AND the object is
+        SHA-1. Then re-run N1; it must return NON-MEMBER.
+    - id: OBJ-4
+      severity: MEDIUM
+      joint: J6
+      objection: >-
+        Adjudicator.adjudicate()'s closest-entry loop has no primitive guard and
+        filters only on diff_vector length, so a 40-step SHA-1 object is compared to a
+        64-step MD5 object (verified: both have length 80). Latent now, active as soon
+        as a real sub-range path enters the census.
+      what_would_settle_it: >-
+        Add `if e.obj.primitive != obj.primitive: continue`, and add a fixture pairing
+        a 40-step SHA-1 object with a full MD5 entry; closest_entry must be None.
+    - id: OBJ-5
+      severity: MEDIUM
+      joint: J5
+      objection: >-
+        One third of the declared null (family (c), 1000 draws) consists of MALFORMED
+        objects: the DV is overwritten after step_delta was derived from the pair, so
+        no message pair induces them (measured 20/20). They are not hard negatives;
+        they are inputs the adjudicator was never designed to receive.
+      what_would_settle_it: >-
+        Re-derive step_delta from the overwritten DV, or re-label family (c) in the
+        contract as a MALFORMED-INPUT control rather than a null family, and report
+        its 1000 draws separately from the two well-formed families.
+    - id: OBJ-6
+      severity: MEDIUM
+      joint: blind_rederivation
+      objection: >-
+        E4 and E5 are called verified GENERATORS of the equivalence but enlarge no
+        orbit and emit no image; and E1's orbit-image shift set (8 forward) is a
+        strict subset of its verification shift set (8 forward + 3 backward), with the
+        difference undeclared.
+      what_would_settle_it: >-
+        equivalence-declaration.yaml gains, per generator, an explicit `orbit_action`
+        field: the images it emits, or `none, and why`. Then the orbit-size
+        distribution is derivable from the declaration alone, which is what the plan
+        assumed and what turned out to be false.
+    - id: OBJ-7
+      severity: MEDIUM
+      joint: review architecture (not a producer defect)
+      objection: >-
+        The blind re-derivation was structurally impossible: the blinded quantity's
+        producer-reported value appears three times in the mandatory-read review plan,
+        twice outside blind_from. The batch budgeted for a blind re-derivation and did
+        not get one.
+      what_would_settle_it: See blind_rederivation.THE_BLINDNESS_PROTOCOL_WAS_UNSATISFIABLE_AS_WRITTEN.fix_for_round_2.
+    - id: OBJ-8
+      severity: LOW
+      joint: J6
+      objection: >-
+        E4 is implemented as "delete signed_representation from the key", which
+        identifies objects whose signed representation decodes to a DIFFERENT modular
+        difference than their step_delta (decoy D4, MEMBER). E4's statement licenses
+        only identifying representations OF THE SAME modular difference. Unreachable
+        from a real witness pair, so latent.
+      what_would_settle_it: >-
+        Either validate signed_representation against step_delta on ingest, or record
+        the widened reading in E4's scope_limit.
+    - id: OBJ-9
+      severity: LOW
+      joint: J7
+      objection: "`bytes_hashed: 5583` is a derived quantity about the quarantined payload beyond the authorised whole-file sha256. De minimis; recorded for precedent, not for risk."
+      what_would_settle_it: One contract line authorising the byte count explicitly, or dropping it.
+    - id: OBJ-10
+      severity: LOW
+      joint: J5
+      objection: >-
+        PathObject has no well-formedness predicate and Adjudicator.adjudicate()
+        validates no input, so census integrity depends entirely on who constructs the
+        candidates. My N1 decoy (MD5 at step_range (8,71), outside the 64-step
+        compression function) was accepted without complaint.
+      what_would_settle_it: >-
+        A `conforms_to_schema(obj)` gate on adjudicate(), checking step_range against
+        the primitive's step count and dv against the expansion of its own seed
+        window. Re-run N1 and any family-(c) draw; both must be rejected as malformed
+        rather than adjudicated NON-MEMBER.
+
+  required_controls:
+    - >-
+      CTL-NULL FAMILY (d), `message_difference_perturbed`: planted entry, k bits
+      flipped in delta_m (MD5) or the DV (SHA-1), everything else held fixed, k in
+      {1,2,4,8,16}. Known answer NON-MEMBER at every k >= 1. THIS IS THE CHEAPEST
+      DISCRIMINATING CONTROL IN THIS REPORT and it is the one that would have caught
+      OBJ-1 on its first draw.
+    - >-
+      THE ABLATION BATTERY AS A STANDING CONTROL: run the suite against each
+      single-component key deletion and report which ablations the suite detects.
+      This converts "the null passed" into a measurement of the null's power. Six
+      re-runs of an 80-second suite; no new objects, no new seeds.
+    - >-
+      CTL-OBS DIRECTION (i) RE-AIMED at many witnesses of the SAME message
+      difference rather than at independent random pairs. Its 0/1024 is currently a
+      controlled null in a population where a collision is hopeless; re-aimed, its
+      collision rate is the missing magnitude of J6's coarse direction.
+    - >-
+      A WELL-FORMEDNESS GATE on adjudicate(), so that a malformed object is rejected
+      as malformed rather than counted as a correctly-rejected null draw.
+    - >-
+      TWO REGRESSION FIXTURES from this report, with their measured answers: N1
+      (must become NON-MEMBER once OBJ-3 is fixed) and the cross-primitive
+      closest-entry pair (must yield closest_entry None once OBJ-4 is fixed).
+
+  counterexample_or_mutation: >-
+    THE DELTA-M-BLIND ADJUDICATOR (O5). One deleted tuple element in
+    adjudicator.serialize(); CTL-PLANT 96/96, CTL-NULL 0/3000, indistinguishable from
+    the delivered instrument by every control this batch ran; and it calls
+    PLANT-MD5-00-with-one-flipped-message-difference-bit a MEMBER, which the honest
+    instrument correctly rejects.
+
+  baseline_comparison:
+    why_the_role_contract_s_named_baselines_do_not_apply: >-
+      Pollard-rho, BSGS and the specialized ECDLP baselines are not the comparison
+      class for this artifact and I will not manufacture one. The package makes NO
+      cryptanalytic claim, runs no search (IR-8), and its claim ceiling is `analyzed`.
+      I confirmed there is no `dominated_by` or `sota_delta` field anywhere in the
+      producer's package -- correctly, because no Pareto claim is made.
+    the_comparison_that_IS_appropriate:
+      baseline_0_no_equivalence_at_all: >-
+        sha256 of the full serialisation, i.e. exact object identity. Against that
+        baseline the declared equivalence buys a factor of 2 on MD5 and 10 on SHA-1 in
+        orbit size, at the cost of the coarseness in J6 item 1 and the unlicensed
+        absorption in OBJ-3. THIS IS THE HONEST HEADLINE NUMBER FOR THE EQUIVALENCE
+        AND IT SHOULD APPEAR WHEREVER A COVERING NUMBER DOES.
+      baseline_1_the_permissive_group: >-
+        Permissive collapses 32 rotations x k block indices to 1 where strict keeps
+        32k. The two verdicts genuinely bracket the answer -- verified two-sidedly by
+        D1 and D2 -- which is the strongest structural property this instrument has.
+      the_eliminated_dimension_check_KN-LIT-7593: >-
+        APPLIED, AND IT PASSES. The equivalence eliminates search dimensions
+        (rotation, sign, shift), and the cost of computing the invariant IS charged:
+        canonical() enumerates up to 64 variants under permissive (2 sign x 32
+        rotations) and that enumeration runs inside the measured 80.748 s. No
+        dimension is eliminated for free anywhere in this package.
+
+  heuristic_challenges:
+    - >-
+      THE PACKAGE'S ONE LOAD-BEARING HEURISTIC IS THE TRANSFER ASSUMPTION, AND THE
+      PRODUCER ALREADY DECLINES TO MAKE IT: "an adjudicator correct on planted paths
+      and null draws is also correct on published paths -- IS NOT ASSUMED AND IS NOT
+      CLAIMED". I checked that no artifact quietly relies on it and found none. That
+      is the correct handling and I record it as such.
+    - >-
+      AN UNDECLARED HEURISTIC I DID FIND: the planted set is treated as a stand-in for
+      the space of candidate paths, but all 8 MD5 planted entries carry a WEIGHT-1
+      message difference, whereas a real MD5 collision characteristic's message
+      difference is not weight 1. The null's matched-weight design therefore matches a
+      weight that no real candidate has, and every reported distance inherits that.
+      Not a defect in a shadow census whose job is to make a false positive possible;
+      it IS a limit on how far any figure here transfers, and it is not stated.
+    - >-
+      E5's scope_limit is exemplary and I want it noted: it says outright that
+      decidability was established on 8 boolean variables with full 2^8 enumeration
+      and is NOT a claim about real per-step 32-bit condition sets. Since E5 emits no
+      orbit image and conditions are outside the key, E5 currently does no work in
+      either direction, so the limit costs nothing today and will cost everything the
+      day conditions enter the key.
+
+  cost_model_challenges:
+    - >-
+      NO COST MODEL IS ASSERTED AND NONE IS PROJECTED. I checked for any figure
+      projecting toward an attack complexity and found none; the producer states
+      explicitly that no figure projects toward any attack complexity. Nothing to
+      challenge, and I say so rather than inventing an objection.
+    - >-
+      ONE FORWARD COST NOTE FOR BATCH 2, NOT A CHALLENGE TO THIS BATCH: permissive
+      canonical() enumerates 2 x 32 = 64 serialisations per SHA-1 object. At census
+      size 16 that is free. At a census of N entries the index build is O(64N) and
+      each adjudication is O(64 + N) because the closest-entry loop is linear in N and
+      is NOT indexed. The linear scan, not the group enumeration, is what will bind
+      first.
+
+  reduction_and_scope_challenges:
+    - >-
+      SCOPE INFLATION: NONE FOUND. Every verdict in the package is stated against "this
+      census"; the scope_note is attached to every Adjudication record programmatically
+      rather than editorially; and I found no sentence anywhere in the batch treating a
+      NON-MEMBER verdict as novelty.
+    - >-
+      THE ACQUISITION GAP IS NOT ABSORBED. 8 tier-labelled pointers, all path_data
+      null, reported as `pointer_entries_excluded: 9` beside an orbit count of 0 with a
+      note that 0 orbits carries no information. Never summed with the readable count.
+    - >-
+      TIER B IS ROUTED, NOT CLOSED, IN EVERY ARTIFACT THAT MENTIONS IT. I searched for
+      closure language against Tier B and the MD5 lane and found the opposite: an
+      affirmative statement that the lane is not exhausted with two named live routes.
+      Under docs/inventor-protocol.md section 4 this is the correct handling of an
+      obstruction, and premature closure is the failure mode I was looking for.
+    - >-
+      ONE SCOPE ASYMMETRY WORTH THE COORDINATOR'S ATTENTION: the batch's own claim that
+      "all four batch-1 controls are fully exercisable at census size zero" (amendment,
+      batch_1_not_re_scoped reason 2) is true of the controls as WRITTEN and false of
+      the property they are meant to establish. CTL-NULL at census size zero measures
+      the shadow census, and the shadow census's weight-1 message differences are not
+      the population any real candidate is drawn from.
+
+  proof_architecture_challenges:
+    observation_fiber_attack:
+      applied_to: canonical(obj, gens), the claimed invariant.
+      result: >-
+        SUCCESSFUL, AND IT IS THE J6 RESULT. I held the invariant fixed and varied the
+        object: N2b (3531 conditions -> 0), N3 (witness pair replaced), D4 (signed
+        representation replaced), N1 (MD5 extent shifted) all share one canonical form
+        with PLANT-MD5-00. The missing separator for N1 is a primitive guard on the
+        step_start drop (OBJ-3); for N2b/N3 the omission is deliberate and measured
+        (PD-5); for D4 it is the consistency of the representation with the modular
+        difference (OBJ-8).
+    quantifier_order_attack:
+      result: >-
+        NO DEFECT FOUND, AND THE IMPLEMENTATION MATCHES THE DECLARATION. The declared
+        order is "for every P there exists C and there exists g with g(P) = C, g may
+        depend on both". canonical() realises it by minimising serialize over the
+        orbit and taking a dict hit, which is exactly that existential and nothing
+        stronger. No witness is chosen after seeing an outcome.
+    nearby_object_attack:
+      result: >-
+        RUN AS O1 (SHA-0) and O3 (E2 rotation). Both separate correctly, and O1
+        separates on the path content and not only on the in_linearized_code flag,
+        which is the stronger outcome.
+    method_ceiling_attack:
+      result: >-
+        THE CEILING IS BELOW THE HEADLINE, AND THAT IS THE J5 VERDICT. The largest
+        claim CTL-NULL as declared can support under ideal tuning is "the key's
+        step_delta component separates uniform draws from planted entries". It cannot
+        reach "the adjudicator discriminates", because it has no power against the
+        deletion of any other component (measured, J5 part D).
+    compositional_invariant_attack:
+      result: >-
+        RUN AS THE ABLATION BATTERY. Deleting message_difference breaks nothing the
+        controls can see; deleting step_delta is caught with 6 false positives;
+        deleting everything is caught with 3000. The first recursion step that fails
+        is the null's, not the canonicaliser's.
+
+  departures_from_the_coordinator_recorded_prior:
+    - prior_item: "J5 (b): family (c)'s 1000 draws are excluded by ONE BOOLEAN before any path content is compared."
+      departure: >-
+        HALF RIGHT, AND THE WRONG HALF IS LOAD-BEARING. Descriptively confirmed:
+        in_linearized_code is False on 1000/1000 family-(c) draws and True on 8/8
+        planted SHA-1 entries. Mechanically REFUTED: forcing the flag True leaves the
+        verdict unchanged, and DELETING the flag from the key entirely leaves
+        CTL-NULL at 0/3000. The boolean is redundant, not decisive, so "a third of
+        CTL-NULL was a boolean check" understates the problem -- a third of CTL-NULL
+        was decided by a component the control cannot even detect the absence of.
+    - prior_item: "J5 (c): family (b) is the only family with any structure at all."
+      departure: >-
+        REVERSED. Measured, family (b) is the WEAKEST: uniform over 2^512 codewords
+        against 8 targets, 0/1000 partial matches. Family (a) is the only family with
+        measurable structure -- 6/1000 exact message-difference matches, because the
+        planted entries all carry weight-1 differences and the draw space is 512
+        positions.
+    - prior_item: "J5 (a): family (a)'s a priori strict false-positive probability is indistinguishable from zero at 1000 draws."
+      departure: >-
+        CONFIRMED IN OUTCOME, REFINED IN STRUCTURE. The joint probability is
+        indistinguishable from zero, but it FACTORS, and one factor is 1/64 and was
+        reached 6 times. That factorisation is what makes the ablation battery
+        possible and is the only reason the null has any power at all.
+    - prior_item: "J5: I think D1 comes out correct, which would be a genuine positive finding."
+      departure: >-
+        CONFIRMED AND EXTENDED. D1 correct on all four rotations; D2 correct on both
+        primitives; D4 correct on both sides. Three two-sided known answers met. I
+        agree this is a genuine positive finding and I would not want the composition
+        to lose it under J5's `breaks`.
+    - prior_item: "J6: you will find BOTH errors present, on different axes, and that they do not cancel."
+      departure: >-
+        CONFIRMED, AND THERE IS A THIRD. The MD5 step_start absorption (OBJ-3) is a
+        coarseness on an axis the declaration explicitly protects, and the plan did
+        not anticipate it. I also supply the exact inflation factor the plan asked
+        for -- 32k, measured, not bounded.
+    - prior_item: "J7: I expect NO reconstructible Tier-A content and I hold this with the least comfort of any prediction in this plan."
+      departure: >-
+        NONE. Confirmed by search over all 73 batch files, the eleven harness modules,
+        and the per-call retrieval log, plus a structural-only probe of the one corpus
+        file about the Wang paper that the scanner opened. The comfort is now earned
+        rather than assumed, which is what the plan asked for.
+    - prior_item: "BLIND RE-DERIVATION: I expect DISAGREEMENT and I want it; I predict it localises to the shift set."
+      departure: >-
+        THE PREDICTION IS RIGHT ABOUT SHA-1 AND INCOMPLETE ABOUT MD5, AND THE
+        PREDICTION ITSELF IS WHY THE RE-DERIVATION IS NOT BLIND. SHA-1: localised
+        exactly as predicted, to the 8 forward shifts versus 11 verified, the missing
+        three being precisely the backward ones. MD5: localises somewhere the prior did
+        not look -- E4 and E5 emit no orbit image, so half the strict group never
+        enlarges an orbit. And see OBJ-7: the prior was inside blind_from and inside a
+        document I was ordered to read first.
+    - prior_item: "P-5 (STRONG): the binding constraint on this whole goal will turn out to be ACQUISITION."
+      departure: >-
+        NOT MY JOINT, BUT J7 CORROBORATES IT AND I RECORD THAT RATHER THAN STAY SILENT.
+        8 tier-labelled gaps, 1 hard refusal, 0 readable, and the single highest-value
+        gap (SHA-1 DV classification) is Tier C and unblocked. Nothing in my joints
+        bears against P-5.
+    - prior_item: >-
+        prior_for_this_review_round, one_sentence: "the Red Team will find that CTL-NULL
+        as declared had essentially no achievable false-positive probability and that
+        CTL-PLANT recall is close to a tautology of shared code."
+      departure: >-
+        THE FIRST HALF IS CONFIRMED AND UNDERSTATED. The problem is not that the null's
+        probability was low; it is that the control has no power against three of five
+        key ablations, which is a statement about the CONTROL rather than about the
+        DRAWS and is strictly stronger. CTL-PLANT is J3 and is not mine.
+
+  narrowest_supported_statement: >-
+    WHAT SURVIVES MY JOINTS, AND NOTHING WIDER. (1) At these parameters, against this
+    16-entry shadow census, the adjudicator's strict group is exactly the verified
+    subset and its permissive group implements its declared generators: an E2-rotation
+    image and an E6-reindexed image are NON-MEMBER under strict and MEMBER under
+    permissive, and an object differing only in signed representation is MEMBER under
+    strict and NON-MEMBER with E4 removed. THREE TWO-SIDED KNOWN ANSWERS ARE MET, and
+    a degenerate adjudicator cannot meet them. (2) CTL-NULL's 0/3000 supports ONLY
+    "the step_delta component of the canonical key separates the three declared draw
+    distributions from the planted entries"; it supports nothing about the message
+    difference or the in_linearized_code components, because it has no power against
+    their deletion. (3) The declared equivalence is too coarse on the condition set,
+    the witness pair, the signed representation, and -- unlicensed -- the MD5 step
+    extent; and too fine by exactly 32k on the rotation and block axes. The net
+    direction is not determinable from this batch. (4) No Tier-A content, and no
+    reconstruction of it, is present in or derivable from any of the 73 committed batch
+    files, the eleven harness modules, or the two logged network calls. (5) Nothing
+    here is a statement about any published characteristic, about MD5's or SHA-1's
+    difference space, or about novelty. My J5 `breaks` is a finding about a CONTROL'S
+    POWER and is NOT a finding that the adjudicator is wrong -- on every object where I
+    could construct a known answer, it gave that answer.
+
+  next_concrete_action: >-
+    IMPLEMENT CTL-NULL FAMILY (d), `message_difference_perturbed` -- planted entry with
+    k bits of delta_m (MD5) or the DV (SHA-1) flipped at k in {1,2,4,8,16}, everything
+    else held fixed, known answer NON-MEMBER at every k >= 1 -- and run the six-row
+    ablation battery of J5 part D as a standing control, reporting which ablations the
+    suite detects rather than reporting that the null passed. Both are exercisable at
+    census size zero, need no new seeds, no acquisition and no search, and together
+    they replace 0/3000 with a measurement of the null's power. Do this BEFORE batch 2
+    acquires anything: an instrument whose control suite cannot see the message
+    difference should not be the first thing a newly acquired published path meets.
+
+  # =====================================================================
+  budget_and_procedure_honesty:
+    declared_budget: {wall_clock_seconds: 360, memory_gb: 3, maximum_runs: 3}
+    what_I_actually_spent: >-
+      WALL CLOCK EXCEEDED THE 360 s NOMINAL AND I AM REPORTING IT RATHER THAN LETTING
+      IT PASS. I executed FIVE scripted probes plus three small read-only extraction
+      scripts. NONE created a run directory, minted a RUN-* id, or consumed any
+      ceiling of EXP-DIFFP-fe894e; they are review-side computation against the
+      committed source, not charged runs, so `maximum_runs: 3` is not breached on the
+      reading that it counts experiment runs. If the Coordinator reads it as counting
+      script executions, then it IS breached at 5 and I would rather say so.
+    priority_order_compliance: >-
+      THE PLAN'S BINDING ORDER WAS FOLLOWED WITH ONE DEVIATION, DECLARED. Order
+      executed: blind re-derivation (sealed first), then the source read, then J5 part
+      A, then the full decoy set D1-D4 and N1-N4, then O1-O4, then O5 (added), then
+      J6, then J7. DEVIATION: I ran J5's decoys D2 and D4 (plan rank 8) in the same
+      probe as D1 and D3 (rank 4) because they cost nothing extra once the census was
+      built, and I ran O1/O2 (rank 5) after O3/O4 (rank 2) as the plan ordered. NO
+      JOINT WENT UNRUN and no joint is reported PARTIAL.
+    J7_was_reached: >-
+      YES. The plan's `budget_risk_recorded` names J7 as the omission it would not
+      accept silently. J7 was reached, searched rather than attested, and is reported
+      in full.
+    infrastructure_notes: >-
+      pytest and sympy are absent from the repository environment as the plan warned;
+      I used the reviewer interpreter at
+      /tmp/claude-0/.../scratchpad/tv/bin/python, which has pyyaml. I ran no part of
+      the producer's test suite (that is J2/J3, the Validator's). No infrastructure
+      failure occurred in any of my probes, so no infrastructure signal is reported.
+
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort_requested: xhigh
+    reasoning_effort_delivered: xhigh
+    degraded_allowed: false
+    fallback_used: false
+    resolved_binding_command: "python3 -m orchestration.adapter resolve --role red-team --independent-session"
+    resolved_binding_output_verbatim: "review-adversarial -> anthropic:claude-opus-5 (effort=xhigh)"
+    backend: anthropic
+    model_that_actually_answered: claude-opus-5
+    no_downgrade_statement: >-
+      NO DOWNGRADE OCCURRED. The resolved binding and the model that answered are the
+      same. Had the tier been unreachable I would have paused rather than downgraded.
+    amazon_bedrock_used: false
+    probe_status:
+      command: "python3 -m orchestration.adapter doctor --probe"
+      run_by_this_session: true
+      result_verbatim_summary: >-
+        Configuration loaded OK (sha256:019f1497893bd731edd34665d450f3ff). Every
+        backend reported its API key unset in THIS SHELL and therefore "backend
+        unusable"; the local backend's model probe failed with connection refused at
+        http://localhost:8000/v1/models.
+      honest_reading_of_that_result: >-
+        THE PROBE CANNOT VERIFY THIS SESSION'S BACKEND AND I AM NOT CLAIMING IT DID.
+        Credentials are held by the Claude Code harness out of band and are not in the
+        shell environment the probe inspects, so the probe's warnings are facts about
+        the shell, not about the inference path that answered. The independent evidence
+        that the tier was met is the resolve output above plus the model identifier.
+        The plan assigns the pre-dispatch probe to the DISPATCHING session; I did not
+        perform that role and do not claim its result.
+    independent_session: true
+
+  # =====================================================================
+  blindness_incident_disclosed_by_this_reviewer:
+    what_happened: >-
+      AFTER MY REPORT WAS WRITTEN AND AFTER EVERY FINDING ABOVE WAS FIXED, I ran `git
+      status` and `git log --oneline -1` to confirm I had made no commit, and then
+      `git show --stat --name-only <sha>` to check whether a peer session had swept my
+      sealed blind-rederivation.yaml into its commit. THE COMMIT AT HEAD IS THE
+      COORDINATOR'S COMMIT OF THE VALIDATOR'S REPORT, AND ITS COMMIT MESSAGE BODY
+      CONTAINS THE VALIDATOR'S FINDINGS. I read that message body before I could know
+      what it was.
+    exactly_what_I_saw_stated_completely_rather_than_minimised: >-
+      The commit subject "validator report, round 1 (J1-J4)"; the line "Verdicts: J1
+      breaks, J2 holds, J3 breaks, J4 holds. Round verdict incomplete (J5-J7 unseen by
+      construction)"; and two finding summaries, VD-1 (the E6 (0,0) count reported as
+      2094 against 2089 in the raw artifacts, with the E6 EXCLUDED verdict unchanged)
+      and VD-2 (ctl_quar.bytes_hashed reported as 5583 against 3103 measured, the
+      sha256 itself correct, and the defective integer propagating into the snapshot
+      receipt's gate G5 and into the review plan's own J4 step (3)).
+    what_I_did_NOT_read: >-
+      The Validator's report file, its rerun artifacts, and its task directory. Those
+      remain unread and unopened. `read_sibling_reports` stays false and is true as
+      stated.
+    effect_on_this_report_and_why_it_is_containable: >-
+      NONE ON ANY FINDING. Every joint verdict, decoy, ablation, objection and
+      measurement above was written and committed to this file BEFORE the exposure,
+      and none of J1-J4 is mine. THE ONE OVERLAP IS OBJ-9 (`bytes_hashed: 5583`),
+      WHICH I WROTE INDEPENDENTLY AND BEFORE, ON A DIFFERENT GROUND: I objected to the
+      byte count EXISTING as an unauthorised derived quantity about a quarantined
+      payload, and said explicitly that it is de minimis and recorded for precedent.
+      I DID NOT AND DO NOT CHECK ITS VALUE -- the plan assigns the quarantine re-hash
+      to the Validator alone and forbids me to re-hash -- so I am NOT adopting,
+      restating or corroborating the Validator's VD-2, and OBJ-9 must not be composed
+      as independent confirmation of it. Two reviewers landing on the same field for
+      different reasons is not two observations.
+    THE_PROCESS_FINDING_AND_IT_IS_THE_REASON_I_AM_RECORDING_THIS: >-
+      A GIT COMMIT MESSAGE IS AN UNCLOSED BLINDNESS CHANNEL. The plan's `blindness`
+      block forbids reading the sibling's REPORT and its TASK DIRECTORY. It says
+      nothing about commit messages, and the Coordinator committed one reviewer's
+      report with its findings in the message body while the other reviewer was still
+      running in the same worktree -- where `git log`, `git status` and `git show` are
+      ordinary hygiene commands that CLAUDE.md and AGENTS.md actively require. Mutual
+      blindness is not enforceable under those conditions.
+      FIX FOR ROUND 2, EITHER OF: (a) while a round is open, commit reviewer reports
+      with a subject line and NO findings in the body, deferring the summary to the
+      composition commit; or (b) `blindness` explicitly covers commit messages, the
+      merge digest and `coordination/events/main/**`, and reviewers are told to use
+      `git log --format=%H` only until the round closes. (a) is cheaper and does not
+      ask a reviewer to un-see anything.
+    a_second_process_note_smaller: >-
+      My sealed blind-rederivation.yaml was committed by a PEER SESSION, not by me, in
+      5f2c48e9a "round-1 reviewer work in progress". I made no commit. Its content is
+      byte-identical to what I sealed (sha256
+      b015ccac854530a57255befca8c9ee5c15b2cadf825f665bb7e6c8e83a9674fc), so the seal
+      holds -- but a write-once sealed sub-artifact being swept into a generic
+      work-in-progress commit by another session is worth the Coordinator knowing,
+      because the seal's value is that nobody could have amended it after the fact.
+
+  review_attestation:
+    task_id: TASK-20260824-3bd362
+    joints_owned: [J5, J6, J7, "proves_too_much (O1-O4, plus O5 added by this review)", blind_rederivation]
+    sources_read:
+      - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/amendments/AMD-20260824-DIFFP-ACQ-1.yaml
+      - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/review-plan/review-plan-f8bf86.yaml
+      - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/task-cards/TASK-20260824-3bd362/task_card.yaml
+      - ledger/handoffs/TASK-20260824-3bd362.yaml
+      - agents/red-team.md
+      - templates/research-records.md (review_attestation block only)
+      - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/tasks/TASK-20260824-c6625a/equivalence-declaration.yaml
+      - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/tasks/TASK-20260824-c6625a/census.yaml
+      - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/tasks/TASK-20260824-c6625a/execution-report.yaml (targeted sections: claim_ceiling, ctl_quar, the null summary, the KN-LIT-87e00e references; NOT read in full)
+      - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/tasks/TASK-20260824-873dc9/retrieval-log.yaml (in full)
+      - "coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/tasks/TASK-20260824-873dc9/{proposal-set.yaml, proposal-set-part2.yaml, acquisition-targets.yaml} (grep-level only, for J7)"
+      - harness/diffpath/adjudicator.py (in full)
+      - harness/diffpath/pathobj.py (in full)
+      - harness/diffpath/census.py (in full)
+      - harness/diffpath/equivalence.py (lines 1-180 in full; E1_SHIFTS and ALL_GENERATORS by grep)
+      - harness/diffpath/primitives.py (header and rotl/add32/sub32)
+      - harness/diffpath/runs.py (SEEDS block and run_controls, by grep and targeted read)
+      - "the batch file listing (73 paths) via find, for J7"
+    sources_deliberately_NOT_read:
+      - "coordination/goals/GOAL-MD5-001/quarantine/** -- see quarantine_non_reading_attestation"
+      - "coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/reviews/TASK-20260824-c40847/** -- the sibling reviewer's directory. Its three filenames appeared in a `find` listing over the batch; NO FILE IN IT WAS OPENED, and its contents are unknown to me."
+      - "tests/test_diffpath_adjudicator.py, null-control-result.json, raw-observations.json, run-index.json, runs/** -- blind_from paths I had no need for after sealing; not read at any point."
+      - "knowledge/literature/KN-LIT-87e00e.md -- NOT read. Checked by a structural-only probe that printed byte counts and regex booleans; no content was rendered to me."
+    read_sibling_reports: false
+    read_sibling_report_COMMIT_MESSAGE: >-
+      TRUE, INADVERTENTLY, AFTER THIS REPORT WAS WRITTEN. Disclosed in full under
+      blindness_incident_disclosed_by_this_reviewer above. No sibling FILE was
+      opened; no finding of mine derives from it; OBJ-9 predates it and rests on a
+      different ground.
+    blind_from_respected: false
+    blind_from_respected_statement_in_the_plan_s_own_words: >-
+      A blind_from path WAS read before blind-rederivation.yaml was written: the
+      plan's own coordinator_prior.prior_for_this_review_round, item BLIND
+      RE-DERIVATION. It was read because the dispatch instruction and the task card
+      both order the plan to be read FIRST and the plan says everything else in it
+      must be read. No other blind_from path was read before sealing -- no module of
+      harness/diffpath/**, no test file, no execution report, no null-control result,
+      no raw observations, no run index, no run directory, and no `passed`/`failed`/
+      `extra`/`verdict`/`failing_case` field of equivalence-declaration.yaml, and not
+      the `orbit` field of any census entry. See OBJ-7.
+    quarantine_non_reading_attestation: >-
+      coordination/goals/GOAL-MD5-001/quarantine/** WAS NOT READ, NOT OPENED, NOT
+      LISTED FOR CONTENT, NOT PARSED, NOT HASHED, NOT FETCHED, NOT MIRRORED AND NOT
+      RECONSTRUCTED by this task, by any route. I hold WebSearch and WebFetch and
+      MADE ZERO NETWORK CALLS OF EITHER KIND: no fetch, no search, no URL opened, so
+      there is no per-fetch attestation to give under OB-2 and none is fabricated. I
+      did not fetch eprint 2004/199 or any mirror, derivative, restatement or
+      third-party reproduction of the Wang-Feng-Lai-Yu MD5 characteristic, and I
+      obtained no Tier-A or Tier-B content by any route. Attacking J7 did not license
+      breaching the firewall to prove it can be breached: every J7 finding above rests
+      on the batch's own committed artifacts. NO TIER-A CONTENT WAS OBTAINED BY THIS
+      TASK.
+    write_scope_respected: >-
+      Two files written, both under
+      coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/reviews/TASK-20260824-3bd362/.
+      No archived artifact was edited, no ledger record was touched, no hypothesis
+      status was changed, no identifier was minted, and no commit was made.
+    verdict:
+      J5: breaks
+      J6: breaks
+      J7: holds
+      proves_too_much: >-
+        THE ARGUMENT PROVES TOO MUCH. It correctly fails on O1, O2, O3 and O4; it
+        SURVIVES on O5, the delta_m-blind adjudicator, where its conclusion is known
+        false.
+      blind_rederivation: >-
+        NOT BLIND (blind_from_respected false, by an unsatisfiable protocol). Its
+        localisations stand; its agreement or disagreement with the producer carries
+        no independence weight.
+      scope_of_this_verdict: >-
+        THESE ARE VERDICTS ON MY JOINTS ONLY. J1-J4 are the Validator's and I have not
+        seen its report. The Coordinator composes.
+
+  artifact_paths:
+    - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/reviews/TASK-20260824-3bd362/red-team-report.yaml
+    - coordination/goals/GOAL-DIFFP-84d641/batches/BATCH-f8bf86/reviews/TASK-20260824-3bd362/blind-rederivation.yaml
