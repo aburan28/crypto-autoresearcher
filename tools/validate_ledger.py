@@ -45,6 +45,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 
@@ -130,6 +131,7 @@ def _load_duplicate_run_owners() -> dict[str, set[str]]:
 DUPLICATE_RUN_OWNERS = _load_duplicate_run_owners()
 
 ID_PATTERNS = {
+    "goal": re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX}$"),
     "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
     "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
     "hypothesis": re.compile(rf"^H-[A-Z]+-{SUFFIX}$"),
@@ -1193,7 +1195,9 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                                          f"unknown entry '{knowledge_id}'")
 
 
-GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
+GOAL_ID = ID_PATTERNS["goal"]
+GOAL_LEGACY_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_LEGACY}$")
+GOAL_RANDOM_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_RANDOM}$")
 # `closed_at_budget` is a terminal status in active use. It asserts that the
 # campaign budget ran out WITHOUT a completion criterion being met, so it makes
 # no success claim and needs no quorum. Using it to retire a goal that did meet
@@ -1363,7 +1367,17 @@ def load_goal_documents(ctx: Ctx):
     tools/shard_goal.py. Migrating all of them at once would land a rename in
     every one of the open branches simultaneously.
     """
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*.yaml"))):
+    goals_root = os.path.join(REPO, "ledger", "goals")
+    try:
+        entries = sorted(os.scandir(goals_root), key=lambda entry: entry.name)
+    except OSError:
+        entries = []
+
+    for entry in entries:
+        if (entry.is_symlink() or not entry.name.endswith(".yaml")
+                or not entry.is_file(follow_symlinks=False)):
+            continue
+        path = entry.path
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1373,8 +1387,16 @@ def load_goal_documents(ctx: Ctx):
             continue
         yield path, goal, lambda rec_id: f"{rec_id}.yaml", os.path.basename(path)
 
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*",
-                                              "goal.yaml"))):
+    for entry in entries:
+        if entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+            continue
+        path = os.path.join(entry.path, "goal.yaml")
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            continue
+        if not stat.S_ISREG(mode):
+            continue
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1383,7 +1405,24 @@ def load_goal_documents(ctx: Ctx):
             ctx.err(path, "missing top-level 'research_goal' mapping")
             continue
         directory = os.path.dirname(path)
-        shards = sorted(glob.glob(os.path.join(directory, "checkpoints", "*.yaml")))
+        checkpoints = os.path.join(directory, "checkpoints")
+        try:
+            checkpoint_mode = os.lstat(checkpoints).st_mode
+        except OSError:
+            checkpoint_mode = 0
+        if stat.S_ISDIR(checkpoint_mode):
+            checkpoint_entries = sorted(
+                os.scandir(checkpoints), key=lambda checkpoint: checkpoint.name
+            )
+        else:
+            checkpoint_entries = []
+        shards = [
+            checkpoint.path
+            for checkpoint in checkpoint_entries
+            if (not checkpoint.is_symlink()
+                and checkpoint.name.endswith(".yaml")
+                and checkpoint.is_file(follow_symlinks=False))
+        ]
         merged = []
         for shard in shards:
             sdoc = load_yaml(shard, ctx)
@@ -1404,7 +1443,228 @@ def load_goal_documents(ctx: Ctx):
         yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
 
 
+GIT_CONTEXT_REDIRECTS = {
+    "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS",
+}
+
+
+def _explicit_git_environment() -> dict[str, str]:
+    """Environment stripped of caller-controlled repository redirects."""
+    return {key: value for key, value in os.environ.items()
+            if key not in GIT_CONTEXT_REDIRECTS}
+
+
+def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
+    """Inspect bound HEAD and actual index without touching alias targets.
+
+    Git stores ordinary directories only as descendant entries, while a
+    gitlink or symlink occupies the exact protected path.  Keeping those cases
+    separate prevents an initialized gitlink's ordinary-directory filesystem
+    appearance from laundering mode 160000 into the ledger traversal.
+
+    The boolean reports whether REPO is a Git worktree.  Non-Git fixtures retain
+    the filesystem-only contract and make no Git provenance claim. Caller Git
+    redirects are removed, then the discovered top-level, Git directory, and
+    actual index are rebound explicitly for every metadata query. Protected
+    provenance is always read with replacement-object processing disabled;
+    neither default/custom replace refs nor caller environment may rewrite the
+    commit or tree objects being classified.
+    """
+    git_marker = os.path.join(REPO, ".git")
+    clean_env = _explicit_git_environment()
+    try:
+        probe = subprocess.run(
+            ["git", "-C", REPO, "rev-parse", "--is-inside-work-tree"],
+            capture_output=True, text=True, env=clean_env,
+        )
+    except OSError as error:
+        if os.path.lexists(git_marker):
+            return True, [("ledger", "cannot inspect protected-prefix Git "
+                           f"metadata: {error}; target was not read")]
+        return False, []
+    if probe.returncode != 0 or probe.stdout.strip() != "true":
+        if os.path.lexists(git_marker):
+            detail = (probe.stderr or probe.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "Git worktree probe failed"
+            return True, [("ledger", "cannot determine protected-prefix Git "
+                           f"metadata: {reason}; target was not read")]
+        return False, []
+
+    context = subprocess.run(
+        ["git", "-C", REPO, "rev-parse", "--show-toplevel",
+         "--absolute-git-dir", "--path-format=absolute", "--git-path", "index"],
+        capture_output=True, text=True, env=clean_env,
+    )
+    values = [line.strip() for line in context.stdout.splitlines() if line.strip()]
+    if context.returncode != 0 or len(values) != 3:
+        detail = (context.stderr or context.stdout).strip().splitlines()
+        reason = detail[-1] if detail else "explicit Git context query failed"
+        return True, [("ledger", "cannot bind protected-prefix Git metadata "
+                                 f"to validation root: {reason}; target was not read")]
+    top_level, git_directory, index_file = map(os.path.abspath, values)
+    try:
+        root_matches = os.path.samefile(top_level, REPO)
+    except OSError:
+        root_matches = (os.path.normcase(os.path.realpath(top_level))
+                        == os.path.normcase(os.path.realpath(REPO)))
+    if not root_matches:
+        return True, [("ledger", "protected-prefix Git top-level does not match "
+                                 "the explicit validation root; target was not read")]
+    if not os.path.isdir(git_directory) or not os.path.isfile(index_file):
+        return True, [("ledger", "protected-prefix actual Git directory or "
+                                 "index is unavailable; target was not read")]
+
+    bound_env = dict(clean_env)
+    bound_env["GIT_INDEX_FILE"] = index_file
+    # Belt and suspenders: the global option binds the individual invocation,
+    # while the environment also covers Git versions/subcommands that consult
+    # the conventional replacement-disable switch internally.  Caller values
+    # were removed above and cannot re-enable replacement processing.
+    bound_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+
+    def bound_git(*arguments: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["git", "--no-replace-objects", f"--git-dir={git_directory}",
+             f"--work-tree={REPO}", *arguments],
+            capture_output=True, text=True, env=bound_env,
+        )
+
+    errors: list[tuple[str, str]] = []
+    for relative in ("ledger", "ledger/goals"):
+        head = bound_git("ls-tree", "-z", "HEAD", "--", relative)
+        index = bound_git("ls-files", "--stage", "-z", "--", relative)
+        if head.returncode != 0 or index.returncode != 0:
+            failed = head if head.returncode != 0 else index
+            detail = (failed.stderr or failed.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "HEAD or index query failed"
+            errors.append((relative, "cannot determine protected-prefix Git "
+                                     f"metadata: {reason}; target was not read"))
+            break
+
+        head_modes: list[str] = []
+        for entry in head.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            if candidate == relative:
+                head_modes.append(metadata.split(" ", 1)[0])
+
+        exact_modes: list[str] = []
+        descendant_count = 0
+        for entry in index.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            mode = metadata.split(" ", 1)[0]
+            if candidate == relative:
+                exact_modes.append(mode)
+            elif candidate.startswith(relative + "/"):
+                descendant_count += 1
+
+        for source, modes_found in (("Git HEAD tree", head_modes),
+                                    ("Git index", exact_modes)):
+            modes = sorted(set(modes_found))
+            if modes == ["040000"] and source == "Git HEAD tree":
+                continue
+            if not modes and source == "Git index" and descendant_count:
+                continue
+            if not modes:
+                errors.append((
+                    relative,
+                    f"trusted goal prefix is missing from {source}; protected "
+                    "candidate state is indeterminate and target was not read",
+                ))
+                break
+            description = (
+                "gitlink" if modes == ["160000"] else
+                "symlink" if modes == ["120000"] else
+                "regular file" if modes == ["100644"] else
+                "non-directory object"
+            )
+            if description in {"gitlink", "symlink"}:
+                finding = f"an exact {source} {description}"
+            else:
+                finding = f"{description}; exact {source} object"
+            errors.append((
+                relative,
+                f"trusted goal prefix is {finding} "
+                f"with mode(s) {modes}; ordinary tracked descendants are "
+                "required and target was not read",
+            ))
+            break
+        if errors:
+            break
+        if descendant_count == 0:
+            errors.append((
+                relative,
+                "trusted goal prefix is missing; Git index has neither an "
+                "exact entry nor ordinary tracked descendants, so candidate "
+                "type is indeterminate and target was not read",
+            ))
+            break
+    return True, errors
+
+
+def check_trusted_goal_prefixes(ctx: Ctx) -> bool:
+    """Require ordinary ledger and ledger/goals directories without follow."""
+    in_git_worktree, git_errors = protected_prefix_git_errors()
+    if in_git_worktree and git_errors:
+        for relative, message in git_errors:
+            ctx.err(os.path.join(REPO, *relative.split("/")), message, force=True)
+        return False
+
+    for relative in ("ledger", "ledger/goals"):
+        path = os.path.join(REPO, *relative.split("/"))
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            description = "missing"
+        else:
+            if stat.S_ISLNK(mode):
+                description = "symlink"
+            elif stat.S_ISDIR(mode):
+                continue
+            elif stat.S_ISREG(mode):
+                description = "regular file"
+            else:
+                description = "special file"
+        ctx.err(path, f"trusted goal prefix is {description}; required ordinary "
+                      "directory and target was not read", force=True)
+        return False
+    return True
+
+
+def check_goal_symlinks(ctx: Ctx) -> None:
+    """Reject goal-tree symlinks without opening or traversing their targets."""
+    root = os.path.join(REPO, "ledger", "goals")
+    try:
+        root_mode = os.lstat(root).st_mode
+    except OSError:
+        return
+    if not stat.S_ISDIR(root_mode):
+        return
+    pending = [root]
+    while pending:
+        current = pending.pop()
+        try:
+            entries = sorted(os.scandir(current), key=lambda entry: entry.name)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_symlink():
+                ctx.err(entry.path,
+                        "goal path may not be a symlink; target was not read",
+                        force=True)
+            elif entry.is_dir(follow_symlinks=False):
+                pending.append(entry.path)
+
+
 def check_goals(ctx: Ctx):
+    if not check_trusted_goal_prefixes(ctx):
+        return
+    check_goal_symlinks(ctx)
     for path, goal, expected_name, identity in load_goal_documents(ctx):
         rec_id = goal.get("id")
         if not rec_id or not GOAL_ID.match(str(rec_id)):
@@ -1539,6 +1799,17 @@ def main() -> int:
                          "(bootstraps the full set only if no baseline "
                          "file exists; never grows an existing one)")
     args = ap.parse_args()
+
+    # This must precede every inventory, glob, supersession, and record read.
+    # If ledger itself is an alias, even an apparently unrelated ledger glob
+    # would otherwise escape the candidate tree before check_goals runs.
+    prefix_ctx = Ctx(set())
+    if not check_trusted_goal_prefixes(prefix_ctx):
+        print(f"FAIL: {len(prefix_ctx.errors)} new validation error(s):\n",
+              file=sys.stderr)
+        for error in prefix_ctx.errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
 
     try:
         legacy_inventory = load_legacy_inventory()

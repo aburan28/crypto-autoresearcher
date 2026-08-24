@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import contextlib
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import validate_ledger as vl
@@ -264,6 +266,50 @@ class QuorumInvariantTests(unittest.TestCase):
 
     def test_quorum_size_is_three(self) -> None:
         self.assertEqual(vl.GOAL_CLOSURE_QUORUM, 3)
+
+
+class GoalIdentifierValidationTests(unittest.TestCase):
+    """Exercise the authoritative whole-goal validator, not a copied regex."""
+
+    @staticmethod
+    def _document(goal_id: str) -> str:
+        return f"""research_goal:
+  id: {goal_id}
+  title: identifier fixture
+  objective: test the authoritative goal identifier grammar
+  question_ids: []
+  status: active
+  completion_criteria: [done]
+  pause_conditions: [stop]
+  next_action: preserve the fixture boundary
+  owner: coordinator
+"""
+
+    def _errors(self, goal_id: str, *, sharded: bool) -> list[str]:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = (root / "ledger/goals" / goal_id / "goal.yaml"
+                    if sharded else root / "ledger/goals" / f"{goal_id}.yaml")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(self._document(goal_id), encoding="utf-8")
+            ctx = vl.Ctx(set())
+            with mock.patch.object(vl, "REPO", str(root)):
+                vl.check_goals(ctx)
+            return ctx.errors
+
+    def test_legacy_flat_goal_id_remains_valid(self) -> None:
+        self.assertEqual(self._errors("GOAL-TEST-001", sharded=False), [])
+
+    def test_random_sharded_goal_id_is_valid(self) -> None:
+        self.assertEqual(self._errors("GOAL-TEST-a1b2c3", sharded=True), [])
+
+    def test_non_three_non_six_suffixes_are_rejected(self) -> None:
+        for goal_id in ("GOAL-TEST-01", "GOAL-TEST-abcd",
+                        "GOAL-TEST-abcdef0"):
+            with self.subTest(goal_id):
+                errors = self._errors(goal_id, sharded=False)
+                self.assertTrue(any("invalid goal id" in error
+                                    for error in errors), errors)
 
 
 if __name__ == "__main__":

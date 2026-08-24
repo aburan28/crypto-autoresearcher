@@ -27,9 +27,12 @@ reviews, and scopes its claims exactly as before.
 
 1. Read `AGENTS.md`, `CLAUDE.md`, `docs/task-lifecycle.md`,
    `docs/dynamic-subagent-dispatch.md`, and the relevant ledger records.
-2. Reuse an active `ledger/goals/GOAL-<AREA>-<NNN>.yaml` when it matches the
-   request; otherwise create the next free goal record from
-   `templates/research-records.md`. Bind it to one or more `RQ-*` records.
+2. Reuse an active `ledger/goals/GOAL-*` record under its exact ID when it
+   matches the request, including a legacy three-digit ID. Otherwise mint a new
+   ID with `python3 tools/allocate_id.py --next goal --area AREA`, confirm it
+   with `--check`, and create the goal record from
+   `templates/research-records.md`. Never choose a suffix manually or scan for
+   a maximum. Bind it to one or more `RQ-*` records.
 3. State an explicit objective, completion criteria, pause conditions, campaign
    budget, and exactly one next action. A negative result is not a completion
    criterion.
@@ -38,7 +41,7 @@ reviews, and scopes its claims exactly as before.
    returned ID in the goal record. Keep it active across turns; do not mark it
    complete merely because one batch, idea, or experiment finished.
 5. Create the first bounded batch under
-   `coordination/goals/GOAL-<AREA>-<NNN>/batches/BATCH-<NNN>/`, with committed
+   `coordination/goals/GOAL-<AREA>-<tok>/batches/BATCH-<tok>/`, with committed
    handoff records and a dispatch queue. Each task names exact `artifact_paths`,
    an exclusive `write_scope`, a budget, and an archival task. Commit the goal,
    question, queue, and handoff records through a Coordinator snapshot archive

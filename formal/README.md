@@ -40,13 +40,16 @@ lake env lean AxiomAudit.lean
 and rejects proof sources containing `sorry`, `admit`, custom `axiom`
 declarations, or `unsafe` declarations.
 
-Check that this machine can do any of that, and run one task end to end, with:
+Bring the workspace up (needs network and `elan`), then check and run:
 
 ```bash
+./formal/setup.sh                 # writes lean-toolchain + lake-manifest.json
 autoresearch formal doctor
-autoresearch formal formalize --task-id ... --claim-id ... --claim-file ... \
-    --theorem-name ... --theorem-file ...
+autoresearch formal formalize --task-file formal/targets/ncp-affine-normal-form.yaml
 ```
+
+`targets/` holds the frozen task specs; `CryptoResearch.lean` is a generated
+root module (`tools/rebuild_formal_root.py`) and is not committed.
 
 ## CVP reference pattern
 
