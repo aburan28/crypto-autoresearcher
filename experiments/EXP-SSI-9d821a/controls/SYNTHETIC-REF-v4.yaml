@@ -1,0 +1,45 @@
+control_reference:
+  id: SYNTHETIC-REF-v4
+  format: SYN-CELL-v4
+  status: design_manifest_no_measurement
+  experiment_id: EXP-SSI-9d821a
+  purpose: >-
+    Bind deterministic synthetic target sets, exact rational recurrence, and
+    censoring/aggregation semantics before any method-specific tuning.
+  generator:
+    target_set_domain: SHA256(frame(tag=0xD8,version=4,cell_seed||cell_index(u64)||target_index(u64)))
+    target_count: 16
+    cell_count: 8
+    cell_seed_schedule: SHA256(frame(tag=0xD9,version=4,cell_index(u64)))
+    cell_seed_materialization:
+      index_domain: exactly the u64 little-endian integers 0 through 7
+      entry_encoding: >-
+        cell_seed[i] is the exact 32-byte SHA256 output of cell_seed_schedule
+        with cell_index=i. The finite list is cell_seed[0]||...||cell_seed[7]
+        in ascending i; no implicit or iid cell seed is allowed.
+      cell_seed_list_bytes: cell_seed[0]||cell_seed[1]||...||cell_seed[7]
+      cell_seed_list_digest: SHA256(cell_seed_list_bytes)
+    target_set_digest: SHA256(concatenation of target identifiers in index order)
+  rational_reference:
+    q_recurrence: q_num_next=q_num+successes; q_den_next=q_den+attempts
+    cost_recurrence: query_foe_next=query_foe+attempt_foe; setup_foe fixed per cell
+    denominator_rule: every q_den and rational denominator is positive BI560
+    aggregation: max only across all 16 complete target rows
+  censoring:
+    attempt_limit: 32768
+    censored_row_retained: true
+    partial_cell_result: INVALID_CONTROL
+  cell_digest: >-
+    SHA256(cell_seed||target_set_digest||advice_size||q_num||q_den||setup_foe||
+    query_foe||incumbent_num||incumbent_den||censor_limit||target_count)
+  target_row_materialization:
+    row_encoding: >-
+      target_index is exactly u64 little endian in 0..target_count-1 and the
+      target identifier is SHA256(frame(tag=0xD8,version=4,cell_seed||cell_index||target_index)).
+      target_set_digest is the SHA256 of those identifiers in target-index order.
+    complete_cell_digest: cell_digest is the final field and covers the cell frame without cell_digest
+  admission:
+    measured_cells_present: false
+    independent_verification_receipt: null
+    missing_reference_is: INVALID_CONTROL
+    freeze_allowed: false
