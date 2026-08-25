@@ -1,0 +1,84 @@
+schema: crypto.autoresearch.label_block_qrom_circuit.v1
+task_id: TASK-20260824-1e8b78
+classification: deterministic_implementation_and_integrity_control
+scientific_experiment: false
+upstream_commit: b5e4c664de212bdb0981d93d70964a1dca1a0ec9
+gate_set: [X, CX, MCX]
+test_instance:
+  purpose: finite semantic and structure control only
+  curve: {p: 5, a: 2, b: 1}
+  base: [0, 1]
+  group_order: 7
+  coordinate_width_n: 3
+  window_width_w: 3
+  seed: qec-label-block-qrom-20260824
+unitary:
+  expression: "U = sum_l |l><l| tensor T_A(l)"
+  label: "l=(address,sign)"
+  label_unchanged: true
+  label_measured: false
+  label_canonicalized: false
+  equal_payloads_allowed: true
+  exactly_one_translation_per_label_block: true
+registers:
+  address: {width: 2, symbolic_width: "w-1", unchanged: true}
+  sign: {width: 1, unchanged: true}
+  zero_digit: {width: 1, unchanged: true}
+  external_enable: {width: 1, unchanged: true}
+  effective_enable: {width: 1, initial: 0, final: 0}
+  accumulator:
+    width: 7
+    symbolic_width: "2*n+1"
+    encoding: "x little-endian, y little-endian, O bit; O=(0,0,1)"
+    invalid_codes: identity
+  qrom_record_handle:
+    fields: [address, sign, valid, check0, check1, check2, check3]
+    width: 8
+    symbolic_width: "2*w+2"
+    meaning: "checked fixed-table record handle identifying A(l); point constants are compiled into the label block"
+    initial: 0
+    final: 0
+  comparison_flags:
+    names: [O, A, -A, -2A, generic]
+    one_hot_when_enabled_valid: true
+    input_comparison: true
+    output_comparison_cleanup: true
+    initial: 0
+    final: 0
+  route_enable: {width: 1, derived_from_one_hot_flags: true, initial: 0, final: 0}
+  arithmetic_work: {width: 0, initial: 0, final: 0}
+operation_order:
+  - derive effective enable using explicit negative zero-digit control
+  - load one checked qROM record handle from the unchanged label
+  - compute one-hot O/A/-A/-2A/generic input comparisons in the same label block
+  - select one route from the one-hot comparison flags
+  - apply one label-and-record-controlled complete translation permutation
+  - unselect the route
+  - clean comparison flags using output comparisons in the same label block
+  - unload the exact same qROM record by the reversed load
+  - uncompute effective enable
+decomposition:
+  translation: cycle decomposition followed by Gray-path MCX transpositions
+  translation_layer: "272 MCX gates with exactly 18 controls on the toy control"
+  translation_controls: "route(1)+label(3)+record(8)+all non-target accumulator bits(6)"
+  comparison_controls: "enable(1)+label(3)+checked record excluding valid(7)+accumulator(7)"
+  negative_controls: explicit closed X sandwiches
+  qrom: "one logical load, one use interval, exact inverse unload"
+scalable_liveness_boundary:
+  record_handle: "2*w+2, not n-bit point coordinates"
+  comparison_and_route: 6
+  effective_enable: 1
+  extra_clean_layer: "2*w+9"
+  hidden_n_bit_register_in_record_selection_layer: false
+  upstream_composition: >-
+    This finite permutation control does not decompose scalable field
+    arithmetic and therefore does not establish a leading 3n+O(log n)
+    end-to-end result. That transfer remains for independent J3 review.
+known_false:
+  payload_row_iterated: "duplicates each aliased label block by payload multiplicity and therefore double translates the two mandatory alias pairs"
+  others: [no-op, runtime classical label loop, missing unload, label canonicalization, partial label arithmetic]
+claim_boundary: >-
+  Exact finite fixed/window affine-translation implementation control on the
+  stated p=5 code space only. No scientific experiment, scalable arithmetic
+  result, coefficient, speedup, attack, general-curve transfer, P1553/B71,
+  novelty, support, breakthrough, or research-state transition.

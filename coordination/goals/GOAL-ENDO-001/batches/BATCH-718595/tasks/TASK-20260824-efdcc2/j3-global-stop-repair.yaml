@@ -1,0 +1,154 @@
+schema: crypto-autoresearch.static_j3_global_stop_repair.v1
+repair:
+  id: TASK-20260824-efdcc2-j3
+  task_id: TASK-20260824-efdcc2
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-718595
+  predecessor_batch: BATCH-005931
+  controlling_decisions: [DEC-20260824-976c3c, DEC-20260824-179592]
+  status: additive_static_successor_pending_review
+  experiment_id: null
+  experiment_runs_authorized: 0
+  experiment_runs_executed: 0
+  scientific_result: false
+  scientific_conclusion: null
+  authorization_boundary:
+    implementation_authorized: false
+    phase_b_authorized: false
+    control_runs_authorized: 0
+    instrument_runs_authorized: 0
+    target_or_curve_access_authorized: false
+    jinv_work_authorized: false
+    transport_work_authorized: false
+    n18_authorized: false
+    scientific_interpretation_authorized: false
+    hypothesis_status_change_authorized: false
+    experiment_status_change_authorized: false
+    goal_status_change_authorized: false
+    resource_disposition_change_authorized: false
+    closure_authorized: false
+    breakthrough_authorized: false
+    publication_authorized: false
+    network_write_authorized: false
+    automatic_execution: false
+    resource_disposition: resource_incomplete
+    gates_cleared: 0
+  preservation:
+    prior_package_edited: false
+    prior_decision_edited: false
+    interpretation: additive successor; no predecessor byte is rewritten
+  global_stop:
+    stop_token: J3_STOP
+    default: STOP
+    applies_to: [fit, pass, resource_approval, materialization, schedule, dispatch, implementation, disposition]
+    precedence: any STOP dominates every continue/pass/approval branch
+    triggers:
+      - missing, false, contradictory, or unevaluable operation applicability
+      - missing, malformed, stale, future, unbound, or semantically invalid host observation
+      - PB-3 unknown, extra-unbound, inconsistent, nonconservative, or unevaluable term/cap/model
+      - CT record invalid, incomplete, unpaired, unevaluable, or outside canonical rules
+      - any per-control or total resource envelope exhausted or unevaluable
+    effects:
+      all_dependent_actions: STOP
+      resource_disposition: resource_incomplete
+      authorization: unchanged_false_or_zero
+      scientific_interpretation: none
+      disposition_transition: forbidden_without_coordinator_record
+  materialization_applicability:
+    rule_id: REPAIR-MAT-2
+    operation_schema:
+      required_fields: [requested_action, operation_schema_version, resource_effect_class]
+      requested_action_enum: [inspect_static, materialize_host, materialize_filesystem, schedule, dispatch, implement]
+      host_resource_actions: [materialize_host, materialize_filesystem, schedule, dispatch, implement]
+      host_resource_effect_classes: [allocates_host_memory, writes_filesystem, starts_process, reserves_scheduler, changes_implementation_state]
+    derivation:
+      host_resource_required: "requested_action in host_resource_actions OR resource_effect_class in host_resource_effect_classes"
+      applicability_is_derived: true
+      caller_boolean_is_not_authoritative: true
+      false_or_omitted_label_for_derived_true: STOP
+      contradictory_operation_and_label: STOP
+      missing_operation_schema: STOP
+      non_host_branch_for_host_resource_action: STOP
+    decision_table:
+      - if: operation_schema_missing_or_unparseable
+        action: STOP
+      - if: derived_host_resource_required == true AND applicability_field_missing
+        action: STOP
+      - if: derived_host_resource_required == true AND applicability_field != true
+        action: STOP
+      - if: derived_host_resource_required == false AND applicability_field != false
+        action: STOP
+      - if: derived_host_resource_required == true
+        action: require_typed_current_host_observation
+      - if: derived_host_resource_required == false
+        action: continue_only_static_nonhost_checks
+  host_observation:
+    schema_id: host_observation.v2
+    required: true_for_derived_host_resource_actions
+    fields:
+      host_id: {type: string, constraint: nonempty_after_trim}
+      filesystem_id: {type: string, constraint: nonempty_after_trim}
+      observed_at: {type: RFC3339_timestamp, constraint: parseable}
+      clock_source: {type: enum, allowed: [UTC_wall_clock]}
+      skew_seconds: {type: integer, constraint: 0 <= skew_seconds <= 300}
+      free_disk_bytes: {type: uint64, unit: bytes, constraint: nonnegative_integer}
+      memory_bytes: {type: uint64, unit: bytes, constraint: nonnegative_integer}
+      observation_status: {type: enum, allowed: [known]}
+      filesystem_mount: {type: string, constraint: nonempty_after_trim}
+    validity:
+      now: UTC_wall_clock_at_validation
+      timestamp_rule: observed_at <= now + skew_seconds and now - observed_at <= 3600 + skew_seconds
+      binding_rule: host_id, filesystem_id, and filesystem_mount must equal the active execution binding
+      reject: [missing, null, empty_identity, unparseable_timestamp, future_beyond_skew, stale, negative_bytes, noninteger_bytes, wrong_unit, invalid_status, binding_mismatch]
+      any_failure: STOP
+  pb3:
+    schema_id: pb3_closed_cost_manifest.v2
+    unknown_tokens: [null, UNKNOWN, unknown, unavailable, invalid, nonfinite, unevaluable]
+    allowed_terms:
+      retained_bytes: {unit: bytes, type: uint64, role: retained_artifact_total}
+      largest_artifact_bytes: {unit: bytes, type: uint64, role: individual_artifact_peak}
+      shard_count: {unit: count, type: uint64, role: artifact_shards}
+      logical_io_bytes: {unit: bytes, type: uint64, role: total_logical_io}
+      temporary_working_bytes: {unit: bytes, type: uint64, role: temporary_peak}
+      cpu_seconds: {unit: seconds, type: nonnegative_decimal, role: cpu_total}
+      wall_seconds: {unit: seconds, type: nonnegative_decimal, role: wall_total}
+      memory_bytes: {unit: bytes, type: uint64, role: memory_peak}
+      bootstrap_resamples: {unit: count, type: uint64, role: CT_bootstrap_work}
+    caps:
+      retained_bytes_max: {unit: bytes, type: uint64}
+      largest_artifact_bytes_max: {unit: bytes, type: uint64}
+      shard_count_max: {unit: count, type: uint64}
+      logical_io_bytes_max: {unit: bytes, type: uint64}
+      cpu_seconds_max: {unit: seconds, type: nonnegative_decimal}
+      wall_seconds_max: {unit: seconds, type: nonnegative_decimal}
+      memory_bytes_max: {unit: bytes, type: uint64}
+      free_disk_bytes_min: {unit: bytes, type: uint64}
+    model:
+      required_fields: [serialization_model, merge_model, residual_artifact_grouping, unit_conversions, conservativeness_basis]
+      allowed_values: [exact_upper_bound, conservative_upper_bound]
+      residual_artifact_grouping: required_and_explicit
+      unit_conversions: exact_or_conservative_only
+    closure:
+      input_key_set_equals_allowed_terms_and_caps: true
+      every_model_reference_resolves_once: true
+      every_unit_matches_formula_dimension: true
+      every_bound_is_nonnegative_and_conservative: true
+      residual_must_be_bound_and_not_double_counted: true
+      unknown_extra_unbound_inconsistent_nonconservative_or_unevaluable: STOP
+    formulas:
+      retained_bytes: "sum(retained_terms) + residual_artifact_bytes"
+      largest_artifact_bytes: "max(individual_artifact_terms)"
+      shard_count: "ceil(retained_bytes / largest_artifact_bytes_max)"
+      logical_io_bytes: "sum(read_bytes + write_bytes + replay_bytes)"
+    downstream: global_stop
+  planted_authorization_controls:
+    - {id: KF-MAT-NO-OBS, mutation: materialize_host with applicability=false and observation=null, expected: STOP}
+    - {id: KF-HOST-MALFORMED, mutation: known observation with empty host_id, future timestamp, and -1 bytes, expected: STOP}
+    - {id: KF-PB3-EXTRA, mutation: extra merge_pass_bytes term not in closed manifest, expected: STOP}
+    - {id: KF-PB3-UNKNOWN-CAP, mutation: missing or UNKNOWN cap, expected: STOP}
+    - {id: KF-PB3-GLOBAL, mutation: PB3 unknown while requesting schedule/dispatch/implementation/disposition, expected: STOP}
+    - {id: KF-AUTH-PLANTED, mutation: implementation_authorized=true, expected: STOP_AND_PRESERVE_FALSE}
+  scope:
+    in_scope: [static_operation_schema, typed_observation, closed_pb3_manifest, global_stop, control_contract, resource_envelopes]
+    out_of_scope: [implementation, phase_b, target, curve, jinv, transport, n18, science, experiments, controls_run]
+    controls_are_planned_not_executed: true
