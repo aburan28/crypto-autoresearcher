@@ -1,0 +1,1542 @@
+schema_version: '1.0'
+record_type: audit_plan
+task_id: TASK-20260824-c00879
+goal_id: GOAL-SCURVE-be9707
+research_question_id: RQ-SCURVE-03aa7e
+batch_id: BATCH-8f9107
+curve: NIST P-256
+depends_on_capsule: coordination/goals/GOAL-SCURVE-be9707/batches/BATCH-8f9107/tasks/TASK-20260824-c00879/parameter-capsule.yaml
+produced_by: idea-generator
+produced_at: '2026-08-25'
+
+claim_status: >-
+  A PLAN. Nothing in this file was executed. No curve attack was run, no
+  experiment result was created, and no lane below reports an outcome. Every
+  "prediction" is a preregistration, not an observation. No statement is made or
+  implied about whether NIST P-256 is safe, unsafe, vulnerable, or free of
+  vulnerabilities.
+
+# ===========================================================================
+# 0. THE STRUCTURAL FINDING THAT SHAPES THE PLAN
+# ===========================================================================
+# This section is analysis of the plan, not a result about the curve. It is
+# derived from the capsule's `derived_by_inspection` items, which are themselves
+# provisional string-level readings and are re-certified in lane L-BASE before
+# anything here is believed.
+
+plan_shaping_analysis:
+
+  observation_collision:
+    observable: >-
+      The eleven SafeCurves True/False cells, treated as eleven measurements.
+    finding: >-
+      They are not eleven independent measurements. Three of the four intake
+      `false` cells - ladder, complete, ind - share a single algebraic preimage:
+      the parity of #E(F_p).
+    argument: >-
+      Conditional on capsule item I1 (h = 1 and n odd, hence #E(F_p) odd, hence
+      E(F_p)[2] = {O}): a Montgomery model B*y^2 = x^3 + A*x^2 + x over F_p has
+      the rational 2-torsion point (0,0), so 4 | #E for any curve with a
+      Montgomery model; a complete twisted-Edwards model likewise forces a
+      rational point of order 4 in the standard correspondence. An odd group
+      order therefore rules out both models over F_p by a one-bit certificate.
+      The SafeCurves `ladder` criterion asks for a Montgomery ladder, the
+      `complete` criterion (as recalled) asks for complete formulas in the
+      Edwards/Montgomery shape family, and Elligator 2 (as recalled) requires a
+      point of order 2. All three preconditions fail from the same bit.
+    consequence_for_reporting: >-
+      A dossier that reports ladder=false, complete=false and ind=false as three
+      confirmations overstates its evidence by roughly a factor of three. The
+      dossier MUST report one certificate (parity of #E) and three criterion
+      consequences drawn from it, and must say so in those words.
+    consequence_for_falsification: >-
+      Because they share a preimage, they must agree. If a later measurement
+      returns ladder=false but complete=true or ind=true, that is NOT a surprise
+      about P-256's arithmetic; it is evidence that the criterion in question is
+      being evaluated against a different method family than the one the shared
+      certificate rules out. Lanes L-COMPLETE and L-IND are built to detect
+      exactly that and to report it as a definitional scope difference, not as a
+      parameter fact.
+
+  information_content_triage:
+    purpose: >-
+      Ranking the eleven lanes by how much a `pass` result would actually
+      distinguish P-256 from a randomly generated curve of the same size. This is
+      the ranking that drives priority, and it is computed from the null-model
+      base rates in `heuristic_assumptions` below.
+    near_certain_for_any_random_curve:
+      lanes: [L-FIELD, L-EQUATION, L-BASE, L-RHO, L-TRANSFER, L-DISC]
+      base_rate: >-
+        Each passes for a random curve of this size with probability
+        indistinguishable from 1 (L-DISC: 1 - O(2^-78) under H3; L-RHO: 1 given
+        n ~ 2^256 and h = 1; L-TRANSFER: 1 - O(2^-100) under H4). Reproducing
+        them confirms the parameter set is not corrupt and that the instrument
+        works. It carries close to zero bits about how the curve was chosen.
+      honest_statement: >-
+        These are instrument checks with certificates, not discoveries, and the
+        dossier must present them that way.
+    genuinely_discriminating:
+      - lane: L-TWIST
+        base_rate: >-
+          approx 0.25 under H1 (Dickman): Pr[largest prime factor of a random
+          256-bit integer exceeds 2^200.35] = 1 - rho(1.278) approx 0.245.
+        why: a pass is roughly a 2-bit surprise and constrains what the twist
+          order looks like.
+      - lane: L-RIGID
+        base_rate: >-
+          approx 2^-256 under H2 for an unrelated seed. Successful transcript
+          reproduction is the single highest-information observation available in
+          this whole goal.
+        why: it is the only lane whose positive outcome is astronomically
+          improbable by chance.
+      - lane: D8 (manipulability cost)
+        why: it converts the rigidity question from a verdict into a measured
+          number of seed trials, which is the only part of rigidity that is a
+          measurement at all.
+    execution_order_consequence: >-
+      Run the near-certain lanes first anyway, because they are cheap and because
+      a failure in any of them voids the discriminating lanes. But budget and
+      reviewer attention belong to L-TWIST, L-RIGID and D8.
+
+  tracked_objects_and_lossy_projection_test:
+    - object: 'O1 - the parity bit of #E(F_p), equivalently E(F_p)[2].'
+      lossy: >-
+        Yes, extremely. An entire 256-bit curve with its coefficients, base
+        point, seed and cofactor collapses to one bit. Nothing about the curve is
+        recoverable from it. This is not a change of coordinates.
+      propagates_compatibly: >-
+        Yes. It is invariant under F_p-isomorphism and under any change of model
+        (the group is the same group). Under quadratic twist it propagates
+        determinately via #E + #E' = 2p + 2. Under F_p-isogeny it is preserved
+        up to the isogeny degree's effect on the 2-part, and for the odd-degree
+        case it is exactly preserved. What is discarded is discarded compatibly
+        with all of these, so the retained bit propagates without reference to
+        the curve.
+      verdict: PASSES the lossy-projection test. This is the plan's primary
+        tracked object and it is what lanes L-LADDER, L-COMPLETE, L-IND and D6
+        actually measure.
+      survival: >-
+        Survives every model change and every coordinate system; dissolves only
+        on base change to an extension field or on passage to an even-degree
+        isogenous curve.
+    - object: 'O2 - the generation transcript residue r*b^2 + 27 mod p, where r is
+        the SHA-1 chain output of SEED.'
+      lossy: >-
+        Yes. A 160-bit seed and a 255-bit derived integer collapse to one
+        accept/reject bit.
+      propagates_compatibly: >-
+        NO. Under the only operation that matters for this object - perturbing
+        the seed - the retained bit does not propagate deterministically; it
+        behaves as a random function of the seed. The projection is lossy but not
+        compatible.
+      verdict: >-
+        FAILS the propagation half of the lossy-projection test. Stated as a
+        finding of the test, not hidden. The consequence is precise and it is the
+        reason D8 exists: O2 can VERIFY a transcript but can never BOUND
+        manipulation, because bounding manipulation is a statement about the
+        seed-perturbation orbit and O2 carries no information along that orbit.
+      replacement_object: >-
+        'O3 - the induced distribution, over seeds, of a chosen curve invariant
+        (e.g. #E mod small primes, or log2 of the largest prime factor of #E or
+        #E prime).' O3 is the object that does propagate under seed perturbation,
+        it is samplable, and it is what D8 tracks. This substitution is the one
+        piece of genuinely new design work in this plan.
+    - object: 'O4 - the exceptional locus of a named addition formula.'
+      lossy: yes - the whole formula collapses to the subvariety where its
+        denominators or all three projective outputs vanish.
+      propagates_compatibly: >-
+        Yes under change of formula parameters and under the group law's own
+        symmetries (the locus is stable under simultaneous negation and under
+        swapping the two inputs for symmetric formulas).
+      verdict: PASSES. Tracked by lanes L-COMPLETE, D6 and D7.
+
+# ===========================================================================
+# 1. GLOBAL CONTROLS - RUN BEFORE BELIEF IN ANY LANE
+# ===========================================================================
+global_controls:
+  binding_rule: >-
+    The control battery is a HARD GATE. It runs first, on the identical code
+    path, before any P-256 number is interpreted. If any positive control fails
+    to fire or any parameter-matched negative fires, the instrument has no
+    resolving power and NO P-256 result from that lane may be recorded - not as
+    a pass, not as a fail, not as unresolved-for-mathematical-reasons. It is
+    recorded as instrument failure, which is an operational observation.
+
+  positive_controls:
+    - id: PC1
+      object: The `Anomalous` intake row (GOAL-SCURVE-48e06c, sourced and
+        parameter-verified first, per the goal's claim boundary).
+      must_fire_in: L-TRANSFER
+      required_behaviour: the additive-transfer check must flag n = p.
+      note: >-
+        This is a positive control candidate, not a newly discovered attack, and
+        its parameters require their own sourced reproduction before use.
+    - id: PC2
+      object: The `BN(2,254)` intake row (GOAL-SCURVE-e33f7d), likewise sourced first.
+      must_fire_in: [L-TRANSFER, L-DISC]
+      required_behaviour: >-
+        the embedding-degree check must return a small k, and the CM-discriminant
+        check must return a small |D|. Both are properties the row is included to
+        illustrate; neither is claimed as a discovery here.
+    - id: PC3
+      object: NIST P-384 and NIST P-521, whose seeds are published in the same
+        document family and which are stated by S5 to be pseudorandom curves.
+      must_fire_in: L-RIGID
+      required_behaviour: >-
+        the transcript verifier must reproduce BOTH. This is the control that
+        separates "the recalled algorithm or the single-sourced seed is wrong"
+        from "P-256's transcript genuinely does not reproduce". Without it,
+        L-RIGID cannot discriminate and must not run.
+    - id: PC4
+      object: Curve25519 (GOAL-SCURVE-51437e), sourced first.
+      must_fire_in: [L-LADDER, L-COMPLETE, L-IND, D6]
+      required_behaviour: >-
+        the 2-torsion certificate must return "point of order 2 present" and the
+        model-availability check must return "Montgomery model available". A
+        checker that returns "unavailable" for every curve has no resolving power
+        and its P-256 answer is void.
+    - id: PC5
+      object: A generated toy singular curve with 4a^3 + 27b^2 = 0 mod a small
+        prime, and a generated toy curve over a composite modulus.
+      must_fire_in: [L-EQUATION, L-FIELD]
+      required_behaviour: rejection, with the certificate naming which condition failed.
+    - id: PC6
+      object: A generated toy curve of known small order with a deliberately
+        wrong claimed order n_bad.
+      must_fire_in: L-BASE
+      required_behaviour: the [n]G = O check must fail. A base-point checker that
+        accepts a wrong order is void.
+
+  parameter_matched_negative_controls:
+    - id: NC1
+      object: brainpoolP256r1.
+      matching_claimed: >-
+        256-bit prime field, short Weierstrass with a = -3, prime order, cofactor
+        1 - the same shape as P-256 on every axis this plan measures EXCEPT the
+        published generation procedure, which is different (RFC 5639, verifiably
+        pseudorandom by a different construction).
+      matching_assumptions_stated: >-
+        This match is asserted from the intake table's brainpool rows and from
+        recalled knowledge of RFC 5639; it must be re-sourced before use, and if
+        brainpoolP256r1 turns out not to have cofactor 1 or a = -3 the control is
+        void and must be replaced, not fudged.
+      must_not_fire_in: L-RIGID
+      required_behaviour: >-
+        the NIST transcript verifier, run on brainpoolP256r1's own seed, must
+        REJECT. A verifier that accepts a curve generated by a different
+        procedure is measuring nothing.
+      must_agree_in: [L-LADDER, L-COMPLETE, L-IND]
+      required_behaviour_2: >-
+        the 2-torsion certificate must return the same "no point of order 2"
+        answer as for P-256. This demonstrates the answer tracks group-order
+        parity and not the seed or the standards body - which is the whole point
+        of a matched negative.
+    - id: NC2
+      object: secp256k1.
+      role: parameter-matched control for L-DISC in the opposite direction.
+      matching_claimed: 256-bit prime field, prime order, cofactor 1.
+      must_fire_in: L-DISC
+      required_behaviour: >-
+        the CM-discriminant check must return a SMALL |D| (the intake row records
+        disc=false for secp256k1, as a preregistered target only). A disc checker
+        that returns "large |D|" for every 256-bit curve cannot support P-256's
+        large-|D| certificate.
+    - id: NC3
+      object: A curve constructed at the SAME p as P-256, with a = -3 and a b
+        chosen so that the curve is anomalous or has p = 1 mod n.
+      role: nearby-object control for L-TRANSFER, in the sense of
+        docs/inventor-protocol.md section 8.
+      required_behaviour: must be flagged. Demonstrates the transfer lane
+        measures the trace and not the prime.
+      construction_note: >-
+        Producing such a b at a fixed 256-bit p is itself a CM construction and
+        may exceed this environment. If it cannot be built, the control is
+        recorded as NOT RUN with the reason, and L-TRANSFER's resolving power is
+        reported as correspondingly unestablished. It is not silently dropped.
+
+  same_shape_null_controls:
+    - id: NU1
+      name: random-curve null
+      construction: >-
+        Draw a random 256-bit prime p', set a = -3, draw b uniformly, keep the
+        curve if its order has a prime factor above 2^200. Run EVERY lane on it.
+      purpose: >-
+        Any lane returning the same verdict on NU1 as on P-256, for the same
+        structural reason, has demonstrated that its P-256 verdict carries no
+        information about P-256 specifically. Expected to happen for L-FIELD,
+        L-EQUATION, L-BASE, L-RHO, L-TRANSFER and L-DISC, and the plan
+        preregisters that expectation so that it is a controlled confirmation
+        rather than a retrospective excuse.
+      sample_size: 200 curves.
+    - id: NU2
+      name: shuffled-seed null
+      construction: >-
+        Hold p, a and b fixed at the retrieved P-256 values; draw N = 10^4
+        uniformly random 160-bit seeds; run the transcript verifier on each.
+      prediction: >-
+        Zero accepts. Under H2 the per-seed accept probability is approximately
+        1/p approximately 2^-256, so the expected number of accepts over 10^4
+        trials is approximately 10^4 * 2^-256, indistinguishable from 0.
+      interpretation_rule: >-
+        Any accept is an instrument bug, not a finding. This measures the
+        verifier's false-accept rate and is what licenses reading a single accept
+        on the real seed as meaningful.
+    - id: NU3
+      name: shuffled-trace null
+      construction: >-
+        Draw N = 10^4 integers t' uniformly from the Hasse interval
+        [-2*sqrt(p), 2*sqrt(p)]; for each form t'^2 - 4p and extract its square
+        part by the same code path used in L-DISC and D5.
+      purpose: >-
+        Establishes the null distribution of |D| against which P-256's value is
+        read. Under H3 this null makes |D| > 2^100 essentially automatic, which
+        is the quantitative statement that a large-|D| verdict is uninformative.
+      interpretation_rule: >-
+        The lane reports P-256's |D| together with its percentile in this null.
+        Reporting the value without the percentile would misrepresent a generic
+        outcome as a property.
+    - id: NU4
+      name: null-formula control
+      construction: >-
+        Run the exceptional-case search of L-COMPLETE and D7 against a formula
+        whose exceptional locus is known by construction (e.g. the affine chord
+        formula, exceptional exactly at P = Q and P = -Q and at O).
+      purpose: >-
+        A search that finds no exceptional cases for a formula that provably has
+        them is not evidence of completeness; it is a broken search.
+
+# ===========================================================================
+# 2. THE ELEVEN CRITERION LANES
+# ===========================================================================
+# Every lane carries: mechanism, quantitative prediction, certificate or explicit
+# bound, controls, budget, stopping rule, falsifier, honest limitation, and the
+# two-explanation discrimination that makes it worth running.
+#
+# UNIVERSAL PRECONDITION, binding on all eleven:
+#   `definition_provenance: recalled` below means the SafeCurves criterion text
+#   was NOT retrieved in TASK-20260824-c00879 (HTTP 502 on every URL; capsule
+#   conflict C6). Each lane may PRODUCE its certificate under a recalled
+#   definition, because the certificate is defined by explicit arithmetic here.
+#   No lane may ADJUDICATE against the preregistered intake cell until the
+#   criterion definition is retrieved. That split is enforced per lane below.
+
+criterion_lanes:
+
+# --------------------------- basic_parameter_requirements ------------------
+  - id: L-FIELD
+    criterion: field
+    category: basic_parameter_requirements
+    intake_target: true
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: the field is a prime field F_p with p prime and of cryptographic
+      size. The arithmetic actually certified below does not depend on where the
+      size threshold is drawn.
+    mechanism: >-
+      Parse the intake power expression and the retrieved hex to exact integers
+      and compare (capsule conflict C2); then certify primality of p.
+    certificate:
+      form: >-
+        (i) the two parsed integers and their exact equality; (ii) a Pocklington
+        or ECPP primality certificate for p, re-verifiable independently in
+        milliseconds; (iii) bit length of p.
+      fallback_bound: >-
+        If no primality certificate can be produced in the environment, emit
+        Miller-Rabin with 64 independent bases plus a Lucas test and label the
+        result EXPLICITLY as a probabilistic bound with failure probability
+        below 4^-64, NOT as a certificate. The tier distinction is mandatory.
+    quantitative_prediction:
+      - metric: exact integer equality of intake p and retrieved p
+        direction: different
+        preregistered_value: equal
+      - metric: bit length of p
+        direction: different
+        preregistered_value: 256
+      - metric: p mod 4
+        direction: different
+        preregistered_value: 3
+    controls: [PC5, NU1]
+    budget_seconds: 60
+    stopping_rule: >-
+      Stop on the first of - certificate emitted, or 60 s elapsed. On timeout,
+      record probabilistic tier and the elapsed budget; a timeout is an
+      operational observation and never mathematical evidence.
+    falsifier: >-
+      Intake p != retrieved p, or p composite. Either voids every downstream lane
+      and supersedes the capsule rather than patching it.
+    two_explanation_discrimination: >-
+      If the equality fails, the two live explanations are (a) the intake
+      expression is a corrupt transcription and (b) the retrieved sources
+      describe a different curve. Discriminated by parsing a third,
+      primary-sourced value; the lane pre-commits to escalating rather than
+      choosing.
+    honest_limitation: >-
+      Passing establishes only that p is a prime of the stated size. It says
+      nothing about whether p's special shape (a Solinas prime) has any security
+      consequence, which this plan does not investigate.
+
+  - id: L-EQUATION
+    criterion: equation
+    category: basic_parameter_requirements
+    intake_target: true
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: the curve equation defines a non-singular elliptic curve in a
+      shape the criterion recognises.
+    mechanism: >-
+      Compare intake decimal b to retrieved hex b (capsule conflict C1); confirm
+      a = p - 3 arithmetically (capsule item I3); certify non-singularity.
+    certificate:
+      form: >-
+        The value delta = 4a^3 + 27b^2 mod p, together with its multiplicative
+        inverse mod p. Exhibiting an inverse is a short, independently checkable
+        proof that delta != 0, verified by one modular multiplication.
+    quantitative_prediction:
+      - metric: exact integer equality of intake b and retrieved b
+        direction: different
+        preregistered_value: equal
+      - metric: 4a^3 + 27b^2 mod p
+        direction: different
+        preregistered_value: nonzero, with an exhibited inverse
+    controls: [PC5, NU1]
+    budget_seconds: 30
+    stopping_rule: single deterministic pass; no retry semantics.
+    falsifier: delta = 0 mod p, or intake b != retrieved b.
+    two_explanation_discrimination: same structure as L-FIELD's, and the two
+      lanes' failures must be adjudicated together, since a single corrupt intake
+      string would trip both.
+    honest_limitation: >-
+      Non-singularity is necessary and nowhere near sufficient for anything. This
+      lane is an instrument check.
+
+  - id: L-BASE
+    criterion: base
+    category: basic_parameter_requirements
+    intake_target: true
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: a base point is specified, lies on the curve, and generates a
+      prime-order subgroup of the stated order.
+    mechanism: >-
+      Verify G on the curve; verify n prime; verify [n]G = O and [n/r]G != O for
+      each prime r | n (vacuous if n is prime); compute #E and check #E = h*n.
+    certificate:
+      form: >-
+        (i) gy^2 mod p and gx^3 + a*gx + b mod p printed side by side and equal;
+        (ii) a primality certificate for n at the same tier discipline as
+        L-FIELD; (iii) the scalar-multiplication output [n]G = O, re-verifiable by
+        recomputation; (iv) #E from a point-counting routine or, if unavailable,
+        the Hasse-interval bracket plus the order-of-G argument.
+      honest_note_on_iv: >-
+        Computing #E independently requires SEA-style point counting, which this
+        program's recorded environment (pure Python, no Sage - see
+        IDEA-20260807-98a970) very likely cannot do at 256 bits. The realistic
+        deliverable is: n prime, [n]G = O, and n in the Hasse interval, which
+        together with h = 1 and Hasse's bound forces #E = n, since the Hasse
+        interval of length 4*sqrt(p) approximately 2^129 contains at most one
+        multiple of a prime n approximately 2^256. THAT argument is the
+        certificate, and it must be written out rather than asserted.
+    quantitative_prediction:
+      - metric: 'gy^2 - (gx^3 + a*gx + b) mod p'
+        direction: different
+        preregistered_value: 0
+      - metric: '[n]G'
+        direction: different
+        preregistered_value: the point at infinity
+      - metric: parity of #E
+        direction: different
+        preregistered_value: odd
+        note: this is the certificate the collision analysis in section 0 rests on.
+    controls: [PC6, NU1]
+    budget_seconds: 300
+    stopping_rule: >-
+      Stop when all four certificate components are emitted, or at 300 s. If (iv)
+      is unreachable, emit (i)-(iii) plus the Hasse uniqueness argument and mark
+      the lane COMPLETE-BY-ARGUMENT, stating which of the two routes was taken.
+    falsifier: G not on the curve; n composite; [n]G != O; n outside the Hasse
+      interval for p.
+    two_explanation_discrimination: >-
+      A failure of [n]G = O has two live causes - a wrong transcription of G or
+      n, and a bug in the scalar-multiplication routine. PC6 discriminates: a
+      routine that correctly rejects a known-wrong order on a toy curve is not
+      the cause.
+    honest_limitation: >-
+      Establishes group structure only. Carries no information about ECDLP
+      hardness beyond the size of n.
+
+# --------------------------- ecdlp_security_requirements -------------------
+  - id: L-RHO
+    criterion: rho
+    category: ecdlp_security_requirements
+    intake_target: true
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: rho cost approximately 0.886*sqrt(l) for the largest prime
+      subgroup order l, required to be at least 2^100. The convention matters and
+      must be re-sourced before adjudication - in particular whether the stated
+      cost already absorbs the negation-map speedup.
+    mechanism: exact integer comparison, plus the automorphism discount of D3.
+    certificate:
+      form: >-
+        The integer floor(log2(0.886*sqrt(n))) computed in exact arithmetic (as
+        log2 of a rational bound, not floating point), the threshold, and the
+        comparison. Plus, from D3, the discounted figure and the discount factor
+        actually applied, with its convention named.
+    quantitative_prediction:
+      - metric: log2 of the undiscounted rho cost
+        direction: different
+        preregistered_value: approximately 127.8
+      - metric: log2 of the negation-discounted rho cost
+        direction: lower
+        preregistered_value: approximately 127.3 (a sqrt(2) discount), stated as
+          a preregistration of the arithmetic, not of any attack
+    controls: [NU1]
+    budget_seconds: 30
+    stopping_rule: single pass.
+    falsifier: the computed cost falls below 2^100; or n turns out not to be the
+      largest prime factor of #E.
+    two_explanation_discrimination: >-
+      None available and none claimed - this lane is a comparison of two
+      integers. Its honest role is to fix the convention (discounted or not) that
+      every other rho-style number in the goal must use, including L-TWIST's.
+    honest_limitation: >-
+      Under H5 this lane passes for essentially every curve of this size. It
+      carries approximately zero bits about P-256 specifically. Report it as an
+      instrument check with a number attached.
+
+  - id: L-TRANSFER
+    criterion: transfer
+    category: ecdlp_security_requirements
+    intake_target: true
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: the curve must resist additive transfer (anomalous, n = p) and
+      multiplicative transfer (MOV/Frey-Ruck, small embedding degree). The exact
+      embedding-degree threshold SafeCurves uses is recalled and unretrieved and
+      must be sourced before adjudication.
+    reuse_declaration:
+      reuses: IDEA-20260807-98a970
+      what_is_reused: >-
+        Its exact-k certificate (full factorisation of n-1 with per-factor
+        primality certificates plus the witnesses p^((n-1)/r_i) mod n), its
+        lower-bound certificate (p^j != 1 mod n for all j <= K, honestly
+        disclosed as costing K multiplications to verify and NOT succinct), its
+        three degenerate checks (p = 1 mod n, n = p, n^2 | #E), its planted
+        small-k positive controls, and its representability wall
+        k*ceil(log2 p) bits.
+      what_is_NOT_duplicated: >-
+        No new embedding-degree mechanism is proposed here. This lane is a
+        specialisation of that record to one curve, and the certificate format is
+        taken from it verbatim rather than reinvented.
+      dependency_note: >-
+        That record's own verdict column depends on the crossover k* from
+        IDEA-20260807-5f24d7. Until k* exists, this lane emits k or its bound and
+        the three flags, and emits NO verdict. Emitting a verdict without k*
+        would be the partial-cost error that record warns about.
+    certificate:
+      form: as above, taken from IDEA-20260807-98a970.
+      fallback_bound: >-
+        k > K = 10^6 by K modular multiplications, with the verification cost
+        stated as K, not as "short".
+    quantitative_prediction:
+      - metric: 'n = p ?'
+        direction: different
+        preregistered_value: false
+      - metric: 'p = 1 mod n ?'
+        direction: different
+        preregistered_value: false
+      - metric: 'n | h, equivalently n^2 | #E ?'
+        direction: different
+        preregistered_value: false
+      - metric: smallest j <= 10^6 with p^j = 1 mod n
+        direction: different
+        preregistered_value: none exists, certifying k > 10^6
+    controls: [PC1, PC2, NC3, NU1]
+    budget_seconds: 600
+    stopping_rule: >-
+      Degenerate checks first (microseconds). Then the K-pass with K escalating
+      10^3, 10^4, 10^5, 10^6, recording the bound at each step so a budget stop
+      still leaves a valid smaller bound. Stop at K = 10^6 or 600 s, whichever is
+      first, and report the K actually reached.
+    falsifier: >-
+      Any degenerate flag fires, or some j <= 10^6 gives p^j = 1 mod n. Either
+      would be a material finding, and this lane pre-commits to independent
+      review before any statement leaves the repository rather than to reporting.
+    two_explanation_discrimination: >-
+      If a flag fires, the two live explanations are a genuine property and a
+      modular-arithmetic bug. Discriminated by PC1/PC2 (must fire) together with
+      the decay-parameter check inherited from IDEA-20260807-98a970: as K grows,
+      the set of not-yet-excluded curves must shrink monotonically to the planted
+      positives and then stop changing. A curve that appears at one K and
+      disappears at a larger K is a bug.
+    honest_limitation: >-
+      A k > 10^6 bound is a bound, not a value. Reporting it as "k is about n"
+      overstates the certificate. And the lane is scoped to pairing transfers
+      only.
+
+  - id: L-DISC
+    criterion: disc
+    category: ecdlp_security_requirements
+    intake_target: true
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: the CM field discriminant D, where t^2 - 4p = f^2 * D with D
+      squarefree (up to the usual 1 mod 4 normalisation), is required to satisfy
+      |D| > 2^100.
+    mechanism: >-
+      t = p + 1 - #E; form t^2 - 4p; extract the square part f^2; report D and
+      |D|. Extraction requires factoring a roughly 257-bit integer, which is the
+      lane's real cost.
+    certificate:
+      form: >-
+        The integers t, t^2 - 4p, f, D, the identity t^2 - 4p = f^2 * D checked
+        by exact multiplication, and per-factor primality certificates for the
+        factorisation of f.
+      fallback_bound: >-
+        If t^2 - 4p cannot be factored in budget, certify |D| > B by verifying
+        that no d <= sqrt(4p/B) has d^2 | (t^2 - 4p). Trial division to
+        d = 2^40 costs approximately 2^40 divisions and is out of budget in pure
+        Python; the realistic honest deliverable is a bound at d approximately
+        2^24 to 2^28, giving |D| > 4p/2^56 approximately 2^202, which ALREADY
+        exceeds the 2^100 threshold. State the bound reached, not the threshold
+        cleared.
+    quantitative_prediction:
+      - metric: '|D|'
+        direction: higher
+        preregistered_value: '> 2^100, and generically of order 4p approximately 2^258'
+      - metric: percentile of |D| within the NU3 null
+        direction: different
+        preregistered_value: unremarkable - within the bulk of the null
+        note: THIS is the informative metric, not |D| itself.
+    controls: [PC2, NC2, NU3]
+    budget_seconds: 900
+    stopping_rule: >-
+      Escalate square-part search d <= 2^16, 2^20, 2^24, 2^28, recording the
+      bound at each level. Stop at 900 s or when the full factorisation is
+      obtained. Report the level reached.
+    falsifier: '|D| <= 2^100, or the identity t^2 - 4p = f^2 * D failing to
+      multiply out.'
+    two_explanation_discrimination: >-
+      A small |D| has two live explanations - the curve was CM-constructed, or t
+      was computed wrongly. Discriminated by NC2: secp256k1 must return a small
+      |D| through the same code path (it is a preregistered disc=false row), and
+      NU1 curves must return large |D|. A checker that returns large for
+      everything, including secp256k1, cannot support P-256's answer.
+    honest_limitation: >-
+      Under H3 a random curve of this size passes with probability
+      1 - O(2^-78). A pass is therefore very close to zero bits of information
+      about how P-256 was chosen, and the dossier must print the base rate next
+      to the verdict. The lane's real value is that its FAILURE would be
+      enormously informative, which is why it is worth the 900 s.
+
+# --------------------------- ecc_security_beyond_ecdlp ---------------------
+  - id: L-RIGID
+    criterion: rigid
+    category: ecc_security_beyond_ecdlp
+    intake_target: false
+    priority: 1
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: SafeCurves grades curve generation on a rigidity scale and, as
+      recalled, classes the NIST curves as not fully rigid because the seed is
+      unexplained. NOTE CAREFULLY: the SafeCurves verdict is a judgement about
+      whether the generation procedure is fully EXPLAINED. It is not a
+      computation, and no computation can settle it. What IS computable is the
+      transcript, and this lane computes exactly that and nothing more.
+    mechanism:
+      step_1_source_the_inputs: >-
+        BLOCKING. Confirm SEED and the generation algorithm against a primary
+        NIST document (SP 800-186 or FIPS 186-4 Appendix D / Appendix A). The
+        capsule records SEED as single-sourced to a third-party aggregator (C5)
+        and the algorithm as recalled. Neither is adequate to run this lane to a
+        verdict.
+      step_2_the_hash_chain: >-
+        Under the recalled ANSI X9.62 / FIPS 186-4 prime-case procedure: with
+        t = bitlen(p) = 256, set s = floor((t-1)/160) = 1 and v = t-1-160s = 95;
+        compute H = SHA-1(SEED), take its rightmost v = 95 bits as W_0; compute
+        W_1 = SHA-1((SEED + 1) mod 2^160); concatenate W_0 || W_1 to a 255-bit
+        string and read it as the integer r.
+        EVERY NUMBER IN THIS STEP IS RECALLED, INCLUDING s, v AND THE
+        CONCATENATION ORDER. They are written out so the successor can check them
+        against the primary text and correct them; they are not asserted.
+      step_3_the_congruence: >-
+        Check r * b^2 + 27 = 0 (mod p), i.e. r*b^2 = a^3 with a = -3.
+      step_4_report: >-
+        Report the transcript as REPRODUCED or NOT REPRODUCED, together with r in
+        hex, and stop. Do not convert either outcome into a statement about the
+        seed's origin, the designers' intent, or the curve's security.
+    certificate:
+      form: >-
+        (SEED, the two SHA-1 digests, W_0, W_1, r, r*b^2 mod p, and the residue
+        r*b^2 + 27 mod p). Independently re-verifiable in microseconds by two
+        SHA-1 calls and two modular multiplications. This is the shortest and
+        strongest certificate in the entire plan.
+    quantitative_prediction:
+      - metric: 'r*b^2 + 27 mod p'
+        direction: different
+        preregistered_value: 0
+      - metric: number of accepts among the NU2 shuffled-seed nulls (N = 10^4)
+        direction: different
+        preregistered_value: 0, against a per-trial accept probability of
+          approximately 2^-256 under H2
+    controls: [PC3, NC1, NU2]
+    budget_seconds: 120
+    stopping_rule: >-
+      One deterministic pass per curve. If PC3 fails on either P-384 or P-521,
+      HALT the lane immediately and record instrument/algorithm failure; do not
+      proceed to P-256 and do not report a P-256 outcome.
+    falsifier: >-
+      The congruence does not hold for P-256 while PC3 reproduces for both P-384
+      and P-521. That combination is the only one that isolates P-256, and it
+      would be a material finding requiring independent review before any
+      external statement.
+    two_explanation_discrimination:
+      explanation_A: the recalled algorithm or the single-sourced SEED is wrong.
+      explanation_B: P-256's published transcript genuinely does not reproduce.
+      discriminator: >-
+        PC3. If the same code, same algorithm and same document family reproduce
+        P-384 and P-521, explanation A is excluded for the algorithm and
+        implicated only for P-256's own seed - which step 1 has by then
+        independently sourced. If PC3 fails everywhere, explanation A is
+        confirmed and NO conclusion about P-256 is available.
+      third_explanation_explicitly_named: >-
+        SHA-1 implementation or endianness/bit-ordering error. Excluded by
+        checking the SHA-1 routine against published test vectors before the lane
+        runs, and by NU2's zero-accept requirement.
+    honest_limitation: >-
+      THE CENTRAL LIMITATION OF THIS ENTIRE GOAL. Reproducing the transcript
+      shows that b follows from SEED by the published procedure. It says NOTHING
+      about where SEED came from or whether it was searched, because - by the
+      lossy-projection analysis of object O2 in section 0 - the transcript bit
+      carries no information along the seed-perturbation orbit. Anyone who reads
+      a successful reproduction as "the curve is rigid", or a SafeCurves
+      rigid=false cell as "the transcript does not reproduce", has confused two
+      different statements. Both readings are prohibited in the dossier. The
+      measurable part of the manipulability question is D8 and only D8.
+    successor_condition_if_blocked: >-
+      If step 1 cannot source SEED and the algorithm from a primary NIST document
+      (the live risk in this session's environment - SP 800-186 is PDF-only and
+      unreadable here), the lane is DEFERRED, not guessed. Successor condition:
+      an executor session with PDF text extraction, or a retrieved plaintext
+      restatement of FIPS 186-4 Appendix A.1 and D.1.2.3.
+
+  - id: L-LADDER
+    criterion: ladder
+    category: ecc_security_beyond_ecdlp
+    intake_target: false
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: the criterion asks whether a Montgomery ladder is available for
+      the curve.
+    mechanism: >-
+      Certify the parity of #E (from L-BASE), then apply the model-existence
+      argument: a Montgomery model B*y^2 = x^3 + A*x^2 + x over F_p has the
+      rational point (0,0) of order 2, so any curve with a Montgomery model over
+      F_p has 4 | #E. Odd #E therefore excludes a Montgomery model over F_p.
+    certificate:
+      form: >-
+        (h, n mod 2, #E mod 2) plus the written-out model-existence argument.
+        One bit of data and one paragraph of algebra, both independently
+        checkable.
+    quantitative_prediction:
+      - metric: '#E mod 2'
+        direction: different
+        preregistered_value: 1
+      - metric: existence of a Montgomery model over F_p
+        direction: different
+        preregistered_value: none
+    controls: [PC4, NC1, NU1]
+    budget_seconds: 30
+    stopping_rule: single pass; depends on L-BASE having emitted its parity certificate.
+    falsifier: '#E even; or exhibition of an F_p-Montgomery model for this curve,
+      which would refute the argument outright.'
+    two_explanation_discrimination: >-
+      Not needed for the arithmetic, which is a single bit. It IS needed for the
+      interpretation: "no Montgomery model" and "no constant-time ladder" are
+      different statements, and the second is false in general - x-only and
+      complete-formula ladders exist for short Weierstrass curves. The lane
+      reports the first and explicitly declines the second.
+    honest_limitation: >-
+      This lane's result is one bit shared with L-COMPLETE and L-IND (section 0
+      collision). It is not an independent measurement and must not be counted as
+      one. It also says nothing about whether constant-time implementations of
+      this curve exist.
+
+  - id: L-TWIST
+    criterion: twist
+    category: ecc_security_beyond_ecdlp
+    intake_target: true
+    priority: 2
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: the criterion bundles twist rho security, twist embedding degree,
+      twist CM discriminant, and combined small-subgroup/invalid-curve attack
+      cost. The exact bundle and thresholds are unretrieved and MUST be sourced
+      before adjudication; the certificate below is threshold-independent.
+    mechanism: >-
+      #E' = p + 1 + t = 2p + 2 - #E. Factor #E' as far as budget allows; report
+      the largest certified prime factor l', the cofactor structure, and the
+      induced twist-rho figure using the SAME discount convention fixed in L-RHO.
+      Then run the transfer checks of L-TRANSFER against l'.
+    certificate:
+      form: >-
+        The full factorisation #E' = product r_i^{e_i} with a primality
+        certificate per r_i and the product re-multiplied and compared to #E'; or
+        a partial factorisation plus a certified statement that the unfactored
+        cofactor has no prime factor below B.
+      fallback_bound: >-
+        ECM with B1 escalating 11e3, 5e4, 25e4, 1e6, plus trial division to 10^7.
+        In pure Python without GMP-ECM a complete 256-bit factorisation is NOT
+        expected within budget, and this plan says so in advance rather than
+        reporting the shortfall as a finding. The honest deliverable is a partial
+        factorisation with an explicit smoothness bound.
+    quantitative_prediction:
+      - metric: log2 of the largest certified prime factor of #E'
+        direction: higher
+        preregistered_value: '> 200.35, which is the threshold at which
+          0.886*sqrt(l'') >= 2^100'
+        base_rate: >-
+          Under H1, a random 256-bit integer clears this with probability
+          1 - rho(256/200.35) = 1 - rho(1.278) = ln(1.278) approximately 0.245.
+          A pass is therefore an approximately 2-bit surprise - the most
+          informative of the six intake `true` cells.
+      - metric: log2 of the largest small-subgroup confinement available on the twist
+        direction: different
+        preregistered_value: unpredicted; this is what D2 measures
+    controls: [NU1, and the twist rows of the intake table used ONLY as
+      preregistered targets, never as evidence]
+    matched_negative_note: >-
+      A parameter-matched negative for this lane is a sourced 256-bit curve whose
+      twist is expected NOT to be secure. The intake table records brainpoolP256t1
+      and ANSSI FRP256v1 as twist=false rows, and either would serve - but those
+      cells are unverified intake, so the control must be established by actually
+      factoring that curve's twist order through the same code path, not by
+      trusting the cell. If neither can be factored in budget, the lane records
+      that its matched negative was NOT established and reports its resolving
+      power as correspondingly unestablished.
+    budget_seconds: 1200
+    stopping_rule: >-
+      Stop at 1200 s or on complete factorisation. Record the B1 level reached
+      and the residual cofactor's bit length. A budget stop yields a valid
+      partial certificate and is never reported as "the twist order resists
+      factoring" in any mathematical sense.
+    falsifier: >-
+      #E' has all prime factors below 2^200.35, or the re-multiplication check
+      fails.
+    two_explanation_discrimination: >-
+      If the twist order turns out to be smooth, the two explanations are (a) a
+      genuine property of this curve and (b) an arithmetic error in t or in
+      #E' = 2p + 2 - #E. Discriminated by the re-multiplication check and by
+      independently recomputing #E' from a point count on the twist for a toy
+      analogue.
+    honest_limitation: >-
+      A partial factorisation supports a LOWER bound on the largest prime factor
+      only if a large prime factor was actually found; if the residual cofactor
+      is composite and unfactored, the lane reports "largest certified prime
+      factor >= X, remainder unresolved" and nothing stronger.
+
+  - id: L-COMPLETE
+    criterion: complete
+    category: ecc_security_beyond_ecdlp
+    intake_target: false
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: the criterion asks for complete single-scalar addition formulas,
+      in a declared family of curve shapes. Which shapes the criterion admits is
+      exactly the unretrieved detail that decides this lane's interpretation.
+    mechanism: >-
+      Two separable sub-lanes, deliberately kept apart.
+      (a) SHAPE SUB-LANE: from the odd-order certificate, no complete Edwards or
+      Montgomery model exists over F_p (same one bit as L-LADDER).
+      (b) FORMULA SUB-LANE: for the short-Weierstrass model actually specified,
+      compute the exceptional locus of each named addition formula symbolically -
+      the subvariety where all three projective outputs vanish - and report it.
+      Recalled prior art (Renes-Costello-Batina 2016) asserts complete formulas
+      exist for every prime-order short-Weierstrass curve; if that is correct,
+      sub-lane (b) returns an EMPTY exceptional locus for those formulas while
+      sub-lane (a) still returns "no Edwards/Montgomery model".
+    certificate:
+      form: >-
+        Per formula: the three output polynomials, the ideal generated by them,
+        and either a Groebner/resultant certificate that the ideal is trivial
+        over F_p (empty exceptional locus) or an explicit exceptional point pair
+        with the formula's output on it. An explicit failing input pair is the
+        strongest and cheapest certificate available and should be sought first.
+      fallback_bound: >-
+        If symbolic computation is unavailable, run an exhaustive exceptional-case
+        search over a small analogue curve of prime order over a small prime
+        field (order a few thousand), where all pairs (P,Q) are enumerable, and
+        report the locus exactly there. State the transfer assumption explicitly:
+        the locus is defined by the same polynomial identities in a and b, so a
+        locus that is empty identically is empty at every p, but a locus found
+        empty only numerically at small p transfers nothing.
+    quantitative_prediction:
+      - metric: existence of a complete Edwards or Montgomery model over F_p
+        direction: different
+        preregistered_value: none
+      - metric: size of the exceptional locus of the RCB-style complete formula
+        direction: different
+        preregistered_value: empty, conditional on the recalled RCB result being
+          correct - which this lane is partly designed to check
+      - metric: size of the exceptional locus of the classical Jacobian addition
+        direction: higher
+        preregistered_value: nonempty, containing at least P = Q, P = -Q and the
+          points at infinity
+    controls: [PC4, NC1, NU4]
+    budget_seconds: 600
+    stopping_rule: >-
+      Sub-lane (a) is instant. Sub-lane (b) stops at 600 s or when every named
+      formula has an emitted locus. Formulas not reached are listed as NOT
+      EXAMINED, never as complete.
+    falsifier: >-
+      An explicit input pair on which a formula claimed complete produces the
+      zero triple; or exhibition of a complete Edwards/Montgomery model over F_p.
+    two_explanation_discrimination:
+      the_question: >-
+        Does the intake `complete: false` cell describe P-256's arithmetic, or
+        the criterion's declared shape family?
+      outcome_A: >-
+        Sub-lane (a) says no Edwards/Montgomery model AND sub-lane (b) finds a
+        nonempty exceptional locus for every formula examined. Then the cell is
+        about the curve.
+      outcome_B: >-
+        Sub-lane (a) says no Edwards/Montgomery model BUT sub-lane (b) certifies
+        an empty locus for an RCB-style formula. Then the cell is about the
+        declared family, and the honest report is that the criterion as defined
+        and the literature as recalled disagree about what "complete" ranges
+        over - a definitional scope difference and not a property of P-256.
+      preregistered_expectation: outcome B is the more likely of the two, and
+        saying so now is what makes its occurrence a controlled result.
+    honest_limitation: >-
+      Completeness of a formula is not constant-time execution, is not
+      side-channel resistance, and is not security. This lane cannot and does not
+      speak to any of them.
+
+  - id: L-IND
+    criterion: ind
+    category: ecc_security_beyond_ecdlp
+    intake_target: false
+    definition_provenance: recalled
+    definition_as_used: >-
+      RECALLED: the criterion asks for an efficient map making curve points
+      indistinguishable from uniform random strings, in a declared family of
+      encodings.
+    mechanism: >-
+      Enumerate the preconditions of each named encoding against the certified
+      parameters and report which fail and why. As recalled: Elligator 2 requires
+      a rational point of order 2 - excluded by the odd-order certificate;
+      Elligator 1 requires p = 3 mod 4 (satisfied, capsule item I2) together with
+      a complete Edwards model (excluded by the same odd-order certificate).
+      Then, separately, check whether encodings outside the criterion's family
+      (recalled: Elligator-squared, and Shallue-van de Woestijne style maps
+      applicable to any curve) have their preconditions satisfied.
+    certificate:
+      form: >-
+        A table of (encoding, precondition, satisfied yes/no, the certified
+        quantity that decides it). Each row reduces to already-emitted
+        certificates - #E mod 2, p mod 4 - so the lane costs essentially nothing
+        beyond L-BASE and L-FIELD.
+    quantitative_prediction:
+      - metric: number of criterion-family encodings whose preconditions are satisfied
+        direction: different
+        preregistered_value: 0
+      - metric: number of out-of-family encodings whose preconditions are satisfied
+        direction: different
+        preregistered_value: at least 1, conditional on the recalled
+          Elligator-squared applicability being correct
+    controls: [PC4, NC1, NU1]
+    budget_seconds: 60
+    stopping_rule: single pass, gated on L-BASE and L-FIELD.
+    falsifier: >-
+      Exhibition of a criterion-family encoding whose preconditions this curve
+      does satisfy; or a demonstration that p != 3 mod 4.
+    two_explanation_discrimination: >-
+      Structurally identical to L-COMPLETE's. If in-family preconditions all fail
+      while out-of-family ones are satisfied, the intake cell is a statement about
+      the encoding family the criterion ranges over, not about whether P-256
+      points can be encoded indistinguishably. The dossier must report which of
+      the two it measured.
+    honest_limitation: >-
+      Precondition enumeration is not a proof that no encoding exists. Absence of
+      a satisfied precondition in an enumerated list is absence from the list.
+      The lane's claim is exactly "for each encoding IN THIS LIST, this
+      precondition holds or fails", with the list stated and its incompleteness
+      stated.
+
+# ===========================================================================
+# 3. THE EIGHT DECLARED ADDITIONAL DIAGNOSTICS
+# ===========================================================================
+additional_diagnostics:
+
+  - id: D1
+    name: complete curve and twist order factorization with checkable certificates
+    status: planned
+    mechanism: >-
+      #E side: h = 1 and n prime, so the factorisation is trivial and the
+      certificate is L-BASE's primality certificate for n plus the Hasse
+      uniqueness argument. #E' side: this is L-TWIST's factorisation.
+    certificate: per-factor primality certificates plus re-multiplication to the
+      original integer.
+    quantitative_prediction:
+      - metric: number of prime factors of #E (with multiplicity)
+        direction: different
+        preregistered_value: 1
+      - metric: number of certified prime factors of #E'
+        direction: different
+        preregistered_value: unpredicted; reported with the residual cofactor
+    controls: [NU1, and L-TWIST's matched negative]
+    budget_seconds: shared with L-TWIST
+    stopping_rule: as L-TWIST.
+    falsifier: re-multiplication does not return the original integer.
+    honest_limitation: the twist side is expected to end as a partial
+      factorisation with a bound; that is disclosed in advance.
+
+  - id: D2
+    name: subgroup, cofactor, and invalid-curve confinement costs
+    status: planned
+    mechanism: >-
+      On E: h = 1, so there is no small-subgroup confinement available on the
+      curve itself; the certificate is h = 1 and n prime. On the twist and on
+      invalid curves: the attacker's confinement power is the product of small
+      prime factors of the orders of the curves an implementation might be
+      tricked into using. Measure it as log2 of the largest product of distinct
+      small prime factors obtainable, using D1's factorisations, and state which
+      curves were included in the enumeration.
+    certificate: the factor list, the product, and its log2.
+    quantitative_prediction:
+      - metric: log2 of on-curve small-subgroup confinement
+        direction: different
+        preregistered_value: 0 bits, since h = 1
+      - metric: log2 of twist-side confinement
+        direction: different
+        preregistered_value: unpredicted; determined by D1's twist factorisation
+    controls: [PC4 (Curve25519, h = 8, must show nonzero on-curve confinement),
+      NU1]
+    budget_seconds: 120 after D1.
+    stopping_rule: single pass once D1 reports.
+    falsifier: h != 1, or n not prime.
+    honest_limitation: >-
+      A confinement cost is a statement about what a WRONG implementation would
+      leak. It is not a property of the curve and must never be reported as one.
+      The enumeration of invalid curves is finite and stated, and is not
+      exhaustive.
+
+  - id: D3
+    name: automorphism- and endomorphism-adjusted rho cost
+    status: planned
+    mechanism: >-
+      Compute the j-invariant j = 1728 * 4a^3 / (4a^3 + 27b^2) mod p. If
+      j != 0 and j != 1728 then Aut(E) = {+-1} and the only generic rho discount
+      is the negation map, a factor sqrt(2). Any further discount requires an
+      efficiently computable endomorphism, which requires small CM discriminant -
+      so D3's answer is determined by L-DISC's.
+    certificate: >-
+      j, together with the inverses of j and of j - 1728 mod p (exhibiting an
+      inverse certifies non-vanishing), plus the discounted rho figure and the
+      named convention.
+    quantitative_prediction:
+      - metric: 'j = 0 or j = 1728 ?'
+        direction: different
+        preregistered_value: neither
+      - metric: rho discount factor
+        direction: different
+        preregistered_value: sqrt(2) from negation only
+    controls: [NC2 (secp256k1 has j = 0 and must be flagged as such through the
+      same code path), NU1]
+    budget_seconds: 60
+    stopping_rule: single pass.
+    falsifier: j = 0 or j = 1728; or L-DISC returning a small |D|, which would
+      open a GLV-style discount this diagnostic must then quantify rather than
+      dismiss.
+    two_explanation_discrimination: >-
+      NC2 is the discriminator: a j-invariant routine that does not return 0 for
+      secp256k1 is broken, and its P-256 answer is void.
+    honest_limitation: >-
+      A sqrt(2) discount moves a constant, not an exponent. Reported for
+      completeness and for convention-fixing, not as a security-relevant change.
+
+  - id: D4
+    name: embedding-degree certificate or explicit search bound
+    status: planned_by_reuse
+    reuses: IDEA-20260807-98a970
+    mechanism: >-
+      NOT RESTATED. Executed as L-TRANSFER's multiplicative half, using that
+      record's exact-k and lower-bound certificate formats, its degenerate
+      checks, its planted small-k positives and its decay-parameter check
+      verbatim. This entry exists to record the coverage, not to duplicate the
+      mechanism, per the RQ's `nonduplication_rule`.
+    certificate: as in IDEA-20260807-98a970.
+    quantitative_prediction: as in L-TRANSFER.
+    controls: [PC2, and the planted toy positives k = 1, k = 2, k = 12 from
+      IDEA-20260807-98a970]
+    budget_seconds: shared with L-TRANSFER.
+    stopping_rule: as L-TRANSFER.
+    falsifier: as L-TRANSFER.
+    honest_limitation: >-
+      No verdict may be emitted until the crossover k* of IDEA-20260807-5f24d7
+      exists; until then this diagnostic emits k or its bound and the three flags
+      only.
+
+  - id: D5
+    name: CM discriminant and conductor structure
+    status: planned
+    mechanism: >-
+      Beyond L-DISC's |D|, report the conductor f explicitly and its
+      factorisation, and report D's residue mod 4 to fix the normalisation. The
+      pair (D, f) is the full CM structure and is what determines whether any
+      efficiently computable endomorphism exists.
+    certificate: (t, f, D, the identity t^2 - 4p = f^2 * D, D mod 4, per-factor
+      primality certificates for f).
+    quantitative_prediction:
+      - metric: f
+        direction: different
+        preregistered_value: small - under H3, f >= F with probability
+          approximately 1/F, so f is expected to be O(1) to O(2^10)
+      - metric: 'D mod 4'
+        direction: different
+        preregistered_value: 0 or 1 after normalisation
+    controls: [PC2, NC2, NU3]
+    budget_seconds: shared with L-DISC.
+    stopping_rule: as L-DISC; a partial square-part extraction yields a bound on
+      |D| and an incomplete f, and must be reported as both.
+    falsifier: the identity failing to multiply out; or f large, which would
+      contradict H3 and is itself the interesting outcome.
+    honest_limitation: >-
+      If t^2 - 4p is not fully factored, f is only known up to the search bound
+      and D only up to a bound. Report both bounds, not a value.
+
+  - id: D6
+    name: model-conversion exceptional sets
+    status: planned
+    mechanism: >-
+      Enumerate the models reachable from the specified short-Weierstrass form -
+      Montgomery, twisted Edwards, Jacobi quartic, Hessian, projective and
+      Jacobian coordinates - and for each state the existence condition and, when
+      the model exists, the exceptional set of the conversion map. Odd #E
+      excludes Montgomery and twisted Edwards over F_p (the section-0 collision
+      bit); Hessian requires a rational point of order 3, so it is decided by
+      3 | #E, which n prime and odd settles by a single divisibility check.
+    certificate: >-
+      A table of (model, existence condition, certified quantity deciding it,
+      exceptional set of the conversion when it exists). For projective and
+      Jacobian coordinates the exceptional set is the locus Z = 0, stated
+      explicitly and finite.
+    quantitative_prediction:
+      - metric: number of alternative models existing over F_p among
+          {Montgomery, twisted Edwards, Hessian}
+        direction: different
+        preregistered_value: 0
+      - metric: '3 | #E ?'
+        direction: different
+        preregistered_value: false
+    controls: [PC4, NU1]
+    budget_seconds: 120
+    stopping_rule: single pass, gated on L-BASE.
+    falsifier: exhibition of any of the three models over F_p for this curve.
+    honest_limitation: >-
+      The model list is enumerated, not exhaustive. Absence of a model from the
+      table is not a statement about that model.
+
+  - id: D7
+    name: scalar and multiscalar formula exceptional-case search
+    status: planned
+    mechanism: >-
+      For each named formula - affine chord-and-tangent, Jacobian add, Jacobian
+      double, mixed add, the RCB-style complete add, and a Strauss-Shamir
+      multiscalar routine - derive the exceptional locus symbolically and,
+      independently, run an exhaustive input sweep on a small-analogue prime-order
+      curve where all pairs (P,Q) are enumerable, plus a randomized sweep at
+      full size covering the structured cases P = Q, P = -Q, P = O, Q = O and
+      small-scalar edges.
+    certificate: >-
+      Per formula: the symbolic locus, and for each element of it an explicit
+      concrete input pair with the formula's actual output. An explicit failing
+      pair is a certificate; an empty randomized sweep is not.
+    quantitative_prediction:
+      - metric: number of exceptional cases found for the Jacobian add
+        direction: higher
+        preregistered_value: at least the three structured cases above
+      - metric: number of exceptional cases found for the RCB-style complete add
+        direction: different
+        preregistered_value: 0, conditional on the recalled RCB result
+      - metric: number of exceptional cases found by the randomized full-size
+          sweep alone, excluding structured inputs
+        direction: different
+        preregistered_value: 0, and this is the null-expected outcome, since the
+          locus has measure approximately 1/n approximately 2^-256
+    controls: [NU4, and the small-analogue exhaustive sweep as its own positive
+      control - the sweep MUST rediscover the known exceptional cases of the
+      affine chord formula]
+    budget_seconds: 900
+    stopping_rule: >-
+      Exhaustive small-analogue sweep first, then symbolic derivation, then the
+      randomized full-size sweep to a fixed 10^6 samples. Stop at 900 s. Formulas
+      not reached are listed as NOT EXAMINED.
+    falsifier: >-
+      A concrete input pair on which a formula claimed complete fails; or the
+      small-analogue sweep failing to rediscover the affine chord formula's known
+      exceptions, which voids the search.
+    two_explanation_discrimination: >-
+      A randomized sweep finding nothing has two readings - the formula is
+      complete, or the sweep cannot reach a measure-2^-256 locus. The second is
+      correct by construction, which is exactly why the symbolic derivation and
+      the exhaustive small-analogue sweep are mandatory and the randomized sweep
+      alone may never be reported as evidence of completeness.
+    honest_limitation: >-
+      Exceptional-case behaviour is a property of a formula, not of the curve,
+      and it is not a side-channel or timing analysis.
+
+  - id: D8
+    name: deterministic parameter-generation transcript audit
+    status: planned
+    priority: 1
+    relationship_to_L-RIGID: >-
+      L-RIGID is the VERIFICATION half - does the published transcript reproduce.
+      D8 is the MEASUREMENT half - how much freedom the procedure leaves. They
+      are separated because object O2 verifies but cannot bound, and object O3
+      bounds but cannot verify (section 0).
+    mechanism: >-
+      Track object O3 - the induced distribution, over seeds, of chosen curve
+      invariants. Sample N random 160-bit seeds; push each through the identical
+      generation code path used in L-RIGID to obtain r and hence a candidate b at
+      the fixed p and a = -3; for each resulting curve compute cheap invariants -
+      #E mod small primes, j mod small primes, and (for a feasible subsample) the
+      largest prime factor of #E to a fixed smoothness bound. Compare the
+      empirical distributions against the uniform/Dickman predictions of H2 and
+      H1. Then report the manipulability COST for a target property of measure
+      eps as approximately 1/eps seed trials, with eps measured, not assumed.
+    certificate: >-
+      The sample size N, the code path hash, the empirical histograms, the
+      chi-squared statistics against the uniform prediction with degrees of
+      freedom stated, and the derived cost figures in log2 seed trials for a menu
+      of target properties.
+    quantitative_prediction:
+      - metric: chi-squared p-value of '#E mod q' against uniform on
+          {0,...,q-1}, for each small prime q
+        direction: different
+        preregistered_value: consistent with uniform; no rejection at the 0.01
+          level after a Bonferroni correction over the number of q tested
+      - metric: log2 of the seed trials needed to hit a target property of
+          measure eps
+        direction: different
+        preregistered_value: -log2(eps), within the sampling error of the
+          measured eps
+      - metric: empirical CDF of log2 of the largest prime factor of #E versus
+          the Dickman prediction of H1
+        direction: different
+        preregistered_value: agreement within the Kolmogorov-Smirnov band at
+          N = 10^4
+    controls:
+      - PC3 as the code-path control - the same generator must reproduce P-384
+        and P-521 before its output distribution is trusted.
+      - NC1 - the same measurement run on the brainpool generation procedure,
+        which must yield a DIFFERENT freedom profile if the diagnostic
+        distinguishes procedures at all.
+      - NU2 and a null generator that draws b uniformly at random with no hash
+        chain. Under H2 the two distributions must be statistically
+        indistinguishable; if they are NOT, the hash chain is imposing structure
+        and THAT is the finding.
+    budget_seconds: 1800
+    stopping_rule: >-
+      N escalating 10^2, 10^3, 10^4, with the chi-squared statistics recomputed
+      at each level. Stop at 1800 s or N = 10^4. Report N reached. The
+      largest-prime-factor subsample is capped at whatever ECM budget remains and
+      its size is reported separately.
+    falsifier: >-
+      A statistically significant departure of the hash-chain-induced
+      distribution from the uniform null after correction. That would be a
+      material finding about the PROCEDURE and would require independent review
+      before any external statement.
+    two_explanation_discrimination:
+      explanation_A: >-
+        The generation procedure leaves the standard amount of freedom, i.e.
+        1/eps trials for a measure-eps property, and hitting any specific
+        published curve is unremarkable given enough seeds.
+      explanation_B: >-
+        The hash chain induces measurable structure in the curve invariants.
+      discriminator: the uniform-b null generator in `controls`. If the hash-chain
+        distribution and the uniform-b distribution are indistinguishable,
+        explanation A holds and the deliverable is a cost number.
+    honest_limitation: >-
+      ABSOLUTELY BINDING. This diagnostic measures a COST IN SEED TRIALS. It
+      cannot determine, and no downstream record may suggest it determines,
+      whether any seed was actually searched, what criteria a designer used, or
+      what anyone intended. A manipulability cost of X bits is a statement about
+      the procedure's degrees of freedom and about nothing else. It is also not a
+      safety or vulnerability finding of any kind.
+
+deferred_diagnostics: >-
+  None. All eight declared additional diagnostics are planned above. L-RIGID and
+  D8 carry a conditional DEFERRAL trigger (failure to source SEED and the
+  generation algorithm from a primary NIST document) with the successor condition
+  stated in L-RIGID `successor_condition_if_blocked`; that is a conditional
+  deferral of execution, not a deferral of planning.
+
+# ===========================================================================
+# 4. HEURISTIC ASSUMPTIONS
+# ===========================================================================
+heuristic_assumptions:
+  - id: H1
+    statement: >-
+      The twist order #E' = p + 1 + t behaves, with respect to the distribution
+      of its largest prime factor, like a uniformly random integer of the same
+      size. Concretely, Pr[P^+(#E') <= (#E')^(1/u)] is approximated by the
+      Dickman function rho(u), with rho(u) = 1 - ln(u) for 1 <= u <= 2.
+    rigorous_support: >-
+      The Dickman-de Bruijn theorem, with the Canfield-Erdos-Pomerance
+      refinement, gives this distribution rigorously for uniformly random
+      integers. What is NOT proved is that curve orders in the Hasse interval
+      obey it; that is the heuristic, and it is the same one the standard curve
+      literature uses.
+    numerical_consequence_used: >-
+      At the twist-rho threshold l' >= 2^200.35 for a 256-bit #E', u = 1.278 and
+      rho(u) = 1 - ln(1.278) = 0.755, so the base rate for L-TWIST passing is
+      approximately 0.245.
+    validation_plan:
+      what_to_sample: >-
+        Curve orders #E and twist orders #E' for randomly generated curves
+        y^2 = x^3 - 3x + b over the SAME p as P-256, b drawn uniformly.
+      shortcut_that_makes_it_feasible: >-
+        Point counting at 256 bits is the bottleneck. Two routes, and the plan
+        commits to reporting which was used: (i) if an SEA implementation is
+        reachable, sample directly at 256 bits; (ii) otherwise sample at 60-80
+        bits where naive baby-step giant-step point counting is feasible, and
+        state the size-transfer assumption explicitly - namely that the
+        largest-prime-factor distribution's dependence on size is captured by u
+        alone, which is what the Dickman law asserts and is precisely the thing
+        being tested.
+      sample_size: 2000 curves at the reachable size.
+      comparison_distribution: the empirical CDF of u = log(#E')/log(P^+(#E'))
+        against rho(u).
+      tail_checks: >-
+        Compare the smoothest observed sample against the rho(u) prediction for
+        that u, and the count of samples with P^+ below 2^(0.5 * log2 #E')
+        against N * rho(2) = N * (1 - ln 2) = 0.307 N.
+      transfer_assumption_recorded: >-
+        If route (ii) is used, every conclusion is scoped to the sampled bit size
+        and the extrapolation to 256 bits is stated as an assumption, not a
+        measurement.
+
+  - id: H2
+    statement: >-
+      The map SEED -> r -> b defined by the pseudorandom generation procedure
+      behaves as a random function into F_p. Consequently (a) for a seed
+      unrelated to the published one, Pr[r*b^2 + 27 = 0 mod p] is approximately
+      1/p approximately 2^-256, and (b) hitting a target curve property of
+      measure eps costs approximately 1/eps independent seed trials.
+    rigorous_support: >-
+      None as a theorem. It imitates the standard random-oracle model for the
+      hash, restricted to the specific chain used. The rigorous part is only that
+      the count of seeds is finite and the procedure is deterministic, so the
+      cost statement is an honest expectation over an explicitly random seed
+      choice.
+    validation_plan:
+      what_to_sample: N = 10^4 uniformly random 160-bit seeds pushed through the
+        identical code path (this IS diagnostic D8 and control NU2).
+      comparison_distribution: uniform on the invariant's range; chi-squared per
+        small modulus q with Bonferroni correction over the q tested.
+      tail_checks: >-
+        Zero accepts in NU2 against an expected 10^4 * 2^-256; and the minimum
+        observed p-value across all q compared against the Bonferroni threshold.
+      recorded_parameters: N, the seed bit length 160, the list of q, the code
+        path identity shared with L-RIGID.
+      transfer_assumption_recorded: >-
+        Validation is at exactly the deployed parameters, so no size transfer is
+        needed. What IS assumed is that the recalled algorithm is the deployed
+        one - which L-RIGID step 1 must establish and PC3 tests.
+
+  - id: H3
+    statement: >-
+      The square part f^2 of t^2 - 4p behaves as it does for a random integer of
+      that size, so Pr[f >= F] is approximately sum over d >= F of 1/d^2, which
+      is approximately 1/F.
+    rigorous_support: >-
+      The estimate Pr[d^2 | m] = 1/d^2 for a uniformly random integer m is exact,
+      and the union bound over d >= F gives approximately 1/F rigorously for
+      random m. The heuristic is that t^2 - 4p is such an m.
+    numerical_consequence_used: >-
+      |D| > 2^100 requires f < approximately 2^78, which fails with probability
+      approximately 2^-78. Hence L-DISC's base rate is 1 - O(2^-78), and a pass
+      is close to zero bits of information.
+    validation_plan:
+      what_to_sample: the NU3 shuffled-trace null - 10^4 values of t' drawn
+        uniformly from the Hasse interval, square part extracted by the same code
+        path used in L-DISC and D5.
+      comparison_distribution: the empirical CDF of f against the 1/F tail law.
+      tail_checks: the largest f observed versus the predicted N/f threshold;
+        the count of samples with f > 10 versus the predicted N/10.
+      recorded_parameters: N = 10^4, the search bound to which the square part
+        was extracted, and the fact that a bounded extraction yields a bounded f
+        and therefore a censored empirical CDF, which must be fitted as censored
+        data rather than treated as complete.
+
+  - id: H4
+    statement: >-
+      For a curve not deliberately constructed, the events n = p, p = 1 mod n,
+      and n^2 | #E each occur with probability at most O(2^-100) at this size.
+    rigorous_support: >-
+      Partly rigorous - n^2 | #E is impossible when h = 1 and n > 4*sqrt(p), by
+      Hasse. n = p and p = 1 mod n are heuristic, resting on the trace
+      distribution in the Hasse interval.
+    validation_plan:
+      what_to_sample: the NU1 random-curve null, 200 curves.
+      comparison_distribution: zero occurrences expected.
+      tail_checks: >-
+        The positive controls PC1 (anomalous) and PC2 (BN) MUST fire; a checker
+        that never fires on the null and never fires on the positives is not
+        measuring anything.
+
+  - id: H5
+    statement: >-
+      For any curve of prime order n approximately 2^256 with h = 1, the rho
+      criterion passes deterministically, since 0.886*sqrt(n) approximately
+      2^127.8 >> 2^100.
+    rigorous_support: >-
+      Fully rigorous given n; it is arithmetic, not a heuristic. Listed here only
+      because it is the reason L-RHO's base rate is 1 and the lane is an
+      instrument check.
+    validation_plan: not applicable - stated as arithmetic, and its inclusion
+      here is a labelling of the base rate rather than an assumption to test.
+
+# ===========================================================================
+# 5. EXECUTION ORDER, BUDGET, AND STOPPING
+# ===========================================================================
+execution_plan:
+  hard_gate_first: >-
+    The entire `global_controls` battery runs before any P-256 number is
+    interpreted. A control failure halts the affected lane and is recorded as
+    instrument failure - an operational observation, never mathematical evidence.
+  ordered_stages:
+    - stage: 0
+      lanes: [global_controls]
+      budget_seconds: 600
+    - stage: 1
+      lanes: [L-FIELD, L-EQUATION, L-BASE]
+      budget_seconds: 390
+      rationale: cheap, and every later lane depends on their certificates.
+      blocking: a failure here voids everything downstream.
+    - stage: 2
+      lanes: [L-RHO, L-LADDER, L-IND, D3, D6]
+      budget_seconds: 330
+      rationale: all reduce to certificates already emitted in stage 1; near-zero
+        marginal cost.
+    - stage: 3
+      lanes: [L-RIGID, D8]
+      budget_seconds: 1920
+      rationale: highest information content per second in the whole plan; gated
+        on primary sourcing of SEED and the algorithm.
+    - stage: 4
+      lanes: [L-TRANSFER, D4]
+      budget_seconds: 600
+    - stage: 5
+      lanes: [L-TWIST, D1, D2]
+      budget_seconds: 1320
+    - stage: 6
+      lanes: [L-DISC, D5]
+      budget_seconds: 900
+    - stage: 7
+      lanes: [L-COMPLETE, D7]
+      budget_seconds: 1500
+  total_budget_seconds: 7560
+  budget_note: >-
+    This exceeds the goal's remaining campaign budget of 18000 s only if run
+    naively alongside the other batches; it is presented as a per-lane costing so
+    the Coordinator can cut whole stages rather than truncate lanes. Truncating a
+    lane mid-way produces a bound, which is fine and must be labelled as one;
+    dropping a stage produces a coverage gap, which must be recorded as such.
+  global_stopping_rule: >-
+    Any stage that exhausts its budget reports the bound reached and stops. No
+    stage is retried. Budget exhaustion is an operational observation and never
+    mathematical evidence, and never licenses a weaker claim being stated more
+    strongly.
+
+# ===========================================================================
+# 6. HONEST ACCOUNTING
+# ===========================================================================
+honest_accounting:
+  objects_considered:
+    - O1 - the parity bit of #E(F_p). Passes the lossy-projection test. Primary
+      tracked object; source of the three-cell observation collision.
+    - O2 - the generation-transcript residue. Lossy but does NOT propagate under
+      seed perturbation; FAILS the test's second half. Recorded as a finding of
+      the test, and the reason D8 exists.
+    - O3 - the seed-induced distribution of curve invariants. Replaces O2 for the
+      manipulability question. Tracked by D8.
+    - O4 - the exceptional locus of a named formula. Passes the test. Tracked by
+      L-COMPLETE, D6 and D7.
+  depth_of_verified_structure: >-
+    ZERO. Nothing in this plan has been executed. The only things established in
+    this task are three digit-level readings of retrieved strings (capsule items
+    I1-I3), each explicitly provisional and each scheduled for computational
+    re-certification.
+  dominated_by: >-
+    n/a (no result claimed). Checked, not asserted: this plan proposes no
+    algorithm and claims no speedup on any axis, so there is no frontier row to
+    compare against on time, memory or data. As an AUDIT INSTRUMENT the incumbent
+    is the parameter-validation procedure already mandated by the standards
+    themselves, which dominates this plan on authority and on having been
+    executed for decades; this plan dominates it on nothing except that its
+    output would be inside this program's ledger with re-verifiable certificates
+    and stated base rates. The SafeCurves project itself dominates the verdict
+    half of every lane, and this plan does not attempt to improve on it.
+  sota_delta: >-
+    Zero speedup against any attack baseline on every axis; no attack is
+    proposed. Quantitative delta as data - this goal's corpus currently holds
+    zero certificates for NIST P-256; the plan schedules 11 criterion lanes and 8
+    diagnostics, of which 16 emit a short independently re-verifiable certificate
+    and 3 emit an explicit bound with its verification cost stated. Delta as
+    analysis, produced in this task at zero compute cost - three of the eleven
+    cells are shown to share one algebraic preimage, and the base rate of six
+    more is quantified (approximately 1 for L-FIELD/L-EQUATION/L-BASE/L-RHO,
+    1 - O(2^-100) for L-TRANSFER, 1 - O(2^-78) for L-DISC, approximately 0.245
+    for L-TWIST), which reduces the number of genuinely information-bearing
+    measurements in the goal from eleven to approximately three.
+  enumerated_closures:
+    - closure: >-
+        The rigidity question cannot be settled by any computation on the
+        published parameters.
+      mechanism: >-
+        Object O2 fails the propagation half of the lossy-projection test. The
+        transcript bit is a deterministic function of the seed that carries no
+        information along the seed-perturbation orbit, so no amount of transcript
+        verification bounds how the seed was chosen. This is a named obstruction,
+        not fatigue.
+      scope_of_closure: >-
+        Closes only "settle rigidity by computing on the published tuple". It
+        does NOT close the manipulability question, which is measurable as a cost
+        via object O3 and is exactly what D8 does.
+      forward_guidance: >-
+        Classes that remain open - measuring the procedure's degrees of freedom
+        (D8); comparing the freedom profiles of different published procedures
+        (NC1); and any documentary or historical evidence about the seed, which
+        is outside this program's methods entirely and is named as such rather
+        than silently omitted.
+    - closure: >-
+        The ladder, complete and ind cells cannot be three independent
+        confirmations.
+      mechanism: >-
+        Shared preimage - E(F_p)[2] = {O} forces the precondition failure of all
+        three, so their joint information content is one bit, not three.
+      scope_of_closure: >-
+        Closes only the claim of independence. It does not close either lane, and
+        in particular L-COMPLETE and L-IND remain worth running because their
+        out-of-family sub-lanes can discriminate a curve property from a
+        criterion-scope difference.
+      forward_guidance: >-
+        The open direction is the criterion-scope question - what family the
+        SafeCurves definitions actually range over - which requires retrieving
+        the criterion text and is currently blocked by the 502 (capsule C6).
+  open_directions_for_next_session:
+    - Retrieve the SafeCurves criterion definitions by any route that works
+      (the 502 blocked all four URLs tried here), and supersede every
+      `definition_provenance: recalled` marker in this plan.
+    - Read SP 800-186 and/or FIPS 186-4 Appendix A.1 and D.1.2.3 in an
+      environment with PDF text extraction, and supersede the parameter capsule
+      with a primary-sourced one - this unblocks L-RIGID and D8, the two highest
+      information lanes.
+    - Confirm or refute capsule conflicts C1 and C2 by exact integer comparison;
+      they are the cheapest open items in the goal and they gate everything.
+    - Decide whether an SEA point-counting route exists in this environment. It
+      determines whether H1's validation happens at 256 bits or at 60-80 bits
+      with a stated size-transfer assumption, and that choice changes what the
+      twist lane's base rate claim is worth.
