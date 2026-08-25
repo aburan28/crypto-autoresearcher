@@ -1,0 +1,76 @@
+schema: crypto-autoresearch.control_formula_manifest.v1
+manifest:
+  task_id: TASK-20260824-efdcc2
+  experiment_id: null
+  execution_authorized: false
+  statistic_encoding:
+    boolean_outcome: {success: 1, failure: 0}
+    invalid_record: excluded_from_numerator_and_denominator_and_causes_stop
+    decimal: ASCII base-10, finite, exact recorded precision, no exponent
+    equality: inclusive_at_declared_endpoint
+    endpoint_rule: boundary equality is PASS when the full stated predicate is satisfied
+    precision: decimal128_or_higher, round only for display after predicate evaluation
+    seed: UTF8 "TASK-20260824-efdcc2/<control>/<replicate>", SHA256-derived uint64, retained
+    pairing: exact seed match and matched input shape; missing or duplicate pair is STOP
+    resampling: paired bootstrap, 10000 resamples, seed ".../bootstrap/<control>", percentile 2.5% and 97.5%
+    interval_failure: STOP
+  controls:
+    CT-1:
+      samples: 1000 paired signal/null trials
+      estimate: "mean(signal_i - null_i)"
+      interval: paired_bootstrap_95_percentile_CI
+      predicate: "CI.upper <= 0.02 AND CI.lower <= 0 <= CI.upper"
+      outcomes: [PASS_CONTROL_ONLY, STOP_NO_SIGNAL_CLAIM]
+    CT-2:
+      samples: 1000 paired signal/null trials
+      estimate: "mean(unique_signal_i - unique_null_i)"
+      interval: paired_bootstrap_95_percentile_CI
+      predicate: "CI.upper <= 0.02 AND point_estimate <= 0.02"
+      outcomes: [PASS_CONTROL_ONLY, STOP_NO_UNIQUENESS_CLAIM]
+    CT-3:
+      samples: "1000 signal/null trials; minimum_null_events: 20"
+      estimate: "signal_event_rate / null_event_rate"
+      interval: exact_binomial_log_ratio_95_CI
+      predicate: "null_event_count >= 20 AND CI.lower >= 0.80 AND CI.upper <= 1.25"
+      denominator_zero: STOP
+      outcomes: [PASS_CONTROL_ONLY, STOP_NO_RATE_EQUIVALENCE_CLAIM]
+    CT-4:
+      samples: "30 exact seed pairs at baseline and doubled input"
+      estimate: "cpu_seconds_doubled / cpu_seconds_baseline; wall_rate_doubled / wall_rate_baseline"
+      interval: paired_bootstrap_95_percentile_CI
+      predicate: "cpu_CI.lower >= 1.80 AND cpu_CI.upper <= 2.20 AND wall_rate_CI.upper <= 0.60"
+      timeout_clock_anomaly_missing_timing: STOP
+      outcomes: [PASS_CONTROL_ONLY, STOP_NO_SCALING_CLAIM]
+    CT-5:
+      samples: "1000 baseline and 1000 signal-destroyed, each with 1000 paired null trials"
+      estimate: "destroyed_effect - destroyed_null_effect"
+      interval: paired_bootstrap_95_percentile_CI
+      predicate: "CI.lower >= -0.02 AND CI.upper <= 0.02 AND point_estimate <= 0.02"
+      incomplete_stratum: STOP
+      outcomes: [PASS_CONTROL_ONLY, STOP_NO_VANISHING_EFFECT_CLAIM]
+  fixtures:
+    endpoint: equality at every numeric endpoint is PASS if all conjuncts pass
+    denominator: null_event_count=0 and null_event_count=19 are STOP; 20 is eligible
+    invalid: one malformed, duplicate, missing, or unpaired record is STOP
+    interval: uncomputable or nonfinite endpoint is STOP
+    resource: exact cap equality is admissible; one unit over any cap is STOP
+    applicability: host-resource action with applicability omitted, false, or contradictory is STOP
+    pb3: unknown, extra-unbound, dimensionally inconsistent, or nonconservative term is STOP
+  resource_envelopes:
+    per_control:
+      cpu_seconds_max: 138240
+      wall_seconds_max: 21600
+      memory_bytes_max: 6871947673
+      disk_bytes_max: 4294967296
+      raw_retention_bytes_max: 4294967296
+      bootstrap_resamples_max: 10000
+      exhaustion: STOP
+    total:
+      cpu_seconds_max: 172800
+      wall_seconds_max: 21600
+      memory_bytes_max: 8589934592
+      disk_bytes_max: 26843545600
+      raw_retention_bytes_max: 4294967296
+      logical_io_bytes_max: 274877906944
+      exhaustion: STOP
+  no_scientific_interpretation: true
