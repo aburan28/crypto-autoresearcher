@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7858 |
-| — with a resolvable external identifier | 2248 |
+| Literature entries (`KN-LIT-*`) | 7859 |
+| — with a resolvable external identifier | 2249 |
 | — with no identifier recorded | 5610 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1324, doi 149, eprint 741, url 34. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1324, doi 149, eprint 742, url 34. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7485, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7486, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -107,7 +107,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2248 of 7858 `KN-LIT-*` entries carry an
+2249 of 7859 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2279,6 +2279,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-982 | FPGA Acceleration of Multi-Scalar Multiplication: CycloneMSM Kaveh Aasaraai, Don Beaver, Emanuele Cesena, Rahul Maganti | 2022 | `eprint:2022/1396` | read |
 | KN-LIT-983 | Full Quantum Equivalence of | 2022 | `eprint:2022/113` | read |
 | KN-LIT-984 | Further Cryptanalysis of a Type of RSA Variants | 2022 | `eprint:2022/611` | read |
+| KN-LIT-98438d | FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism | 2025 | `eprint:2025/1861` | read |
 | KN-LIT-985 | Generalising Fault Attacks to Genus Two Isogeny Cryptosystems | 2022 | `eprint:2022/196` | read |
 | KN-LIT-986 | GENERALIZED CLASS POLYNOMIALS | 2022 | `arxiv:2207.08915` | read |
 | KN-LIT-987 | GENERATORS FOR THE ELLIPTIC CURVE arXiv:2206.05740v2 [math.NT] 6 Jul 2022 E(p,q) : y 2 = x3 − p2 x + q | 2022 | `arxiv:2206.05740` | read |
