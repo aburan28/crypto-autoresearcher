@@ -12,9 +12,31 @@ import sys
 _COMPAT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_compat")
 
 
+def _real_sympy_available() -> bool:
+    """True when a non-shim sympy is already loaded or importable.
+
+    The previous guard used `find_spec` only when sympy was *not* in
+    sys.modules, and set `real = None` when it was. That inverted the
+    second `ensure()` call in a pytest process: controlpower/depgraph
+    imports runner (which loads real sympy), then a later diffpath
+    module called `ensure()` again, saw sympy already loaded, skipped
+    find_spec, and installed the empty `harness.semaev` stub -- which
+    then broke `tests/test_harness.py` (`s3_eval` AttributeError).
+    """
+    loaded = sys.modules.get("sympy")
+    if loaded is not None:
+        return not getattr(loaded, "__shim__", False)
+    real = importlib.util.find_spec("sympy")
+    if real is None:
+        return False
+    origin = getattr(real, "origin", "") or ""
+    if not origin or _COMPAT_DIR in origin:
+        return False
+    return True
+
+
 def ensure() -> dict:
-    real = importlib.util.find_spec("sympy") if "sympy" not in sys.modules else None
-    if real is not None and getattr(real, "origin", "") and _COMPAT_DIR not in (real.origin or ""):
+    if _real_sympy_available():
         return {"sympy_shim_used": False,
                 "reason": "a real sympy is importable; no shim installed"}
     if _COMPAT_DIR not in sys.path:
