@@ -47,6 +47,12 @@ reviews, and scopes its claims exactly as before.
    question, queue, and handoff records through a Coordinator snapshot archive
    before starting workers. Set the queue's top-level `goal_id` to the matching
    `GOAL-*` so every rendered plan remains bound to the persistent campaign.
+   If the goal already has an open lane elsewhere (`python3
+   tools/goal_lanes.py lanes <GOAL>` after `git fetch`), this batch is a
+   second lane: register it with `goal_lanes.py open-lane … --publish` before
+   any worker runs, keep it on its own branch and PR, and edit `goal.yaml`
+   only additively inside your own ledger archive
+   (`docs/concurrent-goal-lanes.md`).
 6. Before that snapshot archive, and again before every later batch, merge
    `origin/main` into the working branch (merge, never rebase) and re-validate
    (`tools/validate_ledger.py`). Push the branch and open or refresh a PR
@@ -57,9 +63,11 @@ reviews, and scopes its claims exactly as before.
 
 For every batch, run this sequence:
 
-1. Render the dispatch plan. Start at most the queue's declared
-   `max_concurrent` non-archive tasks with disjoint write scopes, **each in a
-   subagent** — never in this session. Choose the subagent from the task's
+1. Render the dispatch plan with `--claims refs` after `git fetch`. Start at
+   most the queue's declared `max_concurrent` non-archive tasks with disjoint
+   write scopes and `claim: null`, **each claimed first
+   (`tools/goal_lanes.py claim … --publish`) and each in a subagent** — never
+   in this session; release the claim with its outcome when the agent returns. Choose the subagent from the task's
    (`role`, `inference.policy`) pair using the table in
    `.claude/skills/launch-research-harness/SKILL.md` step 6; each agent carries
    the reasoning effort its policy calibrates (`executor-mechanical` low →
@@ -104,7 +112,9 @@ For every batch, run this sequence:
    knowledge update; its Git diff, parent, record IDs, and file hashes must
    verify.
 5. In that same ledger commit, update the `GOAL-*` record with the batch,
-   decision, latest verified commit, and exactly one next action. Rerank the
+   decision, latest verified commit, and exactly one next action for this
+   lane (additively — never rewrite another lane's entries); then
+   `goal_lanes.py close-lane … --publish`. Rerank the
    remaining hypotheses only after this committed checkpoint.
 
    **Read the obstruction registry before you rerank.** Run
