@@ -6,16 +6,17 @@ Generate exactly nine fresh, mechanism-distinct, schema-complete proposals acros
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260825-c2ee1b` | idea-generator | queued | 100 | - | ledger/proposals/IDEA-20260825-3f78cd.yaml, ledger/proposals/IDEA-20260825-81aa61.yaml, ledger/proposals/IDEA-20260825-1114be.yaml | ledger/proposals/IDEA-20260825-3f78cd.yaml, ledger/proposals/IDEA-20260825-81aa61.yaml, ledger/proposals/IDEA-20260825-1114be.yaml |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260825-4678d6`: concurrency_cap
-- `TASK-20260825-4d9f00`: dependency_not_completed:TASK-20260825-c2ee1b:queued, dependency_not_completed:TASK-20260825-4678d6:queued, dependency_not_completed:TASK-20260825-db2373:queued
-- `TASK-20260825-db2373`: concurrency_cap
+- `TASK-20260825-4678d6`: task_marked_blocked
+- `TASK-20260825-4d9f00`: task_marked_blocked
+- `TASK-20260825-db2373`: task_marked_blocked
 
 ## Dispatch Gates
 
+- `claimed_tasks_are_not_offered_to_others`: passed
 - `concurrency_cap_respected`: passed
 - `all_selected_dependencies_completed`: passed
 - `selected_write_scopes_do_not_overlap`: passed
@@ -27,4 +28,4 @@ Generate exactly nine fresh, mechanism-distinct, schema-complete proposals acros
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9b2c5893229f6d0365be70f8a915ff5601b9a9adac69e94f0c40274b815b7726`
+Plan SHA-256: `1dd3fd702ea80d7727438ae8ba75d5a45598f88ee2e608f92efcaed8822904d2`
