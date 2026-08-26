@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import re
@@ -742,11 +743,111 @@ def _ready_queued(
     return sorted(queued, key=lambda task: (-task["priority"], task["id"]))
 
 
+CLAIM_OVERLAY_STATES = {"live", "expired", "released", "orphan_release"}
+
+
+def apply_claims(
+    queue: dict[str, Any],
+    claims: dict[str, dict[str, Any]] | None,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Overlay write-once task claims (tools/goal_lanes.py) on a queue copy.
+
+    The queue file is the Coordinator's record and is never edited here. The
+    overlay only changes what this plan ADMITS, so several sessions reading
+    the same committed queue see each other's holds without any of them
+    writing it:
+
+      live claim on a queued task      -> treated as `running` with a lease
+                                          derived from the claim (scope held,
+                                          counts toward max_concurrent)
+      expired claim on a queued task   -> left `queued` (scope free, so the
+                                          task is offered again and the next
+                                          session claims it at epoch+1), and
+                                          listed under `expired_leases` so the
+                                          owner's silence is on the record
+      release `completed` (producer)   -> treated as `completed`, so its
+                                          successors become ready for whoever
+                                          claims them next
+      release `completed` (archive)    -> NOT overlaid: an archive is complete
+                                          only when its commit verifies, and
+                                          that binding lives in the queue's own
+                                          archive block, written by the
+                                          Coordinator at archive time
+      release failed|abandoned         -> left `queued`, scope free, reported
+      any claim on a non-queued task   -> ignored; the queue already records
+                                          more than the claim does
+
+    Returns the overlaid copy and a per-task report for the plan.
+    """
+    overlaid = copy.deepcopy(queue)
+    report: dict[str, dict[str, Any]] = {}
+    if not claims:
+        return overlaid, report
+    by_id = {task["id"]: task for task in overlaid["tasks"] if isinstance(task, dict) and "id" in task}
+    # Two passes: completions first, so a hold on a successor is judged against
+    # the successor's dependencies AS THIS READER SEES THEM. A claim made from a
+    # worktree that had already fetched a completion this one has not is not an
+    # error in the queue; it is a fact this plan cannot yet admit, and it is
+    # reported as such rather than crashing the render.
+    for task in overlaid["tasks"]:
+        claim = claims.get(task["id"])
+        if claim is None:
+            continue
+        status = claim.get("status")
+        if status not in CLAIM_OVERLAY_STATES:
+            raise DispatchError(f"claim for {task['id']} has unknown status {status!r}")
+        entry = {
+            "status": status,
+            "owner": claim.get("owner"),
+            "epoch": claim.get("epoch"),
+            "expires_at": claim.get("expires_at"),
+            "branch": claim.get("branch"),
+            "outcome": (claim.get("release") or {}).get("outcome"),
+            "applied": None,
+        }
+        report[task["id"]] = entry
+        if task["state"] != "queued":
+            entry["applied"] = f"ignored:queue_state_{task['state']}"
+        elif status == "released" and entry["outcome"] == "completed" and not is_archive(task):
+            task["state"] = "completed"
+            entry["applied"] = "completed"
+    for task in overlaid["tasks"]:
+        entry = report.get(task["id"])
+        if entry is None or entry["applied"] is not None:
+            continue
+        claim = claims[task["id"]]
+        status = entry["status"]
+        if status == "expired":
+            entry["applied"] = "queued_after_expiry"
+        elif status == "live":
+            unmet = [
+                dependency for dependency in task.get("depends_on", [])
+                if dependency in by_id and by_id[dependency].get("state") != "completed"
+            ]
+            if unmet:
+                entry["applied"] = "ignored:dependencies_incomplete_from_this_view:" + ",".join(unmet)
+                continue
+            task["state"] = "running"
+            task["lease"] = {
+                "owner": claim["owner"],
+                "acquired_at": claim["acquired_at"],
+                "expires_at": claim["expires_at"],
+                "epoch": int(claim["epoch"]),
+            }
+            entry["applied"] = "running_with_lease"
+        elif status == "released" and entry["outcome"] == "completed":
+            entry["applied"] = "ignored:archive_completion_requires_queue_record"
+        else:
+            entry["applied"] = "queued_scope_free"
+    return overlaid, report
+
+
 def select(
     queue: dict[str, Any],
     *,
     repository_verifier: RepositoryVerifier | None = None,
     now: datetime | None = None,
+    claims: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Select the tasks a dispatch plan admits.
 
@@ -761,6 +862,7 @@ def select(
     Coordinator decision, made once and recorded, not an inference redrawn on
     every dispatch run.
     """
+    queue, claim_report = apply_claims(queue, claims)
     by_id = validate_queue(queue, repository_verifier=repository_verifier)
     all_running = [task for task in queue["tasks"] if task["state"] == "running"]
     expired = (
@@ -770,6 +872,18 @@ def select(
     )
     expired_ids = {task["id"] for task in expired}
     running = [task for task in all_running if task["id"] not in expired_ids]
+    expired_claims = [
+        {
+            "id": task["id"],
+            "role": task["role"],
+            "owner": claim_report[task["id"]]["owner"],
+            "write_scope": task["write_scope"],
+            "expires_at": claim_report[task["id"]]["expires_at"],
+            "source": "claim",
+        }
+        for task in queue["tasks"]
+        if claim_report.get(task["id"], {}).get("applied") == "queued_after_expiry"
+    ]
     ready = _ready_queued(queue, by_id)
     ready_archives = [task for task in ready if is_archive(task)]
     selected: list[dict[str, Any]] = list(running)
@@ -849,6 +963,12 @@ def select(
             "artifact_paths": task["artifact_paths"],
             "handoff": task["handoff"],
             **({"archive": task["archive"]} if is_archive(task) else {}),
+            "claim": (
+                {key: claim_report[task["id"]][key] for key in ("status", "owner", "epoch", "expires_at")}
+                if task["id"] in claim_report
+                and claim_report[task["id"]]["applied"] == "running_with_lease"
+                else None
+            ),
         }
         for task in selected
     ]
@@ -878,8 +998,14 @@ def select(
                 "expires_at": task["lease"]["expires_at"],
             }
             for task in expired
-        ],
+        ] + expired_claims,
+        "claims": claim_report,
         "gates": {
+            "claimed_tasks_are_not_offered_to_others": all(
+                task["state"] == "running" or task["id"] not in claim_report
+                or claim_report[task["id"]]["applied"] != "running_with_lease"
+                for task in selected
+            ),
             "concurrency_cap_respected": (
                 len(selected) <= queue["max_concurrent"]
                 and (
@@ -977,11 +1103,24 @@ def markdown(plan: dict[str, Any]) -> str:
                       "before `--now` -- their write_scope is no longer treated as held, so a",
                       "queued successor over the same scope was admitted instead. The task",
                       "itself is untouched: a Coordinator still records the actual terminal",
-                      "state (most likely `failed`) the next time the queue is edited.", ""])
+                      "state (most likely `failed`) the next time the queue is edited.",
+                      "An entry marked `claim` is an expired write-once claim instead: the task",
+                      "stays queued and is offered again; claim it at the next epoch.", ""])
         for item in expired_leases:
             lines.append(
-                f"- `{item['id']}` ({item['role']}, leased by `{item['owner']}`, "
-                f"expired {item['expires_at']}): {', '.join(item['write_scope'])}"
+                f"- `{item['id']}` ({item['role']}, {'claim' if item.get('source') == 'claim' else 'lease'} "
+                f"by `{item['owner']}`, expired {item['expires_at']}): {', '.join(item['write_scope'])}"
+            )
+    claims = plan.get("claims") or {}
+    if claims:
+        lines.extend(["", "## Claims (write-once, tools/goal_lanes.py)", "",
+                      "A `live` claim is another session's hold on that task's write_scope:",
+                      "it is listed under Ready Tasks as `running` so you do not start it.",
+                      "Start only Ready Tasks whose `claim` is null, and claim them first.", ""])
+        for task_id, item in sorted(claims.items()):
+            lines.append(
+                f"- `{task_id}`: {item['status']} (owner `{item.get('owner')}`, epoch {item.get('epoch')}, "
+                f"expires {item.get('expires_at')}) -> {item['applied']}"
             )
     degraded = plan.get("content_only_archives") or []
     if degraded:
@@ -1393,6 +1532,15 @@ def main() -> int:
              "from the clock, so a dispatch plan stays a pure function of its inputs -- "
              "e.g. --now \"$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)\".",
     )
+    parser.add_argument(
+        "--claims",
+        choices=("off", "local", "refs"),
+        default="local",
+        help="overlay write-once task claims from <queue dir>/claims/ (tools/goal_lanes.py): "
+             "'local' reads the working tree, 'refs' also scans every git ref so claims pushed "
+             "from other worktrees count, 'off' ignores claims. Claims are evaluated at --now "
+             "(or the wall clock when --now is omitted).",
+    )
     args = parser.parse_args()
     try:
         repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
@@ -1401,7 +1549,23 @@ def main() -> int:
         enforce_reconciliation_document_authority(queue)
         verifier = GitRepositoryVerifier(repo_root)
         now = parse_timestamp(args.now, "--now") if args.now is not None else None
-        plan = select(queue, repository_verifier=verifier, now=now)
+        claims = None
+        if args.claims != "off":
+            import goal_lanes  # sibling module; imported lazily so the planner stays importable alone
+
+            # Claims carry expiries, so a plan that reads them is clock-dependent
+            # whether or not --now was given: without a clock an expired hold
+            # would be admitted as `running` and never surface under
+            # expired_leases. Sample the wall clock once and use it for both.
+            if now is None:
+                now = goal_lanes.utcnow()
+            try:
+                claims = goal_lanes.claim_summary(
+                    repo_root, args.queue.resolve(), include_refs=(args.claims == "refs"), now=now,
+                )
+            except goal_lanes.LaneError as error:
+                raise DispatchError(f"claims overlay: {error}") from error
+        plan = select(queue, repository_verifier=verifier, now=now, claims=claims)
     except (OSError, json.JSONDecodeError, DispatchError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2
