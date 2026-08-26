@@ -231,6 +231,17 @@ collisions were the first instance of it and are already fixed the same way.
   experiment, move a hypothesis, or stand in as evidence, and real work still
   travels as a `TASK-*` handoff through the dispatcher. See
   `docs/inter-agent-messaging.md`.
+- **Task holds and open batches are write-once side files, not queue or
+  goal-head fields.** `tools/goal_lanes.py claim <queue> <TASK> --as <addr>
+  --ttl-minutes N --publish` before a subagent launch, `release … --outcome`
+  on return; `open-lane GOAL BATCH …` when a second session opens a batch on
+  a goal another session is already working. `research_dispatch.py --claims
+  refs` overlays them after `git fetch`: a live claim reads as `running`, a
+  completed release unblocks successors, the queue file is never edited.
+  Another session on the same goal is therefore NOT a stop: list its lanes,
+  claim an unclaimed Ready Task, or open a disjoint lane. Same feed
+  discipline as the bus — visibility is `git fetch`, collisions resolve by
+  lowest epoch. `docs/concurrent-goal-lanes.md`.
 - **Branch drift is a scheduled job, not your job.**
   `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
   six hours. It refuses any branch committed to within `--idle-minutes` (default

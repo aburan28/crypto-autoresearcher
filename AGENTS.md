@@ -472,6 +472,16 @@ evidence: raw run receipts remain immutable in their experiment directories.
   recorded cost of dispatching more producers than a machine had headroom
   for. Reserve an independent Reviewer, Validator, or Red Team task whenever
   a result could change an ECDLP claim.
+- Several sessions may work one goal at once. Who holds a task and which
+  batches are open are write-once side files, not fields of the shared queue
+  or goal head: `tools/goal_lanes.py claim|release` per task and
+  `open-lane|close-lane` per batch, read back by
+  `tools/research_dispatch.py --claims refs`. Claim a Ready Task before
+  launching its subagent and release it on return; another session's live
+  claim is listed as `running` and is not yours to start. A second batch on
+  the same goal is a second lane on its own branch, editing `goal.yaml` only
+  additively inside its own ledger archive. A claim is a pointer, never a
+  permission. See `docs/concurrent-goal-lanes.md`.
 - The Executor records observations only. A Reviewer challenges claims, a
   Validator verifies artifact and control integrity, and a Red Team writes
   objections and falsification routes. The Coordinator alone may promote,
