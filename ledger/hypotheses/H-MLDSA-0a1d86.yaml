@@ -1,0 +1,217 @@
+hypothesis:
+  id: H-MLDSA-0a1d86
+  question_id: RQ-MLDSA-ffa0f5
+  derived_from_idea: IDEA-20260821-60ba98
+  added: '2026-08-25'
+  statement: >-
+    Let a conforming ML-DSA signer loop until a conjunction of rejection predicates all hold, and let
+    a non-conforming signer omit exactly one conjunct, looping until the remaining conjunction holds.
+    Write p_R for the probability that the omitted predicate FAILS given that the remaining
+    conjunction holds. THEN the total variation distance between the two signers' emitted-signature
+    laws equals p_R EXACTLY, with the supremum attained on the event that the omitted predicate
+    fails. No approximation, no heuristic, no scale limit.
+    (B) THE NAMED TERM. By a hybrid over N signing queries, any adversary's advantage against the
+    omitting signer exceeds its advantage against the conforming signer by at most N times p_R. What
+    the security argument loses when a signer omits that check is therefore an ADDITIVE N times p_R
+    in every unforgeability statement about that signer, and nothing else - linear in the query
+    count, saturating at the crossover N equal to one over p_R, beyond which the argument transfers
+    no guarantee at all.
+    (C) THE BOUND IS TIGHT, NOT MERELY VALID. An observer holding the compressed public-key component
+    that the omitted predicate depends on can evaluate that predicate on every signature it sees and
+    so distinguishes the two signers with advantage one minus the complement of p_R raised to the
+    Nth power, which agrees with N times p_R to first order. The leak is therefore of the order of N
+    times p_R - the rate is not an upper bound on the leak, it IS the leak.
+    (D) THE DISCRIMINATING PAYLOAD, AND THE PART A READER'S INTUITION REJECTS. THE PREDICATE'S
+    DEPENDENCE ON THE SECRET IS IRRELEVANT; ONLY ITS RATE MATTERS. The default intuition is that
+    omitting a secret-dependent test leaks the secret at a rate governed by that dependence, and the
+    identity says it cannot. This is what makes a first-stage rejection test whose firing rate is
+    close to 1 catastrophic to omit, and a later test whose firing rate is vanishing or exactly zero
+    at some parameter sets essentially free to omit, ONE formula at two values of one parameter.
+    NOT A BREAK. Every signature considered is produced by a party holding the signing key; no
+    forgery is constructed; nothing is asserted about the underlying lattice problems in any
+    direction. The result is about a NON-CONFORMING implementation, and it says a standard's own
+    check is worth exactly its firing rate.
+  mechanism: >-
+    Let mu be the law of one signing attempt's output. The omitting signer emits mu conditioned on the
+    remaining conjunction; the conforming signer emits that law further conditioned on the omitted
+    predicate. For nested conditioning, the supremum over events of the difference between the twice-
+    conditioned and once-conditioned probabilities equals one minus the conditional probability of
+    the inner event, attained at that event itself. Hence the total variation equals p_R. The only
+    structural fact used is that the conforming signer's accept set is a SUBSET of the omitting
+    signer's, which is what "omits a rejection condition" means, so the identity applies to every one
+    of the predicates and to any conjunction of them, and it applies unchanged to hedged and
+    deterministic modes because it never touches how the masking vector is generated.
+    THE HYBRID'S SCOPE IS PART OF THE MECHANISM AND NOT A FOOTNOTE. Signing queries are independent
+    given the key only if the masking vector is freshly random per attempt. In hedged mode this
+    holds. In deterministic mode, repeated queries on the same message return the same signature, so
+    the hybrid is over DISTINCT messages and N must be read as the number of distinct messages
+    signed - which differs from "N signatures" by an unbounded factor in a deployment that re-signs.
+    THE ONE WAY THE PREMISE CAN FAIL, AND IT IS WHAT THE EXPERIMENT HUNTS. An implementation that
+    omits a predicate also advances its attempt counter differently, so the omitting signer draws its
+    masking vector from a different index sequence than the conforming one would have at the same
+    attempt. This does not change the law of a single attempt if the expansion function's outputs are
+    modelled as independent across counter values, but it does mean the two signers' outputs are not
+    COUPLED - so an empirical estimate compares two independent streams and its finite-sample floor
+    must be derived before it is read.
+  assumptions:
+    - >-
+      The conforming signer's accept set is a SUBSET of the omitting signer's - "omitting a check"
+      means deleting a conjunct, not replacing it with a different one. An implementation that
+      replaces the check is outside the identity and must be handled separately; every arm records
+      which case it is.
+    - >-
+      The masking vector is freshly random per attempt (hedged mode), so signing queries are
+      independent given the key. In deterministic mode N counts DISTINCT MESSAGES, and this is stated
+      in every result sentence rather than assumed away.
+    - >-
+      p_R is well defined, i.e. the predicate order is fixed, so "rate" means the probability the
+      predicate fails given the other conjuncts hold, and NOT the attributed-first-failure rate.
+      These differ and both are reported, together with the marginal rate.
+    - >-
+      Every numeric constant taken from the standard is RE-READ from primary text under a run record
+      before use. The parent proposal relies on a corpus transcription and labels it a
+      re-verification target; a crossover table built on an unre-read transcription is a table about
+      that transcription.
+    - id: H-INHERITED-CT0-RATE
+      formal_statement: >-
+        For the compressed-public-key predicate at the smallest parameter set only, p_R takes a
+        specific vanishing value inherited verbatim from a sibling proposal, derived under the
+        assumption that the relevant coefficients behave as independent uniforms for the purpose of
+        two-sided exceedance probabilities.
+      rigorous_support: >-
+        The rigorous ingredients are an exact envelope bound, an exact convolution of the uniform
+        law, and an exact residue-class count. The INDEPENDENCE across coefficients and across the
+        challenge's summands is NOT proved. The classical statement imitated is that a sum of
+        independent bounded uniforms has the tail of its convolution.
+      validation_experiment_ids: [EXP-MLDSA-0effb4]
+      falsification_condition: >-
+        The predicate is measured firing at a rate above the experiment's sensitivity at any
+        parameter set. The inherited envelope derivation or its assumption is then wrong, the
+        crossover table is withdrawn, and that is the result.
+    - id: H-INHERITED-VERIFY-PROBABILITY
+      formal_statement: >-
+        A signature violating the omitted predicate nevertheless verifies with a probability close to
+        1, inherited from a sibling proposal, so that the rate at which the omission is visible to a
+        party that merely verifies is far below the rate at which it leaks to a party holding the
+        compressed public-key component.
+      rigorous_support: >-
+        The hint-correctness condition is SUFFICIENT rather than necessary, so the failure set is
+        strictly smaller than the violation set; the overshoot's law is the tail of the same
+        convolution as the previous heuristic. LOAD-BEARING ONLY for the secondary testability ratio;
+        the identity and the named term do not use it.
+      validation_experiment_ids: [EXP-MLDSA-0effb4]
+      falsification_condition: >-
+        At a synthetic parameter cell where violations are common, the measured ratio of the
+        verifier-visible rate to the leak rate is near 1, meaning violating signatures almost always
+        fail verification and the predicate is self-enforcing after all.
+  test_boundary:
+    instances: >-
+      A reference ML-DSA signer instrumented to record, per ATTEMPT, the truth value of every
+      rejection predicate and the emitted-or-not flag; a signer omitting the first-stage conjunction;
+      a signer omitting the compressed-public-key predicate; and a synthetic parameter cell in which
+      that predicate's rate is raised into a measurable range.
+    parameters: >-
+      All three standardized parameter sets; at least 10^5 signing attempts per parameter set for
+      the rate census; 32 keys per parameter set so that per-key dispersion of the rate is reported
+      rather than assumed away; a graded sweep of at least five values of the threshold parameter at
+      a synthetic cell, giving at least three interior points.
+    implementation: >-
+      A DECLARED LOW-DIMENSIONAL statistic - the firing indicator of each predicate plus the
+      verification-outcome indicator - never a plug-in total variation on raw signatures.
+    out_of_scope: >-
+      Timing, power, electromagnetic and memory channels, and the attempt count, where an omitted
+      check is plainly visible - that boundary belongs to a different goal; forgery of any kind; any
+      statement about the underlying lattice problems; and the true-parameter rate of the vanishing
+      predicate, which is DECLARED OUT OF BUDGET IN ADVANCE rather than attempted and abandoned.
+  distinguishable_outcomes:
+    - outcome: >-
+        The estimator recovers the derived non-zero forced values on the positive arm within its
+        interval and the standard's own tabulated residual; the two null arms both return zero and
+        agree, with byte-identical transcripts where the rate is exactly zero; the graded sweep is
+        monotone; and the per-predicate rate census reports each rate with its interval and each zero
+        count as an upper bound with its sample size.
+      means: >-
+        The identity is confirmed where it is measurable, the instrument has demonstrated power at a
+        value three orders of magnitude above the vanishing case, and the crossover table is
+        delivered with each cell labelled measured, derived-under-a-heuristic, or theorem. The
+        deliverable is a formula and a table, not an attack.
+    - outcome: >-
+        The estimator does NOT recover the derived forced values on the positive arm within its
+        interval and the tabulated residual.
+      means: >-
+        The instrument has no power and NO OTHER ARM MAY BE READ. Either the estimator is not
+        measuring the quantity, or the derived forced values are wrong, and deciding which comes
+        before anything else is written.
+    - outcome: >-
+        The null arm's finite-sample floor EXCEEDS the rate being estimated at some parameter set.
+      means: >-
+        No rate below that floor is reportable there. The outcome is a SAMPLE-SIZE statement, never
+        evidence that the predicate does not fire. The honest expectation is that the vanishing
+        predicate cannot be spoken to at all within budget, and saying so is the result.
+    - outcome: >-
+        The structural null arm returns a nonzero distance or non-identical transcripts where the
+        rate is derived to be exactly zero.
+      means: >-
+        Either the inherited envelope derivation is wrong - which would be far more interesting than
+        this record - or the instrument is. Deciding which comes before anything else is written.
+    - outcome: >-
+        Some predicate's omission is shown to change the emitted law by MORE than its firing rate.
+      means: >-
+        THE IDENTITY IS FALSE AS APPLIED and this record is superseded. The one mechanism that could
+        produce it is the attempt-counter coupling named in the mechanism, and it is the specific
+        thing the multi-seed and paired arms hunt.
+    - outcome: >-
+        The rate census measures the vanishing predicate firing above the experiment's sensitivity at
+        any parameter set.
+      means: >-
+        The inherited envelope derivation or its assumption is wrong, the crossover table is
+        WITHDRAWN, and that is the result. This is the cheapest way this record can be refuted.
+    - outcome: >-
+        The graded sweep is non-monotone in the rate.
+      means: >-
+        The estimated distance cannot be read directionally and no signed statement about any arm is
+        made.
+  prior_evidence_refs:
+    - RQ-MLDSA-ffa0f5
+    - GOAL-MLDSA-002
+    - IDEA-20260805-031ce2
+    - IDEA-20260805-bb52fa
+    - IDEA-20260805-630606
+    - IDEA-20260808-4f83f6
+    - H-MLDSA-2d4123
+    - KN-TECH-1a5b7e
+  falsification_conditions:
+    - The estimator does not recover the derived forced values on the positive arm within its interval and the tabulated residual.
+    - The finite-sample floor exceeds the rate being estimated at some parameter set; only a sample-size statement is then reportable there.
+    - The structural null arm returns a nonzero distance or non-identical transcripts where the rate is derived to be exactly zero.
+    - Some predicate's omission changes the emitted law by more than its firing rate, refuting the identity as applied.
+    - The rate census measures the vanishing predicate firing above the experiment's sensitivity, withdrawing the crossover table.
+    - The graded sweep is non-monotone in the rate.
+  interpretation_limits:
+    - >-
+      NOT A BREAK, NOT A FORGERY, NOT A WEAKNESS IN ML-DSA AS STANDARDIZED. Every object is emitted
+      by a party holding the signing key. Nothing bears on the underlying lattice problems in any
+      direction, and any downstream sentence readable as such is defective regardless of what was
+      measured.
+    - >-
+      The bound covers an adversary that sees SIGNATURES. It says nothing about timing, power,
+      emissions, memory or the attempt count, where an omitted check is plainly visible; that is a
+      different goal's territory and the boundary is stated rather than assumed.
+    - >-
+      The named term is an upper bound on the ADVANTAGE DIFFERENCE, not a claim that a particular
+      quantity is or is not recovered. "The omitting signer leaks at most N times p_R" must never be
+      restated as "the secret cannot be recovered".
+    - >-
+      The vanishing-rate row is CONDITIONAL on an inherited heuristic at one parameter set and
+      unconditional at the others, and the two must never be reported at the same strength.
+    - >-
+      The published fault-attack result that motivates the reconciliation was read as an ABSTRACT
+      ONLY in the parent proposal. If the test it prevents is not one of the first-stage conjuncts,
+      the reconciliation is wrong and only the identity survives.
+    - >-
+      The identity is elementary and may well already appear in the rejection-sampling literature.
+      If so this is a rediscovery and must be reported as one; novelty is explicitly unverified.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-25'

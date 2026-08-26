@@ -1,0 +1,352 @@
+hypothesis:
+  id: H-QALG-2eb8b0
+  question_id: RQ-QALG-457b41
+  derived_from_idea: IDEA-20260813-02479f
+  added: '2026-08-25'
+  status: proposed
+  proposed_by: coordinator
+  title: >-
+    The sample-access model is unrealizable from one ML-KEM public key: standard
+    linear self-reduction cannot supply Q = k*n^(c+1) virtual MLWE samples from
+    k in {2,3,4} real rows inside the algorithm's own 1/O(log n) faulty-sample
+    budget, at any standardized ML-KEM level
+  statement: >-
+    SCOPE: the three standardized ML-KEM parameter levels (512, 768, 1024), the
+    STANDARD linear self-reduction sample-generation mechanism only, the sample
+    count Q = k*n^(c+1) with c at the minimum value the source algorithm states,
+    and the faulty-sample tolerance 1/O(log n) that same algorithm requires. All
+    quantities are closed-form arithmetic; no ML-KEM implementation, no lattice
+    software and no quantum simulation is involved.
+    THE CLAIM. Let a virtual MLWE sample be built as a bounded-coefficient linear
+    combination of m of the k real rows a single ML-KEM public key supplies, plus
+    fresh public randomness. Let V(m) be its error variance and let
+    C(k, B) be the number of DISTINCT such combinations available before the
+    coefficient bound B is exhausted. Then at every standardized level:
+    (i) reaching Q distinct virtual samples requires m and B large enough that
+    C(k, B) >= Q, and
+    (ii) at that m and B, the induced per-sample noise rate exceeds the 1/O(log n)
+    budget by a margin of many orders of magnitude.
+    Equivalently: the ACCESS MODEL the algorithm assumes is not instantiable from
+    one bounded public key by this mechanism, independently of whether the
+    algorithm is correct once given that access. The hypothesis is FALSIFIED if the
+    computed noise rate stays inside the budget at any standardized level, robustly
+    across the declared sensitivity range over c.
+  mechanism: >-
+    Every algorithm in the Regev/Kuperberg/Simon dihedral-coset family is stated in
+    an idealized-sampler model: arbitrarily many independent draws for a fixed
+    secret. A single standardized ML-KEM public key supplies exactly k rows of one
+    Module-LWE instance, k in {2,3,4}. Any further sample must be manufactured by
+    public linear self-reduction, and variance additivity for independent errors
+    forces V(sum_i c_i e_i) = sum_i c_i^2 V(e_i): the error variance grows with the
+    number and the size of the combining coefficients, with no free lunch available
+    from the coefficients themselves. Two ceilings therefore act at once and in
+    OPPOSITE directions - a small coefficient budget keeps the noise low but caps
+    the number of distinct combinations, and a large one supplies combinations but
+    inflates the noise. The hypothesis is that at Q = k*n^(c+1) with c >= 12 and n
+    of order a few hundred, those two ceilings cannot be satisfied simultaneously,
+    and the gap is not marginal. Whether that is true is a matter of arithmetic that
+    can be carried out exactly, which is why this is an audit and not a simulation.
+  assumptions:
+    - >-
+      The correspondence between the source algorithm's "n" and ML-KEM's actual
+      module dimension is PINNED from a source actually read, before any numeric Q
+      is computed. This container may not be able to reach that source; if it cannot,
+      the verdict is computed over the full declared range of plausible
+      correspondences and reported as a range, never as a single number resting on a
+      guess.
+    - >-
+      One public key is the threat model. An attacker holding many independent public
+      keys is a different, out-of-scope model and no outcome here speaks to it.
+    - >-
+      Standard linear self-reduction is the sample-generation mechanism under audit.
+      A cleverer, not-yet-published technique is explicitly out of scope and is named
+      as an open direction, not ruled out.
+    - >-
+      Variance additivity for independent errors is exact, not asymptotic, and
+      ML-KEM's CBD(eta) error has finite known variance eta/2. This is elementary and
+      is verified symbolically at m = 1 and m = 2 before the general formula is used.
+  proof_search_map:
+    bottleneck: >-
+      Whether the noise variance accumulated in manufacturing Q = k*n^(c+1) virtual
+      samples from k in {2,3,4} real rows by standard linear self-reduction stays
+      inside, or catastrophically exceeds, the 1/O(log n) faulty-sample tolerance at
+      ML-KEM's actual non-asymptotic n. It is decision-changing because a negative
+      answer closes the concrete-reach question for this whole route independently of
+      whether the algorithm's own lemmas are correct.
+    baseline_embedding:
+      parameter_slice: >-
+        m = 1 - each virtual sample IS one of the k real rows, no combination. This
+        reproduces the unmodified oracle-model assumption exactly: zero self-reduction
+        inflation, base CBD(eta) variance, and exactly k samples available. It is the
+        fixed reference point every m > 1 variant is measured against.
+      reproduction_check: >-
+        Symbolic, exact, and free: the general V(m) formula must reduce at m = 1 to
+        eta/2 with no inflation term, and at m = 2 with unit coefficients to exactly
+        eta, matching the convolution property of CBD. Both are checkable by hand
+        before the formula is used at large m. A failure means the formula is wrong
+        and no verdict from it may be reported.
+    observation_collision:
+      observable: >-
+        The pair (number of distinct virtual samples generated, noise variance per
+        virtual sample).
+      distinct_preimage_search: >-
+        Search for a combining strategy - a choice of m and of the coefficient bound -
+        that reaches a LARGE distinct-sample count while keeping variance growth
+        SUB-linear in m, by exploiting structure in CBD(eta) or in the module's ring
+        structure. If no such strategy exists under variance additivity, the observable
+        is dominated by a simple monotone trade-off with no exploitable slack, and the
+        verdict follows from arithmetic alone. IF ONE DOES EXIST, the hypothesis is
+        wrong and the strategy is the finding - the search must therefore be genuine
+        and its scope stated, not asserted to have failed.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          A target-specific quantity: V(m, B), the error variance of a virtual sample
+          built from m of the k real rows with coefficients bounded by B, paired with
+          C(k, B), the count of distinct such combinations, both evaluated up to the
+          m and B needed to reach Q at each standardized level.
+        predicted_gain: >-
+          No speed gain. A closure-scale measurement with an exact numeric margin,
+          computable in seconds, that decides a precondition of an entire route before
+          any effort is spent on the route's internal correctness.
+    quantifier_order: >-
+      The source theorem states: for all n, there EXISTS a sample-generation procedure
+      supplying Q independent-enough faulty samples such that the algorithm succeeds.
+      This hypothesis checks whether that existential is satisfiable AT ALL from one
+      bounded ML-KEM key by the standard procedure at ML-KEM's actual, non-asymptotic
+      n. The trap named: showing that ONE procedure fails does not show the
+      existential fails. The method_ceiling below states that boundary explicitly and
+      the record is forbidden from writing past it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: "standard linear self-reduction from k in {2,3,4} real rows can, or
+        cannot, approach Q = k*n^(c+1) virtual samples within the stated noise budget
+        at ML-KEM's actual n, with this exact numeric margin, over this sensitivity
+        range in c." It can NEVER certify that no conceivable sample-generation
+        technique could do so, and it can never be written as "the route is closed".
+      nearby_object_control: >-
+        The degenerate case Q <= k, where no self-reduction is needed at all and
+        realizability holds trivially. The finding is informative only to the extent
+        it measures how far past that trivial floor the required Q sits and at what
+        multiplicative noise cost - so the floor is computed and reported, not
+        assumed.
+    proof_obligations:
+      - claim: V(m) reduces to the base CBD(eta) variance at m = 1 with no inflation.
+        responsibility: baseline
+      - claim: The n-to-module-dimension correspondence is pinned from a read source before any numeric Q.
+        responsibility: correctness
+      - claim: The combinatorial ceiling C(k, B) on distinct low-variance combinations is computed explicitly.
+        responsibility: size
+      - claim: The verdict is reported with its exact numeric margin, not only qualitatively.
+        responsibility: scope
+      - claim: The sensitivity of the verdict to c over its stated range is reported.
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-QALG-2eb8b0-1
+      formal_statement: >-
+        For a virtual MLWE sample built as sum_{i=1}^{m} c_i * (real sample i) plus
+        fresh public randomness, with the c_i bounded and the underlying errors e_i
+        independent CBD(eta) variates, the error variance is exactly
+        V = (sum_i c_i^2) * (eta/2). Quantifiers: for all m >= 1, for all integer
+        coefficient vectors within the declared bound, for eta in {2,3} as
+        standardized.
+      random_model_justification: >-
+        Not a random model in the heuristic sense - this is exact variance additivity
+        for independent random variables, a finite identity rather than an asymptotic
+        approximation, applied to a distribution whose variance is known in closed
+        form. It is numbered anyway because it is the single identity every downstream
+        number rests on, and an unnumbered load-bearing identity is exactly what this
+        program's rules exist to prevent.
+      supporting_results:
+        - >-
+          Variance additivity for independent random variables (elementary).
+        - >-
+          CBD(eta) has variance eta/2 (elementary from its definition). RECALLED and
+          re-derived symbolically at stage 1 rather than cited.
+      validation_experiment_ids:
+        - EXP-QALG-a5338c
+      falsification_condition: >-
+        The general-m formula fails to reduce to eta/2 at m = 1 or to eta at m = 2 with
+        unit coefficients. The formula is wrong and blocks every downstream conclusion
+        until corrected.
+    - id: HEUR-QALG-2eb8b0-2
+      formal_statement: >-
+        The independence required for the additivity above is not destroyed by the
+        fact that the m combined terms are drawn from only k <= 4 underlying rows -
+        i.e. distinct combinations of the same small row set are treated as
+        independent enough for the variance accounting and for the algorithm's
+        independent-sample requirement.
+      random_model_justification: >-
+        NONE, AND THIS IS THE WEAK POINT OF THE WHOLE AUDIT, STATED AS SUCH. Distinct
+        bounded combinations of k <= 4 fixed rows are manifestly NOT independent
+        samples in the sense an idealized sampler supplies. If the correct accounting
+        charges that dependence, the obstruction is even more severe than the variance
+        computation alone shows - which means the heuristic is CONSERVATIVE in the
+        hypothesis's favour, and the direction of that bias must be stated in the
+        deliverable rather than hidden.
+      supporting_results: []
+      validation_experiment_ids:
+        - EXP-QALG-a5338c
+      falsification_condition: >-
+        A stated accounting under which the dependence is benign and the effective
+        independent-sample count equals the combination count. If such an accounting
+        exists and is defensible, the audit's severity estimate must be recomputed
+        under it and both variants reported.
+  structural_ingredients:
+    - description: >-
+        The source algorithm's stated sample requirement Q = k*n^(c+1) with c >= 12,
+        and its faulty-sample tolerance 1/O(log n).
+      citation: null
+      provenance: recalled
+      verified_by: >-
+        NOT VERIFIED. Taken from the parent proposal IDEA-20260813-02479f, whose own
+        novelty screen records the corresponding knowledge entry as flagging the
+        dimension figure as needing to be checked against the original before use.
+        Stage 0 of the paired contract must pin both the exponent form and the
+        tolerance to a source actually read; if it cannot, every numeric verdict is
+        reported as a range over the declared plausible readings.
+      role: the access-model requirement being audited
+    - description: >-
+        ML-KEM's standardized k in {2,3,4}, ring degree 256, and CBD(eta) error with
+        eta in {2,3}.
+      citation: null
+      provenance: recalled
+      verified_by: >-
+        To be re-derived at stage 0 from the standard's own parameter table if
+        reachable; otherwise stated as the assumed parameter table with that status
+        marked, since every numeric margin depends on it.
+      role: the concrete target's parameter set
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: baseline_embedding_check
+      direction: different
+      minimum_effect: >-
+        V(1) = eta/2 exactly and V(2) with unit coefficients = eta exactly. FORCED
+        VALUES, symbolic. POSITIVE CONTROL: failure blocks every downstream conclusion.
+    - metric: trivial_floor_check
+      direction: different
+      minimum_effect: >-
+        Q <= k is trivially realizable with zero inflation. FORCED. A formula that
+        reports the trivial case as unrealizable is wrong.
+    - metric: required_Q_per_level
+      direction: different
+      minimum_effect: >-
+        The exact integer Q = k*n^(c+1) at each standardized level under the pinned
+        correspondence, at the minimum stated c and across the declared sensitivity
+        range. No value is asserted here - computing it is the experiment, and stating
+        a number before the computation would be a fabrication.
+    - metric: noise_margin_per_level
+      direction: higher
+      minimum_effect: >-
+        The ratio of the achieved per-virtual-sample noise rate at the m and B needed
+        to reach Q, to the 1/O(log n) tolerance. The hypothesis predicts this ratio is
+        far above 1 at every level. A ratio at or below 1 at ANY level, robustly across
+        the c range, FALSIFIES the hypothesis at that level.
+    - metric: combinatorial_ceiling
+      direction: lower
+      minimum_effect: >-
+        C(k, B), the number of distinct bounded-coefficient combinations available from
+        k rows, computed explicitly rather than asserted, and compared against Q. If
+        C(k, B) >= Q at a B whose induced noise stays in budget, the hypothesis is
+        falsified by construction.
+  test_boundary:
+    instances: >-
+      The three standardized ML-KEM parameter levels. No instances are sampled; every
+      quantity is a closed-form evaluation.
+    parameters:
+      levels: ML-KEM-512, ML-KEM-768, ML-KEM-1024
+      c_range: >-
+        From the minimum value the source states, upward across a declared sensitivity
+        range, since larger c enlarges Q but also changes the failure bound and the
+        trade-off must be reported rather than fixed at one arbitrary value.
+      correspondence_range: >-
+        Every plausible reading of the source's "n" against ML-KEM's module dimension,
+        if the correspondence cannot be pinned to a read source.
+    implementation: >-
+      Exact integer and rational arithmetic in Python 3.11 (no floating point for the
+      Q values, which overflow double precision by many orders of magnitude). No
+      lattice software, no ML-KEM implementation, no quantum simulation.
+    budget:
+      total_cpu_hours: 0.5
+      maximum_runs: 10
+  falsification_conditions:
+    - >-
+      The noise margin is at or below 1 at any standardized level, robustly across the
+      declared c range and correspondence range. The sample-access obstruction is NOT
+      what closes this route at that level, this hypothesis is refuted there, and
+      remaining scrutiny redirects onto the algorithm's own correctness questions.
+    - >-
+      The combinatorial ceiling C(k, B) reaches Q at a coefficient bound whose induced
+      noise stays inside the budget. Same disposition - the hypothesis is refuted by
+      an explicit construction rather than by a margin.
+    - >-
+      The general-m variance formula fails its m = 1 or m = 2 baseline check. The
+      formula is wrong; nothing may be concluded until it is corrected.
+    - >-
+      The formula reports the trivial floor Q <= k as unrealizable. The formula is
+      wrong at the low end and its verdict at the high end is worthless.
+    - >-
+      The correspondence cannot be pinned AND the verdict flips sign across the
+      plausible readings. The audit cannot decide its own question in this environment
+      and must report that, not a preferred reading.
+  interpretation_limits:
+    - >-
+      This audits STANDARD linear self-reduction only. A not-yet-published technique -
+      including any structural relief from Galois orbits or other public symmetry - is
+      explicitly out of scope and is named as an open direction, not ruled out.
+    - >-
+      An unfavourable verdict is a NECESSARY-condition failure for a concrete attack
+      against a single ML-KEM key by this route. It says nothing about the source
+      algorithm's own correctness, and it must never be written as "the algorithm is
+      wrong".
+    - >-
+      A favourable verdict is likewise only a necessary condition met. It is NOT
+      evidence that any attack works, and treating it as such is a named confounder.
+    - >-
+      Nothing here transfers to other questions in this goal; different schemes have
+      different public-key structures and different sample-access models entirely.
+    - >-
+      The audit is a snapshot of what could be pinned in this environment on its run
+      date, and it must carry that date and its unreachable-source list prominently.
+  prior_evidence_refs:
+    - RQ-QALG-457b41
+    - IDEA-20260813-02479f
+  distinguishable_outcomes:
+    - outcome: >-
+        Baseline and trivial-floor checks pass; the noise margin is far above 1 at all
+        three levels and the verdict does not flip across the c range or the
+        correspondence range.
+      means: >-
+        SUPPORTS the hypothesis. Standard linear self-reduction cannot instantiate the
+        assumed access model against one ML-KEM key, with a stated exact margin. Next
+        decision: record it as a NAMED, SCOPED closure of the concrete-reach question
+        for standard self-reduction specifically, with the obstruction block carrying
+        the margin, its units, and its scope - and with the successor question (whether
+        a structural relief mechanism changes it) filed, not buried.
+    - outcome: >-
+        Checks pass; the noise margin is at or below 1 at some level, robustly.
+      means: >-
+        FALSIFIES the hypothesis at that level. The access model is instantiable there
+        and this obstruction is not what closes the route. Next decision: redirect
+        scrutiny onto the algorithm's own correctness and the base reduction's noise
+        rate; record the refutation as a first-class result, since it is the outcome
+        the parent proposal did NOT expect.
+    - outcome: >-
+        The verdict flips across the plausible correspondence readings, or across the
+        c range.
+      means: >-
+        INCONCLUSIVE and identifiably so. The unpinned correspondence, not the
+        arithmetic, is the binding uncertainty. Next decision: the task is a
+        source-pinning task, not a computation task, and it must be re-dispatched as
+        one rather than resolved by choosing a reading.
+    - outcome: >-
+        The baseline or trivial-floor check fails.
+      means: >-
+        NO EVIDENCE EITHER WAY. The variance formula is wrong. Next decision: return
+        to the Executor with the concrete defect; no margin from that run is
+        admissible.
