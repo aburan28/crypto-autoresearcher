@@ -1,0 +1,1098 @@
+audit_plan:
+  id: PLAN-TASK-20260824-0c5e27-E382
+  task_id: TASK-20260824-0c5e27
+  goal_id: GOAL-SCURVE-7b280d
+  question_id: RQ-SCURVE-49ee6d
+  curve: E-382
+  role: idea-generator
+  produced_at: '2026-08-25'
+  depends_on_capsule: ./parameter-capsule.yaml
+  class: measurement
+
+  status_of_this_document: >-
+    A PLAN. Nothing in it has been run. It assigns no work: only the Coordinator dispatches,
+    and only the Coordinator moves a hypothesis. It runs no curve attack, produces no
+    experiment result, and states nothing about E-382 being safe, unsafe, vulnerable or free
+    of vulnerabilities. Every "prediction" below is a preregistered comparison against a
+    user-supplied unverified target.
+
+  # ===========================================================================
+  # 0. OBJECT-FIRST FRAMING (docs/inventor-protocol.md ss1-2)
+  # ===========================================================================
+  object_framing:
+    why_object_first: >-
+      A SafeCurves audit is trivially expressible as "run eleven checks", which is a list of
+      chores and generates nothing. Framed by TRACKED OBJECT it becomes a small number of
+      lossy projections of the curve, each of which propagates deterministically under a
+      declared set of operations - and the lanes then group by object rather than by table
+      column, which is what makes the controls shareable and the coverage auditable.
+    established_families_declared: >-
+      Parameter validation of named curves is heavily mined (standards bodies have run it for
+      decades; SafeCurves' own verify.sage is the incumbent instrument). The established lens
+      - "recompute the table" - is therefore declared OFF-LIMITS as the primary lens. The
+      objects below are enumerated instead. Note KN-OPEN-019: this program has no written
+      object-enumeration for the ECDLP, so this mapping is a SKETCH, not a taxonomy.
+    objects:
+      - id: O1
+        object: The CM field discriminant D = (t^2-4p)/s^2 (normalised mod 4).
+        lossy_projection_test: >-
+          GENUINELY LOSSY. An entire curve - p, d, base point, cofactor, generation
+          transcript - collapses to one squarefree negative integer. Nothing about the model
+          is recoverable from D.
+          COMPATIBLY LOSSY: invariant under F_p-isomorphism and under model conversion
+          (Edwards <-> Montgomery <-> short Weierstrass), and invariant under quadratic
+          twisting because t -> -t leaves t^2 fixed. That last compatibility is exactly why
+          SafeCurves states the twist needs no separate discriminant check
+          (pages/twist.txt), and it is a checkable prediction of this framing, not a
+          restatement of it.
+        survival: Survives every model change and the twist; dissolves on base change.
+        lanes: L-DISC, D5, D3
+      - id: O2
+        object: The multiplicative order ord_l(p) - the embedding degree.
+        lossy_projection_test: >-
+          Lossy and compatibly so; established in IDEA-20260807-98a970, REUSED not
+          re-derived here (constant under F_p-isogeny, k/gcd(k,m) under base change,
+          recomputed on change of subgroup).
+        lanes: L-TRANSFER, D4 (both specialising IDEA-20260807-98a970 to E-382 and adding
+          the twist subgroup l' as a second row)
+      - id: O3
+        object: The 2-primary torsion profile (#points of order 2, #points of order 4).
+        lossy_projection_test: >-
+          LOSSY: the whole group E(F_p) of size ~2^382 collapses to two small integers.
+          COMPATIBLY LOSSY: the profile is an isomorphism invariant, so it propagates
+          through every model conversion the audit performs; and it is precisely the datum
+          verify.sage uses to decide completeness (`numorder4 == 2 and numorder2 == 1`).
+          NOT a change of coordinates: d itself is not recoverable from the profile.
+        why_interesting: >-
+          It is the single object shared by four different table columns - ladder, complete,
+          ind (via order divisible by 2) and the twist cofactor - which are conventionally
+          treated as independent criteria. If they are all functions of one projection, then
+          they are not four independent pieces of evidence, and a dossier that reports them
+          as four is overcounting. That is a testable structural claim, not a chore.
+        lanes: L-LADDER, L-COMPLETE, L-IND, L-TWIST, D6, D7
+      - id: O4
+        object: >-
+          The generation transcript: the derivation from stated design criteria to (p, d),
+          projected onto its BIT-WIDTH OF DESIGNER FREEDOM (how many curves satisfy the
+          stated rule).
+        lossy_projection_test: >-
+          Extremely lossy: an English derivation collapses to a count. COMPATIBLY LOSSY for
+          the operation that matters - adversarial search - because an attacker's ability to
+          steer a standard is a function only of how many candidates the rule admits, not of
+          which one was picked. It is NOT a change of coordinates: the rule is not
+          recoverable from the count.
+        why_it_is_the_standout: >-
+          Per capsule OBS-RIGID-IS-AN-INPUT, verify.sage COMPUTES NOTHING for rigidity - it
+          reads a human-entered label from a file - and per capsule U2 the E-382 comments
+          cell is EMPTY in the raw HTML while its neighbours carry transcripts. So this is
+          the one criterion where the incumbent instrument has no derivation at all and a
+          cheap, genuinely new measurement exists.
+        lanes: L-RIGID, D8
+      - id: O5
+        object: >-
+          The COMBINED-ATTACK COST FUNCTIONAL: the map from (V, p, t, l) to the balanced
+          cost of small-subgroup enumeration + CRT + kangaroo on the residual.
+        lossy_projection_test: >-
+          Lossy: two curves with different cofactor factorisations map to the same cost.
+          Compatible with the attacker's own optimisation, which is the only operation it
+          must respect. Its fibers are large, which is itself the point - see
+          proof_search_map.observation_collision.
+        lanes: L-TWIST, D2
+    objects_considered_and_dropped:
+      - object: The Kummer-line / x-only quotient as a tracked object across model changes.
+        reason_dropped: >-
+          For this audit it loses nothing that the audit uses - the criteria that depend on
+          it (ladder, complete) are already determined by O3 - so it fails the
+          lossy-projection test as a NEW object: it would be a change of coordinates here.
+          Recorded so a later session does not re-enumerate it as if fresh.
+      - object: The isogeny class of E over F_p (as a set of curves).
+        reason_dropped: >-
+          Passes the lossiness test and is a legitimate object, but no declared criterion or
+          diagnostic is a function of it beyond what O1 already carries, and enumerating the
+          class at 382 bits is far outside this campaign's budget. Deferred with successor
+          condition: revisit only if a lane needs a non-D isogeny invariant.
+
+  # ===========================================================================
+  # 1. SHARED CONTROL BANK - defined BEFORE any interpretation, and BLOCKING
+  # ===========================================================================
+  controls:
+    blocking_rule: >-
+      MANDATORY AND BLOCKING, per docs/inventor-protocol.md and the RQ's controls block.
+      Every control listed for a lane runs BEFORE any E-382 number from that lane is
+      interpreted or reported. An instrument that has never been shown to fire cannot
+      certify anything. If any positive control fails, the lane's E-382 output is VOID and
+      is reported as void, not as a result.
+    positive:
+      - id: C+ANOM
+        instance: SafeCurves "Anomalous" curve, y^2 = x^3+ax+b mod p (both coefficients and p
+          in pages/index.txt, sha256 830355b638e713f4f99da62970e63e606e32c0f25f62af12a5aef4c4570c9e4e;
+          p also in pages/field.txt).
+        must_fire_for: L-TRANSFER (additive: l = p), L-DISC (|D| = 11, far below 2^100),
+          L-LADDER (no Montgomery form), L-COMPLETE (0 points of order 2 and 4), L-IND
+          (Elligator 2: No), L-TWIST (combined 2^53.5, twist rho 2^53.2).
+        source_of_expected_values: mirror pages transfer/disc/ladder/complete/ind/twist.
+        caveat: >-
+          Per the goal's claim_boundaries this is a POSITIVE-CONTROL CANDIDATE for the
+          described behaviour, not a newly discovered attack; its parameters still require
+          the same sourced reproduction as E-382's, which is why it gets its own A0 pass.
+      - id: C+BN
+        instance: SafeCurves "BN(2,254)", y^2 = x^3+0x+2 mod p (pages/index.txt, field.txt).
+        must_fire_for: L-TRANSFER (embedding degree exactly 12), L-DISC (D = -3),
+          L-TWIST (twist rho 2^47.5, combined 2^93.2 - a sub-threshold value that is NOT a
+          rho-level break, which is the point of including it).
+        caveat: same claim_boundary as C+ANOM.
+      - id: C+SECP
+        instance: secp256k1 (pages/field.txt, equation.txt).
+        must_fire_for: L-DISC (D = -3 with rho unaffected at 2^127.8 - separates "small |D|"
+          from "broken"), L-RIGID ("somewhat rigid", i.e. the middle label must be
+          reachable), L-LADDER (False), L-IND (False).
+      - id: C+P224
+        instance: NIST P-224 (pages/field.txt, equation.txt, base.txt).
+        must_fire_for: L-RIGID (must classify as "manipulatable" from the published seed
+          bd713447 99d5c7fc dc45b59f a3b9ab8f 6a948bc5), L-TWIST (combined 2^58.4).
+      - id: C+BP256
+        instance: brainpoolP256t1.
+        must_fire_for: L-TWIST (combined 2^44.5, twist rho 2^44.0) - the sharpest published
+          twist failure and the one that most stresses the cost functional O5.
+      - id: C+EDW
+        instance: >-
+          The other SafeCurves complete-Edwards curves: E-222, Curve1174, Curve41417,
+          Ed448-Goldilocks, E-521 (all with cofactor 4 or 8, numorder2 = 1, numorder4 = 2).
+        must_fire_for: >-
+          L-COMPLETE, L-LADDER, L-IND - a SAME-SHAPE positive family. If the instrument
+          returns E-382's profile but disagrees with any of these five, the instrument, not
+          the curve, is the story.
+      - id: C+PLANT
+        instance: >-
+          Planted toy positives from IDEA-20260807-98a970, reused verbatim: a toy BN-shaped
+          curve with k = 12; a toy curve with p = 1 mod l (k = 1); a toy supersingular curve
+          with t = 0 (k = 2).
+        must_fire_for: L-TRANSFER, D4. Reused, not re-minted.
+    parameter_matched_negative:
+      - id: C-SAMEP-SQUARE-D
+        construction: >-
+          SAME p = 2^382 - 105, Edwards shape, d' chosen a nonzero square in F_p with
+          d'(1-d') nonzero (e.g. d' = 4). Same field, same bit sizes, same model, same code
+          path; only the property under test (non-squareness of d) is removed.
+        must_return: L-COMPLETE False (and a 2-torsion profile other than (1,2)).
+        used_by: L-EQUATION, L-COMPLETE, L-LADDER, D6, D7
+      - id: C-SAMEP-DEGENERATE
+        construction: SAME p, d' = 1 (so d'(1-d') = 0) and d' = 0.
+        must_return: L-EQUATION "not elliptic" - the shape gate must reject.
+        used_by: L-EQUATION
+      - id: C-SAMEP-SMALLD
+        construction: >-
+          SAME p, short Weierstrass y^2 = x^3 + b (j-invariant 0), any b with 4a^3+27b^2
+          nonzero.
+        must_return: L-DISC failure (|D| far below 2^100) at the SAME field size as E-382,
+          demonstrating the disc lane measures the trace and not the prime.
+        used_by: L-DISC, D5
+      - id: C-SAMEP-K1
+        construction: >-
+          SAME p. Trial-divide p-1 up to 10^7 and take any prime factor l0 found. Feed the
+          embedding-degree instrument the pair (p, l0). Because l0 | p-1, ord_{l0}(p) = 1.
+        must_return: k = 1 and the degenerate flag "p = 1 mod l".
+        why_this_is_the_right_negative: >-
+          It is parameter-matched in the strongest available sense - identical p, identical
+          arithmetic - and it isolates the claim that the transfer lane measures the
+          SUBGROUP and not the field.
+        used_by: L-TRANSFER, D4
+        honest_limitation: >-
+          A same-p negative that is an ACTUAL CURVE with tiny embedding degree would require
+          CM construction or order counting at 382 bits, which is outside this campaign's
+          budget. Recorded as a deferral with successor condition, and the toy planted
+          positives C+PLANT cover the curve-level case at small size.
+      - id: C-THRESHOLD-RHO
+        construction: >-
+          Synthetic prime subgroup orders straddling the threshold: l of 199 bits and of 201
+          bits, fed to the rho-cost functional.
+        must_return: False just below and True just above SafeCurves' rho >= 2^100 line -
+          a boundary test, since a threshold instrument that never returns False on a
+          199-bit input has no resolving power.
+        used_by: L-RHO
+      - id: C-SYNTH-TWIST
+        construction: >-
+          Synthetic (l, l', h, h') tuples of E-382's bit sizes but with h' replaced by a
+          smooth composite of ~2^50 sharing no factor with h, exactly the shape of the two
+          worked examples on pages/twist.txt.
+        must_return: combined cost collapsing to roughly the worked values on that page.
+        used_by: L-TWIST, D2
+    same_shape_null:
+      - id: N-RANDOM-TRACE
+        construction: >-
+          Replace t by a uniform random integer in [-2 sqrt(p), 2 sqrt(p)], keep p, run the
+          IDENTICAL D pipeline. Repeat 100 times.
+        purpose: >-
+          Calibration, and it is the most important null in the plan. If a random trace at
+          this size almost always yields |D| > 2^100, then E-382's disc cell carries almost
+          no information about the designer and the dossier must SAY SO rather than
+          reporting it as a property earned. Predicted: the large majority of random traces
+          give |D| within a few bits of 2^381; the measured fraction is the reported number.
+        used_by: L-DISC, D5
+      - id: N-RANDOM-ORDER
+        construction: Random 382-bit prime l0 and random p0 < l0-ish, fed to the
+          embedding-degree instrument, 100 samples.
+        purpose: >-
+          Null for O2: shows the distribution of (l0-1)/k for structureless inputs, so that
+          E-382's published cofactor 8 can be read against a baseline instead of against
+          intuition.
+        used_by: L-TRANSFER, D4
+      - id: N-SHUFFLED-TRANSCRIPT
+        construction: >-
+          Feed the transcript classifier (i) a hash-seeded rule of the NIST P-224 form and
+          (ii) the reconstructed E-382 rule with its uniqueness clause deleted.
+        purpose: >-
+          Null for O4. Must return "manipulatable" for (i) and must NOT return "fully rigid"
+          for (ii). A classifier that returns "fully rigid" for a rule with no uniqueness
+          clause is measuring nothing.
+        used_by: L-RIGID, D8
+      - id: N-SHUFFLED-TORSION
+        construction: >-
+          Same-shape synthetic Edwards curves over the same p with d drawn uniformly at
+          random from F_p (100 samples), i.e. the designed 2-torsion structure removed while
+          shape and field are held fixed.
+        purpose: >-
+          Null for O3: reports the empirical fraction of random d with profile (1,2), which
+          is what tells a reader whether E-382's complete/ladder/ind cells are three
+          independent facts or one fact counted three times.
+        used_by: L-COMPLETE, L-LADDER, L-IND, D6, D7
+
+  # ===========================================================================
+  # 2. LANES
+  # ===========================================================================
+  lane_schema_note: >-
+    Every lane carries: tracked object, mechanism, the operational predicate as SafeCurves
+    itself defines it (pages/verify.txt, sha256
+    9e4acd23f53a27c13410f3fcb7225de74095306d22529c8b13c60c9586151b79), a quantitative
+    prediction with direction, a certificate or an explicit bound, its controls, a budget, a
+    stopping rule, a falsifier, and an honest limitation.
+
+  lanes:
+
+    - id: A0
+      name: Root certificate - field, curve, base point, order, trace, cofactor
+      category: prerequisite (feeds all eleven)
+      tracked_object: the parameter tuple (p, d, x1, y1, l, h, t) itself
+      mechanism: >-
+        Every other cell is a function of this tuple. Recompute the tuple's internal
+        relations from p and d alone: verify p prime by a Pocklington chain built from the
+        E-382 prime list; verify (x1,y1) satisfies the Edwards equation; verify l prime;
+        verify l*(x1,y1) = identity in the Edwards group; derive t = p+1-l*round((p+1)/l)
+        after checking the precondition l^2 > 16p that makes that derivation valid; derive
+        h = (p+1-t)/l; re-derive l' as the largest prime factor of p+1+t against the same
+        prime list. Machine-check derived checks DC1-DC3 of the capsule.
+      operational_predicate: >-
+        verify.sage: `verify-pisprime`, `verify-lisprime`, `verify-isoncurve1`,
+        `verify-ltimesbase1is0`, `verify-trace`, `verify-cofactor`.
+      prediction:
+        metric: number of the seven relations that reproduce the capsule values exactly
+        direction: higher
+        minimum_effect: 7 of 7. Any shortfall halts the whole plan.
+      certificate: >-
+        (i) Pocklington chain for p, l, l' - for each prime n a base b, the witness
+        b^(n-1) mod n = 1, and the factored part F | n-1 with F^2 > n and each b^((n-1)/v)-1
+        a unit. Third-party verifiable in milliseconds.
+        (ii) The affine point (x1,y1) plus the residue x1^2+y1^2-1-d x1^2 y1^2 mod p, which
+        must be 0.
+        (iii) The scalar-multiplication transcript endpoint l*(x1,y1).
+        (iv) DC1-DC3 as exact integer identities.
+      controls: [C+ANOM, C+BN, C+P224, C-SAMEP-DEGENERATE]
+      budget_seconds: 300
+      memory_gb: <0.5
+      stopping_rule: >-
+        Hard stop at 300 s. If the Pocklington chain cannot be completed from the published
+        prime list within budget, record p / l / l' as CHAIN-INCOMPLETE with the exact
+        missing factor, fall back to a Miller-Rabin/BPSW probable-prime statement labelled
+        as such, and DO NOT upgrade it to "prime".
+      falsifier: >-
+        Any of: x1^2+y1^2-1-d x1^2 y1^2 nonzero mod p; l*(x1,y1) not the identity; l^2 <= 16p
+        (which would void SafeCurves' own trace derivation); (p+1-t) not divisible by l;
+        h != 4. Any one of these falsifies the capsule tuple and every downstream lane.
+      limitation: >-
+        Probable-primality is not primality. A completed chain certifies primality; an
+        incomplete one certifies nothing and must be reported as incomplete.
+
+    - id: L-FIELD
+      criterion: field
+      category: basic_parameter_requirements
+      tracked_object: p
+      mechanism: SafeCurves' field criterion is exactly "p is a proven prime and the field is
+        prime" - it makes no smallness or shape demand (pages/field.txt states special primes
+        are permitted).
+      operational_predicate: "`safefield` is true iff p is in the verified prime list V."
+      prediction: {metric: p proven prime by completed Pocklington chain, direction: higher,
+        minimum_effect: 1 of 1 (comparison target - intake says True)}
+      certificate: the A0 Pocklington chain for p, plus the exact identity p = 2^382 - 105
+        and the hex rendering, all three agreeing.
+      controls: [C+ANOM (p prime, criterion still True while other cells fail - shows the
+          field cell does not carry the others), C-SAMEP-DEGENERATE, N-RANDOM-TRACE (not
+          applicable - p fixed; recorded as such rather than silently omitted)]
+      budget_seconds: 60
+      stopping_rule: inherits A0's chain; no separate compute.
+      falsifier: p composite, or the decimal/hex/sparse renderings disagreeing.
+      limitation: >-
+        A True here says only "prime field, proven prime". It says nothing about index
+        calculus, and pages/field.txt is explicit that special primes are allowed.
+
+    - id: L-EQUATION
+      criterion: equation
+      category: basic_parameter_requirements
+      tracked_object: d, via the shape witness d(1-d)
+      mechanism: For the Edwards shape the elliptic condition is d(1-d) != 0 in F_p.
+      operational_predicate: "`elliptic = d*(1-d)`; `safeeq &= (elliptic != 0)`."
+      prediction:
+        metric: recomputed d(1-d) mod p versus the published witness
+        direction: different (exact match required)
+        minimum_effect: >-
+          Character-for-character equality with
+          9850501549098619803069760025035903451269934817616361666987073351061430442874302652853566563721228910201652474408829.
+      certificate: the recomputed residue, which a third party re-derives with one
+        multiplication and one subtraction mod p.
+      controls: [C-SAMEP-DEGENERATE (d = 1 and d = 0 must both be rejected),
+        C-SAMEP-SQUARE-D (must be ACCEPTED here - the equation gate is about
+        non-degeneracy, not completeness; this separates L-EQUATION from L-COMPLETE and is
+        the cheapest proof that the two lanes are not the same test)]
+      budget_seconds: 10
+      stopping_rule: single computation; no iteration.
+      falsifier: recomputed witness != published witness, or witness = 0.
+      limitation: >-
+        A True here is a non-degeneracy statement only. It does not imply completeness,
+        which is L-COMPLETE, and does not imply the curve has the published order.
+
+    - id: L-BASE
+      criterion: base
+      category: basic_parameter_requirements
+      tracked_object: the pair ((x1,y1), l)
+      mechanism: The base cell asserts (x1,y1) is on the curve AND l is a proven prime AND
+        l*(x1,y1) = 0. All three are recomputed in A0; this lane reports them as the cell.
+      operational_predicate: "`safebase` = isoncurve1 AND l-is-prime (l in V)."
+      prediction: {metric: three sub-checks passing, direction: higher, minimum_effect: 3 of 3}
+      certificate: A0 items (i)-(iii); additionally the hex and sparse-2 renderings of l
+        agreeing with the decimal.
+      controls: [C+ANOM, C+EDW (same-shape family: the identical code path must clear
+        E-222, Curve1174, Curve41417, Ed448-Goldilocks, E-521)]
+      budget_seconds: 60
+      stopping_rule: inherits A0.
+      falsifier: any sub-check failing; or the three renderings of l disagreeing.
+      limitation: >-
+        Order l of the base point does not establish the FULL group order; that comes from
+        the Hasse-uniqueness argument in A0 and inherits its precondition l^2 > 16p.
+
+    - id: L-RHO
+      criterion: rho
+      category: ecdlp_security_requirements
+      tracked_object: l (its bit length only)
+      mechanism: >-
+        SafeCurves' rho cell is a closed-form arithmetic functional of l alone, not a
+        simulation: cost = log(0.7853981633974483... * l)/log(4), thresholded at 100.
+        0.886 = sqrt(pi/4) is the negation-speedup constant (pages/rho.txt).
+      operational_predicate: "`rho = log(pi4*l)/log(4)`; `saferhoabove100 = (rho >= 100)`."
+      prediction:
+        metric: recomputed rho exponent for E-382
+        direction: different (exact match)
+        minimum_effect: 2^189.8 to the published one decimal place.
+      certificate: >-
+        The exponent to one decimal, plus the exact integer l it was computed from. Cheap
+        and fully re-derivable; this is a formula evaluation, and the dossier must not
+        dress it up as a measurement of attack cost.
+      controls: [C-THRESHOLD-RHO (199-bit must return False, 201-bit True), C+ANOM
+          (2^101.6 - a published value only 1.6 bits above threshold, the tightest available
+          calibration point), C+EDW]
+      budget_seconds: 10
+      stopping_rule: single evaluation.
+      falsifier: recomputed exponent differing from 2^189.8 by more than 0.05 in the
+        exponent; or the 199-bit negative control returning True.
+      limitation: >-
+        THIS IS NOT AN ECDLP COST MEASUREMENT. It is 0.886*sqrt(l) evaluated in logs, on the
+        idealised-addition model of pages/rho.txt, ignoring multi-target square-root effects
+        that the same page explicitly documents. No run of rho is performed or implied.
+
+    - id: L-TRANSFER
+      criterion: transfer
+      category: ecdlp_security_requirements
+      tracked_object: O2 = ord_l(p)
+      reuse_declaration: >-
+        THIS LANE IS IDEA-20260807-98a970 SPECIALISED TO E-382, NOT A NEW MECHANISM. Its
+        certificate formats (exact-k via the factorisation of l-1 plus one witness per prime
+        factor; lower bound k > K costing K multiplications to verify and honestly not
+        succinct), its three degenerate checks (p = 1 mod l, l = p, l^2 | #E) and its planted
+        positives are reused verbatim. What is added here and only here: E-382 as a row, and
+        the TWIST subgroup l' as a second row, which that proposal does not cover.
+      mechanism: >-
+        Additive transfer applies iff l = p; multiplicative transfer degree is ord_l(p).
+        SafeCurves requires the cofactor (l-1)/k <= 100 (Brainpool-style overkill), not the
+        SEC1/X9.62 threshold of 20.
+      operational_predicate: >-
+        "`gcd(l,p) == 1`" for additive safety, and `movsafe = ((l-1)/d <= 100)` where d is
+        obtained by dividing l-1 down by verified primes v while p^(d/v) = 1 mod l.
+        NOTE: verify.sage writes 'Unverified' unless l-1 factors completely over the
+        verified prime list.
+      prediction:
+        - {metric: additive flag (l = p), direction: lower, minimum_effect: must be 0}
+        - {metric: recomputed embedding-degree cofactor (l-1)/k, direction: different,
+           minimum_effect: exactly 8, matching the published (l-1)/8}
+        - {metric: same for the twist subgroup l', direction: different,
+           minimum_effect: exactly 1, matching the published (l'-1)/1}
+        - {metric: degenerate flags p = 1 mod l, l = p, l^2 | #E, direction: lower,
+           minimum_effect: 0 of 3}
+      certificate: >-
+        EXACT-k: the complete factorisation of l-1 (and of l'-1) over the E-382 prime list
+        of pages/primeproofs.txt with each factor Pocklington-proved, plus the witness
+        p^((l-1)/r) mod l for each prime r | l-1. Verification cost is omega(l-1) modular
+        exponentiations.
+        FALLBACK BOUND: if l-1 does not factor completely within budget, certify k > K with
+        K = 10^6 by K modular multiplications, and STATE that verifying this bound costs K
+        multiplications and is not succinct.
+      controls: [C+PLANT (k = 12, k = 1, k = 2 must all be returned exactly - HARD GATE),
+        C+BN (published k = 12 on a real parameter set), C+ANOM (additive flag must fire),
+        C-SAMEP-K1 (same p, subgroup order dividing p-1, must return k = 1),
+        N-RANDOM-ORDER]
+      budget_seconds: 900
+      memory_gb: <0.5
+      stopping_rule: >-
+        Attempt the exact factorisation of l-1 and l'-1 against the published prime list
+        first (expected seconds - the list exists precisely because verify.sage needed it).
+        If a residual composite remains, spend at most 600 s on it, then fall back to the
+        K = 10^6 bound and record the residual cofactor verbatim as UNRESOLVED.
+      falsifier: >-
+        Any planted positive not returned exactly (VOIDS the lane, per
+        IDEA-20260807-98a970); a recomputed cofactor other than 8 (resp. 1); any degenerate
+        flag firing; or gcd(l,p) != 1.
+      limitation: >-
+        Scoped to transfers only, and to these two subgroups. A cofactor of 8 is a statement
+        about ord_l(p), nothing else. The bound fallback is a bound, not a value.
+
+    - id: L-DISC
+      criterion: disc
+      category: ecdlp_security_requirements
+      tracked_object: O1 = D
+      mechanism: >-
+        From t (derived in A0) form t^2-4p, divide out the largest square, normalise mod 4,
+        and compare |D| against 2^100. The published factorisation of D is then verified by
+        multiplication plus a primality certificate per factor - factoring is not repeated,
+        only checked, which is what makes this lane cheap.
+      operational_predicate: >-
+        squarefree-ify t^2-4p over the verified primes; `D *= 4` if D mod 4 != 1;
+        `discisbig = (D < -2^100)`. verify.sage writes 'Unverified' if the prime list does
+        not cover D's factorisation.
+      prediction:
+        - {metric: recomputed D, direction: different, minimum_effect: exact equality with
+           the published 118-digit value and with ~ -2^381.2}
+        - {metric: product of the published factors -1*5*11*48109*1026629...089*2063130...657,
+           direction: different, minimum_effect: exactly D}
+        - {metric: |D| versus 2^100, direction: higher, minimum_effect: |D| > 2^100
+           (comparison target)}
+      certificate: >-
+        D, its factorisation, a Pocklington certificate for each of the two large factors,
+        and the exact product identity. Re-verifiable by a third party with one big-integer
+        multiplication plus omega(D) exponentiations.
+      controls: [C+ANOM (D = -11), C+BN (D = -3), C+SECP (D = -3 while rho is unaffected -
+        this control is what stops the dossier from sliding from "small |D|" to "weak"),
+        C-SAMEP-SMALLD (same p, j = 0, must fail), N-RANDOM-TRACE (100 random traces -
+        report the fraction with |D| > 2^100)]
+      budget_seconds: 600
+      stopping_rule: >-
+        If a published factor resists primality certification within 300 s, report D as
+        VERIFIED-AS-PRODUCT but PRIME-FACTORS-UNCERTIFIED, and do not claim squarefreeness.
+      falsifier: >-
+        Recomputed D != published D; the factor product != D; a factor proved composite; or
+        |D| <= 2^100.
+      limitation: >-
+        pages/disc.txt is explicit that small |D| is "slightly" exploitable via fast
+        endomorphisms and is NOT a break, and equally explicit that large |D| is not proved
+        safer. A True cell here is a criterion match, not a security proof. The null
+        N-RANDOM-TRACE exists to quantify how little this cell distinguishes.
+
+    - id: L-RIGID
+      criterion: rigid
+      category: ecc_security_beyond_ecdlp
+      tracked_object: O4 = bit-width of designer freedom
+      mechanism: >-
+        Unlike the other ten, this criterion has NO machine derivation in the incumbent
+        instrument (capsule OBS-RIGID-IS-AN-INPUT) and, for E-382 specifically, NO published
+        transcript (capsule U2, verified against raw HTML). The lane therefore builds the
+        missing instrument: state a candidate generation rule, and MEASURE the size of the
+        candidate set it admits.
+        Concretely, for a rule of the ABPR form the audit enumerates: (a) how many primes of
+        the stated shape lie in the stated window - e.g. how many p in [2^382 - 2^12, 2^382)
+        are prime and 3 mod 4, and whether 2^382 - 105 is the extremal one under the stated
+        ordering; and (b) how many |d| below the observed 67254 satisfy the stated criteria
+        (non-square d, curve and twist orders of the form {4*prime, 4*prime}), i.e. whether
+        d = -67254 is the smallest qualifying value. The output is a COUNT OF ADMISSIBLE
+        CURVES, which is the honest measurement of rigidity.
+      operational_predicate_incumbent: "`saferigid &= (rigid in {'fully rigid','somewhat
+        rigid'})` - a label read from a file. Reproduced here as: the label is an input, so
+        the incumbent cell is not reproducible by computation at all."
+      prediction:
+        - {metric: number of candidate curves admitted by the reconstructed rule,
+           direction: lower,
+           minimum_effect: >-
+             1 if the rule is genuinely fully rigid. Any count > 1 quantifies exactly how
+             many bits of freedom the rule leaves, and THAT NUMBER is the deliverable.}
+        - {metric: rank of p = 2^382 - 105 under "largest prime below 2^382",
+           direction: lower, minimum_effect: rank 1 if the rule is as stated}
+        - {metric: rank of |d| = 67254 among qualifying d, direction: lower,
+           minimum_effect: rank 1 if the rule is "smallest qualifying |d|"}
+      certificate: >-
+        The enumerated candidate list with, for each rejected candidate, the exact clause of
+        the rule that rejects it. This is a positive artifact: a reader can re-run the
+        enumeration and get the same list. Note the (b) enumeration requires the ORDER of
+        each candidate curve, which is the expensive part - see stopping rule.
+      controls: [C+P224 (published seed; must classify manipulatable), C+SECP (must reach
+        the middle label "somewhat rigid"), C+EDW (Curve25519 and Curve1174 carry FULL
+        published transcripts on pages/rigid.txt and are the only available ground truth for
+        what a "fully rigid" transcript looks like), N-SHUFFLED-TRANSCRIPT]
+      budget_seconds: 1200
+      stopping_rule: >-
+        Part (a) - the prime-window enumeration - is cheap and always runs. Part (b) requires
+        the group order of each candidate d, i.e. point counting at 382 bits, which is
+        OUTSIDE this campaign's budget in pure Python. Therefore part (b) runs only over
+        candidates with a cheap disqualifier (d square; d(1-d) = 0) and otherwise reports
+        UNRESOLVED with the exact count of order-undetermined candidates.
+      falsifier: >-
+        p = 2^382 - 105 is NOT the extremal prime under the stated rule; or a qualifying
+        |d| < 67254 with a cheap disqualifier absent is exhibited; or the classifier returns
+        "fully rigid" for the uniqueness-clause-deleted null.
+      limitation: >-
+        Rigidity is a property of a PROCESS, and the process for E-382 is not published in
+        any retrieved source (U1, U2). Any rule this lane tests is a RECONSTRUCTION, and a
+        reconstruction that fits is not proof the designers used it. Also binding: per the
+        goal's claim_boundaries a rigidity failure is NOT an ECDLP break, and this lane
+        cannot and does not claim manipulation by anyone.
+
+    - id: L-LADDER
+      criterion: ladder
+      category: ecc_security_beyond_ecdlp
+      tracked_object: O3
+      mechanism: >-
+        A Montgomery ladder exists iff the short Weierstrass model has a root r of
+        z^3+az+b with 3r^2+a a square - equivalently a rational point of order 2 with the
+        right splitting. Convert Edwards -> Montgomery (A = 2(1+d)/(1-d), B = 4/(1-d)) ->
+        short Weierstrass exactly as verify.sage does, then test the root condition.
+      operational_predicate: "`for r,e in (z^3+a*z+b).roots(): if (3*r^2+a).is_square():
+        montladder = True`."
+      prediction: {metric: montladder for E-382, direction: different,
+        minimum_effect: True, with the exhibited r and the square root of 3r^2+a}
+      certificate: the explicit r in F_p, and s with s^2 = 3r^2+a - two field elements a
+        reader checks with three multiplications.
+      controls: [C+ANOM (False), C+P224 (False), C+SECP (False), C+EDW (True for all five),
+        C-SAMEP-SQUARE-D, N-SHUFFLED-TORSION]
+      budget_seconds: 120
+      stopping_rule: root-finding mod p is one square-root extraction plus a factorisation
+        of a cubic; hard stop at 120 s.
+      falsifier: no such r, or 3r^2+a a non-square for every root.
+      limitation: >-
+        Ladder availability is an implementation-affordance criterion. Per the goal's
+        claim_boundaries its failure is not an ECDLP break, and its success is not a
+        constant-time guarantee for any actual implementation.
+
+    - id: L-TWIST
+      criterion: twist
+      category: ecc_security_beyond_ecdlp
+      tracked_object: O5 (built from O3 and the cofactor factorisations)
+      mechanism: >-
+        Recompute p+1+t, extract l' as its largest prime factor over the verified prime
+        list, then re-implement SafeCurves' combined-attack optimiser: for each verified
+        prime v dividing either cofactor, greedily absorb v into the brute-force precomputed
+        part while v + sqrt(pi4*joint/v) < sqrt(pi4*joint), and report
+        log2(precomp + sqrt(pi4*joint)). Also recompute twist rho and the twist embedding
+        degree, and check gcd(l',p) = 1 (no additive transfer on the twist).
+      operational_predicate: "`verify-twistl`, `verify-twistcofactor`, `verify-gcdtwistlp1`,
+        `verify-twistmovsafe` ((l'-1)/d <= 100), `verify-twistrhoabove100`,
+        `verify-jointrhoabove100`."
+      prediction:
+        - {metric: recomputed l', direction: different, minimum_effect: exact match with the
+           published 2^380 + 1030303207694556153926491950732314247062623204330168346803}
+        - {metric: twist cofactor h', direction: different, minimum_effect: exactly 2^2}
+        - {metric: twist rho exponent, direction: different, minimum_effect: 2^189.8}
+        - {metric: combined-attack exponent, direction: different, minimum_effect: 2^188.8}
+        - {metric: twist embedding cofactor (l'-1)/k', direction: different,
+           minimum_effect: exactly 1}
+      certificate: >-
+        l' with its Pocklington certificate; the exact identity p+1+t = 4*l'; the greedy
+        optimiser's absorbed-prime list (which for h' = 4 is short enough to print in full);
+        and the two exponents to one decimal.
+      controls: [C+BP256 (2^44.5 - must reproduce the worst published case), C+P224 (2^58.4),
+        C+ANOM (2^53.5), C+BN (2^93.2 - sub-threshold but not a break), C-SYNTH-TWIST,
+        N-SHUFFLED-TORSION]
+      budget_seconds: 600
+      stopping_rule: >-
+        If p+1+t does not factor completely over the published prime list within 300 s,
+        report l' as UNRESOLVED and the combined cost as NOT COMPUTED - never as a bound,
+        because the optimiser needs the full cofactor factorisation to be meaningful.
+      falsifier: >-
+        p+1+t != 4*l'; l' composite; a recomputed exponent differing from the published one
+        by more than 0.05; or any control reproducing to worse than 0.1 in the exponent.
+      limitation: >-
+        The combined-attack cost is a MODEL - it assumes cyclicity, that every prime power is
+        usable, and that kangaroo is as efficient as rho, all three of which SafeCurves
+        states in comments in verify.sage. It is an arithmetic evaluation of that model, not
+        a measured attack, and no attack is run.
+
+    - id: L-COMPLETE
+      criterion: complete
+      category: ecc_security_beyond_ecdlp
+      tracked_object: O3
+      mechanism: >-
+        Count points of order 2 and 4 via 4-division points on the short Weierstrass model,
+        as verify.sage does; the completeness cell is the predicate
+        (numorder4 == 2 and numorder2 == 1), which for the Edwards shape is equivalent to d
+        being a non-square (2007 Bernstein-Lange). Also recompute the non-squareness of d
+        directly by an Euler-criterion exponentiation, giving TWO independent routes to the
+        same cell - a within-lane cross-check the incumbent does not perform.
+      operational_predicate: "`completesingle = completemulti = (numorder4 == 2 and
+        numorder2 == 1)`, plus `l * E([x1,y1]) == 0`."
+      prediction:
+        - {metric: (numorder2, numorder4), direction: different, minimum_effect: exactly (1,2)}
+        - {metric: d^((p-1)/2) mod p, direction: different, minimum_effect: p-1, i.e. d is a
+           non-square}
+        - {metric: agreement of the two routes, direction: higher, minimum_effect: 2 of 2}
+      certificate: the two counts, the Euler-criterion residue, and the division-point list.
+      controls: [C+EDW (all five must give (1,2)), C+ANOM / C+P224 / C+SECP / C+BN (all must
+        give (0,0)), C-SAMEP-SQUARE-D (must NOT give (1,2)), N-SHUFFLED-TORSION (report the
+        fraction of random d over the same p giving (1,2))]
+      budget_seconds: 300
+      stopping_rule: hard stop at 300 s; 4-division points over a 382-bit field in pure
+        Python is the cost driver and may need the Euler route alone, which is then reported
+        as a PARTIAL cell, not a full one.
+      falsifier: profile other than (1,2); d a square; or the two routes disagreeing - which
+        would indict the model conversion, not the curve.
+      limitation: >-
+        pages/complete.txt is explicit that completeness of a curve does not make every
+        addition law on it complete (the dual law of Hisil-Wong-Carter-Dawson is not). This
+        cell is about the AVAILABILITY of a complete law.
+
+    - id: L-IND
+      criterion: ind
+      category: ecc_security_beyond_ecdlp
+      tracked_object: O3 (plus the short-Weierstrass coefficient b)
+      mechanism: >-
+        verify.sage's indistinguishability predicate is startlingly weak: Elligator 2 is
+        declared available iff (p+1-t) is even and b != 0 after conversion. Recompute both.
+        Additionally - and this is the part the incumbent does not do - test whether d has
+        the ELLIGATOR 1 form -(c+1)^2/(c-1)^2 with c = 2/s^2, which pages/ind.txt says
+        requires p = 3 mod 4. p = 2^382 - 105 is 3 mod 4, so E-382 satisfies the field-side
+        precondition of Elligator 1 while SafeCurves reports only Elligator 2; whether the
+        d-side condition holds is a cheap, decidable question and a genuine gap-filling
+        measurement.
+      operational_predicate: "`if (p+1-t) % 2 == 0 and b != 0: indistinguishability = True`."
+      prediction:
+        - {metric: Elligator-2 predicate, direction: different, minimum_effect: True}
+        - {metric: solvability of -(c+1)^2/(c-1)^2 = d for c = 2/s^2 in F_p,
+           direction: different,
+           minimum_effect: >-
+             a decided BOOLEAN with the exhibited s (if solvable) or the non-residue witness
+             (if not). Both outcomes are informative: solvable would mean E-382 admits
+             Elligator 1 as well and the published note under-reports the available maps;
+             unsolvable would confirm the note exactly and explain WHY, which the published
+             cell does not.}
+      certificate: the residue (p+1-t) mod 2, the value b, and either s or the non-residue
+        witness for the Elligator-1 equation.
+      controls: [C+EDW (Curve1174 is the published Elligator-1 curve by construction - its
+        d MUST solve the equation, making it the positive control that proves the
+        Elligator-1 test can fire), C+ANOM / C+P224 / C+SECP (Elligator 2: No),
+        N-SHUFFLED-TORSION]
+      budget_seconds: 180
+      stopping_rule: one square-root extraction and one quadratic solve; hard stop 180 s.
+      falsifier: >-
+        Elligator-2 predicate False; or the Elligator-1 test failing on Curve1174, which
+        would void the added sub-test entirely.
+      limitation: >-
+        Availability of an encoding map is not a proof of indistinguishability of any
+        protocol, and per claim_boundaries failure here is not an ECDLP break.
+
+  # ===========================================================================
+  # 3. DECLARED ADDITIONAL DIAGNOSTICS (all eight)
+  # ===========================================================================
+  additional_diagnostics:
+
+    - id: D1
+      diagnostic: complete curve and twist order factorization with checkable certificates
+      tracked_object: the pair (#E, #E') = (4l, 4l')
+      mechanism: Verify #E = 4l and #E' = 4l' as exact identities against p and t, then
+        certify l and l' prime. The factorisation is then COMPLETE, not partial - which is
+        the whole content of the diagnostic.
+      prediction: {metric: fully certified factorisations, direction: higher,
+        minimum_effect: 2 of 2 (curve and twist)}
+      certificate: the two identities plus two Pocklington chains; capsule DC1-DC3
+        machine-checked.
+      controls: [C+ANOM (twist cofactor 3^3*5*47*4093*2013751*2376645121788851 - a genuinely
+        composite cofactor, so the factoriser must be shown to handle one), C+P224, C+SECP]
+      budget_seconds: 300
+      stopping_rule: inherits A0/L-TWIST chains; no new factoring attempted.
+      falsifier: either identity failing, or either primality chain incomplete.
+      limitation: Certifies the ORDERS, nothing about group structure beyond the cofactor.
+
+    - id: D2
+      diagnostic: subgroup, cofactor, and invalid-curve confinement costs
+      tracked_object: O5
+      mechanism: >-
+        With h = h' = 4 the small-subgroup leak is bounded: an attacker learns at most
+        n mod 4 from the curve and n mod 4 from the twist. Compute the exact leak in bits
+        under each of the three scalar-clamping regimes pages/twist.txt distinguishes
+        (n uniform mod hl; n = h*s; n uniform mod l), and the residual kangaroo cost in each.
+      prediction:
+        - {metric: bits leaked with n uniform mod h*l, direction: lower, minimum_effect: 0}
+        - {metric: bits leaked with n uniform mod l, direction: different,
+           minimum_effect: at most log2(h*h') = 4 bits, residual cost >= 2^188 - reproducing
+           the published combined figure to within 0.05}
+      certificate: the leak table with the arithmetic shown per regime.
+      controls: [C-SYNTH-TWIST (h' smooth ~2^50 - leak must jump), C+BP256, N-SHUFFLED-TORSION]
+      budget_seconds: 120
+      stopping_rule: closed-form arithmetic; no iteration.
+      falsifier: a regime where the computed leak exceeds log2(h*h') bits, which would
+        indict the confinement model.
+      limitation: >-
+        A model of an attack, evaluated arithmetically. NO invalid-curve attack is
+        implemented, attempted, or simulated against any party.
+
+    - id: D3
+      diagnostic: automorphism- and endomorphism-adjusted rho cost
+      tracked_object: O1 (D) plus the automorphism group
+      mechanism: >-
+        The rho speedup from fast endomorphisms is governed by |Aut| and by whether D admits
+        a small-norm endomorphism. Compute j-invariant, |Aut(E)| (which is 2 unless
+        j in {0, 1728}), and the negation speedup already baked into 0.886; then state the
+        adjusted cost as 0.886*sqrt(l)/sqrt(|Aut|/2) and compare with the unadjusted cell.
+      prediction:
+        - {metric: |Aut(E)|, direction: different, minimum_effect: 2 (i.e. the generic case,
+           given |D| ~ 2^381; j = 0 or 1728 would be the surprise)}
+        - {metric: adjusted rho exponent minus published 189.8, direction: different,
+           minimum_effect: 0.0 within 0.05 if |Aut| = 2}
+      certificate: j-invariant of E over F_p, |Aut|, and the adjusted exponent.
+      controls: [C+SECP and C+BN (both D = -3, j = 0, |Aut| = 6: the adjusted cost MUST drop
+        by log2(sqrt(3)) ~ 0.79 bits relative to unadjusted - if it does not, the adjustment
+        is not implemented and the E-382 null result is meaningless), N-RANDOM-TRACE]
+      budget_seconds: 180
+      stopping_rule: closed form; hard stop 180 s.
+      falsifier: j in {0,1728} for E-382; or the j = 0 controls showing no adjustment.
+      limitation: >-
+        Covers automorphism-induced speedups only. pages/disc.txt states the limits of
+        small-|D| speedups are "reasonably well understood" and that they are not a complete
+        break; this diagnostic inherits that scope and adds nothing to it.
+
+    - id: D4
+      diagnostic: embedding-degree certificate or explicit search bound
+      status: COVERED BY L-TRANSFER, which is IDEA-20260807-98a970 specialised. NOT DUPLICATED.
+      delta_over_the_reused_proposal: >-
+        (i) E-382 as a row, which that proposal's curve list does not contain;
+        (ii) the twist subgroup l' as a second row, which it does not cover at all;
+        (iii) the SafeCurves threshold (l-1)/k <= 100 recorded alongside that proposal's
+        k-versus-k* comparison, since the two verdict rules differ and a dossier that mixes
+        them would be reporting an unstated threshold.
+
+    - id: D5
+      diagnostic: CM discriminant and conductor structure
+      tracked_object: O1
+      mechanism: >-
+        Beyond |D| > 2^100 (L-DISC), report the CONDUCTOR s with t^2-4p = s^2 * D_0 and the
+        normalisation factor 4 if applied - i.e. the full structure, not just the size.
+        s is what says how far the endomorphism ring sits from the maximal order, and it is
+        absent from every published SafeCurves cell.
+      prediction:
+        - {metric: conductor s, direction: different, minimum_effect: a reported exact
+           integer, predicted 1 or a small integer given the published factorisation of D
+           contains no repeated prime}
+        - {metric: whether the 4* normalisation was applied, direction: different,
+           minimum_effect: a reported boolean consistent with D mod 4}
+      certificate: s, D_0, and the identity t^2-4p = s^2*D_0 (times 4 if normalised), checked
+        by one multiplication.
+      controls: [C+ANOM (D = -11), C+BN (D = -3), C+SECP, N-RANDOM-TRACE (distribution of s
+        over 100 random traces - the null that says whether s = 1 is special or generic)]
+      budget_seconds: 300
+      stopping_rule: >-
+        Requires the square part of t^2-4p. If the published factorisation covers it, this is
+        seconds; if a residual composite remains, report s as PARTIAL with the residual
+        printed, and do not assert squarefreeness of D_0.
+      falsifier: the identity failing; or a repeated prime in D_0 (contradicting
+        squarefreeness).
+      limitation: >-
+        The conductor bounds how far End(E) is from maximal; it is not itself a security
+        quantity and no claim is attached to its value.
+
+    - id: D6
+      diagnostic: model-conversion exceptional sets
+      tracked_object: O3 plus the conversion maps
+      mechanism: >-
+        The Edwards -> Montgomery -> short Weierstrass chain that verify.sage uses is
+        undefined at specific points: the Edwards-to-Montgomery map x,y -> ((1+y)/(1-y),
+        ((1+y)/(1-y))/x) fails at y = 1 and at x = 0. ENUMERATE the exceptional set exactly,
+        check that neither the base point nor the full-order generator lies in it, and record
+        the set size. This is what makes every other lane's model conversion trustworthy - a
+        conversion silently applied at an exceptional point produces a wrong cell everywhere
+        downstream.
+      prediction:
+        - {metric: size of the exceptional set on E(F_p), direction: different,
+           minimum_effect: exactly the points with x = 0 or y = 1, a set of size 4 or fewer,
+           enumerated explicitly}
+        - {metric: whether (x1,y1) = (x1,17) is in it, direction: lower, minimum_effect: 0
+           (it is not, since y1 = 17 != 1 and x1 != 0 - to be machine-confirmed)}
+      certificate: the enumerated exceptional points and the two non-membership checks.
+      controls: [C+EDW (same-shape family - the exceptional set must have the same
+        description on all five), C-SAMEP-SQUARE-D (where the exceptional set is expected to
+        be LARGER, since d square adds rational points at the problematic locus - a
+        directional prediction that the instrument must reproduce)]
+      budget_seconds: 180
+      stopping_rule: closed-form enumeration; hard stop 180 s.
+      falsifier: the base point or the generator lying in the exceptional set, which would
+        void the model-conversion step of L-LADDER, L-COMPLETE, L-IND and D3.
+      limitation: Concerns the AUDIT's own conversions. It is not a statement about any
+        deployed implementation's formulas.
+
+    - id: D7
+      diagnostic: scalar and multiscalar formula exceptional-case search
+      tracked_object: O3
+      mechanism: >-
+        For the complete Edwards addition law, completeness is a THEOREM conditional on d
+        being a non-square (2007 Bernstein-Lange). Rather than assert it, run a bounded
+        randomised exceptional-case search: sample N = 10^5 random pairs (P,Q) of rational
+        points, evaluate the Edwards addition denominators 1 +/- d x1 x2 y1 y2, and count
+        zeros. Then do the same for the DUAL law, which pages/complete.txt states is NOT
+        complete - so the same harness must find zeros there.
+      prediction:
+        - {metric: zero denominators for the standard law over 10^5 random pairs,
+           direction: lower, minimum_effect: 0 - and if any appears, either d is a square or
+           the implementation is wrong, both of which are findings about the audit}
+        - {metric: zero denominators for the dual law, direction: higher,
+           minimum_effect: >= 1 over a targeted (not random) search at the known exceptional
+           locus - this is the POSITIVE control that proves the harness can detect a failure
+           at all}
+      certificate: the counts, the RNG seed, and any exceptional pair found, printed exactly.
+      controls: [the dual-law positive above, C-SAMEP-SQUARE-D (zeros MUST appear),
+        N-SHUFFLED-TORSION]
+      budget_seconds: 600
+      stopping_rule: >-
+        10^5 pairs at 382 bits in pure Python is the cost driver; if the budget binds, reduce
+        N and REPORT the achieved N - a smaller N is a weaker bound, not a failure.
+      falsifier: >-
+        Any zero denominator for the standard law; or NO zero for the dual law, which voids
+        the harness.
+      limitation: >-
+        A randomised search over 10^5 pairs bounds the exceptional-pair density from above by
+        roughly 3/N with 95% confidence; it does not prove there are none, and the dossier
+        must state the bound rather than the word "complete". The theorem, not this search,
+        is what would establish completeness.
+
+    - id: D8
+      diagnostic: deterministic parameter-generation transcript audit
+      status: COVERED BY L-RIGID, with which it shares object O4.
+      delta: >-
+        L-RIGID delivers the candidate COUNT; D8 additionally delivers the TRANSCRIPT ITSELF
+        in re-executable form (an ordered list of clauses, each with the candidate set it
+        cuts), so that a third party can replay the derivation from "primes below 2^382" to
+        (p, d). This is the artifact that capsule U2 shows does not exist in any retrieved
+        source for E-382.
+      dependency: >-
+        Its highest-value input is the designers' own stated rule, i.e. capsule U1 (ePrint
+        2013/647 full text). Until that is staged, the transcript is a RECONSTRUCTION and
+        must be labelled one everywhere it appears.
+
+  deferred_items:
+    - item: A same-p, real-curve negative control with tiny embedding degree (see C-SAMEP-K1
+        honest_limitation).
+      reason: requires CM construction or point counting at 382 bits; outside campaign budget.
+      successor_condition: >-
+        Add if a later batch acquires a point-counting dependency (Sage/PARI); until then the
+        toy planted positives C+PLANT carry the curve-level case at small size and the
+        same-p case is carried at the instrument level only. Stated, not hidden.
+    - item: Part (b) of the L-RIGID enumeration (order-based disqualification of candidate d).
+      reason: point counting at 382 bits per candidate.
+      successor_condition: same dependency as above; until then the count is reported as
+        "N candidates, M order-undetermined".
+    - item: Class-number computation for D (the Brainpool-style condition mentioned on
+        pages/disc.txt).
+      reason: >-
+        pages/disc.txt states explicitly that SafeCurves did not incorporate it, and it is
+        strictly weaker than |D| > 2^100 under GRH. Computing h(D) for |D| ~ 2^381 is far
+        outside budget.
+      successor_condition: revisit only if a lane needs an unconditional statement where the
+        GRH-conditional comparison is insufficient.
+
+  # ===========================================================================
+  # 4. PROOF-SEARCH MAP (KN-TECH-080), for the audit-instrument claim
+  # ===========================================================================
+  proof_search_map:
+    bottleneck: >-
+      The complete factorisation of l-1, l'-1 and t^2-4p over PROVEN primes. It is the only
+      step that can fail, it is what separates an exact certificate from a bound, and its
+      feasibility is a property of the environment, not of the mathematics. SafeCurves
+      published the prime list precisely because its own script is blocked at the same point.
+    baseline_embedding:
+      parameter_slice: >-
+        The five other complete-Edwards SafeCurves curves (C+EDW) processed through the
+        identical code path. They are the exact boundary of "curves this instrument is
+        already known to handle".
+      reproduction_check: >-
+        A frozen fixture asserting the published cells for E-222 and Curve25519 by exact
+        comparison, run BEFORE any E-382 number is computed.
+    observation_collision:
+      observable: the boolean criterion cell (True/False) per column.
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED TRIVIALLY: E-382 and Curve25519 share all eleven
+        True cells while differing in field, shape, cofactor, d and every parameter. The
+        consequence must be recorded: A TRUE CELL IS A COARSE QUANTISATION OF A THRESHOLD
+        COMPARISON AND CARRIES NO INFORMATION BEYOND ITS PREDICATE. No downstream record may
+        cite "eleven True cells" as evidence about ECDLP hardness, and the dossier must
+        report the underlying quantities (l, k, |D|, exponents), not the booleans.
+    quantifier_order: >-
+      Claimed per cell: FOR THIS curve and THIS predicate, THERE EXISTS a certificate showing
+      the predicate holds (or a bound with its stated verification cost).
+      NOT claimed: FOR ALL attacks, or FOR ALL implementations, or FOR ALL curves of this
+      shape.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: replace "is criterion X satisfied" by the underlying integer and an
+          explicit threshold comparison.
+        predicted_gain: every cell becomes machine-checkable in milliseconds by a third
+          party, per docs/claims-and-verification.md.
+      - transform: stronger_invariant
+        proposed_object: >-
+          the candidate-count of O4 in place of the three-valued rigidity label.
+        predicted_gain: >-
+          converts the ONE criterion with no machine derivation into a number, and makes the
+          E-382 empty-comment gap (U2) measurable rather than merely noted.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For E-382, each of the eleven SafeCurves predicates was recomputed from (p, d) and
+        the result, with its certificate, is X." It certifies nothing about ECDLP hardness,
+        nothing about implementations, nothing about attacks not in SafeCurves' list, and
+        nothing about curves other than those audited.
+      nearby_object_control: >-
+        C-SAMEP-SQUARE-D and C-SAMEP-SMALLD: curves one parameter away from E-382 over the
+        SAME p, on which the desired conclusion fails. An instrument that returns the same
+        cells for these has no resolving power, and exhibiting them at the same p is the
+        sharpest available demonstration that the audit measures the curve and not the field.
+    proof_obligations:
+      - {claim: the transcribed tuple is internally consistent (DC1-DC3, on-curve, order l),
+         responsibility: correctness}
+      - {claim: the exact-k certificate verifies in omega(l-1) exponentiations,
+         responsibility: interface}
+      - {claim: the k > K bound genuinely costs K multiplications to verify and is not
+         succinct, responsibility: scope}
+      - {claim: every planted positive is returned exactly, responsibility: baseline}
+      - {claim: each lane's budget and stopping rule are respected and any stop is reported
+         as operational, never as mathematical evidence, responsibility: runtime}
+
+  # ===========================================================================
+  # 5. HEURISTIC ASSUMPTIONS
+  # ===========================================================================
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        [ENVIRONMENT, not mathematics] The executing environment is pure Python 3 with no
+        Sage/PARI. Under it: a 382-bit modmul costs ~1 microsecond, a modexp ~1 millisecond,
+        an Edwards scalar multiplication ~10 milliseconds, and 382-bit point counting is
+        INFEASIBLE.
+      rigorous_support: none - this is an environment claim inherited from
+        IDEA-20260807-98a970's recorded environment note, not a theorem.
+      validation_plan: >-
+        The first 30 seconds of any executor task must time one modmul, one modexp and one
+        scalar multiplication and record them in the run manifest. If they differ from the
+        above by more than 10x, EVERY budget in this plan is re-derived before proceeding. A
+        budget overrun under a validated H1 is an operational observation, never evidence.
+    - id: H2
+      statement: >-
+        The E-382 prime list published in pages/primeproofs.txt is COMPLETE for the four
+        quantities verify.sage needs it for (p, p+1-t, p+1+t, t^2-4p, and recursively q-1),
+        so that l-1, l'-1 and the square part of t^2-4p all factor completely over it.
+      rigorous_support: >-
+        Not a distributional heuristic but a structural one: verify.sage writes 'Unverified'
+        into exactly the cells that require completeness, and the published E-382 row shows
+        values rather than 'Unverified' in all of them. So completeness is IMPLIED BY the
+        published output under the published script. That is an inference about SafeCurves'
+        run, not a proof about the integers.
+      validation_plan: >-
+        Direct: trial-divide l-1, l'-1 and t^2-4p by the ~200 listed primes and check the
+        residual is 1. Cost: seconds. If a residual > 1 remains, H2 IS FALSE, which is itself
+        a reportable finding about the published tables and triggers the bound fallbacks in
+        L-TRANSFER and L-DISC.
+    - id: H3
+      statement: >-
+        For a uniformly random trace t in [-2 sqrt(p), 2 sqrt(p)] at p ~ 2^382, the resulting
+        |D| exceeds 2^100 with probability close to 1; equivalently, t^2-4p rarely has a huge
+        square part.
+      rigorous_support: >-
+        Imitates the classical statement that a random integer of size N has its largest
+        square divisor bounded by a small power with high probability (the density of
+        integers divisible by s^2 is ~1/s^2, summing to a convergent tail). Rigorous for the
+        density statement over random integers; HEURISTIC for traces of a fixed p, because
+        t^2-4p is not a uniformly random integer.
+      validation_plan: >-
+        N-RANDOM-TRACE: 100 samples at the actual p, running the identical D pipeline;
+        compare the empirical fraction with |D| > 2^100 against the 1 - sum_{s>2^140} 1/s^2
+        prediction, and check the tail by recording the SMALLEST |D| observed against the
+        predicted minimum over 100 draws. Sampled parameters (p = 2^382 - 105, N = 100,
+        RNG seed) recorded in the run manifest. TRANSFER ASSUMPTION, stated: results at this
+        one p do not transfer to other p without re-sampling.
+    - id: H4
+      statement: >-
+        For a random prime l of ~380 bits and random p, the cofactor (l-1)/ord_l(p) is small
+        (1, 2, 3, 6, ... ) with high probability - i.e. p is close to a primitive root mod l.
+      rigorous_support: >-
+        Imitates the Artin-primitive-root density and the general heuristic that a random
+        element of a cyclic group of order l-1 has order (l-1)/small. Not proved
+        unconditionally.
+      validation_plan: >-
+        N-RANDOM-ORDER: 100 random (l0, p0) samples, tabulate the empirical distribution of
+        (l0-1)/k, and compare E-382's published cofactor 8 and the twist's 1 against it. The
+        point of the null is stated in advance: if 8 is utterly typical, the transfer cell
+        earns no credit for being 8, and the dossier must say so.
+
+  # ===========================================================================
+  # 6. TARGET COMPLEXITY
+  # ===========================================================================
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED, PROPOSED, OR SOUGHT. This is a measurement plan. Its own
+      cost is dominated by O(1) big-integer operations plus the certificate work: omega(l-1)
+      modular exponentiations to verify the exact embedding degree, or K = 10^6 modular
+      multiplications for the fallback bound. Total planned compute across all lanes and
+      diagnostics: <= 3600 CPU-seconds under H1.
+    memory_exponent: O(log p) working memory; O(1)-sized certificates. <0.5 GB.
+    best_known: >-
+      For ECDLP on this curve the best known remains rho at 0.886*sqrt(l) with O(1) memory
+      and near-perfect parallelism (van Oorschot-Wiener). NOTHING in this plan improves,
+      approaches, or attacks that. As an AUDIT INSTRUMENT, the incumbent is SafeCurves'
+      verify.sage itself.
+    hidden_overhead: >-
+      The lower-bound certificate is NOT succinct: verifying k > K costs K multiplications,
+      the same as producing it. Stated here so no dossier presents it as a short proof.
+    tradeoff_note: >-
+      One real tradeoff inside the audit: an exact embedding degree needs a complete
+      factorisation of l-1 (possibly expensive, succinct certificate) versus a bound needing
+      K multiplications (cheap to produce, expensive to verify). Each lane records which
+      route it took. No time-memory tradeoff arises because nothing here is a search.
+
+  # ===========================================================================
+  # 7. PRIORITISATION
+  # ===========================================================================
+  priority_order:
+    - {rank: 1, lane: A0, why: "Every other cell is a function of its tuple; ~300 s; a single
+        failure voids all eleven. Cheapest possible falsifier of the entire capsule."}
+    - {rank: 2, lane: L-TRANSFER, why: "Highest-consequence ECDLP cell, carries a genuine
+        certificate, and reuses an existing internal proposal so implementation cost is
+        marginal. Also the lane whose planted positives validate the whole instrument."}
+    - {rank: 3, lane: L-DISC, why: "Second ECDLP cell with a certificate; its null
+        (N-RANDOM-TRACE) is the calibration the whole dossier needs to avoid over-reading
+        criterion matches."}
+    - {rank: 4, lane: L-TWIST, why: "Most intricate arithmetic (the combined-cost optimiser),
+        strongest available controls (brainpoolP256t1 at 2^44.5), and the place a
+        re-implementation error is most likely."}
+    - {rank: 5, lane: L-RIGID + D8, why: "Highest information gain per unit cost: the one
+        criterion with NO machine derivation in the incumbent and NO published transcript for
+        this curve. Ranked below the ECDLP lanes only because its result is a count, not a
+        certificate, and because its best input (U1) is not yet staged."}
+    - {rank: 6, lanes: [L-COMPLETE, L-LADDER, L-IND, D6, D7],
+       why: "One shared object (O3); running them together amortises the model conversion and
+        directly tests whether they are four independent facts or one."}
+    - {rank: 7, lanes: [L-FIELD, L-EQUATION, L-BASE, L-RHO, D1, D2, D3, D5],
+       why: "Near-zero marginal cost once A0 and the factorisations exist."}
+  first_test_recommendation:
+    lane: A0
+    justification: >-
+      It is the cheapest VALID discriminator. Under 300 seconds it either reproduces
+      (p, d, x1, y1, l, h, t, l') from p and d alone - in which case every subsequent lane is
+      cheap bookkeeping on a trusted tuple - or it fails, in which case the entire capsule,
+      including the transcription agreement with the intake, is void and no further compute
+      should be spent. No other lane has that property: each of the others can fail without
+      telling you whether the curve or the transcription was wrong.
