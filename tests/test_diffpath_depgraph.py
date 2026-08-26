@@ -176,3 +176,21 @@ def test_every_result_carries_census_completeness_never_summed():
 def test_the_module_never_names_the_quarantine_path():
     src = open(DG.__file__, encoding="utf-8").read()
     assert "GOAL-MD5-001/quarantine" not in src
+
+
+def test_ensure_does_not_stub_semaev_when_real_sympy_already_loaded():
+    """Regression: a second ensure() after runner loaded sympy must not
+    replace harness.semaev with the empty diffpath stub (CI breakage of
+    tests/test_harness.py when test_diffpath_depgraph is collected)."""
+    import sys
+
+    import sympy  # noqa: F401 — real sympy present
+    from harness.diffpath import compat
+
+    before = sys.modules.get("harness.semaev")
+    result = compat.ensure()
+    after = sys.modules.get("harness.semaev")
+    assert result.get("sympy_shim_used") is False
+    assert getattr(after, "__diffpath_stub__", False) is False
+    if before is not None:
+        assert after is before
