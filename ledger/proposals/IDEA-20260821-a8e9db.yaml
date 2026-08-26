@@ -6,10 +6,10 @@ idea:
     FrodoKEM ships TWO public matrices A under one security claim, and seedA is PUBLIC, so
     Frodo-AES runs AES-128 with a KNOWN key on a 2^32-point structured input subspace while
     Frodo-SHAKE runs an XOF: prove by algebra that the Renyi divergence and the decryption
-    failure rate cannot see which generator was used, then compute exactly the one statistic
-    that can - the aligned-8-entry block-collision spectrum of A - at all three parameter sets,
-    and settle whether the AES/SHAKE choice is a performance option or an unstated modelling
-    assumption
+    failure rate cannot see which generator was used, then instantiate the PRP/PRF switching gap
+    exactly at all three parameter sets - a controlled null an ideal random permutation
+    reproduces exactly - and settle whether the AES/SHAKE choice is a performance option or an
+    unstated modelling assumption
   class: control
   claim: >-
     (A) THE SPLIT, STATED AS THREE SEPARATE ASSERTIONS, EACH INDEPENDENTLY FALSIFIABLE.
@@ -21,25 +21,37 @@ idea:
     Gaussian alone and contains no occurrence of A; therefore it too is generator-invariant.
     A1 and A2 together predict that a generator-swap arm of the lane's own recomputation
     pipeline must return BITWISE IDENTICAL outputs, which makes them a usable instrument
-    check rather than a remark. A3 (EXACT FINITE COMPUTATION): the choice is nonetheless not
-    empty, because the two generators induce genuinely different distributions on A, and the
-    difference is exactly computable at the standardized parameters through one statistic -
-    the number of coincidences among the n*(n/8) aligned 8-entry blocks that each generator
-    call produces.
-    (B) WHAT A3 COMPUTES. Frodo-AES sets A[i, j..j+7] = AES128(seedA, i || j || 0^96) mod q.
-    For fixed seedA, AES128 is a permutation and the index encoding is injective, so at
+    check rather than a remark. A3 (EXACT FINITE COMPUTATION, AND ITS STANDING IS NOW STATED
+    CORRECTLY - CORRECTED 2026-08-24, see repair_provenance): the two generators induce
+    genuinely different distributions on A, and one exactly computable statistic sees the
+    difference - the number of coincidences among the n*(n/8) aligned 8-entry blocks that each
+    generator call produces. WHAT A3 IS NOT: it is NOT a statistic about AES. It reads the
+    PERMUTATION-VERSUS-FUNCTION SHAPE of the generator and nothing else, and its optimal
+    advantage is exactly the PRP/PRF switching gap. An IDEAL 128-bit random permutation under a
+    public key reproduces every number A3 produces, at every parameter set, exactly. A3 is
+    therefore an exact instantiation of a textbook bound at three concrete m values, and the
+    record reports it as such rather than as a discovery.
+    (B) WHAT A3 COMPUTES, AND WHY THE FORCED VALUES ARE SHAPE AND NOT CIPHER. Frodo-AES sets
+    A[i, j..j+7] = AES128(seedA, i || j || 0^96) mod q. For fixed seedA, AES128 is a
+    permutation and the index encoding is injective, so at
     Frodo-976 and Frodo-1344, where q = 2^16 and the reduction is the identity on a 16-bit
-    word, the aligned blocks of A are PAIRWISE DISTINCT WITH PROBABILITY 1. A uniform A has
+    word, the aligned blocks of A are PAIRWISE DISTINCT WITH PROBABILITY 1. THAT DERIVATION USES
+    ONLY 'AES128 with a fixed key is a bijection on 128-bit blocks', so it holds verbatim for
+    an ideal random permutation and for any other bijection; it is a statement about sampling
+    m values WITHOUT REPLACEMENT. A uniform A has
     at least one aligned-block coincidence with probability
-    1 - prod_{i=0}^{m-1} (1 - i / 2^128), m = n^2 / 8, which is a closed-form exact rational.
-    At Frodo-640, q = 2^15 drops one bit per coefficient, i.e. 8 bits per block, so the AES
-    arm's coincidence count is NOT forced to zero and its exact expectation is a different
-    closed form. Frodo-SHAKE forces nothing at any parameter set. The deliverable is the
-    exact optimal distinguishing advantage of this statistic, per generator, per parameter
-    set, in exact rational arithmetic, together with the exact statistical distance floor
+    1 - prod_{i=0}^{m-1} (1 - i / 2^128), m = n^2 / 8, which is a closed-form exact rational and
+    is the m-values-WITH-replacement side of the same comparison. Their difference IS the
+    switching gap m(m-1)/2 * 2^-128 to leading order. At Frodo-640, q = 2^15 drops one bit per
+    coefficient, i.e. 8 bits per block, so the permutation arm's coincidence count is NOT forced
+    to zero and its exact expectation is a different closed form - again a property of a bijection
+    followed by an 8-bits-dropping map, not of AES. Frodo-SHAKE forces nothing at any parameter
+    set. The deliverable is the exact optimal distinguishing advantage of this statistic, per
+    generator, per parameter set, in exact rational arithmetic, side by side with the ideal-
+    permutation control that reproduces it, together with the exact statistical distance floor
     below.
-    (C) THE STATISTICAL-DISTANCE FLOOR, WHICH APPLIES TO BOTH GENERATORS AND IS THE REASON
-    THE QUESTION IS ABOUT MODELLING AND NOT ABOUT STATISTICS. seedA is 128 bits at ALL THREE
+    (C) THE STATISTICAL-DISTANCE FLOOR AND THE MODELLING QUESTION - THIS IS THE RECORD'S REAL
+    CONTENT AND IT SURVIVES THE CONTROL IN (B) UNTOUCHED. seedA is 128 bits at ALL THREE
     parameter sets (lenA = 128 in the CFRG draft text fetched for this proposal), so at most
     2^128 matrices A are reachable, against q^(n^2) uniform ones. The statistical distance
     between the generated and the uniform distribution on A is therefore at least
@@ -49,17 +61,22 @@ idea:
     DIFFERENT idealisations: SHAKE128 is an XOF with an indifferentiability argument behind
     it, whereas AES-128 under a public key is a public permutation evaluated in the KNOWN-KEY
     model, which is a strictly weaker modelling position and one in which distinguishers on
-    reduced and (per a recalled result) full AES-128 are published.
+    reduced and (per a recalled result) full AES-128 are published. NOTE THE ASYMMETRY WITH (B):
+    the ideal-permutation control nullifies A3 as a measurement precisely BECAUSE an ideal
+    permutation and AES-128 agree there - and the whole point of (C) is that under a public key
+    AES-128's agreement with an ideal permutation is exactly the thing no standard-model
+    assumption supplies. The control that kills A3 is the observation that motivates (C).
     (D) WHAT IS NOT CLAIMED, EXPLICITLY. No attack on FrodoKEM-AES. No advantage that any
     adversary can convert into anything. No statement that either generator is broken, weak,
-    or should be withdrawn. The known-key literature is invoked ONLY to name the model, and
-    the honest ceiling is stated in method_ceiling: the recalled full-AES known-key
-    distinguisher needs data on the order of 2^64 while Frodo consumes at most n^2/8 <= 2^17.8
-    blocks from a 2^32-point structured subspace, so it does not apply at Frodo's data
-    complexity and this proposal does not claim it does. What is claimed is that the CHOICE OF
+    or should be withdrawn. NO CLAIM THAT A3 IS A NEW MEASUREMENT: the incumbent on that axis is
+    the PRP/PRF switching lemma and it costs zero compute. The known-key literature is invoked
+    ONLY to name the model, and the honest ceiling is stated in method_ceiling: the recalled
+    full-AES known-key distinguisher needs data on the order of 2^64 while Frodo consumes at most
+    n^2/8 <= 2^17.8 blocks from a 2^32-point structured subspace, so it does not apply at Frodo's
+    data complexity and this proposal does not claim it does. What is claimed is that the CHOICE OF
     MODEL is an input to the security argument that the document may not state, and that
     whether it does is a finite, cheap, decidable reading question with an exact numerical
-    companion.
+    companion whose incumbent is named.
   mechanism: >-
     STAGE 0 - THE ENCODING GATE, AND IT CAN FAIL. Transcribe the AES index encoding from the
     filed primary text and verify by exhaustive enumeration that (i, j) -> b is injective over
@@ -74,24 +91,37 @@ idea:
     lane's chi-side pipeline twice with the two generators wired in and require bitwise
     identical output. A pipeline that returns different numbers has a bug, and finding it here
     costs nothing.
-    STAGE 2 - THE EXACT COLLISION SPECTRUM (A3). For each parameter set and each generator,
-    compute in exact rational arithmetic: (a) the probability that a uniform A has at least one
-    aligned-block coincidence, 1 - prod_{i<m}(1 - i/2^128) for q = 2^16 and the corresponding
-    form with the 120-bit reduced block for q = 2^15; (b) the AES arm's forced value (zero at
-    q = 2^16, and the exact expected count at q = 2^15, which follows from AES outputs being
-    distinct and the reduction being 2^8-to-1 on each 16-bit lane); (c) the SHAKE arm's value,
+    STAGE 2 - THE EXACT SWITCHING-GAP INSTANTIATION (A3), WITH ITS INCUMBENT NAMED FIRST. For each
+    parameter set and each generator, compute in exact rational arithmetic: (a) the probability
+    that a uniform A has at least one aligned-block coincidence,
+    1 - prod_{i<m}(1 - i/2^128) for q = 2^16 and the corresponding
+    form with the 120-bit reduced block for q = 2^15; (b) the permutation arm's forced value
+    (zero at q = 2^16, and the exact expected count at q = 2^15, which follows from the outputs
+    being distinct and the reduction being 2^8-to-1 on each 16-bit lane) - a value forced by the
+    permutation SHAPE and shared by AES-128, by an ideal random permutation, and by any bijection;
+    (c) the SHAKE arm's value,
     which under the XOF-as-random-function model equals the uniform value; (d) the optimal
-    advantage of the resulting distinguisher, exactly. NOTHING IS SAMPLED. These are closed
+    advantage of the resulting distinguisher, exactly, REPORTED BESIDE the standard leading-order
+    switching bound m(m-1)/2 * 2^-128 so that the reader sees the exact form is an instantiation
+    of the standard one and not an improvement on it. NOTHING IS SAMPLED. These are closed
     forms evaluated in exact rational arithmetic; the sampling appears only in the controls.
+    STAGE 2b - THE IDEAL-PERMUTATION ARM (NULL-0), RUN ON THE IDENTICAL CODE PATH. Replace AES-128
+    by a lazily-sampled ideal 128-bit permutation under a public key and repeat Stage 2 and the
+    counting instrument end to end. FORCED VALUE DERIVED BEFORE THE RUN: every number is identical
+    to the AES arm's at every parameter set - the same forced zero at q = 2^16, the same closed
+    form at q = 2^15, the same exact advantage. Agreement is therefore a CONTROLLED NULL and
+    carries no information about AES; DISAGREEMENT means the pipeline is reading something other
+    than the permutation shape and voids Stage 2's interpretation.
     STAGE 3 - THE SEED-ENTROPY FLOOR (C). Evaluate 1 - 2^(128 - D*n^2) exactly per parameter
     set, D = 15 or 16 as read from the filed text, and record it beside the advantage from
     Stage 2. The juxtaposition is the point: a statistical distance of essentially 1 sitting
-    beside a distinguishing advantage of order 2^-90 is precisely the signature of a claim
+    beside a distinguishing advantage of order 2^-93 is precisely the signature of a claim
     that lives in an idealisation, and it localises WHICH idealisation each generator needs.
     STAGE 4 - THE READING. Search the filed primary text for the sentence that states the
     assumption on Gen, and record verbatim whether it (i) names a model, (ii) names a
     different model per generator, or (iii) is silent. Three outcomes, all reportable, and the
-    third is the one this proposal exists to be able to report.
+    third is the one this proposal exists to be able to report. AFTER THE 2026-08-24 REPAIR THIS
+    STAGE, TOGETHER WITH STAGE 1'S INSTRUMENT CHECK, IS THE RECORD'S PRIMARY DELIVERABLE.
   novelty_status: unverified
   novelty_screen:
     method: >-
@@ -114,6 +144,13 @@ idea:
       IDEA-20260821-71fc18, IDEA-20260816-e4d944, IDEA-20260816-a14ea4, IDEA-20260816-75df2c,
       IDEA-20260813-2123f1, IDEA-20260805-b9047c, IDEA-20260731-006, EV-FAEST-002. Every one is
       an AES-lane or FAEST-lane record; NONE is under any RQ-FRODO-*.
+      THIS GREP IS THE ONE THE 2026-08-24 REPAIR INDICTS. It searched for the string 'switching
+      lemma' and, finding no ledger record under this lane, recorded NO INCUMBENT - when the
+      incumbent it was looking for is not a record in this repository at all but a textbook bound
+      that this record's own headline statistic instantiates. A grep over ledger/ cannot find a
+      result that lives in the literature, and treating an empty in-repository grep as a
+      literature negative is precisely what AGENTS.md rule 5 forbids. The corrected reading is
+      recorded in `results` and in dominated_by.
       (5) 'SampleFrodo|T_chi' -> ledger/ -> 2 files: RQ-FRODO-3260cc.yaml and
       IDEA-20260808-e7ba81.yaml, the latter under RQ-FNDSA-001 (FN-DSA sampler), not this lane.
       (6) '^  title:|^  question_id:' -> ledger/proposals glob IDEA-20260821-*.yaml, to check
@@ -134,6 +171,9 @@ idea:
       https://www.ietf.org/archive/id/draft-longa-cfrg-frodokem-02.html returned HTTP 404;
       https://www.iacr.org/archive/asiacrypt2014/88730350/88730350.pdf FAILED - the fetcher
       returned unreadable compressed PDF stream data, so Gilbert 2014 is NOT a read source here.
+      2026-08-24 REPAIR PASS: no new retrieval was performed. The pass re-derived the standing of
+      the A3 statistic from the record's own definitions and added a `recalled` citation for the
+      PRP/PRF switching lemma; nothing was fetched and no provenance was upgraded.
     results: >-
       No record in this repository - proposal, hypothesis, evidence, experiment specification or
       knowledge entry - tracks FrodoKEM's matrix generator as an object. The lane's eight
@@ -153,24 +193,42 @@ idea:
       'Weak-Key Distinguishers for AES'); the second search explicitly reported finding no
       documented work linking FrodoKEM's public seed to the known-key model. That is a negative
       search result and is recorded as such, not as evidence that no such work exists.
+      CORRECTED 2026-08-24: the original version of this screen concluded that the A3 statistic
+      had no incumbent. IT HAS ONE, AND THE SCREEN'S OWN GREP (4) WENT LOOKING FOR IT UNDER THE
+      RIGHT NAME AND DREW THE WRONG CONCLUSION FROM AN EMPTY LEDGER. A3 counts coincidences among
+      m aligned blocks that a permutation produces WITHOUT replacement against m that an XOF
+      produces with replacement; the optimal advantage of that comparison is the PRP/PRF switching
+      gap m(m-1)/2 * 2^-128, a textbook bound. The record's exact rational form is an
+      instantiation of that bound at three concrete m values, not a new measurement, and the
+      surviving contribution is (i) the exact rather than leading-order form at three specific
+      parameter sets, (ii) the q = 2^15 variant where 8 bits are dropped per block, and (iii)
+      parts (C) and Stage 4, which the switching lemma does not speak to at all.
     verdict: >-
       UNVERIFIED, and deliberately so. What was actually READ is one fetched draft text and
       three fetched eprint abstract pages; the FrodoKEM standard proposal PDF was NOT read, and
-      Gilbert 2014 was NOT read. CLAIMED NEW RELATIVE TO THIS REPOSITORY: treating the choice of
+      Gilbert 2014 was NOT read. CLAIMED NEW RELATIVE TO THIS REPOSITORY, AS NARROWED ON
+      2026-08-24: treating the choice of
       matrix generator as a tracked object at all; the pairing of an algebraic invariance proof
-      (the two audited numbers cannot see A) with an exact finite computation of the one
-      statistic that can; and the observation that a public seedA places Frodo-AES in the
-      known-key model rather than a PRF model. ASSEMBLED FROM KNOWN PARTS AND NOT INVENTED HERE:
+      (the two audited numbers cannot see A) with an exact evaluation of the one statistic that
+      can; and the observation that a public seedA places Frodo-AES in the
+      known-key model rather than a PRF model. EXPLICITLY NOT CLAIMED NEW: the A3 statistic and
+      its advantage, which instantiate the PRP/PRF switching lemma and are a property of the
+      permutation-versus-function shape rather than of AES. ASSEMBLED FROM KNOWN PARTS AND NOT
+      INVENTED HERE:
       the PRP-versus-PRF and known-key modelling distinctions are textbook; the birthday
       closed form is elementary; that FrodoKEM offers two generators is in the specification and
       is universally described as a performance choice. The proposal's content is the exact
-      numbers and the reading question, not the concepts.
+      numbers at three named parameter sets and the reading question, not the concepts.
   object_first_candidate:
     tracked_object: >-
       The MULTISET OF ALIGNED 8-ENTRY BLOCKS of the public matrix A - that is, A projected onto
       the sequence of n*(n/8) tuples (A[i,j], ..., A[i,j+7]) for j = 0, 8, 16, ..., with the
       block boundaries fixed by the generator's own call structure - followed from the seed,
-      through one generator call, into A, and read out as a coincidence count.
+      through one generator call, into A, and read out as a coincidence count. WHAT THE OBJECT
+      ACTUALLY SEPARATES, STATED HONESTLY AFTER THE 2026-08-24 REPAIR: it separates PERMUTATIONS
+      FROM FUNCTIONS, not AES from anything. Two distinct generators with the same shape - AES-128
+      under a public key and an ideal random permutation - are indistinguishable to it by
+      construction, which is the content of NULL-0.
     lossiness: >-
       GENUINELY LOSSY, and the loss is compatible with the target's operations, which is the
       test docs/inventor-protocol.md section 2 demands. The projection discards (i) the ORDER of
@@ -182,27 +240,53 @@ idea:
       NOT a change of coordinates - A is not recoverable from the multiset, because the index
       labels are gone and n^2/8 blocks in any order are consistent with (n^2/8)! matrices. This
       distinguishes it sharply from the worked failure in KN-LIT-7595, where the tracked pair
-      was invertible and therefore worthless.
+      was invertible and therefore worthless. THE PROJECTION IS ALSO LOSSY IN A WAY THAT MATTERS
+      AGAINST THIS RECORD: it discards everything about the permutation except that it is one, so
+      it cannot see any property of AES-128 specifically. Passing the lossy-projection test is
+      necessary and, as NULL-0 shows, nowhere near sufficient for the object to answer the
+      question the record was originally written to ask.
     propagation: >-
-      One step of the target operation is one generator call. Under Frodo-AES it writes a block
-      that is a permutation image of a distinct input, so the propagation law is 'never repeat
-      a block' (exactly, at q = 2^16) or 'repeat only through the 8 dropped bits' (at q = 2^15).
+      One step of the target operation is one generator call. Under any bijection-based generator -
+      Frodo-AES, or an ideal random permutation - it writes a block that is an image of a distinct
+      input, so the propagation law is 'never repeat a block' (exactly, at q = 2^16) or
+      'repeat only through the 8 dropped bits' (at q = 2^15).
       Under Frodo-SHAKE it writes a block drawn from an XOF stream, so the propagation law is
-      'repeat with the uniform birthday rate'. The two laws are DIFFERENT PROPAGATION RULES for
-      the same object, which is the requirement for the object to be testable, and the
-      difference between them is a single exactly computable rational number per parameter set.
+      'repeat with the uniform birthday rate'. TWO propagation rules, not three: AES and the ideal
+      permutation share one. The difference between the two rules is a single exactly computable
+      rational number per parameter set, and it is the switching gap.
     survival_score: >-
       ONE STEP, and the proposal says so rather than inflating it. The object survives generator
       call to generator call and then DISSOLVES: nothing downstream of A in FrodoKEM reads
       aligned blocks - the secret is multiplied against whole columns, the error terms do not
       involve A at all, and the block boundaries have no algebraic meaning after the matrix
       product. The honest reading is therefore that a nonzero advantage found here is a
-      statement about the generator and NOT about the KEM, and the proposal is built to say that
-      out loud. That one-step survival is also exactly why the object is affordable: it needs no
-      simulation of the scheme.
+      statement about the generator's SHAPE and NOT about the KEM and not about AES, and the
+      proposal is built to say that out loud. That one-step survival is also exactly why the
+      object is affordable: it needs no simulation of the scheme. It is also why the record's
+      priority was lowered on 2026-08-24.
   null_object_control: >-
-    THREE ARMS, all on the identical counting code path, all in one invocation, and each able to
-    fail. NULL-1 (UNIFORM ARM, and it can fail): generate A of the same shape from a
+    FOUR ARMS, all on the identical counting code path, all in one invocation, and each able to
+    fail. NULL-0 was ADDED 2026-08-24 and is the arm the record previously lacked; it is listed
+    first because it is the one that determines how Stage 2's output may be read at all.
+    NULL-0 (NULL OBJECT OF THE SAME SHAPE - AN IDEAL RANDOM PERMUTATION - AND IT CAN FAIL):
+    replace AES-128 under seedA by a lazily-sampled ideal 128-bit permutation under a public key,
+    keeping the identical index encoding, the identical mod-q reduction and the identical counter,
+    and run Stage 2 and the counting instrument end to end. FORCED VALUE, DERIVED BEFORE THE RUN
+    AND IDENTICAL TO THE AES ARM AT EVERY PARAMETER SET: zero coincidences at q = 2^16 (a bijection
+    on injective inputs never repeats an output, and the mod-q reduction is the identity on a
+    16-bit word); the same closed form at q = 2^15 (the same 8 bits per block are dropped from the
+    same distinct outputs); and the same exact optimal advantage against the uniform arm. BECAUSE
+    THAT VALUE IS DERIVED AND IDENTICAL, AGREEMENT BETWEEN THE AES ARM AND NULL-0 IS A CONTROLLED
+    NULL AND CARRIES NO INFORMATION ABOUT AES-128 - it confirms only that the statistic reads the
+    permutation shape, which is what the switching lemma already says. The arm's power is entirely
+    in DISAGREEMENT: if the AES arm and the ideal-permutation arm differ at any parameter set,
+    either the index encoding is not injective (Stage 0 should have caught it), or the counter is
+    reading something other than block coincidences, or AES-128 under a public key departs from an
+    ideal permutation at m <= 2^17.8 queries on a 2^32-point structured input subspace - and that
+    last outcome would be a significant result requiring independent re-derivation before it is
+    reported anywhere. THIS IS THE ARM THAT DEMOTES A3 FROM A FINDING TO AN INSTANTIATION, AND IT
+    IS RUN FIRST FOR THAT REASON.
+    NULL-1 (UNIFORM ARM, and it can fail): generate A of the same shape from a
     CSPRNG-backed uniform source over Z_q, count aligned-block coincidences, and require the
     observed count over >= 8 independent draws to be consistent with the exactly derived
     closed-form distribution. If the uniform arm's empirical count disagrees with its own closed
@@ -219,10 +303,11 @@ idea:
     as partial removal and on the same side; if the constant generator does not produce the
     maximal count, the statistic is not reading the object and the instrument is void
     (KN-TECH-1a5b7e mode 2). FORCED-VALUE DERIVATION, WRITTEN BEFORE THE RUN: the AES arm at
-    q = 2^16 is FORCED to zero coincidences by injectivity, so that arm cannot discriminate
-    anything and is reported as a derived constant, not as a measurement - stating this is
-    precisely obligation 4, and hiding it would be mode 3. The arms that CAN move are the uniform
-    arm, the SHAKE arm, and the AES arm at Frodo-640 where 8 bits are dropped.
+    q = 2^16 is FORCED to zero coincidences by injectivity plus bijectivity, so that arm cannot
+    discriminate anything and is reported as a derived constant, not as a measurement - stating
+    this is precisely obligation 4, and hiding it would be mode 3. The arms that CAN move are the
+    uniform arm, the SHAKE arm, and the AES and ideal-permutation arms at Frodo-640 where 8 bits
+    are dropped - and those last two must move TOGETHER.
   discriminated_from:
   - >-
     IDEA-20260805-390957 and H-FRODO-e0c651 part 1 derive conservation identities that the
@@ -254,7 +339,15 @@ idea:
     The AES-lane records that mention known-key distinguishers (RQ-AES-002, RQ-AES-003 and the
     IDEA records listed in the novelty screen) treat AES as the target of cryptanalysis. Here
     AES is a component of another scheme and the only question asked is which model its use
-    requires; no AES cryptanalysis is proposed, attempted, or claimed.
+    requires; no AES cryptanalysis is proposed, attempted, or claimed. NULL-0 makes this
+    separation sharp rather than rhetorical: this record's statistic provably cannot see any
+    property of AES-128 that an ideal permutation lacks.
+  - >-
+    THE PRP/PRF SWITCHING LEMMA ITSELF (external, recalled). This record does NOT discriminate
+    from it and does not try to: A3 is an instantiation of it. What this record adds over the
+    lemma is the exact rather than leading-order rational form at three named parameter sets, the
+    q = 2^15 eight-bits-dropped variant, and everything in part (C) and Stage 4, which are
+    modelling and reading questions the lemma does not address.
   citations:
   - ref: draft-longa-cfrg-frodokem (IETF datatracker HTML view)
     provenance: retrieved
@@ -265,6 +358,20 @@ idea:
       returned: n = 640/976/1344, q = 32768/65536/65536, B = 2/3/4, nHat = 8, D = 15/16/16,
       lenA = 128 for all three.
     verified_by: idea-generator@2026-08-21
+  - ref: >-
+      The PRP/PRF switching lemma (standard; the modern game-playing proof is commonly attributed
+      to Bellare and Rogaway, "Code-Based Game-Playing Proofs and the Security of Triple
+      Encryption")
+    provenance: recalled
+    claim: >-
+      An adversary making m queries distinguishes a random permutation on {0,1}^k from a random
+      function on {0,1}^k with advantage at most m(m-1)/2 * 2^-k, and the bound is tight for the
+      coincidence-counting adversary. Cited here as THE INCUMBENT on this record's measurement
+      axis: it is exactly the quantity assertion A3 computes, it holds for any permutation and
+      therefore says nothing about AES, and it costs zero compute. NOT READ THIS SESSION -
+      recalled from memory, not fetched, and a reviewer with retrieval tools should confirm the
+      attribution and the exact statement before this record is dispatched.
+    verified_by: null
   - ref: 'Gilbert, "A Simplified Representation of AES", ASIACRYPT 2014'
     provenance: recalled
     claim: >-
@@ -290,7 +397,8 @@ idea:
   - >-
     AES-128 with a fixed key is a permutation on 128-bit blocks. This is a definitional property
     of the cipher, not an assumption about its strength, and it is what forces the AES arm's
-    value at q = 2^16.
+    value at q = 2^16. IT IS ALSO WHY THAT VALUE CARRIES NO INFORMATION ABOUT AES: any bijection
+    forces the same value, which is what NULL-0 exhibits.
   - >-
     The index encoding (i, j) -> b is injective over the actual index ranges. This is checked
     exhaustively in Stage 0 and can fail.
@@ -304,43 +412,61 @@ idea:
       the security argument needs a distribution on A it can call uniform, the statistical
       distance to uniform is essentially 1 for any 128-bit seed, and therefore some idealisation
       is doing the work. Which one, and whether it is the same for both generators, is the
-      bottleneck.
+      bottleneck. NOTE THAT THE A3 STATISTIC IS NOT ON THIS PATH: it quantifies the gap the
+      switching lemma already bounds and does not touch which idealisation is assumed.
     baseline_embedding:
       parameter_slice: >-
         The baseline is the ordinary reading in which both generators are PRGs and the choice is
-        performance-only. That baseline is reproduced exactly as the parameter slice
-        'advantage = 0 for every statistic', and this proposal's Stage 2 is a strict test of it:
-        if every computed advantage is zero, the baseline is reproduced and the proposal's A3 is
-        refuted.
+        performance-only, PLUS the PRP/PRF switching bound as the incumbent quantitative statement
+        about the gap between them. That baseline is reproduced exactly as the parameter slice
+        'exact advantage = the switching gap at m = n^2/8', and Stage 2 must land on it; a Stage 2
+        output that does NOT agree with m(m-1)/2 * 2^-128 to leading order at each parameter set
+        indicates an arithmetic error in this record, not a discovery.
       reproduction_check: >-
-        Symbolic: the invariance proof of A1/A2 must reproduce the lane's existing chi-side
-        outputs bitwise under a generator swap. That is a frozen regression fixture, not a plot.
+        Two frozen fixtures, not plots. (i) Symbolic: the invariance proof of A1/A2 must reproduce
+        the lane's existing chi-side outputs bitwise under a generator swap. (ii) Numeric: the
+        exact rational advantage must agree with the leading-order switching bound
+        m(m-1)/2 * 2^-128 to within the difference the exact product form predicts, at all three
+        m values.
     observation_collision:
       observable: >-
         The aligned-block coincidence count, and the derived optimal distinguishing advantage.
       distinct_preimage_search: >-
-        A collision is expected and is a declared outcome, not a surprise: at Frodo-640 an AES
-        arm and a uniform arm can produce the SAME coincidence count, because the 8 dropped bits
+        A COLLISION EXISTS, IT IS CONSTRUCTIBLE, IT IS EXACT, AND IT IS THE FINDING THE 2026-08-24
+        REPAIR RECORDS RATHER THAN THE LIMITATION IT WAS ORIGINALLY FILED AS. The two distinct
+        preimages are AES-128 under a public key and an IDEAL 128-bit random permutation under a
+        public key: they produce the identical observable at every parameter set, by construction,
+        because the observable is a function of the permutation shape alone. That is NULL-0, and it
+        means the observable cannot carry any conclusion about AES specifically. A second, weaker
+        collision was already recorded and stands: at Frodo-640 the AES arm and the uniform arm can
+        produce the SAME coincidence count, because the 8 dropped bits
         restore collisions. The proposal therefore reports the exact advantage rather than a
         verdict, and states in interpretation_limits that a matching count does not establish
         the two distributions are equal - it establishes only that THIS observable does not
-        separate them. Searching for a second observable that does separate them at Frodo-640 is
-        named as forward guidance.
+        separate them. Searching for a second observable that separates AES-128 under a public key
+        from an ideal permutation at m <= 2^17.8 queries on a 2^32-point structured subspace is
+        named as forward guidance, and is squarely the AES lane's business rather than this one's.
     constructive_transforms:
     - transform: observable_fiber
       proposed_object: >-
         Hold the coincidence count fixed and vary the generator; ask which intrinsic invariant of
-        A distinguishes the resulting matrices. Candidates with a defined one-step propagation:
+        A distinguishes the resulting matrices. The fibre provably contains at least AES-128 and
+        every ideal permutation, so any candidate invariant must separate a real cipher from an
+        ideal permutation to be of any use here. Candidates with a defined one-step propagation:
         the multiset of 8-entry blocks after an affine relabelling of the index space, and the
         distribution of the 128-bit XOR of two blocks at index difference delta, which is
-        constant-ish under a permutation and uniform under an XOF.
+        structured under AES's key schedule and uniform under an XOF - but the record notes that
+        the second candidate is an AES-cryptanalysis question and belongs to RQ-AES-002/003.
       predicted_gain: >-
-        None in attack terms. The gain is identification: an observable that separates the
-        generators at Frodo-640, where the primary one provably does not.
+        None in attack terms, and none claimed. The gain would be identification: an observable
+        that separates the generators at Frodo-640, where the primary one provably does not, and
+        that separates AES from an ideal permutation, which the primary one provably cannot.
     quantifier_order: >-
-      FOR EVERY parameter set P in {640, 976, 1344} and FOR EVERY generator G in {AES, SHAKE},
-      THERE EXISTS an exactly computable rational adv(P, G) such that the aligned-block
-      coincidence statistic distinguishes Gen_G from uniform with advantage exactly adv(P, G).
+      FOR EVERY parameter set P in {640, 976, 1344} and FOR EVERY generator G in {AES,
+      IDEAL-PERMUTATION, SHAKE}, THERE EXISTS an exactly computable rational adv(P, G) such that
+      the aligned-block coincidence statistic distinguishes Gen_G from uniform with advantage
+      exactly adv(P, G); AND adv(P, AES) = adv(P, IDEAL-PERMUTATION) for every P, which is a
+      derived equality and not a measurement.
       Note the order carefully: the advantage is allowed to depend on P and G, and no uniform
       statement over parameter sets is claimed. The separate modelling assertion has the weaker
       form: THERE EXISTS no standard-model assumption on AES-128 under a PUBLIC key that yields
@@ -349,18 +475,23 @@ idea:
     method_ceiling:
       strongest_certifiable_claim: >-
         The strongest thing this method can certify is: an exact distinguishing advantage for one
-        named statistic, and a verbatim record of what the specification says about Gen. It can
-        NEVER certify that no better distinguisher exists, and it can never certify anything
-        about LWE hardness at Frodo's dimensions. The recalled known-key distinguisher on full
+        named statistic that reads the permutation-versus-function shape and nothing else, and a
+        verbatim record of what the specification says about Gen. It can NEVER certify that no
+        better distinguisher exists, can never certify ANYTHING about AES-128 in particular
+        (NULL-0 proves that outright), and can never certify anything about LWE hardness at
+        Frodo's dimensions. The recalled known-key distinguisher on full
         AES-128 requires data on the order of 2^64; Frodo consumes at most n^2/8 <= 2^17.8 blocks
         drawn from a 2^32-point structured subspace, so that result does NOT apply here and this
         proposal does not claim it does.
       nearby_object_control: >-
-        The nearby object on which the hoped-for conclusion fails is Frodo-640 itself: there the
-        AES arm's forced zero disappears because 8 bits are dropped, so a method that reported
-        'AES is distinguishable' uniformly would be wrong at exactly one of the three
-        standardized parameter sets. Any verdict that does not differ between q = 2^15 and
-        q = 2^16 has not identified the load-bearing structure.
+        TWO nearby objects on which the hoped-for conclusion fails. (i) The ideal random
+        permutation, which reproduces every number in the deliverable table and is NULL-0 -
+        this is the one the record originally lacked and it is fatal to A3 as a finding about AES.
+        (ii) Frodo-640 itself: there the permutation arm's forced zero disappears because 8 bits
+        are dropped, so a method that reported 'AES is distinguishable' uniformly would be wrong at
+        exactly one of the three standardized parameter sets. Any verdict that does not differ
+        between q = 2^15 and q = 2^16, or that differs between AES and an ideal permutation at any
+        parameter set, has not identified the load-bearing structure.
     proof_obligations:
     - claim: A appears nowhere in E'S - S'E + E''
       responsibility: correctness
@@ -368,6 +499,10 @@ idea:
       responsibility: feasibility
     - claim: 1 - prod_{i<m}(1 - i/2^128) is the exact uniform coincidence probability
       responsibility: size
+    - claim: >-
+        adv(P, AES) = adv(P, IDEAL-PERMUTATION) exactly, at every parameter set, and the common
+        value is the exact form of the PRP/PRF switching gap at m = n^2/8
+      responsibility: baseline
     - claim: the counting pipeline detects a seeded eps = 2^-20 repeat rate
       responsibility: interface
     - claim: statistical distance to uniform >= 1 - 2^(128 - D*n^2)
@@ -381,23 +516,43 @@ idea:
     minimum_effect: >-
       zero difference is REQUIRED; any nonzero difference at all falsifies A1/A2 or exposes a
       pipeline bug, and either is a reportable result
+  - metric: >-
+      difference between the AES arm and the NULL-0 ideal-random-permutation arm, on every
+      reported quantity, at every parameter set
+    direction: different
+    minimum_effect: >-
+      EXACTLY ZERO, on every quantity and at every parameter set - a value DERIVED BEFORE THE RUN,
+      so its agreement is a CONTROLLED NULL and carries no information about AES-128. A nonzero
+      difference means the encoding gate failed, the counter is reading something other than block
+      coincidences, or AES-128 departs from an ideal permutation at m <= 2^17.8 queries on this
+      input subspace; the third reading may not be reported without independent re-derivation
   - metric: aligned-block coincidence count in the Frodo-AES arm at Frodo-976 and Frodo-1344
     direction: lower
-    minimum_effect: exactly 0, a derived constant rather than a measurement
-  - metric: >-
-      exact optimal distinguishing advantage of the aligned-block statistic, AES arm versus
-      uniform, at Frodo-1344
-    direction: higher
     minimum_effect: >-
-      strictly positive and below 2^-64; a value above 2^-64 would be a surprise large enough to
-      require independent re-derivation before it is reported at all
+      exactly 0, a derived constant rather than a measurement, and forced by bijectivity alone -
+      an ideal random permutation gives the same 0
   - metric: >-
-      exact optimal distinguishing advantage of the aligned-block statistic, AES arm versus
-      uniform, at Frodo-640 (q = 2^15, 8 bits dropped)
+      exact optimal distinguishing advantage of the aligned-block statistic, permutation arm
+      versus uniform, at Frodo-1344, checked against the leading-order switching bound
+      m(m-1)/2 * 2^-128 at m = n^2/8 = 225792
+    direction: different
+    minimum_effect: >-
+      the exact rational value must agree with the leading-order switching bound to the precision
+      the exact product form predicts. HAND ARITHMETIC PERFORMED IN THIS REPAIR SESSION AND
+      LABELLED AS SUCH, NOT A MEASUREMENT AND NOT CITED FROM ANY RUN: m(m-1)/2 is about 2.55e10,
+      i.e. about 2^34.6, so the advantage is about 2^-93.4 at Frodo-1344, about 2^-95.3 at
+      Frodo-976 (m = 119072) and about 2^-97.7 at Frodo-640's 128-bit block before the 8-bit drop
+      is applied. A computed value that is not within a factor of 2 of these is an arithmetic
+      error in the pipeline or in this hand derivation, and either way is checked before anything
+      is reported
+  - metric: >-
+      exact optimal distinguishing advantage of the aligned-block statistic, permutation arm
+      versus uniform, at Frodo-640 (q = 2^15, 8 bits dropped)
     direction: different
     minimum_effect: >-
       the Frodo-640 value must differ from the Frodo-1344 value by more than a factor of 2, or
-      the mod-q reduction is not doing what the derivation says it does
+      the mod-q reduction is not doing what the derivation says it does. The AES arm and the
+      NULL-0 arm must agree here exactly, as everywhere
   - metric: >-
       number of sentences in the filed primary text that state a model or assumption for Gen,
       per generator
@@ -405,25 +560,37 @@ idea:
     minimum_effect: >-
       0, 1 or 2 - a count, reported verbatim with page and line, with 0 being the outcome the
       proposal exists to be able to report and 2 (a different named model per generator) being
-      the outcome that would refute the claim that the document is silent
+      the outcome that would refute the claim that the document is silent. AFTER THE 2026-08-24
+      REPAIR THIS IS THE RECORD'S PRIMARY PREDICTION, because it is the only one whose outcome is
+      not forced by the switching lemma
   minimal_test:
     design: >-
-      One invocation, four arms, no lattice, no scheme simulation. ARM 1 (algebra, seconds):
+      One invocation, five arms, no lattice, no scheme simulation. ARM 0 (the control that governs
+      how everything else is read, seconds): the ideal-random-permutation generator, run through
+      the identical Stage 2 and identical counter, with its forced value - identical to the AES
+      arm everywhere - written down first. ARM 1 (algebra, seconds):
       symbolic derivation that the decryption error contains no A, executed as a generator-swap
       regression on the lane's chi-side pipeline requiring bitwise identical output. ARM 2 (exact
       closed forms, seconds): evaluate 1 - prod_{i<m}(1 - i/2^128) with m = n^2/8, the q = 2^15
       variant, and 1 - 2^(128 - D*n^2), all in exact rational arithmetic at all three parameter
-      sets, and report the resulting advantages as exact rationals plus their base-2 logarithms.
+      sets, and report the resulting advantages as exact rationals plus their base-2 logarithms
+      BESIDE the leading-order switching bound they instantiate.
       ARM 3 (counting instrument, minutes): implement the aligned-block counter and run it on the
       uniform arm >= 8 times, the eps-ladder at five values, and the constant-block maximal
       removal, reporting the uniform arm's interval and the ladder's monotonicity. ARM 4
       (reading, minutes of human time): grep the filed primary text for the Gen assumption and
-      quote it verbatim, or record that no such sentence exists. THIS DISCRIMINATES because ARM 1
-      and ARM 2 have forced, derivable values that disagree with each other by construction - a
-      statistical distance of essentially 1 next to an advantage near 2^-90 - and only ARM 4 can
-      say which of the two the document's argument relies on. TOTAL COST: well under one hour of
+      quote it verbatim, or record that no such sentence exists. THIS DISCRIMINATES, BUT NOT WHERE
+      THE RECORD ORIGINALLY CLAIMED IT DID: ARM 0 forces ARM 2's output to be read as an
+      instantiation of a known bound rather than as a finding about AES, and what is left to
+      discriminate is (i) ARM 1's bitwise invariance, which can fail and would expose a pipeline
+      bug, and (ii) ARM 4's three-way reading outcome, which is genuinely open and which no
+      algebra forces. TOTAL COST: well under one hour of
       single-core compute; ARM 2 alone is under a second.
     controls:
+    - >-
+      NULL-0 ideal-random-permutation arm on the identical code path, with its forced value -
+      identical to the AES arm at every parameter set - derived and written down BEFORE the run,
+      and with agreement declared in advance to be a controlled null carrying no information
     - uniform-A arm drawn >= 8 times, reported as an interval, per KN-TECH-1a5b7e mode 5
     - >-
       seeded-defect ladder at eps in {2^-30, 2^-25, 2^-20, 2^-15, 2^-10} with the comparator
@@ -434,6 +601,10 @@ idea:
       forced-value declaration for the AES arm at q = 2^16 (exactly zero) written before the run
       so that its agreement is not read as a measurement
     - >-
+      incumbent-agreement check: the exact advantage must reproduce the leading-order PRP/PRF
+      switching bound m(m-1)/2 * 2^-128 at each m, and a disagreement is an arithmetic error in
+      this record rather than a result
+    - >-
       index-encoding injectivity gate at all three n, exhaustively, before any counting
     - >-
       generator-swap bitwise-identity regression on the chi-side pipeline, run FIRST, as the
@@ -441,8 +612,14 @@ idea:
     required_metrics:
     - exact rational coincidence probability, uniform arm, per parameter set
     - exact rational coincidence probability and count, AES arm, per parameter set
+    - >-
+      exact rational coincidence probability and count, NULL-0 ideal-permutation arm, per
+      parameter set, and its signed difference from the AES arm (predicted exactly zero)
     - measured coincidence count and 8-draw interval, uniform and SHAKE arms
     - exact optimal distinguishing advantage per (parameter set, generator), as a rational and in bits
+    - >-
+      the leading-order PRP/PRF switching bound m(m-1)/2 * 2^-128 at each m, printed beside the
+      exact advantage it is the incumbent for
     - exact statistical-distance floor 1 - 2^(128 - D*n^2) per parameter set
     - ladder counts at all five eps values, with a monotonicity flag
     - constant-block arm count
@@ -453,8 +630,19 @@ idea:
     the pipeline is buggy; either way the invariance argument is withdrawn and the bug is the
     result.
   - >-
+    The NULL-0 ideal-permutation arm returns anything different from the AES arm at any parameter
+    set. The first two readings to test, in order, are a failed encoding gate and a counter that
+    is not reading block coincidences. Only if both are excluded does the third reading arise -
+    that AES-128 under a public key departs from an ideal permutation at these query counts on
+    this structured subspace - and that reading may NOT be reported without independent
+    re-derivation and a handoff to the AES lane. ADDED 2026-08-24.
+  - >-
+    The exact advantage disagrees with the leading-order PRP/PRF switching bound
+    m(m-1)/2 * 2^-128 by more than the exact product form predicts. This record's arithmetic is
+    wrong; no number is reported until it is reconciled. ADDED 2026-08-24.
+  - >-
     The index encoding is not injective at some n. The forced-zero derivation collapses and the
-    AES arm's value must be recomputed from the actual encoding.
+    permutation arms' values must be recomputed from the actual encoding.
   - >-
     The uniform arm's measured coincidence count is inconsistent with its own closed form over
     8 draws. The counter is wrong and no arm is readable.
@@ -468,13 +656,20 @@ idea:
   - >-
     The filed primary text names a model for Gen, per generator, explicitly. Then the claim that
     the modelling assumption is unstated is FALSE, this record's part (C) is refuted, and the
-    honest deliverable shrinks to the exact advantage table - which is still a lane contribution
-    but a much smaller one.
+    honest deliverable shrinks to an exact table that instantiates a textbook bound plus a passed
+    instrument check - which is a very small lane contribution and the record says so.
   - >-
     All computed advantages are exactly zero at all three parameter sets. Then A3 is refuted, the
     performance-only reading of the generator choice is confirmed on this observable, and the
     forward guidance is the observable_fiber transform above.
   confounders:
+  - >-
+    THE BIGGEST ONE, AND THE ONE THIS RECORD ORIGINALLY FELL INTO: reading a forced value as a
+    measurement. A3's numbers are forced by the permutation-versus-function shape and are
+    reproduced exactly by an ideal random permutation, so any narrative in which they say
+    something about AES-128 is a controlled null presented as a finding. NULL-0 is the mitigation
+    and it must be run first; a deliverable that omits the NULL-0 column has reintroduced the
+    defect.
   - >-
     The block boundary is a property of the GENERATOR'S CALL STRUCTURE, not of A. Frodo-AES makes
     8 coefficients per call and Frodo-SHAKE makes n per call, so 'aligned 8-entry block' is
@@ -489,7 +684,8 @@ idea:
     Confusing 'A is not uniform' with 'A is weak'. Every 128-bit-seeded PRG has statistical
     distance essentially 1 from uniform on a large object; that fact is universal and carries no
     security content by itself. The record must present the floor as a MODELLING observation, and
-    the advantage as the security-relevant quantity.
+    the advantage as the security-relevant quantity - noting that the advantage is itself the
+    switching gap and therefore also carries no cipher-specific content.
   - >-
     A CSPRNG-backed 'uniform' arm is itself a PRG and inherits the same floor. Its use is
     legitimate only because the statistic reads 128-bit-block coincidences at rates far above any
@@ -502,8 +698,12 @@ idea:
     NO ATTACK, NO BREAK, NO SPEEDUP, NO EXPONENT. Nothing here is evidence about the hardness of
     LWE at Frodo's dimensions, in either direction.
   - >-
-    A nonzero advantage on this statistic is a statement about the GENERATOR ONLY. The tracked
-    object dissolves after one step and nothing downstream of A reads aligned blocks.
+    THE A3 TABLE IS AN INSTANTIATION OF THE PRP/PRF SWITCHING BOUND, NOT A MEASUREMENT OF AES.
+    An ideal random permutation reproduces every entry exactly. No sentence anywhere downstream
+    may present those numbers as saying anything about AES-128 specifically.
+  - >-
+    A nonzero advantage on this statistic is a statement about the GENERATOR'S SHAPE ONLY. The
+    tracked object dissolves after one step and nothing downstream of A reads aligned blocks.
   - >-
     A zero or matching advantage establishes only that THIS observable does not separate the two
     distributions. It does not establish that they are close, and it must never be reported as
@@ -555,64 +755,132 @@ idea:
       the closed form; report the interval, not the point (KN-TECH-1a5b7e mode 5). If the two
       disagree beyond the interval, H2 is refuted and the sampler is replaced before any other arm
       is read. Sampled parameters: the standardized ones. No transfer assumption.
+  - id: H3
+    statement: >-
+      AES-128 under a PUBLIC, known key behaves like an ideal 128-bit random permutation with
+      respect to the aligned-block coincidence statistic, at m = n^2/8 <= 2^17.8 evaluations drawn
+      from the 2^32-point structured input subspace {i || j || 0^96}. Formally: the coincidence
+      count of {AES128(seedA, b) : b in the encoded index set} is identically distributed with that
+      of {pi(b) : b in the same set} for a uniformly random permutation pi.
+    rigorous_support: >-
+      The rigorous ingredient is bijectivity alone: BOTH objects are bijections, so BOTH produce
+      pairwise distinct outputs on distinct inputs, and at q = 2^16 the counts agree at exactly 0
+      with no assumption whatsoever. H3 has genuine content only at q = 2^15, where 8 bits per
+      block are dropped and the distribution of the reduced-block collisions could in principle
+      differ between a real cipher and an ideal permutation. This assumption is listed BECAUSE
+      NULL-0 tests it and BECAUSE its failure would be the only cipher-specific finding this
+      record could possibly produce - which is also why such a finding may not be reported without
+      independent re-derivation.
+    validation_plan: >-
+      NULL-0 is the validation route and it runs at the REAL parameters, not at toy scale: run the
+      identical counter over the identical encoded index set under (i) AES-128 with a fixed public
+      seedA and (ii) a lazily-sampled ideal permutation, >= 8 seeds each, at all three parameter
+      sets, and compare the coincidence counts and their intervals. Predicted distribution:
+      identical, at the exact closed forms of Stage 2. Tail check: the largest observed reduced-
+      block coincidence count at Frodo-640 under each generator, against the same exact predicted
+      tail. Transfer assumption: NONE - the sampled parameters are the standardized ones and the
+      input subspace is the real one. Record the seeds.
   target_complexity:
     time_exponent: >-
       NO ATTACK EXPONENT IS CLAIMED, and none could follow from this design. Cost of the
       MEASUREMENT: the closed forms are O(m) exact rational operations with m = n^2/8 <= 225792,
       i.e. sub-second; the counting arms are O(n^2) hash or cipher calls per draw, i.e. one matrix
-      generation each, which the reference implementations perform in milliseconds to seconds.
+      generation each, which the reference implementations perform in milliseconds to seconds. The
+      NULL-0 arm adds one more generator of the same cost per draw, at most doubling ARM 3.
       Total well under one hour single-core including all ladders.
     memory_exponent: >-
       No attack memory exponent is claimed. Peak storage is one A per arm, n^2 * D bits, at most
-      about 3.4 MB at Frodo-1344, plus a hash table of n^2/8 block digests, under 10 MB.
+      about 3.4 MB at Frodo-1344, plus a hash table of n^2/8 block digests, under 10 MB. The
+      lazily-sampled ideal permutation of NULL-0 needs a table of at most m = 225792 sampled
+      images, which is a further few megabytes and is why an ideal permutation is affordable here
+      at all.
     best_known: >-
-      There is no incumbent in this repository or, per the searches run, in the literature reached
-      this session, for a distinguishing advantage between Frodo-AES and Frodo-SHAKE. On the
-      attack frontier there is no row at all, because no attack is proposed. On the MEASUREMENT
-      axis the nearest committed object is nothing: the lane's eight proposals are chi-side.
+      ON THE MEASUREMENT AXIS THE INCUMBENT IS THE PRP/PRF SWITCHING LEMMA (recalled, external),
+      which bounds exactly the quantity this record computes, at zero compute, for every
+      permutation and hence with no cipher-specific content. This record does not improve it; it
+      instantiates the exact rather than leading-order form at three named m values and adds the
+      q = 2^15 eight-bits-dropped variant. CORRECTED 2026-08-24: the original text of this field
+      asserted 'no incumbent in this repository or in the literature reached this session', which
+      was a conclusion drawn from an empty in-repository grep and is withdrawn.
+      On the attack frontier there is no row at all, because no attack is proposed.
     hidden_overhead: >-
       The o(1) hides nothing because there is no asymptotic claim. What the COST estimate hides is
       human time: Stage 0's transcription gate and Stage 4's reading are the expensive parts and
       they are not compute, and Stage 0 is blocked outright until RQ-FRODO-3260cc.constraints[0]'s
-      source gate is opened.
+      source gate is opened. What the record's ORIGINAL FRAMING hid was worse and is now named:
+      the headline table's information content, which is zero beyond a textbook bound.
     tradeoff_note: >-
       Not applicable - memory is negligible and there is no search to parallelise. The only
       tradeoff worth naming is the opposite of the usual one: the exact closed forms cost less
       than the empirical controls, so the controls, not the result, dominate the budget. That is
-      the correct ordering under docs/inventor-protocol.md section 3.
+      the correct ordering under docs/inventor-protocol.md section 3, and after the NULL-0 addition
+      it is more true, not less.
   dominated_by: >-
-    n/a (no attack result claimed). Checked against the frontier this repository holds for
-    FrodoKEM before writing this: there is no time/memory/data row for any attack on FrodoKEM in
-    ledger/evidence, and RQ-FRODO-3260cc.constraints[5] excludes the implementation-attack
-    entries (KN-LIT-2088, KN-LIT-3859, KN-LIT-118, KN-TECH-047) from being scored here in either
-    direction. Writing 'null' would assert a check against a frontier row that does not exist,
-    which AGENTS.md rule 5 forbids. On the MEASUREMENT axis this record is dominated by nothing
-    because no record in the repository computes any A-side statistic for FrodoKEM.
+    ON THE MEASUREMENT AXIS: DOMINATED BY THE PRP/PRF SWITCHING BOUND m(m-1)/2 * 2^-128
+    (standard, recalled, not read this session). That bound is the incumbent for exactly the
+    quantity assertion A3 computes; it holds for every permutation, it therefore says nothing
+    about AES-128 specifically, and it costs ZERO compute against this record's minutes. An ideal
+    128-bit random permutation run through this record's own pipeline reproduces every entry of
+    the deliverable table exactly - that is NULL-0 - so on time, memory and data the incumbent
+    Pareto-dominates this record outright for the distinguishing-advantage question. This record
+    is NOT dominated on two narrower points: the exact rational form rather than the leading-order
+    bound at three named m values, and the q = 2^15 variant in which 8 bits per block are dropped,
+    for which the plain switching bound is not the tight statement. It is also not dominated on
+    the modelling and reading content of part (C) and Stage 4, which is not a cost triple at all
+    and for which no frontier row exists in this repository or in the literature this session
+    reached.
+    CORRECTED 2026-08-24: the original text read 'dominated by nothing because no record in the
+    repository computes any A-side statistic for FrodoKEM'. That asserted a gap that does not
+    exist. It scoped the frontier check to this repository and then reported the result as if it
+    were a check of the frontier, which AGENTS.md rule 5 forbids; the record's own novelty grep
+    (4) had searched for the string 'switching lemma' and recorded no incumbent on the strength of
+    an empty ledger. The claim is withdrawn and replaced above.
+    ON THE ATTACK AXIS: n/a (no attack result claimed). There is no time/memory/data row for any
+    attack on FrodoKEM in ledger/evidence, and RQ-FRODO-3260cc.constraints[5] excludes the
+    implementation-attack entries (KN-LIT-2088, KN-LIT-3859, KN-LIT-118, KN-TECH-047) from being
+    scored here in either direction. Writing 'null' would assert a check against a frontier row
+    that does not exist.
   sota_delta: >-
-    No attack; conceptual and measurement contribution only. Quantitatively: the repository
-    currently holds ZERO numbers describing FrodoKEM's matrix generator - no advantage, no
-    coincidence rate, no statistical-distance floor, no null floor - so the delta is the creation
-    of a first exact table with its controls, not an improvement on an existing figure. Against
-    the literature reached this session, the searches returned no work computing a Frodo-AES
-    versus Frodo-SHAKE distinguishing advantage; that is a negative search result and is not
-    asserted as a fact about the literature.
+    No attack; the contribution is one instantiation plus one reading question, and after the
+    2026-08-24 repair it is stated at that size.
+    ON THE MEASUREMENT AXIS THE DELTA IS NOT THE CREATION OF A FIRST TABLE - that claim is
+    WITHDRAWN. The incumbent is the PRP/PRF switching bound, which already answers the question
+    generically and at zero cost. What this record adds, quantitatively: the EXACT rational form
+    1 - prod_{i<m}(1 - i/2^128) rather than the leading-order m(m-1)/2 * 2^-128, at exactly three
+    m values (m = n^2/8 = 51200 / 119072 / 225792 for Frodo-640 / -976 / -1344); the q = 2^15
+    variant in which 8 bits per block are dropped and the forced zero disappears, which the plain
+    switching bound does not cover; and the exact statistical-distance floor 1 - 2^(128 - D*n^2)
+    beside it. The difference between the exact and the leading-order form at these m is small,
+    and the record does not pretend otherwise.
+    ON THE MODELLING AXIS the delta is unchanged by the repair and is the record's real content:
+    the repository holds no statement that a PUBLIC seedA places Frodo-AES in the known-key model
+    while Frodo-SHAKE sits behind sponge indifferentiability, and no verbatim record of what the
+    specification says about Gen. Against the literature reached this session, the searches
+    returned no work linking FrodoKEM's public seed to the known-key model; that is a negative
+    search result and is not asserted as a fact about the literature.
   estimated_cost:
     implementation: low
     compute: low
-  recommended_priority: medium
+  recommended_priority: low
   honest_prior_of_survival: >-
     By part, and the parts do not survive together. (i) That A1/A2 hold, i.e. the generator swap
     returns bitwise identical chi-side numbers: ~0.97 - this is close to an algebraic certainty
     and the 0.03 is pipeline risk, which is exactly why it is run as an instrument check.
     (ii) That the AES arm at q = 2^16 is forced to exactly zero coincidences: ~0.93, conditional
-    on the fetched encoding being right, which Stage 0 checks. (iii) That the resulting exact
-    advantage is strictly positive and below 2^-64 at Frodo-1344: ~0.9. (iv) That the filed
-    primary text is SILENT on the modelling assumption for Gen, i.e. part (C)'s reading outcome:
-    ~0.35 - I would bet against this, because specification authors usually say something, and a
-    single sentence naming a PRF or random-oracle assumption refutes it outright. (v) That any of
-    this ever bears on FrodoKEM's security: ~0.02, and the record is written so that a reader who
-    shares that estimate still finds the exact table worth having. (vi) That the whole run
-    produces a defensible table plus a defensible reading: ~0.9.
+    on the fetched encoding being right, which Stage 0 checks. (iii) That the NULL-0
+    ideal-permutation arm reproduces the AES arm exactly at every parameter set: ~0.97, and this
+    is a DERIVED value rather than a bet - the 0.03 is implementation risk in the lazy-permutation
+    sampler, not doubt about the mathematics. (iv) That the resulting exact
+    advantage agrees with the leading-order switching bound at all three m: ~0.95.
+    (v) That the filed primary text is SILENT on the modelling assumption for Gen, i.e. part (C)'s
+    reading outcome: ~0.35 - I would bet against this, because specification authors usually say
+    something, and a single sentence naming a PRF or random-oracle assumption refutes it outright.
+    (vi) That any of this ever bears on FrodoKEM's security: ~0.02. (vii) That the whole run
+    produces a defensible table plus a defensible reading: ~0.9 - but note that after the
+    2026-08-24 repair the TABLE is worth much less than this record originally claimed, because
+    an ideal random permutation produces it too. The honest expected value of this record now sits
+    almost entirely in (i) as an instrument check and (v) as a reading, which is why
+    recommended_priority was lowered from medium to low.
   status: proposed
   proposed_by: idea-generator
   proposed_at: '2026-08-21'
@@ -634,3 +902,84 @@ idea:
     --next idea --date 20260821 (random 6-hex token, no state scanned), each id then verified
     free with --check before assignment. No identifier was chosen by looking for the next free
     number (CLAUDE.md, Conventions).
+  repair_provenance:
+  - date: '2026-08-24'
+    by: idea-generator
+    finding: >-
+      Red-team BLOCKING 4 against this record: the headline statistic is the PRP/PRF switching
+      gap, the null object of the same shape was missing, and it reproduces the result exactly.
+    what_was_wrong: >-
+      A3's 'one statistic that can' see the generator choice counts coincidences among m = n^2/8
+      aligned blocks. Under Frodo-AES those are m values sampled WITHOUT replacement; under
+      SHAKE/uniform they are m iid values. The optimal advantage of that statistic is
+      m(m-1)/2 * 2^-128 - exactly the PRP/PRF switching-lemma bound, and a property of the
+      permutation-versus-function SHAPE, not of AES. An IDEAL 128-bit random permutation under a
+      public key reproduces every number in the deliverable table: the same forced zero at
+      q = 2^16, the same closed form at q = 2^15, the same advantage. The record had no such arm -
+      its nulls were uniform, defective-eps and constant-block, none of which is of the same shape
+      as the treatment - so its finding was a controlled null presented as a measurement.
+      Consequently dominated_by ('dominated by nothing because no record in the repository
+      computes any A-side statistic') and sota_delta ('the creation of a first exact table')
+      asserted a gap that does not exist, and the record's own novelty grep (4) had searched for
+      the string 'switching lemma' and still recorded no incumbent - drawing a literature negative
+      from an empty in-repository ledger.
+    repair: >-
+      THE OBJECT WAS NOT REWORDED; THE MISSING ARM WAS BUILT AND THE PAYOFF CLAIM WITHDRAWN.
+      (a) NULL-0 was added: an ideal 128-bit random permutation under a public key, on the
+      identical code path, with its forced value derived BEFORE the run and declared identical to
+      the AES arm at every parameter set, and with agreement declared in advance to be a
+      CONTROLLED NULL carrying no information about AES. It is listed first and run first. (b) A
+      new heuristic assumption H3 states exactly what NULL-0 tests and where it has content (only
+      at q = 2^15, where 8 bits per block are dropped), with its validation route at the real
+      parameters. (c) dominated_by was rewritten to name the PRP/PRF switching bound as the
+      incumbent on the measurement axis, at zero compute, Pareto-dominating this record on time,
+      memory and data for the distinguishing-advantage question; the two narrower points on which
+      it is not dominated (the exact rather than leading-order form; the q = 2^15 variant) are
+      stated as the narrow things they are. (d) sota_delta's 'creation of a first exact table' was
+      WITHDRAWN and replaced by 'instantiating a textbook bound at three named m values'. (e)
+      Claim (A)/A3, claim (B), claim (D), the object_first_candidate, the observation_collision,
+      the method_ceiling, target_complexity.best_known, the novelty screen's grep (4) and results,
+      and interpretation_limits were all corrected to say that the statistic reads the permutation
+      shape and can carry no AES-specific conclusion. (f) Two falsification conditions were added:
+      NULL-0 disagreeing with the AES arm, and the exact advantage disagreeing with the leading-
+      order switching bound. (g) A citation for the PRP/PRF switching lemma was added with
+      provenance `recalled` and verified_by null - it was NOT read this session and the
+      attribution must be confirmed by a reviewer with retrieval tools. (h) The hand arithmetic
+      m(m-1)/2 ~ 2^34.6 at m = 225792, giving an advantage of about 2^-93.4 / 2^-95.3 / 2^-97.7 at
+      Frodo-1344 / -976 / -640, was derived in this repair session and is labelled as hand
+      arithmetic, not as a measurement, and cites no run.
+    preserved: >-
+      Part (C) is NOT nullified by this control and remains the record's real content: AES-128
+      under a PUBLIC seedA sits in the known-key model where no standard-model assumption yields
+      pseudorandomness of A, while SHAKE128 sits behind sponge indifferentiability. The repair
+      strengthens rather than weakens the connection by noting the asymmetry explicitly - the
+      control that kills A3 (AES and an ideal permutation agree) is precisely the assumption (C)
+      says nothing supplies. Stage 1's algebraic invariance instrument check (A1/A2) and Stage 4's
+      three-way reading outcome are likewise untouched and are now the record's primary
+      deliverables.
+    claims_withdrawn: >-
+      WITHDRAWN: 'dominated by nothing because no record in the repository computes any A-side
+      statistic'; 'the delta is the creation of a first exact table with its controls'; 'there is
+      no incumbent in this repository or, per the searches run, in the literature reached this
+      session, for a distinguishing advantage between Frodo-AES and Frodo-SHAKE'; and the framing
+      of A3 as 'the one statistic that can see the generator choice' in the sense of seeing AES.
+    priority_change: >-
+      LOWERED from medium to low. Justification: the record's headline measurement is now
+      correctly identified as an instantiation of a zero-compute textbook bound, and what remains
+      - an algebraic instrument check that is close to a certainty, and a document-reading
+      question - is genuinely useful and genuinely cheap but is not a medium-priority deliverable
+      in a lane whose campaign budget is 10800 wall-clock seconds in total. The downgrade is the
+      correct outcome of the finding, not a concession. honest_prior_of_survival was rewritten to
+      say where the expected value now sits.
+    novelty_status: >-
+      Unchanged and still `unverified`, and now more clearly so: the added switching-lemma
+      citation is `recalled` with verified_by null, which by itself forces the label. The
+      crypto-kb retrieval index answered nothing this session and no provenance was upgraded.
+    verification_note: >-
+      NO SHELL WAS AVAILABLE TO THIS REPAIR SESSION, so the required
+      `python3 -c "import yaml; yaml.safe_load(...)"` parse check COULD NOT BE RUN by the repairing
+      agent. The file was rewritten in full from a full read and the YAML structure was checked by
+      inspection only. A parse check must be run by the next agent that has a shell before this
+      record is dispatched. A first rewrite of this file on 2026-08-24 introduced a malformed
+      proof_obligations entry (a folded block scalar followed by a sibling mapping key, which does
+      not parse); it was found by re-reading the written file and corrected in a second rewrite.
