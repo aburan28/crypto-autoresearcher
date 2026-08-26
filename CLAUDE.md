@@ -125,7 +125,7 @@ evidence rules above apply unchanged.
 
 ## Conventions
 
-- IDs: `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
+- IDs: `GOAL-<AREA>-<tok>`, `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
   `EXP-<AREA>-<tok>`, `RUN-*`, `EV-<AREA>-<tok>`, `DEC-YYYYMMDD-<tok>`,
   `TASK-YYYYMMDD-<tok>`, `BATCH-<tok>`, `KN-{LIT,TECH,FIND,OPEN}-<tok>`, where
   `<tok>` is a random 6-hex token. Immutable, never reused.
@@ -136,6 +136,8 @@ evidence rules above apply unchanged.
   breaking whatever archive binds it. Mint with
   `python3 tools/allocate_id.py --next <type> [--area X | --date YYYYMMDD]`,
   which draws a token **without scanning state**, then `--check` it before use.
+  A new persistent goal uses `--next goal --area AREA`; confirm the emitted
+  `GOAL-<AREA>-<tok>` with `--check` before authoring its record.
   `BATCH-<tok>` takes neither `--area` nor `--date`: `--next batch`.
   The legacy three-digit form stays valid forever — existing records and batch
   directories are immutable and must not be renamed. Cost, stated plainly: IDs
@@ -143,6 +145,21 @@ evidence rules above apply unchanged.
   for chronology.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
+- **A test that counts the whole corpus asserts a floor, never an exact
+  number.** The corpus grows with every research batch and is a different
+  size in every concurrent worktree, so an exact count fails on branches that
+  changed nothing and cannot be right in two worktrees at once. It also decays
+  silently: the first such assertion to fail masks the rest, which is how four
+  pins in `kb/tests/unit/test_repo_corpus.py` drifted together unnoticed.
+  Assert a floor plus per-family coverage read back off the rule table, so a
+  family that collapses to zero still fails while ordinary growth does not.
+  Exactness belongs on **disclosed debt** — unparseable records, duplicate
+  identifiers, suppressed redirects — which is closed and never grown, so any
+  addition there is a regression. Raise a floor only from a reviewed corpus,
+  and **never to turn a red test green**: a floor you moved to match what you
+  just measured has stopped being a check. Cost, stated plainly: a floor
+  cannot see a small partial loss, so keep the debt sets and structural
+  invariants exact to carry that precision.
 - The Coordinator alone stages declared research paths in the shared worktree:
   snapshot before review, then ledger commit before a state transition. Commit
   messages reference the task and record IDs; never rewrite history over

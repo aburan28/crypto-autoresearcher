@@ -6,7 +6,7 @@ Copy these records into experiment-specific YAML files. IDs are immutable.
 
 ```yaml
 research_goal:
-  id: GOAL-AREA-NNN
+  id: GOAL-AREA-abcdef
   title: null
   objective: null
   question_ids: []
@@ -54,6 +54,12 @@ research_goal:
 The goal record is an operational anchor, not evidence. Create and commit it
 with its initial question and handoff before dispatch. Update it only through a
 Coordinator ledger archive commit.
+
+For a new goal, mint the ID with
+`python3 tools/allocate_id.py --next goal --area AREA`, then confirm the exact
+result with `--check`; the six lowercase hex characters above are a placeholder,
+not a suffix to copy or choose manually. Existing `GOAL-AREA-001` records remain
+valid legacy history and must not be renamed merely to adopt the current form.
 
 `completion_quorum` **no longer gates** `status: completed` — the three-model
 quorum is suspended (AGENTS.md rule 13, restored via

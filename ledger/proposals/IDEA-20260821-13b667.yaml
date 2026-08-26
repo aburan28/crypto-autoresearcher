@@ -1,0 +1,811 @@
+idea:
+  id: IDEA-20260821-13b667
+  question_id: RQ-MLKEM-002
+  added: '2026-08-21'
+  title: >-
+    Certify the generator before trusting the gate's null: the detection probability of each
+    mutation class against each comparison-defect class is a closed form in the difference
+    SUPPORT, it has provably-zero cells, and the one defect class the lane's taxonomy cannot
+    express -- early-termination comparison, for which a published corpus records a random hit
+    rate of 2^-16 -- shows the taxonomy itself was incomplete
+  class: control
+
+  claim: >-
+    (A) THE QUESTION NOBODY IN THIS LANE HAS ASKED WITH A NUMBER. Three batches
+    (EXP-MLKEM-003 through -006) argued about whether the differential gate's adequacy control
+    was baseline-invisible and whether it was library-facing. None of them asked, and none of
+    them answered: WITH WHAT PROBABILITY DOES THIS GENERATOR EMIT AN INPUT THAT A COMPARISON
+    WITH DEFECT CLASS X WOULD FAIL TO REJECT? That number is the gate's statistical power, it
+    is what converts a null into evidence, and it is computable in closed form before any
+    build exists.
+    (B) THE CLOSED FORM. Let S subset of [0, L) be the SILENT SET of a defective comparison --
+    the byte positions at which a difference is not seen. Let a generated ciphertext differ
+    from the honest one on the support D subset of [0, L). For a comparison whose accumulate
+    step is OR-of-XOR over positions, the defect is EXPOSED by that input if and only if
+    D is not contained in S. Hence the per-probe detection probability is
+    P_hit(g, S) = 1 - Pr_g[D subset of S], and for a generator drawing D uniformly among
+    k-subsets of [0, L), P_hit = 1 - C(|S|, k) / C(L, k). Everything the gate can conclude
+    from a null is a statement about N * P_hit, and the lane has never written P_hit down.
+    (C) THE FORCED-ZERO CELLS, WHICH ARE THE POINT. Some (generator, defect) cells have
+    P_hit EXACTLY 0, by construction and not by bad luck. The condition is D subset of S, and
+    the direction of that containment is what decides the cell, so it is written out rather
+    than gestured at. Write c1 for the first 32*du*k ciphertext bytes and c2 for the trailing
+    32*dv. A generator confined to c2 draws D subset of [|c1|, L); against C-BND(N) with
+    N <= |c1| -- a comparison that stops at or before the start of c2, whose silent set is
+    S = [N, L) -- every drawable support satisfies D subset of S, so P_hit is EXACTLY 0. The
+    mirror case is NOT a zero cell and must not be misread as one, and it carries a CONDITION
+    that the containment argument does not survive without: a generator confined to c1 has
+    P_hit = 1 against C-BND(N) only when N >= |c1|, because only then is D subset of [0,|c1|)
+    subset of [0,N), i.e. D DISJOINT from S = [N, L), hence D not contained in S. For
+    N < |c1| the c1-confined cell is STRICTLY BETWEEN 0 AND 1 -- part of c1 is itself silent --
+    and asserting 1 there is the same containment error in the opposite direction. Verified by
+    brute-force enumeration over a structurally matched small analogue (L = 12, |c1| = 8,
+    |D| = 2) by the orchestrating coordinator session on 2026-08-21: the c2-confined cell is
+    0.000 at N = 4 and N = 8 and 0.833 at N = 10, while the c1-confined cell is 0.786 at
+    N = 4 and 1.000 at N = 8 and N = 10. Likewise a generator confined to lane positions the C-RED reduction does not
+    read has P_hit = 0 against that C-RED, while one confined to the lanes it does read has
+    P_hit = 1. A gate containing a zero cell reports "no defect found" with probability 1
+    whatever the peer does. That is KN-TECH-1a5b7e mode 1 -- the null that cannot fail --
+    located in the GENERATOR rather than in a control arm, which is where this lane has never
+    looked for it. EVERY CELL SIGN IN THE MATRIX IS TO BE DERIVED MECHANICALLY BY THE FROZEN
+    STAGE-2 SCRIPT AND NEVER BY HAND: an earlier draft of this very record inverted the
+    containment on the c1/c2 example, and the repaired draft then stated the mirror cell as an
+    unconditional 1 when it holds only for N >= |c1|. BOTH errors are recorded rather than
+    concealed, because two independent hand-derivations of the same three-line argument got it
+    wrong in two different directions, which is the strongest available argument for the frozen
+    enumeration this proposal is actually about.
+    (D) THE FIFTH CLASS, FOUND OUTSIDE, WHICH BREAKS THE PROJECTION. The lane's working
+    taxonomy is C-COV / C-BND / C-RED / C-FIN (IDEA-20260805-ee2018), and all four are
+    describable by a fixed silent SET of positions. The C2SP/CCTV ML-KEM test-vector corpus
+    (fetched and read this session) documents a defect class that is not: an implementation
+    using a string comparison, where a zero byte terminates the comparison early. Its silent
+    set is not a set of positions at all -- it is a predicate on ciphertext CONTENT, and it
+    varies input by input. CCTV records that the corresponding edge case has a "random
+    occurrence probability of 2^-16", i.e. a support-blind random generator needs on the order
+    of 2^16 probes where a targeted vector needs one. THIS RECORD'S CENTRAL CLAIM IS THEREFORE
+    TWO-PART: the closed form certifies the gate against the four position-classes, AND it
+    provably cannot certify it against the fifth, which the lane's taxonomy could not express
+    and which this session found only by going outside the repository.
+    (E) WHAT EACH ANSWER MEANS, DECLARED BEFORE THE RUN. If the certification matrix comes
+    back with every cell at power >= 0.99 at the sample budgets the archived runs actually
+    used, then those nulls were adequately powered against the classes they were pointed at,
+    the lane's undecidability was a PRECEDENCE problem (KN-TECH-054) and not a POWER problem,
+    and this proposal returns a clean negative that strengthens the existing record. If any
+    cell is at or near zero, then at least one archived "no defect found" is uninformative
+    against at least one class, and the record says exactly which cell and at what power.
+    (F) WHAT IS NOT CLAIMED. No attack, no oracle, no exploitation path, no attack-cost
+    estimate, no timing/power/EM/cache/fault measurement, no statement about MLWE hardness or
+    ML-KEM security. No claim that any implementation has any defect. Nothing here changes any
+    hypothesis status or re-reads any archived verdict; it computes what a future or past null
+    is worth, and only the Coordinator may act on that. Any newly observed conformance defect
+    escalates and is published by no agent.
+
+  mechanism: >-
+    STAGE 1 -- THE PROJECTION AND ITS EXACT DOMAIN OF VALIDITY. Write a blocked comparison as
+    ACCUMULATE (h <- h OR (a_block XOR b_block)), REDUCE (r <- f(h)), FINALIZE, following
+    IDEA-20260805-ee2018's anatomy. Under an OR-of-XOR accumulate, h's lane j is nonzero iff
+    SOME byte mapping to lane j differed; XOR differences cannot cancel across positions, and
+    OR cannot cancel across blocks. Therefore whether the verdict changes depends only on
+    WHICH positions differ, not by how much -- the difference support is a sufficient
+    statistic. THIS IS THE LOAD-BEARING STEP AND ITS FAILURE MODE IS NAMED: for an accumulate
+    that is arithmetic (sum, subtract-with-borrow) or checksum-like (CRC), two differences can
+    cancel and the support is NOT sufficient; for a comparison that terminates early on
+    content, the support is not even well defined as a fixed set. Both exclusions are
+    measured, not assumed (Stage 4).
+    STAGE 2 -- THE MATRIX, DERIVED WITH NO COMPUTE. Rows: the mutation classes the lane has
+    used or could use -- G1 single-byte at a uniform index; G2 k-byte uniform support; G3
+    suffix-biased (indices drawn from the last m bytes); G4 c2-only; G5 c1-only; G6
+    lane-aligned; G7 the CCTV targeted corpus. Columns: C-COV(w) with S the trailing
+    (L mod w) bytes; C-BND(N) with S = [N, L); C-RED(phi, p) with S a union of residue classes
+    mod p of density 1-phi; C-FIN with S determined at the finalize step; C-STRCMP with S
+    content-defined. Each cell is P_hit computed in closed form where the column is a fixed
+    set, and marked NOT-COMPUTABLE-BY-THIS-METHOD where it is not. The cells that come out
+    exactly 0 are then stated as small lemmas, each of the form "Pr[D subset of S] = 1" -- the
+    worked example being G4 (c2-only supports) against C-BND(N) with N <= |c1|, where
+    S = [N, L) contains the whole of c2 and therefore contains every support the generator can
+    draw. THE SIGN OF EVERY SUCH CELL IS DERIVED AND CHECKED BY THE FROZEN SCRIPT, NOT
+    ASSERTED BY HAND: getting a containment direction backwards is the single most likely
+    error in the whole proposal -- an earlier draft of this record made exactly that error on
+    exactly this example -- and mechanical enumeration over the declared support laws is what
+    catches it.
+    STAGE 3 -- SAMPLE-BUDGET TRANSLATION. For each archived run, read its actual mutation count
+    N from the committed run manifest and report power = 1 - (1 - P_hit)^N per cell, with a
+    Clopper-Pearson interval where P_hit is estimated rather than derived. A cell whose power
+    at the archived N is below a pre-declared 0.99 is flagged as UNCERTIFIED, which is a
+    statement about the instrument and not about any implementation.
+    STAGE 4 -- MEASURED CONFIRMATION AGAINST PLANTED COMPARATORS. Build planted comparators
+    realising each column at several parameter values, drive each generator against each at a
+    fixed probe budget, and compare the measured hit rate to the derived P_hit with binomial
+    intervals. A systematic shortfall localises accumulate-cancellation; a systematic excess
+    localises probe dependence (e.g. a generator that never repeats a support). Both are
+    reportable findings about the instrument.
+    STAGE 5 -- THE FIFTH COLUMN. Drive every generator against a planted early-termination
+    comparator and measure the hit rate. The derived expectation from the closed form is
+    NOT-COMPUTABLE; the externally reported random rate is 2^-16 (CCTV, attributed, not
+    re-derived here). Measuring it settles whether a support-blind generator can reach the
+    class inside any budget this program can afford, and whether the targeted corpus is
+    therefore a necessary component of any future gate.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX IS UNAVAILABLE THIS SESSION (in-memory Qdrant; it
+      answers nothing and says so only in its startup log). Retrieval was therefore the Grep
+      tool (ripgrep) over /home/user/crypto-autoresearcher plus WebSearch/WebFetch.
+      Commands and results as run: (G1) pattern `detection power|hitting set|generator
+      adequacy|adequacy probe|instrument adequacy`, -i, over ledger/, count mode -> 67
+      occurrences across 43 files, the top rows being GOAL-MLKEM-002 (3), EV-MLKEM-008,
+      EV-MLKEM-005, EV-MLKEM-010, H-MLKEM-004, H-MLKEM-005 (2), H-MLKEM-d9062d and four
+      TASK handoffs -- i.e. the lane's adequacy history is dense and every one of those
+      matches is about WHETHER a control is visible to the baseline, not about the numeric
+      power of the generator. (G2) pattern `strcmp|CCTV|C2SP|MAL-BIND|Kemmy`, -i, over
+      **/*.{yaml,md}, count mode -> 8 occurrences across 5 files: RQ-HYBRID-cdf2b2,
+      coordination/goals/GOAL-MLKEM-005/.../census.md, two GOAL-AES-003 review files and one
+      GOAL-AES-003 preregistration (4 occurrences). NOT ONE of them is under RQ-MLKEM-002 and
+      not one concerns ML-KEM comparison conformance. (G3) pattern `-O2|-O3|...|toolchain`
+      over ledger/proposals -> 4 files, none about generator power.
+      Read in full: RQ-MLKEM-002; the lane's five-proposal inventory; IDEA-20260805-3c957e and
+      IDEA-20260805-ee2018 in full (source of the C-COV/C-BND/C-RED/C-FIN taxonomy and of the
+      three-part comparison anatomy); IDEA-20260805-1beeca's claim and object blocks;
+      IDEA-20260724-002's claim and mechanism; GOAL-MLKEM-002's status, completion_criteria and
+      checkpoint dispositions (second_impl_unavailable at three checkpoints);
+      knowledge/techniques/KN-TECH-1a5b7e.md in full (modes 1-5, obligations 1-5);
+      docs/inventor-protocol.md; docs/target-result-profile.md.
+      Web: (W1) WebSearch `FIPS 203 ML-KEM encapsulation "modulus check" ByteEncode12
+      ByteDecode12 input validation` -> 9 links. (W2) WebFetch
+      https://github.com/C2SP/CCTV/blob/main/ML-KEM/README.md -> RETRIEVED AND READ; source of
+      the strcmp vector category, of the quoted rationale, and of the 2^-16 figure. (W3)
+      WebSearch `ML-KEM non-canonical public key encoding malleability binding MAL-BIND Kyber`
+      -> 9 links. (W4) WebFetch https://eprint.iacr.org/2024/523 -> RETRIEVED AND READ
+      (Schmieg), used only as context in a sibling proposal, not relied on here. (W5) WebFetch
+      of the FIPS 203 ipd PDF FAILED (unreadable conversion) -- recorded as infrastructure,
+      never as evidence.
+    results: >-
+      Inside the repository, the adequacy literature is entirely about the CONTROL ARM:
+      IDEA-20260724-001 proposes a baseline-invisible synthetic control; IDEA-20260724-002
+      proposes a library-facing interposed defective comparator and records that EV-MLKEM-007
+      answered adequacy "only as a harness tautology"; EV-MLKEM-009/010 adjudicate
+      INTERPOSE_COMPARE versus GNU ld --wrap. Every one of these asks "is the control wired to
+      the right place". NONE computes or measures the probability that a generated input would
+      expose a given defect. IDEA-20260805-ee2018 comes closest by deriving the forced SIZE of
+      a silent set, but it uses that size to classify a MECHANISM, never to compute a
+      generator's hit rate against it, and its own instrument is exhaustive single-byte
+      probing, for which the power question is trivially 1 and therefore never arises.
+      Outside, the CCTV corpus is an existence proof that targeted vectors are constructed for
+      exactly this reason, and its 2^-16 remark is a published statement of the very quantity
+      this proposal makes systematic. No search was made for academic work on mutation-testing
+      power or covering-array adequacy, and none is claimed; absence of a search result is not
+      evidence of absence.
+    verdict: >-
+      UNVERIFIED. Claimed new relative to this repository: taking the generator's difference
+      SUPPORT as the tracked object; the closed form P_hit = 1 - C(|S|,k)/C(L,k) and its
+      forced-zero cells; translating archived sample budgets into per-cell power; and the
+      observation that the lane's four-class taxonomy omits a content-defined class documented
+      in a public corpus. ASSEMBLED FROM KNOWN PARTS: the taxonomy is IDEA-20260805-ee2018's;
+      the null-that-cannot-fail framing is KN-TECH-1a5b7e's, applied to a new location; power
+      analysis and Clopper-Pearson intervals are ordinary statistics; the strcmp class and its
+      2^-16 figure are CCTV's and are attributed, not derived here.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE DIFFERENCE SUPPORT D = { i in [0, L) : c_mutated[i] != c_honest[i] }, followed from
+      the generator that draws it, through the accumulate step of the comparison, to the single
+      bit "was this input rejected". The generator, the ciphertext values, the key, the
+      plaintext and the arithmetic are all discarded; what is followed is a subset of position
+      indices and, at the end, the indicator 1{D not contained in S}.
+      ESTABLISHED FAMILIES DECLARED OFF-LIMITS as the primary lens for this record, per
+      inventor-protocol section 1: (a) the silent set S itself, which is IDEA-20260805-1beeca's
+      object and IDEA-20260805-ee2018's; (b) the residue L mod w, which is
+      IDEA-20260805-3c957e's; (c) the control-arm wiring question (baseline-invisibility,
+      library-facing interposition), which is IDEA-20260724-001's and -002's and is here
+      CONSUMED rather than revisited; (d) all cryptanalytic and physical-side-channel lenses,
+      excluded by RQ-MLKEM-002. S appears in this record only as a PARAMETER of the column, not
+      as the thing tracked.
+    lossiness: >-
+      Genuinely and heavily lossy, and the discard is compatible with the target's operations
+      for an OR-of-XOR accumulate and NOT compatible otherwise -- which is the whole content of
+      the projection test here. A mutated ciphertext is L bytes (768, 1088 or 1568); the
+      projection keeps only which positions moved, discarding all 8 bits of magnitude at each
+      moved position, i.e. it maps 255^{|D|} distinct inputs onto one object. The fibre over a
+      given D has size 255^{|D|} and is therefore enormous and non-singleton, so this is not a
+      change of coordinates. COMPATIBILITY: under OR-of-XOR, XOR of a nonzero delta is nonzero
+      regardless of magnitude and OR is monotone, so the accumulator's per-lane nonzero pattern
+      -- and hence the verdict -- is a function of D alone; the retained part propagates
+      deterministically. INCOMPATIBILITY, STATED IN ADVANCE: under an arithmetic accumulate two
+      deltas can cancel, and under early termination the verdict depends on the byte VALUES of
+      the honest ciphertext; in both cases the projection loses something the operation needs,
+      the retained part does not propagate, and the closed form is void. The proposal measures
+      exactly where that boundary is rather than assuming it.
+    propagation: >-
+      One step of the target operation is one accumulate of one block. Its propagation law is
+      exact and one line: lane j of h becomes nonzero iff D intersects the byte set mapping to
+      lane j. Composing over blocks, the verdict is REJECT iff D intersects the union of lanes
+      the reduce step reads, i.e. iff D is not contained in S. That is a deterministic law with
+      no probability in it; the probability enters only through the generator's law for D, which
+      is the object's distribution and is chosen, not discovered.
+    survival_score: >-
+      Survives exactly two steps and dies at the third, and the death is the finding. Step 1,
+      accumulate: survives, by the law above. Step 2, reduce: survives, because a reduce that
+      reads a lane subset simply shrinks the covered set, which is how C-RED enters as a
+      column. Step 3, FINALIZE AND CONTENT-DEPENDENT COMPARISON: DIES. C-FIN can lose the bit
+      after the support has already done its work, and C-STRCMP makes the effective silent set
+      a function of the honest ciphertext's own bytes, so no fixed S exists and the projection
+      has nothing to be a projection of. The proposal reports the survival boundary as a
+      deliverable: two classes certifiable, two not, with the second pair named.
+
+  null_object_control: >-
+    THREE controls, all on the identical measurement path, all with forced values derived
+    before any run, and ALL ABLE TO FAIL. KN-TECH-1a5b7e's null-first rule applies: every
+    verdict is emitted on the null arms and committed BEFORE any real generator or archived
+    budget is scored.
+    NULL-A, THE ZERO-POWER CELL (must report zero). A generator constructed to draw supports
+    only from inside a declared silent set S0 -- literally D subset of S0 by construction --
+    driven against a planted comparator with exactly that S0. FORCED: zero detections in N
+    probes, for every N. This can fail: any detection at all means either the planted
+    comparator's silent set is not S0 or the generator escapes its declared support, and in
+    either case NO cell in the matrix is reportable. The measured value is not "0" but a
+    binomial UPPER BOUND on power at the executed N, which is the honest form.
+    NULL-B, THE UNIT-POWER CELL (must report one). A generator that always includes index 0 in
+    its support, against a planted comparator whose silent set excludes 0. FORCED: detection on
+    every probe. If it misses even once, the harness is losing detections and every measured
+    hit rate is a lower bound of unknown slack.
+    NULL-C, THE GRADED ARM WITH FIVE INTERIOR POINTS AND MONOTONICITY REPORTED. Planted
+    comparators with |S|/L in {0, 0.25, 0.5, 0.75, 1.0} at fixed k, against G2. The closed form
+    predicts P_hit = 1 - C(|S|,k)/C(L,k), which is STRICTLY DECREASING in |S| -- so unlike the
+    non-monotone case KN-TECH-1a5b7e warns about, monotonicity here is DERIVED and its failure
+    is a falsifier of the closed form rather than a caveat on the reading. The check is the
+    residual against the predicted curve at all five points, not the ordering alone.
+    WHY THESE ARE NOT DECORATIVE. NULL-A is the direct instantiation of mode 1 and it is
+    constructed to be the thing the whole proposal claims can exist inside a real gate; if the
+    apparatus cannot exhibit a zero cell deliberately, its claim that a real gate might contain
+    one accidentally is not measurable. COMPARATOR REPLICATION (mode 5): every generator is a
+    stochastic ensemble, so each cell is drawn at least 8 times with independent seeds and the
+    INTERVAL is reported, never a single draw; and the rule "cell is UNCERTIFIED if power <
+    0.99" has its own false-positive rate derived before the run and checked leave-one-out
+    against the null draws afterwards.
+
+  discriminated_from:
+    - >-
+      IDEA-20260724-001 (baseline-invisible synthetic control) and IDEA-20260724-002
+      (library-facing adequacy probe, widened peer) both repair WHERE the control is wired and
+      whether the baseline generator can see it. Neither computes a probability. A control that
+      is perfectly invisible to the baseline and perfectly library-facing still tells you
+      nothing if the generator's hit rate against the class in question is 10^-5 at the budget
+      run. This record is orthogonal to both and consumes their conclusions unchanged.
+    - >-
+      IDEA-20260805-ee2018 derives the forced SIZE and PERIOD of a silent set to classify a
+      mechanism, and proposes exhaustive single-byte probing as the instrument. Under exhaustive
+      probing the power question is trivial (every index is probed, so power is 1 for any
+      position-defined class), which is precisely why that record never needed this one. The
+      moment the gate uses anything cheaper than exhaustive probing -- which every multi-class
+      mutation generator in EXP-MLKEM-003..006 does -- power stops being 1 and stops being
+      known. This record is about that regime.
+    - >-
+      IDEA-20260805-3c957e proves parts of the search space arithmetically EMPTY. That is a
+      statement about which defects can EXIST at ML-KEM lengths. This is a statement about which
+      existing defects a given generator can SEE. A class can be reachable and invisible, or
+      unreachable and trivially visible; the two axes are independent and the matrix reports
+      both by keeping the column set aligned with 3c957e's classes.
+    - >-
+      IDEA-20260805-1beeca audits an observation collision between two MECHANISMS producing the
+      same silent set. This record audits a collision of a different kind -- between "no defect"
+      and "no power" producing the same VERDICT -- and the two collisions are at different
+      stages of the pipeline: 1beeca's is between mechanism and observation, this one is between
+      observation and conclusion.
+    - >-
+      A mutation-testing or fuzzing coverage report counts mutants killed. This computes, per
+      defect class, the probability of killing, derives which cells are exactly zero, and
+      translates an archived sample budget into a power number for an archived null. Nothing
+      here generates a corpus for its own sake or reports coverage as a score.
+
+  citations:
+    - ref: https://github.com/C2SP/CCTV/blob/main/ML-KEM/README.md
+      provenance: retrieved
+      claim: >-
+        The C2SP Community Cryptography Test Vectors ML-KEM corpus documents, among its
+        categories, "strcmp vectors" addressing the case that "If an implementation were to use
+        `strcmp()` for that comparison it would fail to reject some ciphertexts if a zero byte
+        terminates the comparison early", exercising a case where implicit rejection in
+        ML-KEM.Decaps could be bypassed, "with random occurrence probability of 2^-16". It also
+        documents a `modulus/` category of invalid ML-KEM.Encaps inputs and an "unlucky NTT
+        sampling" category. RELIED ON FOR: the existence of the content-defined comparison
+        defect class (the fifth column) and for the 2^-16 figure, WHICH IS ATTRIBUTED AND WAS
+        NOT RE-DERIVED IN THIS SESSION.
+      verified_by: idea-generator@2026-08-21
+    - ref: IDEA-20260805-ee2018
+      provenance: internal
+      claim: >-
+        The C-COV / C-BND / C-RED / C-FIN taxonomy, the three-part accumulate/reduce/finalize
+        anatomy, the forced silent-set size L*(1-phi) for a reduction deficit, and the archived
+        pre-fix NEON profile (384, 544, 784) it is matched against. Read in full this session.
+      verified_by: idea-generator@2026-08-21
+    - ref: knowledge/techniques/KN-TECH-1a5b7e.md
+      provenance: internal
+      claim: >-
+        Null sufficiency: the five obligations, mode 1 (the null that cannot fail), mode 4 (the
+        decision rule that cannot discriminate, with the null-first check), and mode 5 (the
+        generated comparator read at n = 2, with the >= 8 draws rule and the derived
+        false-positive rate). Read in full this session and applied literally.
+      verified_by: idea-generator@2026-08-21
+    - ref: EV-MLKEM-005
+      provenance: internal
+      claim: >-
+        The archived pre-fix silent sets: AVX2 exactly {1536..1567} at ML-KEM-1024 with zero at
+        the other two parameter sets; NEON cardinalities 384, 544, 784 under an (i mod 64) >= 32
+        pattern; post-fix zero everywhere. Reached first transitively through
+        IDEA-20260805-ee2018 and IDEA-20260805-3c957e, both of which were read in full; the
+        evidence record was then READ FIRST-HAND by the orchestrating coordinator session on
+        2026-08-21, which confirmed each of those figures in its observations block. Stage 0
+        re-reads it as a run input regardless.
+      verified_by: coordinator@2026-08-21 (orchestrating session; source read in full this session)
+    - ref: KN-TECH-054
+      provenance: internal
+      claim: >-
+        The self-defeating precedence design that ranked "instrument added nothing" above the
+        target conclusion, per RQ-MLKEM-002's motivation and GOAL-MLKEM-002's
+        predecessor_disposition. Reached first through those two records; the technique entry
+        was then READ FIRST-HAND by the orchestrating coordinator session on 2026-08-21, which
+        confirmed its title and its `applicability` clause naming exactly the two-part condition
+        (a protocol that ranks an "added instrument contributed nothing" outcome above its
+        substantive conclusion, and measures instrument adequacy by marginal findings over a
+        baseline class).
+      verified_by: coordinator@2026-08-21 (orchestrating session; source read in full this session)
+    - ref: null
+      provenance: recalled
+      claim: >-
+        That mutation-adequacy and covering-array power analysis are established areas of
+        software testing with a standard hitting-set formulation. RECALLED, NOT SEARCHED, NOT
+        VERIFIED. Named so a reviewer with retrieval can find the prior art that may well
+        settle the methodological novelty of the closed form; the repository-relative novelty
+        claim does not depend on it.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The archived runs' actual mutation counts N and generator definitions are recoverable
+      from committed run manifests. If they are not, Stage 3 cannot be run against history and
+      the matrix is delivered prospectively only, which is a reduced but still complete
+      deliverable.
+    - >-
+      Planted comparators can be built realising each column at declared parameters, on the
+      admitted GNU ld --wrap instrument (EV-MLKEM-010) and never the refuted call-site
+      INTERPOSE_COMPARE method (EV-MLKEM-009).
+    - >-
+      Generator classes G1-G6 can be implemented to draw supports exactly as declared, and the
+      declaration is verifiable by inspecting the emitted supports rather than trusting the
+      code -- NULL-A depends on this and fails loudly if it is false.
+    - >-
+      No conclusion transfers to any generator, defect class, parameter set or budget not in
+      the executed matrix. A power number is a property of a (generator, defect, budget) triple
+      and of nothing else.
+
+  predictions:
+    - metric: >-
+        zero_cells: the number of (generator, defect-class) cells in the frozen matrix whose
+        derived per-probe detection probability is exactly 0
+      direction: higher
+      minimum_effect: >-
+        At least 1, over the seven generator rows and five defect columns. Zero such cells
+        would mean every generator class considered can in principle expose every defect class
+        considered, and the mode-1 hazard does not arise in this gate's design space -- a clean
+        negative that is fully reportable and would make the certification exercise cheap
+        rather than pointless.
+    - metric: >-
+        closed_form_residual: max over the graded NULL-C points of |measured hit rate -
+        derived P_hit|, in units of the binomial standard error at the executed probe count
+      direction: lower
+      minimum_effect: >-
+        Below 3 standard errors at every point. Above that, the support-sufficiency assumption
+        H1 is wrong for the tested accumulate and the closed form is withdrawn for that column.
+    - metric: >-
+        archived_power: the minimum, over all cells instantiated from an archived run's own
+        generator and budget, of 1 - (1 - P_hit)^N
+      direction: different
+      minimum_effect: >-
+        No direction is predicted and the refusal is deliberate. A minimum >= 0.99 means the
+        archived nulls were adequately powered against the classes they were aimed at and the
+        lane's undecidability was a precedence problem, not a power problem. A minimum near 0
+        names a specific archived null that carries no information against a specific class.
+        BOTH are first-class outcomes and neither changes any record's status; only the
+        Coordinator may act on either.
+    - metric: >-
+        strcmp_hit_rate: the measured detection rate of the support-blind generators G1-G6
+        against a planted early-termination comparator, over the largest affordable probe count
+      direction: lower
+      minimum_effect: >-
+        Consistent with the externally reported 2^-16 to within the binomial interval at the
+        executed count, OR reported as "below the resolution of the executed budget" if the
+        budget cannot reach 2^16 probes with useful precision. Saying the budget could not
+        resolve it is the honest outcome and is not a null.
+    - metric: >-
+        NULL-A detections and NULL-B misses
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 for both, with no tolerance. Either being nonzero voids the entire matrix.
+
+  minimal_test:
+    design: >-
+      The MINIMAL discriminating version is Stages 1-3 only and needs NO BUILD AND NO
+      COMPARISON EXECUTION AT ALL: freeze the generator and defect definitions, enumerate the
+      35-cell matrix under a frozen script, compute P_hit per cell in closed form, mark the
+      not-computable cells, and translate every archived run's recorded budget into a power
+      number. That is minutes of arithmetic and it already produces the deliverable that
+      decides whether the expensive stages are worth running -- if no cell is below 0.99 at
+      archived budgets, Stage 4 is optional. THE FULL VERSION adds Stage 4 (planted comparators
+      x seven generators x >= 8 seeds x a probe ladder, with binomial intervals) and Stage 5
+      (the early-termination column at the largest affordable probe count, which is where the
+      cost lives: resolving a 2^-16 rate to within a factor 2 needs on the order of 10^6
+      probes). This is the most expensive proposal in this batch and it is aimed at the
+      highest-value question in the lane, which is what a null from this gate is worth.
+    controls:
+      - NULL-A, the constructed zero-power cell; forced zero detections; voids the matrix if it fires.
+      - NULL-B, the constructed unit-power cell; forced zero misses; voids the matrix if it misses.
+      - NULL-C, five graded |S|/L points with a DERIVED monotone prediction; residual scored against the closed form.
+      - >-
+        COMPARATOR REPLICATION (KN-TECH-1a5b7e mode 5): >= 8 independent seeds per stochastic
+        cell, interval reported, never a point.
+      - >-
+        NULL-FIRST DECISION RULE (mode 4): the UNCERTIFIED/CERTIFIED rule is emitted on NULL-A
+        and NULL-B before any real cell is read; if it returns the same label on the null arm
+        as on the real arm, it discriminates nothing and is rewritten before anything is read.
+      - >-
+        NEARBY-OBJECT CONTROL WHERE THE METHOD MUST FAIL: an arithmetic-accumulate comparator
+        (sum of per-byte differences) in which two chosen deltas cancel exactly. The closed form
+        must be reported as VOID for it, not as a number. A pipeline that emits a P_hit for this
+        object has not identified the load-bearing structure, which is the OR-of-XOR algebra.
+      - >-
+        ORDERING CONTROL: the derived matrix and all forced values are committed and hashed
+        before any measurement; archived budgets are read only after the matrix is frozen, so a
+        threshold cannot be chosen to make a historical null look good or bad.
+      - >-
+        ARCHIVE CHECK (zero compute): list every archived measurement of a hit rate or detection
+        count in the corpus and check that at least one named outcome of the rule is consistent
+        with all of them; where the statistic is new to the program, say so rather than claiming
+        the check was available.
+    required_metrics:
+      - the frozen 35-cell matrix with per-cell derived P_hit, its script and hash
+      - the explicit list of exactly-zero cells with a one-line proof each
+      - the explicit list of not-computable-by-this-method cells with the reason
+      - per-cell measured hit rate with >= 8 seeds and a Clopper-Pearson interval
+      - per-archived-run power, with the run manifest ID the budget N was read from
+      - NULL-A detection count, NULL-B miss count, NULL-C residual table
+      - the derived and observed false-positive rate of the CERTIFIED/UNCERTIFIED rule
+      - the measured early-termination hit rate or an explicit statement that the budget could not resolve it
+
+  falsification_conditions:
+    - >-
+      zero_cells = 0 over the frozen matrix. The central worry -- that a real gate can contain
+      a generator/defect pair with identically zero power -- does not arise in this design
+      space, and the record says so. This is a negative and it is a deliverable.
+    - >-
+      closed_form_residual above 3 standard errors at any graded point. H1 (support sufficiency)
+      fails for the tested accumulate; the closed form is withdrawn for that column and the
+      measured curve replaces it, with the mechanism of the discrepancy named.
+    - >-
+      NULL-A detects, or NULL-B misses. Instrument failure; NO cell, no archived power number
+      and no certification verdict is reportable.
+    - >-
+      Archived budgets and generator definitions are not recoverable from committed manifests.
+      Stage 3 is not executable; the matrix is delivered prospectively and the record says
+      explicitly that it makes no statement about any archived null.
+    - >-
+      Every cell has power >= 0.99 at every archived budget. The archived nulls were adequately
+      powered; the lane's undecidability is attributed to precedence (KN-TECH-054) and not to
+      power, and this proposal's premise is refuted in the most useful possible way.
+    - >-
+      Build or fetch failures. INFRASTRUCTURE outcome under AGENTS.md rule 3, never negative
+      evidence about any implementation or any generator.
+
+  confounders:
+    - >-
+      SUPPORT SUFFICIENCY IS AN ALGEBRAIC PRECONDITION, NOT A UNIVERSAL FACT. The entire closed
+      form rests on OR-of-XOR accumulation. Any comparator outside that algebra is out of the
+      method's domain and must be reported as out of domain rather than assigned a number. The
+      arithmetic-accumulate control exists to catch a pipeline that forgets this.
+    - >-
+      PROBE INDEPENDENCE. A generator that samples supports without replacement, or that
+      systematically covers positions, has hit rate ABOVE the i.i.d. formula 1 - (1-P_hit)^N.
+      Reporting i.i.d. power for such a generator understates it. The measured arm is what
+      settles this and the report must state which formula was used per row.
+    - >-
+      THE COLUMN SET IS NOT PROVEN EXHAUSTIVE, AND THIS SESSION HAS DIRECT EVIDENCE THAT IT IS
+      NOT. The lane's four classes were treated as the taxonomy; a public corpus documents a
+      fifth that none of them expresses. A certification matrix over five columns certifies
+      against five columns and asserts nothing about a sixth, and any reading of a full green
+      matrix as "the gate is adequate" is exactly the premature-closure failure the inventor
+      protocol names.
+    - >-
+      POWER IS NOT PRESENCE AND NOT ABSENCE. A high-power cell plus a null means the class is
+      absent in the tested peer AT THAT PARAMETER SET AND BUDGET. A low-power cell plus a null
+      means nothing at all. Neither is evidence about any implementation not tested.
+    - >-
+      THE 2^-16 FIGURE IS ATTRIBUTED, NOT DERIVED. It is quoted from a fetched public README
+      and was not re-derived in this session. If Stage 5's measurement disagrees with it, the
+      record reports the disagreement and does not adjudicate the external source.
+    - >-
+      SELECTION OF GENERATOR ROWS. G1-G6 are constructed for this matrix; whether they resemble
+      the generators the archived runs actually used is settled by reading the manifests, and
+      where a manifest's generator does not match any row, the row set is extended and the
+      extension is recorded rather than the generator being forced into the nearest row.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT AN ORACLE, NOT AN EXPLOITATION PATH, NOT A COST ESTIMATE, NOT A
+      STATEMENT ABOUT MLWE HARDNESS OR ML-KEM SECURITY AT ANY PARAMETER SET. RQ-MLKEM-002's
+      constraints bind unchanged; any newly observed conformance defect escalates to the
+      coordinator and is published by no agent.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002, for any hypothesis, or for any archived
+      evidence or decision record. Computing what an archived null was worth is not re-reading
+      that null's verdict, and this record explicitly does not do so. Only the Coordinator may.
+    - >-
+      Claim tier laboratory/toy, not raisable by citation. A power matrix computed on planted
+      comparators at three standardized ciphertext lengths is laboratory conformance evidence
+      about an instrument, and is never crypto-scale or MLWE evidence.
+    - >-
+      A fully certified matrix does NOT establish that any comparison is correct, that any
+      implementation is defect-free, or that the taxonomy is complete. It establishes that
+      declared generators have declared power against declared classes at declared budgets.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        SUPPORT SUFFICIENCY. FOR ALL comparisons whose accumulate step is
+        h <- h OR (a_block XOR b_block) with a contiguous byte-to-lane map, and FOR ALL input
+        pairs, the comparison's verdict depends on the pair only through the difference support
+        D = { i : a[i] != b[i] }; consequently the verdict is REJECT iff D is not contained in
+        the silent set S determined by the reduce step.
+      rigorous_support: >-
+        Rigorous, not distributional, within its stated algebra: XOR of a nonzero byte
+        difference is nonzero irrespective of magnitude, and OR is monotone and idempotent, so
+        no two differences can cancel and no difference can be undone by a later block. It
+        imitates no classical distribution theorem and is not presented as one. It is FALSE for
+        arithmetic or checksum accumulates and UNDEFINED for content-dependent early
+        termination, and both exclusions are part of the statement rather than caveats to it.
+      validation_plan: >-
+        Measured at three scales on the admitted GNU ld --wrap instrument. (i) Exhaustive at
+        L = 768: all 768 positions x all 255 nonzero single-byte deltas against each planted
+        column, checking that the verdict is constant in the delta value at every position --
+        a direct test of value-independence, 195,840 probes per comparator, seconds of compute.
+        (ii) Two-position: for a sample of 10^4 position pairs, all 255^2 delta pairs on a
+        reduced subset, hunting cancellation. (iii) The arithmetic-accumulate nearby object,
+        where cancellation is CONSTRUCTED and must be observed -- if it is not observed there,
+        the cancellation hunt has no power and neither does its null result. Predicted
+        distribution: a degenerate one (verdict constant in value); the tail check is the
+        maximum over positions of the number of delta values disagreeing with the position's
+        majority verdict, which must be 0.
+    - id: H2
+      statement: >-
+        GENERATOR SUPPORT LAW. FOR EACH declared generator row g there is an explicit law over
+        subsets D of [0, L) -- uniform k-subsets for G2, uniform singletons for G1, uniform over
+        a declared index range for G3-G6 -- and successive probes draw D independently.
+      rigorous_support: >-
+        True by construction for generators written for this matrix; NOT NECESSARILY TRUE for
+        the generators used in the archived runs, which may deduplicate, may stratify, or may
+        be seeded so that supports are negatively correlated. This is the assumption most
+        likely to be violated in the Stage-3 translation of archived budgets, and it biases
+        power DOWNWARD when violated (dependence through coverage raises the hit rate), so the
+        archived power numbers computed under it are CONSERVATIVE -- a direction that is stated
+        because it matters for how a low number should be read.
+      validation_plan: >-
+        Emit and store the actual supports drawn by each row over 10^5 probes; test the
+        empirical index-frequency histogram against the declared law with a chi-square, and
+        test independence between consecutive probes by the pairwise index co-occurrence matrix
+        against its product-of-marginals prediction. For archived generators, read the manifest
+        and, where the law cannot be recovered, report the cell as "budget known, law unknown"
+        rather than computing a power number from an assumed law.
+    - id: H3
+      statement: >-
+        COLUMN EXHAUSTIVENESS IS NOT ASSUMED. The five columns are the classes this program can
+        currently name; no claim is made that they exhaust the space of comparison-conformance
+        defect mechanisms.
+      rigorous_support: >-
+        None, and the negation has direct support: the fifth column was found this session in a
+        public corpus and is absent from the lane's own four-class taxonomy, which is
+        first-hand evidence that the enumeration was incomplete at least once.
+      validation_plan: >-
+        Adversarial: before freezing, require an independent reviewer to propose one comparison
+        defect not expressible as any of the five columns. If one is proposed, it becomes a
+        sixth column or an explicitly named out-of-scope class; if none is, the matrix records
+        that a single reviewer failed to extend it, which is a fatigue report and is labelled as
+        one, not as exhaustiveness.
+
+  proof_search_map:
+    bottleneck: >-
+      The inference "the gate returned no detection, therefore the peer has no defect of this
+      class". Its cost-free removal requires exactly one number -- the per-probe detection
+      probability -- and no other step in the gate changes what that inference is worth.
+    baseline_embedding:
+      parameter_slice: >-
+        Exhaustive single-byte probing over all L positions and all 255 deltas, which is the
+        instrument IDEA-20260805-ee2018 uses. In that slice P_hit = 1 for every position-defined
+        column by construction, so the certification matrix degenerates to all-ones and the
+        method reproduces the existing baseline exactly. The proposal is therefore a family
+        extension of the exhaustive instrument to sub-exhaustive budgets, not a different method.
+      reproduction_check: >-
+        Symbolic: substituting k = 1 and summing over all positions gives coverage of [0, L),
+        hence D not contained in S for some probe whenever S is a proper subset -- so
+        power = 1 exactly. Frozen fixture: the matrix script, run with the exhaustive row, must
+        emit power 1.0000 in every position-defined cell, checked before any other row is read.
+    observation_collision:
+      observable: >-
+        The gate's terminal verdict bit, "no mutation was accepted by the peer".
+      distinct_preimage_search: >-
+        The collision is exhibited, not hunted, and it is the proposal's reason to exist: the
+        object "peer has no defect of class X" and the object "generator has zero power against
+        class X" both map to the identical observable, on both sides of the claimed conclusion.
+        The additional condition that separates them is precisely the certified per-cell power,
+        and the proposal's content is producing it. A second, subtler collision is also named:
+        two different silent sets of equal cardinality give the identical P_hit under G1 and G2,
+        so the matrix identifies the SIZE of a class's silent set and not the class -- which is
+        why the columns are parameterized and why IDEA-20260805-ee2018's PERIOD observable, not
+        this one, is the mechanism discriminator.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Preserve more state than the gate's final verdict needs: carry the difference support
+          D and the per-probe detection indicator alongside the verdict, so the run record
+          contains the data from which power is estimable after the fact. The final goal needs
+          only the verdict; the stronger state is what survives to the next question.
+        predicted_gain: >-
+          Every future run of the gate becomes retrospectively certifiable at zero additional
+          compute, and the Stage-3 archived translation stops depending on H2's recoverability.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the verdict fixed at "no detection" and vary the forgotten structure -- the peer's
+          actual defect -- to construct two peers, one defect-free and one defective, that the
+          declared generator cannot distinguish at the declared budget. The intrinsic invariant
+          separating them is the silent set, which the verdict does not see.
+        predicted_gain: >-
+          A constructive, exhibited pair is a far stronger statement than a probability: it turns
+          "the null may be uninformative" into "here are two peers this gate provably cannot tell
+          apart at this budget", which is a falsifier of identifiability rather than a caveat.
+    quantifier_order: >-
+      What the gate's null appears to say: FOR ALL defect classes X, the peer has no defect of
+      class X. What it actually supports: FOR ALL X in the column set, EXISTS a power p(g, X, N)
+      such that with probability p the gate would have detected a class-X defect, and no
+      detection occurred. The witness p is allowed to depend on the generator, the class, the
+      parameter set and the budget -- four dependencies the uniform-looking conclusion never
+      mentions, and one of them (the class) can drive p to exactly 0. Writing the order out is
+      itself the argument for the matrix.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "Generator g, at budget N, would have exposed a defect of class X with probability at
+        least p, at ciphertext length L, on the tested accumulate algebra." Nothing about
+        classes outside the column set, nothing about comparators outside the OR-of-XOR algebra,
+        nothing about any peer not run, and nothing about parameter sets not tested.
+      nearby_object_control: >-
+        The nearby object on which the desired conclusion FAILS is the early-termination
+        comparator: it is a genuine comparison-conformance defect, it is documented in a public
+        corpus, and the method assigns it NO number because no fixed silent set exists. A method
+        that reported a confident power against it would have failed to identify the
+        load-bearing structure, which is the existence of a position-defined silent set. Emitting
+        NOT-COMPUTABLE there is the control passing.
+    proof_obligations:
+      - claim: Verdict depends on the input pair only through the difference support, under OR-of-XOR.
+        responsibility: correctness
+      - claim: P_hit = 1 - C(|S|,k)/C(L,k) for uniform k-subset supports.
+        responsibility: size
+      - claim: Exhaustive single-byte probing is the k=1, all-positions slice and gives power 1.
+        responsibility: baseline
+      - claim: At least one (generator, class) cell has P_hit exactly 0.
+        responsibility: strictness
+      - claim: Power at budget N is 1-(1-P_hit)^N under independent probes, and conservative otherwise.
+        responsibility: success_probability
+      - claim: Resolving a 2^-16-scale rate needs ~10^6 probes; the budget is stated before the run.
+        responsibility: runtime
+      - claim: Out-of-algebra and content-defined comparators are reported as out of domain.
+        responsibility: scope
+    not_applicable_reason: null
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; RQ-MLKEM-002 forbids attack-cost estimation and no
+      algorithm against any cryptographic problem is proposed. The complexity statement that IS
+      made is about INSTRUMENT COST, and it is stated with exponents because that is the only
+      honest form: exhaustive single-byte certification costs Theta(L * 255) probes, i.e.
+      1.96e5, 2.77e5 and 4.00e5 probes at L = 768, 1088, 1568; random k-subset probing reaches
+      detection probability 1 - eps against a class of non-silent density delta in
+      N = ln(1/eps) / (-ln(1 - (1 - (1-delta)^k))) probes, which is approximately
+      ln(1/eps)/(k*delta) for small k*delta -- so the cost is inverse-linear in the density of
+      the defect and inverse-linear in the mutation weight. For the content-defined column the
+      externally reported random rate is 2^-16, giving N on the order of 10^5 to 10^6 probes for
+      a useful interval against Theta(1) for a targeted vector: a ratio of about 2^16 in
+      instrument cost between a certified targeted corpus and support-blind random generation.
+      THAT RATIO IS THE ONE QUANTITATIVE HEADLINE THIS RECORD OFFERS, and its 2^-16 input is
+      attributed to a fetched public README and was not re-derived here.
+    memory_exponent: >-
+      n/a as an attack quantity. Storage is the emitted support table, O(N * k * log L) bits;
+      at N = 10^6 and k <= 8 this is well under a gigabyte, and the supports are the artifact
+      that makes every future run retrospectively certifiable.
+    best_known: >-
+      No incumbent exists in this repository: no record computes a detection probability, a
+      power, or a probe-count scaling for any conformance gate. The nearest incumbent is
+      exhaustive single-byte probing, which this reduces to at k = 1 with full coverage and
+      which it dominates on cost by the factor above while being strictly weaker in guarantee --
+      exhaustive probing certifies with probability 1 and random probing with probability
+      1 - eps, and that difference is stated rather than buried.
+    hidden_overhead: >-
+      Two honest overheads. First, the column set is not proven exhaustive and this session has
+      direct evidence it was not (the fifth class), so the matrix's completeness is bounded by
+      human enumeration and no amount of compute fixes that. Second, the closed form's validity
+      is an ALGEBRAIC precondition on the peer's accumulate step, which must be established by
+      reading the peer -- so certifying a gate against a real peer requires the same static
+      reading the rest of the lane has found contentious, and this record inherits that
+      difficulty rather than solving it.
+    tradeoff_note: >-
+      There is a genuine probe-count versus mutation-weight tradeoff and it is the useful part:
+      raising k lowers the probe count by roughly 1/k for small k*delta, but raises the chance
+      of cancellation in a non-OR accumulate and destroys the ability to LOCALISE the silent set
+      (a k-byte detection tells you D is not contained in S, not which position did it). The
+      matrix reports both axes so a future gate designer can choose. Parallelisation is
+      embarrassingly parallel across probes and across cells, with no shared state.
+
+  dominated_by: >-
+    n/a (no result claimed; no attack, no cost triple across time/memory/data, no algorithm
+    against any cryptographic problem, hence no Pareto row to be dominated on). On the
+    INSTRUMENT axis the frontier was checked row by row inside this repository on 2026-08-21:
+    exhaustive single-byte probing as used by EXP-MLKEM-002/005 and proposed by
+    IDEA-20260805-ee2018 DOMINATES this proposal on GUARANTEE (probability 1 versus 1 - eps) and
+    is DOMINATED on probe count (Theta(L*255) versus O(ln(1/eps)/(k*delta))); the
+    baseline-invisible synthetic control (IDEA-20260724-001) and the library-facing probe
+    (IDEA-20260724-002) are not comparable because they measure wiring, not power, and neither
+    dominates nor is dominated. Externally, exactly one row was checked -- the C2SP/CCTV
+    targeted corpus -- and it DOMINATES this proposal outright on the content-defined column:
+    it exposes that class in O(1) probes where every generator here needs ~2^16, and it already
+    exists and is public. That domination is real, it is stated rather than hidden, and it is
+    the strongest argument in this record for adopting a targeted corpus rather than a
+    cleverer random generator. No academic search for mutation-adequacy prior art was performed
+    and no external methodological novelty is claimed.
+  sota_delta: >-
+    No attack; instrument-certification contribution only. Quantitatively, against this
+    repository's own state: the number of (generator, defect-class, budget) triples in the
+    corpus with a stated detection probability is currently ZERO, and this proposal produces 35
+    of them plus an explicit list of the cells where the method provably cannot produce one.
+    Against the lane's four-class taxonomy the delta is one additional class, found externally,
+    that none of the four expresses. Against the archived nulls the delta is a power number per
+    null where there is presently none -- which may confirm them (power >= 0.99 everywhere, a
+    negative for this proposal and a strengthening of the record) or identify exactly which are
+    uninformative. Against the CCTV corpus the delta is negative on the fifth column and is
+    recorded as such.
+
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    By part. (i) That H1 (support sufficiency) holds exactly for OR-of-XOR comparators and is
+    confirmed by the exhaustive value-independence check: ~0.95, it is close to algebra. (ii)
+    That the closed form matches measured hit rates within 3 standard errors at all five graded
+    points: ~0.8; the likeliest failure is probe dependence in the generator rather than the
+    algebra. (iii) That at least one exactly-zero cell exists in the frozen matrix: ~0.85 -- the
+    c2-only and lane-aligned rows are close to constructed for it, which is a reason to weight
+    the finding as a demonstration rather than a discovery, and this record says so. (iv) That
+    at least one ARCHIVED null turns out to have power below 0.99 against a class it was aimed
+    at: ~0.4, and this is the part I would bet against; the archived instrument appears to have
+    been exhaustive single-byte at least some of the time, in which case power is 1 by
+    construction and the answer is a clean negative. (v) That the early-termination column is
+    resolvable within an affordable budget: ~0.6. (vi) That the matrix as a whole is delivered
+    with its zero cells and its not-computable cells honestly separated: ~0.9.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+    - RQ-MLKEM-002
+    - GOAL-MLKEM-002
+    - IDEA-20260724-001
+    - IDEA-20260724-002
+    - IDEA-20260805-ee2018
+    - IDEA-20260805-3c957e
+    - IDEA-20260805-1beeca
+    - knowledge/techniques/KN-TECH-1a5b7e.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - https://github.com/C2SP/CCTV/blob/main/ML-KEM/README.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py
+    --next idea --date 20260821 (random 6-hex token, no state scanned), each id then verified
+    free with --check before assignment. No identifier was chosen by looking for the next free
+    number (CLAUDE.md, Conventions).

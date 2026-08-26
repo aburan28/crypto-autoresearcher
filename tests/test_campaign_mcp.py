@@ -150,6 +150,24 @@ async def test_status_reads_projection_and_lease_but_cannot_mutate_it(peer_app) 
 
 
 @pytest.mark.anyio
+async def test_random_suffix_goal_is_accepted_by_mcp_projection(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    goal_id = "GOAL-TEST-a1b2c3"
+    _write_goal(repo, goal_id)
+    store = CampaignStore(tmp_path / "state" / "peer.sqlite", clock=Clock())
+    app = build_server(repo_root=repo, store=store, workspace_id="workspace-test")
+    try:
+        status = await _call(app, "get_coordination_status", goal_id=goal_id)
+    finally:
+        store.close()
+
+    assert status["goal_id"] == goal_id
+    assert status["goal_projection"]["goal_id"] == goal_id
+    assert status["goal_projection"]["status"] == "active"
+
+
+@pytest.mark.anyio
 async def test_checkout_is_session_scoped_and_rejects_authoritative_looking_input(peer_app) -> None:
     app, _, _ = peer_app
     await _call(

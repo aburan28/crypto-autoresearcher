@@ -1,0 +1,925 @@
+idea:
+  id: IDEA-20260821-6109f8
+  question_id: RQ-MLDSA-ffa0f5
+  goal_id: GOAL-MLDSA-002
+  added: '2026-08-21'
+  title: >-
+    An ML-DSA signature hands the public an EXACT bounded-noise linear
+    observation of t0 - u_j = (c t0)_j + r0_j with |r0_j| < gamma2 - beta, and
+    the noise bound is tightened by the signer's own Line-23 rejection - so t0
+    recovery is set-membership identification, whose error falls like 1/N and
+    not like 1/sqrt(N); target 3e4 to 1.2e5 signatures against the published
+    2e5 to 5e5, with a held-out-consistency certificate that needs no secret
+  class: algorithm
+
+  claim: >-
+    (A) THE OBSERVATION MODEL, DERIVED NOT ASSUMED. For a valid ML-DSA
+    signature the public can compute, for every one of the 256k coefficient
+    positions j, the integer
+        u_j := (A z - c t1 2^d)_j - w1'_j * 2 gamma2
+    where w1' = UseHint(h, A z - c t1 2^d) is exactly what FIPS 204 Algorithm 8
+    already computes. Substituting z = y + <<c s1>>, t = A s1 + s2 and
+    t1 2^d = t - t0 gives A z - c t1 2^d = r + <<c t0>> with r := w - <<c s2>>,
+    and the signer's own Line-23 check ||LowBits(w - c s2)||_inf < gamma2 -
+    beta forces HighBits(r) = HighBits(w) = w1, so w1' = HighBits(r) and
+        u_j = (c t0)_j + r0_j,  r0_j = LowBits(r)_j,  |r0_j| < gamma2 - beta.
+    THIS IS AN EXACT IDENTITY, not a statistical statement: each signature
+    yields 256k linear observations of t0 with KNOWN coefficients (the tau
+    signed negacyclic shifts selected by c) and additive noise of KNOWN BOUNDED
+    SUPPORT. The corpus does not contain it; IDEA-20260805-630606 derives that
+    the hint is the only t0-bearing component and bounds its ENTROPY, which is
+    a capacity statement about a channel whose actual output this identity
+    writes down.
+
+    (B) THE CONSEQUENCE THAT DECIDES THE COST. For additive noise with bounded
+    support, the maximum-likelihood estimator is not a mean, it is the FEASIBLE
+    SET - the polytope P_N = {x : |u_j^(i) - (c^(i) x)_j| < W for all i, j},
+    W := gamma2 - beta - and its diameter shrinks like 1/N, whereas any
+    averaging or least-squares estimator shrinks like 1/sqrt(N). GENERATOR-
+    COMPUTED, OUTSIDE THE HARNESS, NO RUN RECORD, RE-DERIVATION REQUIRED, from
+    FIPS 204 Table 1 with sigma_r0 = W/sqrt(3): the averaging estimator needs
+    N = 4 sigma_r0^2 / tau = 3.10e8 / 1.86e9 / 1.52e9 signatures at ML-DSA-44 /
+    -65 / -87 to reach per-coefficient error below 1/2, while the set-
+    membership estimator needs N = Theta(W / (sqrt(tau) * epsilon)) with
+    epsilon = 1/2, i.e. N in the band 3.0e4 to 1.2e5 at ML-DSA-44, 7.5e4 to
+    3.0e5 at -65 and 6.8e4 to 2.7e5 at -87, the band width being an honest
+    statement that the leading constant of the 1/N law is not pinned by this
+    derivation.
+
+    (C) THE FALSIFIABLE CLAIM. A set-membership decoder (interval constraint
+    propagation, then a Chebyshev-centre linear program on the active
+    constraints) recovers t0 EXACTLY at ML-DSA-44 from at most 1.2e5
+    signatures, certified two ways, and the measured error-versus-N curve has
+    log-log slope -1.0 +/- 0.15 rather than -0.5. The comparator is the
+    relayed published figure of 200,000 to 500,000 signatures (eprint
+    2024/1373, abstract page read this session, full text NOT read). If the
+    decoder needs at least 2e5 the published figure is already at the geometry's
+    limit and the honest deliverable is the confirmation plus the measured
+    slope; if the slope is -0.5 the whole 1/N premise is wrong and the
+    bounded-noise reading of the model is refuted.
+
+    (D) THE TWO CERTIFICATES, ONE OF WHICH NEEDS NO SECRET. Ground truth:
+    compare the recovered t0 coefficient-by-coefficient against the true t0
+    from the keypair (RQ-MLDSA-ffa0f5's certificate-first requirement).
+    Public: on a HELD-OUT block of signatures never used by the decoder, check
+    that every one of the 256k residuals u_j - (c t0_hat)_j lies in (-W, W).
+    A wrong t0 fails this at a rate that is computable in advance, so the
+    public certificate is a real check and not a tautology.
+
+    NOT A BREAK AND NOT A KEY RECOVERY. FIPS 204 declares t0 need not be
+    regarded as secret and the security argument treats it as public; this
+    proposal makes the standard's own sentence quantitative and says nothing
+    about MLWE, MSIS or SelfTargetMSIS in any direction. It runs no lattice
+    reduction and estimates no hardness parameter; a batch that finds itself
+    doing either has crossed into RQ-MLDSA-001 and must hand off.
+
+  mechanism: >-
+    (1) WHERE THE IDENTITY COMES FROM, STEP BY STEP. FIPS 204 Algorithm 7 sets
+    w = A y, w1 = HighBits(w), c~ = H(mu || w1Encode(w1)), z = y + <<c s1>>,
+    and rejects unless ||LowBits(w - <<c s2>>)||_inf < gamma2 - beta. That last
+    check is exactly what makes HighBits(w - <<c s2>>) = HighBits(w), because
+    ||<<c s2>>||_inf <= beta. Algorithm 8 computes w'Approx = A z - c t1 2^d,
+    which the algebra in claim (A) shows equals (w - <<c s2>>) + <<c t0>>, and
+    accepts only if UseHint(h, w'Approx) hashes to c~ - i.e. only if the
+    verifier's reconstruction equals the signer's w1. So for every ACCEPTED
+    signature the public simultaneously knows the exact integer w'Approx_j and
+    the exact high part of the unknown r_j. Subtracting recovers u_j. NOTE THE
+    DIRECTION OF THE LINK BETWEEN THIS GOAL'S TWO OBJECTS: the signing-only
+    Line-23 rejection is what narrows the noise support from 2 gamma2 to
+    2(gamma2 - beta). A signer that omitted that check would leak LESS per
+    signature, by a factor (gamma2)/(gamma2 - beta) in noise width. That is a
+    small effect (0.08% at ML-DSA-44) but it is signed, derived in advance, and
+    it is the only place in this lane where the two objects of
+    RQ-MLDSA-ffa0f5 touch quantitatively.
+
+    (2) WHY THE NOISE IS THE RIGHT SHAPE. r0 = LowBits(w - <<c s2>>) with w =
+    A y and y fresh per attempt, so r0 is independent of t0 given c; and
+    rejection sampling conditions it to the range (-(gamma2 - beta),
+    gamma2 - beta). The classical rejection-sampling argument says the accepted
+    r0 is (close to) uniform on that range. Uniform bounded noise is precisely
+    the regime where the MLE is the feasible set and where the estimator's
+    convergence rate is superefficient - the same phenomenon that makes the
+    minimum of n uniform samples converge at rate 1/n rather than 1/sqrt(n).
+
+    (3) WHY AVERAGING IS THE WRONG DECODER, WITH NUMBERS. Let c* denote the
+    conjugate c(X^-1). Then E[c* c] = tau, so t0_hat = (1/(N tau)) sum_i c_i* u_i
+    is unbiased with per-coefficient standard deviation sigma_r0 / sqrt(N tau),
+    plus a self-interference term of size sigma_t0 / sqrt(N tau) which is
+    smaller by sigma_r0/sigma_t0 = 23.2 at ML-DSA-44 and is therefore
+    negligible. GENERATOR-COMPUTED: W = gamma2 - beta = 95154 / 261692 /
+    261768; sigma_r0 = W/sqrt(3) = 54937.5 / 151088.6 / 151132.5; exact
+    recovery needs sigma_r0/sqrt(N tau) < 1/2, i.e. N > 4 sigma_r0^2 / tau =
+    3.0955e8 / 1.8635e9 / 1.5227e9. So plain averaging is three to four orders
+    of magnitude WORSE than the published attack - which is itself a finding,
+    because it means the published attack is already exploiting the bounded
+    support in some form and the interesting question is how much of it.
+
+    (4) THE DECODER, AS A THREE-RUNG LADDER, CHEAPEST FIRST. RUNG A (baseline,
+    must be run): the averaging estimator above, whose error curve is a
+    PREDICTED 1/sqrt(N) with a closed-form constant; it is the matched
+    baseline every later rung is scored against. RUNG B (interval constraint
+    propagation): maintain a box [lo, hi] containing t0; for each observation
+    u_j with support set S_j (the tau signed shifts selected by c), tighten
+    each coordinate by subtracting the current interval sums of the other
+    tau - 1 terms. Cost O(tau) per observation, i.e. N * 256k * tau = 1.2e9
+    integer operations per sweep at N = 3e4 and ML-DSA-44 - seconds per sweep
+    in vectorised code, streaming, memory O(256k). RUNG C (Chebyshev centre):
+    collect the constraints still active after rung B - a small fraction, since
+    only near-boundary observations bind - and solve the linear program
+    max{eps : |u - (c x)_j| <= W - eps} on that reduced system, then round.
+    RUNG C is where the 1/N rate is actually realised; rung B is what makes
+    rung C's constraint set small enough to solve.
+
+    (5) WHAT SEPARATES THE TWO HYPOTHESES, AND THIS IS THE POINT OF THE
+    DESIGN. E1 - THE GAP IS INTRINSIC: the published 2e5 to 5e5 is where the
+    geometry puts the recovery threshold, the measured slope is -1.0, and the
+    decoder lands at 2e5 or above. E2 - THE GAP IS SLACK: the decoder lands
+    near 3e4 to 1e5, the slope is -1.0, and the published figure is a property
+    of one algorithm rather than of the problem. E3 - THE MODEL IS WRONG: the
+    slope is -0.5, meaning the effective noise is not bounded-support-uniform
+    in the way (2) claims, most plausibly because the accepted r0's law is not
+    uniform on the truncated range or because the special top cell of Decompose
+    breaks the identity on a non-negligible fraction of coefficients. These
+    three are distinguished by ONE curve, measured on ONE run, and the curve is
+    cheap at small N.
+
+    (6) HOW MUCH INFORMATION IS ACTUALLY THERE, AS A TARGET RATHER THAN A
+    FLOOR. GENERATOR-COMPUTED: treating (c t0)_j as approximately Gaussian by
+    the central limit theorem over its tau terms, with variance tau * 2^(2d)/12,
+    against noise variance W^2/3, the per-coefficient signal-to-noise ratio is
+    0.0723 / 0.0120 / 0.0147 and the Shannon lower bound (1/2)log2(1 + SNR)
+    gives at least 0.0503 / 0.0086 / 0.0105 bits per coefficient, i.e. at least
+    51.5 / 13.2 / 21.5 bits per signature. Since H(t0) <= 256 k d = 13312 /
+    19968 / 26624 bits, roughly 259 / 1510 / 1236 signatures already carry as
+    much information as t0 contains. THIS IS A SUFFICIENCY COUNT, NOT A FLOOR -
+    the true floor is IDEA-20260805-630606's 34 / 60 / 58, and information
+    sufficiency does not imply a decoder exists. It is recorded because it says
+    where the ceiling of this line of work is: even a perfect set-membership
+    decoder at 3e4 signatures would sit two orders of magnitude above the point
+    where the information runs out, and naming that residual gap is more useful
+    than pretending it is closed.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP INDEX WAS UNAVAILABLE (in-memory Qdrant per the
+      operating brief); it was not called and nothing is attributed to it.
+      GREPS RUN, WITH COUNTS: (i) -i "linear program|polytope|bounded noise|
+      bounded-noise|Chebyshev center" over ledger/ -> 54 files, NONE of them
+      any of the five RQ-MLDSA-ffa0f5 proposals and none in area MLDSA at all
+      (the hits are ECDLP, multivariate and BKK records); (ii) -i "bit-plane|
+      bit plane|per-key dispersion|ACVP|interoperab" over the repository
+      (*.yaml, *.md) -> 39 files, none under RQ-MLDSA-ffa0f5; (iii) "MLDSA"
+      over ledger/hypotheses -> 8 files, two under this question.
+      READ IN FULL: RQ-MLDSA-ffa0f5, GOAL-MLDSA-002, the lane's 5-row proposal
+      inventory, IDEA-20260805-bb52fa, IDEA-20260805-630606; read in large part
+      IDEA-20260805-031ce2, IDEA-20260808-4f83f6, IDEA-20260808-e5f947.
+      WEB QUERIES RUN (6): S1 '"Uncompressing Dilithium''s public key" eprint
+      2024/1373 t0 recovery signatures' (8 links); S2 'Dilithium t0 recovery
+      from signatures hint bits linear programming bounded noise' (8 links);
+      S3 'Azevedo Oliveira Calle Viera Cogliati Goubin "Uncompressing
+      Dilithium" method recover t0 maximum likelihood distribution hint' (10
+      links); S4 ACVP ML-DSA sigVer test vectors (9 links); S5 'Dilithium t0
+      recovery "least significant" bits harder more signatures per bit plane
+      precision estimator' (8 links); S6 ML-DSA differential testing /
+      conformance (10 links).
+      FETCHED AND READ (LANDING/ABSTRACT PAGES ONLY): eprint.iacr.org/2024/1373,
+      eprint.iacr.org/2024/2046, eprint.iacr.org/2025/195,
+      eprint.iacr.org/2026/1333.
+      FETCH FAILURES RECORDED AS FAILURES: eprint.iacr.org/2024/1373.pdf and
+      eprint.iacr.org/2025/195.pdf both returned binary the fetch tool could
+      not parse; link.springer.com/chapter/10.1007/978-3-032-01855-7_14
+      returned 303 to an authentication endpoint. THE METHOD OF THE PUBLISHED
+      t0 ATTACK IS THEREFORE UNKNOWN TO THIS SESSION.
+    results: >-
+      IN-CORPUS: no record contains the identity u_j = (c t0)_j + r0_j, no
+      record contains an estimator for t0, and no record contains a
+      convergence-rate claim of any kind. IDEA-20260805-630606 is the nearest:
+      it proves h is the sole t0-bearing component and bounds H(h) by
+      log2 sum_{i<=omega} C(256k, i) = 400.7 / 338.0 / 459.7 bits, giving the
+      floors 34 / 60 / 58, and it explicitly names "whether the factor 10^3 to
+      10^4 is intrinsic to that structure or is slack in the published
+      algorithm" as the open question it creates and does not answer. This
+      proposal is the direct successor to that sentence.
+      EXTERNAL, AND THIS IS THE PART THAT SHOULD WORRY A REVIEWER: the same
+      four authors as the t0 paper (Azevedo-Oliveira, Calle Viera, Cogliati,
+      Goubin) published "Finding a polytope: A practical fault attack against
+      Dilithium" (eprint 2025/195, PKC 2025), whose title alone establishes
+      that they use polytope methods on Dilithium. It is therefore LIKELY that
+      eprint 2024/1373 already uses a set-membership or polytope decoder, in
+      which case this proposal's (B) and (C) are a reproduction rather than an
+      improvement. This session could not read either full text to check, and
+      that is why the first gate of the minimal test is acquisition, not
+      compute.
+    verdict: >-
+      UNVERIFIED, and honestly at risk of being an ADAPTATION of published
+      work. What is claimed as new relative to this corpus with confidence: the
+      exact observation identity, its derivation from the Line-23 check, the
+      1/N-versus-1/sqrt(N) discriminator, the closed-form averaging baseline
+      3.10e8 / 1.86e9 / 1.52e9, the information-sufficiency counts 259 / 1510 /
+      1236, and the secret-free held-out certificate. What is standard
+      machinery and is not claimed as invention: set-membership identification,
+      interval constraint propagation, Chebyshev centres, and the fact that
+      bounded noise gives 1/N rates.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE FEASIBLE POLYTOPE P_N ⊂ R^{256k} of t0 candidates consistent with the
+      first N transcripts - tracked as it shrinks, by its per-coordinate
+      diameter, signature by signature. Not the signature, not the hint, not a
+      statistic: the SET OF SURVIVING SECRETS. Established families declared
+      off-limits as the primary lens: lattice reduction and BKZ-style estimator
+      work of every kind (RQ-MLDSA-001 owns assumption estimation and this
+      proposal must not drift into it); fault injection and physical side
+      channels; nonce misuse and the HNP family; forgery search. Set-membership
+      identification and interval arithmetic are the lens, and neither is an
+      attack family.
+    lossiness: >-
+      GENUINELY LOSSY AND THE LOSS IS DERIVED, NOT ASSUMED. The projection
+      sends a full signature (2420 to 4627 bytes) plus the public key to 256k
+      integers u_j. What is discarded: c~ and z entirely, and the hint's
+      positional detail after UseHint has been applied. That discard is
+      COMPATIBLE with the target's operations because IDEA-20260805-630606
+      establishes that c~ and z are functionally independent of t0 given the
+      public key, so nothing about the tracked object is thrown away - the rare
+      case where a lossy projection is provably SUFFICIENT for its target. It
+      is emphatically NOT a change of coordinates: u determines neither z nor
+      c~ nor the message, and the fibre over a given u is the whole space of
+      (y, s1) consistent with it. THE MIRROR FAILURE - a projection constant
+      across instances - does not occur: u varies with every signature and its
+      spread is sigma_r0 = 54937.5 at ML-DSA-44, a pre-registered nonzero
+      comparator spread.
+    propagation: >-
+      One step of the target operation is one signature, and its one-step
+      propagation law is exact and measurable: P_{N+1} = P_N intersected with
+      256k slabs of half-width W in directions given by the tau signed shifts
+      of c. The measurable one-step quantity is the shrinkage of the box
+      diameter per signature, which the design records as a curve rather than
+      as an endpoint - so the object's behaviour is observed at every N, not
+      only at the N where recovery succeeds or fails.
+    survival_score: >-
+      Survives the entire computation and is exactly the object the answer
+      lives in - the polytope's collapse to a single integer point IS the
+      recovery. It dissolves in one identified place: at the special top cell
+      of FIPS 204's Decompose (where r+ - r0 = q - 1 forces r1 = 0 and
+      r0 = r0 - 1), the relation r = w1 * 2 gamma2 + r0 fails and the slab for
+      that coefficient is misplaced. The design measures the frequency of that
+      cell rather than assuming it negligible, and drops the affected
+      coefficients, because a single wrong slab makes the polytope EMPTY and
+      turns a working decoder into a silent failure.
+
+  null_object_control: >-
+    NULL-1, THE ONE THE RQ MANDATES, AND ITS LIMITATION STATED PLAINLY:
+    re-run the identical decoder against a transcript stream generated with t0
+    resampled independently of the key. Its forced value is that recovery of
+    the TRUE t0 fails and the residual distribution is that of an unrelated
+    vector. UNDER KN-TECH-1a5b7e THIS ARM CANNOT FAIL AS A TEST OF THE LEAK -
+    the answer is zero by construction - so it is run and reported as what it
+    actually is: a test of the ESTIMATOR and the plumbing, able to catch a
+    decoder that has been accidentally handed the true t0, and nothing more. It
+    is not evidence about the leak and is never cited as such.
+    NULL-2, THE ARM THAT CAN ACTUALLY FAIL AND THE ONE THE VERDICT RESTS ON:
+    the HELD-OUT CONSISTENCY test. Take the decoder's output t0_hat, and on M
+    signatures never seen by the decoder, count the residuals u_j - (c t0_hat)_j
+    falling outside (-W, W). The forced value under a correct recovery is
+    exactly 0 out of 256k*M; the forced value under a wrong recovery is
+    derivable in advance from the residual's law and is a large fraction. This
+    arm can fail, its two forced values are separated by orders of magnitude,
+    and it uses no secret at all.
+    NULL-3, GRADED, FOUR INTERIOR POINTS, MONOTONICITY REPORTED: corrupt a
+    fraction f of t0's coefficients, f in {0, 0.05, 0.2, 0.5, 1}, and measure
+    the held-out violation count. It must rise monotonically in f and the run
+    must report whether it does; a non-monotone response means the certificate
+    cannot be read directionally.
+    NULL-4, THE COMPARATOR IS GENERATED SO IT NEEDS A SAMPLE SIZE (mode 5):
+    the averaging baseline's error curve is itself a random quantity; draw it
+    at least 8 times with independent seeds and report the interval, never a
+    single curve, before any slope comparison is made.
+    VERDICT-ON-THE-NULL-FIRST: the slope-estimation rule is executed and its
+    verdict committed on the independently-resampled-t0 arm before the real arm
+    is examined.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-630606 bounds the hint's ENTROPY and derives the
+      unconditional floors 34 / 60 / 58 and the conditional 39 / 77 / 71. It
+      computes a bound on any decoder; this builds one. Its own record names
+      the intrinsic-versus-slack question as the successor it does not answer,
+      and this is that successor. The two also disagree usefully: this
+      proposal's information-sufficiency count (259 / 1510 / 1236) is 4 to 25
+      times LARGER than 630606's capacity floor, because capacity over-counts
+      what a threshold channel with unknown offsets actually delivers, and
+      reconciling the two numbers is an explicit deliverable.
+    - >-
+      IDEA-20260805-bb52fa computes the reachability envelope of the ct0
+      predicate. Different object (an envelope, not a polytope), different
+      target (a rejection rate, not t0), and its H1 is not used here - the
+      noise law that matters in this proposal is r0's, not t0's.
+    - >-
+      IDEA-20260808-4f83f6 measures a t0-induced deviation in the accepted
+      CHALLENGE law and states up front that it is "LIKELY DOMINATED" by the
+      hint route on signature count. This proposal IS that hint route, made
+      exact, and it supplies the number against which 4f83f6's channel should
+      be scored.
+    - >-
+      IDEA-20260805-031ce2 and IDEA-20260808-e5f947 concern what the verifier
+      accepts. Nothing here changes a verifier or mutates a signature; every
+      transcript is emitted by a conforming signer and verifies.
+    - >-
+      IDEA-20260821-65739b (this batch) measures the per-BIT-PLANE price of t0
+      using the same observation identity but the AVERAGING estimator only, and
+      is a cheap, hour-scale test of that identity. It is deliberately the
+      cheap sibling: it does not build a set-membership decoder and cannot
+      recover t0, and this proposal should not be started before its identity
+      check has passed.
+    - >-
+      IDEA-20260821-60ba98 (this batch) bounds what a NON-CONFORMING signer
+      leaks. This proposal studies what a CONFORMING signer leaks, which is the
+      standard's own claim, and the two share no statistic.
+
+  citations:
+    - ref: 'eprint 2024/1373 — Azevedo Oliveira, Calle Viera, Cogliati, Goubin,
+        "Uncompressing Dilithium''s public key", received 2024-09-02, last
+        revised 2025-09-15; CRYPTO 2025, pp. 417-443'
+      provenance: retrieved
+      claim: >-
+        ABSTRACT/LANDING PAGE ONLY, FULL TEXT NOT READ (the PDF fetch returned
+        unparseable binary). Verified on the page this session fetched: the
+        authors as listed, and the statement that "Between 200,000 and 500,000
+        signatures are sufficient to recover t0 on a desktop computer",
+        depending on the security level. THE METHOD IS NOT STATED ON THAT PAGE
+        and is unknown to this session; the entire comparison in claim (C)
+        rests on the count alone.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'eprint 2025/195 — Azevedo-Oliveira, Calle Viera, Cogliati, Goubin,
+        "Finding a polytope: A practical fault attack against Dilithium",
+        PKC 2025'
+      provenance: retrieved
+      claim: >-
+        ABSTRACT ONLY. Same four authors as the t0 paper; the title and
+        abstract establish that this group applies polytope methods to
+        Dilithium (there, to secret-key recovery from rejected signatures under
+        a weakened rejection sampling, "in less than half an hour on a desktop
+        computer"). CITED HERE AS PRIOR-ART RISK, not as support: it makes it
+        materially more likely that eprint 2024/1373 already uses a
+        set-membership decoder, which would reduce this proposal to independent
+        reproduction.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'eprint 2024/2046 — Wang, Gärtner, Dubrova, "Decompressing
+        Dilithium''s Public Key with Fewer Signatures Using Side Channel
+        Analysis", approved 2024-12-19'
+      provenance: retrieved
+      claim: >-
+        ABSTRACT/SUMMARY PAGE ONLY. Reports that profiled deep-learning
+        side-channel analysis partially recovering the LEAST SIGNIFICANT BIT of
+        t0 from power traces on a Cortex-M4 reduces the number of signatures
+        needed to reconstruct t0 by roughly half. RELEVANCE: that the LSB is
+        what they attack is independent external evidence that the recovery
+        cost is graded by bit significance, which is this batch's
+        IDEA-20260821-65739b and is a structural prediction of the 1/sqrt(N)
+        and 1/N laws alike.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'FIPS 204 Table 1, Algorithm 7 (Lines 15-16, 23, 27-28), Algorithm 8
+        (w''Approx and UseHint), Algorithm 24/25 (t0 range), Decompose /
+        HighBits / LowBits / MakeHint / UseHint'
+      provenance: internal
+      claim: >-
+        All FIPS 204 figures and algorithm text used here are taken from the
+        transcription recorded in IDEA-20260805-bb52fa and
+        IDEA-20260805-630606 (fetch receipt nvlpubs.nist.gov, 3,291,746 bytes,
+        sha256 5723...6b6b, 2026-08-06). THIS SESSION DID NOT FETCH FIPS 204.
+        Stage 0 re-reads Decompose and the Line-23 predicate in particular,
+        because the special top cell and the exact beta convention are where
+        the observation identity can silently break.
+      verified_by: >-
+        coordinator@2026-08-21 (orchestrating session read the cited TRANSCRIPTION records
+        IDEA-20260805-bb52fa / -031ce2 / -630606, not the FIPS 204 PDF itself; confirmed they carry
+        the fetch receipt nvlpubs.nist.gov 2026-08-06, HTTP 200, 3,291,746 bytes, sha256
+        57239b9f84c03227eda3ca0991204dc7764c79af9ce2e6824eda774918d46b6b, and that the Table 1
+        Repetitions column is recorded there as 4.25 / 5.1 / 3.85)
+    - ref: 'Set-membership / bounded-error system identification (Milanese &
+        Vicino; Fogel & Huang), and the classical superefficiency of the
+        minimum-variance estimator for uniform noise'
+      provenance: recalled
+      claim: >-
+        RECALLED, NOT OPENED. The standard results are that for additive noise
+        with bounded support the feasible-parameter set is the ML estimator and
+        its diameter shrinks at rate 1/M in the number of observations M,
+        against 1/sqrt(M) for least squares. Named so a reviewer with retrieval
+        can chase the constant in the 1/N law, which this proposal does not
+        pin and reports as a band.
+    - ref: 'Lyubashevsky, Fiat-Shamir with aborts; CRYSTALS-Dilithium
+        specification, for the claim that the accepted r0 is uniform on the
+        truncated range'
+      provenance: recalled
+      claim: >-
+        RECALLED, NOT OPENED. Used only as the justification for heuristic H1
+        below; the design measures the accepted r0 law directly rather than
+        relying on the recollection.
+
+  assumptions:
+    - >-
+      The algebra A z - c t1 2^d = (w - <<c s2>>) + <<c t0>> and the
+      implication Line-23 => HighBits(w - <<c s2>>) = HighBits(w) are exactly
+      as derived. Both are symbolic and are Stage 1 obligations; if either
+      fails the proposal is withdrawn, not adjusted.
+    - >-
+      UseHint returns HighBits(w - <<c s2>>) on every accepted signature, i.e.
+      the hint is correct. This is guaranteed by the Line-28 ct0 check whenever
+      that check passes, which IDEA-20260805-bb52fa argues is always at
+      ML-DSA-65/-87 and all but 7.3e-9 of the time at -44.
+    - >-
+      Coefficients falling in Decompose's special top cell are detectable and
+      can be dropped without biasing the surviving set. The design measures
+      their frequency; if it is not small the decoder must model them and the
+      cost changes.
+    - >-
+      A signing implementation is available that emits 10^5 signatures per
+      parameter set within budget. IDEA-20260805-630606 records that a
+      pure-Python signer is roughly three orders of magnitude slower than
+      optimised C, which is a real risk to this proposal specifically and is
+      priced in estimated_cost rather than hidden.
+    - >-
+      No lattice reduction, no hardness estimate and no parameter re-costing is
+      performed at any stage. If the decoder's natural next step becomes a
+      lattice problem, the work stops and hands off to RQ-MLDSA-001.
+
+  proof_search_map:
+    bottleneck: >-
+      The exact step whose removal changes the cost is the CONVERGENCE RATE of
+      the estimator: 1/sqrt(N) from averaging versus 1/N from set membership.
+      Everything else - the identity, the certificates, the implementation - is
+      plumbing around that one exponent. The bottleneck is therefore whether
+      the noise really has bounded support with a hard, known edge, because a
+      soft edge destroys the 1/N law immediately.
+    baseline_embedding:
+      parameter_slice: >-
+        The best-known baseline reproduced as an exact slice is the AVERAGING
+        estimator, whose predicted error is sigma_r0/sqrt(N tau) with all
+        constants derived from FIPS 204 Table 1 before the run. The published
+        2e5-to-5e5 attack cannot be embedded because its method is unknown to
+        this session; that is recorded as a gap in the embedding, not papered
+        over.
+      reproduction_check: >-
+        Frozen fixture: at N in {10, 100, 1000, 10000} at ML-DSA-44 the
+        measured averaging error must match sigma_r0/sqrt(N tau) =
+        2782 / 880 / 278 / 88.0 to within its own 8-draw interval. A mismatch
+        means the observation identity or the noise law is wrong and no later
+        rung may be run.
+    observation_collision:
+      observable: >-
+        The certificate carrying the conclusion is "held-out residuals all
+        inside (-W, W)". Distinct ground-truth objects with the same
+        observable: any t0' with c(t0 - t0') small enough in every observed
+        direction - i.e. the polytope's remaining interior - passes the
+        certificate identically. The collision is therefore REAL and expected
+        at small N, and it is the reason the certificate must be paired with
+        the ground-truth comparison rather than used alone.
+      distinct_preimage_search: >-
+        Search for it directly: after each N, enumerate two extreme vertices of
+        the surviving box and check that both pass the held-out test. The N at
+        which they stop both passing is the identifiability threshold and is a
+        reported metric in its own right - it is the honest definition of "how
+        many signatures determine t0", independent of any decoder.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Move from "signatures and hints" to "a linear system with bounded
+          noise", where the hypothesis becomes an exact membership condition
+          rather than a statistical one. Separate obligations: encoding (the
+          identity in claim A), completeness (every accepted signature yields
+          256k valid constraints), soundness (the true t0 is never excluded),
+          transfer (the special top cell), cost loss (none - u is computed by
+          the verifier anyway).
+        predicted_gain: >-
+          Converts a 1/sqrt(N) statistical problem into a 1/N geometric one:
+          a predicted factor of 2.6e3 to 1.0e4 in signature count against the
+          averaging baseline at ML-DSA-44, and a predicted factor of 1.7 to 6.7
+          against the relayed published figure.
+      - transform: boundary_lift
+        proposed_object: >-
+          Enlarge the certificate family from "recovers t0 exactly" to "reports
+          the surviving box", so that a run which does not recover t0 still
+          returns a strict inward improvement - the measured diameter - rather
+          than a failure.
+        predicted_gain: >-
+          Every run produces a monotone curve and therefore a usable
+          obstruction, which is what makes an out-of-budget outcome a result
+          rather than a loss.
+    quantifier_order: >-
+      FOR EACH parameter set and FOR EACH key sk accepted by skDecode, THERE
+      EXISTS N* (depending on sk) such that FOR ALL transcripts of N >= N*
+      signatures from a conforming hedged signer, the feasible polytope
+      contains exactly one integer point and it equals t0. Note that N* is
+      allowed to depend on the KEY - a uniform-in-sk claim is NOT made, and the
+      per-key dispersion of N* is a reported metric. Note also the direction:
+      no claim is made FOR ALL decoders; the claim is the existence of one.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest claim this method can certify is a signature count at
+        which one specific decoder recovers t0 exactly on the tested keys, with
+        two certificates. It cannot certify a LOWER bound on any decoder's
+        signature count - that is IDEA-20260805-630606's object - and it cannot
+        certify anything about what knowing t0 then buys, which
+        RQ-MLDSA-ffa0f5 requires to be costed rather than asserted and which
+        this proposal does not cost.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion fails: the same
+        pipeline with the noise support widened to 2 gamma2 (a signer omitting
+        the Line-23 LowBits check). The 1/N law survives but the constant grows
+        by gamma2/(gamma2 - beta), a predicted +0.08% at ML-DSA-44; a method
+        that cannot resolve that predicted sign has not identified the
+        bounded-support structure as the load-bearing one. A second, sharper
+        nearby object: replace the uniform bounded noise by a Gaussian of the
+        same variance, where the 1/N law MUST disappear and the slope must
+        return to -0.5. If the measured slope is -1.0 on BOTH, the instrument
+        is measuring something other than support boundedness and no claim
+        survives.
+    proof_obligations:
+      - claim: 'u_j = (c t0)_j + r0_j with |r0_j| < gamma2 - beta for every accepted signature'
+        responsibility: correctness
+      - claim: 'the feasible-set diameter shrinks as Theta(W/(sqrt(tau) N))'
+        responsibility: size
+      - claim: 'rungs B and C run in the stated time and memory at 256k unknowns and 10^5 signatures'
+        responsibility: runtime
+      - claim: 'the averaging baseline error equals sigma_r0/sqrt(N tau)'
+        responsibility: baseline
+      - claim: 'the held-out certificate separates correct from incorrect t0 at the stated rate'
+        responsibility: soundness
+      - claim: 'the special top cell of Decompose occurs at a measured rate and dropping it does not bias the surviving set'
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        exactness of the observation identity: max over 256k coefficients and
+        10^3 signatures of |u_j - (c t0)_j - r0_j|, computed with the true
+        (t0, s2, y) from an instrumented signer
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: exactly 0 on every coefficient not in Decompose's special
+        top cell. A single nonzero residual falsifies claim (A) and stops the
+        line. This is the cheapest possible test of the whole proposal and
+        costs one subtraction per coefficient.
+    - metric: >-
+        averaging-estimator per-coefficient RMS error at ML-DSA-44 for
+        N in {10, 100, 1000, 10000}
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUES: 2782 / 880 / 278 / 88.0, from sigma_r0/sqrt(N tau) with
+        sigma_r0 = 54937.5 and tau = 39. Agreement to within 10% is required
+        before any later rung runs; disagreement means the noise law in
+        heuristic H1 is wrong.
+    - metric: >-
+        log-log slope of the set-membership decoder's per-coefficient error
+        against N, over at least a decade of N
+      direction: lower
+      minimum_effect: >-
+        -1.0 +/- 0.15, against the averaging baseline's -0.5 +/- 0.05 measured
+        in the same run. A measured slope of -0.5 for both arms refutes the
+        whole 1/N premise and is outcome E3; the run must then report which of
+        the two candidate causes (non-uniform accepted r0, or top-cell
+        contamination) is operating.
+    - metric: >-
+        smallest N at which the decoder returns a t0_hat equal to the true t0
+        on every one of 256k coefficients, at ML-DSA-44, median over 8 keys
+      direction: lower
+      minimum_effect: >-
+        Below 1.2e5 to support outcome E2; at or above 2e5 supports E1. The
+        derived band is 3.0e4 to 1.2e5. Any value is reportable; what is NOT
+        reportable is a run that stops before reaching a decision because the
+        budget ran out, which must be recorded as a budget outcome with the
+        largest N actually reached.
+    - metric: >-
+        held-out certificate violation count for the recovered t0_hat, over
+        10^3 unseen signatures
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUE under correct recovery: exactly 0 out of 256k * 10^3
+        residuals. Under the graded control at f = 0.05 corrupted coefficients
+        the count must be large and the pre-run derived expectation is
+        recorded; a certificate that passes at f = 0.05 is not a certificate.
+    - metric: >-
+        identifiability threshold - the smallest N at which two extreme
+        vertices of the surviving box stop both passing the held-out test
+      direction: lower
+      minimum_effect: >-
+        Strictly below the decoder's own recovery N, and strictly above
+        IDEA-20260805-630606's floor of 34. A threshold below 34 would
+        contradict that record's unconditional entropy bound and would mean one
+        of the two derivations is wrong.
+
+  minimal_test:
+    design: >-
+      SIX STAGES, CHEAPEST FIRST, EACH ABLE TO TERMINATE THE LINE.
+      STAGE 0 (acquisition and reading, zero compute, TERMINATING AND THE MOST
+      IMPORTANT STAGE): obtain eprint 2024/1373 and 2025/195 in readable form
+      through the declared source-preference order and record whether the
+      published t0 attack already uses a set-membership or polytope decoder. If
+      it does, the proposal is DEMOTED IN PLACE to independent reproduction
+      plus the slope measurement, and that demotion is written down before any
+      compute is spent. Also re-read FIPS 204 Decompose, Algorithm 7 Line 23
+      and Algorithm 8 from primary text.
+      STAGE 1 (identity check, minutes, TERMINATING): instrument a signer to
+      emit (t0, s2, y, c, z, h) alongside each signature; compute u from the
+      PUBLIC data only and check u = c t0 + r0 exactly on 10^3 signatures per
+      parameter set. Record the special-top-cell frequency. A single mismatch
+      outside that cell stops the line.
+      STAGE 2 (baseline, minutes): run the averaging estimator at
+      N in {10, 100, 1000, 10000} against its four forced values, with 8
+      independent seed draws so the comparator has an interval.
+      STAGE 3 (rung B, tens of minutes): interval constraint propagation,
+      streaming, reporting the box diameter after every 10^3 signatures. This
+      is the curve that decides the slope, and it is affordable long before
+      recovery succeeds.
+      STAGE 4 (rung C, hours): Chebyshev-centre LP on the surviving active
+      constraints, round, certify twice.
+      STAGE 5 (controls): the independent-t0 null, the graded corruption
+      control at four interior points, the Gaussian-noise nearby-object
+      control, and the widened-support nearby-object control.
+      WHAT DISCRIMINATES: Stage 1 decides whether the model is real, for
+      minutes of compute. Stage 3's slope decides between E1/E2 and E3 WITHOUT
+      recovering t0 at all, which is what makes the design affordable even if
+      recovery is out of budget. Only Stage 4 needs the full signature volume,
+      and it is reached only if Stage 3's slope is already -1.
+    controls:
+      - Independent-t0 null (RQ-mandated), run and reported with an explicit note that it cannot fail as a test of the leak and is a plumbing check only.
+      - Held-out consistency certificate with its two derived forced values - this is the null that CAN fail and the verdict rests on it.
+      - Graded corruption control, f in {0, 0.05, 0.2, 0.5, 1}, monotonicity of the violation count reported explicitly.
+      - Gaussian-noise nearby-object control - the 1/N law MUST vanish; if it does not, the instrument is not measuring support boundedness.
+      - Widened-noise-support control (a Line-23-omitting signer), predicted +0.08% in required N at ML-DSA-44, sign declared before the run.
+      - Comparator replication - 8 independent draws of the averaging baseline curve, reported as an interval, before any slope is compared.
+      - Multi-key arm, at least 8 keys, so that the per-key dispersion of N* is reported rather than a single key's value quoted as the answer.
+    required_metrics:
+      - max identity residual and the special-top-cell frequency, per parameter set
+      - averaging error at four N against the four forced values, with 8-draw intervals
+      - box diameter versus N for rung B, and the fitted log-log slope with its confidence interval
+      - smallest N with exact recovery, per key, with median and dispersion
+      - held-out violation counts at f in {0, 0.05, 0.2, 0.5, 1}
+      - identifiability threshold from the two-vertex test
+      - wall-clock and memory for each rung, and the largest N actually reached if the budget binds
+
+  falsification_conditions:
+    - >-
+      The identity check in Stage 1 fails on any coefficient outside
+      Decompose's special top cell. Claim (A) is false, and every downstream
+      number - including this batch's IDEA-20260821-65739b and part of
+      IDEA-20260821-71fc18 - is withdrawn with it.
+    - >-
+      The averaging baseline does not reproduce 2782 / 880 / 278 / 88.0 to
+      within 10%. The noise law is not uniform on the truncated range and H1 is
+      wrong; the 1/N prediction has no basis and Stage 3 is not run.
+    - >-
+      The measured slope is -0.5 for the set-membership decoder as well. The
+      bounded-support premise is refuted at the tested parameters and the
+      honest deliverable is that refutation plus the measured constant.
+    - >-
+      The Gaussian-noise control ALSO shows slope -1.0. The instrument responds
+      to something other than support boundedness and no slope number is
+      reportable from any arm.
+    - >-
+      Exact recovery is not reached at any affordable N. Reported as a budget
+      outcome with the largest N reached and the surviving box diameter, NEVER
+      as evidence that recovery needs more than that (AGENTS.md rule 3 and
+      GOAL-MLDSA-002's third pause condition).
+    - >-
+      Stage 0 finds that eprint 2024/1373 already uses a set-membership
+      decoder. The improvement claim is withdrawn on the spot and the record is
+      superseded by a reproduction-only successor.
+
+  confounders:
+    - >-
+      DECOMPOSE'S SPECIAL TOP CELL. One misplaced slab makes the polytope
+      EMPTY, and an empty polytope looks exactly like a bug. The decoder must
+      detect infeasibility and report which constraint caused it, or a
+      correctness failure will be misread as an implementation failure.
+    - >-
+      THE ACCEPTED r0 MAY NOT BE UNIFORM ON THE TRUNCATED RANGE. Rejection
+      sampling conditions it, but the conditioning is on the sup-norm over all
+      256k coefficients jointly, which induces a mild dependence across
+      coefficients within one signature. The direction of the resulting error
+      in the 1/N constant is not derived here and is an acknowledged gap.
+    - >-
+      SIGNATURE THROUGHPUT IS THE REAL BUDGET. At 10^5 signatures per
+      parameter set per key and 8 keys, a pure-Python signer at the speed
+      IDEA-20260805-630606 describes cannot finish. The throughput must be
+      measured and reported BEFORE Stage 3 is committed, and if it is
+      insufficient the honest outcome is a sized plan, not a partial run.
+    - >-
+      SLOPE FITTING OVER TOO SHORT A RANGE. A slope of -1 versus -0.5 needs at
+      least a decade of N and preferably two; fitting over half a decade will
+      return whatever the endpoints suggest. The fit range is declared before
+      the run.
+    - >-
+      THE COMPARATOR IS RELAYED AND ITS METHOD IS UNKNOWN. The headline
+      comparison is against a number read from an abstract page. If that number
+      refers to a different threat model (for instance signatures under several
+      keys, or a partial recovery), the comparison is void. Stage 0 is the only
+      defence and its failure is a labelling outcome, not a blocker.
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK AND NOT A KEY RECOVERY. FIPS 204 Section 6.1 declares t0 need
+      not be regarded as secret; recovering it faster changes a threat-model
+      quantity and nothing about MLWE, MSIS or SelfTargetMSIS in any direction.
+      Any downstream sentence readable as a hardness claim is defective
+      regardless of what was measured.
+    - >-
+      This proposal does not cost what knowing t0 buys. RQ-MLDSA-ffa0f5
+      requires that to be costed rather than asserted, and costing it would
+      require lattice work this question forbids. The result is a signature
+      count, full stop.
+    - >-
+      A signature count measured on 8 keys is scoped to those keys. The
+      per-key dispersion is reported precisely so that the median is not read
+      as a universal constant.
+    - >-
+      The 1/N law's leading constant is not derived, only its scaling; the
+      predicted band 3.0e4 to 1.2e5 is a band for that reason and must not be
+      quoted as a point.
+    - >-
+      Everything is at REAL FIPS 204 parameters by construction - this
+      question forbids toy parameters where the real ones are reachable - so
+      there is no toy-to-real transfer assumption. The transfer assumption that
+      DOES exist is from the tested keys and the tested signer implementation
+      to others, and it is stated in every result sentence.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a conforming hedged ML-DSA signer, the accepted low part
+        r0 = LowBits(w - <<c s2>>) is, coefficient-wise, uniformly distributed
+        on the integers in (-(gamma2 - beta), gamma2 - beta), independent of t0
+        given c, and with dependence across the 256k coefficients weak enough
+        that the set-membership diameter follows the same Theta(W/(sqrt(tau) N))
+        law as it would under full independence. LOAD-BEARING FOR THE COST
+        CLAIM ONLY; the observation identity in claim (A) is unconditional.
+      rigorous_support: >-
+        Rigorous ingredient: w = A y with y drawn fresh from ExpandMask
+        independently of t0, and the Line-23 predicate is exactly the indicator
+        of the truncation, so conditioning on acceptance restricts r0 to the
+        stated range - this is the same argument the abort framework uses to
+        argue the accepted z is uniform on its ball. Classical distribution
+        imitated: the uniform law on a truncated interval, and the classical
+        superefficiency of order statistics under uniform noise (the minimum of
+        n uniforms converges at rate 1/n), which is what turns bounded support
+        into a 1/N rate.
+      validation_plan: >-
+        DIRECTLY MEASURABLE AT REAL PARAMETERS AND CHEAP. Sample 10^3
+        signatures per parameter set from an instrumented signer, extract the
+        true r0 (which the instrumented signer knows), and compare the
+        empirical CDF against the uniform on (-(gamma2 - beta), gamma2 - beta)
+        by Kolmogorov-Smirnov, with a dedicated tail check on the outermost 1%
+        of the range where the set-membership rate is actually generated - a
+        deviation in the bulk barely matters and a deviation at the edge
+        destroys the 1/N law, so the tail is where the test must have power.
+        Cross-coefficient dependence is measured as the empirical correlation
+        of r0 across coefficient pairs within a signature, reported against the
+        independence prediction of 0 with its finite-sample interval. Sampled
+        parameters and seeds recorded; transfer assumption: none to other
+        parameter sets, each is measured separately.
+    - id: H2
+      statement: >-
+        (c t0)_j is well approximated by a Gaussian of variance
+        tau * (2^d)^2/12 for the purpose of computing the per-signature mutual
+        information, uniformly over c in B_tau and over keys. LOAD-BEARING ONLY
+        for the information-sufficiency counts 259 / 1510 / 1236 in mechanism
+        (6), which are context, not claims.
+      rigorous_support: >-
+        Rigorous ingredient: (c t0)_j is exactly a signed sum of tau DISTINCT
+        coefficients of t0, each in [-2^(d-1)+1, 2^(d-1)] by the skEncode range
+        that FIPS 204 Algorithm 25 annotates as always valid. Classical
+        statement imitated: the central limit theorem for a sum of tau bounded
+        independent terms, tau in {39, 49, 60}. Note the direction of error:
+        Gaussian noise MINIMISES mutual information at fixed variance, so
+        (1/2)log2(1 + SNR) is a LOWER bound on the per-signature information
+        and 259 / 1510 / 1236 are UPPER bounds on the information-sufficiency
+        count, not lower bounds on any decoder's requirement. That direction is
+        stated everywhere the numbers appear.
+      validation_plan: >-
+        Compare the empirical distribution of (c t0)_j over 10^6 draws against
+        the exact tau-fold discrete convolution (the same closed form
+        IDEA-20260805-bb52fa uses), with a tail check at the 1e-4 quantile
+        rather than at the mean. Cheap, exact, and it also re-validates that
+        record's H1 in the bulk.
+
+  target_complexity:
+    time_exponent: >-
+      NO HARD-PROBLEM EXPONENT IS MOVED AND NONE IS CLAIMED - this is not an
+      attack on a hardness assumption and must never be reported as one. The
+      cost axis that moves is DATA: signature count for exact t0 recovery.
+      Averaging: N = 4 sigma_r0^2/tau = 3.10e8 / 1.86e9 / 1.52e9. Set
+      membership: N = Theta(W/(sqrt(tau) epsilon)) with epsilon = 1/2,
+      predicted band 3.0e4-1.2e5 / 7.5e4-3.0e5 / 6.8e4-2.7e5. Computation per
+      signature is O(256k * tau) integer operations for rung B, i.e. 4.0e4 /
+      7.5e4 / 1.2e5 operations, so the total decoder cost at N = 10^5 is of
+      order 10^9-10^10 operations - minutes to an hour vectorised, and NOT the
+      binding constraint. THE BINDING CONSTRAINT IS SIGNING THROUGHPUT.
+    memory_exponent: >-
+      O(256k) integers for the box in rung B - under 100 kB - because the
+      constraints are streamed and never stored. Rung C stores only the
+      surviving active constraints, whose count is measured rather than
+      assumed; if it exceeds 10^7 the LP is replaced by a subsampled one and
+      the subsampling is declared. This is a genuinely low-memory design and
+      that is worth stating, because the obvious formulation (store all N*256k
+      constraints, 6.1e7 rows at N = 6e4) is not.
+    best_known: >-
+      RELAYED AND ABSTRACT-VERIFIED: 200,000 to 500,000 signatures (eprint
+      2024/1373), method unknown to this session; roughly halved by side-channel
+      assistance on a Cortex-M4 (eprint 2024/2046), which is a different threat
+      model and is not the comparator. IN-CORPUS: no decoder exists; the only
+      related numbers are IDEA-20260805-630606's information floors 34 / 60 /
+      58, which bound from below and are not a competing algorithm.
+    hidden_overhead: >-
+      Three honest disclosures. (i) The 1/N constant is not derived, so the
+      predicted band spans a factor of 4 and the headline could land anywhere in
+      it. (ii) The information-sufficiency counts in mechanism (6) are upper
+      bounds obtained from a Gaussian LOWER bound on mutual information, which
+      is the conservative direction for the sufficiency reading but the
+      optimistic direction if anyone misreads them as floors. (iii) The whole
+      line is gated on signing throughput, which no derivation improves.
+    tradeoff_note: >-
+      The tradeoff is data against computation and it runs the unusual way: the
+      set-membership decoder uses MORE computation per signature (O(tau) per
+      constraint against O(tau) per signature for averaging, i.e. 256k times
+      more) to use 10^3 to 10^4 times FEWER signatures. Parallelisation is
+      trivial for rung B (constraints stream independently once the box is
+      fixed for a sweep) and is the standard LP question for rung C.
+
+  dominated_by: >-
+    ON THE DATA AXIS, POSSIBLY DOMINATED BY eprint 2024/1373 AND THIS CANNOT BE
+    RULED OUT FROM WHAT THIS SESSION READ. Rows actually checked: (i) all five
+    RQ-MLDSA-ffa0f5 proposals and both hypotheses - none contains a decoder, so
+    none dominates in-corpus; (ii) IDEA-20260805-630606 on the DATA axis for
+    the LOWER bound (34/60/58), which this proposal does not compete with and
+    cites; (iii) eprint 2024/1373 at 2e5-5e5 signatures, abstract read, method
+    unknown - if its method is already set-membership then it dominates this
+    proposal on every axis and the honest outcome is reproduction; (iv) eprint
+    2024/2046 at roughly half that count, which dominates on data but requires
+    power traces from a Cortex-M4 and therefore does not dominate in the
+    transcript-only threat model this question is about; (v) eprint 2025/195,
+    which recovers the SECRET KEY rather than t0 and is a different problem
+    under a different assumption (weakened rejection sampling). MEMORY axis:
+    nothing to compare, no published memory figure was obtained. TIME axis: the
+    published attack is described as running "on a desktop computer", which is
+    not a number and cannot be compared.
+  sota_delta: >-
+    Quantitatively, and stated in the one unit this lane has. FIPS 204 Section
+    6.1 says "a small number of signatures" and gives none. The corpus supplies
+    an unconditional lower bound of 34 / 60 / 58 (IDEA-20260805-630606). The
+    literature supplies 200,000 to 500,000. This proposal targets 3.0e4 to
+    1.2e5 at ML-DSA-44 - a factor of 1.7 to 6.7 below the relayed published
+    figure and a factor of 2.6e3 to 1.0e4 below the naive averaging estimator
+    it also derives for the first time - and, whatever the outcome, it supplies
+    the exact observation model that turns the question into a stated
+    estimation problem instead of an attack anecdote. If the decoder lands at
+    2e5 or above, the delta is negative on the headline and positive on the
+    structure: the published figure is then shown to be at the geometry's
+    limit, which is a stronger statement about the standard's sentence than a
+    faster attack would be.
+
+  estimated_cost:
+    implementation: high
+    compute: high
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    BY PART. (i) That the observation identity u = c t0 + r0 survives Stage 1
+    exactly: ~0.85 - the algebra is four substitutions and the only real risk
+    is a convention error in Decompose's special cell or in beta.
+    (ii) That the averaging baseline reproduces sigma_r0/sqrt(N tau) within
+    10%: ~0.8. (iii) That the measured set-membership slope is -1.0 rather than
+    -0.5: ~0.7 - the bounded-support argument is standard, but the
+    cross-coefficient dependence induced by the sup-norm rejection is a real
+    unknown. (iv) That exact recovery is reached below 1.2e5 signatures:
+    ~0.35. (v) THAT THIS IS NEW RATHER THAN A REPRODUCTION OF eprint 2024/1373:
+    ~0.2, AND I WOULD BET AGAINST IT - the same four authors published a
+    polytope attack on Dilithium the following year, which is close to a tell.
+    That single number is why Stage 0 is acquisition and why the proposal
+    demotes itself in writing if the acquisition goes the likely way. The
+    reason to run it anyway is (i)-(iii): the identity, the baseline and the
+    slope are cheap, are this corpus's own, and are prerequisites for three
+    other records in this batch.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+    - RQ-MLDSA-ffa0f5
+    - GOAL-MLDSA-002
+    - IDEA-20260805-630606
+    - IDEA-20260805-bb52fa
+    - IDEA-20260805-031ce2
+    - IDEA-20260808-4f83f6
+    - H-MLDSA-2ae88d
+    - IDEA-20260821-65739b
+    - IDEA-20260821-60ba98
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - docs/claims-and-verification.md
+    - knowledge/techniques/KN-TECH-1a5b7e.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with
+    python3 tools/allocate_id.py --next idea --date 20260821 (random 6-hex
+    token, no state scanned), each id then verified free with --check before
+    assignment. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
