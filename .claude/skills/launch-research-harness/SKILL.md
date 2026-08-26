@@ -71,6 +71,20 @@ portfolio is empty".
 **Resume** an existing goal: use its `dispatch_queue_path` and
 `current_batch_id`; continue from `next_action`.
 
+**Another session already on this goal is not a stop.** Before treating a
+goal as taken, `git fetch origin` and run
+`python3 tools/goal_lanes.py lanes <GOAL-ID>`; for each open lane render its
+plan with `--claims refs`. Then, in order: (1) if that plan lists Ready Tasks
+with `claim: null` that your role table may run, claim one and run it under
+that lane (its branch, its PR); (2) otherwise open a **disjoint lane** — a new
+`BATCH-<tok>` against the goal's ranked candidates, on its own branch and PR,
+registered with `goal_lanes.py open-lane … --publish` before any worker runs;
+(3) only if neither is justified, pick another goal. A goal with no lane
+records is worked the old way (one batch, via `current_batch_id`) until
+someone opens a lane on it. Register on the bus under a distinct address
+(`coordinator-<area>-2`, …) and post a pointer message naming your lane; the
+message is a pointer, never a permission. See `docs/concurrent-goal-lanes.md`.
+
 **Start new**: only when the user asks for a new campaign. Mint the goal with
 `python3 tools/allocate_id.py --next goal --area AREA`, confirm the emitted
 `GOAL-<AREA>-<tok>` with `--check`, and create its YAML record from
@@ -94,6 +108,10 @@ Confirm before dispatching workers:
   campaign running — a budget extension is a Coordinator decision with a
   recorded rationale.
 - `next_action` is concrete; empty queue alone does not complete the goal.
+- `goal_lanes.py lanes <GOAL>` and `goal_lanes.py claims <queue>` (after
+  `git fetch`) show which batches are open elsewhere and which tasks are
+  held. If you are opening a batch on a goal that already has an open lane,
+  your batch is a second lane: `open-lane … --publish` it now.
 - The working branch exists, is pushed to origin, and has an open PR against
   `main`. If not, create the branch, push it, and open the PR now — do not run
   a campaign that cannot surface its artifacts.
@@ -107,10 +125,17 @@ work to fill capacity.
 From repo root, using the goal's queue path:
 
 ```sh
+git fetch origin
 python3 tools/research_dispatch.py <dispatch_queue_path> \
   --output <batch-dir>/dispatch_plan.json \
-  --report <batch-dir>/dispatch_plan.md
+  --report <batch-dir>/dispatch_plan.md \
+  --claims refs --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
+
+`--claims refs` overlays every claim pushed from any worktree: a task held by
+another session is listed as `running` with its `claim`, a completed release
+unblocks successors, and an expired hold shows under Expired Leases. Only
+Ready Tasks with `claim: null` are yours to start.
 
 Use the paths the goal/batch already use (e.g. `dispatch_queue.json` or
 `dispatch_queue.v2.json`). Fix validation errors before starting agents.
@@ -175,6 +200,21 @@ served, that is a pause condition for the goal (step 4), not a substitution.
 - Subagents do not spawn subagents. Nesting puts work outside the batch the
   Coordinator authorised.
 
+**Claim before you launch, release when it returns.** For each task you are
+about to start:
+
+```sh
+python3 tools/goal_lanes.py claim <queue> <TASK-ID> --as <your-bus-addr> \
+  --ttl-minutes <budget.wall_clock_minutes + slack> --publish
+```
+
+A refusal means another session holds it — take the next unclaimed Ready
+Task instead; never `--force` a live claim without a recorded reason. When the
+agent returns, `goal_lanes.py release <queue> <TASK-ID> --as <addr>
+--outcome completed|failed|abandoned --publish` and record the claim epoch in
+the task receipt. The claim commit is its own commit; archive commits exclude
+`claims/` exactly as they exclude `dispatch_queue.json`.
+
 **Bind every prompt to the committed task card** rather than restating it:
 
 ```text
@@ -203,7 +243,10 @@ archive commits it and the dispatcher's post-commit verifier accepts it.
 Follow `/coordinate-research-goal` for every batch:
 
 1. Start ≤ the queue's declared `max_concurrent` non-archive ready tasks with
-   disjoint `write_scope`, each via the subagent chosen in step 6.
+   disjoint `write_scope` and `claim: null`, each claimed first and then run
+   via the subagent chosen in step 6. Other sessions' live claims count
+   toward the cap: their work runs on the same repository and usually the
+   same host.
 2. On producer terminal: Coordinator-only `snapshot` archive alone; verify
    via dispatcher/Git before any review reads artifacts.
 3. Independent Reviewer / Validator / Red Team as required, at the tier step 6
@@ -214,8 +257,10 @@ Follow `/coordinate-research-goal` for every batch:
 4. Coordinator-only `ledger` archive alone; verify parent, paths, hashes,
    record IDs.
 5. Update the `GOAL-*` record in that ledger commit: batch checkpoint, decision
-   refs, `latest_verified_commit`, exactly one `next_action`. Rerank only after
-   the verified checkpoint.
+   refs, `latest_verified_commit`, exactly one `next_action` **for this lane**,
+   and — if the goal has lane records — your lane's `open_batches` entry,
+   touching no other lane's. Then `goal_lanes.py close-lane … --publish`.
+   Rerank only after the verified checkpoint.
 6. Regenerate the dispatch plan; open the next bounded batch while status is
    `active`. Do not pause between batches for user confirmation — return to
    step 5 and keep going. When the goal leaves `active`, go to step 9.

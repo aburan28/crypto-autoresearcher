@@ -20,8 +20,14 @@ research_goal:
     maximum_batches: null
     total_wall_clock_seconds: null
     max_concurrent: 3
-  current_batch_id: null
-  dispatch_queue_path: null
+  current_batch_id: null        # the lane opened most recently; NOT a lock --
+  dispatch_queue_path: null     # `tools/goal_lanes.py lanes GOAL-X` lists every
+                                # open batch (docs/concurrent-goal-lanes.md)
+  open_batches: []              # OPTIONAL, additive. One entry per open lane:
+                                # {batch_id, dispatch_queue_path, branch,
+                                #  opened_by, opening_decision_id}. A lane adds
+                                # its own entry in its own ledger archive and
+                                # never rewrites another lane's.
   latest_verified_commit: null
   completion_criteria: []
   pause_conditions: []
