@@ -1,0 +1,250 @@
+idea:
+  id: IDEA-20260828-770aa4
+  question_id: RQ-DREG-001
+  added: '2026-08-28'
+  title: >-
+    Is the n=15 D=6 prepare-phase memory wall (11.73/12.22 GiB, measured) inherent
+    sparse-matrix density or Python object-representation overhead? Stream+bitmask
+    macaulay_rows() first; fall back to the already-scaffolded SMS/block-Wiedemann
+    matrix-free rank path (src/macaulay_export.py) only if that is insufficient
+  class: measurement
+  claim: >-
+    The 11.73-12.22 GiB peak RSS measured this session during the n=15 D=6
+    Macaulay "prepare" phase (macaulay_rows(), src/macaulay_export.py:24-41 --
+    the SHARED prepare step of both h012c_block_m4ri.py and h012_peel_rank.py)
+    is dominated by CPython object-representation overhead, not by the
+    inherent number of nonzero entries in the underlying sparse Macaulay
+    matrix. Consequently: (a) re-encoding the same combinatorial rows/columns
+    as packed integer bitmask arrays (or a CSR-format sparse array) and/or
+    (b) routing the SAME "full-column exact rank" computation through the
+    already-partially-implemented SMS export (export_sms() in
+    macaulay_export.py) into a genuinely matrix-free sparse-rank algorithm
+    (Wiedemann / block-Wiedemann via a Krylov minimal-polynomial computation,
+    KN-TECH-008) will reduce peak RSS for the SAME n=15 D=6 cell by at least
+    one order of magnitude, enabling the sem and T11-matched-null arms to
+    complete within the lane-contract's original 8 GiB floor without needing
+    a memory-budget amendment.
+  mechanism: >-
+    Each Macaulay row is a `frozenset` of monomial `frozenset`s
+    (poly_to_monoset/multiply, src/ic_first_fall_fast.py:26-45); CPython
+    frozensets carry ~200+ bytes of per-object overhead regardless of the
+    handful of integers they contain. This is a REPRESENTATION cost, not an
+    information-theoretic one: each row's TRUE content is |supp(f_i)|
+    nonzero entries, a small count fixed by the ORIGINAL, unmultiplied
+    equation and INDEPENDENT of the multiplier mu, because multiply() maps
+    supp(f_i) bijectively (mod-2 cancellation aside) via m -> m|mu. If
+    |supp(f_i)| is genuinely small (as it is at n<=12, where the same code
+    path runs without incident), the matrix is classically sparse even
+    though its column count (690,690-768,212) is large, and the current
+    instrument's ~12 GiB is not required by the mathematics of the object --
+    it is required by holding ~547K rows as nested frozenset object graphs
+    simultaneously. Re-encoding as packed int arrays removes most of this
+    overhead directly (path a); if the RANK-LOOP itself still fills in past
+    budget even with efficient storage, routing through export_sms()'s
+    already-implemented SMS format into a Wiedemann/block-Wiedemann rank
+    certificate avoids ever holding more than O(nnz) plus O(ncols) (Krylov
+    vectors) in memory at once (path b), at the cost of a probabilistic
+    rather than deterministic rank certificate that must be validated
+    against known ranks before trust (heuristic H2 below).
+  novelty_status: adaptation
+  novelty_screen:
+    screened_on: '2026-08-28'
+    corpus_paths_grepped: [ledger/proposals (RQ-DREG-001 subset), ledger/hypotheses,
+      knowledge/techniques, ideas/rejected/preallocation, src/]
+    grep_results:
+      - "KN-TECH-008 documents Wiedemann/block-Wiedemann as an ESTABLISHED
+         technique, but scoped explicitly to 'the linear-algebra stage of index
+         calculus -- solving the large sparse relation system over Z/n', never
+         to a d_reg-measurement Macaulay instrument."
+      - "ideas/rejected/preallocation/20260724-b_U01/U02/U03 propose and REJECT
+         block-Wiedemann/Lanczos for a wholly different object (an ECDLP
+         relation-matrix attack via 'endpoint-derived block projections'),
+         disposition merged_rejected_ ... This idea proposes no attack and is
+         not the same claim; the rejection does not transfer."
+      - "src/macaulay_export.py's own docstring already names this exact fix
+         for this exact wall ('so the rank / degree-of-regularity solve...
+         can run on a cluster... via block Wiedemann'), but no ledger
+         hypothesis or evidence record cites macaulay_export.py at all."
+    conclusion: >-
+      Known technique (Wiedemann/block-Wiedemann is established in this
+      corpus's own KN-TECH-008) applied to a new object in this program
+      (the RQ-DREG-001 rank instrument) that the codebase already scaffolds
+      but has never wired to admissibility. The representation-overhead
+      audit (frozenset-of-frozenset vs packed arrays) is, to the best of
+      this screen, unproposed anywhere in the 9 RQ-DREG-001 proposals or the
+      A2 catalogue.
+  citations:
+    - ref: KN-TECH-008
+      provenance: kb
+      claim: "Wiedemann ~O(n*w) field ops, O(n) memory for sparse n x n, w nonzeros/row; block Wiedemann amortizes via word-parallelism."
+      verified_by: "read in full this session"
+    - ref: src/macaulay_export.py
+      provenance: internal
+      claim: "export_sms() already implements the SMS/LinBox sparse export format; docstring names block-Wiedemann as the intended consumer."
+      verified_by: "read in full this session"
+  assumptions:
+    - "|supp(f_i)| (the original, unmultiplied equation's term count) is small
+       and roughly constant across i, at n=15 as it is at n<=12 -- checkable
+       cheaply from the already-committed n=12 system before any n=15 work."
+    - "A generator/streaming rewrite of macaulay_rows() can compute nnz(n,D)
+       without ever holding more than O(1) rows in memory at once, which the
+       current implementation (materializes the full `rows` list before
+       computing `cols`) does not do."
+  object_first_note: >-
+    Established lens declared off-limits as primary: the current dense/
+    quasi-dense in-memory frozenset instrument (h012c_block_m4ri.py /
+    h012_peel_rank.py peeling+core-echelon). Tracked object proposed: the
+    matrix as a stream of (row_id, nonzero_col_ids) pairs, never
+    materialized in full. Lossy-projection test: this discards nothing
+    mathematically (it is a change of representation, not of information --
+    stated honestly per the inventor-protocol test, this stage alone is
+    "only a change of coordinates" and its value is purely computational,
+    not a new tracked object in the survival-horizon sense); the genuinely
+    lossy step is the Krylov/Wiedemann projection in stage 2, which discards
+    the explicit matrix entirely and retains only a minimal-polynomial
+    degree, propagating deterministically under matrix-vector product (the
+    one operation Wiedemann needs) and recoverable as rank with a stated,
+    testable failure probability (heuristic H2 below).
+  predictions:
+    - metric: nnz(n=15, D=6), measured by a streaming (no full-materialization) pass
+      direction: lower
+      minimum_effect: >-
+        nnz << nrows(546,855) x ncols(690,690) (i.e. density << 1%); this is
+        the stage-0 gate and can fail (if density is not small, sparsity buys
+        nothing and the wall is likely inherent, not representational).
+    - metric: peak RSS of a CSR/bitmask-encoded prepare phase at the SAME n=15 D=6 cell
+      direction: lower
+      minimum_effect: >-
+        At least 5x lower than the measured 11.73/12.22 GiB baseline (i.e.
+        under ~2.4 GiB), reported as measured, not modeled.
+    - metric: exact-rank agreement between the new instrument and the committed block-m4ri rank at n=9 and n=12
+      direction: different
+      minimum_effect: >-
+        EXACT match at every calibration cell (n<=12, D<=6 where committed
+        ranks exist); any mismatch outside the pre-declared Wiedemann
+        failure-probability envelope voids the instrument.
+  minimal_test:
+    design: >-
+      Staged, cheapest first. Stage 0 (near-zero compute): rewrite
+      macaulay_rows() as a generator; stream through n=15 D=6 counting nnz
+      and per-row width only, holding O(1) rows at a time; this alone
+      answers whether the sparsity assumption holds, before any further
+      implementation effort. Stage 1 (n<=12, cheap): re-run h012_peel_rank's
+      own peel+core-echelon algorithm fed a packed/CSR representation
+      instead of frozensets; validate exact-rank agreement against committed
+      n=9/n=12 ranks; if THIS alone fits n=15 under budget, matrix-free
+      Wiedemann is unnecessary and the cheaper fix wins. Stage 2 (only if
+      stage 1's rank LOOP still fills in past budget at n=15): implement
+      streaming export_sms() + a Wiedemann/block-Wiedemann rank certificate
+      (with extension-field or repeated-trial amplification per H2),
+      validated identically at n<=12 before any n=15 claim.
+    controls:
+      - "Positive control: full-support random null at n=9/n=12, D<=5 -- must reproduce sr_pred exactly (rank = ncols - nrows_saturating), per the BATCH-002 calibration precedent."
+      - "Reproduction control: the committed n=12 D6 sem rank (138,573) and null rank (156,520, arm P) must be recovered EXACTLY by the new instrument before any n=15 number is trusted."
+    required_metrics: [streamed nnz(15,6), peak RSS (streamed prepare vs baseline),
+      rank agreement at calibration cells, wall-clock of new vs old path at n=12 (the tradeoff)]
+  falsification_conditions:
+    - "Streamed density at n=15 D=6 is NOT small (e.g. >5-10% of nrows*ncols): the sparse premise fails and the wall is evidence of inherent fill-in, not representation choice."
+    - "Wiedemann's certified rank disagrees with the committed exact rank at any n<=12 calibration cell beyond the pre-declared failure-probability band: instrument not admissible."
+    - "The cheaper CSR/bitmask-only fix (stage 1, no Wiedemann) already satisfies the memory floor at n=15 D=6: positive but smaller-than-hoped outcome -- representation was the whole defect."
+  confounders:
+    - "SMS export / disk I/O time could dominate wall-clock if streaming to disk is required, trading the memory win for an unreported new time cost."
+    - "LinBox availability in this Sage environment is unverified (macaulay_export.py's own docstring flags this); if unavailable, a from-scratch pure-Python Wiedemann must be built and independently validated -- a materially higher implementation cost than 'call LinBox'."
+  interpretation_limits:
+    - "Toy scale only (n<=24 in scope); no ECDLP exponent moved in any branch."
+    - "A successful memory fix produces admissible full-column exact ranks for RQ-DREG-001's own ladder; it does not itself decide d_reg tracking vs departure -- that remains a Coordinator act on whatever ranks result."
+  heuristic_assumptions:
+    - id: HEUR-DREG-SPARSE-1
+      statement: >-
+        Each Macaulay row (f_i, mu) has nonzero-entry count exactly
+        |supp(f_i)|, independent of the multiplier mu, because multiply()
+        maps supp(f_i) bijectively (mod 2 cancellation aside) via m -> m|mu.
+        supp(f_i) is small (empirically bounded at n<=12; unverified at
+        n=15 pending stage 0).
+      rigorous_support: >-
+        Structural/definitional (follows directly from multiply()'s code,
+        src/ic_first_fall_fast.py:39-45), not a distributional heuristic in
+        the classical sense; the only open empirical question is whether
+        |supp(f_i)| stays small at n=15, which is exactly what stage 0 measures.
+      validation_plan: >-
+        Measure |supp(f_i)| directly from the already-committed n=12 system
+        (zero new compute); measure it again from the n=15 system's
+        structural probe already run this session (nb=30, eq_degs_hist
+        {2:15,3:15}); compare growth. Tail check: report the max, not just
+        mean, |supp(f_i)| across all 30 equations, since one dense equation
+        could dominate nnz.
+    - id: HEUR-DREG-WIEDEMANN-1
+      statement: >-
+        For a sparse GF(2) matrix A, a randomized Krylov/minimal-polynomial
+        computation (Wiedemann; block-Wiedemann for parallelism) recovers
+        rank(A) with failure probability bounded by a function of the field
+        size used for the random projection (Kaltofen-Saunders 1991 rank
+        algorithm), imitating the Schwartz-Zippel/DeMillo-Lipton lemma for
+        nonzero-polynomial detection via random evaluation.
+      rigorous_support: >-
+        Established in KN-TECH-008 for the index-calculus LA stage; the
+        GF(2)-specific failure-probability concern (small field, higher
+        per-trial failure) is real and must be amplified via GF(2^e)
+        extension-field projection or repeated independent trials, driving
+        failure below 2^-40, before any n=15 rank is trusted as evidence.
+      validation_plan: >-
+        Run the Wiedemann rank certificate >=20 independent times at n=9 and
+        n=12 (D up to 6, where exact ground-truth ranks are already
+        committed); compare the empirical mismatch rate to the predicted
+        2^-e bound at whatever extension degree e is used; report both.
+  target_complexity:
+    time_exponent: >-
+      NOT REDUCED versus the current instrument's field-operation count at
+      this toy scale; Wiedemann's field-op count is O(nnz(n,D) x rank(n,D)),
+      which may exceed the current structured-elimination's op count in the
+      worst case. No time-exponent claim is made in either direction; stage
+      2's minimal test measures it rather than assuming it.
+    memory_exponent: >-
+      From an unbounded-by-any-clean-formula, implementation-defined
+      overhead (currently: O(nrows x avg-frozenset-object-count), empirically
+      ~12 GiB at n=15 D=6, prepare phase alone) down to O(nnz(n,D)) for a
+      packed/CSR or genuinely matrix-free representation, where nnz(n,D) is
+      to be MEASURED (stage 0), not assumed.
+    best_known: >-
+      Current local instrument (h012c_block_m4ri.py / h012_peel_rank.py):
+      measured n=12 D6 prepare+rank-loop peak 6.67 GiB total; n=15 D6
+      prepare phase ALONE measured this session at 11.73 GiB (sem) / 12.22
+      GiB (null), before the rank loop is even reached.
+    hidden_overhead: >-
+      Wiedemann's rank is a probabilistic certificate, not deterministic
+      like the current exact GF(2) elimination -- amplification cost and
+      validation-at-known-cells cost are real and disclosed, not hidden in
+      o(1). SMS export still requires one full pass over all nonzero
+      entries even if streamed.
+    tradeoff_note: >-
+      Classic time-memory tradeoff: sparse/matrix-free trades peak memory
+      for (plausibly, unmeasured) wall-clock; block-Wiedemann amortizes via
+      block width b (KN-TECH-008), a parallelization lever this idea does
+      not yet size.
+  dominated_by: "n/a (no ECDLP attack or exponent claimed; instrument-quality claim only, at toy scale)"
+  sota_delta: >-
+    ZERO on every ECDLP axis. The delta claimed is entirely a MEMORY
+    exponent for the RQ-DREG-001 local measurement instrument: a
+    (to-be-measured, currently unbounded-by-formula) representation
+    overhead down to O(nnz), which is what would let the n=15 (and
+    potentially n=17,18,21,24) rungs of GOAL-DREG-001's own completion
+    criterion be reached without a memory-budget amendment.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-28'
+  source_refs:
+    - RQ-DREG-001
+    - GOAL-DREG-001
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-006/tasks/TASK-20260828-955d56/execution-report.md
+    - src/macaulay_export.py
+    - src/h012_peel_rank.py
+    - src/ic_first_fall_fast.py
+    - KN-TECH-008
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.
