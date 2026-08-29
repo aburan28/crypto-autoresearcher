@@ -1,0 +1,492 @@
+idea:
+  id: IDEA-20260828-01fc51
+  added: '2026-08-28'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-AES-002
+  goal_id: GOAL-AES-002
+  title: >-
+    The key-schedule axis of the co-degree ladder: does the AES-128 key
+    schedule's SECOND nonlinear injection path collapse univariate GF(2^8)
+    structure earlier than the plaintext axis, with an exact predicted round
+    at which each master-key byte position first goes nonlinear
+  class: mechanism
+
+  claim: >-
+    Fix a plaintext P and 15 of the 16 AES-128 master-key bytes; let x range
+    over GF(2^8) as the value of the remaining master-key byte c, and define
+    g_{c,j}(x) = ciphertext byte j of AES-128_{K(x)}(P) at round count r. As in
+    the sister object IDEA-20260805-62359f (varying a PLAINTEXT byte instead),
+    g_{c,j} has a unique GF(2^8) interpolation polynomial and a well-defined
+    co-degree c(g) = 255 - deg(g). CLAIM, DERIVED HERE FROM THE AES-128 KEY
+    SCHEDULE RECURRENCE (the same recurrence IDEA-20260805-8053e1 already
+    audited for a different purpose): the round at which g_{c,j}'s dependence
+    on x FIRST becomes provably nonlinear (i.e. the point at which the
+    translation-covariant structure available on the plaintext axis breaks) is
+    EXACTLY DERIVABLE and depends on which master-key WORD c lies in.
+    Specifically: for c in the last word (bytes 12-15, i.e. w[3]), the
+    dependence is already nonlinear by ROUND KEY 1 (w[4] = w[0] xor
+    SubWord(RotWord(w[3])) xor Rcon[1] uses w[3] inside a SubWord call
+    directly); for c in the first three words (bytes 0-11, i.e. w[0], w[1],
+    w[2]), round key 1's dependence on x remains a PURE TRANSLATION (matching
+    the plaintext-axis mechanism exactly), and nonlinearity first enters at
+    ROUND KEY 2, because w[8] = w[4] xor SubWord(RotWord(w[7])) xor Rcon[2]
+    and w[7] already carries x-dependence through the w[4]..w[7] translation
+    chain, so SubWord is now applied to a TRANSLATED argument. THIS IS A
+    DIRECT EXTENSION OF THE C2 COMPUTATION ALREADY DERIVED AND
+    SESSION-COMPUTED IN IDEA-20260805-8053e1 (round-key sharing bounds),
+    re-purposed here to predict a co-degree DEATH ROUND rather than a shared-
+    lookup COUNT. The proposal is a comparative measurement: does the
+    key-schedule's EXTRA S-box application (relative to the plaintext axis,
+    which enters the round function's OWN S-box layer at the same rate as
+    always) make the key-axis co-degree ladder die NO LATER THAN - and
+    plausibly one round EARLIER THAN - the plaintext-axis ladder, when both
+    are read from the SAME round at which their respective nonlinear paths
+    begin.
+
+  object_first_candidate:
+    tracked_object: >-
+      The coefficient vector (and its co-degree) of the univariate GF(2^8)
+      interpolation polynomial of "ciphertext byte j as a function of ONE
+      varying MASTER-KEY byte c, all else fixed" - the KEY-AXIS analogue of
+      IDEA-20260805-62359f's plaintext-axis object, tracked separately for the
+      two structurally distinct classes of c (c in w[3] vs c in w[0]/w[1]/
+      w[2]) because the key schedule treats them differently by construction.
+    established_families_off_limits: >-
+      All twelve families in RQ-AES-002's off-limits list (as enumerated in
+      the sister record) remain off-limits as the primary lens and none is
+      used. THE NEAREST NAMED FAMILY IS THE JAKOBSEN-KNUDSEN INTERPOLATION
+      ATTACK (1997, recalled, well known, not on RQ-AES-002's explicit
+      off-limits list but clearly in its conceptual neighborhood), which
+      varies the PLAINTEXT for a FIXED key to build a low-degree polynomial
+      relating plaintext to ciphertext and solve for KEY-DEPENDENT
+      COEFFICIENTS directly. THIS PROPOSAL DOES THE OPPOSITE: it fixes the
+      plaintext and varies ONE KEY BYTE, and its deliverable is a
+      STRUCTURAL/COMPARATIVE co-degree reading (which axis loses algebraic
+      structure faster), not a coefficient-solving key-recovery mechanism.
+      WebSearch this session (2026-08-28) for "interpolation attack AES key
+      schedule varying key byte" surfaced "Combined Attacks on the AES Key
+      Schedule" (eprint 2012/098) and "New Representations of the AES Key
+      Schedule" (eprint 2020/1253) as titles in the same technical
+      neighborhood; NEITHER WAS FETCHED OR READ this session (title/snippet
+      only), so their specific overlap with this exact object is UNRESOLVED
+      and is not claimed in either direction.
+    newness_score: >-
+      ADAPTATION of the sister proposal's machinery (I1-I4 identities are
+      generic algebraic facts about GF(2^8) interpolation, reused verbatim)
+      to a structurally distinct axis whose translation-covariance breaks at
+      a DIFFERENT, DERIVABLE round for each of two disjoint byte classes -
+      that derivation, and the resulting comparative prediction, is the
+      specific content this repository does not hold and the literature
+      search above did not resolve either way.
+    testability_score: >-
+      Identical cost class to the sister proposal: one reading costs 256
+      encryptions (fixing 15 key bytes and the plaintext, sweeping the 16th
+      key byte over GF(2^8)) plus one exact GF(2^8) interpolation; a full
+      ladder over r = 1..10, both byte classes (w[3] vs w[0]/w[1]/w[2]), and
+      several hundred (plaintext, fixed-key-bytes) instances fits comfortably
+      in one producer slot.
+    survival_score: >-
+      LOW, stated honestly: the plaintext-axis sister proposal already
+      predicts (and gives a strong prior for) early death of the naive
+      co-degree statistic; adding a second, EARLIER-injected nonlinear path
+      on the key axis is expected to make death occur no later, most likely
+      strictly earlier. The deliverable is the MEASURED comparative death-
+      round pair (or the derived contradiction if the prediction fails),
+      which is informative either way.
+
+  mechanism: >-
+    ALL STRUCTURAL CLAIMS BELOW ARE DERIVED FROM THE AES-128 KEY SCHEDULE
+    RECURRENCE, RESTATING AND EXTENDING IDEA-20260805-8053e1's (C2)
+    computation. AES-128 key schedule: w[0..3] = master key words; for i not a
+    multiple of 4, w[i] = w[i-4] xor w[i-1]; for i a multiple of 4 (i >= 4),
+    w[i] = w[i-4] xor SubWord(RotWord(w[i-1])) xor Rcon[i/4].
+
+    CLASS A (c in w[3], bytes 12-15). w[4] = w[0] xor SubWord(RotWord(w[3]))
+    directly consumes w[3] inside a SubWord call. Varying byte c within w[3]
+    therefore makes w[4] - and hence ROUND KEY 1 - depend on x NONLINEARLY
+    from the very first key-derived round key that differs from round key 0.
+    Round key 0 = the master key itself, so round key 0's dependence on x is
+    a pure translation (identical in form to the plaintext-axis mechanism);
+    round key 1 is where class A's path diverges from the plaintext axis.
+
+    CLASS B (c in w[0], w[1], or w[2], bytes 0-11). w[4] does NOT depend on
+    the varied byte (SubWord(RotWord(w[3])) is now a FIXED constant), so w[4]
+    = w[0](x) xor const is a pure translation in x; w[5] = w[4] xor w[1],
+    w[6] = w[5] xor w[2], w[7] = w[6] xor w[3] propagate this translation
+    linearly (assuming only ONE word varies) all the way to w[7] - so ROUND
+    KEY 1 is STILL a pure translation in x for class B, matching the
+    plaintext axis exactly at this round. The break occurs at w[8] = w[4] xor
+    SubWord(RotWord(w[7])) xor Rcon[2]: w[7] carries the translation
+    delta(x) established above, so SubWord is now applied to an argument that
+    already varies with x, and w[8] - hence ROUND KEY 2 - is the first
+    nonlinear-in-x round key for class B. THIS MATCHES, AND IS A DIRECT
+    RESTATEMENT OF, IDEA-20260805-8053e1's SESSION-COMPUTED result ("at most 1
+    of 10 SubWord calls shared" for a one-word key difference), reinterpreted
+    here as a ROUND INDEX rather than a lookup-sharing fraction.
+
+    THE COMPARATIVE PREDICTION. On the plaintext axis (sister proposal),
+    translation covariance (identity I4) holds at EVERY round because
+    AddRoundKey always applies x -> x xor (a FIXED constant, since the key is
+    fixed) - there is no analogous "extra S-box injection" event, ONLY the
+    round function's own S-box layer, applied every round starting at round 1
+    (after AddRoundKey then SubBytes). On the key axis, class A's translation
+    covariance ALREADY breaks by round key 1 (before or alongside the round
+    function's own round-1 S-box layer acts on the translated state), and
+    class B's breaks by round key 2 - i.e. the key schedule injects nonlinear
+    dependence on x through a SECOND CHANNEL, independent of and in addition
+    to the round function's own S-box mixing of the state. FORCED, TESTABLE
+    CONSEQUENCE: the key-axis co-degree ladder (measuring, exactly as in the
+    sister proposal, Pr[c(g) >= m] against the exact null 2^{-8m}) is
+    predicted to reach its null level-1 rate NO LATER than the plaintext-axis
+    ladder for the SAME output byte j, and for class A specifically, no later
+    than class B.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: IDEA-20260805-62359f
+      provenance: internal
+      claim: >-
+        Derives identities I1-I4 for the plaintext-axis co-degree ladder and
+        the exact null Pr[c(f) >= m] = 2^{-8m}, reused here without
+        re-derivation for the key axis's identical field-theoretic facts.
+      verified_by: "ledger corpus read this session"
+    - ref: IDEA-20260805-8053e1
+      provenance: internal
+      claim: >-
+        Session-computed AES-128 key-schedule sharing bound: over key pairs
+        differing in one master-key word, at most 1 of 10 SubWord calls is
+        shared, with equal-expanded-word counts 3,4,5,3 of 44 for words
+        w[0],w[1],w[2],w[3] respectively. Reused directly to derive the
+        round-index breakpoints (round key 1 for w[3], round key 2 for
+        w[0]/w[1]/w[2]) used in this proposal's central prediction.
+      verified_by: "ledger corpus read this session; SESSION-COMPUTED values re-derivable by direct enumeration"
+    - ref: "Jakobsen, Knudsen, 'The Interpolation Attack on Block Ciphers' (FSE 1997)"
+      provenance: recalled
+      claim: >-
+        Classical interpolation attack varying plaintext for a fixed key to
+        solve for key-dependent polynomial coefficients directly, contrasted
+        above with this proposal's fixed-plaintext, varying-key-byte,
+        structural-comparison design.
+      verified_by: null
+    - ref: "eprint 2012/098 'Combined Attacks on the AES Key Schedule'; eprint 2020/1253 'New Representations of the AES Key Schedule'"
+      provenance: retrieved
+      claim: >-
+        Titles and topical relevance surfaced by WebSearch this session
+        (2026-08-28); NEITHER paper's content was fetched or read, so no
+        specific technical claim from either is relied on, and overlap with
+        this proposal's exact object is unresolved.
+      verified_by: "WebSearch result titles only, arxiv/eprint listings, 2026-08-28"
+
+  assumptions:
+    - >-
+      That the harness's AES-128 key-schedule implementation matches the
+      FIPS-197 recurrence exactly (verified independently by the pinned
+      known-answer vectors); a discrepancy here would invalidate the derived
+      round-index predictions.
+    - >-
+      That 256 encryptions per reading (sweeping one key byte) and a handful
+      of readings per (round, class, output byte j) fit the measured
+      resource envelope; trivially true at this cost class.
+
+  proof_search_map:
+    bottleneck: >-
+      Whether the branch-number weight-5 NECESSARY condition on MixColumns
+      activity is also SUFFICIENT for every specific shape pair -- not
+      applicable here; this record's bottleneck is instead whether the
+      derived round-index breakpoints (round key 1 for class A, round key 2
+      for class B) hold exactly under the pinned key schedule, which is the
+      step every downstream reading depends on.
+    baseline_embedding:
+      parameter_slice: >-
+        The plaintext-axis sister proposal's own death-round measurement for
+        the identical output byte j, whose mechanism (translation covariance
+        breaking only at the round function's own S-box layer) is the
+        reference this record's key-axis measurement is compared against.
+      reproduction_check: >-
+        The plaintext-axis death round must be reproduced (or reused directly
+        from that record's own run) before the key-axis comparison is
+        trusted.
+    observation_collision:
+      observable: the round at which each axis's co-degree ladder first reaches its null level-1 rate.
+      distinct_preimage_search: >-
+        The dangerous collision is class A and class B producing the SAME
+        measured death round despite the derived one-round gap between their
+        nonlinear injection points; any such agreement is reported explicitly
+        as a discriminating case requiring re-derivation.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: the key-axis co-degree death round, replacing a lookup-sharing fraction as the tracked quantity
+        predicted_gain: a direct, testable round-index prediction rather than a static count.
+    quantifier_order: >-
+      FOR the pinned AES-128 key schedule and a fixed plaintext, THE derived
+      round-index breakpoint for each byte class is claimed to hold EXACTLY;
+      the empirical death-round comparison across classes is then measured,
+      not assumed.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        an exact round-index prediction for when each key-byte class's
+        co-degree ladder first departs from a pure translation, verified
+        directly against the pinned key schedule; no claim beyond the tested
+        output bytes and round range.
+      nearby_object_control: not applicable beyond the class-A/class-B distinction itself, which serves as its own internal control.
+    proof_obligations:
+      - claim: round key 1 is nonlinear in x for class A
+        responsibility: correctness
+      - claim: round key 1 is a pure translation in x for class B, breaking only at round key 2
+        responsibility: correctness
+      - claim: the measured death-round ordering matches the derived breakpoints
+        responsibility: success_probability
+    not_applicable_reason: null
+
+  predictions:
+    - metric: "round_key_1_class_A_linearity (does round key 1's dependence on a varied w[3] byte remain affine in x?)"
+      direction: lower
+      minimum_effect: >-
+        FORCED: NO. Round key 1 must already be a nonlinear (SubWord-mediated)
+        function of x for class A. Verified by direct symbolic/numeric check
+        on the pinned key schedule, independent of any co-degree reading.
+    - metric: "round_key_1_class_B_linearity (same, for a varied w[0]/w[1]/w[2] byte)"
+      direction: higher
+      minimum_effect: >-
+        FORCED: YES, affine (a pure translation). If found nonlinear, the
+        derivation above is wrong and the record is superseded before any
+        co-degree reading is trusted.
+    - metric: "codegree_level_1_death_round_key_axis_class_A vs plaintext_axis (same output byte j, N = 4096 samples per round)"
+      direction: lower
+      minimum_effect: >-
+        Predicted class-A death round <= plaintext-axis death round, plausibly
+        by exactly 1 round, given the earlier nonlinear injection at round key
+        1. No exact round number is pre-registered (would invite fitting);
+        the ORDERING is pre-registered and is falsifiable.
+    - metric: "codegree_level_1_death_round_key_axis_class_B vs class_A"
+      direction: higher
+      minimum_effect: >-
+        Predicted class-B death round >= class-A death round (class B's
+        nonlinear injection starts one round later, at round key 2 vs round
+        key 1), by exactly 1 round if the mechanism is exact and no other
+        effect dominates.
+    - metric: "matched_random_permutation_false_positive_rate (same data complexity, all axes)"
+      direction: lower
+      minimum_effect: >-
+        Predicted at null (2^{-8} +/- 3 standard deviations at N = 4096),
+        matching the sister proposal's calibration exactly, since the null
+        model does not depend on which axis is varied.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first. STAGE 0 (seconds, can end the line):
+      symbolically/numerically verify the class-A and class-B round-key
+      linearity predictions directly against the pinned AES-128 key schedule,
+      independent of any interpolation code - if either forced value fails,
+      stop and correct the derivation before anything else runs. STAGE 1
+      (seconds): re-use the sister proposal's exact GF(2^8) interpolation code
+      unmodified, redirecting its varying-byte selection from a plaintext
+      position to a master-key position; confirm the S-box 9-term positive
+      control and the random-function null still pass unchanged (they do not
+      depend on which axis is varied). STAGE 2 (minutes): the co-degree ladder
+      over r = 1..10 for class A (one representative byte in w[3]) and class B
+      (one representative byte each in w[0], w[1], w[2]), N = 4096 samples per
+      round per class, matched-random-permutation control interleaved. STAGE 3
+      (paper): compare the three measured death rounds (plaintext axis from
+      the sister proposal's own run, class A, class B) and write the
+      comparative barrier/finding statement.
+    controls:
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: the
+        raw AES S-box's 9-term interpolation identity, unchanged from the
+        sister proposal - if the reused interpolation code does not return
+        exactly 9 coefficients at the derived exponents, the instrument is
+        broken and no reading from this proposal may be trusted either.
+      - >-
+        NULL OBJECT OF THE SAME SHAPE, AND IT CAN FAIL: a uniformly random
+        128-bit bijection substituted for AES at every round, read through the
+        identical varying-key-byte restriction. Forced value: level-m rate
+        exactly 2^{-8m}, independent of which byte position is nominally
+        "varied" (since the substitute has no key schedule at all - this null
+        also checks that the harness correctly treats the varied byte as an
+        independent input regardless of cipher structure).
+      - >-
+        SIBLING NULL THAT ISOLATES THE PROPERTY: repeat the class-A vs class-B
+        comparison with the key schedule's SubWord calls forced to the
+        identity (an AES-128 variant with a linear key schedule, analogous to
+        IDEA-20260805-4bd60c's L0 rung but applied to the KEY SCHEDULE only,
+        real S-box kept in the round function). FORCED PREDICTION: with a
+        linear key schedule, classes A and B collapse to a single case and
+        their co-degree death rounds must MATCH the plaintext axis exactly
+        (no extra nonlinear injection exists). If they do not match under this
+        sibling, the class-A/class-B distinction in the main experiment is not
+        attributable to the key schedule's nonlinearity and the whole
+        comparative claim is void.
+      - >-
+        ORDERING CONTROL: null-object and sibling-null readings are computed
+        and hash-committed before the real-AES class-A/class-B treatment
+        readings are looked at.
+      - >-
+        ARCHIVE CHECK (zero compute): no prior record in this repository or in
+        the two title-only eprint hits found this session measures a co-degree
+        or comparable structural ladder along a KEY-BYTE axis. Recorded as
+        unavailable rather than a passed check.
+    required_metrics: [class-A and class-B round-key linearity check results verbatim, co-degree level-1 and level-2 rates per round per class per output byte j, measured death rounds for the plaintext axis class A and class B with the ordering verdict, matched-random-permutation false-positive rate at the same data complexity, linear-key-schedule sibling-null result]
+
+  falsification_conditions:
+    - >-
+      The class-A or class-B round-key linearity forced value is wrong
+      (measured against the pinned key schedule). The derivation is wrong and
+      the record is superseded with the corrected round indices before any
+      co-degree reading is trusted.
+    - >-
+      The S-box positive control or the random-function null fails (inherited
+      from the reused interpolation code). Instrument broken; nothing may be
+      reported.
+    - >-
+      The predicted ordering (class-A death round <= plaintext-axis death
+      round <= or related to class-B death round) is violated after
+      replication on independent key/plaintext batches. The comparative
+      mechanism claim is false as stated and must be recorded as a negative
+      finding about the relative mixing rates of the two paths, not
+      discarded.
+    - >-
+      The linear-key-schedule sibling null does NOT collapse class A and
+      class B to the plaintext-axis death round. The class distinction is not
+      attributable to key-schedule nonlinearity and the comparative claim is
+      void.
+
+  confounders:
+    - >-
+      OUTPUT BYTE AND WORD-INTERACTION EFFECTS. Different output bytes j may
+      show different death rounds regardless of axis, and varying a byte
+      within a word can interact with MixColumns' branch structure
+      differently depending on byte position within the word. Declared
+      pre-run: (c, j) pairs are drawn and reported per-cell, exactly as the
+      sister proposal requires for (i, j).
+    - >-
+      MULTI-BYTE INTERACTION WHEN VARYING WITHIN CLASS B. The class-B
+      derivation assumes exactly ONE key byte varies; if the implementation
+      accidentally perturbs a second byte (e.g. through an indexing error)
+      the linear propagation chain through w[5]/w[6]/w[7] breaks silently.
+      Stage 0's direct check on the pinned key schedule is the mitigation.
+    - >-
+      SESSION-DERIVED VALUES ARE NOT HARNESS MEASUREMENTS. The round-index
+      breakpoints (round key 1 for class A, round key 2 for class B) are
+      derived on paper here and must be re-confirmed against the actual
+      pinned implementation in stage 0; a discrepancy is reported, not
+      reconciled.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy by default (RQ-AES-002 R7), for the same reason as the
+      sister proposal: a d=1-byte-coset-scale measurement is toy regardless of
+      the full-round ambition it serves.
+    - >-
+      A negative (both axes die at essentially the same round, or the
+      predicted ordering fails) closes ONLY the named comparison at the
+      tested scale (d=1, this instrument, this budget) and is not a universal
+      statement that key-schedule and round-function nonlinearity mix
+      information at the same rate in general; forward guidance: repeat at
+      d=2 byte cosets if budget permits, and extend the class-A/class-B
+      distinction to AES-192/256's different key-schedule cadence (every 6th
+      or 8th word, with an extra SubWord for AES-256), which this proposal
+      does not attempt and names as open.
+    - >-
+      A positive (a persistent, unexpectedly HIGH co-degree at round 10 on
+      either axis) would be a candidate full-round distinguisher and routes to
+      review-breakthrough at max effort under AGENTS.md rule 12, exactly as
+      the sister proposal states for its own axis.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING ON THE ROUND-INDEX DERIVATION. The class-A/class-B
+        breakpoints (round key 1 vs round key 2) follow deterministically
+        from the published AES-128 key-schedule recurrence and are not
+        distributional claims.
+      rigorous_support: >-
+        Given in the mechanism, a direct propagation argument through the
+        w[i] recurrence, restating IDEA-20260805-8053e1's session-computed
+        SubWord-sharing bound as a round index rather than a fraction.
+      validation_plan: >-
+        Stage 0 checks both breakpoints directly against the pinned key
+        schedule by symbolic substitution and numeric confirmation on
+        multiple random key/byte choices - an exact check, not a statistical
+        one.
+    - id: H2
+      statement: >-
+        COMPARATIVE MIXING RATE. The key schedule's extra SubWord injection
+        makes co-degree structure collapse no later on the key axis than on
+        the plaintext axis, for the same output byte.
+      rigorous_support: >-
+        NOT A THEOREM - this is the genuinely uncertain empirical content of
+        the proposal. The round-function's OWN S-box layer, applied to the
+        full state every round starting at round 1, may already dominate
+        mixing so completely that an additional, narrower (one-byte-wide)
+        nonlinear injection from the key schedule adds no measurable
+        additional collapse. Stated as a heuristic precisely so a null result
+        (no measurable difference between axes) is reportable as a real
+        finding about which path dominates mixing, not dismissed as
+        "expected."
+      validation_plan: >-
+        MEASURED directly: the death-round comparison across axes and classes
+        described in minimal_test, replicated on independent key/plaintext
+        batches, with the ordering (or its absence) reported as the primary
+        result regardless of which way it comes out.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT MOVED. As in the sister proposal, the possible positive
+      case (a persistent structural distinguisher at full round count) would
+      have data/time complexity approx 2^{8d} for a d-byte-wide varying
+      region; converting any such finding into a key-recovery mechanism is
+      explicitly NOT part of this proposal.
+    memory_exponent: >-
+      2^8 field elements per reading (d = 1 varying byte); negligible, stated
+      beside time as required.
+    best_known: >-
+      The reference for RQ-AES-002 is exhaustive key search under CM-1
+      (definitional); the published state of the art is UNADJUDICABLE in this
+      environment, asserted in neither direction.
+    hidden_overhead: >-
+      Exact GF(2^8) interpolation cost is O(2^{16}) field multiplications per
+      reading at d = 1 (identical to the sister proposal); stated here rather
+      than discovered at run time.
+    tradeoff_note: >-
+      Data and time move together as 2^{8d}, as in the sister proposal; no
+      memory-for-time trade exists in this object.
+
+  dominated_by: >-
+    "unresolvable in this environment: no primary source reachable; every
+    recalled frontier row is unverified-from-memory". Set to this string and
+    NEVER to null, per RQ-AES-002 claim_tier_ceiling R5. Rows checked INSIDE
+    this repository: EV-AES-001..005, EV-AES-d33b1c, EV-AES-d8a13e; KN-FIND-
+    028, KN-FIND-029; KN-TECH-063/069/070/071/074/075/079; all five prior
+    RQ-AES-002 proposals, in particular IDEA-20260805-62359f (plaintext axis,
+    directly extended here) and IDEA-20260805-8053e1 (key-schedule sharing
+    bound, directly re-purposed here); the experiment index (no AES-prefixed
+    experiment exists). None measures a key-byte-axis co-degree ladder.
+    Externally, two eprint titles were surfaced by WebSearch this session
+    (2012/098, 2020/1253) and NOT read; their overlap with this exact object
+    is unresolved and is not claimed in either direction.
+  sota_delta: >-
+    DEFINITIONAL-REFERENCE DELTA: ZERO. No attack, no key recovery, and
+    therefore no margin whatsoever against exhaustive key search at any key
+    size under CM-1; the published-state-of-the-art comparison is
+    UNADJUDICABLE in this environment and is asserted in neither direction
+    (R5 clause, same sentence). The quantitative contribution, if the
+    experiment runs, is the measured comparative death-round ordering across
+    the plaintext axis and the two key-schedule classes - a structural
+    finding about which mixing path dominates, feeding either a C3-style
+    barrier or a documented surprise.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  source_refs:
+    - RQ-AES-002
+    - GOAL-AES-002
+    - IDEA-20260805-62359f
+    - IDEA-20260805-8053e1
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.
