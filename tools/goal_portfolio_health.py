@@ -45,12 +45,22 @@ import yaml
 
 def discover_active_goals(repo_root: Path) -> list[dict[str, Any]]:
     goals: list[dict[str, Any]] = []
-    for path in sorted(glob.glob(str(repo_root / "ledger" / "goals" / "GOAL-*.yaml"))):
+    # Goals exist in two layouts (CLAUDE.md "Concurrency: many agents, many
+    # worktrees" -- tools/shard_goal.py): a flat ledger/goals/GOAL-X.yaml, or
+    # a sharded ledger/goals/GOAL-X/goal.yaml (with checkpoints/ alongside).
+    # Both must be scanned or the sharded goals are invisible to this sweep.
+    goal_paths = sorted(glob.glob(str(repo_root / "ledger" / "goals" / "GOAL-*.yaml")))
+    goal_paths += sorted(glob.glob(str(repo_root / "ledger" / "goals" / "GOAL-*" / "goal.yaml")))
+    for path in goal_paths:
+        p = Path(path)
+        # For the sharded layout the filename is always "goal.yaml"; the
+        # real id is the parent directory name, not the file stem.
+        fallback_id = p.parent.name if p.name == "goal.yaml" else p.stem
         try:
-            doc = yaml.safe_load(Path(path).read_text())
+            doc = yaml.safe_load(p.read_text())
         except Exception as exc:  # noqa: BLE001 - reported per-goal, not raised
             goals.append({
-                "id": Path(path).stem,
+                "id": fallback_id,
                 "path": path,
                 "status": "unparseable",
                 "error": str(exc),
@@ -60,7 +70,7 @@ def discover_active_goals(repo_root: Path) -> list[dict[str, Any]]:
         if record.get("status") != "active":
             continue
         goals.append({
-            "id": record.get("id", Path(path).stem),
+            "id": record.get("id", fallback_id),
             "path": path,
             "status": "active",
             "dispatch_queue_path": record.get("dispatch_queue_path"),
