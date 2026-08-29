@@ -94,8 +94,17 @@ def classify(repo_root: Path, goal: dict[str, Any], out_dir: Path) -> dict[str, 
         return result
 
     if not queue_path:
-        result["bucket"] = "needs_repair"
-        result["reason"] = "goal record has no dispatch_queue_path"
+        # A null dispatch_queue_path is a deliberate, legal committed value
+        # in this ledger, not a defect: several goals' own audited head
+        # notes explain exactly why (a design-only batch dispatched directly
+        # by a skill rather than tools/research_dispatch.py, or an explicit
+        # no-queue hold) -- see e.g. GOAL-ARGON-001's
+        # dispatch_queue_path_note_20260813_batch_ba7b2f and GOAL-HAWK-001's
+        # dispatch_queue_path_note_head_reconciliation_20260810. Nothing is
+        # dispatchable, which is exactly what "blocked" means; it is never
+        # evidence that anything is broken.
+        result["bucket"] = "blocked"
+        result["reason"] = "goal record has no dispatch_queue_path (may be legitimate -- check the goal's own head notes before treating as a defect)"
         return result
 
     abs_queue = repo_root / queue_path
