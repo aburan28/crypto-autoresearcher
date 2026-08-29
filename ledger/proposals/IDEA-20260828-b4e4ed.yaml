@@ -1,0 +1,405 @@
+idea:
+  id: IDEA-20260828-b4e4ed
+  added: '2026-08-28'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-AES-002
+  goal_id: GOAL-AES-002
+  title: >-
+    The unsigned-integer metric correlation ladder: does AES's linear
+    diffusion leave a derivable residual correlation with the ORDINARY
+    INTEGER byte-value metric (0-255 as unsigned integers), a representation
+    no off-limits family or the program's already-closed AES-Mobius/
+    cross-ratio lane treats as meaningful
+  class: mechanism
+
+  claim: >-
+    For a fixed key K, round count r, input byte position i and output byte
+    position j, sweep x over {0,...,255} as an ORDINARY UNSIGNED INTEGER
+    (not a GF(2) vector, not a GF(2^8) field element) to get h(x) = output
+    byte j of r-round AES_K with byte i set to x. For every unordered pair
+    {x,x'} compute d_in = |x-x'| (integer absolute difference) and
+    d_out = |h(x)-h(x')|. Define rho(r) = Pearson correlation between
+    {d_in} and {d_out} over all C(256,2) = 32640 pairs. CLAIM: MixColumns'
+    xtime (mult-by-0x02) is PROVABLY integer-doubling-compatible on the
+    lower half of the byte range (for b < 128, xtime(b) = 2b exactly, as
+    both a GF(2^8) product and an ordinary base-256 integer product, because
+    the reduction polynomial is not invoked until the top bit is set) and
+    departs from integer doubling by a FIXED XOR offset (0x1B) exactly when
+    b >= 128. This gives a derived, checkable reason to expect rho to be
+    measurably nonzero and analytically bounded away from the null
+    immediately after ONE MixColumns application with no preceding S-box,
+    discriminating between (H_lin) "a residual integer-metric correlation,
+    structurally forced by xtime's partial agreement with integer doubling,
+    is visible only before the next S-box scrambles it, and is at the exact
+    null from round 1 of the standard cipher onward" and (H_flat) "the
+    provably-real coincidence has no measurable footprint even in the
+    MixColumns-only control reading" -- both outcomes are informative, since
+    H_flat would itself be a real finding about how completely a single
+    control-reading-level construction erases an algebraically genuine
+    coincidence.
+
+  object_first_candidate:
+    tracked_object: >-
+      The Pearson correlation coefficient rho(r) between the ORDINARY
+      UNSIGNED-INTEGER metric on input byte values and on output byte
+      values (0..255 as plain integers, not as GF(2) vectors or GF(2^8)
+      field elements), read across a full sweep of one varied byte
+      position, tracked as a function of round count r.
+    established_families_off_limits: >-
+      All twelve off-limits families (differential/truncated differential;
+      linear/multidimensional linear; integral/square/division property;
+      impossible differential; meet-in-the-middle and Demirci-Selcuk;
+      boomerang/retracing boomerang; biclique; algebraic/Groebner; yoyo;
+      mixture differential/exchange; subspace trail; partial sums) operate
+      EXCLUSIVELY in the cipher's own native algebraic structure: GF(2)-XOR
+      difference/Hamming weight, or GF(2^8)-field arithmetic. None of them
+      uses the cryptographically arbitrary (but implementation-omnipresent)
+      unsigned-integer ordering of byte values as its metric.
+      THE CLOSEST INTERNAL PRIOR ART, actively checked this session:
+      knowledge/literature/KN-LIT-7595.md ("Mythos Preview's Chain of
+      Thought in Discovering the AES Mobius Bridge") documents an
+      ALREADY-CLOSED lane -- a cross-ratio/PGL(2,2^8) session that proved
+      GF(2)-linear invariants survive the S-box's affine layer L but die at
+      its inversion component Inv, projective (PGL) invariants survive Inv
+      but die at L, and <PGL(2,2^8), GL(8,2)> jointly leaves only trivial
+      invariants -- and named "multi-byte-coupled, information-theoretic, or
+      adaptive" as the remaining open directions.
+      knowledge/frontiers/symmetric-cryptanalysis.yaml independently tracks
+      a live external paper on exactly this cross-ratio object (row
+      aes128-cross-ratio-seven-round-2026-candidate, matching
+      eprint.iacr.org/2026/1549, which this session independently found via
+      WebSearch before discovering it was already tracked). BOTH hits are
+      GF(2)-affine or GF(2^8)-projective invariants; the ordinary-integer
+      metric proposed here is preserved by NEITHER a GF(2)-linear map
+      (XOR by a constant does not preserve integer absolute difference in
+      general) NOR any GF(2^8)-affine/Mobius map (field addition = XOR is
+      not integer addition). This record is therefore explicitly NOT the
+      cross-ratio lane restated, and that discrimination is load-bearing.
+    newness_score: >-
+      Genuinely new AS A PRIMARY LENS within this program's checked corpus
+      (all eight prior RQ-AES-002 proposals, KN-LIT-7595/7602, the
+      symmetric-cryptanalysis frontier file). The underlying fact that
+      GF(2^8) multiplication by 0x02 partially coincides with ordinary
+      integer doubling is elementary and not itself a discovery; what is
+      new is using that coincidence as the basis of a tracked statistical
+      object never applied to AES in this corpus. Novelty against the
+      external literature is UNVERIFIED -- this session's WebSearch/WebFetch
+      covered cross-ratio, GFN black-box, and equivalence-class papers, not
+      "integer metric" or "fitness-distance correlation" applied to AES,
+      and absence of a hit is not evidence of absence.
+    testability_score: >-
+      High and cheap. One reading costs 256 encryptions plus O(256^2) =
+      32640 pairwise distance computations (or a random subsample of
+      pairs); a full ladder over r=1..10, several hundred (key, plaintext,
+      i, j) instances fits in one producer slot on the measured envelope.
+    survival_score: >-
+      Expected LOW beyond round 0-1, stated honestly: SubBytes has no known
+      relationship to the integer ordering (it is built from GF(2^8)
+      inversion, which has no exploitable order structure), so the derived
+      xtime-doubling coincidence is expected to be visible, if at all, only
+      before the NEXT round's S-box acts on the mixed value. The value of a
+      clean negative here is a MEASURED rate at which a provably-real
+      algebraic coincidence is erased by one nonlinear layer -- a
+      quantitative fact this corpus does not currently hold in any form.
+
+  mechanism: |
+    THE DERIVED FACT, CHECKABLE BY HAND. GF(2^8) with FIPS-197's modulus
+    x^8+x^4+x^3+x+1 (0x11B). GF(2^8) multiplication by 0x02 ("xtime") is:
+    if bit 7 of b is 0, xtime(b) = b << 1 (no overflow, i.e. EXACTLY 2b as
+    an ordinary integer, since 2b <= 254 for b <= 127); if bit 7 of b is 1,
+    xtime(b) = ((b << 1) mod 256) XOR 0x1B. So for b in {0,...,127}:
+    xtime(b) = 2b EXACTLY as both a GF(2^8) product and a base-256 integer
+    product. For b in {128,...,255}: xtime(b) differs from plain integer
+    doubling-mod-256 by the FIXED offset XOR 0x1B. MixColumns multiplies
+    each output byte by a GF(2^8)-linear combination of {0x01, 0x02, 0x03}
+    (mult-by-0x03 = xtime XOR identity) applied to the four input bytes of
+    a column. THEREFORE: immediately after one MixColumns application, a
+    column with only ONE ACTIVE (varying) input byte produces output bytes
+    that are an exact, derivable, partially-integer-linear function of that
+    byte -- a genuine, provable coincidence between the cipher's native
+    GF(2^8) arithmetic and the cryptographically meaningless integer
+    ordering. THIS IS A DERIVED ALGEBRAIC FACT ABOUT THE FIPS-197
+    CONSTANTS, CHECKED HERE, NOT CITED.
+
+    THE NULL. For h one output-byte restriction of a Haar-random
+    permutation, {h(x)} is exchangeable with respect to the domain labels:
+    relabelling {0,...,255} by any fixed permutation does not change h's
+    distribution. Since d_in is a fixed function of the labels and h is
+    independent of any structure beyond bijectivity, E[rho] = 0 exactly by
+    symmetry -- the same argument used to derive the null expectation of
+    Spearman's rank correlation between a fixed sequence and a random
+    permutation. This record does not re-derive the closed-form finite-n
+    variance and instead calibrates it directly by Monte Carlo against an
+    actual random permutation at stage 1, exactly as this program's other
+    AES instruments calibrate their own approximate nulls.
+
+    THE PREDICTED SHAPE. rho(0), reading MixColumns' output directly with
+    SubBytes and AddRoundKey suppressed for this ONE control reading, is
+    FORCED substantially positive and analytically boundable from the
+    xtime identity -- a genuine positive control with a derivable, non-null
+    forced value. rho(1) (a full standard round: AddRoundKey, SubBytes,
+    ShiftRows, MixColumns) is predicted to already be AT THE NULL, because
+    SubBytes acts BEFORE MixColumns within a round and is expected to
+    scramble the integer-doubling structure before MixColumns can exploit
+    it. This is the primary, pre-registered, falsifiable prediction; a
+    departure from it (nonzero rho surviving into r=1 or beyond) is the
+    single most interesting possible outcome and is replicated before being
+    called a finding.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: "KN-LIT-7595 (internal, 'Mythos Preview's Chain of Thought in Discovering the AES Mobius Bridge')"
+      provenance: internal
+      claim: >-
+        Documents an already-closed lane (PGL/cross-ratio and GF(2)-affine
+        invariants of the AES S-box, closed by a group-theoretic argument
+        naming "multi-byte-coupled, information-theoretic, or adaptive" as
+        the remaining open directions). Read in full this session and used
+        to rule the cross-ratio/PGL lens out of this batch.
+      verified_by: "idea-generator subagent (read in full this session, knowledge corpus)"
+    - ref: "knowledge/frontiers/symmetric-cryptanalysis.yaml, row aes128-cross-ratio-seven-round-2026-candidate"
+      provenance: internal
+      claim: >-
+        Confirms the external cross-ratio paper (matching eprint 2026/1549,
+        independently found via WebSearch this session) is already tracked
+        as a snapshot-only candidate row in this program's frontier file.
+      verified_by: "idea-generator subagent (read this session)"
+    - ref: "FIPS-197 xtime/MixColumns constants (0x02, 0x03, modulus 0x11B)"
+      provenance: internal
+      claim: >-
+        The integer-doubling coincidence for b<128 and the fixed-XOR-offset
+        departure for b>=128 is derived here directly from the xtime
+        definition, not cited from a read document, consistent with
+        RQ-AES-002's provenance discipline.
+      verified_by: "derived in this record; re-derivation is stage 0 of minimal_test"
+
+  assumptions:
+    - >-
+      That reading MixColumns' output directly (S-box and AddRoundKey
+      suppressed) is implementable as a separate code path without
+      touching the pinned FIPS-197 harness, exactly as IDEA-20260805-4bd60c's
+      L0/L1/L2 ladder already establishes is feasible for other
+      layer-suppression rungs.
+    - >-
+      That 256 encryptions plus ~32640 pairwise distance computations per
+      (key, plaintext, i, j, r) cell, over several hundred cells, fits the
+      measured resource envelope; trivially true relative to the already
+      accepted cost of the co-degree ladder proposals.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      This is an empirical, toy-scale statistical measurement against a
+      derived structural coincidence and a classical exchangeability-based
+      null, not an asymptotic complexity claim, a certificate family, or a
+      closure/reduction argument about full-round AES. The "proof" content
+      is the elementary xtime identity, checkable by hand and re-derived
+      in-harness at stage 0; no KN-TECH-080 audit applies.
+
+  predictions:
+    - metric: >-
+        rho(0): Pearson correlation between integer input- and output-byte
+        distance, reading MixColumns' output directly with SubBytes/
+        AddRoundKey suppressed, N = all 32640 pairs
+      direction: higher
+      minimum_effect: >-
+        FORCED substantially positive, analytically boundable from the
+        xtime identity (exact value computed in stage 0, not pre-guessed
+        to avoid post-hoc fitting). This is the positive control and must
+        fire, or the instrument is broken and nothing else may be reported.
+    - metric: "rho(1): same statistic, one full standard AES round"
+      direction: lower
+      minimum_effect: >-
+        PREDICTED at or near the null (within a pre-registered +/-3
+        standard-error band computed against an actual random-permutation
+        calibration in stage 1), because SubBytes precedes MixColumns
+        within a round. A departure from null here is the single most
+        interesting possible reading.
+    - metric: "rho(r) for r = 2..10 (full round-count ladder)"
+      direction: lower
+      minimum_effect: >-
+        PREDICTED at null throughout, matching rho(1); the pre-registered
+        SHAPE is that |rho(r)| does not exceed its calibrated null band at
+        any r >= 1. A non-null reading that fails to decay toward null by
+        r=10 is the canonical artifact tell and halts interpretation.
+    - metric: >-
+        random-permutation null calibration: rho computed identically on
+        an actual Fisher-Yates-shuffled table in place of AES
+      direction: different
+      minimum_effect: >-
+        FORCED mean 0, variance computed by direct calibration over >=
+        1000 independent shuffles; this null can fail (a nonzero
+        calibrated mean indicates a bug in the correlation code, not a
+        cryptographic finding).
+    - metric: >-
+        S-box-alone monotonicity check: rho for the raw AES S-box applied
+        to all 256 inputs, no rounds, no key
+      direction: lower
+      minimum_effect: >-
+        PREDICTED at or near null; a strongly nonzero reading would be a
+        surprising, independently interesting finding about the specific
+        FIPS-197 S-box's numeric representation and must be replicated
+        before being reported.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first. STAGE 0 (seconds, CAN END THE LINE):
+      re-derive the xtime/integer-doubling identity in-harness by direct
+      enumeration of all 256 byte values; if it fails, stop and correct
+      the record. STAGE 1 (seconds): the random-permutation null
+      calibration and the S-box-alone monotonicity check. STAGE 2
+      (seconds): the MixColumns-only positive control (rho(0)). STAGE 3
+      (minutes): the full round-count ladder r = 1..10, several hundred
+      (key, plaintext, i, j) cells, with the matched null interleaved.
+      STAGE 4 (paper): write the finding, whichever way rho(1..10) falls.
+    controls:
+      - >-
+        POSITIVE CONTROL THAT MUST FIRE: rho(0), forced substantially
+        positive by the derived xtime identity. If it does not fire, the
+        instrument or the layer-suppression code is broken.
+      - >-
+        NULL OBJECT OF THE SAME SHAPE, AND IT CAN FAIL: an actual
+        Fisher-Yates-shuffled permutation read through the identical
+        pairwise-distance-correlation code. Forced mean rho = 0.
+      - >-
+        SIBLING NULL THAT ISOLATES THE PROPERTY: the AES-shaped SPN with a
+        uniformly random S-box, everything else identical. If it
+        reproduces the real-S-box profile exactly, any surviving
+        correlation is a property of MixColumns' round geometry, not of
+        the specific S-box.
+      - >-
+        GRADED CONTROL: the round-count ladder r = 0 (control), 1, ..., 10
+        is itself the graded control; the r=0-to-r=1 transition is
+        reported as a first-class result.
+      - >-
+        ORDERING CONTROL: the null-object and S-box-alone readings are
+        computed and hash-committed before the round-ladder treatment
+        readings are looked at.
+      - >-
+        ARCHIVE CHECK (zero compute): no prior record in this repository
+        or the checked knowledge corpus measures a correlation between the
+        ordinary-integer byte metric and any AES observable. Recorded as
+        unavailable rather than a passed check.
+    required_metrics: [xtime/integer-doubling identity confirmation, random-permutation null mean/variance, S-box-alone rho, rho(0) positive control, "rho(r) for r=1..10 with matched-null band", sibling-null comparison]
+
+  falsification_conditions:
+    - "The derived xtime/integer-doubling identity does not hold in-harness. Superseded before anything else runs."
+    - "rho(0) does not fire substantially positive. Instrument broken; nothing may be reported."
+    - "The random-permutation null does not read mean 0 within calibrated variance. Every downstream number is void."
+    - "rho(r) for r >= 1 is nonzero and does not decay toward null by r=10. The canonical artifact tell has fired."
+    - "The sibling null (random S-box) reproduces the real-S-box profile exactly at every round."
+
+  confounders:
+    - >-
+      BOUNDARY / WRAPAROUND EFFECTS: plain |x-x'| is not translation
+      invariant mod 256 the way GF(2) XOR distance is. Declared pre-run:
+      both plain absolute difference and circular distance
+      min(|x-x'|, 256-|x-x'|) are computed and reported separately.
+    - "SAMPLE REUSE ACROSS ROUNDS: independent seed streams per cell, declared pre-run."
+    - >-
+      OUTPUT-BYTE / COLUMN-POSITION CHOICE: the xtime coefficient differs
+      by position within a MixColumns column (0x02, 0x03, 0x01, 0x01);
+      the position is recorded per reading and broken out.
+    - >-
+      SESSION-DERIVED VALUES ARE NOT HARNESS MEASUREMENTS: the xtime
+      identity and predicted rho(0) sign are derived on paper here and
+      re-taken at stage 0; a discrepancy is reported, not reconciled.
+
+  interpretation_limits:
+    - "CLAIM TIER toy by default (RQ-AES-002 R7), regardless of the full-round ambition it serves."
+    - >-
+      A negative closes ONLY: "Pearson correlation between the
+      ordinary-unsigned-integer byte metric and AES ciphertext bytes,
+      this instrument, this budget, this round range." Not a universal
+      impossibility claim (forbidden by R7); forward guidance names
+      circular/modular distance variants and multi-byte integer-vector
+      metrics (e.g. a 4-byte column as a base-256^4 integer) as OPEN AND
+      UNATTEMPTED.
+    - >-
+      A positive (nonzero rho surviving past r=1) would be genuinely novel
+      and routes to independent xhigh/breakthrough-tier review per
+      AGENTS.md rule 12 before any stronger language; it is not converted
+      into a distinguisher or key-recovery claim by this record.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The xtime/integer-doubling coincidence (xtime(b)=2b exactly for
+        b<128, offset by a fixed XOR for b>=128) is an exact algebraic
+        fact about the FIPS-197 constants, not a distributional claim.
+      rigorous_support: >-
+        Given in full in the mechanism, a direct case analysis on the top
+        bit of the byte; re-derivable by hand and by exhaustive
+        enumeration over all 256 values.
+      validation_plan: "Stage 0 recomputes the identity in-harness over all 256 values."
+    - id: H2
+      statement: >-
+        For a uniformly random bijection on {0,...,255}, the Pearson
+        correlation between the fixed integer-distance sequence and the
+        random output's induced distance sequence has expectation exactly
+        0, imitating the classical zero-expectation result for Spearman's
+        rank correlation of a random permutation against a fixed sequence.
+      rigorous_support: >-
+        Follows from exchangeability of the random permutation's values
+        under relabelling that fixes the multiset of pairwise distances;
+        the same symmetry argument underlies Spearman's rho's null
+        expectation, applied here to Pearson correlation over integer
+        (not rank) distances.
+      validation_plan: >-
+        Stage 1's random-permutation calibration measures the mean and
+        variance directly at n=256 over >= 1000 independent shuffles
+        rather than relying on an asymptotic rank-correlation variance
+        formula, since this record adapts a rank-correlation argument to
+        a value-correlation statistic.
+
+  target_complexity:
+    time_exponent: >-
+      NOT AN ATTACK; no exponent against exhaustive key search is claimed
+      or moved. One reading costs 256 encryptions plus O(256^2) (or a
+      subsample) pairwise operations. The full 16-byte analogue at real
+      AES-128 block size would require the entire 2^128 domain and is
+      explicitly NOT proposed; this record is scoped to one-byte sweeps.
+    memory_exponent: "O(256) values plus O(256^2) pairs (or O(sample size)); negligible, stated beside time."
+    best_known: >-
+      The reference for RQ-AES-002 remains exhaustive key search under
+      CM-1; the published state of the art is UNADJUDICABLE in this
+      environment, asserted in neither direction. No attack-side
+      best-known competitor exists for this control instrument.
+    hidden_overhead: "None beyond the stated O(256^2) pairwise cost, disclosed exactly."
+    tradeoff_note: "None; no data or memory axis beyond what is stated, and no attack is proposed."
+
+  dominated_by: >-
+    "unresolvable in this environment: no primary source reachable; every
+    recalled frontier row is unverified-from-memory". Set to this string
+    and NEVER to null, per RQ-AES-002 R5. Rows checked INSIDE this
+    repository: EV-AES-001..005, EV-AES-abf3dc, EV-AES-d33b1c,
+    EV-AES-d8a13e; KN-FIND-028, KN-FIND-029; KN-TECH-063/069/070/071/074/
+    075/079; KN-LIT-7595 and KN-LIT-7602 (read in full this session and
+    explicitly distinguished above); knowledge/frontiers/
+    symmetric-cryptanalysis.yaml; all eight prior RQ-AES-002 proposals
+    (IDEA-20260805-8053e1, -62359f, -4bd60c, -01dfba, IDEA-20260808-ddb522,
+    IDEA-20260828-355431, -01fc51, -5f259f); and the experiment index (no
+    AES-prefixed experiment exists). None measures a correlation between
+    the ordinary-integer byte metric and any AES observable. External
+    literature was searched this session for cross-ratio/equivalence-class/
+    GFN topics but not specifically for "integer metric" applied to AES;
+    absence from those searches is not evidence of absence.
+  sota_delta: >-
+    DEFINITIONAL-REFERENCE DELTA: ZERO. No attack, no key recovery, no
+    margin against exhaustive key search under CM-1; the
+    published-state-of-the-art comparison is UNADJUDICABLE in this
+    environment and is asserted in neither direction (R5 clause, same
+    sentence). The quantitative contribution, if run, is a derived
+    positive-control value rho(0) and a measured rho(r) ladder -- a
+    control/validation instrument using a representation genuinely new to
+    this program's AES work, not a margin.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  source_refs: [RQ-AES-002, GOAL-AES-002, KN-LIT-7595, KN-LIT-7602]
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.
