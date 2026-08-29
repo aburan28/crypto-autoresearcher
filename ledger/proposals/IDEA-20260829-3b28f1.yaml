@@ -1,0 +1,851 @@
+idea:
+  id: IDEA-20260829-3b28f1
+  question_id: RQ-MLKEM-002
+  added: '2026-08-29'
+  status: proposed
+  proposed_by: idea-generator
+  title: >-
+    The lane has audited the CONSUMER of c' and never the PRODUCER. Track the
+    write-provenance of the re-encrypted buffer, and settle comparator-side
+    versus producer-side attribution with one ablation the lane has never run
+    -- substitute a certified-complete comparator and ask whether the silent
+    set decays to empty as it must
+  class: control
+
+  claim: >-
+    (A) THE UNEXAMINED HALF OF THE COMPARISON. Algorithm 18 compares two
+    buffers: the received ciphertext c*, and the re-encryption c' produced by
+    the implementation itself. Every object this lane has tracked -- the silent
+    set S (IDEA-20260805-1beeca, -ee2018), the length residue L mod w
+    (IDEA-20260805-3c957e), the difference support D (IDEA-20260821-13b667),
+    the compiled coverage set (IDEA-20260821-121612, IDEA-20260828-033cb3), the
+    select's write coverage and the finalize's value map (IDEA-20260828-40db79,
+    -edec21) -- is a property of the routine that READS those two buffers. Not
+    one asks whether the SECOND BUFFER IS FULLY AND INDEPENDENTLY WRITTEN
+    BEFORE THE READ. This record makes the producer's write footprint the
+    tracked object.
+    (B) THE MECHANISM, AND WHY IT IS INVISIBLE TO EVERY EXISTING INSTRUMENT.
+    Define, for a decapsulation implementation, the write-provenance map
+    W : [0, L) -> {WRITTEN, INHERITED, UNINITIALIZED}, where WRITTEN means the
+    byte of the comparison's second operand is assigned by the re-encryption on
+    every path, INHERITED means it retains a value copied from or aliased to
+    the RECEIVED ciphertext, and UNINITIALIZED means it retains unrelated prior
+    contents. The three provenances have three completely different observable
+    signatures, and only one of them is dangerous:
+      WRITTEN       -- ordinary; the comparison means what it says.
+      UNINITIALIZED -- the compared byte is unrelated garbage, so HONEST
+                       ciphertexts are rejected. This breaks the very first
+                       known-answer test and cannot survive in any shipped
+                       implementation. It is SELF-EXCLUDING, and saying so is
+                       half the point.
+      INHERITED     -- the compared byte is, by construction, equal to the
+                       received byte. The comparison at that position is c*[i]
+                       against c*[i]: it can never disagree. Honest ciphertexts
+                       pass, every KAT passes, every conformance vector passes,
+                       and the position is PERMANENTLY SILENT no matter how
+                       perfect the comparator is.
+    An INHERITED region is therefore a silent set that belongs to the producer,
+    not to the comparator -- and it is exactly the object IDEA-20260821-25d3ca
+    discovered at the encapsulation modulus check ("the two buffers cannot
+    differ on the rho tail"), transported to the decapsulation site where this
+    lane's decision target actually lives, and arising from an implementation
+    choice rather than from the standard's structure.
+    (C) THE ABLATION THAT ATTRIBUTES, AND IT IS ONE LINE. Every
+    comparator-side mechanism class the lane has named -- C-COV, C-BND, C-RED,
+    C-FIN, and by extension C-SEL -- shares one forced consequence: REPLACE THE
+    COMPARATOR WITH A CERTIFIED-COMPLETE ONE AND THE SILENT SET MUST COLLAPSE
+    TO EMPTY. A producer-side INHERITED region does not collapse; it is
+    identical under any comparator, because the two operands agree there
+    whatever is read. So the discriminating measurement is: measure S at the
+    Algorithm-18 boundary; then, under the GNU ld --wrap interposition already
+    admitted by EV-MLKEM-010, substitute a byte-exhaustive reference comparator
+    for the library's own and measure S again. S collapsing to empty attributes
+    the deficit to the comparator and CONFIRMS the lane's entire existing
+    taxonomy at that implementation. S surviving unchanged attributes it to the
+    producer and opens a class no instrument in this program has ever probed.
+    Both outcomes are reachable, both are informative, and the measurement is
+    the same measurement twice.
+    (D) THIS IS THE INVENTOR PROTOCOL'S STRUCTURAL TELL, INSTANTIATED. Section
+    3's canonical tell is a quantity that should decay with the parameter meant
+    to destroy it and does not. Here the quantity is |S| at the Algorithm-18
+    boundary and the parameter meant to destroy it is comparator completeness.
+    The lane has run the parameter to its limit exactly once -- EV-MLKEM-005's
+    post-fix builds show |S| = 0 -- but it ran it by changing the LIBRARY
+    VERSION, which changes the comparator and the producer together, so the
+    decay is uninformative about attribution. Substituting the comparator alone
+    while holding the producer fixed is the ablation that separates them, and
+    it has never been run.
+    (E) WHAT MAKES THE CLASS NON-EMPTY RATHER THAN HYPOTHETICAL. The dangerous
+    provenance requires a destination buffer that already holds the received
+    ciphertext at the moment the re-encryption runs. That happens in at least
+    three ordinary implementation patterns, each checkable by source reading:
+    (i) an in-place or aliased design where the received ciphertext buffer is
+    passed as the re-encryption destination to save an allocation; (ii) a
+    design that memcpy's c* into the comparison buffer as a "safe default"
+    before re-encrypting into it; (iii) a streaming design that re-encrypts and
+    compares in blocks, where an early exit or a bound error leaves later
+    blocks never produced and a pre-seeded buffer standing in for them. This
+    record does not assert that any implementation does any of these. It
+    asserts that the question has never been asked, that the answer is
+    decidable by reading each implementation's decapsulation function, and that
+    the ablation in (C) decides it behaviourally even where source reading is
+    ambiguous. A census returning "every fetched implementation writes into a
+    buffer with no inherited provenance" is a clean, reportable, expected null
+    that closes a site.
+    (F) A DISCLOSED NEGATIVE ON THE ONE IMPLEMENTATION ALREADY IN HAND. The
+    PQClean AVX2 decapsulation quoted in this repository's own committed
+    evidence file (experiments/EXP-MLKEM-009/analysis/pre-run/
+    pqclean_mechanism_evidence.txt) and in IDEA-20260828-40db79's retrieved
+    source uses a SEPARATE stack buffer for the re-encryption and passes it and
+    the received ciphertext as two distinct pointers to `verify`. On the source
+    read available to this session that buffer is not seeded from the received
+    ciphertext, so its unwritten bytes -- if any -- would be UNINITIALIZED
+    rather than INHERITED, which is the self-excluding provenance of (B). That
+    implementation is therefore expected OUT OF THE DANGEROUS CLASS, and this
+    record says so upfront rather than discovering it later. The class's
+    interest lies entirely in the census and in the ablation, not in a
+    pre-selected target.
+    (G) WHAT IS NOT CLAIMED. No attack, no oracle, no exploitation path, no
+    attack-cost estimate, no timing/power/EM/cache/fault measurement, no
+    statement about MLWE hardness or ML-KEM security at any parameter set. No
+    claim that any implementation has an inherited-provenance region. An
+    inherited region would be a functional conformance defect, and any newly
+    observed conformance defect escalates to the coordinator per RQ-MLKEM-002
+    and is published by no agent.
+
+  mechanism: >-
+    STAGE 0 -- DEFINE AND FREEZE THE PROVENANCE PREDICATE BEFORE ANY CANDIDATE
+    IS READ. For a decapsulation function, identify the pointer passed as the
+    comparison's second operand, and classify every byte position of the buffer
+    it points to as WRITTEN, INHERITED or UNINITIALIZED by the static rule:
+    WRITTEN if some assignment on every path from function entry to the
+    comparison call writes it from re-encryption output; INHERITED if the
+    buffer is aliased to, or copied from, the received ciphertext and no
+    subsequent write covers the position; UNINITIALIZED otherwise. Emit
+    inherited_deficit = |{i : W(i) = INHERITED}|. Where aliasing, macro
+    expansion or LTO makes the classification undecidable from source, the cell
+    is reported UNMEASURABLE, never guessed -- the same discipline
+    IDEA-20260821-121612 requires of its own extractor, whose disassembly
+    output is reused here where source alone is ambiguous.
+    STAGE 1 -- THE SOURCE CENSUS, ZERO BUILD. For every implementation
+    fetchable within budget, read the decapsulation function and record four
+    fields: the destination buffer of the re-encryption; whether it aliases or
+    is seeded from the received ciphertext; whether the comparison length
+    equals the full ciphertext length; and the inherited_deficit. Report the
+    per-implementation tuple with the source excerpt it was read from. This
+    stage alone answers the class's existence question over the fetched
+    population and costs nothing but reading.
+    STAGE 2 -- THE COMPARATOR-SUBSTITUTION ABLATION, THE ATTRIBUTING
+    MEASUREMENT. On each buildable implementation, run the existing
+    single-byte differential probe at the Algorithm-18 boundary twice under
+    identical seeds, keys and mutation schedule:
+      ARM NATIVE    -- the library's own comparator, unmodified.
+      ARM COMPLETE  -- the library's comparator symbol interposed via GNU ld
+                       --wrap (EV-MLKEM-010's admitted instrument; never the
+                       call-site macro method EV-MLKEM-009 refuted) with a
+                       byte-exhaustive reference comparison whose completeness
+                       is certified by the planted-comparator ladder of
+                       Stage 3, and with wrap_call_counts attesting that the
+                       wrapped symbol was actually invoked.
+    Report S_native, S_complete, and the difference. FORCED: for every
+    comparator-side class, S_complete is empty. Any i in S_complete is,
+    by elimination over the classes named in this lane, not attributable to
+    the comparator.
+    STAGE 3 -- THE PLANTED LADDER, SO THAT BOTH ARMS ARE CALIBRATED. Build a
+    small ladder of planted decapsulation harnesses with independently
+    controlled producer and consumer defects:
+      P0/C0 -- complete producer, complete comparator. Forced S empty on both
+               arms.
+      P0/C1 -- complete producer, comparator with a declared 32-byte silent
+               window. Forced S_native = that window, S_complete = empty.
+               This is the MUST-DECAY arm.
+      P1/C0 -- producer with a declared 32-byte inherited region (destination
+               pre-seeded with the received ciphertext, re-encryption writing
+               only the first L-32 bytes), complete comparator. Forced
+               S_native = S_complete = that region. This is the MUST-NOT-DECAY
+               arm and it is the one the whole record turns on.
+      P1/C1 -- both defects, with the two windows placed at DIFFERENT byte
+               ranges. Forced S_native = the union, S_complete = the producer's
+               window alone. This is the arm that shows the ablation
+               SEPARATES rather than merely detects.
+    STAGE 4 -- THE KAT SELF-EXCLUSION CHECK, WHICH IS WHY THE CLASS IS SUBTLE.
+    On every planted arm, run the implementation's own known-answer tests and
+    an honest encapsulate/decapsulate round trip. Forced: P1 (inherited)
+    passes every KAT, because on an honest ciphertext the inherited bytes are
+    the correct bytes; a planted UNINITIALIZED variant fails immediately.
+    Recording that contrast is what establishes that ordinary conformance
+    testing has exactly zero power against the inherited class -- a mode-1
+    null located in the standard test suite rather than in this lane's
+    generator.
+    STAGE 5 -- CROSS-CHECK AGAINST THE ARCHIVE, ZERO COMPUTE. EV-MLKEM-005
+    reports post-fix builds at |S| = 0 on both backends and all three
+    parameter sets. Under this record's model that is consistent with either
+    attribution, since the post-fix build changed the comparator and left the
+    producer alone only if the producer was already complete. Report the
+    archived numbers as CONSISTENT-WITH-BOTH rather than as support, which is
+    the honest reading and the reason the ablation is needed at all.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Grep over the repository plus first-hand reads; the crypto-kb MCP index's
+      availability was not re-checked and is not relied on. Grep of
+      ledger/proposals (glob *MLKEM*) for
+      `re-encrypt|reencrypt|decrypt|message bit|Compress|Decompress|coins`,
+      case-insensitive: NO MATCHES across all eleven filed RQ-MLKEM-002
+      proposals, which is the strongest single indication that the PRODUCER
+      side of the comparison has never been an object here. Grep of
+      ledger (glob *MLKEM*) for `align|unaligned|alignment`, case-insensitive:
+      the only hit inside this lane is EV-MLKEM-005's boundaries clause listing
+      untested classes. Read in full or in their claim/mechanism/object blocks
+      this session: all eleven RQ-MLKEM-002 proposals, RQ-MLKEM-002,
+      RQ-MLKEM-001, RQ-MLKEM-003, EV-MLKEM-005 (full), RUN-MLKEM-007
+      summary.json (full). No web retrieval was performed for this record.
+    results: >-
+      IDEA-20260821-25d3ca is the nearest prior art and the resemblance is
+      instructive rather than disqualifying: it observes that at the
+      ENCAPSULATION modulus check the two compared buffers CANNOT DIFFER on the
+      32-byte rho tail, so a deficit there is unobservable. That is the same
+      logical shape -- silence produced by operand agreement rather than by
+      comparator blindness -- but it arises there from the STANDARD's structure
+      at a DIFFERENT site, is derived by arithmetic over a fixed layout, and is
+      not attributable to any implementation choice. This record's object
+      arises from an IMPLEMENTATION's buffer handling at the DECAPSULATION
+      site, varies across implementations, and is settled by an ablation rather
+      than by arithmetic. IDEA-20260828-40db79 audits the write coverage of the
+      SELECT primitive downstream of the verdict; this record audits the write
+      coverage of the RE-ENCRYPTION upstream of it, and the two are different
+      buffers, different primitives and different failure signatures. No record
+      in this repository proposes substituting a certified-complete comparator
+      as an attribution ablation; the corpus uses planted comparators only as
+      controls on the instrument, never as a treatment on a real
+      implementation. Outside the repository, buffer aliasing and
+      partially-initialized comparison buffers are a generic C defect family;
+      NO SEARCH was performed and no external novelty is claimed.
+    verdict: >-
+      UNVERIFIED. Claimed new relative to this repository: the write-provenance
+      map W as a tracked object; the three-way WRITTEN/INHERITED/UNINITIALIZED
+      partition with its self-exclusion argument for the uninitialized branch;
+      the comparator-substitution ablation as an ATTRIBUTION instrument rather
+      than a control; the crossed P/C planted ladder with a must-decay and a
+      must-not-decay arm; and the observation that ordinary KATs have exactly
+      zero power against the inherited branch. ASSEMBLED FROM KNOWN PARTS: the
+      operand-agreement logic is IDEA-20260821-25d3ca's, transported to another
+      site and another cause; the ld --wrap instrument discipline is
+      EV-MLKEM-010's; the planted-comparator ladder form is
+      IDEA-20260805-ee2018's; the coverage-set vocabulary is
+      IDEA-20260821-121612's.
+
+  object_first_candidate:
+    tracked_object: >-
+      W : [0, L) -> {WRITTEN, INHERITED, UNINITIALIZED}, the write-provenance
+      map of the comparison's SECOND operand, together with the derived scalar
+      inherited_deficit = |W^{-1}(INHERITED)|.
+      ESTABLISHED FAMILIES DECLARED OFF-LIMITS as the primary lens per
+      inventor-protocol section 1: (a) the comparator's silent set, its size,
+      profile, period and suffix shape; (b) the length residue L mod w;
+      (c) the generator's difference support and its power law; (d) compiled
+      stride, coverage determinacy and call-site specialization; (e) the
+      select and finalize primitives downstream of the verdict; (f) control-arm
+      wiring and baseline-invisibility; (g) every cryptanalytic and physical
+      side-channel lens, excluded by RQ-MLKEM-002. S appears here only as the
+      measured quantity the ablation moves, never as the tracked object.
+    lossiness: >-
+      Genuinely lossy and compatible with the operation of interest. The full
+      state at the comparison call is (the entire decapsulation computation,
+      the key, the received ciphertext, every intermediate polynomial, the two
+      buffers' contents). W retains only, per byte position, WHICH SOURCE
+      last assigned it -- discarding the values written, the re-encryption's
+      entire arithmetic, the key, and the ciphertext. The fibre is enormous
+      and non-singleton: every correct ML-KEM re-encryption in existence, on
+      every key and every message, maps to the same all-WRITTEN map, and a
+      memcpy-then-partial-rewrite design maps to the same INHERITED map
+      whatever it computes. It is not a change of coordinates: nothing about
+      the ciphertext or the key is recoverable from W.
+      COMPATIBILITY: the comparison verdict is a function of the two operands'
+      byte-wise agreement, and INHERITED provenance forces agreement at that
+      position regardless of the comparator, so the retained part determines
+      the operation's outcome at exactly the positions it classifies. That is
+      what makes W propagate rather than merely summarize.
+    propagation: >-
+      One step of the operation of interest is "compare the two operands at
+      position i". The law is deterministic and closed form:
+      if W(i) = INHERITED then the operands agree at i for every received
+      ciphertext, so i is silent independently of the comparator;
+      if W(i) = WRITTEN then i is silent iff the comparator's own silent set
+      contains i;
+      if W(i) = UNINITIALIZED then i disagrees on honest inputs with
+      probability 1 - 2^{-8} per byte, so the implementation fails its own
+      round trip. Composing over the buffer: S_observed = S_comparator union
+      W^{-1}(INHERITED), and substituting a complete comparator sends the first
+      term to the empty set and leaves the second fixed. That identity is the
+      whole design.
+    survival_score: >-
+      Survives two steps and stops at a boundary declared in advance. Step 1,
+      "is this position forced silent by provenance": survives, by the law
+      above. Step 2, "does substituting a complete comparator separate the two
+      contributions": survives, and is what Stage 2 measures. Step 3, "WHY does
+      the producer fail to cover that region" -- a bound error, an early exit,
+      an aliasing mistake, a length mismatch: DIES here deliberately. W records
+      that a region is inherited, not the cause, and diagnosing the cause is a
+      separate audit this record does not perform and does not conflate with
+      detection.
+
+  discriminated_from:
+    - >-
+      IDEA-20260821-25d3ca derives, at the ENCAPSULATION modulus-check site,
+      that the compared buffers cannot differ on the rho tail because rho
+      passes through the re-encode unchanged -- a consequence of the STANDARD's
+      key layout, identical in every conforming implementation, established by
+      arithmetic over a fixed layout. This record's inherited regions are
+      consequences of an IMPLEMENTATION's buffer handling at the DECAPSULATION
+      site, differ between implementations, are not derivable from the
+      standard, and are detected by an ablation rather than by arithmetic. The
+      shared insight -- operands that cannot differ produce silence no
+      comparator fix removes -- is credited to -25d3ca and is not re-derived
+      here.
+    - >-
+      IDEA-20260828-40db79 tracks the write coverage of the SELECT primitive,
+      which runs AFTER the verdict and writes the shared secret. This record
+      tracks the write coverage of the RE-ENCRYPTION, which runs BEFORE the
+      verdict and writes the comparison's operand. Different buffer, different
+      primitive, opposite side of the verdict, and the two records' claims are
+      independent in both directions.
+    - >-
+      IDEA-20260805-ee2018, -1beeca, -3c957e and IDEA-20260821-121612 all take
+      the second operand as given and audit the routine that reads it. Their
+      taxonomy (C-COV, C-BND, C-RED, C-FIN) is not restated or extended here;
+      it is USED, as the set of classes whose common forced consequence --
+      collapse under a complete comparator -- makes the ablation an attribution
+      instrument rather than merely another detector.
+    - >-
+      IDEA-20260821-13b667 computes the probability that a generator's
+      difference support lands inside a silent set. This record does not
+      compute a probability at all: the inherited region is silent with
+      probability exactly 1 for every input, and the question is attribution,
+      not power. Where the two meet is that an inherited region enlarges the
+      effective S in 13b667's formula, which is noted and not developed.
+    - >-
+      RQ-MLKEM-001's H-MLKEM-232843 mutates the private key and reads
+      decapsulation as a black box. This record never touches key material and
+      is a white-box audit of one buffer's write footprint.
+
+  citations:
+    - ref: IDEA-20260821-25d3ca
+      provenance: internal
+      claim: >-
+        At the encapsulation modulus check the two compared buffers are
+        identical on the trailing 32-byte rho tail by construction, so a
+        coverage deficit contained in that tail is undetectable by any input;
+        and the census question of whether the modulus-check comparison routine
+        is the same symbol as the decapsulation comparison. Read (claim
+        sections 0-C) this session. Cited as the origin of the
+        operand-agreement logic this record transports to a different site and
+        a different cause.
+      verified_by: idea-generator@2026-08-29 (partial read, lines 1-80)
+    - ref: IDEA-20260828-40db79
+      provenance: internal
+      claim: >-
+        The write-side coverage of the Algorithm-18 select primitive, its
+        pre-poisoning control against accidental agreement, and its retrieved
+        PQClean source showing `crypto_kem_dec` calling
+        `verify(ct, cmp, KYBER_CIPHERTEXTBYTES)` with `cmp` a separate buffer.
+        Read in full this session. Relied on for the disclosed negative in
+        claim (F) and cited to establish that this record's buffer and
+        primitive are different from that record's.
+      verified_by: idea-generator@2026-08-29 (full read)
+    - ref: EV-MLKEM-010
+      provenance: recalled
+      claim: >-
+        GNU ld `--wrap` on linux/amd64 is the admitted library-path
+        interposition instrument for this class of measurement, with
+        wrap_call_counts attesting real invocation; call-site macro
+        interposition is refuted as load-bearing evidence by EV-MLKEM-009.
+        RECALLED VIA ITS QUOTATION IN IDEA-20260805-ee2018,
+        IDEA-20260821-13b667 and IDEA-20260828-40db79, all read this session;
+        the evidence record itself was NOT opened this session.
+      verified_by: null
+    - ref: EV-MLKEM-005
+      provenance: internal
+      claim: >-
+        Post-fix AVX2 and NEON builds show zero silent indices at all three
+        parameter sets; the pre-fix AVX2 silent set is exactly {1536..1567} at
+        ML-KEM-1024; and the boundaries clause states that the post-fix
+        zero-disagreement null "does not prove comparison correctness for
+        multi-byte, alignment, length-dependent, key-dependent, shared-defect,
+        or timing-only classes". Read in full this session. Relied on for
+        Stage 5's CONSISTENT-WITH-BOTH reading.
+      verified_by: idea-generator@2026-08-29 (full read)
+    - ref: experiments/EXP-MLKEM-009/analysis/pre-run/pqclean_mechanism_evidence.txt
+      provenance: recalled
+      claim: >-
+        This program's committed copy of PQClean's verify.c at a pinned commit.
+        RECALLED VIA ITS QUOTATION IN IDEA-20260828-40db79 AND
+        IDEA-20260828-edec21, both read in full this session; the file itself
+        was NOT opened this session, and claim (F)'s statement about PQClean's
+        separate `cmp` buffer rests on -40db79's retrieved kem.c excerpt rather
+        than on a first-hand read by this session.
+      verified_by: null
+    - ref: IDEA-20260805-ee2018
+      provenance: internal
+      claim: >-
+        The three-part accumulate/reduce/finalize anatomy and the
+        C-COV/C-BND/C-RED/C-FIN taxonomy, plus the planted-comparator ladder
+        with graded arms and an out-of-population control. Read in full this
+        session. Cited for the class set whose common forced consequence makes
+        the ablation an attribution instrument.
+      verified_by: idea-generator@2026-08-29 (full read)
+    - ref: null
+      provenance: recalled
+      claim: >-
+        FIPS 203 Algorithm 18 recomputes m', derives r', re-encrypts to c', and
+        compares c' with the received ciphertext before selecting between K and
+        the implicit-rejection value. RECALLED, NOT FETCHED THIS SESSION;
+        every prior attempt in this lane to fetch readable FIPS 203 text failed
+        and is recorded in IDEA-20260828-40db79 and IDEA-20260821-13b667. This
+        record's mechanism needs only that the second operand is produced by
+        the implementation rather than received, which the retrieved PQClean
+        call site quoted in -40db79 independently exhibits.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The comparison's second operand is identifiable in each implementation's
+      decapsulation function. Where inlining, LTO or macro expansion prevents
+      it, the cell is reported UNMEASURABLE rather than classified.
+    - >-
+      A byte-exhaustive reference comparator can be built whose completeness is
+      independently certified. Stage 3's P0/C0 and P0/C1 arms certify it; if
+      the P0/C1 arm fails to decay, the reference is not complete and no
+      attribution is reportable.
+    - >-
+      GNU ld --wrap interposition on the comparator symbol does not perturb the
+      producer. This is checked by confirming S_native reproduces the
+      unwrapped measurement on the P0/C1 arm and by wrap_call_counts attesting
+      invocation.
+    - >-
+      No conclusion transfers beyond the pinned commits, toolchains and
+      implementations actually read or built. A clean provenance map at one
+      commit says nothing about another.
+
+  proof_search_map:
+    bottleneck: >-
+      The attribution step: from "position i is silent at the Algorithm-18
+      boundary" to "the comparator is responsible" or "the producer is
+      responsible". Every existing instrument in this lane collapses those two
+      into one observation, and the entire record exists to split them.
+    baseline_embedding:
+      parameter_slice: >-
+        Restricted to implementations with W identically WRITTEN -- which is
+        the case this lane has implicitly assumed throughout -- the ablation's
+        two arms coincide (S_complete empty whenever S_native is
+        comparator-caused) and every conclusion of the existing taxonomy is
+        recovered unchanged. The proposal is a strict family extension along
+        one previously fixed axis, and its baseline slice is the lane's
+        current model, not a rival to it.
+      reproduction_check: >-
+        On the P0/C1 planted arm, S_native must equal the declared comparator
+        window exactly and S_complete must be empty -- reproducing, under the
+        new instrument, the qualitative result EV-MLKEM-005 already recorded
+        for pre-fix versus post-fix wolfSSL. A failure of this check indicts
+        the ablation harness before any candidate is read.
+    observation_collision:
+      observable: >-
+        The silent set S measured at the Algorithm-18 boundary.
+      distinct_preimage_search: >-
+        A comparator with silent window R and a producer with inherited region
+        R produce the IDENTICAL observable S = R on every input, at every
+        parameter set, for every key. This is an exact, total collision on the
+        lane's primary observable and it is the reason the class could exist
+        undetected. The separating condition is the treatment, not a finer
+        observable: substituting the comparator moves one preimage and not the
+        other. Stage 3's P1/C1 arm, with the two windows placed at DIFFERENT
+        ranges, is the direct test that the separation works rather than merely
+        being argued.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The silent set held FIXED while the forgotten structure -- which of
+          the two operands' handling produced it -- is varied by the
+          comparator substitution.
+        predicted_gain: >-
+          Converts a collision that is total under passive observation into a
+          separation under one intervention, at the cost of one extra run per
+          implementation and no new instrument.
+      - transform: stronger_invariant
+        proposed_object: >-
+          W, which preserves more state than the verdict requires: the verdict
+          needs only byte agreement, W records why the bytes agree.
+        predicted_gain: >-
+          The extra state is exactly what survives the comparator substitution,
+          which is why it, and not the verdict, is what recursion on the
+          decapsulation pipeline should carry.
+    quantifier_order: >-
+      FOR EACH implementation I in the fetched population, FOR ALL byte
+      positions i, IF W_I(i) = INHERITED THEN FOR ALL received ciphertexts the
+      comparison agrees at i. The universal over ciphertexts is what
+      distinguishes this from a probabilistic silent set and is what makes the
+      must-not-decay arm a zero-tolerance check. The census claim is
+      existential and per-implementation -- THERE EXISTS an implementation with
+      a nonempty inherited region -- and is checked, never asserted uniformly.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        For a stated, finite set of pinned implementations that were read and
+        built, this method certifies whether the silent set observed at the
+        Algorithm-18 boundary is attributable to the comparator or survives its
+        substitution, and it certifies the source-level provenance map where
+        source reading is unambiguous. It does NOT certify that a
+        provenance-clean implementation is otherwise correct, does not
+        establish the CAUSE of any inherited region, and says nothing about
+        implementations not fetched.
+      nearby_object_control: >-
+        The P1/C0 arm -- a producer-side inherited region with a comparator
+        that is complete by construction -- is the nearby object on which the
+        hoped-for conclusion of the lane's existing taxonomy FAILS: every named
+        comparator class predicts S empty there, and the truth is S = the
+        inherited region. A method that reports "no comparator defect,
+        therefore no defect" on that arm has not identified the load-bearing
+        structure, and reporting it correctly is the pass criterion.
+    proof_obligations:
+      - claim: An inherited position is silent for every input, independent of the comparator.
+        responsibility: correctness
+      - claim: The substituted reference comparator is complete, certified by the P0/C1 decay arm.
+        responsibility: interface
+      - claim: An uninitialized position fails an honest round trip, so that branch is self-excluding.
+        responsibility: feasibility
+      - claim: The ablation separates a crossed producer/comparator pair with disjoint windows.
+        responsibility: strictness
+      - claim: Nothing transfers beyond the pinned commits read or built.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        decay_on_P0C1: |S_complete| on the planted arm with a complete producer
+        and a declared 32-byte comparator silent window
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0, with no tolerance, while |S_native| is EXACTLY 32. This is
+        the must-decay arm; if it does not decay, the substituted comparator is
+        not complete or the interposition is not on the path, and NO
+        attribution anywhere in the record is reportable.
+    - metric: >-
+        survival_on_P1C0: |S_complete| on the planted arm with a 32-byte
+        inherited producer region and a comparator complete by construction
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 32, equal to |S_native|, with no tolerance. This is the
+        must-not-decay arm and it is the record's central forced value: a
+        decay here would mean the inherited region is not in fact silent and
+        the mechanism in claim (B) is wrong.
+    - metric: >-
+        separation_on_P1C1: whether S_native equals the union of the two
+        declared disjoint windows and S_complete equals the producer window
+        alone
+      direction: different
+      minimum_effect: >-
+        MUST HOLD exactly, set-for-set. A partial or fuzzy separation means the
+        ablation detects but does not attribute, which is a weaker deliverable
+        and must be reported as such rather than presented as attribution.
+    - metric: >-
+        kat_power: the number of standard known-answer-test vectors failed by
+        the P1 (inherited) planted arm, and by a planted UNINITIALIZED variant
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 for the inherited arm and STRICTLY POSITIVE for the
+        uninitialized arm, with no tolerance on either. This is the pair that
+        establishes conventional conformance testing has exactly zero power
+        against the dangerous branch and full power against the harmless one,
+        and it is the record's justification for the class mattering at all.
+    - metric: >-
+        census_inherited_count: over every implementation whose decapsulation
+        function was read, the number with a nonempty inherited_deficit
+      direction: different
+      minimum_effect: >-
+        No number is predicted and the refusal is deliberate: this is the
+        record's discriminator. Zero is the expected and fully acceptable
+        outcome -- a measured null over a non-empty, machine-decidable
+        population, which is categorically stronger than the
+        second_impl_unavailable disposition this lane has repeatedly recorded.
+        Any nonzero count is a live conformance finding, escalates to the
+        coordinator immediately, and is published by no agent.
+    - metric: >-
+        unmeasurable_fraction: the fraction of censused implementations whose
+        provenance map cannot be classified from source or disassembly
+      direction: lower
+      minimum_effect: >-
+        Below 0.5. Above that, the census is not executable as designed and is
+        reported UNMEASURABLE for those cells rather than patched after seeing
+        partial results; the ablation still runs on whatever builds.
+
+  minimal_test:
+    design: >-
+      THE MINIMAL DISCRIMINATING VERSION IS STAGE 3 ALONE, ON PLANTED HARNESSES
+      ONLY, AND IT NEEDS NO REAL LIBRARY: build the four crossed arms
+      (P0/C0, P0/C1, P1/C0, P1/C1) as small standalone decapsulation harnesses
+      over a reference ML-KEM implementation, run the single-byte differential
+      probe through each under both the native and the interposed comparator,
+      and check the four forced values. That is a few hundred lines of C, tens
+      of minutes of build time, and seconds of compute, and it establishes
+      whether the ablation attributes at all. Only if it does are Stages 1 and
+      2 -- the source census and the ablation on real libraries, bounded by
+      fetch and build budget -- worth running. Stage 4's KAT arm rides along at
+      no extra cost. This ordering deliberately spends nothing on real
+      libraries until the instrument has demonstrated the separation it claims.
+    controls:
+      - >-
+        MUST-DECAY ARM (P0/C1): forced |S_complete| = 0 against
+        |S_native| = 32. Without a demonstrated decay the substituted
+        comparator is not certified complete and nothing is attributable.
+      - >-
+        MUST-NOT-DECAY ARM (P1/C0): forced |S_complete| = |S_native| = 32. This
+        is the null object for the LANE'S EXISTING MODEL: every comparator-side
+        class predicts 0 here, and the arm exists to show the existing model
+        can be wrong in a way its instruments cannot see.
+      - >-
+        CROSSED ARM (P1/C1) with disjoint windows: the separation test proper.
+      - >-
+        NULL OBJECT (P0/C0): a wholly correct harness. Forced |S| = 0 on both
+        arms. If the instrument reports any silent index on a construction that
+        is complete on both sides, it is broken and no negative may be
+        reported, mirroring IDEA-20260805-ee2018's own null discipline.
+      - >-
+        SELF-EXCLUSION CONTROL: a planted UNINITIALIZED variant, which must
+        fail the honest round trip. This is the arm that keeps the record from
+        claiming a dangerous class where the failure mode is actually
+        self-announcing.
+      - >-
+        WRAP ATTESTATION: wrap_call_counts confirming the interposed symbol was
+        actually invoked on every ablation run, per EV-MLKEM-010's admitted
+        method; the call-site macro method refuted by EV-MLKEM-009 is never
+        used.
+      - >-
+        ORDERING CONTROL: the four forced values are committed and hashed
+        before any real implementation is read or built, so no census cell can
+        be reclassified after the fact.
+      - >-
+        ARCHIVE CHECK (zero compute): confirm that EV-MLKEM-005's post-fix
+        |S| = 0 is CONSISTENT WITH BOTH attributions and is not evidence for
+        either, and say so in the report rather than recruiting it as support.
+    required_metrics:
+      - S_native and S_complete as explicit index sets, per arm and per implementation
+      - the four planted arms' forced-versus-measured table with seeds
+      - KAT pass/fail counts for the inherited and uninitialized planted variants
+      - per-implementation provenance tuple (destination buffer, aliased?, seeded?, comparison length, inherited_deficit) with source excerpt
+      - the list of implementations reported UNMEASURABLE, with the reason
+      - wrap_call_counts per ablation run
+      - every patch diff, build configuration and pinned commit used
+
+  falsification_conditions:
+    - >-
+      The P0/C1 must-decay arm does not decay. The substituted comparator is
+      not complete, or the interposition is not on the comparison path; no
+      attribution, positive or negative, is reportable until repaired.
+    - >-
+      The P1/C0 must-not-decay arm decays. An inherited region is NOT silent
+      under a complete comparator, the mechanism of claim (B) is wrong, and the
+      record is withdrawn.
+    - >-
+      The P1/C1 crossed arm fails to separate the two windows. The ablation
+      detects but does not attribute; the record's central claim is downgraded
+      from attribution to detection and must be reported that way.
+    - >-
+      The inherited planted arm fails any known-answer test. The class is
+      self-announcing after all, ordinary conformance testing does have power
+      against it, and the record's justification for its importance collapses
+      even if the mechanism is real.
+    - >-
+      Any fetched implementation is found with a nonempty inherited_deficit.
+      This is a live, escalable conformance finding under RQ-MLKEM-002,
+      reported to the coordinator and published by no agent -- not merely a
+      positive result for this record.
+    - >-
+      The provenance map is UNMEASURABLE for a majority of censused
+      implementations. The census is not executable as designed and says so.
+    - >-
+      Build or fetch failures. INFRASTRUCTURE outcome under AGENTS.md rule 3,
+      never negative evidence about any implementation; the planted ladder
+      still completes because it depends on no external library.
+
+  confounders:
+    - >-
+      THE COLLISION IS TOTAL UNDER PASSIVE OBSERVATION AND THAT IS THE POINT.
+      A comparator window and an inherited region of the same extent are
+      indistinguishable on every input, at every parameter set, on every key.
+      Any reading of a silent set as evidence about the comparator, anywhere in
+      this lane's archive, carries this ambiguity, and the honest statement is
+      that the archive is consistent with both and was never designed to
+      separate them.
+    - >-
+      INTERPOSITION CAN PERTURB MORE THAN THE COMPARATOR. Wrapping a symbol
+      changes linkage and can change inlining decisions around the call, which
+      could in principle alter the producer's compiled form. The P0/C1 arm's
+      reproduction of the unwrapped S_native is the check, and a discrepancy
+      there voids the ablation for that build.
+    - >-
+      A STREAMING DESIGN BLURS PRODUCER AND CONSUMER. An implementation that
+      re-encrypts and compares block by block has no single moment at which W
+      is defined; such implementations are reported OUT OF POPULATION for the
+      static map and are handled by the behavioural ablation alone, with the
+      distinction stated per cell.
+    - >-
+      REACHABILITY IS NOT PRESENCE. A destination buffer seeded from the
+      received ciphertext makes the class reachable; whether the re-encryption
+      actually fails to cover the buffer is a further question, and the two are
+      not conflated.
+    - >-
+      SELECTION BY FETCHABILITY AND BUILDABILITY. The census's population is
+      whatever can be fetched and built within budget, and every count is a
+      floor over that population, stated as such.
+    - >-
+      A CLEAN CENSUS IS THE LIKELY OUTCOME AND MUST NOT BE OVERSOLD. Separate
+      comparison buffers are the ordinary pattern and the one implementation
+      already in hand uses one. A null here closes a site; it does not close
+      the isolation-versus-systemic question and must not be phrased as if it
+      did.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT AN ORACLE, NOT AN EXPLOITATION PATH, NOT A COST
+      ESTIMATE, NOT A STATEMENT ABOUT MLWE HARDNESS OR ML-KEM SECURITY AT ANY
+      PARAMETER SET. RQ-MLKEM-002's constraints bind unchanged; any newly
+      observed conformance defect escalates to the coordinator and is published
+      by no agent.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002, for any hypothesis, or
+      for any archived evidence or decision record. Observing that an archived
+      measurement is consistent with two attributions is not re-reading its
+      verdict.
+    - >-
+      A clean provenance map at one pinned commit establishes exactly one fact
+      about one buffer in one function. It does not establish that the
+      implementation's comparison is correct, that its re-encryption is
+      correct, or that any other implementation behaves the same way.
+    - >-
+      Claim tier laboratory/toy, not raisable by citation. Planted harnesses
+      and laboratory library builds at three standardized ciphertext lengths
+      are never crypto-scale or MLWE evidence.
+    - >-
+      A null census removes one candidate site from future search, not the
+      search itself, and the CAUSE of any inherited region found remains
+      untested by this record. Premature closure is a failure mode symmetric
+      with overclaiming.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        PROVENANCE FORCES AGREEMENT. FOR ALL decapsulation implementations,
+        FOR ALL byte positions i, and FOR ALL received ciphertexts c*, if the
+        comparison's second operand at position i is never assigned between the
+        point at which it is set from c*[i] and the comparison call, then the
+        two operands are byte-equal at i; consequently the comparison's verdict
+        is independent of c*[i], and i lies in the observed silent set for
+        every comparator whatsoever.
+      rigorous_support: >-
+        Not a distributional heuristic; a rigorous consequence of sequential
+        semantics -- a memory location that is written once from a source and
+        not written again holds that source's value at any later read. It
+        imitates no classical distribution theorem and is not presented as one.
+        Its preconditions are exactly the ones that can fail in practice and
+        are named rather than assumed: no intervening write on ANY path
+        (including error paths and compiler-inserted initialization), no
+        aliasing that makes a different write cover the position, and a single
+        well-defined comparison call. Where any precondition is undecidable
+        from source, the cell is UNMEASURABLE.
+      validation_plan: >-
+        Validated by construction and by measurement together, at a scale where
+        both are exhaustive rather than sampled: on the P1/C0 planted arm,
+        probe EVERY byte position of the ciphertext with EVERY nonzero
+        single-byte delta (255 * L probes, i.e. 255 * 1568 = 399,840 at
+        ML-KEM-1024, seconds of compute) and confirm that the measured silent
+        set equals the declared inherited region exactly, with zero indices in
+        and zero out. The tail check is the strongest single disagreement
+        observed, which must be none. Repeat at all three parameter sets and
+        confirm the inherited region tracks its declared byte range rather than
+        scaling with L, which distinguishes it from a reduction deficit. No
+        transfer to unbuilt implementations is claimed: this validates the law,
+        not any implementation's provenance.
+    - id: H2
+      statement: >-
+        SUBSTITUTION COMPLETENESS. The interposed reference comparator has an
+        empty silent set at every parameter set and for every input pair, so
+        that any index remaining in S_complete is attributable to something
+        other than the comparator.
+      rigorous_support: >-
+        Rigorous for a byte-at-a-time loop over the full length with an
+        OR-of-XOR accumulate and a sign-safe zero test -- the construction is
+        chosen precisely so that IDEA-20260805-3c957e's coverage arithmetic
+        gives an empty deficit (stride 1 divides every length),
+        IDEA-20260805-ee2018's reduction analysis gives phi = 1 (no lanes), and
+        IDEA-20260828-edec21's finalize analysis gives an empty silent value
+        set (unsigned negate-and-shift). The three prior derivations are USED
+        as the completeness certificate rather than re-derived, and the
+        argument is only as good as they are, which is stated rather than
+        hidden.
+      validation_plan: >-
+        Exhaustive rather than sampled, at the scale where exhaustion is
+        possible: drive the reference comparator with all 255 * L single-byte
+        deltas at each parameter set and confirm zero silent indices, then with
+        at least 10^5 random multi-byte difference supports of sizes 2, 4 and 8
+        and confirm zero misses. Predicted distribution: the detection
+        indicator is identically 1, so the comparison is against a degenerate
+        distribution and the tail check is simply that the minimum observed
+        detection over all probes is 1. Any single miss withdraws H2 and voids
+        every attribution taken against that reference.
+
+  target_complexity:
+    time_exponent: >-
+      n/a -- no exponent is moved and no attack is proposed; RQ-MLKEM-002
+      forbids attack-cost estimation. Stated plainly. The deliverable is an
+      attribution instrument plus a bounded source census, not an asymptotic
+      result.
+    memory_exponent: n/a
+    best_known: >-
+      n/a -- no competing statement of producer-side provenance exists in this
+      repository. Whether one exists in the external literature on
+      partially-initialized comparison buffers was NOT searched this session.
+    hidden_overhead: >-
+      n/a. The dominant cost is 255 * L single-byte probes per arm per
+      parameter set -- under 400,000 decapsulation-boundary probes at
+      ML-KEM-1024, each a small constant-time comparison -- plus build time for
+      four planted harnesses and whatever libraries the census fetches. No
+      superpolynomial term and nothing hidden in an o(1).
+    tradeoff_note: >-
+      n/a. The one scaling note is that the ablation doubles the probe budget
+      of any existing measurement, since every arm is run twice; that factor of
+      two is the entire price of attribution and is stated rather than absorbed.
+
+  dominated_by: >-
+    n/a (no result claimed as an algorithm; no time, memory or data/query cost,
+    hence no Pareto point). Rows checked inside this repository on 2026-08-29
+    for a prior treatment of the re-encryption's write footprint or of
+    comparator substitution as an attribution instrument: all eleven filed
+    RQ-MLKEM-002 proposals, read in full or in their claim/mechanism/object
+    blocks; RQ-MLKEM-001 and RQ-MLKEM-003 in full; EV-MLKEM-005 in full;
+    RUN-MLKEM-007 summary.json in full. The nearest row is
+    IDEA-20260821-25d3ca, which reaches the same operand-agreement logic at a
+    different site from a different cause and is credited in
+    discriminated_from; the next nearest is IDEA-20260828-40db79, which audits
+    a different buffer on the other side of the verdict. Neither dominates
+    this record in the Pareto sense because neither measures this quantity at
+    any cost. NO EXTERNAL SEARCH was performed and no external novelty is
+    claimed.
+  sota_delta: >-
+    No attack; control and attribution contribution only. Quantitatively,
+    against the lane's own state: every silent-set measurement in this lane's
+    archive -- the pre-fix AVX2 {1536..1567}, the pre-fix NEON 384/544/784, the
+    post-fix zeros, at three parameter sets and two backends -- is consistent
+    with two disjoint attributions and was produced by an instrument with
+    exactly ZERO power to separate them, because the instrument varies the
+    library version rather than the comparator alone. This record supplies the
+    separating intervention at a cost of one additional run per implementation
+    (a factor of 2 on probe budget, no new instrument, reusing the ld --wrap
+    method already admitted by EV-MLKEM-010), and it names one branch --
+    inherited provenance -- against which known-answer testing has forced zero
+    power, which is a class the program's entire defensive apparatus is
+    currently blind to by construction.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high

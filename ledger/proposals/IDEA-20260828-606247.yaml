@@ -1,0 +1,300 @@
+idea:
+  id: IDEA-20260828-606247
+  title: >-
+    An exact, unconditional cross-key shift defect in the AES key schedule --
+    the differential relation between subkey words RQ-AES-001 names,
+    instantiated at the KEY level (between two related keys) rather than the
+    single-key level every filed proposal has used so far.
+  class: mechanism
+  claim: >-
+    Formalizes catalogue entry A2-8 (ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A2.md,
+    lines 685-753), INDEPENDENTLY RE-DERIVED. Define, for a shift
+    s in {1,...,Nk-1} and master key K, the CROSS-KEY SHIFT-DEFECT
+    TRAJECTORY Delta_i^(s)(K) = RK_i(RK_s(K)) XOR RK_{i+s}(K) -- the XOR
+    difference between the schedule of the "slid" master key K' = RK_s(K)
+    (the s-th round key of K, reinterpreted as a fresh master key of the same
+    size) and the shifted tail of K's own schedule. This is a genuinely
+    different tracked object from every key-schedule relation this program
+    has filed: IDEA-20260805-33a11e tracks single-key algebraic DEGREE in the
+    master-key bits; IDEA-20260807-5ed21f tracks a single-key permanent-ZERO
+    bit-influence set; NEITHER compares two DIFFERENT keys related by a
+    shift, and RQ-AES-001's named object ("which relation between subkey
+    words is claimed, and which round pair it couples") is answered here
+    with an actual DIFFERENTIAL relation rather than an algebraic-degree or
+    zero/nonzero-influence one. CLAIM: Delta_0^(s)(K) = 0 by construction
+    (RK_0(K') = RK_s(K) trivially), and Delta_1^(s)(K) equals the SAME
+    nonzero 4-byte value (01 XOR x^s) || 00 || 00 || 00 for EVERY key K and
+    every admissible shift s, where x = 0x02 is AES's field generator with
+    (per the catalogue's own computation, independently re-verified here
+    rather than accepted) multiplicative order 51 in GF(2^8) under the AES
+    reduction polynomial -- i.e. the defect is EXACTLY DERIVED and
+    KEY-INDEPENDENT, not a 0-of-N sampled observation the way this program's
+    NC-5/MEAS-RT-D measured within-schedule round-key repetition. TWO
+    DISCRIMINATED OUTCOMES: if this record's independent re-derivation
+    confirms the defect set has size EXACTLY 1 at step 1 for every tested
+    key and shift, the cross-key slide window is certified exactly 1 -- an
+    UNCONDITIONAL, not merely sampled, closure of this specific instance of
+    the key-schedule differential-relation object; if any (key, shift) pair
+    yields a DIFFERENT nonzero value the derivation is wrong, and if any
+    pair yields EXACTLY ZERO, x^s = 1 for that s -- contradicting ord(x)=51,
+    a genuinely surprising discovery about the field-order fact several
+    parts of this program's algebra (including catalogue entries this
+    record does not otherwise depend on) implicitly rely on.
+  mechanism: >-
+    The AES key-schedule recurrence is W_i = W_{i-1} XOR W_{i-Nk} for most i,
+    and W_i = SubWord(RotWord(W_{i-1})) XOR Rcon_{i/Nk} XOR W_{i-Nk} at the
+    SubWord boundary (plus, for Nk=8 only, an extra SubWord-only step at
+    i = 4 mod 8, with no RotWord and no Rcon there). Comparing the schedule
+    of K' = RK_s(K) against the shifted tail of K's own schedule: at i = 0
+    both recurrences are read directly off the SAME underlying word sequence
+    (K' by definition equals the s-th round key of K), so the defect is
+    zero trivially. At the FIRST SubWord boundary encountered by BOTH
+    sequences, the two computations apply the IDENTICAL recurrence to the
+    IDENTICAL preceding words and differ ONLY in which Rcon constant is
+    used: Rcon_1 (since K' is treated as a fresh key starting its own
+    schedule at round 1) versus Rcon_{s+1} (since K's own schedule is
+    already s round-keys in). The SubWord(RotWord(...)) terms are therefore
+    literally identical bit-strings on both sides and CANCEL EXACTLY under
+    XOR, leaving Delta_1^(s) = (Rcon_1 XOR Rcon_{s+1}) || 00 || 00 || 00 --
+    a value depending on ROUND CONSTANTS ALONE, with no dependence on K, on
+    the S-box's actual output, or on any word value. Rcon_i = x^{i-1} in
+    GF(2^8) (the standard AES round-constant recurrence), so
+    Rcon_1 XOR Rcon_{s+1} = 1 XOR x^s, nonzero for every s in {1,...,9}
+    exactly when x^s != 1, i.e. exactly when s is not a multiple of ord(x).
+    THE TRACKED OBJECT is this defect TRAJECTORY (a sequence of small
+    activity/value markers), discarding K entirely, both full 44/52/60-word
+    schedules, and every round-key value -- 2^128 (or more) keys map to one
+    trajectory prefix, and no key or round key is recoverable from it, so
+    the projection is genuinely lossy; it is compatible with the schedule's
+    own operations because the cancellation argument uses only that BOTH
+    sides apply the SAME recurrence to the SAME preceding word content,
+    which holds by construction at every step, not merely at step 1 (the
+    argument extends to predict a single active S-box at step 2 via RotWord
+    rotating the single active byte, which IDEA-20260807-5ed21f's or
+    IDEA-20260808-4c309d's single-key instruments cannot see, since they
+    never construct or compare a SECOND, shift-related key at all).
+  novelty_status: adaptation
+  citations:
+    - ref: "ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A2.md (entry A2-8, lines 685-753)"
+      provenance: internal
+      claim: >-
+        The cross-key shift defect is exactly (01 XOR x^s) in the first byte
+        of all four words at step 1, key-independent, with ord(x)=51 in
+        GF(2^8) under the AES polynomial, checked over 100-500 random keys
+        per shift.
+      verified_by: "idea-generator subagent (read A2.md lines 1-54 and 685-753 in full during idea generation)"
+    - ref: "ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md (line 284, item on A2-8)"
+      provenance: internal
+      claim: >-
+        Independent red-team review judged A2-8 "exact and independently
+        verified here, but self-declared CLOSED, and the relation
+        K' = KS_s(K) is not instantiable by any adversary. It is not a
+        slide result." -- confirming the mathematics while flagging the
+        adversary-model boundary this record inherits and states plainly.
+      verified_by: "idea-generator subagent (read REDTEAM.md in full during idea generation)"
+    - ref: IDEA-20260805-33a11e
+      provenance: internal
+      claim: >-
+        Tracks single-key algebraic degree in the master-key bits, a
+        different (non-differential, non-cross-key) object from the one
+        this record tracks.
+      verified_by: "idea-generator subagent (read ledger/proposals/IDEA-20260805-33a11e.yaml in full during idea generation)"
+    - ref: IDEA-20260807-5ed21f
+      provenance: internal
+      claim: >-
+        Tracks a single-key permanent-zero bit-influence incidence set, a
+        different (non-differential, non-cross-key) object from the one
+        this record tracks.
+      verified_by: "idea-generator subagent (read ledger/proposals/IDEA-20260807-5ed21f.yaml in full during idea generation)"
+  assumptions:
+    - "The pinned FIPS-197 harness's key-schedule recurrence and Rcon sequence match the real specification; checked by known-answer-vector reproduction under two independent implementations before any defect is trusted."
+    - "ord(x) = 51 for x = 0x02 in GF(2^8) under the AES reduction polynomial (0x11B) is asserted by the catalogue's own computation and is NOT accepted uncritically here; it is independently recomputed as stage 0 of the minimal test."
+    - "RK_s(K), treated as a fresh master key K', is a well-defined re-keying (the s-th round key has the same bit-length as a valid master key of that size), which holds automatically for AES-128 (128-bit round keys) and requires the corresponding 192/256-bit round-key groupings for AES-192/256."
+  proof_search_map:
+    bottleneck: >-
+      Whether the SubWord(RotWord(...)) cancellation argument -- that both
+      sequences apply the identical recurrence to identical preceding word
+      content, differing only in the Rcon index -- holds EXACTLY at step 1
+      for every key and every shift, with no key-dependent residual hiding
+      in a term this record's derivation has not accounted for.
+    baseline_embedding:
+      parameter_slice: >-
+        The CONSTANT-RCON degenerate variant (Rcon_i replaced by the fixed
+        constant Rcon_1 for every i), whose step-1 defect is known in
+        advance to be EXACTLY ZERO for every key and every shift (since the
+        two Rcon terms become identical), extending the slide to step 2.
+      reproduction_check: >-
+        This degenerate variant must return an exact-zero step-1 defect
+        before the real (Rcon-varying) schedule's nonzero defect is trusted.
+    observation_collision:
+      observable: "the defect value Delta_1^(s)(K), a 4-byte string."
+      distinct_preimage_search: >-
+        The dangerous collision is a defect value that happens to equal
+        (01 XOR x^s) for the SAMPLED keys tested while actually depending on
+        K for some untested key -- guarded against by testing across
+        independent, freshly seeded keys per shift and by the derivation
+        showing the SubWord/RotWord terms cancel as BIT-STRINGS (not merely
+        in expectation), which is a stronger, non-statistical claim.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          the constant-Rcon degenerate schedule, where the predicted step-1
+          defect (zero) and the real schedule's predicted defect (nonzero)
+          differ sharply.
+        predicted_gain: >-
+          a concrete, checkable discriminator between "the defect comes from
+          Rcon alone" (this record's claim) and any alternative mechanism
+          that would also need to vanish under constant Rcon.
+    quantifier_order: >-
+      FOR ALL keys K and FOR ALL admissible shifts s in {1,...,Nk-1},
+      Delta_1^(s)(K) equals the FIXED value (01 XOR x^s) || 00 || 00 || 00 --
+      a universal claim over keys (unlike a sampled 0-of-N statistic), but
+      explicitly NOT a claim about an instantiable adversary model: K' =
+      RK_s(K) is a relation between a key and its OWN round key, which no
+      adversary can request without already knowing K.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "the cross-key shift-defect trajectory at step 1 is exactly
+        (01 XOR x^s), for every K and every s" -- a derived fact about the
+        SCHEDULE'S ALGEBRA, not an attack, not a distinguisher, and not a
+        statement instantiable against any real adversary, since the
+        relation K' = RK_s(K) requires knowledge of K to even construct.
+      nearby_object_control: >-
+        The constant-Rcon degenerate variant, where the identical
+        cancellation argument predicts EXACT ZERO at step 1 and a defect
+        appearing only from step 2 onward -- printed beside every real
+        result so no reader mistakes the Rcon-driven defect for an
+        S-box-driven one.
+    proof_obligations:
+      - claim: "FIPS-197 key expansion reproduces known-answer vectors under two independent implementations"
+        responsibility: baseline
+      - claim: "ord(x) = 51 for x = 0x02 under the AES field, recomputed independently"
+        responsibility: correctness
+      - claim: "the step-1 defect equals (01 XOR x^s) for every sampled key and shift, with zero exceptions"
+        responsibility: success_probability
+      - claim: "the constant-Rcon degenerate variant returns exact-zero step-1 defect"
+        responsibility: scope
+      - claim: "the step-2 single-active-S-box prediction (via RotWord rotating the one active byte) is checked directly"
+        responsibility: runtime
+  predictions:
+    - metric: "size of the observed step-1 defect set, per shift s and key size, over >= 10^4 random keys per (key size, s) pair"
+      direction: lower
+      minimum_effect: "exactly 1 (a single value, (01 XOR x^s), with zero exceptions)"
+    - metric: "ord(x) for x = 0x02 in GF(2^8) under the AES reduction polynomial, independently recomputed"
+      direction: different
+      minimum_effect: "exactly 51; any other value invalidates the nonzero-defect claim for shifts that are multiples of the true order"
+    - metric: "step-1 defect value on the constant-Rcon degenerate variant"
+      direction: lower
+      minimum_effect: "exactly zero, for every key and every shift, with zero exceptions"
+    - metric: "number of active S-boxes in the step-2 defect trajectory (real, Rcon-varying schedule)"
+      direction: different
+      minimum_effect: "exactly 1, for every sampled key and shift"
+    - metric: "agreement between AES-192/256's analogous defect (Rcon_1 XOR Rcon_{s+1} in the appropriate word position) and this record's prediction"
+      direction: different
+      minimum_effect: "exact match, with zero exceptions, over >= 10^4 sampled keys per shift"
+  minimal_test:
+    design: >-
+      (1) Reproduce FIPS-197 known-answer key-expansion vectors under two
+      independent implementations. (2) Independently recompute ord(0x02) in
+      GF(2^8) under the AES polynomial by direct repeated multiplication,
+      not by citing the catalogue's number. (3) For each key size and each
+      admissible shift s, sample >= 10^4 random keys, compute K' = RK_s(K),
+      expand both K and K', and record the defect at steps 1, 2, 3,
+      reporting the SIZE of the observed defect set at each step (not just
+      its value). (4) Run the constant-Rcon degenerate control identically.
+      (5) Check the step-2 active-S-box count directly against the
+      RotWord-rotation prediction.
+    controls:
+      - "Constant-Rcon degenerate variant, predicted exact-zero step-1 defect, run before any real-schedule claim is trusted."
+      - "FIPS-197 known-answer vectors under two independent implementations."
+      - "Independent recomputation of ord(x)=51, not accepted from the catalogue."
+      - "Defect-set SIZE reported (not just its value), so a hidden second value at low frequency is not missed."
+    required_metrics: ["defect set and its size at steps 1/2/3 per (key size, shift)", "ord(x) recomputed", "constant-Rcon control defect", "step-2 active-S-box count", "KAT agreement"]
+  falsification_conditions:
+    - "The defect set at step 1 has size > 1 for any shift or key size -- the cancellation derivation is wrong, withdraw."
+    - "The constant-Rcon degenerate control does NOT return exact zero for every key and shift -- the instrument is broken and nothing may be reported."
+    - "The step-2 active-S-box count exceeds 1 -- the RotWord-rotation analysis is wrong."
+    - "ord(0x02) is recomputed as something other than 51 -- this record's own claim about which shifts give a nonzero defect must be rederived for the affected shifts."
+    - "The defect is exactly zero for some tested (key, shift) with s not a multiple of the recomputed ord(x) -- a genuine and reportable contradiction of the field-order computation, independently interesting rather than merely a bug."
+  confounders:
+    - "The relation K' = RK_s(K) is NOT instantiable by any real adversary without already knowing K; this is a derivation about the schedule's internal algebra, not an attack model, and every sentence reporting a result states this rather than implying a slide attack."
+    - "AES-192/256's word-grouping into round keys does not align as cleanly with Nk-word boundaries as AES-128's; the exact indexing must be re-derived per key size rather than assumed to generalize verbatim."
+    - "A defect trajectory computed correctly at steps 1-3 says nothing about later steps, where accumulated XOR chains could in principle reintroduce key-dependence; this record makes no claim beyond the steps it directly computes."
+  interpretation_limits: >-
+    Toy-tier, RQ-AES-001 ceiling. This is an exact ALGEBRAIC NOTE about the
+    key schedule's structure under a cross-key (not single-key,
+    not related-key-in-the-adversarial sense) relation; it is not a slide
+    attack, not a distinguisher, not a key recovery, and the relation it
+    studies cannot be requested by any adversary. Its value is filling
+    RQ-AES-001's named "key schedule as differential/algebraic object" slot
+    with a genuine DIFFERENTIAL (not algebraic-degree, not zero-influence)
+    relation between subkey words at an EXACT, unconditional level, distinct
+    from and complementary to IDEA-20260805-33a11e and IDEA-20260807-5ed21f.
+  heuristic_assumptions:
+    - id: HA-1
+      statement: >-
+        NONE LOAD-BEARING. The step-1 and step-2 defect claims are exact
+        algebraic identities (bit-string cancellation under XOR, forced by
+        both sequences applying the identical recurrence to identical
+        preceding content), not statistical or distributional claims. This
+        entry records that explicitly.
+      rigorous_support: >-
+        SubWord and RotWord are deterministic functions applied to
+        IDENTICAL word content on both sides of the comparison at step 1 by
+        construction of K' = RK_s(K); XOR-cancellation of identical
+        bit-strings is elementary.
+      validation_plan: >-
+        The one genuinely empirical component is confirming ord(x) = 51 by
+        direct recomputation (not citation) and confirming the harness's
+        Rcon sequence matches FIPS-197 via known-answer vectors; both are
+        exact, checkable, zero-tolerance gates run before any defect claim.
+  target_complexity:
+    time_exponent: >-
+      NOT APPLICABLE. No attack, no exponent, and AES's key sizes are fixed
+      constants, not a growing parameter. This is a derivation about the
+      schedule's exact algebra.
+    memory_exponent: "negligible -- a 256-byte S-box table and small per-key trajectories, well under 10 MB total across all sampled keys and shifts."
+    best_known: >-
+      NC-5/MEAS-RT-D's within-schedule 0-of-200000 sampled repeated-round-key
+      measurement is the nearest internal prior art, and it examined a
+      DIFFERENT (within-schedule, not cross-key) event; no cross-key shift
+      defect has been computed anywhere in this program's ledger before this
+      record.
+    hidden_overhead: "none; exact bit-string cancellation and finite-field order computation, no o(1) terms."
+    tradeoff_note: "not applicable; no attack, no time-memory tradeoff proposed."
+  dominated_by: >-
+    Checked all 16 filed RQ-AES-001 proposals; IDEA-20260805-33a11e (algebraic
+    degree) and IDEA-20260807-5ed21f (permanent-zero bit-influence) are the
+    two nearest, and both operate WITHIN a single key's schedule, never
+    constructing or comparing a second, shift-related key -- this record is
+    not dominated by either since it answers a structurally different
+    question. Not dominated by NC-5/MEAS-RT-D, which sampled a different
+    (within-schedule) event with a 0-of-200000 statistic rather than an
+    exact, unconditional derivation. No external comparison is made or
+    needed: the relation studied is not an adversarial attack model.
+  sota_delta: >-
+    Zero attack delta; the relation studied cannot be instantiated by any
+    adversary. The delta is that it converts NC-5's SAMPLED 0-of-200000
+    within-schedule statistic's implicit companion question (what about
+    ACROSS keys related by a shift) into an EXACT, unconditional derived
+    value, and it directly instantiates RQ-AES-001's named "key-schedule
+    differential relation between subkey words" object with a genuine
+    differential relation for the first time in this program's filed ledger.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  added: '2026-08-28'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-28'
+  source_refs:
+    - RQ-AES-001
+    - GOAL-AES-001
+    - IDEA-20260805-33a11e
+    - IDEA-20260807-5ed21f
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.
