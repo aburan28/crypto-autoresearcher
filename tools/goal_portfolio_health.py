@@ -136,6 +136,14 @@ def classify(repo_root: Path, goal: dict[str, Any], out_dir: Path) -> dict[str, 
     return result
 
 
+def is_shallow_clone(repo_root: Path) -> bool:
+    proc = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--is-shallow-repository"],
+        capture_output=True, text=True,
+    )
+    return proc.stdout.strip() == "true"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repo-root", default=".", help="Repository root (default: cwd)")
@@ -143,6 +151,24 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
+
+    # A shallow clone makes research_dispatch.py's commit-reachability checks
+    # fail for perfectly good archives whose commit is real but older than the
+    # shallow fetch boundary, or lives on a branch this clone never fetched
+    # deep enough to see. That produced a false needs_repair epidemic here
+    # once (31 of 47 goals) that dropped to 12 after `git fetch --unshallow`
+    # -- nearly all of it was this artifact, not real corruption. Surface it
+    # loudly rather than let every session re-diagnose it as repository rot.
+    shallow = is_shallow_clone(repo_root)
+    if shallow and not args.json:
+        print(
+            "WARNING: this is a SHALLOW git clone. Commit-reachability checks below\n"
+            "will misclassify real, correctly-archived work as needs_repair. Run\n"
+            "`git fetch --unshallow origin` first and re-run this sweep before trusting\n"
+            "the needs_repair bucket.\n",
+            file=sys.stderr,
+        )
+
     goals = discover_active_goals(repo_root)
 
     with tempfile.TemporaryDirectory(prefix="goal_portfolio_health_") as tmp:
@@ -150,7 +176,7 @@ def main() -> int:
         results = [classify(repo_root, g, out_dir) for g in goals]
 
     if args.json:
-        print(json.dumps(results, indent=2))
+        print(json.dumps({"shallow_clone_warning": shallow, "goals": results}, indent=2))
         return 0
 
     buckets: dict[str, list[dict[str, Any]]] = {"ready": [], "blocked": [], "needs_repair": []}

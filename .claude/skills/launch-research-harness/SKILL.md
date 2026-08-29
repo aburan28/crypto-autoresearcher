@@ -62,6 +62,27 @@ next goal with nothing recorded — every session paid the rediscovery cost
 from scratch, and a single-goal deep dive reads as "stuck" even when the real
 finding is portfolio-wide.
 
+**Check for a shallow clone FIRST, before trusting any `needs_repair` result:**
+
+```sh
+git rev-parse --is-shallow-repository   # if "true":
+git fetch --unshallow origin
+```
+
+A shallow clone makes `tools/research_dispatch.py`'s commit-reachability
+checks fail for perfectly good, correctly-archived work whose commit is real
+but older than the shallow fetch boundary, or on a branch never fetched deep
+enough to see. This was discovered the hard way: a sweep once reported 31 of
+47 active goals as `needs_repair` (widespread content-hash mismatches and
+unreachable `commit_sha` values), which read exactly like the repository-wide
+integrity failure this step exists to catch — but after `git fetch
+--unshallow`, that dropped to 12. Nearly all of the apparent corruption was
+the shallow clone, not `main`. The sweep tool detects this itself and prints
+a warning (`shallow_clone_warning` in `--json` output, a stderr banner
+otherwise), but the fix (`fetch --unshallow`) is not automatic — run it
+before treating any `needs_repair` finding as real, and re-run the sweep
+after.
+
 ```sh
 python3 tools/goal_portfolio_health.py
 ```
