@@ -1,0 +1,611 @@
+idea:
+  id: IDEA-20260829-247e35
+  question_id: RQ-MLKEM-003
+  added: '2026-08-29'
+  title: >-
+    Core-SVP prices the attack at the blocksize where success is treated as CERTAIN, so the
+    convention asserts that the success probability is a step function - a modelled claim, never
+    measured here. Track the pair of SLOPES (cost per unit blocksize, log-success per unit
+    blocksize) as the object, and test the interaction nobody has priced - that charging memory
+    STEEPENS the cost slope, which moves the attacker's optimum to LOWER blocksize and lower
+    success probability, giving back part of the very margin that charging memory restores
+  class: mechanism
+  claim: >-
+    (A) THE CONVENTION AND WHAT IT ASSERTS. Every cost this lane has committed prices one attack
+    at one blocksize and treats it as succeeding. Written honestly, an attacker who can cheaply
+    DETECT failure - and can, since a candidate secret is checkable against the LWE equations in
+    linear time, which is exactly the certificate discipline of docs/claims-and-verification.md -
+    pays min over beta of cost(beta) / p(beta), where p(beta) is the probability that one
+    randomised reduction at blocksize beta recovers the secret. The convention is the special case
+    p(beta) = 1 for beta >= beta* and 0 below, i.e. an infinitely steep success curve. That is a
+    MODEL of the success curve, and this program has never measured one for the primal attack.
+    (B) THE OBJECT AND THE ARITHMETIC THAT MAKES IT DECISION-RELEVANT. Write
+    log2 cost(beta) = a_eff * beta + O(log), and s(beta) = d log2 p(beta) / d beta >= 0, the
+    log-success slope. The attacker's optimum sits where s(beta) = a_eff, and the PROBABILISTIC
+    DISCOUNT relative to the convention is
+    G(a_eff) = a_eff * beta* - min_beta [ a_eff * beta - log2 p(beta) ] >= 0.
+    Under the free-memory convention a_eff = 0.292. Under EV-MLKEM-020's own charge family
+    T * M^c with sieve memory 2^(0.2075 * beta), a_eff = 0.292 + 0.2075 c, which is 0.3612 at
+    c = 1/3, 0.39575 at c = 1/2 and 0.4995 at c = 1. Because s is decreasing in beta (success
+    saturates), a LARGER a_eff meets s at a SMALLER beta, so G is non-decreasing in a_eff. THE
+    INTERACTION CLAIM IS THEREFORE SIGNED IN ADVANCE AND ITS MAGNITUDE IS THE OPEN QUESTION:
+    charging memory makes probabilistic low-blocksize attacks strictly more attractive, so part of
+    the margin that charging memory restores is given back on an axis the charge does not model.
+    (C) WHY THIS IS NOT COVERED BY THE RE-OPTIMISATION ALREADY DONE. EV-MLKEM-020's H10 reads
+    "The attack is held fixed; no memory-aware re-optimisation", and its validation_status records
+    that the red team re-optimised beta, eta and d inside RC.MATZOV in 26 seconds and recovered
+    +0.461 / +0.441 / +0.353 bits at c = 1/3. Those three parameters are all evaluated AT p = 1.
+    The success probability is a fourth axis and it was not re-optimised, because the instrument
+    has no slot for it. The recovered figures also fix the scale of what matters here: an effect of
+    a third of a bit is already the size of the corrections this lane argues about, against a
+    smallest committed margin of 1.276377 bits.
+    (D) THE EXPONENT QUESTION, STATED AS AN EXPONENT QUESTION. If s(beta) merely dips below a_eff
+    in an O(1)-wide window below beta*, G is an additive constant of a few bits and this is a
+    building block, not an exponent result - and the record says so. If instead s(beta) has a
+    PLATEAU at a value s0 < a_eff over a window proportional to beta, of width theta * beta, then
+    the effective cost exponent is a_eff - (a_eff - s0) theta, a genuine exponent movement. The
+    measurable object that decides between "additive constant" and "exponent" is the WIDTH OF THE
+    PLATEAU AS A FRACTION OF beta, measured across dimensions, and that is the primary metric of
+    this record.
+    (E) EXPLANATIONS DISCRIMINATED. EXPLANATION A, STEP FUNCTION - s(beta) exceeds a_eff at every
+    reachable beta below beta*, the optimum sits at p close to 1, G is under 0.1 bits at every
+    charge exponent, and the p = 1 convention is VALIDATED with a number, closing an axis the whole
+    lane has assumed. EXPLANATION B, SOFT THRESHOLD - s(beta) falls below a_eff over a window whose
+    width does not shrink relative to beta, G is at least 1 bit at c = 0 and strictly larger at
+    c = 1/3, and every committed figure in this lane is an upper bound on the attacker's cost by an
+    amount that GROWS as memory is charged.
+    (F) NOT CLAIMED. No new attack, no break, no claim about FIPS 203 dimensions from measurements
+    taken at n in [40, 70], and no claim that any published estimate ignores success probability -
+    published work explicitly does not (see the citations), which is precisely why this record's
+    contribution is the INTERACTION with the memory charge and not the existence of the effect.
+  mechanism: >-
+    STAGE 0, READING. Retrieve and read Postlethwaite-Virdia (ePrint 2020/1308, PKC 2021) and, if
+    reachable, Dachman-Soled et al. (Crypto 2020) and Albrecht et al. (Asiacrypt 2017), and record
+    exactly what each already establishes about p(beta) for the primal attack, and in particular
+    whether any of them evaluates min_beta cost(beta)/p(beta) under a MEMORY-CHARGED cost slope
+    rather than under core-SVP. If one does, this record demotes to a literature note plus a
+    re-evaluation at this program's committed charge exponents, which is still worth having and is
+    cheap. The published simulator at github.com/fvirdia/usvp-simulation is the external
+    calibration target for Stage 2 and its availability is checked here, not assumed.
+    STAGE 1, THE ZERO-COMPUTE ARM. Using ONLY the published simulator's predicted p(beta) (if
+    Stage 0 obtains it) or a parametric family with a declared shape, compute G(a_eff) at
+    a_eff in {0.292, 0.3612, 0.39575, 0.4995} at the committed effective sieve dimensions, and
+    report the give-back G(a_eff_charged) - G(0.292) in bits per parameter set. This produces the
+    interaction number without running a single reduction, and it is the minimal discriminator.
+    STAGE 2, THE MEASURED SUCCESS CURVE. At n in [40, 70] with ML-KEM's q-ary shape and secret law,
+    generate instances with retained ground truth. For each instance and each beta on a grid, run K
+    independent RANDOMISED reductions (fresh random unimodular re-randomisation per trial, seeds
+    recorded) followed by Babai lifting, and record a success bit per trial. This yields
+    p_i(beta), a per-instance success probability over reduction randomness, and its ensemble mean.
+    Fit s(beta) per instance and for the ensemble, with intervals.
+    STAGE 3, THE DECOMPOSITION THAT DECIDES WHAT p MEANS. The attacker retries the SAME instance,
+    so the operative probability is the per-instance one; a plateau in the ensemble mean can also
+    arise from a fixed easy subset. Report the per-instance success matrix and the churn statistic
+    - among trials succeeding at the largest beta, the fraction of instances that also succeed at
+    smaller beta - and state which of the two objects every downstream number uses.
+    STAGE 4, THE PLATEAU WIDTH. Across at least four dimensions, measure the width of the window in
+    which s(beta) < a_eff, as an absolute number of blocksizes and as a fraction of beta. Report
+    the trend in the fraction. A fraction shrinking with n is the additive-constant verdict; a flat
+    or growing fraction is the exponent verdict, reported with its interval and no extrapolation.
+    STAGE 5, THE COST-SLOPE SWEEP. Recompute G at each charge exponent c using the MEASURED s(beta)
+    rather than a parametric family, and report the give-back table alongside the +0.461 / +0.441 /
+    +0.353 bits the red team recovered on the beta/eta/d axes, so the two re-optimisations are
+    compared in the same units.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      Read this session: RQ-MLKEM-003 in full; the 28-title inventory for this RQ;
+      IDEA-20260816-725f05 in substantial part (the nearest neighbour, a success-curve design);
+      IDEA-20260816-08eda1 (head); IDEA-20260816-bd7f26 (head); IDEA-20260821-472aa2 (lines
+      1-681); IDEA-20260828-5b7795; EV-MLKEM-020 lines 388-467 and 595-634, including H10's
+      validation_status verbatim.
+      Greps: `question_id: RQ-MLKEM-003` over ledger/proposals (28 files); `success
+      probability|Postlethwaite|Virdia|randomiz` over knowledge/ (40+ files, none opened - a
+      declared gap in this screen).
+      Web this session: WebSearch on Postlethwaite-Virdia; WebFetch of
+      https://eprint.iacr.org/2020/1308 returning the verbatim abstract. The crypto-kb MCP index
+      was not queried.
+    results: >-
+      IDEA-20260816-725f05 is the closest record in the lane and is genuinely adjacent - it tracks
+      P(success | N) for a DUAL distinguisher as the dual-vector budget N grows, hunting a
+      waterfall floor, and it contributes the per-instance indicator matrix and the churn statistic
+      that this record adopts by name. It differs in attack family (dual versus primal), in the
+      independent variable (retained-vector count versus blocksize), in the derived quantity (an
+      asymptote versus a SLOPE compared against a cost slope), and above all in that it draws no
+      connection to a cost model at all, whereas this record's entire claim is an interaction
+      between the success slope and the memory-charged cost slope. Adopting its controls and
+      crediting them is the correct relationship; merging the two would lose both.
+      No other record in the lane treats success probability as an optimisable attack parameter.
+      EV-MLKEM-020's H10 names the re-optimisation gap and the red team closed three axes of it
+      (beta, eta, d) at p = 1, leaving this axis open by construction.
+      EXTERNALLY the effect is NOT new: the fetched abstract of ePrint 2020/1308 states that its
+      technique explains earlier experiments "where attacks succeeded with smaller than expected
+      block sizes" and that the authors "use our simulators to reestimate the cost of attacking
+      the three lattice KEM finalists". So a success-probability-aware re-estimate of Kyber exists
+      in the literature. What this record adds, and what its novelty claim is confined to, is the
+      evaluation of that optimisation under a MEMORY-CHARGED cost slope and the plateau-width
+      measurement that separates an additive discount from an exponent movement.
+    verdict: >-
+      UNVERIFIED. Only the abstract of the nearest external work was fetched; its body, its
+      simulator's predictions and its cost model were not read, and it is entirely possible that it
+      already answers Stage 1. That would be a good outcome and the record is designed for it.
+      Claimed new RELATIVE TO THIS REPOSITORY: the two-slope object, the memory-charge interaction
+      with its signed direction, the plateau-width-as-a-fraction-of-beta metric, and the comparison
+      of the probability-axis give-back against the red team's committed beta/eta/d recovery in the
+      same units. Assembled from known parts: randomised-reduction retrying is standard, the churn
+      statistic is IDEA-20260816-725f05's, and the charge family is EV-MLKEM-020's.
+  object_first_candidate:
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens: dual-attack score geometry (IDEA-20260805-5a4409,
+      -a102ec, -bb7668, IDEA-20260808-0eb075, IDEA-20260816-ba5bd8, -725f05), sieve cost constants
+      (IDEA-20260807-8fbc86, IDEA-20260805-fc6361, -f7c912), the module-structure discount
+      (IDEA-20260816-b824af, -f4ce0b, -fdc8e8, -bd7f26), memory PRICING of the sieve
+      (IDEA-20260816-70e41d, -7bc28c, IDEA-20260821-46c09f) and the quantum resource triple
+      (IDEA-20260821-472aa2). This record uses the memory charge only as a KNOWN INPUT that moves a
+      slope; it prices no memory itself.
+    tracked_object: >-
+      The ordered pair of slopes (a_eff, s(beta)) - cost bits per unit blocksize and log-success
+      bits per unit blocksize - carried together across the blocksize axis, plus the per-instance
+      success indicator matrix from which s is estimated. Two numbers per blocksize, one bit per
+      (instance, trial, blocksize).
+    lossiness: >-
+      LOSSY, and severely. The underlying state is every reduced basis produced by every randomised
+      trial - the full Gram-Schmidt profile, the entire trajectory of the reduction, the realised
+      error vector. The projection retains one bit per trial and, from the bits, one slope per
+      blocksize. It discards the profile entirely, so two trials that failed by wildly different
+      margins are the same object.
+      NOT A CHANGE OF COORDINATES: the map from (basis trajectory) to (success bit) is massively
+      many-to-one, and two instances with identical success curves can have completely different
+      profiles - which is exactly why the record also retains the margin as a secondary metric,
+      since the primary object cannot see it.
+      THE COMPATIBILITY CONDITION: the operation being modelled is "retry and check", and its
+      cost is by construction a function of the success bit alone - expected cost = cost per trial
+      divided by success probability, with the check being cheap and certain. So the discarded
+      structure is discarded compatibly with the operation, and the retained bits propagate
+      deterministically under repetition (independent trials multiply failure probabilities). A
+      projection retaining the whole profile would be more faithful and no more predictive of
+      retry cost.
+    propagation: >-
+      One step is one increment of beta. Under it, cost gains a_eff bits and log-success gains
+      s(beta) bits, so the objective a_eff * beta - log2 p(beta) changes by exactly
+      a_eff - s(beta). The object's propagation law is that single subtraction, which is why the
+      whole record reduces to comparing two slopes, and why raising a_eff by charging memory
+      necessarily moves the optimum toward smaller beta. The cheap internal falsifier: summing the
+      increments from the smallest measured beta to beta* must reproduce the measured
+      log2 p(beta*) - log2 p(beta_min) to within the fit's interval; if it does not, s was fitted
+      on a non-differentiable curve and no optimum is reportable.
+    survival_score: >-
+      Survives while exact recovery is reachable and trials are affordable - n roughly 40 to 70,
+      with K trials per (instance, beta) cell and a blocksize grid wide enough to straddle beta*.
+      It dissolves upward when p becomes too small to estimate with K trials (the low-beta end
+      censors first, which is exactly the end the plateau lives at, and that is the design's
+      binding constraint, stated here rather than discovered later) and downward when beta is so
+      small that reduction quality rather than luck determines the outcome. The honest boundary is
+      that a plateau below the measurable p floor is invisible, and the record reports the floor.
+  null_object_control: >-
+    NULL-N, THE NO-SECRET NULL. Run the identical pipeline on instances whose secret is resampled
+    after b is fixed, so no recovery is possible. p must be identically zero at every beta and
+    every trial. If any success is recorded, the recovery detector fires without a planted secret
+    and every curve is an artifact.
+    NULL-F, THE FORCED-SUCCESS NULL. Instances with a planted vector short enough that LLL alone
+    provably recovers it. p must be 1 at every beta and s must be 0, so the fitted optimum must sit
+    at the smallest beta on the grid. If the optimiser returns anything else, the objective is
+    mis-implemented.
+    NULL-R, THE RE-RANDOMISATION NULL. Repeat trials at fixed beta WITHOUT re-randomising the
+    basis. Successes must then be perfectly correlated within an instance (all trials agree), which
+    checks that the randomisation is the source of trial-to-trial variation and that the retry
+    model is legitimate rather than an artifact of nondeterministic floating point.
+    NULL-C, THE COST-SLOPE NULL. Setting c = 0 must reproduce the free-memory optimum exactly, and
+    setting a_eff to a very large value must drive the optimum to the smallest beta on the grid.
+    Both are forced and are checked before any signal number is read.
+    FORCED VALUES DECLARED IN ADVANCE, so they are not reported as findings. (1) G >= 0 always -
+    an optimisation over a superset cannot cost more. (2) G is non-decreasing in a_eff - so the
+    DIRECTION of the memory-charge interaction is forced and only its magnitude carries
+    information. (3) At a_eff exceeding max_beta s(beta), the optimum is at the grid's left edge and
+    the measurement is censored rather than informative. Only magnitudes and the plateau width are
+    open.
+  discriminated_from:
+    - >-
+      IDEA-20260816-725f05 measures a DUAL distinguisher's success against the retained-vector
+      budget N and hunts a plateau below one. This record measures a PRIMAL attack's success
+      against blocksize and hunts a SLOPE, then compares that slope against a cost slope from a
+      charge model. Different attack family, different independent variable, different derived
+      quantity, and 725f05 connects to no cost model. This record adopts 725f05's per-instance
+      indicator matrix and churn statistic by name and credits them.
+    - >-
+      EV-MLKEM-020's H10 re-optimisation, run by the red team, moved beta, eta and d inside
+      RC.MATZOV at p = 1 and recovered +0.461 / +0.441 / +0.353 bits at c = 1/3. The success
+      probability is a fourth axis with no slot in the instrument. The two are additive in
+      principle and the record reports them side by side rather than combining them.
+    - >-
+      IDEA-20260816-08eda1 measures the estimator's signed residual against completed runs at a
+      pinned version. That is a calibration of the instrument's LEVEL at p = 1; this measures a
+      quantity the instrument does not represent at all.
+    - >-
+      IDEA-20260816-70e41d locates an enumeration/sieving crossover as a curve over a memory price.
+      That varies which ALGORITHM wins as memory is priced; this varies which OPERATING POINT of
+      one algorithm wins. Both use a memory price as an input and neither computes the other's
+      quantity.
+  citations:
+    - ref: >-
+        Eamonn W. Postlethwaite and Fernando Virdia, "On the Success Probability of Solving Unique
+        SVP via BKZ", ePrint 2020/1308, PKC 2021; code at github.com/fvirdia/usvp-simulation
+      provenance: retrieved
+      claim: >-
+        Verbatim from the fetched abstract - "The primal attack reduces key recovery against such
+        schemes to instances of the unique Shortest Vector Problem (uSVP). Dachman-Soled et al.
+        (Crypto 2020) recently proposed a new approach for fine-grained estimation of the cost of
+        the primal attack when using Progressive BKZ for lattice reduction. In this paper we review
+        and extend their technique to BKZ 2.0 and provide extensive experimental evidence of its
+        accuracy. Using this technique we also explain results from previous primal attack
+        experiments by Albrecht et al. (Asiacrypt 2017) where attacks succeeded with smaller than
+        expected block sizes. Finally, we use our simulators to reestimate the cost of attacking
+        the three lattice KEM finalists of the NIST Post Quantum Standardisation Process."
+        LIMIT ON THIS CITATION - only the abstract was fetched. Whether the paper evaluates
+        min_beta cost(beta)/p(beta) under a memory-charged cost slope, and whether it reports a
+        plateau width, is NOT established by this citation and is Stage 0's first job.
+      verified_by: 'WebFetch of https://eprint.iacr.org/2020/1308, idea-generator, 2026-08-29'
+    - ref: >-
+        Dachman-Soled, Ducas, Gong, Rossi (Crypto 2020) fine-grained primal-attack estimation;
+        Albrecht, Gopfert, Virdia, Wunderer (Asiacrypt 2017) primal attack experiments
+      provenance: recalled
+      claim: >-
+        Named inside the fetched 2020/1308 abstract as, respectively, the source of the
+        fine-grained progressive-BKZ estimation approach and the source of experiments in which
+        attacks succeeded at smaller than expected block sizes. Neither was fetched this session
+        and neither author list is confirmed from primary text here.
+      verified_by: null
+    - ref: EV-MLKEM-020 (committed evidence record, this repository)
+      provenance: internal
+      claim: >-
+        H10 "The attack is held fixed; no memory-aware re-optimisation", validation_status
+        "PARTIALLY CLOSED AGAINST ITS OWN PREMISE ... false of re-optimising beta/eta/d inside
+        RC.MATZOV, which the red team did in 26 s. Result strengthens the conclusion: +0.461 /
+        +0.441 / +0.353 bits recovered at c = 1/3. What H10 legitimately leaves open is everything
+        outside RC.MATZOV." H7 records the charge family "T * M^c at c = 0, 1/6, 1/3, 1/2 and 1".
+        H4 records "Sieve database is 2^(0.2075*n) vectors". Committed margins 2.800527 / 6.041285
+        / 1.276377 bits. An unresolved confound records the free-memory growth term as
+        "approximately 0.296 in the opposite direction", which is the neighbouring value to the
+        0.292 used here and must be reconciled in Stage 1 rather than glossed.
+      verified_by: >-
+        Read directly this session (idea-generator, 2026-08-29), partial read - lines 388-467 and
+        595-634 plus a targeted grep; not a full-file read.
+    - ref: 'Sieve time exponent 0.292 and memory exponent 0.2075 (BDGL16-family conventions)'
+      provenance: recalled
+      claim: >-
+        The classical core-SVP time and memory exponents used throughout this lane. Both are
+        recorded in this repository's corpus and in EV-MLKEM-020, whose own text carries 0.2075 as
+        the sieve-database exponent and cites approximately 0.296 as the free-memory growth term in
+        one place. The value of a_eff used in this record is therefore CONDITIONAL on which of
+        0.292 / 0.296 the successor batch adopts, and the record requires both to be evaluated
+        rather than one to be chosen silently.
+      verified_by: null
+    - ref: IDEA-20260816-725f05 (this repository)
+      provenance: internal
+      claim: >-
+        Supplies the per-instance success indicator matrix design, the nested-budget comparability
+        argument, and the churn statistic separating an instance-borne floor from a rate
+        phenomenon. Adopted here by name for the primal setting.
+      verified_by: 'read in substantial part this session (lines 1-120)'
+  assumptions:
+    - >-
+      Failure is cheaply and certainly detectable, so retrying is a legitimate strategy. For LWE
+      key recovery this is immediate - a candidate secret is checked against the public equations
+      in linear time - and it is what makes expected cost equal cost per trial divided by success
+      probability.
+    - >-
+      Randomised re-runs on one instance are approximately independent. This is checked, not
+      assumed, by NULL-R and by measuring the empirical correlation between trials.
+    - >-
+      a_eff is affine in the charge exponent, a_eff = 0.292 + 0.2075 c, which follows from
+      EV-MLKEM-020's own charge family and sieve-memory model and is exact within that model. The
+      record inherits that model's defects, including the unbounded o(n) that record flags.
+    - >-
+      beta* is well defined as the blocksize at which the modelled success first reaches one under
+      the convention. Where the instrument reports a non-integer effective dimension, the record
+      uses it as given and records the rounding.
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes the cost: replacing the success curve p(beta) by a step
+      function at beta*, so that the optimisation min_beta cost(beta)/p(beta) is never performed.
+      That replacement is made by the convention itself and is inherited by every committed figure
+      in this lane.
+    baseline_embedding:
+      parameter_slice: >-
+        The exact old-method boundary is s(beta) = +infinity for beta < beta* and 0 above, at which
+        the optimiser returns beta* and G = 0 for every a_eff. This is a runnable configuration of
+        the Stage-1 evaluator, not a limit argument, and it must reproduce the committed cost
+        figures exactly.
+      reproduction_check: >-
+        Frozen fixture - fed the step-function success curve and the committed attack parameters,
+        the evaluator must return EV-MLKEM-020's committed log2(rop) values digit for digit at
+        c = 0, and its charge-family values at c = 1/6, 1/3, 1/2, 1.
+    observation_collision:
+      observable: >-
+        The scalar attack cost in bits at the chosen operating point - which is the only thing this
+        lane ever records.
+      distinct_preimage_search: >-
+        COLLISION FOUND AND EXHIBITED. Two attacks with the same recorded cost: (a) one run at
+        beta* with p = 1, and (b) 2^k runs at a smaller blocksize each with p = 2^-k. They are
+        indistinguishable in the observable, have identical expected cost by construction, and have
+        COMPLETELY DIFFERENT memory footprints - (b)'s peak memory is that of the smaller
+        blocksize, i.e. 2^(0.2075 (beta* - Delta)) rather than 2^(0.2075 beta*). That is a second,
+        sharper consequence: the probabilistic attacker is also a LOWER-MEMORY attacker, so the
+        collision sits on opposite sides of exactly the conclusion this lane cares about. The
+        separating condition is to record the pair (blocksize, success probability) with every
+        cost, which is this record's deliverable.
+    constructive_transforms:
+      - transform: baseline_lift
+        proposed_object: >-
+          Enlarge the certificate family from "one run at beta*" to "the family of (beta, retry
+          count) schedules with a cheap checker", and prove a STRICT inward improvement - that the
+          optimum is interior - rather than mere feasibility. Strictness is exactly what
+          s(beta) < a_eff on a nonempty window certifies.
+        predicted_gain: >-
+          G bits at c = 0, and G(a_eff_charged) - G(0.292) bits of give-back per charge exponent,
+          both measured. Compared in the same units against the red team's committed +0.461 /
+          +0.441 / +0.353.
+      - transform: telescoping_potential
+        proposed_object: >-
+          Charge the whole retry schedule to a single budget by summing per-increment differences
+          a_eff - s(beta) across the blocksize axis, so the optimum is read off a cumulative sum
+          rather than fitted. This is the internal falsifier named in the propagation field.
+        predicted_gain: >-
+          Removes the need to fit a curve at all - the optimum is the crossing point of a measured
+          difference sequence, which is robust to the shape of p.
+    quantifier_order: >-
+      FOR EACH charge exponent c in {0, 1/6, 1/3, 1/2, 1} and FOR EACH parameter set, THERE EXISTS
+      a blocksize beta_opt(c) minimising a_eff(c) * beta - log2 p(beta), with G(c) >= 0 and G
+      non-decreasing in c. THE DISCRIMINATING CLAIM, which can fail: THERE EXISTS a reachable
+      dimension at which the measured window {beta : s(beta) < 0.292} is nonempty AND its width as
+      a fraction of beta does not decrease across at least four dimensions. NOT claimed: anything
+      uniform over dimensions, anything at FIPS 203 dimensions, anything about attacks other than
+      the primal one measured, and no witness is allowed to depend on the seed - the plateau must
+      appear in the ensemble, not in a lucky instance.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At dimensions n in [40, 70], with the stated instance family and reduction, the measured
+        log-success slope falls below a_eff over a window of width w(n), and the implied
+        probabilistic discount at charge exponent c is G(c) bits, with give-back
+        G(c) - G(0) bits." Nothing about FIPS 203 dimensions, nothing about security, and nothing
+        about attack families not measured.
+      nearby_object_control: >-
+        The nearby object where the desired conclusion fails is an instance family with a genuinely
+        sharp threshold - a planted vector so short that recovery is deterministic above a
+        blocksize and impossible below it. The method must report G = 0 there. If it reports a
+        positive discount on a deterministic family, the discount is an artifact of the fitting or
+        of the censoring and not a property of the success curve.
+    proof_obligations:
+      - claim: The step-function slice reproduces the committed cost figures digit for digit.
+        responsibility: baseline
+      - claim: G >= 0 and G is non-decreasing in a_eff in every computed cell.
+        responsibility: correctness
+      - claim: The deterministic nearby object returns G = 0.
+        responsibility: strictness
+      - claim: Trials at fixed beta are shown approximately independent (NULL-R and measured correlation).
+        responsibility: feasibility
+      - claim: The telescoping sum of per-increment differences reproduces the fitted optimum.
+        responsibility: correctness
+      - claim: The measurable p floor is reported, and no plateau is claimed below it.
+        responsibility: scope
+      - claim: No figure measured at n <= 70 is presented as a statement about FIPS 203.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        width of the window {beta below beta* such that s(beta) < 0.292}, expressed as a fraction
+        of beta, measured at four or more dimensions
+      direction: higher
+      minimum_effect: >-
+        A fraction of at least 0.02 that does not decrease across the sampled dimensions is the
+        exponent-verdict threshold. A fraction consistent with zero, or one shrinking like 1/beta,
+        is the additive-constant verdict and the record reports itself as a building block.
+    - metric: >-
+        probabilistic discount G at charge exponent c = 0, in bits, at the measured dimensions
+      direction: higher
+      minimum_effect: >-
+        1 bit. Below 0.1 bits the p = 1 convention is validated at those dimensions and Explanation
+        A stands.
+    - metric: >-
+        give-back G(c = 1/3) - G(c = 0), in bits - the interaction this record exists to measure
+      direction: higher
+      minimum_effect: >-
+        0.353 bits, the smallest of the three figures the red team recovered on the beta/eta/d axes
+        at the same charge exponent, chosen so the two re-optimisations are compared at a common
+        scale. Direction is FORCED and carries no information; only the magnitude does.
+    - metric: >-
+        peak sieve memory at the optimised operating point, relative to peak memory at beta*
+      direction: lower
+      minimum_effect: >-
+        A factor 2^(0.2075 * Delta) where Delta is the measured blocksize shift; any reduction at
+        all sharpens the observation collision, because it means the probabilistic attacker is also
+        a lower-memory attacker and is charged less by every memory-priced metric in this lane.
+  minimal_test:
+    design: >-
+      Stage 1 alone, using the published simulator's p(beta) if Stage 0 obtains it, is the minimal
+      discriminator - compute G at the five charge exponents and report the give-back. No lattice
+      computation. If the simulator cannot be obtained, the minimal test becomes Stage 2 restricted
+      to one dimension (n = 48) with K = 200 randomised trials on 40 instances across an
+      eight-point blocksize grid, sufficient to bracket the crossing s(beta) = a_eff for the two
+      extreme charge exponents.
+    controls:
+      - NULL-N, no-secret null - p must be identically zero.
+      - NULL-F, forced-success null - p must be 1 and the optimum at the smallest beta.
+      - NULL-R, no-re-randomisation null - trials must be perfectly correlated within an instance.
+      - NULL-C, cost-slope null - c = 0 reproduces the free-memory optimum; huge a_eff drives the optimum to the grid edge.
+      - The deterministic-threshold nearby object, which must return G = 0.
+      - The step-function baseline slice, which must reproduce the committed figures exactly.
+      - Per-instance versus ensemble decomposition with the churn statistic, before any plateau is interpreted.
+    required_metrics:
+      - success indicator per (instance, blocksize, trial), with seeds recorded
+      - per-instance and ensemble p(beta), with intervals and the measurable p floor
+      - fitted s(beta) with intervals, and the telescoped cumulative-difference check
+      - beta_opt and G at each charge exponent, per dimension
+      - window width in absolute blocksizes and as a fraction of beta, per dimension
+      - peak memory at beta_opt relative to beta*
+      - churn statistic and the trial-to-trial correlation
+  falsification_conditions:
+    - >-
+      If s(beta) exceeds a_eff at every measurable beta below beta* and G is under 0.1 bits at
+      every charge exponent and every measured dimension, the p = 1 convention is VALIDATED at
+      those dimensions, the interaction claim is refuted, and the lane gains a closed axis. This is
+      the outcome that would most improve this program's confidence in its own committed figures.
+    - >-
+      If the window width as a fraction of beta shrinks across the sampled dimensions, the effect is
+      an additive constant and the record must report itself as a building block rather than an
+      exponent result, per docs/target-result-profile.md.
+    - >-
+      If Stage 0 finds that the published simulator already evaluates the optimisation under a
+      memory-charged cost slope, the record demotes to a re-evaluation at this program's charge
+      exponents and says so.
+    - >-
+      If NULL-R shows trials are strongly correlated even under re-randomisation, the retry model
+      is invalid, expected cost is not cost divided by p, and the whole framing fails - reported as
+      a mechanism failure, not as a null result.
+  confounders:
+    - >-
+      The low-beta end censors first, and it is exactly the end where the plateau would live. A
+      measured window can therefore be truncated by the trial budget rather than by the
+      mathematics, and the record must report the measurable p floor alongside every window width.
+    - >-
+      Progressive BKZ blurs the meaning of "blocksize" - a run that reaches beta has already done
+      work at every smaller blocksize, so cost(beta) is not a pure exponential and a_eff is an
+      effective slope, not a definition. The analysis must use the instrumented operation count of
+      the actual schedule, not the idealised exponential, and report both.
+    - >-
+      Per-instance and ensemble success probabilities answer different questions and a plateau in
+      one is not a plateau in the other. This is the confound IDEA-20260816-725f05 was built
+      around, and its churn statistic is imported precisely to control it.
+    - >-
+      EV-MLKEM-020's own text carries both 0.292 and approximately 0.296 for the free-memory growth
+      term in different places. A 0.004 difference in a_eff shifts the crossing point, and the
+      record must evaluate both rather than pick one.
+    - >-
+      The re-randomisation itself costs something (a unimodular transform and a fresh LLL), and at
+      small beta that cost is not negligible relative to the reduction. It must be charged inside
+      cost(beta) or the discount is overstated.
+  interpretation_limits:
+    - >-
+      Everything measured is measured at n in [40, 70]. The plateau-width trend is reported as a
+      trend across four sampled dimensions with an interval, and is NOT extrapolated to the
+      committed sieve dimensions. The exponent verdict, if it is reached, is a verdict about the
+      sampled band and a hypothesis about anything larger.
+    - >-
+      A positive discount is a statement that the convention's cost is an upper bound on an
+      idealised attacker's expected cost inside a cost model. It is not an executed attack and
+      carries no claim tier above toy under docs/claims-and-verification.md.
+    - >-
+      The interaction's direction is forced by the algebra. Reporting the direction as a finding
+      would be a forced-value error, and the record's deliverable is magnitudes and widths only.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        Independent randomised re-runs of the reduction on a fixed instance succeed independently
+        with a common probability p(beta), so the expected cost of the retry schedule is
+        cost(beta)/p(beta) and k trials fail with probability (1 - p(beta))^k.
+      rigorous_support: >-
+        The re-randomisation is an exact measure-preserving action on the basis (a random unimodular
+        transform leaves the lattice unchanged), which rigorously makes the trials identically
+        distributed; independence is the heuristic part, and it imitates the classical
+        independent-trials model used for every randomised lattice-reduction retry argument. The
+        failure mode being hunted is an instance-borne floor - a subset of instances no reduction
+        ever solves - in which case p is not a per-instance constant and the retry model collapses
+        for those instances.
+      validation_plan: >-
+        Sample: at n = 48 and three blocksizes straddling the crossing, K = 200 trials on each of
+        40 instances, seeds recorded. Compare the observed per-instance success counts against the
+        Binomial(K, p_i) prediction by a dispersion test, and compare the ensemble against the
+        mixture that per-instance heterogeneity would produce. Tail check: the instance with the
+        most successes and the instance with the fewest are checked against the extreme-order
+        statistics of the fitted binomial mixture rather than against the mean. Transfer
+        assumption, stated explicitly: independence measured at n = 48 is assumed at the other
+        sampled dimensions and is re-checked at the largest one; it is not assumed at FIPS 203
+        dimensions and no claim there depends on it.
+    - id: H2
+      statement: >-
+        The log-success slope s(beta) is non-increasing in beta over the measurable band, so the
+        objective a_eff * beta - log2 p(beta) is convex and its unique minimiser is the crossing
+        point s(beta) = a_eff.
+      rigorous_support: >-
+        Monotonicity of p in beta is rigorous (a larger blocksize dominates a smaller one for
+        progressive schedules that pass through it), so p is non-decreasing; the non-increasing
+        SLOPE is the heuristic, and it imitates the classical saturating-success-curve shape
+        assumed in every threshold phenomenon of this kind. If s is not monotone, the objective may
+        have several local minima and the optimum must be found by exhaustive evaluation over the
+        grid rather than by root-finding - which is the fallback the implementation must carry.
+      validation_plan: >-
+        Sample: estimate s on the full blocksize grid at each dimension from the measured p, with
+        intervals, and test monotonicity directly by an isotonic fit and its residual. Compare the
+        measured curve's shape against the published simulator's predicted curve where Stage 0
+        obtains it - a shape agreement is external calibration, a disagreement is a reportable
+        finding about either the simulator or the harness and must be resolved before any G is
+        quoted. Tail check: the largest and smallest measured slopes must be consistent with the
+        forced endpoints, s -> 0 above beta* and s bounded by the grid's censoring floor below.
+  target_complexity:
+    time_exponent: >-
+      Conditional and stated as a slope, not a constant. Under the convention the attack cost is
+      2^(a_eff * beta) with a_eff = 0.292 free-memory and 0.292 + 0.2075 c under charge exponent c.
+      Under the probabilistic optimum it is 2^(a_eff * beta - G), with G measured. IF and ONLY IF
+      the window in which s < a_eff has width proportional to beta, with fraction theta and plateau
+      value s0, the effective exponent becomes a_eff - (a_eff - s0) theta - a genuine exponent
+      movement. If the window width is O(1), G is an additive constant of a few bits and this is
+      explicitly a BUILDING BLOCK, not an exponent result, and it is prioritised as such.
+    memory_exponent: >-
+      Strictly improved at the probabilistic optimum, by construction - peak sieve memory is
+      2^(0.2075 * beta_opt) with beta_opt <= beta*, so the memory exponent falls by
+      0.2075 * (beta* - beta_opt) bits. This is the one axis on which the record's outcome is
+      forced to be non-adverse, and it is why the memory-charge interaction is signed.
+    best_known: >-
+      MODEL-RELATIVE, AND DOUBLY SO. The comparison baseline is EV-MLKEM-020's primal_bdd under
+      RC.MATZOV at 140.1994731076207 / 200.9587149140538 / 270.7236234535225 log2 rop. That is a
+      cost-model output evaluated at p = 1, not a run and not a measurement; its authors do not
+      record it as tight, and this program's own record marks several of its inputs unvalidated
+      (H4, H5, H8, H9, H11). "Dominated by 140.199 bits" therefore means "dominated inside
+      RC.MATZOV at the p = 1 convention", which is not domination in fact.
+    hidden_overhead: >-
+      The re-randomisation cost per trial, the failure-check cost per trial, and the fact that
+      progressive schedules amortise across blocksizes so that cost(beta) is not a clean
+      exponential. All three are charged explicitly in the instrumented operation count rather than
+      hidden in an o(1).
+    tradeoff_note: >-
+      This IS a time-memory tradeoff, and an unusual one - the probabilistic attacker trades
+      expected time (up by the retry factor 1/p) against peak memory (down by
+      2^(0.2075 (beta* - beta_opt))), and under any cost measure that charges memory the trade is
+      favourable, which is exactly the interaction claimed. Parallelisation position - the retries
+      are embarrassingly parallel with no communication, which is strictly better than a single
+      large sieve, so under a parallel-cost metric the probabilistic schedule gains a second time.
+      Both effects push the same way and neither is modelled by the convention.
+  dominated_by: >-
+    EV-MLKEM-020's committed primal_bdd/RC.MATZOV figures dominate any cost this record could
+    produce UNLESS the measured G is positive, and that domination is MODEL-RELATIVE - it holds
+    inside RC.MATZOV at the p = 1 convention, which is the very convention under test, so it is not
+    domination in fact. Pareto check performed across all three axes against every row this program
+    holds: EV-MLKEM-020's eighteen attack cells (two cost models x three attacks x three parameter
+    sets), EV-MLKEM-015's pinned-estimator figures, and the external points in the corpus
+    (KN-LIT-110 MATZOV, KN-LIT-122 AGPS20). On the MEMORY axis this record's operating point is
+    strictly better than every one of those rows by construction, and on the data/query axis all
+    rows are identical (one public key). The one row that could dominate it outright is
+    Postlethwaite-Virdia's own re-estimate of the lattice KEM finalists, whose numbers were NOT
+    fetched this session; Stage 0 must obtain them, and until it does this field is honestly
+    incomplete rather than null.
+  sota_delta: >-
+    Stated as a range with its two branches, not as a word. Branch A - G under 0.1 bits at every
+    charge exponent, sota_delta exactly 0, and the value delivered is a validated convention.
+    Branch B - G of at least 1 bit at c = 0, growing by at least 0.353 bits (the red team's
+    smallest committed beta/eta/d recovery at c = 1/3) when memory is charged, against a smallest
+    committed margin of 1.276377 bits at ML-KEM-1024. The quantity is measured at n in [40, 70] and
+    NOT transferred; the transfer is the plateau-width trend and it is reported as a trend with an
+    interval.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  status: proposed
+  proposed_by: idea-generator
+  source_refs:
+    - RQ-MLKEM-003
+    - EV-MLKEM-020
+    - IDEA-20260816-725f05
+  id_allocation_provenance: >-
+    ID supplied pre-minted and collision-checked by the dispatching session; not minted by this
+    subagent.
