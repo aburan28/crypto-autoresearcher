@@ -33,6 +33,7 @@ goal status outside Coordinator ledger archives.
 3. `.claude/skills/research-status/SKILL.md` (read-only overview)
 4. `docs/dynamic-subagent-dispatch.md`, `docs/task-lifecycle.md` (as needed)
 5. `orchestration/model-policies.yaml` for role→policy aliases
+6. `tools/goal_portfolio_health.py --help` if unfamiliar with the step 2.5 sweep
 
 ## Procedure
 
@@ -51,22 +52,65 @@ Statuses: `draft | active | paused | blocked | completed | cancelled`.
 
 Also note matching dirs under `coordination/goals/GOAL-*/batches/`.
 
+### 2.5. Portfolio health sweep (mandatory, once per session)
+
+**Run this before selecting a goal, every session.** This exists because the
+harness used to stall goal-by-goal: a session would pick one `active` goal,
+spend its whole context discovering its dispatch queue fails content-hash
+verification or has nothing to run, then repeat that exact discovery on the
+next goal with nothing recorded — every session paid the rediscovery cost
+from scratch, and a single-goal deep dive reads as "stuck" even when the real
+finding is portfolio-wide.
+
+```sh
+python3 tools/goal_portfolio_health.py
+```
+
+This renders `tools/research_dispatch.py` against every `active` goal's
+current queue (read-only — it writes no ledger or coordination state) and
+sorts the whole portfolio into three buckets in one pass:
+
+- **ready** — dispatch succeeded and at least one Ready Task has `claim:
+  null`. These are your candidates for step 3.
+- **blocked** — dispatch succeeded but nothing is dispatchable right now
+  (everything gated, claimed, or deferred). Ordinary campaign state, not a
+  problem to chase.
+- **needs_repair** — dispatch itself failed: a hash mismatch, an
+  unreachable `commit_sha`, a malformed queue. This is an integrity problem
+  with the queue or `main`, never a research result and never evidence about
+  the goal's hypothesis (core rule 5). Do **not** spend this session's budget
+  root-causing each one individually — record the bucket's contents in this
+  session's report (goal ID + the one-line reason) and move on. Root-causing
+  `needs_repair` at scale is separate remediation work, not a step of running
+  a batch.
+
+If `needs_repair` covers most or all of the active portfolio, that is itself
+the finding: report it plainly (see "Terminal stops" — a ledger that will not
+validate on `main` across many goals is a harness-wide integrity signal, even
+when each individual dispatch error looks goal-specific) rather than
+diving into one goal's history to explain it, unless the user asks for that
+investigation specifically.
+
 ### 3. Select a goal
 
-Pick in this order:
+Pick in this order, drawing only from the **ready** bucket unless noted:
 
-1. Explicit `GOAL-*` in the user request.
-2. Single `active` goal that matches the request text or current branch/area.
-3. Any other `active` goal, highest ranked first, when the request names no
+1. Explicit `GOAL-*` in the user request — if it is not in `ready`, say which
+   bucket it landed in and why (cite the sweep's reason) instead of silently
+   substituting another goal.
+2. Single `ready` goal that matches the request text or current branch/area.
+3. Any other `ready` goal, highest ranked first, when the request names no
    specific one. In a standing run this is the ordinary case and needs no user
    prompt — the harness is expected to keep working the active portfolio.
-4. Otherwise list `active` / `paused` goals (ID, status, batch, next action)
-   and ask which to run. Do not silently resume a `paused` or `completed` goal:
-   a pause was recorded for a reason, and resuming it requires either the user
-   or a committed Coordinator decision clearing that reason.
+4. Otherwise list `ready` / `blocked` / `paused` goals (ID, status, batch,
+   next action) and ask which to run. Do not silently resume a `paused` or
+   `completed` goal: a pause was recorded for a reason, and resuming it
+   requires either the user or a committed Coordinator decision clearing that
+   reason. Do not silently pick from `needs_repair` — a broken dispatch queue
+   cannot safely launch a subagent against it.
 
-If no `active` goal exists at all, do not stop — go to step 9's "when the
-portfolio is empty".
+If the `ready` bucket is empty, do not stop and do not fall back to
+`needs_repair` — go to step 9's "when the portfolio is empty".
 
 **Resume** an existing goal: use its `dispatch_queue_path` and
 `current_batch_id`; continue from `next_action`.
@@ -336,8 +380,9 @@ loop at step 2:
   `review-breakthrough`, which is still `degradable: false`. If the policy is
   unresolvable for every goal in the portfolio, that is a terminal stop below.
 
-**When the portfolio is empty** — no `active` goal, and every remaining one is
-paused, blocked, or completed — the harness still does not exit. In priority
+**When the `ready` bucket is empty** — whether because there is no `active`
+goal, or because the sweep put every `active` goal into `blocked` or
+`needs_repair` — the harness still does not exit on that alone. In priority
 order:
 
 1. Resume a `paused` goal whose recorded pause reason is now demonstrably
@@ -349,6 +394,11 @@ order:
 3. If no open question justifies a campaign, run `/propose-ideas` on the
    best-supported research question to generate candidates, then rank them and
    open a campaign against the winner.
+
+None of these three apply when the sweep shows a large `needs_repair` bucket
+across otherwise-unrelated goals: that pattern is a repository-wide integrity
+signal (see "Terminal stops"), and opening a new campaign or resuming a pause
+does not address it — report it instead.
 
 Idling is a last resort and is reported as such. Continuous operation must not
 degrade into make-work: a campaign opened only to keep the loop turning, with
@@ -374,7 +424,14 @@ Only these end the run itself:
   no resolvable backend for a `degradable: false` policy, a repository that
   cannot be pushed, or a ledger that will not validate on `main`. Report the
   failure and what would clear it; do not keep dispatching work that cannot be
-  archived.
+  archived. The step 2.5 sweep putting most or all of the active portfolio
+  into `needs_repair` — especially with unrelated goals failing on the same
+  shape of error (content-hash mismatch, an archived `commit_sha` that is not
+  an ancestor of `HEAD`) — is exactly this signal on `main`, not a run of bad
+  luck across many goals. Report the sweep's bucket counts and the distinct
+  error shapes seen; do not silently work around it by hand-repairing one
+  goal's queue to get a batch moving, since that treats a repository-wide
+  finding as a one-off.
 
 A failed candidate, empty ready set, or timeout is none of these. It is scoped
 evidence: record it, set the next action, continue.
