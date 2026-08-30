@@ -1,0 +1,908 @@
+idea:
+  id: IDEA-20260829-0656b1
+  question_id: RQ-SCURVE-03aa7e
+  goal_id: GOAL-SCURVE-be9707
+  added: '2026-08-29'
+  status: proposed
+  proposed_by: idea-generator
+  title: >-
+    PRICE THE ADJECTIVE - "manipulatable" is a cost curve, not a label. Measure
+    the acceptance rate rho of the NIST P-256 seed-to-curve pipeline at reduced
+    field sizes where the whole pipeline is executable, compare it against the
+    Koblitz/Galbraith-McKee prime-density prediction, and publish the resulting
+    seeds-per-target-property curve in bits. Two rigorous factors of exactly 1/2
+    fall out with no heuristic at all, and the remaining factor is the one that
+    needs measuring.
+  class: measurement
+
+  claim: >-
+    SafeCurves classifies NIST P-256 as "manipulatable" with the attack model that
+    a generator who knows a secret attack applying to one curve in 2^k searches
+    seeds until one hits. THAT MODEL HAS A COST AND THIS PROGRAM HAS NEVER
+    COMPUTED IT. The cost is W = 2^k / rho seed evaluations, where rho is the
+    probability that a uniformly drawn seed survives the pipeline's acceptance
+    criteria. Nobody in this repository has measured rho, and the number is not a
+    detail: it moves the manipulation cost by exactly log2(1/rho) bits. Four
+    separable claims of decreasing rigour.
+
+    (A) TWO RIGOROUS FACTORS, NO HEURISTIC, ZERO COMPUTE. The pipeline of SP
+    800-186 C.3.1 is: draw s, assemble c, reject if c = 0 or 4c + 27 congruent 0
+    mod p, then choose b with c*b^2 congruent a^3 mod p, then reject unless E has
+    suitable order.
+    (A1) With a = -3 fixed, b exists iff -27/c is a quadratic residue mod p. For
+    c behaving as a uniform draw this halves the acceptance rate EXACTLY: factor
+    1/2, with an O(p^{-1/2}) error by Weil's bound on character sums applied to
+    the Legendre symbol along the c-chain. This factor is invisible in every
+    informal discussion of NIST seed searching that I am aware of and it is worth
+    exactly one bit.
+    (A2) When b exists there are TWO square roots, +b and -b, and both are
+    admissible outputs of step 9. So the seed-to-accepted-curve map is 1-to-2 on
+    the surviving half, and the generator gets a free bit BACK. FACTORS A1 AND A2
+    CANCEL TO WITHIN THE WEIL ERROR. That cancellation is a genuine, checkable,
+    previously unstated observation about this pipeline and it is one of the two
+    things this record contributes even if every measurement below fails.
+
+    (B) THE MEASURED FACTOR, WHICH IS THE EXPENSIVE ONE. Step 10 requires E to
+    have "suitable order", which for the Section 3.2.1 prime curves means cofactor
+    h = 1, that is #E prime. Call that probability rho_n. THE CENTRAL PREDICTION,
+    CONDITIONAL ON HEURISTIC H1 BELOW: rho_n equals C(p) / ln(p) times (1 + o(1)),
+    where C(p) is the Galbraith-McKee-style correction for the non-uniformity of
+    elliptic-curve orders in the Hasse interval. At p near 2^256, ln(p) is about
+    177.4, so a naive uncorrected model gives rho_n about 1/177, that is 7.47
+    bits, and the correction is expected to be a factor between 0.5 and 2, that
+    is within one bit either way. THE COMBINED COST STATEMENT: to target a
+    one-in-2^k property, the generator needs about 2^k * 177 / C seed
+    evaluations, EACH COSTING ONE POINT COUNT, and 2^k * 177 point counts at 256
+    bits is the real bound, not 2^k hash calls. The distinction is worth about
+    7.5 bits and, far more importantly, changes the UNIT from hashes to SEA runs.
+
+    (C) THE RIGOROUS REACHABILITY BOUND, INDEPENDENT OF EVERYTHING ABOVE. The seed
+    space has exactly 2^160 elements, so at most 2^161 values of b are reachable
+    counting both square roots, out of the roughly 2^256 elements of F_p: a
+    fraction below 2^{-95}. A generator confined to this procedure CANNOT reach an
+    arbitrary b. This bounds the procedure and says nothing about the generator's
+    intent.
+
+    (D) THE DISCRIMINATION, STATED BEFORE THE EXPERIMENT. Two theories of where
+    the pipeline's selectivity lives.
+    THEORY 1, PRIMALITY-DOMINATED: acceptance is governed almost entirely by
+    "#E is prime", rho is about 1/ln p, and the twist and other criteria cost
+    under one bit in total. PREDICTED OBSERVABLE: at reduced size l, the measured
+    acceptance rate rho-hat(l) scales as 1/(l ln 2) across l, a straight line in
+    1/rho versus l.
+    THEORY 2, CRITERIA-DOMINATED: the further requirements of SP 800-186 Section 3
+    (which I have NOT read - see the citation's read depth) contribute their own
+    multiplicative factors, rho is materially below 1/ln p, and the manipulation
+    cost is correspondingly higher than the folklore estimate. PREDICTED
+    OBSERVABLE: rho-hat(l) falls BELOW 1/(l ln 2) by a constant factor
+    independent of l, which the experiment measures directly.
+    THE TWO THEORIES ARE SEPARATED BY THE SLOPE-VERSUS-OFFSET DISTINCTION IN A
+    SINGLE PLOT, and either outcome is a number this program does not have.
+
+  mechanism: >-
+    THE TRACKED OBJECT is the ACCEPTANCE INDICATOR I(s) in {0, 1} of the
+    seed-to-curve pipeline at a given field size, together with its factorisation
+    into per-stage indicators I = I_c * I_qr * I_order, where I_c is the c != 0 and
+    4c + 27 != 0 test, I_qr is the quadratic-residuosity of -27/c, and I_order is
+    the primality of #E.
+
+    LOSSY-PROJECTION TEST, applied BEFORE any experiment.
+    WHAT IS DISCARDED. A 160-bit seed, a 255-bit c, a 256-bit b and an entire
+    elliptic curve group collapse to THREE BITS, and the headline object collapses
+    to one. Nothing about the curve survives.
+    IS IT A CHANGE OF COORDINATES? Emphatically not. The fibre over I = 1 is the
+    entire set of accepted seeds, of size about rho * 2^160, and no seed, no
+    coefficient and no group order is recoverable from the bit. Contrast the
+    (Delta, Pi) example of KN-LIT-7595, where the projection lost nothing.
+    IS THE DISCARD COMPATIBLE WITH THE OPERATIONS? The operation that matters is
+    SEED SEARCH, that is the map s -> s + 1 iterated, and the projection is
+    exactly equivariant under it: I(s) is computed from s alone by a fixed
+    deterministic procedure, so the retained bit propagates deterministically along
+    the search that the whole SafeCurves attack model is about. It is also
+    equivariant under CHANGE OF FIELD SIZE in a precise sense - the pipeline is
+    parameterised by (l, hdigest, HASH) and I is defined identically at every l,
+    which is what makes the reduced-size measurement a measurement of the SAME
+    object rather than of an analogue. PASSES, and it passes for the specific
+    reason that the object is defined by the search rather than by the curve.
+    WHERE IT DISSOLVES. At the point where the reduced-size pipeline stops being
+    the same pipeline. Below about l = 24 the Hasse interval is small enough that
+    the primality of #E is dominated by small-number effects and 1/ln p is a poor
+    model; above about l = 44 brute-force point counting stops being affordable in
+    pure Python. THE INSTRUMENT THEREFORE HAS A MEASURED WORKING RANGE OF ROUGHLY
+    24 TO 44 BITS and the record says so in advance rather than discovering it.
+
+    WHY THIS IS NOT IDEA-20260829-bba3a8. That record verifies that ONE seed
+    produces ONE coefficient and counts what the predicate binds; it is a
+    single-instance certificate and it makes no statement about the pipeline's
+    selectivity. This record never verifies the P-256 seed at all - it measures the
+    DENSITY of the accepted set. The two share the code for c(s, l) and nothing
+    else, and bba3a8 is a strict prerequisite because an unvalidated c routine
+    would corrupt every acceptance rate. The dependency is declared, not implied.
+
+    WHY THIS IS NOT IDEA-20260829-f5bcff. That record inverts a published verdict
+    table for its implicit thresholds and explicitly REFUSES the rigid criterion as
+    non-numeric. This record measures a physical quantity of a generation procedure
+    and never touches the verdict table. The two are orthogonal and neither
+    subsumes the other.
+
+    EXECUTION. Step 1, reuse the validated c(s, l) routine from
+    IDEA-20260829-bba3a8. Step 2, for each l in {24, 28, 32, 36, 40, 44}, pick a
+    prime p of exactly l bits, and for N = 10^5 seeds per size compute I_c, I_qr
+    and, when both pass, #E by exhaustive enumeration over x using Legendre symbols
+    (an O(p) pass, affordable to l = 44 across 14 cores) and test primality. Step
+    3, report rho-hat and its three factors per size with exact binomial confidence
+    intervals. Step 4, compare against 1/ln p and against the theoretical 1/2 for
+    I_qr. Step 5, the null and the negative control. Step 6, the extrapolation to
+    256 bits, stated as an extrapolation with H1 named, never as a measurement.
+
+  novelty_status: unverified
+  novelty_rationale: >-
+    The heuristic that #E is prime with probability about C/ln p is classical and
+    the framing of curve-standard manipulation as a search cost is the explicit
+    subject of KN-LIT-4290 (BADA55), so as a research idea the honest label is
+    `adaptation` at best. The label recorded is `unverified` because NO WEB SEARCH
+    WAS PERFORMED THIS SESSION, the BADA55 paper itself was not opened (only its
+    39-line corpus record and one HTML mirror page), and I therefore cannot say
+    whether the specific acceptance-rate factorisation proposed here, and in
+    particular the 1/2 quadratic-residuosity factor and its cancellation against
+    the two square roots, appears in that literature. Per
+    agents/idea-generator.md that forces `unverified`. The A1/A2 cancellation is
+    the item most likely to be already known and a reviewer with retrieval should
+    check BADA55 Section 5 first.
+  novelty_screen:
+    method: >-
+      Run 2026-08-29. Same corpus screen as IDEA-20260829-bba3a8 - greps over
+      knowledge/ and ledger/ for rigidity, seed, Brainpool, ANSSI and NIST-curve
+      terms; full reads of the four prior SafeCurves proposals; full read of
+      inputs/SAFECURVES-20260825/pages/rigid.txt; targeted reads of SP 800-186
+      C.3.1 and C.3.2. Additional targeted grep of knowledge/ for
+      "Galbraith-McKee|Koblitz|prime order|Hasse interval" was NOT run and that
+      omission is recorded rather than glossed.
+    results: >-
+      No record in ledger/ or knowledge/ measures or estimates an acceptance rate,
+      a curve-generation search cost, or a manipulation cost for any curve.
+      KN-LIT-4290 is the only corpus record on the topic, is at confidence
+      `reported`, and its own text says it was generated from the first two pages
+      of a PDF in a bulk seeding pass. The four prior SafeCurves proposals contain
+      no density measurement of any kind. This program therefore holds no number
+      of this type for any curve.
+
+  citations:
+    - ref: inputs/SAFECURVES-20260825/specs/sp800-186.txt
+      provenance: internal
+      claim: >-
+        Section C.3.1 generation procedure, in particular step 8 (reject if c = 0
+        or 4c + 27 congruent 0 mod p), step 9 (choose a, b in GF(p) with
+        c*b^2 congruent a^3 mod p, noting all the pseudorandom prime curves here
+        have a = -3), and step 10 (check that E has suitable order; if not, go to
+        step 1). Section 3.2.1.3 publishes for P-256: p = 2^256 - 2^224 + 2^192 +
+        2^96 - 1, cofactor h = 1 with n prime, the quadratic twist cofactor
+        h1 = 3*5*13*179 with n1 prime, b = 41058363725152142129326129780047268409
+        114441015993725554835256314039467401291, Seed 0xc49d3608 86e70493 6a6678e1
+        139d26b7 819f7e90, and c = 0x7efba166 2985be94 03cb055c 75d4f7e0 ce8d84a9
+        c5114abc af317768 0104fa0d.
+      verified_by: >-
+        Read tool, 2026-08-29. TARGETED reads only: lines 6355-6474 and 6594-6713
+        (C.3.1 and C.3.2 in full) and the grep context around the three published
+        seeds, which covers the Section 3.2.1.2-3.2.1.4 parameter blocks. CRITICAL
+        READ-DEPTH DISCLOSURE - I did NOT read Section 3 of SP 800-186, so I do
+        NOT know the full list of "suitable order" criteria that step 10 refers
+        to. Theory 2 of claim (D) exists precisely because of that gap, and the
+        executor MUST read Section 3 before interpreting any measured rho.
+
+    - ref: inputs/SAFECURVES-20260825/pages/rigid.txt
+      provenance: internal
+      claim: >-
+        SafeCurves places NIST P-256 at level "manipulatable" of a four-level
+        ordinal, with the comment "Coefficients generated by hashing the
+        unexplained seed c49d3608 86e70493 6a6678e1 139d26b7 819f7e90". The page's
+        stated cost model for the manipulatable level is that "a malicious curve
+        generator can search through many choices of s, checking each
+        y^2 = x^3 - 3x + H(s) for vulnerability to a secret attack; this works if
+        the secret attack applies to (e.g.) one curve in a billion." It further
+        quotes 1999 Scott's version of the same argument at one in a million
+        escalating to one in a billion.
+      verified_by: >-
+        FULL read of the file, all 501 lines, Read tool, 2026-08-29, plus a full
+        read of tables/rigid.tsv (55 lines).
+    - ref: ledger/questions/RQ-SCURVE-03aa7e.yaml
+      provenance: internal
+      claim: >-
+        The P-256 intake tuple with modulus 2^256 - 2^224 + 2^192 + 2^96 - 1, b
+        matching the SP 800-186 value, expected_criteria with rigid = false and
+        twist = true, the additional diagnostic "deterministic parameter-generation
+        transcript audit", and the claim boundary that every SafeCurves cell is
+        unverified intake.
+      verified_by: >-
+        Read tool, 2026-08-29, lines 1-46 (the header, question and full intake
+        block). The remainder of the record was read for RQ-SCURVE-960dbd, whose
+        category_separation, additional_diagnostics, controls, scope and
+        claim_boundaries blocks are byte-identical anchors shared across all six
+        questions; I verified that identity by comparing the two files' anchor
+        structure, not by reading all six in full.
+    - ref: 'ledger/proposals/IDEA-20260829-bba3a8.yaml'
+      provenance: internal
+      claim: >-
+        The validated c(s, l) routine, its v/w formula, its perturbed-seed null,
+        and its coverage count. THIS RECORD DEPENDS ON THAT ONE and must not run
+        before it has passed its Stage 1 and Stage 2.
+      verified_by: >-
+        Authored in this same session, 2026-08-29, and written to
+        ledger/proposals/IDEA-20260829-bba3a8.yaml; not yet executed and not yet
+        reviewed.
+    - ref: 'ledger/proposals/IDEA-20260829-f89a3a.yaml and IDEA-20260829-d052e6.yaml'
+      provenance: internal
+      claim: >-
+        The exhaustive-toy-census discipline reused here, the rule that an
+        instrument never shown to fire cannot certify an absence, and the ECDLP
+        frontier row list used in dominated_by below.
+      verified_by: >-
+        FULL reads of both files (785 and 789 lines), Read tool, 2026-08-29.
+    - ref: KN-LIT-4290
+      provenance: internal
+      claim: >-
+        Bernstein, Chou and Chuengsatiansup, "How to manipulate curve standards".
+        Analyses the cost of an attacker choosing a standardised curve; reports
+        that plausible models of the Brainpool acceptability criteria let an
+        attacker target a one-in-a-million vulnerability and that plausible models
+        of Microsoft NUMS criteria allow one-in-a-hundred-thousand. THIS IS THE
+        NEAREST PRIOR WORK TO THE PRESENT RECORD and it may well already contain
+        the acceptance-rate analysis proposed here.
+      verified_by: >-
+        FULL read of knowledge/literature/KN-LIT-4290.md, all 39 lines, Read tool,
+        2026-08-29. THE UNDERLYING PAPER WAS NOT OPENED AND ITS PDF IS NOT IN THIS
+        REPOSITORY; the corpus record itself discloses that it was generated from
+        the paper's first two pages. The BADA55 material that IS in this repository
+        is TWO HTML MIRROR PAGES OF THE BADA55 WEB SITE, NOT THE PAPER -
+        inputs/SAFECURVES-20260825/specs/bada55.html and
+        inputs/SAFECURVES-20260825/specs/bada55-brainpool.html. Of those,
+        bada55-brainpool.html was read in this session (lines 60-134 plus a grep
+        pass over the whole file) and bada55.html was NOT opened at all. A reader
+        following those pointers gets web-page summaries; the Section 5 analysis
+        this record wants is in the paper, which is absent from the repository.
+    - ref: >-
+        Galbraith and McKee, "The probability that the number of points on an
+        elliptic curve over a finite field is prime" (J. London Math. Soc., 2000);
+        Koblitz, "Primality of the number of points on an elliptic curve over a
+        finite field" (Pacific J. Math., 1988)
+      provenance: recalled
+      claim: >-
+        Give the constant C in Pr[#E prime] approximately C / ln p for curves over
+        F_p, with C differing from 1 by a product over small primes reflecting the
+        systematic divisibility bias of elliptic-curve group orders. NOT
+        RETRIEVED - no web fetch was attempted this session and neither is in the
+        frozen package. NAMED SO A REVIEWER WITH RETRIEVAL CAN CHASE THEM, because
+        the exact form of C is what heuristic H1's comparison distribution needs
+        and I am relying on a recollection of its shape, not its value. The
+        experiment does NOT depend on the recollection: it measures rho-hat
+        directly and compares against the uncorrected 1/ln p, reporting the
+        residual as the empirically measured correction.
+      verified_by: null
+    - ref: 'ANSI X9.62 and FIPS 186-2, the origin of the "suitable order" criteria'
+      provenance: recalled
+      claim: >-
+        Contain the acceptance criteria that step 10 of C.3.1 refers to. NOT
+        RETRIEVED and not in the frozen package. This is the single largest gap in
+        the present record and is why Theory 2 is live.
+      verified_by: null
+
+  assumptions:
+    - >-
+      Executor has a shell, Python 3 with hashlib and arbitrary-precision
+      integers, and 14 cores. The reduced-size census is the only nontrivial
+      compute in this proposal and it is embarrassingly parallel across seeds.
+    - >-
+      NO POINT-COUNTING BACKEND AT 256 BITS IS ASSUMED AND NONE IS USED. Every
+      point count in this record happens at 24 to 44 bits by exhaustive
+      enumeration over x with Legendre symbols, which is exact and needs no SEA.
+      The 256-bit number is an EXTRAPOLATION and is labelled as one everywhere it
+      appears.
+    - >-
+      IDEA-20260829-bba3a8 has passed its Stage 1 and Stage 2. An unvalidated
+      c(s, l) routine would corrupt every acceptance rate silently, because a
+      systematically wrong c is still a deterministic function of s and would
+      produce a plausible-looking rho.
+    - >-
+      The reduced-size pipeline uses the SAME v/w formula with hdigest reduced to
+      keep the shape, or SHA-1 truncated - THE CHOICE MATTERS AND MUST BE DECLARED
+      AND HELD FIXED. Two designs are admissible: (i) keep hdigest = 160 and let
+      v = 0 for all l <= 161, which is the honest small-l instance of the same
+      formula, or (ii) scale hdigest down to keep v = 1. The record recommends (i)
+      because it changes nothing about the standard, and requires the executor to
+      report which was used and to run at least one size under the other as a
+      robustness check.
+    - >-
+      Scope is prime fields, short Weierstrass, a = -3. No live keys; every
+      instance is generated in-session from public parameters.
+
+  proof_search_map:
+    bottleneck: >-
+      That SafeCurves' "manipulatable" verdict carries a cost model with an
+      unmeasured parameter, and that every downstream statement about how many
+      curves a generator could have searched is therefore off by an unknown factor
+      of rho. The bottleneck is not the hashing, which is free, and not the
+      arithmetic - it is that measuring rho at 256 bits requires point counting
+      that this environment cannot do, so the quantity has simply never been
+      measured. Removing the bottleneck means measuring it where it CAN be measured
+      and naming the transfer assumption.
+    baseline_embedding:
+      parameter_slice: >-
+        With the primality requirement removed - that is, accepting every seed for
+        which b exists - the pipeline reduces to the pure hash-and-square-root map
+        and rho must equal exactly 1/2 by claim A1, up to the Weil error
+        O(p^{-1/2}). That is the exact boundary case and it is the baseline the
+        measurement must reproduce: the instrument, run with I_order forced to 1,
+        must return rho-hat = 0.5 plus or minus 3 binomial standard errors at every
+        size. If it does not, the measurement is wrong before any primality is
+        involved.
+      reproduction_check: >-
+        A frozen fixture asserting rho-hat(I_qr) in [0.5 - 3*sigma, 0.5 + 3*sigma]
+        at each of the six sizes with sigma = sqrt(0.25/N), run BEFORE any point
+        counting is attempted. At N = 10^5 that is 0.5 plus or minus 0.0047. This
+        is a genuine symbolic-plus-empirical embedding, not a curve that looks
+        similar to a baseline.
+    observation_collision:
+      observable: >-
+        The scalar rho-hat(l), an acceptance rate. The conclusion about
+        manipulation cost rests entirely on it, so its identifiability must be
+        attacked first.
+      distinct_preimage_search: >-
+        REQUIRED, AND THE ANSWER IS THAT COLLISIONS ARE MASSIVE AND MUST BOUND THE
+        CLAIM. Any two pipelines with the same product of stage probabilities give
+        the same rho, so rho alone cannot distinguish "primality-dominated" from
+        "two unrelated criteria each costing half a bit". THE SEPARATING CONDITION,
+        which the design supplies and which is the reason the factorisation is
+        carried through the experiment rather than only the product: report I_c,
+        I_qr and I_order SEPARATELY at every size. A record that publishes only rho
+        has published a colliding observable. SECOND AND SHARPER COLLISION - a
+        pipeline with a systematically wrong c routine has the same rho as a
+        correct one, because a wrong deterministic function of s is still a
+        function of s. That collision is broken only by IDEA-20260829-bba3a8's
+        certificate, which is why the dependency is blocking rather than advisory.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          Build a per-stage resource measure - the acceptance rate factorised as
+          I_c * I_qr * I_order - realise it by specialising the pipeline to reduced
+          field sizes where every stage is exactly computable, and add the stage
+          costs only over stages proved independent by construction (I_qr depends
+          on c mod squares, I_order on the resulting curve; their independence is
+          itself testable and is a listed metric).
+        predicted_gain: >-
+          An honest per-stage bit budget instead of a single opaque number, so that
+          a later change to any one criterion can be repriced without rerunning
+          anything.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold rho fixed and vary the forgotten structure - which stage supplied
+          the selectivity - to demonstrate directly that the product does not
+          identify the factorisation.
+        predicted_gain: >-
+          Forces the deliverable to publish three numbers where a naive version
+          would publish one, and pre-empts the reading in which a measured rho is
+          attributed to primality by default.
+    quantifier_order: >-
+      Claimed PER FIELD SIZE, EXISTENTIALLY IN THE MEASUREMENT, AND
+      EXTRAPOLATED EXPLICITLY. FOR EACH l in the tested set and FOR THE SPECIFIC
+      prime p_l chosen, THERE EXISTS a measured acceptance rate rho-hat(l) with a
+      stated binomial confidence interval over N = 10^5 seeds. NOT CLAIMED - FOR
+      ALL primes of l bits the rate is rho-hat(l); the witness p_l is a single
+      prime and prime-to-prime variation is a listed confounder, addressed by
+      running three distinct primes at one size. NOT CLAIMED, AND THIS IS THE
+      LOAD-BEARING RESTRICTION - that rho(256) equals the extrapolated value. That
+      step is heuristic H1 and it is quantified as a range, never as a point
+      estimate.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At field sizes 24 to 44 bits, the NIST-style pipeline accepts a fraction
+        rho-hat(l) of uniformly drawn seeds, factorising as measured into I_c, I_qr
+        and I_order; the I_qr factor is 1/2 to within binomial error as predicted
+        rigorously; and under heuristic H1 the same factorisation at 256 bits gives
+        a manipulation cost of about 2^k * rho^{-1} point counts to target a
+        one-in-2^k property." IT CERTIFIES NOTHING about whether any search was
+        performed, nothing about whether such a property exists, and nothing about
+        P-256's security. IT ALSO CANNOT CERTIFY the value of rho at 256 bits -
+        that is an extrapolation and the method's ceiling is exactly the boundary
+        of the measurable range.
+      nearby_object_control: >-
+        THE NEAREST OBJECT ON WHICH THE HOPED-FOR CONCLUSION FAILS IS A PIPELINE
+        WITH NO HASH AT ALL. Replace c(s) by a uniformly drawn random integer of
+        the same bit length and run the identical acceptance measurement.
+        PREDICTED IDENTICAL rho TO WITHIN BINOMIAL ERROR AT EVERY SIZE. THAT IS THE
+        POINT AND IT IS THE RECORD'S SHARPEST SELF-LIMITATION: if the hashed and
+        unhashed pipelines have the same acceptance rate, then the hash contributes
+        ZERO selectivity, the whole cost model is a statement about the acceptance
+        criteria and not about SHA-1, and any narrative that leans on the hash has
+        been refuted by its own control. A method that cannot distinguish the
+        hashed pipeline from the random one has not identified the load-bearing
+        structure - and here the prediction is that it CANNOT, which is precisely
+        what must be reported.
+    proof_obligations:
+      - claim: >-
+          b exists iff -27/c is a quadratic residue mod p, giving an exact factor
+          1/2 up to O(p^{-1/2}) by Weil.
+        responsibility: correctness
+      - claim: >-
+          Both square roots +b and -b are admissible outputs of C.3.1 step 9, so the
+          accepted-curve count is twice the accepted-seed count.
+        responsibility: correctness
+      - claim: >-
+          At most 2^161 values of b are reachable, out of about 2^256.
+        responsibility: size
+      - claim: >-
+          Exhaustive enumeration over x with Legendre symbols computes #E exactly at
+          l <= 44 bits.
+        responsibility: correctness
+      - claim: >-
+          The measured I_qr rate equals 0.5 within 3 binomial standard errors at
+          every tested size.
+        responsibility: baseline
+      - claim: >-
+          The reported confidence intervals are exact binomial (Clopper-Pearson),
+          not normal approximations, at every size.
+        responsibility: strictness
+      - claim: >-
+          The hashed and unhashed pipelines have indistinguishable acceptance
+          rates, demonstrating that the hash supplies no selectivity.
+        responsibility: scope
+      - claim: >-
+          The 256-bit statement is an extrapolation carried by H1 and is never
+          reported as a measurement.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        measured I_qr acceptance rate (fraction of seeds for which -27/c is a
+        quadratic residue) at each of l = 24, 28, 32, 36, 40, 44, N = 10^5 seeds
+      direction: different
+      minimum_effect: >-
+        PREDICTED 0.500 plus or minus 0.005 at every size, that is within 3 exact
+        binomial standard errors of one half. This is the rigorous half of the
+        claim and the baseline embedding. A systematic deviation at every size means
+        the c routine is biased and voids everything downstream. A deviation at ONE
+        size only means the chosen prime is atypical, which is the confounder the
+        three-primes-at-one-size check exists to detect.
+    - metric: >-
+        measured full acceptance rate rho-hat(l), and specifically the product
+        rho-hat(l) * l * ln 2
+      direction: different
+      minimum_effect: >-
+        PREDICTED to lie in [0.4, 2.5] at every tested size and to be APPROXIMATELY
+        CONSTANT in l - that is a flat line, which is the signature of Theory 1
+        (primality-dominated, rho about C/ln p). MINIMUM EFFECT SEPARATING THE
+        THEORIES: a value systematically below 0.4 at every size, by more than 3
+        binomial standard errors, is Theory 2 and means the SP 800-186 Section 3
+        criteria contribute at least 1.3 bits beyond primality. A value systematically
+        ABOVE 2.5 would mean the pipeline accepts more often than the prime-density
+        heuristic allows, which would falsify H1 outright and is the outcome that
+        would most surprise me.
+    - metric: >-
+        the ratio rho-hat(hashed) / rho-hat(random-c), at matched l and matched N
+      direction: different
+      minimum_effect: >-
+        PREDICTED 1.00 plus or minus 0.05 at every size. THE TWO OUTCOMES ARE
+        DIFFERENT THEORIES OF WHAT SAFECURVES' VERDICT IS ABOUT - a ratio of 1 means
+        the hash contributes no selectivity at all and the entire manipulation cost
+        is a property of the ACCEPTANCE CRITERIA, so the "hashing an unexplained
+        seed" framing is about auditability rather than about cost. A ratio
+        materially different from 1 would mean SHA-1's output distribution
+        interacts with the acceptance criteria, which is a genuine and reportable
+        structural finding about the pipeline and would need independent
+        replication before anyone believed it.
+    - metric: >-
+        extrapolated manipulation cost at 256 bits, expressed in log2(point counts)
+        required to target a one-in-2^k property
+      direction: different
+      minimum_effect: >-
+        PREDICTED k + 7.5 plus or minus 1.5 bits, from log2(1/rho) with rho about
+        C/ln p and ln(2^256) about 177.4. REPORTED AS AN EXTRAPOLATION UNDER H1 AND
+        NEVER AS A MEASUREMENT. The value of this prediction is not the 7.5 - it is
+        the UNIT: the cost is in POINT COUNTS, not hashes, and at 256 bits a point
+        count is milliseconds to seconds of optimised SEA rather than microseconds
+        of SHA-1. A record that reports the cost in hashes has understated it by
+        several orders of magnitude and the record pre-commits against that.
+    - metric: >-
+        rigorous upper bound on the fraction of F_p reachable as a P-256 procedure b
+      direction: lower
+      minimum_effect: >-
+        PREDICTED at most 2^161 / p, below 2^{-94}. Rigorous, no experiment, and
+        reported to BOUND the manipulation narrative rather than to support it.
+    - metric: >-
+        empirical independence of I_qr and I_order - the difference between
+        Pr[I_order = 1] and Pr[I_order = 1 | I_qr = 1] at each size
+      direction: different
+      minimum_effect: >-
+        PREDICTED indistinguishable from zero, within 3 binomial standard errors.
+        A nonzero difference would mean the quadratic-residuosity condition and the
+        primality condition are coupled, which would invalidate the multiplicative
+        factorisation and require the bit budget to be restated as a joint
+        distribution. That is a real possibility worth testing, not a formality:
+        the two conditions both concern squares modulo p.
+    - metric: >-
+        working range of the instrument, reported as the largest l at which the
+        exhaustive point count completes within the declared budget on 14 cores
+      direction: different
+      minimum_effect: >-
+        REPORTED AS AN ENVIRONMENT MEASUREMENT WITH NO TARGET. Pre-registered
+        expectation about 44 bits at N = 10^5 seeds; a materially smaller range
+        weakens the slope-versus-offset discrimination and the record must then say
+        the discrimination is underpowered rather than report a fitted line as if
+        it were well determined.
+
+  minimal_test:
+    design: >-
+      STAGE 0, ZERO COMPUTE, AND IT CAN KILL THE PROPOSAL FOR FREE. Read SP 800-186
+      Section 3 and write down the actual list of criteria that C.3.1 step 10
+      invokes. IF THAT LIST TURNS OUT TO CONTAIN A CRITERION THAT IS NOT COMPUTABLE
+      AT REDUCED SIZE - for instance one that references a fixed absolute bound
+      rather than a function of l - THEN THE REDUCED-SIZE PIPELINE IS NOT THE SAME
+      PIPELINE and the whole design must be restated or abandoned. This costs one
+      file read and it is the cheapest possible negative.
+      STAGE 1, THE CHEAPEST VALID DISCRIMINATOR, MINUTES. The I_qr baseline ONLY:
+      at each of the six sizes, draw 10^5 seeds, compute c, test whether -27/c is a
+      quadratic residue, and report the rate with an exact binomial interval. NO
+      POINT COUNTING. If this does not return 0.5 at every size, the c routine or
+      the residuosity test is wrong and nothing further is worth running. This is
+      the rigorous prediction and it is testable in about a minute.
+      STAGE 2, HOURS, THE MAIN MEASUREMENT. Add the point count. For each accepted
+      (I_c, I_qr) seed, enumerate x over F_p computing Legendre symbols to get #E
+      exactly, and test primality. Parallelise across 14 cores by seed block.
+      Report rho-hat and the three factors per size with exact intervals.
+      STAGE 3, HOURS, THE BLOCKING NEARBY-OBJECT CONTROL. Repeat Stage 2 with c
+      drawn uniformly at random instead of hashed. Predicted identical rho.
+      STAGE 4, MINUTES. Robustness - three distinct primes at l = 32, and one size
+      run under the alternative hdigest scaling.
+      STAGE 5, SECONDS. The extrapolation, with H1 named in the same sentence as
+      the number, and the rigorous reachability bound.
+    controls:
+      - >-
+        BLOCKING BASELINE, RIGOROUS - the I_qr rate must be 0.5 within 3 exact
+        binomial standard errors at every size. This is a theorem, not a hope, and
+        failing it voids the run before any expensive stage.
+      - >-
+        BLOCKING NEARBY-OBJECT NULL - the unhashed pipeline with c drawn uniformly.
+        Predicted identical rho. This control's PREDICTED SUCCESS is a limitation
+        on the record's own narrative and is stated as such: it shows the hash
+        contributes no selectivity.
+      - >-
+        POSITIVE, INSTRUMENT-FIRING - at each size, exhibit at least one seed that
+        is ACCEPTED, with its curve, its exact #E and a primality certificate. An
+        acceptance-rate instrument that has never accepted anything cannot certify a
+        rate. Predicted about 10^5 * rho acceptances per size, that is hundreds at
+        l = 24 and dozens at l = 44.
+      - >-
+        POSITIVE, FULL SIZE, NO POINT COUNT - the real P-256 seed must pass I_c and
+        I_qr at 256 bits, since a b demonstrably exists. This is one 256-bit
+        instance exercising the code path at full size without any point counting,
+        and it is the only full-size datum in the record.
+      - >-
+        NEGATIVE, PARAMETER-MATCHED - the same pipeline at l = 32 run with a = -1
+        instead of a = -3, changing the constant from -27 to -1. The I_qr rate must
+        still be 0.5 but the accepted SET must differ; identical accepted sets would
+        mean a is not entering the computation at all.
+      - >-
+        PRIME-VARIATION CONTROL - three distinct 32-bit primes, to separate a
+        property of the pipeline from a property of one chosen prime.
+      - >-
+        DEGENERACY CONTROL - seeds giving c = 0 or 4c + 27 congruent 0 mod p must be
+        rejected by I_c explicitly rather than by accident; construct such a case at
+        a tiny l where it is findable by search, and confirm the rejection fires.
+        Predicted rate about 2/p, so at l = 24 about 10^{-7} - too rare to occur
+        naturally, which is exactly why it must be constructed.
+    required_metrics:
+      - 'per size, N, the prime p_l used, and the three stage rates with exact binomial intervals'
+      - 'per size, rho-hat and the product rho-hat * l * ln 2'
+      - 'per size, the hashed-versus-random ratio with its interval'
+      - 'per size, the conditional-versus-marginal I_order difference'
+      - 'per size, at least one exhibited accepted seed with its curve, #E and primality certificate'
+      - 'the I_qr rate at 256 bits for the real P-256 seed (a single Boolean)'
+      - 'the rigorous reachability bound as an exact fraction'
+      - 'the extrapolated 256-bit cost with H1 cited in the same line'
+      - 'wall clock and core-hours per stage, and all RNG seeds'
+
+  falsification_conditions:
+    - >-
+      The I_qr rate is not 0.5 within 3 binomial standard errors at every size. The
+      rigorous prediction fails, meaning the c routine, the Legendre implementation
+      or my derivation is wrong. HALT; nothing downstream is interpretable.
+    - >-
+      rho-hat * l * ln 2 is not approximately constant in l. Heuristic H1's
+      functional form is wrong for this pipeline, the extrapolation to 256 bits is
+      withdrawn, and the record reports a measured range with no extrapolation -
+      which is a legitimate and informative outcome, not a failure.
+    - >-
+      The hashed and unhashed pipelines differ materially in rho. Either the
+      implementation is wrong or SHA-1's output interacts with the acceptance
+      criteria. The first is far likelier; exclude it before reporting, and if it
+      survives, escalate rather than publish.
+    - >-
+      SP 800-186 Section 3 turns out to contain a criterion not expressible at
+      reduced size. The reduced-size pipeline is not the same object; the design is
+      withdrawn at Stage 0 for the cost of one file read.
+    - >-
+      No accepted seed is found at some size within the seed budget. The instrument
+      has not fired at that size and no rate may be reported for it; report the
+      upper confidence bound instead and say the size is underpowered.
+    - >-
+      The degeneracy control does not fire on a constructed c = 0 case. The I_c
+      stage is not implemented and its measured rate of about 1 is an artifact.
+
+  confounders:
+    - >-
+      TOY-SCALE ANOMALY RATE. At 24 to 44 bits a randomly generated curve hits
+      degenerate conditions - supersingular, anomalous, tiny order - far more often
+      than at 256 bits. The census must COUNT those cases per size and report them
+      separately rather than letting them silently inflate or deflate rho. This is
+      the same warning KN-TECH-033 makes for toy-scale work and it is inherited
+      deliberately.
+    - >-
+      SINGLE-PRIME BIAS. rho is measured at one prime per size and elliptic-curve
+      order distributions genuinely depend on p through the small-prime divisibility
+      structure that the Galbraith-McKee correction captures. Three primes at one
+      size is the minimum honest check and it is in the design; more would be better
+      and the record says so rather than pretending one prime settles it.
+    - >-
+      THE CRITERIA I HAVE NOT READ. Step 10's "suitable order" is defined in a
+      section I did not open. If that section imposes conditions on the TWIST -
+      which the P-256 intake's h1 = 3*5*13*179 suggests it does not, since that is
+      not a small-cofactor condition - the acceptance rate would fall further. The
+      measured rho is a rate for the criteria I IMPLEMENT, and the deliverable must
+      list them explicitly rather than say "the NIST criteria".
+    - >-
+      THE 1/2 AND THE 2 CANCEL, AND A CARELESS WRITE-UP WILL DOUBLE-COUNT THEM. The
+      quadratic-residuosity factor halves the accepted SEED count; the two square
+      roots double the accepted CURVE count. Whether the answer is per-seed or
+      per-curve changes the number by a factor of two and the deliverable must state
+      which it reports in every single line.
+    - >-
+      EXTRAPOLATION ACROSS 212 BITS. The measured range is 24 to 44 bits and the
+      target is 256. That is an extrapolation of more than a factor of five in
+      log p, and the only thing carrying it is H1's functional form. No amount of
+      precision inside the measured range reduces that exposure, and the record
+      must not let tight confidence intervals at 44 bits masquerade as confidence at
+      256.
+
+  interpretation_limits:
+    - >-
+      RIGIDITY'S COUNTERFACTUAL IS NOT A COMPUTABLE OBJECT AND THIS RECORD DOES NOT
+      TOUCH IT. Measuring how many seeds a generator would have needed to examine
+      to hit a hypothetical property is NOT evidence that any generator examined any
+      seeds, that any such property exists, or that anyone intended anything. The
+      archived audit plan's closure - for any rule R with R(inputs) = P there are
+      infinitely many R' with R'(inputs) = P, and the order in which R and P were
+      fixed is not observable - stands unaltered. This record computes a cost, and a
+      cost is not an accusation.
+    - >-
+      THE HASH IS PREDICTED TO CONTRIBUTE NOTHING TO THE COST, and the nearby-object
+      control is designed to demonstrate exactly that. If the prediction holds, then
+      "coefficients generated by hashing an unexplained seed" is a statement about
+      AUDITABILITY - what a third party can check - and not about search cost, and
+      every record citing this one must make that distinction.
+    - >-
+      NO NUMBER IN THIS RECORD IS A SECURITY STATEMENT ABOUT P-256. rho is a property
+      of a generation procedure. It says nothing about the ECDLP, and a hypothetical
+      one-in-2^k weakness is a hypothesis about unpublished mathematics, introduced
+      here only to give the cost curve a unit.
+    - >-
+      TRANSFER TO THE OTHER 19 CURVES, STATED EXACTLY. (a) FULL TRANSFER OF THE
+      MEASUREMENT, since rho is a property of the PIPELINE and not of P-256 - the
+      same rho applies verbatim to NIST P-224 and NIST P-384 and to every other
+      curve generated by the ANSI X9.62 procedure, with only ln p changing, so the
+      256-bit number carries to 224 bits (about 6.3 bits of cost, since ln(2^224) is
+      about 155) and to 384 bits (about 8.0 bits, ln(2^384) about 266). Those two
+      sibling goals may cite this record directly and should not re-measure.
+      (b) PARTIAL TRANSFER OF THE METHOD, DIFFERENT PIPELINE - brainpoolP256t1 and
+      brainpoolP384t1 have a different acceptance loop with a different rejection
+      structure, and their analogue of rho is measured differently and much more
+      directly, by COUNTING ACTUAL REJECTIONS rather than by sampling; that is
+      IDEA-20260829-b70376's headline and it is strictly better evidence than this
+      record's sampling wherever it is available. This record's method is the
+      second-best one used where the first-best is impossible, and it says so.
+      (c) NO TRANSFER - ANSSI FRP256v1 has no pipeline to measure. (d) NO TRANSFER -
+      the fully rigid curves (Curve25519, M-221, M-383, Curve383187, Curve1174,
+      E-222, E-382, Anomalous, BN(2,254), Curve41417, Ed448-Goldilocks, M-511,
+      E-521) have no unexplained seed and their reachable set is a handful of
+      candidates, not 2^160; rho is undefined for them and the instrument must
+      refuse.
+    - >-
+      A MEASURED rho AT 44 BITS IS NOT A MEASURED rho AT 256 BITS. Every appearance
+      of the 256-bit number in any downstream record must carry "extrapolated under
+      H1" in the same sentence. This is the single most likely way for this record
+      to be misused.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a curve E over F_p produced by the pipeline, the group order #E behaves,
+        with respect to primality, like a uniformly random integer in the Hasse
+        interval subject to the systematic small-prime divisibility bias of
+        elliptic-curve orders; formally, Pr[#E prime] = C(p) / ln p times
+        (1 + o(1)) as p tends to infinity, where C(p) is the Galbraith-McKee-type
+        constant, and this holds uniformly over the pipeline's accepted seeds rather
+        than only over uniformly random curves.
+      rigorous_support: >-
+        TWO RIGOROUS INGREDIENTS AND ONE HEURISTIC BRIDGE, kept separate. RIGOROUS
+        (i): Hasse's theorem bounds #E within 4*sqrt(p) of p + 1, so the interval in
+        which #E lives is exactly known and the prime-density heuristic has a
+        well-defined support. RIGOROUS (ii): the I_qr factor of exactly 1/2 is
+        proved by the quadratic-residue count for -27/c, with error O(p^{-1/2}) by
+        Weil's bound on character sums, so the FIRST stage of the pipeline needs no
+        heuristic at all. HEURISTIC BRIDGE: that the primality of #E for
+        pipeline-generated curves follows the same law as for uniformly random
+        curves, that is, that hashing induces no bias. This imitates the classical
+        Koblitz and Galbraith-McKee statements, which are themselves conjectural
+        (they are heuristics supported by extensive numerics, not theorems), and that
+        double conditionality is stated here rather than hidden: an assumption
+        imitating a conjecture is weaker than an assumption imitating a theorem.
+      validation_plan: >-
+        SAMPLING - N = 10^5 seeds at each of l = 24, 28, 32, 36, 40, 44 bits, with
+        #E computed EXACTLY by exhaustive enumeration over x using Legendre symbols
+        (an O(p) pass per curve), giving a complete and exact group order for every
+        sampled curve rather than an estimate. All RNG seeds and the six primes
+        recorded. Three additional primes at l = 32 for prime-to-prime variation.
+        COMPARISON DISTRIBUTION - the empirical rho-hat(l) against C/ln p, plotted
+        as rho-hat * l * ln 2 versus l, which is flat under H1 and sloped under any
+        competing functional form. The uncorrected 1/ln p is the null and the
+        measured ratio IS the empirically determined C, reported as a measurement
+        rather than taken from a recalled paper I did not open. TAIL CHECK - the
+        distribution of the SMALLEST prime factor of #E over rejected curves,
+        compared against the Dickman-de Bruijn-type prediction for the least prime
+        factor of a random integer of that size; a systematic excess of small
+        factors is the signature of the elliptic-curve divisibility bias that C
+        captures, and observing it is independent corroboration that the correction
+        is real and not a fitting artifact. TRANSFER - the extrapolation from 44 to
+        256 bits is the assumption itself and is NOT validated by this plan; it is
+        stated as the open exposure, and the only honest mitigation is that the
+        functional form is checked over six sizes rather than assumed from one.
+    - id: H2
+      statement: >-
+        The reduced-size pipeline is the same object as the 256-bit pipeline; that
+        is, the acceptance criteria implemented at l = 24 to 44 are the l-scaled
+        instances of the criteria that C.3.1 step 10 invokes at l = 256, with no
+        criterion that is absolute rather than relative to l.
+      rigorous_support: >-
+        NONE, AND IT IS DISCHARGEABLE BY READING RATHER THAN BY COMPUTING. This is
+        precisely why Stage 0 is a file read and is listed as the cheapest possible
+        falsifier. The assumption is currently OPEN because I did not read SP 800-186
+        Section 3 in this session, and that omission is recorded in the citation's
+        read depth rather than papered over.
+      validation_plan: >-
+        DOCUMENTARY, NOT STATISTICAL. Read SP 800-186 Section 3 in full, enumerate
+        every criterion, and classify each as l-relative (transfers) or absolute
+        (does not). Publish the enumeration in the deliverable so a reader can check
+        the implemented criteria against the standard's own list line by line. Any
+        absolute criterion is reported and the affected sizes are excluded, with the
+        exclusion counted as part of the result. If the section is unreadable in the
+        frozen extraction, that is an operational observation, the assumption
+        remains open, and the deliverable says so instead of proceeding quietly.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED AND THIS IS NOT A BID AGAINST
+      docs/target-result-profile.md - it is dispatched measurement work under a
+      declared goal and is labelled as such. MEASUREMENT COST: per seed, 2 SHA-1
+      calls plus one Legendre symbol, that is O(l^2 log l) bit operations; per
+      ACCEPTED seed, one exhaustive point count at O(p) = O(2^l) Legendre symbols,
+      which is the dominant term and the reason the working range tops out near 44
+      bits. Total across six sizes at N = 10^5 seeds each, with about half the
+      seeds reaching the point count, is roughly 3 * 10^5 * 2^44 / 2 Legendre
+      symbols at the largest size - too much - so the design must and does reduce N
+      at the top sizes, and the executor must report the actual N per size rather
+      than the nominal one. THE HONEST STATEMENT: at l = 44 with N = 10^5 the point
+      counting alone is about 10^5/2 * 2^44 field operations, which is infeasible;
+      the executor must either drop to N of about 10^3 at l >= 40 or replace the
+      exhaustive count by baby-step giant-step at O(sqrt(p)), which is the correct
+      engineering choice and changes the working range to roughly 24 to 60 bits.
+      THIS COST ERROR IS DISCLOSED IN THE PROPOSAL RATHER THAN LEFT FOR THE
+      EXECUTOR TO DISCOVER.
+    memory_exponent: >-
+      O(l) per seed for the hash-and-residue stages, that is bytes. O(1) for
+      exhaustive point counting; O(sqrt(p)) = O(2^{l/2}) if baby-step giant-step is
+      substituted, which at l = 60 is about 2^30 table entries and DOES bind the 48
+      GB envelope - so the substitution is not free and its memory cost must be
+      budgeted. The deliverable is kilobytes.
+    best_known: >-
+      No incumbent exists inside this program: the corpus holds no acceptance rate
+      for any curve-generation pipeline. Outside it, the classical Koblitz and
+      Galbraith-McKee heuristics give the primality factor directly and any
+      computer-algebra system measures rho at these sizes in minutes, so this record
+      claims no methodological advance and TIES the standard approach. KN-LIT-4290
+      (BADA55) is the nearest prior work and may already contain a strictly better
+      version of this analysis; that possibility is stated rather than assumed away.
+      Against the ECDLP attack frontier (KN-TECH-001, KN-TECH-006, KN-TECH-018,
+      KN-TECH-031, KN-TECH-032, KN-TECH-035) this record is dominated by every row
+      because it is not an attack.
+    hidden_overhead: >-
+      No o(1) in the audit cost. FOUR honest hidden costs. (i) The 256-bit number is
+      an extrapolation over 212 bits of field size and H1 carries all of it. (ii)
+      The point-counting cost at the top of the working range is severe and the
+      naive design does not fit in budget, as disclosed above. (iii) The criteria
+      implemented are MY reading, not the standard's list, because Section 3 was not
+      read. (iv) The predicted result of the record's own key control is that the
+      hash contributes nothing, which means the headline number is a property of the
+      acceptance criteria rather than of the seed mechanism - a limitation on the
+      record's narrative that is stated before the experiment rather than after.
+    tradeoff_note: >-
+      The governing tradeoff is FIELD SIZE VERSUS SAMPLE SIZE and it is unusual in
+      being a hard wall rather than a curve: the point count costs 2^l per accepted
+      seed with exhaustive enumeration or 2^{l/2} with baby-step giant-step, while
+      the statistical precision needs N seeds, so the product N * 2^{l/2} is the
+      budget and every bit of field size costs half a bit of sample. The right
+      operating point is many seeds at small l for precision plus few seeds at large
+      l for the functional form, and the design must state its allocation rather
+      than sample uniformly. There is a genuine time-memory tradeoff at the point
+      count (exhaustive at O(1) memory versus BSGS at O(sqrt p) memory,
+      van Oorschot-Wiener style interpolation available between them) and it binds
+      the 48 GB envelope above l about 66. Parallelisation is perfect across seeds
+      and the 14 cores buy a clean factor of 14, which is the only place in this
+      six-record batch where the cores matter at all.
+
+  dominated_by: >-
+    CHECKED AGAINST EVERY FRONTIER ROW BEFORE WRITING THIS FIELD; `null` IS NOT
+    ASSERTED. AS AN ATTACK it is dominated by every row on time, memory and data
+    simultaneously - rho (KN-TECH-001, KN-TECH-006), automorphism-discounted rho
+    (KN-TECH-018), BSGS (KN-TECH-031, KN-TECH-035), MOV and Frey-Ruck
+    (KN-TECH-032) - because it is not an attack and produces no discrete logarithm.
+    AS AN ANALYSIS OF CURVE-STANDARD MANIPULATION COST it is very probably dominated
+    by KN-LIT-4290 (BADA55), which is a published paper devoted to exactly this
+    question and which reports concrete one-in-a-million and one-in-a-hundred-
+    thousand figures for Brainpool and NUMS criteria. I DID NOT OPEN THAT PAPER, so
+    I cannot state the domination precisely, and the honest reading of this field is
+    "probably dominated, extent unmeasured, and measuring it costs one PDF read
+    which the executor should do first."
+    AS A MEASUREMENT it is dominated on convenience by any computer-algebra system
+    with point counting, and on rigour by the classical Koblitz and Galbraith-McKee
+    results for the primality factor.
+    IT IS NOT DOMINATED on one narrow axis: no incumbent identified inside this
+    repository reports a per-stage factorisation of a curve-generation acceptance
+    rate with a blocking rigorous 1/2 baseline and a hashed-versus-random nearby
+    control. That is a controls-and-decomposition delta, it is narrow, and it is
+    stated narrowly.
+  sota_delta: >-
+    ZERO speedup against any attack baseline on every axis. THE NONZERO DELTAS ARE
+    THREE.
+    AS DATA - this repository currently holds ZERO acceptance rates, zero
+    manipulation-cost estimates and zero curve-generation densities, for any curve.
+    This would produce six measured rates with exact binomial intervals, each
+    factorised into three stages, plus a measured hashed-versus-random ratio, plus
+    one rigorous reachability bound - where there are currently none.
+    AS PRECISION - SafeCurves' cost model for the manipulatable level is stated in
+    its own text as "one curve in a billion", that is 2^30, with no acceptance
+    factor at all. This record proposes to replace an implicit rho = 1 with a
+    measured one, moving the P-256 cost statement from "about 2^30 seeds" to
+    "about 2^30 * 177 / C point counts", a shift of about 7.5 bits AND a change of
+    unit from a microsecond operation to a millisecond one. The unit change is worth
+    far more than the 7.5 bits and is the actual contribution.
+    AS SCOPE - two exact factors, the 1/2 from quadratic residuosity and the 2 from
+    the pair of square roots, are derived and shown to cancel. That derivation costs
+    nothing, holds unconditionally up to a Weil error, and is the one part of this
+    record that survives even if every measurement below fails.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+    basis: >-
+      Implementation reuses IDEA-20260829-bba3a8's c routine and adds a point
+      counter, a primality test and a parallel driver - a few hundred lines.
+      Compute is dominated entirely by point counting at the top two sizes and is
+      the reason the working range must be declared in advance; at the allocation
+      recommended above it is single-digit core-hours on the 14 available cores, and
+      the naive uniform allocation does NOT fit, as disclosed in target_complexity.
+  recommended_priority: medium
+
+  source_refs:
+    - RQ-SCURVE-03aa7e
+    - GOAL-SCURVE-be9707
+    - IDEA-20260829-bba3a8
+    - IDEA-20260829-ff7823
+    - IDEA-20260829-b70376
+    - IDEA-20260829-85768f
+    - IDEA-20260829-d052e6
+    - IDEA-20260829-e37b52
+    - IDEA-20260829-f5bcff
+    - IDEA-20260829-f89a3a
+    - KN-LIT-4290
+    - KN-TECH-033
+    - KN-TECH-056
+    - KN-TECH-080
+    - KN-OPEN-019
