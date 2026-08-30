@@ -1,0 +1,194 @@
+idea:
+  id: IDEA-20260828-1cc572
+  question_id: RQ-DREG-001
+  added: '2026-08-28'
+  title: >-
+    "T11" is not support-matched: boolean_null() (src/h012_peel_rank.py) draws
+    fresh random monomials from the FULL nb-variable space, matching only the
+    per-equation degree histogram, not sem's support -- explaining the measured
+    null_ncols=768,212 (the entire degree-<=6 space on 30 vars) vs sem_ncols=690,690,
+    and plausibly part of the null arm's excess memory
+  class: control
+  claim: >-
+    RQ-DREG-001.yaml and H-DREG-001.yaml call "T11" the "support-matched
+    semi-regular null" with "identical monomial support... only coefficients
+    randomized." The code implementing T11 does not construct a support-
+    matched null: it constructs a construction that matches only the
+    per-equation DEGREE HISTOGRAM, drawing fresh, uniformly random monomial
+    positions across the entire variable space each time. Correcting the
+    null construction toward a genuinely support- or block-matched null will
+    reduce null_ncols(n=15, D=6) from the measured 768,212 toward
+    sem_ncols=690,690 (exactly, under a strict per-equation support copy, by
+    H-DREG-152cff's zero-tolerance closed-form identity), and will plausibly
+    -- though not certainly -- reduce the null arm's peak RSS. Two competing
+    explanations are discriminated: (1) T11 is, measurably, a FULL-SUPPORT
+    null (a naming/construction mismatch relative to what RQ-DREG-001's own
+    text claims it measures), and correcting it shrinks both ncols and
+    (plausibly) peak RSS; (2) the null arm's excess memory is dominated by
+    something ncols-count-independent (e.g. row-object count, IDENTICAL
+    between arms at 546,855 since it depends only on the shared
+    eq_degs_hist), in which case fixing the construction corrects
+    admissibility but barely moves memory.
+  mechanism: >-
+    boolean_null(), src/h012_peel_rank.py:30-47, has its OWN docstring
+    stating: "T11-boolean null: same shape, random monomials (identical to
+    t2)." It draws each replacement monomial via rng.sample(range(nb), d): a
+    fresh, uniformly random d-subset of ALL nb variables, matching only the
+    COUNT of monomials at each degree per equation, never their variable
+    placement. Because 15 quadric + 15 cubic equations each contribute
+    several genuinely random low-degree subsets of all 30 variables, the
+    union (after Macaulay up-closure to D=6) saturates close to the full
+    monomial space -- consistent with this session's own executed probe:
+    null_ncols(n=15, D=6) = 768,212 = sum_{d=0}^{6} C(30,d) EXACTLY, the
+    entire degree-<=6 space, versus sem_ncols = 690,690. By H-DREG-152cff's
+    already-derived, zero-tolerance closed-form column-count identity, a
+    TRUE support-matched null (same per-equation monomial SET as sem) has
+    ncols EXACTLY equal to sem_ncols by construction (same support -> same
+    up-closure -> same column count under that identity), so the measured
+    77,522-column excess is directly attributable to this construction
+    choice rather than to any property of the underlying elliptic-curve
+    arithmetic.
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-28'
+    corpus_paths_grepped: [ledger/proposals (RQ-DREG-001 subset), ledger/hypotheses, src/h012_peel_rank.py]
+    grep_results:
+      - "H-DREG-5a3ac1 independently identifies that no rank has EVER been
+         computed against a truly support-matched null (its own 'BMN'
+         proposal), and separately notes two DIFFERENT existing nulls (arm P,
+         arm R) disagree by 7,110 at the one cell where both exist -- but it
+         proposes a NEW, from-scratch numpy instrument (not reusing
+         h012_peel_rank's boolean_null()) and does not cite or audit
+         boolean_null()'s own docstring/implementation. This proposal is
+         narrower and complementary: it is a code-level audit-and-fix of the
+         SPECIFIC function the ladder's own pipeline already calls 'T11' and
+         has been treating as admissible, not a new validation instrument."
+      - "No proposal in the RQ-DREG-001 set cites src/h012_peel_rank.py's
+         boolean_null() by name or quotes its docstring."
+    conclusion: >-
+      Not previously identified as a proposal in this exact form (a
+      code-verified terminology/construction mismatch in the pinned
+      instrument itself). Classified unverified rather than a stronger label
+      because the fix's exact numeric effect on memory (as opposed to on
+      ncols, which follows deterministically from H-DREG-152cff's closed
+      form) is not yet measured.
+  citations: []
+  assumptions:
+    - "H-DREG-152cff's closed-form column-count identity is correct (already
+       independently derived and reproduced against 6 committed integers by
+       that hypothesis); under it, a TRUE support-copy null has ncols exactly
+       equal to sem_ncols by construction."
+    - "The Macaulay row/column construction pipeline (macaulay_rows) applies
+       identically regardless of which monoset-generating function is fed to
+       it, so swapping boolean_null() for a support-preserving generator is a
+       localized, low-risk code change."
+  predictions:
+    - metric: null_ncols(n=15, D=6) under a support-copy (or, failing that, block-restricted) null construction
+      direction: lower
+      minimum_effect: >-
+        A strict per-equation support copy gives EXACTLY 690,690 (matching
+        sem_ncols, per H-DREG-152cff's zero-tolerance identity); a
+        block-restricted (but not per-equation-support-identical)
+        construction gives some value strictly between 690,690 and 768,212 --
+        report which variant was actually feasible and why, since a literal
+        "coefficients randomized, support fixed" null is DEGENERATE over
+        GF(2) (a present monomial's only nonzero coefficient is 1), so the
+        randomization freedom must be re-derived explicitly (e.g. random
+        affine substitution of the underlying curve arithmetic subject to
+        reproducing the exact support, per H-DREG-5a3ac1's own HEUR-BLK-2
+        caveat that this "generic support coverage" is measured, not proved).
+    - metric: peak RSS of the corrected null-arm prepare phase at n=15, D=6
+      direction: lower
+      minimum_effect: >-
+        ANY measurable reduction from the 12.22 GiB baseline confirms
+        explanation (1) at least partially; a change under 5% despite the
+        ncols fix would instead support explanation (2) (row-count-dominated
+        memory), which is itself a valuable, reportable negative for Idea A's
+        stage-0 sparsity audit.
+  minimal_test:
+    design: >-
+      (a) Confirm the finding at zero new compute: read boolean_null()'s
+      output monoset for the ALREADY-COMMITTED n=12 D6 null run and verify
+      its ncols against 690,690/full-support alternatives, settling whether
+      this diagnosis also explains the PRIOR n=12 null result, not only the
+      n=15 probe. (b) Implement a corrected null generator that reuses sem's
+      per-equation monomial POSITIONS exactly (degenerate-coefficient case,
+      documented as such) as the primary variant, and a block-restricted
+      variant (drawing only from the equation's own variable block, U+X3 or
+      U+X1+X2) as a fallback if a literal support-copy is judged
+      uninformative (since it removes ALL null-side randomness). Validate
+      ncols against the closed-form prediction at n=9 and n=12 before any
+      n=15 attempt. (c) Re-run the SAME n=15 D=6 prepare-phase probe already
+      executed this session (RUN-DREG-001-MEASURE-N15-PROBE) with the
+      corrected null, measuring peak RSS under identical conditions.
+    controls:
+      - "n=9/n=12 ncols reproduction against H-DREG-152cff's zero-tolerance closed form -- must match exactly before trusting any n=15 number."
+      - "Re-derive the n=12 D6 null rank (156,520, arm P) under the corrected construction; if the corrected null is provably a DIFFERENT object (as expected under HEUR-BLK-2's own admitted seed-to-seed spread), report the new rank as a NEW measurement, not a silent replacement of the committed one."
+    required_metrics: [corrected null_ncols at n=9/12/15, corrected null peak RSS at n=15, rank at n=9/n=12 under the corrected null vs the arm-P/arm-R committed values]
+  falsification_conditions:
+    - "The corrected support-copy null's ncols does NOT equal sem_ncols exactly at n=9 or n=12: either H-DREG-152cff's closed form or this idea's construction is wrong, and the discrepant monomial must be exhibited."
+    - "Peak RSS of the corrected null construction is not meaningfully lower than 12.22 GiB at n=15 D=6: the memory floor is not (or not mainly) attributable to this construction defect, and Idea A's sparsity/representation audit becomes the primary lever instead."
+  confounders:
+    - "A degenerate (zero-randomness) support-copy null may be scientifically uninformative as a 'null' at all -- it IS sem's support with only different coefficients where GF(2) coefficients don't vary meaningfully -- so the block-restricted fallback variant needs its own justification as a genuine null, distinct from sem, per H-DREG-5a3ac1's own treatment of this exact tension."
+    - "The n=12 committed null result (arm P, rank 156,520) may already be silently affected by this same defect; if so, EV-DREG-008's deficit_genuine=17,947 headline (already quarantined_confounded) may need this as an additional named confound -- this proposal does not itself change any evidence record's status (Coordinator authority only) but flags the possibility for review."
+  interpretation_limits:
+    - "Toy scale only; no d_reg conclusion follows from this fix alone -- it only removes a construction/admissibility defect from whatever future rank measurement uses the null arm."
+    - "Does not resolve H-DREG-001's inconclusive status and does not itself supply a completion-criterion rung."
+  heuristic_assumptions:
+    - id: HEUR-DREG-NULLFIX-1
+      statement: >-
+        The T11 null's degree-of-regularity behaviour is intended by
+        RQ-DREG-001's own scope to approximate a system with IDENTICAL
+        support to sem (only its "coefficients" -- i.e., underlying curve
+        arithmetic -- randomized), matching the semi-regularity heuristic's
+        standard null-model role (a generic system on the same monomial
+        support behaves like a "random" element of the Bardet-Faugere-Salvy
+        ensemble).
+      rigorous_support: >-
+        Not proved; this is exactly the HEUR-BLK-2 "generic support
+        coverage" assumption H-DREG-5a3ac1 already names as unproved and
+        already-measured-to-fail-slightly at n=12 (16,016 vs 16,018 across
+        seeds). This idea inherits that open status rather than resolving it.
+      validation_plan: >-
+        Sample >=5 independently-seeded support-copy null instances at n=9,
+        D<=6 (cheap, exact ranks reachable); report the rank spread; compare
+        against sem's own measured rank at the same cell; tail-check whether
+        the spread is small relative to the deficit under study (mirrors
+        H-DREG-5a3ac1's HEUR-BMN-1 falsification route exactly, at a
+        different, complementary construction).
+  target_complexity:
+    time_exponent: "n/a (methodology/admissibility fix, not an algorithmic claim)"
+    memory_exponent: >-
+      Predicted reduction in null_ncols from 768,212 to at most 690,690 at
+      n=15 D=6 (a 10.1% column reduction, exact under the closed form); the
+      resulting RSS reduction is UNMEASURED and is this idea's own
+      discriminating test, not assumed to be proportional.
+    best_known: "current T11/boolean_null() construction, measured null_ncols=768,212, peak RSS 12.22 GiB at n=15 D=6 (this session)."
+    hidden_overhead: "none beyond what is disclosed above; this is a bug-audit-and-fix, not a new algorithm."
+    tradeoff_note: "n/a"
+  dominated_by: "n/a (no algorithmic result claimed; local instrument admissibility fix only)"
+  sota_delta: >-
+    ZERO on any ECDLP axis. Locally: corrects a measurable mismatch between
+    what RQ-DREG-001's own text says its null arm measures and what the
+    pinned code actually does, with an exact, falsifiable predicted ncols
+    correction (768,212 -> 690,690) and an open, honestly-uncertain memory
+    effect.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-28'
+  source_refs:
+    - RQ-DREG-001
+    - GOAL-DREG-001
+    - H-DREG-001
+    - H-DREG-152cff
+    - H-DREG-5a3ac1
+    - src/h012_peel_rank.py
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-006/tasks/TASK-20260828-955d56/execution-report.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.
