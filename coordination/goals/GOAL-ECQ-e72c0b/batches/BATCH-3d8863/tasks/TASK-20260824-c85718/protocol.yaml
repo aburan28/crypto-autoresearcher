@@ -200,11 +200,14 @@ protocol:
           rational point (that gap is exactly Sha(E)[2], and is the method's
           honest ceiling, stated in method_ceiling below).
         concretely_testable: >-
-          Yes -- a finite, deterministic enumeration over F2^|S| local
-          conditions, |S| bounded by the 20 listed bad primes of curve 302
-          plus 2 (see search_boundary; the resolvent-cubic discriminant
-          introduces no NEW primes beyond bad_primes(Delta_E), a standard
-          fact restated in baseline_reproduction).
+          Yes -- a finite, deterministic enumeration over the 2^|S_L|
+          classes of L(S,2), where S_L is the set of primes of the etale
+          cubic algebra L above S and |S| is bounded by the 20 listed bad
+          primes of curve 302 plus 2 (see search_boundary; the
+          resolvent-cubic discriminant introduces no NEW primes of Q beyond
+          bad_primes(Delta_E), a standard fact restated in
+          baseline_reproduction, but each such prime can split into up to
+          three primes of L, so |S_L| <= 3|S| <= 63).
         how_far_it_survives: >-
           Survives to a genuine DECISIVE two-outcome test (see search_boundary
           Stage A): either dim Sel_2(E) = 31 exactly, which UNCONDITIONALLY
@@ -552,7 +555,7 @@ protocol:
             dim(E(Q)/2E(Q)) <= dim Sel_2(E) unconditionally (the exact
             sequence), independent of any heuristic.
           responsibility: correctness
-        - claim: Stage A's local-solubility enumeration over F2^|S| terminates
+        - claim: Stage A's local-solubility enumeration over L(S,2) terminates
             within the declared budget or reports a scoped inconclusive
             result.
           responsibility: feasibility
@@ -574,7 +577,7 @@ protocol:
     predictions:
       - metric: >-
           dim Sel_2(E) for curve 302, computed via the finite local-solubility
-          enumeration over F2^|S|
+          enumeration over L(S,2)
         direction: different
         minimum_effect: >-
           reported as an exact integer >= 31 (it can never be below the
@@ -744,18 +747,23 @@ protocol:
       time_exponent: >-
         NOT a cryptographic asymptotic exponent claim -- this is a finite,
         one-off decision procedure on ONE fixed curve, not an algorithm
-        family. Stage A: O(2^|S| * poly(log p_max)) exact local-solubility
-        tests, deterministic, where |S| <= 21 (20 bad primes plus 2) and
+        family. Stage A: O(2^|S_L| * poly(log p_max)) exact local-solubility
+        tests, deterministic, where S_L is the set of primes of L above
+        S, |S| <= 21 (20 bad primes plus 2), each rational prime splits
+        into at most three primes of L so |S_L| <= 3|S| <= 63, and
         p_max is the largest bad prime (~270 bits, ~81 decimal digits) --
-        worst case up to ~2^21 ~= 2.1 million tests, each polynomial in
-        p_max's bit-length. Stage B: bounded by a DECLARED finite search box
+        worst case up to 2^|S_L| tests, each polynomial in p_max's
+        bit-length. That worst case is far beyond the ~2^21 an enumeration
+        of Q(S,2) would have cost, which is why Stage A's ceiling is a
+        DECLARED test-count budget (budgets_and_stops) rather than a
+        promise of exhaustion. Stage B: bounded by a DECLARED finite search box
         (budgets_and_stops), deliberately small relative to the scale of
         Stage A's cost, and explicitly acknowledged to have low expected
         power (interpretation_limits). Stage C: O(n * |S'|) exact modular
         reductions for n=32 points over a frozen prime list S' (a handful
         to a few dozen primes), negligible.
       memory_exponent: >-
-        Stage A: O(|S|) bits for the local-condition vector per class tested,
+        Stage A: O(|S_L|) bits for the local-condition vector per class tested,
         negligible; big-integer storage for coordinates up to the frozen
         points' existing size (numerators/denominators with dozens to
         ~150+ decimal digits) is kilobytes, not a memory-bound stage. Stage
@@ -771,7 +779,7 @@ protocol:
         exact upper-bound tool (2-Selmer) ahead of both, which neither
         cited record attempts.
       hidden_overhead: >-
-        Three disclosures. (1) Stage A's worst-case 2^|S| cost is not
+        Three disclosures. (1) Stage A's worst-case 2^|S_L| cost is not
         "superpolynomial hidden in o(1)" in the cryptographic sense, but IS
         a real, potentially large, finite constant that this design
         explicitly declares a ceiling for (budgets_and_stops) rather than
@@ -782,7 +790,7 @@ protocol:
         curve's height scale (interpretation_limits) -- a "not found"
         result there carries little information relative to its cost.
       tradeoff_note: >-
-        Stage A is fully parallel over the 2^|S| local-condition classes (no
+        Stage A is fully parallel over the 2^|S_L| local-condition classes (no
         van Oorschot-Wiener style memory-time tradeoff is relevant; this is
         a decision procedure, not a collision search). Stage B is trivially
         parallel over search-box cells if a lattice-covering schedule is
@@ -1130,11 +1138,22 @@ protocol:
         - experiments/EXP-ECQ-TBD/stage0_baseline_reproduction/short_weierstrass_conversion.json
         - experiments/EXP-ECQ-TBD/stage0_baseline_reproduction/rank31_f2_certificate.json
     stage_a_selmer_computation:
-      work_units: up to 2^|S| local-solubility tests, |S| <= 21.
+      work_units: >-
+        up to 2^|S_L| local-solubility tests, where S_L is the set of primes
+        of L above S and |S_L| <= 3|S| <= 63; the exact |S_L| is computed
+        at Stage 0 from the frozen a-invariants and reported before Stage A
+        begins.
       budget: >-
         HARD CEILING recommended: maximum_local_solubility_tests = 2^21 =
         2,097,152, each bounded by poly(bit-length of the largest bad
-        prime, ~270 bits). THIS IS THE SINGLE LARGEST COST RISK IN THE
+        prime, ~270 bits). NOTE that this ceiling is a DECLARED BUDGET, not
+        an exhaustion bound: because the enumeration runs over L(S,2) and
+        not Q(S,2), 2^|S_L| can exceed it by many orders of magnitude, so a
+        run that reaches the ceiling reports "Selmer rank undetermined
+        within declared budget" (halting_condition (ii)) and asserts no
+        rank decision. A Coordinator authorizing exhaustive Stage A
+        execution must first re-budget against the Stage-0-reported |S_L|.
+        THIS IS THE SINGLE LARGEST COST RISK IN THE
         WHOLE PROTOCOL: Hensel-lifting local solubility at an ~81-digit
         prime for up to ~2 million classes could be prohibitively expensive
         in real wall clock if implemented naively (confounders above). NO
@@ -1145,7 +1164,7 @@ protocol:
         NOT claiming any Selmer rank) before authorizing full Stage A
         execution.
       stopping_rule: >-
-        halts when all 2^|S| classes are tested (producing an exact
+        halts when all 2^|S_L| classes are tested (producing an exact
         answer) OR when the declared test-count ceiling is reached first
         (producing "undetermined within budget").
       invalidation_rule: >-
