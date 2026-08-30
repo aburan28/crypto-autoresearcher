@@ -1,0 +1,1468 @@
+protocol:
+  protocol_id: PROTO-ECQ-e72c0b-c85718
+  title: >-
+    A finite, unconditional, two-stage decision-and-certification protocol for
+    extending frozen ICARM curve 302 (exact rank >= 31 lower bound) to a
+    certified rank >= 32, or for closing that specific extension with a named
+    exact obstruction
+  status: design_only_zero_execution
+  experiments_run: 0
+  mathematical_claims: []
+  header_note: >-
+    THIS IS A DESIGN DOCUMENT ONLY. It authorizes no command, no curve search,
+    no rank computation, no verifier run, no benchmark, and no Executor
+    dispatch. Every numeric claim below about curve 302 (discriminant,
+    coordinates, bad-prime count) is a verbatim reproduction of the frozen
+    JSON at coordination/goals/GOAL-ECQ-e72c0b/baseline/icarm_curve_302_20260824.json
+    (sha256 2bd422f34d0566f79c53f6bc94c6ec5f9ff048cd88fcc300f53e0b397af2e67b),
+    re-derived by reading that file in this session, not executed against it.
+    No arithmetic in this document was run on a machine; every derived
+    algebraic fact (e.g. Delta_E = 16*disc(resolvent cubic)) is a standard
+    textbook identity stated for planning purposes and is itself a Stage 0
+    verification obligation, not an assumed result.
+
+  task_context:
+    task_id: TASK-20260824-c85718
+    goal_id: GOAL-ECQ-e72c0b
+    batch_id: BATCH-3d8863
+    handoff_ref: ledger/handoffs/TASK-20260824-c85718.yaml
+    inputs_read:
+      - ledger/goals/GOAL-ECQ-e72c0b/goal.yaml
+      - ledger/decisions/DEC-20260824-c2ac4c.yaml
+      - ledger/decisions/DEC-20260830-8a46c2.yaml
+      - coordination/goals/GOAL-ECQ-e72c0b/baseline/icarm_curve_302_20260824.json
+      - coordination/goals/GOAL-ECQ-e72c0b/batches/BATCH-3d8863/archives/TASK-20260824-01b105/receipt.yaml
+      - docs/inventor-protocol.md
+      - knowledge/techniques/KN-TECH-056.md
+      - knowledge/techniques/KN-TECH-080.md
+      - docs/claims-and-verification.md
+      - templates/research-records.md
+      - agents/idea-generator.md
+      - ledger/goals/GOAL-ECQ-001/goal.yaml
+      - ledger/goals/GOAL-ECQ-002/goal.yaml
+      - ledger/goals/GOAL-ECRANK-001/goal.yaml
+      - ledger/proposals/IDEA-20260829-c705b4.yaml
+      - ledger/proposals/IDEA-20260829-07fd5f.yaml
+      - ledger/proposals/IDEA-20260829-02418a.yaml
+      - ledger/proposals/IDEA-20260829-ece95f.yaml
+      - ledger/proposals/IDEA-20260829-de0a52.yaml
+      - ledger/proposals/IDEA-20260829-073172.yaml
+    web_retrieval_attempt: >-
+      WebFetch of https://github.com/icarm/elliptic-rank/blob/4c9ef36265c3cbc10f5da84fcade3f4bbe6854cc/src/verify.ts
+      was attempted twice and FAILED both times with "Claude requested
+      permissions to use WebFetch, but you haven't granted it yet" -- a
+      tool-permission denial in this session, not a confirmed network
+      failure. A WebSearch (not WebFetch) for the same target returned only a
+      third-party natural-language paraphrase of the method
+      ("quadratic-character 2-descent... after Cremona/Brumer... no
+      floating-point arithmetic in the decision") and NOT the source text
+      itself, so it is marked `recalled`-strength at best (no function names,
+      variable names, or control flow were verified) and is NOT treated as an
+      independent confirmation of the exact algorithm. Every claim below
+      about what the real verify.ts implements is therefore explicitly a
+      DESIGN PROPOSAL for the Coordinator/Validator to check against the
+      actual source once network/tool access permits, per the task's own
+      contingency instruction, and is never asserted as the verifier's
+      actual behavior.
+    invalidation_rule_restated: >-
+      Any command invocation, experiment, curve search, rank computation,
+      verifier run, benchmark, or Executor work performed by this task
+      invalidates it (DEC-20260824-c2ac4c, DEC-20260830-8a46c2). None was
+      performed. maximum_runs for this task is 1 agent-dispatch attempt;
+      this is that attempt.
+
+  authorization_boundary: >-
+    THIS DOCUMENT AUTHORIZES ZERO EXECUTION. It is a frozen specification for
+    a possible future pipeline, not a run. No Executor task exists or may be
+    inferred from it. No hypothesis status changes. No curve, point,
+    independence matrix, torsion determination, or rank result is produced
+    or claimed anywhere in this file. Before ANY stage below may execute, a
+    Coordinator decision must (a) independently review and approve this
+    protocol per the review_architecture section, (b) confirm the
+    goal's environment-gate pause condition (clean full-suite pass, or a
+    reviewed environment-gate amendment) is satisfied, and (c) issue a
+    fresh, explicitly scoped Executor handoff naming which single stage is
+    authorized, its exact budget, and its exact artifact paths. Opening that
+    review round is a Coordinator action and is explicitly NOT authorized,
+    initiated, or implied by this document; the Idea Generator has no
+    authority to open reviews, approve experiments, or assign Executor work
+    (agents/idea-generator.md prohibitions; AGENTS.md rule 1).
+
+  # ===========================================================================
+  # Object-first generation (docs/inventor-protocol.md section 1;
+  # KN-TECH-056). This sibling goal-area (Mordell-Weil rank over Q) is
+  # mined by two established families already active in this program.
+  # ===========================================================================
+  object_first_analysis:
+    established_families_declared_off_limits:
+      - name: elliptic-surface / Mestre-Nagao specialisation search
+        source: GOAL-ECQ-001 (closed), GOAL-ECQ-002 (closed_at_budget)
+        description: >-
+          Constructs a high-generic-rank elliptic surface over Q(t) (a
+          rational elliptic surface bounded by Shioda-Tate at 10d-2, or a
+          Mestre quartic construction), sieves specialisations t by a
+          Mestre-Nagao score, and 2-descent-certifies the best-scoring
+          fibres. Tracked object: the specialisation parameter t and the
+          curve family's generic Mordell-Weil rank. Best certified so far in
+          this program: rank 12-13 over Q, against the frozen baseline's
+          rank >= 31.
+        why_off_limits_here: >-
+          This protocol does not construct any new curve or family. It
+          starts from ONE frozen, already-rank->=31 equation (curve 302) and
+          asks only whether that SAME equation admits a 32nd independent
+          point. Family search is a materially different tracked object and
+          would not extend curve 302 itself; it is excluded as the primary
+          lens by design, not by oversight.
+      - name: number-field degree reduction / base-field search
+        source: GOAL-ECRANK-001 (completed), GOAL-ECRANK-002
+        description: >-
+          Holds a curve fixed (or nearly so) and searches over number fields
+          K of varying degree for rank(E(K)) >= target, using multiquadratic
+          twists and field-degree bookkeeping. GOAL-ECRANK-001 explicitly
+          scopes rank >= 31 OVER Q as excluded and unreachable by its own
+          method.
+        why_off_limits_here: >-
+          This protocol stays over Q throughout (the goal's literal target).
+          No base-field search of any kind appears in any stage below.
+      - name: geometric-rank / Galois-module isotypic-decomposition search
+        source: >-
+          GOAL-ECQ-2298dc (blocked) and its sibling ideas
+          (IDEA-20260829-ece95f, IDEA-20260829-de0a52, IDEA-20260829-073172)
+        description: >-
+          Reads generic rank over Q(t) off the Galois-module structure of a
+          high-geometric-rank surface's Mordell-Weil space, or infers the
+          base rank behind the record ladder from indirect statistical or
+          height-lattice signals, without exhibiting a curve.
+        why_off_limits_here: >-
+          These target the QUESTION "what family produced the record ladder"
+          and explicitly disclaim exhibiting any curve or point
+          (IDEA-20260829-02418a: "This measures the RECORD's structure...
+          not progress toward GOAL-ECQ-e72c0b's completion criteria").
+          This protocol's object is deliberately narrower and more concrete:
+          decide and, if warranted, exhibit a 32nd point on ONE fixed curve.
+    candidate_objects_considered:
+      - object: >-
+          The candidate 32nd point P32 itself, as a naive-height-bounded
+          rational point (x, y) on the fixed curve 302.
+        genuinely_new_or_repackaging: >-
+          Repackaging. This is exactly the classical "search for a rational
+          point of bounded height" object every 2-descent/point-search tool
+          already tracks. Its lossy-projection test technically passes (a
+          height-bounded search box discards the curve's group structure and
+          everything about points outside the box) but the object gives no
+          traction: curve 302's KNOWN points already have naive heights up
+          to ~468 (natural-log units, per the frozen JSON's naive_height
+          field), and DEC-20260824-b7557b lane L1 (cited via
+          IDEA-20260829-073172) already measured that an x-coordinate
+          enumeration reaching only 8 decimal digits against curve 302's
+          exhibited ~33-digit numerators covers 0 of a 95,899,629-candidate
+          box -- a documented dead end for naive enumeration at this scale.
+        concretely_testable: yes, but at prohibitive and unbounded cost --
+          see search_boundary below.
+        how_far_it_survives: >-
+          Does not survive past a feasibility check: unbounded naive height
+          search cannot be made finite without an independent argument for
+          WHERE to look, which is exactly what the next object supplies.
+        verdict: rejected as the PRIMARY search lens; retained only as the
+          final verification step once Stage A/B below narrow the search.
+      - object: >-
+          The 2-Selmer class of curve 302: its image under the connecting
+          homomorphism E(Q)/2E(Q) -> Sel_2(E) subset of a finite F2-vector
+          space H indexed by local solubility conditions at a
+          DETERMINISTICALLY FIXED finite prime set S.
+        genuinely_new_or_repackaging: >-
+          Adaptation, not new mathematics (classical 2-descent, Silverman
+          AEC X.4; the underlying exact sequence
+          0 -> E(Q)/2E(Q) -> Sel_2(E) -> Sha(E)[2] -> 0 is textbook). What is
+          new to THIS program is using it as a decisive PRE-SEARCH GATE for
+          this exact completion criterion: no committed record in this
+          program's corpus (grepped this session; see novelty_status below)
+          computes an exact Selmer-rank UPPER bound on any candidate rank-31
+          curve before attempting a point search. IDEA-20260829-c705b4
+          builds a related but distinct F2-reduction instrument (reduction
+          mod good primes into E(F_p)/2E(F_p)) that is explicitly a
+          LOWER-bound-only certificate on a GIVEN point set -- it "certifies
+          points it is given and finds none" (its own interpretation_limits).
+          The Selmer computation is the complementary UPPER-bound half that
+          record does not attempt.
+        lossy_projection_test: >-
+          PASSES. The projection discards the curve's coordinates, its
+          Mordell-Weil group, every point's height, and every point outside
+          the descent map's kernel structure, retaining only a vector of
+          |S| local-solubility bits. What it discards is discarded
+          COMPATIBLY with the target's operations: the connecting
+          homomorphism phi is a group homomorphism (phi(P+Q) = phi(P) o
+          phi(Q) in the F2-vector-space picture, phi(2P) = 0 identically by
+          construction), so addition and doubling propagate deterministically
+          through the retained data alone. It is NOT a change of coordinates:
+          from the Selmer class alone one cannot recover a point, a
+          coordinate, or even whether a given class is realized by an actual
+          rational point (that gap is exactly Sha(E)[2], and is the method's
+          honest ceiling, stated in method_ceiling below).
+        concretely_testable: >-
+          Yes -- a finite, deterministic enumeration over F2^|S| local
+          conditions, |S| bounded by the 20 listed bad primes of curve 302
+          plus 2 (see search_boundary; the resolvent-cubic discriminant
+          introduces no NEW primes beyond bad_primes(Delta_E), a standard
+          fact restated in baseline_reproduction).
+        how_far_it_survives: >-
+          Survives to a genuine DECISIVE two-outcome test (see search_boundary
+          Stage A): either dim Sel_2(E) = 31 exactly, which UNCONDITIONALLY
+          proves rank(E) = 31 exactly (killing the extension on curve 302
+          specifically, forever, with a named mechanism), or dim Sel_2(E) >=
+          32, which licenses (but does not guarantee, because of possible
+          Sha) a bounded search for an actual witness. This is the object
+          this protocol is actually built around.
+        verdict: ADOPTED as Stage A's tracked object.
+      - object: >-
+          Short vectors of the rank-3 "near-solution" lattice attached to a
+          box on the real curve (Elkies' ANTS-IV linearisation lattice).
+        genuinely_new_or_repackaging: >-
+          Adaptation -- IDEA-20260829-07fd5f already proposes exactly this
+          object for this program, unexecuted, targeting different curves
+          (the in-repo rank-12 curve's non-section points and 20 of the
+          censored Mestre fibres), not curve 302.
+        lossy_projection_test: >-
+          PASSES, per that record's own analysis (cited verbatim there):
+          discards the group law entirely, retains only a box's linear
+          approximation data, propagates deterministically under box
+          refinement.
+        concretely_testable: yes, but ONLY as the second half of a two-stage
+          pipeline (see search_boundary Stage B); by itself it has no finite
+          halting condition on a curve whose existing points already reach
+          height ~468.
+        how_far_it_survives: >-
+          Survives as Stage B's engine, gated by Stage A's outcome, with an
+          honestly low expected power at curve 302's actual height scale
+          (interpretation_limits below).
+        verdict: ADOPTED as Stage B's search engine, credited to
+          IDEA-20260829-07fd5f rather than re-derived here.
+      - object: >-
+          Reduction of each point into E(F_p)/2E(F_p) over good primes p,
+          stacked as rows of an exact F2 matrix (IDEA-20260829-c705b4's
+          tracked object).
+        genuinely_new_or_repackaging: adaptation; not re-derived here, cited
+          and adopted verbatim as Stage C's certificate instrument.
+        lossy_projection_test: PASSES per that record's own analysis.
+        concretely_testable: yes, unexecuted in this program to date.
+        how_far_it_survives: >-
+          Survives to exactly what that record's own method_ceiling states:
+          an unconditional LOWER bound on independence of a GIVEN point set,
+          never an existence proof and never an upper bound. That asymmetry
+          is why Stage A (an upper-bound tool) is a necessary complement,
+          not a redundant addition.
+        verdict: ADOPTED as Stage C's certificate instrument.
+
+  # ===========================================================================
+  # Required output skeleton (agents/idea-generator.md), extended for a
+  # protocol record.
+  # ===========================================================================
+  idea:
+    id: PROTO-ECQ-e72c0b-c85718
+    title: >-
+      Selmer-gated point search and F2-reduction certification for a 32nd
+      independent point on frozen ICARM curve 302
+    class: composition
+    claim: >-
+      EXACT, TWO-SIDED, PRE-DECLARED. Let E be the exact curve given by
+      ainvs (a1,a2,a3,a4,a6) = ("1","1","1",
+      "-1284727764113567728281797636015784768866707681415849262157224232063",
+      "560368321454261339256859338901915312332769858684945406858043869199456710681989058863306170127006181"),
+      the frozen ICARM curve 302, with the frozen discriminant
+      56986667162894850943626331069759320443067423220527305082244725946223212417010574363800489149279120357391198820328667683955054948591887684940751932057558936585975074155693048247805850350226862080000
+      (all verbatim from the frozen JSON, response_sha256
+      2bd422f34d0566f79c53f6bc94c6ec5f9ff048cd88fcc300f53e0b397af2e67b) and 31
+      exhibited rational points already independently reproduced in Stage 0
+      before Stage A begins. Compute S = {2} union {primes dividing
+      Delta(E)} (a finite, deterministic set of at most 21 primes -- 20
+      listed bad primes plus 2) and the exact 2-Selmer rank dim Sel_2(E) via
+      a finite deterministic local-solubility enumeration over F2^|S|.
+      READING (a): if dim Sel_2(E) = 31 exactly (matching E(Q)_tors[2] = 0,
+      independently established), then rank(E) = 31 EXACTLY and
+      UNCONDITIONALLY (via the exact sequence 0 -> E(Q)/2E(Q) -> Sel_2(E) ->
+      Sha(E)[2] -> 0, which needs no heuristic), and NO 32nd independent
+      point exists on this exact curve -- this closes the extension of
+      curve 302 specifically, with a named, checkable mechanism, forever.
+      READING (b): if dim Sel_2(E) >= 32, a bounded, finite, deterministic
+      point search (Stage B) is licensed but NOT guaranteed to succeed
+      (Sha(E)[2] may be nonzero, or the witness height may exceed the
+      declared search box); a positive witness is certified in Stage C by
+      an exact, unconditional F2-reduction independence matrix over 32
+      points (31 known plus the candidate), matrixRank - torsionRank = 32,
+      torsionRank = 0 (given E(Q)_tors = {} already established). Both
+      readings are pre-declared, both are informative, and neither is
+      assumed before Stage A runs.
+    mechanism: >-
+      Two exact, textbook facts compose. (1) The connecting homomorphism of
+      2-descent phi: E(Q) -> H (a finite F2-vector space built from local
+      conditions at S) has kernel exactly 2E(Q), giving the exact sequence
+      0 -> E(Q)/2E(Q) -> Sel_2(E) -> Sha(E)[2] -> 0; since Sha(E)[2] has
+      F2-dimension >= 0 always, dim(E(Q)/2E(Q)) <= dim Sel_2(E)
+      UNCONDITIONALLY, and since E(Q)_tors is trivial (Stage 0),
+      dim(E(Q)/2E(Q)) = rank(E) exactly, so rank(E) <= dim Sel_2(E) always,
+      with equality forced when dim Sel_2(E) equals the already-certified
+      lower bound 31. (2) Given a candidate 32-point set (31 known plus one
+      candidate), the reduction homomorphism at each good prime p induces
+      E(Q)/2E(Q) -> E(F_p)/2E(F_p); stacking these over a frozen prime list
+      gives an exact F2 matrix whose rank, by a halving induction on the
+      minimal counterexample coefficient (identical in shape to
+      IDEA-20260829-c705b4's soundness argument, re-derived independently
+      here rather than imported uncritically), certifies Z-independence
+      modulo torsion when full rank is attained. Composing (1) before (2)
+      converts an otherwise unbounded search into a two-outcome decision
+      procedure: (1) decides whether search is worth attempting at all, (2)
+      certifies a witness if search succeeds.
+    novelty_status: adaptation
+    citations:
+      - ref: IDEA-20260829-c705b4
+        provenance: internal
+        claim: >-
+          Proposes and fully specifies (unexecuted) the F2-reduction
+          independence-certificate instrument this protocol's Stage C
+          adopts verbatim as its certificate engine, including its own
+          proposed reproduction of matrixRank=31 on curve 302's known 31
+          points as a "third_party_witness_reproduction" prediction --
+          exactly this protocol's Stage 0 obligation. Also states the
+          instrument's ceiling precisely: "A MATRIX RANK IS A LOWER BOUND,
+          NEVER AN EXACT RANK AND NEVER AN UPPER BOUND", which is the exact
+          gap Stage A (Selmer computation) exists to fill.
+        verified_by: idea-generator session 2026-08-30; full record read at
+          ledger/proposals/IDEA-20260829-c705b4.yaml
+      - ref: IDEA-20260829-07fd5f
+        provenance: internal
+        claim: >-
+          Proposes and fully specifies (unexecuted) an Elkies-ANTS-IV
+          lattice-reduction point-search instrument with a measured cost
+          exponent alpha, targeted at different curves (in-repo rank-12
+          curve, 20 censored Mestre fibres), NOT at curve 302. This
+          protocol's Stage B adopts its search engine and box-lattice
+          object rather than re-deriving one, and explicitly does not
+          duplicate its target curves.
+        verified_by: idea-generator session 2026-08-30; full record read at
+          ledger/proposals/IDEA-20260829-07fd5f.yaml
+      - ref: IDEA-20260829-02418a
+        provenance: internal
+        claim: >-
+          A complementary, distinct-projection proposal (height-lattice
+          isometry forensics) on the SAME frozen curve-302 input file,
+          explicitly disclaiming any point exhibition or rank claim. Cited
+          to show this protocol does not duplicate it: that record discards
+          exactly the point coordinates this protocol's Stage B and C
+          require.
+        verified_by: idea-generator session 2026-08-30; full record read at
+          ledger/proposals/IDEA-20260829-02418a.yaml
+      - ref: GOAL-ECQ-e72c0b
+        provenance: internal
+        claim: >-
+          Completion criteria verbatim (exact discriminant nonsingularity,
+          32 exact on-curve points, unconditional independence certificate
+          with published F2 matrix, exact torsion determination, and the
+          exclusion of BSD/GRH/analytic rank/floating regulator/timeout as
+          evidence) and the preregistered_baseline block (frozen curve-302
+          bytes, sha256, retrieval window).
+        verified_by: idea-generator session 2026-08-30; full goal record
+          read at ledger/goals/GOAL-ECQ-e72c0b/goal.yaml
+      - ref: >-
+          The exact sequence 0 -> E(Q)/2E(Q) -> Sel_2(E) -> Sha(E)[2] -> 0
+          for the 2-descent connecting homomorphism, and the standard
+          algorithm for computing dim Sel_2(E) by local-solubility testing
+          of a finite set of everywhere-locally-soluble torsor classes
+          indexed by a finite prime set S (Silverman, "The Arithmetic of
+          Elliptic Curves", 2nd ed., Chapter X.4; Cremona, "Algorithms for
+          Modular Elliptic Curves", Chapter 3)
+        provenance: recalled
+        claim: >-
+          The exact sequence and the finiteness/decidability of the local
+          Selmer computation are standard, textbook, unconditional results
+          requiring no BSD/GRH/heuristic content. This protocol's Stage 0
+          re-derives the specific identity Delta_E = 16*disc(resolvent
+          cubic) symbolically before relying on it, rather than importing
+          it uncritically, so a misremembered constant falsifies a Stage-0
+          check rather than corrupting Stage A's prime-set bound.
+        verified_by: null
+      - ref: >-
+          Mazur's theorem on rational torsion subgroups of elliptic curves
+          over Q, and the standard injectivity of reduction on prime-to-p
+          torsion at primes of good reduction (Silverman, AEC, Ch. VII
+          Prop. 3.1)
+        provenance: recalled
+        claim: >-
+          Torsion over Q lies in one of 15 groups (Mazur); reduction at an
+          odd prime of good reduction is injective on torsion, so
+          E(Q)_tors is determined exactly and unconditionally from the gcd
+          of #E(F_p) over a handful of small good primes. Used only for
+          Stage 0's torsion sub-check, independently re-derived there
+          rather than assumed.
+        verified_by: null
+      - ref: >-
+          github.com/icarm/elliptic-rank commit
+          4c9ef36265c3cbc10f5da84fcade3f4bbe6854cc, path src/verify.ts
+        provenance: recalled
+        claim: >-
+          NOT independently retrieved this session (WebFetch was blocked by
+          a tool-permission error both attempts; a WebSearch returned only a
+          third-party natural-language paraphrase, not source text). The
+          exact algorithm this file implements is UNKNOWN to this session
+          beyond the goal record's own paraphrase ("exact torsion-aware
+          Cremona-Brumer quadratic-character method"). This protocol's
+          certificate_route is a DESIGN PROPOSAL consistent with that
+          paraphrase and with standard 2-descent literature, explicitly
+          flagged for Validator cross-check against the real source before
+          any execution, never asserted as the verifier's actual behavior.
+        verified_by: null
+    assumptions:
+      - >-
+        The frozen JSON's 20 listed bad_primes are the complete factorisation
+        of Delta(E) into distinct prime factors; this is a Stage 0
+        verification obligation (trial division / primality testing of each
+        listed prime, and confirmation their product with correct
+        multiplicities reconstructs the frozen discriminant), never assumed.
+      - >-
+        Local solubility of a 2-covering torsor at a prime p is decidable in
+        finite time by Hensel lifting to a fixed precision (standard, but the
+        precision needed at an ~81-digit prime is a genuine Stage A cost
+        risk, flagged in budgets_and_stops).
+      - >-
+        Curve 302's a-invariants, as frozen, are already given in a form
+        this protocol can convert to short Weierstrass form by an exact
+        rational change of variables; this conversion is itself a Stage 0
+        sub-step and its exact formula is re-derived symbolically at
+        execution time rather than asserted in this document (see
+        baseline_reproduction).
+    proof_search_map:
+      bottleneck: >-
+        The step whose removal changes the final theorem: converting an
+        exact rank-31 lower bound into a decisive statement about whether
+        rank 32 is even POSSIBLE on this specific curve, before spending any
+        search budget. Every existing instrument in this program's corpus
+        (IDEA-20260829-c705b4, IDEA-20260829-07fd5f) either certifies a
+        GIVEN point set (lower bound only) or searches unconditionally
+        (no upper-bound gate); neither, alone, can produce reading (a) above.
+      baseline_embedding:
+        parameter_slice: >-
+          The 31-point subset of curve 302 under the IDENTICAL Stage C
+          certificate route (the F2-reduction matrix of
+          IDEA-20260829-c705b4). The exact old-method boundary is: running
+          Stage C on the 31 known points alone MUST return matrixRank -
+          torsionRank = 31 (not 32, not less), reproducing the frozen
+          baseline's own claimed rank_lower_bound BEFORE any candidate 32nd
+          point is introduced. This is a REQUIRED Stage 0 sub-step, not an
+          optional check.
+        reproduction_check: >-
+          Frozen fixture: the 31 exhibited points and their exact
+          coordinates (verbatim from the frozen JSON, including the
+          rational-denominator points such as x =
+          8050101189939018648004785213625795/9). A future Executor run
+          re-verifies each point on-curve in exact rational arithmetic (no
+          floating point), independently recomputes the discriminant via
+          the standard invariants b2, b4, b6, b8 -> Delta = -b2^2*b8 -
+          8*b4^3 - 27*b6^2 + 9*b2*b4*b6 (Silverman AEC III.1, re-derived
+          symbolically at execution rather than trusted from this
+          document), and requires exact byte-for-byte agreement with the
+          frozen discriminant string. Any mismatch halts the entire
+          protocol (search_boundary and certificate_route below never run
+          on an unreproduced baseline).
+      observation_collision:
+        observable: >-
+          The pair (dim Sel_2(E), the 32-row F2 reduction matrix's rank).
+        distinct_preimage_search: >-
+          A collision is PRE-DECLARED and is exactly what the required
+          proves_too_much controls exhibit: two distinct ground-truth
+          objects can share the SAME 32-point reduction-matrix rank of 31
+          (not 32) -- namely, the true 31-point set augmented by (i) -P1
+          (the negation of an existing point) and (ii) any Z-linear
+          combination of the 31 known points. Both give matrixRank = 31 on
+          the 32-row matrix, correctly distinguishing "dependent 32nd
+          candidate" from "independent 32nd candidate" (see controls
+          below). The harder collision, which the method_ceiling honestly
+          cannot resolve, is between "dim Sel_2(E) = 32 but Sha(E)[2] has
+          F2-dimension 1 and true rank is still 31" and "dim Sel_2(E) = 32,
+          Sha(E)[2] = 0, and true rank is 32" -- these two ground-truth
+          objects give the IDENTICAL Stage-A observable and are separated
+          only by Stage B actually exhibiting (or failing, within budget,
+          to exhibit) a witness. This is stated as an honest limit, not
+          resolved by this protocol.
+      constructive_transforms:
+        - transform: representation_reduction
+          proposed_object: >-
+            Replace "does a 32nd independent rational point exist on curve
+            302", an unbounded existential over E(Q), by "is dim Sel_2(E)
+            at least 32", a finite decidable dimension-of-a-vector-space
+            question, with a further representation step (Stage C) reducing
+            "are these 32 points Z-independent mod torsion" to "does an
+            exact 32x|S'| F2 matrix have rank 32".
+          predicted_gain: >-
+            Converts an unbounded search into a finite, deterministic,
+            two-stage decision procedure with a genuine chance of a decisive
+            negative (reading a) before any search cost is paid.
+      quantifier_order: >-
+        FROZEN BEFORE ANY STAGE RUNS. The completion claim, if reached, is:
+        THERE EXIST a Weierstrass equation E/Q (the frozen curve-302
+        ainvs) and points P1,...,P32 in E(Q) (P1..P31 the frozen witnesses,
+        P32 a Stage-B-exhibited candidate) such that (i) Delta(E) != 0
+        (exact), (ii) for all i, Pi lies on E (exact rational substitution),
+        (iii) E(Q)_tors = {0} (exact, Stage 0), and (iv) FOR ALL
+        (a1,...,a32) in Z^32 \ {0}: sum(ai*Pi) != O. The universal
+        quantifier in (iv) ranges over ALL of Z^32 and is discharged, not
+        sampled, by the halving-induction argument of Stage C -- it is
+        never checked relation-by-relation, which would be infeasible.
+        Stage A's own claim is separately quantified: FOR the fixed curve E
+        alone (no existential over curves), dim Sel_2(E) is a single
+        computed integer with no dependence on any search seed or ordering.
+      method_ceiling:
+        strongest_certifiable_claim: >-
+          Either (a) an UNCONDITIONAL exact proof that rank(E) = 31 for
+          curve 302 specifically (if dim Sel_2(E) = 31), decisively closing
+          this curve's own extension route with a named, checkable
+          obstruction; or (b) an UNCONDITIONAL exact independence
+          certificate for 32 points on curve 302 if Stage B exhibits a
+          witness within its declared bounded search box. The method CANNOT
+          decide the case dim Sel_2(E) >= 32 with Sha(E)[2] genuinely
+          nonzero and no witness found within budget -- that outcome is
+          reported as "undetermined within declared budget", never as "rank
+          is 31" and never as "rank is 32".
+        nearby_object_control: >-
+          A curve WITH nontrivial rational 2-torsion (unlike curve 302,
+          whose torsion is trivial per the frozen JSON), run through the
+          IDENTICAL Stage C pipeline with a small independent point set plus
+          the torsion generator. If the pipeline naively computed
+          matrixRank alone (without correctly identifying and subtracting
+          torsionRank), it would OVERCLAIM independence by including the
+          torsion point as if it contributed to the rank -- the desired
+          conclusion (matrixRank - torsionRank = declared point count)
+          would be FALSE under the naive (uncorrected) computation. This is
+          simultaneously the method_ceiling's nearby-object control and the
+          rational_2_torsion_applicability control required below.
+      proof_obligations:
+        - claim: >-
+            Delta(E) != 0 for the frozen curve-302 ainvs, exact, matching
+            the frozen discriminant string byte-for-byte.
+          responsibility: baseline
+        - claim: All 31 frozen points satisfy the frozen Weierstrass equation
+            exactly.
+          responsibility: baseline
+        - claim: E(Q)_tors = {0}, established unconditionally via injectivity
+            of reduction at >=2 small good primes.
+          responsibility: correctness
+        - claim: >-
+            dim(E(Q)/2E(Q)) <= dim Sel_2(E) unconditionally (the exact
+            sequence), independent of any heuristic.
+          responsibility: correctness
+        - claim: Stage A's local-solubility enumeration over F2^|S| terminates
+            within the declared budget or reports a scoped inconclusive
+            result.
+          responsibility: feasibility
+        - claim: matrixRank - torsionRank = n implies Z-independence of n
+            points modulo torsion, by the halving-induction argument.
+          responsibility: correctness
+        - claim: Any Stage-B-exhibited candidate point is re-verified on the
+            exact curve in exact rational arithmetic before Stage C runs.
+          responsibility: interface
+        - claim: The whole certificate concerns curve 302 (this exact
+            equation) only; no claim about any other curve or about an
+            exact rank upper bound beyond what 2-descent proves.
+          responsibility: scope
+        - claim: Stage B's bounded search is deterministic-exhaustive within
+            its declared box; "not found" is reported as a scoped negative,
+            never as nonexistence.
+          responsibility: success_probability
+      not_applicable_reason: null
+    predictions:
+      - metric: >-
+          dim Sel_2(E) for curve 302, computed via the finite local-solubility
+          enumeration over F2^|S|
+        direction: different
+        minimum_effect: >-
+          reported as an exact integer >= 31 (it can never be below the
+          already-certified rank_lower_bound). The two pre-declared readings
+          are exactly 31 (closes this curve's extension) or >= 32 (licenses
+          Stage B). Both are informative; neither is assumed.
+      - metric: matrixRank of the 31-point Stage 0 baseline reproduction under
+          the Stage C certificate route
+        direction: different
+        minimum_effect: >-
+          exactly 31, matching the frozen baseline. Any other value halts
+          the protocol before Stage A or B run (baseline_embedding stop
+          condition).
+      - metric: >-
+          matrixRank of the 32-row Stage C matrix on the two proves-too-much
+          controls (P32 = P1+P2, P32 = 2*P1)
+        direction: lower
+        minimum_effect: >-
+          exactly 31 on both (not 32), by the design-time argument in
+          controls.proves_too_much below. Any run returning 32 on either
+          control indicates a broken implementation and voids every other
+          Stage C output.
+    minimal_test:
+      design: >-
+        Stage 0 (baseline reproduction) must complete and match the frozen
+        record exactly before Stage A begins; Stage A (Selmer computation)
+        is the single cheapest decisive discriminator between the two
+        readings and must complete (or reach its declared budget ceiling)
+        before Stage B (bounded point search) is authorized; Stage B, if
+        reached, must complete or reach its declared box bound before Stage
+        C (certificate assembly) runs on any candidate it produces. Full
+        stage-by-stage design in search_boundary, budgets_and_stops, and
+        certificate_route below.
+      controls: >-
+        See the top-level `controls` block (null, positive, nearby_object,
+        proves_too_much, rational_2_torsion_applicability) -- required by
+        the handoff to be a distinct top-level block for this protocol
+        record rather than nested only here.
+      required_metrics:
+        - dim Sel_2(E), with the exact frozen prime list S and every local
+          solubility test's outcome
+        - the recomputed discriminant string, compared byte-for-byte to the
+          frozen value
+        - the 31-point and (if reached) 32-point F2 matrices, in full, with
+          matrixRank and torsionRank
+        - the outcome (found / not found within box) of Stage B, with the
+          exact declared box parameters
+    falsification_conditions:
+      - >-
+        Stage 0 fails to reproduce the frozen discriminant, any of the 31
+        on-curve checks, the torsion determination, or the 31-point
+        matrixRank=31 baseline: the whole protocol halts and nothing past
+        Stage 0 is reported as a result.
+      - >-
+        Stage A's local-solubility enumeration does not terminate within
+        its declared budget ceiling (see budgets_and_stops): reported as
+        "Selmer rank undetermined within declared budget", never as
+        evidence for or against rank 32 (AGENTS.md rule 3).
+      - >-
+        Stage C returns matrixRank = 32 on either proves_too_much control
+        (P32=P1+P2 or P32=2*P1): the Stage C implementation is broken and
+        every other Stage C output from that implementation is void.
+      - >-
+        Stage C returns matrixRank - torsionRank != n on the
+        rational_2_torsion_applicability nearby-object control run
+        uncorrected (i.e. without subtracting torsionRank): confirms the
+        control is doing its job; a run that returns the CORRECT value
+        only because torsionRank was subtracted is the required pass
+        condition, and a naive uncorrected implementation returning n+1 is
+        the documented failure mode this control exists to catch.
+      - >-
+        A timeout, OOM, crash, or unavailable dependency during any future
+        stage is an OPERATIONAL condition (AGENTS.md rule 3) and is never
+        evidence for or against the existence of a 32nd point.
+    confounders:
+      - >-
+        MINIMALITY OF THE FROZEN MODEL. If curve 302's given ainvs are not a
+        globally minimal Weierstrass model, the discriminant carries
+        spurious prime-power factors that would inflate |S| and Stage A's
+        cost without adding real information. Stage 0 must check minimality
+        (or explicitly declare a partial screen) before Stage A's prime
+        list is frozen.
+      - >-
+        THE SHORT-WEIERSTRASS CONVERSION. Curve 302 is given with a1=a2=a3=1
+        (not the short form y^2=x^3+Ax+B the resolvent-cubic argument
+        assumes). The exact rational change of variables converting general
+        to short Weierstrass form must be re-derived and verified
+        symbolically at Stage 0, not assumed; an error here would corrupt
+        both the discriminant identity and the resolvent-cubic prime-set
+        bound.
+      - >-
+        SHA(E)[2] NONZERO. If dim Sel_2(E) >= 32 but Sha(E)[2] is
+        genuinely nonzero, Stage B may correctly find NOTHING even though
+        that is not evidence rank is 31 -- the method_ceiling's honest gap.
+        Controlled only by disclosure, never by claiming a negative Stage B
+        result proves rank = 31.
+      - >-
+        HENSEL-LIFTING PRECISION AT THE ~81-DIGIT BAD PRIME. Curve 302's
+        bad_primes list includes a prime with roughly 81 decimal digits
+        (30580600452196904409276223329355584892025407195996968868775951126238056443210297).
+        Local solubility testing at such a prime requires care in the
+        lifting precision; an under-precise implementation could silently
+        misclassify a torsor class. Flagged as the single largest
+        implementation-correctness risk in Stage A.
+    interpretation_limits:
+      - >-
+        A negative Stage B result (no witness found within the declared box)
+        is NEVER evidence that no 32nd independent point exists, unless
+        Stage A independently proved dim Sel_2(E) = 31 (reading a). The two
+        negative outcomes -- "provably rank 31" and "not found within
+        bounded search" -- are categorically different and must never be
+        conflated in any downstream record.
+      - >-
+        Stage B's bounded search, even if fully executed, is expected to
+        have LOW power at curve 302's actual scale: the existing 31 points
+        already reach naive height ~468 (natural-log units, per the frozen
+        JSON), while any tractable Stage-B box is necessarily far smaller
+        than that in the general case; if a genuine 32nd point exists at
+        comparably enormous height, this protocol's declared budget is
+        unlikely to reach it. This is disclosed here, not discovered later.
+      - >-
+        This protocol concerns curve 302 (this exact equation) ONLY. Even a
+        fully decisive Stage A result (rank = 31 exactly) says nothing about
+        whether SOME OTHER curve has rank >= 32 -- it closes one specific
+        curve's extension, not the goal's broader search space.
+      - >-
+        Rank at least 31 over Q on curve 302 is a claim retrieved from a
+        third-party leaderboard, not yet independently reproduced by this
+        program; every stage of this protocol is scoped as "pending Stage 0
+        reproduction" until that reproduction actually completes.
+    heuristic_assumptions:
+      - id: H1
+        statement: >-
+          (PLANNING-ONLY, NOT LOAD-BEARING IN THE CERTIFICATE ROUTE.) Curves
+          submitted to a size-relative rank leaderboard by their finders are
+          plausibly optimized to sit AT their claimed rank threshold rather
+          than strictly above it, i.e. for a curve submitted at
+          rank_lower_bound = r, P(true rank = r) is not small relative to
+          P(true rank > r).
+        rigorous_support: >-
+          No rigorous support is claimed or needed for this heuristic --
+          it affects ONLY which of Stage A's two readings this protocol's
+          designer expects to be more likely for resource-planning
+          purposes (e.g. whether to budget more for Stage A's local-
+          solubility enumeration or for Stage B's search). It is NEVER used
+          in the certificate_route itself: Stage A's Selmer computation and
+          Stage C's F2-matrix certificate are both fully unconditional
+          regardless of whether H1 is true or false. Structural analogy
+          imitated: a "leaderboard record is near its own threshold"
+          selection effect, informal and not classically distributional.
+        validation_plan: >-
+          Sample: every curve on the frozen ICARM leaderboard snapshot at
+          coordination/goals/GOAL-ECQ-002/baseline/icarm_database_20260823.json
+          (sha256 118db069fcfc0cddc61bb00a235736202f01dc72d608b3c743bd342935cadc59)
+          whose rank_lower_bound equals a round record threshold, plus any
+          curve for which this program later independently computes an
+          exact Selmer rank. Compare: the empirical rate at which a
+          submitted record curve's true (Selmer-bounded) rank equals its
+          claimed threshold, against a null model in which true rank is
+          uniformly likely to exceed the threshold by 0, 1, or 2. Tail
+          check: any record curve found with an exact rank strictly greater
+          than its claimed threshold falsifies H1's planning assumption
+          (not the certificate route, which does not depend on H1). This
+          validation route is itself future work, not part of this
+          protocol's execution stages, and its budget is not costed here.
+    target_complexity:
+      time_exponent: >-
+        NOT a cryptographic asymptotic exponent claim -- this is a finite,
+        one-off decision procedure on ONE fixed curve, not an algorithm
+        family. Stage A: O(2^|S| * poly(log p_max)) exact local-solubility
+        tests, deterministic, where |S| <= 21 (20 bad primes plus 2) and
+        p_max is the largest bad prime (~270 bits, ~81 decimal digits) --
+        worst case up to ~2^21 ~= 2.1 million tests, each polynomial in
+        p_max's bit-length. Stage B: bounded by a DECLARED finite search box
+        (budgets_and_stops), deliberately small relative to the scale of
+        Stage A's cost, and explicitly acknowledged to have low expected
+        power (interpretation_limits). Stage C: O(n * |S'|) exact modular
+        reductions for n=32 points over a frozen prime list S' (a handful
+        to a few dozen primes), negligible.
+      memory_exponent: >-
+        Stage A: O(|S|) bits for the local-condition vector per class tested,
+        negligible; big-integer storage for coordinates up to the frozen
+        points' existing size (numerators/denominators with dozens to
+        ~150+ decimal digits) is kilobytes, not a memory-bound stage. Stage
+        C: O(32 * |S'|) bits for the F2 matrix, negligible.
+      best_known: >-
+        NOT APPLICABLE in the ECDLP-exponent sense -- there is no
+        established asymptotic baseline for "does this one specific curve
+        have a 32nd independent point"; the comparison is to the two
+        alternatives already proposed in this program (IDEA-20260829-c705b4:
+        certifies GIVEN points only, no upper bound; IDEA-20260829-07fd5f:
+        searches unconditionally with no decisive-negative outcome), both
+        unexecuted. This protocol's contribution is sequencing an existing
+        exact upper-bound tool (2-Selmer) ahead of both, which neither
+        cited record attempts.
+      hidden_overhead: >-
+        Three disclosures. (1) Stage A's worst-case 2^|S| cost is not
+        "superpolynomial hidden in o(1)" in the cryptographic sense, but IS
+        a real, potentially large, finite constant that this design
+        explicitly declares a ceiling for (budgets_and_stops) rather than
+        letting run unbounded. (2) Hensel-lifting precision at the ~81-digit
+        bad prime (confounders above) could silently inflate real cost well
+        beyond the naive per-test estimate if implemented carelessly. (3)
+        Stage B, even fully executed, has low expected power at this
+        curve's height scale (interpretation_limits) -- a "not found"
+        result there carries little information relative to its cost.
+      tradeoff_note: >-
+        Stage A is fully parallel over the 2^|S| local-condition classes (no
+        van Oorschot-Wiener style memory-time tradeoff is relevant; this is
+        a decision procedure, not a collision search). Stage B is trivially
+        parallel over search-box cells if a lattice-covering schedule is
+        used, per IDEA-20260829-07fd5f's own tradeoff_note.
+    estimated_cost:
+      implementation: medium
+      compute: unknown_pending_dry_run_probe
+    recommended_priority: high
+
+  # ===========================================================================
+  # 1. Baseline reproduction (independent, local, exact, BEFORE any tuning
+  #    toward a 32nd point). Required by handoff item 1.
+  # ===========================================================================
+  baseline_reproduction:
+    nonsingularity_check:
+      method: >-
+        From ainvs (a1,a2,a3,a4,a6), compute the standard invariants
+        b2 = a1^2 + 4*a2, b4 = 2*a4 + a1*a3, b6 = a3^2 + 4*a6,
+        b8 = a1^2*a6 + 4*a2*a6 - a1*a3*a4 + a2*a3^2 - a4^2, and
+        Delta = -b2^2*b8 - 8*b4^3 - 27*b6^2 + 9*b2*b4*b6 (Silverman AEC
+        III.1, recalled, exact integer arithmetic throughout -- arbitrary-
+        precision integers, e.g. Python's built-in int or an equivalent
+        exact big-integer type, never floating point).
+      requirement: >-
+        The recomputed Delta must equal, byte-for-byte,
+        56986667162894850943626331069759320443067423220527305082244725946223212417010574363800489149279120357391198820328667683955054948591887684940751932057558936585975074155693048247805850350226862080000
+        (verbatim from the frozen JSON). Any mismatch halts the protocol.
+      independence_note: >-
+        This recomputation must be performed by code independent of the
+        ICARM verifier (docs/claims-and-verification.md certificate
+        discipline: "the verifier recomputes... not by trusting the
+        solver's internal state").
+    on_curve_checks:
+      method: >-
+        For each of the 31 frozen points (x, y) -- x and y given as exact
+        rational strings, some with denominators (e.g. x =
+        8050101189939018648004785213625795/9, or x =
+        -11477003798992551861310315487329257523535/8922169) -- verify
+        exactly, using arbitrary-precision rational arithmetic (e.g.
+        Python's fractions.Fraction or equivalent), that
+        y^2 + a1*x*y + a3*y = x^3 + a2*x^2 + a4*x + a6.
+      requirement: all 31 checks pass exactly; any failure halts the
+        protocol and the offending point is reported by index.
+    torsion_determination:
+      method: >-
+        For at least 2 (target 3-4) small primes p of good reduction --
+        chosen by directly checking Delta(E) mod p != 0 for the candidate
+        p using the SAME formula above, evaluated modulo p, which requires
+        no trust in the frozen bad_primes list -- compute #E(F_p) exactly
+        (direct point enumeration is affordable at p ~ 20-150; Schoof's
+        algorithm if a larger p is needed), and take gcd(#E(F_17),
+        #E(F_31), #E(F_43), ...) (candidate primes chosen only as an
+        example; the exact list is fixed at Stage 0 execution time after
+        the good-reduction check). Reduction is injective on prime-to-p
+        torsion at good primes p >= 3 (Silverman AEC VII.3.1, recalled).
+      requirement: >-
+        If the computed gcd is 1, E(Q)_tors = {O} is established
+        UNCONDITIONALLY, matching the frozen JSON's torsion: []. Any other
+        outcome (gcd > 1, or disagreement with the frozen claim) halts the
+        protocol and is reported, never silently reconciled.
+    short_weierstrass_conversion:
+      method: >-
+        A standard exact rational change of variables (completing the
+        square in y using a1, a3, then the cube in x using the resulting
+        b2) transforms (a1,a2,a3,a4,a6) into a short form (0,0,0,A,B) with
+        A, B exact rationals (or, after clearing denominators, integers up
+        to a fixed scaling). This transformation and its effect on Delta by
+        an explicit power of the scaling unit are RE-DERIVED SYMBOLICALLY
+        at Stage 0 execution time (Silverman AEC III.1, recalled but not
+        asserted here as a specific numeric formula, to avoid a load-
+        bearing recalled constant); this sub-step is a Stage 0 verification
+        obligation, not an assumed identity.
+      why_needed: >-
+        The resolvent-cubic prime-set argument in certificate_route below
+        (Delta_E = 16*disc(resolvent cubic) for a curve already in short
+        form) requires this conversion to be exact and verified before
+        Stage A's prime list S is frozen.
+    rank31_baseline_certificate:
+      method: >-
+        Run the IDENTICAL Stage C certificate route (certificate_route
+        below, adopted from IDEA-20260829-c705b4) on the 31 known points
+        ALONE, with torsion rows contributed by E(Q)_tors = {O} (i.e.
+        torsionRank = 0, from the torsion_determination sub-step above).
+      requirement: >-
+        matrixRank - torsionRank = 31 exactly, over the frozen good-prime
+        list chosen for Stage C (see certificate_route). This reproduces,
+        independently and by this program's own instrument, the frozen
+        baseline's claimed rank_lower_bound = 31, BEFORE any candidate
+        32nd point is introduced anywhere in the pipeline. Any other
+        result is a discrepancy against a third party's claimed witness,
+        reported as such, and halts the protocol (never silently absorbed
+        as this program's own finding, per interpretation_limits above).
+    stop_condition: >-
+      All four sub-checks (nonsingularity, on-curve x31, torsion, rank-31
+      reproduction) must pass before search_boundary Stage A may begin. A
+      failure at any sub-check is an invalidation of the whole protocol's
+      remaining stages, reported with the exact discrepancy, never
+      silently worked around.
+
+  # ===========================================================================
+  # 2. Deterministic finite search boundary. Required by handoff item 2.
+  # ===========================================================================
+  search_boundary:
+    stage_a_selmer_computation:
+      tracked_object: >-
+        The 2-Selmer class of E in H = the finite F2-vector space of
+        squarefree-integer classes supported on S (Q(S,2)), where
+        S = {2} union {primes dividing Delta(E)} -- a FINITE,
+        DETERMINISTICALLY FIXED set computed from the frozen a-invariants,
+        |S| <= 21 (20 listed bad primes plus 2; the resolvent cubic of the
+        short-Weierstrass form introduces no new primes beyond
+        bad_primes(Delta_E), since Delta_E = 16*disc(resolvent cubic), a
+        standard identity re-derived at Stage 0).
+      enumeration_order: >-
+        FIXED, CANONICAL, NO RANDOMIZATION. Sort S in ascending numeric
+        order (as exact integers, comparing the 81-digit and other large
+        primes by their full decimal value, not by string). Index each of
+        the 2^|S| classes of Q(S,2) by the bit-vector of exponents (0 or 1)
+        over S in that fixed sorted order, enumerated in ascending integer
+        order of the bit-vector (0, 1, 2, ..., 2^|S|-1). For each class,
+        test local solubility at every place in S union {2, infinity} in
+        the SAME fixed ascending order. This entire stage is deterministic;
+        no seed is needed because no randomization occurs.
+      halting_condition: >-
+        Stage A halts when either (i) all 2^|S| classes have been tested
+        for local solubility everywhere (producing an exact dim Sel_2(E)),
+        or (ii) the declared budget ceiling (budgets_and_stops below) is
+        reached first, in which case Stage A reports "Selmer rank
+        undetermined within declared budget" and halts -- an honest,
+        scoped, non-mathematical-evidence outcome per AGENTS.md rule 3.
+      output: >-
+        dim Sel_2(E), an exact integer, with the full record of which
+        classes were locally soluble everywhere (the actual Selmer group
+        elements) and which were rejected at which place -- published in
+        full so a second implementation can re-check every test.
+      decision_gate: >-
+        If dim Sel_2(E) = 31 (equal to E(Q)_tors[2]=0 plus the
+        already-certified 31), STOP: rank(E) = 31 exactly and
+        unconditionally; Stage B is NOT authorized and the protocol reports
+        closure of curve 302's extension with this exact mechanism. If dim
+        Sel_2(E) >= 32, Stage B MAY be authorized (by a separate future
+        Coordinator decision; this document authorizes nothing).
+    stage_b_bounded_point_search:
+      trigger: >-
+        ONLY if Stage A returns dim Sel_2(E) >= 32 AND a future Coordinator
+        decision separately authorizes it. This protocol does not assume
+        that trigger will fire.
+      tracked_object: >-
+        Rational points inside a box on the real locus of curve 302, via
+        the Elkies-style linearisation lattice of IDEA-20260829-07fd5f,
+        adopted here without re-derivation.
+      search_family: >-
+        A FIXED, FINITE covering of a declared arc of the real curve by
+        boxes of a declared size, at a declared maximum canonical-height
+        reach H_max (a concrete number to be fixed by a future Coordinator
+        decision, informed by a dry-run cost probe -- NOT asserted here,
+        since curve 302's existing points already reach naive height ~468
+        natural-log units and any tractable H_max is expected to fall far
+        short of that; see interpretation_limits).
+      enumeration_order: >-
+        The box-covering schedule is FROZEN before any search runs (per
+        IDEA-20260829-07fd5f's own quantifier_order requirement: "The
+        schedule must not depend on the point being sought"), in a fixed
+        deterministic order over the covered arc (e.g. ascending
+        parameter value), with two independently frozen schedules run and
+        compared (that record's own schedule-independence control).
+      halting_condition: >-
+        Stage B halts when the declared box/height bound H_max is fully
+        covered (producing either a candidate point or a scoped "not found
+        within H_max" result) or when the declared wall-clock/CPU budget
+        ceiling is reached first, whichever comes first. A "not found"
+        result is NEVER reported as evidence against a 32nd point's
+        existence (interpretation_limits above).
+      output: >-
+        Either an exact candidate rational point P32 (to be independently
+        re-verified on-curve in exact arithmetic before Stage C), or a
+        scoped negative result naming the exact box/height bound covered.
+
+  # ===========================================================================
+  # 3. Matched controls. Required by handoff item 3.
+  # ===========================================================================
+  controls:
+    null_control:
+      design: >-
+        Run Stage C's certificate pipeline on the 31 known points plus
+        Q = -P1 (the negation of the first known point). Since the
+        connecting homomorphism phi has order-2 image entries
+        (phi(-P) = phi(P)^{-1} = phi(P) in an F2-vector space), row 32
+        (for Q) is IDENTICAL to row 1 (for P1).
+      expected_outcome: >-
+        matrixRank of the 32-row matrix stays at 31 (the duplicate row adds
+        no new rank), so matrixRank - torsionRank = 31 != 32 and the
+        pipeline correctly REJECTS independence. Any implementation
+        returning 32 here is broken.
+    positive_control:
+      design: >-
+        Run the identical Stage C pipeline on a small, well-known,
+        independently-checkable rank-r curve from Cremona's tables /
+        LMFDB (e.g. a low-conductor rank-2 curve such as 389a1, whose exact
+        generators are to be looked up and independently verified on-curve
+        at Stage 0 of THIS control -- not asserted from memory here, since
+        this session did not retrieve or verify specific generator
+        coordinates; the exact curve and generators are a Stage 0 sub-task
+        of this control, not a claim of this document).
+      expected_outcome: >-
+        matrixRank - torsionRank equals the curve's known, independently-
+        documented rank exactly. Any other outcome halts the whole protocol
+        (a broken certificate instrument invalidates every other stage's
+        output).
+    nearby_object_control:
+      design: >-
+        Identical to the method_ceiling.nearby_object_control described in
+        proof_search_map above and to the rational_2_torsion_applicability
+        control immediately below -- a single control discharging both
+        requirements, since both concern the same failure mode (a curve
+        WITH nontrivial rational torsion, run through Stage C's pipeline).
+      expected_outcome: >-
+        The pipeline must correctly compute a NONZERO torsionRank for that
+        curve's torsion generator and correctly report matrixRank -
+        torsionRank equal to the declared independent-point count (NOT
+        matrixRank alone, which would overcount by including the torsion
+        contribution). A pipeline that naively omits the torsion-row
+        subtraction FAILS this control by overclaiming rank by the
+        torsion's F2-rank contribution.
+    proves_too_much:
+      P32_equals_P1_plus_P2:
+        design_time_argument: >-
+          The connecting homomorphism phi: E(Q)/2E(Q) -> H is a GROUP
+          HOMOMORPHISM into an F2-vector space, so phi(P1+P2) = phi(P1) +
+          phi(P2) (working additively in H, i.e. the symmetric-difference
+          / XOR of the two rows' local-condition bit-vectors). Reduction
+          into E(F_p)/2E(F_p) at any good prime p is likewise a group
+          homomorphism, so row 32 (for P32 = P1+P2) equals row 1 XOR row 2
+          EXACTLY, as an F2 vector -- a genuine, provable linear
+          dependency, requiring no execution to establish.
+        predicted_outcome: >-
+          matrixRank of the augmented 32-row matrix is exactly 31 (the new
+          row is a linear combination of two existing rows and contributes
+          no new rank), so matrixRank - torsionRank = 31 != 32, correctly
+          FAILING the independence gate for the 32-point set.
+      P32_equals_2_times_P1:
+        design_time_argument: >-
+          By construction, the connecting homomorphism phi has kernel
+          EXACTLY 2E(Q) (that is the defining property of the 2-descent
+          map): phi(2P) = 0 for every P in E(Q), identically, with no
+          computation required to verify this for any specific P. Row 32
+          (for P32 = 2*P1) is therefore the ALL-ZERO F2 vector, always.
+        predicted_outcome: >-
+          Augmenting the matrix with an all-zero row cannot increase its
+          rank; matrixRank stays exactly 31, matrixRank - torsionRank = 31
+          != 32, correctly FAILING the independence gate. This is the
+          MORE decisively forced of the two controls, following directly
+          from the definition of the descent map rather than from any
+          property of P1 specifically.
+    rational_2_torsion_applicability:
+      finding: >-
+        Curve 302's torsion is [] (trivial), per the frozen JSON -- there
+        is NO rational 2-torsion point on this curve. The classical
+        "descent via 2-isogeny" technique (Silverman AEC X.4, the simplest
+        textbook form of 2-descent) REQUIRES a rational 2-torsion point and
+        therefore does NOT directly apply to curve 302.
+      applicable_alternative: >-
+        BOTH certificate-route candidates this protocol actually uses are
+        applicable regardless of rational 2-torsion: (i) the full 2-descent
+        connecting homomorphism via the cubic resolvent / Galois cohomology
+        of E[2] (used in Stage A's Selmer computation) works for ANY
+        elliptic curve over Q, with or without rational 2-torsion --
+        applicability requires only that the depressed cubic (from the
+        short-Weierstrass conversion) be handled correctly whether it is
+        irreducible (Galois group S3 or a subgroup) or, in principle,
+        reducible (which would itself imply a rational 2-torsion point,
+        contradicting the frozen torsion:[] claim -- checking cubic
+        irreducibility is therefore an ADDITIONAL cross-check on the
+        torsion determination, to be run at Stage 0/Stage A boundary); and
+        (ii) the reduction-into-E(F_p)/2E(F_p) instrument (IDEA-20260829-
+        c705b4, used in Stage C) needs only a good prime of reduction and a
+        group-order computation, with NO dependence on rational 2-torsion
+        at all.
+      fallback_if_real_verifier_differs: >-
+        If, once the actual verify.ts source is retrieved (blocked this
+        session), it turns out the deployed "Cremona-Brumer" method
+        specifically requires some OTHER rational torsion/isogeny structure
+        curve 302 lacks, the fallback named here IN ADVANCE is: the full
+        2-descent-via-cubic-resolvent route (Stage A) and the reduction-
+        based route (Stage C, per IDEA-20260829-c705b4) as specified in
+        this document, both of which are applicability-independent of
+        rational 2-torsion and both grounded in standard, textbook,
+        unconditional 2-descent theory. Confirming which route the real
+        verifier actually uses is an explicit Stage-0/pre-Stage-A gate
+        (budgets_and_stops below), not assumed away.
+      what_would_need_checking: >-
+        (1) That the depressed cubic from the short-Weierstrass conversion
+        is irreducible over Q (consistent with trivial rational 2-torsion);
+        (2) that its Galois group over Q is computed or at least bounded
+        (needed for the full Selmer computation's local-condition group
+        structure); (3) once retrieved, that the real verify.ts's exact
+        algorithm is cross-checked against this document's Stage A/Stage C
+        design by the Validator before any Coordinator relies on this
+        protocol's certificate route as equivalent to the third-party
+        verifier's.
+
+  # ===========================================================================
+  # 4. Budgets, stopping rules, invalidation rules per stage. Required by
+  #    handoff item 4.
+  # ===========================================================================
+  budgets_and_stops:
+    stage_0_baseline_reproduction:
+      work_units: >-
+        1 discriminant recomputation + 31 on-curve checks + >=2 (target 4)
+        finite-field point counts for torsion + 1 short-Weierstrass
+        conversion + 1 full 31-point Stage-C certificate reproduction = a
+        small, fully bounded set of exact-arithmetic operations.
+      budget: >-
+        Design-time ESTIMATE only, UNMEASURED and explicitly flagged as
+        such: expected well under 60 seconds of wall clock on commodity
+        hardware for the arithmetic sub-steps; the 31-point Stage-C
+        reproduction shares Stage 0's certificate-route cost, likely
+        dominating this stage's wall clock (see certificate_route cost
+        note). A concrete number requires a future dry-run cost probe,
+        explicitly recommended below, before any Coordinator commits a
+        wall-clock budget.
+      stopping_rule: halts after all sub-checks complete, OR at the FIRST
+        failing sub-check, whichever comes first.
+      invalidation_rule: >-
+        Any discrepancy between recomputed values and the frozen baseline
+        JSON invalidates Stage 0 and blocks every subsequent stage.
+      artifact_paths_future:
+        - experiments/EXP-ECQ-TBD/stage0_baseline_reproduction/discriminant_check.json
+        - experiments/EXP-ECQ-TBD/stage0_baseline_reproduction/on_curve_checks.json
+        - experiments/EXP-ECQ-TBD/stage0_baseline_reproduction/torsion_certificate.json
+        - experiments/EXP-ECQ-TBD/stage0_baseline_reproduction/short_weierstrass_conversion.json
+        - experiments/EXP-ECQ-TBD/stage0_baseline_reproduction/rank31_f2_certificate.json
+    stage_a_selmer_computation:
+      work_units: up to 2^|S| local-solubility tests, |S| <= 21.
+      budget: >-
+        HARD CEILING recommended: maximum_local_solubility_tests = 2^21 =
+        2,097,152, each bounded by poly(bit-length of the largest bad
+        prime, ~270 bits). THIS IS THE SINGLE LARGEST COST RISK IN THE
+        WHOLE PROTOCOL: Hensel-lifting local solubility at an ~81-digit
+        prime for up to ~2 million classes could be prohibitively expensive
+        in real wall clock if implemented naively (confounders above). NO
+        WALL-CLOCK NUMBER IS ASSERTED HERE -- this document explicitly
+        recommends a Coordinator require a SEPARATE, small, explicitly-
+        zero-mathematical-claim dry-run cost-probe task (timing a small
+        number of local-solubility tests at the actual bad-prime sizes,
+        NOT claiming any Selmer rank) before authorizing full Stage A
+        execution.
+      stopping_rule: >-
+        halts when all 2^|S| classes are tested (producing an exact
+        answer) OR when the declared test-count ceiling is reached first
+        (producing "undetermined within budget").
+      invalidation_rule: >-
+        A local-solubility test implemented with insufficient Hensel-lift
+        precision at the large bad prime that silently misclassifies a
+        class invalidates dim Sel_2(E); the exact precision used at each
+        prime must be published in the Stage A artifact for independent
+        re-verification.
+      artifact_paths_future:
+        - experiments/EXP-ECQ-TBD/stageA_selmer/good_primes_S.json
+        - experiments/EXP-ECQ-TBD/stageA_selmer/local_solubility_log.json
+        - experiments/EXP-ECQ-TBD/stageA_selmer/selmer_rank_result.json
+      recommended_precursor: >-
+        A bounded, explicitly-zero-mathematical-claim dry-run cost probe
+        (its own tiny task, budget on the order of minutes, timing a small
+        fixed number of local-solubility tests at the actual bad-prime
+        magnitudes) before any Coordinator commits to a full Stage A
+        wall-clock budget.
+    stage_b_bounded_point_search:
+      work_units: >-
+        A DECLARED finite box/height bound H_max, to be set by a future
+        Coordinator decision informed by IDEA-20260829-07fd5f's own cost
+        model (cost = exp(alpha*hhat + c), alpha unmeasured pending that
+        record's own execution).
+      budget: >-
+        NOT SET in this document (deferred to a future Coordinator
+        decision, informed by both IDEA-20260829-07fd5f's own dry-run and
+        this protocol's honest disclosure that curve 302's existing points
+        already reach naive height ~468, making Stage B's realistic power
+        low at any tractable H_max).
+      stopping_rule: box/height bound fully covered, or declared
+        wall-clock/CPU ceiling reached, whichever first.
+      invalidation_rule: >-
+        Any candidate point not independently re-verified on-curve in exact
+        rational arithmetic before being passed to Stage C invalidates that
+        candidate.
+      artifact_paths_future:
+        - experiments/EXP-ECQ-TBD/stageB_covering_search/search_box_declaration.json
+        - experiments/EXP-ECQ-TBD/stageB_covering_search/search_log.json
+        - experiments/EXP-ECQ-TBD/stageB_covering_search/candidate_point_result.json
+    stage_c_certificate_assembly:
+      work_units: O(n * |S'|) exact modular reductions, n=31 or 32 points,
+        |S'| a frozen good-prime list (a handful to a few dozen primes).
+      budget: negligible relative to Stage A; design-time estimate under a
+        few CPU-minutes, unmeasured.
+      stopping_rule: completes once the F2 matrix is fully populated and
+        its rank computed exactly.
+      invalidation_rule: >-
+        Any point in the input set failing its independent on-curve
+        re-check invalidates the corresponding row and halts assembly
+        until resolved.
+      artifact_paths_future:
+        - experiments/EXP-ECQ-TBD/stageC_certificate/f2_matrix.json
+        - experiments/EXP-ECQ-TBD/stageC_certificate/certificate.json
+    controls_stage:
+      work_units: >-
+        1 null control + 1 positive control + 1 nearby-object/2-torsion
+        control + 2 proves-too-much controls, all run through the IDENTICAL
+        Stage C pipeline.
+      budget: negligible, shares Stage C's cost profile.
+      stopping_rule: all five controls complete and their outcomes are
+        compared against the design-time predictions in `controls` above.
+      invalidation_rule: >-
+        Any control failing its predicted outcome (per `controls` above and
+        `falsification_conditions`) voids every other Stage C output from
+        that implementation, not just the failing control.
+      artifact_paths_future:
+        - experiments/EXP-ECQ-TBD/controls/null_control.json
+        - experiments/EXP-ECQ-TBD/controls/positive_control.json
+        - experiments/EXP-ECQ-TBD/controls/nearby_object_and_2torsion_control.json
+        - experiments/EXP-ECQ-TBD/controls/proves_too_much_P1P2.json
+        - experiments/EXP-ECQ-TBD/controls/proves_too_much_2P1.json
+
+  # ===========================================================================
+  # 5. Exact certificate route. Required by handoff item 5.
+  # ===========================================================================
+  certificate_route:
+    provenance_note: >-
+      This route is a DESIGN PROPOSAL, not a verified transcription of
+      github.com/icarm/elliptic-rank's src/verify.ts (WebFetch blocked this
+      session; see task_context.web_retrieval_attempt). It is consistent
+      with the goal record's paraphrase ("exact torsion-aware Cremona-Brumer
+      quadratic-character method") and adopts, without re-derivation,
+      IDEA-20260829-c705b4's already-specified F2-reduction instrument for
+      this program. A future Validator MUST cross-check this route against
+      the real verify.ts before any Coordinator treats this protocol's
+      certificate as equivalent to the third-party verifier's.
+    nonsingularity: as specified in baseline_reproduction.nonsingularity_check
+      above; exact, Delta != 0.
+    on_curve_points: as specified in baseline_reproduction.on_curve_checks
+      above, extended to 32 points if Stage B produces a candidate.
+    exact_torsion: as specified in baseline_reproduction.torsion_determination
+      above; E(Q)_tors = {O}, torsionRank = 0.
+    exact_character_basis: >-
+      A frozen, ascending, deterministic list of good primes S' (primes of
+      good reduction for E -- i.e. Delta(E) mod p != 0 -- chosen starting
+      from the smallest such prime and extended only until the F2 matrix
+      attains its expected rank or a declared prime-count ceiling is hit;
+      never chosen adaptively after seeing which primes raise the rank, per
+      IDEA-20260829-c705b4's own quantifier_order requirement, adopted here
+      verbatim).
+    reduction_map: >-
+      For each point Pi and each prime p in S', reduce Pi modulo p (exact
+      modular arithmetic on the point's rational coordinates, requiring p
+      not divide either coordinate's denominator -- a precondition checked
+      and recorded per (point, prime) pair) to get a point in E(F_p);
+      determine the image of that point in E(F_p)/2E(F_p) (an F2-vector
+      space of dimension 0, 1, or 2, from the exact group structure of
+      E(F_p), itself computed by exact point enumeration or Schoof's
+      algorithm). Stack these images as the row for Pi.
+    good_primes_and_preconditions: >-
+      Published in full per the run: which primes were used, why each was
+      of good reduction (Delta(E) mod p != 0, verified independently of
+      the frozen bad_primes list), and which (point, prime) pairs were
+      skipped due to a denominator-divisibility precondition failure (and
+      how that was handled -- e.g. by extending S' with an additional
+      prime).
+    torsion_rows: >-
+      Since E(Q)_tors = {O} (Stage 0), there are no torsion generator rows
+      to add; torsionRank = 0 is a Stage-0-established fact, not a Stage-C
+      computation. (For the nearby_object_control curve, which DOES have
+      nontrivial torsion, the torsion generator's row(s) ARE included and
+      torsionRank is computed as the F2-rank of the torsion-generated
+      subspace, exactly as that control requires.)
+    exact_f2_matrix: >-
+      The full n x (sum of per-prime F2-dimensions) matrix over F2,
+      published in full (every entry), for n=31 (Stage 0 reproduction) or
+      n=32 (if a Stage-B candidate exists).
+    matrix_rank: computed by exact Gaussian elimination over F2 (no
+      floating point anywhere in this computation).
+    torsion_row_rank: >-
+      0 for curve 302 (trivial torsion); computed as the F2-rank of the
+      torsion-generator rows for any control curve with nontrivial torsion.
+    halving_witnesses: >-
+      Per the halving-induction soundness argument below, no separate
+      "halving witness" search is required BEYOND the induction itself,
+      because Sigma(b_i*Pi) for any candidate smaller relation is directly
+      computable via the exact rational group law (no existence question --
+      the point Sigma(b_i*Pi) trivially exists as a Z-linear combination of
+      already-known rational points). If the real verify.ts's "halving
+      witnesses" terminology refers to something additional (e.g. an
+      explicit local check that a zero-image point IS exactly 2-divisible
+      in E(Q) rather than merely image-zero), that is flagged explicitly
+      as an open cross-check item for the Validator once the real source
+      is retrieved -- NOT asserted as unnecessary by this document.
+    matrix_rank_implies_independence_proof: >-
+      SELF-CONTAINED, RE-DERIVED HERE RATHER THAN IMPORTED UNCRITICALLY.
+      Suppose Sigma(a_i*Pi) = O (torsion is trivial, so any relation
+      reduces to the identity) with integers a_i not all zero; take such a
+      relation with M = max|a_i| minimal (a minimal counterexample). If any
+      a_i is odd, reducing the relation modulo 2 at every prime in S' gives
+      a nontrivial F2-linear relation among the rows (since phi is a group
+      homomorphism and phi(2P)=0), contradicting matrixRank = n (full rank,
+      i.e. the rows are F2-linearly independent). So every a_i must be
+      even: write a_i = 2*b_i. Then Sigma(b_i*Pi) is itself an explicitly
+      COMPUTABLE point via the exact rational group law (no existence
+      question), and 2*Sigma(b_i*Pi) = Sigma(a_i*Pi) = O, so
+      Sigma(b_i*Pi) is in E(Q)[2]. Since E(Q)_tors = {O} (Stage 0),
+      Sigma(b_i*Pi) = O -- a SMALLER relation (max|b_i| < M unless all
+      a_i = 0), with the SAME points, contradicting minimality of M unless
+      all a_i = 0 from the start. Hence matrixRank - torsionRank = n
+      implies the n points are Z-independent modulo torsion. This argument
+      needs no heuristic, no BSD, no GRH, and no floating point anywhere.
+    cost_note: >-
+      Stage C's real cost is dominated by however many primes S' must be
+      extended to before full rank is attained (IDEA-20260829-c705b4's own
+      "prime budget N*(r)" quantity, which that record proposes to measure
+      but has not yet executed); this protocol inherits that unmeasured
+      quantity rather than re-measuring it.
+
+  # ===========================================================================
+  # 6. proof_search_map -- ALREADY PROVIDED under idea.proof_search_map
+  #    above, per the required output schema. Cross-referenced here per the
+  #    handoff's explicit listing.
+  # ===========================================================================
+  proof_search_map_location: idea.proof_search_map (this document, above)
+
+  # ===========================================================================
+  # 7. Independent review architecture. Required by handoff item 7.
+  # ===========================================================================
+  review_architecture:
+    authorization_note: >-
+      Opening this review round is a COORDINATOR ACTION and is NOT
+      authorized, initiated, or implied by this document (authorization_boundary
+      above). This section states the review_plan-shaped architecture a
+      Coordinator would adopt for any FUTURE execution of this protocol's
+      stages, per AGENTS.md "Review architecture" and "Goal closure quorum",
+      and the goal's own pause_conditions.
+    producer_snapshot: >-
+      After each stage (0, A, B if run, C, controls) completes, the
+      Coordinator strictly snapshots the producer's exact artifacts
+      (path_sha256-pinned, per this program's content-first archive
+      discipline) BEFORE any review begins, exactly as
+      TASK-20260824-01b105's receipt pattern (cited in task_context) already
+      demonstrates for this goal's opening.
+    independent_validator_pass: >-
+      A Validator session (policy review-adversarial, per
+      orchestration/model-policies.yaml) independently re-executes or
+      re-checks: the discriminant recomputation, all on-curve checks, the
+      torsion determination, the Stage A local-solubility log (spot-checking
+      a sample of classes with independent code), and the Stage C F2 matrix
+      and rank computation, from the committed snapshot alone.
+    red_team_pass: >-
+      A Red Team session (same policy family) attacks: the short-Weierstrass
+      conversion identity, the resolvent-cubic prime-set bound, the
+      halving-induction argument's minimality-of-counterexample logic, the
+      proves_too_much and nearby_object/2-torsion controls' actual outcomes
+      against their design-time predictions, and the Hensel-lifting
+      precision at the largest bad prime.
+    blind_rederivation: >-
+      A separate session, given ONLY the frozen curve-302 ainvs and the
+      31 point coordinates (blind_from: this protocol document, any prior
+      session's Stage A/B/C outputs, and any Coordinator commentary),
+      independently re-derives: the discriminant, the on-curve checks, the
+      torsion group, and (if reached) the independence certificate's
+      matrixRank and torsionRank, and compares its results against the
+      producer's without having seen them first.
+    breakthrough_review_gate: >-
+      Before any success or closure claim (either reading a: "rank 31
+      exactly, extension closed" or reading b-success: "rank >= 32,
+      witness certified"), a review-breakthrough pass at max reasoning
+      effort runs in a fresh independent session, with fallback_allowed:
+      false and degraded_allowed: false (per the goal's own completion
+      criteria and AGENTS.md "Goal closure quorum" note that attestations,
+      when recorded, must be genuine and a recorded DISSENT still blocks
+      closure).
+    ledger_archive_gate: >-
+      Only after all of the above concur on their owned joints does a
+      Coordinator compose and ledger-archive a decision citing every
+      contributing experiment/run/evidence ID (AGENTS.md rule 6), per the
+      goal's own pause_conditions ("Pause any proposed rank-32 promotion or
+      goal completion until independent validation, red-team review, blind
+      rederivation, and nondegraded review-breakthrough review at max all
+      concur... and a Coordinator composes and ledger-archives the
+      decision").
+    not_authorized_by_this_document: >-
+      Restated for emphasis: none of the above is opened, scheduled, or
+      dispatched by this protocol document. It is a specification for a
+      Coordinator to adopt.
+
+  # ===========================================================================
+  # 8. End-to-end artifact accounting. Required by handoff item 8.
+  # ===========================================================================
+  artifact_accounting:
+    note: >-
+      Every path below is a FUTURE path, to be created only when a
+      Coordinator later approves execution of the named stage. TBD denotes
+      an experiment/task ID not yet minted (per CLAUDE.md, minted only via
+      tools/allocate_id.py at actual dispatch time, never guessed here).
+    trace:
+      - stage: Stage 0 (baseline reproduction)
+        paths: see budgets_and_stops.stage_0_baseline_reproduction.artifact_paths_future
+      - stage: Stage A (Selmer computation)
+        paths: see budgets_and_stops.stage_a_selmer_computation.artifact_paths_future
+      - stage: Stage B (bounded point search, conditional)
+        paths: see budgets_and_stops.stage_b_bounded_point_search.artifact_paths_future
+      - stage: Stage C (certificate assembly)
+        paths: see budgets_and_stops.stage_c_certificate_assembly.artifact_paths_future
+      - stage: Controls
+        paths: see budgets_and_stops.controls_stage.artifact_paths_future
+      - stage: Validation
+        paths: coordination/goals/GOAL-ECQ-e72c0b/batches/BATCH-TBD/tasks/TASK-TBD-validator/validation_report.yaml
+      - stage: Red team
+        paths: coordination/goals/GOAL-ECQ-e72c0b/batches/BATCH-TBD/tasks/TASK-TBD-redteam/objections.yaml
+      - stage: Blind rederivation
+        paths: coordination/goals/GOAL-ECQ-e72c0b/batches/BATCH-TBD/tasks/TASK-TBD-blind/blind_rederivation.yaml
+      - stage: Breakthrough review
+        paths: coordination/goals/GOAL-ECQ-e72c0b/batches/BATCH-TBD/tasks/TASK-TBD-breakthrough/review.yaml
+      - stage: Coordinator decision
+        paths: ledger/decisions/DEC-TBD.yaml, citing every experiment/run/evidence
+          ID above
+
+  # ===========================================================================
+  # 9. Pareto honesty. Required by handoff item 9.
+  # ===========================================================================
+  pareto:
+    dominated_by: >-
+      CHECKED, NOT AN UNCHECKED NULL. Frontier rows checked across time,
+      memory, and data/query cost: (1) ICARM curve 302 ITSELF (the frozen
+      third-party leaderboard record, rank_lower_bound = 31, unconditional
+      per its own verifier's claim, NOT YET independently reproduced by
+      this program) already dominates every result this protocol could
+      produce on the "certified rank over Q" axis UNLESS Stage B succeeds
+      in exhibiting a genuine 32nd point -- i.e. this protocol's own target
+      (rank >= 32, unconditional, on curve 302) is not yet held by anyone
+      this program can cite as a checked row. (2) On the "certified rank
+      over Q, by THIS program's own instruments" axis, the strongest row
+      this program has itself produced is rank 12-13 (GOAL-ECQ-001/002,
+      GOAL-ECRANK-002 carry-forward); curve 302 (pending Stage 0
+      reproduction) already exceeds that by a wide margin as a RETRIEVED,
+      not yet reproduced, third-party claim. (3) IDEA-20260829-c705b4
+      dominates on certificate-instrument specification maturity (it fully
+      specifies Stage C's engine already) but has not executed it; this
+      protocol does not compete with it, it depends on it. (4)
+      IDEA-20260829-07fd5f dominates on point-search-instrument
+      specification maturity for the DIFFERENT curves it targets; this
+      protocol's Stage B depends on it without executing it either. (5) The
+      time/memory/data cost of the ICARM board's OWN search process that
+      originally produced curve 302 is UNKNOWN and UNDISCLOSED in the
+      retrieved baseline record, and is not independently measurable by
+      this program; this axis is recorded as "unknown, not zero" rather
+      than omitted. On the specific axis this protocol competes on --
+      "a finite, unconditional, sequenced decision-and-certification
+      procedure for extending curve 302's OWN known point set by exactly
+      one point" -- no row in this program's corpus dominates it, because
+      no row attempts the Selmer-gated sequencing this protocol proposes.
+    sota_delta: >-
+      QUANTITATIVELY, per the handoff's exact required framing: EXACTLY ONE
+      ADDITIONAL CERTIFIED INDEPENDENT POINT (31 -> 32 on the SAME curve
+      302), IF and ONLY IF Stage A returns dim Sel_2(E) >= 32 AND Stage B
+      exhibits a witness within its declared bounded search box AND Stage C
+      certifies it AND the full review_architecture concurs. If instead
+      Stage A returns dim Sel_2(E) = 31 exactly, sota_delta on the POINT-
+      COUNT axis is ZERO on this curve (and remains zero forever on this
+      curve specifically, since the result is unconditional and exact) --
+      but this protocol still delivers a genuine, new, EXACT (not merely
+      lower-bound) rank determination for curve 302, which the frozen
+      baseline's own retrieved record does NOT provide (it states only
+      rank_lower_bound: 31 plus an EXCLUDED BSD+GRH commentary this program
+      never uses as evidence). That is a real, disclosed, quantitative
+      delta on the "certificate strength" axis (exact vs. lower-bound-only)
+      even in the zero-point-count outcome, and is reported as such rather
+      than as a null result.
+
+  novelty_and_citations_summary: >-
+    Every citation in this document carries explicit provenance
+    (recalled | retrieved | kb | internal) per templates/research-records.md.
+    No citation is claimed as `known` or `adaptation`-verified from a
+    `recalled` source alone; the overall novelty_status is `adaptation`
+    (composition of three already-specified, unexecuted instruments in this
+    program's own corpus -- IDEA-20260829-c705b4, IDEA-20260829-07fd5f, and
+    a Selmer-gate sequencing step this session's corpus grep did not find
+    elsewhere -- plus standard, textbook, unconditional 2-descent
+    mathematics). No `search_knowledge` MCP tool was available in this
+    session's tool surface (Read/Grep/Glob/Write/WebSearch/WebFetch/
+    SendMessage only); novelty checking was performed via Grep over
+    knowledge/ and ledger/ per the fallback instruction in AGENTS.md
+    "Knowledge retrieval policy".
