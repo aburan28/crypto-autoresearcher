@@ -454,10 +454,21 @@ def _validate_ledger_archive(task: dict[str, Any]) -> None:
         return
     evidence = [path for path in task["artifact_paths"] if path.startswith("ledger/evidence/")]
     decisions = [path for path in task["artifact_paths"] if path.startswith("ledger/decisions/")]
-    if not evidence or not decisions:
+    if not decisions:
         raise DispatchError(
-            f"ledger archive {task['id']} must own exact artifacts under ledger/evidence/ "
-            "and ledger/decisions/"
+            f"ledger archive {task['id']} must own exact artifacts under "
+            "ledger/decisions/"
+        )
+    # CORR-20260822-7e98b5 HD-1: a ledger archive's entire content can BE the
+    # decision (a REVISE/block, a supersede, an infra pause, a protocol
+    # amendment, a correction) -- it does not always promote an evidence
+    # record. Only require an evidence path when the archive's own record_ids
+    # actually name an EV-* record (the dangling-reference catch below still
+    # applies once evidence is expected).
+    if any(rid.startswith("EV-") for rid in archive["record_ids"]) and not evidence:
+        raise DispatchError(
+            f"ledger archive {task['id']} names an EV-* record_id but owns no "
+            "artifact under ledger/evidence/"
         )
     if not archive["record_ids"]:
         raise DispatchError(f"ledger archive {task['id']} must include relevant ledger record IDs")

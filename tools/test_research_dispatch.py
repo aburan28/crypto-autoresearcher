@@ -365,17 +365,49 @@ class DispatchPlannerTests(unittest.TestCase):
         with self.assertRaisesRegex(dispatch.DispatchError, "read_scope must cover"):
             dispatch.validate_queue(queue(source, archive))
 
-    def test_ledger_archive_requires_evidence_decisions_and_record_ids(self) -> None:
+    def test_ledger_archive_requires_decisions_and_record_ids(self) -> None:
+        # CORR-20260822-7e98b5 HD-1: a ledger archive's entire content can BE
+        # the decision (REVISE/block, supersede, infra pause, protocol
+        # amendment, correction) -- it does not always promote an evidence
+        # record. Only the decisions path is unconditionally required.
         source = task("SOURCE", 1)
         ledger = archive_task(
-            "LEDGER", [source], kind="ledger", artifact_paths=["ledger/evidence/LEDGER-EVIDENCE.json"]
+            "LEDGER", [source], kind="ledger", artifact_paths=["ledger/evidence/LEDGER-EVIDENCE.json"],
+            record_ids=["LEDGER-EVIDENCE"],
         )
         ledger["write_scope"] = ["ledger/evidence/"]
-        with self.assertRaisesRegex(dispatch.DispatchError, "ledger/evidence"):
+        with self.assertRaisesRegex(dispatch.DispatchError, "ledger/decisions"):
             dispatch.validate_queue(queue(source, ledger))
 
         ledger = archive_task("LEDGER", [source], kind="ledger", record_ids=[])
         with self.assertRaisesRegex(dispatch.DispatchError, "record IDs"):
+            dispatch.validate_queue(queue(source, ledger))
+
+    def test_ledger_archive_decision_only_is_allowed(self) -> None:
+        # The ordinary case CORR-20260822-7e98b5 identified: a decision with
+        # no evidence basis (e.g. a REVISE) owns only a decisions/ path and
+        # names no EV-* record_id.
+        source = task("SOURCE", 1)
+        ledger = archive_task(
+            "LEDGER", [source], kind="ledger",
+            artifact_paths=["ledger/decisions/LEDGER-DECISION.json"],
+            write_scope=["ledger/decisions/"],
+            record_ids=["LEDGER-DECISION"],
+        )
+        dispatch.validate_queue(queue(source, ledger))  # must not raise
+
+    def test_ledger_archive_dangling_evidence_reference_still_caught(self) -> None:
+        # If record_ids names an EV-* record, the archive must actually own
+        # an artifact under ledger/evidence/ for it -- the dangling-reference
+        # catch HD-1's proposed fix preserves.
+        source = task("SOURCE", 1)
+        ledger = archive_task(
+            "LEDGER", [source], kind="ledger",
+            artifact_paths=["ledger/decisions/LEDGER-DECISION.json"],
+            write_scope=["ledger/decisions/"],
+            record_ids=["LEDGER-DECISION", "EV-DREG-DANGLING"],
+        )
+        with self.assertRaisesRegex(dispatch.DispatchError, "EV-\\* record_id"):
             dispatch.validate_queue(queue(source, ledger))
 
     def test_claim_relevant_task_requires_independent_reviewer(self) -> None:
