@@ -58,7 +58,14 @@ host_id_raw=$(hostname 2>/dev/null) || host_id_raw=""
 host_id=$(printf '%s' "$host_id_raw" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 
 # --- df line for the working directory ---
-df_line=$(df -P . 2>/dev/null | tail -1) || df_line=""
+# Capture df separately from tail so a nonzero df status is not masked by
+# tail's success, and drop the header row so a header-only failure cannot be
+# parsed as a data line.
+if df_out=$(df -P . 2>/dev/null); then
+  df_line=$(printf '%s\n' "$df_out" | awk 'NR > 1' | tail -1)
+else
+  df_line=""
+fi
 
 # --- filesystem_id: device path (first field of df output) ---
 fs_dev_raw=$(printf '%s' "$df_line" | awk '{print $1}')
@@ -75,7 +82,7 @@ fs_mount_raw=$(printf '%s' "$df_line" \
   | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 # Strip trailing slash except for root "/"
 fs_mount=$(printf '%s' "$fs_mount_raw" | sed 's#/*$##')
-[ "$fs_mount" = "" ] && fs_mount="/"
+[ "$fs_mount" = "" ] && [ -n "$fs_mount_raw" ] && fs_mount="/"
 
 # -----------------------------------------------------------------------
 # Validate: every surface must be non-empty. No partial output on failure.
