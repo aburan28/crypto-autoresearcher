@@ -1,0 +1,924 @@
+idea:
+  id: IDEA-20260829-228ce4
+  question_id: RQ-QALG-122b59
+  added: '2026-08-29'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    THE WHOLE LANE HAS PRICED KEY RECOVERY AND NOBODY HAS PRICED THE CIPHERTEXT
+    -- HQC message recovery is a rate-1/3 syndrome-decoding instance whose
+    quantum Prange cost is 2^{65.8} at HQC-128, within 0.5 bits of key recovery;
+    and unlike key recovery its MARKED SET is not a singleton, because the
+    attacker needs only the MESSAGE: he may add any auxiliary codeword and may
+    declare up to 30 of the 46 Reed-Solomon symbols ERASED, giving a
+    one-parameter family of cheaper-looking instances whose optimum is a
+    computable integer
+  class: mechanism
+
+  claim: >-
+    Every proposal filed against this RQ prices the KEY-RECOVERY instance
+    (2-QCSD, length 2n, weight 2w). HQC's ciphertext-side instance has never
+    been priced in this corpus at all, and it is a genuinely different object:
+    eliminating the message with the auxiliary code's parity check turns
+    (u, v) into a syndrome-decoding instance of length 3n and dimension n + k,
+    i.e. RATE ABOUT 1/3 rather than 1/2, with error weight
+    W = 2 w_r + w_e = 225 at HQC-128 rather than 132. Its quantum Prange cost is
+    2^{(W/2) log2(3/2)} = 2^{65.8}, against key recovery's 2^{66} -- the two are
+    tied to within 0.5 bits at HQC-128 and, on the same computation, 2^{100.1}
+    against 2^{100} at HQC-192 and 2^{130.8} against 2^{131} at HQC-256. That
+    triple of near-ties is a reusable number no record in this corpus holds and
+    it is worth having on its own.
+    THE MECHANISM IS WHAT MAKES THE CIPHERTEXT SIDE STRUCTURALLY DIFFERENT.
+    Amplitude amplification's cost is the inverse square root of the MARKED
+    FRACTION, and for key recovery the marked set is a singleton -- there is one
+    secret. For message recovery it need not be: the attacker succeeds if he
+    recovers m, not (r1, r2, e), so every triple that decodes to the same
+    message is marked. Two enlargements exist and both are exactly computable.
+    (E1) COSET ENLARGEMENT: any e' in e + C, where C is the concatenated
+    Reed-Muller/Reed-Solomon auxiliary code, yields the same message; the gain
+    is gamma = log2 of the number of such e' within the weight budget, and the
+    prediction is gamma = 0 EXACTLY, because C's minimum distance is at least
+    d_RS * d_RM = 31 * 192 = 5952 at HQC-128 while the budget is 75, so no other
+    coset element is anywhere near low weight. (E2) ERASURE ENLARGEMENT, which
+    is the live one: the external Reed-Solomon code RS-S1 = [46, 16, 31] can be
+    decoded from ERASURES ALONE in up to d - 1 = 30 positions, so the attacker
+    needs only 16 of the 46 inner blocks and may declare the other 30 erased --
+    which in syndrome-decoding terms means PUNCTURING the instance on j inner
+    blocks, dropping both their parity constraints and their error coordinates.
+    That is a one-parameter family of instances, indexed by j in {0,...,30},
+    that no ISD accounting for HQC in this corpus considers, and the claim is
+    that its optimum j* is a computable integer and that the message-recovery
+    exponent is min over j of cost(j), not cost(0).
+    THE PREDICTION, STATED SO IT CAN FAIL: j* = 0 and cost(j) is strictly
+    increasing, because puncturing j blocks sheds j * n2 = 384 j parity
+    constraints while shedding only about w_e * 384 j / n = 1.6 j expected error
+    coordinates -- constraints leave 240 times faster than errors. If that is
+    right the deliverable is a closure with a named obstruction and a design
+    number; if it is wrong at any parameter set, the quantum message-recovery
+    exponent moves by cost(0) - cost(j*) bits and HQC's ciphertext side is the
+    weaker of its two instances by a computable amount.
+  mechanism: >-
+    THE INSTANCE. HQC encryption produces u = r1 + h r2 and v = m G + s r2 + e
+    with wt(r1) = wt(r2) = w_r and wt(e) = w_e, where G generates the
+    concatenated auxiliary code C of length n1 n2 (shortened Reed-Solomon over
+    F_256 concatenated with a duplicated first-order Reed-Muller code) and
+    dimension k. Applying C's parity check H_C to v kills m G, giving
+    H_C v = H_C (s r2 + e). Together with u = r1 + h r2 the attacker holds
+    n + (n - k) = 2n - k linear constraints on the unknown triple
+    (r1, r2, e) in F_2^{3n} of total weight W = 2 w_r + w_e. That is syndrome
+    decoding of a length-3n code of dimension n + k, i.e. rate about 1/3.
+    THE BASELINE COST. Prange succeeds when a random information set of size
+    n + k avoids all W error positions, with probability about
+    ((2n - k)/(3n))^{W} = (2/3)^{W}(1 + o(1)); amplitude amplification therefore
+    costs 2^{(W/2) log2(3/2)}. At HQC-128 (n = 17669, k = 128,
+    w_r = w_e = 75, W = 225) that is 2^{65.8}. THE ARITHMETIC IS ELEMENTARY AND
+    IS EXACTLY WHY THE ABSENCE OF THIS NUMBER FROM THE CORPUS IS WORTH FIXING:
+    every other record in this lane quotes 2^{66} for HQC-128 without saying
+    which of the two instances it belongs to.
+    ENLARGEMENT E1 AND WHY IT IS ZERO. Fixing r2 determines r1 = u - h r2 and
+    then v - s r2 = m G + e, so the message follows from ANY e' with
+    v - s r2 - e' in C, i.e. any e' in the coset e + C. That coset has 2^{k}
+    elements, but ISD needs a LOW-WEIGHT one: for c nonzero in C,
+    wt(e + c) >= d_min(C) - w_e >= 5952 - 75 = 5877 at HQC-128, by the standard
+    concatenation bound d_min(C) >= d_RS * d_RM, which is a LOWER bound and
+    therefore the rigorous direction for this argument. So enlarging the weight
+    budget to capture a second coset element requires raising it by a factor
+    about 78, which multiplies the Prange exponent far faster than it multiplies
+    the marked set. gamma = 0, and the computation that establishes it is three
+    lines. Recorded because a zero that is COMPUTED is a design margin, while a
+    zero that is assumed is a gap.
+    ENLARGEMENT E2 AND WHY IT IS THE LIVE ONE. The external code is
+    RS-S1 = [46, 16, 31] over F_256 (RS-S2 = [56, 24, 33], RS-S3 = [90, 32, 59
+    or 49 -- the specification's printed value is internally inconsistent and the
+    corpus record documents three independent derivations giving 59). A code of
+    minimum distance d corrects d - 1 ERASURES, so the attacker needs only k_RS
+    of the n1 symbols: 16 of 46 at HQC-128. Declaring j blocks erased is exactly
+    PUNCTURING the syndrome-decoding instance on those j n2 coordinates of the
+    v-side: their error coordinates vanish from W and their parity constraints
+    vanish from the redundancy. The punctured instance has length 3n - j n2,
+    redundancy n + (n1 - j) n2 - k_punc where k_punc is the dimension of the
+    punctured auxiliary code, and expected weight W(j) = 2 w_r + w_e (1 - j n2 / n).
+    The cost is the Prange exponent of that instance and j* = argmin over
+    j in {0,...,d_RS - 1}.
+    WHY THE PREDICTION IS THAT IT LOSES, AND WHY IT IS STILL WORTH COMPUTING.
+    Each erased block removes 384 coordinates from the codeword side, of which
+    only about w_e n2 / n = 1.63 are expected to carry errors, so the
+    information-set fraction moves the wrong way. But the counting is not
+    obvious: the punctured Reed-Solomon code's dimension does not drop with j
+    until j exceeds n1 - k_RS, so the redundancy sheds n2 per block while the
+    length sheds n2 per block and the weight sheds only 1.63 -- the rate RISES
+    toward 1/2 and the relative weight FALLS, and which effect wins is exactly
+    what the one-dimensional optimization decides. A cost curve that is
+    non-monotone, or that dips at moderate j, is a real possibility that costs
+    an hour to exclude and that nothing in the literature this corpus holds
+    excludes for us.
+    ENLARGEMENT E3, RECORDED AND PREDICTED DEAD. A third relaxation suggests
+    itself and must be closed rather than left implicit: since the attacker
+    needs only 16 blocks, could he GUESS each block's Reed-Muller codeword
+    directly from v restricted to that block, there being only 2^{8} = 256
+    candidates? No, and the reason is quantitative: the per-block noise is
+    (s r2 + e) restricted to the block, and s has weight about n/2, so every
+    coordinate of s r2 has bias essentially zero and the per-block channel
+    capacity is about 0, giving no information about which of the 256 codewords
+    is correct. The measured per-coordinate bias of s r2 is the quantity that
+    closes E3 and it is cheap to measure.
+  novelty_status: unverified
+
+  novelty_screen:
+    corpus_screen: >-
+      Greps of ledger/proposals, ledger/hypotheses and knowledge/ for 'message
+      recovery', '3-QCSD', 'erasure', 'Reed-Solomon', 'Reed-Muller',
+      'concatenated', plus full reads of the five records the prior-art file
+      lists for this RQ and of KN-LIT-b9e1a8. FOUND: KN-LIT-b9e1a8 records the
+      auxiliary-code structure and the 2-DQCSD-P / 3-DQCSD-PT assumption names,
+      and GOAL-HQC-001 owns the DFR-model lane which touches the same decoder
+      from the DEFENDER's side. NOT FOUND: any record in this lane that
+      formulates the ciphertext-side syndrome-decoding instance, computes its
+      quantum cost, or uses the Reed-Solomon erasure budget as an ATTACKER
+      degree of freedom. Every proposal filed against RQ-QALG-122b59 is
+      key-recovery.
+    discriminated_from:
+      - >-
+        RQ-HQC-001 / GOAL-HQC-001 own HQC's decoding-failure-rate model and a
+        memory-charged CLASSICAL ISD baseline. THIS RECORD USES NO DFR
+        QUANTITY. The only property of the auxiliary code it uses is MINIMUM
+        DISTANCE and the elementary fact that a code of minimum distance d
+        corrects d - 1 erasures -- combinatorial facts about the code, not
+        statements about the analytic DFR model, and true whether or not that
+        model is correct. No GOAL-HQC-001 measurement is cited as load-bearing,
+        and nothing found here bears on the DFR model in either direction.
+      - >-
+        IDEA-20260818-45b8ea enlarges the marked set's AMPLITUDE via a
+        non-uniform prior on supports. This record enlarges the marked set's
+        CARDINALITY via the target relation. The two are different factors of
+        the same success probability and compose; neither implies the other.
+      - >-
+        IDEA-20260813-a46301 (quantum-DOOM) multiplies targets using the CYCLIC
+        SHIFT ORBIT, which applies to both instances equally and is orthogonal
+        to the auxiliary-code structure used here. Its correlated-branch caveat
+        does not apply to E1/E2, whose enlargements are exact and deterministic
+        rather than statistical.
+      - >-
+        IDEA-20260818-d5668d bounds the dual family on the key-recovery
+        instance at rate 1/2. The ciphertext instance is rate about 1/3, which
+        is closer to the published RLPN advantage window R < 0.3 -- a fact this
+        record NOTES as an open item for that record rather than claiming, since
+        recomputing d5668d's bound at rate 1/3 is that record's business and its
+        secret-window mechanism would have to be re-derived for the three-block
+        error structure.
+      - >-
+        IDEA-20260818-e0ce51's MAXDEPTH accounting applies to this record's
+        exponents exactly as to every other in the lane, and this record's
+        numbers are iteration counts, not costs, which is disclosed here as it
+        is there.
+    web_screen: >-
+      NOT PERFORMED for this record. The ciphertext-side ISD accounting for HQC
+      is certainly published -- HQC's own specification section 6.3 covers known
+      attacks including ISD and DOOM, per KN-LIT-b9e1a8 -- so the BASELINE half
+      of this record is expected to be 'known' and is filed as a corpus gap
+      rather than a discovery. What is not known to this session is whether the
+      ERASURE-BUDGET degree of freedom has been used in any published ISD
+      accounting, and no search was run for it. novelty_status is unverified and
+      the honest expectation is 'known' for the baseline number and
+      'unverified, possibly adaptation' for the erasure family.
+    verdict: >-
+      unverified. Expected classification: the 2^{65.8} figure is likely
+      recomputable from published HQC security analyses and should be treated as
+      a corpus gap being filled, not as a finding; the erasure-indexed instance
+      family and the computed gamma = 0 margin were not found in this corpus and
+      were not searched for externally.
+
+  citations:
+    - ref: KN-LIT-b9e1a8
+      provenance: internal
+      claim: >-
+        The corpus's read-in-full record of the HQC specification of 2025-08-22.
+        Supplies everything this record computes with: n = 17669 / 35851 /
+        57637, k = 128 / 192 / 256, n1 = 46 / 56 / 90, n2 = 384 / 640 / 640,
+        omega = 66 / 100 / 131, omega_r = omega_e = 75 / 114 / 149; the
+        auxiliary code as a shortened Reed-Solomon over F_256 concatenated with
+        the [128, 8, 64] Reed-Muller code duplicated 3 or 5 times to
+        [384, 8, 192] and [640, 8, 320]; the shortened Reed-Solomon parameters
+        RS-S1 [46,16] with delta = 15, RS-S2 [56,24] with delta = 16, RS-S3
+        [90,32] with delta = 29; the security assumptions named 2-DQCSD-P and
+        3-DQCSD-PT; and section 6.3's coverage of ISD and the DOOM quasi-cyclic
+        speedup. CRITICALLY, IT ALSO RECORDS A PUBLISHED-TEXT INCONSISTENCY THIS
+        RECORD MUST CARRY: RS-S3's printed minimum distance is 49 while three
+        independent derivations internal to the same specification (the n - k =
+        2 delta definition, Table 3's delta = 29, and the degree-58 generator
+        polynomial) all give 59. The erasure budget at HQC-256 is therefore
+        either 48 or 58 and BOTH must be computed.
+      verified_by: >-
+        Full read of knowledge/literature/KN-LIT-b9e1a8.md by this session,
+        2026-08-29. The specification PDF itself was NOT opened by this session;
+        all parameters and the RS-S3 anomaly are taken from the corpus record,
+        whose citation_verified is 'read' and which carries the source sha256.
+    - ref: IDEA-20260818-e0ce51
+      provenance: internal
+      claim: >-
+        The adjacent cost-model record establishing that an iteration count is
+        not a cost and that under a binding MAXDEPTH the total scales as
+        N_full * d * g / D. Every exponent in this record is an ITERATION COUNT
+        and inherits that caveat verbatim.
+      verified_by: >-
+        Full read of ledger/proposals/IDEA-20260818-e0ce51.yaml by this session,
+        2026-08-29.
+    - ref: IDEA-20260818-d5668d
+      provenance: internal
+      claim: >-
+        The dual-family bound, derived at rate 1/2 with the published RLPN
+        advantage window quoted as R in (0, 0.3). Cited because the ciphertext
+        instance's rate is about 1/3, nearer that window than the key-recovery
+        instance is -- an OPEN ITEM handed to that record, not a claim made
+        here.
+      verified_by: >-
+        Full read of ledger/proposals/IDEA-20260818-d5668d.yaml by this session,
+        2026-08-29.
+    - ref: 'Forney (1966), concatenated codes: d_min >= d_outer * d_inner'
+      provenance: recalled
+      claim: >-
+        The minimum distance of a concatenated code is at least the product of
+        the outer and inner minimum distances. Used in the RIGOROUS direction
+        (as a lower bound) to establish that no second low-weight element exists
+        in the coset e + C, which is exactly the direction needed for gamma = 0.
+        Textbook, but RECALLED and to be restated from a source before
+        publication.
+      verified_by: null
+    - ref: 'Singleton bound and erasure correction: a code of minimum distance d corrects d - 1 erasures'
+      provenance: recalled
+      claim: >-
+        Standard coding theory, used to fix the erasure budget at
+        d_RS - 1 = 30 / 32 / 58 (or 48) symbols. Elementary and RECALLED; it is
+        the only property of the outer decoder this record uses, and in
+        particular it is NOT a statement about HQC's decoding-failure-rate
+        model.
+      verified_by: null
+    - ref: 'Canto Torres, Sendrier, "Analysis of Information Set Decoding for a Sub-linear Error Weight", PQCrypto 2016'
+      provenance: recalled
+      claim: >-
+        At sublinear error weight all classical ISD variants share the leading
+        exponent of Prange, so quoting the Prange exponent as the baseline for
+        both instances is defensible up to o(1). RECALLED; verifying it at HQC's
+        regime is IDEA-20260813-fe3c5e's job and not this record's, and the
+        ciphertext instance's relative weight 225/53007 = 0.0042 is in the same
+        sublinear regime as key recovery's 132/35338 = 0.0037.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The attacker holds one public key and one ciphertext, with no decryption
+      oracle and no timing side channel. Multi-ciphertext and DOOM amplification
+      are noted separately and never folded into a single number.
+    - >-
+      The ciphertext-side instance is formulated by eliminating the message with
+      the auxiliary parity check, which is the standard reduction; if a cheaper
+      formulation exists it changes the baseline and must be found in Stage 1,
+      not assumed away.
+    - >-
+      The auxiliary code's minimum distance is used only through the
+      concatenation LOWER bound, so the gamma = 0 argument does not depend on
+      that bound being tight.
+    - >-
+      Cost figures are ITERATION COUNTS in the same model the RQ's baseline is
+      quoted in, so the two instances are compared like with like; converting
+      either to gates requires IDEA-20260818-e0ce51's table and is not done
+      here.
+    - >-
+      No statement about HQC's decoding-failure-rate model is used, needed, or
+      implied.
+
+  object_first_framing:
+    established_families_declared_off_limits_as_primary_lens:
+      - >-
+        Grover-Prange and quantum-walk MMT/BJMM as algorithms -- this record
+        changes the INSTANCE and the TARGET SET, not the search.
+      - >-
+        Key recovery. The entire existing lane is key recovery and this record
+        deliberately declines it as a lens.
+      - >-
+        The decoding-failure-rate model and anything that depends on it, which
+        belongs to RQ-HQC-001 and is walled off.
+      - >-
+        The ten objects already generated against this RQ.
+    tracked_object: >-
+      THE ADMISSIBLE TARGET MULTISET -- the set of error triples whose recovery
+      yields the message -- compressed to two numbers: its log-cardinality gamma
+      at a given weight budget, and the erasure index j that generates the
+      punctured instance family. An instance is followed not as a secret but as
+      the SIZE of the set of things that would count as solving it.
+    lossy_projection_test: >-
+      PASSES. LOSSY: the projection sends the full admissible set -- a subset of
+      F_2^{3n}, of size up to 2^{k} = 2^{128} under E1 -- to a pair (gamma, j)
+      of a real number and a small integer, discarding entirely WHICH triples
+      are admissible. COMPATIBLE, the half with teeth: amplitude amplification's
+      cost depends on the target set ONLY through its cardinality relative to
+      the search space, and the two operations that generate the family act on
+      the cardinality deterministically -- adding a codeword of C multiplies the
+      admissible count by the number of coset elements inside the weight budget,
+      and puncturing a block multiplies the search space and the weight budget
+      by exactly computable factors. So the discarded identities are exactly
+      what the cost cannot see, and the retained pair propagates through both
+      generating operations by closed-form maps. FAILING VARIANT, recorded to
+      show the test bites: tracking 'the true triple (r1, r2, e)' discards
+      nothing about itself and tells you nothing about the marked fraction --
+      it is the instance, not a projection of it; and tracking 'the message m'
+      is lossy but INCOMPATIBLE, because m does not propagate under puncturing
+      in any way the cost can use (the punctured instance has a different
+      message space only after the outer decoder runs, which is outside the
+      amplified search).
+    survival: >-
+      The pair survives instance formulation, coset enlargement and the whole
+      puncturing family -- the full length of the accounting -- and DISSOLVES at
+      the point where the outer decoder actually runs, because after erasure
+      decoding the target set collapses to the single message and the projection
+      carries no further information. That dissolution point is also where the
+      RQ's boundary with GOAL-HQC-001 sits, which is a convenient coincidence
+      and is stated so that no one crosses it by accident.
+
+  proof_search_map:
+    bottleneck: >-
+      The marked fraction of the amplified search on the ciphertext-side
+      instance, equivalently the pair (size of the admissible target set, size
+      of the search space) as a function of the erasure index j.
+    baseline_embedding:
+      parameter_slice: >-
+        j = 0 and gamma = 0. The cost formula must then reduce EXACTLY to the
+        plain quantum Prange exponent of the unpunctured rate-1/3 instance,
+        2^{(W/2) log2(3/2)} = 2^{65.8} at HQC-128 -- and, as a second boundary,
+        setting the auxiliary code to the whole space (k = n, no parity checks)
+        must reduce the instance to the pure r2-recovery problem of length 2n
+        and weight 2 w_r, giving 2^{w_r} = 2^{75}. Both boundaries are strict
+        identities.
+      reproduction_check: >-
+        Symbolic substitution into the cost expression for both slices, plus a
+        frozen numeric fixture at toy analogues (n = 31 with a toy concatenated
+        code) where the exact Prange probability is computable by enumeration
+        and compared against the closed form. AN IMPLEMENTATION THAT DOES NOT
+        RETURN 2^{75} IN THE NO-PARITY-CHECK SLICE IS MISCOUNTING THE
+        CONSTRAINTS, which is the single easiest error to make here and the
+        reason the second boundary is in the protocol.
+    observation_collision:
+      observable: 'the pair (gamma, j) and the resulting cost exponent'
+      distinct_preimage_search: >-
+        A COLLISION EXISTS AND IT IS INFORMATIVE: two different erasure PATTERNS
+        with the same j give the same cost under the random-code model, but not
+        necessarily under the true structure -- the auxiliary code is a
+        concatenation, so erasing j blocks that are RS-adjacent versus spread
+        out gives punctured codes that are formally equivalent for the outer RS
+        code (which is MDS-like and cares only about the count) but may differ
+        for the ISD estimate if the inner Reed-Muller blocks interact with the
+        quasi-cyclic structure. SEPARATING CONDITION: report the cost for a
+        random erasure pattern and for the worst and best patterns found by a
+        small search, and treat a spread larger than 1 bit as a finding that the
+        random-code model is inadequate. A second collision, benign: the cost
+        depends on the erased blocks only through j under the model, which is
+        what makes the optimization one-dimensional in the first place.
+    constructive_transforms:
+      - transform: boundary_lift
+        proposed_object: >-
+          Enlarge the certificate family from 'the exact error triple' to 'any
+          triple that decodes to the same message', and prove a STRICT inward
+          improvement or prove there is none -- rather than assuming the
+          singleton target that every existing accounting assumes silently.
+        predicted_gain: >-
+          gamma/2 bits from E1, predicted exactly 0; and cost(0) - cost(j*) bits
+          from E2, predicted exactly 0 with j* = 0.
+      - transform: specialization_pack
+        proposed_object: >-
+          A per-block resource measure charging each inner block its parity
+          contribution (n2 constraints) against its error contribution
+          (w_e n2 / n expected error coordinates), with charges disjoint across
+          blocks by construction.
+        predicted_gain: >-
+          The closed-form statement that a block sheds constraints about
+          n / w_e = 236 times faster than it sheds errors at HQC-128, which is
+          the obstruction in one number and is the reason j* = 0 is predicted.
+    quantifier_order: >-
+      FOR ALL standardized parameter sets P and FOR ALL erasure indices j in
+      {0, ..., d_RS - 1}, THERE EXISTS a cost exponent c(P, j), and the claim is
+      about min over j of c(P, j) versus c(P, 0). The witness (the erasure
+      pattern) may depend on P and j but NOT on the ciphertext or the secret --
+      an erasure pattern chosen using knowledge of where the errors are is not
+      an attack, and checking that the optimizer has not smuggled such knowledge
+      in is a named obligation rather than an assumption.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        'At HQC-128/192/256, in the iteration-count model, the quantum
+        message-recovery exponent is c(P, j*) with j* as computed, and the
+        admissible-target enlargement is worth gamma/2 = X bits.' The method can
+        NEVER certify anything about gate cost (that needs
+        IDEA-20260818-e0ce51's table), about algorithms other than Prange-type
+        ISD, or about HQC's DFR model.
+      nearby_object_control: >-
+        THE NEAREST OBJECT WHERE THE HOPED-FOR CONCLUSION MUST FAIL is a variant
+        of HQC with a WEAK outer code -- for instance an outer repetition code
+        with large d and tiny k, where the erasure budget is enormous. There the
+        cost curve MUST dip with j, because erasing blocks costs almost no
+        dimension. If the optimizer returns j* = 0 even there, it is not
+        actually exploring the family and every HQC number is void. Second
+        control: an outer code with d = 1 (no erasure budget), where j is forced
+        to 0 by construction and the family degenerates.
+    proof_obligations:
+      - claim: 'the message-elimination formulation gives a [3n, n+k] instance of weight W'
+        responsibility: encoding
+      - claim: 'quantum Prange on it costs 2^{(W/2) log2(3/2) + o(W)}'
+        responsibility: runtime
+      - claim: 'wt(e + c) >= d_min(C) - w_e for every nonzero c in C'
+        responsibility: correctness
+      - claim: 'd_min(C) >= d_RS * d_RM (concatenation lower bound)'
+        responsibility: size
+      - claim: 'erasing j blocks yields the stated punctured instance parameters'
+        responsibility: transfer
+      - claim: 'the no-parity-check slice reduces to 2^{w_r}'
+        responsibility: baseline
+      - claim: 'the erasure pattern is chosen independently of the ciphertext'
+        responsibility: soundness
+      - claim: 'no DFR quantity is used anywhere'
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        quantum message-recovery Prange exponent at j = 0, log2 iterations, per
+        parameter set
+      direction: different
+      minimum_effect: >-
+        PREDICTED 65.8 / 100.1 / 130.8 at HQC-128/192/256, against key
+        recovery's 66 / 100 / 131 -- tied to within 0.5 bits everywhere.
+        Computed this session from KN-LIT-b9e1a8's parameters; the executor
+        recomputes exactly with binomials rather than the entropy
+        approximation. A gap above 3 bits in either direction at any set means
+        one instance is materially weaker than the other and is a reportable
+        finding about HQC's parameter balance.
+    - metric: 'gamma, the log2 admissible-target multiplicity from coset enlargement (E1)'
+      direction: higher
+      minimum_effect: >-
+        PREDICTED EXACTLY 0 at every parameter set and every weight budget below
+        d_min(C) - w_e = 5877 / at least 10000 / at least 14000. Any gamma >= 2
+        contradicts the concatenation bound and indicates an arithmetic error;
+        any gamma >= 4 would be worth 2 bits quantumly and would be reportable.
+    - metric: 'j*, the optimal erasure index'
+      direction: different
+      minimum_effect: >-
+        PREDICTED 0 at all three parameter sets. ANY j* > 0 IS THE HEADLINE
+        POSITIVE OUTCOME: it means the ciphertext-side exponent is lower than
+        the currently quoted one by cost(0) - cost(j*), and a gap of 3 bits or
+        more escalates to independent review.
+    - metric: 'shape of the cost curve c(j) over j in {0,...,d_RS - 1}'
+      direction: higher
+      minimum_effect: >-
+        PREDICTED STRICTLY INCREASING, with slope about
+        log2(3/2) * (n2 w_e / n) / 2 minus the rate correction -- the executor
+        computes it exactly. A NON-MONOTONE curve, even with j* = 0, is a
+        finding: it would mean the two effects nearly cancel and that a variant
+        parameterization could cross.
+    - metric: 'per-coordinate bias of s * r2 measured over sampled keys and ciphertexts (E3)'
+      direction: lower
+      minimum_effect: >-
+        PREDICTED below 2^{-10} in absolute value, consistent with wt(s) about
+        n/2 making every coordinate essentially unbiased. A measured bias above
+        2^{-4} would give the per-block guessing attack nonzero capacity and
+        would reopen E3, which is currently predicted dead.
+    - metric: 'erasure budget at HQC-256 under the two readings of RS-S3'
+      direction: different
+      minimum_effect: >-
+        PREDICTED 58 under the derived d = 59 and 48 under the printed d = 49.
+        BOTH must be computed and reported; if j* = 0 under both, the anomaly
+        does not matter for this record and that fact should be stated
+        explicitly, because it is the kind of thing a later reader will want to
+        know without re-deriving.
+    - metric: >-
+        spread of c(j) across erasure PATTERNS at fixed j (best versus worst
+        found by a small search)
+      direction: different
+      minimum_effect: >-
+        PREDICTED below 1 bit, since the model depends on j alone. A spread
+        above 1 bit falsifies the random-code model for the punctured instance
+        and makes the whole one-dimensional optimization invalid, which is a
+        finding about the auxiliary code's interaction with quasi-cyclicity.
+
+  minimal_test:
+    design: >-
+      Three stages, all arithmetic and small-scale simulation, no cryptographic
+      execution, ordered so the boundary checks run before any optimization.
+      STAGE 0 (minutes): read n, k, n1, n2, omega, omega_r, omega_e and the
+      shortened-RS parameters from KN-LIT-b9e1a8 (or the specification), and
+      compute for each parameter set: the ciphertext-side instance's length,
+      dimension and weight; the exact Prange probability by binomial ratio, not
+      by entropy approximation; the resulting quantum exponent; the key-recovery
+      exponent under matched accounting; the concatenated minimum-distance lower
+      bound; the gamma computation; and the erasure budget under BOTH readings
+      of RS-S3. Emit the table. Run the two baseline-embedding boundary checks
+      here and stop if either fails.
+      STAGE 1 (hours): the erasure optimization. For each parameter set and each
+      j from 0 to d_RS - 1, compute the punctured instance's parameters and its
+      exact Prange exponent, and locate j*. Report the whole curve, not just the
+      optimum. Repeat with (a) a random erasure pattern, (b) the best and worst
+      patterns found by 10^4 random trials, to bound the pattern spread.
+      STAGE 2 (hours): the E3 measurement and the controls. Sample 10^6
+      (key, ciphertext) pairs from the HQC reference implementation at HQC-128
+      with recorded seeds, measure the per-coordinate empirical bias of
+      s * r2 and of the full noise s * r2 + e, and compute the implied per-block
+      channel capacity. Then run the two nearby-object controls (weak outer code
+      and d = 1 outer code) through the identical Stage-1 pipeline.
+    controls:
+      - >-
+        BOUNDARY CONTROL 1 (mandatory, first): the no-parity-check slice must
+        return 2^{w_r} = 2^{75} at HQC-128. This catches constraint
+        miscounting, which is the dominant failure mode of the whole record.
+      - >-
+        BOUNDARY CONTROL 2: at j = 0 and gamma = 0 the formula must return the
+        plain rate-1/3 Prange exponent exactly.
+      - >-
+        NEARBY-OBJECT CONTROL (decisive for the optimizer): a synthetic variant
+        with a weak outer code and a large erasure budget, where the cost curve
+        MUST dip. An optimizer that returns j* = 0 there is not exploring the
+        family and no HQC value from it may be reported.
+      - >-
+        DEGENERATE CONTROL: an outer code with d = 1, where the erasure budget
+        is 0 and the family must collapse to the single point j = 0.
+      - >-
+        NULL OBJECT for E3: replace s by a uniformly random dense ring element
+        drawn independently of the key. The measured bias must be
+        indistinguishable from the real case; a difference means the bias is a
+        property of HQC's key derivation rather than of dense multiplication,
+        which would be a finding and would need to be reported to
+        IDEA-20260818-45b8ea's lane rather than absorbed here.
+      - >-
+        STRUCTURAL TELL (inventor-protocol section 3.1): c(j) must move
+        MONOTONICALLY with the constraint-shedding rate as the block length n2
+        is varied synthetically. A c(j) that is insensitive to n2 means the
+        puncturing is not wired into the constraint count -- the most likely
+        implementation bug, and one that would produce a plausible-looking flat
+        curve.
+    required_metrics:
+      - instance parameters and exact Prange exponents for both instances, per parameter set
+      - the two boundary-check outcomes, as exact equalities
+      - gamma with the concatenation lower bound used, per parameter set
+      - the full cost curve c(j) with j*, per parameter set, under both RS-S3 readings
+      - pattern-spread of c(j) at fixed j, best versus worst over 10^4 trials
+      - per-coordinate bias of s * r2 with bootstrap CI and the implied per-block capacity
+      - nearby-object control curve showing a dip, as an instrument check
+      - explicit statement of the DOOM factor applied, or not applied, to each column
+
+  null_object_control: >-
+    The load-bearing control is the NEARBY-OBJECT CONTROL with a weak outer
+    code, because this record's predicted result is a NEGATIVE (j* = 0) and a
+    negative produced by an optimizer that never explores is worthless. Per
+    docs/inventor-protocol.md section 3, the instrument must be shown to fire
+    where the effect exists before its silence is interpreted anywhere else.
+    BOUNDARY CONTROL 1 is the second and catches the arithmetic error that would
+    otherwise make every exponent in the table wrong in the same direction.
+
+  falsification_conditions:
+    - >-
+      Boundary control 1 does not return 2^{w_r} in the no-parity-check slice.
+      The constraint count is wrong and no number in the run may be reported.
+    - >-
+      The nearby-object control with a weak outer code does not show a dip in
+      c(j). The optimizer is not exploring the family; the run is void.
+    - >-
+      j* > 0 at any standardized parameter set with cost(0) - cost(j*) >= 3
+      bits. This falsifies the record's own prediction in the direction that
+      matters -- the ciphertext side is cheaper than currently quoted -- and
+      must be escalated to independent review before any further work.
+    - >-
+      gamma >= 4 at any parameter set. Contradicts the concatenation bound;
+      either the bound was misapplied or the auxiliary code is not what the
+      specification says, and both are reportable.
+    - >-
+      The message-recovery and key-recovery exponents differ by more than 3
+      bits at any parameter set. Not a break, but a statement about HQC's
+      parameter balance that no record in this corpus holds and that should be
+      filed as a finding.
+    - >-
+      Measured per-coordinate bias of s * r2 above 2^{-4}. Reopens E3 and, more
+      importantly, is a sampler/key-derivation observation that belongs to
+      IDEA-20260818-45b8ea's measurement lane and must be routed there rather
+      than used here.
+    - >-
+      Pattern spread above 1 bit at fixed j. Falsifies the one-dimensional
+      model; the optimization must be redone over patterns, not over counts.
+    - >-
+      The two RS-S3 readings give different j* at HQC-256. The specification
+      anomaly then has cryptanalytic consequence and must be reported as such
+      rather than resolved by preference.
+
+  confounders:
+    - >-
+      CONSTRAINT MISCOUNTING. The instance's dimension depends on whether the
+      auxiliary parity check has full rank n - k and on how the specification's
+      truncation of n1 n2 to n interacts with it (n = 17669 against
+      n1 n2 = 17664, so 5 coordinates are not covered by the auxiliary code at
+      HQC-128). Those 5 coordinates are a real and easily-forgotten detail and
+      must be handled explicitly rather than absorbed into an o(1).
+    - >-
+      ENTROPY APPROXIMATION VERSUS EXACT BINOMIALS. The 65.8 figure uses
+      (2/3)^{W}; exact binomial ratios differ by a few bits at these sizes.
+      Every reported number must be exact and the approximation used only for
+      intuition.
+    - >-
+      DOOM DOUBLE COUNTING. The quasi-cyclic shift speedup applies to both
+      instances and quantumly is worth sqrt(n), about 7 bits. Applying it to one
+      column and not the other would manufacture a difference of exactly the
+      size this record is looking for. The protocol must state, per column,
+      whether DOOM is applied.
+    - >-
+      THE RANDOM-CODE MODEL IS WEAKER HERE THAN FOR KEY RECOVERY. The
+      ciphertext instance's code contains a highly structured component (the
+      concatenated Reed-Muller/Reed-Solomon code), not just a random circulant,
+      so treating it as random for ISD purposes is a stronger assumption than
+      usual. This is heuristic H2 and it could fail in the ATTACKER's favour,
+      which is the interesting direction and is why the toy-scale check exists.
+    - >-
+      Erasure patterns chosen with knowledge of the error positions are not an
+      attack. The optimizer must be blind to the instance, and a reviewer should
+      check the code rather than the description for this.
+    - >-
+      Recalled parameters and recalled coding-theory facts. Both must be
+      re-derived in Stage 0, and the RS-S3 anomaly means at least one published
+      number is known to be internally inconsistent.
+
+  interpretation_limits:
+    - >-
+      NOTHING HERE IS A STATEMENT ABOUT HQC'S DECODING-FAILURE-RATE MODEL. The
+      only decoder property used is minimum distance and erasure correction,
+      which are combinatorial and hold whether or not the analytic DFR model is
+      correct. No GOAL-HQC-001 result is cited as load-bearing and no result
+      here bears on that goal, in either direction.
+    - >-
+      All exponents are ITERATION COUNTS, not costs. Under
+      IDEA-20260818-e0ce51's accounting they must be multiplied by the coherent
+      oracle's (g, d) and divided by the depth budget before any comparison with
+      a classical row.
+    - >-
+      A j* = 0 result closes the ERASURE FAMILY as parameterized here, at the
+      tested parameter sets, under the random-code model for the punctured
+      instance. It does not close relaxations of the target set in general, and
+      in particular says nothing about list-decoding the outer code, about
+      soft-information attacks, or about attackers holding many ciphertexts.
+    - >-
+      The near-tie between the two instances is a statement about Prange-type
+      ISD accounting only. A different algorithm could separate them, and the
+      rate difference (1/2 versus about 1/3) is exactly the kind of thing that
+      could -- which is why the rate-1/3 observation is handed to
+      IDEA-20260818-d5668d's lane as an open item rather than resolved here.
+    - >-
+      Nothing here transfers to RQ-QALG-457b41 or RQ-QALG-74bf20.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For the concatenated auxiliary code C with outer shortened
+        Reed-Solomon of minimum distance d_RS and inner duplicated Reed-Muller
+        of minimum distance d_RM, every nonzero codeword has weight at least
+        d_RS * d_RM; consequently for every e of weight w_e and every nonzero
+        c in C, wt(e + c) >= d_RS * d_RM - w_e, which at HQC-128 is
+        31 * 192 - 75 = 5877.
+      rigorous_support: >-
+        The concatenation bound d_min >= d_outer * d_inner is a RIGOROUS
+        theorem (Forney), and it is used here in the direction that makes the
+        conclusion safe: a lower bound on the distance gives an upper bound on
+        the admissible-target multiplicity, which is what gamma = 0 needs. There
+        is essentially no heuristic content; the residual assumption is only
+        that the shortened Reed-Solomon parameters are as the specification
+        states, which the RS-S3 anomaly shows cannot be taken for granted.
+      validation_plan: >-
+        Recompute d_RS from the specification's own definitional route
+        (n - k = 2 delta, d = 2 delta + 1) for all three sets and compare with
+        the printed values, reproducing the corpus record's three independent
+        derivations for RS-S3. Then verify the bound empirically on a toy
+        concatenation (outer [7,3,5] RS over F_8, inner [8,3,4]) by exhaustive
+        minimum-weight computation, checking that the true minimum distance is
+        at least the product. TAIL CHECK: record whether the true minimum
+        distance EXCEEDS the product in the toy case, since a bound that is
+        loose in the safe direction only strengthens gamma = 0 and that should
+        be stated rather than left implicit.
+      falsification_condition: >-
+        A toy concatenation with true minimum distance BELOW the product
+        (falsifies the recalled bound and hence the gamma argument), or a
+        specification-derived d_RS differing from the printed value at a set
+        other than RS-S3.
+    - id: H2
+      statement: >-
+        The message-recovery instance -- whose parity check combines a random
+        quasi-cyclic block with the highly structured concatenated auxiliary
+        code -- has the same Prange success probability, up to a factor
+        polynomial in n, as a uniformly random linear code of the same length,
+        dimension and error weight; and the same holds for every punctured
+        instance in the erasure family, uniformly in j.
+      rigorous_support: >-
+        NO RIGOROUS SUPPORT for the structured case. The rigorous ingredient is
+        only the exact hypergeometric probability that a random information set
+        avoids a fixed error support in a RANDOM code, which is what every ISD
+        estimate uses; the heuristic is that the structure of C does not help or
+        hurt an information-set choice. It imitates the standard random-coding
+        assumption of the ISD literature and nothing stronger, and it is WEAKER
+        here than in the key-recovery case because half the parity check is a
+        designed code rather than a random circulant. THIS IS THE RECORD'S
+        WEAKEST LINK AND ITS MOST INTERESTING FAILURE MODE, since failure in the
+        attacker's favour would be a real finding.
+      validation_plan: >-
+        Build toy analogues at n in {31, 61, 127} with a small concatenated
+        auxiliary code (outer RS over F_8 or F_16, inner Reed-Muller or a small
+        repetition code) and measure the empirical Prange success rate over 10^6
+        random information sets, comparing against (a) the exact hypergeometric
+        prediction and (b) the measured rate for a random code of identical
+        length, dimension and weight. COMPARISON DISTRIBUTION: the exact
+        hypergeometric law. TAIL CHECK: compare the upper tail of the number of
+        trials to first success, not just the mean, because a structured code
+        could shift the tail without moving the mean. Repeat for j in
+        {0, 1, 2, 3} to check uniformity in j. TRANSFER RECORDED EXPLICITLY:
+        measured at n <= 127 with toy auxiliary codes; no measurement exists
+        between there and n = 17669.
+      falsification_condition: >-
+        Structured and random success rates differing by more than a factor 2 at
+        two or more toy sizes, or a j-dependence in that ratio -- either of
+        which invalidates the entire cost curve and would require the record to
+        be rebuilt around the structured estimate.
+    - id: H3
+      statement: >-
+        For s a ring element of weight about n/2 derived from a fixed public key
+        and r2 of weight w_r, every coordinate of s * r2 has bias at most
+        2^{-10} in absolute value, and the coordinates are pairwise
+        uncorrelated to the same order; consequently the per-block channel from
+        the Reed-Muller codeword to the observed block of v has capacity at most
+        2^{-18} bits, and the per-block guessing relaxation (E3) yields nothing.
+      rigorous_support: >-
+        The rigorous ingredient is the exact statement that a sum of w_r
+        coordinates of a weight-n/2 ring element is unbiased when the summands
+        are independent uniform bits, i.e. the piling-up lemma with bias 0; the
+        heuristic is that s behaves like a uniform dense element for this
+        statistic, which imitates the same XOF-uniformity modelling that
+        IDEA-20260818-f8dc30's H1 uses for wt(h) and that
+        IDEA-20260818-45b8ea proposes to measure directly for the support
+        sampler.
+      validation_plan: >-
+        Sample 10^6 (key, ciphertext) pairs at HQC-128 with recorded seeds,
+        compute the empirical per-coordinate bias of s * r2 and of
+        s * r2 + e over 2n positions, and compare against the zero-bias null by
+        a Bonferroni-corrected 5-sigma test. TAIL CHECK: the maximum absolute
+        bias over all n positions must lie inside the corrected quantile of the
+        binomial null; a single position outside is the detector's expected
+        false-positive rate and must be observed at roughly the predicted
+        frequency rather than at zero. Additionally report the bias restricted
+        to the 1 percent of keys with the most extreme wt(s).
+      falsification_condition: >-
+        Any coordinate with |bias| above 2^{-4} at 5 sigma after correction, or
+        a systematic bias pattern correlated with block boundaries -- either of
+        which reopens E3 and is also a key-derivation observation that must be
+        routed to IDEA-20260818-45b8ea's lane.
+
+  target_complexity:
+    time_exponent: >-
+      Ciphertext-side quantum Prange, j = 0: 2^{(W/2) log2(3/2) + o(W)} =
+      about 2^{65.8} / 2^{100.1} / 2^{130.8} iterations at HQC-128/192/256,
+      against key recovery's 2^{66} / 2^{100} / 2^{131} under matched
+      accounting. With the enlargements: 2^{c(j*) - gamma/2}, PREDICTED
+      IDENTICAL to the j = 0, gamma = 0 value, i.e. no change. The claim is a
+      predicted ZERO exponent move with a computed bound on how large a move the
+      family could have supported.
+    memory_exponent: >-
+      UNCHANGED FROM THE BASELINE ON EVERY AXIS. Prange-type search with
+      polynomial memory; NO QRAM AND NO QRACM; the auxiliary code's parity check
+      is a classical constant compiled into the circuit. The enlargements change
+      only the marked-set cardinality, which is a property of the oracle's
+      predicate and costs nothing in space. The punctured instances are SMALLER
+      than the original, so if anything the width falls with j -- a second-order
+      effect that must be reported alongside the time curve rather than used to
+      argue for j* > 0 on its own.
+    best_known: >-
+      Grover-Prange at 2^{w(1+o(1))} on the key-recovery instance = about
+      2^{66} iterations at HQC-128 (this RQ's declared baseline); quantum-walk
+      MMT/BJMM claimed no better in the sublinear-weight regime up to o(1),
+      unverified here (IDEA-20260813-fe3c5e); classical ISD + DOOM about
+      2^{125}. For the CIPHERTEXT instance this corpus holds NO baseline at all,
+      which is the gap this record fills; HQC's specification section 6.3 covers
+      ISD and DOOM and is the external place to look.
+    hidden_overhead: >-
+      The o(W) hides the same per-iteration linear algebra as the baseline, and
+      it is NOT improved -- indeed the ciphertext instance is 1.5 times longer,
+      so its oracle is about 3.4 times more expensive in the n^3 model, worth
+      about 1.8 bits AGAINST the ciphertext side and comparable to the 0.2-bit
+      iteration-count advantage it holds. THAT COMPARISON IS THE HONEST
+      HEADLINE: under gate accounting rather than iteration counting, the
+      near-tie may reverse, and the record must report both.
+    tradeoff_note: >-
+      The erasure index j IS a tradeoff parameter -- it trades constraints
+      against errors -- and the deliverable is the whole curve rather than a
+      point. There is no time-memory tradeoff and no claw structure.
+      Parallelization follows Grover (sqrt(P)) identically for both instances,
+      so the comparison between them is invariant under parallelization and
+      under depth limits, which is the one thing that can be said for the
+      near-tie without qualification.
+
+  dominated_by: >-
+    PREDICTED DOMINATED, AND EVERY FRONTIER ROW WAS CHECKED. (1) GROVER-PRANGE
+    ON THE KEY-RECOVERY INSTANCE, about 2^{66} iterations, poly memory, no
+    QRAM: ties this record's ciphertext-side figure to within 0.5 bits in
+    iteration count and DOMINATES it under gate accounting by about 1.8 bits
+    because the ciphertext instance is 1.5 times longer. So the honest position
+    is DOMINATED, narrowly, by the attack the lane already prices. (2)
+    QUANTUM-WALK MMT/BJMM: dominates on time if its exponent is genuinely lower
+    at sublinear weight (open), on both instances equally. (3) CLASSICAL ISD +
+    DOOM, about 2^{125} on key recovery and a comparable figure on the
+    ciphertext instance to be computed here: dominated on time by both quantum
+    rows in the iteration-count model. (4) RLPN / SD 2.0 / Dual Attack 3.0: at
+    R = 1/2 they are outside their published advantage window per
+    IDEA-20260818-d5668d, BUT THE CIPHERTEXT INSTANCE HAS RATE ABOUT 1/3, which
+    is nearer that window's edge -- this row is therefore NOT SAFELY EXCLUDED
+    for the ciphertext instance and is flagged as an open domination risk to be
+    resolved by d5668d's own Stage 1 rerun at rate 1/3, not by this record.
+    (5) Quantum dual-codeword sampling / the QDP line: see
+    IDEA-20260829-b32543; not on this frontier for the ciphertext instance
+    absent that record's positive branch. (6) Brute-force enumeration: not on
+    the frontier. NO ROW WAS LEFT UNCHECKED, and the one live risk is (4).
+  sota_delta: >-
+    PREDICTED ZERO BITS of exponent movement. The deliverables are three
+    numbers this corpus does not hold: (i) the ciphertext-side quantum exponent
+    at all three parameter sets, 65.8 / 100.1 / 130.8, and its near-tie with key
+    recovery to within 0.5 bits -- which is a statement about how tightly HQC's
+    two instances are balanced and is exactly the kind of design number a
+    parameter-selection decision consumes; (ii) gamma = 0, with the margin
+    d_min(C) - w_e = 5877 at HQC-128 quantifying how far the coset enlargement
+    is from mattering; (iii) the erasure-family cost curve c(j) with its slope,
+    quantifying that a block sheds constraints about 236 times faster than it
+    sheds errors. ESCALATION THRESHOLD: j* > 0 with a gap of 3 bits or more, or
+    an instance gap above 3 bits between key and message recovery.
+
+  obstruction:
+    statement: >-
+      To be filled by the run. ANTICIPATED FORM: 'the attacker''s freedom to
+      declare Reed-Solomon symbols erased does not reduce the cost of message
+      recovery, because an erased inner block removes n2 parity constraints
+      while removing only w_e n2 / n expected error coordinates -- a ratio of
+      n / w_e = 236 at HQC-128 -- so the information-set fraction moves against
+      the attacker at every j; and the coset enlargement is worth exactly zero
+      because the auxiliary code''s minimum distance exceeds the error weight by
+      a factor 79.' This is a claim about the OBJECT (the relative rates at
+      which a concatenated code sheds constraints and errors under puncturing),
+      not about the attempt. FORWARD GUIDANCE, required by the closure standard:
+      what remains open is (a) LIST decoding of the outer code rather than
+      erasure decoding, which enlarges the admissible set differently and is not
+      covered by this parameterization; (b) attackers holding MANY ciphertexts
+      under one key, where the admissible set is a union across ciphertexts and
+      DOOM-style amplification applies -- noted, not costed, and adjacent to
+      IDEA-20260813-a46301's correlated-branch caveat; (c) the rate-1/3
+      observation, which puts the ciphertext instance nearer the published RLPN
+      advantage window and is handed to IDEA-20260818-d5668d's lane.
+    quantity: >-
+      (q1) the constraint-to-error shedding ratio n / w_e per erased block,
+      dimensionless; (q2) gamma, the log2 admissible-target multiplicity, in
+      bits; (q3) the instance gap log2(message-recovery cost) -
+      log2(key-recovery cost), in bits.
+    value: >-
+      NOT MEASURED. No run exists; this record proposes the computation.
+      PREDICTED q1 = 236 / 314 / 387 at HQC-128/192/256; q2 = 0 at all three;
+      q3 = -0.2 / +0.1 / -0.2 bits, i.e. a near-tie. Computed this session from
+      KN-LIT-b9e1a8's parameters using entropy approximations; predictions with
+      stated derivations, not measurements, per AGENTS rule 5, and to be
+      recomputed exactly with binomials.
+    measured_by: []
+    scope: >-
+      Would be claimed only for HQC-128/192/256 as specified, for Prange-type
+      ISD in the iteration-count model, for erasure decoding of the outer code,
+      and for single-ciphertext attackers. NOT claimed for list decoding, for
+      multi-ciphertext attackers, for gate-level costs, for other schemes, or
+      for anything about HQC's DFR model.
+    resource_check:
+      examined: true
+      reading: >-
+        THE OBSTRUCTION IS THE HYPOTHESIS OF A DESIGN THEOREM ABOUT
+        CONCATENATED-CODE KEMS, and the theory that wants it is parameter
+        selection. q1 = n / w_e says the attacker's erasure freedom is
+        neutralized by exactly the ratio of code length to error weight, so a
+        scheme that RAISED its error weight relative to n -- for DFR or key-size
+        reasons -- would move q1 toward 1 and could make the erasure family
+        live. That is a monotone, checkable design criterion applying to any
+        KEM built on a concatenated decoder, and no design rationale in this
+        corpus states it. A SECOND READING: q3, the instance gap, is the number
+        that says which of a KEM's two hard problems is the binding one, and its
+        being within 0.5 bits at all three levels is evidence of deliberate
+        balancing whose FRAGILITY is now quantified -- any future parameter
+        change can be checked against it in one line. A THIRD READING FAILED and
+        is recorded: q2 = 0 was examined as a possible resource for a
+        multi-target or amplitude theory and nothing takes it up; a zero
+        multiplicity is simply an absence, and the only theory that wants it is
+        the one that would have wanted it to be positive.
+      spawned_ids: []
+
+  estimated_cost:
+    implementation: low
+    compute: low
+    basis: >-
+      Stage 0 and Stage 1 are exact binomial arithmetic over at most 60 values
+      of j per parameter set -- minutes in any CAS, and the only care needed is
+      in counting constraints correctly, which the two boundary checks enforce.
+      Stage 2's bias measurement is 10^6 HQC-128 encryptions with the reference
+      implementation, roughly core-minutes to a core-hour, plus 2n counters. The
+      toy-scale H2 validation is 10^6 random information sets at n <= 127, core-
+      minutes. No quantum simulation, no cryptographic-scale attack. Total well
+      under one core-day; this is the cheapest record in the batch to execute,
+      though not the most informative.
+
+  recommended_priority: medium
