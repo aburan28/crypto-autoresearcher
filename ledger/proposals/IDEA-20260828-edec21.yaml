@@ -1,0 +1,857 @@
+idea:
+  id: IDEA-20260828-edec21
+  question_id: RQ-MLKEM-002
+  added: '2026-08-28'
+  title: >-
+    C-FIN, opened for the first time: the finalize step's zero-test can
+    silently misclassify a nonzero accumulator when written as a SIGNED
+    magnitude comparison, deriving the exact silent value set and auditing
+    which real finalize idioms are sign-safe
+  class: mechanism
+
+  claim: >-
+    (A) THE NAMED, UNPURSUED CLASS. IDEA-20260805-ee2018 names a fourth
+    comparison-defect mechanism class alongside C-COV, C-BND and C-RED --
+    "C-FIN -- both are complete but the finalize step loses the bit" -- and
+    explicitly records it as "not pursued", listing it among what "remains
+    untested" in its own interpretation_limits. IDEA-20260821-13b667
+    independently reaches the same boundary from the generator-power side,
+    noting "C-FIN can additionally lose the bit after the support has done
+    its work" without auditing it. No proposal filed against RQ-MLKEM-002 has
+    examined the finalize step's own logic. This record is the first to do
+    so, and it identifies a concrete, checkable defect shape rather than
+    merely re-asserting that the class exists.
+    (B) THE OBJECT IS A VALUE DOMAIN, NOT A BYTE-POSITION DOMAIN. Every prior
+    proposal in this lane tracks a set of BYTE POSITIONS (the silent set S,
+    the difference support D, the coverage set Cov). The finalize step
+    operates after the accumulate/reduce stages have already collapsed the
+    comparison down to a single accumulator value r; its job is a ZERO-TEST
+    on that one integer, mapping r to a boolean (or an all-0/all-1 mask). A
+    finalize defect is therefore a claim about which VALUES of r the test
+    misclassifies, not which byte positions are silent -- a genuinely
+    different lossy projection from everything this lane has used, tracking
+    r's value rather than D's or S's position set.
+    (C) THE CONCRETE DEFECT SHAPE: A SIGNED MAGNITUDE TEST. A correct
+    zero-test is sign-independent: `r != 0` (or a bit-trick provably
+    equivalent to it over the accumulator's actual attainable range).
+    A DEFECTIVE finalize written as a SIGNED magnitude test -- `(signed)r > 0`
+    or `(signed)r >= 1` on a type where r's declared width matches or exceeds
+    the accumulator's byte width -- silently returns "no difference" for
+    every value of r whose sign bit (under the declared signed
+    interpretation) is set, i.e. for every r in the upper half of the
+    type's range. Concretely, for an 8-bit accumulator interpreted as
+    `int8_t`, the silent value set is V = {128, ..., 255} (equivalently
+    {-128, ..., -1}) -- exactly half of all possible nonzero accumulator
+    values -- and this is REACHABLE at ML-KEM's own scale: a single
+    differing byte pair `a[i] XOR b[i] = 0x80` (or any XOR value with the top
+    bit set) drives the accumulator directly into V on the very first
+    differing byte, with no need for cancellation, overflow across many
+    blocks, or any implementation-specific accumulation width beyond one
+    byte. This is a well-known class of bug in hand-rolled C comparison code
+    (signed/unsigned interpretation mistakes), not a contrived corner case.
+    (D) PQCLEAN'S ACTUAL FINALIZE IS SHOWN SIGN-SAFE, BY DIRECT INSPECTION.
+    PQClean ml-kem-1024/avx2's verify (retrieved this session from the pinned
+    commit 10738d92323117d84bb6202c85722ddfd96dc1d4, cross-checked against
+    this program's own committed copy) finalizes with `r = (-r) >> 63;
+    return r;` on `uint64_t r`. This is NOT a signed magnitude test: it is
+    the two's-complement negate-and-shift idiom, and it is correct for
+    every r in [1, 2^63], because `-r mod 2^64 = 2^64 - r` has its top bit
+    (bit 63) set for any such r, and `>>` on the UNSIGNED type `uint64_t` is
+    a logical (not arithmetic) shift, so no sign bit is being tested at all
+    in the sense claim (C) describes. Given the accumulate step (a
+    `_mm256_testz_si256` result in {0,1} OR'd with at most 31 scalar byte
+    values via `|=`), r never exceeds 511, comfortably inside the sound
+    range. PQClean's cell is therefore CLOSED under this specific defect
+    shape, by direct derivation, not by assumption -- a genuine, honest,
+    upfront-disclosed likely-negative result for the one implementation
+    already retrieved, which does not make the class uninteresting: the
+    census in Stage 3 below is what tells us whether other implementations'
+    finalize idioms share this safety or use the vulnerable signed form.
+    (E) THE DISCRIMINATING QUESTION. Is EVERY fetchable implementation's
+    finalize idiom sign-safe by the same mechanism as PQClean's (an
+    unsigned-type bit trick whose soundness does not depend on the
+    accumulator's sign interpretation), or does at least one implementation
+    finalize with a signed relational test on a type whose width matches the
+    accumulator's actual attainable range -- in which case that
+    implementation has a reachable, ML-KEM-scale-relevant C-FIN instance,
+    with an escalation trigger under RQ-MLKEM-002's constraints if a live
+    accumulator value in V is confirmed to reach that finalize call.
+    (F) WHAT IS NOT CLAIMED. No attack, no oracle, no exploitation path, no
+    attack-cost estimate, no timing/power/EM/cache/fault measurement, no
+    statement about MLWE hardness or ML-KEM security at any parameter set.
+    No claim that any implementation currently has this defect --
+    PQClean's is shown NOT to. Identifying that a finalize idiom is
+    sign-unsafe makes the class reachable, it does not by itself mean a
+    live decapsulation call ever drives r into V; that requires the
+    separate, forced accumulate-step arithmetic this record derives per
+    implementation. Any newly observed conformance defect escalates to the
+    coordinator per RQ-MLKEM-002 and is published by no agent.
+
+  mechanism: >-
+    STAGE 0 -- THE ARITHMETIC OF THE FAILURE SHAPE, DERIVED SYMBOLICALLY,
+    ZERO COMPUTE. Let r be an accumulator of declared bit width n
+    (n in {8, 32, 64} covering byte, word and double-word accumulators seen
+    in practice), built by some combination of OR/XOR of per-block or
+    per-byte difference values, so 0 <= r < 2^n. A CORRECT finalize computes
+    `1{r != 0}` by any means. A DEFECTIVE finalize instead computes
+    `1{(signed n-bit) r > 0}`, which under two's-complement equals
+    `1{0 < r < 2^(n-1)}` -- true for r in the LOWER half of the nonzero
+    range, false for r in the UPPER half (r >= 2^(n-1)) as well as for
+    r = 0. The silent value set is therefore
+    `V_n = {2^(n-1), 2^(n-1)+1, ..., 2^n - 1}`, of size `2^(n-1)`, exactly
+    half of the type's range and, critically, INDEPENDENT of any
+    combination of magnitude -- a single byte's XOR value alone can land r
+    in V_n if that byte value's own top bit (within the accumulator's
+    width) is set. This is derived once, symbolically, and checked per
+    candidate finalize expression by reading its exact type and operator,
+    never assumed uniformly.
+    STAGE 1 -- WHY PQCLEAN'S IDIOM IS DIFFERENT IN KIND, NOT JUST IN DEGREE,
+    DERIVED SYMBOLICALLY. `r = (-r) >> 63` on `uint64_t r` computes
+    `(2^64 - r) >> 63` for r != 0 (unsigned negation), which is `1` whenever
+    `r <= 2^63` -- i.e. sound for r across essentially the ENTIRE nonzero
+    range of a 64-bit accumulator, not merely the lower half. It is sound
+    precisely because it operates on an UNSIGNED type with a shift amount
+    equal to (width - 1), extracting the CARRY of the negation rather than
+    interpreting r's own top bit as a sign. The two idioms differ in a way
+    that is checkable from source alone: does the finalize expression
+    negate-then-shift on an unsigned type of width >= (log2 of the
+    accumulator's true attainable range) + 1, or does it directly compare a
+    SIGNED-typed r against a threshold? This binary classification is the
+    census predicate of Stage 3.
+    STAGE 2 -- CONFIRM PQCLEAN'S ACCUMULATOR NEVER APPROACHES EITHER
+    BOUNDARY, ZERO COMPUTE. From the retrieved source (Stage 0 of the
+    companion record IDEA-20260828-40db79 quotes the identical function in
+    full), r starts at `1 - _mm256_testz_si256(h,h)` in {0,1}, then is
+    OR'd with individual byte values `a[i]^b[i]` for i over the scalar
+    remainder (at most 31 iterations at any FIPS 203 ciphertext length,
+    since the AVX2 block is 32 bytes and every ML-KEM ciphertext length is
+    a multiple of 32 per IDEA-20260805-3c957e's own table). An OR of at
+    most 31 byte values (each <= 255) with an initial {0,1} value is itself
+    <= 255, comfortably below both 2^63 (the unsigned idiom's soundness
+    boundary) and 2^7 (where an 8-bit signed-test vulnerability would live,
+    irrelevant here since r's declared type is 64-bit throughout). No
+    boundary is approached by any legitimate input; this is a forced
+    conclusion from the retrieved code, not a measurement.
+    STAGE 3 -- THE CROSS-IMPLEMENTATION CENSUS, THE DISCRIMINATOR. For
+    every implementation fetchable within budget, locate the exact
+    finalize expression (the last operation before the comparison's
+    boolean or mask is returned or consumed), read its declared type and
+    operator from source, and classify it as SIGN-SAFE (an unsigned
+    negate-and-shift, an unsigned OR-reduce compared with `!= 0`, an
+    explicit `!!r`, or any construction provably independent of r's sign
+    interpretation) or SIGN-VULNERABLE (a signed relational comparison
+    `> 0` / `>= 1` / `< 0` used as a stand-in for a zero-test, on a type
+    whose width matches or is narrower than the accumulator's own
+    attainable range). Separately record, per implementation, the
+    accumulator's ACTUAL attainable range from its accumulate step (as
+    Stage 2 did for PQClean), so a SIGN-VULNERABLE finalize whose
+    accumulator can never actually reach V_n (e.g. because every
+    intermediate value is provably small relative to the type width, as
+    PQClean's is) is correctly reported REACHABLE-BUT-BENIGN-BY-CONSTRUCTION
+    rather than conflated with a finalize whose accumulator genuinely can
+    reach V_n on a single differing byte.
+    STAGE 4 -- PLANTED-FINALIZE CONFIRMATION. Build a handful of planted
+    comparators differing ONLY in their finalize expression (unsigned
+    negate-shift vs. `int8_t r; return r > 0;` vs. `int32_t r; return
+    r > 0;`), driven by a generator that can place the accumulator at any
+    value in [0, 255] by choosing which single byte to flip and to what
+    value, under the GNU ld --wrap interposition already admitted for this
+    instrument class (EV-MLKEM-010). Confirm the forced disagreement
+    predicted in Stage 0: the sign-safe finalize detects every nonzero r;
+    the sign-vulnerable 8-bit finalize detects r in [1,127] and MISSES
+    r in [128,255], exactly matching V_8; the 32-bit sign-vulnerable
+    finalize, given an 8-bit-range accumulator, detects everything (its
+    own V_32 is unreachable at this accumulator's actual range), which is
+    the REACHABLE-BUT-BENIGN control case distinguishing "the idiom is
+    unsafe in general" from "the idiom is unsafe for THIS accumulator".
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Retrieval this session used Grep over the repository plus the same
+      WebFetch of PQClean's pinned verify.c already performed for the
+      companion record IDEA-20260828-40db79 (not refetched separately; the
+      identical retrieved source is reused here as the object of analysis
+      for a different question). Grep of `ledger/proposals` (glob *MLKEM*)
+      for `sign.?(safe|unsafe|extension|bit)|signed.?comparison|int8_t|
+      value domain|zero.?test`, case-insensitive: no hits describing a
+      value-domain finalize object; the only prior mentions of "finalize"
+      or "C-FIN" are the two cited below, both naming the class without
+      auditing it. Grep of `knowledge/` and `ledger/hypotheses` (glob
+      H-MLKEM*) for `sign.?extension|signed comparison|int8_t.*compare`,
+      case-insensitive: no hits. All eight RQ-MLKEM-002 proposals were read
+      in full or in their claim/mechanism sections this session.
+    results: >-
+      IDEA-20260805-ee2018 names C-FIN once, in a one-clause aside, and
+      lists it among untested classes in its own interpretation_limits; it
+      supplies no mechanism, no silent value set, and no example. This
+      record supplies both. IDEA-20260821-13b667 mentions finalize only to
+      note that it "can additionally lose the bit after the support has
+      done its work" while deriving its own closed forms entirely for the
+      accumulate stage; it explicitly treats finalize as future work, not
+      as its own object. No other record in this repository examines a
+      finalize expression's type or sign interpretation. Outside the
+      repository, signed/unsigned comparison mistakes are a well-documented
+      general class of C bug; no specific prior report of this exact defect
+      shape in an ML-KEM or Kyber comparison finalize was searched for or
+      found, and none is claimed.
+    verdict: >-
+      UNVERIFIED. Claimed new relative to this repository: opening C-FIN at
+      all with a concrete mechanism rather than a name; tracking the
+      accumulator's VALUE DOMAIN as the object rather than a byte-position
+      set, which is a genuinely different lossy projection from every prior
+      proposal in this lane; deriving the exact silent value set V_n for a
+      signed-magnitude finalize and showing it is reachable at ML-KEM's own
+      byte-difference scale (unlike a magnitude-overflow account, which
+      would not be); and showing PQClean's actual idiom is sign-safe by a
+      DIFFERENT mechanism (unsigned negate-and-shift) than either a correct
+      or an incorrect signed test, resolving the question for one
+      implementation while leaving the census open. ASSEMBLED FROM KNOWN
+      PARTS: the C-FIN name and its place in the taxonomy are
+      IDEA-20260805-ee2018's; the specific source code analyzed is
+      PQClean's (retrieved); signed/unsigned comparison bugs are a
+      textbook-level general fact about C, not a discovery of this record.
+
+  object_first_candidate:
+    tracked_object: >-
+      The pre-finalize accumulator's VALUE, `r in [0, 2^n)`, together with
+      the finalize map `f: [0, 2^n) -> {0,1}` it is passed through, and in
+      particular the silent value set `V = {v : v != 0 and f(v) = 0}`. This
+      is explicitly NOT a byte-position object: it discards WHICH bytes of
+      the compared buffers differed, retaining only the aggregate integer
+      value the accumulate/reduce stages produced and how the finalize step
+      classifies it. Every established family in this lane (silent set S,
+      difference support D, coverage set Cov) is a position-domain object
+      and is declared off-limits as the primary lens per inventor-protocol
+      section 1; this record's object lives one level downstream, after the
+      position information has already been collapsed away by the
+      accumulate/reduce stages, which is precisely what C-FIN's name in
+      IDEA-20260805-ee2018 already implies but no record had yet made
+      concrete.
+    lossiness: >-
+      Genuinely lossy and lossy in a different DIRECTION from every prior
+      object in this lane. A byte-position projection (S, D, Cov) discards
+      VALUES and retains POSITIONS; this projection discards POSITIONS
+      entirely (many distinct difference supports D of the same size
+      collapse to the same accumulator value r, e.g. any single-byte XOR
+      of 0x80 anywhere in the buffer gives the identical r = 0x80 after an
+      OR-based accumulate) and retains only the resulting VALUE. The fibre
+      over a fixed r is therefore large and structurally different from any
+      fibre this lane has audited: it is a statement about the accumulate
+      step's own many-to-one collapse, not about the finalize step, which
+      is why this record separates "does the accumulate step collapse
+      losslessly onto a value the finalize can read" (assumed, and
+      established for OR-of-XOR accumulates by IDEA-20260821-13b667's H1)
+      from "does the finalize step correctly classify that value" (this
+      record's own question). Compatibility with the target's operation
+      holds precisely for accumulate steps meeting 13b667's H1 (OR-of-XOR,
+      no cancellation); a cancelling accumulate is out of this projection's
+      domain, exactly as 13b667 already states for its own object, and is
+      inherited rather than re-derived here.
+    propagation: >-
+      One step of the operation of interest is "apply the finalize
+      expression to a given accumulator value r". The propagation law is a
+      lookup, not an accumulation: `verdict = f(r)`, and the closed form
+      for a signed-magnitude f is `f(r) = 1{0 < r < 2^(n-1)}`, forced by
+      two's-complement arithmetic alone and requiring no measurement to
+      derive, exactly as the containment law `D subset of S` in
+      IDEA-20260821-13b667 required no measurement to derive for the
+      accumulate stage.
+    survival_score: >-
+      Survives one step and stops at the boundary stated in advance. Step 1,
+      "does the finalize map correctly classify a given r": survives, and
+      is exactly what Stage 0's closed form and Stage 4's planted
+      confirmation answer. Step 2, "does a real decapsulation call ever
+      produce an r landing in V for a given implementation's accumulate
+      step": survives PARTIALLY -- it is answered for PQClean specifically
+      (Stage 2, forced no, by direct source reading) but requires the
+      SEPARATE, per-implementation accumulate-range derivation this record
+      performs in Stage 3 for every other candidate rather than assuming
+      one answer transfers. Step 3, ANY CLAIM ABOUT WHAT HAPPENS TO THE
+      SELECTED SHARED SECRET AFTER A MISCLASSIFIED VERDICT (i.e. whether a
+      false-accept here would actually leak information or merely return a
+      wrong-but-still-fixed value): DIES here deliberately, and is exactly
+      the object of the companion record IDEA-20260828-40db79, which this
+      record does not restate or depend on.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-ee2018 and IDEA-20260821-13b667 both NAME C-FIN as an
+      unpursued class concerning "the finalize step" in one sentence each,
+      without a mechanism, a silent value set, or an example. This record
+      supplies all three and is the first to treat the finalize step's
+      TYPE and SIGN INTERPRETATION, rather than its mere existence, as an
+      object.
+    - >-
+      IDEA-20260805-3c957e, -1beeca and IDEA-20260821-13b667's own closed
+      forms track a byte-POSITION set (S or D). This record's tracked
+      object is an integer VALUE and a map on values; the two kinds of
+      object are not interchangeable and this record does not restate or
+      extend the position-domain arithmetic of any of them, though it
+      inherits 13b667's H1 (accumulate-step support-sufficiency) as a
+      precondition for its own object to be well defined, exactly as
+      stated in lossiness above.
+    - >-
+      IDEA-20260828-40db79, filed the same session, tracks a DIFFERENT
+      downstream primitive (the select/cmov that consumes the finalize's
+      output) and its own byte-position coverage. The two records are
+      complementary and deliberately non-overlapping: this record asks
+      whether the verdict bit itself is computed correctly from the
+      accumulator; -40db79 asks whether a downstream primitive, GIVEN a
+      correct verdict bit, writes every output byte. Neither record's
+      claim depends on the other's.
+    - >-
+      H-MLKEM-232843 (RQ-MLKEM-001) performs a black-box byte-mutation
+      census on the PRIVATE KEY dk and reads decapsulation's overall
+      (accept-path, reject-path) behavior; it never inspects a finalize
+      expression's source code or type. This record is a white-box audit
+      of one specific code shape and does not mutate dk or any key
+      material at all.
+
+  citations:
+    - ref: >-
+        https://raw.githubusercontent.com/PQClean/PQClean/10738d92323117d84bb6202c85722ddfd96dc1d4/crypto_kem/ml-kem-1024/avx2/verify.c
+      provenance: retrieved
+      claim: >-
+        Full source of `PQCLEAN_MLKEM1024_AVX2_verify`, including the exact
+        finalize line `r = (-r) >> 63; return r;` on `uint64_t r`, and the
+        accumulate step preceding it (`r = 1 - _mm256_testz_si256(h,h)`
+        followed by `r |= a[i] ^ b[i]` over at most 31 scalar remainder
+        bytes). Retrieved and read in full this session (the same fetch
+        performed for the companion record IDEA-20260828-40db79); relied on
+        for claim (D)'s derivation that this specific idiom is sign-safe and
+        for Stage 2's bound on the accumulator's attainable range.
+      verified_by: idea-generator@2026-08-28
+    - ref: experiments/EXP-MLKEM-009/analysis/pre-run/pqclean_mechanism_evidence.txt
+      provenance: internal
+      claim: >-
+        This program's own committed copy of the same verify.c source at
+        the identical pinned commit, quoting the finalize line verbatim.
+        Read first-hand this session; cross-checked against the
+        independently fetched upstream copy with no discrepancy.
+      verified_by: idea-generator@2026-08-28
+    - ref: IDEA-20260805-ee2018
+      provenance: internal
+      claim: >-
+        Names C-FIN as a fourth comparison-defect mechanism class ("both are
+        complete but the finalize step loses the bit"), explicitly
+        "not pursued", and lists it among untested classes in its own
+        interpretation_limits. Read in full this session; the class this
+        record opens.
+      verified_by: idea-generator@2026-08-28
+    - ref: IDEA-20260821-13b667
+      provenance: internal
+      claim: >-
+        Notes "C-FIN can additionally lose the bit after the support has
+        done its work" without auditing it, and separately establishes H1
+        (support sufficiency of an OR-of-XOR accumulate: the verdict
+        depends on the input pair only through the difference support D),
+        which this record's lossiness section relies on as the precondition
+        making the accumulator's value a well-defined, lossless-in-the-
+        relevant-sense function of D. Read in full this session.
+      verified_by: idea-generator@2026-08-28
+    - ref: IDEA-20260805-3c957e
+      provenance: internal
+      claim: >-
+        Establishes that every FIPS 203 ciphertext length (768, 1088, 1568)
+        is a multiple of 32, the AVX2 block width, which this record relies
+        on in Stage 2 to bound the scalar remainder loop at at most 31
+        iterations for any ML-KEM ciphertext, hence bounding PQClean's
+        accumulator's attainable range. Read in full this session.
+      verified_by: idea-generator@2026-08-28
+    - ref: EV-MLKEM-010
+      provenance: internal
+      claim: >-
+        GNU ld `--wrap` on linux/amd64 is the admitted library-path
+        interposition instrument for this class of measurement; call-site
+        macro interposition is forbidden as load-bearing evidence. Read
+        first-hand this session.
+      verified_by: idea-generator@2026-08-28
+    - ref: null
+      provenance: recalled
+      claim: >-
+        Signed-versus-unsigned interpretation mistakes in relational
+        comparisons (using `> 0` where `!= 0` is intended on a signed type)
+        are a well-known, general class of defect in hand-written C
+        comparison and hashing code, independent of cryptography. RECALLED
+        FROM GENERAL PROGRAMMING PRACTICE, NOT SEARCHED FOR OR VERIFIED
+        AGAINST ANY SPECIFIC SOURCE THIS SESSION. It motivates why the
+        defect shape in claim (C) is worth a census rather than being
+        purely hypothetical, but no specific citation or CVE is asserted
+        and none should be inferred.
+      verified_by: null
+
+  assumptions:
+    - >-
+      A comparison's finalize expression is locatable in source (the last
+      operation before the boolean/mask crosses to the caller) for every
+      implementation censused. Where inlining, macro expansion, or
+      link-time optimization obscures the boundary, that implementation's
+      cell is reported UNMEASURABLE rather than assigned a classification.
+    - >-
+      The accumulate step feeding the finalize satisfies H1 from
+      IDEA-20260821-13b667 (OR-of-XOR, no cross-position cancellation) for
+      every implementation censused; where it does not (an arithmetic-sum
+      or checksum-style accumulate), this record's object is not well
+      defined for that implementation and the cell is reported VOID rather
+      than scored, exactly as 13b667 requires for its own object.
+    - >-
+      The declared bit width of the accumulator's TYPE, as written in
+      source, correctly describes the width the compiler actually uses
+      (no implicit promotion silently widens or narrows it in a way source
+      reading alone would miss). Where this is in doubt, the census
+      cross-checks against IDEA-20260821-121612's disassembly-based
+      extractor rather than trusting the source declaration alone.
+    - >-
+      No conclusion transfers beyond the pinned commits and finalize
+      expressions actually read. A sign-safe classification at one pinned
+      commit says nothing about a different commit, backend, or
+      implementation not fetched.
+
+  proof_search_map:
+    bottleneck: >-
+      The step from "a finalize idiom uses a signed relational test on a
+      type matching the accumulator's declared width" to "and therefore a
+      real accumulator value can land in the silent set V_n" -- this is
+      where the general arithmetic (Stage 0, unconditional) meets the
+      per-implementation fact (Stage 2/3, checked not assumed) about
+      whether the accumulate step can actually produce a value in V_n.
+    baseline_embedding:
+      parameter_slice: >-
+        Restricted to the ONE finalize idiom already retrieved
+        (PQClean's unsigned negate-and-shift), this record's own Stage 1
+        derivation shows the general signed-magnitude failure shape of
+        Stage 0 does NOT apply -- the baseline case is a NEGATIVE embedding
+        by construction, and the record states this rather than manufacturing
+        a positive one. The proposal is a genuine family EXTENSION relative
+        to the taxonomy (a new failure mode within C-FIN) rather than a
+        restatement of an already-observed defect.
+      reproduction_check: >-
+        Symbolically recompute `(-r) >> 63` for r in {0, 1, 128, 255, 511}
+        (spanning PQClean's actual attainable range and beyond) under
+        64-bit two's-complement unsigned arithmetic and confirm the result
+        is 0 only at r = 0, before reading any further source. This is a
+        frozen, zero-compute check against the exact idiom quoted in
+        claim (D).
+    observation_collision:
+      observable: >-
+        The single boolean or mask value the finalize step returns.
+      distinct_preimage_search: >-
+        Every r in V_n (a sign-vulnerable finalize's silent set) and every
+        r = 0 produce the IDENTICAL observable ("no difference") despite
+        being ground-truth DISTINCT: one is a genuine equality, the other
+        is a genuine difference misclassified. This is a direct collision
+        between two ground-truth states on the same observable and is
+        exactly what a planted-comparator test (Stage 4) is built to expose
+        by choosing which specific r value a probe drives the accumulator
+        to, rather than relying on the observable alone to distinguish
+        them.
+      constructive_transforms:
+        - transform: observable_fiber
+          proposed_object: >-
+            The accumulator value r, held fixed across two constructions
+            (a genuinely equal pair producing r=0, and a genuinely differing
+            pair engineered to produce r in V_n) while the finalize map is
+            varied.
+          predicted_gain: >-
+            Separates "the finalize map is unsound in general" (Stage 0's
+            closed form, unconditional) from "a real accumulate step can
+            reach the unsound region" (Stage 2/3, per implementation),
+            which a single observable alone cannot separate.
+      quantifier_order: >-
+        Stage 0's claim is universal and unconditional: FOR ALL n-bit
+        accumulators and FOR ALL signed-magnitude finalize maps of matching
+        width, V_n is exactly the stated set -- this is elementary
+        arithmetic, not a heuristic, and requires no per-instance
+        witness. The REACHABILITY claim is existential and per-
+        implementation: FOR the specific accumulate step of implementation
+        I, THERE EXISTS an input driving r into V_n (verified for PQClean
+        to be FALSE by direct bound; checked, not assumed, for every other
+        censused implementation in Stage 3).
+      method_ceiling:
+        strongest_certifiable_claim: >-
+          For a stated, finite set of pinned and fetched implementations
+          whose finalize expression and accumulate-step attainable range
+          are both read from source, this method certifies whether that
+          implementation's finalize is sign-vulnerable IN GENERAL (Stage 0's
+          arithmetic) and, separately, whether its own accumulate step can
+          reach the vulnerable region (Stage 2/3's per-implementation
+          bound). It does not certify anything about implementations not
+          fetched, and it does not certify that a reachable-and-vulnerable
+          cell is ACTUALLY exercised by any real-world ciphertext without a
+          further, live confirmation.
+        nearby_object_control: >-
+          A planted comparator whose accumulator is declared `int8_t` and
+          whose accumulate step ORs in raw byte XOR values (so V_8 IS
+          reachable by construction, unlike PQClean's 64-bit accumulator),
+          finalized with `return r > 0;`. The method must classify this
+          cell as SIGN-VULNERABLE AND REACHABLE, in contrast to a planted
+          comparator with the identical finalize test but a `int32_t`
+          accumulator fed only by the same 8-bit-range byte values (SIGN-
+          VULNERABLE BUT UNREACHABLE, since its own V_32 lies far above
+          255). Distinguishing these two is exactly what confirms the
+          method separates the general defect shape from its per-
+          implementation reachability rather than conflating them.
+      proof_obligations:
+        - claim: The silent value set V_n for a signed-magnitude finalize is exactly {2^(n-1), ..., 2^n - 1}.
+          responsibility: correctness
+        - claim: PQClean's `(-r) >> 63` on uint64_t is sound for every r its own accumulate step can produce.
+          responsibility: size
+        - claim: The planted 8-bit and 32-bit sign-vulnerable finalize arms reproduce the predicted reachable/unreachable distinction under instrumentation.
+          responsibility: success_probability
+        - claim: No conclusion transfers beyond the pinned commits and finalize expressions actually read.
+          responsibility: scope
+
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        finalize_verdict(PQClean_avx2, r) for r in {0, 1, 128, 255, 511},
+        recomputed symbolically under the frozen `(-r)>>63` script on
+        uint64_t
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 at r=0 and EXACTLY 1 at every other listed r, with no
+        tolerance -- confirming this idiom is sign-safe over PQClean's
+        entire attainable range, not merely over a lower sub-range.
+    - metric: >-
+        max_attainable_r(PQClean_avx2): the maximum value the accumulator
+        can reach over the scalar remainder loop, derived from the source
+        (at most 31 OR'd byte values plus an initial {0,1})
+      direction: lower
+      minimum_effect: >-
+        AT MOST 255 (in fact exactly the OR of the initial bit with up to
+        31 byte values, bounded above by 0xFF since OR cannot exceed the
+        widest single operand's bit pattern union, which is bounded by
+        byte width). Any measured or derived value exceeding this
+        contradicts the source read in claim (D) and voids Stage 2.
+    - metric: >-
+        sign_vulnerable_finalize_count: over every implementation censused
+        in Stage 3, the number whose finalize expression is a signed
+        relational test on a type matching or narrower than its own
+        accumulator's declared width
+      direction: different
+      minimum_effect: >-
+        No number is predicted and the refusal is deliberate: this is the
+        record's discriminator. Zero means the class is closed on the
+        fetched population by inspection, a genuine and reportable
+        strengthening of the taxonomy's completeness; a nonzero count
+        names the specific implementation(s) for the follow-on reachability
+        check.
+    - metric: >-
+        reachable_and_vulnerable_count: of any implementations flagged
+        sign-vulnerable, the number whose OWN accumulate step can drive r
+        into that finalize's silent set V_n (per Stage 3's per-
+        implementation bound)
+      direction: lower
+      minimum_effect: >-
+        No direction is predicted for real candidates and the refusal is
+        deliberate: a nonzero count here is a live, escalable conformance
+        finding under RQ-MLKEM-002 and must not be published by this or
+        any agent; it is reported to the coordinator instead. Zero is the
+        expected and fully acceptable outcome and does not weaken the
+        record.
+    - metric: >-
+        planted_8bit_finalize detection rate at r in [1,127] versus r in
+        [128,255], over the graded probe set of Stage 4
+      direction: different
+      minimum_effect: >-
+        Detection rate 1.0 for r in [1,127] and EXACTLY 0.0 for r in
+        [128,255], with no tolerance -- the forced signature of a
+        signed-magnitude 8-bit finalize, and the must-fire/must-miss pair
+        that makes a subsequent zero reading on a real candidate
+        interpretable.
+    - metric: >-
+        planted_32bit_finalize (fed only by 8-bit-range accumulator values)
+        detection rate over the same probe set
+      direction: higher
+      minimum_effect: >-
+        Detection rate 1.0 across the entire probed range, DESPITE using
+        the identical sign-vulnerable relational test as the 8-bit arm --
+        confirming that vulnerability and reachability are separate
+        properties and that this record's method distinguishes them rather
+        than flagging every signed test as equally dangerous.
+
+  minimal_test:
+    design: >-
+      Three stages, cheapest and most decisive first, entirely on
+      laboratory builds from public source. STAGE 0 (minutes, zero build):
+      recompute the closed-form silent set V_n symbolically for n in
+      {8, 32, 64} and confirm PQClean's specific idiom lies outside the
+      general failure shape via the two's-complement identity in claim
+      (D); this alone produces the record's headline closure for PQClean.
+      STAGE 1 (minutes to hours, reading not running): the cross-
+      implementation census of finalize expressions and accumulator
+      attainable ranges for every implementation fetchable within budget,
+      reusing IDEA-20260821-121612's frozen extractor for disassembly-level
+      confirmation where source alone is ambiguous about compiler-inserted
+      widening or narrowing. STAGE 2 (bounded, tens of minutes): build
+      3-4 planted comparators differing only in finalize expression and
+      accumulator type, drive them with a generator that can place r at
+      any chosen value by choosing which byte to flip and to what value,
+      under GNU ld --wrap, and confirm the forced detection/miss pattern.
+      Total compute is small: single-byte probes against small standalone
+      comparators, no key generation or full KEM round trip required for
+      Stage 2's confirmation, though Stage 3's census against real library
+      builds is bounded by fetch and build time for each candidate.
+    controls:
+      - >-
+        MUST-MISS ARM: the planted 8-bit sign-vulnerable finalize, forced
+        to miss every probe with r in [128,255]; without a demonstrated
+        miss, the instrument cannot be trusted to detect a genuine
+        vulnerability elsewhere (KN-TECH-1a5b7e mode 1/2 discipline).
+      - >-
+        MUST-DETECT ARM: the identical sign-vulnerable relational test
+        wired to a 32-bit accumulator fed only by 8-bit-range values,
+        forced to detect everything -- the reachable-versus-unreachable
+        contrast that keeps the method from over-flagging every signed
+        comparison as equally dangerous.
+      - >-
+        SIGN-SAFE CONTROL: PQClean's actual `(-r)>>63` idiom, planted or
+        directly invoked, forced to detect every nonzero r across the full
+        probed range, confirming the baseline embedding of proof_search_map
+        is a genuine negative rather than an untested assumption.
+      - >-
+        NEARBY-OBJECT CONTROL WHERE THE METHOD MUST REPORT VOID: a
+        comparator whose accumulate step is an arithmetic SUM (not
+        OR-of-XOR), where two distinct byte differences can cancel to the
+        same r as no difference at all. This record's object (a
+        well-defined map from r to a verdict) is not well-posed there
+        independent of any finalize question, and the method must report
+        VOID for the accumulate stage rather than attempt a finalize
+        classification, inheriting IDEA-20260821-13b667's identical control
+        for the same reason.
+      - >-
+        ORDERING CONTROL: the closed-form V_n table and the planted-
+        comparator forced values are committed and hashed before any
+        candidate implementation beyond PQClean is read in Stage 1.
+      - >-
+        ARCHIVE CHECK (zero compute): confirm this record's Stage 0
+        arithmetic reproduces, as a special case at r=0, the same "empty
+        silent set gives zero detection power" identity IDEA-20260805-3c957e
+        and IDEA-20260821-13b667 both already establish for their own
+        objects, as a sanity cross-check that the value-domain and
+        position-domain formalisms agree at the one point where they must.
+    required_metrics:
+      - the closed-form V_n table for n in {8,32,64}, with the symbolic derivation
+      - PQClean's finalize verdicts at the five listed r values, with script and hash
+      - PQClean's derived maximum attainable r, with the source excerpt it is read from
+      - per-implementation (finalize type/operator, sign-safe?, accumulator max attainable r, reachable-and-vulnerable?) tuple from the Stage 1/3 census
+      - planted-comparator detection rates for the 8-bit and 32-bit sign-vulnerable arms and the sign-safe control, across the graded probe set
+      - the list of implementations reported UNMEASURABLE or VOID, with the reason
+      - every patch diff, build configuration, and pinned commit used
+
+  falsification_conditions:
+    - >-
+      PQClean's finalize expression as retrieved does not match a fresh
+      fetch at the same pinned commit, or the derived closed form disagrees
+      with a symbolic recomputation of `(-r)>>63` at any of the five listed
+      r values. Claim (D) is wrong or void and this record is withdrawn in
+      that part.
+    - >-
+      The must-miss arm fails to miss any probe with r in [128,255]. The
+      planted 8-bit sign-vulnerable comparator does not exhibit the
+      predicted defect; the instrument or the construction is wrong and no
+      candidate reading is trustworthy until repaired.
+    - >-
+      The must-detect arm (32-bit sign-vulnerable finalize on an 8-bit-
+      range accumulator) misses any probe. Either the accumulator's
+      attainable range was mis-derived or the finalize expression was
+      mis-planted; the reachable/unreachable distinction this record relies
+      on is not being measured correctly.
+    - >-
+      Any fetched implementation is classified sign-vulnerable AND its own
+      accumulate step is confirmed able to reach V_n. This is a genuine,
+      escalable conformance finding under RQ-MLKEM-002, reported to the
+      coordinator and not published by any agent.
+    - >-
+      A finalize expression cannot be located or its type/width cannot be
+      determined from source or disassembly for a majority of censused
+      implementations. The census is not executable as designed for those
+      cells and is reported UNMEASURABLE rather than patched after seeing
+      partial results.
+    - >-
+      Build or fetch failures for any candidate implementation.
+      INFRASTRUCTURE outcome under AGENTS.md rule 3, never evidence about
+      that implementation; the census is reported over the cells that
+      built.
+
+  confounders:
+    - >-
+      THE ACCUMULATE STEP'S ATTAINABLE RANGE, NOT JUST THE FINALIZE
+      EXPRESSION, DETERMINES REACHABILITY. Two implementations can use the
+      identical sign-vulnerable finalize idiom while differing entirely in
+      whether a real input can drive their accumulator into the vulnerable
+      region; conflating "uses a signed test" with "is actually
+      vulnerable" would overstate the census, which is exactly why Stage 3
+      records both properties separately and Stage 4's must-detect arm
+      exists to demonstrate the distinction under instrumentation.
+    - >-
+      COMPILER-INSERTED WIDENING OR NARROWING CAN CHANGE THE EFFECTIVE
+      TYPE WIDTH. A source-declared `int8_t` accumulator promoted to `int`
+      for a comparison (as C's usual arithmetic conversions do for most
+      operators) may or may not preserve the vulnerability depending on
+      exactly where the promotion occurs relative to the relational test;
+      this is exactly the kind of gap IDEA-20260821-121612's disassembly-
+      level extractor exists to catch, and the census defers to it wherever
+      source reading alone is ambiguous.
+    - >-
+      SUPPORT-SUFFICIENCY IS INHERITED, NOT RE-DERIVED. This record's
+      object is only well-posed for accumulate steps satisfying
+      IDEA-20260821-13b667's H1 (OR-of-XOR, no cancellation); a cancelling
+      accumulate is out of domain and must be reported VOID, not assigned
+      a finalize classification that would be meaningless for it.
+    - >-
+      SELECTION BY WHAT WAS PINNED. The forced-safe classification is
+      demonstrated on one pinned commit of one implementation; the
+      census's population is whatever is fetchable within budget, and every
+      count is a floor over that population, stated as such.
+    - >-
+      A NULL CENSUS (every fetched implementation sign-safe) IS A LIKELY
+      OUTCOME AND MUST NOT BE OVERSOLD. Well-reviewed cryptographic
+      comparison code tends to use exactly the kind of unsigned bit-trick
+      idiom PQClean uses precisely because it avoids this class of bug by
+      construction; a clean census is the honest expected deliverable
+      either way, mirroring IDEA-20260805-ee2018's own caution about its
+      C-RED census.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT AN ORACLE, NOT AN EXPLOITATION PATH, NOT A COST
+      ESTIMATE, NOT A STATEMENT ABOUT MLWE HARDNESS OR ML-KEM SECURITY AT
+      ANY PARAMETER SET. RQ-MLKEM-002's constraints bind unchanged; any
+      newly observed conformance defect escalates to the coordinator and
+      is published by no agent.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002, for any hypothesis,
+      or for any archived evidence or decision record.
+    - >-
+      A sign-safe classification at one implementation's one pinned commit
+      does NOT establish that its comparison is otherwise correct, that
+      its accumulate or reduce stages are complete, or that any other
+      implementation's finalize behaves the same way. It establishes
+      exactly one arithmetic fact about one expression.
+    - >-
+      Claim tier laboratory/toy, not raisable by citation. A conclusion is
+      scoped to the exact pinned commits and finalize expressions actually
+      read; laboratory conformance evidence is never crypto-scale or MLWE
+      evidence.
+    - >-
+      A universally sign-safe census closes nothing about the isolation-
+      versus-systemic question beyond this one narrow mechanism at this
+      one stage; it removes one candidate defect shape from future search,
+      not the search itself, and does not discharge C-FIN as a whole --
+      other finalize defect shapes (a truncating cast, an off-by-one
+      threshold, a mask constructed from the wrong bit) remain untested by
+      this record. Premature closure is a failure mode symmetric with
+      overclaiming.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        SIGNED-MAGNITUDE SILENCE. FOR ALL n-bit accumulators r and FOR ALL
+        finalize maps computing `1{(signed n-bit) r > 0}` under two's-
+        complement representation, the silent value set is exactly
+        `V_n = {2^(n-1), ..., 2^n - 1}`, independent of how r was
+        accumulated, and this set is nonempty and equal to exactly half of
+        [1, 2^n) for every n >= 1.
+      rigorous_support: >-
+        Not a distributional heuristic; a rigorous, elementary consequence
+        of the definition of two's-complement signed interpretation
+        (v is negative, hence fails `> 0`, iff its top bit is set, iff
+        v >= 2^(n-1) under the unsigned reading). It imitates no classical
+        distribution theorem and is not presented as one. It requires the
+        platform to use two's-complement representation (universal in
+        practice for the toolchains this program builds on, and stated as
+        an explicit precondition rather than a silent assumption) and
+        applies only to a RELATIONAL comparison used as a zero-test; a
+        finalize using `!= 0`, `!!r`, or an unsigned bit-trick is
+        by definition outside V_n's failure mode and is classified
+        sign-safe rather than assigned a nonempty silent set.
+      validation_plan: >-
+        Symbolically enumerate V_8 = {128,...,255} and confirm by direct
+        substitution that `(int8_t)v > 0` is false for every v in that set
+        and true for every v in {1,...,127}, before any planted comparator
+        is built. Confirm under instrumentation (Stage 4) that a planted
+        8-bit sign-vulnerable finalize reproduces exactly this partition at
+        every probed r, with zero tolerance, since this is a symbolic fact
+        about integer representations and not a statistical estimate. No
+        sampling at cryptographic scale is required or claimed.
+    - id: H2
+      statement: >-
+        ACCUMULATOR RANGE BOUND, PQCLEAN-SPECIFIC. For PQClean
+        ml-kem-1024/avx2's verify at the pinned commit, the accumulator r
+        immediately before its finalize call never exceeds 255 for any
+        legitimate pair of 1568-byte ciphertext buffers, at every FIPS 203
+        parameter set.
+      rigorous_support: >-
+        Rigorous given the retrieved source: the accumulate step is
+        `r = 1 - _mm256_testz_si256(h,h)` (giving 0 or 1) followed by
+        `r |= a[i] ^ b[i]` over at most `len mod 32` scalar remainder
+        bytes, and every FIPS 203 ciphertext length is a multiple of 32
+        (IDEA-20260805-3c957e), so the scalar loop in fact contributes
+        ZERO bytes at every real ML-KEM call and r never leaves {0,1} in
+        practice -- an even tighter bound than the 255 stated in the claim,
+        which is retained as the more conservative, source-derivable bound
+        not requiring the ciphertext-length fact to hold. NOT independently
+        verified for any implementation beyond this one pinned commit.
+      validation_plan: >-
+        Recompute `len mod 32` for len in {768,1088,1568} under the frozen
+        script (reproducing IDEA-20260805-3c957e's own already-committed
+        table, which reports 0 at every one of these lengths for w=32) to
+        confirm the scalar remainder loop's trip count is in fact zero at
+        every real ML-KEM call, tightening H2's bound from <=255 to
+        r in {0,1} exactly for this implementation. Report both bounds,
+        since the looser one is the one that does not depend on the
+        ciphertext-length fact and therefore degrades more gracefully if
+        that fact is ever found not to hold for some future parameter set.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. No exponent is moved and no attack is proposed; RQ-MLKEM-002
+      forbids attack-cost estimation. The deliverable is a symbolic
+      closed-form derivation plus a bounded source census, not an
+      asymptotic result.
+    memory_exponent: n/a
+    best_known: >-
+      n/a -- no competing statement of finalize sign-safety exists in this
+      repository or, so far as searched this session, elsewhere.
+    hidden_overhead: >-
+      n/a. The planted-comparator stage is dominated by a handful of small
+      standalone compiles and single-byte probes against synthetic
+      buffers, well under a second each.
+    tradeoff_note: n/a
+
+  dominated_by: >-
+    n/a (no result claimed; no algorithm, no cost, hence no Pareto point
+    across time, memory, or data/queries). Rows checked inside this
+    repository on 2026-08-28 for a prior mechanism-level treatment of
+    C-FIN: all eight filed RQ-MLKEM-002 proposals, read in full or in
+    their claim/mechanism sections; RQ-MLKEM-001's H-MLKEM-232843 (a
+    black-box key-field census with no finalize-expression content);
+    GOAL-MLKEM-002 and its four batch checkpoints; and KN-FIND-001. Only
+    two records (IDEA-20260805-ee2018, IDEA-20260821-13b667) even name
+    C-FIN, and both explicitly leave it unpursued. No external search for
+    prior academic or industry work on signed-comparison finalize defects
+    in constant-time comparison primitives specifically was performed, and
+    no external novelty is claimed; signed/unsigned comparison bugs as a
+    general C phenomenon are recalled, not retrieved.
+  sota_delta: >-
+    No attack; mechanism/measurement contribution only. Quantitatively:
+    before this record, C-FIN existed in this lane's own taxonomy as a
+    name with zero derived content across two records spanning three
+    weeks of proposals (2026-08-05 to 2026-08-21); this record supplies
+    its first concrete failure shape (a silent value set of size exactly
+    2^(n-1), half the accumulator's nonzero range, reachable at ML-KEM's
+    own byte-difference scale with no magnitude-overflow or many-block
+    argument required), resolves it as ABSENT for the one implementation
+    already retrieved in this session by direct derivation rather than
+    assumption, and leaves the cross-implementation census as the sole
+    remaining open discriminator -- taking the class from "named,
+    untested" to "mechanized, one cell closed, census designed."
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
