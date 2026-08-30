@@ -1,0 +1,453 @@
+schema: crypto.autoresearch.decks23_interleaved_combination_derivation.v1
+task_id: TASK-20260830-789280
+goal_id: GOAL-ECDLP-001
+proposal_namespace: B71-DECKS23-INTERLEAVED-COMBINATION-20260830-789280
+role: idea-generator
+record_kind: decks23_interleaved_combination_derivation
+
+question: >-
+  On the frozen P1553 instance model (deck sizes B in {2, 3}, six strata),
+  attempt to construct an explicit compact pairwise object for decks 2 and
+  3, analogous to load_pair_product_generators for decks 0-1, and a
+  combination rule merging it with the existing decks-0/1 pair-product
+  generators that stays reduced modulo g_I throughout rather than
+  materializing the full chart_index/resultant_coefficient_vector step
+  atomically. Determine whether any such rule is additive/telescoping or
+  multiplicative, by the same hand-worked small-B method used in
+  TASK-20260830-e30c67/DEC-20260830-6f28e0.
+
+sources_read_this_session:
+  - {path: 'coordination/goals/GOAL-ECDLP-001/proposals/B71-DECKS23-INTERLEAVED-COMBINATION-20260830-789280/dispatch_queue.json', provenance: internal}
+  - {path: 'ledger/decisions/DEC-20260830-6f28e0.yaml', provenance: internal}
+  - {path: 'knowledge/open-problems/KN-OPEN-7f424d.md', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/instances/generate_instances.py', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/verifier/check_representation.py', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/packages/build_packages.py', provenance: internal}
+  - {path: 'ledger/hypotheses/H-CREP-001.yaml', provenance: internal}
+  - {path: 'ledger/goals/GOAL-ECDLP-001/goal.yaml (preadmission_gate_g2_g8_wording_amendment_20260830 and the next_action chain leading to this task)', provenance: internal}
+  - {path: 'coordination/goals/GOAL-ECDLP-001/proposals/B71-PAIRPRODUCT-TELESCOPING-DERIVATION-20260830-e30c67/tasks/TASK-20260830-e30c67/derivation-report.yaml', provenance: internal}
+  - {path: 'coordination/goals/GOAL-ECDLP-001/proposals/B71-PAIRPRODUCT-TELESCOPING-DERIVATION-20260830-e30c67/tasks/TASK-20260830-e30c67/proof-search-map.yaml', provenance: internal}
+  - {path: 'coordination/goals/GOAL-ECDLP-001/proposals/B71-PAIRPRODUCT-TELESCOPING-DERIVATION-20260830-e30c67/tasks/TASK-20260830-e30c67/source-novelty-audit.yaml', provenance: internal}
+  - {path: 'coordination/goals/GOAL-ECDLP-001/proposals/B71-PAIRPRODUCT-TELESCOPING-DERIVATION-20260830-e30c67/tasks/TASK-20260830-e30c67/runtime-session-receipt.json', provenance: internal}
+  - {path: 'docs/inventor-protocol.md', provenance: internal}
+  - {path: 'templates/research-records.md', provenance: internal}
+
+note_on_reading_discipline: >-
+  Every claim below about generate_instances.py, check_representation.py,
+  and build_packages.py cites the exact function or dictionary read this
+  session, not a paraphrase of the prior round's summary. The hand-worked
+  traces in part_4 were computed entirely by manual symbolic execution of
+  generate_instances.py's stated construction rules (mandated_decks,
+  fill_decks, label_tuples), reproducing the deterministic filler
+  placement step by step; no code was executed.
+
+part_1_recap_of_the_existing_decks01_object: >-
+  The frozen load_pair_product_generators object (generate_instances.py,
+  build_generators) is the full Cartesian product deck0 x deck1 (size
+  exactly B^2), with witnesses=[x.label] set only when x.label==y.label
+  AND ext[x.label] is truthy. A load-bearing fact not stated in the prior
+  round's report: ext[label] (extendible_map) is itself a GLOBAL property
+  requiring an admissible occurrence in ALL FIVE decks (label_tuples reads
+  decks[0..4]). This means the frozen decks-0/1 object's own witnesses
+  field already silently depends on decks 2, 3, and 4 -- its declared
+  compactness comes entirely from the fact that ext is target-INDEPENDENT
+  (computable once, in preprocessing, from public deck data alone, per V2),
+  not from any claim that decks 0-1 alone determine extendibility. This
+  session therefore works with a deliberately LOCAL redefinition (part_2)
+  that does not peek at other decks, since a genuinely modular decks-2/3
+  object must not secretly re-import decks 0/1/4's information either.
+
+part_2_construction_attempt_local_pairwise_objects: >-
+  Define, for a deck pair (a,b) and occurrence records x in deck a, y in
+  deck b: witness_local(x,y) = [x.label] iff x.label == y.label AND
+  x.marker is admissible AND y.marker is admissible -- a check using ONLY
+  x and y's own fields, no reference to any other deck. This is a strictly
+  LOCAL analogue of build_generators's rule, with the ext[label] global
+  lookup replaced by a two-occurrence-only admissibility test.
+  G01_local = { (x,y) : x in deck0, y in deck1 }, same size and shape as
+  the frozen pair-product generator list (B^2 entries), using
+  witness_local instead of the frozen witness rule.
+  G23_local = { (u,v) : u in deck2, v in deck3 }, the requested decks-2/3
+  compact pairwise object, same B^2 size and shape, using witness_local.
+  Adm4 = { l : deck4 has an occurrence of label l with an admissible
+  marker }, a size-at-most-B lookup table built once from deck4 alone (no
+  pairwise structure needed since deck4 is not paired with anything in the
+  frozen model).
+  KEY DERIVED FACT used to justify this design (directly checkable in
+  label_tuples): because a tuple's admissibility test
+  ('all(o["marker"] in ADMISSIBLE_MARKERS for o in combo)') applies
+  independently to each of the 5 chosen occurrences with no cross-
+  occurrence relational test, and because label_tuples requires an
+  occurrence of the label in every deck to proceed at all, extendible(l)
+  is exactly equivalent, ON THE FROZEN TOY MODEL, to the 5-way conjunction
+  'deck k has an admissible occurrence of l, for every k in 0..4' -- a
+  fact independent of HOW those 5 per-deck admissible-occurrence sets are
+  grouped for combination. This licenses grouping decks (0,1), (2,3), and
+  (4) into three independently-computable local pieces.
+
+part_3_combination_rule: >-
+  EXISTENCE (drives V4, support): l is extendible iff G01_local witnesses
+  l (equivalently, deck0 AND deck1 each have an admissible occurrence of
+  l) AND G23_local witnesses l (deck2 AND deck3 each have an admissible
+  occurrence of l) AND l is in Adm4. This combination step is a set
+  intersection of three label-sets, each of size at most B (a label can
+  only be witnessed if it is present in both decks of the relevant pair,
+  and each deck has exactly B occurrences): cost(S1,S2,S3) =
+  O(|S1|+|S2|+|S3|), genuinely ADDITIVE, never touching anything of size
+  larger than the three input sets -- the chart_index bundle (all 5 decks'
+  raw lists in one flat node) and the degree-B^2 resultant_coefficient_
+  vector are never materialized.
+  REPLAY (drives V5, exact tuple reconstruction): for a label l found
+  extendible above, the full admissible source-tuple set equals
+  G01_local(l) x G23_local(l) x Adm4(l) -- a further Cartesian product of
+  the three local pieces' own admissible sub-lists for l (sizes
+  |Adm_0(l)|*|Adm_1(l)|, |Adm_2(l)|*|Adm_3(l)|, and |Adm_4(l)| respectively).
+  This step is a genuine CARTESIAN PRODUCT, i.e. structurally
+  multiplicative in the three local counts, not additive; part_6 checks
+  how much this matters at the sizes the frozen instance family actually
+  exercises.
+
+part_4_hand_worked_traces: >-
+  Four of the twelve recorded instances were traced by full manual
+  arithmetic (deck contents rebuilt exactly per mandated_decks/fill_decks,
+  filler placement replayed step by step); two more were checked by direct
+  structural argument rather than full numeric replay. All six traces are
+  reported here so a reader can re-verify without re-deriving decks from
+  scratch.
+
+part_4a_single_hit_B2: >-
+  INST-2-single_hit. Rebuilt decks: deck0=[label1@p0,label2@p1] (both
+  normal); deck1=[label1@p0,label5@p1] (label5 is the deterministic filler
+  chosen because filler candidate 0 collides two generator endpoints at
+  value 2 under the stratum's own collision-avoidance rule, so
+  fill_decks advances to candidate 5); deck2=[label1@p0,label2@p1];
+  deck3=[label1@p0,label2@p1]; deck4=[label1@p0,label0@p1] (filler 0,
+  which is NOT rejected for deck4 since the collision check in fill_decks
+  only applies to k in (0,1) for this stratum). Reference: ext[1] is a
+  single admissible tuple (all five decks have exactly one admissible
+  occurrence of label1); ext[2]=[] because deck1 has no occurrence of
+  label2 at all. Reference E = {1}.
+  My decomposition: G01_local witnesses {1} only (pair
+  (deck0p0,deck1p0); label2 never matches since deck1 lacks it).
+  G23_local: deck2=[1,2], deck3=[1,2], so pairs (d2p0=1,d3p0=1) and
+  (d2p1=2,d3p1=2) both match and both are 'normal' -- G23_local witnesses
+  {1,2}. Adm4 = {1,0}. Combine: label1 -> G01_local yes AND G23_local yes
+  AND 1 in Adm4 yes -> extendible (matches reference). label2 ->
+  G01_local NO (deck1 lacks label2) -> combined false regardless of the
+  other two terms -> NOT extendible (matches reference). Replay for
+  label1: G01_local(1)={(d0p0,d1p0)} (1 pair), G23_local(1)={(d2p0,d3p0)}
+  (1 pair), Adm4(1)={d4p0} (1 element); TupleSet(1) has 1*1*1=1 tuple,
+  exactly matching reference ext[1]'s single tuple field by field.
+
+part_4b_repeated_source_B2: >-
+  INST-2-repeated_source. Rebuilt decks: deck0=[1@p0,2@p1];
+  deck1=[1@p0,2@p1]; deck2=[1@p0,1@p1] (the stratum's deliberate
+  duplicate-occurrence design for B=2); deck3=[1@p0,2@p1];
+  deck4=[1@p0,0@p1] (filler 0 accepted, no collision check for this
+  stratum). Reference: ext[1] has TWO admissible tuples (product of
+  1*1*2*1*1 since deck2 contributes two occurrences of label1);
+  ext[2]=[] since deck2 has no occurrence of label2. Reference E={1}.
+  My decomposition: G01_local witnesses {1,2} (deck0,deck1 both carry
+  both labels admissibly). G23_local: pairs over deck2=[1@p0,1@p1] and
+  deck3=[1@p0,2@p1]: (2p0=1,3p0=1) match; (2p0=1,3p1=2) no; (2p1=1,3p0=1)
+  match; (2p1=1,3p1=2) no -> G23_local witnesses {1} only, with
+  G23_local(1) holding TWO pairs, (d2p0,d3p0) and (d2p1,d3p0) -- the
+  multiplicity-2 structure is captured automatically as two independent
+  witnessing pairs, not lost. Adm4={1,0}. Combine: label1 -> all three
+  true -> extendible (matches). label2 -> G23_local does not witness 2
+  (deck2 lacks it) -> combined false -> NOT extendible (matches). Replay
+  for label1: G01_local(1)={(d0p0,d1p0)} (1 pair), G23_local(1)= 2 pairs
+  as above, Adm4(1)={d4p0} (1 element); TupleSet(1) size = 1*2*1 = 2
+  tuples: (d0p0,d1p0,d2p0,d3p0,d4p0) and (d0p0,d1p0,d2p1,d3p0,d4p0).
+  These are exactly the two tuples label_tuples produces (per_deck product
+  1x1x2x1x1=2, same two combinations field for field). Exact match.
+
+part_4c_repeated_source_B3: >-
+  INST-3-repeated_source. Rebuilt decks (filler placement replayed
+  step by step from filler_pool(3)=[0,7,8,9,10,11,12,13]):
+  deck0=[1@p0,2@p1,3@p2]; deck1=[1@p0,2@p1,3@p2];
+  deck2=[1@p0,1@p1,2@p2] (the B=3 branch places two label-1 occurrences
+  and one label-2 occurrence, three slots exactly, no filler needed);
+  deck3=[1@p0,2@p1,3@p2]; deck4=[1@p0,0@p1,7@p2] (fillers 0 then 7, since
+  candidate 0 is accepted once and then rejected on the second pass for
+  already being present in deck4). Reference: ext[1] has two admissible
+  tuples (deck2 contributes two occurrences of label1, all else single);
+  ext[2]=[] because deck4 has no occurrence of label2 at all;
+  ext[3]=[] because deck2 has no occurrence of label3 at all. Reference
+  E={1}, a case where the THREE target labels are excluded (or admitted)
+  by three DIFFERENT mechanisms simultaneously, a useful boundary-diversity
+  check.
+  My decomposition: G01_local witnesses {1,2,3} (deck0,deck1 both carry
+  all three labels admissibly). G23_local: deck2=[1@p0,1@p1,2@p2],
+  deck3=[1@p0,2@p1,3@p2] -> matching pairs: (2p0=1,3p0=1),
+  (2p1=1,3p0=1), (2p2=2,3p1=2) -> G23_local witnesses {1,2}, with
+  G23_local(1) holding two pairs and G23_local(2) holding one pair.
+  Adm4={1,0,7}. Combine: label1 -> G01_local yes, G23_local yes, 1 in
+  Adm4 yes -> extendible (matches). label2 -> G01_local yes, G23_local
+  yes, but 2 NOT in Adm4={1,0,7} -> combined false -> NOT extendible
+  (matches, correctly attributing the exclusion to deck4). label3 ->
+  G01_local yes, but G23_local does NOT witness 3 (deck2 lacks label3)
+  -> combined false -> NOT extendible (matches, correctly attributing the
+  exclusion to deck2, a DIFFERENT deck than label2's exclusion reason).
+  Replay for label1: G01_local(1)=1 pair, G23_local(1)=2 pairs,
+  Adm4(1)=1 element; TupleSet(1) size 1*2*1=2, exactly matching
+  label_tuples' own 1x1x2x1x1=2-tuple product field for field.
+
+part_4d_no_relation_unit_B2: >-
+  INST-2-no_relation_unit. mandated_decks places every target label in
+  decks 0-3 only ('for k in range(4): decks[k] = [(t,"normal") for t in
+  T]'); deck4 receives NO mandated target-label occurrences at all, so
+  every target label is present in decks 0-3 but absent from deck4.
+  Reference: every target label fails completeness at deck4, so ext[l]=[]
+  for all l in T; E=[] and z_R=1 with no credited split (the stratum's
+  own stated design intent). My decomposition: G01_local witnesses every
+  target label (decks0,1 both carry them admissibly), G23_local likewise
+  witnesses every target label (decks2,3 both carry them admissibly), but
+  Adm4 contains NONE of the target labels (deck4 has none of them, only
+  fillers) -> combined predicate is false for every target label solely
+  via the Adm4 term -> E=[] (matches). This is the cleanest illustration
+  that all three AND-terms are load-bearing: dropping the Adm4 term alone
+  would incorrectly extend every target label here.
+
+part_4e_collision_duplicate_endpoints_checked_structurally_not_numerically: >-
+  INST-B-collision_duplicate_endpoints places a false pair (c0 in deck0,
+  c1 in deck1, c0+c1 = 2 mod M) whose ENDPOINT VALUE collides with the
+  true witnessing pair (1,1)'s endpoint value 2 -- but endpoint_value is
+  computed and stored purely as a diagnostic field
+  (generate_instances.py's endpoint_collisions block) and plays NO role in
+  label_tuples, extendible_map, or build_generators' witness rule (which
+  checks x.label==y.label only, never endpoint_value). Since G01_local
+  and G23_local are defined using label equality and marker admissibility
+  only, exactly mirroring build_generators' own witness test minus the
+  ext lookup, this stratum's endpoint collision cannot affect my
+  decomposition's correctness: c0 is a twin-target label placed only in
+  deck0 (never completing in any other deck), so it is never witnessed by
+  G01_local regardless of any endpoint arithmetic. This is a structural
+  argument from the code's own field usage, not a full digit-by-digit
+  numeric replay of this stratum; it is disclosed here as a lower-depth
+  check than parts 4a-4d, not equated with them.
+
+part_4f_multi_hit_checked_structurally_not_numerically: >-
+  INST-2-multi_hit (B=2): mandated_decks sets hits=T=[1,2] for B=2, so
+  every one of the five decks receives BOTH target labels with 'normal'
+  markers; there are no non-hit labels left to place for B=2 ('for t in T:
+  if t not in hits' is vacuous). This is a fully symmetric, fully
+  admissible case in which every AND-term in my combination rule is
+  trivially true for both target labels; it exercises no distinguishing
+  logic beyond confirming the trivial all-admissible branch, so it is
+  reported at the structural level rather than digit by digit.
+
+part_5_cost_classification: >-
+  PREPROCESSING (target-independent; caps at 9/4): building G01_local and
+  G23_local costs O(B^2) each (B^2 pairs, one O(1) check per pair);
+  building Adm4 costs O(B); extracting the witnessed-label SETS from
+  G01_local/G23_local (each of size at most B, since a label can only be
+  witnessed if present in both decks of a B-occurrence deck) costs a
+  further O(B^2) scan. Declared preprocessing time/state exponent: 2
+  (comfortably under the 9/4 cap; matches the existing frozen
+  load_pair_product_generators' own declared size exponent of 2).
+  ONLINE (target-dependent; caps at 5/4): given a fresh target label set
+  of size O(B), the EXISTENCE step is a three-way set intersection of
+  size-at-most-B sets, cost O(B), exponent 1. The REPLAY step, for each of
+  the at most B extendible target labels, builds a Cartesian product of
+  three local counts; across the frozen instance family (part_6) these
+  counts are O(1) per label, so total replay cost is O(B), exponent 1.
+  Both are strictly under the 5/4 online cap and under the 9/4
+  preprocessing cap -- classified ADDITIVE/TELESCOPING for the existence
+  sub-computation, and empirically-additive-in-effect (see part_6 for the
+  honest limit of this classification) for the replay sub-computation, on
+  the frozen instance family specifically.
+
+part_6_degenerate_boundary_case_check: >-
+  The task requires checking any claimed result against a degenerate or
+  boundary case before recording it as general. The replay sub-
+  computation's cost is a PRODUCT of three local multiplicities
+  (|Adm_0(l)|*|Adm_1(l)|, |Adm_2(l)|*|Adm_3(l)|, |Adm_4(l)|), not a sum;
+  it only STAYS additive-in-effect because, across all 12 recorded
+  instances, mandated_decks never places multiplicity greater than 1 in
+  more than one deck simultaneously for the same label (the only stratum
+  that manipulates multiplicity at all, repeated_source, does so in
+  exactly one deck, deck2, at multiplicity exactly 2 -- confirmed by
+  reading every branch of mandated_decks in generate_instances.py, not
+  merely the branches traced in part_4). A hand-constructed hypothetical
+  NOT among the 12 recorded instances illustrates the boundary: if (for
+  some B) decks 0 and 2 each carried B admissible occurrences of the same
+  label while decks 1, 3, 4 carried one each, TupleSet(l) for that label
+  would have size B (from G01_local) * B (from G23_local) * 1 = B^2
+  tuples for a SINGLE label, and if decks 0, 1, 2, and 3 all carried B
+  admissible occurrences simultaneously, a single label's replay could
+  reach B^4 tuples, and summing over B target labels could reach B^5 = N
+  total replay work -- a complete cost blowup, not exponent 1 or even
+  5/4. CONCLUSION: the additive/telescoping classification given in
+  part_5 for the replay sub-computation is an accurate description of
+  this construction ON THE FROZEN 12-INSTANCE FAMILY AS BUILT, not a
+  structural guarantee of the G01_local/G23_local/Adm4 combination rule
+  in general; the rule's actual shape is a bounded-degree multiplicative
+  (Cartesian-product) combination that happens to stay cheap only because
+  the frozen instances never stress multiplicity in more than one deck at
+  once. The existence sub-computation's additive classification (part_3,
+  part_5) has no such caveat: it is additive regardless of multiplicity,
+  since existence of an admissible occurrence does not depend on its
+  count.
+
+part_7_procedural_obstacle_to_gate_discharge: >-
+  Independent of any algebraic argument, this construction CANNOT
+  currently be submitted as a checkable EXP-CREP-001 route: check_
+  representation.py's frozen PREPROCESSING_KINDS dictionary contains
+  exactly four entries (load_pair_product_generators,
+  build_static_relation_table, build_dyadic_index, build_chart_index) and
+  ONLINE_KINDS contains a separate frozen list; neither vocabulary
+  contains an entry for a second compact pairwise generator object over a
+  named deck pair, or for intersecting three label sets and then
+  Cartesian-combining three local tuple lists. Submitting a package using
+  new node kinds (e.g. load_pair_product_generators_23, intersect_label_
+  sets) would fail check_V1 immediately (kind not in frozen preprocessing
+  vocabulary), and adding such kinds to the frozen dictionaries would be
+  a change to EXP-CREP-001's specification, which this task is explicitly
+  forbidden from making. This is a directly-checkable, code-level fact
+  (comparing the node kinds this construction needs against the two
+  frozen dictionaries verbatim), not an assumption, and by itself is
+  sufficient to prevent trigger_found regardless of the algebraic question
+  addressed in part_8: as things stand in the frozen record, this
+  candidate is not a verifier-checkable route at all.
+
+part_8_substantive_argument_against_real_transfer: >-
+  Independent of part_7's procedural point, this part asks whether the
+  MECHANISM that makes G01_local/G23_local/Adm4 work on the toy model
+  (extendibility decomposes into 5 independent per-deck admissibility
+  flags, part_2's key derived fact) is plausible as a description of the
+  REAL, non-toy complete-chart intersection resultant r_R H-CREP-001
+  names. Two directly-stated facts bound this: (i) label_tuples' actual
+  code implements admissibility as 5 INDEPENDENT per-occurrence checks
+  with no cross-deck relational test (part_2, directly read, not
+  disputed); (ii) build_packages.py's own docstring and every route
+  package's declared exponents state r_R has degree Theta(B^2), strictly
+  larger than g_I's degree Theta(B). A construction whose correctness
+  rests on a 5-way INDEPENDENT conjunction (deck k admissible, for each k
+  separately) is naturally represented, as an actual polynomial identity,
+  by a GCD of five degree-O(B) per-deck indicator polynomials -- a GCD of
+  degree-B objects has degree at most B, matching g_I's own scale, not
+  B^2 (this is the same reason CAL-PASS-CREP-001 achieves online exponent
+  1 on the toy model and is explicitly disclaimed as not curve evidence).
+  r_R's STATED degree of Theta(B^2), strictly larger than this natural
+  independent-conjunction scale, is the directly-checkable, quantitative
+  signal that r_R is NOT built this way -- it encodes something requiring
+  a genuinely joint, multi-way elimination (Bezout-type: eliminating
+  several independently-varying auxiliary choices generically multiplies
+  degrees rather than bounding them by the largest single degree), which
+  is generically NOT reducible to an AND of independent per-deck flags.
+  HONEST LIMIT OF THIS ARGUMENT, checked and disclosed rather than
+  smoothed over: the prior round's own source-novelty-audit.yaml already
+  flagged that r_R's Theta(B^2) figure has AT LEAST ONE alternative,
+  unconfirmed explanation -- non-deduplicated per-generator lookup
+  accounting (i.e. the B^2 could reflect a naive count over the B^2
+  pair-product generators rather than a genuine multi-way elimination
+  degree). H-CREP-001 does not state which explanation is correct, and
+  this session does not resolve that either; if the non-dedup-accounting
+  explanation is the true one, this part_8 argument would be weaker than
+  claimed. This uncertainty is carried forward explicitly in outcome-
+  card.yaml and proof-search-map.yaml's method_ceiling, not hidden.
+
+named_missing_specification: >-
+  H-CREP-001.yaml still does not specify (i) whether r_R's Theta(B^2)
+  degree arises from genuine multi-way elimination (Bezout-type,
+  part_8) or from non-deduplicated accounting over the B^2 pair-product
+  generators (the alternative explanation named in the prior round and
+  reused here); (ii) any formula connecting the toy model's per-
+  occurrence marker semantics to a real group-law degeneracy test; or
+  (iii) whether the real complete-chart elimination happens to factor
+  into independent per-deck conditions despite r_R's stated degree
+  (a possibility this session does not rule out, only argues is not the
+  default expectation). This is the exact, precise, named residual gap
+  this session leaves open.
+
+obstruction:
+  statement: >-
+    A decks-2/3 compact pairwise object (G23_local) and a three-way
+    combination rule (G01_local, G23_local, Adm4) CAN be constructed on
+    the frozen toy instance model, and is verified here to exactly
+    reproduce V4 (support) and V5 (replay) reference outputs on six of
+    six recorded strata (four by full numeric hand-trace, two by direct
+    structural argument), at additive existence cost and empirically-
+    additive replay cost. This construction cannot be discharged as a
+    gate-passing trigger for H-CREP-001 for two independent, named
+    reasons: (a) PROCEDURAL, fully certain: it requires node kinds absent
+    from check_representation.py's frozen PREPROCESSING_KINDS/ONLINE_KINDS
+    vocabulary, and adding them would be an EXP-CREP-001 specification
+    change outside this task's authority; (b) SUBSTANTIVE, honestly
+    caveated: its correctness mechanism (independent per-deck admissibility
+    conjunction) implies a natural construction degree of O(B), whereas
+    r_R is stated to have degree Theta(B^2), a directly-checkable
+    quantitative mismatch that is evidence, though not proof, against this
+    strategy transferring to the real system, subject to the disclosed
+    non-dedup-accounting alternative explanation in part_8.
+  quantity: >-
+    number of frozen PREPROCESSING_KINDS/ONLINE_KINDS vocabulary entries
+    matching the node kinds this construction requires beyond the four
+    already-frozen kinds; and the degree exponent gap between this
+    construction's natural (independent-conjunction) representation and
+    r_R's stated degree
+  value: >-
+    0 of 2 required new kinds present in the frozen vocabulary (a fully
+    certain, directly-checked count); degree gap is exponent 1 (O(B))
+    versus stated exponent 2 (Theta(B^2)) for r_R, a checkable but not
+    airtight signal per the named alternative explanation
+  measured_by:
+    - 'experiments/EXP-CREP-001/verifier/check_representation.py (PREPROCESSING_KINDS, ONLINE_KINDS dictionaries, read verbatim)'
+    - 'experiments/EXP-CREP-001/instances/generate_instances.py (label_tuples, build_generators, mandated_decks, read verbatim)'
+    - 'experiments/EXP-CREP-001/packages/build_packages.py (module docstring stating r_R degree Theta(B^2), read verbatim)'
+    - 'this derivation-report.yaml parts 2, 3, 4a-4d (full numeric hand-traces), part_7, part_8'
+  scope: >-
+    this specific constructed candidate (G01_local, G23_local, Adm4, and
+    the existence/replay combination rules defined in parts 2-3), exactly
+    as hand-derived and hand-verified in this session against the frozen
+    toy instance model; NOT a claim that no decomposition of any kind can
+    ever be constructed and gate-discharged for decks 2-4's fold-in (see
+    interpretation_limits)
+  resource_check:
+    examined: true
+    reading: >-
+      No theory under which the vocabulary gap (part_7) is a resource
+      rather than a block was identified: it is a fixed fact about the
+      frozen record, resolvable only by a specification change outside
+      this task's scope. The degree-mismatch argument (part_8) is framed
+      as forward guidance (named_missing_specification) rather than a
+      resource use, since it identifies exactly what H-CREP-001 would
+      need to specify (which explanation of r_R's degree is correct) to
+      settle the open question either way.
+    spawned_ids: []
+
+forward_guidance_open_directions: >-
+  Two disjoint next steps follow directly from this session, neither
+  foreclosed: (1) if a future round establishes (by reading H-CREP-001's
+  intended real construction more precisely, or by an external structural
+  result) that r_R's Theta(B^2) degree is non-deduplicated accounting
+  rather than genuine multi-way elimination, the degree-mismatch argument
+  in part_8 would no longer apply, and the toy-level construction here
+  would become a much stronger candidate worth re-examining for real
+  transfer; (2) independent of (1), a genuinely different decomposition
+  strategy -- one that does NOT rely on independent per-deck admissibility
+  flags, but instead models a joint, pairwise (Bezout-compatible)
+  elimination directly, interleaved with reduction modulo g_I at every
+  combination step -- has not been attempted by this session or by
+  TASK-20260830-e30c67, and remains the most promising unexplored
+  direction named across both rounds. This session's own successful toy-
+  level construction (unlike TASK-20260830-e30c67's finding of zero
+  attempted decompositions) demonstrates that DECKS-2/3-STYLE decomposition
+  is at least combinatorially constructible in this framework when the
+  underlying semantics permit independent per-item flags; the open
+  question is now sharpened specifically to whether the REAL system's
+  semantics permit this, or require the joint elimination direction (2)
+  instead.
+
+interpretation_limits: >-
+  This report does not claim that no decomposed, gate-passing constructor
+  can exist for decks 2-4's fold-in (that would be declaring a direction
+  impossible, prohibited to this role); it claims that ONE SPECIFIC,
+  EXPLICITLY CONSTRUCTED candidate (independent per-deck admissibility
+  decomposition) is verified correct on the toy model, cannot currently be
+  submitted as a checkable route under the frozen vocabulary, and is
+  argued, with an honestly disclosed uncertainty, to be structurally
+  mismatched with r_R's stated degree. It does not change H-CREP-001's
+  status or EXP-CREP-001's specification, is not an experiment, and
+  creates no B71/IDEA/EV/DEC/CORR record.
