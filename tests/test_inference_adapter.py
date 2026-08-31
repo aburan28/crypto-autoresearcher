@@ -645,6 +645,34 @@ def test_calibration_reaches_the_openai_wire(cfg):
     assert body["reasoning_effort"] == "low"
 
 
+def test_token_limit_param_renames_the_limit_on_the_openai_wire(cfg):
+    """gpt-5.6-* rejects `max_tokens`; the openai binding must send the limit
+    under its declared parameter name, and no other wire may change."""
+    resolution = adapter.resolve(cfg, "executor-implementation", backend="openai",
+                                 env={})
+    _, _, body = adapter.build_request(
+        cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
+        env={"OPENAI_API_KEY": "k"})
+    assert body["max_completion_tokens"] == 32000
+    assert "max_tokens" not in body
+
+    # a backend that declares nothing keeps the historical parameter name
+    zai = adapter.resolve(cfg, "executor-implementation", backend="zai", env={})
+    _, _, zai_body = adapter.build_request(
+        cfg, zai, system=None, messages=[adapter.Message("user", "x")],
+        env={"ZAI_API_KEY": "k"})
+    assert zai_body["max_tokens"] > 0
+    assert "max_completion_tokens" not in zai_body
+
+    # the anthropic wire is untouched: it has exactly one parameter name
+    anth = adapter.resolve(cfg, "executor-implementation", backend="anthropic",
+                           env={})
+    _, _, anth_body = adapter.build_request(
+        cfg, anth, system=None, messages=[adapter.Message("user", "x")],
+        env={"ANTHROPIC_API_KEY": "k"})
+    assert anth_body["max_tokens"] > 0
+
+
 def test_the_manifest_records_both_the_request_and_what_was_sent(cfg):
     resolution = adapter.resolve(cfg, "executor-implementation", backend="zai",
                                  reasoning_effort="xhigh", env={})

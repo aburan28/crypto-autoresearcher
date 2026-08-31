@@ -217,6 +217,13 @@ def build_request(config, resolution: Resolution, *, system: str | None,
     limit = max_tokens or request_cfg.pop("max_tokens", None) or 4096
     request_cfg.pop("max_tokens", None)
     temperature = request_cfg.pop("temperature", None)
+    # OpenAI's newer model families reject `max_tokens` and require the limit
+    # under `max_completion_tokens`. A backend declares its wire's parameter
+    # name with `token_limit_param`; the default keeps the historical name so
+    # every existing OpenAI-compatible backend behaves exactly as before.
+    token_param = request_cfg.pop("token_limit_param", None)
+    if not isinstance(token_param, str) or not token_param:
+        token_param = "max_tokens"
 
     if resolution.wire == "anthropic_messages":
         body: dict[str, Any] = {
@@ -236,7 +243,7 @@ def build_request(config, resolution: Resolution, *, system: str | None,
     elif resolution.wire == "openai_chat":
         body = {
             "model": resolution.resolved_model_id,
-            "max_tokens": limit,
+            token_param: limit,
             "messages": render_messages(messages, resolution.wire, system),
         }
         if temperature is not None:
