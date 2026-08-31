@@ -64,8 +64,11 @@ def coset_union_control(cs, domain, m, draw_index):
     if H4_coords is None:
         return None
     H4_set = set(H4_coords)
+    # g must have order 4 in G/H4 (equivalently 2g not in H4): a class of order 2
+    # would make H4 U gH4 the index-2 subgroup, collapsing C/F to 1 and silently
+    # duplicating positive control 1 instead of testing the C/F = 1/sqrt(2) case.
     outside_coords = [(a, b) for a in range(cs.n1) for b in range(cs.n2)
-                      if (a, b) not in H4_set]
+                      if (a, b) not in H4_set and (2 * b) % 4 != 0]
     if not outside_coords:
         return None
     drawer = Drawer(domain, "coset-pick", cs.p, m, draw_index)

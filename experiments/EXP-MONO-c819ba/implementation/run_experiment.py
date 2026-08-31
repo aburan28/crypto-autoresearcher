@@ -384,7 +384,7 @@ def main():
     subgroup_capable = [role for role, cs in curve_states.items() if cs.n2 % 4 == 0]
     result["subgroup_availability"] = {
         "capable_roles": subgroup_capable,
-        "precondition_met": len(subgroup_capable) >= 1,
+        "precondition_met": len(subgroup_capable) >= 2,
         "note": ("Subgroup control needs 4 | n2 (the larger invariant factor of "
                  "E(F_p) = Z/n1 x Z/n2). H_k = {(a,b): b == 0 mod k} in that "
                  "coordinate system has order n1*(n2/k) = N/k EXACTLY for any k | n2, "
@@ -396,8 +396,10 @@ def main():
                  "value returned for a requested h=N/2 subgroup on curves with even n1; "
                  "see implementation.md interpretation note 2."),
     }
-    if not subgroup_capable:
-        result["stage4_subgroup_and_coset_controls"] = "SKIPPED: no panel curve has 4 | N."
+    if len(subgroup_capable) < 2:
+        result["stage4_subgroup_and_coset_controls"] = (
+            "SKIPPED: fewer than two panel curves have 4 | n2 "
+            f"(capable: {subgroup_capable}).")
         result["interpretation_note"] = "No arm may be interpreted per stopping_rules."
         _finish(result, out_dir, t_start)
         return
@@ -541,22 +543,26 @@ def main():
             # ordering control: null-vs-null-population ratio first
             null1 = null_stats_list[0]
             rest = null_stats_list[1:]
-            def agg(field, m):
-                vals = [ns["per_m"][m]["var_ordered"] for ns in rest]
+            def agg(field, m, population):
+                vals = [ns["per_m"][m]["var_ordered"] for ns in population]
                 return sum(vals) / len(vals), (sum((v - sum(vals) / len(vals)) ** 2 for v in vals) / len(vals)) ** 0.5
 
             null_vs_null = {}
             real_vs_null = {}
             for m in (1, 2, 3, 4):
-                mean_var_null, sd_var_null = agg("var_ordered", m)
+                # ordering control compares the held-out null against the rest;
+                # the primary L2 baseline uses the full contracted null population,
+                # matching the L3 baseline below.
+                mean_var_rest, _ = agg("var_ordered", m, rest)
+                mean_var_null, sd_var_null = agg("var_ordered", m, null_stats_list)
                 mean_C_null = sum(ns["C_over_F"] for ns in null_stats_list) / len(null_stats_list)
                 sd_C_null = (sum((ns["C_over_F"] - mean_C_null) ** 2 for ns in null_stats_list) / len(null_stats_list)) ** 0.5
 
                 null_vs_null[m] = {
-                    "null1_var_over_meanrest": (null1["per_m"][m]["var_ordered"] / mean_var_null
-                                                 if mean_var_null else None),
-                    "label": band_label(null1["per_m"][m]["var_ordered"] / mean_var_null, 0.7, 1.4)
-                    if mean_var_null else None,
+                    "null1_var_over_meanrest": (null1["per_m"][m]["var_ordered"] / mean_var_rest
+                                                 if mean_var_rest else None),
+                    "label": band_label(null1["per_m"][m]["var_ordered"] / mean_var_rest, 0.7, 1.4)
+                    if mean_var_rest else None,
                 }
                 real_var = real_stats["per_m"][m]["var_ordered"]
                 l2 = real_var / mean_var_null if mean_var_null else None
