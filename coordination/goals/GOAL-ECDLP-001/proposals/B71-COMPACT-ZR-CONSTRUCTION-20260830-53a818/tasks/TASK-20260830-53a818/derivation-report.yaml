@@ -1,0 +1,289 @@
+schema: 'crypto.autoresearch.compact_zr_construction_derivation.v1'
+id: DERIV-20260830-53a818
+task_id: TASK-20260830-53a818
+goal_id: GOAL-ECDLP-001
+produced_by: idea-generator
+record_kind: bounded_zero_experiment_mathematical_derivation
+
+purpose: |-
+  Determine whether a compact or implicit representation of z_R =
+  gcd(g_I, r_R) exists, avoiding full materialization of r_R (degree
+  Theta(B^2) one-pair reading, Theta(B^4) two-pairs reading), that fits
+  within H-CREP-001's declared exponent caps
+  (fresh_target_online_exponent_cap_in_B: 1.25,
+  preprocessing_exponent_cap_in_B: 2.25), under either reading. This does
+  not adjudicate which reading is textually correct (per DEC-20260830-d7b846
+  and this task's own handoff, that question is explicitly out of scope).
+  Zero commands, programs, or CAS execution were run; all arithmetic below
+  is symbolic degree bookkeeping and small hand-worked checks.
+
+cost_accounting_convention_established_first: |-
+  Before attempting constructions, the exact meaning of "fresh_target_online
+  exponent" was pinned down against the FROZEN OPERATIONAL MODEL (not
+  assumed), because the mechanism sentence's singular phrasing
+  ("the labelled fifth occurrence a", "the fresh target R") could otherwise
+  be misread as a per-single-label cost. experiments/EXP-CREP-001/specification.yaml's
+  own calibration fixture description settles this: CAL-PASS-CREP-001 is
+  described as "online per target it reads B labels times O(log B) dyadic
+  probes (declared online exponent 1)" -- i.e. one declared online exponent
+  covers processing the WHOLE B-sized fresh-target label set in one online
+  phase (B labels, O(log B) work each, giving B*log(B), exponent 1 with the
+  log absorbed), not a per-single-label budget of B^1.25 each. This matches
+  execute_package's support_of_target() in check_representation.py, which
+  computes the FULL constructed support over inst["target"]["label_set"]
+  (size B) in one execution, and V6's certificate is a single number checked
+  once per package against all instances. CONSEQUENCE: every cost below is
+  reported for constructing z_R's FULL support over the whole B-sized target
+  label set in one online phase, which is the standard this task's caps are
+  actually measured against. A per-single-fresh-target-query framing was
+  also explored (see per_single_query_alternative_framing below) and is
+  reported as a discarded alternative, not smuggled in as the headline
+  result.
+
+setup_recap: |-
+  g_I(T) has degree exactly B, is squarefree, and its B roots {t_a} are
+  LITERALLY the deck-I occurrence x-coordinates -- explicit, already-known
+  field elements requiring no root-finding (rcrep-candidate-definition.yaml,
+  deck_defining_polynomials). Under the two-pairs reading, r_R(T) has degree
+  <= 8*B^4 built via g_12(x12):=Res_x2(g_2,Res_x1(g_1,S_3(x1,x2,x12))),
+  g_34 analogously, R_1(x12,T):=Res_x34(g_34,S_3(x12,x34,T)),
+  r_R(T):=Res_x12(g_12,R_1(x12,T)). Under the one-pair reading (object_3 of
+  proves-too-much-control-results.yaml), g_12_bare, g_34_bare are bare
+  primitive decks of degree B, and r_R'(T):=Res_x12(g_12_bare,
+  Res_x34(g_34_bare,S_3(x12,x34,T))), degree <= 2*B^2. In BOTH readings the
+  eliminated joint relation is always the SAME fixed polynomial S_3, which
+  by Semaev's theorem (KN-TECH-002, kb) has degree EXACTLY 2 in each of its
+  three variables, a constant independent of B. This fixed, B-independent
+  low degree is the single structural fact every strategy below either
+  exploits or is shown to depend on.
+
+strategy_1_point_evaluation_without_expansion:
+  genuinely_attempted: true
+  derivation: |-
+    By the standard resultant-vanishes-iff-common-root fact used
+    unconditionally in main_theorem Part 1 of rcrep-candidate-definition.yaml
+    (recalled, standard resultant theory; independently re-verified by two
+    reviewers in proves-too-much-control-results.yaml PRE-4 through PRE-7),
+    and by the classical root-product formula for a resultant
+    (Res_x(f,g) = lc(f)^deg(g) * prod_{f(a)=0} g(a), recalled, standard --
+    e.g. van der Waerden, Modern Algebra; Cox-Little-O'Shea sec 3.5, already
+    cited as load-bearing in the same chain by
+    rcrep-candidate-definition.yaml and independently re-derived by
+    proves-too-much-control-results.yaml PRE-5/PRE-6/PRE-7 via exactly this
+    identity for R_1(6,T) and R_1(10,T)):
+      r_R(t_a) = c * prod_{rho: g_12(rho)=0} prod_{sigma: g_34(sigma)=0}
+                     S_3(rho, sigma, t_a)
+    for a nonzero constant c (a power of leading coefficients, never zero
+    since g_12, g_34 are nonzero). This holds under the two-pairs reading
+    with rho ranging over g_12's <=2B^2 roots and sigma over g_34's <=2B^2
+    roots. The identical identity, with g_12_bare/g_34_bare (each B roots,
+    directly the raw deck-1..4 occurrence x-coordinates -- no root-finding
+    needed, matching deck_defining_polynomials), gives the one-pair analogue
+      r_R'(t_a) = c' * prod_{rho in D_12} prod_{sigma in D_34}
+                       S_3(rho, sigma, t_a).
+    CRITICALLY, this never requires writing down r_R's (or r_R''s)
+    coefficient vector: the double product is evaluated directly from the
+    already-known roots of g_12/g_34 (or the raw deck data), never from an
+    expanded polynomial in T.
+  naive_pointwise_cost: |-
+    Evaluating the double product literally, for ONE t_a, costs
+    O(deg(g_12)*deg(g_34)) field operations: O(B^4) two-pairs, O(B^2)
+    one-pair -- i.e. the SAME order as the object's own degree, as expected
+    (the double product literally enumerates the object's defining tuple
+    count). Covering the WHOLE B-sized target set this way costs B times
+    that: O(B^5) two-pairs, O(B^3) one-pair. This is WORSE than direct
+    materialization for two-pairs and no better for one-pair; naive
+    pointwise re-evaluation per target, repeated B times, is a genuine
+    strategy attempt that FAILS to improve on materialization and is
+    reported as such, not smoothed over.
+  meet_in_the_middle_improvement: |-
+    The double product's SIZE, not its existence, is the actual bottleneck,
+    and it can be shrunk by exploiting that S_3 has FIXED (not growing)
+    degree 2 in each variable. For FIXED rho and t_a, S_3(rho, x34, t_a) = 0
+    is an EXPLICIT quadratic in x34 (coefficients are closed-form
+    expressions in rho, t_a, and the curve constants a,b -- O(1) field
+    operations to write down). Its <=2 roots are found by the quadratic
+    formula: compute the discriminant D, then sqrt(D) via a fixed algorithm
+    (e.g. Tonelli-Shanks; O(polylog p) = O(polylog B) since N=B^5 and p ~
+    N^(1+o(1)), absorbed per H-CREP-001's own assumption "polylogarithmic
+    factors... do not change exponents"), landing in F_p or, if D is a
+    non-residue, in the constant-degree extension F_p^2 (also explicitly
+    exempted by the same assumption clause: "one constant-degree field
+    extension does not change exponents"). This gives, for each (rho, t_a)
+    pair, <=2 CANDIDATE sigma values in O(1)-absorbed time, without ever
+    looping over g_34's own root list to search for a match: instead, each
+    candidate sigma is checked for MEMBERSHIP in a preprocessed hash set (or
+    sorted array with binary search) of g_34's roots, in O(1) (or O(log B),
+    absorbed) time. This is the meet-in-the-middle decomposition named as a
+    priority in the search heuristics: one side (rho, t_a) is enumerated,
+    the low-degree relation is inverted analytically instead of searched,
+    and the result is tested against a hashed factor base -- the same shape
+    as the standard 2-term Semaev-decomposition test (KN-TECH-002/KN-TECH-003;
+    Semaev's m=2 case is exactly where S_3 is used and is solvable directly
+    because deg=2, unlike the m>=3 Groebner-basis case KN-TECH-003 names as
+    the general bottleneck).
+  resulting_cost_two_pairs: |-
+    Loop over rho in g_12's roots (<=2B^2, a preprocessed set) and t_a in
+    deck I's B labels: B^2 * B = B^3 combined iterations, O(1)-absorbed work
+    each (solve the quadratic for sigma, check membership in g_34's
+    preprocessed B^2-element hash set). TOTAL ONLINE COST: Theta(B^3).
+    Compared to direct materialization (Theta(B^4)): a genuine, derived
+    exponent improvement of one full power of B (4 -> 3). Compared to the
+    cap (1.25): still exceeds it by 1.75 in the exponent -- reported
+    honestly as still over cap, not as a partial success.
+  resulting_cost_one_pair: |-
+    Loop over rho in D_12 (B raw occurrences) and t_a in deck I (B labels):
+    B*B = B^2 combined iterations, O(1)-absorbed work each (solve the
+    quadratic for sigma, check membership in D_34's preprocessed B-element
+    hash set). TOTAL ONLINE COST: Theta(B^2). Compared to direct
+    materialization of r_R' (also Theta(B^2), since r_R' already has degree
+    exactly Theta(B^2)): NO asymptotic improvement -- the construction is
+    genuinely COMPACT in the required sense (it never writes down r_R''s
+    B^2-size coefficient vector; it produces the root set directly from
+    B^2 analytic pair-tests) but does not lower the EXPONENT below what
+    direct materialization already costs. Compared to the cap (1.25): still
+    exceeds it by 0.75 -- reported honestly as still over cap.
+  per_single_query_alternative_framing: |-
+    Discarded alternative, recorded for completeness and to preempt a
+    reviewer re-deriving it independently: IF "fresh-target online exponent"
+    were instead read as a per-single-queried-label budget (matching only
+    the mechanism sentence's singular "the labelled fifth occurrence a"
+    phrasing, in isolation from the calibration fixture's own declared
+    accounting), the SAME meet-in-the-middle idea, run for one fixed t_a
+    only, gives O(B^2) (two-pairs: loop over g_12's B^2 roots, O(1) solve +
+    hash-check against g_34's B^2 roots) or O(B) (one-pair: loop over D_12's
+    B raw occurrences, O(1) solve + hash-check against D_34's B raw
+    occurrences). The one-pair O(B) figure would sit within the 1.25 cap
+    under this alternative framing. This framing is NOT adopted as the
+    headline result because cost_accounting_convention_established_first
+    shows the frozen verifier's own operational model (CAL-PASS-CREP-001's
+    declared exponent, execute_package's whole-target-set execution) is the
+    whole-set framing, under which this same construction costs B^2 (one
+    pair, no improvement) not B (one pair, within cap). Presenting the
+    per-single-query number as the headline result while the operationally
+    enforced model contradicts it would be exactly the kind of framing this
+    task's honesty requirements forbid; it is named here as an open,
+    load-bearing ambiguity in H-CREP-001's own cap language (a fair
+    forward-guidance item), not as a found construction.
+
+strategy_2_structure_exploiting_gcd_via_gI_roots:
+  genuinely_attempted: true
+  finding: |-
+    On inspection this is NOT an independently different strategy from
+    strategy 1 in this specific construction: g_I's roots being explicit,
+    already-known field elements (deck I's own occurrence x-coordinates,
+    needing no root-finding) is EXACTLY the fact that makes the
+    point-evaluation approach of strategy 1 possible at all -- z_R's root
+    set is {t_a in roots(g_I) : r_R(t_a) = 0} precisely because g_I is
+    squarefree (so gcd(g_I, r_R) selects roots of g_I without introducing
+    or losing multiplicity, per z_R_definition in
+    rcrep-candidate-definition.yaml, independently re-verified as an
+    elementary fact). Once z_R's root set is known this way, forming z_R
+    itself (the squarefree polynomial with exactly that root set) is a
+    subproduct-tree construction costing O(|roots| * polylog) <= O(B
+    polylog B) -- negligible next to the B^2/B^3 cost of FINDING the root
+    set in the first place, hence never the bottleneck. This collapse
+    (strategy 2 = strategy 1's enabling precondition, not a separate
+    method) is itself the concrete finding for this strategy, not a
+    ruled-out-on-inspection dismissal: it was checked by attempting to name
+    an operation on g_I's roots/factors that does NOT reduce to evaluating
+    r_R pointwise, and none was found. No cost figure beyond strategy 1's is
+    claimed for this strategy because none was found to differ from it.
+
+strategy_3_deferred_materialization_of_larger_operand:
+  genuinely_attempted: true
+  derivation: |-
+    Since g_I is squarefree of degree B, by the Chinese Remainder Theorem
+    F_p[T]/(g_I(T)) is isomorphic (as an F_p-vector space and, on each
+    factor, as a ring) to a size-B product of residue fields, one per root
+    t_a of g_I (recalled, standard commutative algebra -- CRT for
+    squarefree polynomials over a field). Consequently "r_R(T) mod g_I(T)",
+    the natural target of "work modulo g_I throughout the elimination
+    instead of expanding r_R fully", carries EXACTLY the same information
+    as the tuple of B values {r_R(t_a)}_a -- i.e. it is the SAME data as
+    strategy 1's point-evaluation target, not a genuinely different
+    representation. This is a derived collapse (via CRT), not an assumed
+    one: computing r_R mod g_I and computing all B point-evaluations
+    r_R(t_a) are the same problem up to an O(B log^2 B) CRT
+    reconstruction/evaluation pass in either direction (standard fast CRT /
+    multipoint-evaluation duality, Borodin-Moenck lineage, already a named
+    structural ingredient of H-CREP-001 for ROUTE-04).
+  frozen_route_set_connection: |-
+    This is exactly the direction ROUTE-02-quotient-ring-resultants gestures
+    at (build_packages.py's build_route_02, package.json note: "quotient-ring
+    resultant route; assumes r_R mod g_I supplied") -- but the frozen
+    package IMPLEMENTS it via an oracle node (supplied_input, forbidden
+    payload type supplied_resultant, dedup rule D1, owner EV-CRYPTO-002),
+    i.e. it assumes the reduced object rather than constructing it. This
+    session attempted the genuine construction (deferring materialization by
+    working mod g_I at every elimination stage, not just importing the
+    answer) and found: reducing R_1(x12,T) mod g_I(T) as a polynomial in
+    x12 with coefficients in the residue ring F_p[T]/(g_I) (dimension B)
+    gives an object of total size (deg_x12(R_1)) * B -- 4B^2 * B = Theta(B^3)
+    two-pairs, or 2B * B = Theta(B^2) one-pair. Actually COMPUTING each such
+    reduced coefficient (rather than merely bounding the object's size)
+    requires, at minimum, the same per-(rho,t_a) analytic work as strategy
+    1's meet-in-the-middle pass; no cheaper way to populate this object was
+    found. RESULT: this variant costs AT LEAST as much as strategy 1's
+    bound (Theta(B^3) two-pairs, Theta(B^2) one-pair) and no construction
+    beating strategy 1's bound was found via this route. It does not, by
+    itself, close the gap ROUTE-02's own docstring names as assumed-away.
+  conclusion: |-
+    Strategy 3 collapses into strategy 1 (via CRT) for the "avoid the
+    coefficient vector" framing, and the genuinely different "reduce modulo
+    g_I inside each elimination stage" variant was checked explicitly and
+    found to cost no less than strategy 1's meet-in-the-middle bound. No
+    separate, better cost figure was found for this strategy.
+
+cost_summary_table:
+  online_whole_target_set_theta_B4_two_pairs_naive: 4
+  online_whole_target_set_two_pairs_best_found: 3
+  online_whole_target_set_theta_B2_one_pair_naive: 2
+  online_whole_target_set_one_pair_best_found: 2
+  online_cap_fresh_target_online_exponent_cap_in_B: 1.25
+  preprocessing_g_12_g_34_pair_deck_size_two_pairs: 2
+  preprocessing_g1_g4_deck_size_one_pair: 1
+  preprocessing_cap_preprocessing_exponent_cap_in_B: 2.25
+  interpretation: |-
+    Every preprocessing object used by the best-found constructions (raw
+    decks, pair-decks g_12/g_34, and the hash sets over their roots) sits
+    comfortably within the 2.25 preprocessing cap under both readings (the
+    largest is exponent 2, two-pairs' pair-decks). The ENTIRE gap is in the
+    online phase: a genuine, derived exponent improvement was found for the
+    two-pairs reading (4 -> 3), and a genuinely different but same-exponent
+    implicit construction was found for the one-pair reading (2 -> 2,
+    coefficient-vector-free but not smaller). Neither reaches the 1.25
+    online cap under the operationally-correct whole-target-set accounting
+    established at the top of this report.
+
+honest_limitations: |-
+  (1) This is zero-compute symbolic derivation; no construction here was
+  executed against the frozen verifier or the recorded instances, so none
+  of these bounds are machine-checked in the EXP-CREP-001 sense -- they are
+  exponent-in-B claims about a hand-derived algorithm, not verified typed
+  representation packages. (2) The one-pair/two-pairs reading ambiguity is
+  not resolved here, per this task's explicit instruction; both readings'
+  costs are reported side by side. (3) The "fresh-target online exponent"
+  accounting-model ambiguity (per-single-query vs whole-target-set) is a
+  genuine open question this session surfaced and partially resolved
+  (favoring whole-target-set on the strength of the calibration fixture's
+  own declared-exponent description), but this session did not have
+  authority to definitively settle it, and flags it as forward guidance.
+  (4) The meet-in-the-middle bound for two-pairs (B^3) and the
+  implicit-but-same-exponent bound for one-pair (B^2) are NEW BEST-KNOWN
+  UPPER BOUNDS for this specific construction question as far as this
+  session's novelty search found (source-novelty-audit.yaml); they are not
+  claimed to be optimal, and no lower bound is derived or claimed anywhere
+  in this report.
+
+citations:
+  - {ref: 'Semaev summation polynomial S_3 degree exactly 2 in each variable', source: 'knowledge/techniques/KN-TECH-002.md', provenance: kb}
+  - {ref: 'Point-decomposition index calculus, m=2 case uses S_3 directly, m>=3 needs Groebner methods (the low-degree-solvability boundary this construction sits exactly at)', source: 'knowledge/techniques/KN-TECH-003.md', provenance: kb}
+  - {ref: 'Resultant root-product formula Res_x(f,g)=lc(f)^deg(g)*prod_{f(a)=0}g(a) and the resultant-vanishes-iff-common-root fact, both directions', source: 'standard commutative algebra (van der Waerden, Modern Algebra; Cox-Little-OShea, Using Algebraic Geometry, sec 3.5)', provenance: recalled}
+  - {ref: 'Chinese Remainder Theorem for a squarefree polynomial over a field (F_p[T]/(g_I) as a product of residue fields, one per root)', source: 'standard commutative algebra', provenance: recalled}
+  - {ref: 'Quadratic formula and Tonelli-Shanks square roots mod p, cost O(polylog p)', source: 'standard computational number theory', provenance: recalled}
+  - {ref: 'Semaev decomposition test for m=2 solved directly because S_3 has constant degree 2, versus the general m>=3 Groebner-basis bottleneck', source: 'web search corroboration (Semaev 2004 lineage; Gaudry, Diem-style expository treatments of point decomposition)', provenance: retrieved}
+  - {ref: 'Fast multipoint evaluation / CRT duality (Borodin-Moenck lineage), already a named H-CREP-001 structural ingredient for ROUTE-04', source: 'ledger/hypotheses/H-CREP-001.yaml structural_ingredients', provenance: retrieved}
+  - {ref: 'ROUTE-02 quotient-ring-resultants implements r_R mod g_I via a forbidden supplied-input oracle node, not a genuine construction', source: 'experiments/EXP-CREP-001/packages/build_packages.py build_route_02', provenance: retrieved}
+  - {ref: 'CAL-PASS-CREP-001 declared online exponent 1 covers B labels times O(log B) probes in one online phase (whole-target-set accounting)', source: 'experiments/EXP-CREP-001/specification.yaml calibration_fixtures', provenance: retrieved}
+  - {ref: 'g_I roots are literal deck-I occurrence x-coordinates, no root-finding required', source: 'coordination/goals/GOAL-ECDLP-001/proposals/B71-RCREP-DEFINITION-DRAFT-20260830-351be7/tasks/TASK-20260830-351be7/rcrep-candidate-definition.yaml deck_defining_polynomials', provenance: retrieved}
