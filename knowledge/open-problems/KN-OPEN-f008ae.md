@@ -7,7 +7,7 @@ confidence: unverified
 status: open
 source_refs: [KN-OPEN-701adf, DEC-20260830-69fb4d]
 added: 2026-08-30
-superseded_by: null
+superseded_by: KN-OPEN-2f5e66
 ---
 
 ## Statement
