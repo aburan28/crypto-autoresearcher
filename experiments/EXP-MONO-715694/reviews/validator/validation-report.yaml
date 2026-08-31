@@ -1,0 +1,491 @@
+validation_report:
+  id: VAL-20260830-mono715694
+  task_id: TASK-20260830-75c1c0
+  hypothesis_id: H-MONO-819f2b
+  experiment_id: EXP-MONO-715694
+  run_ids: [RUN-MONO-715694-1, RUN-MONO-715694-2]
+  review_role: validator
+  review_joint: J1-correctness
+  blindness:
+    read_sibling_reports: false
+    note: >-
+      No other reviewer report for this task was read. This is a fresh,
+      blind J1 (correctness) pass.
+
+  admissibility_finding: >-
+    NOT ADMISSIBLE AS A DURABLE RECEIPT YET, for two independent reasons,
+    neither of which is the Executor's fault:
+    (1) MISSING SNAPSHOT COMMIT. Per operating rules and agents/validator.md
+    Prohibitions ("accept a working-tree-only artifact as a durable
+    receipt"), a Validator must refuse to certify a working-tree-only
+    producer receipt as admissible. `git status --porcelain` at review time
+    shows execution_report.yaml, implementation.md, implementation/, and
+    runs/ all as untracked ("??"); only the frozen specification.yaml and
+    hypothesis were committed (at commit 88f0a034e). No Coordinator
+    snapshot commit exists for the execution artifacts.
+    (2) THE FROZEN CONTRACT WAS MUTATED IN PLACE, POST-EXECUTION, DURING
+    THIS VERY REVIEW. While this review was in progress, commit
+    7c81c68e138f0883d99a8688d4c05a092dc2063a ("fix(EXP-MONO-715694): repair
+    degenerate null control, pairwise decision set, census row count,
+    N3/N5 sample size, and D_4 support claim", author "Cursor Agent
+    <cursoragent@cursor.com>" -- a different runtime/tool than this
+    session) landed on this same branch, editing both
+    experiments/EXP-MONO-715694/specification.yaml and
+    ledger/hypotheses/H-MONO-819f2b.yaml IN PLACE, with `version:` left at
+    `1` and `frozen:` left at `true`. No new run directory was created
+    (runs/ still contains only RUN-MONO-715694-1 and -2, both executed
+    against the ORIGINAL text at commit 88f0a034e), no protocol_amendment
+    record exists, no ledger/decisions/*.yaml or ledger/handoffs/*.yaml
+    references this fix, and no Coordinator decision record accompanies
+    it (checked via grep across ledger/decisions, ledger/handoffs,
+    coordination/bus/receipts -- no hits). Substantively, the edit:
+      - lowers the search floor from N=10 to N=1 (exactly the range this
+        review's own supplementary analysis, item 3 below, shows the
+        predicted ordering actually lives in);
+      - redefines NULL-1/NULL-2 to forbid the literal `sub_law == full_law`
+        construction the Executor actually used (correctly, per the
+        ORIGINAL text) and requires a genuine independent-second-S4-stream
+        construction instead;
+      - redefines the record's own falsification_criterion for the central
+        ordering claim from "N_required(D4) not exceeding N_required(A4)"
+        (a tie counts as falsified -- the ORIGINAL wording, which the
+        Executor correctly applied to its own tied N_required=10 result and
+        reported as a triggered falsification) to "N_required(D4) coming
+        out STRICTLY BELOW N_required(A4)" (a tie is explicitly declared
+        NOT a falsification under the new wording).
+    Whatever the mathematical merit of these fixes (see per-item findings
+    below -- two of the three are independently judged correct on the
+    merits), editing a `frozen: true` experiment specification in place,
+    after execution artifacts already exist against the original text, by
+    a different tool/session, with no version bump, no
+    protocol_amendment record, and no Coordinator decision, is a direct
+    instance of the failure mode AGENTS.md core rule 2 and the "Durable
+    research commits" section exist to prevent ("Results are immutable
+    records... corrections create new records", never overwrite a frozen
+    artifact). It also happens to soften the falsification bar for the
+    exact metric whose original-wording verdict ("falsified: tie observed")
+    was already known at edit time -- which is the shape of a finding this
+    program's evidence-integrity rules treat as reportable regardless of
+    intent. This review evaluates the EXECUTED run against the contract
+    AS IT EXISTED AT EXECUTION TIME (commit 88f0a034e, cited correctly by
+    execution_report.yaml's own `implementation_commit` field), which is
+    the only contract text the artifacts under review can be judged
+    against; it does not extend any verdict to the current, silently-
+    amended specification.yaml/hypothesis text at HEAD.
+  recommended_remedy: >-
+    Coordinator should (a) make the snapshot commit for the actual executed
+    artifacts (implementation.md, implementation/, runs/, execution_report.yaml)
+    as they stood at commit 88f0a034e, so the executed receipt is
+    addressable and immutable; and (b) treat commit 7c81c68e1's changes as
+    a proposed protocol_amendment requiring an explicit versioned
+    EXP-MONO-715694 v2 (or a superseding hypothesis correction record) and
+    a fresh Coordinator approval, rather than a silent in-place edit to a
+    v1 record that already has execution artifacts against it. Any future
+    re-run against the amended text should be a NEW run under the new
+    version, not retroactively read onto RUN-MONO-715694-1/2.
+
+  artifact_checks:
+    - path: experiments/EXP-MONO-715694/specification.yaml
+      status: present_but_now_stale
+      note: >-
+        Present and was frozen (version 1) at commit 88f0a034e when
+        execution occurred; has since been edited in place post-execution
+        (see admissibility_finding). Evaluated as of commit 88f0a034e.
+    - path: ledger/hypotheses/H-MONO-819f2b.yaml
+      status: present_but_now_stale
+      note: Same finding as above.
+    - path: ledger/handoffs/TASK-20260830-75c1c0.yaml
+      status: present
+      commit: committed (tracked, part of repo history)
+    - path: experiments/EXP-MONO-715694/execution_report.yaml
+      status: present_working_tree_only
+      hash_check: not_applicable_uncommitted
+    - path: experiments/EXP-MONO-715694/implementation.md
+      status: present_working_tree_only
+    - path: experiments/EXP-MONO-715694/implementation/run_experiment.py
+      status: present_working_tree_only
+      lines: 811
+      stdlib_only_confirmed_independently: true
+      note: >-
+        Read in full. Confirmed imports are exactly sys, os, json, math,
+        time, random, itertools, collections.Counter -- no numpy/scipy/
+        sympy/sage, matching environment.json's own grep-based claim.
+    - path: experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/{manifest.yaml,command.txt,environment.json,raw-result.json,stdout.log,stderr.log,per_n_log/*.json}
+      status: present_working_tree_only
+      manifest_schema: >-
+        Matches the nested run.status/code/inference/environment/inputs/
+        timing/resources/result/artifacts/budget/determinism schema used
+        by the sibling experiment's manifest
+        (experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/manifest.yaml),
+        confirmed by direct side-by-side field comparison. Not a flat
+        manifest.
+      commit_field: >-
+        code.commit=88f0a034ed4d2438dc77d8c4427124dc6c245e78, confirmed
+        reachable and equal to HEAD's parent-of-fix-commit via
+        `git cat-file -t` and `git log`.
+      dirty_flag: "true, with dirty_note disclosing unrelated concurrent-session files outside this run's write_scope -- consistent with `git status --porcelain` at review time."
+    - path: experiments/EXP-MONO-715694/runs/RUN-MONO-715694-2/{...}
+      status: present_working_tree_only
+      cross_run_diff: >-
+        Diffed raw-result.json run1 vs run2 directly (byte-level `diff`):
+        differs ONLY in seed (20260830 vs 20260831), the two N=10/N=100000
+        false_positive_rate floating values (0.0007/0.01675 vs
+        0.00085/0.01635 -- consistent Monte Carlo noise at fixed trial
+        count, same order of magnitude, both far under alpha), and
+        wall_seconds. All N_required, power, SE, Stage 0/0b, NULL,
+        Step 4a/4b figures are bit-identical across runs.
+
+  metric_recomputations:
+    - id: STAGE0-EXACT-TABLES
+      method: >-
+        Fresh, independent script (v_stage0.py; does not import
+        run_experiment.py), different code style (set-based orbit trace vs
+        the Executor's boolean-array trace), enumerating all 24
+        permutations of {0,1,2,3} and their 12 even sub-permutations.
+      result: "S4 vec=[1,6,3,8,6]/24, A4 vec=[1,0,3,8,0]/12"
+      matches_reported: true
+    - id: STAGE0B-D4-FROM-REAL-DATA
+      method: >-
+        Same fresh script, independently reading and cycle-decomposing
+        every row of BOTH RUN-MONO-a20e48-1 and -2's
+        N1_k1_exhaustive.jsonl, excluding class==null rows.
+      result: >-
+        Both runs: total_rows=44521, excluded=211, non_ramified=44310,
+        counts=[6105,11100,16050,0,11055], three_cycles_found=0.
+      matches_reported: true
+      note: Exact match to the Executor's reported figures, both runs.
+    - id: LR-STATISTIC-AND-REJECTION-DIRECTION
+      method: >-
+        Blind analytic re-derivation (not reading run_experiment.py's
+        comments beforehand for this step; done from the LR formula and
+        KL-divergence identities alone): E[LR|data~S4] =
+        -D_KL(P_S4||P_sub) = -infinity (P_sub assigns 0 to a category
+        P_S4 has positive mass on, for both A4 and D4); E[LR|data~sub] =
+        +D_KL(P_sub||P_S4) >= 0 (Gibbs' inequality, always non-negative).
+      result: >-
+        Confirms the Executor's chosen convention (LR > threshold =>
+        classify "it's the subgroup", threshold = empirical 95th
+        percentile of the S4-generated LR distribution) is the internally
+        consistent, Neyman-Pearson-correct choice given the stated LR
+        formula -- re-derived independently, not merely checked for
+        plausibility.
+      matches_reported: true
+    - id: LR-MONTE-CARLO-AT-N10
+      method: >-
+        Independent re-implementation (v_lr.py), fresh RNG seed (99),
+        LITERAL per-draw categorical sampling (deliberately NOT the
+        Executor's O(1)-per-draw multinomial-shortcut, as an independent
+        check on the claimed equivalence), 20,000 trials per side per
+        pair, at N=10.
+      result: >-
+        S4-vs-A4: threshold=-1e18, power=1.00000, se=0.000000,
+        fp_rate=0.00130. S4-vs-D4: threshold=-1e18, power=1.00000,
+        se=0.000000, fp_rate=0.01825.
+      matches_reported: >-
+        Qualitatively exact (power=1.0, se=0.0, both), fp rates same order
+        of magnitude and same ordering as reported (A4 0.0007/0.00130,
+        D4 0.01675/0.01825) -- expected variation from independent RNG
+        streams, not a discrepancy.
+    - id: CHERNOFF-STEIN-CROSS-REFERENCE
+      method: >-
+        Independent recomputation of D_KL(A4||S4), D_KL(D4||S4) (using the
+        independently-tabulated D4 law from Stage 0b) and
+        ln(1/(alpha*beta))/D_KL with alpha=0.05, beta=0.01.
+      result: >-
+        D_KL(A4||S4)=0.6931471805599453 (=ln 2, exact), D_KL(D4||S4)=
+        0.5501594905668814. Chernoff-Stein estimate: A4=10.965784284662085,
+        D4=13.81581630394152.
+      matches_reported: >-
+        BIT-FOR-BIT IDENTICAL to the Executor's reported
+        10.965784284662085 and 13.81581630394152. D_KL(D4||S4) < D_KL(A4||S4)
+        genuinely holds, and since Chernoff-Stein N ~ 1/D_KL, this
+        correctly produces D4's estimate > A4's estimate, confirming the
+        predicted ordering direction at this (asymptotic, not literal-N)
+        cross-reference metric.
+    - id: STEP4B-REAL-DATA-CLASSIFICATION
+      method: >-
+        Independent script (v_step4b.py), independently tabulating N3
+        histograms from raw jsonl (both runs) and N1's full 44,310-vector,
+        independently recalibrating thresholds at N=2000 and N=44310
+        (20,000 trials, literal per-draw sampling, fresh seed), then
+        classifying.
+      result: >-
+        N3 run1: counts=[78,513,250,669,490] (used=2000, discarded=10).
+        N3 run2: counts=[88,527,243,661,481] (used=2000, discarded=4).
+        Both classify as NOT-A4 and NOT-D4 (i.e. S4) under both pairwise
+        tests, both runs. N1 (both runs, identical vector
+        [6105,11100,16050,0,11055]): NOT-A4, IS-D4.
+      matches_reported: true
+      note: >-
+        All four forced-output classifications match the Executor's
+        report exactly, via independently tabulated data and
+        independently recalibrated thresholds (not reusing the
+        Executor's threshold values).
+
+  control_checks:
+    - id: NULL-1-IDENTICAL-GROUP
+      as_implemented_result: "false_positive_rate = 0.0 at every tested N, both runs"
+      as_implemented_verdict: correct_arithmetic_but_degenerate_control
+      finding: >-
+        VALIDATOR FINDING (not a fabrication -- fully disclosed by the
+        Executor in implementation.md -- but a genuine control-design gap
+        that this review independently re-derives and confirms rather than
+        just accepting the disclosure). As specified in the ORIGINAL
+        frozen contract ("sub law set equal to the full law") and as
+        implemented (`null1_check` calls `calibrate_and_measure_power(s4_law,
+        s4_law, ...)`), the LR log-ratio table `log(P_sub(c)/P_full(c))` is
+        IDENTICALLY ZERO for every category whenever P_sub and P_full are
+        the same probability VECTOR -- this holds regardless of which RNG
+        stream generates the sampled counts, so NULL-1/NULL-2 as
+        implemented cannot depend on sample realization at all and are
+        guaranteed to report false_positive_rate=0.0 by construction, never
+        measuring the genuine question (does the empirical (1-alpha)-
+        quantile threshold, estimated from one finite 20,000-trial S4
+        batch, generalize to control the false-positive rate near
+        alpha=0.05 when applied to a FRESH, independent, out-of-sample S4
+        batch under the REAL S4-vs-A4 / S4-vs-D4 log-ratio tables). This is
+        exactly the null-object-control gap this program's rules flag
+        ("a quantity that does not decay/vary when it should is the
+        canonical artifact tell" -- here the quantity cannot even IN
+        PRINCIPLE vary, which is a stronger version of the same defect).
+      independent_genuine_control_run: >-
+        Supplementary check (v_null1_genuine.py): calibrated the REAL
+        S4-vs-A4 and S4-vs-D4 log-ratio tables and thresholds from one
+        20,000-trial S4 batch at N=10, then measured the classification
+        rate of a SECOND, INDEPENDENT, out-of-sample 20,000-trial S4 batch
+        (the genuine null-object construction the contract intended).
+        Result: S4-vs-A4 out-of-sample FP=0.00105 (in-sample was 0.00075);
+        S4-vs-D4 out-of-sample FP=0.01940 (in-sample was 0.01760). Both
+        remain comfortably under alpha=0.05.
+      conclusion: >-
+        The SUBSTANTIVE conclusion NULL-1/NULL-2 were meant to support (no
+        false-positive problem in the calibrated test construction) is
+        independently CONFIRMED even under a properly-constructed
+        null-object control -- but the as-implemented NULL-1/NULL-2 in the
+        run under review did not actually test this and would have
+        reported 0.0 regardless of whether a real problem existed. Note
+        (see admissibility_finding) that the post-review fix commit
+        7c81c68e1 independently identifies and proposes to correct exactly
+        this defect in the specification text, which corroborates this
+        finding but does not retroactively fix the run under review.
+    - id: NULL-2-VARIANCE-BOUND
+      finding: Same degeneracy and same independent-control resolution as NULL-1 above.
+    - id: BOOTSTRAP-VS-SIMULATION-CROSSCHECK (Step 4a)
+      as_implemented_result: "gap=0.0 at the only grid point tested, N=10 (both saturate at power=1.0)"
+      finding: >-
+        Correctly computed (bootstrap resampling literally from the real
+        44,310-point pool, matching contract's requirement), but honestly
+        disclosed by the Executor itself as a "degenerate agreement" since
+        the contract's own N=10 floor never lands on a point where the
+        power curve is still rising -- this review's item-3 finding below
+        shows a genuinely informative Step 4a comparison would require
+        floor-below-10 grid points, which the frozen v1 contract's own
+        search_floor_N=10 precludes.
+    - id: CROSS-RUN-CONSISTENCY
+      result: >-
+        Independently confirmed via byte-level diff of raw-result.json
+        run1 vs run2 (see artifact_checks above): all reported
+        figures agree exactly except seed-dependent Monte Carlo noise in
+        two FP-rate fields (same order of magnitude, same conclusion).
+
+  heuristic_validation_checks:
+    pre_registered_prediction: >-
+      Recorded in H-MONO-819f2b.predictions and specification.yaml's
+      preregistered_prediction BEFORE this task's handoff was issued
+      (both are part of the same commit, 88f0a034e, that also froze the
+      contract, i.e. before the Executor's Monte Carlo code ran). No
+      evidence of post-hoc fitting to the observed N_required=10 tie in
+      the ORIGINAL text.
+    sample_integrity: >-
+      Seeds (20260830, 20260831), trial counts (20,000/candidate N, 1,000
+      bootstrap replicates/N), and the sampling procedure are recorded in
+      both run manifests' inputs.parameters block and independently
+      reproduced by this review with fresh RNG streams (different seeds,
+      different code) at the primary grid point (N=10) and at a
+      supplementary finer grid (N=1..9, see item 3 below).
+    correspondence_validity:
+      status: not_applicable
+      note: >-
+        No Deuring-style correspondence substitution is used in this
+        record; D_4's law is read directly from already-archived
+        exhaustive real data, not derived via a distributional
+        correspondence theorem.
+    scale_binding: >-
+      Explicitly tier: toy in specification.yaml.scale_relevance; degree-4
+      permutation groups only, N up to a 100,000-draw ceiling; no transfer
+      claimed to any other degree/group/census design. This review adds no
+      transfer claim either.
+    cost_unit_honesty:
+      status: not_applicable
+      note: This is a pure statistical power analysis, not a concrete-cost/asymptotic-complexity table.
+    cost_bookkeeping: not_applicable
+
+  central_question_item3_finding: >-
+    ITEM 3 -- THE CENTRAL QUESTION. Ran a SUPPLEMENTARY, clearly independent
+    (not a modification of the frozen contract's own official N_required=10
+    result, which correctly stands as reported under the ORIGINAL v1
+    search_floor_N=10) exploratory Monte Carlo search over N in {1..9} for
+    both pairs, using the identical LR-test procedure/calibration
+    convention, fresh code (v_fine_grid.py, does not import
+    run_experiment.py), the independently-derived A4/D4 laws, 20,000
+    trials per candidate N, and TWO independent seeds (777 and 424242) for
+    robustness.
+    RESULT (both seeds agree exactly): N_required(S4_vs_A4)=5,
+    N_required(S4_vs_D4)=8. The predicted ordering
+    N_required(D4) > N_required(A4) DOES emerge, robustly, well below the
+    frozen contract's own N=10 floor. Full power curve (seed 777): N=1..4
+    A4 power=0.0 exactly (A4's own draws never contain an excluded
+    category, so the calibration-derived threshold under-N=5 samples never
+    admits a positive classification -- see mechanism below), D4 power
+    rises smoothly 0.1365 -> 0.6914 over the same range; at N=5 A4 jumps
+    to power=1.0 (se=0.0) while D4 is still at 0.812; D4 crosses 0.99
+    between N=7 (power=0.978, se=0.001, seed1; 0.986, se=0.0008, seed2 --
+    consistently just under 0.99 in BOTH seeds, not borderline noise) and
+    N=8 (power=1.0, se=0.0).
+    INDEPENDENT ANALYTIC CROSS-CHECK (a third, non-Monte-Carlo method):
+    because the LR statistic here is driven almost entirely by whether an
+    S4-generated sample of size N ever contains a cycle type the subgroup
+    categorically excludes (which forces NEG_INF_CAP and hence a decisive
+    classification), the crossover point is closed-form:
+    N* = ceil( ln(alpha) / ln(1 - excluded_mass) ). A4's excluded mass
+    (transposition+4-cycle) = 12/24 = 0.5 => N*=ceil(4.322)=5, EXACTLY
+    matching the Monte Carlo crossover. D4's excluded mass (3-cycle only)
+    = 8/24 = 0.3333 => N*=ceil(7.388)=8, EXACTLY matching the Monte Carlo
+    crossover. This closed-form derivation independently explains BOTH the
+    ordering (D4's smaller excluded mass needs proportionally more draws
+    to be near-certain of observing it) and the specific integer values (5
+    and 8), triangulating the Monte Carlo result via a completely
+    different (combinatorial, not simulation-based) route.
+    CONCLUSION ON THE CENTRAL PREDICTION: the frozen contract's own
+    reported N_required=10-for-both-pairs tie is genuinely a
+    resolution-ceiling artifact of the specific N=10 floor choice, exactly
+    as the Executor's own interpretation_scope_note argued -- this review
+    independently confirms that argument rather than merely accepting it.
+    Once resolution is fine enough (below the floor the ORIGINAL v1
+    contract happened to fix), the central prediction
+    (imprimitive D_4 needs strictly more independent census draws than
+    primitive A_4 to be statistically distinguishable from S_4) is
+    GENUINELY SUPPORTED, confirmed by three independent methods (two
+    Monte Carlo seeds plus one closed-form derivation), not merely
+    asserted by secondary metrics. This finding is reported here as a
+    VALIDATOR OBSERVATION about the underlying mathematical claim; it is
+    explicitly NOT a modification of the frozen contract's own primary
+    N_required metric (still correctly N_required=10 for both pairs,
+    which is what was actually pre-registered and executed), and it
+    renders no verdict on H-MONO-819f2b's status (Coordinator authority
+    only, AGENTS.md rule 1).
+
+  cost_model_checks: []
+  proof_architecture_checks: []
+
+  limitations:
+    - >-
+      This review evaluates the run against the contract text as it stood
+      at execution time (commit 88f0a034e). It does not evaluate compliance
+      against the amended text now at HEAD (commit 7c81c68e1), which was
+      never executed against.
+    - >-
+      The genuine null-object control for NULL-1/NULL-2 (v_null1_genuine.py)
+      was run only at N=10, matching this review's item-2 scope; it was
+      not extended across the full null1_n_values grid
+      ({10,100,1000,10000,44310,100000}) for budget reasons. The N=10 check
+      is sufficient to demonstrate the degeneracy and confirm the
+      substantive no-false-positive-problem conclusion holds under a real
+      control at the one point checked; it does not certify every N in
+      that grid individually.
+    - >-
+      Item 3's finer-grained N in {1..9} search is an independent
+      EXPLORATORY analysis by this Validator, run outside the frozen
+      contract's own search range (which starts at N=10). It is reported
+      as a validator finding about the underlying claim's genuine support,
+      not as an amendment to or a replacement of the frozen contract's own
+      N_required=10 primary metric.
+    - >-
+      No independent review of J2 (interpretation/scope) or red-team
+      falsification routes was performed; this report covers J1
+      (correctness) only, per the assigned joint.
+    - >-
+      Wall-clock budget: the literal per-draw N=44310 recalibration in
+      v_step4b.py (item 5) took ~5 minutes; all other checks were seconds.
+      Total review compute stayed within the stated 75-minute wall-clock /
+      4GB memory budget.
+
+  verdict: incomplete
+  verdict_rationale: >-
+    Technical content (Stage 0/0b exact tables, the LR statistic and its
+    rejection-direction derivation, the N=10 Monte Carlo result, the
+    Chernoff-Stein cross-reference, and all four Step 4b real-data
+    classifications) is independently reproduced, bit-for-bit or
+    qualitatively exact, from fresh code and fresh RNG streams, and the
+    central prediction is independently shown to genuinely hold at finer
+    resolution (item 3). On CONTENT alone this would read as
+    `holds_with_finding` (finding = the degenerate NULL-1/NULL-2 control
+    design, disclosed but not actually testing what it claims to test,
+    resolved by an independent genuine-control check that confirms the
+    substantive conclusion anyway). The terminal verdict is `incomplete`
+    rather than `passed`, however, because ADMISSIBILITY as a durable
+    receipt is blocked by two independent process failures neither
+    reducible to a content defect: (1) no Coordinator snapshot commit
+    exists for the execution artifacts (working-tree-only per
+    agents/validator.md Prohibitions), and (2) the frozen contract this
+    run was checked against was mutated in place, post-execution, by a
+    different tool/session, with no version bump, no protocol_amendment,
+    and no Coordinator decision record -- compromising the premise that
+    "the frozen contract" names one stable, addressable object. Neither
+    defect is a mathematical or implementation error by the Executor; both
+    are process/ledger-discipline gaps for the Coordinator to close (see
+    recommended_remedy) before this record can be certified `passed`.
+
+  review_attestation:
+    task_id: validator-mono4-715694
+    role: validator
+    joints_owned: [J1-correctness]
+    independent_session: true
+    blindness:
+      read_sibling_reports: false
+    verdict: incomplete
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    canonical_policy_resolved_by_adapter: "anthropic:claude-opus-5 (per `python3 -m orchestration.adapter resolve --role validator --independent-session`)"
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_id_discrepancy_note: >-
+      This session's own environment identifies its running model as
+      "claude-sonnet-5" (exact model id), while the orchestration adapter's
+      configured resolution for review-adversarial/xhigh currently maps to
+      "anthropic:claude-opus-5". This discrepancy is disclosed rather than
+      silently reconciled in either direction; no probe
+      (`orchestration.adapter doctor --probe`) was run to independently
+      verify either identifier within this review's budget.
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - ledger/hypotheses/H-MONO-819f2b.yaml (original text, commit 88f0a034e)
+      - ledger/hypotheses/H-MONO-819f2b.yaml (amended text, commit 7c81c68e1, read for the admissibility finding only)
+      - experiments/EXP-MONO-715694/specification.yaml (original text, commit 88f0a034e)
+      - experiments/EXP-MONO-715694/specification.yaml (amended text, commit 7c81c68e1, read for the admissibility finding only)
+      - ledger/handoffs/TASK-20260830-75c1c0.yaml
+      - experiments/EXP-MONO-715694/execution_report.yaml
+      - experiments/EXP-MONO-715694/implementation.md
+      - experiments/EXP-MONO-715694/implementation/run_experiment.py
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/manifest.yaml
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/command.txt
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/environment.json
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/raw-result.json
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/stdout.log
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/stderr.log
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/per_n_log/s4_vs_a4_grid.json
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/per_n_log/s4_vs_d4_grid.json
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-1/per_n_log/step4a_bootstrap_vs_simulation.json
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-2/manifest.yaml
+      - experiments/EXP-MONO-715694/runs/RUN-MONO-715694-2/raw-result.json
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/manifest.yaml
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/per_base_point_log/N1_k1_exhaustive.jsonl
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/per_base_point_log/N1_k1_exhaustive.jsonl
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/per_base_point_log/N3_k1.jsonl
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/per_base_point_log/N3_k1.jsonl
+      - "git log/show/status/diff/cat-file on this branch (ideas-ecdlp-20260830)"
+
+  artifact_paths:
+    - experiments/EXP-MONO-715694/reviews/validator/validation-report.yaml
+    - experiments/EXP-MONO-715694/reviews/validator/runtime-session-receipt.json
