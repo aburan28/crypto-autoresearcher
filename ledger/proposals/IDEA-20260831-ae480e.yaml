@@ -37,9 +37,16 @@ idea:
     M0 and any class-partitioned mixture regardless of instrument. But
     Var(||e||^2) -- a genuinely higher-moment (kurtosis-adjacent) quantity
     describing how MUCH the norm itself fluctuates instance-to-instance -- is
-    NOT forced identical: a two-class mixture with unequal per-class variances
-    has strictly higher Var(||e||^2) than a homogeneous model at the same mean,
-    by the standard mixture-variance decomposition. THE CLAIM UNDER TEST,
+    NOT forced identical: a class mixture with unequal per-class variances
+    has strictly higher Var(||e||^2) than a MOMENT-MATCHED SINGLE-CLASS
+    homogeneous model (one non-mixture law matched to the mixture's own
+    per-coordinate mean and variance of e_i), by the standard mixture-variance
+    decomposition. THE BASELINE IS THEREFORE NOT M0's OWN pmf: by
+    KN-FIND-5e9728, M0's population-average marginal IS the class-weighted
+    mixture, so n*Var_M0(e_i^2) expands by the law of total variance into
+    exactly the heterogeneous expression below and the ratio would be
+    identically 1 by construction, making the test unfalsifiable in the
+    positive direction. THE CLAIM UNDER TEST,
     stated as two mutually exclusive, fully decidable outcomes: (A) the ratio
     R = Var_heterogeneous(||e||^2) / Var_homogeneous(||e||^2) exceeds 1.05 at
     ML-KEM-1024 (material heterogeneity-driven left-tail fattening beyond the
@@ -221,7 +228,7 @@ idea:
         a ratio exceeding 1.5x at the 1st percentile is material; a ratio
         consistent with 1.0 within the stated CLT approximation error is a
         clean negative.
-    - metric: R under the forced-homogeneous null (single class, p_s=1)
+    - metric: R under the forced-homogeneous null (a single class of weight 1)
       direction: different
       minimum_effect: EXACTLY 1.000, zero tolerance -- required before any real number is trusted.
 
@@ -230,13 +237,28 @@ idea:
       (1) From ciphertext_noise_readout.py's own already-computed exact
       discrete histograms (compression_error_distribution,
       compression_error_by_class), extend the existing Fraction-based exact-
-      variance routine to compute Var(e_i^2) exactly for the singleton class
-      (pure CBD(eta1)) and the doublet class (CBD(eta1) convolved with the
-      doublet-class compression error), at each of the three parameter sets.
-      (2) Compute Var_heterogeneous(||e||^2) = n*[p_s*Var_s(e_i^2) +
-      p_d*Var_d(e_i^2)] + n*p_s*p_d*(E_s[e_i^2]-E_d[e_i^2])^2 (exact mixture-
-      variance decomposition) and Var_homogeneous(||e||^2) = n*Var_M0(e_i^2)
-      from M0's own exact convolved pmf. Report R at all three sets. (3)
+      variance routine to compute Var(e_i^2) exactly for EACH FIBRE CLASS OF
+      THAT PARAMETER SET'S OWN CENSUS PARTITION, which is NOT the same
+      partition at all three sets: at ML-KEM-1024 (d_u=11) the 767-residue
+      singleton class (pure CBD(eta1), zero compression error) and the
+      1281-residue doublet class (CBD(eta1) convolved with the doublet-class
+      compression error); at ML-KEM-512/768 (d_u=10) the 767-residue tripleton
+      and 257-residue quadrupleton classes, NEITHER of which is pure CBD(eta1)
+      -- both carry non-zero compression error, so there is no zero-error
+      "singleton" class at those two sets and the singleton/doublet model must
+      not be applied there.
+      (2) Compute Var_heterogeneous(||e||^2) = n*[sum_k p_k*Var_k(e_i^2)] +
+      n*[sum_k p_k*(E_k[e_i^2] - Ebar)^2], with Ebar = sum_k p_k*E_k[e_i^2]
+      and k ranging over that set's own two classes with their own census
+      weights (exact mixture-variance decomposition; for two classes the
+      between-class term is n*p_1*p_2*(E_1[e_i^2]-E_2[e_i^2])^2), and
+      Var_homogeneous(||e||^2) = n*Var_H(e_i^2) where H is a MOMENT-MATCHED
+      SINGLE-CLASS baseline -- one non-mixture per-coordinate law (a
+      variance-matched CBD/discretized law) whose e_i mean and variance equal
+      the mixture's own. H is deliberately NOT M0's convolved pmf: that pmf is
+      the same class-weighted mixture (KN-FIND-5e9728), so n*Var_M0(e_i^2)
+      expands into exactly the heterogeneous expression above and would force
+      R=1 identically. Report R at all three sets. (3)
       Validate the CLT/Gaussian tail-translation (H2) at a tractable toy
       dimension (n=32-64) via direct exact convolution/dynamic programming
       over the true discrete e_i^2 pmf, comparing the exact tail probability
@@ -245,14 +267,15 @@ idea:
     controls:
       - >-
         Forced-homogeneous null: collapse both classes to one identical
-        distribution (p_s=1) -- R must equal EXACTLY 1.000 before any real
-        number is trusted.
+        distribution (a single class of weight 1) -- the moment-matched
+        baseline H then coincides with that class, so R must equal EXACTLY
+        1.000 before any real number is trusted.
       - >-
         Toy-scale exact-vs-CLT comparison (H2's own validation route) is
         itself a required control, run and reported before any real-scale
         tail-probability number is quoted.
     required_metrics:
-      - Var_s(e_i^2), Var_d(e_i^2), R at all three parameter sets (exact, Fraction arithmetic)
+      - per-class Var_k(e_i^2) and E_k[e_i^2] for that set's own census classes (singleton/doublet at d_u=11; tripleton/quadrupleton at d_u=10), the moment-matched baseline's Var_H(e_i^2), and R at all three parameter sets (exact, Fraction arithmetic)
       - toy-scale exact vs. CLT-approximated tail probability, with the approximation's own error margin
       - homogeneous-null R=1.000 check
 
