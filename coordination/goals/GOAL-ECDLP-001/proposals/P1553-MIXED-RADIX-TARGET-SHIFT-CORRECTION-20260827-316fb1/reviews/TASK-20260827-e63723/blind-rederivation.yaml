@@ -1,0 +1,215 @@
+blind_rederivation:
+  schema: crypto.autoresearch.blind_rederivation.v1
+  task_id: TASK-20260827-e63723
+  packet_id: P1553-MIXED-RADIX-TARGET-SHIFT-CORRECTION-20260827-316fb1
+  goal_id: GOAL-ECDLP-001
+  role: validator
+  recorded_at: "2026-08-27T03:09:09Z"
+  mode: statement_only_blind_rederivation
+  scientific_inputs_read:
+    - coordination/goals/GOAL-ECDLP-001/proposals/P1553-MIXED-RADIX-TARGET-SHIFT-CORRECTION-20260827-316fb1/blind-statement.yaml
+    - coordination/goals/GOAL-ECDLP-001/proposals/P1553-MIXED-RADIX-TARGET-SHIFT-CORRECTION-20260827-316fb1/handoffs/TASK-20260827-e63723.yaml
+  scientific_input_count: 2
+  forbidden_scientific_reads_respected: true
+  read_sibling_reports: false
+  read_sibling_messages: false
+  experiments_executed: 0
+  implementations_executed: 0
+  official_state_changes: 0
+  joints_owned: []
+  whole_claim_verdict: null
+
+  literal_statement_gaps:
+    - id: GAP-DIGIT-ALPHABET
+      field: signed_digit_deck
+      detail: >-
+        The statement names signed digit decks and their weights but does not
+        formally give the coefficient alphabet.  The interval proof below is
+        conditional on the natural alphabet I_m = {-m,-m+1,...,m}.  The word
+        signed alone would also permit narrower alphabets, for which the stated
+        equality need not follow.
+    - id: GAP-DECODER-RELATION
+      field: C_and_hidden_relation
+      detail: >-
+        The requested decoder mentions C, but C is absent from the parameter
+        list and the statement does not assert x = m z + c0 - C (mod N).  The
+        decoder is therefore verified algebraically only under that explicitly
+        named congruence and under C being known.
+    - id: GAP-MPZ-INPUTS
+      field: ell_k_and_MPZ_rule
+      detail: >-
+        No quantities named ell or k and no MPZ cost formula occur in either
+        scientific input.  Consequently an MPZ exponent cannot be derived from
+        the statement without importing scientific material forbidden by this
+        task.
+    - id: GAP-TARGET-SHIFT-MAP
+      field: transcript_to_public_target_map
+      detail: >-
+        The scalar formula for the correlated public targets is not stated.
+        The natural realization Q_t = Q + [m t]P is consistent with the decoder
+        congruence, but is treated below as a conditional interface, not as a
+        fact supplied by the statement.
+
+  definitions_used_for_conditional_derivation:
+    integer_interval: "[a,b]_Z = {n in Z : a <= n <= b}"
+    digit_alphabet: "I_m = [-m,m]_Z"
+    normalized_r_deck_sumset: "S_r = sum_{j=0}^{r-1} m^j I_m"
+    endpoint: "A_r = sum_{j=1}^{r} m^j"
+    modular_interval: "I_N = {a mod N : a in [-L,L]_Z}"
+
+  signed_deck_interval:
+    status: holds_conditionally_on_GAP-DIGIT-ALPHABET
+    base_two_digit_sumset:
+      expression: "S_2 = I_m + m I_m"
+      shifted_intervals: "for b in I_m, b m + I_m = [b m-m,b m+m]_Z"
+      adjacency_check: >-
+        The next interval begins at (b+1)m-m = b m, while the current
+        interval ends at b m+m.  Hence consecutive intervals overlap and
+        there is no integer gap.
+      endpoints: "-(m+m^2) and +(m+m^2)"
+      result: "S_2 = [-(m+m^2),m+m^2]_Z"
+    induction:
+      hypothesis: "S_r = [-A_r,A_r]_Z"
+      next_digit_intervals: "J_d = d m^r + S_r = [d m^r-A_r,d m^r+A_r]_Z for d in I_m"
+      overlap_check: >-
+        start(J_{d+1})-end(J_d) = m^r-2A_r <= -m^r < 0,
+        because A_r >= m^r.  Thus consecutive J_d overlap.
+      endpoint_update: "A_{r+1} = A_r + m^(r+1)"
+      conclusion: "S_{r+1} = [-A_{r+1},A_{r+1}]_Z"
+    four_normalized_digits:
+      endpoint: "A_4 = m+m^2+m^3+m^4 = L"
+      result: "S_4 = [-L,L]_Z"
+    four_weighted_decks:
+      expression: "sum_{j=1}^{4} m^j I_m = m S_4"
+      result: "sum_{j=1}^{4} m^j I_m = m[-L,L]_Z"
+
+  modular_no_wrap_and_threshold:
+    status: holds_from_the_stated_N_z_t_promises
+    integer_lift: "y = z+t"
+    range: "-L <= y <= 3L+1"
+    no_false_return_proof: >-
+      If y>L and y mod N were in I_N, then y is congruent modulo N to
+      some a in [-L,L].  But 1 <= y-a <= 4L+1 < N, so y-a cannot be a
+      nonzero multiple of N.  Conversely, y in [-L,L] maps into I_N.
+    exact_equivalence: "q(t)=1 iff -L <= z+t <= L iff t <= L-z"
+    threshold:
+      name: T
+      value: "T=L-z"
+      range: "0 <= T <= 2L"
+      oracle_shape: "q(t)=1 for 0 <= t <= T and q(t)=0 for T+1 <= t <= 2L+1"
+      sentinels: "q(0)=1 and q(2L+1)=0 follow from the promise and need not be queried"
+    boundary:
+      sufficient_uniform_condition: "N>4L+1"
+      reason: "max(z+t)=3L+1 < N-L is equivalent to N>4L+1"
+      sharpness: >-
+        Absent extra restrictions, the strict boundary is sharp for the
+        promised full shift range.  At N=4L+1, z=L and t=2L+1 give
+        z+t=N-L, which reduces to -L and makes the zero sentinel return one.
+        More generally, when 2L+1<N<=4L+1, z=L gives q(1)=0 but
+        q(N-2L)=1, so the response can return to one after wrapping.
+
+  binary_search_and_decoder:
+    threshold_search:
+      candidate_boundary: "b=T+1 in {1,...,2L+1}"
+      invariant: "lo <= T < hi, initially lo=0 and hi=2L+1"
+      update: >-
+        Query mid=floor((lo+hi)/2).  If q(mid)=1 set lo=mid;
+        otherwise set hi=mid.  Stop when hi=lo+1.
+      recovered_values: "T=lo and z=L-lo"
+      worst_case_oracle_queries: "ceil(log2(2L+1))"
+      endpoint_verification_variant: >-
+        If an implementation elects to query the two promised sentinels rather
+        than using them as logical consequences, its count is
+        ceil(log2(2L+1))+2; those two calls are not needed for recovery.
+    decoder:
+      status: conditional_on_GAP-DECODER-RELATION
+      required_relation: "x = m z + c0 - C (mod N), with c0 and C known"
+      result: "x=(m z+c0-C) mod N"
+      reasoning: >-
+        Substitute the exactly recovered integer z into the supplied
+        congruence and take the canonical residue modulo N.  No inversion or
+        probabilistic step is involved.
+      under_natural_shift_interface: >-
+        If Q_t=Q+[m t]P, the shifted scalar is x+m t and the same relation
+        changes z to z+t while c0 and C remain fixed.  This explains the
+        threshold interface but is not asserted in the literal statement.
+
+  asymptotics:
+    m_bounds: "N^(1/5) <= m < 2 N^(1/5)"
+    m_exponent: "log_N(m)=1/5+O(1/log N)"
+    L_bounds: "m^4 < L < 2m^4 for m>=2"
+    L_growth: "L=Theta(N^(4/5))"
+    L_exponent: "log_N(L)=4/5+O(1/log N)"
+    query_growth: "ceil(log2(2L+1))=(4/5)log2(N)+O(1)=Theta(log N)"
+    polynomial_query_exponent: 0
+    mpz_exponent:
+      value: null
+      status: not_derivable_from_statement
+      missing: [ell_definition, k_definition, MPZ_bound_or_cost_identity]
+      boundary: >-
+        The exponents 1/5 for m, 4/5 for L, and 0 for the logarithmic
+        threshold-query count are the only polynomial exponents derivable
+        from the two scientific inputs.  Calling any combination of them an
+        MPZ exponent would require an unstated theorem or accounting formula.
+
+  fixed_target_versus_correlated_shifted_target:
+    fixed_target_scope: >-
+      A fixed-target transcript establishes correctness only for the one
+      declared target and one execution governed by its own quantifier order.
+      It does not by itself supply one stateful transcript or one serialized
+      advice string that remains correct after replacing that target by
+      publicly related targets chosen from earlier answers.
+    shifted_target_scope_required: >-
+      The threshold search needs a single fresh Q, target-independent
+      serialized advice fixed before Q, and exact joint correctness for every
+      adaptively selected public shift in one correlated family.  The same
+      hidden x, c0, C, and oracle state must be used across those shifts.
+    correlation_point: >-
+      Public shifts of one Q share the same hidden x.  Freshness of Q does not
+      make Q_t values independent fresh targets, and marginal single-target
+      correctness does not establish the required joint adaptive transcript
+      unless the quantifiers and shared state explicitly say so.
+    exact_assumption_delta: >-
+      Move target-independent advice outside the draw of fresh Q, then require
+      correctness simultaneously for the correlated, potentially adaptive
+      shift sequence.  This is strictly more than invoking a one-target
+      restriction separately with target-dependent advice or separately
+      chosen transcript state.
+    supplied_status: conditional_only
+
+  statement_only_outcome:
+    four_deck_interval: conditional_holds
+    no_wrap_threshold: holds
+    boundary_sharpness: holds_for_uniform_arithmetic_promise
+    threshold_decoder_for_z: holds
+    scalar_decoder_for_x: conditionally_holds_but_relation_is_missing
+    query_count: holds
+    mpz_exponent: incomplete
+    transcript_assumption_delta: identified_but_not_established
+    task_objective_status: incomplete_statement
+    scientific_state_transition: null
+    whole_claim_verdict: null
+    explanation: >-
+      The statement is sufficient for the signed-interval result once the
+      digit alphabet is made explicit, and is sufficient without further
+      scientific input for the modular threshold and exact recovery of z.
+      It is not sufficient to derive an MPZ exponent or independently justify
+      the x decoder and public-target realization because their defining data
+      are absent.  No forbidden artifact was opened to repair those gaps.
+
+  claim_ceiling_preserved: >-
+    At most this is a conditional obstruction candidate for a universal exact
+    arbitrary-deck generic Query2P1 object whose one-deck restriction
+    transcript remains correct across the declared correlated public target
+    shifts with target-independent serialized advice and complete MPZ
+    accounting.  This re-derivation does not establish the existence of that
+    object or transcript, a fixed-target theorem, a P1553 or coordinate-deck
+    result, a generic ECDLP lower bound, an attack, a speedup, SOTA movement,
+    B71, closure, completion, or a breakthrough.
+
+  limitations:
+    - The digit coefficient alphabet is an explicit conditional definition, not a literal field in the statement.
+    - C and the congruence relating x to z are not supplied.
+    - The public target-shift formula is not supplied.
+    - ell, k, and the MPZ accounting formula are not supplied.
+    - No J1-J3 joint and no whole scientific claim were reviewed.

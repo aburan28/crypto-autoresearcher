@@ -1,0 +1,505 @@
+validation_report:
+  id: VAL-20260830-mono2-j1
+  task_id: validator-mono2-2a13d7
+  experiment_id: EXP-MONO-2a13d7
+  hypothesis_id: H-MONO-0f9170
+  scope: >-
+    J1 (correctness) ONLY, per the assigned review plan. A concurrent,
+    independent Red Team session owns J2 (adversarial verification of the
+    exact-arithmetic claims and the matched-pair test's decisiveness). This
+    report renders no verdict on J2 and no verdict on the hypothesis's
+    status (AGENTS.md rule 1: only the Coordinator changes hypothesis
+    status).
+  validated_snapshot:
+    commit: 90fdbfd81efc6d0b65c7af53d3084e2f3c3b311b
+    commit_message: >-
+      snapshot(TASK-20260830-832479): bind EXP-MONO-2a13d7 execution (2
+      runs, Stage 0/1/3) before independent review
+    confirmed_head: true
+    confirmed_working_tree_clean_at_scope: true
+    note: >-
+      `git status --porcelain -- experiments/EXP-MONO-2a13d7/
+      coordination/tasks/TASK-20260830-832479/` returned empty at review
+      time: the reviewed artifacts are exactly the Coordinator-committed
+      snapshot at HEAD, not a working-tree-only receipt.
+  run_ids: [RUN-MONO-2a13d7-1, RUN-MONO-2a13d7-2]
+
+  artifact_checks:
+    - check: snapshot receipt path_sha256 integrity, all 76 hashed archive_artifact_paths
+      method: >-
+        Recomputed sha256 over every archived file listed in
+        `coordination/tasks/TASK-20260830-832479/snapshot-receipt.json`'s
+        `path_sha256` (skipping the two `null` self-referential entries)
+        and compared byte-for-byte against the receipt's recorded values.
+      result: "76/76 recomputed hashes match the receipt exactly; 0 mismatches, 0 missing files."
+    - check: manifest_correction_disclosure accuracy
+      method: >-
+        Read both run manifest.yaml files and cross-checked every
+        rewritten field (commit, command, timing, peak_rss, seeds, sqrt
+        routine, stdlib-only) against the Executor's own raw-result.json,
+        environment.json, and command.txt.
+      result: >-
+        Confirmed accurate. manifest.yaml's `timing.wall_seconds`
+        (20.324000208000143), `resources.peak_rss_bytes` (88883200 =
+        84.765625 MB) and `code.command` match raw-result.json /
+        environment.json exactly. `environment.operating_system` and
+        `environment.python_version` are `null` in the manifest with a
+        note pointing to environment.json, which does carry both
+        (`macOS 26.6`, `3.13.1`) -- exactly as the disclosure describes.
+        No invented or altered value found.
+    - check: out_of_band_edit_disclosure accuracy
+      method: >-
+        `git log --oneline -1` on both cited commits;
+        `git merge-base --is-ancestor a11df1c91 50138c3da`; `git show
+        50138c3da -- experiments/EXP-MONO-2a13d7/specification.yaml`;
+        `git show a11df1c91:experiments/EXP-MONO-2a13d7/specification.yaml`
+        to read the pre-edit `curve_panel_note` text the Executor actually
+        built against.
+      result: >-
+        Confirmed. `a11df1c91` (Executor run-start commit) IS an ancestor
+        of `50138c3da` (the Cursor Agent edit), so the Executor's code
+        predates and never saw the edit. The edit's diff adds exactly the
+        `panel_eligibility_filter` clause (A!=0, B!=0, t!=0) described in
+        the disclosure. Author is `Cursor Agent <cursoragent@cursor.com>`,
+        matching the disclosure. See `heuristic_validation_checks` below
+        for a finding this comparison surfaced that the disclosure itself
+        does not fully cover.
+    - check: required artifacts present per specification's `required_artifacts`
+      result: >-
+        All present: frozen spec, curve-invariant tables (both primes,
+        full), matched-pair census, pre-registered closed-form tables
+        (with `ordering_marker`), per-base-point classification logs (5
+        CSVs at p101, 5 at p211, matching panel size), seven-count
+        tables, R3 sums, matched-pair equality report, baseline
+        reproduction, panel-selection transcript, curve-construction
+        transcript, run manifests, command/stdout/stderr/timings, and this
+        snapshot's archive receipt.
+
+  metric_recomputations:
+    - id: task1_closed_form_rederivation
+      description: >-
+        Independent from-scratch algebraic re-derivation of all seven
+        closed forms in (p,t,Z), performed before re-reading any code, to
+        confirm H-MONO-0f9170's `statement` and `mechanism`.
+      method: >-
+        (1) S,N from #E(F_p)=p+1-t=1+Z+2S, giving S=(p-t-Z)/2,
+        N=(p+t-Z)/2. (2) Case-A/case-B/double-root split of F_p^2 via
+        e2 -> D=e1^2-4e2 being a bijection per fixed e1 (4 invertible for
+        p odd), giving exactly p(p-1)/2 split, p(p-1)/2 inert, p
+        double-root points per prime -- and the standard pairing identity
+        C(S,2)+SN+C(N,2)=C(S+N,2) plus C(p,2)=C(p-Z,2)+(p-Z)Z+C(Z,2)
+        (both classical binomial identities, verified symbolically) shows
+        A1=C(S,2), A2=SN, A3=C(N,2), A4=Z(p-Z)+C(Z,2) sum to C(p,2)
+        IDENTICALLY, independent of any run. (3) M via
+        #E(F_p^2)=p^2+1-(t^2-2p), the classical fact that F_p^* sits
+        inside the squares of F_{p^2}^* for p odd (index p+1, even), and
+        the norm criterion Norm(x) is a square in F_p iff x is a square in
+        F_{p^2} (from x^{(p^2-1)/2}=1 iff Norm(x)^{(p-1)/2}=1), which
+        forces f(t1),f(t2) to share the SAME square-class in F_{p^2} for
+        conjugate t1,t2 -- hence each block-swap pair contributes 2 to M
+        and each four-cycle pair contributes 0, giving B1=M/2 exactly.
+        (4) Z' by case inspection (Z=0: cubic irreducible, roots in
+        F_{p^3}, none in F_{p^2}\F_p, so Z'=0; Z=1: remaining quadratic
+        factor is irreducible over F_p hence its 2 roots lie in
+        F_{p^2}\F_p, so Z'=3; Z=3: all roots already in F_p, so Z'=3),
+        giving B2=(Z'-Z)/2. (5) baseline_embedding's
+        `S^2+N^2-(p-Z) = 2(A1+A3)` verified as an IDENTITY:
+        S^2+N^2=[(p-Z)^2+t^2]/2 and 2*C(S,2)+2*C(N,2)=S(S-1)+N(N-1)
+        =S^2+N^2-(S+N)=S^2+N^2-(p-Z), matching KN-FIND-a8990a Theorem B's
+        closed form term for term.
+      result: >-
+        All seven closed forms, and the baseline-reproduction identity,
+        independently re-derived and match H-MONO-0f9170's `statement`
+        and the implementation's `closed_form_seven_tuple` exactly. This
+        derivation was done on paper/by-hand algebra before re-reading
+        stage0.py's implementation of the same formulas; agreement is
+        between two independent derivations of the same closed forms, not
+        a re-reading of one.
+    - id: task2_R1_spot_check_two_curves_two_primes
+      description: >-
+        Per-curve R1 spot check using a THIRD, independent method for
+        (t,Z) -- neither the code's character-sum sweep nor a re-read of
+        its own output -- plus a freshly-written (not imported)
+        implementation of both the closed-form function and the
+        exhaustive stratum census.
+      method: >-
+        Wrote `independent_check.py` from scratch (no import of
+        stage0.py/stage1.py). `direct_point_count_and_trace` computes
+        #E(F_p) by testing, for EVERY x in F_p, EVERY y in F_p directly
+        against y^2==f(x) mod p (an O(p^2) double loop with zero Legendre-
+        symbol calls anywhere -- a genuinely different algorithm from the
+        character-sum method under test). `stage1_census` independently
+        reclassifies every (e1,e2) using a brute-force square-root table
+        (not Tonelli-Shanks) instead of importing `fp_common.tonelli_shanks`.
+        Checked curves: p=101 (A=1,B=1) and (A=1,B=48); p=211 (A=1,B=1)
+        and (A=1,B=94) -- the two matched-pair curves at each tested
+        prime.
+      result: >-
+        Brute-force #E(F_p): p=101 -> 105 (t=-3, matches archived); p=211
+        -> 223 (t=-11, matches archived). Z=0 at both, matches archived.
+        Fresh seven-tuple census matched the fresh closed form exactly on
+        all seven strata for all 4 curves (residuals all 0), AND matched
+        the archived `seven_count_tables.json` values exactly, e.g. p=101
+        (1,1): A1=1326, A2=2548, A3=1176, A4=0, B1=2548, B2=0, B3=2502 in
+        both the independent recomputation and the archived record; p=211
+        (1,1): A1=6105, A2=11100, A3=4950, A4=0, B1=11100, B2=0, B3=11055
+        likewise. See `runtime-session-receipt.json` for the full script
+        and raw console output.
+    - id: task3_O_p_method_confirmation
+      description: Independent confirmation that Stage 0 point-counting is O(p), not O(p^2).
+      method: >-
+        (a) Code inspection: `stage0.curve_invariants` (the per-curve
+        function) contains exactly one `for x in range(p)` loop (line 33);
+        `psi_3` and `Z` are folded into that same loop; no loop over y or
+        over (x,y) pairs exists anywhere in that function. (b) Ran the
+        ACTUAL `curve_invariants`/`enumerate_curves` functions (imported
+        directly, per the task's own allowance to time the real function)
+        on a handful of curves and on the full enumeration, independently,
+        outside the archived run.
+      result: >-
+        Independent full-enumeration timing: p=101 -> 10,100 curves in
+        0.334s; p=211 -> 44,310 curves in 3.252s -- reproducing the
+        archived run's own 0.337s/3.229s almost exactly (same machine,
+        same code, independently invoked). Scaling ratio 3.252/0.334 =
+        9.74, matching the O(p^3)-total prediction (211/101)^3 = 9.09 far
+        more closely than the O(p^4) alternative (211/101)^4 = 19.0 that
+        an O(p^2)-per-curve method would produce. Per-curve micro-timing
+        (3 curves) also scaled ~2.0x from p=101 to p=211, consistent with
+        O(p) per curve (an O(p^2) method would scale ~4.3x). CONFIRMED:
+        the O(p) method is real, not O(p^2) mislabeled.
+    - id: task4_preregistration_ordering
+      description: Confirm the closed-form table is written before that curve's Stage-1 enumeration.
+      method: >-
+        Read `run_experiment.preregister_and_run_stage1`: for each panel
+        curve, in a single per-curve loop iteration,
+        `prereg_records.append(prereg_entry)` executes, THEN
+        `classify_panel_curve(...)` is called for the SAME curve -- no
+        batching across curves, no Stage-1 output fed back into
+        `closed_form_seven_tuple` (which reads only `(p,t,Z)` from the
+        Stage-0 table). Cross-checked every `preregistration.json` entry
+        for the `ordering_marker: "PRE_ENUMERATION"` field.
+      result: >-
+        Confirmed structurally (the append-then-classify code path is the
+        decisive evidence here, not timestamp granularity: all 4/5
+        `preregistered_at` timestamps per prime are identical to
+        1-second resolution, which is consistent with but cannot by
+        itself distinguish sub-second ordering). Every preregistration
+        entry at both primes, both runs, carries `ordering_marker:
+        "PRE_ENUMERATION"`. No code path exists that could compute a
+        closed-form entry from Stage-1 output.
+    - id: task5_R3_and_determinism
+      description: Internal sum checks and bit-for-bit determinism between the two runs.
+      method: >-
+        Read every `r3` block in both primes' `seven_count_tables.json`
+        (9 distinct panel curves total: 4 at p101, 5 at p211). Ran
+        `diff -rq` directly on the two run directory trees; for files that
+        differed, diffed their content and, for `raw-result.json`,
+        programmatically stripped every key containing `seconds` and the
+        `peak_rss_mb` key before comparing for structural equality.
+      result: >-
+        R3 exact (case_A_ok, case_B_ok, double_root_ok all true) on every
+        one of the 9 panel curves, both primes. `diff -rq` found exactly 8
+        differing files out of ~80 archived per-run files:
+        `command.txt` (run-dir path only), `manifest.yaml` (run id,
+        command path, and the timing/RSS block only -- diffed line by
+        line), `p*/preregistration.json` (the `preregistered_at`
+        timestamp field only, 4+4=8 lines), `p*/timings.json`,
+        `raw-result.json` (byte-diff eliminated entirely once
+        timing/RSS keys are stripped: `structurally equal after
+        stripping timing keys: True`), `stdout.log`, `stderr.log`. No
+        other file differed. This is EXACTLY the exception set the
+        contract's `replication.interpretation` and the execution
+        report's `replication_determinism` claim (with `stdout.log`
+        differing for the same reason `raw-result.json` does, since
+        stdout is that same JSON printed -- a natural and expected
+        omission from the Executor's own list, not a discrepancy).
+        CONFIRMED: this fully seed-free, exhaustive contract reproduces
+        bit-for-bit, as required.
+    - id: task6_matched_pair_isomorphism_and_control
+      description: >-
+        Independent, from-scratch verification that the matched pairs are
+        genuinely non-isomorphic and genuinely differ on a control
+        invariant.
+      method: >-
+        Wrote a brute-force isomorphism test iterating ALL u in
+        1..p-1 (not the code's O(1) algebraic shortcut in
+        `stage0.isomorphic`) checking A2==u^4*A and B2==u^6*B mod p
+        directly. Independently recomputed j (textbook formula
+        j=1728*4A^3/(4A^3+27B^2)) and the order-3 point count (via the
+        psi_3 root search) from scratch for all 4 curves in the two
+        matched pairs.
+      result: >-
+        p=101, (1,1) vs (1,48): NOT isomorphic for any of the 100 values
+        of u tested; j=34 vs j=90 (differ); order3_count=3 vs 3 (equal).
+        p=211, (1,1) vs (1,94): NOT isomorphic for any of the 210 values
+        of u tested; j=46 vs j=30 (differ); order3_count=1 vs 1 (equal).
+        Both independently-computed j/order3 pairs match the archived
+        `matched_pair_equality_report.json` exactly. The non-vacuity
+        control is genuinely satisfied at both primes via j alone (order3
+        ties in both cases -- the report correctly states this rather
+        than overclaiming a second differing control), confirming this is
+        a real, not a vacuous, matched-pair test.
+    - id: task7_panel_eligibility
+      description: >-
+        Confirm no j=0, j=1728, or supersingular (t=0) curve is present in
+        the actual Stage-1 panel.
+      method: >-
+        Read `panel_selection_transcript.json` for both primes, both
+        runs, and listed every (A,B,t) triple across all roles (sibling,
+        z_coverage, matched_pair). Additionally ran a counterfactual
+        robustness check: for EVERY (prime, Z) in {101,211}x{0,1,3},
+        independently computed the smallest lexicographic non-special
+        (A!=0,B!=0) candidate the actual `is_special`-only filter in
+        `run_experiment.select_panel` would select, whether or not that
+        Z-coverage branch actually executed for that prime (since sibling
+        curves cover some Z values without triggering the search).
+      result: >-
+        DIRECT CHECK: all 9 distinct panel curves across both primes (t
+        in {-3,6,-10,-11,8,13,12} -- both {-3} and {-11} appear twice via
+        the matched pairs) have A!=0, B!=0, AND t!=0. No j=0/1728/
+        supersingular curve is present in either archived panel.
+        COUNTERFACTUAL ROBUSTNESS CHECK (see finding below): none of the
+        6 (prime,Z) smallest-lexicographic-candidate computations landed
+        on a supersingular curve either, so the absence of a supersingular
+        curve in the panel is not a near-miss.
+
+  control_checks:
+    - control: Non-vacuity control (matched-pair j and order3_count)
+      status: passes, genuinely (see task6 above), not merely asserted
+    - control: >-
+        Internal sum checks (case A = C(p,2), case B = p(p-1)/2, double
+        root = p) as a correctness gate before any closed-form comparison
+        is interpreted
+      status: passes exactly on every panel curve, both primes (task5)
+    - control: >-
+        Baseline reproduction against KN-FIND-a8990a Theorem B on the 3
+        sibling curves per prime
+      status: >-
+        Verified algebraically as an IDENTITY (2(A1+A3) =
+        S^2+N^2-(p-Z), not merely a numerical coincidence on these 6
+        curves -- see task1), and the archived numeric agreement (6/6
+        sibling curves, both primes) is consistent with that identity.
+
+  heuristic_validation_checks:
+    - check: pre-registered prediction vs sampling order
+      applicable: partially
+      note: >-
+        This contract is exhaustive and exact-arithmetic, not a
+        statistical/heuristic validation in the Dickman-de Bruijn sense
+        (HEUR-TZ-1 is explicitly "not a distributional heuristic" per
+        H-MONO-0f9170). The applicable analogue -- that the closed-form
+        prediction is pre-registered before Stage-1 enumeration runs -- is
+        task4 above and CONFIRMED. Sample-size/CDF/tail-statistic checks
+        (item 2 of the Validator's heuristic-validation obligations) do
+        not apply: there is no sampling here, the enumeration is
+        exhaustive over all of F_p^2 per panel curve.
+    - check: substitute-sampling correspondence validity
+      applicable: false
+      note: >-
+        No substitute-sampling correspondence (e.g. Deuring) is used in
+        this contract; both this record's own scope statement and its
+        note on H-MONO-0b3def's earlier corroboration make this explicit.
+    - check: scale binding and transfer-assumption disclosure
+      applicable: true
+      result: >-
+        Fully disclosed: p in {101,211} only (7-8 bits), `claim_ceiling`
+        and `scale_relevance` both explicit that no transfer to
+        cryptographic scale, no m>=4 claim, and no relation-rate claim is
+        supported by any outcome. Nothing found that overstates this.
+    - check: cost-table unit/bookkeeping honesty
+      applicable: false
+      note: >-
+        This contract makes no cost-model or expected-attempt-cost claim;
+        it is a pure exact-arithmetic completeness check with `no ECDLP,
+        cost, or exponent claim in either direction` explicitly disclaimed
+        in `interpretation_limits`.
+
+  null_object_control_check:
+    applicable: false
+    note: >-
+      This record makes no statistical-signal claim (no correlation, bias,
+      or density excess against a null object). Its predictions are exact
+      integer identities (R1/R2/R3), each independently re-derived above
+      as algebraic identities rather than as empirical regularities that
+      could be an artifact needing a null-object control. The `docs/
+      inventor-protocol.md` section 3 null-object requirement therefore
+      does not bind this specific record; H-MONO-0f9170 itself flags this
+      distinction (`heuristic_assumptions.HEUR-TZ-1`: "NOT A DISTRIBUTIONAL
+      HEURISTIC"). The sibling record H-MONO-0b3def's own density claims
+      (which DO carry null-object obligations) are out of this record's
+      scope and this report's scope.
+
+  proof_architecture_checks:
+    - check: baseline fixture reproduction (proof_search_map.baseline_embedding)
+      result: >-
+        Reproduces exactly, verified as an algebraic identity independent
+        of the run (task1) and numerically on all 6 sibling curves
+        (task5/artifact reading).
+    - check: observation collision search
+      result: >-
+        Not independently re-run (would require enumerating all curves at
+        fixed (t,Z) and checking seven-tuple collisions with a DIFFERENT
+        (t,Z), which is outside this task's 60-minute budget and outside
+        the frozen contract's own tested scope). The contract's own
+        `observation_collision.distinct_preimage_search` is a declared,
+        deliberately-inverted risk statement, not an empirical search
+        result, and is read as such here -- not independently verified,
+        not claimed as verified.
+    - check: quantifier fidelity
+      result: >-
+        The claim is stated as "for all p>3, for all pairs (E,E')..."
+        restricted in `test_boundary` to p in {101,211}; the executed
+        panel does test EVERY curve in the exhaustive enumeration that
+        falls into the panel roles (not a per-instance witness dressed up
+        as universal) at those two primes specifically, and the record's
+        own scoping text is explicit that this is the tested boundary, not
+        the full universal claim. Consistent.
+
+  findings:
+    - id: F1-panel-filter-completeness-gap
+      severity: limitation, not a failure
+      description: >-
+        The implementation's panel-eligibility filter (`is_special(A,B,p)
+        = A==0 or B==0`, used identically in both the matched-pair
+        candidate filter and the Z-coverage search in
+        `run_experiment.select_panel`) excludes only j=0 and j=1728
+        curves. It does NOT check t==0 (supersingular). The Executor's own
+        code predates the out-of-band edit that later added an explicit
+        `panel_eligibility_filter` clause (A!=0, B!=0, t!=0) to the
+        specification text, and the ORIGINAL (pre-edit) `curve_panel_note`
+        the Executor actually built against says only "CM curves ... are
+        DELIBERATELY OUT OF SCOPE" without an operational t!=0 rule -- so
+        the Executor's own is_special() is an INCOMPLETE, not merely
+        differently-worded, operationalization of even the original
+        text's informal CM exclusion (a supersingular curve is a CM curve
+        in the broad sense, by an order in a quaternion algebra rather
+        than an imaginary quadratic field, and the original text does not
+        distinguish the two cases operationally).
+      empirical_impact_on_this_run: >-
+        NONE, verified two ways. (1) Direct: every one of the 9 distinct
+        panel curves in the two archived runs has t!=0 (read from
+        `panel_selection_transcript.json`, both primes). (2) Counterfactual
+        robustness: independently computed, for all 6 (prime,Z)
+        combinations in {101,211}x{0,1,3}, the smallest lexicographic
+        non-special (A,B) candidate the actual code's filter would select
+        whether or not that branch executed for the given run (since
+        sibling curves cover some Z values without triggering the
+        Z-coverage search at all) -- none of the 6 is supersingular. At
+        p=101, all 600 non-special supersingular curves happen to have
+        Z=1 exclusively (an incidental fact of this specific prime, not a
+        structural guarantee); at p=211, non-special supersingular curves
+        occur at Z in {1,3}, but the specific smallest-lexicographic
+        candidates for those Z values (A=1,B=3 for Z=1 and A=1,B=2 for
+        Z=3) are not among them.
+      recommendation: >-
+        Not an invalidation of the archived R1/R2/R3/baseline results,
+        which this report independently reproduces and confirms. Worth a
+        Coordinator note for any FUTURE re-run of this contract (e.g. at
+        p=1009 per `future_work`) that the panel-selection code should add
+        an explicit t!=0 check to match the now-current (out-of-band-
+        amended) specification text, since the counterfactual robustness
+        check performed here is prime-specific and offers no general
+        guarantee at an untested prime.
+
+  limitations:
+    - >-
+      This report covers J1 (correctness) only, per the assigned review
+      plan; it does not address J2 (the exact-arithmetic claims'
+      decisiveness or adversarial robustness), which is a separate,
+      concurrent, independent Red Team task.
+    - >-
+      Spot checks (task2, task6) covered the 4 curves directly involved in
+      the two matched pairs, not all 9 panel curves; R1/R3 exactness on
+      the remaining 5 panel curves was confirmed by reading the archived
+      `seven_count_tables.json` (all residuals zero, all r3 checks true)
+      rather than by an independent from-scratch recomputation for each of
+      those 5. Given the closed forms were independently re-derived
+      algebraically (task1) and the 4 spot-checked curves reproduced
+      exactly via three independent methods, the residual risk that the
+      remaining 5 curves' archived residuals are wrong in a way this
+      report did not catch is assessed as low, but it is not zero.
+    - >-
+      The observation-collision search (a different-(t,Z) seven-tuple
+      collision search) was not independently re-run; see
+      `proof_architecture_checks`.
+    - See F1-panel-filter-completeness-gap under `findings`.
+    - >-
+      This report was completed inside the 60-minute wall-clock budget
+      declared by the task card; no step was truncated to meet it, but no
+      time remained for additional spot checks beyond the 7 numbered
+      tasks.
+    - >-
+      `model_verified` for this session could not be confirmed: this
+      Claude Code subagent session reports its own serving model as
+      `claude-sonnet-5` (per the runtime environment), while
+      `python3 -m orchestration.adapter resolve --role validator
+      --independent-session` resolves this repository's static
+      `review-adversarial` policy binding to `anthropic:claude-opus-5`,
+      and `adapter doctor --probe` returned no output in this sandboxed
+      environment. This discrepancy is disclosed rather than silently
+      reconciled (AGENTS.md rule 11); it does not affect any of the
+      mathematical checks above, all of which are deterministic
+      recomputations independent of which model executed them.
+
+  verdict: holds
+  verdict_scope: >-
+    J1 (correctness) HOLDS: the seven closed forms are independently
+    re-derived and correct; the archived R1/R2/R3/baseline-reproduction
+    numbers independently reproduce exactly via three separate methods on
+    spot-checked curves and are internally consistent on all 9 panel
+    curves; the O(p) method is confirmed real by code inspection and
+    independent timing/scaling reproduction; the pre-registration
+    ordering is structurally guaranteed and confirmed; the two runs are
+    bit-identical modulo the declared timing/timestamp/path exceptions,
+    confirmed by direct diff; the matched-pair non-isomorphism and
+    non-vacuity control are independently brute-force confirmed at both
+    primes; the panel excludes j=0/1728/supersingular curves in fact,
+    confirmed directly and via a counterfactual robustness check (with one
+    documented completeness gap in the underlying filter code, F1, that
+    did not affect this run). This verdict supports admissibility of the
+    receipt for J1's scope only. It is not an ECDLP claim, not a
+    hypothesis-status recommendation, and not a J2 verdict.
+
+  review_attestation:
+    task_id: validator-mono2-2a13d7
+    role: validator
+    verdict: holds
+    joints_owned: [J1-correctness]
+    independent_session: true
+    read_sibling_reports: false
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - ledger/hypotheses/H-MONO-0f9170.yaml
+      - experiments/EXP-MONO-2a13d7/specification.yaml
+      - coordination/tasks/TASK-20260830-832479/snapshot-receipt.json
+      - experiments/EXP-MONO-2a13d7/execution_report.yaml
+      - experiments/EXP-MONO-2a13d7/implementation.md
+      - experiments/EXP-MONO-2a13d7/implementation/fp_common.py
+      - experiments/EXP-MONO-2a13d7/implementation/stage0.py
+      - experiments/EXP-MONO-2a13d7/implementation/stage1.py
+      - experiments/EXP-MONO-2a13d7/implementation/run_experiment.py
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/** (manifest.yaml, raw-result.json, environment.json, command.txt, p101/*, p211/*)
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-2/** (same file set, for the determinism diff)
+      - knowledge/findings/KN-FIND-a8990a.md
+      - ledger/hypotheses/H-MONO-0b3def.yaml (referenced only, via H-MONO-0f9170's citations; not independently re-verified)
+      - git history: commits a11df1c91, 50138c3da, 90fdbfd81 (git show / git log / git merge-base)
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: "claude-sonnet-5 (session-reported); repo adapter config resolves review-adversarial -> anthropic:claude-opus-5 -- see limitations"
+    model_verified: false
+    fallback_used: unknown
+    fallback_reason: >-
+      This subagent session's launch mechanism (Claude Code harness) is
+      outside this task's visibility; the discrepancy between the
+      session-reported model and the repo's static adapter binding is
+      disclosed above rather than adjudicated.
+    blindness:
+      lifted_for: []
+      note: >-
+        Per the task's explicit instruction, no sibling review directory
+        (e.g. a red-team J2 report) was read or looked for.
+
+  artifact_paths:
+    - experiments/EXP-MONO-2a13d7/reviews/validator/validation-report.yaml
+    - experiments/EXP-MONO-2a13d7/reviews/validator/runtime-session-receipt.json

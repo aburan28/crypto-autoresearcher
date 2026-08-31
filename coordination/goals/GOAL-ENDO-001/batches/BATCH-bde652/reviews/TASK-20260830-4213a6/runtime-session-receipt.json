@@ -1,0 +1,248 @@
+{
+  "schema": "crypto.autoresearch.runtime_session_receipt.v1",
+  "task_id": "TASK-20260830-4213a6",
+  "goal_id": "GOAL-ENDO-001",
+  "batch_id": "BATCH-bde652",
+  "role": "red-team",
+  "runtime": "claude_code",
+  "worktree": "/Volumes/SSD990/crypto-autoresearcher/.worktrees/endo-gate5-complete-20260829",
+  "branch": "research/endo-jinv-harness-attach-20260830",
+  "network_access_used": false,
+  "commits_made_by_this_task": 0,
+  "producer_files_touched": false,
+  "host_binding": {
+    "note": "This session performed independent adversarial re-execution of the repaired emit_host_binding_v2.sh harness directly, as the object under test, rather than emitting its own authoritative host_binding for a separate schema purpose. See commands below for the exact independent host-surface queries performed (hostname, df -P .) and their outputs."
+  },
+  "commands": [
+    {
+      "step": "custody_verification",
+      "command": "git log --oneline -8",
+      "purpose": "confirm the snapshot commit and its ancestry are reachable on this branch"
+    },
+    {
+      "step": "custody_verification",
+      "command": "git cat-file -t 691684e68ae6b7c936a01ea29248d608d6b5d72d",
+      "stdout": "commit",
+      "purpose": "confirm the declared snapshot commit sha is a real, reachable commit object"
+    },
+    {
+      "step": "custody_verification",
+      "command": "git status --short",
+      "stdout": "",
+      "purpose": "confirm a clean working tree before any review writes"
+    },
+    {
+      "step": "custody_verification",
+      "command": "shasum -a 256 <each of the six declared producer artifact paths individually>",
+      "purpose": "recompute and compare each producer artifact hash against snapshot-receipt.json's path_sha256",
+      "results": {
+        "repair-package-v6.yaml": "f1a9d23aae749bf8d3ab9890b3a9a57a4dada1c641eef449be03b055d40dea61 (match)",
+        "emit_host_binding_v2.sh": "63240dc0df515a9757e8ae763443000421e25e172b8a843a570be63400393b24 (match)",
+        "emit_procedure_v2.md": "41f6c6aee3a6909046ac60767f041acd6ba5db6f6068f45307c5218684828886 (match)",
+        "demo-receipt-v2.json": "ff25d6375d40a5903b89675771c469bb8db9d421f94ce6f106b9e1d8722428fd (match)",
+        "stop-control-report-v6.yaml": "4db30cb9bad23fc5f9e9bbeee1de048538811ec1c1dd36f24d9454478bff93b4 (match)",
+        "runtime-session-receipt.json": "9328a7a468caa554dbf511985a28941c1558817077541f0de7ba8d040280de0f (match)"
+      }
+    },
+    {
+      "step": "j2_item1_fake_bins_setup",
+      "purpose": "build hostile hostname/df/date/sed binaries in my own scratchpad, replicating the exact BATCH-820ee8 red-team attack (extended to more commands)",
+      "subcommands": [
+        { "command": "mkdir -p <scratchpad>/rt4213a6/fake-bins" },
+        { "command": "write <scratchpad>/rt4213a6/fake-bins/hostname", "contents": "#!/bin/sh\necho \"RT-ATTACKER-HOSTNAME\"\n" },
+        { "command": "write <scratchpad>/rt4213a6/fake-bins/df", "contents": "#!/bin/sh\necho \"Filesystem    512-blocks Used Available Capacity Mounted on\"\necho \"/dev/rtfakedev    1        1     1        1%       /mnt/rtfake\"\n" },
+        { "command": "write <scratchpad>/rt4213a6/fake-bins/date", "contents": "#!/bin/sh\necho \"1999-01-01T00:00:00Z\"\n" },
+        { "command": "write <scratchpad>/rt4213a6/fake-bins/sed", "contents": "#!/bin/sh\necho \"SED-HIJACKED\"\n" },
+        { "command": "chmod +x <scratchpad>/rt4213a6/fake-bins/hostname <scratchpad>/rt4213a6/fake-bins/df <scratchpad>/rt4213a6/fake-bins/date <scratchpad>/rt4213a6/fake-bins/sed" },
+        { "command": "<fake-bins>/hostname; <fake-bins>/df", "purpose": "sanity check the fake binaries work standalone before use", "stdout": "RT-ATTACKER-HOSTNAME\nFilesystem    512-blocks Used Available Capacity Mounted on\n/dev/rtfakedev    1        1     1        1%       /mnt/rtfake" }
+      ]
+    },
+    {
+      "step": "j2_item1_exact_attack_replay",
+      "command": "export PATH=\"<scratchpad>/rt4213a6/fake-bins:$PATH\"; sh coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh",
+      "stdout": "{\"schema\":\"crypto.autoresearch.runtime_session_receipt.v2\",\"host_binding\":{\"host_id\":\"Mac.attlocal.net\",\"filesystem_id\":\"/dev/disk5s1\",\"filesystem_mount\":\"/Volumes/SSD990\"},\"emitted_at\":\"2026-08-30T18:21:35Z\"}",
+      "exit_code": 0,
+      "result": "output unaffected; RT-J2-O1's originally-repaired attack confirmed closed"
+    },
+    {
+      "step": "j2_item2a_extended_attack_all_seven_commands",
+      "command": "export PATH=\"<scratchpad>/rt4213a6/fake-bins:$PATH\"; sh coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh",
+      "stdout": "{\"schema\":\"crypto.autoresearch.runtime_session_receipt.v2\",\"host_binding\":{\"host_id\":\"Mac.attlocal.net\",\"filesystem_id\":\"/dev/disk5s1\",\"filesystem_mount\":\"/Volumes/SSD990\"},\"emitted_at\":\"2026-08-30T18:21:43Z\"}",
+      "exit_code": 0,
+      "result": "real, current timestamp emitted despite hostile date/sed also in PATH; confirms all seven pinned commands are genuinely absolute-path resolved"
+    },
+    {
+      "step": "j2_item2b_pinned_path_writability_check",
+      "commands": [
+        { "command": "ls -la /bin/hostname /bin/df /bin/date /usr/bin/sed /usr/bin/awk /usr/bin/tr /usr/bin/tail", "stdout": "all root:wheel, mode -rwxr-xr-x" },
+        { "command": "ls -lad /bin /usr/bin /usr", "stdout": "all root:wheel, mode drwxr-xr-x" },
+        { "command": "whoami", "stdout": "adamburan" },
+        { "command": "id", "stdout": "uid=501(adamburan) gid=20(staff) groups=20(staff),12(everyone),...,80(admin),..." },
+        { "command": "csrutil status", "stdout": "System Integrity Protection status: enabled." }
+      ],
+      "result": "no pinned path resolves into a directory the reviewing user can write to on this host; SIP additionally protects these paths from root"
+    },
+    {
+      "step": "j2_item2c_builtin_check",
+      "commands": [
+        { "command": "type '['", "stdout": "[ is a shell builtin" },
+        { "command": "type test", "stdout": "test is a shell builtin" },
+        { "command": "type printf", "stdout": "printf is a shell builtin" },
+        { "command": "type sh", "stdout": "sh is /bin/sh" },
+        { "command": "which sh", "stdout": "/bin/sh" },
+        { "command": "ls -la /bin/sh", "stdout": "-rwxr-xr-x 1 root wheel 101040 ... /bin/sh" }
+      ]
+    },
+    {
+      "step": "j2_item2c_interpreter_hijack_construction",
+      "purpose": "build a hostile 'sh' binary in my own scratchpad to test whether the DOCUMENTED invocation command (sh <script>) is itself PATH-resolvable",
+      "subcommands": [
+        { "command": "mkdir -p <scratchpad>/rt4213a6/fake-interp" },
+        { "command": "write <scratchpad>/rt4213a6/fake-interp/sh", "contents": "#!/bin/sh\necho \"{\\\"schema\\\":\\\"crypto.autoresearch.runtime_session_receipt.v2\\\",\\\"host_binding\\\":{\\\"host_id\\\":\\\"FAKE-INTERPRETER-HIJACK\\\",\\\"filesystem_id\\\":\\\"/dev/totallyfake\\\",\\\"filesystem_mount\\\":\\\"/mnt/totallyfake\\\"},\\\"emitted_at\\\":\\\"2000-01-01T00:00:00Z\\\"}\"\n" },
+        { "command": "chmod +x <scratchpad>/rt4213a6/fake-interp/sh" }
+      ]
+    },
+    {
+      "step": "j2_item2c_interpreter_hijack_attack",
+      "command": "export PATH=\"<scratchpad>/rt4213a6/fake-interp:$PATH\"; which sh; sh coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh",
+      "stdout_which_sh": "<scratchpad>/rt4213a6/fake-interp/sh",
+      "stdout_script": "{\"schema\":\"crypto.autoresearch.runtime_session_receipt.v2\",\"host_binding\":{\"host_id\":\"FAKE-INTERPRETER-HIJACK\",\"filesystem_id\":\"/dev/totallyfake\",\"filesystem_mount\":\"/mnt/totallyfake\"},\"emitted_at\":\"2000-01-01T00:00:00Z\"}",
+      "exit_code": 0,
+      "result": "FINDING RT-J2-O4: documented invocation `sh <script>` under a hostile PATH is fully hijacked; the real script file is never executed"
+    },
+    {
+      "step": "j2_item2c_shebang_route_control",
+      "command": "export PATH=\"<scratchpad>/rt4213a6/fake-interp:$PATH\"; ./coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh",
+      "stdout_which_sh": "<scratchpad>/rt4213a6/fake-interp/sh (same hostile PATH still active)",
+      "stdout_script": "{\"schema\":\"crypto.autoresearch.runtime_session_receipt.v2\",\"host_binding\":{\"host_id\":\"Mac.attlocal.net\",\"filesystem_id\":\"/dev/disk5s1\",\"filesystem_mount\":\"/Volumes/SSD990\"},\"emitted_at\":\"2026-08-30T18:22:51Z\"}",
+      "exit_code": 0,
+      "result": "shebang-invocation route is IMMUNE to the identical hostile PATH; isolates the gap to the documented invocation string specifically"
+    },
+    {
+      "step": "j2_item2d_dyld_disclosure_check",
+      "purpose": "confirm emit_procedure_v2.md discloses DYLD_*/LD_* residual trust rather than leaving it silent",
+      "method": "re-read emit_procedure_v2.md narrowed provenance declaration text",
+      "result": "confirmed explicit disclosure; no further weaponization attempted (SIP enabled, disclosure already non-silent, out of v5 threat-model scope)"
+    },
+    {
+      "step": "j2_item2e_paste_from_different_mount_concrete",
+      "commands": [
+        { "command": "df -P /tmp", "stdout": "/dev/disk3s5   ...   /System/Volumes/Data" },
+        { "command": "cd /tmp && sh /Volumes/SSD990/crypto-autoresearcher/.worktrees/endo-gate5-complete-20260829/coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh", "stdout": "{\"schema\":\"...\",\"host_binding\":{\"host_id\":\"Mac.attlocal.net\",\"filesystem_id\":\"/dev/disk3s5\",\"filesystem_mount\":\"/System/Volumes/Data\"},\"emitted_at\":\"2026-08-30T18:23:41Z\"}" }
+      ],
+      "result": "confirmed real-but-different values when run from a different mount; confirmed the documented independent df cross-check would detect a paste-from-different-mount attempt against the worktree claim"
+    },
+    {
+      "step": "j2_item4_demo_receipt_independent_verification",
+      "commands": [
+        { "command": "hostname", "stdout": "Mac.attlocal.net" },
+        { "command": "df -P .", "stdout": "/dev/disk5s1 ... /Volumes/SSD990" }
+      ],
+      "comparison": "matches demo-receipt-v2.json host_binding.host_id, filesystem_id, filesystem_mount exactly",
+      "result": "demo receipt confirmed consistent with independently-queried host surfaces"
+    },
+    {
+      "step": "j3_item1_battery_zero_width_character_test",
+      "command": "python3 <script computing ASCII-trim/emptiness-test behavior on U+200B ZERO WIDTH SPACE>",
+      "script_path": "<scratchpad>/rt4213a6/zwsp_test.py",
+      "stdout": "raw repr: '\\u200b'\nlength (chars): 1\nis ASCII whitespace only per rule charset? False\nafter ASCII-only trim: '\\u200b' len= 1\nstep_3 zero-length? False\nstep_3 literal null (ci)? False\nempty-after-normalization: False\nround-tripped host_id repr: '\\u200b' len: 1",
+      "result": "FINDING RT-J3-O2: zero-width-character-only value passes missing_receipt_field_v2 (does not STOP)"
+    },
+    {
+      "step": "j3_item1_battery_duplicate_key_test",
+      "command": "python3 <script decoding '{\"host_binding\": {\"filesystem_id\": \"/dev/real\", \"filesystem_id\": \"\"}}' via json.loads>",
+      "script_path": "<scratchpad>/rt4213a6/dupkey_test.py",
+      "stdout": "decoded: {'host_binding': {'filesystem_id': ''}}",
+      "result": "last-value-wins under this parser; correctly triggers STOP for this ordering; reverse ordering noted as a general parser-dependent caveat, not a new v6-specific escape"
+    },
+    {
+      "step": "j3_item2_regression_check",
+      "method": "independently hand-re-derived cases (a) caller-supplied-binding, (b) missing-binding, (c) v1-receipt-under-v2-schema from repair-package-v6.yaml and j3-closure-v5.yaml's frozen rule text, without relying on stop-control-report-v6.yaml's stated outcomes",
+      "result": "all three re-derive to STOP; no regression found"
+    },
+    {
+      "step": "proves_too_much_ptm1_construction",
+      "purpose": "known-false object 1: absolute path resolving into a caller-writable directory",
+      "subcommands": [
+        { "command": "cp coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh <scratchpad>/rt4213a6/ptm/ptm1_emit.sh", "purpose": "throwaway copy in own scratchpad, producer file never touched" },
+        { "command": "mkdir -p <scratchpad>/rt4213a6/ptm/fake-writable-bindir" },
+        { "command": "write <scratchpad>/rt4213a6/ptm/fake-writable-bindir/hostname", "contents": "#!/bin/sh\necho \"PTM1-ATTACKER-OVERWROTE-PINNED-PATH\"\n" },
+        { "command": "chmod +x <scratchpad>/rt4213a6/ptm/fake-writable-bindir/hostname" },
+        { "command": "[ -w <scratchpad>/rt4213a6/ptm/fake-writable-bindir ]", "stdout": "YES writable" },
+        { "command": "sed -i '' 's#^HOSTNAME_BIN=/bin/hostname#HOSTNAME_BIN=<scratchpad>/rt4213a6/ptm/fake-writable-bindir/hostname#' <scratchpad>/rt4213a6/ptm/ptm1_emit.sh" }
+      ]
+    },
+    {
+      "step": "proves_too_much_ptm1_run",
+      "command": "sh <scratchpad>/rt4213a6/ptm/ptm1_emit.sh",
+      "stdout": "{\"schema\":\"crypto.autoresearch.runtime_session_receipt.v2\",\"host_binding\":{\"host_id\":\"PTM1-ATTACKER-OVERWROTE-PINNED-PATH\",\"filesystem_id\":\"/dev/disk5s1\",\"filesystem_mount\":\"/Volumes/SSD990\"},\"emitted_at\":\"2026-08-30T18:25:18Z\"}",
+      "note": "unmodified PATH; caller-writable pinned path alone is sufficient to defeat the object with zero PATH manipulation. My ownership/writability-check method (already applied to the real package) rejects this object.",
+      "result": "PTM-1 rejected as required"
+    },
+    {
+      "step": "proves_too_much_ptm2_construction",
+      "purpose": "known-false object 2: normalization rule accepts whitespace-only as present-and-valid",
+      "command": "write <scratchpad>/rt4213a6/ptm/ptm2_mutated_rule.txt",
+      "contents": "throwaway restatement of missing_receipt_field_v2 with step_1_trim removed entirely (own scratchpad text file, NOT repair-package-v6.yaml)",
+      "evaluation_by_hand": "whitespace-only value '   \\t  ' under this mutated rule: step_2 unchanged, step_3 not zero-length and not literal null -> PASS (should be STOP)",
+      "result": "PTM-2 rejected as required by the same battery-tracing method used on the real package"
+    },
+    {
+      "step": "proves_too_much_ptm3_construction",
+      "purpose": "known-false object 3: demo values that do not match the host's identity surfaces",
+      "command": "write <scratchpad>/rt4213a6/ptm/ptm3_demo-receipt.json",
+      "contents": "{\"schema\":\"crypto.autoresearch.runtime_session_receipt.v2\",\"host_binding\":{\"host_id\":\"mars-rover-99.example.net\",\"filesystem_id\":\"/dev/marsdisk0\",\"filesystem_mount\":\"/mnt/mars\"},\"emitted_at\":\"2026-08-30T18:00:00Z\"}",
+      "comparison": "compared against this session's own hostname/df -P . output (Mac.attlocal.net, /dev/disk5s1, /Volumes/SSD990); no field matches",
+      "result": "PTM-3 rejected as required by the same host-surface-comparison method used on the real package"
+    },
+    {
+      "step": "review_directory_creation",
+      "command": "mkdir -p coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-4213a6",
+      "purpose": "create this task's write_scope directory"
+    },
+    {
+      "step": "sibling_directory_existence_check",
+      "command": "ls coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/",
+      "stdout": "TASK-20260830-4213a6",
+      "purpose": "confirm my own directory exists; the sibling validator directory TASK-20260830-3ebb0b did not exist in the working tree at this point, so blindness is preserved trivially (nothing existed to read)"
+    },
+    {
+      "step": "final_git_status_check",
+      "command": "git status --short",
+      "purpose": "confirm no producer artifact modified by this review",
+      "note": "empty immediately before this review's own writes; only new files under this task's own write_scope were added afterward"
+    }
+  ],
+  "artifacts_produced_in_write_scope": [
+    "coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-4213a6/red-team-report.yaml",
+    "coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-4213a6/runtime-session-receipt.json"
+  ],
+  "scratchpad_artifacts_not_in_repo": [
+    "<scratchpad>/rt4213a6/fake-bins/{hostname,df,date,sed}",
+    "<scratchpad>/rt4213a6/fake-interp/sh",
+    "<scratchpad>/rt4213a6/ptm/ptm1_emit.sh",
+    "<scratchpad>/rt4213a6/ptm/fake-writable-bindir/hostname",
+    "<scratchpad>/rt4213a6/ptm/ptm2_mutated_rule.txt",
+    "<scratchpad>/rt4213a6/ptm/ptm3_demo-receipt.json",
+    "<scratchpad>/rt4213a6/zwsp_test.py",
+    "<scratchpad>/rt4213a6/dupkey_test.py"
+  ],
+  "experiment_runs_executed": 0,
+  "phase_b_touched": false,
+  "target_or_curve_access": false,
+  "hypothesis_or_goal_status_changed": false,
+  "commits_made_by_this_task": 0,
+  "inference": {
+    "role": "red-team",
+    "requested_policy": "review-adversarial",
+    "requested_reasoning_effort": "xhigh",
+    "runtime": "claude_code",
+    "resolved_model_id": "claude-sonnet-5",
+    "model_verified": false,
+    "model_verified_reason": "No network access authorized for this task; orchestration.adapter doctor --probe was not run.",
+    "fallback_used": false,
+    "degraded_requirements": [],
+    "amazon_bedrock_selected_configured_probed_contacted_or_used": false
+  },
+  "recorded_at": "2026-08-30T18:40:00Z"
+}

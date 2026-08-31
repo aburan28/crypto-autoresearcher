@@ -1,0 +1,633 @@
+red_team_report:
+  id: RT-20260830-c468bd-redteam
+  task_id: red-team-mono6-12ce1c
+  joint: J2-adversarial-verification
+  experiment_id: EXP-MONO-12ce1c
+  hypothesis_id: H-MONO-45183a
+  reviewed_snapshot_commit: 7e5bcc34466db295dd1004a3c1f60369b2efc4a1
+  snapshot_receipt: coordination/tasks/TASK-20260830-c468bd/snapshot-receipt.json
+  snapshot_integrity: >-
+    All 23 non-null path_sha256 entries in the receipt recomputed and matched
+    exactly; working tree clean on every reviewed path. Content-first binding
+    verified independently of commit reachability.
+
+  claim_under_review: >-
+    That the m-th Semaev summation cover's Frobenius cycle type at m in {4,5} is
+    always one of the two Kummer-allowed types and always equals the type forced by
+    the specialization's quadratic-character vector (M1 = 0, M2 = 1.000 over 480,000
+    specializations per run, two runs), consistent with monodromy contained in
+    (Z/2)^{m-2}; and, secondarily, that the contract's cross-curve null control
+    (measured_null_1), which failed as literally specified, is explained away by
+    "Finding 1" without damage to that categorical result.
+
+  verdict: holds_with_finding
+
+  verdict_summary: >-
+    The GALOIS CONCLUSION HOLDS and I independently confirmed it on a third path,
+    exhaustively at p = 103 and at scale to m = 5. The STATED EVIDENTIAL BASIS DOES
+    NOT HOLD and must be restated. M1 = 0 and M2 = 1.000 are mathematical identities
+    of the Path-1 code, not measurements: for ANY input Path 1 can construct, the
+    Frobenius action on the fibre is a group translation in (Z/2)^{m-2}, so only two
+    cycle types are reachable and the observed permutation always equals the predicted
+    one. Of the headline 960,000 specializations, none could have falsified M1. The
+    falsifiable evidence is the 64,000 dual-path comparisons (32,000 per run), where
+    Path 2's factoring classifier could have reported a forbidden type and did not.
+    Finding 1 is GENUINE and I strengthened it: the null is not merely uninformative
+    across two curves, it is unsatisfiable by construction for any companion object
+    whatsoever, including a singular cubic, a quartic, and a constant. Finding 1 is
+    therefore not a post-hoc rescue. But the disposition it supports is wrong: the
+    correct reading is not "the null was invalid, so Stage 2 survives", it is "the
+    classifier that produced M1/M2 has neither a valid null nor a positive control,
+    so those two metrics carry no evidential weight and the claim rests entirely on
+    the dual-path arm." I ran the positive control that arm was missing (a mutation
+    control on S_4) and it PASSES at ~89% per-specialization power, which is what
+    rescues the conclusion.
+
+  objections:
+
+    - id: OBJ-1
+      severity: critical
+      title: M1 = 0 and M2 = 1.000 are identities of the Path-1 code, not measurements
+      target: execution_report.stage2_generic_fibre_census; implementation/run_experiment.py stage2_cell
+      finding: >-
+        stage2_cell computes M1, M2 and M3 exclusively from path1.observed_permutation
+        and path1.predicted_permutation. Both are forced. Proof, four steps, all
+        verifiable in the committed source: (1) fields.Fp2.sqrt_of_fp_element returns
+        (a,0) when chi = +1 and (0,s) when chi = -1, so Frobenius (fields.Fp2.conj,
+        (a,b) -> (a,-b)) sends Y_i to exactly chi_i * Y_i; (2) X_i = from_fp(x_i) lies
+        in F_p, so conj fixes it, hence conj(P_i) = [chi_i] P_i; (3) ec_add_fp2 is an
+        F_p-rational map and A_fp2 = from_fp(A) is in F_p, so the F_p-automorphism conj
+        commutes with it; (4) therefore conj(Q_eps) = +- Q_{eps * g} with g_i =
+        chi_i chi_1, so the induced permutation of the 2^{m-2} x-values is translation
+        by g in (Z/2)^{m-2} -- identity or fixed-point-free involution, and identical
+        to predicted_permutation by construction. M1 = 0 and M2 = 1.000 follow
+        deductively. The only escape hatches are the pre-excluded strata and
+        no_frobenius_match, which is why n_no_frobenius_match_anomaly = 0 in every cell
+        of both runs, exactly as forced.
+      evidence:
+        - "Four full Stage-2 cells independently reproduced BIT-FOR-BIT with my own from-scratch code (RO3 m=4, CM2 m=5, RO1 m=3, J0 m=4): every one of n_ramified, n_diagonal, n_infinity, n_nondistinct, n_admissible, M1, M2, n_split_complete matched the committed raw-result.json exactly."
+        - "Exhaustive m=4 census at p=103 on RO1/CM1/CM2 over ALL 2,915,514 admissible ordered triples: M1 = 0, M2 = 1.000000. Strictly stronger than the sampled result and equally forced."
+        - "Power test on the Executor's own code: feeding path1.observed_permutation/cycle_type a genuine 2+1+1 root configuration (roots of a random quartic of that type embedded in F_{p^2}) returns (1,1,2) and WOULD increment M1. The code is not blind; the input can never be adversarial."
+      consequence: >-
+        The headline "held PERFECTLY across 960,000 total specializations" overstates
+        the evidential content by roughly 15x. It should read: 64,000 dual-path
+        comparisons (32,000 per run) at m in {4,5}, plus 960,000 consistency checks of
+        the F_{p^2} arithmetic library's Frobenius equivariance.
+      does_not_imply: >-
+        This does NOT make the Galois conclusion false. It relocates the evidence.
+
+    - id: OBJ-2
+      severity: critical
+      title: measured_null_1 is unsatisfiable by construction; the hypothesis's own nearby-object premise is mathematically false
+      target: H-MONO-45183a.proof_search_map.method_ceiling.nearby_object_control; specification.yaml arms_and_controls.measured_null_1
+      finding: >-
+        The contract asserts "The sign-torsor argument does not apply across two curves,
+        so the FORCED VALUE IS THAT 4-CYCLES AND 3+1 TYPES APPEAR AT NONZERO RATE."
+        That assertion is false, and false by a much wider margin than Finding 1 claims.
+        The argument of OBJ-1 never uses curve membership, non-singularity, or that f is
+        a cubic. It needs only that each y_i is a square root of an F_p element and that
+        the combining map is F_p-rational. I ran the proves-too-much control: the same
+        construction with f_3 replaced by (i) a wildly different curve (A=7,B=3),
+        (ii) a SINGULAR cubic x^3 (not a curve at all), (iii) a quartic x^4+5x+9,
+        (iv) the CONSTANT 17 with no x-dependence whatsoever. In every case, 2,876-2,897
+        valid trials, ONLY the two allowed cycle types, ZERO forbidden types. Also
+        immaterial: which curve's A enters the doubling branch (re-ran with A' = 1, same
+        result).
+      evidence:
+        - "Executor's measured_null_1 histogram reproduced exactly from scratch: n_valid = 4793, {(2,2): 3551, (1,1,1,1): 1242}."
+        - "E' = (1,45) verified genuinely different: non-singular, N = 456 = N(RO3), Z = 3, j(E') = 335 vs j(RO3) = 391, NOT isomorphic to RO3 over F_421 (exhaustive u-scan over u^4/u^6 scaling), NOT its quadratic twist (RO3's twist has N = 388). So there is no 'silently same curve' implementation bug."
+        - "Only construction that breaks the torsor: making y_3 a generic element of F_{p^2} (Frobenius image neither +y_3 nor -y_3). Then the root multiset is not Frobenius-stable and no_frobenius_match fires in 2,904 of 2,933 trials -- a degenerate breakage, not a 4-cycle. There is NO variant of Path 1 that yields a forbidden type."
+      consequence: >-
+        The control did not "fail"; it could not have succeeded. Per docs/inventor-protocol.md,
+        a control that cannot fail proves nothing. This is a hypothesis-level design
+        error in H-MONO-45183a, not an execution error, and it must be recorded against
+        the hypothesis rather than against the run.
+
+    - id: OBJ-3
+      severity: high
+      title: The contract's sharper diagnostic clause fired and was never cited
+      target: specification.yaml arms_and_controls.ordering_control; execution_report.stage4_controls_and_nulls_pretreatment
+      finding: >-
+        ordering_control states verbatim: "If the rule emits the same label on a null and
+        on a treatment arm, the rule discriminates nothing and must be rewritten before
+        any treatment output is read." That clause fired -- the rule emitted the same two
+        labels on measured_null_1 and on every treatment cell -- and it appears NOWHERE in
+        execution_report.yaml or implementation.md, both of which cite only
+        measured_null_1's weaker "Stage 2 is void" sentence. The two clauses prescribe
+        different remedies (void the stage vs rewrite the rule and re-run), and the
+        un-cited one is the one whose diagnosis my independent analysis confirms exactly:
+        the Path-1 rule discriminates nothing, categorically.
+
+    - id: OBJ-4
+      severity: high
+      title: Two misreported statistics inside the Finding 1 argument itself
+      target: execution_report.yaml line 156; implementation.md lines 128 and 150
+      finding: >-
+        (a) Both documents state measured_null_1 had "4986 and 4762 valid trials
+        respectively". The committed artifact records n_valid = 4793 for run 1 (4762 for
+        run 2 is correct). (b) implementation.md line 150 states the observed cross-curve
+        distribution is "{(2,2): ~62%, (1,1,1,1): ~38%}" and presents this as verification
+        of Finding 1 against the measured data. The artifact records 74.09% / 25.91%
+        (run 1) and 74.84% / 25.16% (run 2). The quoted 62/38 matches neither Finding 1's
+        prediction nor the S_4 alternative.
+      note: >-
+        The error is not self-serving -- the CORRECT numbers support Finding 1 markedly
+        better than the quoted ones. But the sentence claiming Finding 1 was "verified
+        against the measured data" cites numbers that are not in the data, which is an
+        AGENTS.md rule 5 violation on the record's single load-bearing explanatory
+        paragraph. It must be superseded, not edited.
+      correction_supplied: >-
+        The cross-curve sign torsor forces P(split) = a^2 b + (1-a)^2 (1-b) with
+        a = b = 226/418 = 0.54067 (E and E' share S = 226, N_ns = 192, Z = 3), giving
+        0.2550. Observed 0.2591 (0.66 sigma, run 1) and 0.2516 (0.54 sigma, run 2).
+        The competing full-S_4 model forces 1/24 = 0.0417 and is rejected at over
+        30 sigma. Finding 1 therefore has a confirmed POINT prediction, which the
+        Executor did not compute.
+
+    - id: OBJ-5
+      severity: high
+      title: Finding 2's causal claim is right; its stated mechanism is quantitatively falsified by its own table
+      target: implementation.md "Finding 2"; execution_report.M3_split_frequency_table
+      finding: >-
+        Finding 2 attributes the M3 deficit to "a birthday-paradox-style accidental
+        x-coordinate coincidence among the 8 sums ... of order C(8,2)/N". That mechanism
+        has NO tau dependence. The data have a strong one. At m = 5, P(excluded | all
+        characters agree) is 0.2124 for RO1 (N = 115, tau = 1) but 0.7578 for CM2
+        (N = 100, tau = 4) -- essentially the same N, a 3.6x difference in rate. A 1/N
+        mechanism cannot produce that. The correct driver is Part B's own E[2]
+        subset-sum rate (16 tau + 24(tau-1))/N.
+      evidence:
+        - "observed / predicted across all 8 curves at m=5, birthday model C(8,2)/N: 0.98, 1.89, 3.80, 0.81, 0.73, 1.70, 1.92, 3.10 -- inconsistent, up to 3.8x off."
+        - "observed / predicted, Part-B 2-torsion model (40 tau - 24)/N Poissonised: 1.64, 1.00, 0.88, 1.41, 1.25, 0.88, 1.08, 1.02 -- consistent across a 25x range of rates."
+        - "Finding 2's own supporting sentence attributes CM1/CM2's high exclusion rates to small N; RO1 at N = 115 (comparable to CM2's N = 100) has rate 0.035 at m=5 against CM2's 0.242, 7x lower at essentially the same N. tau does the work, not N."
+      corroboration_of_the_causal_claim: >-
+        I DID reproduce the bias direction and magnitude, by direct measurement rather
+        than simulation. Stratifying every Stage-2 cell by character vector:
+        P(excl | characters agree) exceeds P(excl | mixed) by 5-10x in every one of the
+        16 cells. Re-including the excluded instances attributed by their own character
+        vector recovers M3 to the forced value everywhere: CM2 m=5 0.0419 -> 0.1211
+        (forced 0.1121); CM1 m=5 0.0765 -> 0.1177 (forced 0.1213); RO1 m=5 0.1063 ->
+        0.1287 (forced 0.1336); RO3 m=5 0.1086 -> 0.1292 (forced 0.1263). The 24-sigma
+        deviation is fully accounted for. Finding 2's CONCLUSION is corroborated.
+      unrecorded_consequence: >-
+        Parts A and B are NOT independent. mechanism.B-3 asserts "The two are independent
+        invariants of the same fibre." The record's own data show Part B's collision
+        mechanism IS the exclusion filter on Part A's M3 denominator. That interaction
+        should be recorded as a finding in its own right.
+
+    - id: OBJ-6
+      severity: high
+      title: HEUR-COIN-1's falsification condition is empty by construction, and the discriminating experiment it should have run gives a 100% effect
+      target: H-MONO-45183a.heuristic_assumptions HEUR-COIN-1; implementation.md "Finding 3"
+      finding: >-
+        Finding 3 is correct and I confirm it, twice over. (a) Mathematically: flipping
+        y_i permutes the eps-keys and fixes the multiset of resulting x-coordinates, so
+        the collision count D is sign-invariant. (b) Operationally, and not stated by the
+        Executor: both arms call Drawer(sampling_domain, "fb-x", p, m) with identical
+        (domain, label, p, m), so they draw the IDENTICAL index sequence and evaluate
+        literally the same tuples. HEUR-COIN-1's stated falsification condition ("the
+        fixed-sign and random-sign sampling arms disagreeing") therefore cannot fire.
+        This is a design error in the HYPOTHESIS, not in the execution: the falsifier
+        names an axis on which its own statistic is provably invariant.
+      the_experiment_that_would_have_worked: >-
+        HEUR-COIN-1's actual stated gap is that "the drawn points are uniform on a
+        TRANSVERSAL rather than on the GROUP". The discriminating axis is therefore
+        transversal sampling (one point per factor-base x, 2-torsion necessarily
+        excluded because f(x) = 0 is excluded) versus uniform sampling on E(F_p)
+        (which contains the 2-torsion points). I RAN IT, 30,000 tuples per cell:
+        at m = 4 the group-uniform mean D is 1.84-2.08x the transversal mean D on every
+        tau >= 2 curve (RO3 0.03920 -> 0.08170; CM2 0.18977 -> 0.34967; RO2 0.02853 ->
+        0.05677; CM1 0.05853 -> 0.10980; J1728 0.01650 -> 0.03033), and 1.24-1.33x at
+        m = 5. That is a 100% effect, not the o(1/N) HEUR-COIN-1 worried about, and it
+        is visible in a few thousand tuples. Mechanism: a tuple containing a 2-torsion
+        point fires the singleton branch, to which mechanism.B-2 assigns probability
+        EXACTLY 0 under the transversal construction.
+      consequence: >-
+        Part B's forced values ARE convention-dependent, in exactly the way
+        HEUR-COIN-1's falsification condition anticipates, on an axis the contract never
+        varied. The transversal column is the one that matches, so Part B's result is
+        correct but must be scoped "for the transversal factor-base sampling
+        convention". The test_boundary sentence "both fixed-sign and random-sign
+        sampling conventions run as separate arms" must not be read as having tested
+        convention dependence; it tested nothing.
+      institutional_parallel: >-
+        Same shape as the degenerate NULL-1/NULL-2 controls recorded for
+        EXP-MONO-715694. A control that cannot fail is not a control, and this lane has
+        now produced three of them (measured_null_1, the sign arms, and by OBJ-1 the
+        whole Path-1 M1/M2 arm).
+
+    - id: OBJ-7
+      severity: medium
+      title: The eight-curve panel contains only four independent specialization streams; undisclosed
+      target: implementation/run_experiment.py stage2_cell; execution_report.panel_construction
+      finding: >-
+        Drawer(domain, "spec-x", p, m) is keyed by (domain, label, p, m) and NOT by the
+        curve. RO3, J0 and J1728 all sit at p = 421 and RO1, CM1 and CM2 all sit at
+        p = 103, so within each prime group all three curves are evaluated on the SAME
+        drawn x-tuples. Verified directly in the committed record: n_diagonal is
+        bit-identical within each group (p=421: 40 / 136 / 264 at m = 3/4/5 for all three
+        curves; p=103: 198 / 544 / 1095 for all three).
+      consequence: >-
+        Irrelevant to M1/M2 (identities per OBJ-1). It DOES mean the eight per-curve M3
+        sigma values are positively correlated and the panel's effective independence
+        for every frequency claim is four, not eight. Not listed in protocol_deviations.
+      related_defect: >-
+        factor_base(..., "random") and stage3_cell each open a FRESH
+        Drawer(sampling_domain, "fb-x", p, m) at counter 0, so the random-sign bits and
+        the tuple-index draws consume the same digest sequence. The spec says "Counters
+        start at 0 and advance once per digest consumed, per label, per (p, m) cell",
+        which reads as one shared counter per cell. Harmless here only because D is
+        sign-invariant; it would bias any statistic that is not.
+
+    - id: OBJ-8
+      severity: medium
+      title: Three contract-mandated graded controls were neither computed nor reported, and the omission is undisclosed
+      target: specification.yaml arms_and_controls.graded_control_{1,2,3}; execution_report.yaml
+      finding: >-
+        graded_control_1 (m-ladder with fitted decay rate), graded_control_2 (tau-ladder
+        with fitted slope, forced 6) and graded_control_3 (SCALE LADDER) appear nowhere
+        in raw-result.json or execution_report.yaml, and the omission is absent from
+        protocol_deviations. graded_control_3's own contract text is "A rate that does
+        not decay when the parameter meant to destroy it grows is the canonical artifact
+        tell and this control exists to catch exactly that" -- i.e. the single control
+        docs/inventor-protocol.md section 3 most directly requires.
+      i_reconstructed_them_from_the_committed_record_and_they_pass: >-
+        graded_control_2, fit through origin of mean_D against (tau-1)/N at m = 4 over
+        all 8 curves: SLOPE 6.2323 against the forced 6. graded_control_3, same tau at
+        two primes with N ratio >= 3, five non-vacuous cells: tau=1 m=5, N 115->531
+        (x4.62), rate x0.203 against 1/N prediction x0.217; tau=2 m=4, N 108->394
+        (x3.65), rate x0.266 vs x0.274; tau=2 m=5, rate x0.278 vs x0.274; tau=4 m=4,
+        N 100->456 (x4.56), rate x0.212 vs x0.219; tau=4 m=5, rate x0.223 vs x0.219.
+        THE QUANTITY DECAYS AS 1/N IN EVERY CELL. The artifact tell does not fire.
+        This is a material positive the record failed to claim, and it should be
+        recorded rather than left in a reviewer's file.
+
+    - id: OBJ-9
+      severity: low
+      title: positive_control_1 was run at a prime hosting no panel curve; undisclosed deviation
+      target: specification.yaml arms_and_controls.positive_control_1; run_experiment.py line 292
+      finding: >-
+        The spec says "Draw uniformly random monic quartics over the SAME F_p". The
+        implementation used panel["primes"]["p11"] = 2027, an 11-bit prime on which no
+        panel curve was built (the treatment primes are 103, 191, 421, 569). Not listed
+        in protocol_deviations. It moves the mandatory control away from p = 103, which
+        is precisely where a small-field classifier artifact would hide.
+      i_closed_it: >-
+        I re-ran positive_control_1 with my own independent factoriser at p = 103,
+        p = 421 and p = 2027, 20,000 quartics each. All five Chebotarev types within
+        3 sigma at all three primes (worst 2.65 sigma), with strictly positive 4-cycle
+        and 3+1 counts everywhere. The deviation is harmless. It is still undisclosed.
+      structural_point_that_is_not_harmless: >-
+        The spec requires the positive control to use "the IDENTICAL cycle-type
+        classifier". It uses the FACTORING classifier, i.e. Path 2's. M1 and M2 come
+        from Path 1's conjugation classifier. So the mandatory positive control
+        validates a classifier that produced none of the headline numbers, and the
+        classifier that did produce them has no positive control in the contract at all.
+        That gap, not the prime, is the finding.
+
+  required_controls:
+    - id: RC-1
+      status: I_RAN_IT_AND_IT_PASSES
+      name: Mutation control on S_4 -- does the dual-path comparison have power?
+      rationale: >-
+        Once OBJ-1 relocates all evidential weight onto the dual-path arm, that arm needs
+        its own positive control, and the contract specifies none. Two independently
+        coded classifiers agreeing is not evidence unless at least one of them could have
+        disagreed.
+      method: >-
+        Rebuilt S_4 with my own hand-coded 4x4 Sylvester determinant (no sympy),
+        corrupted a single coefficient by +1 mod p, and re-ran the Path-1 vs Path-2
+        comparison over 3,200 specializations across all 8 panel curves at m = 4.
+      result: >-
+        Disagreement rate 88.8%-89.9% per specialization for each of the four coefficient
+        positions tested (constant, T^2, T^3, leading), with forbidden types (1,3),
+        (1,1,2) and (4,) appearing in bulk. At the contract's n = 2,000 per cell the
+        detection probability is indistinguishable from 1. THE DUAL-PATH CHECK HAS
+        GENUINE POWER. This is what rescues the categorical conclusion.
+
+    - id: RC-2
+      status: I_RAN_IT_AND_IT_PASSES
+      name: Third independent path, sharing no code or framework with either Executor path
+      method: >-
+        My own Tonelli-Shanks square roots, my own F_{p^2} arithmetic, longhand
+        chord-and-tangent group law, S_4 via my own Sylvester determinant, and my own
+        distinct-degree factoriser (validated against Chebotarev at three primes).
+      result: >-
+        (a) Manual single-specialization check, RO3 m = 4, first run-1 draw
+        x = (96, 281, 92), f = (395, 77, 229), chi = (+1,+1,+1), roots y = 371, 224, 93:
+        the four signed sums have x-coordinates {79, 419, 315, 175}, all distinct and all
+        in F_p; Frobenius acts as the identity; cycle type 1^4 = character prediction. My
+        Sylvester S_4 vanishes at exactly {79, 175, 315, 419} and nowhere else in F_p.
+        (b) Second manual check on a mixed-character draw x = (237, 403, 341),
+        chi = (-1,-1,+1): Path 1 gives (2,2); my S_4 has no F_p roots and splits into two
+        irreducible quadratics, (2,2). (c) S_3(x1, x2, x(P1 +- P2)) = 0 verified
+        independently. (d) At scale: 3,200 specializations across all 8 curves at m = 4,
+        ZERO disagreements with Path 1.
+
+    - id: RC-3
+      status: I_RAN_IT_AND_IT_PASSES
+      name: Exhaustive Part-A census at p = 103 (no sampling at all)
+      result: >-
+        All admissible ordered triples on RO1, CM1, CM2: 1,050,786 + 989,976 + 874,752 =
+        2,915,514. M1 = 0 and M2 = 1.000000 on every one. Strictly stronger than the
+        sampled 20,000/cell -- and, per OBJ-1, equally forced.
+
+    - id: RC-4
+      status: OUTSTANDING_AND_REQUIRED
+      name: Path-2-only categorical census over the FULL Stage-2 sample
+      rationale: >-
+        This is the only measurement that would make the headline number mean what the
+        record says it means. Compute M1 and M2 from the FACTORING classifier over the
+        full 20,000 specializations per (curve, m), not a 2,000 subsample.
+      cost: >-
+        Using the Executor's own measured 0.4 ms/spec (S_4) and 6 ms/spec (S_5):
+        8 curves x 20,000 x (0.4 + 6) ms is about 17 minutes, well inside the 7,200 s
+        budget the run left unspent (it used 123 s).
+
+    - id: RC-5
+      status: OUTSTANDING
+      name: Re-run Stage 2 with a per-curve specialization stream
+      rationale: >-
+        Fixes OBJ-7. Key the spec-x Drawer on (p, A, B, m) rather than (p, m) so the
+        eight panel curves become eight independent streams and the M3 sigma values
+        become comparable across curves at a shared prime.
+
+    - id: RC-6
+      status: OUTSTANDING
+      name: Report Part B against BOTH sampling conventions that actually differ
+      rationale: >-
+        Fixes OBJ-6. Replace the empty fixed-vs-random-sign arms with
+        transversal-vs-group-uniform, for which I measured a 1.84-2.08x effect at m = 4.
+
+  counterexample_or_mutation:
+    the_cheapest_discriminating_object: >-
+      For the null: there is none of the shape the contract chose. I proved by
+      exhaustion over the construction that NO companion object -- curve, singular
+      cubic, quartic, or constant -- can make Path 1 emit a forbidden type. The only
+      valid null for Path 1's classifier is an object whose roots have no signed-sum
+      presentation, which is exactly positive_control_1 (a random quartic), and that
+      must be classified by factoring, not by conjugation. The contract already owned
+      the right null and mislabelled it as a positive control.
+    the_mutation_that_does_discriminate: >-
+      Corrupt one coefficient of S_4. 89% per-specialization detection. Run as RC-1;
+      it passes, and it is the control the contract should have carried.
+
+  heuristic_challenges:
+    - heuristic: HEUR-KUM-1
+      challenge: >-
+        Stated as a theorem, and I agree it is one -- but the record understates its
+        reach and thereby misdesigns its own control. The containment needs neither a
+        curve nor a cubic: it needs only F_p-rational square-root generators and an
+        F_p-rational combining map. Stating it at that strength is what makes
+        measured_null_1's unsatisfiability obvious in advance.
+      falsification_condition_assessment: >-
+        "Any observed Frobenius cycle type at m >= 4 outside the two allowed types, with
+        the nearby-object control passing" -- as measured through Path 1 this condition
+        is empty (OBJ-1). It becomes non-empty only when the cycle type is read off a
+        factorization of S_m. The condition must be restated to name the classifier.
+
+    - heuristic: HEUR-KUM-2
+      challenge: >-
+        Honestly flagged as the weakest link, and the record correctly reports the
+        realized-permutation count as a measured lower bound rather than assuming
+        equality. I confirm 2^{m-2} distinct permutations are realized at m = 4 and 5 on
+        this panel. No objection. Note only that this corroborates irreducibility at
+        these m on these curves and is not a proof at any m.
+
+    - heuristic: HEUR-COIN-1
+      challenge: See OBJ-6. Falsification condition provably empty; a 100% effect exists on the axis it should have used.
+
+    - heuristic: HEUR-DEG-3
+      challenge: >-
+        deg_T S_4 = 4 was verified as a fully symbolic identity, which is the strongest
+        available form and I accept it. deg_T S_5 = 8 was verified only OPERATIONALLY
+        ("every instance observed degree exactly 8"), which the record discloses. That
+        is adequate for a fixture but it is not the symbolic check the contract's text
+        ("verify deg_T S_4 = 4 AND deg_T S_5 = 8") asks for, and the asymmetry should be
+        recorded rather than absorbed into a single PASS line.
+
+  cost_model_challenges:
+    - >-
+      None are owed and none are made. asymptotic_claim is null in H-MONO-45183a with an
+      explicit justification, no asymptotic_claim field appears in the specification or
+      execution report, and no time, memory, query, relation-rate or exponent number
+      appears anywhere in the reviewed artifacts. There is no cost model to attack.
+    - >-
+      The one cost statement I checked is the record's own budget accounting: 123.19 s
+      and 121.19 s against a 7,200 s ceiling and a 2 GB memory cap, with no trial-count
+      reduction anywhere. That is accurate and it is what makes RC-4 affordable.
+
+  baseline_comparison:
+    pollard_rho: >-
+      O(sqrt(N)) time, O(1) memory, unchanged. Nothing measured here touches it.
+    bsgs: >-
+      O(sqrt(N)) time and O(sqrt(N)) memory, unchanged and not engaged.
+    closest_specialized_baseline: >-
+      Gaudry/Diem index calculus by Weil restriction over F_{q^n}. NOT ENGAGED, and
+      correctly so: the object measured is the summation cover over a PRIME field, which
+      is not the object those attacks act on. H-MONO-45183a's method_ceiling and
+      corollaries_note both state this exclusion explicitly and I confirm they are
+      honoured throughout the execution artifacts.
+    dominated_by_audit: >-
+      CHECKED, NOT READ PAST. The hypothesis records "dominated_by is not applicable
+      because no Pareto point is claimed" and "sota_delta is zero on every attack axis".
+      I verified there is no axis -- time, memory, or data/queries -- on which any
+      reviewed artifact claims a point, so the null is justified rather than unfilled.
+      No invariance or precomputation is claimed as a speedup, so KN-LIT-7593's
+      "charge the invariant's own cost" test has nothing to bite on.
+
+  reduction_and_scope_challenges:
+    - id: SCOPE-1
+      status: PASS
+      finding: >-
+        No ECDLP, relation-rate, exponent, cost or cryptographic-scale claim appears
+        anywhere in execution_report.yaml or implementation.md. The only occurrences of
+        "ECDLP", "cryptographic", "exponent" and "KN-OPEN-009" in either file are inside
+        a single disclaiming scope_reminder. No sentence reads as closing KN-OPEN-009.
+        The Executor also declined to render any verdict, as instructed. Scope discipline
+        in the execution artifacts is exemplary.
+    - id: SCOPE-2
+      status: INFLATION_RISK_IN_THE_HYPOTHESIS_NOT_THE_RUN
+      finding: >-
+        H-MONO-45183a corollary 2 states the "generic full symmetric/wreath monodromy
+        premise of KN-OPEN-009 is false for m >= 4". Three qualifications are owed and
+        only partly present. (a) The evidence is prime-field only, m in {4,5}, p <= 569
+        for the treatment; the containment is derivation-tier for all char > 3 but every
+        NUMBER is toy, which the record does say. (b) The WREATH half is not addressed by
+        anything measured -- only the symmetric half is. (c) KN-OPEN-009's premise
+        concerns the F_{q^n} Weil-restriction setting, which the record itself excludes.
+        The corollary should read "false for the prime-field summation cover" or it
+        overstates its own reach.
+    - id: SCOPE-3
+      status: NOTE
+      finding: >-
+        No published reduction is cited and no corollary is obtained by instantiating an
+        external theorem, so the reduction-instantiation audit is vacuous here. All
+        structural ingredients are marked as derived in-repo with citation provenance
+        stated, including one explicit "NOT RETRIEVED, NO SOURCE READ, NO CITATION
+        ASSERTED". That is the correct handling of a recalled reference and I have no
+        load-bearing recalled citation to challenge.
+    - id: SCOPE-4
+      status: CONFOUND_CARRIED_FORWARD
+      finding: >-
+        H-MONO-45183a itself records that EV-MONO-a0a89c's producer, verification pass,
+        Validator and Red Team all resolved to claude-opus-5, and requires any review of
+        it to record the same confound rather than inherit it silently. I record it: THIS
+        REVIEW ALSO RESOLVED TO claude-opus-5. This lane now has session independence and
+        no model independence across five roles. That is a real limit on how much the
+        agreement between my third path and the Executor's two paths should be worth,
+        and it is an argument for RC-4 (a measurement) over further review (a judgement).
+
+  proof_architecture_challenges:
+    observation_fiber_attack: >-
+      The record declares its own massive observation collision and calls it the point
+      rather than a defect, which is defensible for Part A. But the declaration is
+      incomplete in one direction that matters: it says the cycle type "is a function of
+      the square-class vector alone", and does not say that the MEASURED cycle type, as
+      Path 1 computes it, is a function of the square-class vector alone BY CONSTRUCTION.
+      That is the difference between a predicted collision and an instrument that can
+      only report one value per fibre. OBJ-1 is the observation-fiber attack succeeding:
+      I placed a preimage on the other side of the conclusion (a 2+1+1 root set) and the
+      classifier reported it correctly, proving the separator exists in the CODE and is
+      unreachable from the INPUT.
+    quantifier_order_attack: >-
+      The declared order (for all k, for all E, for all m, there exists an injection into
+      (Z/2)^{m-2}) survives, and the witness really is uniform -- it is written from f and
+      the x_i with no dependence on curve, field or seed. I found it to be MORE uniform
+      than claimed (OBJ-2: it does not depend on f being a curve equation at all). No
+      witness is chosen after seeing an instance. PASS.
+    method_ceiling_attack: >-
+      The record's stated ceiling is honest and my results do not reach past it. I would
+      tighten one clause: the ceiling says the empirical consequences are "verified at
+      m in {3,4,5} on toy primes". After OBJ-1 that should read "verified at m in {4,5}
+      by 64,000 dual-path comparisons on toy primes", because the 960,000 figure is not a
+      verification.
+    nearby_object_attack: >-
+      FAILED AS DESIGNED AND I DIAGNOSED WHY (OBJ-2). The second declared nearby object
+      is not a nearby object -- it is the same theorem in a costume. The FIRST declared
+      nearby object (random quartics) is the correct one and passes.
+    compositional_invariant_attack: >-
+      The proposed stronger invariant (track the full square-class vector, not the cycle
+      type) is genuinely stronger and is what makes the induction on m work. I confirm the
+      recursion behaves: the m = 5 fibre is the m = 4 fibre composed with one more sign
+      generator, and my independent S_5 = Res_X(S_4, S_3) instances all had degree exactly
+      8 with no drop. No component deletion produced a first-failing step I could exhibit.
+    boundary_and_strictness_attack: >-
+      The m = 3 baseline embedding is an exact algebraic identity, re-verified at Stage 0
+      symbolically and on 105 committed curves with exact Fraction arithmetic and zero
+      difference. That is the strongest form available and I have no objection to it. It
+      is also the only part of this record whose evidence is stronger than its claim.
+
+  what_the_reported_quantity_should_have_done:
+    parameter_that_should_destroy_the_signal: N (the curve order), and separately tau
+    expected_behaviour: >-
+      Part B's coincidence rate must fall like 1/N as N grows at fixed tau, and must
+      grow linearly in (tau-1)/N at fixed m. A rate that stayed flat as N grew would be
+      the canonical artifact tell.
+    measured: >-
+      It decays correctly. Reconstructing the omitted graded_control_3 from the committed
+      record: across five non-vacuous cells with N ratios of 3.65x to 4.62x, the observed
+      rate ratios are 0.203, 0.266, 0.278, 0.212, 0.223 against 1/N predictions of 0.217,
+      0.274, 0.274, 0.219, 0.219. And the omitted graded_control_2 fits a slope of 6.2323
+      against the forced 6. THE SIGNAL BEHAVES LIKE A SIGNAL.
+    null_object_control: >-
+      Present and passing for the factoring classifier (random quartics reproduce S_4
+      Chebotarev at three primes, including the two treatment primes I added). ABSENT for
+      the conjugation classifier, and provably unconstructible for it (OBJ-2). That
+      asymmetry is the finding of this review.
+
+  narrowest_supported_statement: >-
+    For the eight toy curves of this panel (prime fields, p in {103, 191, 421, 569},
+    char > 3, non-singular short Weierstrass, tau in {1,2,4}) and m in {4,5}, the
+    Frobenius cycle type of the m-th Semaev summation cover's fibre is always
+    1^{2^{m-2}} or 2^{2^{m-3}}, and always equals the type forced by that
+    specialization's quadratic-character vector. This is supported by 64,000
+    Path-1-versus-Path-2 comparisons (32,000 per run, zero disagreements), independently
+    replicated by a third path sharing no code (3,200 comparisons, zero disagreements),
+    and confirmed exhaustively at p = 103 over all 2,915,514 admissible ordered triples
+    at m = 4; the comparison is shown by a mutation control to detect a corrupted S_4 at
+    about 89% per specialization. Consistent with, and the natural evidence for,
+    geometric and arithmetic monodromy contained in (Z/2)^{m-2}; the realized-permutation
+    count reaches 2^{m-2}, so HEUR-KUM-2 is corroborated at these m rather than assumed.
+    Part B's forced collision rates 6(tau-1)/N and 16tau/N + 24(tau-1)/N are matched
+    (fitted tau-slope 6.23 against 6; 1/N decay confirmed across N ratios up to 4.6x)
+    FOR THE TRANSVERSAL FACTOR-BASE SAMPLING CONVENTION ONLY -- under group-uniform
+    sampling the m = 4 rate is about twice as large. M1 = 0 and M2 = 1.000 over 960,000
+    specializations are identities of the Path-1 construction and support nothing beyond
+    the correctness of the F_{p^2} arithmetic. NOTHING here concerns F_{q^n},
+    characteristic 2 or 3, singular curves, genus > 1, cryptographic scale, any cost,
+    memory or exponent, or KN-OPEN-009's relation-rate half; KN-OPEN-009 is not closed
+    and the wreath half of its premise is untouched.
+
+  what_i_did_not_do:
+    - >-
+      I did not read anything under experiments/EXP-MONO-12ce1c/reviews/validator/. That
+      directory appeared during my session and I did not open it. read_sibling_reports:
+      false.
+    - >-
+      I did not verify the Stage-0 symbolic identity against EV-MONO-a0a89c's committed
+      closed form beyond confirming the code path and the exact-Fraction zero difference;
+      re-derivation is J1's joint.
+    - >-
+      I did not attempt m >= 6, non-prime fields, or any transfer argument. All are out
+      of the frozen contract's scope.
+
+  next_concrete_action: >-
+    Run RC-4: recompute M1 and M2 from the Path-2 FACTORING classifier over the full
+    20,000 specializations per (curve, m) at m in {4,5}, replacing the 2,000-specimen
+    subsample, and report the categorical result on that number alone. About 17 minutes
+    of compute against a 7,200 s budget that the original run left 98% unspent. This is
+    the single action that converts the headline from an identity into a measurement,
+    and it should precede any Coordinator disposition of Stage 2's "void" status --
+    because with RC-4 in hand the void question becomes moot rather than arguable.
+
+  artifact_paths:
+    - experiments/EXP-MONO-12ce1c/reviews/red-team/red-team-report.yaml
+    - experiments/EXP-MONO-12ce1c/reviews/red-team/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: red-team-mono6-12ce1c
+    role: red-team
+    joints_owned: [J2-adversarial-verification]
+    verdict: holds_with_finding
+    independent_session: true
+    read_sibling_reports: false
+    blindness_lifted_for: null
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - ledger/hypotheses/H-MONO-45183a.yaml
+      - experiments/EXP-MONO-12ce1c/specification.yaml
+      - experiments/EXP-MONO-12ce1c/execution_report.yaml
+      - experiments/EXP-MONO-12ce1c/implementation.md
+      - experiments/EXP-MONO-12ce1c/implementation/seed.py
+      - experiments/EXP-MONO-12ce1c/implementation/fields.py
+      - experiments/EXP-MONO-12ce1c/implementation/curve.py
+      - experiments/EXP-MONO-12ce1c/implementation/panel.py
+      - experiments/EXP-MONO-12ce1c/implementation/path1.py
+      - experiments/EXP-MONO-12ce1c/implementation/semaev_path2.py
+      - experiments/EXP-MONO-12ce1c/implementation/sublocus.py
+      - experiments/EXP-MONO-12ce1c/implementation/controls.py
+      - experiments/EXP-MONO-12ce1c/implementation/run_experiment.py
+      - experiments/EXP-MONO-12ce1c/runs/RUN-MONO-12ce1c-1/raw-result.json
+      - experiments/EXP-MONO-12ce1c/runs/RUN-MONO-12ce1c-2/raw-result.json
+      - experiments/EXP-MONO-12ce1c/runs/RUN-MONO-12ce1c-1/manifest.yaml
+      - coordination/tasks/TASK-20260830-c468bd/snapshot-receipt.json
+    sources_deliberately_not_read:
+      - experiments/EXP-MONO-12ce1c/reviews/validator/
+    ledger_writes: none
+    status_changes: none
+    commits_made: none
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-opus-5[1m]
+    model_verified: false
+    model_verified_reason: >-
+      No `python3 -m orchestration.adapter doctor --probe` receipt exists for this
+      session; the identifier is self-reported runtime configuration.
+    fallback_used: false
+    model_correlation_confound: >-
+      This review resolved to claude-opus-5, the same model family that produced
+      H-MONO-45183a, EV-MONO-a0a89c and its reviews. Session independence, no model
+      independence. Recorded per H-MONO-45183a's own standing instruction.
+    budget: 90 minutes wall clock, 4 GB, one attempt -- observed within budget

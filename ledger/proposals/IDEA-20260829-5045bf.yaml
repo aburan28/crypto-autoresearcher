@@ -1,0 +1,801 @@
+idea:
+  id: IDEA-20260829-5045bf
+  question_id: RQ-SYMF-5ab172
+  title: >-
+    Decide whether the frontier's comparison keys are auditable at all, by
+    recovering the key canonicalisation as a decidable search over a declared
+    grid of serialization conventions against the 164 committed SHA-256 key
+    digests, with a zero-false-positive acceptance criterion
+  class: control
+  claim: >-
+    Schema v2 requires the field target_qualified_key_sha256 on every row and
+    states NO rule for constructing it - no field order, no separator, no
+    encoding, no rendering of integers, no composition rule for the three
+    identity fields. The only construction description anywhere in committed
+    state is one sentence in the J1 validation report, and that sentence is
+    internally ambiguous - it says the literal key is an "ordered mapping of
+    the 11 fields listed under frontier-schema.yaml
+    required_row_fields.comparison_key" AND that it is "canonical JSON with
+    sorted keys", which are two DIFFERENT serializations, because the schema's
+    field order is security_property, attacker_model, oracle_access,
+    key_relation, target_component, round_scope, rounds_attacked, total_rounds,
+    round_convention, result_kind, success_probability_convention, whereas
+    lexicographic order begins attacker_model, key_relation, oracle_access.
+    The claim is that this is decidable rather than merely regrettable, because
+    the corpus contains a dense oracle - 67 raw_comparison_key_sha256 plus 67
+    target_qualified_key_sha256 in the validation report and 30
+    target_qualified_key_sha256 in the canonical compilation - and a candidate
+    convention either reproduces a digest or does not, with no partial credit
+    and, at 256 bits per row, no possibility of accidental agreement.
+    Specifically - (Q1) a precommitted grid of at most 2^12 canonicalisation
+    rules, evaluated first against the two anchor rows whose 14 field values
+    and both digests were read from committed text this session, contains a
+    rule reproducing BOTH anchor digests; (Q2) that rule reproduces all 67 raw
+    and all 67 target-qualified digests, i.e. 134 of 134; (Q3) the rule that
+    succeeds is NOT the one the validation report's sentence most naturally
+    denotes, so the committed prose description is itself wrong; and (Q4) an
+    independent arithmetic contradiction exists inside that same report - its
+    comparison_key_reconstruction block reports literal_unique_keys 59 while
+    defect D-KEY-001's mechanical_evidence reports "67 rows produce 60 literal
+    keys", and at most one of those can be true, decidable by the identity
+    unique = N - sum of multirow group sizes + number of multirow groups.
+    THE DECISION THIS FORCES, WHICHEVER WAY IT GOES - if no rule reproduces the
+    digests, then every row's key is an unverifiable attestation, "exactly
+    matched" is not machine-checkable on this corpus, and every downstream
+    frontier instrument must be re-based on recomputed keys under a declared
+    canon rather than on the committed ones.
+  mechanism: >-
+    TRACKED OBJECT. The object followed through the computation is the BYTE
+    STRING that hashes to a committed key digest - the preimage - and the
+    canonicalisation rule is the map from a row's field values to that string.
+    One-step propagation is defined and exactly measurable - each axis of the
+    grid (field order, separator, quoting, ASCII escaping, integer rendering,
+    identity composition, trailing newline, input encoding) is a single
+    substitution on the byte string, and the observable after each substitution
+    is a 256-bit digest that either equals the committed one or does not.
+    LOSSY-PROJECTION TEST (algebraic, no compute). The projection
+    field tuple -> SHA-256 digest is the most lossy projection in this entire
+    question - 11 or 14 free-text fields, unbounded in length, collapse to 256
+    bits, and the fibre over any digest is infinite. The discard is compatible
+    with the operation the target performs, because schema v2's dominance gate
+    consumes ONLY the equality test on keys, and a collision-resistant hash
+    preserves equality exactly while destroying content. So the retained part
+    propagates deterministically under dominance, and the object passes
+    cleanly. It is emphatically not a change of coordinates - the map is
+    designed to be non-invertible.
+    AND THAT IS PRECISELY WHY THE CANON MUST BE STATED. The projection is only
+    a FUNCTION of the result once a serialization is fixed. Without a canon,
+    "the key of this row" is not one digest but a family of digests indexed by
+    convention, and the committed field is a value someone computed rather than
+    a value anyone can check. The identifiability failure here runs in the
+    unusual direction - not two ground truths sharing one observable, which
+    collision resistance forbids, but ONE ground truth admitting many
+    observables, one per convention. A reader cannot distinguish "this row's
+    key was computed correctly" from "this row's key was computed under a
+    convention nobody wrote down" from "this digest was typed in", and the
+    committed schema gives no way to try.
+    WHY THIS IS DECIDABLE RATHER THAN A COMPLAINT. Two facts make the search
+    well-posed. First, the grid is small and declarable - the degrees of
+    freedom in serializing eleven string-or-integer fields are enumerable, and
+    a grid of 2^10 to 2^12 rules covers the conventions a Python or JSON
+    implementation would plausibly produce. Second, the acceptance criterion
+    has NO FALSE POSITIVES - a wrong rule agrees with a committed 256-bit
+    digest with probability 2^-256, so requiring agreement on even two rows
+    makes accidental success impossible at 2^-512, and requiring 134 makes the
+    criterion absolute. A match is therefore proof, not evidence, and the
+    ordinary worry about a search that keeps going until something fits does
+    not apply to correctness - only to the separate and honestly reportable
+    question of how far the true rule sat from any documented one.
+    WHY THE TWO ANCHOR ROWS MAKE THE PILOT NEARLY FREE. This session read, from
+    committed text, the complete 14-field key content of two rows together with
+    BOTH their digests - LEGACY-SHA0-COLLISION-DEMO (raw
+    73a2164210e1999ea9568599646000a6989350cb07b3cad0d70a0fd92ffb3c0f,
+    target-qualified
+    ba4711994a125889cc37dd7ec2bc4457eac1a2b2fd3e3e38b453541add01bb30) and
+    LEGACY-SHA1-IP-COLLISION-THEORY (raw
+    133a1001feed4421852c2cf7561a62524e9402aee1db076c137de7764d338411,
+    target-qualified
+    86c8fe7d8e17d2a746d00984c6df386fe829657e60a8276308e897fe145585fb). The
+    entire grid can be swept against those four digests before any bulk parsing
+    is written, which is why the pilot is minutes rather than hours.
+    WHY THE ARITHMETIC AUDIT RIDES ALONG. Unique-key counts are a second,
+    independent oracle over the same computation and cost nothing extra. For a
+    corpus of N rows partitioned into classes, the number of distinct keys
+    equals N minus the total size of the multirow groups plus the number of
+    those groups. The validation report supplies N = 67, literal_multirow_groups
+    7, target_qualified_multirow_groups 4, target_qualified_unique_keys 63 and
+    literal_unique_keys 59, and separately asserts 60 literal keys inside
+    D-KEY-001. Recomputing the key classes settles which figure is right and
+    whether the four enumerated cross-target collision groups are the complete
+    list of literal multirow groups or only the four that mattered for that
+    defect.
+  tracked_object: >-
+    The canonical byte string that hashes to a committed comparison-key digest,
+    propagated by single-axis substitutions of the serialization convention
+    (field order, separators, quoting, escaping, integer rendering, identity
+    composition, encoding).
+  lossy_projection_test: >-
+    PASSES, and the pass is the argument. field tuple -> SHA-256 digest is
+    non-invertible with an infinite fibre, and what it retains - the equality
+    relation on keys - is exactly and only what the dominance gate consumes.
+    The corollary the proposal exploits is that the projection is a function
+    only relative to a serialization, so the discarded structure (the
+    convention) must be declared for the retained structure to be checkable at
+    all.
+  novelty_status: unverified
+  citations:
+    - ref: coordination/goals/GOAL-SYMF-c00fa1/batches/BATCH-303ce8/reviews/TASK-20260825-bb6d5d/validation-report.yaml
+      provenance: internal
+      claim: >-
+        comparison_key_reconstruction states literal_key as "ordered mapping of
+        the 11 fields listed under frontier-schema.yaml
+        required_row_fields.comparison_key; canonical JSON with sorted keys,
+        SHA-256 bound per row below" and target_qualified_diagnostic_key as
+        "identity.primitive + identity.primitive_variant +
+        identity.primitive_class + the literal 11-field key; diagnostic only,
+        not an amendment to the frozen schema"; it reports literal_unique_keys
+        59, target_qualified_unique_keys 63, literal_multirow_groups 7,
+        target_qualified_multirow_groups 4. Defect D-KEY-001's
+        mechanical_evidence states "67 rows produce 60 literal keys but 63
+        target-qualified diagnostic keys". Row LEGACY-SHA0-COLLISION-DEMO
+        carries raw_comparison_key_sha256
+        73a2164210e1999ea9568599646000a6989350cb07b3cad0d70a0fd92ffb3c0f and
+        target_qualified_key_sha256
+        ba4711994a125889cc37dd7ec2bc4457eac1a2b2fd3e3e38b453541add01bb30; row
+        LEGACY-SHA1-IP-COLLISION-THEORY carries raw
+        133a1001feed4421852c2cf7561a62524e9402aee1db076c137de7764d338411 and
+        target-qualified
+        86c8fe7d8e17d2a746d00984c6df386fe829657e60a8276308e897fe145585fb. The
+        file contains 67 occurrences of target_qualified_key_sha256.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, PARTIAL READ - lines
+        1-1129 of 2256 read in full (all header blocks, the full defect list,
+        count recomputations, coverage checks and the first sixteen row_checks
+        entries), plus a whole-file grep confirming 67 occurrences of
+        target_qualified_key_sha256. The remaining row_checks entries were NOT
+        read this session.
+    - ref: knowledge/frontiers/symmetric-frontier-schema.yaml
+      provenance: internal
+      claim: >-
+        required_row_fields.canonical_review includes
+        target_qualified_key_sha256 with NO construction rule anywhere in the
+        file; dominance_domain_key lists the 11 comparison_key fields in the
+        order security_property, attacker_model, oracle_access, key_relation,
+        target_component, round_scope, rounds_attacked, total_rounds,
+        round_convention, result_kind, success_probability_convention, which is
+        NOT lexicographic order; review_binding records snapshot_commit
+        5fc23783da8a2e62e2b3ab8728e47c48958ce02f, validator TASK-20260825-bb6d5d,
+        red team TASK-20260825-9eda3a, coordinator decision DEC-20260825-5fa260.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, FULL file read
+        (137 lines).
+    - ref: knowledge/frontiers/symmetric-cryptanalysis.yaml
+      provenance: internal
+      claim: >-
+        The canonical compilation carries 30 target_qualified_key_sha256 values
+        (21 canonical plus 9 baseline rows), of which two rows share the value
+        732ebab776498f353bd4c6c3adcbfae2b3b5e00bb43824f04567857139786131, so
+        the canonical set is not all-singleton. LEGACY-SHA0-COLLISION-DEMO's
+        complete 14-field key content is primitive SHA-0, primitive_variant
+        standard_two_block, primitive_class hash_function, security_property
+        collision, attacker_model classical, oracle_access offline_computation,
+        key_relation not_applicable, target_component hash_function,
+        round_scope full, rounds_attacked 80, total_rounds 80, round_convention
+        SHA_steps, result_kind end_to_end_collision_demonstration,
+        success_probability_convention measured_complexity; and
+        LEGACY-SHA1-IP-COLLISION-THEORY's is primitive SHA-1, primitive_variant
+        standard, primitive_class hash_function, security_property
+        identical_prefix_collision, attacker_model classical, oracle_access
+        offline_computation, key_relation not_applicable, target_component
+        hash_function, round_scope full, rounds_attacked 80, total_rounds 80,
+        round_convention SHA1_steps, result_kind theoretical_attack,
+        success_probability_convention expected_GPU_equivalent_work. Note that
+        rounds_attacked and total_rounds are YAML integers, not strings.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, PARTIAL READ - lines
+        1-175 read in full, plus a grep enumerating the
+        target_qualified_key_sha256 values of all 30 rows and their line
+        numbers.
+    - ref: IDEA-20260829-9aaa40
+      provenance: internal
+      claim: >-
+        A sibling proposal filed earlier today makes key-hash reproduction a
+        HALT CONDITION for its ablation ("if it cannot be recovered, that is
+        reported as a reproducibility defect rather than worked around") and
+        explicitly names the unstated canonicalisation as a hidden cost and a
+        confounder. It does not attempt the recovery, does not declare a search
+        space, and does not state an acceptance criterion. This proposal is
+        that halt condition promoted to an experiment.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full record read
+        (695 lines).
+    - ref: docs/inventor-protocol.md
+      provenance: internal
+      claim: >-
+        Section 8 audit 1 requires a frozen-fixture baseline reproduction
+        rather than a lookalike, audit 2 requires an observation-collision
+        search, and section 5 requires Pareto dominated_by and quantitative
+        sota_delta in every deliverable.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full file read
+        (261 lines).
+    - ref: docs/claims-and-verification.md
+      provenance: recalled
+      claim: >-
+        Relied on only for the program's general position that a claimed
+        artifact carries a certificate the run wrapper re-verifies
+        independently. The specific tier language is not quoted and the
+        executing task must read the document before assigning a claim tier to
+        any output of this experiment.
+      verified_by: null
+      note: >-
+        NOT READ THIS SESSION by this subagent. CLAUDE.md summarises it as
+        requiring independently re-verified certificates; that summary is not a
+        substitute for the document.
+  assumptions:
+    - >-
+      The grid of candidate canonicalisation rules is DECLARED AND FROZEN,
+      with its exact size, before any digest is computed. Extension rounds are
+      permitted, but each is declared separately with its size and its order in
+      the sequence, and the report states in which round the successful rule
+      was found. This does not affect correctness - the acceptance criterion
+      has no false positives - it affects only the honest statement of how far
+      the true convention sits from any documented one.
+    - >-
+      A recovered rule is NEVER back-written into the committed schema or any
+      committed row by this experiment. The deliverable is a derived artifact
+      plus a recommendation; only a Coordinator decision on reviewed evidence
+      can normatively record a canon.
+    - >-
+      No cryptanalytic search, attack execution, or hash cryptanalysis occurs.
+      SHA-256 is used only as an oracle over a declared domain of at most 2^12
+      candidate strings per row. No property of SHA-256 is assumed beyond
+      collision resistance, and it is used in the safe direction only - a
+      match implies equal inputs with overwhelming probability.
+    - >-
+      Field values are taken verbatim from the committed YAML as parsed, with
+      the parser and its version recorded, because YAML type coercion (integer
+      80 versus string "80", the unquoted value "null", boolean-looking
+      strings) is itself one of the grid axes and must not be silently
+      normalised by the reader before the grid is applied.
+    - >-
+      If two committed digests for the same row are mutually inconsistent under
+      every rule in every declared round, that is reported as a defect of the
+      committed artifacts and is not repaired by choosing whichever rule
+      matches more rows.
+  proof_search_map:
+    bottleneck: >-
+      The step "recompute this row's comparison key and compare it with the
+      committed one". Every audit of the frontier's central operation - and
+      every sibling proposal filed under this question, all four of which
+      recompute or re-partition keys - passes through this step. If it cannot
+      be executed, no independent party can check a single dominance decision,
+      and the frontier's comparability rests on trusting one producer session's
+      arithmetic.
+    baseline_embedding:
+      parameter_slice: >-
+        The rule the validation report's sentence most naturally denotes -
+        canonical JSON, sorted keys, UTF-8, compact separators, integers
+        rendered as JSON numbers, identity fields prepended in the order
+        primitive, primitive_variant, primitive_class. This is the exact
+        old-method boundary and is grid element 0, evaluated first and reported
+        separately whatever the sweep later finds.
+      reproduction_check: >-
+        THREE-PART FROZEN FIXTURE, each part exact and each able to fail.
+        (a) ANCHOR - grid element 0 against the four anchor digests of the two
+        rows whose complete field content was read this session. (b) BULK - the
+        successful rule, if any, against all 67 raw and all 67 target-qualified
+        digests in the validation report, requiring 134 of 134. (c) CROSS-FILE
+        - the same rule against the 30 target_qualified_key_sha256 values
+        carried independently in the canonical compilation, requiring exact
+        agreement with the validation report on the rows they share, which also
+        tests whether the two artifacts were produced by the same code path.
+    observation_collision:
+      observable: >-
+        The 256-bit committed key digest.
+      distinct_preimage_search: >-
+        THE COLLISION RUNS IN THE UNUSUAL DIRECTION AND IS ALREADY PRESENT.
+        Two distinct ground truths sharing one digest is what collision
+        resistance forbids and is not the failure here. The failure here is
+        ONE ground truth admitting MANY observables - a single row's field
+        tuple maps to a different digest under each serialization convention,
+        so the map result -> digest is not a function until a canon is fixed,
+        and the committed corpus fixes none. SEPARATING CONDITION, which is a
+        concrete schema recommendation - the canon must be stated normatively
+        in the schema (field order, separators, encoding, integer rendering,
+        identity composition, and a worked test vector with its digest), at
+        which point the digest becomes an auditable binding rather than an
+        attestation. A SECOND collision to hunt during execution - two
+        different rules in the grid producing identical byte strings for every
+        row of this corpus (for instance a separator choice that never occurs
+        because no field value contains the separator character), which would
+        mean the recovered rule is under-determined by this corpus; the report
+        must list ALL rules that match, not the first one found.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "the committed digest" by "(declared canon, recomputed
+          digest, agreement flag)", so that key identity becomes an exactly
+          checkable condition rather than a recorded value.
+        predicted_gain: >-
+          MODELED, NOT MEASURED. Encoding obligation - the canon must reproduce
+          134 of 134 committed digests or the disagreement must be itemised
+          per row. Soundness obligation - no row's key may be adjusted to fit a
+          rule. Transfer obligation - a canon recovered from this snapshot is
+          declared for this snapshot and does not retroactively validate
+          artifacts produced under other code paths. Cost-loss obligation - the
+          added cost is one paragraph of schema text and one test vector.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable (the digest) fixed and vary the forgotten
+          structure (the convention), exhibiting the set of conventions
+          consistent with the committed digests; report its cardinality.
+        predicted_gain: >-
+          MODELED, NOT MEASURED. A cardinality of exactly 1 means the corpus
+          determines the canon uniquely and recovery is complete; a cardinality
+          above 1 means the canon is under-determined and the report must say
+          which axes the corpus cannot resolve; a cardinality of 0 is the
+          decisive negative and is the outcome that matters most.
+    quantifier_order: >-
+      CLAIMED - THERE EXISTS a rule c in the declared grid G such that FOR ALL
+      67 rows r, SHA256(c(key(r))) equals the committed digest of r, for both
+      the literal and the target-qualified key. The existential is over a
+      DECLARED, FROZEN, FINITE set whose size is reported, which is what
+      distinguishes this from an unbounded fit. NOT CLAIMED - that the
+      recovered rule is the one the producer intended, that it is the right
+      canon for future artifacts, or that any rule outside G fails (a
+      negative outcome is scoped to G and to the declared extension rounds,
+      and is reported with |G| and the round sizes attached).
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        For snapshot commit 5fc23783da8a2e62e2b3ab8728e47c48958ce02f - either
+        (i) an exhibited canonicalisation rule with a worked test vector that
+        reproduces all 134 committed digests, together with the complete set of
+        grid rules that do so, or (ii) the statement that no rule in a declared
+        grid of stated size, over stated axes, reproduces even the two anchor
+        rows, with the per-axis elimination recorded. The method can NEVER
+        certify that the producer used the recovered rule, NEVER certify that
+        a non-matching digest was fabricated rather than computed under an
+        unlisted convention, and NEVER say anything whatever about any
+        published attack or cost.
+      nearby_object_control: >-
+        THE PERTURBED-ROW NULL OBJECT. Take an anchor row, change ONE character
+        of ONE comparison-key field value (for example round_convention
+        SHA_steps to SHA_step), and re-run the entire sweep. The required
+        outcome is that NO rule in the grid matches the committed digest. If
+        some rule does match a perturbed row, the instrument is not testing
+        what it claims - it is searching a space large enough to absorb an
+        error - and every positive result from that run is void. This control
+        is the direct analogue of inventor-protocol section 3's null object,
+        applied to the search rather than to the data, and it must be run
+        before any success is reported.
+    proof_obligations:
+      - claim: >-
+          The grid is declared with its exact size and axes before the first
+          digest is computed, and the declaration is hash-bound in the run
+          record.
+        responsibility: interface
+      - claim: >-
+          Grid element 0 (the literal reading of the validation report's
+          sentence) is evaluated and reported separately whatever else is
+          found.
+        responsibility: baseline
+      - claim: >-
+          A rule is accepted only on 134 of 134 agreement; partial agreement is
+          reported as partial and localised per row and per key type.
+        responsibility: correctness
+      - claim: >-
+          The complete set of matching rules is reported, not the first match,
+          so that under-determination of the canon is visible.
+        responsibility: strictness
+      - claim: >-
+          The perturbed-row null control returns zero matches.
+        responsibility: correctness
+      - claim: >-
+          Unique-key counts are recomputed and the 59-versus-60 contradiction
+          is resolved by the identity unique = N - sum of multirow group sizes
+          + number of multirow groups, with the complete list of multirow
+          groups emitted.
+        responsibility: correctness
+      - claim: >-
+          All conclusions scoped to the committed snapshot and to the declared
+          grid, with |G| and every extension round size stated in the summary
+          sentence, not only in an appendix.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        Q1 anchor recovery - whether some rule in the declared grid reproduces
+        all four anchor digests (raw and target-qualified for
+        LEGACY-SHA0-COLLISION-DEMO and LEGACY-SHA1-IP-COLLISION-THEORY)
+      direction: different
+      minimum_effect: >-
+        Two-sided and both sides decisive. Success means the canon is
+        recoverable and the defect is documentation-only. Failure across a
+        declared grid of at least 2^10 rules means the committed digests are
+        not derivable from the committed fields by any conventional
+        serialization, which is a first-order reproducibility defect and is the
+        more consequential outcome.
+    - metric: >-
+        Q2 bulk agreement - number of committed digests reproduced by the best
+        rule, out of 134 (67 raw plus 67 target-qualified in the validation
+        report)
+      direction: higher
+      minimum_effect: >-
+        134 of 134 for acceptance. Any value strictly between 1 and 134 is the
+        MOST informative outcome available, because it localises the failure to
+        specific rows or to one key type, and those rows become named
+        candidate defects. A value of 0 with a successful anchor match is
+        impossible and would indicate an instrument bug.
+    - metric: >-
+        Q3 documentation fidelity - whether the successful rule is grid element
+        0, the literal reading of the validation report's own sentence
+      direction: different
+      minimum_effect: >-
+        Two-sided. If element 0 succeeds, the prose is accurate and the only
+        repair needed is to move it from a review report into the schema. If a
+        different element succeeds, the committed prose description of the key
+        is WRONG and a successor correction is required naming both.
+    - metric: >-
+        Q4 canon determinacy - the number of distinct grid rules that reproduce
+        all 134 digests
+      direction: lower
+      minimum_effect: >-
+        exactly 1 for a complete recovery. A count above 1 means the corpus
+        under-determines the canon on at least one axis, and the report must
+        name which axes are unresolved rather than presenting one rule as the
+        canon.
+    - metric: >-
+        Q5 unique-key arithmetic - the recomputed number of distinct literal
+        comparison keys over the 67 rows
+      direction: different
+      minimum_effect: >-
+        Exactly one of 59 or 60 is reproduced, resolving the contradiction
+        inside the committed validation report; the complete list of multirow
+        groups is emitted alongside, and the prediction is that the 4
+        enumerated cross-target collision groups are a strict subset of the 7
+        reported literal multirow groups. A third value reproducing neither
+        figure would mean the recomputation and the report disagree entirely
+        and would be reported as such.
+    - metric: >-
+        Q6 perturbed-row null control - number of grid rules matching a
+        deliberately corrupted anchor row's committed digest
+      direction: lower
+      minimum_effect: >-
+        exactly 0. Any nonzero value voids every positive result from the run.
+  minimal_test:
+    design: >-
+      Pure recomputation over committed files; no retrieval, no network, no
+      cryptanalysis, no adjudication, no judgment calls.
+      STEP 0 - declare and hash-bind the grid - the axes are at least (a) field
+      order (schema order versus lexicographic), (b) serialization form (JSON
+      object, JSON array of values, delimiter-joined key=value, delimiter-joined
+      values only), (c) separator and item separator, (d) ensure_ascii on or
+      off, (e) integer rendering (JSON number versus quoted string) for
+      rounds_attacked and total_rounds, (f) trailing newline present or absent,
+      (g) input encoding (UTF-8 versus UTF-8 with BOM), (h) identity
+      composition for the target-qualified key (three fields prepended as a
+      delimiter-joined string, versus merged into the same object under their
+      own names, versus a nested object), and (i) whether the digest is over
+      the string or over its hex or base64 form. Report the exact product size.
+      STEP 1 - sweep the entire grid against the four anchor digests. This is
+      the whole pilot and it needs no YAML bulk parsing.
+      STEP 2 - for every rule surviving STEP 1, sweep all 67 rows for both key
+      types from the validation report's row_checks, requiring 134 of 134;
+      cross-check against the compilation's 30 values.
+      STEP 3 - run the perturbed-row null control and report its zero.
+      STEP 4 - recompute key classes and settle Q5, emitting the complete
+      multirow-group list with sizes.
+      STEP 5 - report the matching rule set, the per-axis elimination table,
+      and, if nothing matches, the axes that were varied and the declared grid
+      size, as a reproducibility finding.
+      Every step's output is reported whether or not the predictions hold; a
+      run that recovers nothing is a complete result and is arguably the more
+      important one.
+    controls:
+      - >-
+        Perturbed-row null object - a one-character corruption of an anchor
+        row must yield zero matches across the whole grid; nonzero voids the
+        run.
+      - >-
+        Grid element 0 baseline - the literal reading of the committed prose is
+        evaluated and reported separately, so the answer to "is the
+        documentation right" is never merged into "was a rule found".
+      - >-
+        Cross-file consistency control - the 30 digests in the canonical
+        compilation must agree with the corresponding validation-report digests
+        for the same rows; disagreement means the two artifacts were produced
+        by different code paths and is itself a defect.
+      - >-
+        Complete-match-set reporting - all matching rules are enumerated rather
+        than the first, so that an under-determined canon is visible instead of
+        being presented as recovered.
+      - >-
+        Parser-invariance control - the sweep is run twice with two different
+        YAML parsers or two different type-coercion settings, and any
+        difference in the field values fed to the grid is reported, since a
+        parser that silently coerces the integer round counts would change
+        every digest.
+    required_metrics:
+      - "declared grid axes, the exact product size |G|, and the hash of the frozen declaration"
+      - "Q1 anchor result - matching rule count over the four anchor digests"
+      - "Q2 bulk agreement count out of 134, with per-row and per-key-type breakdown of any failures"
+      - "Q3 whether grid element 0 succeeded, stated as a bare yes or no in the summary"
+      - "Q4 number of distinct rules reproducing all 134 digests, with the full list"
+      - "per-axis elimination table - for each axis, which values were excluded by which rows"
+      - "Q5 recomputed distinct-literal-key count, the complete multirow-group list with sizes, and the resolution of the 59-versus-60 contradiction"
+      - "Q6 perturbed-row null control match count (must be 0)"
+      - "cross-file consistency result on the 30 shared digests"
+      - "parser and version used, and the parser-invariance control outcome"
+      - "instrument wall-clock runtime and the number of SHA-256 evaluations performed"
+  falsification_conditions:
+    - >-
+      No rule in a declared grid of at least 2^10 elements reproduces even the
+      anchor digests, and no bounded extension round does either. The committed
+      key digests are then not derivable from the committed field values by any
+      conventional serialization; "exactly matched" is not machine-checkable on
+      this corpus; and the forward guidance is that every future frontier
+      instrument must recompute keys under a declared canon and must treat the
+      committed digests as historical attestations rather than as bindings.
+    - >-
+      A rule reproduces the anchors but fewer than 134 of 134 in bulk. The
+      canon is partially recovered and the non-matching rows are named
+      candidate defects; no global claim about the corpus is made.
+    - >-
+      Grid element 0 succeeds on all 134. The committed prose is accurate, the
+      lane closes as a controlled positive with the named repair being to move
+      the canon into the schema with a worked test vector, and Q3 is answered
+      "documentation is right, location is wrong".
+    - >-
+      More than one rule reproduces all 134 digests. The canon is
+      under-determined by this corpus; the report names the unresolved axes and
+      declines to present any single rule as the canon.
+    - >-
+      The perturbed-row control produces a match. The search space is large
+      enough to absorb a corruption; the instrument cannot support a positive
+      claim and every result from the run is withdrawn.
+    - >-
+      The recomputed distinct-key count reproduces neither 59 nor 60. The
+      recomputation and the committed report disagree entirely, which
+      supersedes the narrower contradiction and is reported as the finding.
+    - >-
+      Cross-file digests disagree between the compilation and the validation
+      report for a shared row. Two committed artifacts carry different keys for
+      one row, which is a blocking defect and is reported before any canon
+      claim.
+  confounders:
+    - >-
+      Overfitting the convention, in the reputational rather than the
+      statistical sense. The acceptance criterion has no false positives at
+      2^-256 per row, so a match is correct; what an unbounded search can
+      corrupt is the CLAIM about documentation quality. Mitigated by freezing
+      and hash-binding the grid, by evaluating element 0 first and reporting it
+      separately, and by stating the round in which the match was found in the
+      summary sentence.
+    - >-
+      Parser coercion. rounds_attacked and total_rounds are YAML integers and
+      several fields could be coerced (a value "null", a value that looks
+      boolean, a value with a leading zero). A parser that normalises before
+      the grid sees the values would silently eliminate correct rules.
+      Mitigated by the parser-invariance control and by recording the parser
+      and version.
+    - >-
+      Whitespace and line folding. Several committed field values contain
+      spaces and at least one contains a slash and a bracketed expression
+      ("first/selected consecutive Keccak-p[1600] rounds as parameterized in
+      source Table 5"), and YAML line folding can alter internal whitespace on
+      re-emission. The grid must operate on parsed values, and the report must
+      state whether any value's parsed form differs from its literal file text.
+    - >-
+      Digest transcription. A committed digest could itself contain a typo, in
+      which case exactly one row fails under the true rule. This is why bulk
+      failure must be reported per row rather than as a fraction - a single
+      failing row is a different finding from a systematic mismatch.
+    - >-
+      Scope creep into hash cryptanalysis. Nothing here attacks SHA-256 and
+      nothing may be reported as if it did; the search domain is a declared set
+      of at most a few thousand strings per row and the report must say so
+      explicitly to prevent a later reader from mistaking it for a preimage
+      claim.
+  interpretation_limits:
+    - >-
+      Scoped to snapshot commit 5fc23783da8a2e62e2b3ab8728e47c48958ce02f, the
+      67 rows of the validation report's row_checks, and the 30 digests in the
+      canonical compilation. It says nothing about artifacts produced by other
+      tasks or other code paths.
+    - >-
+      A recovered rule is the rule CONSISTENT WITH the committed digests over
+      this corpus. It is not proof that the producer used it, and it does not
+      retroactively validate any other artifact.
+    - >-
+      A failure to recover is scoped to the declared grid and its stated size.
+      It is not a claim that no rule exists, and the report must state |G| in
+      the same sentence as the negative.
+    - >-
+      No attack, cost, trail, collision, or key recovery is reproduced,
+      verified, or questioned. This experiment never touches the truth of any
+      published number.
+    - >-
+      Resolving the 59-versus-60 contradiction identifies which figure in a
+      committed review report is wrong. It does not impugn the report's
+      verdicts, which rest on the enumerated collision groups rather than on
+      the summary count.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Conventionality of the unknown serialization.) The serialization used
+        by the producing session lies in the finite set G generated by the
+        declared axes - that is, it is a composition of choices a standard
+        JSON or string-formatting implementation offers, rather than a bespoke
+        transformation such as case folding, field renaming, value
+        normalisation, sorting of values, or omission of a field.
+      rigorous_support: >-
+        No proof is available and none is claimed; the assumption is the whole
+        content of the search's completeness and is stated as such. The
+        rigorous ingredients in hand are two. First, the validation report's
+        own sentence names two specific conventions (schema field order and
+        canonical JSON with sorted keys), so at least one intended axis value
+        is documented rather than guessed. Second, the acceptance criterion is
+        exact, so H1 affects only COMPLETENESS of the search and never
+        SOUNDNESS of a positive result - a rule found is correct whether or not
+        H1 holds, and H1 is needed only to interpret a negative.
+      validation_plan: >-
+        WHAT TO SAMPLE - the whole declared grid against the four anchor
+        digests, then the survivors against all 134. SCALE - complete
+        enumeration of G; no sampling, since |G| is at most 2^12 and each
+        candidate costs 67 SHA-256 evaluations, so the exhaustive sweep is
+        under 2^19 hash calls. SHORTCUT USED TO REACH SCALE - the two anchor
+        rows, whose full field content and both digests are already extracted,
+        eliminate almost the entire grid before any bulk parsing is written;
+        that is the shortcut and it is exact rather than statistical.
+        PREDICTED DISTRIBUTION - under H1 the number of surviving rules after
+        the anchor sweep is small (1 to 4) and collapses to 1 after the bulk
+        sweep; under the null that the digests are unrelated to the fields, the
+        expected number of survivors is |G| * 2^-1024 across four anchor
+        digests, i.e. zero, which is exactly why a negative is interpretable.
+        TAIL CHECK - if survivors after the anchor sweep number more than 8,
+        the anchor rows are too structurally similar to separate the axes (both
+        are legacy hash rows with rounds 80 of 80), and a third anchor row from
+        a different shard with different field shapes must be extracted before
+        continuing; that contingency is written into the design rather than
+        discovered later. TRANSFER ASSUMPTION, STATED - a canon recovered here
+        is asserted only for this snapshot's artifacts and is not assumed for
+        any other producing session.
+    - id: H2
+      statement: >-
+        (Digest fidelity of the committed record.) The 134 digests in the
+        validation report and the 30 in the compilation were computed by
+        machine from the committed field values, and any single-row mismatch
+        under an otherwise successful rule is a transcription defect in one
+        digest rather than evidence against the rule.
+      rigorous_support: >-
+        Not proved, and it is the assumption that decides how a partial bulk
+        match is read. The rigorous ingredient in hand is the internal
+        redundancy of the record - the report carries per-row raw AND
+        target-qualified digests, per-row peer lists, and aggregate unique-key
+        counts, and these constrain one another, so a fabricated or
+        mistranscribed digest is very likely to break the peer-list
+        consistency as well.
+      validation_plan: >-
+        WHAT TO SAMPLE - every row that fails under an otherwise successful
+        rule; for each, check whether its recorded raw_key_peers and
+        target_qualified_peers lists are consistent with the classes the
+        recomputed digests induce. SCALE - complete enumeration of the failing
+        set, expected to be small or empty. PREDICTED DISTRIBUTION - under H2,
+        failures are isolated, do not cluster in one shard or one key type, and
+        leave the peer lists consistent; under its negation, failures cluster
+        systematically, which indicates a second code path rather than a typo
+        and must be reported that way. TAIL CHECK - the failing row whose peer
+        list is MOST inconsistent with the recomputed classes, reported
+        explicitly with both lists. TRANSFER ASSUMPTION - H2 is asserted only
+        for these two artifacts and is not a general statement about this
+        program's records.
+  target_complexity:
+    time_exponent: >-
+      NO CRYPTANALYTIC EXPONENT IS CLAIMED OR MOVED, AND NO HASH FUNCTION IS
+      ATTACKED. Instrument cost - the anchor sweep is |G| * 4 SHA-256
+      evaluations, at most 2^14 for |G| = 2^12; the bulk sweep is
+      (survivors) * 134, at most a few thousand; the class recomputation is
+      O(N log N) on N = 67 digests. Total well under 2^19 hash evaluations and
+      under one second of CPU. The search domain is a declared finite set of
+      serialization conventions, not an unstructured preimage space, and this
+      distinction must be stated in the run record.
+    memory_exponent: >-
+      O(N * F) for N = 67 rows and F = 14 fields, plus O(|G|) rule descriptors
+      - kilobytes. No memory pressure and no time-memory tradeoff.
+    best_known: >-
+      There is no incumbent. The committed schema states no canonicalisation,
+      so the incumbent procedure for checking a committed key is to trust it;
+      the incumbent value on every metric here is UNDEFINED rather than worse.
+      The nearest incumbent inside this program is IDEA-20260829-9aaa40, which
+      names key-hash reproduction as a halt condition and a hidden cost but
+      declares no search space, no acceptance criterion and no null control,
+      and therefore cannot produce any of Q1 to Q6. Externally, canonical
+      serialization for hashing is standard engineering practice (JSON
+      Canonicalization Scheme and similar); no external work on recovering an
+      undocumented canon from a corpus of digests was located this session, and
+      nothing was fetched, so external dominance is BOUNDED-SEARCH NEGATIVE
+      rather than established absent.
+    hidden_overhead: >-
+      The o(1) is small and honest here, which is unusual for this question -
+      there is no adjudication, no reviewer time, and no retrieval. The real
+      hidden cost is the risk of an OPEN-ENDED grid: if the declared grid
+      fails, the temptation to keep adding axes is unbounded, and the design
+      absorbs that by requiring each extension round to be declared with its
+      size and reported in the summary. A second hidden cost - if the true rule
+      involves value normalisation (case folding, whitespace collapse), the
+      grid as specified cannot find it, and the negative would then be an
+      artifact of H1 rather than of the corpus; this is the exact failure mode
+      H1's validation plan is written to expose.
+    tradeoff_note: >-
+      The instrument's analogue of a time-memory tradeoff is a
+      COMPLETENESS-versus-CREDIBILITY tradeoff and it must be reported as a
+      curve. Enlarging the grid monotonically increases the chance of
+      recovering the canon and monotonically weakens any statement that the
+      canon was documented, because a rule found in extension round 5 of a 2^16
+      grid is by construction not the rule anyone wrote down. Deliverable - the
+      (round index, cumulative grid size, matched or not) table, so the
+      distance between the recovered rule and the documented one is visible
+      rather than buried. Parallelization is irrelevant at this scale and is
+      not claimed.
+  dominated_by: >-
+    n/a (no result claimed) - Pareto check performed rather than asserted.
+    Checked against - (i) the COMPLETE committed required_row_fields list of
+    schema v2 (read in full this session), which names
+    target_qualified_key_sha256 but contains no construction rule, no test
+    vector and no field able to express a canon, so no frontier row can
+    dominate this proposal on its measurement axis; (ii) the validation
+    report's comparison_key_reconstruction block, which is the ONLY committed
+    description of the construction and is one internally ambiguous sentence
+    reporting counts rather than a rule; (iii) the red team report read in
+    full, which contains no key construction, no digest and no key
+    recomputation; (iv) the four sibling proposals filed earlier today under
+    this question - IDEA-20260829-9aaa40 treats key-hash reproduction as a
+    halt condition without attempting it, and IDEA-20260829-0b11ab,
+    IDEA-20260829-d29588 and IDEA-20260829-083a6b assume the committed keys
+    entirely. DISCLOSED LIMIT - half the validation report and most canonical
+    row bodies were not read this session; the domination argument rests on the
+    schema field list being exhaustive and on the committed prose sentence
+    being the only construction description, and a validator should confirm the
+    latter by grepping the whole corpus rather than accepting it. Externally -
+    a bounded WebSearch this session located no comparable instrument; nothing
+    was fetched; novelty_status is unverified accordingly.
+  sota_delta: >-
+    No attack, no exponent, and explicitly no hash cryptanalysis. Quantitative
+    delta against this program's own instrument - the corpus contains 164
+    committed key digests and exactly zero recomputations of any of them, and
+    the number of committed artifacts from which a third party can currently
+    re-derive a single comparison key is zero; this proposal targets a matching
+    rule set with its cardinality (Q4), a 134-of-134 bulk agreement count (Q2),
+    a per-axis elimination table, a yes-or-no verdict on whether the committed
+    prose description is correct (Q3), a resolved value for the 59-versus-60
+    contradiction inside a committed review report (Q5), and a zero-match null
+    control (Q6). None of these exists anywhere in the corpus. Against the
+    target-result profile this is explicitly NON-target-class - checklist C1 is
+    answered "no" and no asymptotic exponent moves - and it is proposed as a
+    BUILDING BLOCK under Idea Generator search heuristic 1, and specifically as
+    a PREREQUISITE - three of the four sibling proposals filed today recompute,
+    re-partition or re-key the corpus, and IDEA-20260829-9aaa40 halts outright
+    if this recovery fails, so this experiment gates them at a cost of one
+    second of CPU.
+  estimated_cost:
+    implementation: low
+    compute: low
+    basis: >-
+      A few hundred lines of Python, no retrieval, no adjudication, no reviewer
+      time; under 2^19 SHA-256 evaluations. The anchor pilot needs only the two
+      field tuples and four digests already extracted into this proposal.
+  recommended_priority: high
+  status: proposed
+  proposed_by: idea-generator
+  added: '2026-08-29'
+  source_refs:
+    - RQ-SYMF-5ab172
+    - GOAL-SYMF-c00fa1
+    - IDEA-20260829-9aaa40
+    - knowledge/frontiers/symmetric-frontier-schema.yaml
+    - knowledge/frontiers/symmetric-cryptanalysis.yaml
+    - coordination/goals/GOAL-SYMF-c00fa1/batches/BATCH-303ce8/reviews/TASK-20260825-bb6d5d/validation-report.yaml
+  id_allocation_provenance: >-
+    Pre-minted and collision-checked by the dispatching session; this subagent
+    did not mint identifiers.
