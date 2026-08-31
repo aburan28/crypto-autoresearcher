@@ -20,6 +20,7 @@ script performs measurement only.
 """
 import hashlib
 import json
+import os
 import sys
 import time
 from fractions import Fraction
@@ -562,7 +563,10 @@ def main():
 
 
 def write_transcript(transcript):
-    out_path = "/Volumes/SSD990/crypto-autoresearcher/experiments/EXP-MONO-64aaa4/runs/RUN-MONO-64aaa4-1/stage0_transcript.json"
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           os.pardir, "runs", "RUN-MONO-64aaa4-1")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "stage0_transcript.json")
     with open(out_path, "w") as f:
         json.dump(transcript, f, indent=1)
 
