@@ -143,6 +143,7 @@ def main():
         "realized_counts": primary["realized_counts"],
         "declared_counts": primary["declared_counts"],
         "construction_failures": primary["construction_failures"],
+        "panel": primary["panel"],
     }
     checkpoint("primary_panel_construction_done")
 
@@ -187,6 +188,7 @@ def main():
                 "fb_full_symmetric": cs.fb_full_symmetric, "real_fb_symmetric": symmetric,
                 "field_bits": rec["field_bits"], "A": rec["A"], "B": rec["B"],
             }
+    result["primary_panel_curve_records"] = curve_meta
     result["primary_panel_fb_construction_failures"] = fb_construction_failures
     result["primary_panel_realized_after_fb_check"] = {
         f: len(curve_states[f]) for f in curve_states}
@@ -240,8 +242,14 @@ def main():
             p_cf = permutation_pvalue(bundle_obj["C_over_F"], null_cfs)
             stage2_per_curve[family][k] = {
                 "F": F, "null_object_var": bundle_obj["var_exact"],
+                "null_object_var_ordered": bundle_obj["var_ordered_exact"],
+                "null_object_var_multiset": bundle_obj["var_multiset_exact"],
+                "null_object_mean_ordered": bundle_obj["mean_ordered"],
+                "null_object_mean_multiset": bundle_obj["mean_multiset"],
                 "null_object_C_over_F": bundle_obj["C_over_F"],
                 "p_var_uncorrected": p_var, "p_cf_uncorrected_informational": p_cf,
+                "null_draw_vars_ordered": null_vars,
+                "null_draw_C_over_F": null_cfs,
             }
         checkpoint(f"stage2_null_draws_done_{family}")
         if time.time() - t_start > BUDGET_SOFT_STOP_SECONDS:
@@ -275,6 +283,7 @@ def main():
                 "significant_curve_ordinals": [ks[i] for i in range(len(ks)) if sig_cf[i]],
                 "adjusted_pvalues": dict(zip(ks, adj_cf))},
         }
+    result["stage2_per_curve"] = stage2_per_curve
     result["stage2_null_object_gate"] = gate
     gate_pass_j0 = gate["j0"]["var_family_holm"]["n_significant"] == 0
     gate_pass_ro = gate["random-ordinary"]["var_family_holm"]["n_significant"] == 0
@@ -326,6 +335,10 @@ def main():
             median_null_cf = sorted(null_cfs)[len(null_cfs) // 2]
             stage3_per_curve[family][k] = {
                 "F": F, "var_real": bundle_real["var_exact"], "C_over_F_real": bundle_real["C_over_F"],
+                "var_real_ordered": bundle_real["var_ordered_exact"],
+                "var_real_multiset": bundle_real["var_multiset_exact"],
+                "mean_real_ordered": bundle_real["mean_ordered"],
+                "mean_real_multiset": bundle_real["mean_multiset"],
                 "median_null_var": median_null_var, "median_null_C_over_F": median_null_cf,
                 "var_real_over_median_null": (bundle_real["var_exact"] / median_null_var
                                                if median_null_var else None),

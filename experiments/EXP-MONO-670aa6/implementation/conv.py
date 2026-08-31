@@ -147,17 +147,23 @@ def cell_stats_fft(fb_coords, n1, n2, N, F, m_list=(1, 2, 3, 4)):
 def stat_bundle_from_coords(fb_coords, n1, n2, N, F, m):
     """One fft2 call computes BOTH primary statistics (Var_m via exact-integer
     convolution side, and C/F via the same spectrum) for a single symmetric
-    subset. Returns dict with var_exact (route 2, exact-integer), var_character
-    (route-2-internal float cross-check), C, C_over_F, and route-2 diagnostics
-    (max imaginary residual, max rounding residual) used to confirm the FFT
-    route recovered an exact integer array."""
+    subset. Returns dict with var_exact (route 2, exact-integer), its multiset
+    counterpart, var_character (route-2-internal float cross-check), C,
+    C_over_F, and route-2 diagnostics (max imaginary residual, max rounding
+    residual) used to confirm the FFT route recovered an exact integer array."""
+    import math as _math
     Shat = character_spectrum(fb_coords, n1, n2)
     Nm_fft, max_imag, max_round_err = fft_exact_Nm(Shat, m, n1, n2)
     st = exact_stats(Nm_fft, N, F, m)
     var_char = var_from_character_side(Shat, N, m)
     Cval, _ = max_C(Shat)
+    fact_m = _math.factorial(m)
     return {
         "var_exact": st["var_ordered_exact"],
+        "var_ordered_exact": st["var_ordered_exact"],
+        "var_multiset_exact": st["var_ordered_exact"] / (fact_m ** 2),
+        "mean_ordered": st["mean_ordered"],
+        "mean_multiset": st["mean_ordered"] / fact_m,
         "var_character_float": var_char,
         "route2_var_relative_residual": (
             abs(st["var_ordered_exact"] - var_char) / st["var_ordered_exact"]
