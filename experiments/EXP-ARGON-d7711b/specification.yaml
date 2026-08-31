@@ -1,0 +1,391 @@
+experiment:
+  id: EXP-ARGON-d7711b
+  hypothesis_id: H-ARGON-5b399e
+  derived_from_idea: IDEA-20260809-a915ea
+  question_id: RQ-ARGON-141710
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+
+  title: >-
+    Direct measurement of the depth-reducing set curve on the specific Argon2i
+    memory-access DAG - exact where it completes, declared-guarantee bounds above it,
+    with an instrumented edge-for-edge construction gate and a matched random DAG
+    control
+
+  objective: >-
+    The one uncertainty a run reduces is whether the attacker-relevant structural
+    quantity of the deployed Argon2i memory-access graph can be MEASURED on that graph
+    rather than inferred from an asymptotic argument about a graph family, and whether
+    the measured values agree with what the family argument assumes at the parameters
+    people deploy. A run establishes (i) whether the symbolically constructed DAG
+    equals the instrumented reference access pattern edge for edge, which is the
+    precondition for everything else; (ii) how far up in (t, m, p) an exact
+    depth-reducing-set computation reaches within budget; (iii) the e(D) curve at every
+    reached cell with exactness and bound direction recorded per point; and (iv)
+    whether that curve separates from a matched random DAG of equal node count and
+    in-degree. No attack, no cost claim and no security statement about any deployment
+    follows from a run.
+
+  what_this_is_not:
+    - >-
+      Not an attack, a tradeoff attack, an attack cost estimate, or a claim that any
+      parameter set is weak or strong. Graph structure is not attack cost.
+    - >-
+      Not a statement about Argon2d or the data-dependent half of Argon2id, whose
+      access patterns depend on the password and are not a fixed graph.
+    - >-
+      Not a claim quantified over "Argon2" or over parameter sets not enumerated.
+    - >-
+      Not approval, freezing, execution authorization, a run, or evidence. No run has
+      been executed under this contract.
+
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: >-
+      MAXIMAL SUPPORTABLE SCOPE. For Argon2i at the enumerated (t, m, p) cells and the
+      one named RFC 9106 recommended parameter set, at the declared depth ladder: the
+      constructed DAG does or does not equal the instrumented reference access pattern;
+      the depth-reducing set size at each target depth is exactly v where the exact
+      solver completed, or lies in [lo, hi] under a named algorithm with a named
+      guarantee where it did not; and that curve does or does not separate from a
+      matched random DAG. WHAT DOES NOT FOLLOW - no attack, no recomputation cost, no
+      tradeoff cost, no security consequence, nothing about data-dependent variants,
+      nothing about parameter sets not enumerated, and no claim at any point whose
+      approximation interval is wide enough to contain both readings.
+
+  inputs:
+    procedure: >-
+      STAGE 0 (zero compute, DECLARED FIRST). Name the approximation algorithm, its
+      guarantee and its bound DIRECTION; name the RFC 9106 recommended parameter set to
+      be attempted; declare the depth ladder as fractions of full depth; declare the
+      per-point exact-solver budget. Hash the declaration. A guarantee named after
+      seeing a curve is not a guarantee.
+      STAGE 1 (minutes, BLOCKING GATE). Build the DAG symbolically from the indexing
+      functions at each small cell. Instrument a reference implementation and log
+      (reader block, referenced block) pairs. Require EXACT EDGE-SET EQUALITY in both
+      directions. Any mismatch stops the contract and is localized to a block index.
+      STAGE 2 (minutes, FIXTURE). Run the exact solver on the path graph, where
+      e(D) = ceil(n/D) - 1 in closed form, on a complete binary tree, and on a random
+      DAG of matched degree. Require the closed-form value on the path exactly. Run the
+      approximation algorithm on the same three and require every value inside its own
+      declared guarantee.
+      STAGE 3 (hours, EXACT ARM). At each small cell, compute e(D) exactly at every D
+      in the ladder, recording the search bound, wall time and peak memory per point.
+      Record the largest (t, m, p) at which the exact solver completes; that number is a
+      primary deliverable and is reported, not predicted.
+      STAGE 4 (hours, BOUNDED ARM). Above the exact regime and at the named recommended
+      parameter set, run the declared approximation and record [lo, hi] with the
+      algorithm and bound direction attached to every point.
+      STAGE 5 (hours, CONTROL). Repeat STAGES 3 and 4 unchanged on a matched random DAG
+      of equal node count and in-degree distribution, in the same invocation.
+      STAGE 6 (zero compute). Assemble the curve. Compare against the asymptotic family
+      guarantee ONLY between compatible bound directions, and mark any comparison whose
+      intervals contain both readings as UNDECIDABLE rather than resolving it.
+    instrument: >-
+      Python 3.11 with numpy. The DAG is built by evaluating the RFC 9106 indexing
+      functions symbolically over (pass, lane, slice, index). The reference access
+      pattern is obtained by instrumenting a reference implementation so that logging
+      does not alter the pattern. The exact solver is a branch-and-bound search over
+      vertex subsets with the bound recorded; the approximation algorithm is the one
+      declared at STAGE 0 and is implemented from its definition. Peak RSS is measured
+      per point, not modelled. Recorded through harness/runner.py.
+    parameters: >-
+      Argon2i only. Small cells - t in {1, 2, 3}, m in {8, 16, 32, 64, 128, 256} blocks,
+      p in {1, 2}. One named RFC 9106 recommended parameter set for the bounded arm.
+      Depth ladder - D as a fraction of full depth at {0.75, 0.5, 0.25, 0.125, 0.0625}.
+      Matched random control at every cell with equal node count and in-degree
+      distribution, over seeds {20260825, 20260826, 20260827}. Per-point exact-solver
+      budget declared at STAGE 0.
+
+  controls:
+    - >-
+      CONSTRUCTION VALIDATION, BLOCKING. The symbolically built DAG must equal the
+      instrumented reference access pattern edge for edge in both directions. Without
+      it the object measured is not the object deployed and every number is void.
+    - >-
+      PATH FIXTURE WITH A CLOSED-FORM ANSWER. The exact solver must return
+      ceil(n/D) - 1 on a path. A solver that misses a graph whose answer is arithmetic
+      is not measuring depth-reducibility, and this control can fail.
+    - >-
+      APPROXIMATION-ON-FIXTURE CONTROL. The approximation algorithm is run where the
+      exact answer is known and must land inside its own declared guarantee. This is the
+      only check that the guarantee holds AS IMPLEMENTED rather than as cited.
+    - >-
+      MATCHED RANDOM DAG CONTROL, at every cell, with equal node count and in-degree
+      distribution, executed in the same invocation. If the standardized graph does not
+      separate from it, the curve characterizes size and degree rather than the
+      standardized indexing.
+    - >-
+      EXACTNESS AND BOUND DIRECTION AS PER-POINT FIELDS. Every reported value carries
+      its algorithm, its guarantee and whether it is exact, an upper bound or a lower
+      bound. Comparisons are made only between compatible directions; mixing them
+      manufactures a difference and is the most likely way this design produces a wrong
+      headline.
+    - >-
+      UNDECIDABLE LABEL. Any comparison whose intervals contain both the family
+      guarantee and its negation is labelled UNDECIDABLE and is not resolved by
+      narrowing the interval after the fact.
+    - >-
+      PEAK MEMORY MEASURED, not modelled, at every point, because the exact solver's
+      reach is memory-bound and the reported reach is meaningless without it.
+
+  independent_variables:
+    - t (passes), m (memory blocks), p (lanes)
+    - target depth D as a fraction of full depth
+    - 'graph: standardized Argon2i DAG versus matched random DAG versus fixture graphs'
+    - 'method: exact branch-and-bound versus the declared approximation'
+    - seed (for the matched random control only)
+
+  metrics:
+    primary:
+      - >-
+        DAG construction agreement - the edge-set symmetric difference between the
+        symbolically constructed graph and the instrumented reference log, reported as
+        an integer count that must be 0, together with the localized block index of any
+        differing edge.
+      - >-
+        e(D), the depth-reducing set size at each target depth, per cell, reported as an
+        exact integer or an interval [lo, hi], each point carrying method, guarantee and
+        bound direction.
+      - >-
+        Largest (t, m, p) at which the exact solver completed inside the per-point
+        budget, reported as a fact and not predicted.
+      - >-
+        Separation from the matched random DAG at each D, computed as the signed gap
+        between the two curves relative to the sum of their intervals; a value at or
+        below 1 is no separation.
+      - >-
+        Approximation error on the fixture graphs, computed as the reported value minus
+        the known exact value, checked against the declared guarantee.
+      - >-
+        Comparison verdict against the asymptotic family guarantee at each D, in
+        {INSIDE, OUTSIDE_ABOVE, OUTSIDE_BELOW, UNDECIDABLE, INCOMPATIBLE_DIRECTION}.
+    secondary:
+      - Peak RSS and wall time per point, both measured.
+      - Branch-and-bound node count per exact point, as a difficulty record.
+      - Full depth and node count of each constructed graph.
+      - In-degree distribution of the standardized graph and of its matched random control.
+      - Count of points labelled UNDECIDABLE, reported and not minimized.
+      - sha256 of the STAGE 0 declaration and of each constructed edge list.
+
+  heuristic_under_test: HEUR-ARGON-1
+  heuristic_under_test_note: >-
+    This contract validates HEUR-ARGON-1 of H-ARGON-5b399e - that the declared
+    approximation algorithm returns values within its stated guarantee and direction -
+    on fixture graphs whose exact answer is known, BEFORE any bounded point on the
+    Argon2i curve is reported. The heuristic is algorithmic rather than distributional,
+    so the validation is a guarantee check on known answers rather than a distribution
+    comparison, and the contract says so instead of borrowing a distributional template
+    that does not apply.
+
+  preregistered_prediction:
+    quantity: >-
+      The comparison verdict of the measured e(D) curve against the asymptotic family
+      guarantee, at each D of the ladder, at the named recommended parameter set and at
+      the largest exact cell; and the separation from the matched random DAG.
+    formula: >-
+      Predicted - OUTSIDE (in a consistent direction) at three or more consecutive D,
+      i.e. a systematic difference, with separation from matched random above 1 at those
+      same D. Under the alternative, INSIDE at every D, which validates the asymptotic
+      argument concretely and refutes (A3). Under the null that the measurement
+      characterizes size and degree only, separation from matched random is at or below
+      1 at every D and no indexing-attributed claim may be made.
+    source: >-
+      Pre-registered in the parent proposal IDEA-20260809-a915ea, whose predictions
+      block states "systematically different from the asymptotic family's guarantee at
+      recommended parameters" and names agreement as "a clean and useful positive". The
+      three-consecutive-D rule, the interval-compatibility rule and the UNDECIDABLE
+      label are this contract's additions, added so the comparison is decidable rather
+      than rhetorical.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The exact arm runs at m from 8 to 256 blocks, orders of magnitude below any
+      recommended parameter set, because exact depth-reducing-set computation is the
+      binding cost and the design refuses to report an exact-looking number it did not
+      compute exactly. Scale access to the recommended parameter set is by the DECLARED
+      approximation only, and every point reached that way is labelled bounded with its
+      algorithm, guarantee and direction. THE TRANSFER ASSUMPTION IS STATED AND IS THE
+      DESIGN'S MAIN WEAKNESS: nothing forces the exact regime's behaviour to persist at
+      recommended parameters, which is why the recommended cell is measured directly
+      rather than extrapolated, and why an undecidably wide interval there is a
+      reportable outcome rather than a failure.
+    correspondence: >-
+      The Argon2i indexing functions are data-independent, so the graph at a recommended
+      parameter set is fully determined and CONSTRUCTIBLE even where e(D) on it is not
+      exactly computable. That is the exact correspondence this design exploits: the
+      object is available at full scale even though the statistic is not.
+
+  tail_checks:
+    - >-
+      Report the width of every interval, not only its midpoint; a curve of midpoints is
+      not a measurement and cannot support a comparison verdict.
+    - >-
+      Report each point's bound direction beside its value, and refuse any comparison
+      across incompatible directions with the label INCOMPATIBLE_DIRECTION rather than a
+      number.
+    - >-
+      Report the branch-and-bound node count at the largest exact cell, since a point
+      that completed only because the bound pruned aggressively may be exact but
+      fragile to a parameter change.
+    - >-
+      Report the in-degree distributions of the standardized and matched-random graphs
+      side by side; a control that is not actually matched is not a control.
+
+  replication:
+    seeds: [20260825, 20260826, 20260827]
+    independent_instances: 3
+    repeat_count_per_cell: 1
+    note: >-
+      The Argon2i DAG is deterministic, so seeds vary only the matched random control,
+      giving three independent control graphs per cell. Exact e(D) on the standardized
+      graph is a deterministic quantity and is not repeated.
+
+  budget:
+    wall_clock_seconds: 7200
+    wall_clock_seconds_note: Per run. total_cpu_hours bounds the whole contract.
+    total_cpu_hours: 12.0
+    memory_gb: 16
+    maximum_runs: 40
+
+  stopping_rules:
+    - >-
+      Stop the entire contract if the constructed DAG differs from the instrumented
+      reference at any edge, and report the localized mismatch as the deliverable.
+    - >-
+      Stop and report if the exact solver fails the path fixture; the instrument does
+      not measure what it claims to measure.
+    - >-
+      Stop the exact arm at a cell when the per-point budget is exceeded, record the
+      cell as beyond exact reach, and continue with the bounded arm. A budget stop is
+      never "no exact computation is possible in principle".
+    - >-
+      Stop at maximum_runs, total_cpu_hours or memory_gb, whichever binds first. Budget
+      exhaustion is a stop, never a negative result (AGENTS.md rule 5).
+
+  invalidation_rules:
+    - >-
+      A timeout, crash or memory exhaustion makes the run or the point
+      failed_infrastructure and is NEVER evidence about the graph.
+    - >-
+      A run in which the matched random control was not executed in the same invocation
+      as the standardized arm is invalid_measurement.
+    - >-
+      A run reporting any value without its method, guarantee and bound direction is
+      invalid_measurement, because the reported number is then epistemically ambiguous
+      by the record's own observation-collision analysis.
+    - >-
+      A run comparing values across incompatible bound directions is
+      invalid_measurement; the difference so produced is an artifact.
+    - >-
+      A run in which the approximation algorithm was named or its guarantee fixed after
+      any Argon2i point was computed is invalid_measurement.
+    - >-
+      A run whose parameters differ from the frozen contract is a DIFFERENT experiment
+      and requires a new contract.
+
+  success_criterion: >-
+    ALL of the following, each decidable from the primary metrics. (1) DAG construction
+    agreement is an exact edge-set equality, symmetric difference 0. (2) The exact
+    solver returns the closed-form value on the path fixture and the approximation lands
+    inside its declared guarantee on all three fixtures. (3) At least one Argon2i cell
+    is solved EXACTLY at every D of the ladder, so the curve has an exact anchor. (4)
+    Every reported point carries its method, guarantee and bound direction, and every
+    comparison verdict is one of the five declared values. A run meeting (1) to (4) is
+    VALID, and its verdict on H-ARGON-5b399e (A3) is then read directly: (A3) is
+    SUPPORTED IN SCOPE only if the comparison verdict is OUTSIDE in a consistent
+    direction at three or more consecutive D AND the separation from the matched random
+    DAG exceeds 1 at those same D.
+
+  falsification_criterion:
+    - >-
+      Any edge-set mismatch falsifies (A1); the measured object is not the deployed one
+      and no number stands.
+    - >-
+      A comparison verdict of INSIDE at every D, with decidable intervals, falsifies
+      (A3) and validates the asymptotic argument concretely at the tested parameters.
+      This is a positive result and is recorded as one.
+    - >-
+      Separation from the matched random DAG at or below 1 at every D falsifies any
+      indexing-attributed reading; the curve then characterizes node count and in-degree.
+    - >-
+      An approximation value outside its declared guarantee on a fixture falsifies
+      HEUR-ARGON-1 as implemented; every bounded point is withdrawn and the curve is
+      truncated to the exact regime.
+    - >-
+      The exact solver missing the path fixture falsifies the INSTRUMENT; no result from
+      any arm may be reported.
+    - >-
+      No cell solvable exactly at every D within budget means the curve has no exact
+      anchor; the contract reports that the curve is entirely approximate, which the
+      parent proposal names as a falsification condition, and no comparison verdict is
+      issued.
+
+  required_artifacts:
+    - >-
+      manifest.yaml with the exact command, commit sha, dirty-tree state, resolved
+      model/inference block and environment
+    - >-
+      the STAGE 0 declaration - approximation algorithm, guarantee, bound direction,
+      named recommended parameter set, depth ladder, per-point budget - hashed before
+      any Argon2i point was computed
+    - the constructed edge list and the instrumented reference access log, or their sha256 plus edge counts, per cell
+    - raw-result.json with every point's value, interval, method, guarantee, direction, wall time and peak RSS
+    - the fixture-graph results, including the path closed-form comparison
+    - the matched random control's measurements, in the same file as the standardized arm
+    - the comparison table against the asymptotic family guarantee, with every verdict labelled
+
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    - >-
+      Coordinator drafting does not approve. This contract is review_required and NOT
+      approved; approved_by is null and execution_authorized is false. Approval is the
+      USER's gate because it authorizes execution and spends compute.
+    - >-
+      The approximation algorithm and the asymptotic family guarantee it is compared
+      against must both be named from sources filed as KN-LIT entries before the bounded
+      arm runs. A comparison against a recalled guarantee is not a comparison.
+    - >-
+      The blocking construction gate and the matched random control must remain in the
+      frozen protocol.
+
+  derivation_provenance:
+    tool: coordinator subagent, /design-experiment lifecycle steps 3-5
+    source_record: IDEA-20260809-a915ea
+    authored_at: '2026-08-25'
+    note: >-
+      The construction-validation control, the approximation-guarantee disclosure and
+      the exact/bounded split come from the parent proposal's controls, predictions and
+      falsification_conditions blocks. THE MATCHED RANDOM DAG CONTROL, the fixture
+      graphs with closed-form answers, the bound-DIRECTION field and the UNDECIDABLE
+      verdict are this contract's additions: without them a "difference" from a
+      family-level lower bound could be produced entirely by comparing it against an
+      upper bound, and a difference could be attributed to the standardized indexing
+      when it belongs to node count and degree. Budgets come from the parent's
+      estimated_cost (implementation medium, compute moderate to high). No measurement,
+      timing, run or citation is invented.
+
+  derivation_gaps:
+    - >-
+      The approximation algorithm is NOT chosen in this contract. The parent proposal
+      says only "declared approximation algorithms", and choosing one after seeing the
+      exact curve would silently turn a bound into a fit. A Coordinator must fix it, and
+      its guarantee, at approval.
+    - >-
+      The asymptotic family guarantee that the curve is compared against is not stated
+      here and no source is cited, because none has been read by this program. Until
+      one is filed as a KN-LIT entry the comparison arm cannot run and only the raw
+      curve is producible.
+    - >-
+      Whether the exact solver reaches ANY Argon2i cell at every D is unknown in
+      advance. The contract requires an exact anchor for a comparison verdict; if none
+      is reached, the honest deliverable is a fully approximate curve with no verdict.
+    - >-
+      "Matched in in-degree distribution" is a weaker match than isomorphism of degree
+      sequence plus layer structure. A reviewer may reasonably ask for a stronger
+      control, and the achieved match must be reported so the objection is checkable.

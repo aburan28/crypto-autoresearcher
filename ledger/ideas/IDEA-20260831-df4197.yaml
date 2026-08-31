@@ -1,0 +1,232 @@
+idea:
+  id: IDEA-20260831-df4197
+  question_id: RQ-AUXIN-f8d8c0
+  goal_id: GOAL-AUXIN-a93442
+  title: >-
+    Factor r-1 and r+1 for every standardized curve order and tabulate the best
+    exponent Cheon's algorithm can actually reach on deployed parameters
+  class: measurement
+
+  claim: >-
+    For each standardized prime-field curve order r, the quantity that decides
+    whether ANY Cheon-type auxiliary-input attack is relevant is
+      E(r) = min over d | (r±1) of log(sqrt((r±1)/d) + sqrt(d)) / log(r),
+    and E(r) is computable exactly, today, from a full factorization of r-1 and
+    r+1. The claim is that this table has never been computed in this program
+    and that its two possible shapes are both decisive: either the standardized
+    orders lack a divisor in the useful range and E(r) sits at or near 0.5 for
+    every deployed curve -- in which case the entire auxiliary-input class is
+    arithmetically inert at deployed parameters, whatever any protocol releases
+    -- or some order carries a divisor near sqrt(r) and that curve is named.
+    No heuristic is involved at any point.
+
+  mechanism: >-
+    Cheon's cost is O(sqrt((r-1)/d) + sqrt(d)) for d | (r-1), minimized at
+    d ~ sqrt(r) where it reaches r^{1/4}. The r^{1/4} headline is therefore a
+    statement about a HYPOTHETICAL divisor, not about any particular curve. A
+    real curve order gets whatever divisors it happens to have. Group orders of
+    standardized curves are prime by construction, but r-1 and r+1 are not, and
+    their factorizations are unconstrained by the curve's design criteria --
+    nobody selecting P-256 was choosing the factorization of r-1.
+
+    So the attack's applicability to real parameters is decided by an accident
+    of integer arithmetic that is cheap to look up and that this program has
+    simply never looked up. The measurement is: fully factor r-1 and r+1 for the
+    frozen curve list, enumerate the divisor lattice, evaluate the exact cost
+    expression at every divisor, take the minimum, and report E(r) per curve
+    beside the rho baseline 0.5 at identical accounting.
+
+  tracked_object: >-
+    The divisor lattice of the two integers r-1 and r+1, for each standardized
+    r; and the single real number E(r) read off it.
+
+  lossy_projection_test: >-
+    PASSES. The projection (curve) -> (multiset of prime factors of r±1)
+    discards the field, the equation, the base point, the cofactor, the
+    embedding degree and the entire group structure, retaining two integer
+    factorizations. It is compatible with the operation the attack performs,
+    because Cheon's algorithm consumes exactly one feature of the group -- the
+    existence of a subgroup of Z/rZ^* of order d -- and that feature is a
+    function of the retained part alone. It is emphatically not injective: two
+    unrelated curves whose orders happen to have similar r-1 factorizations
+    project identically, which is fine here because the attack cannot tell them
+    apart either.
+
+  novelty_status: unverified
+  novelty_note: >-
+    The computation is elementary and the cost formula is textbook. What is
+    unverified is whether the per-curve table has been published. It is the kind
+    of thing that may well sit in a paper appendix or a SafeCurves-adjacent
+    audit; the first task under this idea is a literature check, and a finding
+    of "already published" is a perfectly good outcome that saves the rest of
+    the goal. The idea is classified `unverified` rather than `known` because no
+    agent in this program has looked.
+
+  citations:
+    - ref: ledger/decisions/DEC-20260802-208.yaml
+      provenance: internal
+      claim: >-
+        This program's own classification of Cheon auxiliary-input DLP as
+        `known_prior_art` with primary source
+        https://www.iacr.org/archive/pkc2012/72930594/72930594.pdf recorded in
+        the `prior_art.cheon_auxiliary_input` block. Relied on for the cost
+        expression being established literature, not something this idea claims.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+    - ref: ledger/decisions/DEC-20260802-204.yaml
+      provenance: internal
+      claim: >-
+        "DLP with auxiliary input is given G, alpha*G, and alpha^d*G, with d
+        dividing r-1"; running time "O(sqrt((r-1)/d) + sqrt(d)), giving an
+        N^{1/4}-scale time near the balanced choice of d". Relied on for the
+        exact cost expression this idea evaluates.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+    - ref: "Cheon, EUROCRYPT 2006 / J. Cryptology 2010; Springer variant for d | (r+1)"
+      provenance: recalled
+      claim: >-
+        RELAYED, NOT READ. The 2026-08-31 external coverage-gap input document
+        attributes the d | (r-1) algorithm to Cheon (EUROCRYPT 2006, J.
+        Cryptology 2010) and a d | (r+1) variant to an order-(r+1) embedding. No
+        agent in this program has opened either source. This entry is a pointer
+        for whoever files the KN-LIT record and supports nothing on its own.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The curve list is frozen before any factoring begins and published in the
+      contract. Choosing which curves to report AFTER seeing which ones factor
+      favorably would turn a census into a selection effect.
+    - >-
+      Full factorization of r-1 and r+1 is feasible for the listed orders. For
+      256-bit and 384-bit integers this is ordinary but not guaranteed; where a
+      cofactor resists, it is reported as an explicit unfactored cofactor with
+      its bit length, and E(r) is reported as a BOUND with the direction of the
+      bound stated.
+
+  predictions:
+    - metric: E(r) per standardized curve
+      direction: different
+      minimum_effect: >-
+        The informative outcomes are: E(r) >= 0.49 for all listed curves
+        (attack class inert at deployed parameters), or E(r) <= 0.40 for at
+        least one (that curve is named and escalated). Values in between are
+        reported as-is and interpreted as "no useful divisor, but not a clean
+        null either".
+    - metric: >-
+        size of the largest divisor of r±1 below sqrt(r), per curve, in bits
+      direction: different
+      minimum_effect: >-
+        No threshold. This is the raw quantity behind E(r) and is reported so a
+        reader can recompute E(r) without trusting the pipeline.
+
+  minimal_test:
+    design: >-
+      (1) Freeze the curve list and publish it in the contract: NIST
+      P-224/P-256/P-384/P-521, secp256k1, brainpoolP256r1/P384r1, the Ed25519
+      prime-order subgroup, BN254 and BLS12-381 group orders.
+      (2) For each r, factor r-1 and r+1 completely; emit a factorization
+      certificate (each factor with a primality certificate, product recomputed
+      and compared to r±1 in exact integer arithmetic).
+      (3) Enumerate the divisor lattice from the factorization and evaluate
+      sqrt((r±1)/d) + sqrt(d) at every divisor; take the minimum; report E(r).
+      (4) Independent recomputation of every certificate by the run wrapper, in
+      a second arithmetic implementation.
+      (5) Report the table beside the rho baseline at identical accounting.
+    controls:
+      - >-
+        POSITIVE CONTROL: a synthetic r with a planted divisor d = round(sqrt(r))
+        of r-1 must return E(r) ~ 0.25. If the pipeline does not find a divisor
+        that was deliberately planted, the pipeline is broken and no negative
+        result about any real curve may be reported.
+      - >-
+        NULL OBJECT: a safe prime r (r-1 = 2q, q prime) must return E(r) ~ 0.5
+        with only the divisors 1, 2, q, 2q available. This is the shape a
+        genuinely inert order has, and the real curves are compared against it.
+      - >-
+        ARITHMETIC CONTROL: product of reported factors must equal r±1 exactly;
+        any mismatch invalidates the row rather than being rounded past.
+    required_metrics:
+      - complete factorization of r-1 and r+1 per curve, with unfactored cofactors flagged
+      - largest divisor below sqrt(r), in bits, per curve
+      - E(r) per curve, and the minimizing d
+      - rho baseline exponent at identical accounting
+      - wall-clock and any factoring budget exhausted without completion
+
+  falsification_conditions:
+    - >-
+      The positive control fails to recover a planted divisor. Nothing about
+      real curves may then be concluded.
+    - >-
+      The null-object safe prime returns E < 0.49. The cost evaluation is wrong.
+    - >-
+      Reported factors do not multiply back to r±1 in exact arithmetic.
+
+  confounders:
+    - >-
+      The d | (r+1) variant is easy to forget and would make a curve look inert
+      when it is not. Both r-1 and r+1 are required in every row; a row missing
+      one is incomplete, not negative.
+    - >-
+      An unfactored cofactor could hide a divisor in the useful range. A row
+      with an unfactored cofactor gives a BOUND on E(r), never a value, and the
+      bound's direction must be stated explicitly.
+    - >-
+      E(r) small is NOT a vulnerability. It is a necessary condition. Without a
+      protocol that releases the auxiliary powers (IDEA-20260831-ccb587) the
+      number means nothing operationally, and the report must say so in the same
+      table, not in a footnote.
+
+  interpretation_limits:
+    - >-
+      This measures divisor structure. It does not run an attack, does not
+      recover any discrete logarithm, and cannot support any claim about any
+      deployed system's security.
+    - >-
+      A favorable E(r) on a pairing-friendly curve is the EXPECTED case, not a
+      finding: such curves are chosen for structure and are used with q-SDH-style
+      assumptions precisely where auxiliary points are released. Reporting that
+      as a surprise would be an error.
+
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    None. Integer factorization with certificates and exact evaluation of a
+    closed-form cost. This is why it is sequenced first: it is the only idea in
+    this set whose answer does not depend on anything being filed, read, or
+    assumed.
+
+  target_complexity:
+    time_exponent: >-
+      Not asymptotic. Factoring a dozen integers of 224-381 bits, plus divisor
+      enumeration. Minutes to hours on one machine, dominated by any hard
+      semiprime cofactor.
+    memory_exponent: negligible
+    best_known: >-
+      Unknown whether published. If it is published, the correct outcome is a
+      KN-LIT record citing it and closure of this idea, not a reproduction.
+    hidden_overhead: >-
+      A single stubborn cofactor can consume the entire budget; the contract
+      must set a factoring bound and require reporting the bound rather than
+      silently dropping a curve.
+    tradeoff_note: not applicable
+
+  null_object_control: >-
+    A safe prime order (r-1 = 2q) run through the identical pipeline, required
+    to return E ~ 0.5 before any real-curve row is believed.
+
+  dominated_by: >-
+    n/a. No attack is claimed and no result is asserted; there is no frontier
+    row to compare against.
+  sota_delta: >-
+    No attack, no speedup, no recovery. Information contribution only: it
+    replaces this program's current position on auxiliary-input DLP at deployed
+    parameters -- which is silence -- with a certificate-bearing table, and it
+    does so at a cost small enough that the answer arrives before any decision
+    depends on it.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
