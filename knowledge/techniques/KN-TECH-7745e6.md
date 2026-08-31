@@ -124,3 +124,29 @@ statement about when a specific class of pass/fail instrument (heavy-tailed
 higher-moment ratio, small matched-null sample) needs calibration evidence
 before its verdicts can be trusted, and a cheap four-step recipe for
 producing that evidence before running the expensive arm.
+
+## Addendum (2026-08-31), disclosed per AGENTS.md immutability rules — not a retraction
+
+An independent Red Team review of this lane's follow-on experiment
+(EXP-MONO-670aa6, EV-MONO-849355) found that this entry's own worked
+example above — "Applying a Bonferroni correction over the ~96 cells
+actually tested in the archived run leaves no cell significant at nominal
+0.05" — states a genuine fact but omits a further, orthogonal check: at
+`n=30` null draws, the permutation p-value floor is `1/31 ≈ 0.032`, which
+already exceeds `alpha/96 ≈ 0.00052` by ~60x, so that Bonferroni step was
+GUARANTEED non-significant regardless of the data, not merely observed to
+be non-significant. This does not change this entry's own conclusion (the
+band-calibration failure this entry documents is real and independently
+confirmed by other means, including the bootstrap and the 254-curve
+replication, neither of which depends on the Bonferroni sentence), but the
+Bonferroni sentence itself should have been recognized as vacuous by the
+same "check your instrument's operating characteristics before trusting
+its verdict" discipline this entry teaches — applied to its own worked
+example. **See [[KN-TECH-95a42b]] for the general form of this check**
+(floor `1/(n+1)` vs. correction threshold `alpha/m`, verified at design
+time before any draw is spent) — a distinct, arithmetic failure mode from
+the null-calibration bootstrap this entry's main text covers, discovered
+because the SAME uncorrected arithmetic recurred, unnoticed, when this
+lane's next experiment (EXP-MONO-670aa6) adopted a superficially "fixed"
+200-draw design that still failed the floor-vs-threshold check this
+addendum names.
