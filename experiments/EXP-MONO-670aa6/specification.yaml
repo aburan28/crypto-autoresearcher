@@ -47,7 +47,7 @@ experiment:
   title: >-
     Corrected-calibration replication of EXP-MONO-c819ba's K3/K4
     discriminating test: permutation-based, Holm/Bonferroni-corrected,
-    200-draw null, >=100-curve panel, mandatory pre-treatment null-object
+    4000-draw null, >=100-curve panel, mandatory pre-treatment null-object
     gate.
 
   objective: >-
@@ -91,7 +91,7 @@ experiment:
     exact_scope_a_run_could_support: >-
       At most: that on a declared panel of >= 100 independently-constructed
       curves (>= 50 j=0, >= 50 random-ordinary) over primes in [100, 3000],
-      with exhaustive target enumeration, 200 matched null draws per cell,
+      with exhaustive target enumeration, 4000 matched null draws per cell,
       and a Holm/Bonferroni-corrected permutation test whose own
       null-object false-positive rate was measured and found controlled,
       the real x-coordinate factor base's character bias at m=4, F=N/4
@@ -127,14 +127,20 @@ experiment:
       family well-defined and the multiplicity count honest). The full
       F-ladder ({N/16,N/8,N/4,N/2}) is retained as a secondary, uncorrected
       graded control on the smaller legacy panel only.
-    null_draws_per_cell: 200
+    null_draws_per_cell: 4000
     null_draws_note: >-
-      Raised from EXP-MONO-c819ba's 30 to 200, the exact figure the
-      Validator's 20,000-trial bootstrap (EV-MONO-b84b24 observation 3)
-      and the Red Team's draw-count-sensitivity test both used to show the
-      m=4 statistic's null distribution stabilizes. This number is FROZEN
-      here specifically because it is evidence-backed, not a round-number
-      guess.
+      Raised from EXP-MONO-c819ba's 30. The Validator's 20,000-trial
+      bootstrap (EV-MONO-b84b24 observation 3) and the Red Team's
+      draw-count-sensitivity test both showed the m=4 statistic's null
+      distribution stabilizes by 200 draws, so 200 is the STABILITY floor;
+      it is NOT the RESOLUTION floor this design needs. A permutation
+      p-value over n draws cannot fall below 1/(n+1), and Holm/Bonferroni
+      over a declared family of ~100 tests at alpha=0.05 rejects only at
+      p <= 5e-4, so n=200 (floor 1/201 ~ 4.98e-3) would make every
+      corrected test -- including the Stage-2 hard stop -- tautologically
+      non-significant. n=4000 gives a floor of 1/4001 ~ 2.50e-4, i.e. half
+      the tightest Holm threshold of any declared family, so the gate and
+      P1-P3 can genuinely fire. This number is FROZEN.
     targets: >-
       ALL R in E(F_p), exhaustively. No target sampling, unchanged from
       EXP-MONO-c819ba.
@@ -180,24 +186,37 @@ experiment:
     domain: EXP-MONO-670aa6/v1
     seed_derivation_rule: >-
       Every draw uses SHA-256 of the ASCII bytes of
-      domain || "|" || label || "|" || decimal(field_bits_or_p) || "|" ||
+      domain || "|" || decimal(master_seed) || "|" || family || "|" ||
+      label || "|" || decimal(field_bits_or_p) || "|" ||
       decimal(curve_ordinal) || "|" || decimal(m) || "|" ||
       decimal(draw_index) || "|" || decimal(counter), big-endian unsigned,
       with rejection sampling against modulo bias (reject digests >=
       floor(2^256/M)*M for a draw in [0,M)). Labels used, and no others:
       "prime", "curve-a", "curve-b", "null-subset", "null-object-pick",
-      "coset-pick". Counters start at 0 and advance once per digest
-      consumed, per label, per (p, m, draw_index). `curve_ordinal` runs
-      0..49 within each of the two primary_panel families (independently
-      numbered) and is fixed at a per-role constant (0) for
-      legacy_controls_panel, exactly reproducing EXP-MONO-c819ba's own
-      single-curve-per-role construction for that sub-panel. A third party
-      reproduces every instance bit-for-bit.
+      "coset-pick". `family` is one of "j0", "random-ordinary", "legacy"
+      and no others; it is part of the preimage so the two primary_panel
+      families, whose curve_ordinals are independently numbered, draw
+      DISJOINT construction streams and therefore distinct primes rather
+      than colliding on matching (field_bits, curve_ordinal) pairs.
+      `master_seed` is likewise part of the preimage, so the two planned
+      replication runs (seeds 20260901 and 20260902) are independent draws
+      rather than bit-identical repeats. Counters start at 0 and advance
+      once per digest consumed, per label, per (p, m, draw_index).
+      `curve_ordinal` runs 0..49 within each of the two primary_panel
+      families (independently numbered) and is fixed at a per-role constant
+      (0) for legacy_controls_panel, exactly reproducing EXP-MONO-c819ba's
+      own single-curve-per-role construction for that sub-panel. A third
+      party holding the domain and the master seed reproduces every
+      instance bit-for-bit.
     prime_construction: >-
-      For a target field_bits b and curve_ordinal k within a family: h =
-      int(SHA256(seed("prime", b, k, 0, 0))), L=2^(b-1), U=2^b, c_0 = L +
+      For a target field_bits b and curve_ordinal k within family f: h =
+      int(SHA256(seed(f, "prime", b, k, 0, 0))), L=2^(b-1), U=2^b, c_0 = L +
       1 + 2*(h mod 2^(b-2)), test c_j = c_0 + 2j while c_j < U; prime iff
-      >3, odd, no odd divisor up to floor(sqrt(c_j)). Reaching U is
+      >3, odd, no odd divisor up to floor(sqrt(c_j)). For the j0_curves
+      family additionally require p = 1 mod 3 (a j=0 curve y^2 = x^3 + B
+      over p = 2 mod 3 is forced supersingular, which would contaminate the
+      j=0 vs random-ordinary comparison); candidates failing that
+      congruence are skipped and the scan continues. Reaching U is
       CONSTRUCTION_FAILURE for that (b,k); no wrapping, no reseeding --
       that curve ordinal is simply absent from the panel and the shortfall
       is reported, never silently backfilled from a different bit length.
@@ -205,14 +224,18 @@ experiment:
       [7,8,9,10,11] (i.e. curve_ordinal k uses field_bits[k mod 5]) so
       each bit length contributes 10 curves per family.
     curve_construction: >-
-      For t=0,...,65535: a_t=int(SHA256(seed("curve-a",p,k,0,t))) mod p,
-      b_t=int(SHA256(seed("curve-b",p,k,0,t))) mod p; reject if
-      (4a_t^3+27b_t^2) mod p = 0; accept the first non-singular candidate.
-      For the j0_curves family: A=0 forced, B drawn from the same stream
-      (rejecting B=0). For the random_ordinary_curves family: both A,B
-      drawn freely (rejecting the j=0 and j=1728 loci exactly, i.e. reject
-      A=0 and reject B=0). Full group structure E(F_p)=Z/n1 x Z/n2
-      computed and recorded for every curve.
+      For t=0,...,65535: a_t=int(SHA256(seed(f,"curve-a",p,k,0,t))) mod p,
+      b_t=int(SHA256(seed(f,"curve-b",p,k,0,t))) mod p; reject if
+      (4a_t^3+27b_t^2) mod p = 0; reject if the candidate is not ORDINARY
+      (trace of Frobenius t_E = p + 1 - #E(F_p) with t_E = 0 mod p is
+      supersingular and is rejected, checked not assumed); accept the first
+      candidate surviving both rejections. For the j0_curves family: A=0
+      forced, B drawn from the same stream (rejecting B=0); combined with
+      the p = 1 mod 3 requirement above, every j=0 panel curve is ordinary.
+      For the random_ordinary_curves family: both A,B drawn freely
+      (rejecting the j=0 and j=1728 loci exactly, i.e. reject A=0 and
+      reject B=0). Full group structure E(F_p)=Z/n1 x Z/n2 computed and
+      recorded for every curve.
     factor_base_construction: >-
       Identical rule to EXP-MONO-c819ba: FB = points P with x(P) in the
       x-coordinate set of the first F values (increasing scan order) with
@@ -246,13 +269,13 @@ experiment:
       name: MANDATORY NULL-OBJECT GATE -- must pass before Stage 3
       compute: minutes
       description: >-
-        For every curve in the primary panel, draw 200 matched-null
+        For every curve in the primary panel, draw 4000 matched-null
         symmetric subsets (label "null-subset") AND one additional,
         independently-labelled symmetric subset of the same size (label
         "null-object-pick") standing in for "treatment" though it is drawn
         from the identical null-generating process. Run the EXACT SAME
         permutation-test + Holm/Bonferroni procedure defined below on the
-        null-object arm against the 200 null draws, separately within
+        null-object arm against the 4000 null draws, separately within
         each of the two families (j0, random-ordinary).
       terminates_the_run_if: >-
         The null-object arm produces ANY Holm/Bonferroni-corrected
@@ -294,19 +317,19 @@ experiment:
       Var_real (ordered convention; multiset reported alongside per
       dual_convention_control) and C_real/F.
     measured_null: >-
-      200 matched-null symmetric subsets per curve, identical size F=N/4,
+      4000 matched-null symmetric subsets per curve, identical size F=N/4,
       SAME curve, SAME m, SAME exhaustive target set, label "null-subset".
       This is the reference distribution the permutation p-value is
       computed against -- NOT a fixed band. p_curve = (1 + #{null draws
       with |stat_null - median(null)| >= |stat_real - median(null)|}) /
-      (201), two-sided, per curve, per family, per statistic (Var and
+      (4001), two-sided, per curve, per family, per statistic (Var and
       C/F separately).
     null_object_arm: >-
       MANDATORY, GATES EVERYTHING (Stage 2). One additional symmetric
       subset per curve, label "null-object-pick", drawn from the identical
       generating process as measured_null, treated as if it were the real
       arm and run through the identical permutation-test +
-      Holm/Bonferroni procedure against the SAME 200 null-subset draws.
+      Holm/Bonferroni procedure against the SAME 4000 null-subset draws.
       This directly instruments the false-positive rate KN-TECH-7745e6
       quantifies (EXP-MONO-c819ba's null arm was itself out-of-band on
       17/192 combinations, uncaught): here, a corrected exceedance in the
@@ -331,13 +354,18 @@ experiment:
     dual_path_control: Convolution side and character side must agree to 1e-10 relative; convolution side is always primary.
     multiplicity_correction: >-
       Holm-Bonferroni, applied SEPARATELY within four declared families:
-      (i) j0-family null-object p-values (Var, m=4), (ii)
-      random-ordinary-family null-object p-values (Var, m=4), (iii)
+      (i) j0-family null-object p-values (Var and C/F, m=4), (ii)
+      random-ordinary-family null-object p-values (Var and C/F, m=4), (iii)
       j0-family real-arm p-values (Var and C/F, m=4), (iv)
       random-ordinary-family real-arm p-values (Var and C/F, m=4). Family
       (i) and (ii) must BOTH show zero corrected-significant curves before
       family (iii)/(iv) are computed or read (Stage 2 gate). alpha=0.05
-      family-wise for every family.
+      family-wise for every family. Families (i)/(ii) mirror (iii)/(iv)
+      EXACTLY in statistic set and multiplicity (both statistics, same
+      curves, same correction), so the gate measures the false-positive
+      rate of the same procedure the real arm is read under -- a C/F
+      calibration failure trips the hard stop rather than passing
+      unmeasured.
     comparability_policy: >-
       No comparison of measured numbers with EXP-MONO-c819ba or any other
       contract is licensed -- distinct domain, distinct seeds, distinct
@@ -349,7 +377,7 @@ experiment:
     primary:
       - >-
         P1 (j0 family): Holm/Bonferroni-corrected permutation p-value of
-        Var_real vs the 200-draw null, per curve, at m=4, F=N/4; count of
+        Var_real vs the 4000-draw null, per curve, at m=4, F=N/4; count of
         curves significant at corrected alpha=0.05.
       - "P2 (random-ordinary family): identical statistic and correction, independently."
       - "P3: C/F analogue of P1 and P2, same families, same correction."
@@ -372,7 +400,7 @@ experiment:
       formula: >-
         By construction the null-object arm has no real effect; a
         properly-calibrated correction should reject at approximately
-        the nominal family-wise rate (near 0 corrected hits at n=200,
+        the nominal family-wise rate (near 0 corrected hits at n=4000,
         alpha=0.05), per KN-TECH-7745e6's own diagnosis of why n=30 failed
         this same test.
       source: KN-TECH-7745e6; EV-MONO-b84b24 observations 2-3.
@@ -391,7 +419,7 @@ experiment:
         The Red Team's own EXP-MONO-c819ba replication found j=0 curves
         LESS enriched than random-ordinary (12.1% vs 20.0%, p=0.092) at
         n=30 -- whether that direction persists, reverses, or vanishes
-        at n=200 with a fresh, larger, independently-constructed panel is
+        at n=4000 with a fresh, larger, independently-constructed panel is
         exactly what this metric is for.
       source: EV-MONO-b84b24 observation 2.
 
@@ -412,11 +440,11 @@ experiment:
     maximum_workers: 1
     no_network: true
     cost_note: >-
-      Primary panel is 100 curves x 1 F-value x 1 primary m-value x 201
-      draws (200 null + 1 null-object) = 20,100 cell computations, versus
+      Primary panel is 100 curves x 1 F-value x 1 primary m-value x 4001
+      draws (4000 null + 1 null-object) = 400,100 cell computations, versus
       EXP-MONO-c819ba's panel which completed its full ladder in 1.9s of
-      measured wall time; even at a conservative 50x scale-up this is
-      comfortably inside the 7200s ceiling. The legacy panel reproduces
+      measured wall time; even at a conservative 1000x scale-up this is
+      inside the 7200s ceiling. The legacy panel reproduces
       EXP-MONO-c819ba's own (already-measured-cheap) full ladder at 8
       curves. If either panel construction or the correction procedure
       breaches budget, this is `failed_infrastructure`/budget breach per
@@ -497,7 +525,7 @@ experiment:
       independent review-adversarial; not written up as an attack, because
       the linear-algebra stage remains uncharged.
     instrument_still_uncalibrated: >-
-      Null-object gate fails in either family even at n=200. This would
+      Null-object gate fails in either family even at n=4000. This would
       itself be a significant, reportable finding about the statistic's
       intrinsic difficulty to calibrate at toy scale, distinct from and
       more informative than a silent failure -- report prominently, do not
