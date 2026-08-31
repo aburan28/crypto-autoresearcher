@@ -26,15 +26,20 @@ handoff:
     - ledger/evidence/EV-MONO-849355.yaml
     - ledger/decisions/DEC-20260831-a4b23f.yaml
     - knowledge/techniques/KN-TECH-95a42b.md
-    - experiments/EXP-MONO-670aa6/implementation/ (for the arithmetic core — fields/curve/conv/groupstate — verified correct by both reviews and reusable; the panel-construction and seed modules must NOT be reused as-is, since they lack the required family discriminator)
+    - experiments/EXP-MONO-670aa6/implementation/ (for the arithmetic core — fields.py, conv.py, groupstate.py, and curve.py's pure field/group arithmetic — verified correct by both reviews and reusable; the panel-construction and seed modules must NOT be reused as-is, since they lack the required family discriminator. NOTE: curve.py is NOT wholly reusable — its `construct_prime` and `curve_stream` are the `prime`/`curve-a`/`curve-b` seed call sites and omit `family`, which is exactly the collision this contract exists to prevent; rewrite them alongside panel_primary.py/seed.py/controls.py)
     - AGENTS.md
   constraints:
     - >-
       Follow experiments/EXP-MONO-b19c6b/specification.yaml EXACTLY; it is
       frozen. Every seed call site (prime, curve-a, curve-b, null-subset,
-      null-object-pick) MUST include `family` in its hash preimage — write
-      fresh panel-construction and seed modules; do not copy
-      EXP-MONO-670aa6's panel_primary.py/seed.py/controls.py verbatim.
+      null-object-pick)       MUST include `family` in its hash preimage — `family` is a REQUIRED
+      (never optional or defaulted) parameter of the seed function, so a
+      call site that omits it fails rather than silently reproducing the
+      predecessor's stream. Write fresh panel-construction and seed
+      modules; do not copy EXP-MONO-670aa6's
+      panel_primary.py/seed.py/controls.py verbatim, and do not reuse
+      curve.py's `construct_prime`/`curve_stream`, which are themselves
+      family-less seed call sites.
     - >-
       STAGE 1'S INDEPENDENCE-VERIFICATION IS MANDATORY AND MUST RUN BEFORE
       ANY STAGE-2/3 COMPUTE: directly extract and compare (p, B, t_used)
@@ -46,7 +51,10 @@ handoff:
       STAGE 2'S GATE IS A HARD STOP ON EITHER TEST: if EITHER the
       per-curve Holm/Bonferroni test OR the Fisher-combined panel-level
       test shows a significant result on the null-object arm, in either
-      family, STOP — do not compute, read, or report any Stage-3 output.
+      family, at the contract's gate-wide alpha_gate = 0.05/6 (Bonferroni
+      across the six gate tests — two Holm families plus four Fisher
+      combinations — so a correctly-calibrated instrument trips at most
+      5% of the time per seed), STOP — do not compute, read, or report any Stage-3 output.
       Report `instrument_still_uncalibrated_despite_design_time_verification`
       instead; this would itself be a highly significant, surprising
       finding worth flagging prominently.
