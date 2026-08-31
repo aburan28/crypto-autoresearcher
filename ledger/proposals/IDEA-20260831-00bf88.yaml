@@ -1,0 +1,100 @@
+idea:
+  id: IDEA-20260831-00bf88
+  question_id: RQ-MLKEM-001
+  added: '2026-08-31'
+  title: SIGTERM-durable terminal telemetry for the fixed RT-CTRL-1 runner
+  class: tooling
+  claim: >-
+    If SIGTERM is delivered only after a predeclared durable checkpoint to an
+    unchanged RT-CTRL-1 worker supervised under this protocol, an independently
+    implemented verifier finds exactly one valid terminal receipt whose manifest
+    digest matches d=512,beta=55,precision=100,seed,strategy,construction and
+    the 21600-second cap and whose hash chain reaches that checkpoint; otherwise
+    the telemetry proposal is falsified for this runtime/filesystem combination.
+  mechanism: >-
+    A supervisor atomically persists a target manifest, appends hash-chained
+    lifecycle events, samples CPU/RSS, forwards a cap/SIGTERM to an unchanged
+    child, and records a terminal receipt. Every receipt/event write is flushed,
+    fsynced and renamed atomically where supported.
+  novelty_status: unverified
+  citations:
+    - ref: ledger/goals/GOAL-MLKEM-005.yaml
+      provenance: internal
+      claim: Defines the fixed RT-CTRL-1 target and no-self-authorized-budget boundary.
+      verified_by: TASK-20260831-881c36
+    - ref: ledger/decisions/DEC-20260815-3e8e9c.yaml
+      provenance: internal
+      claim: Records the required zero-compute instrument fixes and dual reporting marks.
+      verified_by: TASK-20260831-881c36
+    - ref: coordination/goals/GOAL-MLKEM-005/batches/BATCH-f9780d/tasks/TASK-20260824-b3e9da/execution_report.md
+      provenance: internal
+      claim: Records the prior incomplete target lifecycle and missing terminal cell record.
+      verified_by: TASK-20260831-881c36
+    - ref: coordination/goals/GOAL-MLKEM-005/batches/BATCH-f9780d/reviews/TASK-20260824-6fc282/review.md
+      provenance: internal
+      claim: Bounds incomplete-run interpretation and identifies the recordkeeping defect.
+      verified_by: TASK-20260831-881c36
+  assumptions:
+    - Atomic rename and a useful fsync-equivalent exist for the selected local filesystem.
+    - The supervisor can observe and forward SIGTERM without changing frozen target inputs.
+    - Telemetry work is charged inside, never added to, the fixed 21600-second cap.
+  proof_search_map:
+    not_applicable_reason: Tooling/control proposal, not a theorem or asymptotic proof claim.
+  predictions:
+    - metric: independent_terminal_receipt_verification
+      direction: different
+      minimum_effect: Exactly one validated receipt after controlled SIGTERM and a contiguous chain through its checkpoint.
+    - metric: target_manifest_identity
+      direction: different
+      minimum_effect: Exact equality of all target-defining manifest fields before and after wrapping.
+    - metric: ambiguous_terminal_outcomes
+      direction: lower
+      minimum_effect: Zero ambiguity between normal completion, cap expiry, SIGTERM and worker failure in the synthetic suite.
+  minimal_test:
+    design: >-
+      Run a deterministic no-BKZ child under the supervisor, SIGTERM it after an
+      acknowledged checkpoint, and verify raw manifest/event/receipt files with
+      independent code; repeat normal completion and pre-checkpoint termination.
+    controls:
+      - normal completion receipt
+      - pre-checkpoint SIGTERM receipt
+      - torn-write rejection
+      - manifest-mismatch rejection
+      - target noninterference comparison
+    required_metrics: [receipt_count, receipt_schema, manifest_digest, event_chain, terminal_cause, child_exit]
+  falsification_conditions:
+    - Independent verifier fails the binary SIGTERM control.
+    - Any frozen target-defining manifest value changes under wrapping.
+    - Platform lacks a usable durable-write or child-lifecycle primitive; this is incomplete, not mathematical evidence.
+  confounders:
+    - SIGKILL, host crash, power loss or storage failure can prevent a final receipt.
+    - Natural worker exit can race with external SIGTERM.
+    - Filesystem durability differs by platform and mount.
+    - Telemetry consumes target cap time.
+  interpretation_limits:
+    - A receipt is operational evidence only, never BKZ success/failure evidence.
+    - No signal, timeout, crash or missing receipt is evidence against a mathematical hypothesis.
+    - Does not resume a killed computation or establish an attack, key recovery, FIPS 203 weakness or complexity improvement.
+  heuristic_assumptions:
+    - id: H-TERM-OBS-1
+      statement: A hash-verified atomically written receipt is a useful witness of its recorded local lifecycle.
+      rigorous_support: Operational assumption, not a mathematical heuristic or security theorem.
+      validation_plan: Independent SIGTERM, normal-completion, torn-write and manifest-mismatch controls.
+  target_complexity:
+    time_exponent: '0; O(1) supervisor work per emitted event.'
+    memory_exponent: '0; O(1) bounded event buffers.'
+    best_known: An unobservable terminated runner with no independently validated terminal receipt.
+    hidden_overhead: fsync, event serialization, process supervision and storage charged inside the fixed cap.
+    tradeoff_note: More checkpoints improve observability but consume fixed-cap time.
+  estimated_cost:
+    implementation: medium
+    compute: Short synthetic lifecycle tests plus the separately authorized 21600-second target only.
+  object_first_candidate:
+    object: Fixed RT-CTRL-1 invocation at d=512,beta=55,MPFR=100 under its existing seed and strategy.
+    first_test: Controlled SIGTERM after acknowledged synthetic checkpoint.
+  dominated_by: null
+  sota_delta:
+    time: No cryptanalytic time improvement claimed.
+    memory: No cryptanalytic memory improvement claimed.
+    data_queries: No cryptanalytic data/query improvement claimed.
+  recommended_priority: high
