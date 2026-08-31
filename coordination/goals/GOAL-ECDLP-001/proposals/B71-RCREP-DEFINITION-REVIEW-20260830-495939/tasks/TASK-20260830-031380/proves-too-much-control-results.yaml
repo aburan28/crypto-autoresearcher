@@ -1,0 +1,393 @@
+schema: 'crypto.autoresearch.proves_too_much_control_results.v1'
+task_id: TASK-20260830-031380
+control_owner: red-team
+no_cas_used: true
+
+scope_and_field_note: |-
+  This task's read_scope does not include experiments/EXP-CREP-001's own
+  instance generator, so the concrete field/curve/deck assignment used below
+  is the SAME one rcrep-candidate-definition.yaml already worked by hand in
+  its own worked_example section: E: y^2 = x^3 - x over F_11, with
+  deck1=P1=(4,4), deck2=P2=(6,1), deck3=P3=(0,0), deck4=P4=(1,0). This choice
+  is deliberate: it lets every number below be checked against the producer's
+  own arithmetic where they overlap (as an independence check on THEIR
+  numbers) while extending into genuinely new computations (R_1(10,T), the
+  full root set of r_R(T) in F_11, and the one-pair rederivation) that the
+  draft itself does not perform. All arithmetic below is done by hand,
+  independently, with every step shown; no computer algebra system was
+  invoked, per this task's constraints.
+
+independent_prechecks:
+  - id: PRE-1
+    description: |-
+      Recomputed E(F_11) from scratch: y^2 = x^3 - x mod 11. x^3-x mod 11 for
+      x=0..10 gives residues 0,0,6,2,0,10,1,6,9,5,0 respectively (e.g. x=4:
+      64-4=60=5 mod 11; x=6: 216-6=210=1 mod 11; x=9: 729-9=720=5 mod 11).
+      Quadratic residues mod 11 are {1,3,4,5,9}. Matching residue against QR
+      set: x=0,1,10 give 0 (single root, 2-torsion); x=4,9 give 5 (a QR,
+      y=+-4); x=6 gives 1 (a QR, y=+-1); x=8 gives 9 (a QR, y=+-3); x=2,3,5,7
+      give non-residues (6,2,10,6), no points. This reproduces exactly the
+      11 affine points listed in the draft's worked_example (plus O), giving
+      #E(F_11)=12, independently confirmed, not merely cited.
+  - id: PRE-2
+    description: |-
+      Recomputed P1+P2, P3+P4, (P1+P2)+(P3+P4) via the standard chord
+      addition law from scratch: P1+P2=(4,4)+(6,1) gives lambda=(1-4)/(6-4)=
+      -3*2^-1=8*6=4 mod 11; x=16-4-6=6; y=4*(4-6)-4=-12=10 mod 11, so
+      P1+P2=(6,10). P3+P4=(0,0)+(1,0) gives lambda=0, x=-1=10, y=0, so
+      P3+P4=(10,0). (6,10)+(10,0) gives lambda=(0-10)/(10-6)=1*3=3 mod 11 (
+      4^-1=3), x=9-6-10=4, y=3*(6-4)-10=-4=7 mod 11, giving (4,7). These
+      three sums independently reproduce the draft's own worked_example
+      numbers exactly (an independent re-check, not a citation).
+  - id: PRE-3-new
+    description: |-
+      NEWLY COMPUTED (not present in the draft): P1-P2 = P1+(-P2) =
+      (4,4)+(6,10). lambda=(10-4)/(6-4)=6*6=3 mod 11 (2^-1=6); x=9-4-6=-1=10;
+      y=3*(4-10)-4=-22=0 mod 11. So P1-P2=(10,0), THE SAME POINT as P3+P4.
+      Cross-checked independently via doubling: 2*P2 = 2*(6,1): lambda=
+      (3*36-1)/(2*1)=(108-1)/2=107/2=8*6=48=4 mod 11 (107 mod 11=8); x=
+      16-12=4; y=4*(6-4)-1=7. So 2*P2=(4,7), hence -2*P2=(4,-7)=(4,4)=P1
+      exactly. This shows the worked_example's deck choice satisfies the
+      exact algebraic relation P1 = -2*P2 (not a generic, independent choice
+      of points); flagged separately as OBJ-7 in redteam-report.yaml.
+  - id: PRE-4-new
+    description: |-
+      NEWLY COMPUTED: g_12(x12) = S_3(4,6,x12) mod 11, using S_3(x1,x2,x3) =
+      (x1-x2)^2*x3^2 - 2*(x1+x2)*(x1*x2-1)*x3 + (x1*x2+1)^2 (a=-1,b=0). With
+      x1=4,x2=6: (4-6)^2=4; (4+6)=10, (24-1)=23=1 mod11, so middle coeff =
+      -2*10*1=-20=2 mod11; (24+1)=25=3 mod11, squared=9. So g_12(x12) =
+      4*x12^2+2*x12+9 mod 11, matching the draft's own arithmetic exactly (an
+      independent re-derivation, not a citation). Direct substitution
+      confirms BOTH roots: at x12=6, 4*36+12+9=144+21=165, 165 mod11=0
+      (11*15=165) -- root confirmed directly, not via the draft's claim. At
+      x12=10, 4*100+20+9=429, 429 mod11=0 (11*39=429) -- SECOND root also
+      confirmed directly (the draft does not state this second root or use
+      it; it is new to this control).
+  - id: PRE-5-new
+    description: |-
+      NEWLY COMPUTED: R_1(6,T) := Res_v(g_34(v)=(v+1)^2, S_3(6,v,T)), using
+      the double-root identity Res_v((v+1)^2,h(v)) = h(-1)^2 (valid since
+      g_34 is (v+1)^2, a perfect square, lc=1). S_3(6,v,T) at v=-1: (6-(-1))^
+      2=49=5 mod11; (6-1)=5; (6*(-1)-1)=-7=4 mod11; (6*(-1)+1)=-5=6 mod11.
+      So h(-1) = 5*T^2 - 2*5*4*T + 6^2 = 5T^2-40T+36 = 5T^2+4T+3 mod 11
+      (-40=4, 36=3). Squaring: (5T^2+4T+3)^2 = 25T^4+40T^3+46T^2+24T+9 =
+      3T^4+7T^3+2T^2+2T+9 mod 11 (25=3,40=7,46=2,24=2). THIS EXACTLY MATCHES
+      the producer's stated R_1(6,T)=3T^4+7T^3+2T^2+2T+9, independently
+      re-derived from the double-root resultant identity rather than trusted
+      from the draft's own synthetic-division claim. Further confirmed
+      3*(T-4)^4 = 3*(T^4+6T^3+8T^2+8T+3) = 3T^4+18T^3+24T^2+24T+9 =
+      3T^4+7T^3+2T^2+2T+9 mod 11 (18=7,24=2,24=2) -- EXACT MATCH, confirming
+      T=4 is a root of multiplicity 4 and, since a quartic, the ONLY root in
+      the algebraic closure.
+  - id: PRE-6-new
+    description: |-
+      NEWLY COMPUTED, not present anywhere in the draft: R_1(10,T) :=
+      Res_v(g_34(v)=(v+1)^2, S_3(10,v,T)). S_3(10,v,T) = (v+1)^2*T^2 +
+      (2v^2+9)*T + (v^2+9v+1) mod 11 (derived the same way as PRE-5 with
+      x1=10 symbolic in v). At v=-1: (v+1)^2 -> 0; (2*1+9)=11=0 mod 11, so
+      the T-coefficient ALSO vanishes; (1-9+1)=-7=4 mod 11. So
+      S_3(10,-1,T) = 0*T^2+0*T+4 = 4, a CONSTANT independent of T. Hence
+      R_1(10,T) = h(-1)^2 = 4^2 = 16 = 5 mod 11, a NONZERO CONSTANT for every
+      T. Geometric cross-check: x12=10 corresponds to the P1-P2 branch
+      (PRE-3), and g_34's double root v=-1=10 corresponds to the P3+P4=
+      (10,0) branch; x12=x34=10 exactly reproduces the draft's own VERTICAL
+      degeneracy criterion ('the leading coefficient (x1-x2)^2... vanishes
+      identically exactly at x1=x2'), consistent with this branch geometrically
+      requiring the point at infinity (2-torsion doubled), which is why the
+      T-dependence collapses. This is an independent structural confirmation
+      of the strata_and_saturation vertical-marker rule at this one instance,
+      not claimed to hold in general.
+  - id: PRE-7-new
+    description: |-
+      COMBINING PRE-4/5/6 via the standard resultant-splits-over-roots
+      identity (valid because g_12=4(x-6)(x-10) is separable of exact degree
+      2, lc=4 nonzero mod 11): r_R(T) = Res_x12(g_12,R_1) = 0 if and only if
+      R_1(6,T)=0 or R_1(10,T)=0 (the lc(g_12)^k prefactor is a nonzero
+      constant and never affects vanishing). R_1(6,T)=3(T-4)^4=0 iff T=4;
+      R_1(10,T)=5 is never 0. THEREFORE, in this worked instance, r_R(T)=0
+      in F_11 if and only if T=4 -- the FULL root set of r_R over F_11 is
+      exactly {4}, independently established by direct algebra, not asserted.
+      This is a stronger and more complete result than anything computed in
+      the draft itself (which computes R_1(6,T) but not R_1(10,T) or the
+      combined root set of r_R), and it is exactly the tool needed to check
+      Object 1 rigorously rather than merely plausibly.
+  - id: PRE-8-new
+    description: |-
+      INDEPENDENT GEOMETRIC CROSS-CHECK of PRE-7 by direct enumeration of all
+      sign choices, without using the resultant algebra at all. Since P3,P4
+      are 2-torsion (self-negating), the 16 raw sign choices +-P1+-P2+-P3+-P4
+      collapse to exactly 4 distinct sums: (a) P1+P2+P3+P4 = (6,10)+(10,0) =
+      (4,7); (b) (P1-P2)+P3+P4 = (10,0)+(10,0) = O (2-torsion doubled); (c)
+      (-P1+P2)+P3+P4 = -(10,0)+(10,0) = (10,0)+(10,0) = O (same as b, since
+      -(10,0)=(10,0)); (d) (-P1-P2)+P3+P4 = -(6,10)+(10,0) = (6,1)+(10,0) =
+      (4,4). Negation never changes x-coordinate, so the closing label's
+      x-coordinate T = x-coordinate of minus the sum = x-coordinate of the
+      sum itself: case (a) gives T=4 (from (4,7)); case (d) gives T=4 (from
+      (4,4), same x); cases (b),(c) give the point at infinity, i.e. NO
+      finite T at all. So across ALL 16 raw sign combinations, T=4 is the
+      UNIQUE finite achievable target label. This EXACTLY matches PRE-7's
+      pure-algebra result (root set = {4}) via a completely independent
+      method (direct enumeration vs. resultant computation), which is strong
+      mutual corroboration that neither computation has an arithmetic error.
+
+object_1:
+  name: non_extendible_label
+  construction: |-
+    Keep decks 1-4 exactly as in the worked_example (P1=(4,4), P2=(6,1),
+    P3=(0,0), P4=(1,0)). Choose a deck-I occurrence with label 'b' and
+    x-coordinate T=9 (a genuine, admissible, normal-marker point on E: both
+    (9,4) and (9,7) are on the curve, per PRE-1). By PRE-7/PRE-8 (two
+    independent methods), T=9 is NOT among the achievable closing labels
+    {4}; no choice of signs over P1,P2,P3,P4 produces a fifth point with
+    x-coordinate 9. This is exactly 'a labelled configuration built so that
+    NO pair-pair relation extends it', constructed and verified rather than
+    merely asserted.
+  expected_behavior_if_construction_is_sound: |-
+    r_R(9) must be nonzero (T=9 must not be a root of r_R), since label b is
+    not extendible and 9 is not in the finite exceptional set (R_1(6,T) and
+    R_1(10,T) are both explicit, fully factored polynomials in T with no
+    factor vanishing at T=9, so H-RCREP-1 trivially holds at T=9 in this
+    instance -- there is no ambiguity requiring the conditional Part 2 at
+    all; PART 1's contrapositive plus the closed-form root set from PRE-7
+    settle this unconditionally in this instance).
+  computation_shown: |-
+    From PRE-7, r_R(T)=0 in F_11 iff T=4. Direct check for T=9: R_1(6,9) =
+    3*9^4+7*9^3+2*9^2+2*9+9 mod 11. 9^2=81=4, 9^3=9*4=36=3, 9^4=9*3=27=5 mod
+    11. So R_1(6,9) = 3*5+7*3+2*4+2*9+9 = 15+21+8+18+9 = 71 mod 11 = 71-66=5
+    (nonzero). R_1(10,9) = 5 (a constant, PRE-6, nonzero regardless of T).
+    Since neither factor vanishes, r_R(9) != 0 by the resultant-splits
+    identity (PRE-7's method applied at T=9 specifically, not merely cited
+    from the general root-set claim).
+  result: pass
+  reasoning_for_verdict: |-
+    The construction visibly refuses: r_R(9) is shown, by direct
+    substitution independent of the general root-set derivation, to be
+    nonzero. No spurious root appears at a genuinely non-extendible label.
+    This is the strongest form of pass named in the task (r_R has no root at
+    the adversarial label), verified twice over (via the closed-form root
+    set PRE-7 and via direct substitution at T=9).
+
+object_1b:
+  name: chart_excluded_label_complementary_construction
+  construction: |-
+    A second, complementary construction of an adversarial 'no relation
+    extends it' object, using literally 'a deck assignment excluded by the
+    chosen chart convention' as named in this task's own handoff text: mark
+    deck I's candidate occurrence with marker='identity' (i.e. it denotes O,
+    the curve's identity point, which has no affine x-coordinate at all).
+  expected_behavior_if_construction_is_sound: |-
+    Per strata_and_saturation's own stated rule ('an occurrence marked
+    identity or infinity denotes the occurrence O itself... EXCLUDED from
+    the affine deck-defining polynomial g_k'), this occurrence must never
+    even be treated as a candidate root of g_I -- the construction must
+    either be undefined for it (no t_a exists to test) or must exclude it by
+    construction, per this task's stated acceptable outcome ('or the
+    definition must be undefined and say so').
+  computation_shown: |-
+    By the draft's own occurrence_record_semantics and strata_and_saturation
+    text, an identity/infinity-marked occurrence contributes no factor to
+    g_I's defining product (g_I is built only from occurrences with an
+    affine x-coordinate x=t_a; O has none). There is therefore no t_a to
+    evaluate r_R or z_R at for this occurrence at all -- the question 'is
+    this label a root of z_R' is not well-formed in the affine-coordinate
+    sense the construction uses; the draft's own rules instead route such an
+    occurrence to a separate Boolean-flag / degenerate-S_2 mechanism, never
+    to ordinary root-set membership. No numeric computation is needed to
+    show this: it follows directly from the construction's own stated
+    exclusion rule.
+  result: pass
+  reasoning_for_verdict: |-
+    The construction visibly refuses via the OTHER named acceptable route
+    (undefined, and the draft's own text says so): an identity/infinity
+    marked candidate is excluded by the chosen chart convention before any
+    resultant is even formed, rather than silently being assigned a false
+    'extendible' verdict. This complements object_1's algebraic pass (a
+    normal-marker label correctly evaluating to nonzero) with a definitional
+    pass (an excluded-marker label correctly never entering evaluation at
+    all), covering both outcomes the task names as acceptable.
+  disclosed_limitation: |-
+    This is a pass on the construction's STATED rule, not a numerically
+    worked confirmation (the draft itself discloses, in named_residual_gaps
+    item 3, that the identity/infinity degeneracy rule is 'not verified on a
+    worked numeric case in this draft'); this control does not close that
+    gap, only confirms the stated rule is internally consistent and does not
+    silently misfire in the direction of a false positive.
+
+object_2:
+  name: vacuous_deck_pairing_null_object
+  construction: |-
+    Same shape as the worked_example (four decks, B=1 occurrence each, deck
+    I as before), but decks 3 and 4 are held EXACTLY as in the worked
+    example while decks 1 and 2's SINGLE occurrences are both re-marked
+    marker='identity' (both denote O), using the SAME chart-convention
+    exclusion mechanism as object_1b, applied here to make D_12 itself
+    vacuous rather than to make a deck-I label vacuous. This directly
+    matches the task's own spec: 'the same labels, but decks between which
+    the chosen pairing defines no relation at all, so there is nothing to
+    eliminate.'
+  expected_behavior_if_construction_is_sound: |-
+    With both deck-1 and deck-2 occurrences excluded from the affine
+    construction, g_1 and g_2 are each the EMPTY PRODUCT = 1 (a nonzero
+    constant with no roots at all: 'there is nothing to eliminate'). Any
+    claimed vanishing of the resulting r_R at ANY T would be an artifact of
+    the bookkeeping (a genuine relation cannot be built from a pairing that
+    was never populated); the construction must show z_R = gcd(g_I, r_R)
+    reports NO extendible labels at all in this case.
+  computation_shown: |-
+    g_1 = 1, g_2 = 1 (empty products, by the same exclusion rule used in
+    object_1b). By the standard resultant convention for a nonzero-constant
+    input (Res(c,h) = c^{deg h}, since a nonzero constant has no roots and
+    the defining formula is lc(f)^{deg h} times the empty product over f's
+    roots, which is 1): Res_x1(g_1=1, S_3(x1,x2,x12)) = 1^{deg} = 1 (a
+    constant, independent of x2, x12). Then g_12(x12) := Res_x2(g_2=1,
+    [that constant 1]) = 1^{deg} = 1 again, so g_12 IS IDENTICALLY 1 for
+    ALL x12 -- literally no root anywhere, matching 'there is nothing to
+    eliminate' exactly. Finally r_R(T) := Res_x12(g_12=1, R_1(x12,T)) =
+    1^{deg_x12(R_1)} = 1 for EVERY T, REGARDLESS of what R_1 (hence g_34,
+    hence decks 3 and 4) actually is. So z_R(T) = gcd(g_I(T), r_R(T)=1) = 1
+    identically -- the constant polynomial 1, which has NO roots, for any
+    deck-I content whatsoever.
+  result: pass
+  reasoning_for_verdict: |-
+    No spurious vanishing occurs: r_R(T) is identically 1 (never zero) when
+    the D_12 pairing is vacuous, so z_R correctly reports that NO label is
+    extendible, matching the geometric fact that a relation cannot be closed
+    through a pairing with nothing in it. This is the strongest possible
+    form of the required pass, since it holds for ALL T and for ANY content
+    of decks 3/4, not merely at the specific T probed in object_1 -- there is
+    no elimination-bookkeeping artifact producing a false positive anywhere.
+  corroborating_alternative_construction: |-
+    An equivalent construction -- literally zero occurrences (B=0) in decks 1
+    and 2, rather than one occurrence each marked identity -- gives the
+    identical result (g_1=g_2=1 as empty products by direct definition,
+    without needing the identity-marker exclusion rule at all), confirming
+    the pass does not depend on which specific mechanism is used to make the
+    pairing vacuous.
+
+object_3:
+  name: opposite_reading_one_pair_theta_b2
+  reconstruction_of_the_opposite_reading: |-
+    Per decision-record-among-alternatives.yaml's own description (matching
+    DEC-20260830-69bbf7 and TASK-20260830-06afa2), under the one-pair
+    reading D_12 and D_34 ARE two of the five primitive decks directly (not
+    built by combining decks 1-4): each has Theta(B) occurrences and a
+    degree-B defining polynomial g_12_bare(x), g_34_bare(x) built directly
+    from raw occurrence data (no S_3-elimination step needed to form them),
+    and the tested relation is r_R'(T) := Res_x12(g_12_bare, Res_x34(
+    g_34_bare, S_3(x12,x34,T))), a DIRECT two-stage elimination with no
+    prior pair-combination stage. This is the natural reconstruction implied
+    by decision-record-among-alternatives.yaml's own description of the
+    rejected reading, applied concretely; TASK-20260830-06afa2's own actual
+    construction was not read (outside this task's read_scope, per OBJ-3),
+    so this reconstruction is checked for consistency with the corpus's
+    declared Theta(B^2) figure below as a substitute confirmation.
+  point_1_subscript_arithmetic_applied_to_opposite_reading:
+    verdict: does_not_support_opposite_reading
+    reasoning: |-
+      Point (1)'s own premise IS the claim that compound subscripts denote
+      combination; the one-pair reading explicitly denies that premise (it
+      treats D_12, D_34 as bare deck names). Applying point (1)'s reasoning
+      to argue FOR the one-pair reading would require accepting the premise
+      that defeats it, a direct contradiction, not support. So point (1),
+      taken on its own terms, genuinely does not support the opposite
+      reading -- though this is close to definitionally guaranteed once the
+      combination-premise is granted, and OBJ-3 notes that premise's own
+      sourcing is unverified within this task's read_scope.
+  point_2_pair_pair_wording_applied_to_opposite_reading:
+    verdict: uninformative_either_way
+    reasoning: |-
+      The doubled word 'pair-pair' is at best weak evidence against a bare
+      one-pair relation and, per OBJ-4, is equally compatible with a reading
+      where the doubling is informal emphasis. It does not affirmatively
+      SUPPORT the opposite reading, but its failure to support it is because
+      the argument is weak in general, not because it discriminates sharply
+      against the opposite reading the way the task's Object 3 test is
+      designed to detect.
+  point_3_robustness_under_rederivation_applied_to_opposite_reading:
+    verdict: equally_supports_opposite_reading
+    full_derivation_shown: |-
+      Apply the IDENTICAL Sylvester-degree-bookkeeping method the draft uses
+      for its own two-pairs case, but to the one-pair construction above.
+      Stage 1: R_1'(x12,T) := Res_x34(g_34_bare(x34), S_3(x12,x34,T)). Using
+      the same Sylvester-resultant degree bound the draft itself cites
+      (deg_y(Res_x(f,h)) <= deg(f)*deg_x(h) when h has degree deg_x(h) in
+      the eliminated variable's partner): deg(g_34_bare) = B, deg_x12(S_3) =
+      2, so deg_x12(R_1') <= B*2 = 2B; deg(g_34_bare) = B, deg_T(S_3) = 2, so
+      deg_T(R_1') <= B*2 = 2B. Stage 2: r_R'(T) := Res_x12(g_12_bare,R_1'),
+      deg(g_12_bare) = B, deg_T(R_1') <= 2B, so deg_T(r_R') <= B*2B = 2B^2 =
+      Theta(B^2). This EXACTLY reproduces the corpus's declared Theta(B^2)
+      figure and TASK-20260830-06afa2/DEC-20260830-69bbf7's independently
+      verified degree, via the SAME two-stage Sylvester-elimination
+      bookkeeping method the draft's own point (3) uses to argue for
+      Theta(B^4). By symmetry (eliminating x34 first instead of x12 first)
+      the identical bound 2B^2 is obtained again, exactly mirroring the
+      draft's own 'robustness under re-derivation' argument for the
+      two-pairs case. There is no step in this computation that fails,
+      degenerates, or produces an inconsistent answer under the one-pair
+      reading: the method is EQUALLY robust for the rejected reading.
+    conclusion: |-
+      Point (3), applied unchanged to the opposite (rejected) reading,
+      SUCCEEDS in producing an equally clean, equally 'robust to
+      re-sequencing' derivation, landing on Theta(B^2) instead of
+      Theta(B^4) for exactly the reason the reading differs (2 primitive
+      decks of degree B eliminated directly, vs. 4 primitive decks of
+      degree B eliminated through an intermediate pairing stage). This is
+      the proves-too-much failure signature named in this task's handoff:
+      'if the justification reads equally well for the rejected reading in
+      object (3)... report this as a genuine failure, not a minor caveat.'
+      Point (3) reads equally well for the rejected reading. It is
+      REPORTED HERE AS A GENUINE FAILURE, not smoothed into a caveat.
+  overall_object_3_result: partial_fail
+  overall_reasoning: |-
+    Of the three stated 'independent textual facts', only points (1) and (2)
+    behave as genuine, reading-specific discriminators when tested against
+    the rejected reading (point 1 does not support it given its own premise;
+    point 2 is uninformative in either direction, which is a different
+    weakness but at least not a proves-too-much failure). Point (3) fails
+    outright: it is a generic mathematical fact about iterated Sylvester
+    resultants (degree bookkeeping composes multiplicatively regardless of
+    which grouping of primitive decks is eliminated) and produces an equally
+    valid, equally 'robust' derivation for the reading the draft rejects.
+    The draft's claim that 'three independent textual facts jointly point to
+    the two-pairs reading' therefore overstates its own support: the
+    justification substantively rests on two textual arguments (subscript
+    arithmetic, pair-pair wording), each independently flagged in
+    redteam-report.yaml as individually weaker than a first read suggests
+    (OBJ-3, OBJ-4), not three.
+
+summary_table:
+  - object: object_1 (non-extendible label, T=9)
+    result: pass
+    method: direct hand substitution into independently-rederived R_1(6,T) and R_1(10,T)
+  - object: object_1b (chart-excluded identity-marked label)
+    result: pass
+    method: applying the draft's own stated exclusion rule; definitional, not numeric
+  - object: object_2 (vacuous D_12 pairing)
+    result: pass
+    method: resultant-of-a-nonzero-constant identity, shown to hold for all T and any deck 3/4 content
+  - object: object_3 (opposite one-pair/Theta(B^2) reading)
+    result: partial_fail
+    method: applying the draft's own point-3 Sylvester-bookkeeping method unchanged to the rejected reading; it succeeds where the draft needs it to fail
+
+composite_verdict_for_coordinator: |-
+  The candidate definition's CONSTRUCTION METHOD itself is well-behaved under
+  adversarial stress in the two ways this control probes most directly for a
+  false positive (Objects 1, 1b, 2): it does not spuriously vanish at a
+  genuinely non-extendible label, it correctly excludes chart-inadmissible
+  labels rather than silently misjudging them, and it does not manufacture a
+  relation out of a vacuous pairing. These three passes support treating
+  main_theorem's PART 1 (the unconditional forward direction) as sound in
+  this worked instance, independently re-verified rather than merely
+  accepted. Separately and independently of that, Object 3 finds that the
+  DECISION to prefer the two-pairs reading over the one-pair reading rests on
+  fewer independent legs than claimed: point (3) of the justification is
+  confirmation-symmetric and does not discriminate at all. This does not
+  mean the two-pairs reading is wrong -- points (1) and (2) may still be
+  right -- but it means the record should not describe the choice as
+  resting on three independent facts, and per redteam-report.yaml's OBJ-1/
+  OBJ-2, the remaining two legs each carry their own unresolved strength
+  concerns. Composed with redteam-report.yaml's circularity findings, the
+  overall recommendation to the Coordinator is: the definitional content
+  passes its adversarial construction checks, but the CHOICE between
+  readings and the CONSTRUCTION-COST obligation (OBJ-5) both remain open in
+  ways the two-object read of this control alone would not have surfaced.
