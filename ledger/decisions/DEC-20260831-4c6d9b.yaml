@@ -1,0 +1,123 @@
+coordinator_decision:
+  id: DEC-20260831-4c6d9b
+  context: >-
+    Dispatch round for TASK-20260810-2a0a37 (RANK 3 measured envelope receipt,
+    GOAL-AES-002 BATCH-2b0fd1) under DEC-20260831-baa1a2. The native opencode
+    subagent runtime is down ("Insufficient balance or no resource package",
+    unchanged since DEC-20260830-8a46c2), so the executor task ran through the
+    repository's api_direct runtime. Getting ANY backend to serve it required
+    two infrastructure repairs this session, both committed on branch
+    aes-002-b2b0fd1-resume-20260831: (1) the openai chat wire sent `max_tokens`
+    where gpt-5.6-* requires `max_completion_tokens` (fixed with a
+    `token_limit_param` request knob, 50928c33b); (2) after that fix openai
+    still refused function-tools-plus-reasoning_effort on the chat wire, zai
+    returned HTTP 429 out of balance, anthropic is unset, and local is down,
+    so executor-implementation was bound to the probe-listed
+    accounts/fireworks/models/glm-5p3 on the fireworks backend (7e63b0f91).
+    THREE runs then executed, each an independent session reading the same
+    frozen handoff: run 1 (api_direct, 40 steps, 1023.35 s wall, stop
+    step_budget_exhausted) wrote the measurement drivers and captured
+    run1-inventory.json, run2-aesni.json, run2-arm64-compile.json,
+    run2-repaired.json, run3-python.json; run 2 (api_direct-run2, 18 steps,
+    724.44 s, stop step_budget_exhausted) verified the pure-Python reference
+    against the FIPS KAT and chased a real divergence in the ARM AESE
+    intrinsic's row permutation; run 3 (api_direct-run3, 12 steps, 88.42 s,
+    stop step_budget_exhausted) consumed its entire budget re-orienting in the
+    accumulated immutable artifacts (302523 input tokens) and wrote only
+    SC1-stamps.json. Total charged wall across runs: 1836.2 s against the
+    declared 1600 s handoff budget. Under the goal's adopted clock convention
+    (amendment-005 Part B C3/C5) the overrun is a campaign-side accounting
+    fact, never a producer defect and never a returned task — but it is also
+    the signal for the DISPATCHING session to stop re-rolling: every fresh
+    run re-pays a ~300k-token comprehension cost before producing anything,
+    and two of three runs ended in step-budget exhaustion with the two
+    headline deliverables still absent.
+  measured_findings_on_record: >-
+    PRESERVED, NOT CONCLUDED — the producer's raw records carry, with exact
+    commands and reps: the host is Darwin/arm64 (Mac16,7); gcc is present;
+    -march=armv8.6-a+crypto COMPILES and x86-64 -maes DOES NOT COMPILE on this
+    host (the named C-toolchain contradiction, resolved by measurement at the
+    driver level); accelerated single-core fresh-key AES throughput of order
+    1e7 evals/s/core with reps and a no-acceleration control; pure-Python
+    AES-128 of order 1.1e4 evals/s/core; pycryptodome MEASURED ABSENT in this
+    session's interpreters with the openssl CLI used as the independent
+    implementation; and an OPEN divergence — the C intrinsics path does not
+    yet reproduce the FIPS KAT because of an AESE row-permutation assumption,
+    which run 2 was probing when its budget halted. None of this is a
+    cryptanalytic claim about AES at any round count; it is instrument and
+    environment data, and the C-path divergence is named OPEN, never negative.
+  decision: approve
+  semantic_disposition: PRODUCER_HALTED_ON_BUDGET_ARTIFACTS_PRESERVED_LANE_HANDED_OFF
+  target_ids:
+    - GOAL-AES-002
+    - BATCH-2b0fd1
+    - TASK-20260810-2a0a37
+  repair_scope:
+    - >-
+      All three runs' artifacts (measurement drivers, run*.json records,
+      stamps, per-run transcripts and inference receipts under
+      api_direct*/) are committed on aes-002-b2b0fd1-resume-20260831 by this
+      decision's commit, preserving them under AGENTS.md rule 8. The two
+      headline deliverables — envelope-receipt.json (the designated covering
+      manifest) and execution-report.md — DO NOT EXIST and the task remains
+      `queued` in dispatch_queue.json. A completing session writes exactly
+      those two files (refuse-overwrite protects everything else) from the
+      preserved run*.json data, records the C-path divergence as OPEN, and
+      only then is the task completed.
+    - >-
+      The task is NOT marked failed: a failed non-archive producer would
+      permanently block its snapshot (TASK-20260810-1a81be) and validator
+      (TASK-20260810-9fc65d) successors, and the review-chain validation
+      requires it to stay assigned. It stays queued with the completion gap
+      named here; this is the same recognition-not-fabrication posture as
+      DEC-20260831-baa1a2.
+  claim_boundaries:
+    - >-
+      Nothing in this decision asserts anything about AES at any round count,
+      and no margin of any kind is stated. The throughput figures above are
+      environment measurements with exact provenance in the preserved
+      records, not cost claims under CM-1.
+    - >-
+      The budget halt is infrastructure/accounting signal (AGENTS.md rule 5);
+      it is not evidence about the task's scientific content, which is
+      instrument-building, not cryptanalysis.
+    - >-
+      The fireworks binding and the transport fix assert nothing about any
+      research question; they are infrastructure repairs, disclosed with
+      their commits, tests, and probe evidence.
+  next_actions:
+    - >-
+      The live peer session coordinator-aes2-4 (holding epoch-2 claims on
+      TASK-20260810-d8835b and TASK-20260810-1166f2 as of 2026-08-31T15:46Z,
+      and already performing branch-sync merges on this branch) is offered the
+      2a0a37 completion lane by bus message: write the two missing deliverables
+      from the preserved data, then mark the task completed in a queue-edit
+      coordination commit. If no session completes it, the next dispatched
+      session must NOT re-roll the measurement runs — the data exists; only
+      assembly is missing, and a fresh run must be scoped to assembly or run
+      with --checkpoint so it does not re-pay the comprehension cost.
+    - >-
+      The batch's remaining critical path is unchanged: d8835b and 1166f2 are
+      claimed by coordinator-aes2-4; 1a81be (snapshot) and 9fc65d (validator)
+      wait on both producers; 9f661a (ledger archive) waits on the reviews and
+      must also write the goal-head batch checkpoint. NOTE FOR THE FUTURE
+      ARCHIVIST: when 1a81be eventually runs, the producer artifacts will
+      already be committed by this decision, so its archive block must use
+      binding_mode content_first exactly as TASK-20260810-f7bc82's did — the
+      default exact-single-commit-diff shape is unsatisfiable for the same
+      reason.
+  knowledge_promotion:
+    promoted: []
+    not_warranted:
+      - producer halted on budget with deliverables absent: no completed instrument, no measurement record at claim strength, nothing to promote
+      - the toolchain findings live in the preserved run records at their produced tier; promoting them to a knowledge entry before the envelope receipt exists would launder an unassembled instrument
+  decided_by: >-
+    Coordinator session 2026-08-31 (bus address coordinator-aes2-3, worktree
+    .worktrees/aes-002-b2b0fd1-20260831), model
+    accounts/fireworks/models/glm-5p3 via the session runtime; the three
+    producer runs carry their own full provenance in their inference receipts
+    (policy executor-implementation, backend fireworks, resolved
+    accounts/fireworks/models/glm-5p3, effort medium, no fallback, no
+    degradation).
+  owner: coordinator
+  created_at: "2026-08-31"
