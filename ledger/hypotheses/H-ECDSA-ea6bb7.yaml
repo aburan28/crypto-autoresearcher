@@ -1,0 +1,526 @@
+hypothesis:
+  id: H-ECDSA-ea6bb7
+  question_id: RQ-ECDSA-87625f
+  goal_id: GOAL-ECDSA-001
+  derived_from_idea: IDEA-20260805-411b0e
+  added: '2026-08-25'
+  statement: >-
+    RQ-ECDSA-87625f asks whether the lattice and Fourier families of nonce-leakage
+    attacks form one memory-charged Pareto frontier or two incomparable regimes.
+    The claim is that the question is UNDER-PARAMETERISED as posed and that the
+    missing parameter is the LEAKAGE ERROR RATE e - the parameter most likely to
+    be quietly assumed away. Specifically: (i) the Bleichenbacher bias of an l-bit
+    leak reported with per-signature error rate e is EXACTLY
+    |B(e, l)| = sinc(2^{-l}) * (1 - e * 2^l/(2^l - 1)) with
+    sinc(x) = sin(pi x)/(pi x), which at l = 1 is (2/pi)(1 - 2e) with
+    2/pi = 0.6366198, and which reaches EXACTLY ZERO at e_0 = (2^l - 1)/2^l - one
+    half at l = 1, 255/256 at l = 8; (ii) with range reduction to combination
+    weight w, the Fourier sample requirement multiplies by
+    (1 - e*2^l/(2^l-1))^{-2w}; (iii) the NAIVE lattice route, which needs all m
+    constraints simultaneously correct, multiplies its expected cost by
+    (1 - e)^{-m}; and therefore (iv) the first-order logarithmic error
+    sensitivities S = d(ln cost)/de at e = 0 are S_L = m and
+    S_F = 2w * 2^l/(2^l - 1), which cross at m = 2w*2^l/(2^l - 1), INDEPENDENT OF
+    e to first order (the exact ratio drifting only from 4.02 at e = 0.01 to 4.58
+    at e = 0.20 for l = 1). Combining with m ~ (log2 n + 2.5)/(l - 0.25) gives the
+    crossing weight w* = (log2 n + 2.5)(2^l - 1)/(2 (l - 0.25) 2^l): at
+    log2 n = 160, w* = 54.2 / 34.8 / 20.3 / 10.4 at l = 1 / 2 / 4 / 8, i.e.
+    reduction depths R* = log2 w* = 5.76 / 5.12 / 4.34 / 3.38. READ THE
+    CONSEQUENCE CAREFULLY: a Fourier pipeline using FEWER than R* rounds of
+    pairwise reduction is MORE robust to leakage error than the naive lattice
+    route at the same (l, N); one using more rounds is LESS robust. IT DOES NOT
+    SAY EITHER FAMILY IS BETTER.
+  mechanism: >-
+    The tracked object is S = d(ln cost)/de at e = 0 - not the cost, not the bias,
+    not the lattice, but the DERIVATIVE of log-cost with respect to the leakage
+    error rate. It is the only quantity in which the two families can be compared
+    without choosing a machine, a curve, a memory convention or an
+    implementation, because it is DIMENSIONLESS and SCALE-FREE, invariant under
+    cost -> C * cost. THE ERROR MODEL, STATED FIRST BECAUSE EVERYTHING DEPENDS ON
+    IT: a side channel reports an l-bit value v_i for the top l bits of nonce k_i;
+    with probability 1 - e the report is correct, with probability e it is one of
+    the other 2^l - 1 values, uniformly, i.i.d. across signatures. THE BIAS LAW is
+    then derived exactly. For k uniform on the interval I_u of values with top
+    bits u, |B(Unif I_u)| = (2^l/pi) sin(pi/2^l) = sinc(2^{-l}), with phase
+    exp(2 pi i a_u / n). The KEY IDENTITY is that the sum over ALL u of
+    B(Unif I_u) equals B(Unif Z_n) = 0, because the 2^l phase factors
+    exp(2 pi i u / 2^l) are the full set of 2^l-th roots of unity and sum to zero.
+    Hence conditioning on a reported value v gives
+    B(D_v) = (1-e) B_v + (e/(2^l - 1)) sum_{u != v} B_u
+           = B_v * (1 - e * 2^l/(2^l - 1)),
+    so THE ERROR RATE ACTS AS A PURE SCALAR CONTRACTION OF THE BIAS WITH NO PHASE
+    DISTORTION. Two consequences matter more than the formula: the bias vanishes
+    at an EXACT ZERO rather than an asymptote (a 1-bit channel wrong half the time
+    carries no bias at all, as it must), which is a null object with a forced value
+    of exactly zero that can fail; and the contraction is LINEAR in e, so at small
+    e the Fourier family loses a constant factor, not an exponential one - BEFORE
+    range reduction. Range reduction then raises it to the power w because bias
+    multiplies under linear combination, and the Fourier peak must clear the noise
+    floor 1/sqrt(M), giving M ~ |B|^{-2w}. On the lattice side, a single
+    mis-reported v_i makes |u_i| as large as n rather than n/2^{l+1}, inflating
+    the target vector's norm by order 2^l on that coordinate and destroying the
+    gap, so the naive route succeeds only when all m reports are correct.
+  assumptions:
+    - >-
+      The error model is "reported l-bit value is uniformly wrong with probability
+      e", i.i.d. across signatures. The +/-1-IN-THE-LAST-REPORTED-BIT model, which
+      is more realistic for many hardware channels, and correlated (burst) errors
+      are DECLARED OPEN VARIANTS, not oversights. The bias derivation must be
+      redone for the +/-1 model as a secondary arm, because the
+      sum-of-all-intervals-vanishes identity does NOT apply there and the
+      contraction will not be a pure scalar.
+    - >-
+      The NAIVE lattice route is the one modelled by (1-e)^{-m}. THE
+      PREDICATE-AUGMENTED ROUTE IS EXPLICITLY NOT MODELLED and its law is a
+      reading and measurement task. A predicate can test a candidate against a
+      MAJORITY of constraints rather than all of them, which is exactly what
+      predicate-augmented reduction exists to do. If the predicate route's law is
+      also (1-e)^{-c m} for some c < 1, the analysis survives with m replaced by
+      c m and the crossing moves by 1/c; if it is qualitatively different, the
+      crossing statement is WITHDRAWN for that route and retained only for the
+      naive one. Both outcomes are stated in advance.
+    - >-
+      "Cost" on the Fourier side means SAMPLE COUNT M; on the lattice side it
+      means EXPECTED NUMBER OF INDEPENDENT LATTICE SOLVES. THESE ARE DIFFERENT
+      UNITS, and S is comparable across them only because it is a LOGARITHMIC
+      derivative. This is legitimate for ranking ROBUSTNESS and ILLEGITIMATE for
+      stating a cost ratio. It is the weakest inferential joint in the hypothesis
+      and is stated in the body rather than left for a reviewer to find.
+    - >-
+      The primary sources - ePrint 2024/296 (Asiacrypt 2024), the TCHES 2023(2)
+      sieving-with-predicate paper, Albrecht-Heninger - were NOT READ. Everything
+      known about them comes from RQ-ECDSA-87625f's provenance block, which labels
+      its own contents as search-tool excerpt, UNVERIFIED. Whether any of them
+      states an error-rate cost law is UNKNOWN and is the single highest-value
+      reading task here.
+    - >-
+      Bleichenbacher's attack itself is RECALLED-UNVERIFIED: no Bleichenbacher
+      source was read. The bias definition, the bias-multiplication property, and
+      the sample requirement M ~ |B|^{-2} are recalled; each is either re-derived
+      above or flagged as a checkable step.
+  proof_search_map:
+    bottleneck: >-
+      The comparison step itself - equating S_L and S_F. Everything before it is
+      each family's own cost formula differentiated; everything after it is
+      substitution. It is decision-changing because it converts "which family
+      should a defender fear" from an unanswerable cross-family cost comparison
+      into a single threshold on a parameter (reduction depth) that appears in no
+      frontier plot.
+    baseline_embedding:
+      parameter_slice: >-
+        e = 0. At zero error rate both degradation laws are identically 1, S plays
+        no role, and the two families may lie on one frontier exactly as the
+        question presumes. That is the old-method boundary the analysis must
+        reproduce, and it does so trivially and checkably.
+      reproduction_check: >-
+        Frozen fixture - at e = 0, l = 1, the measured bias must equal
+        2/pi = 0.6366198 within 0.002 over 2^22 samples. This value was
+        independently confirmed by EXACT FINITE SUMMATION at n = 65537 (0.636629)
+        and n = 1000003 (0.636620), so the continuous approximation is confirmed
+        to five figures at those sizes.
+    observation_collision:
+      observable: >-
+        The single real number S = d(ln cost)/de at e = 0, per family.
+      distinct_preimage_search: >-
+        BOTH FAILURE MODES CHECKED. It is not the (Delta, Pi) = (x+y, x*y)
+        failure: nothing is recoverable, since the fibre over a given S is a whole
+        family of cost models and S is invariant under cost -> C * cost, so all
+        absolute-cost information is destroyed BY CONSTRUCTION. It is not the
+        mirror failure either, and this is verifiable BEFORE any run: S_L = m
+        ranges over roughly 20 to 220 across the (l, N) grid while
+        S_F = 2w*2^l/(2^l-1) ranges over roughly 4 to 130 across plausible
+        reduction depths, so the comparator spread is an order of magnitude by
+        construction. THE GENUINE RISK IS A THIRD ONE, NAMED HERE RATHER THAN
+        HIDDEN: S is a FIRST-ORDER quantity, and if the real cost curves are not
+        well approximated by their tangents at e = 0 over the range of interest, S
+        ranks them correctly only near zero. The exact crossing ratios (4.02 to
+        4.58 over e in [0.01, 0.20] at l = 1) are the quantitative answer to that
+        risk and are reported WITH the claim, not after it.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the cross-family cost comparison, which requires a machine, a
+          curve and a memory convention, by the dimensionless logarithmic error
+          sensitivity S, which requires none of them.
+        predicted_gain: >-
+          Makes the comparison survive the heterogeneous-hardware objection that
+          makes every other cross-family comparison in this lane fragile. The gain
+          is DIAGNOSTIC, not computational; no attack is made faster.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold (l, N) fixed and vary the reduction depth R = log2 w, reporting on
+          which side of R* each published pipeline sits.
+        predicted_gain: >-
+          Converts a binary "one frontier or two" question into a threshold
+          statement checkable against the published reduction depths.
+    quantifier_order: >-
+      CLAIMED - for the STATED error model, for all l and all N in the tested
+      grid, there EXISTS a crossing weight w*(l, N) = (N + 2.5)(2^l - 1) /
+      (2 (l - 0.25) 2^l) such that the naive lattice route's first-order error
+      sensitivity exceeds the Fourier route's for w < w* and is exceeded for
+      w > w*. NOT CLAIMED - anything for the +/-1 or burst error models, anything
+      for the PREDICATE-AUGMENTED lattice route, any statement about ABSOLUTE
+      cost, and any statement about which family is better.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "Under the uniform-error model, the Bleichenbacher bias contracts by the
+        exact factor (1 - e 2^l/(2^l-1)), the naive lattice route's success
+        probability is (1-e)^m, and their first-order log-sensitivities cross at
+        m = 2w 2^l/(2^l-1)." It certifies NOTHING about absolute cost, nothing
+        about the predicate route, nothing about ECDLP in either direction, and
+        nothing about any deployed key. w* IS A DERIVED CONSEQUENCE, NOT A
+        MEASUREMENT.
+      nearby_object_control: >-
+        l = 8 at e = 0.05, where the contraction factor is
+        1 - 0.05*256/255 = 0.94980, essentially 1 - e, against l = 1 where it is
+        1 - 2e = 0.90. If the estimator returns the l = 1 law at l = 8 it is
+        fitting the wrong parameter. This pair is the cheapest available
+        separation of "contraction depends on l" from "contraction is 1 - 2e". A
+        SECOND nearby object: the +/-1 error model at l = 3, where the derivation
+        provably does NOT apply and a pure scalar contraction must NOT be
+        reported.
+    proof_obligations:
+      - claim: 'The bias of a uniform interval of length n/2^l has magnitude sinc(2^{-l})'
+        responsibility: correctness
+      - claim: 'The sum over all u of the interval biases vanishes, by roots of unity'
+        responsibility: correctness
+      - claim: 'Conditioning on a reported value gives the pure scalar contraction (1 - e 2^l/(2^l-1))'
+        responsibility: correctness
+      - claim: 'Bias multiplies under linear combination, so weight-w reduction gives bias at most |B|^w'
+        responsibility: interface
+      - claim: 'The naive lattice route succeeds only when all m reports are correct'
+        responsibility: feasibility
+      - claim: 'S is comparable across families only as a logarithmic derivative, never as a cost ratio'
+        responsibility: scope
+      - claim: 'w* is derived from measured inputs and is never presented as a measured threshold'
+        responsibility: scope
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        BIAS MULTIPLICATION. For independent leaked-nonce samples X and Y with
+        biases B(X), B(Y) at frequency 1, the bias of the combination
+        c_X X + c_Y Y has magnitude |B(X)|^{|c_X|} |B(Y)|^{|c_Y|}; consequently a
+        reduced sample of total coefficient weight w has bias at most |B|^w.
+      random_model_justification: >-
+        For c_X = c_Y = 1 and independent X, Y this is EXACT and elementary:
+        E[exp(2 pi i (X+Y)/n)] = E[exp(2 pi i X/n)] E[exp(2 pi i Y/n)] by
+        independence and multiplicativity of the character. THE EXTENSION to
+        general integer coefficients and to samples REUSED across combinations
+        (which are NOT independent) is the heuristic part, and it is the part real
+        reduction algorithms rely on.
+      supporting_results:
+        - 'Multiplicativity of the additive character on independent variables; exact and elementary'
+      validation_experiment_ids:
+        - EXP-ECDSA-0aa851
+      falsification_condition: >-
+        The disjoint-support measurement misses its forced value ((2/pi)^2 =
+        0.4052847 at weight 2, (2/pi)^4 = 0.1642556 at weight 4) by more than
+        0.004, OR the overlapping-support measurement departs from the disjoint
+        one by more than 10 percent at weight 4 - in which case reuse matters and
+        w is not the right parameter.
+    - id: HEUR-002
+      formal_statement: >-
+        SAMPLE REQUIREMENT. The number of reduced samples needed for the Fourier
+        peak to clear the noise floor scales as M ~ C |B_final|^{-2} for a
+        constant C independent of e and l.
+      random_model_justification: >-
+        The noise floor of an M-sample empirical character sum is O(1/sqrt(M)) for
+        independent samples, so a peak of height |B_final| is detectable when
+        |B_final| >~ 1/sqrt(M). The constant C absorbs the confidence level and
+        the candidate-count multiple-testing correction and is NOT derived here.
+      supporting_results:
+        - 'Noise floor of an M-sample empirical character sum; standard, derived not cited'
+      validation_experiment_ids:
+        - EXP-ECDSA-0aa851
+      falsification_condition: >-
+        NOT INDEPENDENTLY FALSIFIED; instead it is MADE IRRELEVANT by stating only
+        RATIOS M(e)/M(0), in which C cancels. If a downstream record ever cites an
+        ABSOLUTE sample count from this line, that citation is out of scope and
+        this hypothesis says so.
+    - id: HEUR-003
+      formal_statement: >-
+        NAIVE-LATTICE ALL-OR-NOTHING. A single mis-reported leakage value destroys
+        the lattice attack's success, so success probability is exactly (1-e)^m
+        over the m signatures used.
+      random_model_justification: >-
+        A wrong report makes one coordinate of the target vector as large as n
+        instead of n/2^{l+1}, raising the norm by roughly 2^l on that coordinate;
+        for the gap ratios in play that is fatal. THE ARGUMENT IS A SIZE ARGUMENT,
+        NOT A THEOREM, and a very small gap-to-spare could in principle absorb one
+        bad coordinate at large l.
+      supporting_results:
+        - 'Target-vector norm inflation by order 2^l on a mis-reported coordinate; size argument, internal'
+      validation_experiment_ids:
+        - EXP-ECDSA-0aa851
+      falsification_condition: >-
+        Measured recovery rate at e > 0 exceeds (1-e)^m times the e = 0 rate by
+        more than a factor of 1.5 at any tested e. The route then tolerates errors
+        WITHOUT a predicate, S_L is smaller than m, and the crossing moves in the
+        direction that favours the lattice family.
+  structural_ingredients:
+    - description: >-
+        RQ-ECDSA-87625f names the erroneous-leakage regime as one of its four
+        targets, in these words - "what the erroneous-leakage regime costs, since
+        real side channels produce probabilistic rather than exact bits, and the
+        error rate is the parameter most likely to be quietly assumed away".
+      citation: RQ-ECDSA-87625f
+      provenance: internal
+      verified_by: read in full by the source idea-generator session
+      role: the declared target this hypothesis instantiates
+    - description: >-
+        The HNP-plus-lattice pipeline, and the boundary that recovery from partial
+        nonce information is NOT an ECDLP attack; source of the "requires an actual
+        leakage source" framing.
+      citation: KN-TECH-019
+      provenance: internal
+      verified_by: read by the source idea-generator session
+      role: pipeline definition and scope boundary
+    - description: >-
+        Character orthogonality forcing a full sum over a complete residue system
+        to vanish - the SAME identity used here to get sum_u B_u = 0, hence the
+        exact contraction law and the exact zero at e = (2^l-1)/2^l.
+      citation: KN-OPEN-010
+      provenance: internal
+      verified_by: read by the source idea-generator session
+      role: >-
+        shared elementary algebra, made explicit and claimed no further.
+        KN-OPEN-010's own question is about the ECDLP walk and is NOT touched.
+    - description: >-
+        The window lower edge m ~ (N + 2.5)/(l - 0.25) for the number of
+        signatures a lattice embedding needs.
+      citation: IDEA-20260805-787c8b
+      provenance: recalled
+      verified_by: null
+      role: supplies m in the crossing-weight substitution
+    - description: >-
+        Primary sources on the predicate-augmented sieving route and on
+        lattice-based nonce recovery.
+      citation: ePrint 2024/296; TCHES 2023(2) sieving-with-predicate; Albrecht-Heninger
+      provenance: recalled
+      verified_by: null
+      role: >-
+        NOT READ. Known only through RQ-ECDSA-87625f's provenance block, which
+        labels its own contents as search-tool excerpt, UNVERIFIED. Whether any
+        states an error-rate cost law is UNKNOWN and is the highest-value reading
+        task.
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: >-
+        Empirical bias magnitude of M = 2^22 simulated nonces under 1-bit MSB
+        leakage at error rate e = 0, on a prime order n of 64 bits
+      direction: different
+      minimum_effect: >-
+        0.6366198 +/- 0.002. The value is 2/pi, derived and independently
+        confirmed by exact finite summation at n = 65537 (0.636629) and
+        n = 1000003 (0.636620). The tolerance is the sampling noise floor
+        1/sqrt(M) = 0.000244 times an 8x safety factor. Outside this band the
+        simulator or the estimator is wrong and the whole arm halts.
+    - metric: >-
+        Empirical bias across the graded error sweep e in {0, 0.1, 0.2, 0.3, 0.4,
+        0.5} at l = 1
+      direction: lower
+      minimum_effect: >-
+        Must follow (2/pi)(1 - 2e) at every point within +/- 0.004, giving forced
+        values 0.6366, 0.5093, 0.3820, 0.2546, 0.1273, 0.0000. THE e = 0.5 POINT
+        IS THE NULL AND ITS FORCED VALUE IS EXACTLY ZERO: the measured value must
+        be below 4/sqrt(M) = 0.00098. A bias that does NOT decay to zero as the
+        parameter meant to destroy it is driven to its extinction point is the
+        canonical artifact tell.
+    - metric: 'Bias contraction at l = 2 and l = 3, at e = 0.1'
+      direction: different
+      minimum_effect: >-
+        Forced values 0.9003163 * (1 - 0.13333) = 0.78027 at l = 2 and
+        0.9744954 * (1 - 0.11429) = 0.86311 at l = 3, tolerance +/- 0.004. These
+        graded interior points separate "the contraction is 1 - 2e" (an l = 1
+        accident) from "the contraction is 1 - e 2^l/(2^l-1)" (the derived law). A
+        model that fits l = 1 and misses l = 2, 3 is a coincidence, not a
+        mechanism.
+    - metric: >-
+        Bias-multiplication check - bias of the difference of two independent
+        leaked-nonce samples, at l = 1, e = 0
+      direction: different
+      minimum_effect: >-
+        (2/pi)^2 = 0.4052847 +/- 0.004, and at weight 4 (two rounds)
+        (2/pi)^4 = 0.1642556. This converts the RECALLED step into a MEASURED one.
+        If the observed value is not the product, the Fourier sensitivity is wrong
+        and the crossing statement is withdrawn - at a cost of minutes.
+    - metric: >-
+        Naive-lattice recovery rate under erroneous leakage at N = 64, l = 4, m
+        inside the window, e in {0, 0.005, 0.01, 0.02, 0.05}, 40 seeds each
+      direction: lower
+      minimum_effect: >-
+        Must track (1-e)^m times the e = 0 baseline rate within a factor of 1.5 at
+        every point; at m = 30 the forced ratios are 1.000 / 0.860 / 0.739 /
+        0.545 / 0.215. Decaying MORE SLOWLY means the lattice tolerates some errors
+        without a predicate - a genuine and reportable surprise; decaying faster
+        means a second failure mode is present.
+    - metric: >-
+        Whether any primary source states an error-rate cost law for the
+        predicate-augmented lattice route
+      direction: different
+      minimum_effect: >-
+        Reported as FOUND or NOT FOUND, with the exact quotation or an explicit
+        statement that the source could not be obtained. NO VALUE PREDICTED. This
+        is the step that decides whether the crossing statement applies to the
+        family that actually holds the records.
+  test_boundary:
+    instances:
+      - simulated nonce samples under an ASSUMED l-bit MSB leakage channel
+      - >-
+        a naive lattice embedding at N = 64 with m inside the window, reusing the
+        existing pipeline
+      - >-
+        the +/-1-in-the-reported-value error model at l = 3, as a structural
+        control where the derivation provably does not apply
+    parameters:
+      sample_count: 2^22 per bias cell
+      leak_widths: '{1, 2, 3, 8}'
+      error_sweep_l1: '{0, 0.1, 0.2, 0.3, 0.4, 0.5}'
+      lattice_error_sweep: '{0, 0.005, 0.01, 0.02, 0.05}'
+      lattice_seeds_per_cell: 40
+      combination_weights: '{1, 2, 4}'
+      bias_tolerance: '+/- 0.002 at e = 0 and +/- 0.004 elsewhere'
+    implementation: >-
+      The bias arm needs NO LATTICE - pure integer and floating-point arithmetic
+      over simulated nonce samples, seconds to minutes per cell, and it alone can
+      refute the bias law and the multiplication property. The lattice arm reuses
+      the existing pipeline and its controls. The combination into S and w* is a
+      DERIVATION and is recorded as one.
+    budget:
+      estimated_wall_clock_seconds: 3600
+      note: >-
+        The parent declares implementation low and compute low. 2^22 samples per
+        bias cell is seconds; the lattice arm at N = 64 with 40 seeds per cell
+        across five error rates is the dominant cost and reuses an existing
+        pipeline.
+  distinguishable_outcomes:
+    - outcome: >-
+        The bias law holds at every (l, e) cell within tolerance, the extinction
+        point returns the noise floor, bias multiplies as predicted at weights 2
+        and 4, and the naive-lattice recovery tracks (1-e)^m.
+      means: >-
+        The two families degrade under erroneous leakage by laws of DIFFERENT
+        FUNCTIONAL FORM, so at e = 0 they may lie on one frontier and at e > 0
+        they need not. RQ-ECDSA-87625f's question is answered as
+        UNDER-PARAMETERISED, with the missing axis identified and its crossing
+        given in closed form. NO ATTACK IS PROPOSED AND NO RECORD IS APPROACHED.
+    - outcome: >-
+        The bias at e = 0, l = 1 is outside 0.6366198 +/- 0.002.
+      means: >-
+        The bias law is wrong or the instrument is. Either way NOTHING ELSE IN THE
+        ARM MAY BE REPORTED; this is the arm's instrument gate.
+    - outcome: >-
+        The bias does not reach the noise floor at the extinction point
+        e = (2^l-1)/2^l.
+      means: >-
+        A residual bias at the extinction point means the reported value and the
+        nonce are correlated through some path OTHER than the modelled channel - a
+        simulator defect - and EVERY POSITIVE NUMBER IN THE ARM IS VOID.
+    - outcome: >-
+        The l = 2 and l = 3 forced values are missed while l = 1 is hit.
+      means: >-
+        The law is an l = 1 COINCIDENCE - the contraction is not
+        1 - e 2^l/(2^l-1) - and the general form is withdrawn while the l = 1 case
+        survives.
+    - outcome: >-
+        The bias of a difference of independent samples is not the product of the
+        biases.
+      means: >-
+        The bias-multiplication property fails, S_F is wrong, and the crossing
+        weight w* is WITHDRAWN. Cost of learning this: minutes.
+    - outcome: >-
+        Naive-lattice recovery under errors decays materially MORE SLOWLY than
+        (1-e)^m.
+      means: >-
+        S_L is smaller than m, the lattice route tolerates errors without a
+        predicate, and the crossing moves in the direction that favours the
+        lattice family. THE SURPRISE IS THE FINDING and it demands independent
+        replication.
+    - outcome: >-
+        A primary source is obtained showing the predicate route's error
+        degradation is NOT of the form (1-e)^{-cm}.
+      means: >-
+        The crossing statement is explicitly RESTRICTED to the naive route, and
+        the restriction must be stated in EVERY citing sentence. Since every
+        published record at low leakage uses a predicate or a Fourier method, this
+        would make the crossing a statement about a route nobody uses at those
+        parameters.
+    - outcome: >-
+        The +/-1 error model at l = 3 returns a pure scalar contraction.
+      means: >-
+        The estimator CANNOT TELL THE TWO CHANNELS APART - the derivation provably
+        does not apply there - and the whole error-model dependence of the result
+        is unsupported.
+  prior_evidence_refs:
+    - RQ-ECDSA-87625f
+    - GOAL-ECDSA-001
+    - IDEA-20260805-411b0e
+    - IDEA-20260805-787c8b
+    - IDEA-20260805-659115
+    - KN-TECH-019
+    - KN-OPEN-010
+    - KN-OPEN-011
+    - docs/inventor-protocol.md
+  falsification_conditions:
+    - >-
+      Measured bias at e = 0, l = 1 outside 0.6366198 +/- 0.002. The bias law is
+      wrong or the instrument is; nothing else may be reported.
+    - >-
+      Measured bias does not reach the noise floor at the extinction point. The
+      contraction law is wrong and the null has failed.
+    - >-
+      The l = 2 and l = 3 forced values are missed while l = 1 is hit. The law is
+      an l = 1 coincidence and the general form is withdrawn.
+    - >-
+      The bias of a difference of independent samples is not the product of the
+      biases. The Fourier sensitivity is wrong and the crossing weight is
+      withdrawn.
+    - >-
+      Naive-lattice recovery under errors decays materially more slowly than
+      (1-e)^m. The lattice sensitivity is wrong and the crossing moves.
+    - >-
+      A primary source shows the predicate route's error degradation is not
+      (1-e)^{-cm}. The crossing is restricted to the naive route.
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT A RECOVERY, NOT A CLAIM ABOUT ANY DEPLOYED KEY. This is a
+      derivation about two cost models plus a cheap measurement of one ingredient
+      of it. sota_delta on every attack axis is exactly zero.
+    - >-
+      THE LEAKAGE ASSUMPTION GOES IN THE SAME SENTENCE, ALWAYS. Every statement is
+      conditional on an ASSUMED side channel producing l bits per signature at
+      error rate e. GOAL-ECDSA-001 names this reporting trap explicitly.
+    - >-
+      SAYS NOTHING ABOUT ECDLP, IN EITHER DIRECTION. KN-OPEN-011 owns the transfer
+      question. The character-orthogonality identity shared with KN-OPEN-010 is
+      elementary algebra and is not a claim about that open problem.
+    - >-
+      w* IS A DERIVED CONSEQUENCE, NOT A MEASUREMENT. Its inputs are each
+      separately measurable at reachable scale and are measured separately.
+      Presenting w* as a measured threshold would be the validation-ladder
+      violation docs/inventor-protocol.md section 6 step 2 exists to prevent.
+    - >-
+      UNITS. S_F is a sensitivity of SAMPLE COUNT and S_L of EXPECTED SOLVE COUNT.
+      Equating them equates the logarithmic rates at which two DIFFERENT resources
+      inflate - legitimate for ranking robustness, ILLEGITIMATE for stating a cost
+      ratio.
+    - >-
+      THE NAIVE ROUTE IS NOT THE RECORD-HOLDING ROUTE. Every published record in
+      this lane at low leakage uses a predicate or a Fourier method, so a crossing
+      anchored on the naive lattice law is a statement about a route nobody uses at
+      those parameters unless the predicate law turns out to be (1-e)^{-cm}.
+    - >-
+      RANGE REDUCTION IS NOT FREE. Only the sample multiplier is charged, not the
+      cost of performing the reduction, which grows with w. A complete comparison
+      charges both; IDEA-20260805-659115 is where the other is charged.
+    - >-
+      A NEGATIVE HERE CLOSES A FORMULA, NOT A LANE. If the laws are refuted, what
+      remains open is stated in advance: the correct error-degradation law for
+      each family, the +/-1 and burst error models, and the predicate route's
+      behaviour.
+  status: proposed
+  proposed_by: idea-generator
