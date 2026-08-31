@@ -1,0 +1,276 @@
+execution_report:
+  experiment_id: EXP-MONO-12ce1c
+  handoff_id: TASK-20260830-a1cb32
+  hypothesis_id: H-MONO-45183a
+  implementation_commit: 8801a520f64fd163e6513de374096fdaf8651c83
+  implementation_commit_note: >-
+    Commit checked out at run start for both runs (repository dirty with
+    unrelated concurrent-session files outside this task's write scope --
+    .worktrees/, coordination/goals/GOAL-SSI-001/, .tmp/, etc.; see each
+    run's manifest.yaml code.dirty_note). This report and the run artifacts
+    it cites are not yet committed by the Coordinator; the Coordinator's
+    snapshot commit will record the final SHA that includes these files.
+
+  observations_only_note: >-
+    This report records observations and measured numbers only. No
+    hypothesis, experiment, or goal status is changed here, and no verdict
+    is rendered on whether H-MONO-45183a is supported or refuted -- that
+    judgment belongs to the Validator, Red Team and Coordinator, per the
+    handoff's explicit instruction.
+
+  protocol_deviations:
+    - >-
+      DOMAIN SPLIT for replication: panel construction (prime/curve-a/curve-b
+      draws) uses the fixed panel_domain "EXP-MONO-12ce1c/v1" so both runs
+      share an identical 8-curve panel; all sampled draws use a seed-specific
+      sampling_domain "EXP-MONO-12ce1c/v1/run-<seed>". Resolves an ambiguity
+      between the contract's single declared `domain` and its two declared
+      replication seeds; documented in implementation.md interpretation 1,
+      following the precedent in EXP-MONO-a20e48's manifest.
+    - >-
+      PANEL-SLOT-TO-PRIME assignment (which of the 5 field_bits primes hosts
+      each of the 8 curves) was a concrete documented choice within the
+      contract's exact construction algorithm; see implementation.md
+      interpretation 2 and the panel table below.
+    - >-
+      Path 2's factorization classifier uses sympy.lambdify for ~150x faster
+      numeric coefficient evaluation than naive symbolic substitution,
+      verified to produce identical factorizations on a 594-specialization
+      spot check before adoption; see implementation.md interpretation 3.
+    - >-
+      measured_null_2 is read off the tau=1 curves' own Stage-3 output after
+      the fact rather than independently pre-committed, because the frozen
+      contract's own text defines it as "same code path, same tuple count,
+      same construction" as the Stage-3 treatment cells -- an unavoidable
+      tension with the ordering_control's "committed before any treatment"
+      requirement, disclosed rather than silently resolved either way; see
+      implementation.md interpretation 4.
+    - >-
+      A THIRD exclusion stratum ("nondistinct_roots", plus rarer "infinity"
+      and "no_frobenius_match" anomalies) was required, beyond the
+      contract's named ramified/diagonal strata, to guarantee a
+      well-defined PERMUTATION at m>=4. Reported separately per cell, never
+      pooled into M1/M2/M3. See implementation.md interpretation 5 and
+      Finding 2 below -- this exclusion is NOT statistically neutral with
+      respect to M3.
+    - >-
+      No trial-count reduction was needed anywhere: every cell used the
+      full contract-required minimum (20,000 for Stage 2/3, 2,000 for the
+      dual-path subsample, etc.). Measured full-run wall time was ~123s
+      (run 1) and ~121s (run 2), against a 7200s budget cap.
+
+  runs:
+    completed:
+      - RUN-MONO-12ce1c-1
+      - RUN-MONO-12ce1c-2
+    invalid: []
+    failed: []
+    seeds: {RUN-MONO-12ce1c-1: 20260805, RUN-MONO-12ce1c-2: 20260806}
+    wall_seconds: {RUN-MONO-12ce1c-1: 123.19, RUN-MONO-12ce1c-2: 121.19}
+
+  stage0_symbolic_baseline_reproduction:
+    description: >-
+      Zero-compute gate. Verify freq_split(m=3) = (S^2+N_ns^2-(p-Z))/p^2,
+      S=(p-t-Z)/2, N_ns=(p+t-Z)/2, is an EXACT algebraic identity in (p,t,Z)
+      with EV-MONO-a0a89c OBS-3's committed closed form
+      freq_split-1/2 = (t^2-2pZ+Z^2-2p+2Z)/(2p^2), then evaluate both on the
+      105 curves of RUN-MONO-4b50b6-002.
+    symbolic_identity_check: >-
+      sympy.simplify(freq_split_new - 1/2 - committed_delta) == 0, confirmed
+      (identical in both runs, this stage is seed-free).
+    n_curves_evaluated: 105
+    max_abs_diff_across_105_curves: "0 (exact, evaluated with Python Fraction arithmetic, no floating point)"
+    gate_result: PASS -- proceeding to Stage 1.
+    source: experiments/EXP-MONO-4b50b6/runs/RUN-MONO-4b50b6-002/raw-result.json (v3_trace_formula block)
+
+  stage1_prior_art_read:
+    performed: false
+    reason: >-
+      No network access in this execution environment; permitted explicitly
+      by specification.yaml budget.no_network_note ("Stage 1 requires
+      network access... If network access is unavailable, Stage 1 is
+      recorded as NOT PERFORMED with that reason and the remaining stages
+      proceed").
+
+  panel_construction:
+    tau_coverage_precondition: MET
+    tau_values_present: [1, 2, 4]
+    curves:
+      - {role: RO1, p: 103, A: 1, B: 71, N: 115, trace: -11, Z: 0, tau: 1}
+      - {role: RO2, p: 191, A: 80, B: 27, N: 212, trace: -20, Z: 1, tau: 2}
+      - {role: RO3, p: 421, A: 263, B: 192, N: 456, trace: -34, Z: 3, tau: 4}
+      - {role: RO4, p: 569, A: 536, B: 531, N: 531, trace: 39, Z: 0, tau: 1}
+      - {role: J0, p: 421, A: 0, B: 192, N: 381, trace: 41, Z: 0, tau: 1}
+      - {role: J1728, p: 421, A: 263, B: 0, N: 394, trace: 28, Z: 1, tau: 2}
+      - {role: CM1, p: 103, A: 31, B: 4, N: 108, trace: -4, Z: 1, tau: 2, cm_discriminant: -11}
+      - {role: CM2, p: 103, A: 23, B: 27, N: 100, trace: 4, Z: 3, tau: 4, cm_discriminant: -11}
+    identical_across_both_runs: true
+    factor_base_digests_and_sizes: "recorded per-curve, per-arm in each run's raw-result.json (factor_base_digests, factor_base_sizes)."
+
+  stage4_controls_and_nulls_pretreatment:
+    ordering_control:
+      description: >-
+        positive_control_1, positive_control_2 (all tau>=2 curves, m in
+        {4,5}), and measured_null_1 are generated, classified and
+        SHA-256-committed strictly BEFORE any Stage-2/3 treatment
+        specialization is classified.
+      commitment_sha256: {RUN-MONO-12ce1c-1: "59b6df057b634c00088787dc106bd7c4b1faf4194a0b7fe3c5ff07afa9b56b94",
+                           RUN-MONO-12ce1c-2: "eabd48b8694325e26d2950614f94d5c5c918cccdca65c6a9eee4219eff1b73ea"}
+      committed_at: {RUN-MONO-12ce1c-1: "2026-08-31T04:12:00Z", RUN-MONO-12ce1c-2: "2026-08-31T04:14:19Z"}
+      run_started_at: {RUN-MONO-12ce1c-1: "2026-08-31T04:11:52Z", RUN-MONO-12ce1c-2: "2026-08-31T04:14:12Z"}
+      note: >-
+        measured_null_2 is NOT covered by this pre-treatment commitment; see
+        protocol_deviations above -- it is read off the tau=1 Stage-3 cells
+        themselves, per the contract's own text defining it that way.
+
+    positive_control_1_random_quartics:
+      description: 20,000 random monic quartics over the largest panel prime (p=2027, 11-bit), classified by factoring over F_p.
+      chebotarev_check_both_runs:
+        "1^4": {forced_density: 0.04167, run1_observed_freq: 0.0392, run1_sigma: 0.68, run2_pass: true}
+        "2+1+1": {forced_density: 0.25, run1_observed_freq_note: "see raw-result.json for exact per-run numbers"}
+        "2^2": {forced_density: 0.125}
+        "3+1": {forced_density: 0.3333}
+        "4": {forced_density: 0.25}
+      strictly_positive_4cycle_and_3plus1_counts: true
+      ABSOLUTE_GATE_RESULT: PASS in both runs.
+      note: >-
+        Full per-type observed_count/freq/sigma tables for both runs are in
+        each run's raw-result.json stage4_pretreatment.positive_control_1;
+        both runs pass within 3 sigma on all five cycle types.
+
+    positive_control_2_planted_collision:
+      description: >-
+        On every tau>=2 panel curve (RO2, RO3, J1728, CM1, CM2), P_2 = P_1 + T
+        for the nonzero 2-torsion point T, 1,000 trials per (curve, m in {4,5}).
+      detection_rate: "1.0 (100%) on EVERY (curve, m) cell, in BOTH runs -- 10,000 planted trials total per run, 0 misses."
+      pass: true
+
+    measured_null_1_cross_curve:
+      description: >-
+        Degree-4 polynomial with roots x(eps1 P1 + eps2 P2 + eps3 P3'), P1,P2
+        on RO3 (p=421,A=263,B=192,N=456), P3' on a same-order (N=456)
+        companion curve E'=(A=1,B=45) found by exhaustive search. 5,000 trials/run.
+      observed_matches_forced_expectation: false
+      finding: >-
+        ONLY the two Kummer-allowed cycle types (identity, pure-2) were
+        observed in BOTH runs (4986 and 4762 valid trials respectively) --
+        ZERO 4-cycles, ZERO 3+1 splits. This CONTRADICTS the contract's own
+        declared forced value ("4-cycles and 3+1 types appear at nonzero
+        rate"). See implementation.md "Finding 1" for the accompanying
+        algebraic argument (Frobenius commutes with the chord-tangent
+        addition formula's rational functions regardless of common curve
+        membership, since each constituent point's Frobenius image is
+        +-itself purely from being a square root of an F_p element -- this
+        does not require curve membership at all). Per the contract's OWN
+        text, this failure renders Stage 2 VOID; applied literally below.
+      stage2_void_by_measured_null_1: true
+
+    measured_null_2_tau1_forced_zero:
+      description: >-
+        On every tau=1 panel curve (RO1, RO4, J0), the m=4 Stage-3
+        coincidence count is checked against the forced value of exactly 0.
+      result: "max_D_observed == 0 on EVERY tau=1 curve, both sign conventions, BOTH runs -- 20,000 valid tuples per (curve,arm), 0 collisions anywhere."
+      pass: true
+
+  dual_path_cross_check:
+    fixture_checks:
+      deg_T_S4_eq_4: "PASS -- verified as a FULLY SYMBOLIC identity (x1,x2,x3,T,A,B all symbolic), the strongest form, done once."
+      deg_T_S5_eq_8: "PASS operationally -- every dual-path S_5 instance in both runs had degree exactly 8, no degree drop observed."
+      s3_vanishes_at_sum_and_diff: "PASS -- 12 real curve-point pairs across 3 panel curves, 0 failures, both runs (Stage-0-seed-free)."
+    subsample_per_curve_m: 2000
+    total_checked_per_run: 32000
+    total_disagreements_per_run: {RUN-MONO-12ce1c-1: 0, RUN-MONO-12ce1c-2: 0}
+    result: "ZERO disagreements in both runs, over 32,000 checked specializations each (8 curves x 2 m-values x 2000)."
+
+  stage2_generic_fibre_census:
+    void_disposition: >-
+      Per measured_null_1's failure (see above), the contract's own text
+      renders this stage's results VOID. Reported in full below regardless,
+      per AGENTS.md rule 5/9 (never suppress a measured observation);
+      interpretation of what "void" means for Part A's disposition is left
+      to the Validator/Red Team/Coordinator.
+    M1_categorical_violation_count:
+      forced_value: 0
+      observed_both_runs: 0
+      note: "0 violations across all 8 curves x 3 m-values x 20,000 trials = 480,000 specializations per run, in BOTH runs."
+    M2_per_instance_match_fraction:
+      forced_value: 1.000
+      observed_both_runs: 1.000
+      note: "Exact match on every admissible specialization, both runs (n_admissible ranged ~11,700-20,000 per cell after excluding ramified/diagonal/nondistinct-root strata)."
+    ramified_and_diagonal_strata_reported_separately: true
+    ramified_diagonal_note: "Per-cell counts (n_ramified, n_diagonal) are in each run's raw-result.json; neither is pooled into M1/M2/M3."
+    additional_exclusion_stratum_nondistinct_roots:
+      note: >-
+        A third exclusion (see implementation.md interpretation 5), required
+        for a well-defined permutation, is reported per cell as
+        n_nondistinct_roots_anomaly (plus rarer n_infinity_anomaly,
+        n_no_frobenius_match_anomaly=0 everywhere). NOT statistically
+        neutral -- see M3 finding below.
+    M3_split_frequency_table_run1_m5_worst_cases:
+      description: "m=5 cell, run 1 -- the largest observed M3 deviations, correlated with n_nondistinct_roots_anomaly rate (see implementation.md Finding 2)."
+      RO1: {N: 115, M3_measured: 0.1063, M3_forced: 0.1336, sigma: 10.76, nondistinct_roots_frac: 0.035}
+      RO2: {N: 212, M3_measured: 0.1068, M3_forced: 0.1306, sigma: 9.35, nondistinct_roots_frac: 0.065}
+      RO3: {N: 456, M3_measured: 0.1086, M3_forced: 0.1263, sigma: 7.08, nondistinct_roots_frac: 0.074}
+      RO4: {N: 531, M3_measured: 0.1218, M3_forced: 0.1285, sigma: 2.82, nondistinct_roots_frac: 0.007}
+      J0: {N: 381, M3_measured: 0.1277, M3_forced: 0.1321, sigma: 1.82, nondistinct_roots_frac: 0.009}
+      J1728: {N: 394, M3_measured: 0.1185, M3_forced: 0.1271, sigma: 3.53, nondistinct_roots_frac: 0.033}
+      CM1: {N: 108, M3_measured: 0.0765, M3_forced: 0.1213, sigma: 17.23, nondistinct_roots_frac: 0.114}
+      CM2: {N: 100, M3_measured: 0.0419, M3_forced: 0.1121, sigma: 24.07, nondistinct_roots_frac: 0.242}
+    M3_at_m3_note: "At m=3 (the baseline reproduced exactly by Stage 0), M3 sigma-deviations are small (<3) for all 8 curves in both runs -- the deviation grows specifically with m (larger 2^{m-2}) and shrinks with curve order N, consistent with the birthday-paradox mechanism in implementation.md Finding 2."
+    m3_and_m4_sigma_note: "Full m=3/m=4/m=5 tables for both runs are in raw-result.json stage2_generic_fibre_census; m=4 sigmas are intermediate between m=3 and m=5 as expected."
+    finding_reference: "See implementation.md Finding 2 for the full mechanism and diagnosis (a toy-scale instrument limitation, not a claim about the Galois group)."
+
+  stage3_factor_base_sublocus_census:
+    skipped: false
+    skip_reason: null
+    m4_forced_formula: "6*(tau-1)/N"
+    m5_forced_formula: "16*tau/N + 24*(tau-1)/N"
+    table_run1:
+      RO1: {tau: 1, N: 115, m4_mean_D: 0.0, m4_forced: 0.0, m5_mean_D: 0.146, m5_forced: 0.13913, m5_sigma: 2.68}
+      RO2: {tau: 2, N: 212, m4_mean_D: 0.02805, m4_forced: 0.02830, m4_sigma: 0.22, m5_mean_D: 0.26635, m5_forced: 0.26415, m5_sigma: 0.53}
+      RO3: {tau: 4, N: 456, m4_mean_D: 0.03980, m4_forced: 0.03947, m4_sigma: 0.24, m5_mean_D: 0.29575, m5_forced: 0.29825, m5_sigma: 0.56}
+      RO4: {tau: 1, N: 531, m4_mean_D: 0.0, m4_forced: 0.0, m5_mean_D: 0.02960, m5_forced: 0.03013, m5_sigma: 0.44}
+      J0: {tau: 1, N: 381, m4_mean_D: 0.0, m4_forced: 0.0, m5_mean_D: 0.04105, m5_forced: 0.04199, m5_sigma: 0.67}
+      J1728: {tau: 2, N: 394, m4_mean_D: 0.01535, m4_forced: 0.01523, m4_sigma: 0.14, m5_mean_D: 0.14440, m5_forced: 0.14213, m5_sigma: 0.73}
+      CM1: {tau: 2, N: 108, m4_mean_D: 0.05765, m4_forced: 0.05556, m4_sigma: 1.27, m5_mean_D: 0.51920, m5_forced: 0.51852, m5_sigma: 0.12}
+      CM2: {tau: 4, N: 100, m4_mean_D: 0.18750, m4_forced: 0.18000, m4_sigma: 2.67, m5_mean_D: 1.32920, m5_forced: 1.36000, m5_sigma: 4.20}
+    overall: >-
+      M4 measured matches its forced value CLOSELY (sigma < 3 for 15 of 16
+      curve-m cells; the one exception, CM2 at m=5, has sigma=4.20, the
+      curve with the smallest order N=100 and largest tau=4 in the panel).
+      tau=1 curves give EXACTLY zero collisions at m=4 in every trial
+      (measured_null_2, above). Not pooled with Stage 2; not affected by
+      Stage 2's void disposition (Finding 1 concerns Stage 2's cross-curve
+      construction specifically, not Stage 3's sublocus construction).
+    fixed_vs_random_sign_arms: >-
+      IDENTICAL per-tuple, in every cell, both runs -- see implementation.md
+      Finding 3 for the proof that this is a forced mathematical invariance
+      (sign choice is a bijective relabeling of the eps-vector that
+      preserves the multiset of resulting x-coordinates) rather than a
+      sampling coincidence, with the consequence that HEUR-COIN-1's stated
+      falsification condition for this statistic cannot be triggered by
+      this construction.
+
+  replication_seed_to_seed_comparison:
+    categorical_metrics_M1_M2: "IDENTICAL between seeds 20260805 and 20260806 (0 and 1.000 respectively, every cell) -- consistent with `replication.interpretation`'s prediction that M1/M2 are seed-invariant."
+    frequency_metrics_M3_M4: "Vary slightly between seeds as expected (e.g. RO1 m3 M3_measured: 0.4987 (seed 1) vs 0.4970 (seed 2)); reported per-run in each raw-result.json, not averaged or pooled."
+    panels_identical: true
+
+  artifacts:
+    implementation_notes: experiments/EXP-MONO-12ce1c/implementation.md
+    implementation_source: experiments/EXP-MONO-12ce1c/implementation/
+    run1: experiments/EXP-MONO-12ce1c/runs/RUN-MONO-12ce1c-1/
+    run2: experiments/EXP-MONO-12ce1c/runs/RUN-MONO-12ce1c-2/
+
+  certificate:
+    kind: none
+    note: >-
+      No discrete-log solve or factor-base relation is claimed. This is a
+      pure Galois/monodromy-group measurement (Frobenius cycle-type census,
+      root-multiplicity census) per docs/claims-and-verification.md.
+
+  scope_reminder: >-
+    Toy-tier only, per specification.yaml claim_ceiling and scale_relevance:
+    primes in [100, 3000], m in {3,4,5}, 8 non-singular curves. Nothing here
+    is an ECDLP attack, cost, exponent, or cryptographic-scale claim in
+    either direction, and nothing here closes KN-OPEN-009.
