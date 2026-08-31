@@ -1,0 +1,146 @@
+{
+  "schema": "crypto.autoresearch.validator_runtime_receipt.v1",
+  "task_id": "validator-mono-64aaa4",
+  "experiment_id": "EXP-MONO-64aaa4",
+  "hypothesis_id": "H-MONO-1d50ac",
+  "snapshot_receipt": "coordination/tasks/TASK-20260831-4cb58f/snapshot-receipt.json",
+  "verified_commit": "c889a4cf9d3a0141d20baedb69ddebce52e5eea0",
+  "verified_commit_check": "git rev-parse HEAD run at task start on branch ideas-ecdlp-20260830; matched exactly. git rev-parse HEAD^ == 2f40f1b804d38197ccd6c761fcf009c8f6cb6d17, matching the receipt's own parent_sha field exactly.",
+  "runtime": "claude_code",
+  "resolved_model_id": "claude-sonnet-5",
+  "requested_policy": "review-adversarial",
+  "requested_reasoning_effort": "xhigh",
+  "model_verified": false,
+  "model_verified_reason": "No adapter probe receipt exists for this session.",
+  "no_network": true,
+  "write_scope": "experiments/EXP-MONO-64aaa4/reviews/validator/",
+  "scratchpad_dir": "/private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad",
+  "scratchpad_note": "Used $TMPDIR/validator-rerun-mono-64aaa4 (a scratch copy of experiments/EXP-MONO-64aaa4/implementation/run_experiment.py only, with the hardcoded transcript-output path redirected to scratch) for the full clean-room re-execution, and $TMPDIR/independent_recompute.py plus inline python3 heredocs for all other independent computations. No archived producer artifact was ever opened for writing.",
+
+  "artifact_hash_verification": {
+    "method": "for each of the 10 archive_artifact_paths in the snapshot receipt: `git show HEAD:<path> | shasum -a 256`, compared against the receipt's own path_sha256 entry.",
+    "result": "10/10 match exactly; 0 mismatches."
+  },
+
+  "independent_computations_performed": [
+    {
+      "id": "RECOMP-1",
+      "purpose": "Independent, from-scratch verification of the matched pair's own curve parameters (p=617), bypassing run_experiment.py's Legendre-symbol count_points entirely.",
+      "method": "Brute-force enumeration of ALL (x,y) pairs in F_617 x F_617 satisfying y^2=x^3+Ax+B for both curves; brute-force root count of x^3+Ax+B=0 mod 617 for tau; standard j-invariant formula.",
+      "key_outputs": [
+        "N=580 for both curves (ordinary and CM), matching archived exactly.",
+        "tau=4 for both curves, matching archived exactly.",
+        "j_ord=227, j_cm=494; 1728 mod 617 = 494, confirming the j=1728 CM designation.",
+        "617 mod 4 = 1, confirming the j=1728 curve's order-4 automorphism is genuinely F_617-rational (real CM-flavor structure, not a spurious label)."
+      ]
+    },
+    {
+      "id": "RECOMP-2",
+      "purpose": "Independent completeness/uniqueness check of Stage 0's search over the full 405-prime transcript.",
+      "method": "Loaded stage0_transcript.json directly; independently verified all 405 primes in [101,3000] present, sorted, and genuinely prime (from-scratch primality test); independently re-scanned all (ord, cm_j0, cm_j1728) triples for SAME-PRIME (N,tau) matches AND for CROSS-PRIME matches (a wider search the contract's own text arguably permits but the implementation never performs).",
+      "key_outputs": [
+        "Same-prime scan: exactly one match found (p=617, N=580, tau=4, j1728) -- confirms the archived claim exactly.",
+        "Cross-prime scan (not performed by the implementation): 100 (N,tau) coincidences found, smallest at ordinary p=109 (N=124,tau=4) vs CM-j0 p=139 (N=124,tau=4) -- a materially cheaper candidate that the executed search structurally cannot see, flagged as a disclosure gap in the report."
+      ]
+    },
+    {
+      "id": "RECOMP-3",
+      "purpose": "Independent recomputation of Stage 1's predicted rate, SE, and per-curve deviations-in-SE using exact rational arithmetic.",
+      "method": "Python fractions.Fraction re-derivation of predicted_rate=6*(tau-1)/N, expected_pairs, and se=sqrt(20000*6*p_pair*(1-p_pair)) with p_pair=(tau-1)/N, then float comparison against archived deviations reported in execution_report.yaml.",
+      "key_outputs": [
+        "predicted_rate=0.03103448275862069, expected_pairs=620.6896551724138, se=24.849128585098583 -- bit-identical to raw-result.json's own se_pairs_per_20000.",
+        "Ordinary deviation: -0.30945..., rounds to 0.309 -- matches execution_report.yaml exactly.",
+        "CM deviation: 2.42706..., rounds to 2.427 -- does NOT match execution_report.yaml's reported 2.424 (a genuine, reproducible ~0.003 discrepancy, not a floating-point artifact, since exact Fraction arithmetic was used)."
+      ]
+    },
+    {
+      "id": "RECOMP-4",
+      "purpose": "Independent, from-scratch reimplementation of the m=4 collision-counting measurement itself, to verify the raw counts (613, 681/679) are correct and not an artifact of a bug in measure_curve() or draw_uniform().",
+      "method": "Wrote independent Python (different sign-class list ordering, different function structure) implementing the frozen seed_derivation_rule and the 3-point/4-canonical-sign-class construction, applied to the matched pair's own (p,A,B) from the archived transcript.",
+      "key_outputs": [
+        "First attempt used an incorrect guess at the role-tag string convention ('cm1728') and obtained a DIFFERENT count (662 pairs) -- itself informative that the seed derivation is sensitive, not degenerate.",
+        "After correcting the role tag to run_experiment.py's exact convention ('cmj1728', from role=curve['role']+str(curve.get('j'))), reproduced BOTH curves' exact collision counts: ordinary 613 pairs/613 tuples, CM 681 pairs/679 tuples -- bit-identical to raw-result.json in both sign arms.",
+        "Also independently rebuilt both factor bases from scratch: size 288 for both curves, matching archived factor_base_ord/cm.size exactly."
+      ]
+    },
+    {
+      "id": "RECOMP-5",
+      "purpose": "Independent recomputation of Stage 2's Fisher-exact p-value and odds ratio via a from-scratch hypergeometric computation, not scipy.stats.fisher_exact.",
+      "method": "Log-factorial (math.lgamma) based hypergeometric PMF summed in log-space for the two-sided p-value, applied to the table {ord_collision:613, ord_no_collision:19387, cm_collision:679, cm_no_collision:19321}.",
+      "key_outputs": [
+        "p=0.06598219372124663, matching the archived 0.06598219371661383 to 9 significant figures (residual is log-sum-exp float precision).",
+        "odds_ratio=(a*d)/(b*c)=0.8997247977460565, bit-identical to archived."
+      ]
+    },
+    {
+      "id": "RECOMP-6",
+      "purpose": "Independent check of the contract's own pre-registered comparison_test_power_check claim ('powered to detect ~2x or more, NOT a sub-20% relative difference') against the actual matched-pair cell's parameters.",
+      "method": "Two-proportion normal-approximation power formula (pooled variance under H0, unpooled under H1) at n=20000, p1=613/20000, for relative differences 5%-200%; cross-checked with a 300-replication Monte Carlo simulation using the RECOMP-5 hypergeometric Fisher-exact implementation (not scipy).",
+      "key_outputs": [
+        "20% relative difference: 92.5% power (normal approx) / 94.7% (Monte Carlo, 300 reps) -- the design IS well-powered at 20%, contradicting the contract's own claim.",
+        "80% power is reached already at a ~16.4% relative difference, not '2x' (100%).",
+        "At the actually-observed ~10.8% relative difference: ~46.5% power (normal approx) / 42.3% (Monte Carlo) -- moderate, not negligible.",
+        "Conclusion: the contract's pre-registered power characterization is materially wrong for the specific (N=580,tau=4) cell Stage 0 actually found; it was written generically before that cell was known."
+      ]
+    },
+    {
+      "id": "RECOMP-7 (symbolic, not numeric)",
+      "purpose": "Independent group-theoretic re-derivation of the 3-points/4-sign-classes construction and the sign-flip-invariance argument, performed BEFORE reading implementation.md's own sections 1 and 4.",
+      "method": "Worked from H-MONO-45183a's B-1/B-2 text alone: identified that B-2's own phrase 'the partitions of {1,2,3}' fixes the m=4 index set at 3 elements (hence 3 drawn points, not 4); enumerated the 4 canonical sign classes and their C(4,2)=6 pairwise symmetric differences by hand; derived the sign-flip permutation argument (S(eps2,eps3) identities under negating P1, P2, or P3) independently.",
+      "key_outputs": [
+        "Independently reached the same 3-points/4-classes conclusion and the same collision-count invariance under square-root choice as implementation.md sections 1 and 4, before reading them.",
+        "Cross-checked against EXP-MONO-12ce1c's own red-team report (OBJ-6, severity: high), which proves the identical invariance for the same construction and additionally measured a ~100% (not o(1/N)) transversal-vs-group-uniform effect -- a precedent neither H-MONO-1d50ac nor this experiment's implementation.md cites."
+      ]
+    }
+  ],
+
+  "reproduction_runs": [
+    {
+      "purpose": "Full clean-room re-execution of RUN-MONO-64aaa4-1 from the archived implementation/, with only the hardcoded transcript-output path redirected to scratch, to independently verify determinism and reproducibility on this machine -- not merely trusting the archived raw-result.json.",
+      "command": "cd $TMPDIR/validator-rerun-mono-64aaa4 && python3 run_experiment.py > rerun_output.json 2> rerun_stderr.log",
+      "result": "Exit code 0, ~7.3s wall clock. Reproduced stage0.matches, stage1, stage2, and status fields bit-identical to the archived RUN-MONO-64aaa4-1/raw-result.json (verified by direct Python dict equality, timing fields excluded)."
+    }
+  ],
+
+  "git_forensics": {
+    "commands_run": [
+      "git rev-parse HEAD; git rev-parse HEAD^; git branch --show-current",
+      "git show --stat HEAD",
+      "git merge-base --is-ancestor aaa23143a HEAD",
+      "git merge-base --is-ancestor f1da40fdf HEAD",
+      "git merge-base --is-ancestor aaa23143a f1da40fdf",
+      "git merge-base --is-ancestor f1da40fdf aaa23143a",
+      "git merge-base aaa23143a f1da40fdf",
+      "git log --graph --oneline --all -20 aaa23143a f1da40fdf HEAD",
+      "git show f1da40fdf --stat",
+      "git log --oneline --all -- experiments/EXP-MONO-64aaa4/specification.yaml",
+      "git show HEAD:experiments/EXP-MONO-64aaa4/specification.yaml | shasum -a 256"
+    ],
+    "result": "HEAD == c889a4cf9d3a0141d20baedb69ddebce52e5eea0, parent == 2f40f1b804d38197ccd6c761fcf009c8f6cb6d17, matching the snapshot receipt's parent_sha exactly. f1da40fdf (which introduces specification.yaml) is an ancestor of aaa23143a (manifest.yaml's code.commit), which is itself an ancestor of HEAD -- a coherent, non-tampered commit graph. f1da40fdf's own diffstat touches exactly six declared paths, none of which is the disclosed-elsewhere-as-incorrect out-of-band edit (that touches only IDEA-20260831-3fa5c9.yaml, confirmed unrelated to this record). specification.yaml's committed content hash matches manifest.yaml's recorded specification_sha256 exactly."
+  },
+
+  "auxiliary_shell_commands_run": [
+    "python3 hashlib.sha256 verification of all 10 path_sha256 entries in coordination/tasks/TASK-20260831-4cb58f/snapshot-receipt.json against `git show HEAD:<path>` (0 mismatches)",
+    "python3 script loading stage0_transcript.json and independently re-deriving same-prime and cross-prime (N,tau) match sets",
+    "python3 exact-Fraction script recomputing predicted_rate/expected_pairs/se/deviations from raw-result.json's own counts",
+    "python3 independent_recompute.py (from-scratch m=4 measurement reimplementation)",
+    "python3 log-factorial hypergeometric Fisher-exact recomputation",
+    "python3 two-proportion power calculation plus numpy-based Monte Carlo Fisher-exact power simulation",
+    "find experiments/EXP-MONO-64aaa4 -type f / -type d (blindness check -- confirmed no red-team artifact existed at any point)"
+  ],
+
+  "budget_used_note": "One full clean-room re-execution (~7.3s wall clock) plus well under 60 seconds of CPU time across all from-scratch recomputation scripts, including the 300-replication Monte Carlo power simulation.",
+
+  "prohibitions_observed": [
+    "No producer artifact (raw-result.json, execution_report.yaml, implementation/run_experiment.py, manifest.yaml, logs, specification.yaml, ledger records) was edited.",
+    "No status change of any kind was made to H-MONO-1d50ac, H-MONO-45183a, EXP-MONO-64aaa4, or any ledger/goal record.",
+    "No git commit was made by this task; only files under experiments/EXP-MONO-64aaa4/reviews/validator/ were written.",
+    "No network access was used or required.",
+    "No sibling review report (Red Team or otherwise) was read at any point during this task's analysis or drafting; none existed under experiments/EXP-MONO-64aaa4/reviews/ for the entire duration of this task."
+  ],
+
+  "sibling_artifact_disclosure": {
+    "observed": false,
+    "note": "experiments/EXP-MONO-64aaa4/reviews/ did not exist at task start; it contained only this task's own newly-created validator/ subdirectory at every point checked (task start, mid-task, and immediately before writing this receipt). No red-team or other sibling artifact was ever observed to exist."
+  }
+}
