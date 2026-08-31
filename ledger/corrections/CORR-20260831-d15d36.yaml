@@ -1,0 +1,171 @@
+correction:
+  id: CORR-20260831-d15d36
+  recorded_at: '2026-08-31'
+  recorded_by: coordinator
+  type: out_of_band_frozen_contract_edit_disclosure_plus_independently_verified_design_defects
+  severity: high_primary_metric_invalidating
+  supersedes: []
+  corrects:
+    - experiments/EXP-MONO-670aa6/specification.yaml
+    - experiments/EXP-MONO-670aa6/implementation/panel_primary.py
+    - experiments/EXP-MONO-670aa6/implementation/run_experiment.py
+
+  incident_summary: >-
+    An ELEVENTH out-of-band commit by the same external git identity
+    ("Cursor Agent <cursoragent@cursor.com>"): commit
+    `837e51ae5a289a3574f4a502ea5c67da372b1a32` ("EXP-MONO-670aa6: fix five
+    contract defects (Holm p-floor, j=0 supersingular admission,
+    family-colliding prime streams, master_seed in seed rule, null-object
+    C/F family)", authored 2026-08-31 06:53:18Z), landing on the shared
+    `ideas-ecdlp-20260830` branch AFTER this Coordinator's design snapshot
+    (commit `9e0e460e3`, carried in merged PR #636) and AFTER the Executor
+    had already run EXP-MONO-670aa6's two seeded runs against that exact
+    frozen text, producing `RUN-MONO-670aa6-1/2`. Discovered during the
+    mandatory `git fetch origin && git merge` immediately before this
+    Coordinator's post-execution snapshot commit.
+
+    UNLIKE ALL TEN PRIOR INCIDENTS THIS SESSION, this Coordinator did NOT
+    merely disclose the edit's content: two of its five named defects were
+    INDEPENDENTLY RE-DERIVED AND CONFIRMED by this Coordinator directly
+    against the already-archived run artifacts and implementation source,
+    without relying on the out-of-band commit's own claims. Both are
+    genuine, severe, primary-metric-invalidating design defects in this
+    Coordinator's own frozen contract, not merely a clerical or cosmetic
+    issue.
+
+  independently_verified_defect_1_p_value_floor_vs_holm_threshold: >-
+    VERIFIED BY THIS COORDINATOR, DIRECTLY AGAINST THE ARCHIVED RAW DATA:
+    a two-sided permutation p-value computed against n=200 null draws has
+    an absolute floor of 1/(n+1) = 1/201 ~= 0.0049751. Holm-Bonferroni's
+    most lenient rejection threshold (applied to the single smallest
+    p-value in a family) is alpha/m; with m=98 tests (j0 family, Var+C/F
+    pooled) or m=100 (random-ordinary family), that threshold is
+    0.05/98 ~= 0.000510 or 0.05/100 = 0.0005. Since the floor
+    (0.0049751) exceeds BOTH thresholds by roughly a factor of 10, NO
+    p-value computed under this design could EVER be Holm-significant, at
+    any true effect size, however large. Directly querying
+    `runs/RUN-MONO-670aa6-{1,2}/raw-result.json`'s
+    `stage3_per_curve.<family>.<ordinal>.p_var_uncorrected` /
+    `.p_cf_uncorrected` confirms this is not merely theoretical: the
+    MINIMUM p-value actually achieved, across all curves, both statistics,
+    both families, both runs, is EXACTLY 0.004975124378109453 = 1/201 --
+    the theoretical floor itself, hit exactly, and still ~10x above the
+    tightest Holm threshold. The Stage-2 null-object gate "passing" and
+    the Stage-3 real-arm "zero significant curves" result were therefore
+    GUARANTEED OUTCOMES of this design, independent of the true state of
+    the world. They carry ZERO discriminating information about
+    H-MONO-663fb4's K3/K4 question in either direction.
+
+  independently_verified_defect_2_family_colliding_prime_streams: >-
+    VERIFIED BY THIS COORDINATOR, DIRECTLY AGAINST THE IMPLEMENTATION
+    SOURCE: `experiments/EXP-MONO-670aa6/implementation/panel_primary.py`'s
+    `_construct_one(domain, family, k)` calls `construct_prime(domain, b,
+    k)` and `curve_stream(domain, p, k, ...)` with NO `family` argument in
+    either seed derivation. Because the round-robin `field_bits[k mod 5]`
+    also depends only on `k`, not `family`, the j0 curve at curve_ordinal
+    k and the random-ordinary curve at the SAME curve_ordinal k are
+    constructed from the IDENTICAL prime `p` and the IDENTICAL underlying
+    SHA-256 stream for (A,B) candidates -- contradicting this contract's
+    own text, which claims "Each of the 100 curves is an INDEPENDENTLY
+    drawn curve... distinct primes and distinct (A,B) per curve... no two
+    panel curves share a construction stream." This is FALSE as
+    implemented: the two families are constructed as 50 MATCHED PAIRS
+    sharing a prime (and much of the same pseudorandom stream) per pair,
+    not as 100 independent draws. This does not invalidate Stage 0, the
+    dual-path convolution-engine check, or the legacy 8-curve sub-panel
+    (all unaffected by this bug), but it DOES undermine the independence
+    assumption behind P5's Fisher-exact enrichment comparison between the
+    two families, and it means the "100 independently-constructed curves"
+    claim in the contract's own `claim_ceiling` and `primary_panel` text
+    is not accurate for the runs as executed.
+
+  other_three_named_defects_not_independently_re_derived_here: >-
+    The out-of-band commit also names: (3) no p=1 mod 3 admission control
+    on j0 curves (confirmed consistent with the Executor's own disclosed
+    deviation note that ~half of j0 curve_ordinal slots would otherwise be
+    supersingular -- this Coordinator did not independently re-verify the
+    supersingular-curve number theory here, but it matches the Executor's
+    own independent finding during implementation, corroborating it); (4)
+    `master_seed` not entering panel construction, so both replication runs
+    used an identical curve panel (matches the Executor's own disclosed
+    note; whether this is a defect or an accepted design choice --
+    EXP-MONO-c819ba's OWN panel construction had the same property -- is
+    left to independent review rather than asserted here); (5) the
+    null-object gate families (i)/(ii) being Var-only rather than Var+C/F
+    (this was the Executor's own disclosed, reasoned interpretation of an
+    acknowledged textual ambiguity in v1, not obviously a "defect" so much
+    as a resolved ambiguity -- the out-of-band edit makes the C/F
+    inclusion explicit and mandatory, which is a reasonable tightening but
+    was not independently adjudicated as necessary by this Coordinator).
+
+  disposition: >-
+    Per this session's established practice (never revert, always
+    disclose) -- REINFORCED HERE because this time the content is
+    independently verified and severe, not merely plausible: this
+    correction does not revert commit `837e51ae5`, and the current
+    on-disk specification.yaml (now reading `null_draws_per_cell: 4000`
+    and the other four fixes) remains as-is. HOWEVER, this Coordinator
+    does NOT adopt the out-of-band edit as an authorized protocol
+    amendment -- EXP-MONO-670aa6's own `invalidation_rules` explicitly
+    requires "a versioned protocol amendment marked exploratory_only"
+    for exactly this kind of post-observation change, and no such amendment
+    was authored or approved by this Coordinator; the edit is disclosed
+    as unauthorized content, independently found to be substantively
+    correct on defect 1 and substantively confirmed on defect 2, not
+    retroactively legitimized. `RUN-MONO-670aa6-1/2` are archived as
+    executed fact against the ORIGINAL v1 text (commit `9e0e460e3`): their
+    Stage-2/Stage-3 correction-based results are UNINTERPRETABLE (had no
+    statistical power to reject at any true effect size) and their P5
+    enrichment comparison is COMPROMISED (non-independent panel). Stage 0
+    and the dual-path convolution-engine agreement check remain valid
+    findings, as does the legacy 8-curve sub-panel's continuity data
+    (subject to its own already-documented, pre-existing calibration
+    limitations per KN-TECH-7745e6). The K3/K4 question therefore remains
+    OPEN after two consecutive experiments (EXP-MONO-c819ba,
+    EXP-MONO-670aa6) that each failed for a distinct, now-documented
+    reason: an uncontrolled false-positive rate, and a design with zero
+    statistical power. A properly re-derived (not blindly copied from the
+    out-of-band edit) successor contract is the recommended next action.
+
+  reason: >-
+    AGENTS.md rule 4 and this session's own established practice (ten
+    prior disclosures) require this to be filed as a correction. This is
+    the ELEVENTH occurrence from the same unauthorized external identity
+    this session, and the first where this Coordinator's own independent
+    mathematical verification -- not merely trusting the out-of-band
+    commit's prose -- confirms the underlying content is both correct and
+    severe. Filing it as a correction rather than silently adopting the
+    fix (which would bypass this Coordinator's own approval authority,
+    AGENTS.md rule 1) or silently ignoring it (which would leave two
+    genuinely broken design defects undocumented in a completed,
+    evidence-eligible experiment) is the only disposition consistent with
+    the program's rules.
+
+  evidence_artifacts:
+    - path: experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/raw-result.json
+      note: >-
+        stage3_per_curve.<family>.<ordinal>.p_var_uncorrected /
+        .p_cf_uncorrected confirm the minimum achieved p-value across all
+        curves, both statistics, is exactly 1/201, the theoretical floor,
+        independently computed by this Coordinator.
+    - path: experiments/EXP-MONO-670aa6/implementation/panel_primary.py
+      note: >-
+        _construct_one()'s calls to construct_prime(domain, b, k) and
+        curve_stream(domain, p, k, ...) carry no family argument,
+        independently confirming the family-colliding-prime-streams defect.
+  git_forensics:
+    tampering_commit: 837e51ae5a289a3574f4a502ea5c67da372b1a32
+    tampering_commit_author: "Cursor Agent <cursoragent@cursor.com>"
+    tampering_commit_authored_at: '2026-08-31T06:53:18Z'
+    design_snapshot_commit_this_experiment_was_frozen_and_executed_at: 9e0e460e31a7bf71da3f460ff570ff8eea0bd66d
+    verification_method: >-
+      `git fetch origin` showed `ideas-ecdlp-20260830` advanced by one
+      commit beyond this Coordinator's last-pushed commit; `git show
+      --stat` and `git show` identified author, timestamp and full diff.
+      The p-value-floor claim was independently re-derived from first
+      principles (permutation-test floor formula, Holm-Bonferroni
+      rejection rule) and then checked against the actual archived
+      raw-result.json files for both runs via direct computation, not
+      merely read from the commit's own prose. The family-colliding-
+      prime-streams claim was independently checked by reading
+      panel_primary.py's actual seed-derivation call sites.
