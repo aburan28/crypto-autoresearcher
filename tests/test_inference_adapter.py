@@ -820,8 +820,21 @@ def test_the_override_reaches_the_request_headers(cfg, tmp_path):
 
 
 def test_fireworks_ships_unbound_so_no_model_id_is_invented(cfg):
-    for backend in ("fireworks", "fireworks-anthropic"):
-        for policy in cfg.policy_table:
-            binding = cfg.binding(backend, policy)
-            assert binding["model"] is None, (
-                f"{backend}.{policy} names a model id that was never probed")
+    """The invariant this test protects is NO INVENTED MODEL IDS, not "always
+    unbound". A binding is admissible only when it names a probe-listed
+    identifier under a dated, declared provenance — the 2026-08-31
+    executor-implementation -> accounts/fireworks/models/glm-5p3 binding
+    (listed by `adapter models --backend fireworks`) is exactly that shape.
+    fireworks-anthropic still ships fully unbound: nothing is bound there."""
+    for policy in cfg.policy_table:
+        binding = cfg.binding("fireworks-anthropic", policy)
+        assert binding["model"] is None, (
+            f"fireworks-anthropic.{policy} names a model id that was never probed")
+    for policy in cfg.policy_table:
+        binding = cfg.binding("fireworks", policy)
+        if binding["model"] is None:
+            continue
+        assert binding.get("provenance") == "operator-supplied", (
+            f"fireworks.{policy} names a model without declared provenance")
+        assert binding.get("last_probed"), (
+            f"fireworks.{policy} names a model with no probe date")
