@@ -303,12 +303,23 @@ experiment:
         the eventual real arm in raw-result.json.
       terminates_the_run_if: >-
         EITHER the per-curve Holm test OR the Fisher-combined test shows a
-        significant result on the null-object arm in either family, at
-        alpha=0.05. (Widened from EXP-MONO-670aa6's Holm-only gate,
-        because the Fisher-combined statistic is now a co-equal primary
-        metric and must be calibrated exactly as strictly as the per-curve
-        test.) STOP: report `instrument_still_uncalibrated`, do not
-        compute, read, or report any Stage-3 real-arm number.
+        significant result on the null-object arm in either family, at the
+        GATE-WIDE level alpha_gate = 0.05/6 ~= 0.00833. (Widened from
+        EXP-MONO-670aa6's Holm-only gate, because the Fisher-combined
+        statistic is now a co-equal primary metric and must be calibrated
+        exactly as strictly as the per-curve test. The gate is a UNION of
+        SIX nominal tests -- two Holm families (i)/(ii) plus four Fisher
+        combinations (2 families x {Var, C/F}) -- so each is evaluated at
+        0.05/6 rather than at 0.05: six uncorrected alpha=0.05 tests would
+        trip on a correctly-calibrated instrument in roughly one run in
+        four, and requiring both seeds to pass would abort about half of
+        all well-calibrated experiments. Bonferroni across the six holds
+        the per-seed false-stop rate at or below 0.05, which is what the
+        `instrument_still_uncalibrated` label asserts. FROZEN: alpha_gate
+        and the count of six gate tests may not be revised after any
+        Stage-2 number is observed.) STOP: report
+        `instrument_still_uncalibrated`, do not compute, read, or report
+        any Stage-3 real-arm number.
     stage_3:
       name: real arm and both corrected/combined metrics, gated on Stage 2 passing
       compute: minutes
@@ -495,7 +506,10 @@ experiment:
     - >-
       STOP AT STAGE 2 (HARD) if EITHER the per-curve Holm test OR the
       Fisher-combined test shows a significant null-object result in
-      either family. No Stage 3/4 output may be computed, read, or
+      either family, at the gate-wide alpha_gate = 0.05/6 declared in
+      `stage_2.terminates_the_run_if` (Bonferroni across the six gate
+      tests, so a correctly-calibrated instrument trips at most 5% of the
+      time per seed). No Stage 3/4 output may be computed, read, or
       reported if this triggers.
     - Stop on any dual-path residual-diagnostic threshold breach (Stage 4), reporting as infrastructure signal.
     - Stop on any budget breach (see cost_note's early-warning guidance), reporting it as infrastructure signal.
@@ -537,9 +551,16 @@ experiment:
     (d) a significant result (per-curve Holm OR Fisher-combined) appearing
     in ONE family's real arm but not the other, WITH Stage 2 clean in
     both -- this falsifies the pre-registered "no exceptional locus
-    anywhere" default and is escalated to independent review; (e) P6's
-    enrichment direction disagreeing with either prior experiment's own
-    reading, itself a reportable replication-stability finding.
+    anywhere" default and is escalated to independent review; (e) P6
+    showing a STATISTICALLY SIGNIFICANT cross-family enrichment
+    difference (Fisher exact, alpha=0.05), itself a reportable
+    replication-stability finding, reported together with which prior
+    experiment's direction it matches. NOTE: mere directional
+    disagreement with ONE prior cannot serve as a criterion here,
+    because the two priors already disagree with each other
+    (EXP-MONO-670aa6 read j0 >= random-ordinary; EXP-MONO-c819ba read
+    12.1% vs 20.0%), so every possible P6 direction would satisfy it;
+    the direction match is recorded as context, never as falsification.
 
   outcomes:
     no_execution_authorization: Not applicable; authorized as of this Coordinator approval.

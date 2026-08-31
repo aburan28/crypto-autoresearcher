@@ -125,3 +125,23 @@ declared as one "family"). It is a narrow, one-line, design-time check
 that would have caught both of this lane's consecutive experiment
 failures before either spent any compute, and a concrete alternative
 (pre-registered panel-level combining) for when the check fails.
+
+## Addendum (2026-08-31): the same discipline applies ACROSS a composite gate, not only within one test
+
+EXP-MONO-b19c6b's own Stage-2 gate declared PASS only if six separate
+tests (two Holm families plus four Fisher-combined checks) each showed no
+significant result — each implicitly evaluated at the nominal `alpha`
+independently. This is the SAME uncorrected-multiplicity mistake this
+entry warns against, one level up: with six tests each at `alpha=0.05`
+uncorrected, a genuinely well-calibrated instrument trips the gate by
+chance on at least one of them roughly `1-(1-alpha)^6 ≈ 26.5%` of the
+time per seed, not 5%. Disclosed and independently verified in
+`CORR-20260831-d663e0`; empirically inconsequential for that specific
+run (every observed statistic was far from either threshold), but a real
+design defect for the general case. **The floor-vs-threshold check this
+entry documents must be applied to EVERY test in a declared gate
+individually, AND the gate's overall false-stop rate must itself be
+corrected (Bonferroni or equivalent) across however many tests jointly
+define "the gate passed."** A gate built from `k` sub-tests each at
+`alpha` needs each evaluated at `alpha/k` (or an equivalent joint
+correction) for the gate's own advertised false-stop rate to hold.
