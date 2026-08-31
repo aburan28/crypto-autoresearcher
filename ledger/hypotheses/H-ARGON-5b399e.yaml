@@ -1,0 +1,360 @@
+hypothesis:
+  id: H-ARGON-5b399e
+  question_id: RQ-ARGON-141710
+  derived_from_idea: IDEA-20260809-a915ea
+  status: proposed
+  added: '2026-08-25'
+
+  statement: >-
+    SCOPE. The DATA-INDEPENDENT Argon2 variant (Argon2i) only, whose memory-access DAG
+    is determined by (t, m, p) and the standardized indexing functions and does not
+    depend on the password. Small parameter cells where exact computation is feasible,
+    plus one recommended parameter set reached by a DECLARED approximation algorithm
+    with its stated guarantee. CLAIM TIER toy for exact cells, bounded for approximate
+    ones. NO ATTACK, NO COST CLAIM, NO SECURITY STATEMENT ABOUT ANY DEPLOYMENT.
+
+    THE HYPOTHESIS, IN THREE PARTS.
+    (A1) CONSTRUCTIBILITY. For fixed (t, m, p) the Argon2i memory-access DAG can be
+      built explicitly from the indexing functions, and the constructed DAG reproduces
+      the reference implementation's actual memory-access pattern EDGE FOR EDGE when
+      the reference is instrumented and compared block by block.
+    (A2) MEASURABILITY. On that specific graph, the attacker-relevant structural
+      quantity - the minimum size e(D) of a vertex set whose removal reduces the depth
+      below a target D - is computable EXACTLY at small parameters and boundable at
+      larger ones by a declared algorithm carrying a stated approximation guarantee,
+      with exactness recorded per point rather than assumed.
+    (A3) THE DISCRIMINATING CLAIM, WHICH CAN FAIL. The measured curve e(D) on the
+      SPECIFIC standardized graph differs SYSTEMATICALLY from what the asymptotic
+      depth-robustness argument for the graph FAMILY assumes at the parameters people
+      actually deploy - "systematically" meaning outside the approximation interval of
+      the measured points, in a consistent direction, at three or more consecutive D.
+
+    PRE-REGISTERED TWO-SIDED READING. Agreement is not a failure of the experiment: it
+    would validate the asymptotic argument CONCRETELY at deployed parameters, which is
+    a clean and useful positive for the defender's side and refutes (A3) as stated. The
+    prediction is directional and both directions are informative; what is NOT
+    acceptable is a curve whose points are so loosely bounded that neither reading is
+    decidable, and the design's sample of exact points exists to prevent that.
+
+  mechanism: >-
+    Argon2i's indexing function is data-independent: the block a given pass reads is a
+    deterministic function of the block index, lane, slice and pass, so the whole
+    memory-access relation is fixed once (t, m, p) are fixed. That makes the object of
+    study a SINGLE FINITE GRAPH rather than a family, and finite graphs admit direct
+    measurement where families admit only asymptotics. The attacker-relevant quantity
+    is depth-reducibility: a memory-hard function's tradeoff resistance rests on the
+    claim that no small set of nodes can be removed to leave a shallow graph, because
+    a shallow residual graph is what lets an attacker recompute rather than store. The
+    asymptotic literature proves depth-robustness for graph FAMILIES with constants and
+    thresholds that hold in the limit; the deployed object is one graph at one
+    parameter set, and nothing forces the family's guarantee to be tight there in
+    either direction. Computing e(D) exactly is expensive - it is a depth-reducing-set
+    problem, and the contract does not pretend otherwise - so the design pins a regime
+    where exact computation completes, measures there, and extends with an
+    approximation algorithm whose guarantee is declared in advance and whose output is
+    labelled bounded, never exact. THE CONSTRUCTION CHECK IS THE PRECONDITION FOR ALL
+    OF IT: a symbolically built DAG that does not match the instrumented reference is
+    a different graph, and every number computed on it is a number about nothing.
+
+  assumptions:
+    - >-
+      Argon2i's indexing is data-independent, so the DAG does not depend on the
+      password or salt. This is what makes the object well defined and it does NOT
+      extend to Argon2d or the data-dependent half of Argon2id; those are out of scope.
+    - >-
+      A reference implementation is available to instrument, and its access pattern can
+      be logged block by block without perturbing the pattern itself.
+    - >-
+      The approximation algorithm used above the exact regime has a stated, citable
+      guarantee (upper bound, lower bound, or factor) and reports which. A bounded value
+      reported as exact would corrupt the entire curve, which is why exactness is a
+      per-point field and not a footnote.
+    - >-
+      Graph structure is not attack cost. e(D) is the object the tradeoff bounds are
+      statements ABOUT; converting it into an attack cost requires a recomputation model
+      this hypothesis does not supply.
+
+  proof_search_map:
+    bottleneck: >-
+      Computing or tightly bounding e(D) on the specific standardized graph. Every
+      claim the record makes is downstream of that number, and the honest limit of the
+      whole design is how far up in (t, m) the exact computation reaches.
+    baseline_embedding:
+      parameter_slice: >-
+        The smallest parameter cell where the asymptotic family's guarantee is also
+        evaluable is the slice at which measurement and theory must be compared
+        directly; and a path graph, whose e(D) is exactly ceil(n/D) - 1 by elementary
+        counting, is the slice at which the MEASUREMENT CODE must reproduce a known
+        answer.
+      reproduction_check: >-
+        Frozen regression fixture on graphs with known e(D): a path, a complete binary
+        tree, and a random DAG of matched degree. The exact solver must return the
+        closed-form value on the path with zero error, and the approximation algorithm
+        must return a value inside its own declared guarantee on all three. A solver
+        that misses the path fixture is not measuring depth-reducibility.
+    observation_collision:
+      observable: 'a point on the curve: a value of e at a target depth D'
+      distinct_preimage_search: >-
+        THE COLLISION IS EXPLICIT AND IT IS WHY EXACTNESS IS A PER-POINT FIELD. The
+        same numeric value of e(D) can arise as (a) an exact optimum, (b) an upper bound
+        from a heuristic that found a good but non-optimal set, or (c) a lower bound
+        from a relaxation. Three different epistemic objects, one number. Comparing an
+        upper bound against a family guarantee that is itself a lower bound produces a
+        "difference" that is an artifact of mixing bound directions - the single most
+        likely way this design produces a wrong headline - so every point carries its
+        algorithm and its bound DIRECTION, and comparisons are only made between
+        compatible directions.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          Replace an asymptotic statement about a graph family with a direct
+          measurement on the one finite graph the standard actually induces, with
+          exactness recorded per point.
+        predicted_gain: >-
+          A concrete curve at deployed parameters where the corpus has only asymptotics
+          for a family. No attack and no cost claim.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the asymptotic guarantee fixed and vary the concrete graph across
+          (t, m, p), exhibiting whether the guarantee is tight, loose or violated at
+          each cell.
+        predicted_gain: >-
+          A tightness map, which is the object a parameter-selection argument needs and
+          which a family-level theorem cannot provide.
+    quantifier_order: >-
+      CLAIMED. FOR the specific (t, m, p) cells enumerated in the contract, and FOR
+      EACH target depth D in the declared ladder, THERE EXISTS a measured or bounded
+      value e(D) with a stated exactness and bound direction. NOT CLAIMED: any
+      statement quantified over all parameter sets, over the Argon2 family, or over
+      data-dependent variants. The dangerous misreading, explicitly disclaimed - that a
+      measurement at one recommended parameter set characterizes "Argon2's"
+      depth-robustness.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For Argon2i at the enumerated (t, m, p), the depth-reducing set size at target
+        depth D is exactly v (at exact points) or lies in the interval [lo, hi] (at
+        bounded points), and the constructed DAG matches the instrumented reference
+        edge for edge." It certifies nothing about attack cost, nothing about
+        data-dependent variants, nothing about any deployment, and nothing about
+        parameter sets not enumerated.
+      nearby_object_control: >-
+        A random DAG of matched node count and in-degree, where the family-level
+        depth-robustness behaviour is expected and any measured "anomaly" of the
+        standardized graph must be shown NOT to appear. If the standardized graph and
+        the matched random graph give the same curve, the measurement is characterizing
+        degree and size rather than the standardized indexing.
+    proof_obligations:
+      - claim: The constructed DAG equals the instrumented reference access pattern edge for edge.
+        responsibility: correctness
+      - claim: The exact solver returns the closed-form e(D) on the path fixture.
+        responsibility: baseline
+      - claim: Every reported value carries its algorithm, its guarantee and its bound direction.
+        responsibility: scope
+      - claim: Comparisons are made only between compatible bound directions.
+        responsibility: strictness
+      - claim: The largest exactly computable (t, m) is reported, not assumed.
+        responsibility: feasibility
+      - claim: Peak memory and wall time of the measurement are recorded per point.
+        responsibility: memory
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Explicitly null. This hypothesis claims no complexity improvement and proposes no
+    attack; it measures a structural quantity of a fixed finite graph. Any later
+    conversion of e(D) into an attack cost is a separate record with its own
+    recomputation model and its own obligations.
+
+  heuristic_assumptions:
+    - id: HEUR-ARGON-1
+      formal_statement: >-
+        The declared approximation algorithm used above the exact regime returns, for
+        every target depth D in the ladder, a value within its stated guarantee factor
+        of the true minimum depth-reducing set size, with the guarantee direction
+        (upper or lower) as declared.
+      random_model_justification: >-
+        Not a distributional heuristic. It is an algorithmic guarantee, and it is
+        recorded here rather than omitted because every bounded point on the curve
+        inherits it and a reader is entitled to know which points are conditional on it.
+      supporting_results: []
+      supporting_results_note: >-
+        The algorithm and its guarantee must be named from a source filed as a KN-LIT
+        entry before any bounded point is reported. No citation is asserted here, and
+        an unnamed guarantee makes the bounded half of the curve unusable.
+      validation_experiment_ids: [EXP-ARGON-d7711b]
+      falsification_condition: >-
+        On the fixture graphs where the exact value is known, the approximation
+        algorithm returns a value outside its own declared guarantee. The guarantee is
+        then wrong as implemented and every bounded point on the curve is withdrawn.
+
+  predictions:
+    - metric: >-
+        DAG construction agreement, defined as the fraction of edges of the symbolically
+        constructed graph that appear in the instrumented reference access log, and
+        conversely
+      direction: different
+      minimum_effect: >-
+        Exactly 1.000 in both directions - an exact edge-set equality. Anything less
+        means the constructed graph is a different object and every downstream number
+        is void.
+    - metric: >-
+        largest (t, m) at which the exact solver completes inside the per-point budget
+      direction: different
+      minimum_effect: >-
+        Reported, not predicted. The parent proposal predicts it will be WELL BELOW
+        recommended parameters, and that prediction is what forces the approximation
+        arm to exist and to declare its guarantee.
+    - metric: >-
+        e(D) curve on the standardized graph versus the asymptotic family guarantee at
+        the same (t, m, p) and the same D
+      direction: different
+      minimum_effect: >-
+        A systematic difference - outside the approximation interval, in a consistent
+        direction, at three or more consecutive D. AGREEMENT AT EVERY D refutes (A3) and
+        validates the asymptotic argument concretely, which is recorded as a positive
+        finding for the defensive side.
+    - metric: >-
+        e(D) curve on the standardized graph versus a matched random DAG of the same
+        node count and in-degree
+      direction: different
+      minimum_effect: >-
+        A separation exceeding the combined approximation intervals at three or more
+        consecutive D. NO SEPARATION means the measurement is characterizing size and
+        degree rather than the standardized indexing, and no indexing-attributed claim
+        may be made.
+    - metric: approximation-algorithm error on the fixture graphs where the exact value is known
+      direction: lower
+      minimum_effect: >-
+        Within the algorithm's own declared guarantee at every fixture point. Outside
+        it, HEUR-ARGON-1 is falsified and every bounded point is withdrawn.
+
+  test_boundary:
+    instances: >-
+      Argon2i memory-access DAGs at the enumerated small cells, one recommended
+      parameter set reached by approximation, plus three fixture graphs (path, complete
+      binary tree, matched random DAG) and one matched-random control per Argon2i cell.
+    parameters:
+      variant: Argon2i only
+      small_cells: >-
+        t in {1, 2, 3} and m in {8, 16, 32, 64, 128, 256} blocks, p in {1, 2}, all
+        combinations at which the exact solver completes inside the per-point budget
+      recommended_cell: >-
+        one standardized recommended parameter set from RFC 9106, named exactly in the
+        run manifest, reached by the declared approximation only
+      depth_ladder: >-
+        target depths D as a fixed fraction of the graph's full depth, at
+        {0.75, 0.5, 0.25, 0.125, 0.0625}, so the ladder is comparable across cells
+      seeds: [20260825, 20260826, 20260827]
+    implementation: >-
+      Python 3.11 with numpy; the DAG built by evaluating the RFC 9106 indexing
+      functions symbolically; the reference access pattern obtained by instrumenting a
+      reference implementation and logging (reader block, referenced block) pairs; the
+      exact solver by exhaustive or branch-and-bound search over vertex subsets with the
+      search bound recorded; the approximation algorithm named and its guarantee filed
+      before any bounded point is reported.
+    budget:
+      wall_clock_seconds: 7200
+      total_cpu_hours: 12.0
+      memory_gb: 16
+      maximum_runs: 40
+
+  distinguishable_outcomes:
+    - outcome: >-
+        CONSTRUCTION MISMATCH. The symbolically built DAG differs from the instrumented
+        reference access pattern at any edge.
+      what_observing_it_would_mean: >-
+        (A1) fails. The object measured is not the object deployed, and EVERY number in
+        the contract is void. The deliverable is the mismatch, localized to a block
+        index, which is itself a useful finding about either the indexing transcription
+        or the reference instrumentation.
+    - outcome: >-
+        SYSTEMATIC DIFFERENCE. The measured e(D) curve lies outside the asymptotic
+        family guarantee, in a consistent direction, at three or more consecutive D,
+        with compatible bound directions and the matched-random control separating.
+      what_observing_it_would_mean: >-
+        (A3) holds in scope. The asymptotic family argument is not tight at the measured
+        parameters for this specific standardized graph. THIS IS NOT AN ATTACK AND NOT A
+        WEAKNESS CLAIM: e(D) is the object the tradeoff bounds are statements about, and
+        converting a gap into an attack cost requires a recomputation model that is
+        absent here. It is a measurement of the deployed object where the literature has
+        asymptotics for a family.
+    - outcome: >-
+        CONCRETE AGREEMENT. The measured curve lies inside the family guarantee at every
+        D, with tight enough intervals for the comparison to be decidable.
+      what_observing_it_would_mean: >-
+        (A3) is REFUTED and the asymptotic depth-robustness argument is validated
+        CONCRETELY at the tested parameters. This is a clean positive result for the
+        defensive side and is recorded as one, not as a null; it is the outcome the
+        parent proposal explicitly names as "a clean and useful positive".
+    - outcome: >-
+        NO SEPARATION FROM MATCHED RANDOM. Standardized and matched-random curves agree
+        within their intervals at every D.
+      what_observing_it_would_mean: >-
+        Whatever the curve shows is a property of node count and in-degree, NOT of the
+        standardized indexing. No indexing-attributed claim may be made, and the honest
+        headline is that at these parameters the standard's indexing is
+        indistinguishable from a matched random DAG on this statistic.
+    - outcome: >-
+        UNDECIDABLE CURVE. The approximation intervals at the recommended parameter set
+        are wide enough to contain both the family guarantee and its negation.
+      what_observing_it_would_mean: >-
+        The comparison at recommended parameters is not decidable from this
+        measurement, and it is reported as undecidable. The exact cells still stand on
+        their own. This is the most likely outcome at the recommended cell and it is
+        listed here so that it is a reportable result rather than a disappointment
+        someone is tempted to narrow away.
+    - outcome: >-
+        GUARANTEE VIOLATED ON A FIXTURE. The approximation returns a value outside its
+        own declared guarantee where the exact answer is known.
+      what_observing_it_would_mean: >-
+        HEUR-ARGON-1 is falsified as implemented. Every bounded point is withdrawn, the
+        curve is truncated to the exact regime, and the deliverable is the exact cells
+        plus the implementation defect.
+    - outcome: >-
+        INFRASTRUCTURE. The exact solver exceeds memory or time at every cell.
+      what_observing_it_would_mean: >-
+        NOTHING ABOUT THE GRAPH (AGENTS.md rule 5). failed_infrastructure. The record
+        then reports honestly that no exact computation was possible even at the
+        smallest useful parameters and that the curve is entirely approximate - which
+        the parent proposal names as one of its own falsification conditions.
+
+  falsification_conditions:
+    - The symbolic DAG disagrees with the instrumented access pattern at any edge.
+    - >-
+      No exact computation is possible even at the smallest useful parameters, in which
+      case the curve is entirely approximate and the record says so.
+    - >-
+      The measured curve agrees with the asymptotic family guarantee at every D within
+      decidable intervals, refuting (A3).
+    - The standardized graph's curve does not separate from a matched random DAG.
+    - The approximation algorithm violates its own guarantee on a fixture graph.
+    - The exact solver fails the path fixture, whose e(D) is known in closed form.
+
+  interpretation_limits:
+    - >-
+      GRAPH STRUCTURE IS NOT ATTACK COST. This record measures the object the tradeoff
+      bounds are statements about. Any attack is a separate record with its own
+      recomputation model, and no cost, no speedup and no weakness follows from any
+      outcome here.
+    - >-
+      NO SECURITY STATEMENT ABOUT ANY DEPLOYMENT. A difference from an asymptotic
+      guarantee is a statement about the tightness of an argument, not about whether a
+      password hash is safe.
+    - >-
+      Argon2i only. Argon2d and the data-dependent half of Argon2id have
+      password-dependent access patterns and are entirely out of scope; nothing here
+      transfers to them.
+    - >-
+      Bounded points are bounded. A curve mixing exact and bounded points is only as
+      strong as its weakest point at each comparison, and a comparison made across
+      incompatible bound directions is not a comparison.
+    - >-
+      One recommended parameter set, named exactly. No statement about parameter sets
+      not enumerated, and specifically no statement quantified over "Argon2".
+
+  prior_evidence_refs:
+    - RQ-ARGON-141710
+    - IDEA-20260809-a915ea
+    - GOAL-ARGON-001
+
+  proposed_by: coordinator
+  proposed_at: '2026-08-25'

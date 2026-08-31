@@ -1,0 +1,141 @@
+hypothesis:
+  id: H-EDDSA-45c713
+  question_id: RQ-EDDSA-9b8473
+  derived_from_idea: IDEA-20260809-022eb5
+  added: '2026-08-25'
+  statement: >-
+    The set of objects that can separate two admissible readings of Ed25519 signature verification
+    is finite, is the product of three independently enumerable components, and has a cardinality
+    that is an exactly computable integer rather than an estimate. The three components are
+    (1) the small-order subgroup, whose elements can be enumerated explicitly and whose order is
+    fixed by the curve's cofactor as recorded in the filed primary specification; (2) the encoding
+    classes - the finitely many 32-byte strings that decode to a curve point under a non-canonical
+    y-coordinate representative or a non-canonical sign convention, together with the strings that
+    decode under one admissible reading and are rejected under another; and (3) the S-range classes -
+    the finitely many equivalence classes of the scalar S under the rejection predicates applied by
+    the admissible readings, determined by the gap between the group order and 2 to the 256.
+    TWO FURTHER CLAIMS make the record falsifiable beyond the cardinality itself. First, the product
+    is small enough that a complete pass over it, evaluating every candidate under every admissible
+    verification equation, costs seconds on one core - so this goal's divergence matrix is an
+    ENUMERATION over a finite set rather than a search over a chosen set of interesting vectors.
+    Second, the number of distinct behaviour vectors realised over the space - the tuples of
+    accept/reject outcomes across the admissible readings - is STRICTLY SMALLER than the number of
+    candidates, so the quotient of the candidate space by behaviour is a proper quotient and is the
+    object a completeness claim should be stated over.
+  mechanism: >-
+    Two admissible readings of Ed25519 verification differ only in a small number of independent
+    binary choices - whether both sides of the verification equation are multiplied by the cofactor,
+    whether a non-canonical point encoding is rejected, whether a non-canonical or out-of-range S is
+    rejected, and whether the public key is subjected to the same encoding checks as R. Each choice
+    partitions the input space by a predicate that depends on the input only through one of the three
+    components above. Consequently a pair of readings can be separated only by an input that lands in
+    a differing class of at least one component, and the set of such inputs is the product of the
+    three component class sets. Each component is finite for a reason that does not depend on the
+    others - the small-order subgroup is finite because the cofactor is finite; the encoding classes
+    are finite because they are indexed by the finitely many field elements admitting more than one
+    32-byte serialization plus the finitely many strings whose decode fails; the S-range classes are
+    finite because the predicates on S are threshold and reduction predicates over a finite range.
+    Because each candidate is evaluated by direct computation under each reading, the behaviour
+    vector is a function of the candidate, and the induced quotient is computable in the same pass.
+  assumptions:
+    - >-
+      The set of ADMISSIBLE readings is fixed in advance from the filed primary specification and
+      any filed secondary specifications, and is frozen before the enumeration runs. If the set of
+      readings is chosen after seeing which candidates separate what, the cardinality is a
+      description of a choice rather than a property of the object.
+    - >-
+      RFC 8032 and any other governing specification are read from primary text under a fetch
+      receipt before the reading set is fixed. The parent proposal records RFC 8032 as REQUIRED READ
+      and NOT YET READ, and no number produced under a recalled specification is admissible.
+    - >-
+      Curve arithmetic and point decoding are implemented from first principles and reproduce the
+      official test vectors bit-exactly before any enumeration output is recorded. An enumeration
+      produced by a subtly wrong decoder manufactures a false integer that looks exactly like a
+      correct one.
+    - >-
+      "Candidate" means a syntactically well-formed input triple to a verification routine, not a
+      certificate that any real implementation diverges on it. The hypothesis is about the size and
+      structure of a space, not about any deployed library.
+  test_boundary:
+    instances: >-
+      Ed25519 as specified in the filed primary text, at its single standardized parameter set. No
+      other curve, no other signature scheme, no other parameter set.
+    parameters: >-
+      The admissible reading set frozen before the run; the three component class sets enumerated by
+      direct construction; the full product enumerated exhaustively.
+    implementation: >-
+      Two independent implementations of curve arithmetic, decoding and the reading predicates,
+      written without reference to one another, whose cardinality integers must agree exactly.
+    out_of_scope: >-
+      Any statement about a deployed library's behaviour; any statement about exploitability; any
+      claim of completeness against published verification taxonomies, which the parent proposal
+      records as RECALLED and not located.
+  distinguishable_outcomes:
+    - outcome: >-
+        Both implementations reproduce the official test vectors bit-exactly, agree on the exact
+        integer cardinality and its three-way factorisation, the enumeration completes within the
+        declared budget, and the number of distinct behaviour vectors is strictly smaller than the
+        number of candidates.
+      means: >-
+        The candidate space is an enumerable finite object with a computed cardinality and a proper
+        behaviour quotient. Every later divergence statement in this goal may be stated over the
+        quotient as a theorem about a finite set, which raises the evidence tier of the goal's whole
+        matrix.
+    - outcome: >-
+        Everything above holds EXCEPT that the number of distinct behaviour vectors EQUALS the number
+        of candidates.
+      means: >-
+        The quotient is trivial and the second claim is refuted. The space is still enumerable, but
+        no behaviour-level compression exists, so the matrix must be stated over the full candidate
+        space and the goal's later work is correspondingly larger. This is a negative result for the
+        record's second prediction and is reported as one.
+    - outcome: >-
+        Some component is not finite under some admissible reading, or the product exceeds what can
+        be enumerated within the declared budget.
+      means: >-
+        The premise that this goal's matrix can be complete is FALSIFIED, and that is worth knowing
+        in the first batch rather than after the matrix is half built. The goal's completeness claim
+        is withdrawn and replaced by an explicitly partial one over a declared subset.
+    - outcome: >-
+        The two independent implementations disagree on the cardinality, or on the factorisation, or
+        on any behaviour vector.
+      means: >-
+        NOTHING IS RECORDED. The discrepancy is localised to a component and a candidate index and
+        resolved before any integer leaves the run. A disagreement is an implementation defect, never
+        a finding about Ed25519.
+    - outcome: >-
+        Either implementation fails to reproduce the official test vectors bit-exactly.
+      means: >-
+        The arithmetic control has failed. No enumeration output is admissible, the run is invalid
+        rather than negative, and the defect is located before anything else is attempted.
+  prior_evidence_refs:
+    - RQ-EDDSA-9b8473
+    - GOAL-EDDSA-001
+    - IDEA-20260809-022eb5
+  falsification_conditions:
+    - Some component of the candidate space is not finite under some admissible reading.
+    - The product is too large to enumerate exhaustively within the declared batch budget.
+    - The two independent counts disagree on any integer.
+    - Either implementation fails the official test vectors.
+    - >-
+      The behaviour quotient is trivial, i.e. distinct behaviour vectors equal candidates, refuting
+      the second claim.
+  interpretation_limits:
+    - >-
+      A candidate is not a certificate. This hypothesis concerns the size and structure of the
+      candidate space only; whether any candidate separates two readings of a real specification is
+      decided after those specifications are filed, and whether any deployed library realises the
+      divergence is a further, separate question.
+    - >-
+      No security claim of any kind follows. A separating candidate is a specification-reading
+      question, not a break.
+    - >-
+      No completeness claim against published verification taxonomies is made or licensed; the parent
+      proposal records those as recalled and not located.
+    - >-
+      The cardinality is a property of the FROZEN reading set. A different admissible reading set
+      gives a different integer, and every reported integer names its reading set.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-25'
