@@ -1,0 +1,157 @@
+handoff:
+  id: TASK-20260831-34198b
+  from: coordinator
+  to: executor
+  objective: >-
+    Execute the FROZEN, coordinator-approved contract EXP-MONO-b19c6b
+    exactly as written: a third K3/K4 attempt with a design-time-verified
+    statistical power check, a genuinely family-keyed independent panel,
+    and a pre-registered Fisher-combined second primary metric. Record
+    observations only — no verdict on H-MONO-663fb4.
+  uncertainty_reduced: >-
+    Whether the real x-coordinate factor base's character bias (Var_R
+    N_m(R) and C/F at m=4) is statistically distinguishable from a matched
+    random symmetric subset, under an instrument that this time can
+    actually detect a true effect (design-time floor-vs-threshold check
+    performed and recorded in the frozen contract) and whose panel is
+    genuinely independent (family-keyed seed derivation, verified before
+    any Stage-2/3 compute).
+  inputs:
+    - >-
+      experiments/EXP-MONO-b19c6b/specification.yaml (READ IN FULL — it is
+      extremely detailed and self-sufficient; follow it literally,
+      especially Stage 1's independence-verification requirement and
+      Stage 2's dual-test hard-stop gate)
+    - ledger/hypotheses/H-MONO-663fb4.yaml
+    - ledger/evidence/EV-MONO-849355.yaml
+    - ledger/decisions/DEC-20260831-a4b23f.yaml
+    - knowledge/techniques/KN-TECH-95a42b.md
+    - experiments/EXP-MONO-670aa6/implementation/ (for the arithmetic core — fields/curve/conv/groupstate — verified correct by both reviews and reusable; the panel-construction and seed modules must NOT be reused as-is, since they lack the required family discriminator)
+    - AGENTS.md
+  constraints:
+    - >-
+      Follow experiments/EXP-MONO-b19c6b/specification.yaml EXACTLY; it is
+      frozen. Every seed call site (prime, curve-a, curve-b, null-subset,
+      null-object-pick) MUST include `family` in its hash preimage — write
+      fresh panel-construction and seed modules; do not copy
+      EXP-MONO-670aa6's panel_primary.py/seed.py/controls.py verbatim.
+    - >-
+      STAGE 1'S INDEPENDENCE-VERIFICATION IS MANDATORY AND MUST RUN BEFORE
+      ANY STAGE-2/3 COMPUTE: directly extract and compare (p, B, t_used)
+      for every matching curve_ordinal across the two families; report the
+      comparison explicitly (expect zero collisions — if you find ANY,
+      STOP, this means the family-keying implementation itself has a bug;
+      report as `failed_infrastructure`, do not proceed).
+    - >-
+      STAGE 2'S GATE IS A HARD STOP ON EITHER TEST: if EITHER the
+      per-curve Holm/Bonferroni test OR the Fisher-combined panel-level
+      test shows a significant result on the null-object arm, in either
+      family, STOP — do not compute, read, or report any Stage-3 output.
+      Report `instrument_still_uncalibrated_despite_design_time_verification`
+      instead; this would itself be a highly significant, surprising
+      finding worth flagging prominently.
+    - >-
+      PERSIST RAW (uncapped) per-curve p-values for BOTH the null-object
+      arm and the real arm, both statistics (Var, C/F), both families, in
+      raw-result.json — this contract's own invalidation_rules treats
+      omitting this as an invalidating defect, unlike EXP-MONO-670aa6
+      where it was only a disclosed gap.
+    - >-
+      THE FOUR HOLM/BONFERRONI FAMILIES ARE EXPLICITLY VAR-AND-C/F POOLED
+      in every family (no ambiguity this time — do not make an
+      interpretive choice; the contract's own text is unambiguous). The
+      FISHER-COMBINED STATISTIC IS PRE-REGISTERED and computed for BOTH
+      the null-object arm (gating) and the real arm (reported) — see
+      `arms_and_controls.fisher_combined_panel_statistic`.
+    - >-
+      THE j0 FAMILY'S p=1 mod 3 ADMISSION RULE IS MANDATORY, not optional:
+      every j0 curve in the final panel must satisfy it, checked directly,
+      not merely assumed from the construction rule succeeding.
+    - >-
+      THE RANDOM-ORDINARY FAMILY NEEDS AN EXPLICIT SUPERSINGULARITY CHECK
+      (unlike j0, which is guaranteed ordinary by the congruence alone):
+      compute trace of Frobenius and reject supersingular candidates.
+    - >-
+      STAGE 4'S EXTENDED DUAL-PATH SAMPLE (>=200 null/null-object draws,
+      via the pre-declared deterministic selection rule: draw_index
+      congruent to 0 mod 100 per curve) MUST have its
+      route2_max_round_residual/route2_max_imag_residual PERSISTED and
+      checked against the 1e-6 relative threshold — do not compute and
+      discard these diagnostics as EXP-MONO-670aa6 did.
+    - >-
+      THE LEGACY 8-CURVE SUB-PANEL IS OPTIONAL AND NON-GATING per the
+      frozen contract — do not spend budget re-attempting it unless
+      trivially cheap to include; this contract explicitly relies on
+      EXP-MONO-c819ba's own already-reviewed subgroup/coset-union positive
+      controls instead.
+    - >-
+      PRIMARY PANEL CONSTRUCTION FAILURES ARE REPORTED, NEVER BACKFILLED.
+      If fewer than 40 curves per family are realized, report the exact
+      count; the success_criterion's 40-per-family floor still applies.
+    - >-
+      REPORT BOTH ORDERED AND MULTISET CONVENTIONS at every
+      convention-dependent cell. TARGETS ARE EXHAUSTIVE, never sampled.
+    - >-
+      No hypothesis, experiment, or goal status change. No ECDLP attack,
+      cost, exponent, or cryptographic-scale claim. No re-litigation of
+      EXP-MONO-c819ba's or EXP-MONO-670aa6's own already-decided
+      dispositions.
+    - >-
+      Any timeout, crash, construction failure, independence-verification
+      collision, or dual-path/residual threshold breach is
+      `failed_infrastructure`/`invalid`, never negative mathematical
+      evidence (AGENTS.md rule 3).
+    - "Exactly 2 runs, seeds 20260901 and 20260902 per the contract's own `replication`. Because `master_seed` now enters panel construction, the two runs draw genuinely DIFFERENT panels — do not assume they share curves."
+    - >-
+      Cost note: n=20000 draws is a ~100x increase in null-draw volume
+      over EXP-MONO-670aa6's n=200. Projected ~700s/run based on linear
+      scaling from EXP-MONO-670aa6's measured 7.1s, but this is a
+      projection, not a guarantee. If wall-clock trends past ~3000s with
+      no end in sight, STOP and report the exact progress and cause as an
+      infrastructure/budget signal — do not silently reduce the declared
+      draw count or panel size to fit.
+  deliverables:
+    - experiments/EXP-MONO-b19c6b/implementation.md
+    - experiments/EXP-MONO-b19c6b/implementation/ (source code)
+    - experiments/EXP-MONO-b19c6b/runs/RUN-MONO-b19c6b-1/
+    - experiments/EXP-MONO-b19c6b/runs/RUN-MONO-b19c6b-2/
+    - execution_report.yaml (per docs/evidence-and-reproducibility.md)
+  artifact_paths:
+    - experiments/EXP-MONO-b19c6b/implementation.md
+    - experiments/EXP-MONO-b19c6b/implementation/
+    - experiments/EXP-MONO-b19c6b/runs/RUN-MONO-b19c6b-1/
+    - experiments/EXP-MONO-b19c6b/runs/RUN-MONO-b19c6b-2/
+  archived_by: TASK-20260831-5088b1
+  inference:
+    policy: executor-implementation
+    reasoning_effort: medium
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    reasoning_effort_basis: >-
+      Bound by .claude/agents/executor.md effort medium and
+      orchestration/roles.yaml role executor -> default_policy
+      executor-implementation -> reasoning_effort medium.
+  budget:
+    wall_clock_seconds: 7200
+    memory_gb: 4
+    maximum_runs: 2
+  completion_gate:
+    - "Stage 0's fixture reproduction reported before any Stage 1-4 work."
+    - "Stage 1's independence-verification output (zero collisions expected) reported BEFORE any Stage-2/3 compute."
+    - "Realized primary-panel sizes per family reported before Stage 2."
+    - "Stage 2's dual-test gate outcome (both tests, both families, both seeds) reported explicitly BEFORE any Stage-3 output."
+    - "If Stage 2 fails in either test/family: run halted at that point, no Stage-3 output present."
+    - "If Stage 2 passes: P1-P6 reported with exact per-curve Holm AND Fisher-combined results, both conventions, both runs, raw p-values persisted."
+    - "Stage 4's extended dual-path sample residuals reported with threshold check."
+    - >-
+      Run manifests bind git commit, dirty flag, seeds, environment,
+      field_bits, timing, resources, per docs/evidence-and-reproducibility.md,
+      using the NESTED manifest schema.
+  return_format: >-
+    Executor execution_report.yaml per docs/evidence-and-reproducibility.md:
+    Stage-by-stage results in the contract's own order, the independence-
+    verification result, the Stage-2 dual-test gate outcome as the
+    headline result, P1-P6 tables (or their absence, if gated), Stage-4
+    residual diagnostics, any anomalies. Observations only — no verdict on
+    H-MONO-663fb4, no status change.
