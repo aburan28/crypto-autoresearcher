@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
+import platform
 import signal
 import subprocess
 import sys
@@ -56,6 +58,19 @@ def main() -> int:
         "python": sys.executable,
     }
     atomic_json(args.out / "target_manifest.json", manifest)
+    atomic_json(args.out / "environment.json", {
+        "schema": "crypto.autoresearch.rt_ctrl_1.environment.v1",
+        "python_version": sys.version,
+        "python_executable": sys.executable,
+        "platform": platform.platform(),
+        "processor": platform.processor(),
+        "cpu_count": os.cpu_count(),
+        "packages": {
+            name: getattr(__import__(name), "__version__", "unknown")
+            for name in ("psutil", "numpy", "fpylll")
+            if importlib.util.find_spec(name) is not None
+        },
+    })
     manifest_digest = digest_json(manifest)
     prev = manifest_digest
 
