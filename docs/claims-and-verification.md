@@ -30,7 +30,7 @@ marking the run `completed_valid`.
 
 ```yaml
 certificate:
-  kind: discrete_log | decomposition | none
+  kind: discrete_log | decomposition | key_recovery | none
   # discrete_log: claim that k solves Q = k*P on the named curve
   curve_id: TOY-P<bits>-<hash>
   statement:
@@ -40,6 +40,14 @@ certificate:
     # decomposition:
     target: [x, y]
     summands: [[x, y], ...]
+  # key_recovery: claim that `key` is the AES key producing the named
+  # ciphertexts from the named plaintexts, at the named key size and full
+  # round count. Full-round only; a reduced-round claim is not this kind.
+  key_bits: 128 | 192 | 256
+  rounds: 10 | 12 | 14
+  # statement.pairs:              # >= 2 for 128/192, >= 3 for 256
+  #   - {plaintext: <hex128>, ciphertext: <hex128>}
+  # statement.key: <hex, exactly key_bits/4 hex characters>
   verified: true
   verifier: independent-recompute   # NOT the solver's own code path
   verifier_commit: <git-sha>
@@ -54,6 +62,25 @@ Rules:
   solver claimed success but the witness is wrong) — it is NOT a
   `negative_observation`. A negative observation is a *valid* run that
   correctly reports "no solution found within budget."
+- **`kind: key_recovery`** certifies a claimed AES key recovery. The statement
+  names the key size, the round count, the exact plaintext/ciphertext pairs and
+  the recovered key. THE VERIFIER RE-ENCRYPTS EACH NAMED PLAINTEXT UNDER THE
+  CLAIMED KEY WITH BOTH pycryptodome AND THE openssl CLI AND COMPARES AGAINST
+  THE NAMED CIPHERTEXTS, in the run wrapper and never in the attack code. Both
+  implementations must agree and both must match; a disagreement between them is
+  an instrument failure, not a result. `rounds` is REQUIRED to match the key size
+  (128/10, 192/12, 256/14); a claim at any other round count is not this kind.
+  Added by protocol-amendment-GOAL-AES-002-001 (RQ-AES-002 BLK-1); purely
+  additive, and no existing record is re-scored by it.
+- **KNOWN DISCREPANCY, RECORDED RATHER THAN HIDDEN.** `check_run` in
+  tools/validate_ledger.py accepts `key_recovery` but its rejection message
+  still reads `discrete_log|decomposition|none` and therefore under-enumerates
+  the accepted vocabulary. That string is held byte-for-byte on purpose:
+  tools/validate_ledger_baseline.txt suppresses errors by exact line match and
+  112 grandfathered entries end in that literal, and the baseline is prune-only,
+  so rewording it stales all 112 and re-emits them freshly worded. THIS
+  DOCUMENT, not that message, is the authoritative vocabulary. See
+  DEC-20260901-1fc2f5 and TASK-20260901-eb81f4.
 - **`kind: none`** is used for pure measurement runs (e.g. recording Gröbner
   solving degree without claiming a solve); those have nothing to certify, and
   that is stated explicitly rather than left blank.

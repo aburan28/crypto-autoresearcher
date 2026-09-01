@@ -53,6 +53,12 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
+
+# Certificate kinds a run may CLAIM, each of which carries a verification duty
+# (certificate.verified must be true). A run that claims nothing records
+# `kind: none`, which is accepted without a certificate and is not listed here.
+# Authoritative prose: docs/claims-and-verification.md.
+CERTIFICATE_KINDS = ("discrete_log", "decomposition", "key_recovery")
 LEGACY_LEDGER_INVENTORY = os.path.join(
     REPO, "tools", "legacy_ledger_inventory.yaml"
 )
@@ -623,7 +629,24 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
     result = body.get("result") or {}
     cert = result.get("certificate") or {}
     kind = cert.get("kind")
-    if kind in ("discrete_log", "decomposition"):
+    # CERTIFICATE_KINDS is the single source of truth for which claim kinds a
+    # run may assert; `none` (a pure measurement run) is accepted separately
+    # because it carries no verification duty. `key_recovery` was added here
+    # for the AES line of work (RQ-AES-002 BLK-1).
+    #
+    # DISCLOSED COST OF THIS WORDING. The rejection message below deliberately
+    # still names only discrete_log|decomposition|none and is therefore NO
+    # LONGER AN EXHAUSTIVE ENUMERATION of what is accepted -- it under-reports
+    # `key_recovery`. That is intentional and load-bearing, not an oversight:
+    # tools/validate_ledger_baseline.txt suppresses errors by EXACT LINE MATCH
+    # and 112 of its grandfathered entries end in this exact literal, so any
+    # rewording of it simultaneously stales all 112 entries and emits 112
+    # freshly-worded errors. The baseline is prune-only, so it cannot absorb
+    # them. Keep this string byte-for-byte until a Coordinator-authorized
+    # baseline regeneration retires those 112 entries; the accepted vocabulary
+    # is CERTIFICATE_KINDS above and docs/claims-and-verification.md, not this
+    # message. See DEC-20260901-1fc2f5 and TASK-20260901-eb81f4.
+    if kind in CERTIFICATE_KINDS:
         if cert.get("verified") is not True:
             ctx.err(path, f"run claims a {kind} but certificate.verified "
                           f"is not true")
