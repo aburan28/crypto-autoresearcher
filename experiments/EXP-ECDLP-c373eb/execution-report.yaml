@@ -1,0 +1,207 @@
+execution_report:
+  experiment_id: EXP-ECDLP-c373eb
+  hypothesis_id: H-ECDLP-a40416
+  task_id: TASK-20260901-400254
+  implementation_commit: 8b8c5f3a4e4794391f61e87ba38f2a975c19a5ea
+
+  protocol_deviations:
+    - id: DEV-1
+      description: >-
+        Curve, generator, and n were chosen by the executor per the frozen
+        specification's own instruction ("chosen by the executor and
+        recorded verbatim"). Not a deviation; documented here per rule 5
+        (nothing fabricated, everything recorded).
+    - id: DEV-2
+      description: >-
+        An initial implementation attempt used standard projective (not
+        Jacobian) EC addition/doubling formulas transcribed from memory;
+        these were found to be algebraically incorrect for this curve
+        (verified via symbolic and numeric cross-checks against affine
+        arithmetic) and discarded before any tabulated measurement was taken
+        with them. This is recorded as an implementation_error caught in
+        development, not reflected in any reported number.
+    - id: DEV-3
+      description: >-
+        The task brief's own text anticipated the general canonical-lift
+        construction (formal-group correction via an n^-1 scalar
+        multiplication on the kernel of reduction) might be too intricate to
+        get exactly right, and pre-authorized falling back to a simpler
+        y-only lift with honest disclosure in that event. That
+        formal-group-correction construction WAS attempted and found
+        numerically unstable/non-convergent (tested across guard precisions
+        from +12 to +100 extra p-adic digits; results did not converge, and
+        at one guard level the construction did not even reduce back to S
+        mod p, indicating a genuine unresolved defect in that approach, not
+        merely precision tuning). That construction was abandoned and is NOT
+        the source of any reported number.
+        Instead of taking the anticipated y-only fallback, a different,
+        also-standard and much more robust construction was substituted and
+        DID succeed: ordinary single-variable Hensel/Newton lifting of x0
+        directly, using x0=S.x as a simple root of the order-n condition
+        f(x0) = [Jacobian Z-coordinate of n*(x0, HenselLift_y(x0))], with the
+        root's derivative mod p obtained by a finite integer difference. This
+        construction is independently certified in the run manifest (n*S_hat
+        computed via the same scalar-multiplication routine used everywhere
+        else equals the exact projective identity (0,1,0) mod p^8, i.e. the
+        order-n condition holds to the FULL precision cap, not merely
+        partially). This means Part 1 and Part 3 test the specification's
+        literal preregistered prediction on a genuinely verified canonical
+        lift -- this is a stronger result than the narrower fallback the
+        brief anticipated, but it is a real substitution of construction
+        method and is recorded as such per rule 5.
+    - id: DEV-4
+      description: >-
+        An implementation bug was found and fixed during development: the
+        affine-x extraction function initially used the PROJECTIVE
+        convention (x = X/Z) while the group-law arithmetic used JACOBIAN
+        coordinates (x = X/Z^2), producing internally inconsistent results
+        (e.g. apparent disagreement between double-and-add and repeated-
+        addition scalar multiplication, and spurious "off-fibre" valuation-0
+        results at points that should have agreed mod p). This was caught
+        via the required independent-recomputation spot check before any
+        reported measurement was taken, fixed, and re-verified. No reported
+        number in raw-result.json reflects the buggy version.
+
+  runs:
+    completed:
+      - RUN-ECDLP-c373eb-1
+    invalid: []
+    failed: []
+
+  observations:
+    - part: 1
+      description: >-
+        D1(j,k) = v_p(x([k]S_hat) - x([j]S_hat)) truncated at r=8, tabulated
+        for ALL 1 <= j < k < n = 47 (1035 pairs total, 23 on-fibre pairs with
+        k = n-j and 1012 off-fibre pairs), on the canonical order-n lift
+        S_hat (independently verified: n*S_hat == exact projective identity
+        mod p^8, i.e. the order-n condition holds to the full precision
+        cap).
+      preregistered_prediction_reference: >-
+        Proposition E, ideas/artifacts/ECDLP-IDEA-436/ggm_simulability_gate_erratum_20260831.md
+        section C.2; specification.yaml preregistered_prediction: image
+        exactly {0, r} with r occurring exactly at k = +/-j mod n.
+      observed_image: [0, 8]
+      observed_detail: >-
+        All 1012 off-fibre pairs measured v_p = 0. All 23 on-fibre pairs
+        (k = n-j for j = 1..23) measured v_p = 8, i.e. "at least 8" at this
+        precision cap -- observed only to the finite precision r=8 used in
+        this run, never literal infinity. Zero pairs measured any
+        intermediate value strictly between 1 and 7.
+      tail_checks: none preregistered (tail_checks: [] in specification).
+
+    - part: 2
+      description: >-
+        Identical D1 tabulation (same 1035 pairs) using a null lift: a valid
+        Hensel lift of S (same y-only Newton construction, x perturbed by +p
+        at the p^1 digit relative to S.x) that does NOT satisfy the order-n
+        condition (independently measured: v_p(Z of n*null-lift) = 1, far
+        short of the r=8 cap).
+      preregistered_prediction_reference: >-
+        specification.yaml controls[RC-1-part-2-null-lift] and
+        H-ECDLP-a40416 predictions[1]: predicted to show genuine intermediate
+        valuations (strictly between 1 and 7), discriminating the
+        canonical-lift mechanism from a precision artifact.
+      observed_image: [0, 1]
+      observed_detail: >-
+        All 1012 off-fibre pairs measured v_p = 0 (same as the canonical
+        lift). All 23 on-fibre pairs measured v_p = 1 (capped by the null
+        lift's own measured order-n depth of exactly 1) -- NOT the {0, 8}
+        pattern of the canonical lift, and also NOT showing any value
+        strictly between 2 and 7 (the image is {0, 1}, a strict subset of
+        {0,...,8} bounded above by the null lift's own order-n depth).
+
+    - part: 3
+      description: >-
+        Rigid (Vandermonde: v_p of the product of the three pairwise
+        x-differences) vs. one non-rigid three-point functional
+        (v_p(x(k1)*x(k2) - x(k3))), both evaluated on the canonical lift
+        S_hat, over 6 triples: (1,2,3), (2,5,9), (10,15,40), (5,40,45),
+        (1,46,20), (3,44,41). The last triple is a coincident/degenerate
+        sanity case: 44 = -3 mod 47, so k1=3 and k3=44 are on the same fibre.
+      preregistered_prediction_reference: >-
+        specification.yaml metrics.primary[3] and H-ECDLP-a40416
+        predictions[2] (RTF-1, red-team TASK-20260831-62019a): Vandermonde
+        predicted to remain two-valued exactly as D1; non-rigid functional
+        predicted to take finite values at least 1.
+      observed_detail_per_triple:
+        - {k1: 1, k2: 2, k3: 3, vandermonde_vp: 0, nonrigid_vp: 0}
+        - {k1: 2, k2: 5, k3: 9, vandermonde_vp: 0, nonrigid_vp: 0}
+        - {k1: 10, k2: 15, k3: 40, vandermonde_vp: 0, nonrigid_vp: 0}
+        - {k1: 5, k2: 40, k3: 45, vandermonde_vp: 0, nonrigid_vp: 0}
+        - {k1: 1, k2: 46, k3: 20, vandermonde_vp: 8, nonrigid_vp: 0}
+        - {k1: 3, k2: 44, k3: 41, vandermonde_vp: 8, nonrigid_vp: 0}
+      vandermonde_image: [0, 8]
+      nonrigid_image: [0]
+      observed_note: >-
+        The Vandermonde image ({0,8}) matches D1's two-valued pattern
+        exactly, including hitting 8 (the precision cap, "at least 8") on
+        the two triples containing a coincident/on-fibre pair (k1=1,k3=... via
+        k2=46=-1 mod 47 in the fifth triple; k1=3,k3=44=-3 mod 47 in the
+        sixth). The non-rigid functional took the single value 0 on every
+        triple tested (never any nonzero-but-finite valuation, and never
+        matched the Vandermonde's cap value of 8 on the coincident triples
+        either).
+
+  precision_disclosure: >-
+    Every value reported as 8 in this report and in raw-result.json means
+    "v_p >= 8, observed only to the finite p-adic precision r=8 used in this
+    run" and is never to be read as a claim of literal infinity, per
+    red-team control RC-1's own disclosed limitation and the frozen
+    specification's required_artifacts item 4.
+
+  scope_disclosure: >-
+    Toy tier only: p = 1009 (about 10 bits), a single curve/point instance,
+    n = 47. Per docs/claims-and-verification.md and H-ECDLP-a40416's own
+    interpretation_limits, this result asserts nothing about
+    cryptographic-scale curves without a separate, explicit transfer
+    argument, which is not made here. This result also does not touch
+    disjunct D2 of ECDLP-IDEA-436, does not close KN-OPEN-3417fc, and does
+    not retier any KN-FIND record.
+
+  anomalies:
+    - >-
+      Two implementation bugs (incorrect projective-vs-Jacobian formula
+      choice for EC group law, and a mismatched affine-x extraction
+      convention) were found and fixed during development via the mandated
+      independent-recomputation spot check, before any measurement was
+      recorded. See protocol_deviations DEV-2 and DEV-4.
+    - >-
+      The formal-group / kernel-of-reduction correction method for
+      constructing the canonical lift (the method most directly suggested by
+      the task's own primary description) was attempted and found
+      numerically unstable across a wide range of tested guard precisions.
+      It was abandoned in favor of a different, independently verified
+      construction (direct Hensel/Newton lifting of x0 as a simple root of
+      the order-n condition). See protocol_deviations DEV-3. This is
+      recorded as an operational/implementation limitation of the executor's
+      first-attempted method, not a mathematical finding about the formal
+      group itself -- no claim is made about why that specific numerical
+      method failed to converge.
+    - >-
+      No run was invalid, failed, or hit the budget (observed wall-clock
+      approximately 0.3 seconds against a 600-second-per-run budget and
+      0.02 CPU-hour total budget).
+
+  artifact_paths:
+    - experiments/EXP-ECDLP-c373eb/implementation/rc1_tabulation.py
+    - experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/manifest.yaml
+    - experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/raw-result.json
+    - experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/command.txt
+    - experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/environment.json
+    - experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/stdout.log
+    - experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/stderr.log
+    - experiments/EXP-ECDLP-c373eb/execution-report.yaml
+
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+    note: >-
+      All three parts completed and produced full recorded image sets per
+      the frozen success_criterion (a measurement succeeds regardless of
+      which way the comparison against the preregistered prediction comes
+      out). No interpretation of whether these observations support or
+      falsify H-ECDLP-a40416 is offered here; that judgment belongs to the
+      Validator, Red Team, and Coordinator per AGENTS.md and this task's
+      instructions.
