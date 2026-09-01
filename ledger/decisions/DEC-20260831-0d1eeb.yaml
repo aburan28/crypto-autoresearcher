@@ -1,0 +1,170 @@
+coordinator_decision:
+  id: DEC-20260831-0d1eeb
+
+  context: >-
+    zai backend billing exhaustion, first observed in the failed
+    TASK-20260805-d408ac / TASK-20260810-724383 executor launches recorded
+    by DEC-20260831-ea6512 (~16:4x UTC 2026-08-31), persisted through more
+    than one hour of polling (failed executor probe launches at 17:23Z,
+    17:28Z, 17:34Z, 17:40Z, 17:47Z, all with the identical error
+    "Insufficient balance or no resource package. Please recharge."). The
+    user confirmed at ~17:0x that the zai recharge was still processing.
+
+    Meanwhile the dispatching session's own backend is demonstrably working:
+    a minimal `general` subagent probe (which carries no explicit model
+    binding and so inherits the session backend) returned PROBE OK. All five
+    role agents in opencode.json were bound to zai/glm-5.2, which is why
+    every role-bound launch failed while the unbound probe succeeded. Note
+    the operational lesson, recorded for future sessions: `python3 -m
+    orchestration.adapter doctor --probe` reported zai as serving -- the
+    probe does not test billing state, and a green probe is not dispatch
+    clearance.
+
+    The user was presented with the rebind option and APPROVED it in-session
+    on 2026-08-31 (~17:5x UTC): rebind the `executor` and `validator`
+    opencode subagents away from zai/glm-5.2 to the dispatching session's
+    working backend, record the amendment, commit on branch
+    aes003-batch015-20260831 (PR #650), and re-dispatch the two queued
+    executor tasks.
+
+  decision: inference_amendment
+
+  decision_scope: >-
+    THIS DECISION AMENDS SUBAGENT MODEL BINDINGS FOR TWO ROLES UNDER AN
+    ACTIVE INFRASTRUCTURE STOP. IT IS NOT A RESEARCH DECISION.
+
+    It moves NO head field, NO hypothesis, NO claim tier, NO batch state.
+    It does not touch review-breakthrough, which may never be degraded
+    (AGENTS.md rule 12) and is not needed by the current dispatch. It
+    asserts NOTHING about AES or any open question. The amendment is
+    reversible: restoring `"model": "zai/glm-5.2"` on the two agents
+    reverts it, and a later decision should do exactly that once zai
+    billing is confirmed restored by an actual role-bound launch.
+
+  target_ids:
+    - GOAL-AES-003
+    - BATCH-015
+    - TASK-20260805-d408ac
+    - TASK-20260810-724383
+    - DEC-20260831-ea6512
+    - DEC-20260831-5cf890
+
+  rationale:
+    - >-
+      executor-implementation requires reasoning_effort medium and tool_use
+      (orchestration/model-policies.yaml). The dispatching session's backend
+      satisfies both while actively running this Coordinator session with
+      full tool access; running the two executor tasks on it meets the
+      capability contract without degradation, so no degraded_requirements
+      entry is needed for the executor rebind.
+    - >-
+      AGENTS.md rule 11 prohibits SILENT model alteration; this is the
+      recorded path -- a Coordinator-approved inference_amendment with the
+      user's explicit consent, committed alongside the configuration change
+      it authorizes.
+    - >-
+      The zai outage blocks every dispatched task program-wide while it
+      lasts; the BATCH-015 rank-1 producer and the head-advancement blocker
+      have been queued and claimed for over an hour with no work possible.
+      Waiting further has no research upside and risks claim-TTL churn.
+    - >-
+      Bedrock remains prohibited in every configuration (AGENTS.md rule 16);
+      the session backend is not Bedrock.
+
+  amendment_terms:
+    executor:
+      change: >-
+        opencode.json agent `executor` loses its explicit
+        "model": "zai/glm-5.2" binding and inherits the dispatching
+        session's backend.
+      policy_fit: >-
+        executor-implementation (medium reasoning + tool_use) is satisfied
+        by the session backend; NOT a degraded run; fallback_allowed and
+        degraded_allowed on TASK-20260810-724383 remain false and are
+        respected.
+      resolved_model_id: >-
+        Inherited from the dispatching opencode session at launch time; the
+        exact identifier must be recorded in each run receipt per the
+        artifact policy. As of this decision the dispatching session runs
+        accounts/fireworks/models/qwen3p8-max.
+    validator:
+      change: >-
+        opencode.json agent `validator` loses its explicit
+        "model": "zai/glm-5.2" binding and inherits the dispatching
+        session's backend, CONDITIONALLY.
+      policy_fit: >-
+        review-adversarial requires reasoning_effort xhigh. If the session
+        backend cannot reach xhigh for a validator launch, the validator
+        task MUST NOT run degraded (its queue card carries no
+        degraded_allowed: true): defer it to zai recovery or a further
+        user decision, and record the deferral. This condition is checked
+        at validator dispatch time, not here.
+      resolved_model_id: >-
+        Inherited from the dispatching opencode session at launch time;
+        recorded in the validation receipt if and only if the launch
+        proceeds.
+
+  head_disposition: >-
+    THE HEAD IS NOT MOVED. current_batch_id stays BATCH-014,
+    dispatch_queue_path stays
+    coordination/goals/GOAL-AES-003/batches/BATCH-009/dispatch_queue.json,
+    latest_verified_commit stays
+    0f86463eb0eb4eca7c28a0bba2d7b4864d863832.
+
+  evidence_refs:
+    - id: DEC-20260831-ea6512
+      role: infrastructure_stop_this_amendment_relieves
+    - id: DEC-20260831-5cf890
+      role: dispatch_decision_being_unblocked
+
+  evidence_refs_note: >-
+    The failed probe launches are coordination observations recorded in
+    this decision's context, not evidence records; they assert nothing
+    about research claims.
+
+  limitations:
+    - >-
+      opencode.json is shared configuration; other sessions' role-bound
+      subagents also rebind when they load this file. That is intended
+      (the outage is program-wide) but means any session that expected
+      zai/glm-5.2 for executor/validator work will now inherit the session
+      backend until the revert decision lands.
+    - >-
+      This amendment assumes the session backend stays available and
+      billed; if it fails, the stop re-asserts and the claims are released
+      again.
+    - >-
+      The revert condition is an actual role-bound launch succeeding on
+      zai, not a green adapter probe (probe does not test billing).
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      NOT WARRANTED. A model-binding amendment under an infrastructure stop
+      produces no durable research claim.
+
+  next_actions:
+    - >-
+      Commit the opencode.json change together with this decision, push to
+      aes003-batch015-20260831, then probe with one cheap executor launch.
+    - >-
+      On a passing probe: re-dispatch TASK-20260805-d408ac and
+      TASK-20260810-724383 exactly as DEC-20260831-5cf890 specified
+      (claims epoch 2 are live as of this decision).
+    - >-
+      When zai billing is confirmed restored by an actual role-bound
+      launch: write the revert decision restoring the zai bindings for
+      executor and validator.
+    - >-
+      At validator dispatch time: check the xhigh condition in
+      amendment_terms.validator before launching TASK-20260805-849a4a.
+
+  decided_by: coordinator
+  decided_at: '2026-08-31'
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
