@@ -4,7 +4,7 @@
   "max_concurrent": 1,
   "objective": "Execute IDEA-20260901-363851 STAGE 0: Gate-0 logging-ON receipt reproduction (doubles as the J5 carrier arm), r=6 known-dead reference, and the Stage-0 controls, applying the record's decision rule.",
   "budget_note": "Stage 0 per the record: ~7 runs, ~1.5-2 h (arms ~27 min at 2^30/4 threads; 8 threads allowed if determinism preserved). Wall clock 7200 s, max 8 runs.",
-  "batch_notes": "Queue authored 2026-09-01 under DEC-20260901-78e2d9 (DEC-20260901-079719 RANK 1). Stage 0 only; Stages 1a/1b open only on its decision rule. The ledger card is the sole archiver of the validator package (one-archiver rule). A claim-changing outcome (F6 tripwire or carrier falsification) gets a post-hoc red-team card before ledger recording (BATCH-fe0bdc precedent). Inference under DEC-20260831-0d1eeb.",
+  "batch_notes": "Queue authored 2026-09-01 under DEC-20260901-78e2d9 (DEC-20260901-079719 RANK 1). Stage 0 only; Stages 1a/1b open only on its decision rule. The ledger card is the sole archiver of the validator package (one-archiver rule). A claim-changing outcome (F6 tripwire or carrier falsification) gets a post-hoc red-team card before ledger recording (BATCH-fe0bdc precedent). Inference under DEC-20260831-0d1eeb. RED-TEAM ADDITION (2026-09-01): S0-CARRIER-ALIVE is the first measurement of the candidate carrier e under a nonlinear S-box -- a claim-changing measurement on the sealed verdict lineage, so red-team card TASK-20260901-6efcd8 was added after the snapshot and the ledger card now depends on it and archives its package (BATCH-fe0bdc precedent). The coordinator prior is recorded in the card handoff before any reviewer runs. Blindness: red-team and validator run concurrently and may not read each other's directories.",
   "tasks": [
     {
       "id": "TASK-20260901-7e0b71",
@@ -316,6 +316,7 @@
       "priority": 60,
       "review_required": false,
       "depends_on": [
+        "TASK-20260901-6efcd8",
         "TASK-20260901-7e0b71",
         "TASK-20260901-91adc1"
       ],
@@ -328,7 +329,8 @@
         "ledger/decisions/DEC-20260901-d46348.yaml",
         "ledger/goals/GOAL-AES-003.yaml",
         "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/tasks/TASK-20260901-91adc1",
-        "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/archives/TASK-20260901-4c0410"
+        "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/archives/TASK-20260901-4c0410",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/tasks/TASK-20260901-6efcd8"
       ],
       "artifact_paths": [
         "ledger/evidence/EV-AES-732f71.yaml",
@@ -339,6 +341,7 @@
       "archive": {
         "kind": "ledger",
         "source_task_ids": [
+          "TASK-20260901-6efcd8",
           "TASK-20260901-91adc1"
         ],
         "commit_sha": null,
@@ -388,6 +391,66 @@
           "ledger/decisions/DEC-20260901-d46348.yaml",
           "ledger/goals/GOAL-AES-003.yaml",
           "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/archives/TASK-20260901-4c0410/ledger-receipt.json"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260901-6efcd8",
+      "title": "Red team of the S0-CARRIER-ALIVE reading",
+      "role": "red-team",
+      "state": "queued",
+      "priority": 65,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260901-7e0b71",
+        "TASK-20260901-13dfed"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/tasks/TASK-20260901-7e0b71/",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/archives/TASK-20260901-13dfed/",
+        "ledger/proposals/IDEA-20260901-363851.yaml",
+        "ledger/evidence/EV-AES-ec53f1.yaml",
+        "ledger/evidence/EV-AES-b2910a.yaml",
+        "ledger/evidence/EV-AES-048545.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/tasks/TASK-20260901-6efcd8"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/tasks/TASK-20260901-6efcd8/red_team_report.yaml"
+      ],
+      "handoff": {
+        "from": "coordinator",
+        "to": "red-team",
+        "objective": "Falsify the interpretation, scope, and statistics of the S0-CARRIER-ALIVE reading: the claim under attack is 'at t=1 (full AES S-box, r=5, seed 531001), hit trials concentrate in the low-wt(e) tail of the candidate carrier e=(q0^q1)^(p0^p1) (14 hits at byte wt(e) 11-16 vs miss peak at 16; exact one-sided p_small <= 0.05), so the carrier is alive at t=1 and the ramp may now be spent'.",
+        "coordinator_prior": ">-\n      I expect the gate/receipt work to survive (it is field-by-field identity), but I expect real pressure on FOUR joints: (1) TAUTOLOGY -- e is built from the same pair-differences that define W, so low wt(e) on hit trials may be a deterministic or near-deterministic consequence of W>=1 in this geometry rather than a discovery; if the carrier statistic is a function of the trial-map difference, the test may measure the instrument's definitions, not AES; (2) n_hits = 14 is a tiny sample -- the exact rational p helps, but check whether the low-tail concentration is driven by a handful of trials or by the specific 14 committed comparator seats; (3) single seed 531001 (comparator-side seed variance is on record, 14 vs 19 hits); (4) 'carrier is alive' language -- a correlation at one t-point is not the causal claim that the excess is carried by e; that claim needs the ramp decay (Stage 1) and is not yet measured. If the reading survives as 'low-wt(e) concentration at t=1, non-tautological, one seed', it survives; if joint (1) breaks it, the carrier statistic needs a redefinition before Stage 1 spends anything.",
+        "uncertainty_reduced": "Whether the S0-CARRIER-ALIVE interpretation overclaims beyond what one 14-hit arm at one seed can carry, and whether the carrier statistic is tautological.",
+        "inputs": [
+          "producer package via snapshot 162597e93",
+          "IDEA-20260901-363851 (carrier statistic definition, decision rule)",
+          "EV-AES-ec53f1 / EV-AES-b2910a / EV-AES-048545 (sealed verdict lineage and the e definition)"
+        ],
+        "deliverables": [
+          "red_team_report.yaml: per-joint objections with named artifacts, the cheapest falsification control for each joint, a proves-too-much check (does the low-wt(e) concentration appear for a null object or a known-dead arm with the same statistic? the r=6 reference arm's 3 hits are available in-package), a scope-narrowed restatement, boundary statement, Pareto note, inference block"
+        ],
+        "constraints": [
+          "review-adversarial tier, INDEPENDENT SESSION; do NOT read the validator's report or task directory (blindness within the round; the validator runs concurrently).",
+          "No status changes, no artifact edits, no commits.",
+          "Toy tier; no published-cryptanalysis comparisons in either direction.",
+          "NEVER FABRICATE; every objection names the exact artifact it is read from."
+        ],
+        "budget": {
+          "wall_clock_seconds": 2700,
+          "memory_gb": 2,
+          "maximum_runs": 2
+        },
+        "completion_gate": [
+          "Every load-bearing joint attacked with a named falsification route.",
+          "Proves-too-much control executed or its inapplicability recorded.",
+          "Report parses with inference block."
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/tasks/TASK-20260901-6efcd8/red_team_report.yaml"
         ]
       }
     }
