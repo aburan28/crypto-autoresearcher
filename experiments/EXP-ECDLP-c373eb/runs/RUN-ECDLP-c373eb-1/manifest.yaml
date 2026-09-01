@@ -1,0 +1,154 @@
+run:
+  id: RUN-ECDLP-c373eb-1
+  experiment_id: EXP-ECDLP-c373eb
+  specification_version: 1
+  status: completed_valid
+  executor: executor
+  started_at: 2026-09-01
+  git_commit: 8b8c5f3a4e4794391f61e87ba38f2a975c19a5ea
+  git_branch: ideas-ecdlp-20260830
+  git_tree_dirty: true
+  git_dirty_note: >-
+    25 unrelated paths modified/untracked at run time from concurrent
+    multi-agent repository activity; none overlap experiments/EXP-ECDLP-c373eb/
+    prior to this run's own writes.
+  command: >-
+    cd experiments/EXP-ECDLP-c373eb/implementation &&
+    python3 rc1_tabulation.py
+  wall_clock_seconds_observed: 0.3
+  budget_wall_clock_seconds_per_run: 600
+  budget_total_cpu_hours: 0.02
+  randomness: >-
+    None. The entire computation is deterministic integer/exact-rational
+    arithmetic mod p^r (Python arbitrary-precision integers); no seeds are
+    used or required. The curve and generator were chosen deterministically
+    by the executor via an exhaustive small search over (A, B) in [1,7]x[1,7]
+    for p=1009, then fixed for this run (documented below), not sampled at
+    random.
+
+  instance_parameters:
+    curve:
+      p: 1009
+      A: 1
+      B: 1
+      model: 'short Weierstrass y^2 = x^3 + A x + B, minimal at p'
+      discriminant_mod_p_nonzero: true
+      a_p: -24
+      ordinary: true
+      note: 'a_p != 0, so the reduction is ordinary (not supersingular).'
+      N_points_over_Fp: 1034
+      N_factorization: '2^1 * 11^1 * 47^1'
+    point_S:
+      x: 286
+      y: 680
+      order_n: 47
+      note: 'n=47 is prime, gcd(n, p) = 1009 mod 47 != 0, S is not 2-torsion (y != 0).'
+    precision_r: 8
+    canonical_lift_S_hat:
+      construction: >-
+        Genuine order-n canonical torsion lift, NOT the simpler y-only
+        fallback. Constructed by defining f(x0) = the Jacobian Z-coordinate
+        of [n] * (x0, HenselLift_y(x0)) (a p-adic-analytic function of x0
+        alone, since y is Hensel-determined by x0 via the curve equation),
+        observing that x0 = S.x is a SIMPLE root of f mod p (v_p(f(S.x)) = 1
+        exactly, with df/dx0 mod p computed via a finite-integer-difference
+        f(x0+p)-f(x0))/p and confirmed to be a unit mod p), then applying
+        ordinary single-variable Hensel/Newton lifting to that root, one
+        p-adic digit of precision per correction step, for r+1 steps.
+      x_mod_p_r: '1028993090447422868629541'
+      y_mod_p_r: '639576900641432511783834'
+      independent_certificate: >-
+        n * S_hat, recomputed via the SAME double-and-add scalar
+        multiplication used everywhere else in this script, equals the exact
+        projective identity (0, 1, 0) -- i.e. v_p(Z) >= r holds with equality
+        to the full precision cap of 8, not merely "close to O". This is a
+        hard, independently checkable pass/fail certificate for the lift's
+        order-n property, verified true.
+      verified_n_times_S_hat_equals_O_exactly_mod_p_r: true
+    null_lift:
+      construction: >-
+        A different, also-valid Hensel lift of S, obtained by perturbing the
+        x-coordinate by +p at the p^1 digit (x0' = S.x + p) before Hensel-
+        lifting y from the same S.y mod p. This reduces to S mod p exactly
+        (same as the canonical lift) but is NOT the order-n point: measured
+        v_p(Z) of [n] * (null lift) is exactly 1, far short of the r=8 cap.
+      x_mod_p_r: '1295'
+      v_p_of_Z_of_n_times_null_lift: 1
+
+  deviations_from_specification:
+    - id: DEV-1
+      description: >-
+        The specification's inputs section leaves curve/point/n selection to
+        the executor ("chosen by the executor and recorded verbatim"); this
+        was exercised as intended, not a deviation from a fixed value.
+      severity: none
+    - id: DEV-2
+      description: >-
+        An initial implementation attempt used standard PROJECTIVE
+        (not Jacobian) addition/doubling formulas, which turned out to be
+        algebraically incorrect for this curve family as transcribed (an
+        implementation_error caught and discarded before any measurement was
+        recorded -- no run was produced from that code path). The final
+        script uses the standard, symbolically re-derived and independently
+        cross-checked Jacobian-coordinate "add-2007-bl" / textbook doubling
+        formulas.
+      severity: caught_pre_measurement
+    - id: DEV-3
+      description: >-
+        The task brief anticipated that the general canonical-lift
+        construction (via formal-group / kernel-of-reduction correction using
+        an n^{-1} scalar multiplication) might prove too intricate to get
+        exactly right, and pre-authorized falling back to a simpler,
+        disclosed non-canonical lift in that case. That EC-arithmetic-based
+        formal-group correction was attempted first and found numerically
+        unstable (non-convergent across increasing guard precision, and in
+        one case failed even to reduce back to S mod p) -- this construction
+        was abandoned, not used for the reported results. Instead, a
+        different, robust construction was used successfully: ordinary
+        single-variable Hensel/Newton lifting applied directly to x0 as a
+        simple root of the order-n condition (described above under
+        canonical_lift_S_hat). This construction is NOT the simplified
+        y-only fallback the brief anticipated as the likely outcome -- it IS
+        verified to produce the exact canonical order-n lift (independent
+        certificate: n * S_hat == (0,1,0) exactly mod p^8), so Part 1 and
+        Part 3 test the specification's literal preregistered prediction on
+        the true canonical lift, not a narrower substitute.
+      severity: disclosed_methodological_substitution_no_narrowing_of_claim
+
+  certificate:
+    kind: none
+    statement: >-
+      This is a pure measurement (tabulation of p-adic valuations); it does
+      not claim a discrete-log solve or a factor-base relation. No solution
+      certificate is applicable or produced. The canonical-lift order-n
+      property IS independently certified (see canonical_lift_S_hat.
+      independent_certificate above), which is a construction-correctness
+      check, not a claim requiring the discrete-log certificate protocol.
+    precision_cap_statement: >-
+      All valuations reported at value r=8 mean "v_p >= 8, observed only to
+      the finite precision r=8 used in this run" -- never literal infinity.
+      No value in raw-result.json should be read as an exact infinite-
+      precision claim.
+
+  spot_check:
+    description: >-
+      For (j, k) = (5, 12) on the canonical lift, x([j]S_hat) and
+      x([k]S_hat) were each computed two independent ways: (a) double-and-add
+      scalar multiplication (the method used throughout this script), and
+      (b) k (or j) repeated additions with no doubling step at all (a
+      different code path exercising only jac_add, never jac_dbl in the
+      "doubling" role except via its internal same-point fallback). Both
+      paths agreed exactly, and D1(5,12) recomputed from the independently-
+      obtained values agreed with the tabulated value (0 in both cases). The
+      curve equation Y^2 Z = X^3 + A X Z^4 + B Z^6 was also verified to hold
+      exactly mod p^8 for both S_hat and the null lift as an additional
+      sanity check.
+      Consistent with invalidation_rules item 2 of the frozen specification.
+
+  required_artifacts:
+    script: experiments/EXP-ECDLP-c373eb/implementation/rc1_tabulation.py
+    raw_result: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/raw-result.json
+    stdout: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/stdout.log
+    stderr: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/stderr.log
+    command: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/command.txt
+    environment: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-1/environment.json
