@@ -1,0 +1,425 @@
+{
+  "schema": "crypto.autoresearch.dispatch_queue.v1",
+  "goal_id": "GOAL-AES-003",
+  "max_concurrent": 3,
+  "objective": "Class-level extension of RC-D (EV-AES-dec938) per DEC-20260805-af8565 rank 1: two preregistered matched-exposure follow-ons -- (1) round-count decay check of the 16-round keyed Feistel substitute over r in {4,8,16,32} at 2^30; (2) second seed/key for the identical 16-round construction at 2^30. Together they test whether the absence of yoyo excess found in BATCH-014/BATCH-015 is one-construction-one-key or class-level across structured non-ideal substitute families.",
+  "budget_note": "Both producers reuse the archived BATCH-014 instrument lineage; declared wall clocks are calibrated against BATCH-014's TIMING26 (101.9s at 2^26 on 4 threads -> ~27 min/arm at 2^30 on 4 threads; machine now has 14 cores, producers may use up to 8 threads).",
+  "batch_notes": "Queue authored 2026-09-01 under DEC-20260901-ed8359 after the standing portfolio sweep. BATCH-015 fully closed and landed (e0a31b52b). GOAL-AES-002 is actively owned by another session and untouched here. Rank-2 item (BATCH-713991 integrity debt) is intentionally NOT in this queue: it edits historical ledger/queue records and needs its own scoped task with disjoint write scope. Inference: executor/validator currently run on fireworks-ai/accounts/fireworks/models/qwen3p8-max per DEC-20260831-0d1eeb (zai billing outage); role-bound launch permitted under that amendment until zai is confirmed by an actual role-bound launch.",
+  "tasks": [
+    {
+      "id": "TASK-20260901-92672b",
+      "title": "RC-D round-count decay check (r=4,8,16,32 at matched 2^30)",
+      "role": "executor",
+      "state": "queued",
+      "priority": 100,
+      "review_required": true,
+      "depends_on": [],
+      "read_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-015/tasks/TASK-20260805-d408ac/",
+        "ledger/evidence/EV-AES-dec938.yaml",
+        "ledger/evidence/EV-AES-4ba350.yaml",
+        "ledger/evidence/EV-AES-e4c091.yaml",
+        "ledger/decisions/DEC-20260805-af8565.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-92672b"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-92672b/RESULTS.json"
+      ],
+      "handoff": {
+        "from": "coordinator",
+        "to": "executor",
+        "objective": "Build round-count-parameterized variants of RC-D's keyed 16-round Feistel oracle (coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/src/rc8probe_feistel.c) for r in {4,8,16,32} where ONLY the round count differs (round function, key schedule, CLI semantics line-for-line identical otherwise), then run the frozen BATCH-009 matched-exposure comparison at 2^30 against the identical AES arm to test whether the absence of yoyo excess DECAYS with round count. The r=16 variant must byte-for-byte reproduce RC-D at seed 531001 (binding control). All predictions and the decision rule are preregistered in PREREGISTRATION.md before any run output exists.",
+        "uncertainty_reduced": "Whether the BATCH-014/BATCH-015 finding (no yoyo excess against a keyed deterministic Feistel substitute at matched decisive exposure) depends on the specific round count 16, or holds across the round-count axis of that construction -- the first of EV-AES-dec938's named U4 confounds (\"other Feistel round counts\" untested).",
+        "inputs": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/src/rc8probe_feistel.c (source to parameterize; line-for-line provenance)",
+          "coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/runs/M1-FEISTEL-P30.json (frozen comparator baseline: seed 531001, armid 1, amask=smask=1, log2N=30)",
+          "coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/PREREGISTRATION.md (RC-D preregistration and detcheck protocol)",
+          "ledger/evidence/EV-AES-dec938.yaml (unresolved_confounds U4: this task's target)",
+          "ledger/evidence/EV-AES-4ba350.yaml (BATCH-015: matched 2^30 comparator semantics and AES-arm reproduction duty)",
+          "ledger/evidence/EV-AES-e4c091.yaml (BATCH-009's frozen matched-exposure decision rule)"
+        ],
+        "deliverables": [
+          "PREREGISTRATION.md, mtime-provably BEFORE any run output: the four variants and their compile/build commands, the statement that r=16 must byte-for-byte reproduce RC-D at seed 531001 (and how that is checked: detcheck parity + identical SMOKE JSON at 2^22 with identical seed/armid/params, hashes recorded), the frozen comparison statistic (BATCH-009's matched-exposure comparator), the preregistered OUTCOME taxonomy covering at least: (a) absence persists at all four r; (b) absence decays monotonically with r; (c) absence appears only at some r (non-monotonic); (d) infra/budget failure (which is scope, not result).",
+          "src/rc8probe_feistel_rk.c: the parameterized variant source (round count via compile-time -DFEISTEL_ROUNDS=r or equivalent single macro; CLI rounds-field semantics preserved), plus src/BUILD.md with the exact build command per r.",
+          "src/INDEPENDENCE_AUDIT.md: code-level audit that the AES arm and each Feistel variant share no generation code, and that the r=16 variant is line-for-line identical to RC-D except the parameterization point.",
+          "runs/: DET-R{4,8,16,32}.json determinism self-checks at seed 531001; SMOKE22-R16.json byte-parity proof against RC-D; AES-P30.json (rerun at seed 531001/armid 1/amask=smask=1/log2N=30, byte-compared to RC-D's archived AES arm JSON or verified identical, documented); F-R{4,8,16,32}-P30.json the four substitute arms; per-arm .timing.txt and .err; RESULTS.json applying the preregistered rule and stating plainly which OUTCOME was realized.",
+          "budget_stamps.jsonl per C2."
+        ],
+        "constraints": [
+          "ROUND COUNT IS THE ONLY VARIED STRUCTURAL PARAMETER. The r=16 variant must byte-for-byte reproduce RC-D at seed 531001: detcheck outputs identical AND a 2^22 smoke arm (same seed/armid/params) producing JSON identical to the RC-D binary's smoke output (both hashes recorded in RESULTS.json). If parity fails, STOP the r!=16 arms, document the divergence, and report infra -- do not paper over it.",
+          "THE AES ARM MUST BE THE SAME COMPARISON AS BATCH-014/015: seed 531001, armid 1, amask=smask=1, log2N=30, 8 threads allowed (RC-D used 4; document any thread-count change and verify determinism is unaffected by threads via a 4-vs-8 smoke comparison if the oracle parallelizes nondeterministically).",
+          "INVENTOR-PROTOCOL NULL CONTROL: round count is the parameter meant to move structure; if the comparison statistic does not move as r varies, that is the measured result (absence is round-count-robust); if it moves, report the direction and magnitude, never silence it.",
+          "MAXIMUM RUNS 12 (4 detcheck + 1 AES + 4 substitute at P30 + smoke/parity + 1 reserve rerun).",
+          "C2 BUDGET CLOCK: first act writes budget_stamps.jsonl with start_utc, start_epoch, declared_wall_clock_seconds, computed binding_stop_utc. Stamp each major section boundary. Halt at the stop; HALTING IS FULL COMPLIANCE and is INFRASTRUCTURE SIGNAL, never a negative mathematical result (AGENTS.md rule 5); dropped work is SCOPE, never an answer (rule 8).",
+          "NEVER FABRICATE a command, output, timing, statistic, citation or run. If the declared exposure is not reachable within budget, report the actual exposure reached and the actual reason, never a fabricated completion.",
+          "TOY TIER. 64-bit toy oracle; nothing about full-round or deployed AES; no comparison to published cryptanalysis in either direction.",
+          "INFERENCE BLOCK on every structured artifact: policy, requested_policy, ACTUAL resolved model, fallback_used, model_verified false, standing basis 0137a051eb5828789eb267fa83c8278086578d4c.",
+          "EVERY STRUCTURED ARTIFACT MUST PARSE. Parse the WHOLE file before finishing and say inside the artifact that you did.",
+          "DO NOT COMMIT and do not run `git add`. The snapshot archive stages your work. Write only inside your write_scope.",
+          "Interpret nothing about hypothesis status, assign no evidence strength, recommend no promotion. That is the Coordinator's job in the ledger archive task.",
+          "DECLARE YOUR ACTUAL runs/ FILES IN THIS TASK CARD'S artifact_paths BEFORE FINISHING if the Coordinator has not already amended the queue to match."
+        ],
+        "budget": {
+          "wall_clock_seconds": 7200,
+          "memory_gb": 4,
+          "maximum_runs": 12
+        },
+        "completion_gate": [
+          "PREREGISTRATION.md exists and its mtime predates every run output file's mtime.",
+          "r=16 byte-parity with RC-D demonstrated (detcheck + 2^22 smoke hash equality recorded).",
+          "All four substitute arms at 2^30 completed (or actual exposure and halt reason honestly reported).",
+          "RESULTS.json parses, applies the preregistered decision rule, and states which OUTCOME was realized.",
+          "budget_stamps.jsonl carries the opening stamp and the binding stop."
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-92672b/RESULTS.json"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260901-47b21f",
+      "title": "RC-D second seed/key (identical 16-round construction at matched 2^30)",
+      "role": "executor",
+      "state": "queued",
+      "priority": 95,
+      "review_required": true,
+      "depends_on": [],
+      "read_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-015/tasks/TASK-20260805-d408ac/",
+        "ledger/evidence/EV-AES-dec938.yaml",
+        "ledger/evidence/EV-AES-4ba350.yaml",
+        "ledger/evidence/EV-AES-e4c091.yaml",
+        "ledger/decisions/DEC-20260805-af8565.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-47b21f"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-47b21f/RESULTS.json"
+      ],
+      "handoff": {
+        "from": "coordinator",
+        "to": "executor",
+        "objective": "Re-run RC-D's UNMODIFIED keyed 16-round Feistel oracle (verbatim source, zero code changes) with a SECOND preregistered seed 531002 (key and trial stream both change; original RC-D used 531001), at the matched decisive exposure 2^30, against a freshly recomputed AES arm under the same new seed, using BATCH-009's frozen matched-exposure comparator. Tests whether the absence of yoyo excess is one-key or holds across keys of the identical construction -- the second of EV-AES-dec938's named U4 confounds (\"other keys/seeds\" untested).",
+        "uncertainty_reduced": "Whether the BATCH-014 finding (no yoyo excess against the 16-round keyed Feistel substitute at matched exposure) depends on seed/key 531001 specifically, or holds for a second key of the identical construction.",
+        "inputs": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/src/rc8probe_feistel.c (used VERBATIM; modifying it invalidates the task)",
+          "coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/runs/M1-FEISTEL-P30.json (seed 531001 baseline and comparator semantics)",
+          "ledger/evidence/EV-AES-dec938.yaml (U4 confounds)",
+          "ledger/evidence/EV-AES-e4c091.yaml (frozen decision rule)"
+        ],
+        "deliverables": [
+          "PREREGISTRATION.md, mtime-provably BEFORE any run output: the second seed S2=531002 and why it is admissible (distinct from 531001, not derived from any observed statistic), the statement that source is used verbatim (sha256 of rc8probe_feistel.c as archived vs as built, recorded), the frozen comparison statistic, and the OUTCOME taxonomy: (a) absence persists at S2; (b) excess reappears at S2 (key-specific result); (c) mixed/weakened; (d) infra/budget failure (scope, not result).",
+          "src/: verbatim copy of rc8probe_feistel.c with its archived sha256 recorded in BUILD.md plus the exact build command.",
+          "src/INDEPENDENCE_AUDIT.md: audit that AES and Feistel arms share no generation code, and that S2 affects key and trial stream exactly as documented in the source.",
+          "runs/: detcheck-S2.json determinism self-check at 531002; AES-P30-S2.json (recomputed under S2 -- the trial stream is seed-dependent so the BATCH-014 AES arm cannot be reused); F16-P30-S2.json the substitute arm; per-arm .timing.txt and .err; RESULTS.json applying the preregistered rule. OPTIONAL opportunistic 2^33 pair (AES-P33-S2.json, F16-P33-S2.json) ONLY if >=3600s remain at the decision point and it was preregistered in the same PREREGISTRATION.md before running; otherwise skip silently.",
+          "budget_stamps.jsonl per C2."
+        ],
+        "constraints": [
+          "SOURCE IS VERBATIM. Zero code changes to rc8probe_feistel.c; the ONLY varied parameter is the seed (531002 vs 531001). sha256 parity with the archived BATCH-014 source recorded before building.",
+          "THE AES ARM MUST BE RECOMPUTED UNDER S2 (trial stream is seed-dependent); reusing RC-D's archived AES JSON is a protocol violation.",
+          "S2 WAS PREREGISTERED BEFORE ANY RUN. If the task instead needs a different second seed, pick it BEFORE any run output exists and record the reason in PREREGISTRATION.md.",
+          "MAXIMUM RUNS 6 (detcheck + AES-P30 + F16-P30 + optional P33 pair + 1 reserve rerun).",
+          "C2 BUDGET CLOCK: first act writes budget_stamps.jsonl with start_utc, start_epoch, declared_wall_clock_seconds, computed binding_stop_utc. Stamp each major section boundary. Halt at the stop; HALTING IS FULL COMPLIANCE and is INFRASTRUCTURE SIGNAL, never a negative mathematical result (AGENTS.md rule 5); dropped work is SCOPE, never an answer (rule 8).",
+          "NEVER FABRICATE a command, output, timing, statistic, citation or run. If the declared exposure is not reachable within budget, report the actual exposure reached and the actual reason, never a fabricated completion.",
+          "TOY TIER. 64-bit toy oracle; nothing about full-round or deployed AES; no comparison to published cryptanalysis in either direction.",
+          "INFERENCE BLOCK on every structured artifact: policy, requested_policy, ACTUAL resolved model, fallback_used, model_verified false, standing basis 0137a051eb5828789eb267fa83c8278086578d4c.",
+          "EVERY STRUCTURED ARTIFACT MUST PARSE. Parse the WHOLE file before finishing and say inside the artifact that you did.",
+          "DO NOT COMMIT and do not run `git add`. The snapshot archive stages your work. Write only inside your write_scope.",
+          "Interpret nothing about hypothesis status, assign no evidence strength, recommend no promotion. That is the Coordinator's job in the ledger archive task.",
+          "DECLARE YOUR ACTUAL runs/ FILES IN THIS TASK CARD'S artifact_paths BEFORE FINISHING if the Coordinator has not already amended the queue to match."
+        ],
+        "budget": {
+          "wall_clock_seconds": 3600,
+          "memory_gb": 4,
+          "maximum_runs": 6
+        },
+        "completion_gate": [
+          "PREREGISTRATION.md exists and its mtime predates every run output file's mtime.",
+          "sha256 parity of the verbatim source with the archived BATCH-014 file recorded.",
+          "2^30 AES and substitute arms under S2 completed (or actual exposure and halt reason honestly reported).",
+          "RESULTS.json parses, applies the preregistered decision rule, and states which OUTCOME was realized.",
+          "budget_stamps.jsonl carries the opening stamp and the binding stop."
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-47b21f/RESULTS.json"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260901-bfd667",
+      "title": "Snapshot archive TASK-20260901-92672b (round-count decay producer)",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 90,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260901-92672b"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-92672b",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/dispatch_queue.json"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-bfd667"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-bfd667/snapshot-receipt.json"
+      ],
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260901-92672b"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": []
+      },
+      "handoff": {
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Commit the exact producer artifacts of TASK-20260901-92672b, alone, before the independent validator reads them.",
+        "uncertainty_reduced": "Whether the decay-check producer's artifacts exist in committed, hash-bound form.",
+        "inputs": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-92672b",
+          "BATCH-015 snapshot pattern: coordination/goals/GOAL-AES-003/batches/BATCH-015/archives/TASK-20260805-237cad/snapshot-receipt.json"
+        ],
+        "deliverables": [
+          "snapshot-receipt.json naming commit_sha, parent_sha, every committed path with sha256, and this task's budget stamps"
+        ],
+        "constraints": [
+          "Runs ALONE (no concurrent task).",
+          "Coordinator-only: stages exactly the producer's declared artifacts, amends the queue card's artifact_paths to the actual runs/ files if the producer declared additions, writes no interpretation.",
+          "Post-commit verification: commit reachable from HEAD, exact parent, exact declared paths, hashes match, task/record IDs in the commit message."
+        ],
+        "budget": {
+          "wall_clock_seconds": 600,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Archive verifier accepts exact parent, committed paths, every non-self hash, reachability, and archive.record_ids in the commit message.",
+          "Receipt carries budget stamps and designates itself the covering manifest.",
+          "No review report staged; no interpretation of producer artifacts anywhere in the receipt."
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-bfd667/snapshot-receipt.json"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260901-951e22",
+      "title": "Snapshot archive TASK-20260901-47b21f (second-seed producer)",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 85,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260901-47b21f"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-47b21f",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/dispatch_queue.json"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-951e22"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-951e22/snapshot-receipt.json"
+      ],
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260901-47b21f"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": []
+      },
+      "handoff": {
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Commit the exact producer artifacts of TASK-20260901-47b21f, alone, before the independent validator reads them.",
+        "uncertainty_reduced": "Whether the second-seed producer's artifacts exist in committed, hash-bound form.",
+        "inputs": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-47b21f",
+          "BATCH-015 snapshot pattern: coordination/goals/GOAL-AES-003/batches/BATCH-015/archives/TASK-20260805-237cad/snapshot-receipt.json"
+        ],
+        "deliverables": [
+          "snapshot-receipt.json naming commit_sha, parent_sha, every committed path with sha256, and this task's budget stamps"
+        ],
+        "constraints": [
+          "Runs ALONE (no concurrent task).",
+          "Coordinator-only: stages exactly the producer's declared artifacts, amends the queue card's artifact_paths to the actual runs/ files if the producer declared additions, writes no interpretation.",
+          "Post-commit verification: commit reachable from HEAD, exact parent, exact declared paths, hashes match, task/record IDs in the commit message."
+        ],
+        "budget": {
+          "wall_clock_seconds": 600,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Archive verifier accepts exact parent, committed paths, every non-self hash, reachability, and archive.record_ids in the commit message.",
+          "Receipt carries budget stamps and designates itself the covering manifest.",
+          "No review report staged; no interpretation of producer artifacts anywhere in the receipt."
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-951e22/snapshot-receipt.json"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260901-0dcc8d",
+      "title": "Independent validator for both BATCH-7939d0 producers",
+      "role": "validator",
+      "state": "queued",
+      "priority": 70,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260901-92672b",
+        "TASK-20260901-bfd667",
+        "TASK-20260901-47b21f",
+        "TASK-20260901-951e22"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-92672b",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-47b21f",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/",
+        "ledger/evidence/EV-AES-dec938.yaml",
+        "ledger/evidence/EV-AES-e4c091.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-0dcc8d"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-0dcc8d/validation_report.yaml"
+      ],
+      "handoff": {
+        "from": "coordinator",
+        "to": "validator",
+        "objective": "Independent validation of BOTH producer packages in their committed snapshot archives: re-derive every RESULTS.json statistic from the raw runs/*.json in fresh code (never reusing producer code), verify preregistration timing from filesystem mtimes, verify the r=16 byte-parity control and the verbatim-source control, verify the frozen comparator was actually used, verify determinism claims, and render an outcome ruling per the preregistered rules. Zero-caveat standard from BATCH-014/015.",
+        "uncertainty_reduced": "Whether the two producers' claimed results survive independent re-derivation and control verification.",
+        "inputs": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-bfd667/snapshot-receipt.json",
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-951e22/snapshot-receipt.json",
+          "both producers' full task directories (via receipts)"
+        ],
+        "deliverables": [
+          "validation_report.yaml: per-producer verdict (passed/failed/inconclusive), every re-derived statistic with its fresh-code derivation, every control checked with its evidence, the outcome ruling, and an explicit power/scope statement. The report states which artifacts it read and attests independence (fresh session, no producer code reuse)."
+        ],
+        "constraints": [
+          "review-adversarial policy, xhigh reasoning, INDEPENDENT SESSION: no reuse of producer sessions or code.",
+          "Re-derive statistics in fresh scipy/python; cite the derivation.",
+          "No hypothesis-status interpretation, no evidence-strength assignment, no promotion recommendation.",
+          "DO NOT COMMIT; write only inside write_scope.",
+          "INFERENCE BLOCK on the report: policy, requested_policy, ACTUAL resolved model, fallback_used, model_verified false, standing basis 0137a051eb5828789eb267fa83c8278086578d4c."
+        ],
+        "budget": {
+          "wall_clock_seconds": 3600,
+          "memory_gb": 4,
+          "maximum_runs": 4
+        },
+        "completion_gate": [
+          "Both producers re-derived independently; every RESULTS.json statistic reproduced within declared tolerance or discrepancy named.",
+          "All four binding controls (preregistration mtime ordering, r=16 byte-parity, verbatim-source sha256, frozen comparator usage) checked with recorded evidence.",
+          "validation_report.yaml parses and carries the inference block and independence attestation."
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-0dcc8d/validation_report.yaml"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260901-2a7ecc",
+      "title": "Ledger archive for BATCH-7939d0",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 60,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260901-0dcc8d"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0",
+        "ledger/"
+      ],
+      "write_scope": [
+        "ledger/evidence/",
+        "ledger/decisions/",
+        "ledger/goals/GOAL-AES-003.yaml",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-2a7ecc"
+      ],
+      "artifact_paths": [
+        "ledger/evidence/EV-AES-5478a0.yaml",
+        "ledger/decisions/DEC-20260901-bad1e5.yaml",
+        "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-2a7ecc/ledger-receipt.json"
+      ],
+      "archive": {
+        "kind": "ledger",
+        "source_task_ids": [
+          "TASK-20260901-0dcc8d"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": [
+          "GOAL-AES-003",
+          "RQ-AES-003",
+          "BATCH-7939d0",
+          "EV-AES-5478a0",
+          "DEC-20260901-bad1e5",
+          "TASK-20260901-92672b",
+          "TASK-20260901-47b21f",
+          "TASK-20260901-0dcc8d",
+          "TASK-20260901-2a7ecc"
+        ]
+      },
+      "handoff": {
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Write the evidence record and closing decision for BATCH-7939d0, update the GOAL-AES-003 head (current_batch_id, dispatch_queue_path, batch_checkpoints entry, next_action) on the validator's verdict, and commit everything alone as the ledger archive.",
+        "uncertainty_reduced": "Whether the batch's results enter the ledger as a verified, hash-bound record.",
+        "inputs": [
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-0dcc8d/validation_report.yaml",
+          "both snapshot receipts",
+          "ledger/evidence/EV-AES-dec938.yaml",
+          "ledger/evidence/EV-AES-4ba350.yaml"
+        ],
+        "deliverables": [
+          "ledger/evidence/EV-AES-5478a0.yaml (id minted and --checked)",
+          "ledger/decisions/DEC-20260901-bad1e5.yaml closing decision with rationale, cited evidence, and a next_action naming the rank-2 BATCH-713991 integrity debt (id minted and --checked)",
+          "GOAL-AES-003.yaml head update (goal file owned by THIS task in this queue)",
+          "ledger-receipt.json"
+        ],
+        "constraints": [
+          "Runs ALONE after the validator report is committed.",
+          "Coordinator-only official status change.",
+          "Evidence record states tested parameters, actual scope, toy tier, and transfer assumptions explicitly (core rule 7).",
+          "If the validator verdict is failed/inconclusive, the decision records that honestly -- no promotion on failed validation.",
+          "Post-commit verification per the BATCH-015 ledger pattern (commit 71d332f0a)."
+        ],
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "EV and DEC records allocated, checked, and committed with the validator verdict reflected faithfully.",
+          "Goal head/checkpoint updated in the SAME commit as the records.",
+          "Post-commit verifier exit 0; ledger-receipt.json bound."
+        ],
+        "artifact_paths": [
+          "ledger/evidence/EV-AES-5478a0.yaml",
+          "ledger/decisions/DEC-20260901-bad1e5.yaml",
+          "coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/archives/TASK-20260901-2a7ecc/ledger-receipt.json"
+        ]
+      }
+    }
+  ]
+}
