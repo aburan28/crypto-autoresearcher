@@ -1,0 +1,663 @@
+idea:
+  id: IDEA-20260901-730f23
+  question_id: RQ-ECDLP-160d89
+  goal_id: null
+  added: '2026-09-01'
+  title: >-
+    THE POLYNOMIAL-RELATION JOIN CEILING: a level-1 join realized by root
+    finding of a bivariate polynomial in two coordinate projections cannot be
+    output-sensitive on a prime-order group, because exact acceptance through
+    a lossy projection forces the accepted set to be trivial (two-variable
+    rigidity) and acceptance through a bounded-degree coordinate forces the
+    polynomial's row degree to be at least a constant fraction of the accepted
+    set, which is N^{2/3} -- so the class IDEA-20260829-390ccc left open as
+    'algebraic, resultant or root-finding joins' sits at gamma >= 2 on the
+    (gamma, s) surface, no better than the brute-force pair scan
+  class: mechanism
+
+  claim: >-
+    Setting. G = <P> of prime order N; source-labelled lists of length L;
+    accepted set D of size sigma = N^{s}, sign-closed. A POLYNOMIAL-RELATION
+    JOIN consists of two COORDINATE PROJECTIONS phi, psi from G to F_p, each
+    a rational function of the point of bounded degree d (so every fibre has
+    at most d points; x has d = 2, y has d = 3), and a bivariate polynomial
+    Phi in F_p[u, v], given either by its coefficients or by a straight-line
+    program. The join emits (R_i, S_j) whenever Phi(phi(R_i), psi(S_j)) = 0,
+    and is implemented row by row: for each i, find the roots of the
+    univariate Phi(phi(R_i), .) among the L values psi(S_j). It is
+    (1-eta)-SOUND and has COVERAGE c if at least 1 - eta of emitted pairs
+    have R + S in D and at least a c fraction of pairs with R + S in D are
+    emitted. This is the class listed as escape (d) in IDEA-20260829-390ccc's
+    method ceiling and as excluded by assumption A4 of IDEA-20260829-4b34c5.
+
+    (L-A) TWO-VARIABLE RIGIDITY (derivation tier). If acceptance is an EXACT
+    function of (phi(R), psi(S)) -- Phi(phi(R), psi(S)) = 0 if and only if
+    R + S in D -- and D is neither empty nor G, then phi and psi are
+    injective on G. PROOF. If psi(S) = psi(S') with S != S', then for every
+    R the two acceptances agree, so D - S = D - S', so D + (S' - S) = D, and
+    since S' - S generates G, D is invariant under all translations and is
+    trivial. Symmetrically for phi. No hypothesis on Phi is used; the lemma
+    holds for any exact two-sided key, polynomial or not, and is the
+    two-variable form of IDEA-20260807-df906f's rigidity.
+
+    (L-B) VANISHING DEGREE. Suppose the join has coverage c > 0 and
+    soundness eta < 1 - sigma/N. Then for at least a c/2 fraction of rows R,
+        deg_v Phi(phi(R), .)  >=  c * sigma / (2 d),
+    unless Phi(phi(R), .) is identically zero, which would emit the whole
+    row and violate soundness. PROOF. The row's emitted set is
+    {S : Phi(phi(R), psi(S)) = 0}; coverage forces it to contain a c
+    fraction of D - R for most rows (averaging), i.e. at least c*sigma/2
+    points S of D - R; psi has fibres of size at most d, so those S map to
+    at least c*sigma/(2d) distinct values psi(S), each a root of the
+    univariate Phi(phi(R), .). A nonzero univariate polynomial has at most
+    its degree many roots. NOTE that soundness is not needed for the degree
+    bound, only coverage; soundness only excludes the identically-zero row.
+
+    (L-C) COST. Under cost model M1 (below), enumerating the roots of a
+    univariate polynomial of degree e among L candidate values costs at
+    least min(e, L) / (log N)^{O(1)} operations per row: in coefficient
+    form the polynomial has e coefficients to read; in straight-line form of
+    size s it costs L*s to evaluate at the candidates; and the only known
+    way to beat evaluation is when the root set has algebraic structure
+    (a coset, a subgroup, an image of a homomorphism) that makes membership
+    a keyed equality, which is the hash-join class closed by 390ccc and by
+    (L-A). Combining with (L-B) at sigma = N^{2/3} and L = N^{1/3}: per-row
+    cost >= min(N^{2/3}, N^{1/3})/polylog = L/polylog, total >= L^2/polylog,
+    i.e. gamma >= 2 - o(1). On the IDEA-20260829-3f0f4b surface that is
+    N^{max(2(2-s)/4, s/2)} = N^{2/3} at s = 2/3, strictly worse than rho,
+    and gamma < 3/2 (the retargeted sub-rho threshold of 3f0f4b) is
+    unreachable by any polynomial-relation join with bounded-degree scalar
+    coordinate projections.
+
+    (L-D) WHAT IS NOT CLOSED, NAMED. (i) Vector-valued projections
+    psi: G -> F_p^k with k >= 2 and acceptance 'psi(S) lies on a variety
+    V_{phi(R)}': a degree-e variety in k dimensions can contain
+    e*p^{k-1} points, so (L-B) gives nothing; the join becomes a
+    point-variety incidence enumeration problem and this record makes no
+    claim about it. (ii) Joins with auxiliary state (elliptic nets,
+    KN-TECH-009). (iii) Coordinate projections of unbounded degree, where
+    d grows with N; there (L-B) weakens to sigma/d and the fibre structure
+    of psi re-enters through (L-A)'s approximate form. Each is a live
+    successor class.
+
+  mechanism: >-
+    THE TRACKED OBJECT is the ROW POLYNOMIAL Phi(phi(R), .): a univariate
+    polynomial attached to each left-list point, whose root set on the
+    right coordinate is the row's emitted set. What the projection to the
+    row polynomial discards is which right points sit on which root; what
+    it retains is the root multiset. The lossy-projection test is passed
+    trivially and uselessly: the root set is a set of coordinate values,
+    not of points, and (L-A) shows that for it to be exactly the accepted
+    row it must be as large as the row, which is the whole content.
+
+    WHY DEGREE IS THE RIGHT MEASURE HERE AND NOT ELSEWHERE. The corpus's
+    rigidity results (df906f, 863e36, 390ccc) all bound STRUCTURE: which
+    partitions, block systems, or fibre systems can exist. An algebraic
+    join is not a fibre system -- the row emitted sets overlap arbitrarily
+    across rows -- so those results are silent on it, which is why 390ccc
+    lists it as open. The correct invariant for a root-finding join is the
+    number of roots, and a polynomial's root count is bounded by its degree
+    in every model. (L-B) converts 'the row emitted set is large' into 'the
+    row polynomial has large degree', and (L-C) converts degree into cost.
+    The argument is short because the object is right, not because the
+    class is easy; the Semaev baseline slice below shows the class contains
+    every algebraic formulation of the pair scan the program has considered.
+
+    STAGE 0 (zero compute, HARD GATE). Run (L-A) on the object where its
+    conclusion must FAIL: F_2^{3m} with phi = psi = the m-bit prefix map
+    (fibres of size 2^{2m}, wildly non-injective) and Phi(u, v) = u + v
+    (degree 1), which is Wagner's exact prefix join with D the kernel
+    subspace. There D + (S' - S) = D for every S' - S in D, i.e. the
+    stabilizer of D is D itself, so the lemma's last step fails exactly
+    because subgroups exist. Second object: F_p^* with D = H the subgroup of
+    L-th powers, phi(R) = R^{(p-1)/L}, psi(S) = S^{(p-1)/L},
+    Phi(u, v) = u*v - 1: exact, projections lossy, degree of the SLP-given
+    polynomial in the ORIGINAL coordinates about sigma but with a coset as
+    root set, so the join is a keyed equality -- the (L-C) escape, allowed
+    there because H is a subgroup, forbidden on G because no nontrivial
+    subgroup exists (RQ constraint restated as a theorem input, not an
+    assumption).
+
+    STAGE 1 (symbolic). Write (L-B) with the averaging step explicit: the
+    number of (R, S) with R + S in D is N*sigma; coverage c gives
+    c*N*sigma emitted qualifying pairs; so at least a c/2 fraction of rows
+    emit at least c*sigma/2 qualifying pairs. Carry the fibre size d and the
+    identically-zero exclusion.
+
+    STAGE 2 (symbolic). State cost model M1 precisely and derive (L-C).
+    Reproduce the BASELINE SLICE: the Semaev summation-polynomial join
+    Phi(u, v) = Res_t( f_3(u, v, t), g_{x(D)}(t) ), where f_3 is the third
+    summation polynomial (f_3(x(R), x(S), x(T)) = 0 iff R +/- S +/- T = O)
+    and g_{x(D)} is the polynomial with root set x(D). Its v-degree is
+    2*|x(D)| = sigma (up to the sign fold), matching (L-B) with c = 1 and
+    d = 2, and its per-row cost under M1 is min(sigma, L) = L, i.e. the
+    brute-force pair scan of B64-DER-2 and B64-DER-5 in algebraic dress.
+    With D = G this is the full-pair locator at Theta(L^2).
+
+    STAGE 3 (symbolic). Place gamma >= 2 on the 3f0f4b surface and record
+    that the class cannot reach gamma < 3/2 at s = 2/3, nor gamma < 2/(2-s)
+    at any s, because (L-B)'s bound scales with sigma = N^{s} while the
+    candidate count is L = N^{(2-s)/4} < N^{s} for all s > 2/5.
+
+    STAGE 4 (symbolic). Write (L-D)'s three escapes with the exact step of
+    the argument each defeats, so a successor knows what to attack.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      KB RETRIEVAL WAS UNAVAILABLE THIS SESSION (':memory:', empty index,
+      verified by the orchestrator); crypto-kb tools NOT called. Direct
+      reads of RQ-ECDLP-160d89, H-JPR-3a00f0, BATCH-c36939, BATCH-671cae,
+      IDEA-20260807-df906f, IDEA-20260823-835868, IDEA-20260823-cab6c6,
+      IDEA-20260829-390ccc, IDEA-20260829-3f0f4b, IDEA-20260829-4b34c5,
+      IDEA-20260829-7169d6, IDEA-20260901-863e36; greps over ledger/ and
+      knowledge/ for 'resultant|root-finding|Semaev|summation polynomial',
+      'stabilizer|translation-invariant', 'Bostan|composed sum'. No external
+      source opened; no web search run.
+    results: >-
+      Semaev polynomials appear in the index-calculus and first-fall-degree
+      lanes (IDEA-20260826-2259f8, IDEA-20260830-a22049) and never as a
+      join primitive. IDEA-20260829-3f0f4b cites Bostan-Flajolet-Salvy-Schost
+      (recalled) only to say composed sums cost Omega(L^2) because the pair
+      multiset is the output -- an intuition this record turns into (L-B),
+      which is a statement about degree rather than output size and holds
+      for partial coverage. No record states (L-A) in two-variable form or
+      any degree bound for a join.
+    verdict: >-
+      UNVERIFIED. (L-A) and (L-B) are elementary; the contribution is
+      identifying degree as the invariant that reaches the class 390ccc
+      could not, and the Semaev slice as its baseline. Cost model M1 is a
+      model, stated as such, and its escape (structured root sets) is
+      routed to the keyed-join closures rather than absorbed.
+
+  citations:
+    - ref: IDEA-20260829-390ccc
+      provenance: internal
+      claim: >-
+        Method ceiling item (d): 'joins that are not rectangle covers at
+        all, such as algebraic resultant or root-finding joins' are outside
+        its theorem and are a live successor class. This record is that
+        successor.
+      verified_by: TASK-20260901-94c9e2 (record read in full 2026-09-01)
+    - ref: IDEA-20260829-4b34c5
+      provenance: internal
+      claim: >-
+        Assumption A4: a discrepancy bound constrains rectangle-cover joins
+        and NOT algebraic joins such as resultants or root finding. This
+        record supplies the missing constraint by a degree argument that
+        needs no character sums.
+      verified_by: TASK-20260901-94c9e2 (record read in full 2026-09-01)
+    - ref: IDEA-20260829-3f0f4b
+      provenance: internal
+      claim: >-
+        The surface T = N^{max(gamma(2-s)/4, s/2)}, the sub-rho threshold
+        gamma < 2/(2-s), and the recalled Bostan et al. pointer.
+      verified_by: TASK-20260901-94c9e2 (record read in full 2026-09-01)
+    - ref: ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-671cae.yaml
+      provenance: internal
+      claim: >-
+        B64-DER-2 (every supplied exact enumerator inspects Theta(L^2)
+        pairs; explicitly not a generic lower bound) and B64-DER-5 (the
+        full-pair locator). This record's (L-C) is the algebraic-class
+        generic version of B64-DER-2.
+      verified_by: TASK-20260901-94c9e2 (checkpoint read in full 2026-09-01)
+    - ref: IDEA-20260807-df906f
+      provenance: internal
+      claim: One-variable rigidity, whose translation step (L-A) reuses.
+      verified_by: TASK-20260901-94c9e2 (record read in full 2026-09-01)
+    - ref: >-
+        I. Semaev, 'Summation polynomials and the discrete logarithm problem
+        on elliptic curves', IACR ePrint 2004/031
+      provenance: recalled
+      claim: >-
+        Definition and degree of the summation polynomials f_m; in
+        particular f_3 has degree 2 in each variable and vanishes at
+        (x(R), x(S), x(T)) iff R +/- S +/- T = O. Used for the baseline
+        slice only; not opened in this session.
+      verified_by: null
+    - ref: >-
+        J. von zur Gathen and J. Gerhard, 'Modern Computer Algebra',
+        chapters on fast multipoint evaluation and root finding over finite
+        fields
+      provenance: recalled
+      claim: >-
+        Multipoint evaluation of a degree-e polynomial at L points costs
+        O((e + L) polylog) from coefficients; root finding over F_p costs
+        e polylog(e, p). Used to justify that coefficient-form root finding
+        is Theta(e + L) and not less; not opened.
+      verified_by: null
+
+  assumptions:
+    - A1. N prime; every nonzero element generates G; used in (L-A) only.
+    - >-
+      A2. phi and psi are rational functions of the point of bounded
+      degree d, hence at most d-to-1 on G. The corpus's coordinate keys
+      (x, y, bucketed x, quadratic character of x) all satisfy this with
+      d <= 3.
+    - >-
+      A3. The join is row-wise root finding as defined; a join that reads
+      both lists jointly through some other primitive is outside the class.
+    - >-
+      A4. Cost model M1 as stated in (L-C), with its escape named.
+    - A5. No exact nontrivial quotient of G is assumed; (L-A) derives its absence.
+
+  proof_search_map:
+    bottleneck: >-
+      The class 390ccc could not reach: joins that are not fibre systems.
+      Removing it from the open list changes what a successor may propose;
+      the decision-changing number is gamma >= 2 for the class.
+    baseline_embedding:
+      parameter_slice: >-
+        The Semaev resultant join with c = 1, d = 2: v-degree 2|x(D)|, cost
+        min(sigma, L) per row. With D = G it is the full-pair locator
+        (B64-DER-5) at Theta(L^2); with D = x^{-1}(I) it is the exact
+        K-EC-XINTERVAL-1 enumerator at Theta(L^2) (B64-DER-2).
+      reproduction_check: >-
+        Symbolic: deg_v Res_t(f_3(u, v, t), g(t)) = deg_v f_3 * deg g = 2 deg g
+        by the resultant degree formula, and deg g = |x(D)| = sigma/2 for
+        sign-closed D. Frozen fixture (FUTURE, separate authority): at a
+        toy p, compute the resultant symbolically for |x(D)| in {3, 5, 8}
+        and assert the v-degree equals 2|x(D)| exactly.
+    observation_collision:
+      observable: The per-row emitted count, i.e. the number of roots found per row.
+      distinct_preimage_search: >-
+        Two objects share Theta(sigma/N * L) emitted roots per row: (a) a
+        polynomial of v-degree sigma with those roots (the honest case,
+        cost L per row under M1); (b) a straight-line program of size
+        log p whose root set is a coset of a multiplicative subgroup (the
+        F_p^* control), where the same emitted count is found by one
+        exponentiation and a hash lookup. They differ in whether the root
+        set is a coset of a subgroup of the ambient group, and (L-A) says
+        that on G no such coset exists for a nontrivial D. The separating
+        condition is subgroup structure, not degree.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Represent the join's row as a univariate polynomial and the
+          coverage condition as a root-count condition; the cost then
+          becomes a degree, an exact algebraic quantity.
+        predicted_gain: >-
+          Closes the algebraic class at gamma >= 2 with a two-line proof
+          instead of a structure theorem; zero compute.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the row degree fixed and vary the root-set structure
+          (generic, coset of a field subgroup, image of an isogeny). The
+          intrinsic invariant is whether the root set is the image under
+          psi of a translate of a subgroup of G.
+        predicted_gain: >-
+          Names exactly which algebraic root sets escape M1 and shows each
+          is a keyed join in disguise.
+    quantifier_order: >-
+      FOR ALL prime N, FOR ALL bounded-degree coordinate projections
+      phi, psi, FOR ALL polynomials Phi (coefficient or SLP form), FOR ALL
+      sign-closed D with sigma <= N/2, IF the row-wise root-finding join has
+      coverage c > 0 and soundness eta < 1 - sigma/N THEN for a c/2 fraction
+      of rows deg_v Phi(phi(R), .) >= c*sigma/(2d), and under M1 the total
+      cost is at least L * min(c*sigma/(2d), L) / polylog. No witness
+      depends on the lists or on Q. NOT CLAIMED: anything for k >= 2
+      vector projections, for unbounded d, or outside M1.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        gamma >= 2 - o(1) for row-wise polynomial-relation joins with
+        bounded-degree scalar coordinate projections, under M1. It can
+        NEVER certify a bound for vector-valued projections, auxiliary
+        state, or cost models granting sublinear root finding for
+        SLP-given polynomials with unstructured roots; and it is not an
+        ECDLP lower bound.
+      nearby_object_control: >-
+        Where the conclusion FAILS: F_2^{3m} with the prefix projections
+        and Phi = u + v (degree 1, exact, lossy) -- (L-A)'s last step fails
+        because the stabilizer of the kernel subspace is itself; and F_p^*
+        with the L-th-power projections -- degree is about sigma but the
+        root set is a coset and M1's escape fires. A derivation that also
+        closes either control proves too much and is void.
+    proof_obligations:
+      - claim: >-
+          Exact two-sided acceptance with a non-injective projection forces
+          D trivial (L-A).
+        responsibility: correctness
+      - claim: >-
+          A rational function of degree d on E is at most d-to-1 on G, so
+          psi(D - R) has at least sigma/d elements.
+        responsibility: size
+      - claim: >-
+          Coverage c implies a c/2 fraction of rows emit at least
+          c*sigma/2 qualifying pairs (averaging).
+        responsibility: correctness
+      - claim: >-
+          A nonzero univariate polynomial has at most deg many roots; the
+          identically-zero row violates soundness when eta < 1 - sigma/N.
+        responsibility: strictness
+      - claim: >-
+          Under M1, per-row cost is at least min(deg, L)/polylog, and the
+          only escape is a root set that is psi of a translate of a
+          subgroup of G, which does not exist for nontrivial D.
+        responsibility: runtime
+      - claim: >-
+          The Semaev resultant slice has v-degree exactly 2|x(D)| and
+          reproduces B64-DER-2 and B64-DER-5.
+        responsibility: baseline
+      - claim: The argument is silent on F_2^n and on F_p^* with subgroup accepted sets.
+        responsibility: scope
+    not_applicable_reason: null
+
+  object_first_candidate:
+    tracked_object: >-
+      The row polynomial Phi(phi(R), .) of a left point, equivalently its
+      root multiset on the right coordinate.
+    lossiness: >-
+      Lossy as a projection of the row's emitted set of POINTS to a set of
+      COORDINATE VALUES (each value carries up to d points), by at most
+      log2(d) bits per root. (L-A) shows that for exact joins this is the
+      only loss permitted, and (L-B) shows the retained part is as large as
+      the accepted row; so the object passes the lossy-projection test only
+      in the degenerate sense that it discards almost nothing, which is the
+      obstruction.
+    propagation: >-
+      Not applicable in the group-law sense: the row polynomial is not
+      carried through additions. Its one-step operation is root finding,
+      and its cost is the degree.
+    survival_score: >-
+      The object is exact at every level of a k-tree but at cost sigma per
+      row at every level; it never dissolves and never helps, which is the
+      cleanest possible closure shape.
+
+  null_object_control: >-
+    NULL-1 (zero compute): D a uniformly random sign-closed subset of
+    density 1/L. (L-B) gives v-degree at least c*sigma/(2d) for any join
+    with coverage c; the same bound as for x^{-1}(I), which is the record's
+    statement that the degree obstruction sees only |D|, not its structure,
+    and that structure enters only through M1's escape. NULL-2: D = G
+    (no concentration), where the join is the full-pair locator and the
+    bound is sigma = N, consistent with B64-DER-5. POSITIVE CONTROLS
+    (blocking, both must escape): F_2^{3m} prefix join and F_p^* subgroup
+    join, as in method_ceiling. DECAY PARAMETER for a FUTURE toy check: the
+    measured v-degree of the Semaev resultant as |x(D)| grows must scale
+    exactly linearly; a sublinear fit means the resultant construction is
+    wrong, not that the bound fails.
+
+  discriminated_from:
+    - >-
+      IDEA-20260829-390ccc. NEAREST RECORD. It closes SOUND BALANCED
+      RECTANGLE COVERS via Cauchy-Davenport and Vosper and lists algebraic
+      joins as open item (d). EXACT DELTA: this record closes item (d) by a
+      degree argument that needs neither soundness (only coverage) nor
+      balance nor any additive-combinatorial theorem, at gamma >= 2 rather
+      than at 'the key is a coarse log'. It is weaker in conclusion (a cost
+      bound, not a structure theorem) and wider in hypothesis (partial
+      coverage, arbitrary overlapping rows).
+    - >-
+      IDEA-20260829-4b34c5. That record wants BILINEAR character sums to
+      bound the discrepancy of the acceptance matrix for rectangle joins
+      and predicts its threshold exceeds N^{1/3}. This record needs no
+      analytic input at all for the algebraic class; the two are
+      complementary and neither implies the other.
+    - >-
+      IDEA-20260829-3f0f4b. Supplies the surface on which this record
+      places gamma >= 2; 3f0f4b's own Bostan pointer is an intuition about
+      output size, and (L-B) is the degree statement that survives partial
+      coverage, which output-size intuition does not.
+    - >-
+      IDEA-20260901-a66d70 (filed in this session). Closes the ORDER join
+      by approximate additivity and a Fourier cascade. Different primitive
+      (sorted scan versus root finding), different invariant (additivity
+      defect versus degree), no shared step.
+    - >-
+      B64-DER-2 (BATCH-671cae). That finding is scoped to the SUPPLIED
+      enumerators and disclaims a generic bound; (L-C) is the generic bound
+      for the algebraic sub-class, with its model stated.
+
+  predictions:
+    - metric: >-
+        M1 -- v-degree of the Semaev resultant join Res_t(f_3, g_{x(D)}) as
+        a function of |x(D)|
+      direction: different
+      minimum_effect: >-
+        FORCED, exactly 2|x(D)|; any other value voids the baseline
+        embedding.
+    - metric: >-
+        M2 -- the minimum gamma reachable by a polynomial-relation join
+        with d <= 3 at s = 2/3 under M1
+      direction: higher
+      minimum_effect: >-
+        gamma >= 2 - o(1). If an independent derivation finds gamma < 3/2
+        for some member of the class, either (L-B) or M1 is wrong and the
+        record is void.
+    - metric: M3 -- outcome of (L-A) on the F_2^{3m} and F_p^* controls
+      direction: different
+      minimum_effect: >-
+        FORCED, the lemma must fail on both with the failing step named
+        (stabilizer of D nontrivial); success on either means the lemma
+        proves too much.
+    - metric: >-
+        M4 -- number of successor classes left open by (L-D), each with
+        the exact step it defeats
+      direction: different
+      minimum_effect: >-
+        Exactly three named classes (vector projections, auxiliary state,
+        unbounded degree). A reviewer finding a fourth escape does not
+        falsify the record but must be recorded as an amendment target.
+
+  minimal_test:
+    design: >-
+      STATIC AND SYMBOLIC ONLY, zero runs, inside the RQ claim boundary.
+      Step 1: write (L-A) and run the two proves-too-much controls (M3).
+      Step 2: write (L-B) with the averaging step and the fibre-size
+      constant d. Step 3: state M1 and derive (L-C); place gamma >= 2 on
+      the 3f0f4b surface (M2). Step 4: derive the Semaev slice's v-degree
+      symbolically (M1) and match it to B64-DER-2 and B64-DER-5. Step 5:
+      write (L-D). FUTURE, separate authority, NOT proposed here: a toy
+      resultant computation at 16-24 bits confirming M1 numerically for
+      |x(D)| in a small ladder.
+    controls:
+      - F_2^{3m} prefix join, (L-A) must fail (blocking, proves-too-much).
+      - F_p^* subgroup join, M1 escape must fire (blocking, proves-too-much).
+      - D = G full-pair locator, must reproduce Theta(L^2) (baseline).
+      - x^{-1}(I) Semaev slice, must reproduce B64-DER-2 (baseline).
+      - Mandatory Pareto rows, Pollard rho and BSGS.
+    required_metrics:
+      - failing_step_of_L_A_on_each_control
+      - explicit_constant_in_the_L_B_degree_bound
+      - statement_of_cost_model_M1_with_its_named_escape
+      - v_degree_of_the_Semaev_slice_as_a_formula_in_x_of_D
+      - gamma_lower_bound_placed_on_the_3f0f4b_surface
+      - the_three_open_successor_classes_with_defeated_steps
+
+  falsification_conditions:
+    - >-
+      F1. (L-A) also concludes triviality for the F_2^{3m} or F_p^*
+      control. Proves too much; void until repaired.
+    - >-
+      F2. A polynomial-relation join is exhibited with bounded-degree
+      scalar projections, coverage c > 0, and row degree o(sigma). (L-B) is
+      false.
+    - >-
+      F3. A root-finding procedure is exhibited that lists the roots of an
+      SLP-given polynomial with unstructured root set among L candidates in
+      o(min(deg, L)) operations. M1 is false and the record's cost
+      conclusion falls (the degree bound stands).
+    - >-
+      F4. The Semaev slice's v-degree is not 2|x(D)|. The baseline embedding
+      is wrong and the record is void.
+    - >-
+      F5. A vector-valued projection join (escape i) with k = 2 is shown to
+      be output-sensitive on a prime-order group. Not a falsification of
+      this record, but the named successor firing; routed to
+      review-breakthrough and not claimed here.
+
+  confounders:
+    - >-
+      Sign fold: x is 2-to-1, so the accepted relation seen through x is
+      'R + S in D or R - S in D'; (L-A) is stated for the exact relation
+      and the sign-folded exact case is carried as an obligation, with the
+      fallback that (L-B) needs only the fibre bound d = 2, which holds.
+    - >-
+      Coefficient versus SLP form: a degree-sigma polynomial can have an
+      SLP of size log p (e.g. a power map). M1 charges evaluation for
+      SLPs; a reviewer must check no third representation is granted.
+    - >-
+      The p-versus-N translation: sigma counts points of G, |x(D)| counts
+      field elements; the factor 2 and the cofactor must be carried.
+    - >-
+      Coverage averaging: a join with coverage concentrated on few rows
+      escapes the 'most rows' statement but pays the same total degree;
+      the bound must be stated as a sum over rows to close that.
+
+  interpretation_limits:
+    - Zero runs, no implementation, no curve generation, no ECDLP result.
+    - >-
+      A cost bound for one join class under a stated model; not an ECDLP
+      lower bound and not a lane closure. (L-D) names what remains open.
+    - >-
+      M1 is a model. Its escape (structured root sets) is routed to the
+      keyed-join closures, which are themselves conditional records.
+    - No hypothesis, experiment, or goal status changes; no sub-rho mechanism is claimed.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        FIBRE BOUND. Every coordinate projection the lane has considered is
+        a rational function of the point of degree at most 3 and is
+        therefore at most 3-to-1 on G.
+      rigorous_support: >-
+        Rigorous: a nonconstant rational function of degree d on a curve
+        has at most d preimages of any value. Listed as a heuristic only
+        because a successor might propose a projection that is not a
+        rational function of the point (e.g. a hash of the encoding), for
+        which the bound is replaced by the trivial d = 1 (injective
+        encoding) and (L-B) becomes stronger.
+      validation_plan: >-
+        Symbolic: for each key in the corpus panel (x, bucketed x, quadratic
+        character of x, keyed PRF of the encoding) write its degree or note
+        injectivity. No sampling needed; no transfer assumption.
+    - id: H2
+      statement: >-
+        COST MODEL M1. Listing the roots of a univariate polynomial of
+        degree e among L candidate field elements costs at least
+        min(e, L)/(log N)^{O(1)} operations unless the root set is a
+        translate of the image of a subgroup under the projection.
+      rigorous_support: >-
+        For coefficient form, Omega(e) is information-theoretic (the input
+        size). For SLP form, evaluation at L points is Omega(L) in the
+        algebraic model absent structure; this imitates the standard
+        'black-box polynomial' lower bounds and the fact that fast
+        multipoint evaluation still reads every evaluation point. Not a
+        theorem in full generality, hence a model.
+      validation_plan: >-
+        Literature extraction only: record the strongest known lower bound
+        for black-box multipoint root listing and whether any structured
+        family other than cosets of subgroups admits sublinear listing. If
+        one exists on F_p that is not a subgroup image, M1 must be weakened
+        and the record restated.
+
+  target_complexity:
+    time_exponent: >-
+      No attack. The record's number is a LOWER bound for the class:
+      gamma >= 2 - o(1), hence per-attempt time N^{2/3+o(1)} at s = 2/3 on
+      the 3f0f4b surface, strictly worse than rho. Unconditionally
+      claimed: nothing below N^{1/2}.
+    memory_exponent: >-
+      Not improved; the class inherits N^{1/3} at s = 2/3 from the surface
+      and pays it for nothing.
+    best_known: >-
+      Pollard rho at N^{1/2+o(1)} and O(1) memory (KN-TECH-006); BSGS at
+      N^{1/2} and N^{1/2}; van Oorschot-Wiener total work N^{1/2}; Shoup's
+      generic bound (KN-TECH-005), consistent because the projections read
+      coordinates.
+    hidden_overhead: >-
+      The polylog in M1 hides fast-arithmetic factors; the sign fold hides
+      a factor 2; nothing superpolynomial. As a static bound the record
+      hides no running time of its own.
+    tradeoff_note: >-
+      Not applicable to an attack. The class is dominated by rho on both
+      axes at every s, which is the honest reading of a closure.
+
+  dominated_by: >-
+    AS AN ATTACK: none is mounted; every frontier row dominates the
+    realized position, checked individually: (1) parallel rho with
+    negation, 0.886*sqrt(N), O(1) memory; (2) automorphism-discounted rho on
+    CM curves; (3) BSGS; (4) van Oorschot-Wiener total work N^{1/2};
+    (5) Pohlig-Hellman, not applicable; (6) MOV/Frey-Ruck, not applicable;
+    (7) SSSA, not applicable; (8) GHS/Weil descent, not applicable over F_p;
+    (9) Semaev over F_p, no proven advantage, and this record shows its
+    summation polynomial does not help as a JOIN either; (10) preprocessing
+    S*T^2 = N, not applicable; (11) Kuhn-Struik, not applicable; (12) Shor,
+    out of scope. Data/query axis: no queries, no solve. AS A STATIC
+    CONTRIBUTION the nearest incumbent is IDEA-20260829-390ccc, which
+    dominates on conclusion strength for its class and is dominated here on
+    coverage of the algebraic class and on hypothesis breadth (partial
+    coverage suffices).
+  sota_delta: >-
+    Realized cryptanalytic delta: 0 on every axis. Static deltas claimed:
+    (a) class delta -- the algebraic/root-finding join class, open in
+    390ccc and 4b34c5, is closed at gamma >= 2 - o(1) under a stated cost
+    model, i.e. no member reaches the sub-rho threshold gamma < 3/2 of
+    3f0f4b; (b) hypothesis delta -- the bound needs coverage only, not
+    soundness, so it covers two-sided-error algebraic joins, which no prior
+    closure does; (c) baseline delta -- B64-DER-2's 'every SUPPLIED
+    enumerator is Theta(L^2)' becomes 'every polynomial-relation enumerator
+    with bounded-degree scalar projections is Theta(L^2) or worse', a
+    quantifier upgrade from supplied to all-in-class, with the Semaev
+    resultant as the exact embedding of the supplied ones.
+
+  estimated_cost:
+    implementation: none; zero code
+    compute: zero runs; one derivation session plus one literature check on black-box root listing
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.95 that (L-A) is correct. 0.9 that (L-B) is correct with the stated
+    constants; the residual is the averaging step under adversarial row
+    imbalance. 0.7 that M1 survives review as stated; the likeliest repair
+    is a sharper statement of which structured root sets are excluded.
+    0.85 that the Semaev slice reproduces B64-DER-2 exactly. Most likely
+    headline: 'algebraic joins on a prime-order group are the brute-force
+    pair scan written as a resultant; the obstruction is the degree of the
+    accepted set and it is N^{2/3}; vector-valued projections are the
+    named successor'.
+
+  inference:
+    requested_policy: research-deep
+    requested_reasoning_effort: high
+    resolved_model_id: claude-fable-5-1 (as reported by the runtime to this session; not probe-verified)
+    model_verified: false
+    fallback_used: false
+    degraded_requirements: []
+    bedrock_used: false
+
+  yaml_parse_disclosure: >-
+    NO INTERPRETER WAS AVAILABLE TO THIS SESSION and this file was NOT
+    machine-parsed by its author. Prose values are folded block scalars;
+    no duplicate keys to the author's reading; no tabs. The orchestrator
+    must run the strict parse and tools/validate_ledger.py before relying
+    on this record.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-09-01'
+  proposed_under_task: TASK-20260901-94c9e2
+  id_allocation_provenance: >-
+    Pre-allocated by the dispatching Coordinator with tools/allocate_id.py
+    and --check verified free on 2026-09-01; supplied in the task context
+    file; this agent did not allocate identifiers.
+  source_refs:
+    - RQ-ECDLP-160d89
+    - H-JPR-3a00f0
+    - DEC-20260823-eb7baf
+    - IDEA-20260823-835868
+    - IDEA-20260823-cab6c6
+    - IDEA-20260829-390ccc
+    - IDEA-20260829-3f0f4b
+    - IDEA-20260829-4b34c5
+    - IDEA-20260807-df906f
+    - IDEA-20260901-a66d70
+    - KN-FIND-b7e091
+    - KN-TECH-005
+    - KN-TECH-006
+    - KN-TECH-009
+    - KN-TECH-056
+    - KN-TECH-080
+    - ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-671cae.yaml
+    - ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-c36939.yaml
