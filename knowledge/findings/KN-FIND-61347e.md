@@ -4,8 +4,8 @@ type: internal_finding
 title: "Cross-genus Poincare-factor embedding cannot beat Pollard rho on the embedded elliptic factor (Hasse-Weil order-inflation closure)"
 tags: [isogeny, jacobian, genus-g, index-calculus, hasse-weil, tate, ecdlp, prime-field, closure, rq-crypto-001]
 confidence: strong
-internal_refs: [TASK-20260902-2fb7f8, TASK-20260902-875e3a, DEC-20260902-4c82fd]
-knowledge_refs: [KN-OPEN-de67f0, KN-OPEN-2f5e66, DEC-20260901-d599ae]
+internal_refs: [DEC-20260902-4c82fd, DEC-20260901-d599ae]
+knowledge_refs: [KN-OPEN-de67f0, KN-OPEN-2f5e66]
 proof_status: derivation
 proof_refs: []
 added: 2026-09-02
