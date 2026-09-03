@@ -187,7 +187,11 @@ the pull-back of a genus-one curve (the image of `P ↦ (x(P), x(R − P))`)
 through `(u_1, u_2) ↦ (u_1^k, u_2^k)`, whose reducibility is governed by
 whether `x` is a `k`-th power in `F_p(E)` up to constants — which happens
 only at `b = 0`. So the honest prior is that the search returns the
-measured obstruction. It is built and run anyway for the reason
+measured obstruction — and, across the seed-7 ladder from 2^13 to 2^40, it
+did: the obstruction, as a measurement, is *F2 = h + 2 and F3 within the
+null band on every member of every certified class*, over
+`p ∈ {2^13 … 2^40}`, `k = 4`, `h ∈ {2 … 8}`, `m = 2`, and the presentations
+F1–F3 — claimed nowhere else. It is built and run anyway for the reason
 `docs/inventor-protocol.md` gives: a negative that was *argued* is
 `unverified`; a negative that was *enumerated and certified* is a closure
 with a number in it, and the number is reusable by the next reader with a
@@ -214,7 +218,22 @@ to 20 bits; the fast engine ran 18 to 40 bits (18 re-run on both: identical
 | 28 | 237480833 | 6216 | 2, 5, 7, 19, 37, 41 | 0.0 s | 24 s | 10, h=8 | 1.00 ± 0.25 | 1.09 | 0 |
 | 32 | 4215063439 | 44544 (conductor 69 = 3·23) | 2, 3, 5, 7, 13, 19, 23 | 0.0 s | 136 s | 8, h=6 | 1.00 ± 0.18 | 0.92 | 0 |
 | 36 | 55998639337 | 99584 | 3, 7, 11, 13 | 0.8 s | 201 s | 10, h=8 | 1.00 ± 0.25 | 1.05 | 10 flagged → 0 after re-check (below) |
-| 40 | ROW40 |
+| 40 | 911225703551 | **551304** (conductor 2) | 2, 7, 23, 31 | 1.9 s | 2403 s (4 workers) | 7, h=5 | 1.00 ± 0.18 | 0.94 | 0 |
+
+**The 40-bit row, read carefully.** Every one of the 551,304
+`F_p`-isomorphism classes in the isogeny class of the input curve was
+reached (weighted count 551,304 = `H(4p − t²)` exactly), every codomain
+passed its order check (3,793,952 checks) and every 2-isogeny step its
+`Φ₂` identity (1,083,992 checks), the deepest member sits 6,129 isogeny
+steps from the input, and the per-member table (SHA-256
+`4b601353…`, 551,304 rows, regenerable from the seed) is summarized in
+`runs/ladder-40bit-seed7.json`. F1 is 13 on all of them; F2 is 7 = h + 2
+on all of them and on all eight nulls; the F3 class mean is 0.9999 with
+per-member spread 0.177 against a null mean of 0.941 ± 0.151 (eight
+curves), and the largest per-member F3 mean in the class, 1.938, lies just
+inside the flag cut at 1.941. No member is a survivor. This is the
+pre-registered outcome of section 4, now enumerated rather than argued, at
+the largest field the class-exhaustive layer reaches.
 
 **The 36-bit flags, and the decay test.** At 64 samples per member the
 flag threshold sits about four per-curve standard errors out, and with
