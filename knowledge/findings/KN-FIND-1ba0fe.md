@@ -109,3 +109,49 @@ remain queued and undischarged, per `DEC-20260831-a9716f`.
   underlying the canonical lift)
 - `knowledge/open-problems/KN-OPEN-3417fc.md` (internal — the broader open
   question this finding narrows one instance of, without closing)
+
+## Confidence held at `preliminary` — upgrade to `replicated` refused 2026-09-03
+
+A replication run (`RUN-ECDLP-c373eb-2`: p=1013, y²=x³+2x+2, S=(393,263),
+n=41) was executed specifically to move this entry from `preliminary` toward
+`replicated`, and an independent two-reviewer round (`BATCH-e8a3a7`, plan
+committed before either reviewer launched) **refused the upgrade** on a
+conjunctive split verdict. See `DEC-20260903-9f1190` and `EV-ECDLP-921b5d`.
+
+**The run is sound.** A fresh blinded validator re-derived the instance and
+the full 780-pair tabulation using methods sharing nothing with the
+producer's — exhaustive digit search rather than Newton/Hensel, affine
+sequential chain rather than Jacobian double-and-add, division polynomials
+`ψ₄₁` as an independent order-`n` criterion — reproducing ~1560 per-pair
+values and both 23-digit coordinates with zero mismatches. It additionally
+ran a `t = 1..9` dose-response sweep yielding image exactly `{0, min(t,8)}`,
+which **independently rules out the precision-artifact explanation** that the
+null-lift control alone could not reach.
+
+**Why the upgrade was still refused.** `RUN-2`'s script shares **266 of ~270
+executable lines** with `RUN-1`'s, every function byte-identical, the entire
+executable difference being five lines (`p`, `A,B`, `n`, the triples literal,
+one added assert). The two runs are therefore one implementation on two
+instances: `P(agree | shared systematic error) = 1`, so their agreement has
+likelihood ratio 1 on the question at issue. The order-`n` block that
+`RUN-2`'s manifest calls `independent_certificate` is likewise not
+independent — it uses the same `jac_add`/`jac_dbl` as everything else.
+The upgrade argument was shown to **prove too much**: run unchanged against
+two runs of the same systematically wrong script, it still licenses
+`replicated`.
+
+**Two defects in the target label**, recorded for the corpus rather than
+settled here: `docs/evidence-and-reproducibility.md` defines `replicated`
+only as "reproduced from a clean run, *preferably* independently", which does
+not decide this case; and `replicated` is absent from the KN-FIND
+`confidence` vocabulary entirely (0 of 81 findings use it).
+
+**What would discharge this (FG-1).** An independent cross-implementation
+reproduction, ~40 lines and under five seconds: build the order-`n` lift
+group-theoretically with no Hensel iteration —
+`Ŝ' = [p^(r−1)·((p^(r−1))⁻¹ mod n)]L` for any lift `L` — using affine `Z/p^r`
+arithmetic instead of Jacobian coordinates. It shares no line with either
+existing script and exercises a different lift construction *and* a different
+group law; since the order-`n` lift is unique, `x̂' == x̂` on all 8 digits is a
+hard binary check on the load-bearing object. Do not re-attempt the upgrade
+before it returns.
