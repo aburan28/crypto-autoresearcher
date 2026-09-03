@@ -1,0 +1,66 @@
+--- coordination/goals/GOAL-AES-003/batches/BATCH-060cb4/tasks/TASK-20260903-695ebe/src/affarm046ex.c	2026-09-02 21:02:00
++++ coordination/goals/GOAL-AES-003/batches/BATCH-060cb4/tasks/TASK-20260903-7893b2/src/affarm046ex.c	2026-09-03 10:13:22
+@@ -669,14 +669,14 @@
+ }
+ 
+ /* ---------- ADDED: table freeze for the FULL pinned dilution family ---------- */
+-/* Emits, for every k in {0,1,2,4,8,12,16}: the 16 per-position 256-byte
++/* Emits, for every k in {0,1,2,3,4,8,12,16}: the 16 per-position 256-byte
+  * tables (hex), the bijection check, and the nestedness check
+  * (S_k[j] == AES[j] for j in P_k, S_k[j] == j elsewhere). sha256 digests are
+  * computed from this output by src/freeze_digest.py. Also runs the folded
+  * instrument smoke self-checks (preregistered, PREREGISTRATION.md §8 R3):
+  * a k=0 identity mini arm with committed assertions and a k=16 AES mini arm
+  * with internal-consistency assertions, both at log2N=10 seed=<seed>. */
+-static const int FREEZE_KS[7] = {0,1,2,4,8,12,16};
++static const int FREEZE_KS[8] = {0,1,2,3,4,8,12,16};
+ 
+ static void mini_arm_emit(const char *label, int rounds, int log2N, uint64_t seed,
+                           int armid, int nthr, const sched *s){
+@@ -740,7 +740,7 @@
+     for(int i=0;i<256;i++) printf("%02x", SBOX[i]);
+     printf("\",\n");
+     printf("  \"points\": [\n");
+-    for(int q=0;q<7;q++){
++    for(int q=0;q<8;q++){
+         int k=FREEZE_KS[q];
+         set_diluted_tables(k);
+         int inP[16]; diluted_position_list(k, inP);
+@@ -767,12 +767,12 @@
+             printf("\"%s", j<15?",":"");
+         }
+         printf("],\n      \"bijective_all_positions\": %s,\n      \"nestedness_check\": %s}%s\n",
+-               bijective?"true":"false", nested_ok?"true":"false", q<6?",":"");
++               bijective?"true":"false", nested_ok?"true":"false", q<7?",":"");
+     }
+     printf("  ],\n");
+     /* cross-k nesting: P_k subset P_k' for k < k' (structural, from the order) */
+     int cross_ok=1;
+-    for(int a=0;a<7;a++) for(int b=a+1;b<7;b++){
++    for(int a=0;a<8;a++) for(int b=a+1;b<8;b++){
+         int inA[16], inB[16];
+         diluted_position_list(FREEZE_KS[a], inA);
+         diluted_position_list(FREEZE_KS[b], inB);
+@@ -811,7 +811,7 @@
+ int main(int argc, char **argv){
+     build_xt_tables(); build_geom(); set_aes_sbox();
+     set_diluted_tables(16);   /* TPOS = full AES table: pin mode and the k=16 seat */
+-    if(argc<2){ fprintf(stderr,"usage: affarm046ex pin <seed> | affarm046ex pinidentity <seed> | affarm046ex geom | affarm046ex freeze <seed> | affarm046ex arm <name> <rounds> <amask> <smask> <log2N> <seed> <armid> <threads> (aes|identity)\n"); return 2; }
++    if(argc<2){ fprintf(stderr,"usage: affarm046ex pin <seed> | affarm046ex pinidentity <seed> | affarm046ex geom | affarm046ex freeze <seed> | affarm046ex arm <name> <rounds> <amask> <smask> <log2N> <seed> <armid> <threads> (identity|s1|s2|s3|s4|s8|s12|aes)\n"); return 2; }
+     if(!strcmp(argv[1],"geom")) return geom_mode();
+     if(!strcmp(argv[1],"pin")){
+         uint64_t seed=strtoull(argv[2],NULL,10);
+@@ -841,11 +841,12 @@
+      * replaced by the pinned surface below. Scoped to BATCH-7b798d. */
+     else if(strcmp(argv[10],"s1")==0) ksel=1;
+     else if(strcmp(argv[10],"s2")==0) ksel=2;
++    else if(strcmp(argv[10],"s3")==0) ksel=3;
+     else if(strcmp(argv[10],"s4")==0) ksel=4;
+     else if(strcmp(argv[10],"s8")==0) ksel=8;
+     else if(strcmp(argv[10],"s12")==0) ksel=12;
+     else {
+-        fprintf(stderr,"unknown sbox token: the PIN-T0 widened build admits {identity, s1, s2, s4, s8, s12, aes} for k in {0,1,2,4,8,12,16} (DEC-20260901-fb6f11)\n");
++        fprintf(stderr,"unknown sbox token: the PIN-T0 widened build admits {identity, s1, s2, s3, s4, s8, s12, aes} for k in {0,1,2,3,4,8,12,16} (DEC-20260901-fb6f11)\n");
+         return 3;
+     }
+     if(smask==0 || smask==15){ fprintf(stderr,"degenerate smask forbidden\n"); return 3; }
