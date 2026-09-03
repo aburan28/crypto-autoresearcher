@@ -361,8 +361,16 @@ def _has_rational_isogenies(D, ell, p):
     return kronecker(D, ell) == 1
 
 
+# Generating primes for the fast engine: longer than the reference list because
+# the ideal classes above the smallest split primes can sit in a proper
+# subgroup (genus theory: index a power of two), and the next prime with the
+# right genus characters may be well past 47.  Only active primes are used and
+# larger ones are admitted only while the census is short.
+FAST_PRIMES = tuple(q for q in range(2, 200) if all(q % d for d in range(2, int(q ** 0.5) + 1)))
+
+
 def search_fast(p, a, b, seed=7, k=4, h=None, samples=64, D_max=None, nulls=8,
-                primes=ref.DEFAULT_PRIMES, with_f2=True, workers=4, batch=256,
+                primes=FAST_PRIMES, with_f2=True, workers=4, batch=256,
                 checkpoint=None, verbose=True, max_members=None):
     if not HAVE_FLINT:
         raise RuntimeError("python-flint is required for the fast engine (pip install python-flint)")
