@@ -7,9 +7,18 @@ demonstration runs in section 10 are smoke runs of the instrument, not
 `RUN-*` records, and carry no evidential weight until an approved `EXP-*`
 contract re-runs them under the run wrapper.
 
-Instrument: [`tools/isogeny_dreg_search.py`](../../tools/isogeny_dreg_search.py)
-(pure Python, no dependencies).
-Tests: [`tests/test_isogeny_dreg_search.py`](../../tests/test_isogeny_dreg_search.py).
+Instruments: [`tools/isogeny_dreg_search.py`](../../tools/isogeny_dreg_search.py)
+(reference engine, pure Python, no dependencies) and
+[`tools/isogeny_dreg_search_fast.py`](../../tools/isogeny_dreg_search_fast.py)
+(fast engine, `python-flint`, multiprocessing, checkpoints; the one that runs
+the 2^40 class).
+Tests: [`tests/test_isogeny_dreg_search.py`](../../tests/test_isogeny_dreg_search.py),
+[`tests/test_isogeny_dreg_search_fast.py`](../../tests/test_isogeny_dreg_search_fast.py)
+(the fast engine is held to the reference engine and to brute force on every
+component).
+Run outputs: `analysis/isogeny-dreg-search/runs/` (summaries; per-member
+tables for the large classes are kept out of the repository and identified by
+SHA-256 in the summary).
 Proposal record: `ledger/proposals/IDEA-20260903-47f358.yaml`.
 Lane: `RQ-ICINV-475b5e` (GOAL-ENDO-001, L1), successor to `RQ-ISO-001` /
 `EV-ISO-001`.
@@ -185,44 +194,66 @@ with a number in it, and the number is reusable by the next reader with a
 different factor-base map in hand. The search is decisive in both
 directions and costs minutes at toy scale.
 
-## 5. Cost model and the `2^40` plan
+## 5. The ladder to `2^40`, and its cost
 
-Measured on this reference engine (single core, pure Python, `samples=64`,
-`nulls=6`, F2 on):
+The search was run as a ladder: one random generic curve (random prime of
+the stated size, random `(a, b)`, seed 7) at each size, the **whole
+isogeny class** enumerated and certified, F1/F2/F3 on every member, eight
+different-trace null curves at the same prime. The reference engine ran 13
+to 20 bits; the fast engine ran 18 to 40 bits (18 re-run on both: identical
+`j`-set).
 
-| `log₂ p` | `p` | class size | certified | generating primes used | enumeration | measurement | total wall |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 13 | 7127 | 96 | yes | 2, 3 | 0.0 s | 0.6 s | 0.7 s |
-| 16 | 35933 | 176 | yes | 2, 5 | 0.3 s | 1.2 s | 1.5 s |
-| 18 | 143729 | 144 | yes | 3, 5, 13 | 81.8 s | 1.0 s | 82.8 s |
-| 20 | 863851 | 96 of 576 (coverage 1/6) | **no** with primes ≤ 13 | 3, 5, 7, 13 | 63.4 s | 0.9 s | 64.3 s — re-run with primes to 47 in progress at commit time; row to be replaced by the certified figures |
+| `log₂ p` | `p` | class mass (certified) | generating primes | census | wall | F2 (all members and nulls) | F3 class mean ± sd | F3 null mean | survivors |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 13 | 7127 | 96 | 2, 3 | 0.0 s | 0.7 s (ref) | 9 = h+2, h=7 | 1.05 ± 0.17 | 0.91 | 0 |
+| 16 | 35933 | 176 | 2, 5 | 0.0 s | 1.5 s (ref) | 6, h=4 | 1.01 ± 0.27 | 0.90 | 0 |
+| 18 | 143729 | 144 | 3, 5, 13 | 0.0 s | 83 s (ref) / 0.4 s (fast) | 10, h=8 | 1.02 ± 0.26 | 0.80 | 0 |
+| 20 | 863851 | 576 | 3, 5, 7, 13, 17 | 0.0 s | 1924 s (ref) | 8, h=6 | 1.00 ± 0.16 | 0.92 | 0 |
+| 20 | 708563 | 640 | 2, 3, 7, 11, 17, 23 | 0.0 s | 1.1 s | 4, h=2 | 1.00 ± 0.18 | 1.04 | 0 |
+| 24 | 8748463 | 2664 | 2, 3, 11 | 0.1 s | 5.9 s | 8, h=6 | 1.00 ± 0.18 | 1.00 | 0 |
+| 28 | 237480833 | 6216 | 2, 5, 7, 19, 37, 41 | 0.0 s | 42 s | 10, h=8 | 1.00 ± 0.25 | 1.00 | 0 |
+| 32 | ROW32 |
+| 36 | ROW36 |
+| 40 | ROW40 |
 
-Enumeration cost is entirely the division-polynomial factoring for the
-smallest *split* prime the class needs: at 18 bits the primes 3 and 5 are
-ramified (order-2 class-group elements) and 13 is the first split prime, so
-`ψ_13` (degree 84) is factored on every member. That is the term to
-compile first. Measurement (F1 + F2 + F3 at `samples = 64`) is
-`≈ 7 ms`/member throughout.
+Wall times from 20 bits down the table are the fast engine on 3–4 worker
+processes. Per-member CPU cost is `≈ 20 ms` (kernel polynomials for the
+active primes, two order checks per codomain, F1, F3 at 64 samples, F2),
+of which the F3 sampling and the F2 elimination are the larger half; the
+enumeration itself is `≈ 1 ms`/member once `ψ_ℓ` lives in C.
 
-Extrapolation (`--cost-model`): class size `≈ 2√p / π · L(1,χ)`, so
-`≈ 6.7·10^5` members at `p ≈ 2^40`. Per-member cost is dominated by
-factoring `ψ_ℓ` for the generating primes (degree `(ℓ²−1)/2`, `O(ℓ⁴ log p)`
-word operations) and by the F3 root counts (`O(k² log p)` per sample). A
-compiled engine at `≈ 5 ms`/member puts the whole class at `≈ 1 CPU-hour`;
-the pure-Python reference engine is for `p < 2^24`. Above `2^17` the trace
-comes from BSGS and remains exact; the census remains exact at every size
-because form counting is `O(√|D|)`.
+**What the fast engine changes and what it does not.** The walk is the
+same walk. Kernel polynomials are read off as Frobenius eigenspaces of
+`ψ_ℓ` (one `pow_mod`, one gcd per eigenvalue of `x² − tx + p mod ℓ`)
+instead of by full factoring; the scalar-Frobenius case (`ℓ | f`) falls
+back to the reference engine's factoring path. The class-number certificate
+is a sieve over the reduced-form values `(B² − D)/4`, exact and
+`O(√|D| log log |D|)`, lifted to suborders by the conductor formula; at a
+42-bit discriminant it takes about two seconds. Every per-codomain check
+(order on random points, `Φ₂`/`Φ₃`) and the exact census equality are
+unchanged. The tests hold the fast engine to the reference engine on kernel
+polynomials, root counts, class numbers, class mass, and the enumerated
+`j`-set.
+
+**What "exhaustive below `2^40`" therefore means in the table.** At every
+row the enumerated weighted count equals `H(4p − t²)` exactly, so every
+`F_p`-isomorphism class any rational isogeny of any degree can reach from
+the input curve has been measured. The bound `2^40` is met at the field
+size, the largest object an isogeny search can be exhaustive over. It is
+not, and cannot be, "every prime below `2^40`" (`≈ 2^55` models) — see
+section 0 — and the ladder samples one generic curve per size, so a claim
+about *all* curves of a size rests on the class-invariance argument of
+section 4, not on the enumeration.
 
 **At cryptographic `p`** the class is `≈ 2^128` and no exhaustive layer
-exists. The fallback the tool does not yet implement, recorded here so the
-gap is legible: enumerate the **smooth-degree ball** — every ideal
-`∏ 𝔩_i^{e_i}` of norm `< 2^40` over split primes `ℓ_i ≤ B` — by the same
-S1–S2 walk, apply the `O(1)` screens F1 and F3 to every node, and run the
-Gröbner verification on survivors. That is exhaustive over smooth degrees
-below `2^40` and *silent* on non-smooth ones, which are unreachable by any
-known algorithm without `Φ_ℓ` for `ℓ ≈ 2^40`; a plan that calls the
-smooth ball "everything below `2^40`" would be overclaiming and this note
-does not.
+exists. The fallback the tool does not implement, recorded so the gap is
+legible: enumerate the **smooth-degree ball** — every ideal `∏ 𝔩ᵢ^{eᵢ}` of
+norm `< 2^40` over split primes `ℓᵢ ≤ B` — by the same walk, apply the
+`O(1)` screens F1 and F3 to every node, and run the Gröbner verification on
+survivors. That is exhaustive over smooth degrees below `2^40` and silent
+on non-smooth ones, which are unreachable by any known algorithm without
+`Φ_ℓ` for `ℓ ≈ 2^40`; calling the smooth ball "everything below `2^40`"
+would be overclaiming and this note does not.
 
 ## 6. Relation to what the ledger already holds
 
@@ -259,6 +290,10 @@ python3 -m pytest -q tests/test_isogeny_dreg_search.py
 python3 tools/isogeny_dreg_search.py --bits 13 --seed 3 --samples 64 --nulls 4 --out demo13.json
 python3 tools/isogeny_dreg_search.py --p 1009 --a 0 --b 7 --no-f2 --out jzero.json   # positive control
 python3 tools/isogeny_dreg_search.py --cost-model
+pip install python-flint
+python3 -m pytest -q tests/test_isogeny_dreg_search_fast.py
+python3 tools/isogeny_dreg_search_fast.py --ladder 20,24,28,32,36,40 --seed 7 --workers 4 \
+    --outdir analysis/isogeny-dreg-search/runs --checkpoint-dir /tmp/ck --members-limit 0
 ```
 
 Every run is deterministic in `--seed`; the JSON carries every member's
