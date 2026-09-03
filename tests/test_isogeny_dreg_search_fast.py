@@ -76,3 +76,29 @@ def test_fast_search_positive_control_flags_j_zero():
                         with_f2=False, verbose=False)
     assert rep["exhaustive"]
     assert any("F1 support" in f for s in rep["survivors"] for f in s["flags"])
+
+
+def test_scalar_frobenius_path_matches_reference():
+    # find a curve at p = 1009 whose class conductor is divisible by 3 or 5, so
+    # that surface curves carry ell + 1 rational ell-subgroups; the fast engine
+    # must return exactly the reference engine's kernel polynomials there.
+    rng = random.Random(9)
+    checked = 0
+    for a in range(1, 60):
+        for b in range(1, 60):
+            if S.is_singular(a, b, P):
+                continue
+            t = S.trace_exact(a, b, P)
+            if t % P == 0:
+                continue
+            D0, f = S.fundamental_discriminant(t * t - 4 * P)
+            for ell in (3, 5, 7):
+                if f % ell:
+                    continue
+                fast = F.kernel_polynomials_fast(a, b, P, ell, t, rng)
+                assert fast == S.rational_subgroups(a, b, P, ell, rng), (a, b, ell)
+                if len(fast) == ell + 1:
+                    checked += 1
+            if checked >= 3:
+                return
+    assert checked >= 1

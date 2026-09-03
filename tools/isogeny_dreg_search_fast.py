@@ -135,9 +135,41 @@ def kernel_polynomials_fast(a, b, p, ell, t, rng):
         elif g.degree() != 0:
             need_full = True
     if need_full:
-        # scalar Frobenius on E[ell] (ell | conductor): ell + 1 subgroups; use
-        # the reference engine's full-factoring path (rare, slow, exact)
-        return ref.rational_subgroups(a, b, p, ell, rng)
+        # scalar Frobenius on E[ell] (ell | conductor, curve on the surface of
+        # its ell-volcano): ell + 1 rational subgroups whose kernel polynomials
+        # are not eigenspace gcds.  Factor psi_ell fully in C, then group the
+        # irreducible factors into kernel polynomials with the x-only ladder.
+        return _kernel_polys_scalar_frobenius(a, b, p, ell, psi)
+    return [list(k) for k in sorted(out)]
+
+
+def _kernel_polys_scalar_frobenius(a, b, p, ell, psi):
+    n = (ell - 1) // 2
+    found = []            # nmod_poly kernel polynomials
+    out = {}
+    for q, _mult in psi.factor()[1]:
+        r = q.degree()
+        if r > n or n % r:
+            continue
+        if any((h % q).degree() < 0 or h % q == 0 for h in found):
+            continue      # this factor already lies in a found kernel polynomial
+        qc = [int(c) for c in q.coeffs()]
+        K = ref.ExtField(p, qc)
+        x1 = K.red([0, 1]) if K.r > 1 else K.const((-qc[0]) % p)
+        xs = ref.x_only_multiples(K, a, b, x1, n)
+        h = [K.const(1)]
+        for xi in xs:
+            newh = [K.const(0)] * (len(h) + 1)
+            for i, c in enumerate(h):
+                newh[i + 1] = K.add(newh[i + 1], c)
+                newh[i] = K.sub(newh[i], K.mul(c, xi))
+            h = newh
+        if all(K.is_const(c) for c in h):
+            hp = ref._trim([(c[0] if c else 0) for c in h])
+            key = tuple(hp)
+            if key not in out:
+                out[key] = hp
+                found.append(nmod_poly(hp, p))
     return [list(k) for k in sorted(out)]
 
 
