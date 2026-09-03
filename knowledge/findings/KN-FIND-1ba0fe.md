@@ -3,7 +3,7 @@ id: KN-FIND-1ba0fe
 type: internal_finding
 title: "ECDLP-IDEA-436's D1 coordinate-valuation profile collapses exactly to the +/-fibre indicator on a toy instance, confirming Proposition E and its canonical-lift mechanism"
 tags: [lifting, local-torsion, p-adic, valuation, ecdlp, prime-field, toy-verified, ecdlp-idea-436, rc-1, negation-map]
-confidence: preliminary
+confidence: toy_scale_two_instances_reproduced_by_three_independent_implementations
 internal_refs: [H-ECDLP-a40416, EXP-ECDLP-c373eb, RUN-ECDLP-c373eb-1, EV-ECDLP-f5c698, DEC-20260901-34e038]
 knowledge_refs: [KN-TECH-73630e, KN-OPEN-3417fc, KN-TECH-005, KN-TECH-006]
 proof_status: empirical_only
@@ -155,3 +155,46 @@ existing script and exercises a different lift construction *and* a different
 group law; since the order-`n` lift is unique, `x̂' == x̂` on all 8 digits is a
 hard binary check on the load-bearing object. Do not re-attempt the upgrade
 before it returns.
+
+## J2 objection DISCHARGED 2026-09-03 — confidence raised
+
+The refusal recorded in the section above is **superseded** (additively; that
+section stands as the record of why the upgrade was refused at the time).
+`FG-1` (`EXP-ECDLP-809375` / `RUN-ECDLP-809375-1`) discharged the objection.
+See `DEC-20260903-256c7c` and `EV-ECDLP-feb897`.
+
+**What FG-1 did.** Re-measured the D1 image on *both* already-measured
+instances with an implementation independent on all three required axes: a
+group-theoretic order-`n` lift
+`Ŝ = [p^(r−1)·((p^(r−1))⁻¹ mod n)]L` with **no Hensel/Newton iteration**,
+**affine `Z/p^r`** arithmetic rather than Jacobian coordinates, and no reuse
+of either prior script. Image `{0,8}` on both: instance A 1035 pairs
+(1012 zeros / 23 caps), instance B 780 pairs (760 / 20), every capped pair
+satisfying `j+k=n` and every such pair capped.
+
+**Control C-1 is decisive in kind, not degree.** The order-`n` prime-to-`p`
+torsion lift is **unique**, so a differently-constructed lift either equals
+the recorded one exactly or one construction is wrong. It matched **8/8
+base-`p` digits of `x` and 8/8 of `y`, on both instances**. The Coordinator
+independently reproduced this with a **third** implementation before
+accepting it — three implementations now agree on the load-bearing object.
+
+**Control C-3 strengthened the precision-artifact refutation** from the
+indirect form ("the null lift differs") to the direct form: the on-fibre
+value **tracks `r`** — 4→4, 8→8, 12→12.
+
+**A correction this round produced.** The null-lift family used by RUN-1 and
+RUN-2 (`x0 = S.x + p^e`) does **not** track `e`; it reads `{0,1}` at every
+depth, because the naive integer-representative lift is already off-fibre at
+depth 1. It was a **valid `e=1` refutation** — that conclusion stands — but it
+was never a tunable dose-response instrument and must not be cited as one.
+
+**What this still does not establish.** Implementation independence, *not*
+answer-blindness: the contract stated the expected image and permitted
+reading the prior manifests for the C-1 targets. Still toy tier — two ~10-bit
+instances from one configuration family, held fixed *by design* so the
+implementation was the only variable. FG-1 itself was **not** independently
+reviewed; its force comes substantially from the discharging criterion having
+been pre-specified *adversarially* by the reviewer whose objection it
+discharges. If this finding is to move beyond toy tier, the ranked next step
+is **scale and family diversity**, not more implementations.
