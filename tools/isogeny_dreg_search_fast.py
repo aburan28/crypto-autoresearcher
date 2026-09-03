@@ -469,7 +469,15 @@ def search_fast(p, a, b, seed=7, k=4, h=None, samples=64, D_max=None, nulls=8,
     # cost about a millisecond each) from the start, so the walk's diameter is
     # small and every pass keeps the pool busy; larger primes are admitted one
     # at a time only when the cheap ones reach a fixed point short of the census.
-    cheap = [ell for ell in active if ell <= 13]
+    # "Cheap" is ell <= 31 (psi_31 has degree 480; one pow_mod is a few ms,
+    # small next to the ~20 ms of measurement per member), and the first stage
+    # always holds at least three active primes: with only two generators the
+    # walk is a long cycle whose frontier is a handful of curves per pass, and
+    # the pool idles (observed at 40 bits with generators {2, 7}: 8 new
+    # members per pass).
+    cheap = [ell for ell in active if ell <= 31]
+    if len(cheap) < 3:
+        cheap = active[:3]
     stages = []
     if cheap:
         stages.append(cheap)
@@ -721,8 +729,51 @@ def write_report(report, path, keep_members=True):
         json.dump(slim, fh, indent=1)
 
 
+def recheck(report_path, members_path, samples=1024, controls=20, seed=8, k=None, workers=4):
+    """Re-measure a run's F3 survivors at many more samples with a fresh seed,
+    alongside random non-survivor members and the null curves, so a flag that
+    was sampling noise decays and a real one persists (inventor protocol:
+    a signal that does not survive more mixing is an artifact)."""
+    with open(report_path) as fh:
+        rep = json.load(fh)
+    with open(members_path) as fh:
+        members = json.load(fh)
+    p = rep["class"]["p"]
+    k = k or rep["input"]["k"]
+    surv = {(s["a"], s["b"]) for s in rep["survivors"]}
+    rng = random.Random(f"recheck:{seed}")
+    others = [m for m in members if (m["a"], m["b"]) not in surv]
+    ctrl = rng.sample(others, min(controls, len(others)))
+    jobs = [(m["a"], m["b"], "survivor") for m in members if (m["a"], m["b"]) in surv]
+    jobs += [(m["a"], m["b"], "control") for m in ctrl]
+    jobs += [(n["a"], n["b"], "null") for n in rep["null"]]
+    rows = []
+    for (a, b, role) in jobs:
+        r = random.Random(f"recheck:{seed}:{a}:{b}")
+        f3 = f3_fibre_roots_fast(a, b, p, k, samples, r)
+        old = next((m["F3"]["mean"] for m in members if (m["a"], m["b"]) == (a, b)), None)
+        if old is None:
+            old = next((n["F3"]["mean"] for n in rep["null"] if (n["a"], n["b"]) == (a, b)), None)
+        rows.append({"a": a, "b": b, "role": role, "F3_mean_original": old,
+                     "F3_mean_recheck": f3["mean"], "F3_max_recheck": f3["max"],
+                     "histogram": f3["histogram"]})
+    by = {}
+    for r in rows:
+        by.setdefault(r["role"], []).append(r["F3_mean_recheck"])
+    return {"instrument": "tools/isogeny_dreg_search_fast.py --recheck", "claim_tier": "toy",
+            "source_run": str(report_path), "p": p, "k": k, "samples": samples, "seed": seed,
+            "rows": rows,
+            "summary": {role: _band(v) for role, v in by.items()},
+            "reading": ("survivors whose recheck mean falls inside the control band were "
+                        "sampling flags; a survivor that stays outside is a candidate for "
+                        "Groebner verification under an EXP-* contract")}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--recheck", help="run JSON whose survivors should be re-measured")
+    ap.add_argument("--members", help="members JSON for --recheck")
+    ap.add_argument("--controls", type=int, default=20)
     ap.add_argument("--p", type=int)
     ap.add_argument("--a", type=int)
     ap.add_argument("--b", type=int)
@@ -742,6 +793,20 @@ def main(argv=None):
     ap.add_argument("--outdir", default="analysis/isogeny-dreg-search/runs")
     ap.add_argument("--checkpoint-dir")
     args = ap.parse_args(argv)
+
+    if args.recheck:
+        rep = recheck(args.recheck, args.members, samples=args.samples, controls=args.controls,
+                      seed=args.seed, k=args.k if args.k != 4 else None, workers=args.workers)
+        text = json.dumps(rep, indent=1)
+        if args.out:
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            with open(args.out, "w") as fh:
+                fh.write(text + "\n")
+        print(json.dumps(rep["summary"], indent=1))
+        for r in rep["rows"]:
+            if r["role"] == "survivor":
+                print(f"  survivor j? a={r['a']} original {r['F3_mean_original']:.3f} -> recheck {r['F3_mean_recheck']:.3f}")
+        return 0
 
     if args.ladder:
         sizes = [int(x) for x in args.ladder.split(",")]

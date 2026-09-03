@@ -213,8 +213,21 @@ to 20 bits; the fast engine ran 18 to 40 bits (18 re-run on both: identical
 | 24 | 8748463 | 2664 | 2, 3, 11 | 0.1 s | 5.9 s | 8, h=6 | 1.00 ± 0.18 | 1.00 | 0 |
 | 28 | 237480833 | 6216 | 2, 5, 7, 19, 37, 41 | 0.0 s | 24 s | 10, h=8 | 1.00 ± 0.25 | 1.09 | 0 |
 | 32 | 4215063439 | 44544 (conductor 69 = 3·23) | 2, 3, 5, 7, 13, 19, 23 | 0.0 s | 136 s | 8, h=6 | 1.00 ± 0.18 | 0.92 | 0 |
-| 36 | ROW36 |
+| 36 | 55998639337 | 99584 | 3, 7, 11, 13 | 0.8 s | 201 s | 10, h=8 | 1.00 ± 0.25 | 1.05 | 10 flagged → 0 after re-check (below) |
 | 40 | ROW40 |
+
+**The 36-bit flags, and the decay test.** At 64 samples per member the
+flag threshold sits about four per-curve standard errors out, and with
+99,584 members the expected number of members outside it *under the null*
+is 6.3 (`F3_expected_false_flags_under_null` in the run summary); ten were
+flagged, all with means near 2.1–2.4. Re-measured at 1024 samples with a
+fresh seed alongside 20 random non-flagged members and the 8 null curves
+(`runs/recheck-36bit-seed7.json`), every one of the ten returned to the
+band: survivors 1.004 ± 0.056, controls 1.006 ± 0.063, nulls 1.011 ± 0.048.
+A signal that vanishes when the sampling that produced it is increased was
+sampling; none of the ten is a candidate. The recheck is now a mode of the
+fast engine (`--recheck`), and it is what a flag at any size has to pass
+before the Gröbner verification is spent on it.
 
 Wall times from 20 bits down the table are the fast engine on 3–4 worker
 processes. Per-member CPU cost is `≈ 20 ms` (kernel polynomials for the
