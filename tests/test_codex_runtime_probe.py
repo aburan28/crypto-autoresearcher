@@ -498,7 +498,7 @@ def test_sqlite_is_query_only_and_never_enumerates_threads(tmp_path, monkeypatch
     monkeypatch.setattr(codex_runtime.sqlite3, "connect", traced_connect)
     codex_runtime.probe_codex_session(**arguments)
     assert connect_calls[0][0][0].startswith("file:")
-    assert connect_calls[0][0][0].endswith("?mode=ro")
+    assert connect_calls[0][0][0].endswith("?mode=ro&immutable=1")
     assert connect_calls[0][1]["uri"] is True
     normalized = [" ".join(item.split()) for item in statements]
     selects = [item for item in normalized if item.upper().startswith("SELECT")]
