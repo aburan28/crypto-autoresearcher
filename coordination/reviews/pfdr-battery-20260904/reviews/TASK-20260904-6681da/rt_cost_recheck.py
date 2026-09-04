@@ -90,6 +90,14 @@ def dreg_corr_wrapper(n, m, s):
     return -(-(n + delta_true(m, max(s, 1))) // 2)
 
 
+import sys as _sys, time as _time
+_T0 = _time.time()
+
+
+def _mark(tag):
+    print(f"[{tag}] {_time.time()-_T0:.2f}s", file=_sys.stderr, flush=True)
+
+
 out = {}
 
 # =========================================================== R1
@@ -197,6 +205,7 @@ for log2N in LOG2NS:
                     "log2_ncols": round(log2(ncols(nB, D0B)), 3),
                     "rows_at_D_0": ncols(nB, D0B - delta_true(m, sbB))},
             })
+_mark("R1")
 out["R1"] = r1
 
 # =========================================================== R2
@@ -225,7 +234,7 @@ for (n, m) in ((30, 3), (60, 4), (100, 5), (269, 5)):
     row = {"n": n, "m": m, "delta": dl}
     for nsol_name, nsol in (("1", 1), ("m!", factorial(m)),
                             ("2^m m!", 2 ** m * factorial(m))):
-        D = 0
+        D = dl
         while D <= n + dl + 2:
             if ncols(n, D) - ncols(n, D - dl) <= nsol:
                 break
@@ -256,6 +265,7 @@ r2["m2_measured_d_lf"] = {
     "closed_form_4_plus_floor_s_over_2": {s: 4 + s // 2 for s in range(1, 7)},
     "delta_at_those_s": {s: delta_true(2, s) for s in range(1, 7)},
 }
+_mark("R2")
 out["R2"] = r2
 
 # =========================================================== R3
@@ -291,6 +301,7 @@ for m in MS:
             "residual_vars_at_k_c_corrected_delta": resid_corr,
             "k_c_in_range_corrected": resid_corr > 0,
         })
+_mark("R3")
 out["R3"] = r3
 
 # =========================================================== proves_too_much
@@ -353,6 +364,7 @@ for m in (4, 5):
             "log2T": round(b["log2T"], 3), "rho": round(log2_rho(256), 3),
             "sub_rho": b["log2T"] < log2_rho(256),
             "delta": dl, "rows_at_D_0_2": ncols(b["n"], 2 - dl)})
+_mark("proves_too_much")
 out["proves_too_much"] = ptm
 
 # =========================================================== R4
@@ -382,6 +394,7 @@ for (log2N, m, D0, om) in ((256, 5, 4, 2.0), (256, 5, 4, 2.807),
         "dense_matrix_memory_log2_Ncols^2": round(2 * lc, 3),
         "matrix_exceeds_tabulated_memory": 2 * lc > b["log2_mem"],
     })
+_mark("R4")
 out["R4"] = r4
 
 print(json.dumps(out, indent=1, default=str))
