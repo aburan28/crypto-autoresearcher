@@ -72,3 +72,53 @@ immutable so nothing is edited here, but `citation_verified: read` cannot be
 relied on as evidence that a source was actually read, and any gate that tests
 it is weaker than it appears. Worth a superseding correction and a check of
 whatever else that flag gates.
+
+---
+
+# Wave 2 rulings
+
+## R4. EXP-ECDLP-fa2ed6 Arm S (supersingular positive control) — PERMITTED as a control
+
+The designing coordinator stopped rather than deciding, correctly. Ruling:
+the supersingular arm may run AS A CONTROL. It may not produce any claim about
+supersingular curves.
+
+`RQ-ECDLP-912694` constraint 1 reads "Ordinary curves only; supersingular and
+extension-field-only maps are out of scope." Read alone that forbids the arm.
+It is not alone. Constraint 4 of the same question reads "Exception cells are
+controls and cannot be used as unqualified falsification evidence" — the
+question explicitly contemplates cells outside its scope serving as controls,
+and bounds what may be concluded from them rather than forbidding them. Its own
+`scope.curve_families` confirms the reading: the third entry is
+"extension-field special-j controls where the named automorphism is not
+F_p-rational", an out-of-family object admitted precisely because it is a
+control.
+
+So constraint 1 bounds the CLAIM SPACE, not the control space. A control is not
+a claim: running a supersingular curve to show the instrument can return
+delta != 1 asserts nothing about supersingular curves, it establishes that the
+measurement is capable of a negative at all.
+
+The alternative is worse and is the reason this matters. Without the arm,
+"delta = 1 identically for ordinary curves" is measured by an instrument never
+shown able to return anything else, which makes it an unfalsifiable constant
+rather than a result. That is the vacuous-instrument failure mode, and
+GOAL-ENDO-001 completion criterion C4 forbids it in terms: "Every instrument
+used to support any conclusion has passed both directions of its
+RQ-INSTR-f8faa0 control: it detects a planted signal and it rejects a matched
+null."
+
+Binding conditions on the arm:
+1. It is labelled a control everywhere it appears, in the contract and in any
+   evidence record that cites it.
+2. No record may state a result about supersingular curves from it. Its only
+   admissible reading is instrument dynamic range.
+3. The ordinary-curve conclusion remains scoped to ordinary curves, and cites
+   the arm only as evidence that the instrument could have returned otherwise.
+4. If the arm does NOT return delta != 1, that is an instrument failure and
+   triggers pause condition P1, not a finding about curves.
+
+The coordinator's fallback — stop at S0 and report DERIVATION-ONLY with the
+ordinary arm "unfalsified, never a verified negative" — was the right design
+for a refusal, and stands as the behaviour if the arm cannot be run for some
+other reason.
