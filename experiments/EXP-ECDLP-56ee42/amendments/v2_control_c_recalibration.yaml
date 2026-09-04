@@ -1,0 +1,145 @@
+amendment:
+  experiment: EXP-ECDLP-56ee42
+  version: v2
+  supersedes: >-
+    specification.yaml v1, controls: CONTROL C (gate calibration only) and
+    the static provenance check (scanner mechanism only). Everything else
+    in the frozen contract is UNCHANGED: preregistered predictions P1-P5,
+    the two-branch rule, the frozen ladder (design/ladder.json), arms,
+    seed schedule (base 0x56EE42), POS-A and POS-B gates, NULL-1, the
+    comparator, budgets, and the stopping rules. The frozen prediction is
+    never edited; this is a control calibration, not a prediction change.
+  status: proposed
+  approved_by: null
+  opened_by: DEC-20260904-92dec2
+  review_round:
+    - TASK-20260904-410404
+    - TASK-20260904-a897dc
+  rationale: >-
+    Stage 2 (RUN-ECDLP-56ee42-S2) failed two gates. POS-A and POS-B
+    passed; the fixture (stage 1) and the spectral-norm gate (stage 0)
+    passed. The two failures are (1) CONTROL C: post-shuffle max A_noDC
+    is 78-93% of pre-shuffle at every rung against the frozen criterion
+    of <= 50%, and (2) static provenance: T3's array function flagged
+    with seven k-token references. DEC-20260904-92dec2 adjudicates both
+    against the cited o2-lane reference and direct code inspection, and
+    this amendment restates the control accordingly. Stage 3 remains
+    blocked until the review round on the DEC returns without blocking
+    dissent and the calibration run below passes.
+
+  changes:
+    - id: C1
+      name: CONTROL C marginal known answer (T4 survival band)
+      replaces: >-
+        frozen gate 'A_noDC post-shuffle max <= 0.5 * A_noDC pre-shuffle
+        at every rung' (the 'removal' threshold)
+      statement: >-
+        At every rung, the survival ratio rho_T4 =
+        max over the 8 NULL-2 shuffles of A_noDC(T4_shuffled), divided by
+        A_noDC(T4) pre-shuffle, must lie in [0.70, 1.10]. Below 0.70 the
+        shuffle removes more than the o2-lane reference shows a
+        matched-marginal shuffle removing of an unbalanced marginal
+        artifact; above 1.10 the statistic grew under a multiset-preserving
+        permutation, which the reference does not show either.
+      ground: >-
+        The frozen gate expected the o2-lane popcount-type artifact to be
+        REMOVED by the matched-marginal shuffle. The cited reference
+        (analysis/o2-sum-compatible-filters/reviews/RT-EXP-1-RESULT.md,
+        cited at design time in IDEA-20260902-c17bf6 and H-ECDLP-a4be60)
+        documents the opposite for unbalanced statistics: popcount
+        alpha +0.125 -> SHUF +0.135 and digitsum +0.495 -> +0.537, i.e.
+        the marginal artifact SURVIVES the shuffle (verbatim: the shuffled
+        versions are 'if anything, slightly higher'; both effects 'entirely
+        the free marginal-bias floor'). Recomputed from the same table's
+        raw G values, the G-1 survival ratios are 0.97-0.99 (popcount) and
+        0.79-0.98 (digitsum) across p = 523..65539. The band [0.70, 1.10]
+        is that reference band with margin.
+      disclosed_limitations:
+      - >-
+        The band is EMPIRICALLY BORROWED from the o2 lane, not derived for
+        this instrument: the o2 quantity is G-1 of a bucket-gain statistic
+        on p <= 65539 with one shuffle per filter, while this instrument
+        measures A_noDC (largest non-DC Fourier coefficient along k) at
+        p >= 131101 and takes the MAX over 8 shuffles, which inflates the
+        ratio toward 1. The mechanism claim (a multiset-preserving
+        permutation preserves the value multiset, hence the marginal
+        floor) is exact; the magnitude band is not.
+      - >-
+        C1 is weak on the upper side by itself: a no-op (identity)
+        permutation yields rho = 1.0, inside the band. C1 alone does not
+        distinguish a working NULL-2 from a broken one. That discrimination
+        is C2's job, and C2 is blocking.
+
+    - id: C2
+      name: CONTROL C point-structure positive control (comparator collapse)
+      replaces: null
+      statement: >-
+        At every rung, the COMPARATOR statistic (top bit of x) must
+        COLLAPSE under NULL-2: max over the 8 NULL-2 shuffles of
+        A_noDC(comparator_shuffled), divided by A_noDC(comparator)
+        pre-shuffle, must be <= 0.5. A matched-marginal shuffle destroys
+        all dependence on the point, so a statistic whose excess is
+        carried by point structure must lose at least half of it.
+      ground: >-
+        The o2 lane's reference for the collapse behaviour of genuine
+        point-structure content is its P2 dlog-int [old ctrl] row: G grows
+        4.06 -> 20.01 across p = 523..65539 unshuffled and collapses to
+        1.0640 -> 1.0030 under the matched-marginal shuffle (a factor of
+        ~20). The comparator is the natural positive control in this
+        instrument: its value is a function of the point's x-position, so
+        its non-DC Fourier mass along the discrete-log coordinate is
+        point structure by construction.
+      not_yet_measured: >-
+        The comparator's A_noDC pre/post NULL-2 was not computed in
+        RUN-ECDLP-56ee42-S2 (stage 2 measured POS-A, POS-B, T4, smoke).
+        A calibration run (new run record, T4 and comparator, six rungs,
+        pre-shuffle plus 8 shuffles each, reusing the stage-cache
+        enumeration) is required BEFORE stage 3. If C2 fails, the frozen
+        F3 stands: NULL-2 is not the control the o2 lane reported and
+        every digit number is void.
+      disclosed_limitations:
+      - >-
+        The comparator's level sets (top bit of x over x in [0, p)) are
+        nearly, not exactly, balanced, so a part of its pre-shuffle
+        A_noDC could be marginal rather than point structure. If so, the
+        expected collapse is over-stated and C2 would fail for the wrong
+        reason. The review round is asked to quantify this; if the
+        comparator is marginal-dominated, the positive control must be a
+        PLANTED point-structure statistic instead (an amendment to this
+        amendment, not a silent swap).
+
+    - id: C3
+      name: static provenance check (scanner mechanism)
+      replaces: >-
+        token-based source scan flagging any occurrence of the identifier
+        'k' in a T-arm or COMPARATOR statistic code path
+      statement: >-
+        The check flags a k-dependence only when the discrete-log
+        coordinate k enters the statistic code path as INPUT: a function
+        parameter, a closure capture, a module-level or global name, or an
+        array element indexed by a point's discrete-log coordinate. A
+        local loop counter that happens to be named k is not a flag.
+      ground: >-
+        RUN-ECDLP-56ee42-S2's static-provenance check flagged
+        rudin_shapiro_sign_array with seven 'k' references. Direct read of
+        estimator.py (committed at 5e709a5c6): the function takes xs only;
+        its k is a local bit-length loop counter (k = 1; while (1 << k) <
+        n: ...; k += 1). The contract intent -- 'no T1-T4 or COMPARATOR
+        statistic code path reads k' -- is met; the token heuristic is
+        unsound for local names.
+      requirement: >-
+        The amended check is re-run and RE-RECORDED before stage 3 (the
+        spec requires the provenance record 'before Stage 3'), with the
+        scanner change disclosed in the run record.
+
+  effect_on_stop_rule: >-
+    The frozen stopping rule ('Stage 2 gate fails for POS-A, POS-B or
+    CONTROL C: STOP per F2/F3; every digit number is void until resolved')
+    is unchanged as a rule. It fired, the stop happened, and the evidence
+    was archived (commit 5e709a5c6). This amendment is the resolution
+    path the stop rule contemplates ('until resolved'): stage 3 proceeds
+    only when C1 and C2 pass in the calibration run, C3 is re-recorded
+    passing, and the review round on DEC-20260904-92dec2 has returned
+    without blocking dissent. If C2 fails, F3 stands and the digit
+    numbers stay void; the experiment then routes to hypothesis-level
+    adjudication (weakened, for the tested scope, at most).
