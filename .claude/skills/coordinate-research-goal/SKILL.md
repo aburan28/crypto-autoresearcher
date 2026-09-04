@@ -115,8 +115,10 @@ For every batch, run this sequence:
    breakthrough, a proposed closure, or a result contradicting prior validated
    evidence routes to the `review-breakthrough` tier
    (`validator-breakthrough` / `red-team-breakthrough`, effort max), which is
-   `degradable: false`: if it cannot be served, pause the goal rather than
-   review it at a lower tier. Treat receipt validity, mathematical
+   `degradable: false`: if it cannot be served, record an impediment against the
+   claim and leave the goal `active` — never review it at a lower tier. The
+   claim stays un-promoted; the campaign is not parked (goals are never
+   paused). Treat receipt validity, mathematical
    interpretation, and baseline comparison as separate checks.
 
    Before treating the round as complete, run
@@ -134,7 +136,12 @@ For every batch, run this sequence:
    decision, latest verified commit, and exactly one next action for this
    lane (additively — never rewrite another lane's entries); then
    `goal_lanes.py close-lane … --publish`. Rerank the
-   remaining hypotheses only after this committed checkpoint.
+   remaining hypotheses only after this committed checkpoint. **ECC candidates
+   rank first** (AGENTS.md "ECC comes first"); a non-ECC candidate is
+   dispatched only when no ECC candidate offers a ranked, justified task. ECC
+   goals also carry an unlimited budget, so the batch ceiling never ends an ECC
+   campaign — which leaves the duty to rank as the only thing standing between
+   an ECC goal and make-work.
 
    **Read the obstruction registry before you rerank.** Run
    `python3 tools/obstruction_registry.py --unexamined`. For each entry, ask
@@ -157,8 +164,9 @@ For every batch, run this sequence:
 
 The loop has no batch count. Iterate until the goal takes a committed terminal
 status or the campaign budget is exhausted — and an exhausted budget is a
-`paused` checkpoint with a resume action, handed back to the launcher, not a
-conclusion about the science.
+recorded budget impediment on a still-`active` goal, handed back to the
+launcher, not a conclusion about the science and not a pause. Spending past it
+still requires a committed Coordinator budget decision.
 
 **When a batch has nothing ready.** An empty ready set means the queue needs
 work, not that the campaign is over. In order: run the goal's recorded
@@ -166,9 +174,10 @@ work, not that the campaign is over. In order: run the goal's recorded
 the goal; failing that, dispatch a replication or a control run for the
 weakest-supported live claim; failing that, run `/propose-ideas` on the bound
 `RQ-*` to refill the candidate pool. Only when none of these yields a ranked,
-justified task do you record the goal as `paused` with that finding as its
-resume action. Never dispatch a task you cannot rank ahead of doing nothing —
-under a loop that never stops, make-work is the standing temptation, and it
+justified task do you record an `impediments` entry on the goal with that
+finding as its `clears_when` — leaving the goal `active`, never `paused`.
+Never dispatch a task you cannot rank ahead of doing nothing — under a loop
+that never stops, make-work is the standing temptation, and it
 costs budget while producing evidence nobody asked for.
 
 ## Branch and PR hygiene
@@ -246,21 +255,21 @@ ledger archive until all four gates are satisfied by committed artifacts:
 A claim missing any gate may advance through `analyzed`, but the batch report
 must name the missing gates instead of requesting promotion.
 
-## Completion and pause
+## Completion and impediments
 
 Mark the persistent goal `completed` only when a committed Coordinator decision
 shows that a declared completion criterion was met. (The three-model closure
-quorum that also gated this is **suspended** — see below.) Mark it `paused`
-only when the user requests it or
-a committed decision records the stated scoped pause condition. A failed
-candidate, empty queue, timeout, or temporary lack of a promising idea does not
-complete the goal: record the narrowest result and add the next concrete action
-instead.
+quorum that also gated this is **suspended** — see below.) **Never mark it
+`paused` or `blocked`** — those statuses are not permitted and the validator
+refuses them. When a stated scoped pause condition fires, record
+an `impediments` entry and leave the goal `active`. A failed candidate, empty
+queue, timeout, or temporary lack of a promising idea does not complete the
+goal either: record the narrowest result and add the next concrete action.
 
-Both terminal statuses return control to `/launch-research-harness` step 8,
-which picks up the next goal. Because the run continues either way, there is no
-incentive to reach for `completed` — an honest `paused` with a resume action
-costs the harness nothing.
+Terminal statuses return control to `/launch-research-harness` step 8, which
+picks up the next goal; so does an impeded-but-active goal. Because the run
+continues either way, there is no incentive to reach for `completed` — an
+honest impediment with a `recheck` costs the harness nothing.
 
 ### Closure quorum (AGENTS.md rule 13) — SUSPENDED
 
@@ -300,7 +309,7 @@ three distinct models cannot be resolved, the goal does not close.
 
 Report the following, then start the next batch without waiting:
 
-- goal ID and active/paused/completed status;
+- goal ID and active/completed status, plus any open impediments;
 - completed task IDs and verified commit IDs;
 - evidence and decision IDs, with claim boundaries;
 - knowledge entries promoted this batch (KN-* IDs), or each decision's
