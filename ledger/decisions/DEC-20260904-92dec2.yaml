@@ -1,0 +1,186 @@
+coordinator_decision:
+  id: DEC-20260904-92dec2
+  context: >-
+    EXP-ECDLP-56ee42 (approved contract, H-ECDLP-a4be60) executed stages
+    0-2 under handoff TASK-20260903-087076 and stopped at the frozen
+    stage-2 stop rule. Stage 0 (P3/F1) and stage 1 (F2 fixture 284/529
+    exact) passed; stage 2 passed POS-A (A = 2/pi flat, max diff
+    1.52e-11) and POS-B (fitted beta 0.1705 in [0.10, 0.35]) but failed
+    CONTROL C and the static provenance check. All run records and the
+    gate-failure evidence are archived at commit 5e709a5c6 (receipt
+    ledger/archives/TASK-20260903-087076-s1.yaml). This decision
+    adjudicates the two failures and opens a review round on the
+    adjudication.
+  decision: revise
+  target_ids:
+  - EXP-ECDLP-56ee42
+  findings:
+    - id: F-static
+      subject: static provenance check, T3 flag
+      finding: false positive of the token-based scanner
+      evidence:
+      - >-
+        The check (committed in
+        experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S2/static-provenance-check.json)
+        flags an identifier token. For T3 (rudin_shapiro_sign_array) it
+        records seven 'k' references. (provenance: internal)
+      - >-
+        Direct read of the function (estimator.py, committed at
+        5e709a5c6, lines 99-114): signature rudin_shapro_sign_array(xs)
+        takes xs only; the seven k occurrences are one local loop-level
+        counter (k = 1; while (1 << k) < n: ...; k += 1) driving the
+        level-by-level recursion. No discrete-log coordinate enters the
+        function as input, closure, or global. The scalar
+        rudin_shapiro_sign(x) has zero k references. The contract intent
+        -- 'no T1-T4 or COMPARATOR statistic code path reads k' -- is met.
+        (provenance: internal; code read by the Coordinator at
+        adjudication time)
+      - >-
+        All other flagged-free functions were read the same way; only the
+        T3 array function was flagged, consistent with a local-variable
+        collision rather than a systematic k-input. (provenance: internal)
+      consequence: >-
+        The frozen invalidation rule ('static provenance check fails:
+        every Stage 3 number is void') was triggered by a defective check,
+        not by a violation. The remedy is the amended data-flow check
+        (amendment C3), re-recorded before stage 3.
+    - id: F-control
+      subject: CONTROL C gate failure (F3 candidate)
+      finding: >-
+        the frozen gate encodes a miscalibrated known answer; the observed
+        behaviour is the o2-lane documented pattern for an unbalanced
+        marginal artifact; whether this fully discharges the stop rule is
+        the question the review round decides
+      evidence:
+      - >-
+        Frozen gate (specification.yaml v1, controls: CONTROL C):
+        'expected pre-shuffle excess that the shuffle removes, reproducing
+        the o2 lane artifact as a known-answer calibration of NULL-2; if
+        the shuffle does not remove it, every digit number is void (F3)'.
+        Same verbatim in IDEA-20260902-c17bf6 (lines 495-498, 575-582) and
+        H-ECDLP-a4be60 (lines 415-424). (provenance: internal)
+      - >-
+        Observed (RUN-ECDLP-56ee42-S2 raw-result.json, committed at
+        5e709a5c6): survival ratio (post-shuffle max / pre-shuffle) of
+        A_noDC(T4) is 0.785, 0.934, 0.828, 0.780, 0.855, 0.813 at T17..T27
+        -- the artifact SURVIVES the matched-marginal shuffle, reduced
+        only 7-22%. Gate criterion was <= 0.5. (provenance: internal)
+      - >-
+        The cited o2-lane reference (analysis/o2-sum-compatible-filters/reviews/RT-EXP-1-RESULT.md,
+        cited at design time in IDEA-20260902-c17bf6 lines 230-240): the
+        matched-marginal shuffle rows for the two unbalanced statistics
+        show survival, not removal: popcount alpha +0.125 -> SHUF +0.135
+        and digitsum +0.495 -> +0.537; the document states the shuffled
+        versions are 'if anything, slightly higher' and that both effects
+        are 'entirely the free marginal-bias floor'. The effect the o2
+        shuffle removed was the point-structure signal (P2 dlog-int [old
+        ctrl]: G 4.06 -> 20.01 unshuffled, 1.0640 -> 1.0030 shuffled).
+        (provenance: internal)
+      - >-
+        Recomputed from the same table's raw G values, the G-1 survival
+        ratios are 0.97-0.99 (popcount) and 0.79-0.98 (digitsum) across
+        p = 523..65539; the observed T4 ratios 0.78-0.93 fall in that
+        band. The o2 code (rt_exp_1.py, ' SHUF' branch) is the same
+        mechanism the executor ported: a seeded permutation of the value
+        array preserving the multiset (one line: out = base.copy();
+        rng.shuffle(out)). (provenance: internal)
+      - >-
+        KNOWN AMBIGUITY, flagged for the review round: the o2 code comment
+        says 'A positive alpha that SURVIVES this is signal; one that does
+        not is imbalance', while the result document reads survival of the
+        popcount effect as 'imbalance' (i.e., NOT sum-compatibility
+        content). The two readings reconcile only if 'signal' in the
+        comment means 'an indication of marginal imbalance', not 'a
+        sum-compatibility signal'. The adjudication leans on the result
+        document (the peer-reviewed record, also carried in
+        KN-FIND-ffe1df.md); the red team is assigned to settle which
+        reading is correct. (provenance: internal)
+      - >-
+        Tension disclosed: the o2 statistic (G-1 of a bucket-gain
+        quantity, p <= 65539, one shuffle) is not this instrument's
+        statistic (A_noDC, p >= 131101, max over 8 shuffles). The
+        transfer rests on the mechanism (multiset preservation preserves
+        the marginal floor), which is exact; the magnitude band is
+        borrowed, not derived. (provenance: internal)
+      consequence: >-
+        The amendment (experiments/EXP-ECDLP-56ee42/amendments/v2_control_c_recalibration.yaml)
+        restates CONTROL C as a two-sided known-answer calibration: C1
+        (T4 survival band [0.70, 1.10], the marginal side, already
+        measured and passing) plus C2 (comparator collapse under NULL-2,
+        the point-structure side, BLOCKING, not yet measured -- requires a
+        small calibration run before stage 3) plus C3 (amended static
+        check, re-recorded before stage 3). Stage 3 stays blocked until
+        the review round returns without blocking dissent and the
+        calibration run passes C1 + C2 + C3.
+  rationale:
+  - >-
+    A gate that fails because its known answer was misread at design time
+    is not evidence about the instrument or the hypothesis (core rule 3,
+    extended): the executor's faithful run exposed a defect in the frozen
+    control calibration. The stop rule did its job (stop, archive, no
+    digit number reported); this decision is the 'until resolved' path.
+  - >-
+    The amendment is deliberately two-sided. A one-sided survival band
+    (C1) admits the no-op permutation (ratio 1.0 is inside [0.70, 1.10]),
+    so it cannot by itself certify that NULL-2 is the o2 control. The
+    blocking positive control (C2) is what rejects a broken shuffle; the
+    Coordinator identified this hole while drafting and records it here
+    rather than letting the review rediscover or miss it.
+  - >-
+    No hypothesis status changes. H-ECDLP-a4be60 remains specified; the
+    experiment remains approved with a stage-2 stop under resolution. If
+    C2 later fails, F3 stands and the experiment routes to
+    hypothesis-level adjudication (weakened at most, for the tested
+    scope).
+  evidence_refs:
+  - RUN-ECDLP-56ee42-S0 (commit 5e709a5c6)
+  - RUN-ECDLP-56ee42-S1 (commit 5e709a5c6)
+  - RUN-ECDLP-56ee42-S2 (commit 5e709a5c6)
+  - ledger/archives/TASK-20260903-087076-s1.yaml
+  - analysis/o2-sum-compatible-filters/reviews/RT-EXP-1-RESULT.md
+  - analysis/o2-sum-compatible-filters/rt_exp_1.py
+  - knowledge/findings/KN-FIND-ffe1df.md
+  - experiments/EXP-ECDLP-56ee42/amendments/v2_control_c_recalibration.yaml
+  limitations:
+  - >-
+    This decision is UNDER REVIEW. It takes effect for unblocking stage 3
+    only when the review round (TASK-20260904-410404 validator,
+    TASK-20260904-a897dc red team; plan in the opening handoff) returns
+    without blocking dissent. A dissent stands until a new decision
+    supersedes it on the merits.
+  - >-
+    The C1 band [0.70, 1.10] is empirically borrowed from the o2 lane and
+    may need re-anchoring after C2's calibration run; the review round is
+    asked to say whether the band is defensible as stated.
+  next_actions:
+  - >-
+    Run the review round (two independent review-adversarial sessions,
+    mutually blind) on the archived stage 0-2 records and this
+    adjudication.
+  - >-
+    If the round returns without blocking dissent: dispatch the C2
+    calibration run (executor, small: T4 + comparator, six rungs, pre + 8
+    shuffles, cached enumeration), re-record C3, then decide stage 3
+    dispatch.
+  - >-
+    Ledger-archive this decision with the round's reports; the
+    execution-report.yaml owed by the executor remains a forward
+    addendum.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      The adjudication is an experiment-interpretation ruling, not a
+      durable mathematical finding. If the review upholds it, a
+      KN-FIND entry on the o2-lane control reading (survival vs removal
+      for unbalanced statistics under a matched-marginal shuffle) may be
+      warranted at the ledger step; it is not warranted from this
+      decision alone.
+  review_round:
+    plan_in: ledger/handoffs/TASK-20260904-410404.yaml
+    reviewers:
+    - TASK-20260904-410404
+    - TASK-20260904-a897dc
+    tier: review-adversarial
+    breakthrough_justification: null
+  decided_by: coordinator (top-level orchestration session; coordinator subagent inoperable on this runtime -- disclosed deviation, same as the design snapshot)
+  decided_at: '2026-09-04T17:55:00Z'

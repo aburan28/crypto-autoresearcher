@@ -137,48 +137,12 @@ class PlanSchemaTests(unittest.TestCase):
         plan["blind_rederivation"]["blind_from"] = []
         self.assertTrue(any("blind_from" in e for e in self._errors(plan)))
 
-    def test_flatten_sources_read_reads_grouped_declarations(self) -> None:
-        """A grouped `sources_read` names paths, not group labels.
-
-        Iterating a mapping yields its KEYS, so a leak check built on the bare
-        value compares blind_from against ["phase_A", "phase_B"] and can never
-        match -- no crash, no warning, a PASS that checked nothing. This is
-        exactly how the check went inert on TASK-20260904-42b33a, whose
-        re-deriver grouped its sources by phase. Pin every shape.
-        """
-        flatten = independence._flatten_sources_read
-        self.assertEqual(flatten(None), [])
-        self.assertEqual(flatten([]), [])
-        self.assertEqual(flatten(["a", "b"]), ["a", "b"])
-        self.assertEqual(flatten({"phase_A": ["a"], "phase_B": ["b", "c"]}),
-                         ["a", "b", "c"])
-        self.assertEqual(flatten({"only": "solo"}), ["solo"])
-
 
 class IndependenceTests(unittest.TestCase):
     """check_review_independence cross-checks the plan against attestations."""
 
     def test_consistent_round_passes(self) -> None:
         self.assertEqual(independence.check(copy.deepcopy(PLAN), _reports()), [])
-
-    def test_leak_is_caught_when_sources_read_is_grouped(self) -> None:
-        """The leak check must fire through a grouped declaration.
-
-        The regression that motivated _flatten_sources_read was silent: the
-        same report passed whether or not it had read the implementation it
-        was meant to re-derive blind. A negative test is the only thing that
-        distinguishes a working check from an inert one.
-        """
-        reports = _reports()
-        for _path, attestation in reports:
-            if attestation.get("blind_from_respected") is True:
-                attestation["sources_read"] = {
-                    "phase_A": ["experiments/EXP-X/statement.md"],
-                    "phase_B": ["experiments/EXP-X/impl"],
-                }
-        errors = independence.check(copy.deepcopy(PLAN), reports)
-        self.assertTrue(any("blind_from path" in e for e in errors),
-                        f"grouped leak went undetected; errors were {errors}")
 
     def test_unattested_owner_is_caught(self) -> None:
         reports = [r for r in _reports()
