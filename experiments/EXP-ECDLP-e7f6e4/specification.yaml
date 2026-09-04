@@ -1,0 +1,316 @@
+experiment:
+  id: EXP-ECDLP-e7f6e4
+  hypothesis_id: H-ECDLP-a4c9c1
+  version: 1
+  title: >-
+    Public-scalar factor base, end to end at toy scale, with the membership-query
+    exponent alpha measured over a four-point base ladder and a curve-free
+    (Z/N, +) null that decides whether any saving is elliptic at all
+  status: draft
+  objective: >-
+    Decide two separable questions and refuse to merge them. FIRST, whether a
+    factor base of the form F = {s_i P} with PUBLIC scalars converts a found
+    Semaev decomposition of a masked target into a discrete logarithm that an
+    independent verifier accepts, at a charged cost of at most 2^m
+    re-multiplications per decomposition. SECOND, what the amortized
+    membership-query exponent alpha actually is, fitted over four base sizes,
+    and whether alpha < m/2 at any tested arity. The removal of relation
+    collection and sparse linear algebra is NOT an arm here, it is a derivation
+    recorded in H-ECDLP-a4c9c1 claim C1 whose falsifier would be an arithmetic
+    contradiction; only its MAGNITUDE is measured. The curve-free null is
+    blocking, because the removal uses no elliptic structure and would appear
+    identically in any finite cyclic group.
+  inputs:
+    curve_family: >-
+      Toy prime-field short-Weierstrass curves y^2 = x^3 + ax + b with a
+      prime-order subgroup G = <P> of order N, generated in session.
+    subgroup_bits: [16, 20, 24]
+    arities_m: [3, 4, 5]
+    base_size_rule: >-
+      Primary cells use B = ceil((m! * N)^(1/m)). The alpha fit additionally
+      uses a four-point ladder B in {B0, 2*B0, 4*B0, 8*B0} with B0 chosen so
+      that 8*B0 stays inside the memory cap, reported per cell.
+    targets_per_cell: 10
+    instance_hygiene: >-
+      Per curve, record the factored group order, the largest prime factor,
+      and an explicit check that "#E(F_p) != p"; a curve failing any check is
+      discarded before any target is drawn.
+    curve_free_null_instances: >-
+      (Z/N, +) at the same three N values, with a public-scalar base
+      {s_i * 1} of the same size B and an exact subset-sum membership test.
+    engine: >-
+      One pinned Semaev membership-test engine revision, identical across the
+      public-scalar arm and the hidden-scalar arm, recorded in the manifest.
+  controls:
+    - >-
+      NAMED NULL, BLOCKING, CURVE-FREE. The identical protocol in (Z/N, +)
+      with the same B, m, target count and cost convention. CONSEQUENCE
+      PRE-STATED, if its fitted per-target exponent agrees with the elliptic
+      direct arm within the pooled 95 percent interval, the measured saving is
+      generic cyclic-group index calculus, the result may not be reported as a
+      statement about elliptic curves or the ECDLP, and only alpha remains as
+      curve-specific content.
+    - >-
+      PLANTED DEFECT OF KNOWN SIZE, BLOCKING. Corrupt exactly one base scalar
+      s_i, leaving the point set unchanged. The forced consequence is that
+      every recovered k on a decomposition using that index fails
+      re-multiplication, so the verified-solve rate on the affected cell must
+      be exactly 0.000. A run in which the corrupted cell still reports a
+      verified solve is void, because the verification harness cannot detect
+      its own errors.
+    - >-
+      HIDDEN-SCALAR ARM ON THE IDENTICAL POINT SET. Same F, scalars withheld,
+      relation collection to rank B-1, sparse solve, then the same descent.
+      Charged as S_rel, S_LA and T_desc separately, in the same
+      group-operation unit as the direct arm. Supplies the removed-term
+      magnitude and the H-IC-001 reproduction fixture.
+    - >-
+      SIGN-PATTERN CONTROL. For each found decomposition, record which of the
+      2^m sign vectors verified. The empirical distribution over sign vectors
+      must be consistent with uniform at the pooled cell level; a concentrated
+      distribution indicates a hidden selection effect in the membership test.
+    - >-
+      MATCHED BASELINES, MANDATORY UNDER RQ-ECDLP-002 CONSTRAINT 3. Pollard
+      rho with negation and BSGS on the identical instances, in the same
+      group-operation unit, with BSGS memory reported in bits.
+    - >-
+      YIELD-CHARGING CONTROL. Report per-attempt query cost and
+      attempts-per-success separately. The uncharged single-solve figure may
+      be reported but never substituted for the yield-charged cost.
+  independent_variables:
+    - subgroup order N at 16, 20, 24 bits
+    - arity m in {3, 4, 5}
+    - factor-base size B over the four-point ladder
+    - scalar visibility, public versus hidden, on the identical point set
+    - object class, elliptic curve versus curve-free (Z/N, +)
+  metrics:
+    primary:
+      - >-
+        end_to_end_verified_solve_rate, dimensionless in [0,1], solved targets
+        with an independently re-verified certificate divided by targets on
+        which a decomposition was found
+      - >-
+        alpha, dimensionless exponent fitted from query cost = c * B^alpha over
+        the four-point B ladder, reported with a two-sided 95 percent interval
+        and R^2. Reported AS A VALUE. The gate alpha < m/2 is declared
+        unreachable under the committed engine, see band_non_degeneracy; the
+        only band applied to alpha here is the engine check alpha at or above
+        m - 0.3.
+      - >-
+        curve_free_null_exponent_gap, dimensionless, the (Z/N, +) arm's fitted
+        per-target exponent minus the elliptic direct arm's, with a pooled
+        interval
+    secondary:
+      - yield-charged group operations per target, per (m, N, seed) cell
+      - attempts-per-success, and the measured decomposition probability per attempt
+      - S_rel, S_LA and T_desc of the hidden-scalar arm, in group operations
+      - removed_term_magnitude at K in {1, 10, 100}, reported with intervals
+      - sign-vector distribution over the 2^m candidates, per cell
+      - certificate re-multiplications charged per found decomposition
+      - matched rho and BSGS operation counts, and BSGS memory in bits
+      - peak memory in bits for the base x-set, the relation matrix and query workspace
+  heuristic_under_test: HEUR-PS-1
+  preregistered_prediction:
+    quantity: >-
+      (i) the end-to-end verified-solve rate, and (ii) the fitted
+      membership-query exponent alpha, and (iii) the curve-free exponent gap
+    formula: >-
+      (i) rate = 1.000 exactly, on every completed cell, because recovery
+      k = sum_j eps_j s_{i_j} - t is exact once the correct sign vector among
+      2^m is found. (ii) alpha is measured, never assumed; the gate is
+      alpha < m/2, equivalently the assembled per-target exponent alpha/m
+      below the rho exponent 1/2 at B = (m! N)^(1/m). (iii) gap = 0 under the
+      reading that the saving is generic, gap > 0 under the reading that the
+      Semaev membership test contributes elliptic-specific cost structure.
+    source: >-
+      Derived in H-ECDLP-a4c9c1 mechanism from IDEA-20260731-015, corrected
+      there for the 2^m sign search. The gate alpha/m versus 1/2 is stated
+      against IDEA-20260727-007's assembled budget
+      E = max((1+alpha)/m, omega_LA/m, 1/m), read verbatim from that record.
+  band_non_degeneracy:
+    checked_before_freezing: true
+    arms_found_degenerate_and_repaired:
+      - >-
+        SOURCE ARM REJECTED AS DEGENERATE. IDEA-20260731-015 prediction 2 asks
+        whether the unknown-log total (S_rel + S_LA + K*T_desc) is at or above
+        the direct total, and nominates a measured ratio below 1 as the
+        falsifier. Computed, that falsifier is unreachable at EVERY K. Both
+        arms charge the same descent per target, and the unknown-log arm
+        additionally charges [(B-1)/pi * C_q + S_LA] / K, a non-negative
+        quantity that decays to 0 as K grows but never becomes negative. The
+        ratio is therefore at or above 1 for every parameter value, and a value
+        below 1 would be an arithmetic contradiction. REPAIR, the quantity is
+        retained as a MAGNITUDE with an interval and explicitly removed from
+        the discriminator set; the derivation is recorded as
+        H-ECDLP-a4c9c1 claim C1.
+      - >-
+        SOURCE ARM REJECTED AS DEGENERATE. The alpha-consistency check
+        "E_direct_measured equals alpha/m within 0.05" is forced once
+        beta = 1/m is imposed, because at B = (m! N)^(1/m) the
+        attempts-per-success factor m!/coverage is a constant in N and the
+        per-target cost is c * B^alpha by construction. It tests the fitting
+        code, not the mechanism. REPAIR, retained as an instrument
+        self-consistency check under invalidation_rules, and alpha itself is
+        promoted to a primary measured quantity with its own band.
+    surviving_bands_and_their_separations:
+      - >-
+        VERIFIED-SOLVE RATE. Null under the mechanism is exactly 1.000. The
+        planted-defect arm forces exactly 0.000 on the affected cell. The two
+        admissible values are separated by the full range of the statistic,
+        and the instrument is shown able to return both. Non-degenerate with
+        demonstrated dynamic range.
+      - >-
+        ALPHA GATE, DECLARED UNREACHABLE UNDER THE COMMITTED ENGINE. This was
+        found by reading EV-SUBRES-001 in full rather than relaying the source
+        idea's summary of it, and it is the most consequential correction in
+        this contract. That record's OBS-3 derives, from the committed
+        membership query's own control flow, that the query scans all B^{m-2}
+        triples with no early exit and evaluates a fixed-degree polynomial over
+        a forward state measured at exactly B^2, giving ops_per_query =
+        Theta(B^m). At its own sizing B = q^{1/m} that is alpha = m, and its
+        fitted beta_ops is described there as asymptoting to 1.0 in q units,
+        which is alpha -> m in B units. Therefore alpha/m -> 1 for EVERY curve,
+        EVERY base and EVERY q under this engine, and the gate alpha < m/2 is
+        not a band that a measurement could clear or miss, it is out of reach by
+        construction. Charging both sides in the same unit is what exposed
+        this, the source idea quotes the same record as an "upper bound on
+        alpha" of O(q), which in B units is B^m and is the gate's own ceiling
+        rather than a bound below it.
+      - >-
+        REPAIR, AND IT IS A DECLARATION RATHER THAN A NEW THRESHOLD. The gate
+        is NOT loosened to alpha < m or to anything else. alpha is measured and
+        reported as a value; the gate is reported as UNREACHABLE UNDER THE
+        COMMITTED ENGINE together with the structural condition that would be
+        required to reach it, namely a membership test whose cost is sublinear
+        in the B^{m-2} triple count, by early exit or by replacing the
+        enumeration with a sieve. No such engine exists in this repository, so
+        no experiment in this contract can reach the gate and the contract says
+        so before it is approved rather than after it returns.
+      - >-
+        WHAT REMAINS MEASURABLE ABOUT ALPHA, AND ITS BAND. The derivation
+        alpha = m is itself checkable. If the fitted alpha interval lies
+        entirely below m - 0.3 at any tested m with the fit rule satisfied, the
+        engine is not doing what OBS-3 says it does. At four base sizes
+        spanning a factor of 8 the residual spread reported in EV-SUBRES-001
+        for a comparable fit was about 0.033 in q units, which is 0.165 in B
+        units at m = 5, so a 0.3 margin is about twice that spread.
+        NON-DEGENERATE as a check on the engine, and honestly labelled as a
+        check on the engine rather than as a test of the hypothesis.
+      - >-
+        CURVE-FREE GAP. Under the generic reading the gap is exactly 0 by
+        construction, because both arms then run the same combinatorics; under
+        the elliptic reading it is the exponent of the Semaev query cost minus
+        the exponent of exact subset-sum, which at m = 3 and B in the hundreds
+        differs by more than one in log_B units. The two readings are separated
+        by roughly a factor B in cost, far outside any plausible interval.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      16 to 24 bit subgroups with B in the tens to low hundreds. The fitted
+      alpha is a statement about that range and nothing else. At cryptographic
+      parameters, N about 2^256 and m = 5 gives B about 2^51, which is
+      UNTESTABLE AT REACHABLE SCALE by direct measurement and is not
+      extrapolated to. The four-point B ladder exists to make the fit a fit
+      rather than a two-point slope, not to license extrapolation.
+    correspondence: null
+  tail_checks:
+    - >-
+      Attempts-per-success at the smallest N compared against m!/coverage with
+      coverage obtained by EXACT enumeration of reachable targets, not
+      estimated. A deviation beyond the pre-registered tolerance voids the
+      yield accounting for that cell.
+    - >-
+      The largest observed per-target cost in each cell compared against the
+      fitted distribution's upper tail. A single target costing more than the
+      fitted 99.9th percentile is reported individually rather than pooled.
+    - >-
+      The sign-vector distribution's least frequent cell, checked against the
+      uniform expectation over 2^m patterns.
+  replication:
+    seeds: [20260904, 20260905, 20260906]
+    independent_instances: 9
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 8
+    maximum_memory_gb: 8
+    maximum_runs: 12
+    maximum_workers: 1
+  stopping_rules:
+    - >-
+      Stop the alpha fit at a cell when the four-point ladder is complete or
+      when the largest B exceeds the memory cap, whichever comes first, and
+      report which.
+    - >-
+      POWER RULE, BLOCKING AND PRE-REGISTERED. If the fitted alpha interval's
+      half-width exceeds 0.15 in B units, the cell is reported as UNDERPOWERED
+      together with the number of additional base sizes required to reach that
+      half-width under the observed residual variance. No threshold is moved
+      and the interval is never narrowed by dropping points after seeing the
+      exponent.
+    - >-
+      Drop a base size from the fit only by the pre-registered rule R^2 below
+      0.90 evaluated on the full ladder, applied before the exponent is read.
+    - >-
+      Halt the whole run if the planted-defect control does not return a
+      verified-solve rate of exactly 0.000 on its cell.
+  invalidation_rules:
+    - >-
+      The public-scalar and hidden-scalar arms are not run on the identical
+      point set. The comparison then conflates base geometry with the
+      linear-algebra removal and is void.
+    - >-
+      Any mask t or base scalar is reused across targets or cells.
+    - >-
+      A recovered k is accepted without an independent re-multiplication check
+      performed by code that does not share state with the solver.
+    - >-
+      The instrument self-consistency check fails, that is the alpha implied by
+      the fitted per-target exponent (m times that exponent) disagrees with the
+      independently fitted alpha by more than 0.10 at any cell. The exponent is
+      then being attributed to the wrong stage and the run is void, not
+      negative.
+    - >-
+      The hidden-scalar arm cannot reproduce H-IC-001's committed cost
+      decomposition term by term on the fixture cell.
+    - >-
+      Any timeout, crash, or memory exhaustion. Recorded as an infrastructure
+      outcome per AGENTS.md rule 5, never as evidence about alpha.
+  success_criterion: >-
+    All of the following on the same committed run set. The verified-solve rate
+    is exactly 1.000 on every completed cell; the planted-defect control
+    returns exactly 0.000; the hidden-scalar arm reproduces H-IC-001's
+    committed decomposition on the fixture cell so that the removed-term
+    magnitude is charged in a comparable unit; alpha is fitted with an interval
+    half-width at or below 0.15 at every tested m; and the curve-free (Z/N, +)
+    gap is reported with its pooled interval so the elliptic and generic
+    contributions are separated.
+    NOTE THAT SUCCESS HERE DOES NOT INCLUDE CLEARING THE alpha < m/2 GATE, WHICH
+    THIS CONTRACT DECLARES UNREACHABLE UNDER THE COMMITTED ENGINE BEFORE IT IS
+    RUN. The deliverable is a charged budget correction with a measured alpha
+    and a named structural condition for any future engine, not a sub-rho
+    exponent. Any weaker combination is reported as such and is not a success.
+  falsification_criterion: >-
+    Any of the following, each scoped to the tested curves, arities, base
+    sizes, engine revision and budget. The verified-solve rate is below 1.000
+    on a completed cell while the planted-defect control fires correctly, which
+    falsifies the recovery step and with it claim C2. Or the fitted alpha
+    interval lies entirely below m - 0.3 at any tested m with the fit rule
+    satisfied, which contradicts EV-SUBRES-001's OBS-3 derivation about the
+    committed engine and must be reported as an implementation finding before
+    any budget statement rests on it. Or the curve-free arm reproduces the
+    elliptic arm's exponent within the pooled interval, which does not falsify
+    the cost correction but forbids reporting it as an elliptic-curve or ECDLP
+    result at all.
+  required_artifacts:
+    - implementation source at a pinned revision, with the Semaev engine revision recorded
+    - per-cell raw results in machine-readable form, including every failed attempt
+    - one discrete_log certificate per solved target, schema per docs/claims-and-verification.md
+    - an independent re-verification log produced by code disjoint from the solver
+    - the exact-enumeration coverage table at the smallest N
+    - the alpha fit, its residuals, its interval and its R^2 per cell
+    - the curve-free (Z/N, +) arm's full results in the same schema
+    - the planted-defect control's results, including which base scalar was corrupted
+    - matched rho and BSGS operation and memory counts on the identical instances
+    - manifest per AGENTS.md artifact policy, including seeds, environment and dirty-tree state
+  assigned_to: executor
+  approved_by: null
