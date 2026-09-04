@@ -257,3 +257,61 @@ the declared range. This must be a standing approval gate.
 Open question for the validator, raised by measurement-2 and not yet checked:
 whether `validate_ledger.py` resolves a `question_id` pointing at a legacy
 root-level path.
+
+## R6. EXP-PFDR-9187e7 stays BLOCKED — UPHELD
+
+`RQ-ICEX-001` constraint 1, verbatim: "Blocked until GOAL-SDEG-001,
+GOAL-MONO-001, and GOAL-RELN-001 each have a committed protocol or scoped
+measurement decision."
+
+Verified: GOAL-SDEG-001 `active`, GOAL-RELN-001 `active`, **GOAL-MONO-001
+`paused`**. A paused goal has not produced a committed protocol or a scoped
+measurement decision, so the condition is not discharged and the block stands.
+The contract may not be approved until it is. Lifting it requires either the
+missing protocol/decision or a versioned `protocol_amendment` to the question —
+not a coordinator's say-so at approval time.
+
+## R7. EXP-PFDR-ccae87's supersingular control is REFUSED — and this is NOT R4
+
+Ruling R4 permitted a supersingular arm as a control under RQ-ECDLP-912694.
+This one is refused under RQ-JINV-8fc13a, and the difference is textual, not a
+change of mind.
+
+R4 turned on RQ-ECDLP-912694 constraint 4, "Exception cells are controls and
+cannot be used as unqualified falsification evidence" — the question itself
+contemplating out-of-scope cells as controls and bounding what they may
+conclude. RQ-JINV-8fc13a has no such clause. What it has instead is a scope
+that ENUMERATES its permitted null objects as a curve family in its own right:
+"matched random-curve null objects at the same p", alongside toy ordinary
+prime-field curves and CM curves including j=0 and j=1728. Supersingular is not
+among them. A question that lists its own nulls has already answered which
+out-of-family objects it admits, and reading a further one in would be
+substituting my judgement for the question's.
+
+So the arm is refused. The designing coordinator's fallback stands and was
+correctly built: the request was declared non-blocking, the k=1
+embedding-degree control carries the instrument-validation load alone, and the
+report must say so explicitly.
+
+If the supersingular control is genuinely needed here, that is a scope
+amendment to RQ-JINV-8fc13a — a separate, versioned act — not something to
+route in through a contract.
+
+## R8. My own handoff mislabelled the field for part of mechanism-2 — CORRECTION
+
+The handoffs describe all 131 as "untested prime-field ECDLP proposals". For
+this batch that is wrong, and the designing coordinator caught it. Verified by
+direct read: IDEA-20260829-57b1eb and IDEA-20260829-fa8235 both concern
+ordinary binary curves over F_{2^n} with Weil descent to GF(2);
+IDEA-20260828-d91efa is boolean/GF(2) descent (its text uses "boolean" five
+times).
+
+The error is mine: the worklist filter selected on ECDLP-relevant vocabulary
+and I labelled the whole set prime-field without checking each record's actual
+field. The coordinator wrote each scope statement to the ACTUAL field rather
+than to my label, which is the right resolution — the contract is bound by the
+object it studies, not by the handoff's summary of it.
+
+No other batch is known to be affected, but the same filter produced all
+thirteen handoffs, so field labels elsewhere in this backlog should be read as
+provisional and checked per record at approval.
