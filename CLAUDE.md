@@ -170,6 +170,40 @@ evidence rules above apply unchanged.
   (or run `tools/sync_open_branches.py`); do not rebase pushed evidence. Record
   the base commit checked and the merge outcome in the task receipt.
 
+## Reading state: project, never `cat`
+
+**Records are written once and read by every session afterwards, so their size
+is a recurring tax on every future agent, not a one-time cost to the author.**
+The ledger has outgrown reading. `ledger/goals/GOAL-ECDLP-001/goal.yaml` is
+651 top-level keys and ~243k tokens; listing all 102 goal heads is ~904k;
+`/research-status`'s "scan the ledger" is ~18M. Sessions improvised partial
+greps instead, each re-deriving what the last already knew and none
+reproducible.
+
+So read shared state through a projection, and treat the raw file as the
+escape hatch you take deliberately:
+
+```sh
+python3 tools/goal_head.py list --status active   # portfolio      ~3k tokens
+python3 tools/goal_head.py show GOAL-X            # one goal head  ~0.8k
+python3 tools/goal_head.py show GOAL-X --field next_action   # one field, whole
+python3 tools/ledger_summary.py                   # ledger census  ~2k
+python3 tools/goal_portfolio_health.py            # dispatchability per goal
+python3 tools/merge_digest.py --since …           # what changed on main
+```
+
+Every value a projection shortens carries a marker naming the command that
+returns it whole — a projection is never silently partial, and `--raw` still
+gets the entire record when you mean to spend it. `goal_head.py audit` reports
+where head weight actually sits: 83% of goal-record bytes are undeclared
+top-level keys appended as narrative.
+
+Writing is the other half. Append narrative to a **new** ledger record or a
+checkpoint shard (`tools/shard_goal.py`), never as a fresh ad-hoc key on a
+goal head — 1,138 distinct such key names exist and every reader pays for all
+of them. The head carries the fields in `templates/research-records.md`;
+immutability is served by superseding records, not by growing one file.
+
 ## Concurrency: many agents, many worktrees
 
 This repository is worked by many agents at once, in separate worktrees and

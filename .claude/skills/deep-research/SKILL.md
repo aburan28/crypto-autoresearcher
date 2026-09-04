@@ -73,12 +73,20 @@ scan. Read broadly before ranking anything:
   fabrication), `docs/target-result-profile.md` (Parts A-C, the C1-C18
   checklist), `docs/inventor-protocol.md` (all 8 sections),
   `docs/claims-and-verification.md`, `docs/task-lifecycle.md`.
-- **Ledger, the whole tree**: `ledger/questions/`, `ledger/proposals/` (not
-  yet converted to hypotheses), `ledger/hypotheses/` grouped by status,
-  `ledger/evidence/`, `ledger/decisions/` (recent `next_actions`),
-  `ledger/goals/` — including sharded goals under
-  `ledger/goals/GOAL-*/{goal.yaml,checkpoints/*.yaml}` — and
-  `ledger/handoffs/`. Grep the whole tree recursively
+- **Ledger, the whole tree**: start from `python3 tools/ledger_summary.py`
+  (counts by area and status, recent `next_actions`, open handoffs,
+  experiments in flight — ~2k tokens) and `python3 tools/goal_head.py list`
+  for the goal portfolio, then read individual records only where the
+  synthesis actually turns on them. Reading these directories whole is ~18M
+  tokens and no session can do it; a partial improvised scan silently
+  under-reports, which is worse here than anywhere else because this skill
+  ranks what to work on next. For a goal use `goal_head.py show <GOAL>`
+  rather than the raw head, and pull a checkpoint shard under
+  `ledger/goals/GOAL-*/checkpoints/` only when a specific batch is at issue.
+  Covered: `ledger/questions/`, `ledger/proposals/` (not yet converted to
+  hypotheses), `ledger/hypotheses/` grouped by status, `ledger/evidence/`,
+  `ledger/decisions/`, `ledger/goals/`, `ledger/handoffs/`.
+  Grep the whole tree recursively
   (`grep -rl <term> ledger/ knowledge/`), never just the top-level
   `ledger/*.yaml` files: those are frozen legacy records covering a fraction
   of the area codes, and a top-level-only scan reports a clean "free" for an

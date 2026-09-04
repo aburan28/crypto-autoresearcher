@@ -26,7 +26,12 @@ reviews, and scopes its claims exactly as before.
 ## Launch or resume
 
 1. Read `AGENTS.md`, `CLAUDE.md`, `docs/task-lifecycle.md`,
-   `docs/dynamic-subagent-dispatch.md`, and the relevant ledger records.
+   `docs/dynamic-subagent-dispatch.md`, and the relevant ledger records. Reach
+   a goal record through its projection — `python3 tools/goal_head.py show
+   <GOAL>` (~0.8k tokens) — not by reading the file: the heads carry 83%
+   undeclared appended narrative and the largest is ~243k tokens. Use
+   `--field <name>` for one field whole, `--raw` only when you deliberately
+   intend to spend the whole record.
 2. Reuse an active `ledger/goals/GOAL-*` record under its exact ID when it
    matches the request, including a legacy three-digit ID. Otherwise mint a new
    ID with `python3 tools/allocate_id.py --next goal --area AREA`, confirm it
