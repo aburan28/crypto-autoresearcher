@@ -10,8 +10,11 @@ nothing here touches the network (IR-10).
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import random
+import subprocess
+import sys
 
 try:                                             # pragma: no cover
     import pytest
@@ -42,9 +45,11 @@ except ModuleNotFoundError:                      # pragma: no cover
 from harness.diffpath import adjudicator as ADJ
 from harness.diffpath import equivalence as EQ
 from harness.diffpath import primitives as P
-from harness.diffpath.census import (QUARANTINE_DIR, QUARANTINE_EXPECTED_SHA256,
-                                     build_census, quarantine_attestation,
-                                     scan_corpus)
+# QUARANTINE_EXPECTED_SHA256 and quarantine_attestation are deliberately NOT
+# imported here: the one test that needs them runs them in a child process (see
+# _ATTESTATION_PROBE below), and importing them in this process would suggest a
+# read this module never performs.
+from harness.diffpath.census import QUARANTINE_DIR, build_census, scan_corpus
 from harness.diffpath.pathobj import (bsdr_alternative, bsdr_decode, bsdr_encode,
                                       plant_from_pair, seeded_pair)
 from harness.diffpath.verifier import conforms, degenerate_baseline
@@ -327,9 +332,44 @@ def test_ctl_nearby_separates_sha0_from_sha1():
 # the firewall
 # --------------------------------------------------------------------------
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# The subject is exercised in a CHILD PROCESS, deliberately, and the reason is
+# a property of the process rather than of either test.
+# harness/diffpath/readmit.py installs a sys.addaudithook() AT MODULE IMPORT
+# TIME -- its IR-1 contract requires the hook to precede every substrate import,
+# so the call sits above those imports at module scope -- and an audit hook can
+# never be removed from a process once installed. Pytest imports every test
+# module during COLLECTION, before any test runs, so collecting
+# tests/test_diffpath_readmit.py installs the firewall for the whole session and
+# every later open under the quarantine prefix raises FirewallBreach, including
+# the one this test's subject (census.quarantine_attestation) makes to hash the
+# Tier-A payload. Both tests are correct; they simply cannot share a process.
+# Isolating the subject keeps these assertions exactly as they were, instead of
+# weakening the firewall (which a committed run artifact depends on) or dropping
+# the check. This test previously passed only when nothing had imported readmit.
+_ATTESTATION_PROBE = """
+import json
+from harness.diffpath.census import (QUARANTINE_EXPECTED_SHA256,
+                                     quarantine_attestation)
+att = quarantine_attestation()
+print(json.dumps({
+    "match": att["match"],
+    "sha256_matches_expected":
+        att["sha256_recomputed"] == QUARANTINE_EXPECTED_SHA256,
+    "parsed": att["parsed"],
+    "bytes_hashed": att["bytes_hashed"],
+}))
+"""
+
+
 def test_quarantine_is_hashed_and_never_parsed():
-    att = quarantine_attestation()
-    assert att["match"] and att["sha256_recomputed"] == QUARANTINE_EXPECTED_SHA256
+    proc = subprocess.run([sys.executable, "-c", _ATTESTATION_PROBE],
+                          cwd=_REPO_ROOT, capture_output=True, text=True,
+                          timeout=300)
+    assert proc.returncode == 0, proc.stderr
+    att = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert att["match"] and att["sha256_matches_expected"]
     assert att["parsed"] is False
     assert att["bytes_hashed"] > 0
 
