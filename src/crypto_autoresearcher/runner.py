@@ -1243,6 +1243,7 @@ def _wait_for_child(
         memory_killed = False
         cpu_killed = False
         observed_peak_rss = 0
+        reaped_ru_maxrss = 0
         cpu_by_process: dict[int, float] = {}
         tracked_process_ids = {process.pid}
         parent_reaped = False
@@ -1271,7 +1272,16 @@ def _wait_for_child(
                         cpu_by_process.get(process.pid, 0.0),
                         max(0.0, usage.ru_utime + usage.ru_stime),
                     )
-                    observed_peak_rss = max(observed_peak_rss, _max_rss_bytes(usage))
+                    # ru_maxrss from a forked child includes the parent's
+                    # pre-exec RSS on Linux (fork() copies it before exec()
+                    # overwrites the image), so it is not a reliable peak for
+                    # a *small* child launched from a *large* parent. The
+                    # /proc-sampled `current_rss` above already observes the
+                    # post-exec child directly and is what memory decisions
+                    # are based on; ru_maxrss is kept only as an
+                    # informational upper bound, never folded into
+                    # observed_peak_rss. See issue #702.
+                    reaped_ru_maxrss = _max_rss_bytes(usage)
                     return_code = os.waitstatus_to_exitcode(wait_status)
                     process.returncode = return_code
 
@@ -1314,7 +1324,11 @@ def _wait_for_child(
                         cpu_by_process.get(process.pid, 0.0),
                         max(0.0, usage.ru_utime + usage.ru_stime),
                     )
-                    observed_peak_rss = max(observed_peak_rss, _max_rss_bytes(usage))
+                    # Informational only — see the comment on the matching
+                    # reap above (issue #702): a forked child's ru_maxrss can
+                    # read back the parent's pre-exec RSS, so it must never
+                    # feed observed_peak_rss / the memory-limit decision.
+                    reaped_ru_maxrss = _max_rss_bytes(usage)
                     return_code = os.waitstatus_to_exitcode(wait_status)
                     process.returncode = return_code
                     parent_reaped = True
