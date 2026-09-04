@@ -14,9 +14,16 @@ bucket:
 
   ready        - dispatch succeeded and at least one Ready Task has
                  claim: null (something is actually dispatchable now).
-  blocked      - dispatch succeeded but there is nothing to start (every
-                 task is gated, claimed, or deferred). Not an error; this is
-                 an ordinary campaign state.
+  batch_complete - dispatch succeeded and EVERY task in the batch is
+                 `completed`. The batch is finished and the goal is waiting on
+                 a Coordinator checkpoint plus its next batch. This is WORK,
+                 not a stall, and it is the single most common state in this
+                 portfolio -- it was previously reported as `blocked`, which
+                 made a live campaign look parked.
+  blocked      - dispatch succeeded but there is nothing to start because
+                 tasks are gated, claimed by another session, or deferred.
+                 Not an error; an ordinary campaign state, and NOT a goal
+                 status (goals are never `blocked` -- see CLAUDE.md rule 10).
   needs_repair - dispatch itself failed (hash mismatch, malformed queue,
                  missing file, ...). This is an integrity problem with the
                  queue or the local worktree, never a research result, and
@@ -139,10 +146,59 @@ def classify(repo_root: Path, goal: dict[str, Any], out_dir: Path) -> dict[str, 
         t for t in plan.get("dispatches", [])
         if t.get("claim") in (None, "null") or not t.get("claim")
     ]
-    result["bucket"] = "ready" if ready_tasks else "blocked"
+    if ready_tasks:
+        result["bucket"] = "ready"
+    else:
+        # Distinguish "finished, needs its successor batch" from "gated". Both
+        # offer nothing to start right now, but only the second is waiting on
+        # something outside the operator's control: a completed batch just
+        # needs a checkpoint and a next batch, which is ordinary harness work.
+        # Collapsing them hid 29 of 33 runnable campaigns behind one label.
+        try:
+            all_tasks = json.loads(abs_queue.read_text()).get("tasks", [])
+        except Exception:
+            all_tasks = []
+        states = {str(t.get("state", "")).strip() for t in all_tasks}
+        if all_tasks and states <= {"completed"}:
+            result["bucket"] = "batch_complete"
+            result["reason"] = (
+                f"all {len(all_tasks)} task(s) completed; needs a Coordinator "
+                f"checkpoint and the next batch"
+            )
+        else:
+            result["bucket"] = "blocked"
     result["ready_task_ids"] = [t.get("id") for t in ready_tasks]
     result["next_action"] = goal.get("next_action")
     return result
+
+
+def _ecc_sort(rows):
+    """ECC first, always. Instruction 2 (2026-09-04).
+
+    The area set is declared once in orchestration/research-priority.yaml and
+    read through tools/ecc_priority.py -- never re-derived here, and never
+    inferred from an identifier prefix (GOAL-CRYPTO-001 is an ECDLP search;
+    DREG/MONO/RELN/SDEG/SIG/ICEX are Semaev and index-calculus machinery).
+
+    Ordering only. It never manufactures ECC work and never licenses
+    dispatching an unranked ECC task ahead of a ranked non-ECC one.
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ecc_priority
+        pol = ecc_priority.load_policy()
+    except Exception:
+        return rows                       # policy unreadable: leave order alone
+    return sorted(rows, key=lambda r: ecc_priority.sort_key(r.get("id", ""), pol))
+
+
+def _ecc_mark(row) -> str:
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ecc_priority
+        return "ECC " if ecc_priority.is_ecc(row.get("id", "")) else "    "
+    except Exception:
+        return ""
 
 
 def is_shallow_clone(repo_root: Path) -> bool:
@@ -188,20 +244,32 @@ def main() -> int:
         print(json.dumps({"shallow_clone_warning": shallow, "goals": results}, indent=2))
         return 0
 
-    buckets: dict[str, list[dict[str, Any]]] = {"ready": [], "blocked": [], "needs_repair": []}
+    buckets: dict[str, list[dict[str, Any]]] = {
+        "ready": [], "batch_complete": [], "blocked": [], "needs_repair": []}
     for r in results:
         buckets.setdefault(r["bucket"], []).append(r)
+    # ECC first within every bucket (instruction 2, 2026-09-04).
+    for k in list(buckets):
+        buckets[k] = _ecc_sort(buckets[k])
 
-    print(f"# Goal portfolio health ({len(results)} active goals)\n")
+    n_ecc = sum(1 for r in results if _ecc_mark(r).strip())
+    print(f"# Goal portfolio health ({len(results)} active goals; "
+          f"{n_ecc} ECC, listed first in every bucket)\n")
     print(f"## Ready ({len(buckets['ready'])}) — dispatchable now\n")
     for r in buckets["ready"]:
-        print(f"- {r['id']} ({r['current_batch_id']}): {', '.join(r['ready_task_ids'])}")
-    print(f"\n## Blocked ({len(buckets['blocked'])}) — nothing to start, not an error\n")
+        print(f"- {_ecc_mark(r)}{r['id']} ({r['current_batch_id']}): "
+              f"{', '.join(r['ready_task_ids'])}")
+    print(f"\n## Batch complete ({len(buckets['batch_complete'])}) — "
+          f"finished batch, needs a checkpoint + next batch (this is work)\n")
+    for r in buckets["batch_complete"]:
+        print(f"- {_ecc_mark(r)}{r['id']} ({r.get('batch') or '-'}): {r.get('reason','')}")
+
+    print(f"\n## Blocked ({len(buckets['blocked'])}) — gated/claimed/deferred, not an error\n")
     for r in buckets["blocked"]:
-        print(f"- {r['id']} ({r['current_batch_id']})")
+        print(f"- {_ecc_mark(r)}{r['id']} ({r['current_batch_id']})")
     print(f"\n## Needs repair ({len(buckets['needs_repair'])}) — integrity problem, not a research result\n")
     for r in buckets["needs_repair"]:
-        print(f"- {r['id']}: {r['reason']}")
+        print(f"- {_ecc_mark(r)}{r['id']}: {r['reason']}")
 
     return 0
 
