@@ -347,7 +347,14 @@ def _parse_launch_stdout(stdout: bytes) -> tuple[str | None, int, bool, datetime
 
 
 def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
-    uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro"
+    # `immutable=1` is required on macOS hosts that attach com.apple.provenance
+    # to the codex state DB: a plain `mode=ro` open fails with SQLITE_CANTOPEN
+    # there. The probe only ever reads a thread row AFTER the codex exec process
+    # that created it has exited, and codex uses journal_mode=delete, so there
+    # is no un-checkpointed WAL content immutable=1 could miss. query_only=ON is
+    # still asserted per connection; immutable only ever strengthens the
+    # read-only guarantee.
+    uri = "file:" + quote(str(state_db), safe="/") + "?mode=ro&immutable=1"
     try:
         connection = sqlite3.connect(uri, uri=True)
         try:
