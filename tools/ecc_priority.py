@@ -164,6 +164,31 @@ def _taken_idea_ids() -> set[str]:
     return taken
 
 
+# Proposals are supposed to live in ledger/proposals/ -- CLAUDE.md, AGENTS.md,
+# templates/research-records.md and every skill say so, and nothing documents a
+# second location. ledger/ideas/ exists anyway: a GOAL-ECQ batch filed eight
+# rank>=32 proposals there on 2026-08-24 and the 2026-08-31 coverage-gap intake
+# added six more. Fourteen well-formed ECC proposals were therefore invisible to
+# this ranking -- eight for RQ-ECQ-e9b361 and six for RQ-AUXIN-f8d8c0, whose
+# GOAL-AUXIN-a93442 names IDEA-20260831-df4197 in its own next_action. A goal
+# pointing at work the harness cannot see is exactly the failure instruction 3
+# is meant to prevent.
+#
+# They are READ from both places rather than moved, because seventeen committed
+# records already bind the ledger/ideas/ path -- dispatch queues, task cards,
+# handoffs and a goal record among them -- and moving a file that an archive
+# receipt binds breaks the receipt. Reading both costs nothing and breaks
+# nothing; consolidating is a Coordinator decision with superseding records.
+PROPOSAL_DIRS = ("proposals", "ideas")
+
+
+def _proposal_paths() -> list[str]:
+    paths: list[str] = []
+    for sub in PROPOSAL_DIRS:
+        paths.extend(glob.glob(str(REPO / "ledger" / sub / "*.yaml")))
+    return sorted(paths)
+
+
 def open_ecc_ideas(policy: dict | None = None, area: str | None = None) -> list[dict]:
     """Open ECC ideas: status `proposed`, and no hypothesis/experiment cites them.
 
@@ -174,7 +199,7 @@ def open_ecc_ideas(policy: dict | None = None, area: str | None = None) -> list[
     rq_area = _rq_area_index()
     taken = _taken_idea_ids()
     out = []
-    for p in sorted(glob.glob(str(REPO / "ledger" / "proposals" / "*.yaml"))):
+    for p in _proposal_paths():
         try:
             with open(p) as fh:
                 d = yaml.safe_load(fh)
