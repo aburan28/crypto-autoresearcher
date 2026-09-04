@@ -145,6 +145,59 @@ def classify(repo_root: Path, goal: dict[str, Any], out_dir: Path) -> dict[str, 
     return result
 
 
+FOCUS_PATH = "orchestration/research-focus.yaml"
+
+
+def load_focus(repo_root: Path) -> dict[str, Any] | None:
+    """Read the declared research focus, or None when none is declared.
+
+    Absent or unparseable, every goal ranks equally and this tool behaves
+    exactly as it did before the focus existed. The focus is a PRIORITY
+    ORDER, never a filter: an unlisted goal still appears in every bucket and
+    is still dispatchable.
+    """
+
+    path = repo_root / FOCUS_PATH
+    if not path.exists():
+        return None
+    try:
+        import yaml
+    except ImportError:
+        return None
+    try:
+        data = yaml.safe_load(path.read_text())
+    except Exception as error:  # a malformed focus must not break the sweep
+        print(f"NOTE: ignoring unreadable {FOCUS_PATH}: {error}", file=sys.stderr)
+        return None
+    return data if isinstance(data, dict) and data.get("tiers") else None
+
+
+def goal_area(goal_id: str) -> str:
+    """`GOAL-<AREA>-<tok>` -> AREA. Legacy three-digit IDs share the shape."""
+
+    parts = goal_id.split("-")
+    return parts[1] if len(parts) >= 2 else ""
+
+
+def focus_tier(goal_id: str, focus: dict[str, Any] | None) -> int:
+    """Rank one goal against the declared focus. Lower sorts first."""
+
+    if not focus:
+        return 0
+    for entry in focus.get("tiers") or []:
+        if goal_id in (entry.get("goals") or []):
+            return int(entry["tier"])
+        if goal_area(goal_id) in (entry.get("areas") or []):
+            return int(entry["tier"])
+    return int(focus.get("default_tier", 99))
+
+
+def tier_names(focus: dict[str, Any] | None) -> dict[int, str]:
+    if not focus:
+        return {}
+    return {int(e["tier"]): e.get("name", "") for e in focus.get("tiers") or []}
+
+
 def is_shallow_clone(repo_root: Path) -> bool:
     proc = subprocess.run(
         ["git", "-C", str(repo_root), "rev-parse", "--is-shallow-repository"],
@@ -153,10 +206,44 @@ def is_shallow_clone(repo_root: Path) -> bool:
     return proc.stdout.strip() == "true"
 
 
+def deepen_clone(repo_root: Path) -> tuple[bool, str]:
+    """Fetch the full history a shallow clone is missing.
+
+    Returns (deepened, detail). This is a fetch: it only ADDS history. It
+    rewrites nothing, touches no working tree, and cannot invalidate an archive
+    receipt -- the failure mode it removes is entirely one of missing objects.
+
+    Doing it automatically is the point. The sweep has been able to detect a
+    shallow clone and name the one command that fixes it for as long as the
+    warning has existed, and a session still had to read the banner, believe
+    it, and act on it before any result below could be trusted. A session that
+    skipped that step read 26 correctly-archived goals as corrupt and had
+    nothing to dispatch.
+    """
+
+    proc = subprocess.run(
+        ["git", "-C", str(repo_root), "fetch", "--unshallow", "origin"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode == 0 and not is_shallow_clone(repo_root):
+        return True, "deepened via `git fetch --unshallow origin`"
+    detail = (proc.stderr or proc.stdout).strip().splitlines()
+    return False, detail[-1] if detail else f"git exited {proc.returncode}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repo-root", default=".", help="Repository root (default: cwd)")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a table")
+    parser.add_argument(
+        "--focus-only", action="store_true",
+        help="Show only goals in the declared focus's dispatch_first tiers "
+             f"({FOCUS_PATH}). Use when a session should work the focus lane "
+             "and nothing else.")
+    parser.add_argument(
+        "--no-deepen", action="store_true",
+        help="Do not auto-fetch missing history on a shallow clone. The "
+             "needs_repair bucket is then untrustworthy -- see the warning it prints.")
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
@@ -169,6 +256,15 @@ def main() -> int:
     # -- nearly all of it was this artifact, not real corruption. Surface it
     # loudly rather than let every session re-diagnose it as repository rot.
     shallow = is_shallow_clone(repo_root)
+    deepened = False
+    if shallow and not args.no_deepen:
+        deepened, detail = deepen_clone(repo_root)
+        shallow = not deepened
+        print(
+            f"Shallow clone detected: {detail}." if deepened
+            else f"Shallow clone detected and could NOT be deepened: {detail}.",
+            file=sys.stderr,
+        )
     if shallow and not args.json:
         print(
             "WARNING: this is a SHALLOW git clone. Commit-reachability checks below\n"
@@ -184,24 +280,56 @@ def main() -> int:
         out_dir = Path(tmp)
         results = [classify(repo_root, g, out_dir) for g in goals]
 
+    focus = load_focus(repo_root)
+    names = tier_names(focus)
+    dispatch_first = {int(e["tier"]) for e in (focus or {}).get("tiers") or []
+                      if e.get("dispatch_first")}
+    for r in results:
+        r["focus_tier"] = focus_tier(r["id"], focus)
+    if args.focus_only:
+        if not dispatch_first:
+            print(f"--focus-only: no dispatch_first tier declared in {FOCUS_PATH}.",
+                  file=sys.stderr)
+            return 2
+        results = [r for r in results if r["focus_tier"] in dispatch_first]
+    # Rank by focus first, then by ID. This is the ordering the goal-selection
+    # step consumes, so it is what actually aims the program.
+    results.sort(key=lambda r: (r["focus_tier"], r["id"]))
+
     if args.json:
-        print(json.dumps({"shallow_clone_warning": shallow, "goals": results}, indent=2))
+        print(json.dumps({"shallow_clone_warning": shallow,
+                          "clone_deepened": deepened,
+                          "focus": (focus or {}).get("focus"),
+                          "focus_path": FOCUS_PATH,
+                          "goals": results}, indent=2))
         return 0
 
     buckets: dict[str, list[dict[str, Any]]] = {"ready": [], "blocked": [], "needs_repair": []}
     for r in results:
         buckets.setdefault(r["bucket"], []).append(r)
 
-    print(f"# Goal portfolio health ({len(results)} active goals)\n")
+    scope = " in focus" if args.focus_only else ""
+    print(f"# Goal portfolio health ({len(results)} active goals{scope})\n")
+    if focus:
+        listed = ", ".join(
+            f"tier {t} {names[t]}" for t in sorted(names)) or "none"
+        print(f"Focus: **{focus.get('focus')}** ({FOCUS_PATH}) — {listed}.")
+        print("Goals are listed focus-first; dispatch from the top.\n")
+
+    def label(r: dict[str, Any]) -> str:
+        tier = r.get("focus_tier", 0)
+        return f" [tier {tier}]" if focus and tier else ""
+
     print(f"## Ready ({len(buckets['ready'])}) — dispatchable now\n")
     for r in buckets["ready"]:
-        print(f"- {r['id']} ({r['current_batch_id']}): {', '.join(r['ready_task_ids'])}")
+        print(f"- {r['id']}{label(r)} ({r['current_batch_id']}): "
+              f"{', '.join(r['ready_task_ids'])}")
     print(f"\n## Blocked ({len(buckets['blocked'])}) — nothing to start, not an error\n")
     for r in buckets["blocked"]:
-        print(f"- {r['id']} ({r['current_batch_id']})")
+        print(f"- {r['id']}{label(r)} ({r['current_batch_id']})")
     print(f"\n## Needs repair ({len(buckets['needs_repair'])}) — integrity problem, not a research result\n")
     for r in buckets["needs_repair"]:
-        print(f"- {r['id']}: {r['reason']}")
+        print(f"- {r['id']}{label(r)}: {r['reason']}")
 
     return 0
 

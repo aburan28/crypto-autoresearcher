@@ -97,6 +97,23 @@ Code specifically.
 
 ## Research direction
 
+**The declared focus is ECDLP, and it is declared in one file:
+`orchestration/research-focus.yaml`.** The portfolio holds 102 goals across 66
+areas; goal selection used to rank only by dispatchability, so whichever goal
+happened to be `ready` got the session. That is how a program named for ECDLP
+came to spend most of its sessions elsewhere. The focus file tiers the
+portfolio (tier 1 the ECDLP attack and the cost machinery it depends on, tier
+2 the elliptic-curve census, tier 3 adjacent hard problems), and
+`tools/goal_portfolio_health.py` reads it on every sweep, tags each goal
+`[tier N]` and sorts by it — so "select the highest-ranked ready goal" now
+means "take the top of the list". `--focus-only` restricts a session to tier 1.
+
+It is a PRIORITY ORDER, not a filter, a closure, or a grant of authority.
+Every unlisted goal stays `active` and dispatchable and is picked up when the
+focus lane has nothing ready; a tier-1 goal still needs a dispatchable queue,
+still archives, and is still reviewed and scoped exactly as before. Re-aim the
+program by editing that file.
+
 Procedure for ideation and closure is anchored by `docs/inventor-protocol.md`
 (technique abstract: `knowledge/techniques/KN-TECH-056.md`): object-first
 generation, the lossy-projection test, null-object controls before belief, a

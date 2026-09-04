@@ -109,9 +109,12 @@ integrity failure this step exists to catch — but after `git fetch
 --unshallow`, that dropped to 12. Nearly all of the apparent corruption was
 the shallow clone, not `main`. The sweep tool detects this itself and prints
 a warning (`shallow_clone_warning` in `--json` output, a stderr banner
-otherwise), but the fix (`fetch --unshallow`) is not automatic — run it
-before treating any `needs_repair` finding as real, and re-run the sweep
-after.
+otherwise). **The sweep now applies the fix itself**: on a shallow clone it
+runs `git fetch --unshallow origin` and says so on stderr, so the results
+below it are already trustworthy. It is a fetch — it only adds history, and
+rewrites nothing. Pass `--no-deepen` to suppress that (offline, or when you
+want the shallow behaviour deliberately); the `needs_repair` bucket is then
+untrustworthy and the banner says so.
 
 ```sh
 python3 tools/goal_portfolio_health.py
@@ -150,9 +153,20 @@ Pick in this order, drawing only from the **ready** bucket unless noted:
    bucket it landed in and why (cite the sweep's reason) instead of silently
    substituting another goal.
 2. Single `ready` goal that matches the request text or current branch/area.
-3. Any other `ready` goal, highest ranked first, when the request names no
-   specific one. In a standing run this is the ordinary case and needs no user
-   prompt — the harness is expected to keep working the active portfolio.
+3. Any other `ready` goal, **focus-first**, when the request names no specific
+   one. In a standing run this is the ordinary case and needs no user prompt —
+   the harness is expected to keep working the active portfolio.
+
+   The sweep already orders its output for you. `orchestration/research-focus.yaml`
+   declares which lane this program pursues first (currently **ecdlp**), the
+   sweep tags every goal `[tier N]` and sorts by it, so "highest ranked" means
+   *take the top of the Ready list*. `--focus-only` restricts the sweep to the
+   focus lane when a session should work nothing else.
+
+   This is a priority order, not a filter or a closure: a tier-4 goal is still
+   `active`, still dispatchable, and still gets picked up when the focus lane
+   has nothing ready. Re-aim the program by editing that file, not by
+   arguing with the ranking here.
 4. Otherwise list `ready` / `blocked` / `paused` goals (ID, status, batch,
    next action) and ask which to run. Do not silently resume a `paused` or
    `completed` goal: a pause was recorded for a reason, and resuming it
@@ -436,12 +450,22 @@ goal, or because the sweep put every `active` goal into `blocked` or
 `needs_repair` — the harness still does not exit on that alone. In priority
 order:
 
+0. **Repair a focus-lane goal sitting in `needs_repair`.** Run
+   `python3 tools/goal_portfolio_health.py --focus-only` first. A tier-1 goal
+   blocked on a recording defect — a null or malformed hash, a receipt never
+   backfilled — is the cheapest dispatchable work in the portfolio and it
+   returns the program's own priority lane to service. Repair it the way the
+   integrity rules require (a superseding record where the archive itself is
+   wrong; never by rewriting a pushed commit, and never by relaxing a check to
+   make a red result green). Fix what is provably a recording omission, and
+   report what needs a Coordinator decision.
 1. Resume a `paused` goal whose recorded pause reason is now demonstrably
    cleared (budget renewed by decision, archive repaired, policy resolvable).
    The clearing goes in the resuming Coordinator decision; do not just flip the
    status.
 2. Open a new campaign against the highest-ranked open `RQ-*` or
-   `KN-OPEN-*` item, following step 3's "Start new" path.
+   `KN-OPEN-*` item, following step 3's "Start new" path — against the focus
+   lane's bound `RQ-*` before any other, when one is open.
 3. If no open question justifies a campaign, run `/propose-ideas` on the
    best-supported research question to generate candidates, then rank them and
    open a campaign against the winner.
