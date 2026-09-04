@@ -102,6 +102,30 @@ def require_positive_number(record: dict[str, Any], field: str, location: str) -
         raise DispatchError(f"{location}.{field} must be a positive number")
 
 
+def declares_zero_compute(budget: dict[str, Any]) -> bool:
+    """True when a handoff budget DECLARES that its task runs no experiments.
+
+    Coordinator archive tasks, and the review tasks that only read committed
+    artifacts, consume no experiment compute. They said so -- GOAL-ECDLP-001's
+    BATCH-e6c1c9 sets `experiment_maximum_runs: 0` and GOAL-MD5-001's
+    BATCH-ebac02 sets `maximum_runs: 0`, each with a note citing the committed
+    campaign-budget amendment that authorised it -- and then failed validation
+    anyway, because `wall_clock_seconds` and `memory_gb` were unconditionally
+    required to be positive. Both goals sat in `needs_repair`, undispatchable,
+    over a compute ceiling for compute that is never spent.
+
+    The declaration is the contract, and it is checkable: a task claiming zero
+    runs may omit the wall-clock and memory ceilings that bound runs. A task
+    that runs anything at all is bounded exactly as it always was.
+    """
+
+    for field in ("experiment_maximum_runs", "maximum_runs"):
+        value = budget.get(field)
+        if isinstance(value, int) and not isinstance(value, bool) and value == 0:
+            return True
+    return False
+
+
 def parse_timestamp(value: Any, location: str) -> datetime:
     """Parse an ISO-8601 timestamp, tz-aware output always.
 
@@ -378,11 +402,24 @@ def validate_handoff(task: dict[str, Any], location: str) -> None:
     budget = handoff.get("budget")
     if not isinstance(budget, dict):
         raise DispatchError(f"{location}.handoff.budget must be an object")
+    zero_compute = declares_zero_compute(budget)
     for field in ("wall_clock_seconds", "memory_gb"):
+        # A task that has DECLARED it runs nothing may leave these null. It is
+        # not exempt from bounding its compute; it has bounded it at zero, which
+        # is the tightest bound available and the only honest one. Demanding a
+        # positive number here forced the opposite: a fabricated ceiling for
+        # compute the task will never use (CLAUDE.md rule 5).
+        if zero_compute and budget.get(field) is None:
+            continue
         require_positive_number(budget, field, f"{location}.handoff.budget")
     maximum_runs = budget.get("maximum_runs")
-    if not isinstance(maximum_runs, int) or isinstance(maximum_runs, bool) or maximum_runs < 1:
-        raise DispatchError(f"{location}.handoff.budget.maximum_runs must be a positive integer")
+    minimum_runs = 0 if zero_compute else 1
+    if (not isinstance(maximum_runs, int) or isinstance(maximum_runs, bool)
+            or maximum_runs < minimum_runs):
+        qualifier = (
+            "a non-negative integer" if zero_compute else "a positive integer")
+        raise DispatchError(
+            f"{location}.handoff.budget.maximum_runs must be {qualifier}")
 
 
 def _require_optional_sha(value: Any, location: str) -> None:

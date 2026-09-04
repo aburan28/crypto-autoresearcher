@@ -94,8 +94,19 @@ def run(*args: str, cwd: str | None = None) -> subprocess.CompletedProcess:
 
 
 def is_generated(path: str) -> bool:
-    return any(path == g or path.endswith("/" + g) or path.endswith(g)
-               for g in GENERATED)
+    """Match the generated artifact BY NAME -- never by suffix.
+
+    The bare `path.endswith(g)` this used to also test matched any file whose
+    name merely ENDS in one of these, and conflicts here are resolved by
+    REMOVAL. `enforceability_repair_dispatch_plan.json`,
+    `live_probe_dispatch_plan.md` and eighteen more like them are tracked
+    reconciliation-campaign artifacts, not generated output; a scheduled sync
+    (.github/workflows/sync-branches.yml, every six hours) would have deleted
+    them on the first conflicting merge. The two remaining clauses are the
+    whole rule, and match research_dispatch.py's _is_generated_path exactly.
+    """
+
+    return any(path == g or path.endswith("/" + g) for g in GENERATED)
 
 
 def remote_branches() -> list[str]:
