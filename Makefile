@@ -43,12 +43,21 @@ install: hooks
 # "awaiting approval" and did not run at all on the two PRs that corrupted
 # nine records. The local hook is what actually catches a half-finished merge,
 # so it is installed by default rather than opted into.
+# PR-SCOPED, deliberately. check_merge_hygiene.py is absolute without --base,
+# and an absolute pre-commit hook refuses EVERY commit in the repository while
+# any record anywhere is unparseable -- including records the commit does not
+# touch and whose owning campaign is the only one that can repair them. That
+# is the coupling the tool's own header calls the dominant failure at 115 open
+# branches, and it blocked this repo outright: 7 records broken on main meant
+# no commit could be made at all. Scoping preserves the check that matters --
+# break a record and you changed it, so you are still caught -- while
+# .github/workflows/main-health.yml keeps the absolute sweep on main.
 hooks:
 	@mkdir -p .git/hooks
-	@printf '#!/bin/sh\nexec python3 tools/check_merge_hygiene.py\n' \
+	@printf '#!/bin/sh\nif git rev-parse --verify -q origin/main >/dev/null; then\n  exec python3 tools/check_merge_hygiene.py --base origin/main\nfi\nexec python3 tools/check_merge_hygiene.py\n' \
 		> .git/hooks/pre-commit
 	@chmod +x .git/hooks/pre-commit
-	@echo "installed .git/hooks/pre-commit (merge hygiene)"
+	@echo "installed .git/hooks/pre-commit (merge hygiene, PR-scoped vs origin/main)"
 
 doctor:
 	@$(PYTHON) -m orchestration doctor
