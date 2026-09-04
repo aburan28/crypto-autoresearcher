@@ -76,11 +76,13 @@ agree at D = 4, 5, 6, 7, 8 (codim = r_D = |Z| = 2; `r2_certificate.json`).
 
 FINDING (C2 IS VACUOUS HERE). Lemma 3 of `derivation-r3-single-fall.md` proves C2(D)
 holds for every D >= e(Z) + 2, where e(Z) is the interpolation degree of the zero set.
-Observed |Z| <= 4 on every draw, so e(Z) <= 3, and every C2 the certificate evaluates is
-at D >= 8. So all 480 recorded C2 checks (`s4:D=8` x120, `s5:D=8,9,10` x120 each, every
-one "holds": `r0_controls.json`) were a theorem, not a test. Confirmed empirically even
-on a system with |Z| = 386 (C2 holds at D = 8, 9, 10). The censoring decision at s = 4, 5
-therefore rests on C1 ALONE. That is not a defect -- C1 is the right test and it refuses
+On the Semaev and non-curve arms |Z| <= 4 and on NULL-1 / NULL-2 |Z| <= 2, so e(Z) <= 3
+there, while every C2 the certificate evaluates is at D >= 8. So all 480 recorded Semaev
+C2 checks (`s4:D=8` x120, `s5:D=8,9,10` x120 each, every one "holds": `r0_controls.json`)
+were a theorem, not a test. The one arm not covered by the crude bound is NULL-3
+(|Z| = 135 at s = 4, 348 at s = 5); there C2 is verified numerically only, and an
+independently constructed n = 10 system with |Z| = 386 also satisfies C2 at D = 8, 9, 10.
+The censoring decision at s = 4, 5 therefore rests on C1 ALONE. That is not a defect -- C1 is the right test and it refuses
 correctly (section 3) -- but "certified C1+C2" should not be read as two independent
 checks.
 

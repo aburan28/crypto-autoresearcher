@@ -65,10 +65,16 @@ z_{2i} = 0 we get z_{3i} = mu, and where z_{1i} = 0, z_{2i} = 1 we get z_{3i} = 
 Since z_1 != z_2 at least one such coordinate exists, and z_{3i} in {0,1} forces
 mu in {0,1} (p odd), i.e. z_3 = z_2 or z_3 = z_1. Contradiction. []
 
-Observed in the package: |Z| <= 4 on every Semaev draw (|Z| = 4 once, at s = 5), so
-e(Z) <= 3 everywhere; the one draw with |Z| = 4 is still covered by the first claim.
-Directly computed for the declared instance (p = 4099, a = 3245, b = 455, x_R = 1960,
-s = 4): Z = {35, 50}, e(Z) = 1 (`r2_certificate.json`, key `e_of_Z_semaev_s4`).
+Observed in the package (m = 2, the cells that use certificate route C1+C2, i.e. s = 4
+and s = 5): |Z| <= 4 on the Semaev and non-curve arms and |Z| <= 2 on NULL-1 / NULL-2, so
+e(Z) <= 3 on those arms. NULL-3 is the exception: its block-factored generator has
+|Z| = 135 at s = 4 and 348 at s = 5, for which the crude bound e(Z) <= |Z| - 1 says
+nothing useful; Lemma 3 is therefore ESTABLISHED for the Semaev, non-curve, NULL-1 and
+NULL-2 arms and only VERIFIED NUMERICALLY for NULL-3 (all 30 recorded C2 checks hold, and
+an independently constructed n = 10 system with |Z| = 386 also satisfies C2 at
+D = 8, 9, 10; `r2_certificate.json`, key `planted_late_C2`). Directly computed for the
+declared instance (p = 4099, a = 3245, b = 455, x_R = 1960, s = 4): Z = {35, 50},
+e(Z) = 1 (`r2_certificate.json`, key `e_of_Z_semaev_s4`).
 
 ## 4. Lemma 3 (the frozen certificate's C2 identity is automatic)
 
@@ -96,8 +102,8 @@ dim(B_{<=D}/U) <= |Z|. But U is contained in I cap B_{<=D}, of codimension r_D =
 CONSEQUENCE FOR THE INSTRUMENT. The frozen completeness certificate
 (`stage1-closure-convention.md` section 3, route (C)) checks C1 at D_max and then C2(D)
 for D = D_max+1 .. n. Lemma 3 shows every one of those C2(D) is a THEOREM whenever
-D_max + 1 >= e(Z) + 2, which holds on every draw of this experiment (D_max = 7,
-e(Z) <= 3). The C2 half of the certificate therefore carries no information here: the
+D_max + 1 >= e(Z) + 2, which holds on every Semaev, non-curve, NULL-1 and NULL-2 draw of
+this experiment (D_max = 7, e(Z) <= 3 there), and is verified numerically on NULL-3. The C2 half of the certificate therefore carries no information here: the
 certification is C1 alone. This is a scope statement about the instrument, not a defect
 -- C1 is exactly the right test and it is what refuses on the known-false object of the
 proves-too-much control.
