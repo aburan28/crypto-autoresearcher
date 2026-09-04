@@ -370,3 +370,55 @@ census that samples the base uniformly and reads Frobenius cycle type. The
 contract does neither — it fixes m-2 coordinates at factor-base elements and
 reports a rate and an operation count — and an invalidation rule forbids drift
 into the banned form.
+
+## R9. EXP-ECDLP-26065d may stand as a DRAFT successor, gated at approval — RULED
+
+The designing coordinator escalated rather than deciding, and was right to.
+
+`IDEA-20260817-f63307` is `status: withdrawn`. Its `status_note` reads, in
+part: "Not filed as a live proposal, and specifically not available to
+/design-experiment: a confirmed duplicate carried as `status: proposed` would
+be a candidate for compute behind a barrier the program already holds."
+
+Read alone that bars this work. It is not alone. The same record carries a
+`preserved_for_successor` field which begins: "WHAT SURVIVES, AND IT IS NOT A
+PROPOSAL. The instinct to MEASURE this barrier rather than assert it is still
+live", and grounds that in tools/obstruction_registry.py reporting no
+obstruction blocks recorded.
+
+So the withdrawal bars the CLAIM and explicitly preserves the measurement. The
+coordinator designed an obstruction-recording protocol that converts a
+blacklist string into a filled obstruction block — which is the successor the
+record itself endorses, not the withdrawn duplicate.
+
+Ruling: the contract stands as a DRAFT, because a draft is not a dispatch and
+the record endorses this object. It carries a hard approval gate:
+
+1. Before approval a Coordinator must affirm ON THE RECORD that what is
+   approved is the obstruction-measurement successor, not the withdrawn claim,
+   and must quote both the `status_note` and `preserved_for_successor` when
+   doing so.
+2. No record may cite IDEA-20260817-f63307 as support for a claim. It may be
+   cited only as the provenance of the withdrawal and of the preserved
+   instinct.
+3. If a Coordinator reads the withdrawal as barring even the successor, the
+   contract is refused and the work is dropped. That reading is defensible and
+   the designing agent said so itself.
+
+## R10. My worklist filter never checked proposal status — CORRECTION
+
+Auditing the 131 after this escalation: 120 are `proposed`, 10 carry no status
+field, and exactly ONE is `withdrawn` — the record above.
+
+That is a gap in my selection, not a near miss I planned for. The filter
+selected on ECDLP vocabulary, excluded other lanes, and removed superseded
+records via the `supersedes` graph, but it never read `status`. A record can be
+withdrawn without being superseded by anything, and that is exactly what
+happened here. Only one record was affected; that is luck.
+
+Two consequences:
+- At approval, every one of the 131 should have its source proposal's `status`
+  re-read. The 10 records with no status field in particular have never been
+  checked against anything.
+- Any future backlog sweep must filter on status as well as supersession. The
+  two are independent, and I treated supersession as if it covered both.
