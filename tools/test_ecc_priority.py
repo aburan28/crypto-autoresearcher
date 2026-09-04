@@ -184,5 +184,39 @@ class ContractTextTests(unittest.TestCase):
         self.assertRegex(body, r"claim-tier|scope, certificate")
 
 
+class ProposalDirectoryTests(unittest.TestCase):
+    """Open-idea ranking must see every proposal, wherever it was filed.
+
+    ledger/ideas/ is undocumented -- CLAUDE.md, AGENTS.md, the templates and
+    every skill say ledger/proposals/ -- but two batches filed there anyway, so
+    fourteen well-formed ECC proposals were absent from the ranking that
+    instruction 3 calls ranked work. Six of them serve RQ-AUXIN-f8d8c0, and
+    GOAL-AUXIN-a93442 names IDEA-20260831-df4197 in its own next_action: a goal
+    pointing at work the harness could not see.
+    """
+
+    def test_both_proposal_directories_are_scanned(self):
+        self.assertIn("proposals", EP.PROPOSAL_DIRS)
+        self.assertIn("ideas", EP.PROPOSAL_DIRS)
+
+    def test_paths_are_collected_from_every_declared_directory(self):
+        paths = EP._proposal_paths()
+        for sub in EP.PROPOSAL_DIRS:
+            present = (ROOT / "ledger" / sub).is_dir()
+            if not present:
+                continue
+            self.assertTrue(
+                any(f"/ledger/{sub}/" in p for p in paths),
+                f"no proposal path collected from ledger/{sub}/",
+            )
+
+    def test_the_goal_referenced_auxin_idea_is_rankable(self):
+        # The exact record GOAL-AUXIN-a93442's next_action names. It lives in
+        # ledger/ideas/, so this fails the moment that directory stops being
+        # read -- which is the regression worth catching, not the id itself.
+        ids = {i["id"] for i in EP.open_ecc_ideas()}
+        self.assertIn("IDEA-20260831-df4197", ids)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

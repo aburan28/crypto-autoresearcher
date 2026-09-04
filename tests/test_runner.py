@@ -300,6 +300,46 @@ class RunnerTests(unittest.TestCase):
                     allow_dirty=True,
                 )
 
+    def test_child_memory_is_not_charged_the_parents_pre_exec_rss(self) -> None:
+        # Regression for issue #702. `_wait_for_child` launches the run
+        # command with `preexec_fn` on POSIX, which forces CPython to
+        # `fork()` rather than `posix_spawn()`. A forked child's `ru_maxrss`
+        # (as reported to the reaping `os.wait4` call) includes the RSS the
+        # child inherited from the parent at fork time, before `exec()`
+        # replaced its image. Folding that value into the run's observed
+        # peak RSS meant a run launched from a large parent process (a
+        # harness or a full pytest session) could be classified
+        # `resource_exhaustion` regardless of what the run itself did.
+        #
+        # This inflates *this test process's* RSS well past the run's 1 GB
+        # `maximum_memory_gb` budget before launching a trivial, well-behaved
+        # command, and asserts the run still completes normally.
+        ballast = bytearray(1300 * 1024 * 1024)  # ~1.3 GiB
+        try:
+            self.assertGreater(
+                runner_module._max_rss_bytes(resource.getrusage(resource.RUSAGE_SELF)),
+                1024 * 1024 * 1024,
+            )
+            with tempfile.TemporaryDirectory() as temporary:
+                experiment_dir = Path(temporary) / "EXP-TEST-001"
+                experiment_dir.mkdir()
+                self._write_specification(experiment_dir, self._specification())
+                run_dir = run_experiment(
+                    repo_root=REPO_ROOT,
+                    experiment_dir=experiment_dir,
+                    run_id="RUN-TEST-002",
+                    command=self._valid_command(),
+                    seed=7,
+                    curve_id=None,
+                    parameters={},
+                    timeout_seconds=5,
+                    allow_dirty=True,
+                )
+                manifest = read_json(run_dir / "manifest.json")["run"]
+                self.assertEqual(manifest["status"], "completed_valid")
+        finally:
+            del ballast
+
     def test_exit_zero_without_exact_valid_true_is_invalid(self) -> None:
         cases = [
             "print('not json')",
