@@ -194,15 +194,35 @@ python3 tools/merge_digest.py --since …           # what changed on main
 
 Every value a projection shortens carries a marker naming the command that
 returns it whole — a projection is never silently partial, and `--raw` still
-gets the entire record when you mean to spend it. `goal_head.py audit` reports
-where head weight actually sits: 83% of goal-record bytes are undeclared
-top-level keys appended as narrative.
+gets the entire record when you mean to spend it.
 
-Writing is the other half. Append narrative to a **new** ledger record or a
-checkpoint shard (`tools/shard_goal.py`), never as a fresh ad-hoc key on a
-goal head — 1,138 distinct such key names exist and every reader pays for all
-of them. The head carries the fields in `templates/research-records.md`;
-immutability is served by superseding records, not by growing one file.
+**Nothing is discarded, and the history is now easier to reach than it was.**
+The 1,592 undeclared keys on the goal heads — 83% of goal-record bytes, ~713k
+tokens — are closeout reasoning, superseded next actions, integrity notes and
+terminal notes on old theories. They are research history, not waste, and no
+tool here deletes, rewrites or prunes them. Omitting them from a *resume* view
+is correct; making them unreachable would be data loss by another name, so
+they are addressable by name, date and content:
+
+```sh
+python3 tools/goal_head.py history GOAL-X                  # dated index of its keys
+python3 tools/goal_head.py history --grep 'telescoping'    # across ALL goal heads
+python3 tools/goal_head.py history GOAL-X --key <name>     # one entry, whole
+```
+
+`--grep` is the one that matters: these records are single YAML files up to
+972 KB in which one value spans hundreds of lines, so plain `grep` returns a
+line with no indication of which of 634 keys owns it. Searching here reports
+the owning key and its date, which is what makes a hit usable. `goal_head.py
+audit` shows where the weight sits.
+
+Writing is the other half. Append new narrative to a **new** ledger record or
+a checkpoint shard (`tools/shard_goal.py`), not as a fresh ad-hoc key on a
+goal head — that keeps history greppable as ordinary files instead of buried
+in one record every future reader pays for. Do not retrofit the existing keys:
+goal records are immutable, immutability is served by superseding records
+rather than by editing one file, and the history above is exactly what a
+cleanup would destroy.
 
 ## Concurrency: many agents, many worktrees
 

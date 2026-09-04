@@ -65,3 +65,13 @@ goal head is ~243k tokens and carries nothing these do not answer:
 python3 tools/goal_head.py list --status active   # whole portfolio, ~3k tokens
 python3 tools/goal_head.py show GOAL-ECDLP-001    # one goal, ~0.8k tokens
 ```
+
+The narrative those heads accumulated — closeout reasoning, superseded next
+actions, terminal notes on old theories — is omitted from the resume view but
+kept and addressable. Reach it by date or by content when a status question
+turns on why something closed:
+
+```sh
+python3 tools/goal_head.py history GOAL-ECDLP-001       # dated index
+python3 tools/goal_head.py history --grep '<term>'      # across all goals
+```

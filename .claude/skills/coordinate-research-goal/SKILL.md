@@ -32,6 +32,16 @@ reviews, and scopes its claims exactly as before.
    undeclared appended narrative and the largest is ~243k tokens. Use
    `--field <name>` for one field whole, `--raw` only when you deliberately
    intend to spend the whole record.
+
+   That appended narrative is this campaign's own history, preserved and
+   reachable: `goal_head.py history <GOAL>` indexes it by date,
+   `--grep <term>` searches its content and names the owning key, `--key
+   <name>` reads one entry whole. Consult it before reranking or reopening a
+   line of work — a deprioritization must record "its evidence, budget, test
+   boundary, remaining uncertainty, and a concrete successor or revisit
+   condition" (CLAUDE.md rule 9), and the prior one is usually already
+   written there. Append your own narrative to a new record or checkpoint
+   shard, never as a new key on the head.
 2. Reuse an active `ledger/goals/GOAL-*` record under its exact ID when it
    matches the request, including a legacy three-digit ID. Otherwise mint a new
    ID with `python3 tools/allocate_id.py --next goal --area AREA`, confirm it

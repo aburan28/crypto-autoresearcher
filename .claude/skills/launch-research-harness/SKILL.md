@@ -63,9 +63,18 @@ title,current_batch_id,dispatch_queue_path,next_action}` — for every goal, in
 **Never `cat` a goal record to get these.** The heads are append-only in
 practice: 83% of their bytes are undeclared narrative keys, `GOAL-ECDLP-001`
 is 651 keys and ~243k tokens, and reading all 102 the way this step used to
-read is ~904k tokens. `goal_head.py audit` shows where that weight sits, and
-every value the projection shortens is marked with the command that returns
-it whole.
+read is ~904k tokens. Every value the projection shortens is marked with the
+command that returns it whole.
+
+Those omitted keys are the campaign's history — why earlier batches closed,
+what was superseded, which theories were refuted. They are preserved intact
+and reachable; before re-opening a line of work, check whether it was already
+tried and closed:
+
+```sh
+python3 tools/goal_head.py history <GOAL>              # dated index
+python3 tools/goal_head.py history --grep '<term>'     # across all goals
+```
 
 Statuses: `draft | active | paused | blocked | completed | cancelled`
 (the tool also reports `unparseable` for a record that will not load — an

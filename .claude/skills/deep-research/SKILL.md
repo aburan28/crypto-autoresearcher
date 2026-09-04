@@ -83,6 +83,22 @@ scan. Read broadly before ranking anything:
   ranks what to work on next. For a goal use `goal_head.py show <GOAL>`
   rather than the raw head, and pull a checkpoint shard under
   `ledger/goals/GOAL-*/checkpoints/` only when a specific batch is at issue.
+- **Prior theories and why they were closed** live in the goal heads'
+  appended keys — ~713k tokens of closeout reasoning, superseded next actions
+  and terminal notes that `show` deliberately omits. This skill is the one
+  that most needs them: a lead already tried and refuted must not be re-ranked
+  as fresh, and "premature closure ... is treated as a failure mode symmetric
+  with overclaiming" cuts the other way too. Search them by content before
+  ranking anything, then read the entries that bear on the shortlist:
+
+  ```sh
+  python3 tools/goal_head.py history --grep '<mechanism or object>'
+  python3 tools/goal_head.py history <GOAL> --key <name>   # one entry, whole
+  ```
+
+  Plain `grep` on these files returns lines that name no owner; this reports
+  the owning key and its date. Cite the key you relied on, as you would a
+  record ID.
   Covered: `ledger/questions/`, `ledger/proposals/` (not yet converted to
   hypotheses), `ledger/hypotheses/` grouped by status, `ledger/evidence/`,
   `ledger/decisions/`, `ledger/goals/`, `ledger/handoffs/`.

@@ -26,8 +26,17 @@ its whole budget discovering ... then repeat that discovery from scratch"),
 and this tool is the same remedy applied to the goal head itself: read the
 record HERE, where bytes are free, and hand the agent only the projection.
 
-    goal_head.py list                  ~2k tokens for all 102 goals
-    goal_head.py show GOAL-ECDLP-001   ~0.6k tokens instead of ~243k
+    goal_head.py list                  ~3k tokens for all 102 goals
+    goal_head.py show GOAL-ECDLP-001   ~0.8k tokens instead of ~243k
+
+NOTHING IS DISCARDED. The ad-hoc keys `show` omits are the program's research
+history -- closeout reasoning, superseded next actions, integrity notes and
+terminal notes on old theories, ~713k tokens across 1,592 keys. Omitting them
+from a RESUME view is right; making them unreachable would be data loss by
+another name. `history` addresses every one of them by name, date and content,
+and `history --grep` is strictly better than `grep` on these files: a value
+here spans hundreds of lines, so a raw hit names no owner, while this reports
+the owning key and its date.
 
 TRUNCATION IS ALWAYS DISCLOSED. Every value this tool shortens is marked with
 an explicit `[+N more ...]` / `[truncated ...]` note naming the command that
@@ -44,6 +53,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -340,6 +350,141 @@ def cmd_show(args: argparse.Namespace, entries: list[dict[str, Any]]) -> int:
     return 0
 
 
+def key_date(key: str) -> str | None:
+    """The date encoded in an ad-hoc key name, if it carries one.
+
+    511 of GOAL-ECDLP-001's 634 ad-hoc keys date themselves in their name --
+    `..._terminal_note_20260830`, `..._note_2026_07_28` -- which is the only
+    chronology these entries have. YAML mappings preserve document order, but
+    that is insertion order, not research order.
+    """
+    m = re.search(r"(20\d{2})[_-]?(\d{2})[_-]?(\d{2})", key)
+    return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else None
+
+
+def walk_text(value: Any, path: str = "") -> list[tuple[str, str]]:
+    """Every string in a value, with the path that reaches it."""
+    if isinstance(value, str):
+        return [(path, value)]
+    out: list[tuple[str, str]] = []
+    if isinstance(value, list):
+        for i, item in enumerate(value):
+            out += walk_text(item, f"{path}[{i}]")
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            out += walk_text(v, f"{path}.{k}" if path else str(k))
+    return out
+
+
+def history_rows(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    """The ad-hoc keys of one goal head, dated where their names allow."""
+    record = entry["_record"]
+    rows = []
+    for key, value in record.items():
+        if key in TEMPLATE_FIELDS:
+            continue
+        rows.append({
+            "goal": entry["id"], "key": key, "date": key_date(key),
+            "bytes": len(yaml.safe_dump({key: value}, default_flow_style=False,
+                                        allow_unicode=True)),
+            "_value": value,
+        })
+    # Dated entries in chronological order, undated ones after in file order,
+    # which for a mapping is the order sessions appended them.
+    rows.sort(key=lambda r: (r["date"] is None, r["date"] or ""))
+    return rows
+
+
+def cmd_history(args: argparse.Namespace, entries: list[dict[str, Any]]) -> int:
+    """List, search, and read the narrative appended to goal heads.
+
+    This is the counterpart to `show`. The projection deliberately omits the
+    ad-hoc keys, and those keys are not waste -- they are closeout reasoning,
+    superseded next actions, integrity notes and terminal notes on old
+    theories, ~713k tokens of it across the corpus. Omitting them from a resume
+    view is right; making them unreachable would be data loss by another name,
+    so this reaches them by name, by date and by content.
+
+    Grep matters most. The records are single YAML files up to 972 KB in which
+    a value spans hundreds of lines, so `grep` on the file returns a line with
+    no indication of which key owns it. Matching here reports the owning key,
+    which is what makes a hit actionable.
+    """
+    if args.goal:
+        entries = [e for e in entries if e["id"] == args.goal]
+        if not entries:
+            print(f"error: no goal record with id {args.goal!r}", file=sys.stderr)
+            return 2
+
+    rows = [r for e in entries for r in history_rows(e)]
+    if args.since:
+        rows = [r for r in rows if r["date"] and r["date"] >= args.since]
+    if args.until:
+        rows = [r for r in rows if r["date"] and r["date"] <= args.until]
+
+    if args.key:
+        hit = [r for r in rows if r["key"] == args.key]
+        if not hit:
+            print(f"error: no ad-hoc key {args.key!r}"
+                  + (f" on {args.goal}" if args.goal else " on any goal")
+                  + ". `goal_head.py history"
+                  + (f" {args.goal}" if args.goal else "") + "` lists them.",
+                  file=sys.stderr)
+            return 2
+        for row in hit:  # whole value, never clipped
+            payload = {row["key"]: row["_value"]}
+            print(f"# {row['goal']}  ({row['date'] or 'undated'})")
+            print(yaml.safe_dump(payload, default_flow_style=False,
+                                 allow_unicode=True, sort_keys=False, width=WIDTH),
+                  end="")
+        return 0
+
+    if args.grep:
+        try:
+            pattern = re.compile(args.grep, re.IGNORECASE)
+        except re.error as exc:
+            print(f"error: bad --grep pattern: {exc}", file=sys.stderr)
+            return 2
+        matches = []
+        for row in rows:
+            for path, text in walk_text(row["_value"]):
+                m = pattern.search(text)
+                if not m:
+                    continue
+                start = max(0, m.start() - args.context)
+                snippet = " ".join(text[start:m.end() + args.context].split())
+                matches.append({"goal": row["goal"], "key": row["key"],
+                                "date": row["date"], "path": path,
+                                "snippet": ("…" if start else "") + snippet + "…"})
+                break  # one hit per key is enough to locate it
+        if args.json:
+            print(json.dumps({"pattern": args.grep, "matches": matches}, indent=2))
+            return 0
+        print(f"# {len(matches)} ad-hoc key(s) matching /{args.grep}/"
+              f" across {len({r['goal'] for r in rows})} goal head(s)\n")
+        for m in matches:
+            print(f"{m['goal']}  {m['date'] or 'undated'}  {m['key']}")
+            print(f"    {m['snippet']}")
+            print(f"    → goal_head.py history {m['goal']} --key {m['key']}\n")
+        return 0
+
+    if args.json:
+        print(json.dumps({"entries": [{k: v for k, v in r.items() if k != "_value"}
+                                      for r in rows]}, indent=2))
+        return 0
+    total = sum(r["bytes"] for r in rows)
+    print(f"# {len(rows)} ad-hoc key(s) on "
+          + (args.goal if args.goal else f"{len(entries)} goal head(s)")
+          + f", ~{total // 4:,} tokens of appended narrative")
+    print("# Names and dates only. `--key <name>` reads one whole; `--grep <re>`")
+    print("# searches their content and names the key that owns each hit.\n")
+    for row in rows:
+        print(f"{row['date'] or '        —'}  ~{row['bytes'] // 4:>6,}t  "
+              + (f"{row['goal']}  " if not args.goal else "")
+              + row["key"])
+    return 0
+
+
 def cmd_audit(args: argparse.Namespace, entries: list[dict[str, Any]]) -> int:
     if args.goal:
         entries = [e for e in entries if e["id"] == args.goal]
@@ -402,6 +547,18 @@ def main(argv: list[str] | None = None) -> int:
     p_audit.add_argument("goal", nargs="?")
     p_audit.add_argument("--top", type=int, default=10, help="goals to detail")
 
+    p_hist = sub.add_parser(
+        "history",
+        help="the narrative appended to goal heads: list, search, read")
+    p_hist.add_argument("goal", nargs="?", help="one goal (default: all)")
+    p_hist.add_argument("--grep", metavar="RE",
+                        help="search key CONTENT; reports the key owning each hit")
+    p_hist.add_argument("--key", metavar="NAME", help="print one key whole")
+    p_hist.add_argument("--since", metavar="YYYY-MM-DD")
+    p_hist.add_argument("--until", metavar="YYYY-MM-DD")
+    p_hist.add_argument("--context", type=int, default=140,
+                        help="characters of context around a --grep hit")
+
     argv = sys.argv[1:] if argv is None else list(argv)
     # Bare `goal_head.py` means `list`. Re-parse with the subcommand injected
     # rather than patching the namespace by hand: hand-setting attributes has
@@ -416,7 +573,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: no goal records under {args.repo_root}/ledger/goals/",
               file=sys.stderr)
         return 2
-    return {"list": cmd_list, "show": cmd_show, "audit": cmd_audit}[args.command](args, entries)
+    return {"list": cmd_list, "show": cmd_show, "audit": cmd_audit,
+            "history": cmd_history}[args.command](args, entries)
 
 
 if __name__ == "__main__":

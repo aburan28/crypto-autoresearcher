@@ -174,6 +174,72 @@ class GoalHeadTest(unittest.TestCase):
         self.assertNotIn("status_note_amendment", result.stderr)
         self.assertIn("30 ad-hoc key(s)", result.stderr)
 
+    # -- history: the appended narrative stays reachable ------------------
+
+    def test_every_adhoc_key_is_reachable_and_unchanged(self) -> None:
+        # The load-bearing property of the whole design: `show` omits the
+        # ad-hoc keys, so if `history` could not reach every one of them
+        # byte-for-byte, compaction would be data loss by another name.
+        entry = gh.load_goal(self.root / "ledger/goals/GOAL-T-00aa01.yaml")
+        rows = gh.history_rows(entry)
+        self.assertEqual(len(rows), 30)
+        for row in rows:
+            self.assertEqual(row["_value"], entry["_record"][row["key"]])
+
+    def test_history_lists_names_without_their_content(self) -> None:
+        out = self.run_tool("history", "GOAL-T-00aa01").stdout
+        self.assertIn("status_note_amendment", out)
+        self.assertNotIn("X" * 100, out)  # names and dates, not the prose
+        self.assertIn("30 ad-hoc key(s)", out)
+
+    def test_history_key_prints_the_whole_value(self) -> None:
+        key = "status_note_amendment_20260800_batch000"
+        out = self.run_tool("history", "GOAL-T-00aa01", "--key", key).stdout
+        self.assertIn("X" * 900, out)
+        self.assertNotIn("truncated", out)
+
+    def test_history_grep_names_the_key_that_owns_each_hit(self) -> None:
+        # Plain grep on a 972 KB single-file record returns a line with no
+        # indication of which of 634 keys owns it; naming the key is the
+        # entire reason this exists.
+        write(self.root / "ledger/goals/GOAL-T-00dd04.yaml", {"research_goal": {
+            "id": "GOAL-T-00dd04", "status": "paused",
+            "terminal_note_20260815": "the telescoping construction was refuted here",
+        }})
+        result = self.run_tool("history", "--grep", "telescoping")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("terminal_note_20260815", result.stdout)
+        self.assertIn("2026-08-15", result.stdout)
+        self.assertIn("--key terminal_note_20260815", result.stdout)
+
+    def test_history_grep_searches_nested_values(self) -> None:
+        write(self.root / "ledger/goals/GOAL-T-00ee05.yaml", {"research_goal": {
+            "id": "GOAL-T-00ee05", "status": "paused",
+            "integrity_notes": [{"note": "the isogeny ladder claim was withdrawn"}],
+        }})
+        out = self.run_tool("history", "--grep", "isogeny ladder").stdout
+        self.assertIn("integrity_notes", out)
+
+    def test_history_dates_come_from_key_names(self) -> None:
+        self.assertEqual(gh.key_date("x_terminal_note_20260830"), "2026-08-30")
+        self.assertEqual(gh.key_date("note_2026_07_28_batch010"), "2026-07-28")
+        self.assertIsNone(gh.key_date("prior_last_amended_by_task"))
+
+    def test_history_date_filters(self) -> None:
+        out = self.run_tool("history", "GOAL-T-00aa01", "--since", "2026-08-05").stdout
+        self.assertIn("2026-08-05", out)
+        self.assertNotIn("2026-08-01 ", out)
+
+    def test_history_unknown_key_points_at_the_listing(self) -> None:
+        result = self.run_tool("history", "GOAL-T-00aa01", "--key", "nope")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("lists them", result.stderr)
+
+    def test_history_bad_regex_is_reported_not_raised(self) -> None:
+        result = self.run_tool("history", "--grep", "([unclosed")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("bad --grep pattern", result.stderr)
+
     def test_audit_reports_adhoc_share(self) -> None:
         report = json.loads(self.run_tool("--json", "audit").stdout)
         row = next(r for r in report["goals"] if r["id"] == "GOAL-T-00aa01")
