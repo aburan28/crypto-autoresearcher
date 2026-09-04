@@ -122,3 +122,57 @@ The coordinator's fallback — stop at S0 and report DERIVATION-ONLY with the
 ordinary arm "unfalsified, never a verified negative" — was the right design
 for a refusal, and stands as the behaviour if the arm cannot be run for some
 other reason.
+
+## R5. Approval-time flags carried forward from wave 2
+
+Not rulings — open items the designing coordinators surfaced that the approval
+decision must resolve. Recorded here so they are not lost between design and
+approval.
+
+1. **P1 is inherited, not native (EXP-ECDLP-fa2ed6).** Ruling R4's binding
+   condition 4 routes a control failure to pause condition P1, which belongs to
+   GOAL-ENDO-001. The contract's question, RQ-ECDLP-912694, has no pause
+   conditions of its own — verified: the record has no `pause_conditions` key
+   and no pause/goal keys at all. So if this contract is ever dispatched under a
+   goal other than GOAL-ENDO-001, BC4's stop has no home and must be given one
+   before approval. The designing coordinator recorded this in a
+   `citation_scope_note` rather than letting the contract imply the question
+   imposes P1, which is right.
+
+2. **Label collision on "R4" (H-ECDLP-66d6fc).** That hypothesis already uses
+   R1-R4 for its own four statements, and its own R4 is an unrelated
+   ramified-prime scope asymmetry. Ruling R4 is always written "ruling R4" in
+   the records; the hypothesis statements were deliberately NOT renumbered
+   because the paired contract references them. Read carefully at approval.
+
+3. **Two distinct failure paths must not be collapsed (EXP-ECDLP-fa2ed6).** A
+   control that RUNS and returns delta = 1 is an instrument failure under P1,
+   and the ordinary enumeration becomes `attempted_and_inconclusive`. A control
+   that NEVER RAN is a derivation-only stop, and the ordinary arm is
+   `unfalsified` with the arm withdrawn. Both refuse a verified negative, but
+   they are different dispositions and an executor could easily merge them.
+
+4. **Unverifiable input dependency (EXP-ECDLP-797b5c).** It consumes post-merge
+   NFS matrices at three sizes for two problems that it does not produce, and
+   their existence was not verified. Recorded as a blocking precondition: if
+   they do not exist the contract cannot run, and that is an infrastructure
+   stop, never a result.
+
+## The recurring failure mode this run has now found four times
+
+Four independent designing coordinators, working from different batches with no
+contact, each found a pre-registered discriminator that could not fire:
+
+- the pfdr-battery-20260904 round's null band, width zero by construction
+  (box(E2) equalled the realised support at every s);
+- IDEA-20260829-66a876's factor-4 band over a 6-bit ladder, against a
+  hypothesis that moves the ratio by 2x across that span;
+- IDEA-20260901-a31b94's time-axis dominance, identically zero on the whole
+  range [0, 1/3] its own input is asserted over;
+- IDEA-20260830-3c0861's incumbent sign-valued gate, width zero at n = 2.
+
+This is not four coincidences. Pre-registering a band without computing what
+the alternative hypothesis actually does to it produces a discriminator that
+looks rigorous and cannot fail. Every contract in this backlog now carries a
+band-non-degeneracy check, several of them blocking before execution. That
+check should become standing practice at approval, not a per-batch nicety.
