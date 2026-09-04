@@ -315,3 +315,58 @@ object it studies, not by the handoff's summary of it.
 No other batch is known to be affected, but the same filter produced all
 thirteen handoffs, so field labels elsewhere in this backlog should be read as
 provisional and checked per record at approval.
+
+---
+
+# Wave 4: the degeneracy found inside a repair
+
+The 33rd degenerate discriminator of this run is the most instructive, because
+it was in a FIX, not in a source proposal.
+
+algorithm-1 had wrongly reported GOAL-MONO-001 as having no ledger record and
+was sent back. Its own diagnosis of the error, now written into
+H-ECDLP-a0d3ea: an absence claim requires a check that could have found the
+thing, and a listing that cannot show directories cannot support "no record
+exists". That is the second time this layout caught an agent despite an
+explicit warning in the brief.
+
+Reading the record then falsified the repair itself. The goal's `next_action`
+points at DEC-20260810-2f86db, which rests on EV-MONO-a0a89c OBS-5. Verified
+here by direct read: OBS-5 records "SPLITS COMPLETELY" with "193/193 split" at
+m=4 over F_211, establishing unconditionally that on the factor-base locus
+every root of S_m lies in F_p.
+
+The consequence is fatal to the repaired design. A true factor-base member
+forces every character in the C_2^{m-2} tower trivial, so the filter can never
+reject one. Sensitivity is forced to exactly 1.000 and the selectivity lift to
+~2^{m-2}. The repaired band — null [0.97, 1.03] against a hypothesised >= 1.30
+with a planted 1.50 — was built to detect an alternative that is a COMMITTED
+THEOREM. Running it would have re-measured OBS-5 at experiment cost and
+reported a known result as a finding.
+
+The second repair splits along the line OBS-5 actually draws:
+- member side -> forced-value instrument checks, explicitly not evidence;
+- NON-member false-positive rate -> primary metric, since it is the one
+  quantity OBS-5 does not settle (predicted 2^-(m-2) = 0.250 at m=4; s.e.
+  0.0014 at 100k candidates makes a +/-0.010 band ~7 sigma);
+- charged operation ratio -> decisional, because a perfectly sensitive filter
+  whose ceiling is removing a 1-2^{-(m-2)} fraction can still fail to pay.
+
+Both degeneracies are retained in the contract's `band_non_degeneracy` rather
+than dropped, so the history is auditable.
+
+## What this says about the band-non-degeneracy check
+
+Thirty-three failures across thirteen batches, at least four of them forced by
+algebra rather than by parameter choice, and now one inside a repair written by
+an agent that had already internalised the rule. The check is not a nicety to
+apply once at design time. It has to be re-run against every revision, and it
+has to be run against the CORRECTED design, not only the original.
+
+A standing prohibition verified verbatim in GOAL-MONO-001 is also now carried
+into the contract with its scope made explicit, so a reviewer need not guess:
+"DO NOT COMMISSION AN m >= 4 CENSUS IN THAT INSTRUMENT'S FORM, EVER" targets a
+census that samples the base uniformly and reads Frobenius cycle type. The
+contract does neither — it fixes m-2 coordinates at factor-base elements and
+reports a rate and an operation count — and an invalidation rule forbids drift
+into the banned form.
