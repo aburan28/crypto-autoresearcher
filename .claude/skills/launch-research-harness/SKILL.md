@@ -172,8 +172,10 @@ goal as taken, `git fetch origin` and run
 plan with `--claims refs`. Then, in order: (1) if that plan lists Ready Tasks
 with `claim: null` that your role table may run, claim one and run it under
 that lane (its branch, its PR); (2) otherwise open a **disjoint lane** — a new
-`BATCH-<tok>` against the goal's ranked candidates, on its own branch and PR,
-registered with `goal_lanes.py open-lane … --publish` before any worker runs;
+`BATCH-<tok>` against the goal's ranked candidates, registered with
+`goal_lanes.py open-lane … --publish` before any worker runs, on its own branch
+when a concurrent writer would otherwise race you on push and on the branch you
+are already on when none would (step 8);
 (3) only if neither is justified, pick another goal. A goal with no lane
 records is worked the old way (one batch, via `current_batch_id`) until
 someone opens a lane on it. Register on the bus under a distinct address
@@ -207,9 +209,12 @@ Confirm before dispatching workers:
   `git fetch`) show which batches are open elsewhere and which tasks are
   held. If you are opening a batch on a goal that already has an open lane,
   your batch is a second lane: `open-lane … --publish` it now.
-- The working branch exists, is pushed to origin, and has an open PR against
-  `main`. If not, create the branch, push it, and open the PR now — do not run
-  a campaign that cannot surface its artifacts.
+- There is a working branch, it is pushed to origin, and it has an open PR
+  against `main`. If not, create or adopt one, push it, and open the PR now —
+  do not run a campaign that cannot surface its artifacts. **Which** branch is
+  open to judgement: the branch the session is already on is fine, including
+  one carrying unrelated work and one the runtime pins the session to. Step 8
+  says when a campaign earns a branch of its own.
 - The working branch is current with `main` (see "Branch and PR hygiene").
 
 If a pause/completion criterion already holds, stop and report — do not invent
@@ -372,7 +377,30 @@ receipts stay under the batch/task `write_scope`.
 Research only exists as durable evidence when it is committed AND pushed to a
 branch that has an open PR against `main`. Two git duties ride alongside every
 generation step — new goals, ideas, experiments, evidence, decisions, and
-knowledge entries all require them:
+knowledge entries all require them.
+
+**Which branch carries them is a judgement call, not a rule.** Nothing here
+requires a branch per goal, per batch, or per lane. Run the campaign on the
+working branch the session already has — including one carrying unrelated
+work, one shared with another campaign, or one the runtime pins the session to
+— and let a single PR carry several goals or batches when that is what the
+situation gives you. Durability comes from the commit being pushed under an
+open PR; keeping concurrent writers apart comes from disjoint `write_scope`,
+lane registration, and task claims. Neither comes from branch topology, so a
+campaign is never blocked, delayed, or re-targeted to another goal because the
+"right" branch does not exist.
+
+Take a separate branch when there is a concrete reason, and name it in the
+batch report:
+
+- Another session is writing concurrently and would otherwise race you on push.
+- The campaign's archive must be reviewable or mergeable on its own, without
+  dragging unrelated records along with it.
+- A record or receipt must bind to a commit that unrelated work would disturb.
+
+Absent one of those, prefer the branch you are on. Mixing campaigns in one PR
+costs some review tidiness; stalling a campaign over branch layout costs the
+research.
 
 **Pull in changes from `main` before generating.** Before creating or resuming
 a goal, and before each new batch, merge `origin/main` into the working branch:
@@ -515,7 +543,9 @@ cheaper ones.
   ranked next action, regardless of how high `max_concurrent` is set.
 - Every batch merges `origin/main` into the working branch (never rebases) and
   pushes with an open/updated PR against `main` before the next batch starts;
-  never resolve a sync conflict by editing a record.
+  never resolve a sync conflict by editing a record. WHICH branch that is is a
+  judgement call (step 8): the duty is that the work is merged, pushed, and
+  under an open PR — not that the branch is new or campaign-exclusive.
 
 ## Concurrency
 
@@ -541,7 +571,9 @@ a check.
 Report: goal ID + status; completed task IDs + verified commits; evidence /
 decision IDs with claim boundaries; knowledge promotions or `not_warranted`
 reasons; exact next action (or pause/complete rationale); PR number/branch the
-batch was pushed to and how current it is with `main`.
+batch was pushed to and how current it is with `main` — and, if you took a
+branch of its own rather than the one the session was already on, the concrete
+reason from step 8.
 
 The report is a checkpoint, not a handover — write it and immediately begin the
 next batch or the next goal. When the run does end, say which terminal stop
