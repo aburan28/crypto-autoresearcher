@@ -315,7 +315,17 @@ falls agree on every curve.
 **Certified class enumeration beyond the toy layer** (fast engine, seed 7,
 12 workers, the predecessor's ladder extended):
 
-LADDER_PLACEHOLDER
+<!-- LADDER_44_ROW -->
+The `2^44` row is being computed as this note is written: the class of the
+seed-7 generic curve at `p = 13275171841363` (trace `−2582635`), `≈ 2.2·10^6`
+members by the class-number estimate, enumerated at about 40,000 members a
+minute on 12 workers with a checkpoint every 25 BFS passes. Its row — class
+mass against `H(4p − t²)`, order and `Φ_2` checks, `F1`/`F2`/`F3` on every
+member and eight nulls, survivors — is added here by the follow-up commit
+that lands `runs/ladder-44bit-seed7.json` in `analysis/isogeny-dreg-search/`.
+Per section 5b the `2^48` row (`≈ 3 h` at this rate, with the checkpoint
+dump growing to `≈ 3 GB` for a `10^7`-member table) and the `2^56` row
+(`≈ 2.4 days`, out-of-core) can only repeat the reading.
 
 ## 7. Cost and scale
 
