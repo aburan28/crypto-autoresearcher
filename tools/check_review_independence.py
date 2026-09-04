@@ -102,6 +102,33 @@ def _rel(path: str) -> str:
     return path if relative.startswith("..") else relative
 
 
+
+
+def _flatten_sources_read(sources_read):
+    """Every declared source path, whatever shape `sources_read` takes.
+
+    A reviewer may group its sources -- a blind re-deriver naturally reports
+    them per phase (`phase_A:`/`phase_B:`). Iterating such a mapping yields its
+    KEYS, so a leak check built on the bare value silently compares
+    `blind_from` against ["phase_A", "phase_B"] and can never match: no crash,
+    no warning, and a PASS that checked nothing. That is how this check was
+    inert on TASK-20260904-42b33a. Flatten one level so grouped and flat
+    declarations are both read as the set of paths they name.
+    """
+    if not sources_read:
+        return []
+    if isinstance(sources_read, dict):
+        out = []
+        for group in sources_read.values():
+            if isinstance(group, (list, tuple)):
+                out += [str(p).strip() for p in group]
+            elif group:
+                out.append(str(group).strip())
+        return out
+    if isinstance(sources_read, (list, tuple)):
+        return [str(p).strip() for p in sources_read]
+    return [str(sources_read).strip()]
+
 def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
     problems: list[str] = []
     rel = _rel
@@ -212,7 +239,7 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
                             f"filed no review_attestation")
         else:
             path, attestation = by_task[owner]
-            read = [str(p).strip() for p in (attestation.get("sources_read") or [])]
+            read = _flatten_sources_read(attestation.get("sources_read"))
             leaked = sorted({b for b in blind_from
                              for r in read if r == b or r.startswith(b.rstrip("/") + "/")})
             if leaked:

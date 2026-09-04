@@ -1,0 +1,158 @@
+experiment:
+  id: EXP-ICEX-1aae89
+  hypothesis_id: H-ICEX-5dbffc
+  version: 1
+  title: >-
+    Verification protocol - independent reproduction of EXP-SEMAEV-001 from its
+    frozen contract on a clean checkout, field by field, with a seed-perturbation
+    planted defect whose magnitude is read off the committed artifacts
+  status: draft
+  objective: >-
+    This is a REPRODUCTION designed as a verification protocol. WHAT IS CHECKED -
+    the twelve committed run records of EXP-SEMAEV-001 under
+    experiments/EXP-SEMAEV-001/runs/, together with the summary table in that
+    experiment's analysis.md. AGAINST WHAT REFERENCE - a from-scratch rebuild at
+    the commit recorded in the original manifests, re-run with the recorded
+    seeds. WHAT RESULT FAILS IT - any DISCRETE metric disagreeing while the
+    resolved environment matches the manifest, or either planted control failing.
+    The per-run budget exceeds the original 60 s cap because a from-scratch
+    artifact rebuild is charged to the same run.
+  inputs:
+    reference_experiment: EXP-SEMAEV-001
+    reference_runs: the twelve committed gb and rho runs at bits 8, 10, 12 and seeds 1, 2
+    commit: as recorded in the original run manifests
+    factor_base_size: 14
+    decomposition_length: 2
+    reference_table_from_analysis_md: >-
+      (bits, seed, max-deg proxy, gb seconds, decomposition, rho group ops) =
+      (8, 1, 2, 0.173, yes, 15), (8, 2, 4, 0.160, yes, 30),
+      (10, 1, 0, 0.157, no, 6), (10, 2, 2, 0.167, yes, 12),
+      (12, 1, 0, 0.166, no, 15), (12, 2, 0, 0.161, no, 6)
+  controls:
+  - >-
+    NAMED CONTROL C1, SEED-PERTURBATION PLANTED DEFECT, MAGNITUDE READ OFF
+    COMMITTED ARTIFACTS. At bits 10, seed 2 is run in place of seed 1. Predicted
+    magnitude, binding and taken from the archived records rather than assumed -
+    groebner_basis_max_degree_proxy moves 0 to 2, decomposition_found moves false
+    to true, rho_baseline_group_operations moves 6 to 12. The archived pair
+    RUN-SEMAEV-gb-b10-s1 and RUN-SEMAEV-gb-b10-s2 demonstrates that a seed change
+    DOES move these discrete metrics, so the control has demonstrated dynamic
+    range rather than being asserted to have it.
+  - >-
+    NAMED CONTROL C2, FACTOR-BASE CORRUPTION PLANTED DEFECT. One declared element
+    is dropped from the size-14 factor base. Predicted direction - at least one
+    discrete metric changes on at least one of the six gb cells. If nothing
+    changes, the comparison is insensitive to its own input and no agreement from
+    it is meaningful.
+  - >-
+    NAMED CONTROL C3, FROM-SCRATCH REBUILD. Every artifact is rebuilt rather than
+    reused, and a rebuild receipt is produced per artifact with its hash.
+  - >-
+    NAMED CONTROL C4, ENVIRONMENT COMPARISON. The resolved environment of each
+    reproduction run is compared field by field against the original manifest's
+    environment, so a disagreement can be attributed to library drift rather than
+    to the measurement.
+  - >-
+    NAMED CONTROL C5, UNREPORTED-METRIC LEDGER. Every metric the original did not
+    report is listed rather than silently skipped, since it cannot be reproduced
+    and it bounds what the reproduction establishes.
+  independent_variables: [field_bits, seed, factor_base_integrity]
+  metrics:
+    primary:
+    - groebner_basis_max_degree_proxy_integer_exact_match
+    - decomposition_found_boolean_exact_match
+    - rho_baseline_group_operations_count_exact_match
+    secondary:
+    - groebner_basis_size_integer_exact_match
+    - is_trivial_ideal_boolean_exact_match
+    - raw_target_x_and_summand_x_exact_match
+    - groebner_seconds_order_of_magnitude_band_only
+    - resolved_environment_field_by_field_diff
+    - rebuild_receipt_hash_per_artifact
+    - instance_cofactor_per_run
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: >-
+      The number of DISCRETE metric fields, across the twelve committed run
+      records, that disagree between the archived value and the reproduction.
+      Discrete means integer or boolean; wall clock is excluded by construction.
+    formula: >-
+      Exactly 0 disagreements on discrete metrics; groebner_seconds within a
+      factor 10 of the archived 0.157 to 0.173 s range.
+    source: >-
+      The committed EXP-SEMAEV-001 run records and analysis.md table, quoted in
+      full in the inputs block of this contract.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Bits 8, 10 and 12 at factor-base size 14, exactly the original grid. The
+      reproduction inherits the original's scope entirely and adds none; it
+      establishes nothing about medium or cryptographic scale.
+    correspondence: null
+  tail_checks:
+  - >-
+    The two cells whose archived max-degree proxy is nonzero, (8, 1) at 2 and
+    (8, 2) at 4, are reported individually, since a reproduction that agreed only
+    on the trivial-ideal cells would agree on very little.
+  - >-
+    The metrics closest to a solver-implementation detail, namely
+    groebner_basis_size and the max-degree proxy, are reported separately from
+    the rest, since they are the ones most exposed to library drift.
+  replication:
+    seeds: [1, 2]
+    independent_instances: 12
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 4
+    maximum_memory_gb: 8
+    maximum_runs: 30
+  stopping_rules:
+  - >-
+    Stop a run at 600 s and record it as resource_exhaustion. The original
+    contract capped a solve at 60 s; a stop here indicates the rebuild or the
+    environment, not the mathematics.
+  - >-
+    Stop and report if the recorded commit is unreachable or the environment
+    cannot be reconstructed, before any comparison is attempted.
+  invalidation_rules:
+  - >-
+    A comparison that requires groebner_seconds to agree exactly is
+    invalid_measurement; wall clock is machine-bound and is banded, not matched.
+  - >-
+    A comparison performed against reused rather than rebuilt artifacts is
+    invalid_measurement.
+  - >-
+    Failure of the seed-perturbation control to reproduce the archived magnitude
+    invalidates every agreement in the run.
+  - >-
+    Failure of the factor-base corruption control to change any discrete metric
+    invalidates every agreement in the run.
+  - >-
+    Any edit to an original EXP-SEMAEV-001 record is a contract violation, not an
+    invalidation - disagreements are recorded in a NEW superseding correction.
+  success_criterion: >-
+    Zero discrete-metric disagreements across the twelve committed runs with the
+    resolved environment matching the manifests; groebner_seconds inside the
+    order-of-magnitude band; both planted controls behaving as predicted; and the
+    unreported-metric ledger produced.
+  falsification_criterion: >-
+    Any discrete-metric disagreement while the resolved environment matches the
+    manifest falsifies H-ICEX-5dbffc within the tested scope and requires a
+    superseding correction record with consequences named for every lane built on
+    EXP-SEMAEV-001. An unreachable commit or an unreconstructible environment is
+    an INFRASTRUCTURE finding about reproducibility, reported as such, and is
+    never negative evidence about the mathematics. A control failure voids the
+    comparison rather than producing a result of either sign.
+  required_artifacts:
+  - clean-checkout receipt naming the commit and the dirty-tree state
+  - rebuild receipt with a hash per rebuilt artifact
+  - per-run manifest, exact command, resolved environment, stdout, stderr
+  - raw-result files for every reproduction run
+  - field-by-field comparison table against the twelve archived records, with the archived values quoted
+  - resolved-environment diff against each original manifest
+  - seed-perturbation and factor-base-corruption control outputs beside their predicted magnitudes
+  - instance cofactor per run, recorded because build_factor_base samples the whole curve per KN-OPEN-5b3a08 Q2
+  - unreported-metric ledger
+  - an explicit list of any run directories under experiments/EXP-SEMAEV-001/runs/ that lie outside the contract's declared grid, named but not characterised
+  assigned_to: executor
+  approved_by: null
