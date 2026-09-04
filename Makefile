@@ -7,7 +7,7 @@ BACKEND ?= $(AUTORESEARCH_BACKEND)
 TRIALS ?= 5
 
 .PHONY: help install doctor status check check-harness check-ledger test loop \
-        eval-dev eval-held-out baseline sources clean
+        eval-dev eval-held-out baseline sources clean ui
 
 help:
 	@echo "setup"
@@ -22,6 +22,9 @@ help:
 	@echo "                       (currently RED: some KN-LIT-* entries predating"
 	@echo "                        the tags requirement are missing 'tags')"
 	@echo "  make test            the full test suite"
+	@echo ""
+	@echo "browse (free, offline)"
+	@echo "  make ui              read-only dashboard over the ledger (PORT=8787)"
 	@echo ""
 	@echo "curate (free, offline)"
 	@echo "  make sources         rebuild knowledge/SOURCES.md + sources.json"
@@ -87,6 +90,13 @@ check-ledger: check-merge
 	$(PYTHON) tools/check_run_immutability.py
 	$(PYTHON) tools/port_autolab_experiments.py --verify
 	$(PYTHON) tools/build_source_index.py --check
+
+# Read-only dashboard over ledger/, experiments/ and knowledge/. Writes
+# nothing -- no ledger record, no coordination state, no derived file. See
+# ui/README.md for the two-tier read and why the first tier is approximate.
+PORT ?= 8787
+ui:
+	$(PYTHON) -m ui --port $(PORT)
 
 # Derived, like knowledge/INDEX.md: entries and inputs/ are the source of truth.
 # Regenerate after adding a KN-LIT entry or vendoring a source, and commit the
