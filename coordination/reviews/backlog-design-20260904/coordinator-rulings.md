@@ -176,3 +176,84 @@ the alternative hypothesis actually does to it produces a discriminator that
 looks rigorous and cannot fail. Every contract in this backlog now carries a
 band-non-degeneracy check, several of them blocking before execution. That
 check should become standing practice at approval, not a per-batch nicety.
+
+---
+
+# Wave 3 findings
+
+## The rho baseline constant is ambiguous by sqrt(2), and every ECDLP comparison rests on it
+
+Two knowledge entries contradict each other about what 0.886 means. Verified
+verbatim:
+
+- `KN-TECH-006` line 7: "expected ~0.886*sqrt(n) group operations serial";
+  line 20: "Negation and other cheap automorphisms give a FURTHER
+  constant-factor speedup."
+- `KN-TECH-018` lines 25-26: charges against KN-TECH-006 that the convention
+  "0.886*sqrt(n) with negation" ALREADY INCLUDES the sqrt(2) negation factor.
+
+These cannot both hold. sqrt(pi/4) = 0.8862 is the plain birthday constant with
+no automorphism factor in it; with negation the constant would be
+0.8862/sqrt(2) = 0.6266. So KN-TECH-006's reading is the arithmetically
+consistent one and KN-TECH-018's "already includes" is wrong — but neither
+entry is edited here, because records are immutable and because the point is
+not to pick by argument.
+
+Why this is not a footnote: Pollard rho is the baseline that EVERY ECDLP claim
+in this program is compared against, and this program has never measured its
+constant (that gap is what IDEA-20260815-3c9919 exists to close). A sqrt(2)
+ambiguity in the baseline is a sqrt(2) ambiguity in every advantage claim made
+against it. Two designs now settle it empirically rather than by citation:
+`EXP-ICEX-91952c` fits c over four sizes with a negation-class plant whose
+forced value is exactly the 0.8862 -> 0.6267 drop, and `EXP-ICEX-c156e2` runs
+rho to completion on the same instances as the competitor. Neither may quote
+either entry as authority.
+
+A related mis-citation, also verified: `IDEA-20260811-9e8791` attributes a
+"sqrt(6) = 2.449 band" to KN-TECH-018. That entry states a sqrt(|Aut|) speedup
+(sqrt(2) for negation, ~sqrt(2m) for order-m). sqrt(6) is a reading at
+|Aut| = 6 and is recorded as a reading, not as the entry's content.
+
+## Ten degenerate discriminators now, and six were in one batch
+
+measurement-2 found SIX of its twelve designs unable to fire as stated. With
+the four already recorded that is ten across this run. The six:
+
+- a fingerprint injective in BOTH arms, so the statistic is 0 either way and
+  the 0.05 threshold is identically zero over the whole declared range;
+- a residue vector whose components are exact deterministic functions of one
+  field element, so the "effective independent count" is 1 by construction and
+  no alternative can move it;
+- "run the same monomial order twice" as a null, which a deterministic Groebner
+  engine makes width-zero by definition;
+- syzygy counts recorded verbatim as functions of n alone, so between-curve
+  variance is zero by construction and the curve-count formula is vacuous;
+- a zero-success discriminator at T=50 where a true p=0.01 target shows zero
+  successes 60.5% of the time, so it cannot separate a hard stratum from a
+  uniform population;
+- a twist-side character constant +1 on the whole subgroup away from 2-torsion,
+  giving defect and null both 0.000 by construction; and separately, in the
+  same design, a 0.15-bit decision rule against a statistic whose entire range
+  at the cell of interest is 0.037 bits.
+
+Each was repaired with a computed replacement, not a loosened threshold. Two
+were declared UNDERPOWERED at reachable scale rather than shrunk: the
+cryptographically interesting B = p^(1/2) cell needs about N = 1.1e8 against
+the declared 1e7, and that is written into the contract.
+
+The pattern is now unambiguous. A pre-registered band is worthless until
+someone computes what the alternative hypothesis does to the statistic across
+the declared range. This must be a standing approval gate.
+
+## Layout facts worth propagating
+
+- `RQ-SIG-001`, `H-SIG-001` and `DEC-20260717-002` live at the repository root
+  of `ledger/`, not under `ledger/questions/`. Same legacy layout as
+  `RQ-DREG-001`. The validator indexes 103 such frozen root-level records, so
+  these are not missing.
+- Goals may be sharded: `ledger/goals/GOAL-X/goal.yaml`. Two agents have now
+  been misled by a files-only listing.
+
+Open question for the validator, raised by measurement-2 and not yet checked:
+whether `validate_ledger.py` resolves a `question_id` pointing at a legacy
+root-level path.
