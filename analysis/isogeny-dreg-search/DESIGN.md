@@ -219,6 +219,7 @@ to 20 bits; the fast engine ran 18 to 40 bits (18 re-run on both: identical
 | 32 | 4215063439 | 44544 (conductor 69 = 3·23) | 2, 3, 5, 7, 13, 19, 23 | 0.0 s | 136 s | 8, h=6 | 1.00 ± 0.18 | 0.92 | 0 |
 | 36 | 55998639337 | 99584 | 3, 7, 11, 13 | 0.8 s | 201 s | 10, h=8 | 1.00 ± 0.25 | 1.05 | 10 flagged → 0 after re-check (below) |
 | 40 | 911225703551 | **551304** (conductor 2) | 2, 7, 23, 31 | 1.9 s | 2403 s (4 workers) | 7, h=5 | 1.00 ± 0.18 | 0.94 | 0 |
+| 44 | 13275171841363 | **1358080** (conductor 1) | 3, 7, 13, 17, 31 | 11 s | 1904 s (12 workers) | 8, h=6 | 1.00 ± 0.18 | 0.94 | 1 flagged → 0 after re-check (`runs/recheck-44bit-seed7.json`) |
 
 **The 40-bit row, read carefully.** Every one of the 551,304
 `F_p`-isomorphism classes in the isogeny class of the input curve was
@@ -246,7 +247,10 @@ band: survivors 1.004 ± 0.056, controls 1.006 ± 0.063, nulls 1.011 ± 0.048.
 A signal that vanishes when the sampling that produced it is increased was
 sampling; none of the ten is a candidate. The recheck is now a mode of the
 fast engine (`--recheck`), and it is what a flag at any size has to pass
-before the Gröbner verification is spent on it.
+before the Gröbner verification is spent on it. The 44-bit row, added on 2026-09-03 from
+`analysis/rl-isogeny-search/DESIGN.md`, repeated the pattern: one member of
+1,358,080 flagged at 2.06 with 64 samples, re-measured at 1024 samples to 1.039
+against 20 controls at 0.990 ± 0.041 and the eight nulls at 1.003 ± 0.061.
 
 Wall times from 20 bits down the table are the fast engine on 3–4 worker
 processes. Per-member CPU cost is `≈ 20 ms` (kernel polynomials for the
