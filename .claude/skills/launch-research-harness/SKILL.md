@@ -117,9 +117,12 @@ integrity failure this step exists to catch — but after `git fetch
 --unshallow`, that dropped to 12. Nearly all of the apparent corruption was
 the shallow clone, not `main`. The sweep tool detects this itself and prints
 a warning (`shallow_clone_warning` in `--json` output, a stderr banner
-otherwise), but the fix (`fetch --unshallow`) is not automatic — run it
-before treating any `needs_repair` finding as real, and re-run the sweep
-after.
+otherwise). **The sweep now applies the fix itself**: on a shallow clone it
+runs `git fetch --unshallow origin` and says so on stderr, so the results
+below it are already trustworthy. It is a fetch — it only adds history, and
+rewrites nothing. Pass `--no-deepen` to suppress that (offline, or when you
+want the shallow behaviour deliberately); the `needs_repair` bucket is then
+untrustworthy and the banner says so.
 
 ```sh
 python3 tools/goal_portfolio_health.py

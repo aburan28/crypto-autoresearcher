@@ -209,10 +209,39 @@ def is_shallow_clone(repo_root: Path) -> bool:
     return proc.stdout.strip() == "true"
 
 
+def deepen_clone(repo_root: Path) -> tuple[bool, str]:
+    """Fetch the full history a shallow clone is missing.
+
+    Returns (deepened, detail). This is a fetch: it only ADDS history. It
+    rewrites nothing, touches no working tree, and cannot invalidate an archive
+    receipt -- the failure mode it removes is entirely one of missing objects.
+
+    Doing it automatically is the point. The sweep has been able to detect a
+    shallow clone and name the one command that fixes it for as long as the
+    warning has existed, and a session still had to read the banner, believe
+    it, and act on it before any result below could be trusted. A session that
+    skipped that step read 26 correctly-archived goals as corrupt and had
+    nothing to dispatch.
+    """
+
+    proc = subprocess.run(
+        ["git", "-C", str(repo_root), "fetch", "--unshallow", "origin"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode == 0 and not is_shallow_clone(repo_root):
+        return True, "deepened via `git fetch --unshallow origin`"
+    detail = (proc.stderr or proc.stdout).strip().splitlines()
+    return False, detail[-1] if detail else f"git exited {proc.returncode}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repo-root", default=".", help="Repository root (default: cwd)")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a table")
+    parser.add_argument(
+        "--no-deepen", action="store_true",
+        help="Do not auto-fetch missing history on a shallow clone. The "
+             "needs_repair bucket is then untrustworthy -- see the warning it prints.")
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
@@ -225,6 +254,15 @@ def main() -> int:
     # -- nearly all of it was this artifact, not real corruption. Surface it
     # loudly rather than let every session re-diagnose it as repository rot.
     shallow = is_shallow_clone(repo_root)
+    deepened = False
+    if shallow and not args.no_deepen:
+        deepened, detail = deepen_clone(repo_root)
+        shallow = not deepened
+        print(
+            f"Shallow clone detected: {detail}." if deepened
+            else f"Shallow clone detected and could NOT be deepened: {detail}.",
+            file=sys.stderr,
+        )
     if shallow and not args.json:
         print(
             "WARNING: this is a SHALLOW git clone. Commit-reachability checks below\n"
@@ -241,7 +279,9 @@ def main() -> int:
         results = [classify(repo_root, g, out_dir) for g in goals]
 
     if args.json:
-        print(json.dumps({"shallow_clone_warning": shallow, "goals": results}, indent=2))
+        print(json.dumps({"shallow_clone_warning": shallow,
+                          "clone_deepened": deepened,
+                          "goals": results}, indent=2))
         return 0
 
     buckets: dict[str, list[dict[str, Any]]] = {
