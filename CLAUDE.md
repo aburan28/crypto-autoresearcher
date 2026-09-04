@@ -83,7 +83,7 @@ Code specifically.
    recorded `DISSENT` still blocks closure; and closing a goal is still the
    program's strongest claim, now resting on the Coordinator decision and its
    cited evidence alone. Do not retire a goal that met a criterion under
-   `paused`/`closed_at_budget` to understate it. The rule and its enforcement
+   `closed_at_budget`/`cancelled` to understate it. The rule and its enforcement
    are retained in `tools/validate_ledger.py` and restored by setting
    `GOAL_CLOSURE_QUORUM_REQUIRED = True`. See AGENTS.md "Goal closure quorum".
 9. Pursue promising paths in good faith. Do not deliberately abandon,
@@ -94,6 +94,17 @@ Code specifically.
    summaries, rankings, provenance, and ordinary research artifacts for
    independent review; it does not store, infer, or expose private
    chain-of-thought.
+10. **Goals are never paused.** `paused` and `blocked` are not permitted
+   `GOAL-*` statuses; `tools/validate_ledger.py` refuses both by name. A
+   campaign that meets an impediment stays `active` and records it under
+   `impediments` with `what_is_blocked`, `clears_when` and a `recheck`. This is
+   a scheduling rule and relaxes nothing: an impediment is still never negative
+   mathematical evidence, an unservable `review-breakthrough` still may not be
+   downgraded (the CLAIM stays un-promoted, not the campaign parked), and an
+   exhausted budget still requires a Coordinator budget decision before more
+   spending. Terminal retirement is unchanged and remains a deliberate act:
+   `completed`, `closed_at_budget`, `cancelled`. See AGENTS.md "Goals are never
+   paused".
 
 ## Research direction
 

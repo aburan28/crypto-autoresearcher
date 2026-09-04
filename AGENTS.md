@@ -168,9 +168,11 @@ verdicts that are all `CONCUR` and whose `resolved_model_id` values are
   counting them three times is not independent agreement, and the validator
   rejects it. This is the failure mode the rule exists to prevent.
 - If three distinct models cannot be resolved, the goal does not close. Record
-  the narrowest supported result and leave it `paused` with a concrete next
-  action — an unattested closure is worse than an open goal, and a fabricated
-  attestation is worse than both.
+  the narrowest supported result and leave the goal **`active`** with a recorded
+  impediment and a concrete next action — an unattested closure is worse than an
+  open goal, and a fabricated attestation is worse than both. (Before
+  2026-09-04 this said "leave it `paused`"; pausing is no longer permitted —
+  see "Goals are never paused" below.)
 
 ### What the suspension does not relax
 
@@ -190,9 +192,9 @@ These bind now, exactly as before:
 - Attestations may be gathered before the transition, but
   `quorum_satisfied: true` on a goal that is not `completed` is an error: only a
   Coordinator ledger archive performs the transition.
-- `paused`, `blocked`, and `closed_at_budget` assert no success. Retiring a goal
-  that *did* meet a criterion under one of those statuses, to understate it, is
-  still a contract violation — the suspension removes the reason anyone would.
+- `closed_at_budget` and `cancelled` assert no success. Retiring a goal that
+  *did* meet a criterion under one of those statuses, to understate it, is still
+  a contract violation — the suspension removes the reason anyone would.
 - A `completed` goal still requires a committed Coordinator decision showing the
   criterion was met. Reachable is not automatic.
 
@@ -201,6 +203,66 @@ Enforced by `check_goals` in `tools/validate_ledger.py`; failure modes pinned in
 and suspended modes so the rule can be switched back on intact. The rule is
 prospective — goals closed before it existed are listed in
 `PRE_QUORUM_GOAL_IDS` and that set must not grow.
+
+## Goals are never paused
+
+**A `GOAL-*` record may not take `status: paused` or `status: blocked`.** Both
+were removed from the permitted set on user instruction (2026-09-04) and
+`tools/validate_ledger.py` refuses them by name, with the remedy in the error
+text. `blocked` is refused alongside `paused` on purpose: it is the same idling
+under another name, and leaving it available would have made the rule cosmetic.
+
+A campaign that meets an impediment **stays `active`** and records the
+impediment, so the harness keeps returning to it rather than parking it. Record
+it under an `impediments` list on the goal head, each entry naming:
+
+```yaml
+impediments:
+  - id: IMP-1
+    raised: '2026-09-04'
+    condition: which declared pause_conditions item or blocker fired
+    what_is_blocked: the exact task, claim, or batch — never "the goal"
+    clears_when: a concrete, checkable condition
+    recheck: what to run to test it (a command, a doctor probe, a queue render)
+    asserts_nothing_about: the science
+```
+
+The `pause_conditions` field stays required and keeps its name — its entries are
+still the declared list of things that can impede a campaign. What changed is
+only their **effect**: triggering one records an impediment; it never changes
+the goal's status.
+
+### What this does not relax
+
+"Never pause" is a scheduling rule. It is not permission to close, to promote,
+or to lower a bar, and the three guarantees pausing used to carry all survive it:
+
+1. **An impediment is never evidence.** An infrastructure failure, an
+   unresolvable backend, or an exhausted budget remains categorically not
+   negative mathematical evidence (rule 3) and never a research conclusion.
+   Recording it on an active goal does not make it a finding.
+2. **An unservable review tier is still not downgradable.** If
+   `review-breakthrough` (`degradable: false`) cannot be served, the goal stays
+   active and the **claim stays un-promoted**. Substituting `validator` for
+   `validator-breakthrough` to get a claim moving is the exact silent downgrade
+   the policy layer forbids, and it is no more permitted now than before.
+   What is blocked is the claim, not the campaign.
+3. **An exhausted budget is still a hard stop on spending.** It does not become
+   licence to keep going. The next batch requires a committed Coordinator
+   budget decision with a recorded rationale. Never quietly raise a budget to
+   keep a campaign turning.
+
+Terminal retirement remains available and unchanged: `completed` on a met
+criterion, `closed_at_budget` when the budget ran out without one, `cancelled`
+when the campaign is abandoned. Each is a deliberate Coordinator act with a
+committed decision — never the automatic response to an impediment.
+
+**The standing temptation this creates.** A goal that can never be parked is a
+goal that always looks runnable, and the honest failure mode of this rule is
+make-work: dispatching an unranked task against an impeded campaign to keep the
+loop turning. That is still forbidden. Never dispatch a task you cannot rank
+ahead of doing nothing; an active goal whose every route is impeded is reported
+as impeded, with its `recheck`, and the harness moves to the next goal.
 
 ## Target result profile
 

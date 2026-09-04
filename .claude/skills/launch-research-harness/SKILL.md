@@ -76,9 +76,17 @@ python3 tools/goal_head.py history <GOAL>              # dated index
 python3 tools/goal_head.py history --grep '<term>'     # across all goals
 ```
 
-Statuses: `draft | active | paused | blocked | completed | cancelled`
+Statuses: `draft | active | completed | cancelled | closed_at_budget`
 (the tool also reports `unparseable` for a record that will not load — an
 integrity signal, never a research state).
+
+**There is no `paused` and no `blocked`.** Both were removed on user
+instruction (2026-09-04); `tools/validate_ledger.py` refuses them by name. An
+impeded campaign stays `active` and carries an `impediments` entry recording
+what is blocked, what clears it, and the `recheck` that tests it. This is a
+scheduling rule only — it is not licence to close a goal, to promote a claim
+whose review tier cannot be served, or to spend past an exhausted budget. See
+AGENTS.md "Goals are never paused".
 
 Also note matching dirs under `coordination/goals/GOAL-*/batches/`.
 
@@ -153,11 +161,12 @@ Pick in this order, drawing only from the **ready** bucket unless noted:
 3. Any other `ready` goal, highest ranked first, when the request names no
    specific one. In a standing run this is the ordinary case and needs no user
    prompt — the harness is expected to keep working the active portfolio.
-4. Otherwise list `ready` / `blocked` / `paused` goals (ID, status, batch,
-   next action) and ask which to run. Do not silently resume a `paused` or
-   `completed` goal: a pause was recorded for a reason, and resuming it
-   requires either the user or a committed Coordinator decision clearing that
-   reason. Do not silently pick from `needs_repair` — a broken dispatch queue
+4. Otherwise list every `active` goal with its open impediments (ID, batch,
+   next action, `clears_when`) and ask which to run. No goal is ever `paused`,
+   so nothing needs "resuming": an impeded goal is picked up like any other,
+   and the first thing you do is run its impediment's `recheck` to see whether
+   the blocker still holds. Do not silently resume a `completed` goal, and do
+   not silently pick from `needs_repair` — a broken dispatch queue
    cannot safely launch a subagent against it.
 
 If the `ready` bucket is empty, do not stop and do not fall back to
@@ -198,10 +207,11 @@ Confirm before dispatching workers:
 - Campaign budget still allows another batch (`maximum_batches`,
   `total_wall_clock_seconds`, and `max_concurrent` sized to what the
   environment can run without degrading — see "Concurrency" below). An
-  exhausted budget stops *this campaign*, not the harness: pause the goal and
-  move to the next one via step 9. Never quietly raise a budget to keep a
-  campaign running — a budget extension is a Coordinator decision with a
-  recorded rationale.
+  exhausted budget stops *this campaign's spending*, not the harness and not
+  the goal: record a budget impediment, leave the goal `active`, and move to
+  the next one via step 9. Never quietly raise a budget to keep a campaign
+  running — a budget extension is a Coordinator decision with a recorded
+  rationale, and "goals are never paused" is not licence to spend past one.
 - `next_action` is concrete; empty queue alone does not complete the goal.
 - `goal_lanes.py lanes <GOAL>` and `goal_lanes.py claims <queue>` (after
   `git fetch`) show which batches are open elsewhere and which tasks are
@@ -212,8 +222,10 @@ Confirm before dispatching workers:
   a campaign that cannot surface its artifacts.
 - The working branch is current with `main` (see "Branch and PR hygiene").
 
-If a pause/completion criterion already holds, stop and report — do not invent
-work to fill capacity.
+If a completion criterion already holds, stop and report. If a declared
+`pause_conditions` item already holds, record it as an impediment, leave the
+goal `active`, and move to the next goal — do not invent work to fill capacity,
+and do not park the goal.
 
 ### 5. Render dispatch
 
@@ -276,7 +288,9 @@ that policy is `degradable: false`.
 override to the Agent tool, and do not reach for a cheaper tier to get a stuck
 task moving — substituting `validator` for `validator-breakthrough` is exactly
 the silent downgrade the policy layer forbids. If the required tier cannot be
-served, that is a pause condition for the goal (step 4), not a substitution.
+served, record an impediment against the CLAIM (step 4) and leave the goal
+`active` — never a substitution. What is blocked is the claim's promotion, not
+the campaign.
 
 **How to launch:**
 
@@ -418,28 +432,36 @@ loop at step 2:
   criterion now suffices; a quorum without a met criterion still does not close
   a goal. The decision record must name which criterion was met and cite the
   evidence for it. Then rediscover goals and select the next one.
-- **Paused or blocked.** A declared `pause_conditions` item triggered (budget
-  exhausted, archive verification failure, unresolved required model policy
-  with `fallback_allowed: false`) → mark `paused` with a concrete resume
-  action, then select the next `active` goal. Pausing one campaign never pauses
-  the harness, and the pressure to keep running is never a reason to press on
-  through a triggered pause condition: an archive that will not verify or a
-  policy that cannot be honored still halts *that* campaign immediately.
+- **Impeded — NEVER paused.** A declared `pause_conditions` item triggered
+  (budget exhausted, archive verification failure, unresolved required model
+  policy with `fallback_allowed: false`) → the goal **stays `active`**. Record
+  an `impediments` entry naming what is blocked, what clears it, and the
+  `recheck` that tests it, then select the next goal. `paused` and `blocked`
+  are not permitted statuses and the validator refuses them (AGENTS.md "Goals
+  are never paused").
+  Not parking the goal is a scheduling change and nothing more. The pressure to
+  keep running is still never a reason to press on through a triggered
+  condition: an archive that will not verify, or a policy that cannot be
+  honored, still halts *that work* immediately. What continues is the
+  campaign's eligibility to be picked up again, not the blocked task.
 - **Required model policy cannot be honored** without a silent downgrade —
-  refuse and pause that goal rather than substitute, then move on. This is
-  unchanged by the quorum suspension: it governs review policies such as
-  `review-breakthrough`, which is still `degradable: false`. If the policy is
-  unresolvable for every goal in the portfolio, that is a terminal stop below.
+  refuse the substitution, record the impediment against the affected CLAIM,
+  and move on with the goal still `active`. The claim stays un-promoted. This
+  is unchanged by the quorum suspension and by the no-pause rule: it governs
+  review policies such as `review-breakthrough`, which is still
+  `degradable: false`. If the policy is unresolvable for every goal in the
+  portfolio, that is a terminal stop below.
 
 **When the `ready` bucket is empty** — whether because there is no `active`
 goal, or because the sweep put every `active` goal into `blocked` or
 `needs_repair` — the harness still does not exit on that alone. In priority
 order:
 
-1. Resume a `paused` goal whose recorded pause reason is now demonstrably
-   cleared (budget renewed by decision, archive repaired, policy resolvable).
-   The clearing goes in the resuming Coordinator decision; do not just flip the
-   status.
+1. Re-check the open `impediments` on active goals and pick up any whose
+   `clears_when` is now demonstrably satisfied (budget renewed by decision,
+   archive repaired, policy resolvable). Run the recorded `recheck` rather than
+   assuming; the clearing goes in a Coordinator decision, and the impediment is
+   marked cleared rather than deleted.
 2. Open a new campaign against the highest-ranked open `RQ-*` or
    `KN-OPEN-*` item, following step 3's "Start new" path.
 3. If no open question justifies a campaign, run `/propose-ideas` on the
@@ -448,8 +470,8 @@ order:
 
 None of these three apply when the sweep shows a large `needs_repair` bucket
 across otherwise-unrelated goals: that pattern is a repository-wide integrity
-signal (see "Terminal stops"), and opening a new campaign or resuming a pause
-does not address it — report it instead.
+signal (see "Terminal stops"), and opening a new campaign or re-checking an
+impediment does not address it — report it instead.
 
 Idling is a last resort and is reported as such. Continuous operation must not
 degrade into make-work: a campaign opened only to keep the loop turning, with
@@ -540,7 +562,7 @@ a check.
 
 Report: goal ID + status; completed task IDs + verified commits; evidence /
 decision IDs with claim boundaries; knowledge promotions or `not_warranted`
-reasons; exact next action (or pause/complete rationale); PR number/branch the
+reasons; exact next action (or impediment/complete rationale); PR number/branch the
 batch was pushed to and how current it is with `main`.
 
 The report is a checkpoint, not a handover — write it and immediately begin the
@@ -562,6 +584,6 @@ User: launch a new research goal for RQ-SSI-001
 
 User: just keep the harness running
 → select highest-ranked active goal → batch → checkpoint → next batch → ...
-  → on goal completion/pause, select or open the next goal → continue until a
+  → on goal completion or impediment, select or open the next goal → until a
   terminal stop
 ```
