@@ -176,14 +176,19 @@ for log2N in LOG2NS:
                 s = s_new
             nA, sA = int(round(m * s)), s
             D0A = m * min(e, max(nA // m, 1))
-            # F_B: D_0 = d_ff
+            # F_B: D_0 = d_ff = m 2^(m-1) + floor((s - 2^(m-1))/2) + 1, which
+            # GROWS with s; the balance iteration may have no fixed point.
             s = log2N / (m + 1)
-            for _ in range(400):
+            diverged = False
+            for _ in range(200):
                 n = int(round(m * s))
                 sb = max(n // m, 1)
                 D0 = m * min(e, sb) + max((sb - e) // 2, 0) + 1
-                s_new = (log2(factorial(m)) + m + om * log2(ncols(n, min(D0, -(-(n + m * min(e, sb)) // 2))))
+                s_new = (log2(factorial(m)) + m + om * log2(ncols(n, D0))
                          + log2N) / (m + 1)
+                if s_new > 4000:
+                    diverged = True
+                    break
                 if abs(s_new - s) < 1e-9:
                     s = s_new
                     break
@@ -191,6 +196,12 @@ for log2N in LOG2NS:
             nB, sB = int(round(m * s)), s
             sbB = max(nB // m, 1)
             D0B = m * min(e, sbB) + max((sbB - e) // 2, 0) + 1
+            fb = {"diverged_no_balanced_parameter": diverged}
+            if not diverged:
+                fb.update({"D_0": D0B, "n": nB, "s": round(sB, 3),
+                           "log2T": round(1 + 2 * sB, 3),
+                           "log2_ncols": round(log2(ncols(nB, D0B)), 3),
+                           "rows_at_D_0": ncols(nB, D0B - delta_true(m, sbB))})
             r1["corrected_floor_cells"].append({
                 "log2N": log2N, "m": m, "omega": om,
                 "rho": round(log2_rho(log2N), 4),
@@ -199,11 +210,7 @@ for log2N in LOG2NS:
                     "log2T": round(1 + 2 * sA, 3),
                     "log2_ncols": round(log2(ncols(nA, D0A)), 3),
                     "rows_at_D_0": ncols(nA, D0A - D0A)},
-                "floor_B_D_0_equals_d_ff": {
-                    "D_0": D0B, "n": nB, "s": round(sB, 3),
-                    "log2T": round(1 + 2 * sB, 3),
-                    "log2_ncols": round(log2(ncols(nB, D0B)), 3),
-                    "rows_at_D_0": ncols(nB, D0B - delta_true(m, sbB))},
+                "floor_B_D_0_equals_d_ff": fb,
             })
 _mark("R1")
 out["R1"] = r1
