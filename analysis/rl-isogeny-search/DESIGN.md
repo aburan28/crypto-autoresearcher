@@ -315,17 +315,25 @@ falls agree on every curve.
 **Certified class enumeration beyond the toy layer** (fast engine, seed 7,
 12 workers, the predecessor's ladder extended):
 
-<!-- LADDER_44_ROW -->
-The `2^44` row is being computed as this note is written: the class of the
-seed-7 generic curve at `p = 13275171841363` (trace `−2582635`), `≈ 2.2·10^6`
-members by the class-number estimate, enumerated at about 40,000 members a
-minute on 12 workers with a checkpoint every 25 BFS passes. Its row — class
-mass against `H(4p − t²)`, order and `Φ_2` checks, `F1`/`F2`/`F3` on every
-member and eight nulls, survivors — is added here by the follow-up commit
-that lands `runs/ladder-44bit-seed7.json` in `analysis/isogeny-dreg-search/`.
-Per section 5b the `2^48` row (`≈ 3 h` at this rate, with the checkpoint
-dump growing to `≈ 3 GB` for a `10^7`-member table) and the `2^56` row
-(`≈ 2.4 days`, out-of-core) can only repeat the reading.
+| `log₂ p` | `p` | class mass (certified) | order / `Φ` checks | wall (12 workers) | F1 support | F2 `d_ff` class / null | F3 class mean ± sd | F3 null mean ± sd | flagged at 64 samples |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 44 | 13275171841363 | 1358080 = `H(4p − t²)` (yes) | 12222342 / 1358038 | 31.7 min | 13–13 | 8–8 / 8–8 (`h = 6`, `h + 2 = 8`) | 1.000 ± 0.177 (max 2.0625) | 0.938 ± 0.178 | 1 |
+
+Seed 7, `k = 4`, 64 samples per member, 8 different-trace nulls;
+trace `-2582635`, discriminant `-46430683822227` (conductor 1), census
+11 s, enumeration and measurement 1903 s. The one flag —
+`j = 2667519855300`, F3 mean 2.0625 at 64 samples, 4.0 pooled standard errors
+past the null mean — was re-measured at 1024 samples with a fresh seed alongside
+20 random non-flagged members and the 8 nulls
+(`runs/recheck-44bit-seed7.json`): survivor **1.039**, controls
+0.990 ± 0.041, nulls 1.003 ± 0.061.
+A signal that vanishes when the sampling that produced it is increased was sampling; the flag is not a candidate, exactly as the ten flags at 36 bits were not.
+The reading is the predecessor's — `F2 = h + 2` on every one of the 1358080 members and
+on every null, `F1 = 13` everywhere, F3 inside the null band — now at `2^44`,
+the largest certified class in the repository. Per section 5b the `2^48` row
+(`≈ 4 h` at this rate, with the checkpoint dump growing to `≈ 3 GB` for a
+`10^7`-member table) and the `2^56` row (`≈ 3 days`, out-of-core) can only
+repeat it.
 
 ## 7. Cost and scale
 
