@@ -41,6 +41,7 @@ without a wrapper.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -388,6 +389,8 @@ def _wanted(rel: str) -> bool:
 
 
 BASELINE = os.path.join(REPO, "tools", "merge_hygiene_baseline.txt")
+SCHEMA_SUPERSESSION_REGISTRY = os.path.join(
+    REPO, "tools", "schema_supersession_registry.yaml")
 
 BASELINE_HEADER = """\
 # Records that already failed to parse when this gate was introduced. One
@@ -410,6 +413,71 @@ def _baseline() -> set[str]:
         return set()
 
 
+def _retired_by_supersession() -> dict[str, str]:
+    """Records the schema-supersession registry has RETIRED and replaced.
+
+    `tools/schema_supersession_registry.yaml` routes an archived record to a
+    complete replacement, pinning the hash of both sides; validate_ledger.py
+    already honours it ("91 archived schema record(s) routed to complete
+    replacements"). This gate did not, so seven records correctly superseded on
+    2026-08-08 -- three P13/SSI specifications, three DEC-20260805 decisions and
+    EV-HAWK-af783e -- failed the absolute sweep on every push, and `main` was
+    red on all of the last ten merges because of them.
+
+    Neither other route was open. Editing them is what the registry exists to
+    forbid: the validator answers an edit with "supersede it instead of editing
+    it", and the originals are preserved broken on purpose, immutability working
+    as designed. Baselining them is forbidden too -- that file may only ever
+    SHRINK, "as records are repaired or superseded", and these are the
+    superseded case it names.
+
+    So the exemption is recognition of a retirement that already happened, and
+    it verifies that retirement rather than trusting it. An entry exempts its
+    record only when the broken original still hashes to the pinned value, the
+    replacement exists and hashes to ITS pinned value, and the replacement
+    actually parses. Tamper with either side, or lose the replacement, and the
+    exemption disappears and the record is reported exactly as before.
+    """
+
+    import yaml
+    try:
+        with open(SCHEMA_SUPERSESSION_REGISTRY, "r", encoding="utf-8") as fh:
+            registry = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError):
+        return {}
+    if not isinstance(registry, dict):
+        return {}
+
+    retired: dict[str, str] = {}
+    for entry in registry.get("records") or []:
+        if not isinstance(entry, dict):
+            continue
+        old, new = entry.get("superseded_path"), entry.get("superseding_path")
+        if not isinstance(old, str) or not isinstance(new, str):
+            continue
+        if _sha256_of(os.path.join(REPO, old)) != entry.get("superseded_sha256"):
+            continue
+        new_full = os.path.join(REPO, new)
+        if _sha256_of(new_full) != entry.get("superseding_sha256"):
+            continue
+        try:
+            with open(new_full, "r", encoding="utf-8") as fh:
+                replacement = fh.read()
+            json.loads(replacement) if new.endswith(".json") else yaml.safe_load(replacement)
+        except Exception:                                            # noqa: BLE001
+            continue
+        retired[old] = new
+    return retired
+
+
+def _sha256_of(path: str) -> str | None:
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return None
+
+
 def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
     """Every ledger/experiment/coordination record must actually load.
 
@@ -425,6 +493,7 @@ def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
     """
     import yaml
     grandfathered = _baseline()
+    retired = _retired_by_supersession()
     bad, stale = [], set(grandfathered)
     for rel in paths:
         if not _wanted(rel):
@@ -443,6 +512,11 @@ def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
             first = str(exc).strip().splitlines()[0]
             if rel in grandfathered:
                 stale.discard(rel)
+                continue
+            if rel in retired:
+                # Archived, and already replaced by a record that parses. Both
+                # halves were hash-verified above, so this is not a hidden
+                # defect: it is a defect that was disclosed and superseded.
                 continue
             bad.append(f"{rel}: does not parse: {first}")
     if report_stale:
