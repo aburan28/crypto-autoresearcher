@@ -264,6 +264,51 @@ loop turning. That is still forbidden. Never dispatch a task you cannot rank
 ahead of doing nothing; an active goal whose every route is impeded is reported
 as impeded, with its `recheck`, and the harness moves to the next goal.
 
+## ECC comes first, and its budget is unlimited
+
+Declared on user instruction (2026-09-04). The ECC area set is declared **once**,
+in `orchestration/research-priority.yaml`, and read through
+`tools/ecc_priority.py`. Do not re-derive it anywhere, and **do not infer it from
+an identifier prefix**: `GOAL-CRYPTO-001` is an ECDLP search, and
+`DREG`/`SDEG`/`SIG`/`MONO`/`RELN`/`ICEX`/`ICLIFT`/`XEDN` are Semaev and
+index-calculus machinery, while several elliptic-sounding areas are excluded with
+a recorded reason. To reclassify an area, edit that file; every consumer follows.
+
+```sh
+python3 tools/ecc_priority.py --list-areas          # the set, and what was excluded and why
+python3 tools/ecc_priority.py --classify GOAL-X     # is this record ECC?
+python3 tools/ecc_priority.py --open-ideas          # instruction 3's worklist
+python3 tools/ecc_priority.py --budget-violations   # instruction 1's check
+```
+
+1. **Unlimited budget.** An ECC goal's `campaign_budget.maximum_batches` and
+   `.total_wall_clock_seconds` are `null`. A finite value on an active or draft
+   ECC goal is a validation error (`check_ecc_budget_is_unlimited`). Terminal
+   goals are left alone — their budget is history, not a policy defect.
+
+   `max_concurrent` is **not** unbounded: it is machine headroom, not a research
+   budget, and oversizing it degrades runs rather than buying any. And unlimited
+   removes the batch ceiling, **not the duty to rank** — never dispatch a task
+   you cannot rank ahead of doing nothing. An unlimited budget is the single
+   strongest invitation to make-work this program has; it is still forbidden.
+
+2. **ECC first, always.** At every selection point — harness goal selection,
+   portfolio ordering, reranking after a checkpoint, which impediment to
+   re-check first — ECC goals are considered before all others. A non-ECC goal
+   is worked only when no ECC goal offers a ranked, justified task.
+
+   Priority *orders the queue*. It does not manufacture ECC work, and it never
+   licenses dispatching an unranked ECC task ahead of a ranked non-ECC one
+   already in flight. It also changes no evidence rule: an ECC result is held to
+   exactly the scope, certificate and claim-tier standards as any other.
+
+3. **Open ECC ideas are designed, not shelved.** An open ECC idea is one whose
+   proposal is `proposed` and which no hypothesis or experiment references.
+   These are ranked work: `/design-experiment` produces a hypothesis and a
+   frozen contract for them. Designing is **not** approving — a designed
+   contract sits at `approved_by: null` until a committed Coordinator decision
+   approves it, and that gate is unchanged.
+
 ## Target result profile
 
 The canonical exemplar of the output this system exists to produce is

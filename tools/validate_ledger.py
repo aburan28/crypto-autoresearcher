@@ -1716,6 +1716,45 @@ def check_goal_symlinks(ctx: Ctx) -> None:
                 pending.append(entry.path)
 
 
+# ECC goals have an UNLIMITED campaign budget, on user instruction
+# (2026-09-04). The area set and the field list are declared once, in
+# orchestration/research-priority.yaml, and read through tools/ecc_priority.py
+# -- never re-derived here and never inferred from an identifier prefix.
+#
+# Only `active` and `draft` goals are checked. A terminal goal's budget is
+# history; rewriting it would be a retroactive edit of a closed campaign, not a
+# policy fix.
+#
+# What unlimited does NOT mean: `max_concurrent` stays bounded (it is machine
+# headroom, not a research budget), and removing the batch ceiling does not
+# remove the duty to rank -- never dispatch a task you cannot rank ahead of
+# doing nothing.
+def check_ecc_budget_is_unlimited(path, goal, status, ctx: Ctx):
+    if status not in ("active", "draft"):
+        return
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import ecc_priority
+        policy = ecc_priority.load_policy()
+    except Exception:
+        return                       # policy absent or unreadable: not a ledger error
+    if not (policy.get("budget") or {}).get("ecc_unlimited"):
+        return
+    gid = str(goal.get("id") or "")
+    if not ecc_priority.is_ecc(gid, policy):
+        return
+    budget = goal.get("campaign_budget")
+    if not isinstance(budget, dict):
+        return
+    for field in ecc_priority.unbounded_fields(policy):
+        value = budget.get(field)
+        if value is not None:
+            ctx.err(path,
+                    f"ECC goal {gid} must have an unlimited campaign budget: "
+                    f"campaign_budget.{field} is {value!r}, must be null "
+                    f"(orchestration/research-priority.yaml)")
+
+
 def check_goals(ctx: Ctx):
     if not check_trusted_goal_prefixes(ctx):
         return
@@ -1744,6 +1783,8 @@ def check_goals(ctx: Ctx):
                           f"{GOAL_STATUSES_REFUSED[status]}")
         elif status and status not in GOAL_STATUSES:
             ctx.err(path, f"invalid status {status!r}")
+
+        check_ecc_budget_is_unlimited(path, goal, status, ctx)
 
         if status == "completed" and not grandfathered:
             check_goal_closure_quorum(path, goal, ctx)

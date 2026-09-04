@@ -105,6 +105,16 @@ Code specifically.
    spending. Terminal retirement is unchanged and remains a deliberate act:
    `completed`, `closed_at_budget`, `cancelled`. See AGENTS.md "Goals are never
    paused".
+11. **ECC comes first, and ECC budgets are unlimited.** On user instruction
+   (2026-09-04): every ECC goal has `maximum_batches: null` and
+   `total_wall_clock_seconds: null` (enforced); ECC goals are selected before
+   all others at every selection point; and open ECC ideas — `proposed` with no
+   hypothesis or experiment citing them — are ranked work to be designed into
+   experiments. The ECC area set is declared once in
+   `orchestration/research-priority.yaml`, read via `tools/ecc_priority.py`, and
+   is **never** inferred from an identifier prefix. Unlimited removes the batch
+   ceiling, not the duty to rank; `max_concurrent` stays bounded; designing an
+   experiment is not approving it. See AGENTS.md "ECC comes first".
 
 ## Research direction
 

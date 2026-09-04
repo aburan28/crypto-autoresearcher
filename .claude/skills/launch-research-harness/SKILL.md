@@ -152,7 +152,18 @@ investigation specifically.
 
 ### 3. Select a goal
 
-Pick in this order, drawing only from the **ready** bucket unless noted:
+**ECC GOALS COME FIRST, ALWAYS.** Before applying the order below, partition
+the candidates with `python3 tools/ecc_priority.py --classify <GOAL-ID>...` (or
+read the `ECC` marker `goal_portfolio_health.py` now prints). A non-ECC goal is
+selected only when NO ECC goal offers a ranked, justified task. The area set is
+declared in `orchestration/research-priority.yaml` — never infer it from an
+identifier prefix, since `GOAL-CRYPTO-001` is an ECDLP search and
+`DREG`/`SDEG`/`SIG`/`MONO`/`RELN`/`ICEX` are Semaev machinery. Priority orders
+the queue; it never manufactures ECC work, and never puts an unranked ECC task
+ahead of a ranked non-ECC one already in flight. See AGENTS.md "ECC comes
+first".
+
+Then pick in this order, drawing only from the **ready** bucket unless noted:
 
 1. Explicit `GOAL-*` in the user request — if it is not in `ready`, say which
    bucket it landed in and why (cite the sweep's reason) instead of silently
@@ -206,7 +217,13 @@ Confirm before dispatching workers:
 
 - Goal record is committed (or about to ride a Coordinator snapshot).
 - `dispatch_queue_path` exists and queue top-level `goal_id` matches.
-- Campaign budget still allows another batch (`maximum_batches`,
+- Campaign budget still allows another batch. **ECC goals have an UNLIMITED
+  budget** — `maximum_batches` and `total_wall_clock_seconds` are `null` and a
+  finite value is a validation error, so this check is a no-op for them. It
+  still binds for non-ECC goals. Unlimited removes the batch ceiling, NOT the
+  duty to rank: never dispatch a task you cannot rank ahead of doing nothing,
+  and `max_concurrent` stays bounded by real machine headroom. Fields
+  (`maximum_batches`,
   `total_wall_clock_seconds`, and `max_concurrent` sized to what the
   environment can run without degrading — see "Concurrency" below). An
   exhausted budget stops *this campaign's spending*, not the harness and not
@@ -490,13 +507,22 @@ order:
    archive repaired, policy resolvable). Run the recorded `recheck` rather than
    assuming; the clearing goes in a Coordinator decision, and the impediment is
    marked cleared rather than deleted.
-2. Open a new campaign against the highest-ranked open `RQ-*` or
-   `KN-OPEN-*` item, following step 3's "Start new" path.
-3. If no open question justifies a campaign, run `/propose-ideas` on the
-   best-supported research question to generate candidates, then rank them and
-   open a campaign against the winner.
+2. **Design open ECC ideas into experiments.** Run
+   `python3 tools/ecc_priority.py --open-ideas`. Every entry is a `proposed`
+   ECC proposal that no hypothesis or experiment references, and these are
+   ranked work rather than backlog. Take the highest-ranked and run
+   `/design-experiment` on it: a hypothesis plus a frozen contract. Designing
+   is NOT approving — the contract sits at `approved_by: null` until a
+   committed Coordinator decision approves it. This step comes before opening
+   any new campaign, because a designed contract against an existing question
+   is cheaper and better-grounded than a fresh goal.
+3. Open a new campaign against the highest-ranked open `RQ-*` or
+   `KN-OPEN-*` item, following step 3's "Start new" path — ECC questions first.
+4. If no open question justifies a campaign, run `/propose-ideas` on the
+   best-supported ECC research question to generate candidates, then rank them
+   and open a campaign against the winner.
 
-None of these three apply when the sweep shows a large `needs_repair` bucket
+None of these apply when the sweep shows a large `needs_repair` bucket
 across otherwise-unrelated goals: that pattern is a repository-wide integrity
 signal (see "Terminal stops"), and opening a new campaign or re-checking an
 impediment does not address it — report it instead.

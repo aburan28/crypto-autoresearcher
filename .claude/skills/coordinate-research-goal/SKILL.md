@@ -136,7 +136,12 @@ For every batch, run this sequence:
    decision, latest verified commit, and exactly one next action for this
    lane (additively — never rewrite another lane's entries); then
    `goal_lanes.py close-lane … --publish`. Rerank the
-   remaining hypotheses only after this committed checkpoint.
+   remaining hypotheses only after this committed checkpoint. **ECC candidates
+   rank first** (AGENTS.md "ECC comes first"); a non-ECC candidate is
+   dispatched only when no ECC candidate offers a ranked, justified task. ECC
+   goals also carry an unlimited budget, so the batch ceiling never ends an ECC
+   campaign — which leaves the duty to rank as the only thing standing between
+   an ECC goal and make-work.
 
    **Read the obstruction registry before you rerank.** Run
    `python3 tools/obstruction_registry.py --unexamined`. For each entry, ask

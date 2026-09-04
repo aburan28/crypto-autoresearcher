@@ -172,6 +172,35 @@ def classify(repo_root: Path, goal: dict[str, Any], out_dir: Path) -> dict[str, 
     return result
 
 
+def _ecc_sort(rows):
+    """ECC first, always. Instruction 2 (2026-09-04).
+
+    The area set is declared once in orchestration/research-priority.yaml and
+    read through tools/ecc_priority.py -- never re-derived here, and never
+    inferred from an identifier prefix (GOAL-CRYPTO-001 is an ECDLP search;
+    DREG/MONO/RELN/SDEG/SIG/ICEX are Semaev and index-calculus machinery).
+
+    Ordering only. It never manufactures ECC work and never licenses
+    dispatching an unranked ECC task ahead of a ranked non-ECC one.
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ecc_priority
+        pol = ecc_priority.load_policy()
+    except Exception:
+        return rows                       # policy unreadable: leave order alone
+    return sorted(rows, key=lambda r: ecc_priority.sort_key(r.get("id", ""), pol))
+
+
+def _ecc_mark(row) -> str:
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ecc_priority
+        return "ECC " if ecc_priority.is_ecc(row.get("id", "")) else "    "
+    except Exception:
+        return ""
+
+
 def is_shallow_clone(repo_root: Path) -> bool:
     proc = subprocess.run(
         ["git", "-C", str(repo_root), "rev-parse", "--is-shallow-repository"],
@@ -219,22 +248,28 @@ def main() -> int:
         "ready": [], "batch_complete": [], "blocked": [], "needs_repair": []}
     for r in results:
         buckets.setdefault(r["bucket"], []).append(r)
+    # ECC first within every bucket (instruction 2, 2026-09-04).
+    for k in list(buckets):
+        buckets[k] = _ecc_sort(buckets[k])
 
-    print(f"# Goal portfolio health ({len(results)} active goals)\n")
+    n_ecc = sum(1 for r in results if _ecc_mark(r).strip())
+    print(f"# Goal portfolio health ({len(results)} active goals; "
+          f"{n_ecc} ECC, listed first in every bucket)\n")
     print(f"## Ready ({len(buckets['ready'])}) — dispatchable now\n")
     for r in buckets["ready"]:
-        print(f"- {r['id']} ({r['current_batch_id']}): {', '.join(r['ready_task_ids'])}")
+        print(f"- {_ecc_mark(r)}{r['id']} ({r['current_batch_id']}): "
+              f"{', '.join(r['ready_task_ids'])}")
     print(f"\n## Batch complete ({len(buckets['batch_complete'])}) — "
           f"finished batch, needs a checkpoint + next batch (this is work)\n")
     for r in buckets["batch_complete"]:
-        print(f"- {r['id']} ({r.get('batch') or '-'}): {r.get('reason','')}")
+        print(f"- {_ecc_mark(r)}{r['id']} ({r.get('batch') or '-'}): {r.get('reason','')}")
 
     print(f"\n## Blocked ({len(buckets['blocked'])}) — gated/claimed/deferred, not an error\n")
     for r in buckets["blocked"]:
-        print(f"- {r['id']} ({r['current_batch_id']})")
+        print(f"- {_ecc_mark(r)}{r['id']} ({r['current_batch_id']})")
     print(f"\n## Needs repair ({len(buckets['needs_repair'])}) — integrity problem, not a research result\n")
     for r in buckets["needs_repair"]:
-        print(f"- {r['id']}: {r['reason']}")
+        print(f"- {_ecc_mark(r)}{r['id']}: {r['reason']}")
 
     return 0
 
