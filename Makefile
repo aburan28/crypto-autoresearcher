@@ -14,6 +14,7 @@ help:
 	@echo "  make install         editable install + all dependencies"
 	@echo "  make doctor          is this machine ready? (free, offline)"
 	@echo "  make status          what is configured and recorded (free)"
+	@echo "  make ledger-status   ledger census + active goal heads (free)"
 	@echo ""
 	@echo "verify (free, offline)"
 	@echo "  make check           everything below"
@@ -54,6 +55,13 @@ doctor:
 
 status:
 	@$(PYTHON) -m orchestration status
+
+# The read-only view of research state. Both are projections: reading the
+# records themselves is ~18M tokens for the ledger and ~904k for the goal
+# heads (CLAUDE.md, "Reading state: project, never `cat`").
+ledger-status:
+	@$(PYTHON) tools/ledger_summary.py
+	@$(PYTHON) tools/goal_head.py list --status active
 
 check: check-harness check-ledger
 

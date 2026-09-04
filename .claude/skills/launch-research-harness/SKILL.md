@@ -39,16 +39,46 @@ goal status outside Coordinator ledger archives.
 
 ### 1. Research status (read-only)
 
-Run the `/research-status` checklist: scan `ledger/` and flag integrity issues
-(uncommitted archives, broken refs). Do not mutate state in this step.
+Run the `/research-status` checklist and flag integrity issues (uncommitted
+archives, broken refs). Its first two steps are tools, not a manual scan:
+
+```sh
+python3 tools/ledger_summary.py && python3 tools/validate_ledger.py
+```
+
+Do not mutate state in this step.
 
 ### 2. Discover goals
 
-List `ledger/goals/GOAL-*.yaml`. For each, read `research_goal.{id,status,
-title,current_batch_id,dispatch_queue_path,next_action,campaign_budget,
-completion_criteria,pause_conditions}`.
+```sh
+python3 tools/goal_head.py list --status active
+```
 
-Statuses: `draft | active | paused | blocked | completed | cancelled`.
+That prints exactly the fields this step needs — `research_goal.{id,status,
+title,current_batch_id,dispatch_queue_path,next_action}` — for every goal, in
+~3k tokens (`--brief` drops the `next_action` prose for ~0.6k). Add
+`python3 tools/goal_head.py show <GOAL>` for one goal's `campaign_budget`,
+`completion_criteria` and `pause_conditions`, ~0.8k tokens.
+
+**Never `cat` a goal record to get these.** The heads are append-only in
+practice: 83% of their bytes are undeclared narrative keys, `GOAL-ECDLP-001`
+is 651 keys and ~243k tokens, and reading all 102 the way this step used to
+read is ~904k tokens. Every value the projection shortens is marked with the
+command that returns it whole.
+
+Those omitted keys are the campaign's history — why earlier batches closed,
+what was superseded, which theories were refuted. They are preserved intact
+and reachable; before re-opening a line of work, check whether it was already
+tried and closed:
+
+```sh
+python3 tools/goal_head.py history <GOAL>              # dated index
+python3 tools/goal_head.py history --grep '<term>'     # across all goals
+```
+
+Statuses: `draft | active | paused | blocked | completed | cancelled`
+(the tool also reports `unparseable` for a record that will not load — an
+integrity signal, never a research state).
 
 Also note matching dirs under `coordination/goals/GOAL-*/batches/`.
 
