@@ -18,8 +18,15 @@ This campaign got the question wrong twice, and each fix widened the search:
      branch, so a proposal already contracted on an unmerged branch looks open
      to every session but the one that did it. Scan every branch tip.
 
-Both mistakes are the same mistake: the audit saw less state than the writers
-collectively hold. Widen before you trust a drop in this number.
+  3. Counting a proposal as CONVERTED is not the same as counting it as
+     dispatchable. A committed correction can retire a proposal outright --
+     CORR-20260808-f4d780 marks IDEA-20260808-2e14f7 `do_not_dispatch: true`,
+     its mechanism refuted by Burnside -- and a hypothesis converting it
+     exists anyway. Such a proposal is neither backlog nor a healthy
+     conversion, so it is excluded and reported separately.
+
+The first two mistakes are the same mistake: the audit saw less state than the
+writers collectively hold. Widen before you trust a drop in this number.
 
 Usage:
     python3 tools/audit_proposal_backlog.py                 # all questions
@@ -70,6 +77,25 @@ def referenced_idea_ids() -> set[str]:
     return found, len(refs)
 
 
+def retired_idea_ids() -> set[str]:
+    """Proposals a committed correction says must not be dispatched.
+
+    Matched structurally rather than by proximity: the flag must sit in the
+    block introduced by the IDEA id, so an id merely mentioned near an
+    unrelated retirement is not swept up with it.
+    """
+    flagged: set[str] = set()
+    pattern = re.compile(
+        r"(" + IDEA_RE + r"):\s*\n(?:\s+\w+:.*\n){0,6}?\s+do_not_dispatch(?:_as_filed)?:\s*true"
+    )
+    for path in glob.glob("ledger/corrections/*.yaml"):
+        text = open(path, encoding="utf8", errors="replace").read()
+        if "do_not_dispatch" not in text:
+            continue
+        flagged.update(m.group(1) for m in pattern.finditer(text))
+    return flagged
+
+
 def load_proposal(path: str) -> dict:
     try:
         doc = yaml.safe_load(open(path, encoding="utf8", errors="replace")) or {}
@@ -92,6 +118,7 @@ def main() -> int:
     args = ap.parse_args()
 
     referenced, n_refs = referenced_idea_ids()
+    retired = retired_idea_ids()
     paths = sorted(glob.glob("ledger/proposals/IDEA-*.yaml"))
     if not paths:
         print("no proposals found; run from the repository root", file=sys.stderr)
@@ -100,7 +127,7 @@ def main() -> int:
     by_question: dict[str, list[str]] = collections.defaultdict(list)
     for path in paths:
         pid = os.path.basename(path)[:-5]
-        if pid in referenced:
+        if pid in referenced or pid in retired:
             continue
         doc = load_proposal(path)
         if str(doc.get("status", "")).lower() in CLOSED_STATUSES:
@@ -117,6 +144,10 @@ def main() -> int:
     print(f"branch tips scanned          : {n_refs}")
     print(f"proposals in tree            : {len(paths)}")
     print(f"converted (any branch tip)   : {len(present & referenced)}")
+    print(f"retired by a correction      : {len(present & retired)}")
+    both = sorted(present & retired & referenced)
+    if both:
+        print(f"  !! converted DESPITE retirement, needs adjudication: {', '.join(both)}")
     print(f"UNCONVERTED + open           : {sum(len(v) for v in by_question.values())}")
     if args.area or args.question:
         print(f"  ... in scope               : {sum(len(v) for v in selected.values())}")
