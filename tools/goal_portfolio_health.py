@@ -14,9 +14,16 @@ bucket:
 
   ready        - dispatch succeeded and at least one Ready Task has
                  claim: null (something is actually dispatchable now).
-  blocked      - dispatch succeeded but there is nothing to start (every
-                 task is gated, claimed, or deferred). Not an error; this is
-                 an ordinary campaign state.
+  batch_complete - dispatch succeeded and EVERY task in the batch is
+                 `completed`. The batch is finished and the goal is waiting on
+                 a Coordinator checkpoint plus its next batch. This is WORK,
+                 not a stall, and it is the single most common state in this
+                 portfolio -- it was previously reported as `blocked`, which
+                 made a live campaign look parked.
+  blocked      - dispatch succeeded but there is nothing to start because
+                 tasks are gated, claimed by another session, or deferred.
+                 Not an error; an ordinary campaign state, and NOT a goal
+                 status (goals are never `blocked` -- see CLAUDE.md rule 10).
   needs_repair - dispatch itself failed (hash mismatch, malformed queue,
                  missing file, ...). This is an integrity problem with the
                  queue or the local worktree, never a research result, and
@@ -139,63 +146,59 @@ def classify(repo_root: Path, goal: dict[str, Any], out_dir: Path) -> dict[str, 
         t for t in plan.get("dispatches", [])
         if t.get("claim") in (None, "null") or not t.get("claim")
     ]
-    result["bucket"] = "ready" if ready_tasks else "blocked"
+    if ready_tasks:
+        result["bucket"] = "ready"
+    else:
+        # Distinguish "finished, needs its successor batch" from "gated". Both
+        # offer nothing to start right now, but only the second is waiting on
+        # something outside the operator's control: a completed batch just
+        # needs a checkpoint and a next batch, which is ordinary harness work.
+        # Collapsing them hid 29 of 33 runnable campaigns behind one label.
+        try:
+            all_tasks = json.loads(abs_queue.read_text()).get("tasks", [])
+        except Exception:
+            all_tasks = []
+        states = {str(t.get("state", "")).strip() for t in all_tasks}
+        if all_tasks and states <= {"completed"}:
+            result["bucket"] = "batch_complete"
+            result["reason"] = (
+                f"all {len(all_tasks)} task(s) completed; needs a Coordinator "
+                f"checkpoint and the next batch"
+            )
+        else:
+            result["bucket"] = "blocked"
     result["ready_task_ids"] = [t.get("id") for t in ready_tasks]
     result["next_action"] = goal.get("next_action")
     return result
 
 
-FOCUS_PATH = "orchestration/research-focus.yaml"
+def _ecc_sort(rows):
+    """ECC first, always. Instruction 2 (2026-09-04).
 
+    The area set is declared once in orchestration/research-priority.yaml and
+    read through tools/ecc_priority.py -- never re-derived here, and never
+    inferred from an identifier prefix (GOAL-CRYPTO-001 is an ECDLP search;
+    DREG/MONO/RELN/SDEG/SIG/ICEX are Semaev and index-calculus machinery).
 
-def load_focus(repo_root: Path) -> dict[str, Any] | None:
-    """Read the declared research focus, or None when none is declared.
-
-    Absent or unparseable, every goal ranks equally and this tool behaves
-    exactly as it did before the focus existed. The focus is a PRIORITY
-    ORDER, never a filter: an unlisted goal still appears in every bucket and
-    is still dispatchable.
+    Ordering only. It never manufactures ECC work and never licenses
+    dispatching an unranked ECC task ahead of a ranked non-ECC one.
     """
-
-    path = repo_root / FOCUS_PATH
-    if not path.exists():
-        return None
     try:
-        import yaml
-    except ImportError:
-        return None
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ecc_priority
+        pol = ecc_priority.load_policy()
+    except Exception:
+        return rows                       # policy unreadable: leave order alone
+    return sorted(rows, key=lambda r: ecc_priority.sort_key(r.get("id", ""), pol))
+
+
+def _ecc_mark(row) -> str:
     try:
-        data = yaml.safe_load(path.read_text())
-    except Exception as error:  # a malformed focus must not break the sweep
-        print(f"NOTE: ignoring unreadable {FOCUS_PATH}: {error}", file=sys.stderr)
-        return None
-    return data if isinstance(data, dict) and data.get("tiers") else None
-
-
-def goal_area(goal_id: str) -> str:
-    """`GOAL-<AREA>-<tok>` -> AREA. Legacy three-digit IDs share the shape."""
-
-    parts = goal_id.split("-")
-    return parts[1] if len(parts) >= 2 else ""
-
-
-def focus_tier(goal_id: str, focus: dict[str, Any] | None) -> int:
-    """Rank one goal against the declared focus. Lower sorts first."""
-
-    if not focus:
-        return 0
-    for entry in focus.get("tiers") or []:
-        if goal_id in (entry.get("goals") or []):
-            return int(entry["tier"])
-        if goal_area(goal_id) in (entry.get("areas") or []):
-            return int(entry["tier"])
-    return int(focus.get("default_tier", 99))
-
-
-def tier_names(focus: dict[str, Any] | None) -> dict[int, str]:
-    if not focus:
-        return {}
-    return {int(e["tier"]): e.get("name", "") for e in focus.get("tiers") or []}
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ecc_priority
+        return "ECC " if ecc_priority.is_ecc(row.get("id", "")) else "    "
+    except Exception:
+        return ""
 
 
 def is_shallow_clone(repo_root: Path) -> bool:
@@ -236,11 +239,6 @@ def main() -> int:
     parser.add_argument("--repo-root", default=".", help="Repository root (default: cwd)")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of a table")
     parser.add_argument(
-        "--focus-only", action="store_true",
-        help="Show only goals in the declared focus's dispatch_first tiers "
-             f"({FOCUS_PATH}). Use when a session should work the focus lane "
-             "and nothing else.")
-    parser.add_argument(
         "--no-deepen", action="store_true",
         help="Do not auto-fetch missing history on a shallow clone. The "
              "needs_repair bucket is then untrustworthy -- see the warning it prints.")
@@ -280,56 +278,38 @@ def main() -> int:
         out_dir = Path(tmp)
         results = [classify(repo_root, g, out_dir) for g in goals]
 
-    focus = load_focus(repo_root)
-    names = tier_names(focus)
-    dispatch_first = {int(e["tier"]) for e in (focus or {}).get("tiers") or []
-                      if e.get("dispatch_first")}
-    for r in results:
-        r["focus_tier"] = focus_tier(r["id"], focus)
-    if args.focus_only:
-        if not dispatch_first:
-            print(f"--focus-only: no dispatch_first tier declared in {FOCUS_PATH}.",
-                  file=sys.stderr)
-            return 2
-        results = [r for r in results if r["focus_tier"] in dispatch_first]
-    # Rank by focus first, then by ID. This is the ordering the goal-selection
-    # step consumes, so it is what actually aims the program.
-    results.sort(key=lambda r: (r["focus_tier"], r["id"]))
-
     if args.json:
         print(json.dumps({"shallow_clone_warning": shallow,
                           "clone_deepened": deepened,
-                          "focus": (focus or {}).get("focus"),
-                          "focus_path": FOCUS_PATH,
                           "goals": results}, indent=2))
         return 0
 
-    buckets: dict[str, list[dict[str, Any]]] = {"ready": [], "blocked": [], "needs_repair": []}
+    buckets: dict[str, list[dict[str, Any]]] = {
+        "ready": [], "batch_complete": [], "blocked": [], "needs_repair": []}
     for r in results:
         buckets.setdefault(r["bucket"], []).append(r)
+    # ECC first within every bucket (instruction 2, 2026-09-04).
+    for k in list(buckets):
+        buckets[k] = _ecc_sort(buckets[k])
 
-    scope = " in focus" if args.focus_only else ""
-    print(f"# Goal portfolio health ({len(results)} active goals{scope})\n")
-    if focus:
-        listed = ", ".join(
-            f"tier {t} {names[t]}" for t in sorted(names)) or "none"
-        print(f"Focus: **{focus.get('focus')}** ({FOCUS_PATH}) — {listed}.")
-        print("Goals are listed focus-first; dispatch from the top.\n")
-
-    def label(r: dict[str, Any]) -> str:
-        tier = r.get("focus_tier", 0)
-        return f" [tier {tier}]" if focus and tier else ""
-
+    n_ecc = sum(1 for r in results if _ecc_mark(r).strip())
+    print(f"# Goal portfolio health ({len(results)} active goals; "
+          f"{n_ecc} ECC, listed first in every bucket)\n")
     print(f"## Ready ({len(buckets['ready'])}) — dispatchable now\n")
     for r in buckets["ready"]:
-        print(f"- {r['id']}{label(r)} ({r['current_batch_id']}): "
+        print(f"- {_ecc_mark(r)}{r['id']} ({r['current_batch_id']}): "
               f"{', '.join(r['ready_task_ids'])}")
-    print(f"\n## Blocked ({len(buckets['blocked'])}) — nothing to start, not an error\n")
+    print(f"\n## Batch complete ({len(buckets['batch_complete'])}) — "
+          f"finished batch, needs a checkpoint + next batch (this is work)\n")
+    for r in buckets["batch_complete"]:
+        print(f"- {_ecc_mark(r)}{r['id']} ({r.get('batch') or '-'}): {r.get('reason','')}")
+
+    print(f"\n## Blocked ({len(buckets['blocked'])}) — gated/claimed/deferred, not an error\n")
     for r in buckets["blocked"]:
-        print(f"- {r['id']}{label(r)} ({r['current_batch_id']})")
+        print(f"- {_ecc_mark(r)}{r['id']} ({r['current_batch_id']})")
     print(f"\n## Needs repair ({len(buckets['needs_repair'])}) — integrity problem, not a research result\n")
     for r in buckets["needs_repair"]:
-        print(f"- {r['id']}{label(r)}: {r['reason']}")
+        print(f"- {_ecc_mark(r)}{r['id']}: {r['reason']}")
 
     return 0
 
