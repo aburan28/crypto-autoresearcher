@@ -399,7 +399,15 @@ python3 tools/rl_isogeny_search.py --p 1009 --a 0 --b 7 --seed 1 --episodes 200 
 All of the above run with `--eval-episodes 10 --max-steps 16`; together they
 take about six minutes on one machine, the certificate ten seconds.
 
-Every run is deterministic in `--seed` (the PPO agent on CPU included); the
-JSON carries the environment summary, every training and evaluation episode
-with its best state, the learning curve by decile, the paired comparison
-against the random agent, and the oracle table.
+Every run is deterministic in `--seed` (the PPO agent on CPU included). The
+committed JSON is a **summary**, in the convention of the predecessor's
+ladder files: the environment summary, per-agent training statistics and
+learning curves by decile, the evaluation outcomes per mode (histograms of
+the final and best states, per-episode scores and hits, no trajectories),
+the paired comparison against the random agent,
+and the oracle's per-presentation statistics, best state and any state with
+excess. The per-state oracle table and the per-episode training records are
+regenerable from the seed and are not committed; `--full-out PATH` writes
+them alongside, the summary records that file's SHA-256, and
+`--summarize-full PATH --out SUMMARY` rebuilds the summary from it without
+recomputing anything.

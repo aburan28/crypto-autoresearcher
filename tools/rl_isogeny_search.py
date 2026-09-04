@@ -225,22 +225,52 @@ def aggregate(reports, args) -> dict:
         "agents": agents,
         "paired_vs_random": paired,
         "oracle": oracle,
-        "per_seed": [compact(r, keep_rows=(i == 0)) for i, r in enumerate(reports)],
+        "per_seed": reports,
         "reading": reports[0]["reading"],
     }
 
 
-def compact(report: dict, keep_rows: bool) -> dict:
-    """Per-seed report without per-episode records (summaries, learning curves,
-    evaluation episodes and the oracle summary stay; oracle rows only for the
-    first seed of an aggregate)."""
+def _state_label(st: dict) -> str:
+    curve = st.get("curve") or {}
+    return f"{st.get('spec')} @ j={curve.get('j', st.get('j'))}"
+
+
+def _slim_eval(records: list) -> dict:
+    """Evaluation episodes as the summary keeps them: histograms of the final
+    and best states, and per-episode (final_score, best_score, planted_hit)."""
+    final_hist: dict = {}
+    best_hist: dict = {}
+    for r in records:
+        f = _state_label(r.get("final_state") or {})
+        b = _state_label(r.get("best_state") or {})
+        final_hist[f] = final_hist.get(f, 0) + 1
+        best_hist[b] = best_hist.get(b, 0) + 1
+    return {
+        "episodes": len(records),
+        "final_states": dict(sorted(final_hist.items())),
+        "best_states": dict(sorted(best_hist.items())),
+        "per_episode": [[round(r["final_score"], 4), round(r["best_score"], 4), int(bool(r["planted_hit"]))]
+                        for r in records],
+    }
+
+
+def compact(report: dict, keep_rows: bool = False) -> dict:
+    """Per-seed report without per-episode training records or oracle rows
+    (summaries, learning curves, slim evaluation episodes and the oracle
+    summary stay).  The per-state oracle table and the training episodes are
+    regenerable from --seed and are kept out of the repository, as the
+    predecessor's per-member tables are (analysis/isogeny-dreg-search)."""
     out = {k: v for k, v in report.items() if k not in ("agents", "oracle")}
     out["agents"] = {}
     for name, res in report["agents"].items():
         if "train" not in res:
             out["agents"][name] = res
             continue
-        out["agents"][name] = {k: v for k, v in res.items() if k != "train"}
+        slim = {k: v for k, v in res.items() if k not in ("train", "eval", "eval_stochastic")}
+        slim["eval"] = _slim_eval(res.get("eval", []))
+        slim["eval_stochastic"] = _slim_eval(res.get("eval_stochastic", []))
+        slim["train_episodes"] = len(res["train"])
+        out["agents"][name] = slim
     if report.get("oracle"):
         o = dict(report["oracle"])
         if not keep_rows:
@@ -248,6 +278,25 @@ def compact(report: dict, keep_rows: bool) -> dict:
             o["rows_omitted"] = True
         out["oracle"] = o
     return out
+
+
+def summary_report(full: dict) -> dict:
+    """The report written to --out: a single-seed report compacted, or an
+    aggregate whose per-seed entries are compacted."""
+    if "per_seed" in full:
+        out = dict(full)
+        out["per_seed"] = [compact(r) for r in full["per_seed"]]
+        return out
+    return compact(full)
+
+
+def _sha256_file(path: str) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def certify_main(args) -> int:
@@ -305,7 +354,7 @@ def print_summary(report: dict) -> None:
     print(f"p={env['p']} a={env['a']} b={env['b']} trace={env['trace']} start={env['start_spec']} "
           f"evaluations={report['meter']['evaluations']}")
     for name, res in report["agents"].items():
-        if "train" in res:
+        if "train_summary" in res:
             ts, es = res["train_summary"], res["eval_summary"]
             line = (f"{name:10s} train best {ts['best_score']['mean']:+.3f}+-{ts['best_score']['sd']:.3f} "
                     f"hit {ts['planted_hit_rate']:.2f}")
@@ -357,6 +406,11 @@ def main(argv=None) -> int:
     ap.add_argument("--w-deficit", type=float, default=0.5)
     ap.add_argument("--planted-bonus", type=float, default=6.0)
     ap.add_argument("--exact-trace-limit", type=int, default=1 << 17)
+    ap.add_argument("--full-out", help="also write the FULL report (oracle row table, every training episode, "
+                                      "evaluation trajectories) to this path; the summary written to --out records "
+                                      "its sha256. The full report is regenerable from --seed and is not committed.")
+    ap.add_argument("--summarize-full", help="rebuild the summary at --out from a FULL report written earlier "
+                                             "by --full-out (no recomputation) and exit")
     ap.add_argument("--certify", action="store_true",
                     help="write the leading-form certificate for every presentation of the grid at the "
                          "environment's prime plus 32-, 48- and 56-bit primes, and exit (no agents)")
@@ -365,14 +419,36 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     if args.certify:
         return certify_main(args)
+    if args.summarize_full:
+        with open(args.summarize_full) as fh:
+            full = json.load(fh)
+        report = summary_report(full)
+        report["full_report"] = {"path": args.summarize_full, "sha256": _sha256_file(args.summarize_full)}
+        text = json.dumps(report, indent=1, default=str)
+        if args.out:
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            with open(args.out, "w") as fh:
+                fh.write(text + "\n")
+            print_summary(report)
+            print(f"written {args.out} from {args.summarize_full}")
+        else:
+            print(text)
+        return 0
 
     log = (lambda s: print(s, file=sys.stderr)) if args.verbose else (lambda s: None)
     t_all = time.time()
     reports = []
     for seed in range(args.seed, args.seed + max(1, args.seeds)):
         reports.append(run_one(args, seed, log))
-    report = reports[0] if len(reports) == 1 else aggregate(reports, args)
-    report["seconds_total"] = time.time() - t_all
+    full = reports[0] if len(reports) == 1 else aggregate(reports, args)
+    full["seconds_total"] = time.time() - t_all
+    if args.full_out:
+        Path(args.full_out).parent.mkdir(parents=True, exist_ok=True)
+        with open(args.full_out, "w") as fh:
+            fh.write(json.dumps(full, indent=1, default=str) + "\n")
+    report = summary_report(full)
+    if args.full_out:
+        report["full_report"] = {"path": args.full_out, "sha256": _sha256_file(args.full_out)}
     text = json.dumps(report, indent=1, default=str)
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
