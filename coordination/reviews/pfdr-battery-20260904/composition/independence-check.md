@@ -48,9 +48,15 @@ python3 tools/check_review_independence.py \
             coordination/reviews/pfdr-battery-20260904/reviews/TASK-20260904-3a2ff5
 ```
 
-The orchestrating session reported to this one that all five PASS. That report
-is recorded as **received, not verified here**, exactly as EV-ECDLP-e6f5f2
-recorded the same situation.
+**The orchestrating Coordinator session states that it ran all five commands
+itself, before dispatching this composition task, and that all five PASS with**
+`10 report(s), every joint owned and attested, blindness respected, controls
+declared` **against plans TASK-20260904-2bb29d, -4c0d7d, -642cf5, -a7eead and
+-42b33a.** That result is recorded here as the **orchestrating Coordinator
+session's**, attributed to it and not to this subagent, which did not execute
+the tool and did not observe its output. The manual re-performance below is an
+independent second reading of the same property, not a restatement of that
+PASS.
 
 ## Manual re-performance, check by check
 
@@ -191,13 +197,17 @@ This Coordinator performed the comparison by hand instead and found no
 ## Outcome for gate G0
 
 Every check the tool performs is satisfied on all five plans by manual
-re-performance. **No strength cap is applied and no `procedure_deviations`
-superseding note is required on independence grounds.** Two items travel with
-the round's records instead of being absorbed:
+re-performance, and the orchestrating Coordinator session independently reports
+a PASS from the tool itself on all five. **No strength cap is applied and no
+`procedure_deviations` superseding note is required on independence grounds.**
+Two items travel with the round's records instead of being absorbed:
 
-1. The five tool invocations were not executed by this session and their output
-   is not reproduced anywhere. The orchestrating session runs them.
+1. The five tool invocations were not executed by THIS session and their output
+   is not reproduced anywhere in this file. The PASS recorded above is the
+   orchestrating session's and is attributed to it.
 2. The mechanical blind_from leak check is inert on TASK-20260904-42b33a for
-   the structural reason above.
+   the structural reason above, so the PASS on that plan does not include a
+   leak check. This Coordinator performed that comparison by hand and found no
+   `blind_from` path in either phase list.
 
 Recorded by the Coordinator subagent under TASK-20260904-e6b4dd, 2026-09-04.
