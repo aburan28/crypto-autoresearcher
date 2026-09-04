@@ -51,10 +51,17 @@ needs, both implied by `p > s ≥ e`: `e! ≢ 0 (mod p)` (its prime factors are
 ≤ e ≤ s), and the rescaling `a_i ↦ 2^{-i} a_i` used to turn `Σ2^i a_i` into
 `Σ a_i` is a graded automorphism of A only because 2 is invertible.
 
-Under the hypothesis's own standing assumption `2^s ≤ p` the stated reason
-happens to be true (all binomials `binom(N,K)` with `N ≤ s` are `< 2^s ≤ p`),
-so the defect is in the parenthetical "for p > s", not in anything the
-experiment used. It should be corrected rather than relied on.
+**Where the defect entered.** The source proposal
+`IDEA-20260903-e1e38b` (D4) states it CORRECTLY: *"every binom(k−i, t−i) is a
+positive integer at most binom(s, floor(s/2)) < 2^s ≤ p, so p divides none of
+them"* — true under the standing assumption `2^s ≤ p`. The ledger hypothesis
+record `H-PFDR-4148b8` (D4) compresses this to *"for p > s every
+binom(k − i, t − i) is a positive integer below p"*, which weakens the
+hypothesis from `2^s ≤ p` to `p > s` and thereby makes the stated reason false.
+The durable artifact carries the wrong justification. Two acceptable repairs:
+restore the proposal's `2^s ≤ p` bound, or adopt the Kummer argument above,
+which is strictly stronger (it holds under `p > s`). Nothing the experiment
+measured is affected: both primes satisfy `2^s ≤ p` at every tested s.
 
 ## 3. The H-WIL control's dynamic range — and what the package could not see
 

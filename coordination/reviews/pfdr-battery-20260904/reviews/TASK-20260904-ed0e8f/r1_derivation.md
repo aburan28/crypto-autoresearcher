@@ -162,9 +162,10 @@ non-singular curve and every affine target**:
 
 Both instances are inside the hypothesis's declared range AND inside the
 experiment's own generic-j curve class. At p = 13 all four window
-x-coordinates {0,1,2,3} are on the curve and x_R = 11 has 8 digit
-decompositions, so it is a plantable target of exactly the kind the experiment
-draws. Verified two independent ways: polynomial arithmetic in B, and direct
+x-coordinates {0,1,2,3} are on the curve (the experiment's own curve filter
+requires a ≠ 0, b ≠ 0, non-singular and **at least two** on-curve x in [0,4);
+this curve passes all four conditions) and x_R = 11 has 8 digit decompositions,
+so it is a plantable target of exactly the kind the experiment draws. Verified two independent ways: polynomial arithmetic in B, and direct
 numeric evaluation of `S_3(u_1, u_2, x_R)` at all 16 digit points (agreement
 checked point by point).
 
@@ -189,6 +190,15 @@ small-p sweep is the cheapest discriminating control.
   with `Rel_{d_ff} = {h of degree a_0 vanishing on supp(S~)}`, which is zero
   whenever `N_sol < 2^{ms - a_0}` — a condition that holds at every tested
   Semaev draw and fails at two exhaustively-found instances at (2,2,2).
+* **Where the false clause entered.** `IDEA-20260903-e1e38b` (D6) claims only
+  that the block-factored null *"reproduces d_ff = m e + floor((s−e)/2) + 1
+  exactly"*, with a genericity reason ("a random degree-e form in A_k has the
+  same maximal-rank multiplication maps as ell_k^e in degrees where either has
+  full rank") that says nothing about fall_dim. `H-PFDR-4148b8` (D6) states
+  *"reproduces d_ff **and fall_dim** exactly"*, and prediction P3 freezes
+  "FORCED 0 at every cell" for both integers. **The clause that fails was added
+  between the proposal and the hypothesis record.** (The row-independence gap in
+  the fall_dim identity itself is present in both, in (D4).)
 * **(D6-fixed).** "the block-factored null reproduces d_ff and fall_dim
   exactly" holds for `d_ff` at every tested cell, and for `fall_dim` at the
   strict-early-fall cells only. At `s = e` the HOMOGENEOUS block-factored null

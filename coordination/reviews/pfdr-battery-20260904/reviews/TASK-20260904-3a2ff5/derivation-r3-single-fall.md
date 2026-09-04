@@ -156,17 +156,27 @@ already the conclusion "V_{F,d_ff} = I cap B_{<=d_ff}", so Lemma 4 alone finishe
 
 ## 7. What this establishes on the package's data, and what it does not
 
-VERIFIED FROM THE RAW RECORDS (`r0_controls.json`, and the all-arms recount in the
-report): on EVERY fallen system of EXP-PFDR-cbdefb at m = 2 -- 600 Semaev, 600
-non-curve, 2400 NULL-1, 60 NULL-2, 45 NULL-3 draws, and the 47 fallen systems of the
-m = 3, s = 2 cell -- both `V_complete_at_D` at the first fall and the hypothesis (SAT)
-hold, with no exception. Hence, BY DERIVATION rather than by a fitted slope:
+VERIFIED FROM THE RAW RECORDS (`r3_single_fall_check.py` -> `r3_single_fall_check.json`):
+on EVERY fallen system of EXP-PFDR-cbdefb -- 606 Semaev, 606 non-curve, 2430 NULL-1,
+65 NULL-2, 45 NULL-3 (the counts include the m = 3, s = 2 cell) -- BOTH
+`V_complete_at_D` at the first fall AND the hypothesis (SAT) hold, with no exception, and
+every fallen system has exactly one fall degree.
 
-  d_lf = d_ff on every one of those systems, and no fall exists above d_ff at ANY
+The DEGREE CONDITION d_ff >= e(Z) + 2 of Theorem A is checked per draw in
+`r3_interpolation_degree.py` -> `r3_interpolation_degree.json`, using Lemma 2 (e(Z) <= 1
+for |Z| <= 3, e(Z) <= |Z| - 1 in general) together with the record-derived bound
+r_D = N_D - dim_I_at_D. It is MET on 600 Semaev, 600 non-curve, 2400 NULL-1 and 60 NULL-2
+draws at m = 2 (|Z| <= 4 on all of them) and NOT MET on the 45 NULL-3 draws, whose
+block-factored generator has |Z| = 48, 135, 348 at s = 3, 4, 5. Hence, BY DERIVATION
+rather than by a fitted slope:
+
+  on all 3660 of those m = 2 systems, d_lf = d_ff, and no fall exists above d_ff at ANY
   degree (not merely below D_max = 7).
 
 That is strictly stronger than the censoring certificate, which only rules out falls
-above D_max.
+above D_max. For NULL-3 and for the m = 3, s = 2 cell the single-fall property is
+OBSERVED with the same diagnostics but is not derived here, because Lemma 3's degree
+condition is not established at those zero-set sizes.
 
 DERIVED, CONDITIONALLY: combining with H-PFDR-4148b8 (D4)-(D5), whose closed form
 d_ff(2, 2, s) = 4 + floor(s/2) is reproduced with residual 0 on all 480 Semaev draws at
@@ -183,7 +193,7 @@ would have d_lf > d_ff and Lemmas 3-4 would not apply until saturation occurs. S
   "d_lf = d_ff for all s at m = 2" IS NOT ESTABLISHED HERE.
 
 What IS established is a derivation-tier REDUCTION of that statement to the single
-checkable condition (SAT), plus its verification on 3752 systems at s <= 5.
+checkable condition (SAT), plus its verification on 3752 systems (3660 of them within the derivation's degree condition) at s <= 5.
 
 ## 8. Consequence for HEUR-002, and the cheapest test of the open step
 
