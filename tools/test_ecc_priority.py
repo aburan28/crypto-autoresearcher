@@ -118,6 +118,34 @@ class OpenIdeaWorklistTests(unittest.TestCase):
         # against it, so it must not appear on the "still to design" worklist.
         self.assertNotIn("IDEA-20260903-81a943", ids)
 
+    def test_legacy_three_digit_idea_ids_count_as_designed(self):
+        """A designed LEGACY-form idea must drop off the worklist too.
+
+        Regression: the first version of `_taken_idea_ids` required a 4-8
+        character suffix and so never matched `IDEA-20260801-002`. Legacy
+        three-digit identifiers stay valid forever (CLAUDE.md "Conventions"),
+        so every legacy-form idea was reported as still needing design even
+        when it already had a hypothesis and a frozen contract -- 37 false
+        positives, inflating the worklist from 276 to 313.
+
+        IDEA-20260801-002 is the case that caught it: H-DREG-91be14 declares
+        `derived_from_idea: IDEA-20260801-002` and EXP-DREG-620b15 is its
+        contract.
+        """
+        taken = EP._taken_idea_ids()
+        self.assertIn("IDEA-20260801-002", taken,
+                      "legacy 3-digit idea ids must be recognised as designed")
+        self.assertNotIn("IDEA-20260801-002",
+                         {r["id"] for r in EP.open_ecc_ideas()})
+
+    def test_taken_id_pattern_spans_every_live_identifier_form(self):
+        import re
+        pat = re.compile(r"IDEA-\d{8}-[0-9a-zA-Z]{3,8}|[A-Z]+-IDEA-\d+")
+        for ident in ("IDEA-20260801-002",       # legacy three-digit
+                      "IDEA-20260904-8dccc9",    # current random 6-hex
+                      "ECDLP-IDEA-436"):         # legacy area-prefixed
+            self.assertEqual(pat.findall(ident), [ident], ident)
+
 
 class CLITests(unittest.TestCase):
     def _run(self, *args):

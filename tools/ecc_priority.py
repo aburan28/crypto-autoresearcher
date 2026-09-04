@@ -147,7 +147,14 @@ def _rq_area_index() -> dict[str, str]:
 def _taken_idea_ids() -> set[str]:
     """Idea ids referenced by any hypothesis or experiment specification."""
     taken: set[str] = set()
-    pat = re.compile(r"IDEA-\d{8}-[0-9a-zA-Z]{4,8}|[A-Z]+-IDEA-\d+")
+    # The legacy three-digit suffix (IDEA-20260801-002) STAYS VALID FOREVER --
+    # those records are immutable and must not be renamed (CLAUDE.md
+    # "Conventions"). An earlier version of this pattern required 4-8 suffix
+    # characters and so silently missed every legacy-form idea, reporting ideas
+    # that already had a hypothesis and a frozen contract as still needing
+    # design. IDEA-20260801-002 (H-DREG-91be14 / EXP-DREG-620b15) is the case
+    # that caught it. Match 3 characters and up.
+    pat = re.compile(r"IDEA-\d{8}-[0-9a-zA-Z]{3,8}|[A-Z]+-IDEA-\d+")
     for g in ("ledger/hypotheses/*.yaml", "experiments/*/specification.yaml"):
         for p in glob.glob(str(REPO / g)):
             try:
