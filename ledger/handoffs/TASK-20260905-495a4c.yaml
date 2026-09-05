@@ -1,0 +1,222 @@
+handoff:
+  id: TASK-20260905-495a4c
+  from: coordinator
+  to: [validator, red-team]
+  created_at: '2026-09-05'
+  experiment_id: EXP-MONO-d4840b
+  hypothesis_id: H-MONO-dd666a
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+
+  objective: >-
+    URGENT: independently verify a Coordinator-flagged CANDIDATE finding
+    (CORR-20260905-783157, finding_2, NOT yet accepted as established)
+    that the qualifying filter used throughout this sub-thread
+    (Z=3 AND h_+>=1 AND h_->=1 AND max(h_+,h_-)>=2) is mathematically
+    UNSATISFIABLE for every prime -- which would fully explain three
+    independent resource_exhaustions (EXP-MONO-8ec0e5 x2,
+    EXP-MONO-d4840b) as a consequence of the target not existing, not
+    merely being rare.
+
+  review_plan:
+    coordinator_prior: >-
+      Recorded BEFORE either reviewer is dispatched. This Coordinator
+      derived, via direct case analysis of `h_pair_from_characters`'s
+      exact, already-validated logic (cited verbatim below), that the
+      achievable (h_+,h_-) pairs for a Z=3 curve depend on p mod 4:
+      p=1mod4 gives {(0,1),(0,3),(1,0),(3,0)} (h_+,h_- never both
+      nonzero); p=3mod4 gives {(0,0),(1,1)} (the only both-nonzero case
+      has max=1). This Coordinator independently confirmed the case
+      analysis via an exhaustive computer enumeration of all 8 sign
+      patterns of the three pairwise-difference characters for each
+      residue class, and cross-checked EVERY (h_+,h_-) pair observed
+      anywhere in this session (three data points: (0,1) at p=101,
+      (0,3) at p=101, (1,1) at p=103) against the derived sets --
+      all three match exactly, with no counterexample. This Coordinator
+      has HIGH confidence in the derivation but recognizes: (a) the
+      stakes of being wrong here are large (it would mean this
+      Coordinator is about to close down an entire, multi-experiment
+      sub-thread based on a mathematical claim it derived under time
+      pressure); (b) a subtle sign error in the x_ij = chi(-1)*x_ji
+      relation used, or in the "which two of the three roots does each
+      index's own (a,b) pair reference" bookkeeping, could invalidate
+      the whole conclusion; (c) this Coordinator has NOT independently
+      verified the underlying assumption that x_ij and x_ji are related
+      by chi(-1) (i.e. chi(e_j-e_i) = chi(-1)*chi(e_i-e_j)) against the
+      actual field arithmetic, though this is a standard, elementary
+      fact about the Legendre symbol's own multiplicativity that should
+      be trivial to re-confirm independently.
+    claim_under_review: >-
+      (a) Is the claimed relation chi(e_j-e_i) = chi(-1)*chi(e_i-e_j)
+      correct? (b) Given `h_pair_from_characters`'s own exact code
+      (cited verbatim below), is the Coordinator's own case-by-case
+      derivation of the achievable (h_+,h_-) sets for p=1mod4 and
+      p=3mod4 correct? (c) If correct, does this mean
+      "h_+>=1 AND h_->=1 AND max(h_+,h_-)>=2" is PROVABLY unsatisfiable
+      for every prime with Z=3 curves? (d) If the filter is indeed
+      unsatisfiable, what does this imply for H-MONO-dd666a's own status
+      and for the ORIGINAL bivariate-interaction-test objective (is the
+      named multiplicative rival D_prod=h_+h_-(n_++n_-) now understood to
+      be EMPIRICALLY INDISTINGUISHABLE from D_sum at every achievable
+      joint-nonzero point, since (1,1) -- the only such point -- is
+      exactly where the two formulas coincide, per
+      CORR-20260904-b9f9c1's own identity D_prod-D_sum=
+      h_-(h_+-1)n_++h_+(h_--1)n_-, which is zero whenever h_+=h_-=1)?
+    the_exact_code_under_analysis: |
+      def h_pair_from_characters(roots, chi, p):
+          hp = hm = 0
+          for i in range(3):
+              j, k = [q for q in range(3) if q != i]
+              a, b = chi[(roots[i] - roots[j]) % p], chi[(roots[i] - roots[k]) % p]
+              if a == 1 and b == 1:
+                  hp += 1
+              elif a == -1 and b == -1:
+                  hm += 1
+          return hp, hm
+      (verbatim from experiments/EXP-MONO-8ec0e5/implementation/run_amended_bivariate_test.py:264-276,
+      unchanged since EXP-MONO-4e6faa's own original version; `chi` is
+      the quadratic-character lookup table indexed 0..p-1 with chi[0]=0,
+      `roots` is the ordered list [e1,e2,e3] of f's own three distinct
+      roots.)
+    joints:
+      - joint: J1-LEGENDRE-SYMBOL-SIGN-RELATION
+        assigned_to: validator
+        attack_plan: >-
+          Independently confirm, from the definition of the Legendre/
+          quadratic-character symbol (chi(x) = x^((p-1)/2) mod p, mapped
+          to {-1,0,1}), that chi(-x) = chi(-1)*chi(x) for any nonzero x
+          in F_p (a direct consequence of complete multiplicativity:
+          chi(-x)=chi(-1)*chi(x)). Then confirm chi(-1)=+1 iff p=1mod4
+          and chi(-1)=-1 iff p=3mod4 (Euler's criterion / classical
+          fact, independently verify by computing chi(-1) directly at
+          p=101 and p=103 using the SAME chi-table construction this
+          program's own scripts use, and confirming 101=1mod4 gives
+          chi(-1)=+1 while 103=3mod4 gives chi(-1)=-1).
+      - joint: J2-BLIND-CASE-ANALYSIS-REDERIVATION
+        assigned_to: validator
+        attack_plan: >-
+          WITHOUT reading the Coordinator's own case analysis in
+          CORR-20260905-783157 first, independently derive the
+          achievable (h_+,h_-) pairs from the exact code above. Set
+          u=chi(e1-e2), v=chi(e1-e3), w=chi(e2-e3) as the three
+          "canonical-direction" character values, and work out x_21,
+          x_31, x_32 (the REVERSE-direction values the code ALSO needs,
+          for indices 2 and 3's own (a,b) pairs) using J1's own sign
+          relation. Enumerate all 8 sign patterns of (u,v,w) for each of
+          chi(-1)=+1 and chi(-1)=-1, compute the resulting (h_+,h_-) via
+          the code's own exact logic for EACH of the three indices, and
+          report the achievable SET for each residue class. Compare your
+          own result against the Coordinator's own claimed sets
+          ({(0,1),(0,3),(1,0),(3,0)} for p=1mod4;
+          {(0,0),(1,1)} for p=3mod4) -- confirm exact agreement or report
+          the discrepancy precisely.
+      - joint: J3-EMPIRICAL-CROSS-CHECK
+        assigned_to: validator
+        attack_plan: >-
+          Using your own code (fresh curve arithmetic, not reusing any
+          prior script's own functions), directly compute h_+,h_- via
+          `h_pair_from_characters`'s own exact algorithm (reimplemented
+          by you) for EVERY Z=3 curve at p=101 and at p=103 (a small,
+          fully tractable exhaustive scan at these two toy primes), and
+          confirm the OBSERVED set of (h_+,h_-) pairs across ALL such
+          curves at each prime matches your own J2 derivation exactly
+          (i.e. an actual exhaustive computational check, not just the
+          symbolic case analysis, at these two concrete primes).
+      - joint: J4-CONSEQUENCES-IF-CONFIRMED
+        assigned_to: red-team
+        attack_plan: >-
+          ASSUME J1-J3 confirm the Coordinator's own derivation (do not
+          re-derive it yourself from scratch -- if you have spare
+          capacity and want to double-check independently, that is
+          welcome and should be reported separately, but your primary
+          task is to reason about CONSEQUENCES). If the filter really is
+          unsatisfiable for every prime: (a) does this mean
+          H-MONO-dd666a's own status should change from
+          "search_infeasible_at_declared_budget_pending_faster_
+          enumeration_design" to something reflecting genuine
+          impossibility rather than a budget/algorithm problem -- propose
+          the correct disposition; (b) does this mean the named
+          multiplicative rival D_prod is PROVABLY empirically
+          indistinguishable from D_sum at every achievable joint-nonzero
+          (h_+,h_-) point (verify this using CORR-20260904-b9f9c1's own
+          identity D_prod-D_sum=h_-(h_+-1)n_++h_+(h_--1)n_-, evaluated at
+          the ONLY achievable joint point (1,1): does it evaluate to
+          exactly zero there, confirming coincidence is forced, not
+          coincidental, at the only reachable joint point?); (c) is there
+          ANY remaining way to test the "does the additive form correctly
+          combine BOTH h_+ and h_- simultaneously" question at all, given
+          this constraint -- e.g. by testing at DIFFERENT (n_+,n_-)
+          values with the SAME forced (h_+,h_-)=(1,1), which would still
+          vary D_sum=D_prod=n_++n_- (since both formulas agree there
+          regardless of n_+,n_-, this does NOT discriminate them, but
+          might still be worth confirming the additive form's own
+          correctness at multiple (n_+,n_-) values under this forced
+          point) -- or is the interaction-term question genuinely,
+          permanently unanswerable by any Z=3 curve, requiring either a
+          non-Z=3 stratum or an entirely different construction to ever
+          test?
+      - joint: J5-INDEPENDENT-SANITY-CHECK
+        assigned_to: red-team
+        attack_plan: >-
+          Independently verify (a light version of J2/J3, not the full
+          rederivation -- your primary task is J4) that the three
+          empirically-observed (h_+,h_-) data points from this session
+          (EXP-MONO-4e6faa: (0,1) at p=101; EXP-MONO-ee06e2: (0,3) at
+          p=101; EXP-MONO-8ec0e5/EXP-MONO-98abb2's own coincidence:
+          (1,1) at p=103) are indeed consistent with the Coordinator's
+          own claimed achievable sets, as a basic sanity check
+          independent of the Validator's own more thorough joints.
+    blindness:
+      lifted_for: null
+      rationale: null
+      declaration: >-
+        Both reviewers launched as fresh subagents with no prior context.
+        Validator's J2 is EXPLICITLY BLIND (derive before reading the
+        Coordinator's own claimed sets). Each reviewer must state whether
+        it read the other's output before forming its own conclusions.
+    proves_too_much:
+      objects:
+        - >-
+          J2's own case-analysis method, applied to the TRIVIAL case
+          "all three of u,v,w equal +1" under p=1mod4, must give
+          (h_+,h_-)=(3,0) exactly (the maximal, fully-split-favorable
+          case) -- a sanity check that the method correctly handles the
+          "boundary" all-agree case before trusting its verdict on the
+          harder mixed cases.
+      failure_signature: >-
+        If the reviewer's own method does not give (3,0) for this
+        trivial case, the method itself has an error.
+    blind_rederivation:
+      required: true
+      quantity: >-
+        The achievable (h_+,h_-) sets for p=1mod4 and p=3mod4, derived
+        from the exact `h_pair_from_characters` code, independently and
+        before reading the Coordinator's own claimed sets.
+      assigned_to: validator
+      blind_from:
+        - ledger/corrections/CORR-20260905-783157.yaml
+
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 0
+
+  constraints:
+    - Do not commit or push. Report only, in your own review directory under experiments/EXP-MONO-d4840b/reviews/{validator,red-team}/.
+    - Do not read the sibling reviewer's directory before forming your own conclusions; disclose whether you did.
+    - Do not change any research status, ledger record, or hypothesis field -- even if you confirm the finding, the Coordinator will compose the resulting status changes based on your report.
+
+  completion_gate: >-
+    Both validation-report.yaml and red-team-report.yaml filed, each
+    addressing its owned joints explicitly, before the Coordinator
+    composes the resulting correction supersession (if confirmed),
+    evidence, and decision records.
+
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    runtime: claude_code
+    resolved_model_id: claude-sonnet-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []
