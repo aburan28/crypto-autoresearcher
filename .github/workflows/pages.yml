@@ -1,0 +1,132 @@
+# Publish the research dashboard to GitHub Pages.
+#
+# The site is a SNAPSHOT of one commit, rebuilt on every push to main so it
+# tracks the merges that actually change the corpus. `data/meta.json` carries
+# the sha and build time, the page shows both, and every record links to its
+# source at that sha -- a static page that implied freshness would mislead on
+# exactly the point that matters.
+#
+# ONE-TIME SETUP: Settings -> Pages -> Build and deployment -> Source:
+# "GitHub Actions". Until that is set, this workflow builds and then fails at
+# the deploy step with "Get Pages site failed".
+name: pages
+
+on:
+  push:
+    branches: [main]
+    # The dashboard reads these and nothing else. A push that touches only
+    # docs or another campaign's tooling does not need a 125 MB redeploy.
+    paths:
+      - 'ledger/**'
+      - 'experiments/**'
+      - 'knowledge/**'
+      - 'ui/**'
+      - 'orchestration/research-priority.yaml'
+      - 'tools/ecc_priority.py'
+      - '.github/workflows/pages.yml'
+  # A safety net: `paths` above can miss a change that reaches the corpus
+  # through a path nobody predicted, which is how the generated-artifact
+  # globs in .gitignore kept growing.
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+  # Build (never deploy) on a pull request that changes the dashboard itself.
+  # Deliberately NOT the corpus paths above: a research PR cannot break the
+  # build, and paying two minutes on every one of them is the coupling this
+  # repository has spent real effort removing. Without this, a workflow or
+  # builder mistake would first surface AFTER merge, on main, with the
+  # published page as the thing that breaks.
+  pull_request:
+    paths:
+      - 'ui/**'
+      - 'tests/test_ui_index.py'
+      - '.github/workflows/pages.yml'
+
+permissions:
+  contents: read
+
+# Merges to main arrive in bursts. Publish the newest and drop the ones it
+# supersedes, but never interrupt a deploy that is already uploading. A PR
+# build is a check, not a publication, so it gets its own group and its
+# superseded runs are cancelled.
+concurrency:
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # PyYAML is the dashboard's only runtime dependency; pytest is here to
+      # run its tests, below. Neither the package nor its optional extras is
+      # installed -- the dashboard deliberately does not need them.
+      - run: python -m pip install --disable-pip-version-check 'PyYAML>=6.0' 'pytest>=8.0'
+
+      - name: Check the UI against its own tests
+        run: python -m pytest tests/test_ui_index.py -q
+
+      - name: Build the static site
+        run: python -m ui.build --out site --report site-report.json
+
+      # A build that produced no records would deploy an empty dashboard over
+      # a working one. Fail here instead.
+      - name: Verify the build is not empty
+        run: |
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          report = json.loads(Path('site-report.json').read_text())
+          problems = []
+          if report['records'] < 100:
+              problems.append(f"only {report['records']} records indexed")
+          for required in ('index.html', 'app.js', 'app.css',
+                           'data/meta.json', 'data/index.json', 'data/overview.json',
+                           'data/goals.json', 'data/experiments.json',
+                           'data/integrity.json'):
+              if not Path('site', required).is_file():
+                  problems.append(f'missing {required}')
+          # GitHub Pages publishes at most 1 GB.
+          if report['bytes'] > 900e6:
+              problems.append(f"{report['megabytes']} MB exceeds the 1 GB Pages limit")
+          if problems:
+              print('BUILD REJECTED: ' + '; '.join(problems), file=sys.stderr)
+              raise SystemExit(1)
+          summary = (
+              f"| records | {report['records']} |\n"
+              f"| files | {report['files']} |\n"
+              f"| size | {report['megabytes']} MB |\n"
+              f"| build | {report['seconds']} s |\n"
+              f"| unparseable ledger records | {report['unparseable']} |\n")
+          Path('summary.md').write_text(
+              '### Dashboard snapshot\n\n| | |\n| --- | --- |\n' + summary)
+          PY
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      # A pull request stops here: it has proved the site builds, and
+      # uploading 125 MB it will never publish is waste.
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Scoped to this job: the build needs neither, and a token that can
+    # publish the site should not be live while arbitrary branch code runs.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
