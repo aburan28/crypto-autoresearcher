@@ -105,7 +105,7 @@ def build(repo: Path, out: Path, clean: bool = True,
     while index.deep_scan_state == "running":
         time.sleep(0.5)
     say(f"  {len(index.records)} records, {len(index.goals)} goals, "
-        f"{len(index.experiments)} experiments")
+        f"{len(index.experiments)} experiments, {len(index.findings)} findings")
 
     if clean and out.exists():
         shutil.rmtree(out)
@@ -131,6 +131,7 @@ def build(repo: Path, out: Path, clean: bool = True,
     total += write_json(data / "overview.json", payloads.overview_payload(index))
     total += write_json(data / "goals.json", payloads.goals_payload(index))
     total += write_json(data / "experiments.json", payloads.experiments_payload(index))
+    total += write_json(data / "findings.json", payloads.findings_payload(index))
     total += write_json(data / "integrity.json", index.integrity)
 
     say("  goals")

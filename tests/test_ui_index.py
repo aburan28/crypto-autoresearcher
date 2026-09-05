@@ -112,6 +112,51 @@ def test_second_root_key_ends_the_first_record():
     assert fields["status"] == "running"               # not the handoff's
 
 
+def test_trailing_comment_is_dropped_and_bare_null_reads_as_empty():
+    """`direction: contradicts # the hypothesis` is a direction of `contradicts`,
+    and an unquoted `null` is YAML's null -- read as the word it became a date
+    that sorted above every real one."""
+    _, fields = scan.shallow_fields(
+        "evidence:\n"
+        "  id: EV-X-001\n"
+        "  direction: contradicts # contradicts the hypothesis\n"
+        "  decided_at: null\n"
+        "  tilde: ~\n"
+        "  note: 'kept # not a comment'\n"
+        "  quoted_null: 'null'\n"
+        "  url: https://example.org/a#frag\n"
+    )
+    assert fields["direction"] == "contradicts"
+    assert fields["decided_at"] == ""
+    assert fields["tilde"] == ""
+    assert fields["note"] == "kept # not a comment"
+    assert fields["quoted_null"] == "null"
+    assert fields["url"] == "https://example.org/a#frag"
+
+
+def test_front_matter_folds_block_scalars_and_marks_structure():
+    """`title: >-` over two lines is a title, not the string ">-"."""
+    fields = scan.front_matter(
+        "---\n"
+        "id: KN-FIND-x\n"
+        "title: >-\n"
+        "  Two lines\n"
+        "  of title\n"
+        "tags: [a, b]\n"
+        "proof_refs:\n"
+        "  - p/q.md\n"
+        "superseded_by: null\n"
+        "added: 2026-09-04\n"
+        "---\n"
+        "body\n"
+    )
+    assert fields["title"] == "Two lines of title"
+    assert fields["tags"] == scan.STRUCTURED
+    assert fields["proof_refs"] == scan.STRUCTURED
+    assert fields["superseded_by"] == ""
+    assert fields["added"] == "2026-09-04"
+
+
 # ---------------------------------------------------------------------------
 # Identifier grammar. Both forms must link: legacy records are immutable and
 # are most of this program's history.
@@ -171,9 +216,67 @@ def tiny_repo(tmp_path: Path) -> Path:
     evidence = tmp_path / "ledger" / "evidence"
     evidence.mkdir(parents=True)
     (evidence / "EV-ECDLP-001.yaml").write_text(
-        "evidence:\n  id: EV-ECDLP-001\n  strength: replicated\n"
-        "  scope_statement: toy scale only\n  hypothesis_id: H-GONE-999\n")
+        "evidence:\n  id: EV-ECDLP-001\n  goal_id: GOAL-ECDLP-001\n  strength: replicated\n"
+        "  direction: contradicts # the hypothesis\n  claim_tier: toy\n  proof_status: derivation\n"
+        "  scope_statement: toy scale only\n  hypothesis_id: H-GONE-999\n  recorded_at: '2026-09-01'\n"
+        "  obstruction:\n"
+        "    statement: The first fall degree grows with the summation index.\n"
+        "    quantity: first fall degree\n"
+        "    value: '5, 5, 6 at m = 2, s = 2..4'\n"
+        "    scope: toy instances only\n"
+        "    measured_by: [EXP-ECDLP-001]\n"
+        "    resource_check:\n      examined: true\n      reading: none found\n      spawned_ids: []\n")
     (evidence / "broken.yaml").write_text("evidence:\n  id: [unclosed\n")
+
+    hypotheses = tmp_path / "ledger" / "hypotheses"
+    hypotheses.mkdir(parents=True)
+    (hypotheses / "H-ECDLP-001.yaml").write_text(
+        "hypothesis:\n  id: H-ECDLP-001\n  question_id: RQ-ECDLP-001\n  goal_id: GOAL-ECDLP-001\n"
+        "  statement: Summation polynomials descend in toy fields.\n"
+        "  status: weakened\n  added: '2026-08-30'\n")
+
+    decisions = tmp_path / "ledger" / "decisions"
+    decisions.mkdir(parents=True)
+    (decisions / "DEC-20260902-000001.yaml").write_text(
+        "coordinator_decision:\n  id: DEC-20260902-000001\n  decision: support\n"
+        "  goal_id: GOAL-ECDLP-001\n  target_ids: [H-ECDLP-001, EV-ECDLP-001]\n"
+        "  context: Promotes the toy-scale finding.\n"
+        "  knowledge_promotion:\n    promoted: [KN-FIND-001]\n    not_warranted: null\n"
+        "  decided_at: null\n  recorded_at: '2026-09-02'\n")
+
+    findings = tmp_path / "knowledge" / "findings"
+    findings.mkdir(parents=True)
+    (findings / "KN-FIND-001.md").write_text(
+        "---\n"
+        "id: KN-FIND-001\n"
+        "type: internal_finding\n"
+        "title: Toy-scale descent measured, not assumed\n"
+        "tags: [toy, descent]\n"
+        "confidence: reported\n"
+        "internal_refs: [EV-ECDLP-001, DEC-20260902-000001, H-ECDLP-001]\n"
+        "proof_status: derivation\n"
+        "proof_refs:\n  - experiments/EXP-ECDLP-001/analysis/note.md\n"
+        "claim_tier: toy\n"
+        "added: 2026-09-02\n"
+        "superseded_by: null\n"
+        "---\n\n"
+        "## Provenance\n\nPromoted by DEC-20260902-000001 from EV-ECDLP-001.\n\n"
+        "## Finding\n\nTwo halves, of equal weight.\n\n"
+        "The first fall degree of the toy system grows with the summation index, so\n"
+        "no bounded-degree Macaulay matrix can see the descent.\n\n"
+        "- measured at m = 2 and m = 3\n- exact integers, no fit\n\n"
+        "## Not claimed\n\nNothing about cryptographic sizes.\n")
+    (findings / "KN-FIND-bare01.md").write_text(
+        "# A bare finding\n\nThis entry predates the front matter convention.\n")
+
+    problems = tmp_path / "knowledge" / "open-problems"
+    problems.mkdir(parents=True)
+    (problems / "KN-OPEN-001.md").write_text(
+        "---\nid: KN-OPEN-001\ntype: open_problem\ntitle: Does the toy descent scale?\n"
+        "tags: [toy, scaling]\nstatus: open\nadded: 2026-08-20\n---\n\n"
+        "## Statement\nWhether the measured descent survives past 32-bit fields.\n\n"
+        "## Current state (as reported)\nNo. Only toy instances have been run.\n\n"
+        "## What would resolve it\nA medium-tier replication.\n")
 
     spec = tmp_path / "experiments" / "EXP-ECDLP-001"
     (spec / "runs" / "RUN-ECDLP-001-a").mkdir(parents=True)
@@ -417,7 +520,8 @@ def _json(path: Path):
 def test_build_emits_every_file_the_client_boots_from(built_site):
     for required in ("index.html", "app.js", "app.css", ".nojekyll",
                      "data/meta.json", "data/index.json", "data/overview.json",
-                     "data/goals.json", "data/experiments.json", "data/integrity.json"):
+                     "data/goals.json", "data/experiments.json", "data/findings.json",
+                     "data/integrity.json"):
         assert (built_site / required).is_file(), required
 
 
@@ -526,3 +630,162 @@ def test_the_integrity_report_published_is_a_measured_one(built_site):
     integrity = _json(built_site / "data" / "integrity.json")
     assert integrity["unparseable_state"] == "complete"
     assert "ledger/evidence/broken.yaml" in {u["path"] for u in integrity["unparseable"]}
+
+
+# ---------------------------------------------------------------------------
+# Findings: the program's output, read exactly. A findings board that showed
+# titles without claims, or claims without their basis, would be decoration.
+# ---------------------------------------------------------------------------
+
+from ui.index import statement_excerpt, split_front_matter  # noqa: E402
+
+
+def test_statement_excerpt_prefers_the_statement_section_and_its_blockquote():
+    body = (
+        "## Provenance\n\nCame from somewhere.\n\n"
+        "## What this says, and what it does NOT say\n\n"
+        "**Not toy.** Some framing first.\n\n"
+        "> The estimator is chaotic when m << n.\n\n"
+        "More prose after the quote.\n"
+    )
+    assert statement_excerpt(body) == "The estimator is chaotic when m << n."
+
+
+def test_statement_excerpt_joins_a_framing_sentence_with_the_claim_after_it():
+    body = "## Finding\n\nTwo halves, of equal weight.\n\nThe degree grows.\n\n- measured\n- exact\n"
+    assert statement_excerpt(body) == "Two halves, of equal weight. The degree grows. measured exact"
+
+
+def test_statement_excerpt_falls_back_to_the_first_prose_and_clips_at_a_word():
+    body = "Just a paragraph " + "word " * 300
+    out = statement_excerpt(body, limit=80)
+    assert out.startswith("Just a paragraph word") and out.endswith("…") and len(out) <= 81
+
+
+def test_split_front_matter_is_exact_and_reports_absence():
+    front, body, error = split_front_matter("---\nid: KN-X\ntags: [a, b]\nadded: 2026-01-02\n---\n\n# Body\n")
+    assert error is None and front["tags"] == ["a", "b"] and body.strip() == "# Body"
+    assert split_front_matter("# no front matter\n")[2] == "no front matter"
+    assert split_front_matter("---\nid: [unclosed\n---\nbody\n")[2].startswith(("ScannerError", "ParserError"))
+
+
+def test_findings_are_parsed_exactly_and_attributed_through_their_evidence(tiny_index):
+    finding = next(f for f in tiny_index.findings if f.record_id == "KN-FIND-001")
+    assert finding.title == "Toy-scale descent measured, not assumed"
+    assert finding.proof_status == "derivation" and finding.claim_tier == "toy"
+    assert finding.status == "current" and finding.error is None
+    assert finding.proof_refs == 1 and finding.tags == ["toy", "descent"]
+    assert finding.refs[:3] == ["EV-ECDLP-001", "DEC-20260902-000001", "H-ECDLP-001"]
+    # The entry never names its goal; the evidence it rests on does.
+    assert finding.goal_ids == ["GOAL-ECDLP-001"]
+    assert finding.areas == ["ECDLP"]                    # not the cited KN entries' families
+    assert finding.excerpt.startswith("Two halves, of equal weight. The first fall degree")
+    assert "measured at m = 2 and m = 3" in finding.excerpt
+
+
+def test_a_finding_without_front_matter_still_indexes_and_says_so(tiny_index):
+    bare = next(f for f in tiny_index.findings if f.record_id == "KN-FIND-bare01")
+    assert bare.error == "no front matter"
+    assert bare.title == "A bare finding"                # from its heading
+    assert bare.status == "current" and bare.excerpt.startswith("This entry predates")
+
+
+def test_open_problems_carry_statement_state_and_resolution(tiny_index):
+    problem = tiny_index.open_problems[0]
+    assert problem.record_id == "KN-OPEN-001" and problem.status == "open"
+    assert problem.statement == "Whether the measured descent survives past 32-bit fields."
+    assert problem.current_state == "No. Only toy instances have been run."
+    assert problem.resolution == "A medium-tier replication."
+
+
+def test_obstruction_blocks_are_read_exactly_from_evidence(tiny_index):
+    assert len(tiny_index.obstructions) == 1
+    block = tiny_index.obstructions[0]
+    assert block.evidence_id == "EV-ECDLP-001" and block.goal_id == "GOAL-ECDLP-001"
+    assert block.statement == "The first fall degree grows with the summation index."
+    assert block.quantity == "first fall degree" and block.value == "5, 5, 6 at m = 2, s = 2..4"
+    assert block.measured_by == ["EXP-ECDLP-001"]
+    assert block.resource_examined is True and block.resource_reading == "none found"
+
+
+def test_knowledge_families_are_a_facet_of_their_own_not_areas(tiny_index):
+    facets = tiny_index.facets()
+    assert {f["key"] for f in facets["knowledge"]} == {"FIND", "OPEN"}
+    assert "FIND" not in {a["key"] for a in facets["areas"]}
+    assert "ECDLP" in {a["key"] for a in facets["areas"]}
+
+
+def test_a_null_date_falls_through_to_the_next_date_field(tiny_index):
+    decision = tiny_index.records["DEC-20260902-000001"]
+    assert decision.date == "2026-09-02"                  # recorded_at, not the word "null"
+
+
+def test_hypothesis_verdicts_fold_scoped_spellings_and_skip_design_stages():
+    assert payloads.hypothesis_verdict("supported_scoped_two_adjacent_toy_instances") == "supported_scoped"
+    assert payloads.hypothesis_verdict("supported") == "supported"
+    assert payloads.hypothesis_verdict("weakened") == "weakened"
+    assert payloads.hypothesis_verdict("proposed_instrument_underexplored_single_cell_inconclusive") is None
+    assert payloads.hypothesis_verdict("approved") is None
+
+
+def test_direction_polarity_folds_forty_spellings_into_four():
+    fold = payloads.direction_polarity
+    assert fold("supports_with_caveat") == "supports" and fold("confirms") == "supports"
+    assert fold("weakening_scoped") == "weakens" and fold("refutes_own_prior_reading") == "weakens"
+    assert fold("neutral") == "neutral" and fold("") == "neutral" and fold("n/a") == "neutral"
+    assert fold("corrects_prior") == "mixed" and fold("revises") == "mixed"
+
+
+def test_findings_payload_carries_every_board(tiny_index):
+    payload = payloads.findings_payload(tiny_index)
+    assert payload["counts"]["findings"] == 2 and payload["counts"]["current"] == 2
+    assert payload["counts"]["by_proof_status"]["derivation"] == 1
+    verdicts = payload["hypothesis_verdicts"]
+    assert [v["id"] for v in verdicts] == ["H-ECDLP-001"]
+    assert verdicts[0]["verdict"] == "weakened"
+    assert verdicts[0]["decision_ids"] == ["DEC-20260902-000001"]
+    evidence = next(e for e in payload["evidence"] if e["id"] == "EV-ECDLP-001")
+    assert evidence["direction"] == "contradicts" and evidence["polarity"] == "weakens"
+    assert evidence["neutral"] is False and evidence["goal_id"] == "GOAL-ECDLP-001"
+    assert evidence["finding_ids"] == ["KN-FIND-001"]
+    # `broken.yaml` is an evidence record too, with no direction: neutral.
+    assert payload["evidence_counts"]["polarity"] == {"neutral": 1, "weakens": 1}
+    assert [o["evidence_id"] for o in payload["obstructions"]] == ["EV-ECDLP-001"]
+    assert payload["open_problems"][0]["id"] == "KN-OPEN-001"
+
+
+def test_overview_leads_with_findings_and_the_pipeline(tiny_index):
+    overview = payloads.overview_payload(tiny_index)
+    assert overview["findings"]["current"] == 2
+    assert overview["findings"]["latest"][0]["id"] == "KN-FIND-001"    # newest first
+    assert [s["label"] for s in overview["pipeline"]] == [
+        "questions", "proposals", "hypotheses", "experiments", "runs", "evidence",
+        "decisions", "findings"]
+    stages = {s["key"]: s for s in overview["pipeline"]}
+    assert stages["H"]["note"] == "1 with a verdict"
+    assert stages["EV"]["note"] == "1 with a direction"
+    assert stages["FIND"]["count"] == 2 and stages["FIND"]["note"] is None
+    assert overview["recent_decisions"] == ["DEC-20260902-000001"]
+    assert overview["hypothesis_verdicts"] == {"weakened": 1}
+    assert overview["evidence_polarity"] == {"neutral": 1, "weakens": 1}
+    assert overview["open_problems"]["latest"][0]["id"] == "KN-OPEN-001"
+
+
+def test_build_emits_the_findings_board(built_site):
+    board = _json(built_site / "data" / "findings.json")
+    assert {"findings", "counts", "hypothesis_verdicts", "evidence", "evidence_counts",
+            "obstructions", "open_problems"} <= set(board)
+    assert board["findings"][0]["id"] == "KN-FIND-001"
+
+
+def test_a_knowledge_entry_page_carries_its_body_and_front_matter(built_site):
+    """The body IS the entry. Without it a finding's page was a title and a
+    link to GitHub, which is not a page."""
+    payload = _json(built_site / "data" / "records" / "KN-FIND-001.json")
+    assert payload["verified"] is True
+    assert payload["body"]["proof_status"] == "derivation"
+    assert "## Finding" in payload["markdown"]
+    assert "raw" not in payload                            # source text still not bundled
+    bare = _json(built_site / "data" / "records" / "KN-FIND-bare01.json")
+    assert bare["verified"] is False and bare["parse_error"] == "no front matter"
+    assert bare["markdown"].startswith("# A bare finding")
