@@ -88,8 +88,9 @@ contract is in `AGENTS.md`. Read both before acting, and follow them exactly.
   the candidate in the partial-action / branching / coordinate-dependent
   trichotomy, run the lossy-projection test against that named operation
   set, and price it by orbit-canonicalisation cost or by the (L, b) meter of
-  IDEA-20260802-002. Index calculus is the branching class; a factor base
-  that escapes KN-OPEN-020 must say how. Handoff block:
+  IDEA-20260802-002. Index calculus is Class I, partial-action
+  (IDEA-20260806-c5d183); a factor base that escapes KN-OPEN-020 must say
+  how. Handoff block:
   `docs/object-frame-ideation.md`.
 - **Premature closure is a failure mode, symmetrically with overclaiming.**
   "This target is exhaustively studied" is a hypothesis about the search, not

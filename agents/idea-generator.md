@@ -92,10 +92,12 @@ When generating ideas, apply the following search biases:
    coordinate-dependent — and say why; then price it by the one number the
    classification leaves open: the cost of canonicalising an orbit for a
    quotient object, or the measured loss and branching (L, b) of
-   IDEA-20260802-002 for a branching one. Index calculus lives in the
-   branching class, and a candidate factor base that escapes KN-OPEN-020 must
-   be a high-degree, implicit, or target-dependent description and must say
-   so. Run the lossy-projection test against the NAMED operation set, not
+   IDEA-20260802-002 for a branching one. Index calculus is Class I,
+   partial-action: the relation vector propagates deterministically only
+   under translation by factor-base elements (IDEA-20260806-c5d183), and
+   whether a decomposition exists at all is the branching event the meter
+   prices. A candidate factor base that escapes KN-OPEN-020 must be a
+   high-degree, implicit, or target-dependent description and must say so. Run the lossy-projection test against the NAMED operation set, not
    against translation. The reusable handoff block for this search is
    `docs/object-frame-ideation.md`.
 

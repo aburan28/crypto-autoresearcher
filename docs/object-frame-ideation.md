@@ -32,8 +32,10 @@ searches the complement of what is closed instead of rediscovering it.
 
 The consequence that shapes every handoff: **a new arithmetic for the ECDLP is
 never a new projection of the group alone.** It is a pair — a representation
-of the point and an operation set the object must survive — or it is a
-branching object whose loss and branching are measured, not asserted.
+of the point and an operation set the object must survive — a partial
+action, as index calculus is (Class I of `IDEA-20260806-c5d183`: the relation
+vector propagates only under translation by factor-base elements) — or it is
+a branching object whose loss and branching are measured, not asserted.
 
 ## 2. Off-limits as the primary lens
 
@@ -67,8 +69,9 @@ constraints:
     operation set Sigma the tracked object must survive). Name both
     explicitly in `mechanism`. Sigma must not be the full translation action,
     which is closed for lossy objects by IDEA-20260806-c5d183 and
-    KN-FIND-ffe1df Theorem C; if Sigma contains translation, the candidate is
-    a branching object and must say so.
+    KN-FIND-ffe1df Theorem C; if Sigma contains the full translation action,
+    the candidate is a branching object and must say so. Index calculus is
+    Class I, partial-action (translation by factor-base elements only).
   - >-
     TRICHOTOMY. Place each candidate in exactly one class of
     IDEA-20260806-c5d183 -- partial-action, branching, or
