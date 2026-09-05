@@ -221,6 +221,14 @@ def _ledger_record(path: Path, record: dict[str, Any], git_commit: str) -> dict[
     }
 
 
+def _handoff(path: Path, record: dict[str, Any], git_commit: str) -> dict[str, Any]:
+    metadata = _ledger_record(path, record, git_commit)
+    metadata["title"] = str(_unwrap(record).get("objective") or path.stem)[:300]
+    # A task envelope supplies coordination context, never result evidence.
+    metadata["evidence_level"] = EvidenceLevel.NONE.value
+    return metadata
+
+
 def _experiment(path: Path, record: dict[str, Any], git_commit: str) -> dict[str, Any]:
     body = _unwrap(record)
     experiment_id = str(body.get("id") or path.parent.name)
@@ -281,6 +289,8 @@ RULES: tuple[StagingRule, ...] = (
                 SourceType.LEDGER, "question", _ledger_record),
     StagingRule("proposals", "ledger/proposals/IDEA-*.yaml", "ledgers/proposals",
                 SourceType.LEDGER, "proposal", _ledger_record),
+    StagingRule("handoffs", "ledger/handoffs/TASK-*.yaml", "ledgers/handoffs",
+                SourceType.LEDGER, "handoff", _handoff),
     StagingRule("goals-flat", "ledger/goals/GOAL-*.yaml", "ledgers/goals",
                 SourceType.LEDGER, "goal", _ledger_record),
     StagingRule("goals-sharded", "ledger/goals/GOAL-*/goal.yaml", "ledgers/goals",
