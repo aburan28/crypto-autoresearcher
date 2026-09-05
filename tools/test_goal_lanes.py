@@ -121,6 +121,104 @@ class ClaimTests(unittest.TestCase):
         # ...but not a different one.
         lanes.claim_task(b, Repo.queue(b), PRODUCER_2, owner="coord-b", ttl_minutes=30, now=T0)
 
+    def _post_merge_collision(self) -> Path:
+        """The state an add/add merge leaves: winner's claim + loser's release.
+
+        Two sessions claim inside one fetch interval, both at epoch 1 (the
+        collision docs/concurrent-goal-lanes.md says to expect). The loser
+        releases `abandoned` as instructed. Merging keeps the winner's claim,
+        and the loser's release survives beside it at the same epoch.
+        """
+        a = self.repo.a
+        claims = a / BATCH_DIR / "claims"
+        claims.mkdir(parents=True, exist_ok=True)
+        (claims / f"{PRODUCER}.1.claim.json").write_text(json.dumps({
+            "schema": lanes.CLAIM_SCHEMA, "task_id": PRODUCER, "epoch": 1,
+            "owner": "coord-winner", "acquired_at": lanes.fmt(T0),
+            "expires_at": lanes.fmt(T0 + dt.timedelta(minutes=30)),
+            "branch": "lane-winner", "worktree": str(a), "session": None,
+            "forced": False, "supersedes": None,
+            "write_scope": [f"{BATCH_DIR}/tasks/{PRODUCER}"],
+        }, indent=1))
+        (claims / f"{PRODUCER}.1.release.json").write_text(json.dumps({
+            "schema": lanes.RELEASE_SCHEMA, "task_id": PRODUCER, "epoch": 1,
+            "owner": "coord-loser", "outcome": "abandoned",
+            "released_at": lanes.fmt(T0 + dt.timedelta(minutes=1)),
+            "was_expired": False, "note": None, "artifact_sha256": {},
+        }, indent=1))
+        return a
+
+    def test_foreign_release_cannot_free_a_live_claim(self) -> None:
+        # THE REGRESSION. Pairing claim and release on (task, epoch) alone read
+        # this as `released` and re-offered a task its holder was still working.
+        a = self._post_merge_collision()
+        seen = lanes.claim_summary(a, Repo.queue(a), now=T0 + dt.timedelta(minutes=2))
+        self.assertEqual(seen[PRODUCER]["status"], "live")
+        self.assertEqual(seen[PRODUCER]["owner"], "coord-winner")
+        self.assertIsNone(seen[PRODUCER]["release"])
+        self.assertEqual(seen[PRODUCER]["foreign_release"]["owner"], "coord-loser")
+        # The scope is HELD, so another session is still refused the task.
+        with self.assertRaises(lanes.LaneError):
+            lanes.claim_task(a, Repo.queue(a), PRODUCER, owner="coord-third",
+                             ttl_minutes=30, now=T0 + dt.timedelta(minutes=2))
+
+    def test_foreign_release_is_not_offered_as_free_by_the_dispatcher(self) -> None:
+        # The consequence that actually cost something: research_dispatch must
+        # not offer a task whose only "release" was written by a non-owner.
+        a = self._post_merge_collision()
+        now = T0 + dt.timedelta(minutes=2)
+        claims = lanes.claim_summary(a, Repo.queue(a), include_refs=False, now=now)
+        plan = dispatch.select(json.loads(Repo.queue(a).read_text()), now=now, claims=claims)
+        by_id = {d["id"]: d for d in plan["dispatches"]}
+        self.assertEqual(by_id[PRODUCER]["state"], "running")
+        self.assertEqual(by_id[PRODUCER]["claim"]["owner"], "coord-winner")
+        self.assertTrue(plan["gates"]["claimed_tasks_are_not_offered_to_others"])
+
+    def test_a_foreign_release_strands_the_holder_at_that_epoch(self) -> None:
+        """KNOWN LIMITATION, pinned deliberately rather than left to be rediscovered.
+
+        The fix stops the false free, but it cannot give the holder its release
+        back: the path is `{task}.{epoch}.release.json`, the impostor's file
+        already occupies it, and these files are write-once by design. So the
+        true owner cannot record ANY outcome at this epoch and must let the
+        claim expire. That is strictly better than the bug it replaces (a live
+        task silently re-offered), and it is not free.
+
+        Fixing it properly means putting the owner in the release filename or
+        bumping the epoch, which changes a write-once naming scheme that
+        CLAIM_NAME and every committed claim file already depend on. Out of
+        scope here; this test exists so the cost is visible and any future
+        change to that scheme has to confront it.
+        """
+        a = self._post_merge_collision()
+        now = T0 + dt.timedelta(minutes=2)
+        # The impostor is refused, which is the fencing check doing its job.
+        with self.assertRaisesRegex(lanes.LaneError, "only the owner releases"):
+            lanes.release_task(a, Repo.queue(a), PRODUCER, owner="coord-loser",
+                               outcome="abandoned", now=now)
+        # But so is the rightful owner -- on the write-once path, not on fencing.
+        with self.assertRaisesRegex(lanes.LaneError, "write-once"):
+            lanes.release_task(a, Repo.queue(a), PRODUCER, owner="coord-winner",
+                               outcome="completed", now=now)
+        # The scope stays HELD until expiry, which is the safe direction.
+        self.assertEqual(
+            lanes.claim_summary(a, Repo.queue(a), now=now)[PRODUCER]["status"], "live")
+        self.assertEqual(
+            lanes.claim_summary(a, Repo.queue(a),
+                                now=T0 + dt.timedelta(minutes=31))[PRODUCER]["status"],
+            "expired")
+
+    def test_own_release_still_frees_the_claim(self) -> None:
+        # Guard against "fix" by making everything live: the ordinary path holds.
+        a = self.repo.a
+        lanes.claim_task(a, Repo.queue(a), PRODUCER, owner="coord-a", ttl_minutes=30, now=T0)
+        lanes.release_task(a, Repo.queue(a), PRODUCER, owner="coord-a",
+                           outcome="completed", now=T0 + dt.timedelta(minutes=1))
+        seen = lanes.claim_summary(a, Repo.queue(a), now=T0 + dt.timedelta(minutes=2))
+        self.assertEqual(seen[PRODUCER]["status"], "released")
+        self.assertEqual(seen[PRODUCER]["release"]["outcome"], "completed")
+        self.assertIsNone(seen[PRODUCER]["foreign_release"])
+
     def test_expiry_frees_scope_and_reclaim_gets_next_epoch(self) -> None:
         a = self.repo.a
         lanes.claim_task(a, Repo.queue(a), PRODUCER, owner="coord-a", ttl_minutes=30, now=T0)
