@@ -1,0 +1,162 @@
+{
+  "schema": "crypto.autoresearch.curve_solver_pilot_draft.v1",
+  "status": "draft_not_approved",
+  "approved_by": null,
+  "intake_task_id": "TASK-20260904-c44154",
+  "recorded_at": "2026-09-05T00:13:27.175Z",
+  "user_objective_status": "The user requested ML/RL curve selection for faster Groebner-basis/root computation, but their sentence ended at the goal here is. Final objective remains unfinished.",
+  "scope": "Proposed bounded educational/software smoke pilot on self-generated nonsingular elliptic curves and unrelated quadratic intersections over six small prime fields. No training or mathematical benchmark is authorized by this draft.",
+  "authorization_boundary": [
+    "Static documentation and Harbor schema/readiness checks only in this intake.",
+    "Do not implement or execute training, solver benchmarks, a research loop, or container oracle.",
+    "No ECDLP, summation-polynomial attack pipeline, private-key recovery, deployed target, arbitrary polynomial import, or cryptographic/asymptotic/novelty claim."
+  ],
+  "decision_uncertainty": "After repository integrity is restored and a new Coordinator approval is committed, can a small reproducible pipeline measure exact solver costs and train/evaluate simple selection baselines without leakage or correctness errors?",
+  "design": {
+    "allowed_primes": [
+      101,
+      103,
+      107,
+      109,
+      113,
+      127
+    ],
+    "prime_hard_cap": 127,
+    "splits": {
+      "train": [
+        101,
+        103,
+        107
+      ],
+      "validation": [
+        109
+      ],
+      "test": [
+        113,
+        127
+      ]
+    },
+    "seed": 20260904,
+    "curves_per_prime": 8,
+    "curve_generation": "Short Weierstrass y^2=x^3+a*x+b. Candidate zero is (a,b)=(1,1). Sample seven distinct other pairs uniformly with numpy default_rng seeded by SeedSequence([20260904,p,0]); reject 4*a^3+27*b^2=0 modulo p. Preserve every rejection and generation cost. No group-order or discrete-log computation.",
+    "auxiliary_polynomials_per_prime": 4,
+    "auxiliary_generation": "Four quadratic polynomials q=c20*x^2+c11*x*y+c02*y^2+c10*x+c01*y+c00. Independently sample each coefficient uniformly in 1..p-1 using SeedSequence([20260904,p,1]). Share the same four q across all eight curves at that p.",
+    "expected_cases": 192,
+    "case_definition": "One curve plus one q over its prime. The 24 context groups each contain eight candidate curves. Preserve zero-root cases and report timing/root-count strata; root count is not a pre-solve feature.",
+    "fixed_solver": "SymPy groebner([y^2-x^3-a*x-b,q], x,y, modulus=p, order=lex), followed by bounded finite-field root extraction using the lex basis: enumerate y roots of its x-free polynomials, then enumerate/lift x and verify all original polynomials. Record any absence of an elimination polynomial; a bounded full-field fallback must be reported and timed.",
+    "independent_oracle": "A separate verifier directly enumerates every (x,y) in F_p^2 using integer modular arithmetic and compares the complete sorted original-system root set with the solver result. Do not validate against the producer basis alone.",
+    "cost_measurement": {
+      "repetitions": 3,
+      "timer": "perf_counter_ns",
+      "primary_label": "Median across repetitions of symbolic construction + Groebner basis + finite-field root extraction seconds.",
+      "separate_metrics": [
+        "symbolic construction seconds",
+        "Groebner basis seconds",
+        "root extraction seconds",
+        "total child process wall time",
+        "data generation seconds",
+        "oracle verification seconds",
+        "training-label acquisition seconds",
+        "model fit seconds",
+        "prediction/selection seconds",
+        "peak resident memory with units and method",
+        "timeouts/failures",
+        "full root count distribution and nonempty/empty strata"
+      ],
+      "child_timeout_seconds": 5,
+      "maximum_child_processes": 192,
+      "max_concurrent_children": 1,
+      "ordering": "Seeded shuffle of case order; preserve exact order. All three repetitions stay in one bounded child. No discarded slow observations.",
+      "failure_handling": "Any mismatch or missing/censored cost invalidates the full training/evaluation attempt; preserve partial observations and record failed_implementation/resource_exhaustion as appropriate. A timeout is not a mathematical result."
+    },
+    "models": {
+      "supervised": "Ridge regression on log seconds, fixed alpha=1, standardization fitted on training primes only. Feature vector contains normalized a,b, discriminant, prime size and q coefficients plus fixed pairwise interactions. No timings, root counts, basis statistics or test-derived transforms as features.",
+      "rl": "One-step softmax policy-gradient contextual bandit over eight curves per context, trained in an offline simulator backed by the measured training cost table. Label as contextual bandit, not multi-step RL. Fixed 1000 updates, learning rate 0.01, zero initial weights, running-average reward baseline, three declared fit seeds [0,1,2]. Reward is negative log measured seconds normalized using training labels only. No new solver calls during updates.",
+      "baseline_random": "One uniformly sampled candidate per context using declared seeds [0,1,2]; additionally report exact expected random cost over the eight measured candidates.",
+      "baseline_static": "Always choose candidate zero (a,b)=(1,1).",
+      "evaluation": "One selected curve per held-out context and method/seed with identical solver settings. Report actual measured selected cost, oracle-best cost as retrospective context, difference from random/static, and all overheads separately. Validation is diagnostic; no hyperparameter tuning or selection on test primes. Model checkpoint stores split IDs and normalization."
+    },
+    "controls": {
+      "positive": "Separate synthetic two-action fixture with costs [8,1] and features [-1,+1] verifies cost direction and that a training update increases the cheaper action probability. These artificial labels are never mixed into measured costs.",
+      "null_constant": "Same-shaped contexts with equal candidate costs: policy utility equals the exact random expectation regardless of choice; reward-centering must not manufacture a gain.",
+      "null_permutation": "Seeded permutation of training labels within each training context, same features and evaluation code. Preserve result as a diagnostic; no demanded finite-sample null significance or performance threshold.",
+      "correctness": "Independent complete modular root enumeration for every case. Reject singular curves, out-of-list primes, duplicate split membership, arbitrary input polynomial imports, missing cases, incorrect costs, or leakage.",
+      "acceptance": "Software validity is independent of whether ML/RL beats random or static. A valid slower policy is a valid observation; no speedup, general-field or cryptographic conclusion is authorized."
+    },
+    "proposed_execution_budget": {
+      "worker_count": 1,
+      "full_pilot_runs": 1,
+      "total_pilot_wall_clock_seconds": 600,
+      "label_stage_seconds": 420,
+      "verification_seconds": 60,
+      "training_seconds": 60,
+      "evaluation_seconds": 60,
+      "memory_gb": 2,
+      "gpus": 0,
+      "network_during_execution": false,
+      "stop_rule": "Stop and preserve partial artifacts when any bound is exhausted. No automatic retry, expanded primes, extra fit search or continued campaign."
+    },
+    "required_future_artifacts": [
+      "input cases and rejected samples",
+      "raw per-repetition costs and root sets",
+      "split manifest and seeds",
+      "model checkpoints/normalization",
+      "selection results and control results",
+      "cost/resource summary",
+      "correctness report",
+      "exact commands, stdout, stderr, timestamps, dependency/container versions, source commit and dirty state",
+      "requested policy, actual model/backend provenance, fallback/degradation/probe status",
+      "Harbor job result plus hashes of output files",
+      "execution report with terminal status and scope limits"
+    ]
+  },
+  "current_impediment": {
+    "condition": "Clean origin/main failed validate_ledger.py; repository-integrity failures remain dispatch blockers under the harness skill.",
+    "base_commit": "a773ebc3e2ba8706bda99eb5277229019c7b6eaf",
+    "reported_error_count": 12,
+    "reported_error_groups": [
+      "Five missing verified_by values on H-CRYPTO-21e529 and H-CRYPTO-7dd003 structural ingredients.",
+      "Missing budget on TASK-20260831-52f3df.",
+      "Nonmapping review_plan values on TASK-20260904-a897dc and TASK-20260904-c616c0.",
+      "Four EXP-ISOU-2ac81f manifests lack discrete_log certificate.verified=true."
+    ],
+    "provenance": "Control-plane report; the persisted command receipt and logs below are authoritative. No agent here has repaired or reinterpreted those records.",
+    "artifact_refs": [
+      "coordination/tasks/TASK-20260904-c44154/control-plane/checks.json",
+      "coordination/tasks/TASK-20260904-c44154/control-plane/ledger-validation.stdout.txt",
+      "coordination/tasks/TASK-20260904-c44154/control-plane/ledger-validation.stderr.txt"
+    ],
+    "what_is_blocked": "Research/training implementation and pilot execution approval.",
+    "clears_when": "A separately authorized repository repair produces passing preflight and ledger validation on a synchronized base, the final objective is clarified, and a new Coordinator decision commits the completed protocol and worker handoff.",
+    "recheck": [
+      "python3 plugins/crypto-autoresearcher-harness/scripts/preflight.py --repo <worktree> --runtime codex --doctor",
+      "python3 tools/validate_ledger.py"
+    ],
+    "asserts_nothing_about": "Mathematical validity, feasibility, speedup, curve security or research merit."
+  },
+  "literature_status": {
+    "knowledge_retrieval": "Required KB MCP search capability unavailable to the parent session. No novelty, duplication or state-of-the-art claim is made.",
+    "citations": [
+      {
+        "path": "AGENTS.md",
+        "provenance": "internal",
+        "verified_by": "Coordinator TASK-20260904-c44154"
+      },
+      {
+        "path": "agents/coordinator.md",
+        "provenance": "internal",
+        "verified_by": "Coordinator TASK-20260904-c44154"
+      },
+      {
+        "path": "plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md",
+        "provenance": "internal",
+        "verified_by": "Coordinator TASK-20260904-c44154"
+      },
+      {
+        "path": "/Volumes/SSD990/autolab/README.md",
+        "provenance": "internal",
+        "verified_by": "Coordinator TASK-20260904-c44154"
+      }
+    ]
+  }
+}
