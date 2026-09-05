@@ -244,7 +244,24 @@ def classify(history: list[dict[str, Any]], now: _dt.datetime) -> dict[str, Any]
       live       -- claimed, not released, not expired: scope is HELD
       expired    -- claimed, not released, past expires_at: scope is FREE,
                     but the owner's death is a fact the Coordinator records
-      released   -- released with outcome completed|failed|abandoned
+      released   -- released BY ITS OWNER, outcome completed|failed|abandoned
+
+    FENCING IS RE-CHECKED HERE, not only at release time. release_task()
+    verifies `owner` against the claim as it stands in the releasing worktree,
+    which is correct there and is not enough on its own: claim and release are
+    separate write-once files paired by (task, epoch), and a merge can leave
+    one session's release beside a DIFFERENT session's claim at the same epoch.
+    That is not exotic — docs/concurrent-goal-lanes.md states same-epoch
+    collisions are expected, and the losing session is told to release
+    `abandoned`, so an add/add merge that keeps the winner's claim reunites it
+    with the loser's release. Pairing on (task, epoch) alone then reads a LIVE
+    lease as released and re-offers a task its holder is still working.
+
+    So a release whose `owner` differs from the claim's cannot free the claim.
+    It is reported as `foreign_release` and the status comes from the claim
+    alone; the effective `release` is None, which is what every consumer
+    (claim_task, release_task, research_dispatch.apply_claims) must see, since
+    there is no VALID release. The real owner can still release normally.
     """
     if not history:
         return None
@@ -253,9 +270,13 @@ def classify(history: list[dict[str, Any]], now: _dt.datetime) -> dict[str, Any]
     if claim is None:
         # A release without its claim (partial fetch). Treat as free but say so.
         return {"epoch": latest["epoch"], "status": "orphan_release", "owner": None,
-                "release": latest.get("release")}
+                "release": latest.get("release"), "foreign_release": None}
+    release = latest.get("release")
+    foreign_release = None
+    if release is not None and release.get("owner") != claim["owner"]:
+        foreign_release, release = release, None
     status = "live"
-    if latest.get("release") is not None:
+    if release is not None:
         status = "released"
     elif now >= parse_ts(claim["expires_at"], "claim.expires_at"):
         status = "expired"
@@ -267,7 +288,8 @@ def classify(history: list[dict[str, Any]], now: _dt.datetime) -> dict[str, Any]
         "expires_at": claim["expires_at"],
         "branch": claim.get("branch"),
         "session": claim.get("session"),
-        "release": latest.get("release"),
+        "release": release,
+        "foreign_release": foreign_release,
         "sources": latest.get("sources", {}),
     }
 
@@ -582,6 +604,9 @@ def cmd_claims(args: argparse.Namespace) -> int:
         print("no claims")
     for task_id, item in summary.items():
         extra = f" -> {item['release']['outcome']}" if item.get("release") else ""
+        if (foreign := item.get("foreign_release")) is not None:
+            extra += (f"  [IGNORED release by {foreign.get('owner')}"
+                      f" -> {foreign.get('outcome')}: not this claim's owner]")
         print(f"{task_id}  {item['status']:<8} epoch {item['epoch']}  owner={item.get('owner')}  "
               f"expires={item.get('expires_at')}{extra}")
     return 0
