@@ -1,0 +1,800 @@
+idea:
+  id: IDEA-20260904-e12b5a
+  added: '2026-09-04'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SATIC-1ae57a
+  title: >-
+    Gaussian elimination is inert on the pdp CNF-XOR model for a derivable
+    reason - under the block core order NO parity row has a determined variable
+    before depth (m-1)l - and the two orders that would wake it up each cost
+    more than log2(m!) bits, which is the exact condition under which GE would
+    start to help
+
+  class: mechanism
+
+  claim: >-
+    SCOPE: symmetrized S_{m+1} pdp over F_{2^n} descended to F_2, CNF-XOR model
+    of SRC-SATIC-TRIMOSKA-2019 section 3.2; m = 3 primarily, m = 4 as a check;
+    l in 6..8. CLAIM TIER toy. NO ATTACK, NO EXPONENT IMPROVEMENT.
+
+    (A) THE DERIVABLE PART - A STRUCTURAL STATEMENT, NOT A HEURISTIC. In the
+    CNF-XOR model, the elementary-symmetric variables satisfy
+    d_{1,j} = c_{1,j} XOR c_{2,j} XOR ... XOR c_{m,j} (equation (6) of the
+    source), so d_{1,j} depends on ALL m blocks; and every substituted monomial
+    of degree >= 2 arising from e_2, ..., e_m is a product of c-variables drawn
+    from DISTINCT blocks, so it too depends on at least two blocks. Under the
+    block branching order that the source's symmetry-breaking algorithm REQUIRES
+    (leading bit of x_1 through trailing bit of x_m, section 4), it follows
+    that:
+      A1. No d_{i,j} variable is determined before depth (m-1)l + 1.
+      A2. No E-substitution variable d' (a product of d's) is determined before
+          depth (m-1)l + 1.
+      A3. Every F-set parity row - the ONLY rows carrying the curve, since they
+          are the Weil-descended coefficients of S'_{m+1} - is over d and d'
+          variables alone, hence has ALL of its variables undetermined for every
+          depth <= (m-1)l.
+      A4. Therefore Gaussian / Gauss-Jordan elimination over the XOR rows can
+          produce NO implied literal and NO earlier conflict at any depth
+          <= (m-1)l, and the E-X-relation rows it can act on are precisely the
+          rows unit propagation already handles one at a time.
+    At m = 3 that is two thirds of the tree depth in which GE is provably inert
+    by construction, and the remaining third is where the whole search happens.
+
+    (B) THE QUANTITATIVE PART. Define the LINEAR DEFICIT at depth d,
+        L(d) = (#variables occurring in XOR rows that are still undetermined
+                after unit propagation at depth d) - rank(XOR rows restricted to
+                those variables).
+    A Gauss-Jordan step yields an implied literal only when some row has exactly
+    one undetermined variable, which requires L(d) to have collapsed on that
+    row. The claim is that L(d) stays large: at depth 0 in the source's l = 6,
+    n = 19 cell there are 52 xor rows over a model with 767 variables (Table 1),
+    of which 18 are core c-variables and 33 are d-variables, leaving 716
+    substitution variables, so L(0) >= 767 - 52 - 1 = 714. The predicted curve
+    is L(d) > 0 for all d < ml - O(1), with a single sharp collapse in the last
+    block. GE's total yield over a whole run - the GE SURPLUS, defined as
+    (literals implied by Gauss-Jordan) minus (literals implied by plain XOR unit
+    propagation on the same state) - is predicted to be 0 at more than 99% of
+    nodes.
+
+    (C) THE PREDICTION OF WHEN GE WOULD START TO HELP. Two levers change A1-A3,
+    and each has a stated price:
+      L1  ORDER. Under a BIT-INTERLEAVED core order (c_{1,0}, c_{2,0}, ...,
+          c_{m,0}, c_{1,1}, ...), d_{1,j} is determined at depth m(j+1), so the
+          first d-variable is determined at depth m instead of (m-1)l + 1, and
+          F-set rows can become unit far up the tree. PREDICTION: GE surplus
+          becomes strictly positive at depths < ml under the interleaved order
+          and remains 0 under the block order, at the same cell, on the same
+          instance. THE PRICE, EXACT: the source states its m! symmetry
+          algorithm is correct ONLY under the block order, so the interleaved
+          order forfeits log2(m!) = 2.585 bits at m = 3 and 4.585 at m = 4.
+          THEREFORE GE HELPS IF AND ONLY IF it reduces the leaf count by more
+          than a factor m! (plus its per-node cost). The frozen source's own
+          Table 4 puts GE's conflict reduction at 0.16%-3.4% across its cells,
+          which is a factor 1.0016-1.035 - between 170x and 3700x short of the
+          factor 6 it would need at m = 3. That is a falsifiable prediction with
+          a stated margin, not a verdict.
+      L2  DEGREE. Multiply the F-set equations by core-variable monomials and
+          re-linearize (the XL step), adding rows without adding columns as
+          fast. The XOR row/column ratio rho(D) = rows(D)/cols(D) then rises
+          with the re-linearization degree D, and GE becomes productive at the
+          first D with rho(D) >= 1 - which is exactly the Macaulay saturation
+          degree of the model. PREDICTION: GE surplus is 0 for every D below
+          that crossing and strictly positive at or above it. THE PRICE:
+          cols(D) grows like sum_{j<=D} C(ml, j), so the memory the CNF-XOR
+          model exists to avoid comes straight back; the crossover degree and
+          its column count are computable at ZERO COMPUTE by the same
+          block-incidence counting H-DREG-152cff performs for the chained
+          model, and the first deliverable of this idea is that number.
+
+    (D) THE MONOTONE TREND THAT MAKES THE MECHANISM TESTABLE WITHOUT ANY GE
+    IMPLEMENTATION. rho(D=1) = (#xor rows)/(#model variables) is computable from
+    the model alone: using Table 1 of the frozen source it is 52/767 = 0.0678 at
+    l = 6, 62/1101 = 0.0563 at l = 7, 68/1510 = 0.0450 at l = 8, 88/2000 =
+    0.0440 at l = 9, 104/2577 = 0.0404 at l = 10 and 122/3247 = 0.0376 at
+    l = 11 - DECREASING in l. PREDICTION: GE's usefulness on this model DECAYS
+    with l, so both the GE surplus and the GE conflict reduction are
+    monotonically decreasing in l. This is the reverse of the usual expectation
+    that parity reasoning matters more as parity constraints accumulate, and it
+    is the reason the model that makes the pdp cheap is the same model that
+    makes GE useless.
+
+  mechanism: >-
+    WHY THE MODEL DEFEATS ITS OWN PARITY MODULE. The CNF-XOR model buys its
+    minimality - ml core variables and a few thousand clauses instead of tens of
+    thousands - by REPLACING every nonlinear monomial with a fresh variable and
+    a Tseitin AND gate (equation (8) of the source). The XOR module sees only
+    the parity rows; it does NOT see the AND gates, so from its point of view
+    every substitution variable is a free variable algebraically independent of
+    the core. The parity system it is asked to eliminate on is therefore a wide,
+    massively underdetermined GF(2) system: 52 rows over hundreds of formally
+    free columns at l = 6. Gauss-Jordan on such a system is a no-op with a cost.
+    The information that would make it productive - that c' equals a product of
+    c's - lives entirely in the CNF part, exactly where GE cannot use it.
+
+    This is the same phenomenon the authors themselves point at when they write
+    that "in some cases Gaussian Elimination on SAT instances does not work as
+    well as Gaussian Elimination on algebraic systems" (arXiv:2001.11229
+    abstract), and it is why their solver reads ANF directly. What this record
+    adds is the exact reason IN THIS MODEL (A1-A3, derived from equation (6) and
+    the block order), a measurable quantity for it (the GE surplus as a function
+    of depth), and a stated condition under which it reverses (C).
+
+    THE LOSSY-PROJECTION TEST. The tracked object is the LINEARIZATION STATE:
+    the pair (number of XOR-occurring variables still undetermined, rank of the
+    XOR row space restricted to them), i.e. L(d) together with the rank. It is
+    genuinely lossy - it discards which variables are undetermined, their
+    values, the entire CNF part, the AND-gate structure, and the assignment
+    trail; the fibre over one (deficit, rank) pair contains an enormous set of
+    solver states. The discarding is COMPATIBLE with the target's operations
+    because assigning one variable acts on this projection deterministically:
+    it deletes exactly one column and moves it to the right-hand side, so the
+    rank drops by 0 or 1 and the undetermined count drops by exactly 1 plus
+    however many variables unit propagation then forces - and unit propagation's
+    effect on the projection is itself determined by which rows became unit,
+    which is a function of the retained data. So the retained part propagates
+    deterministically under decide/propagate/backtrack, which is what the test
+    requires.
+
+    Contrast the projection that FAILS the test and must not be used as the
+    object: "the XOR coefficient matrix itself". It loses nothing about the
+    parity constraints, is merely a change of basis on them, and answers no
+    question the constraints do not already answer. The interesting content is
+    exactly the DEFICIT - the gap between what the matrix could determine and
+    what it does determine - which is only visible after the lossy step.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: SRC-SATIC-TRIMOSKA-2019
+      provenance: internal
+      claim: >-
+        Claim C3 - "Gaussian elimination on XOR constraints is NOT beneficial
+        for this model", with Table 4 giving WDSat versus WDSatGE conflict
+        counts from which the reduction fractions used in (C) are computed
+        (SAT arm: 49117 -> 48178 at l=6 n=17 (1.91%), 38137 -> 36835 at l=6
+        n=19 (3.41%), 534867 -> 528383 at l=7 n=19 (1.21%), 2646071 -> 2630567
+        at l=8 n=23 (0.59%); UNSAT arm: 254686 -> 253123 (0.61%), 2073089 ->
+        2062232 (0.52%), 16666331 -> 16639322 (0.16%)). Also equation (6)
+        (d_{1,j} = c_{1,j} + ... + c_{m,j}), equation (8) (the Tseitin AND-gate
+        substitution), Proposition 1, section 4's statement that the symmetry
+        algorithm is correct only under the block order, and Table 1's model
+        sizes used for rho(D=1). ALL NUMBERS ARE THE AUTHORS' OWN ON THE
+        AUTHORS' HARDWARE; the percentages are this agent's arithmetic on those
+        reported counts; nothing is reproduced here and no cross-hardware timing
+        ratio is formed.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read
+        paper_fulltext.md sections 3, 4, 5, 6 and Appendix Table 4 in full.
+    - ref: arXiv:2001.11229
+      provenance: retrieved
+      claim: >-
+        Abstract states that "in some cases Gaussian Elimination on SAT
+        instances does not work as well as Gaussian Elimination on algebraic
+        systems", and that the branching rule is a Minimal-Vertex-Cover
+        preprocessing leading to "quick linearization of the underlying
+        algebraic system". The second phrase is direct evidence that the
+        authors' own ordering objective is the linearization state this record
+        tracks; whether their body text already derives A1-A3 is UNKNOWN, since
+        only the abstract was read, and that is the largest novelty risk here.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04, fetched
+        https://arxiv.org/abs/2001.11229
+    - ref: >-
+        Soos, Enhanced Gaussian elimination in DPLL-based SAT solvers,
+        Pragmatics of SAT 2010; Soos-Nohl-Castelluccia, Extending SAT solvers to
+        cryptographic problems, SAT 2009
+      provenance: recalled
+      claim: >-
+        CryptoMiniSat enables Gaussian elimination only when the instance is
+        judged cryptographic (activity stability plus xor-clause fraction), with
+        an auto-turn-off heuristic; reported gains on Trivium/Bivium/HiTag2 are
+        of order 5-45%. The relevant contrast is that those targets have parity
+        rows over the STATE variables themselves, i.e. a large rho, whereas this
+        model's parity rows are over substitution variables, i.e. a tiny rho.
+        RECALLED FROM SEARCH-RESULT SUMMARIES ONLY, NOT READ.
+      verified_by: null
+    - ref: >-
+        Laitinen-Junttila-Niemela, Equivalence class based parity reasoning with
+        DPLL(XOR) / Conflict-driven XOR-clause learning
+      provenance: recalled
+      claim: >-
+        Parity reasoning strength is characterised by what the XOR module can
+        deduce short of full Gauss-Jordan (unit propagation, equivalence
+        reasoning, complete parity reasoning). The GE SURPLUS defined here is a
+        run-time measurement of exactly the gap between the weakest and the
+        strongest of those levels on this model. RECALLED, NOT READ; offered so
+        a reviewer can check whether the surplus already has a standard name.
+      verified_by: null
+    - ref: H-DREG-152cff
+      provenance: internal
+      claim: >-
+        Supplies the METHOD - parameter-free block-incidence counting of the
+        Macaulay column set of a Weil-descended Semaev system at degree D, with
+        an up-closure column law and inclusion-exclusion over block occupancy -
+        which is exactly what is needed to compute rho(D) and the GE crossover
+        degree of lever L2 at zero compute. ITS NUMBERS DO NOT TRANSFER: they
+        are for the CHAINED model of src/semaev_tree.py at t = 3, not the
+        symmetrized model of the source, so the counting must be redone for this
+        model. Cited for method, not for values.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read the
+        record in full.
+    - ref: KN-TECH-053
+      provenance: internal
+      claim: >-
+        XL / re-linearization and Boolean MQ solving, the family lever L2
+        belongs to, and the standing warning that the memory of a re-linearized
+        system is the binding cost.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04.
+
+  assumptions:
+    - >-
+      The XOR module's view excludes the AND-gate definitions. If a solver's
+      preprocessing recovers those definitions as parity constraints (some XOR
+      recovery passes do), A4 does not apply to that solver and the record says
+      so rather than asserting it anyway. Whether recovery happens is checked by
+      comparing the xor-clause count before and after preprocessing.
+    - >-
+      "Determined" means determined by unit propagation from the current partial
+      assignment, which is the operational notion the solver uses.
+    - >-
+      The block order is the one the symmetry-breaking algorithm requires; A1-A3
+      are stated for that order and for the symmetrized model. For the
+      NON-symmetrized direct model of src/semaev_tree.py there are no d
+      variables at all and the parity rows are over monomials in the c's
+      directly, so A1 is replaced by "no monomial spanning all m blocks is
+      determined before depth ml" - the derivation must be redone and both
+      models are measured.
+
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes the cost claim: whether stronger parity
+      reasoning (full Gauss-Jordan) can prune the pdp search. The frozen source
+      reports that it does not and offers no mechanism; without a mechanism the
+      result is a single uncontrolled observation that cannot be transferred to
+      any other model, parameter range, or arity. Supplying the mechanism turns
+      one negative measurement into a predicate that decides the question for
+      every future variant before it is run.
+    baseline_embedding:
+      parameter_slice: >-
+        m = 3, l = 6, n = 19, CNF-XOR model, block core order, GE enabled: the
+        exact configuration the frozen source calls "WDSatGE with Prop.1" in
+        Table 4. At this slice the claim predicts GE surplus 0 at every depth
+        d <= 2l = 12, a conflict reduction below 5% overall, and a strictly
+        positive per-node time penalty. The source's own reported reduction at
+        this cell is 3.41% on the SAT arm and 1.05% on the UNSAT arm, both
+        inside the predicted band; that agreement is a REPRODUCTION of published
+        numbers by a formula, not a prediction, and must be reported as such.
+      reproduction_check: >-
+        SYMBOLIC AND EXACT, RUNNABLE BEFORE ANY SOLVER EXISTS. From the model's
+        clause sets alone, compute for every depth d in [0, ml] under the block
+        order: the set of determined variables, the number of XOR rows with
+        exactly one undetermined variable, and L(d). A1-A3 predict that the
+        second number is 0 for all d <= (m-1)l on the F set. This is an exact
+        combinatorial check on the encoder's output, comparable to the frozen
+        integer fixtures of H-DREG-152cff, and it costs seconds.
+    observation_collision:
+      observable: >-
+        The GE surplus profile - the vector of (depth, mean number of literals
+        Gauss-Jordan implies beyond XOR unit propagation) over a run.
+      distinct_preimage_search: >-
+        A COLLISION IS PREDICTED AND IS DIAGNOSTIC: the all-zero surplus profile
+        is shared by (i) the real pdp system under the block order, (ii) the N0
+        shape-matched random null of IDEA-20260904-b40e6d, and (iii) ANY system
+        whose parity rows are over Tseitin-substituted monomials spanning all
+        blocks. The collision therefore certifies that the surplus profile
+        measures a property of the ENCODING, not of the curve - which is the
+        correct and intended reading. The collision that would FALSIFY the
+        mechanism is a system satisfying A1-A3 that nevertheless shows positive
+        surplus at shallow depth; that would mean L(d) can collapse for reasons
+        the block-incidence argument does not capture, and the responsible row
+        is exhibited.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "run Gauss-Jordan and see whether it helps" - an experiment -
+          by the predicate "does any XOR row have <= 1 undetermined variable at
+          depth d", a question about the block-incidence pattern of the
+          equations, answerable by counting. GE utility becomes an exact
+          combinatorial condition on the model rather than an empirical property
+          of a solver.
+        predicted_gain: >-
+          Encoding: exact, since determinacy under the block order is a function
+          of block occupancy alone. Completeness: every row is checked, not
+          sampled. Soundness: the predicate can only UNDER-predict GE utility
+          (a row with two undetermined variables can still contribute to an
+          eliminated combination), so a positive surplus with a zero predicate
+          is a real falsification and is exhibited row-by-row. Transfer:
+          DECLARED UNMET for orders other than the block order, for models
+          without the elementary-symmetric layer, and for solvers whose
+          preprocessing recovers AND gates as parities. Cost loss: none; the
+          predicate is free at every l including those no solver reaches.
+      - transform: baseline_lift
+        proposed_object: >-
+          Enlarge the certificate family from "the given parity rows" to "the
+          parity rows plus their degree-D re-linearized multiples" (lever L2),
+          and prove a STRICT inward improvement: at the first degree D* where
+          rho(D) >= 1, GE implies literals the un-lifted system does not. The
+          obligation is strictness, not mere feasibility - showing that the
+          lifted system is bigger is worthless without showing it deduces more.
+        predicted_gain: >-
+          A computed integer D*(m, l, n) and its column count, delivered at zero
+          compute, which simultaneously (i) predicts where GE turns useful and
+          (ii) quantifies the memory price of getting there, thereby connecting
+          this record to the memory advantage (claim C5) that is the CNF-XOR
+          model's only genuine Pareto edge.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER: FORALL cells (m, l, n) in the boundary, FORALL
+      instances, FORALL depths d <= (m-1)l, EXISTS NO XOR row with fewer than
+      two undetermined variables among the F set - so the GE surplus is
+      identically zero on that range. Note the witness is a NON-existence and
+      may not depend on the instance, the curve or the seed; A1-A3 derive it
+      from the equation shapes alone. The weaker order - for each instance there
+      exists a depth range where GE is inert - is much less than is claimed and
+      would not support (C). THE QUANTIFIER AT RISK is the one over solvers:
+      "undetermined" is defined by unit propagation, and a solver with stronger
+      inprocessing may determine variables the derivation assumes free.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: (i) an exact combinatorial statement that under the block core
+        order no F-set parity row is unit before depth (m-1)l, for the tested
+        models; (ii) a toy-tier measurement that the GE surplus is zero at more
+        than 99% of nodes and that the conflict reduction is under 5%; (iii) a
+        computed crossover degree D* for lever L2. It CANNOT certify that no
+        parity-reasoning technique helps - equivalence reasoning and XOR-clause
+        learning are distinct from Gauss-Jordan and are not tested - cannot
+        certify anything at cryptographic l, and cannot be cited as "XOR
+        reasoning is useless for the ECDLP".
+      nearby_object_control: >-
+        THE NEARBY OBJECT ON WHICH THE CONCLUSION MUST FAIL, and the single most
+        important control here: a Boolean system with the SAME ml core variables
+        whose parity rows are over the CORE variables directly - concretely, the
+        descended system conjoined with 2l random independent GF(2) linear
+        equations in the c's. On that object rho jumps, GE must produce implied
+        literals at shallow depth, and the surplus must be strictly positive. A
+        measurement returning zero surplus THERE means the GE instrumentation is
+        broken and no conclusion may be drawn from zero surplus anywhere else.
+        A second nearby object: a small Trivium-like keystream instance, whose
+        parity rows are over state variables and where GE is reported in the
+        literature to help - if available, it calibrates the instrument against
+        an external expectation.
+    proof_obligations:
+      - claim: >-
+          d_{1,j} = c_{1,j} XOR ... XOR c_{m,j} and every degree->=2 substituted
+          monomial spans at least two blocks; hence A1 and A2.
+        responsibility: correctness
+      - claim: >-
+          Every F-set row is over d and d' variables only; hence A3.
+        responsibility: correctness
+      - claim: >-
+          A3 implies zero GE surplus at depth <= (m-1)l, given that "unit row"
+          requires all but one variable determined.
+        responsibility: strictness
+      - claim: >-
+          The GE instrumentation detects surplus when it exists, demonstrated on
+          the linear-augmented nearby object.
+        responsibility: feasibility
+      - claim: >-
+          rho(D=1) is decreasing in l for this model, computed from the encoder
+          rather than quoted from Table 1.
+        responsibility: size
+      - claim: >-
+          D* - the smallest re-linearization degree with rho(D) >= 1 - is
+          computed exactly, with its column count, and reported with its memory
+          implication.
+        responsibility: memory
+      - claim: >-
+          Switching to a bit-interleaved order forfeits the m! quotient, so any
+          GE gain must exceed log2(m!) bits to break even.
+        responsibility: baseline
+      - claim: >-
+          Nothing transfers to non-block orders, to models without the
+          symmetric layer, to solvers that recover AND gates as parities, or to
+          prime fields.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        ge_surplus_at_depth: mean literals implied by Gauss-Jordan beyond XOR
+        unit propagation, per node, binned by core depth d, m = 3, l in {6,7,8}
+      direction: lower
+      minimum_effect: >-
+        Exactly 0 for every d <= 2l, and 0 at >= 99% of all nodes. A single node
+        with positive surplus at d <= 2l falsifies A3 and the responsible row is
+        exhibited by name.
+    - metric: >-
+        ge_conflict_reduction = 1 - (leaf count with GE)/(leaf count without),
+        block order, UNSAT arm
+      direction: lower
+      minimum_effect: >-
+        <= 0.05, and MONOTONICALLY DECREASING in l across l = 6, 7, 8. A
+        reduction above 0.05, or an increasing trend in l, falsifies the
+        rho-decay mechanism of (D).
+    - metric: >-
+        ge_time_penalty = (seconds per leaf with GE)/(seconds per leaf without),
+        same machine, same session, pinned version and commit
+      direction: higher
+      minimum_effect: >-
+        >= 2. A penalty below 1.2 would mean GE is essentially free here and the
+        source's claim C3 is an artifact of one implementation rather than a
+        property of the model - a materially different conclusion.
+    - metric: >-
+        interleaved_order_surplus: ge_surplus_at_depth under the bit-interleaved
+        core order, same instances
+      direction: higher
+      minimum_effect: >-
+        Strictly positive at some depth d <= 2l, with mean surplus over the run
+        at least 10x the block-order value. THIS IS THE POSITIVE PREDICTION of
+        the record; if the interleaved order also gives identically zero
+        surplus, the mechanism is wrong about WHY and the derivation must be
+        redone.
+    - metric: >-
+        interleaved_order_leaf_ratio = (leaf count, interleaved order, GE on) /
+        (leaf count, block order, symmetry breaking on, GE off)
+      direction: higher
+      minimum_effect: >-
+        >= 3, i.e. the interleaved+GE configuration is WORSE by at least a
+        factor 3, because it forfeits m! = 6 and buys back less than 5%. A ratio
+        below 1 would mean GE plus the interleaved order beats the source's best
+        configuration on the leaf axis, which is the outcome that would make
+        this a live algorithmic direction rather than a closure.
+    - metric: >-
+        D_star: the smallest re-linearization degree D with rho(D) >= 1, and its
+        column count, computed exactly for m = 3, l in 6..11
+      direction: different
+      minimum_effect: >-
+        A definite integer per cell, with the column count reported in bytes at
+        one bit per entry. If D* is 2 or 3 with a column count under 10^9, lever
+        L2 is worth a real experiment; if D* >= 4 or the column count exceeds
+        the memory the model exists to save, L2 is closed with an exhibited
+        number rather than an opinion.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (ZERO COMPUTE, AND IT ALONE MAY SETTLE (A)). From the encoder's
+      output at (m,l,n) = (3,6,19) and (3,7,23), tabulate for every depth d in
+      [0, ml] under the block order: determined-variable set, per-row count of
+      undetermined variables, number of unit XOR rows, and L(d). A1-A3 predict
+      zero unit F-set rows for all d <= 2l. Repeat under the bit-interleaved
+      order, predicting a nonzero count from depth ~m upward. Repeat for the
+      non-symmetrized direct model of src/semaev_tree.py, where the derivation
+      differs and must be redone. Commit the tables before any solving.
+
+      STAGE 0b (ZERO COMPUTE). Compute rho(D=1) directly from the encoder for
+      l = 6..11, confirming or refuting the decreasing trend read off Table 1,
+      and compute D* by block-incidence counting in the manner of
+      H-DREG-152cff - deriving the counts for THIS model rather than importing
+      that record's integers.
+
+      STAGE 1 (INSTRUMENT VALIDITY, CAN VOID EVERYTHING). Implement the GE
+      surplus probe: at a sampled set of nodes, snapshot the XOR rows, run
+      Gauss-Jordan in the harness (not in the solver), and count implied
+      literals beyond XOR unit propagation. Validate it on the LINEAR-AUGMENTED
+      nearby object (descended system plus 2l random linear equations in the
+      c's), where the surplus MUST be strictly positive at shallow depth. If it
+      is not, stop.
+
+      STAGE 2 (THE DISCRIMINATOR). m = 3, l in {6,7,8}, n in {3l-1, 4l}, 10
+      UNSAT and 10 planted-SAT instances, >= 3 seeds. Four configurations:
+      (block order, GE off), (block order, GE on), (interleaved order, GE off),
+      (interleaved order, GE on) - with symmetry breaking ON only in the block
+      configurations, since the source states it is incorrect otherwise, and
+      that exclusion is declared rather than silently applied. Record the
+      surplus profile, the leaf count, seconds per leaf, and the depth histogram
+      for each.
+
+      STAGE 3 (OPTIONAL, ONLY IF D* IS SMALL). Build the degree-D* re-linearized
+      row set at the smallest feasible cell and measure whether GE then implies
+      literals the un-lifted system does not, and at what memory.
+    controls:
+      - >-
+        LINEAR-AUGMENTED CONTROL (stage 1) - GE surplus must be positive there.
+        Can fail; failure voids every zero-surplus conclusion.
+      - >-
+        PREPROCESSING CONTROL - xor-clause count compared before and after any
+        solver preprocessing, to detect AND-gate recovery that would invalidate
+        A4 for that solver.
+      - >-
+        MODEL CONTROL - both the symmetrized and the direct model measured; a
+        conclusion holding for one only is a statement about the symmetric
+        layer, which is itself the interesting reading.
+      - >-
+        NULL CONTROL - the same surplus profile on the N0 null of
+        IDEA-20260904-b40e6d. Predicted identical, confirming the surplus
+        measures encoding shape and not the curve.
+      - >-
+        ORDER-VALIDITY CONTROL - under the interleaved order, symmetry breaking
+        is DISABLED and the leaf count must revert to ~2^{ml}, confirming the
+        forfeited m! is real and measured rather than assumed.
+      - >-
+        SEED CONTROL - >= 3 seeds, spread reported before any effect.
+    required_metrics:
+      - ge_surplus_by_depth (mean, max, and count of nonzero nodes)
+      - linear_deficit_L_by_depth
+      - unit_xor_row_count_by_depth
+      - rho_D1 per cell, computed from the encoder
+      - D_star and its column count
+      - instrumented_leaf_count with and without GE
+      - seconds_per_leaf with and without GE (pinned version, commit, hardware,
+        seed)
+      - xor_clause_count_before_and_after_preprocessing
+      - branching_order label, symmetry_breaking flag, model label
+      - termination_reason, certificate_verified
+
+  falsification_conditions:
+    - >-
+      F1. Any F-set XOR row is unit at a depth <= (m-1)l under the block order.
+      A3 is false; the row is exhibited by name and the derivation corrected.
+      This is checkable at zero compute and is the primary falsifier.
+    - >-
+      F2. ge_conflict_reduction > 0.05 at any cell, or increasing in l. The
+      rho-decay mechanism (D) is false and GE has leverage the argument does not
+      account for - the more valuable outcome, since it would reopen parity
+      reasoning as a direction.
+    - >-
+      F3. The interleaved order gives zero GE surplus too. The order lever (L1)
+      is false; the reason GE is inert is not the block order and the mechanism
+      is wrong at its most testable point.
+    - >-
+      F4. The linear-augmented control shows zero surplus. Instrument failure;
+      NO conclusion, positive or negative, may be reported.
+    - >-
+      F5. ge_time_penalty < 1.2. GE is essentially free on this model, claim C3
+      is implementation-specific rather than structural, and the "GE hurts"
+      framing of this RQ's anomaly 4 is withdrawn.
+    - >-
+      F6. interleaved_order_leaf_ratio < 1. GE plus the interleaved order beats
+      the best block configuration; the m!-versus-GE tradeoff resolves the other
+      way and this becomes an algorithmic proposal rather than a closure.
+    - >-
+      F7 (PRE-REGISTERED NEGATIVE). If GE is confirmed inert, the deliverable is
+      the obstruction RECORD, not the verdict: L(d) as a measured curve with
+      units and error bars, the depth at which it collapses, rho(D=1) per cell
+      with its trend, D* with its column count, and the scope over which each is
+      claimed. A closure whose obstruction is only prose does not meet the
+      standard of docs/inventor-protocol.md section 4.
+
+  confounders:
+    - >-
+      SOLVER-INTERNAL GE IS NOT THE SAME AS THE HARNESS PROBE. A solver's GE may
+      run only at restarts, only on a matrix it has selected, or under an
+      auto-turn-off heuristic - so "GE on" in a solver flag is not "Gauss-Jordan
+      at every node". The harness probe measures the IDEAL surplus; the solver
+      flag measures a product of that with a scheduling policy. Both are
+      recorded and never conflated.
+    - >-
+      AND-GATE RECOVERY by preprocessing would give the XOR module information
+      A4 assumes it lacks. Detected by the preprocessing control.
+    - >-
+      MATRIX SELECTION: implementations often extract a subset of xor rows into
+      the matrix. The number of rows actually in the matrix is recorded, since
+      rho computed over all rows is an upper bound on what the solver uses.
+    - >-
+      The interleaved order changes BOTH the GE surplus and the symmetry
+      quotient, so its two effects must be separated by also running
+      (interleaved, GE off) - which is why that cell is in the design even
+      though nobody would use it.
+    - >-
+      Conflict counts with and without GE come from different search trees;
+      comparing them requires the same instances and the same seeds, and the
+      pairing is by instance, never by cell average.
+    - >-
+      At small l the number of xor rows (52 at l = 6) is comparable to ml = 18,
+      so rank effects that vanish at larger l may dominate. The trend across
+      l = 6,7,8 is the claim; a single cell is not.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy; l <= 8, m in {3,4}. No downstream citation may raise it.
+    - >-
+      "GAUSSIAN ELIMINATION" HERE MEANS GAUSS-JORDAN ON THE XOR ROWS. Nothing is
+      claimed about equivalence-class parity reasoning, XOR-clause learning, or
+      any other point on the parity-reasoning ladder; those remain open and are
+      named as open directions rather than closed.
+    - >-
+      NO STATEMENT ABOUT WDSat OR WDSatGE, neither of which has been fetched or
+      built here. Where a GE-enabled solver is used it is named and pinned.
+    - >-
+      A ZERO SURPLUS IS NOT A PROOF OF UNHELPFULNESS AT ALL PARAMETERS. It is a
+      measurement over the tested depths, orders, models and cells, plus a
+      derivation valid for the stated order and model.
+    - >-
+      The D* computation is a COMBINATORIAL prediction about when GE could
+      deduce more; it says nothing about whether the resulting algorithm would
+      be competitive, and lever L2 reintroduces exactly the memory cost that
+      claim C5 identifies as the Grobner method's wall.
+    - >-
+      Complements and does not duplicate GOAL-DREG-001: that lane measures
+      Macaulay column counts and ranks for the CHAINED model to study solving
+      degree; this record borrows its counting METHOD to compute a GE crossover
+      degree for the SYMMETRIZED CNF-XOR model, a different object with a
+      different purpose, and imports none of its integers.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        DEFICIT PERSISTENCE. For the CNF-XOR pdp model at arity m and dimension
+        l, under the block core order, the linear deficit satisfies L(d) >= 1
+        for every depth d <= ml - 1, and the number of nodes at which any F-set
+        row is unit is at most O(2^{ml}/2^{l}) over a complete run, uniformly
+        over n in [m(l-1), 6l] and over curves with j-invariant != 0.
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: A1-A3 above are DERIVED, not assumed, from
+        equation (6) of the source and the block-order definition - no F-set row
+        has any determined variable at depth <= (m-1)l, which already gives
+        L(d) >= (number of variables in that row) - 1 on that whole range. What
+        remains heuristic is only the last block, depths in ((m-1)l, ml), where
+        determinacy arrives variable by variable. CLASSICAL STATEMENT IMITATED:
+        the standard random-GF(2)-matrix fact that a uniformly random r x v
+        matrix over GF(2) with v - r >= 1 has no unit row after Gauss-Jordan
+        except with probability O(2^{-(v-r)}) - i.e. the assumption that the
+        descended coefficient matrix behaves, with respect to producing unit
+        rows, like a uniformly random matrix of its dimensions. That is the
+        Weil-descent analogue of the genericity assumption HEUR-BLK-2 of
+        H-DREG-152cff, which is known there to fail slightly on particular
+        bases, so a small violation is expected and must be reported rather than
+        explained away.
+      validation_plan: >-
+        SAMPLE: L(d) and the unit-row count at every depth, computed exactly by
+        the zero-compute stage-0 tabulation at m = 3, l in {6,7,8,9,10,11} and
+        n in {3l-1, 4l, 6l} - note this reaches l = 11 and m = 4 because it
+        needs NO solving, only the encoder's output and a GF(2) rank
+        computation, which is the shortcut that makes cryptographically larger
+        cells accessible. In addition, sample 10^5 uniformly random depth-d
+        partial assignments per (cell, d) and run unit propagation plus
+        Gauss-Jordan in the harness, recording the empirical surplus.
+        COMPARISON DISTRIBUTION: the empirical unit-row rate at depth d is
+        compared against the random-matrix prediction 2^{-(v(d) - r(d))} where
+        v(d) and r(d) are the measured undetermined-column count and rank; the
+        agreement or disagreement of that comparison IS the test of the
+        genericity half. TAIL CHECKS: report the MAXIMUM surplus observed over
+        all 10^5 samples at each depth and the shallowest depth at which any
+        nonzero surplus occurred; a nonzero surplus at depth <= (m-1)l is a
+        derivation failure and is exhibited row-by-row, not averaged away.
+        SAMPLED PARAMETERS RECORDED: (m, l, n, order, model, seed, curve_id,
+        basis alpha). TRANSFER ASSUMPTIONS, STATED: (i) uniformly random
+        prefixes stand in for solver-visited prefixes, a different distribution
+        that is not modelled; (ii) results at l <= 8 with solving are assumed to
+        extend to l = 9..11, where only the propagation-only probe runs, and
+        that extension is an extrapolation, labelled as one.
+    - id: H2
+      statement: >-
+        RHO-THRESHOLD. There exists a threshold rho* in (0,1] such that the
+        expected GE surplus per node is 0 whenever rho(D) < rho* and strictly
+        positive whenever rho(D) >= rho*, with rho* independent of (m, l, n)
+        for this model family; and rho(D=1) < rho* at every l >= 6.
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: over GF(2), a system of r independent rows in v
+        unknowns determines no unknown when v > r, which fixes rho* <= 1 as a
+        hard boundary and makes the claim's direction non-vacuous. CLASSICAL
+        STATEMENT IMITATED: the sharp satisfiability/rank threshold for random
+        XOR-SAT (random k-XOR systems become determined at a sharp clause
+        density), which is the standard distributional law this threshold
+        behaviour would be an instance of. The assumption is that the descended
+        parity rows, viewed as rows over substitution variables, sit in the
+        same universality class as random sparse GF(2) systems of the same
+        density - and this is precisely where the model is NOT random, since the
+        substitution variables are functionally dependent, so the assumption may
+        fail and its failure would be visible as a surplus at rho well below 1.
+      validation_plan: >-
+        SAMPLE: rho(D) and the empirical surplus over a SWEEP that deliberately
+        varies rho at fixed model - by (a) varying n at fixed l, which adds
+        F-set rows without adding columns, giving rho from 0.04 to about 0.09
+        over n = 3l-1 to 6l; (b) adding k random independent GF(2) linear
+        equations in the core variables for k = 0, l/2, l, 2l, 4l, which raises
+        rho continuously to and past 1 - this is the GRADED CONTROL and it
+        supplies the interior points needed to locate rho* rather than merely
+        bracket it; (c) the degree-lift of lever L2 at D = 2 where feasible.
+        Five interior points minimum, monotonicity reported. COMPARISON
+        DISTRIBUTION: surplus versus rho compared against a sharp-threshold
+        model and against a smooth model; the data must distinguish them or the
+        record says it cannot. TAIL CHECKS: at the largest rho below the fitted
+        rho*, report the maximum surplus over 10^5 sampled nodes; a heavy tail
+        below threshold means the threshold is not sharp. SCALE: m = 3,
+        l in {6,7}, which is where the graded control is cheap; the claim that
+        rho* is (m,l,n)-independent is checked only across those cells and is an
+        extrapolation elsewhere, labelled as one.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS IMPROVED, AND THE RECORD'S POINT IS THAT ONE PARTICULAR
+      ROUTE TO AN EXPONENT IS BLOCKED. Under the block core order the search
+      exponent stays at ml - log2(m!) and GE removes at most 0.07 bits of it
+      (5%); under the bit-interleaved order GE might remove more but the order
+      itself ADDS log2(m!) = 2.585 bits at m = 3, so the net is predicted
+      strictly worse. The falsifiable exponent statement is therefore:
+      log2(N_leaf with GE) - log2(N_leaf without GE) >= -0.07 bits under the
+      block order, and >= +2.5 bits under the interleaved order.
+    memory_exponent: >-
+      GE's own memory is O(r x v) bits for the XOR matrix - about 52 x 767 bits
+      = 5 KB at l = 6 and 122 x 3247 bits = 50 KB at l = 11 - i.e. negligible,
+      which is why its cost is TIME per node, not memory. Lever L2 is the
+      opposite: re-linearizing to degree D costs sum_{j<=D} C(ml, j) columns,
+      which at m = 3, l = 8, D = 2 is already about 3 x 10^2 and at D = 3 about
+      2.5 x 10^3 columns but with row counts multiplying accordingly - the exact
+      integers are the deliverable of stage 0b, and the honest framing is that
+      L2 trades away exactly the poly-memory property (claim C5) that is this
+      whole approach's only Pareto advantage.
+    best_known: >-
+      For the pdp step: the poly-memory (m-1)-fold enumeration at
+      2^{(m-1)l}/(m-1)! operations (IDEA-20260904-96c4f3), which dominates every
+      configuration considered here by a factor 2^l/m. For parity reasoning as a
+      technique: CryptoMiniSat's reported gains on Trivium/Bivium-class
+      instances (RECALLED, not read) are the relevant comparison class, and the
+      contrast in rho is the proposed explanation for why this model is
+      different.
+    hidden_overhead: >-
+      The zero-surplus prediction hides the last block, depths in ((m-1)l, ml),
+      where the derivation stops and the genericity assumption H1 takes over -
+      and where any real GE effect must live. It also hides the possibility that
+      a solver's GE contributes through CONFLICT ANALYSIS (a Gauss-Jordan-
+      derived conflict clause may be stronger even when no literal is implied),
+      which the surplus metric as defined does not measure; that gap is named
+      here and is an explicit open direction rather than an assumed zero.
+    tradeoff_note: >-
+      The record's central quantitative content IS a tradeoff: the m! symmetry
+      quotient and Gauss-Jordan productivity are mutually exclusive under this
+      model, because the first requires the block order and the second requires
+      determinacy to arrive early, which only a non-block order provides. The
+      break-even condition is exact and computable before any run: GE must
+      reduce the leaf count by more than a factor m! (2.585 bits at m = 3,
+      4.585 at m = 4) to be worth the order change. Parallelisation is
+      unaffected - the core cube still splits into independent subcubes under
+      either order - but note that GE state cannot be shared across workers,
+      which adds a per-worker setup cost the block order does not pay.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+
+  recommended_priority: medium
+
+  implementation_notes: >-
+    UNUSUALLY CHEAP FOR WHAT IT SETTLES: stage 0 and stage 0b need NO solver, NO
+    Sage beyond what src/semaev_tree.py already uses for the descent, and NO
+    search - only the encoder's clause sets, a determinacy simulation under a
+    given order, and GF(2) rank computations. They can therefore run at l = 9,
+    10, 11 and at m = 4, where no complete solve is affordable, and they alone
+    can falsify A1-A3. What must be built: the symmetrized model encoder (shared
+    with the other four proposals), a determinacy/propagation simulator, a
+    harness-side Gauss-Jordan probe, and the bit-interleaved order. What does
+    NOT exist here: WDSat, WDSatGE, and any solver-internal GE instrumentation;
+    the solver arms of stage 2 are best-effort and their absence is an
+    infrastructure gap, not a result.
+
+  dominated_by: >-
+    As an algorithmic proposal it dominates nothing and is dominated by
+    everything in the lane: the poly-memory (m-1)-fold enumeration at
+    2^{(m-1)l}/(m-1)! operations for the pdp step (IDEA-20260904-96c4f3), and
+    Pollard rho / van Oorschot-Wiener at ~2^{n/2} for the ECDLP. Frontier rows
+    checked: Grobner F4 (reported, not reproduced), generic CDCL, the
+    Galbraith-Gebregiyorgis CNF model, exhaustive search (libFes) and the
+    Joux-Vitse crossbred algorithm, KN-FIND-2a8b7e and KN-FIND-8f2c90 (prime
+    field, different step). As a MECHANISM record its deliverable is an
+    obstruction measurement, for which the corpus contains no competing entry -
+    claim C3 of the frozen source states the phenomenon and supplies no
+    mechanism, and no internal record addresses parity reasoning at all. Not
+    null.
+
+  sota_delta: >-
+    Quantitatively: converts claim C3 from a single uncontrolled observation
+    ("GE is not beneficial for this model") into (i) a derived structural
+    statement with an exhibited depth bound (m-1)l, checkable at zero compute
+    and at parameters no solver reaches; (ii) a measured obstruction - the
+    linear deficit curve L(d), rho(D=1) decreasing from 0.068 at l = 6 to 0.038
+    at l = 11 by the source's own model sizes, and a GE conflict reduction under
+    5% and falling; and (iii) an exact break-even condition, factor m!, under
+    which GE would start to help. sota_delta on attack cost is exactly zero; the
+    delta is on what the program can predict without running anything.
+
+  honest_prior_of_survival: >-
+    About 0.9 that A1-A3 hold as stated for the symmetrized model under the
+    block order - they are a derivation from equation (6), and the main risk is
+    that the encoder is not the model I read. About 0.75 that the GE surplus is
+    zero at more than 99% of nodes. About 0.5 on the interleaved-order positive
+    prediction, which is the genuinely uncertain part and the reason to run it.
+    About 0.3 that D* turns out small enough for lever L2 to be worth an
+    experiment. Under 0.05 that anything here changes an attack cost.
