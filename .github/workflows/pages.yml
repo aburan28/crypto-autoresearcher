@@ -30,17 +30,28 @@ on:
   schedule:
     - cron: '17 6 * * *'
   workflow_dispatch:
+  # Build (never deploy) on a pull request that changes the dashboard itself.
+  # Deliberately NOT the corpus paths above: a research PR cannot break the
+  # build, and paying two minutes on every one of them is the coupling this
+  # repository has spent real effort removing. Without this, a workflow or
+  # builder mistake would first surface AFTER merge, on main, with the
+  # published page as the thing that breaks.
+  pull_request:
+    paths:
+      - 'ui/**'
+      - 'tests/test_ui_index.py'
+      - '.github/workflows/pages.yml'
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Merges to main arrive in bursts. Publish the newest and drop the ones it
-# supersedes, but never interrupt a deploy that is already uploading.
+# supersedes, but never interrupt a deploy that is already uploading. A PR
+# build is a check, not a publication, so it gets its own group and its
+# superseded runs are cancelled.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -97,13 +108,22 @@ jobs:
           PY
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
+      # A pull request stops here: it has proved the site builds, and
+      # uploading 125 MB it will never publish is waste.
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
         with:
           path: site
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    # Scoped to this job: the build needs neither, and a token that can
+    # publish the site should not be live while arbitrary branch code runs.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
