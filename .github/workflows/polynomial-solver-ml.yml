@@ -1,0 +1,44 @@
+name: polynomial-solver-ml
+
+on:
+  pull_request:
+    paths:
+      - 'tasks/polynomial_solver_ml/**'
+      - '.github/workflows/polynomial-solver-ml.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tasks/polynomial_solver_ml/**'
+      - '.github/workflows/polynomial-solver-ml.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  software-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install task dependencies
+        run: python -m pip install -r tasks/polynomial_solver_ml/environment/requirements.txt
+      - name: Test roots, learners and artifact integrity
+        run: python -m pytest -q tasks/polynomial_solver_ml/tests --junitxml=runs/polynomial_ml/tests.xml
+      - name: Generate, train, evaluate and verify the quick profile
+        run: python tasks/polynomial_solver_ml/run_local.py run --profile quick --output runs/polynomial_ml/ci
+      - name: Preserve complete or partial software run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: polynomial-solver-ml-run
+          path: runs/polynomial_ml/
+          if-no-files-found: warn
+          retention-days: 14
