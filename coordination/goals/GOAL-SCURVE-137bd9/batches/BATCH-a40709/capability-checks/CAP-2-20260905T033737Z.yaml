@@ -1,0 +1,73 @@
+capability_check:
+  id: CAP-2
+  batch_id: BATCH-a40709
+  goal_id: GOAL-SCURVE-137bd9
+  gates_slots: [S3, S5, S7]
+  gates_task_now: TASK-20260904-90ac09
+  performed_by: >-
+    The driving session (top-level orchestrator, claude_code runtime), NOT a
+    subagent. Recorded in a dispatcher-owned directory rather than in the
+    producer's write_scope, because S3 has not run and a worker must never find
+    its own deliverables already present.
+  performed_at: '2026-09-05T03:37:37Z'
+  declared_check: >-
+    batch.yaml capability_contract CAP-2, before_slots [S3, S5, S7]:
+    "arbitrary-precision integer arithmetic and a command-execution tool are
+    available in the dispatched session."
+  discharges: >-
+    DEC-20260904-5216dd condition C-4, for S3. C-4 requires the capability
+    checks to be ACTUALLY RUN, not merely named on a task card.
+  result: PASS
+  environment:
+    python: 3.11.15
+    implementation: CPython
+    command_execution_tool: available -- the probe itself ran in a shell
+  evidence:
+  - check: unbounded exact integers
+    detail: '7**500 has bit_length 1404; 11**450 has bit_length 1557; their product has bit_length 2961'
+  - check: exact division recovers the operand
+    detail: '(a*b)//b == a and (a*b) % b == 0 both True; (a*b)//a == b True'
+  - check: modular exponentiation at cryptographic width
+    detail: 'pow(3, 2**400 + 12345, 2**521 - 1) returned a 521-bit result'
+  - check: Fermat consistency on a neutral prime
+    detail: 'pow(3, m-1, m) == 1 for m = 2**521 - 1, a Mersenne prime'
+  - check: exact integer square root at scale
+    detail: 'math.isqrt((10**200 + 7)**2) == 10**200 + 7'
+  - check: gcd at scale
+    detail: 'math.gcd(7**500, 11**450) == 1'
+  - check: no silent float fallback
+    detail: 'the 2961-bit product exceeds double range (bit_length > 1024) and was handled exactly'
+  neutral_values_note: >-
+    EVERY VALUE ABOVE IS DELIBERATELY UNRELATED TO THE AUDITED CURVE. The
+    probe uses 7**500, 11**450, 10**200 + 7 and the Mersenne prime 2**521 - 1.
+    Running the check on NIST P-224's parameters would have been doing S3's
+    work in the gate that precedes S3, and would have put a computed value in
+    front of the producer. NO PARAMETER, ORDER, RESIDUE, COFACTOR OR BIT LENGTH
+    OF THE AUDITED CURVE APPEARS ANYWHERE IN THIS RECORD.
+  pari_status:
+    present: false
+    detail: "import cypari2 -> ModuleNotFoundError: No module named 'cypari2'"
+    blocks_s3: false
+    why: >-
+      batch.yaml declares S3 as pari: no. PARI is not required by CAP-2 and is
+      not required by this slot. Recorded because capability is PER-SESSION and
+      a later slot that does need PARI must check for itself -- two producers in
+      one batch of this program have already had different toolchains.
+  what_this_establishes:
+  - >-
+    Arbitrary-precision integer arithmetic and a command-execution tool were
+    available in THIS session at the recorded time. That is all.
+  what_this_does_NOT_establish:
+  - >-
+    CAPABILITY IS PER-SESSION, NEVER PER-REPOSITORY. This is evidence the gate
+    CAN pass in this environment, not that it WILL for the session that runs S3,
+    S5 or S7. Each owes CAP-2 again at ITS dispatch.
+  - >-
+    NOTHING ABOUT ANY CURVE. No criterion cell is adjudicated, no parameter is
+    verified, and no curve is called safe or unsafe. A working calculator is not
+    a measurement.
+  failure_semantics_if_it_had_failed: >-
+    Per batch.yaml: the slot is NOT run and NOT reported as attempted. A session
+    without arithmetic can only transcribe, and a transcription reported as a
+    measurement is exactly the defect this batch exists to remove. That would be
+    an operational observation and NEVER negative mathematical evidence.
