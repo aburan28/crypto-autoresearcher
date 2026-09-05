@@ -1,0 +1,221 @@
+handoff:
+  id: TASK-20260905-77a64b
+  from: coordinator
+  to: [validator, red-team]
+  created_at: '2026-09-05'
+  hypothesis_id: H-MONO-6adf3c
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  experiment_id: EXP-MONO-7f39bf
+
+  objective: >-
+    Independently verify EXP-MONO-7f39bf's own completed measurements
+    (RUN-MONO-7f39bf-3/-4, both `status: completed_valid`, archived at
+    origin commit 81fd861a85260356a09877d86e8691dd80d30cd2) before the
+    Coordinator composes any evidence or decision record. This is the
+    experiment testing IDEA-20260807-5126f4's actual, corrected
+    partial-locus claim (H-MONO-6adf3c), after an earlier draft
+    (H-MONO-39b1f0) was found by a prior independent review round
+    (TASK-20260905-153d93) to have conflated the idea's own already-
+    decided full-locus null control with its real, still-open claim.
+    Given that history, this round exists specifically to check whether
+    the ACTUAL measurement now in hand is a genuine test of the intended
+    construction, or another instance of the same failure mode in a new
+    guise.
+
+  review_plan:
+    coordinator_prior: >-
+      Recorded BEFORE either reviewer is dispatched. Reading
+      RUN-MONO-7f39bf-3/-4's own manifests myself, three things stand out,
+      in descending order of how much they worry me:
+
+      (1) n_reject=0 in EVERY ONE of 24 measured (p,m,tag) cells across
+      both runs (Stage 1 AND Stage 1B, both replication seeds). If the
+      character-tower filter never once rejects a candidate across 24,000
+      total trials, its true acceptance rate is 100% -- it is not merely
+      "not below 1/2", it may be functionally VACUOUS, exactly the
+      pathology this exact sub-thread already found once before
+      (H-MONO-39b1f0's full-locus case) under a different mechanism. I do
+      NOT yet know whether this is (a) a genuine, interesting finding
+      that the corrected construction is ALSO vacuous for a different
+      reason than the full-locus case, (b) an implementation defect where
+      the filter's REJECT branch is never actually reachable by
+      construction (a coding bug, not a mathematical fact), or (c) an
+      artifact of how candidates were sampled (e.g. if candidates were
+      drawn only from values already known to have roots). I have
+      MODERATE-LOW confidence I can distinguish these without an
+      independent, from-scratch trace of the filter's own reject
+      condition against a concrete cell.
+
+      (2) The R1 branch-count mismatch (m=5 measures 4 T-dependent
+      branches, not the idea's own predicted m-2=3) reproduces exactly
+      and identically across both independent seeds and all three primes
+      (12 of 12 m=5 gate-checks). Reproducibility across seeds argues
+      against a randomness-driven artifact, but does not rule out a
+      structural error in how branches are counted or an actual
+      difference between the informal m=4 worked derivation
+      (H-MONO-6adf3c's own `mechanism` field) and what the m=5
+      recursive-resultant construction the Executor actually built does.
+      I have MODERATE confidence this is a genuine structural fact about
+      the m=5 construction, not a bug, but I have not traced the m=5
+      branch-generation code myself.
+
+      (3) I have NOT independently re-derived even one cell's own
+      false-positive-rate number from raw-result.json; I am relying on
+      the Executor's own arithmetic (n_pass_false_positive / n_pass) as
+      transcribed into both the manifest and execution_report.yaml
+      without recomputing it myself from the underlying per-trial data.
+
+    claim_under_review: >-
+      (a) Is n_reject=0 in every one of 24 measured cells a genuine
+      mathematical fact about this construction (the filter's REJECT
+      condition is reachable in principle but never triggered by chance
+      across 1000 trials/cell), or is the REJECT branch actually
+      unreachable BY CONSTRUCTION (a coding defect that would make the
+      entire Stage 1/1B measurement vacuous in a different, undisclosed
+      way)? (b) Is the R1 branch-count-of-4-not-3 at m=5 a correct
+      measurement of a genuine structural fact, or does it trace to a
+      bug in how `n_branches_T_dependent_discriminant` is counted? (c) Do
+      at least two of the reported false-positive-rate numbers
+      independently re-derive exactly from raw-result.json's own
+      per-trial data?
+
+    joints:
+      - joint: >-
+          The character-tower filter's REJECT branch is reachable BY
+          CONSTRUCTION (i.e. there exists at least one candidate T, for
+          at least one tested cell, for which the implemented filter
+          logic WOULD report REJECT if the discriminant's Legendre symbol
+          came out -1) -- n_reject=0 is a fact about the SAMPLE, not a
+          fact about the CODE being unable to ever reject anything.
+        assigned_to: TASK-20260905-77a64b-validator
+        attack_plan: >-
+          Read `experiments/EXP-MONO-7f39bf/implementation/run_experiment.py`'s
+          own Stage 1 filter-evaluation function directly (not the
+          manifest's prose summary of it). Trace exactly how a PASS vs
+          REJECT verdict is computed from `chi(disc_branch(T))` for each
+          of the (2 at m=4, 4 at m=5) branches -- is REJECT defined as
+          "chi=-1 for at least one branch" (a genuine necessary condition
+          that COULD reject) or is there a logic error (e.g. an `or`/`and`
+          inversion, or a branch whose disc_branch(T) is being evaluated
+          against the wrong variable) that makes REJECT structurally
+          unreachable regardless of chi's actual value? Then, independent
+          of the implementation, hand-pick or search for a CONCRETE T
+          value at one cell (e.g. p=211, m=4, using the actual factor-base
+          points and curve in raw-result.json) for which you can compute
+          chi(disc_branch(T)) = -1 for at least one branch BY HAND OR
+          FRESH CODE, and confirm the existing implementation, if run on
+          that exact T, would report REJECT. If you cannot find such a T
+          after a genuine search, or if the implementation would still
+          report PASS on it, that is a break.
+        breaking_artifact: >-
+          A concrete T for which chi(disc_branch(T))=-1 for some branch,
+          verified independently, on which the implementation nonetheless
+          reports PASS -- proving REJECT is unreachable and n_reject=0 is
+          an artifact of the code, not a fact about the construction.
+      - joint: >-
+          The R1 branch-count measurement (4 T-dependent branches at
+          m=5, not the idea's own predicted 3) is a correct count of a
+          genuine structural fact about the m=5 construction, not a
+          counting-logic defect.
+        assigned_to: TASK-20260905-77a64b-red-team
+        attack_plan: >-
+          Read the m=5 branch-decomposition code in
+          `experiments/EXP-MONO-7f39bf/implementation/run_experiment.py`
+          directly, and independently re-derive, from scratch (fresh code
+          or by hand, not by reading the Executor's own derivation
+          comments), how many branches the m=5 construction SHOULD
+          produce given H-MONO-6adf3c's own m=4 worked derivation
+          generalized one level. Compare your own from-scratch count
+          against the implementation's reported count of 4. If they
+          differ, identify exactly which step of the recursive
+          resultant elimination introduces the extra branch(es) -- is it
+          a genuine doubling from the recursive structure (which would
+          suggest the idea's own "m-2" prediction undercounted by
+          construction, a real and useful correction), or a bug that
+          double-counts or fails to collapse a spurious branch?
+        breaking_artifact: >-
+          A from-scratch derivation producing a branch count different
+          from BOTH 4 (measured) and 3 (predicted), or a specific
+          identified step in the implementation where a branch is
+          duplicated or mis-split, showing the measured 4 is itself
+          wrong (not just the idea's prediction).
+      - joint: >-
+          At least two of the reported Stage-1 false-positive-rate
+          numbers re-derive exactly from raw-result.json's own per-trial
+          data (not merely re-reading the manifest's own already-computed
+          summary).
+        assigned_to: TASK-20260905-77a64b-validator
+        attack_plan: >-
+          Pick two cells (e.g. p=211/m=4 and p=1009/m=5) from
+          `experiments/EXP-MONO-7f39bf/runs/RUN-MONO-7f39bf-3/raw-result.json`.
+          Independently recompute `false_positive_rate =
+          n_pass_false_positive / n_pass` directly from that file's own
+          per-trial records if per-trial data is present, or re-verify the
+          aggregate counts (`trials`, `n_pass`, `n_reject`,
+          `n_pass_false_positive`) are internally consistent
+          (`n_pass + n_reject == trials`) and that the rate as reported
+          matches the stated formula exactly. Report any arithmetic
+          mismatch found.
+        breaking_artifact: >-
+          A cell where the reported false_positive_rate does not equal
+          n_pass_false_positive/n_pass as stated, or where trials !=
+          n_pass + n_reject.
+
+    blindness:
+      mutual: true
+      lifted_for: []
+      rationale: >-
+        Standard blind parallel round for a first pass at a completed
+        experiment's own raw results.
+
+    proves_too_much:
+      objects:
+        - >-
+          A synthetic, hand-constructed cell where the true root DOES
+          NOT exist for a specific candidate T (i.e. a T you construct
+          for which no factor-base root exists by hand-verified
+          arithmetic) -- the filter's ground-truth-independent ground-
+          truth check (per the specification's own
+          GROUND-TRUTH-INDEPENDENT-CODE-PATH control) MUST correctly
+          identify this T as root-free.
+      failure_signature: >-
+        If the implementation's own independent ground-truth root-finding
+        path also fails to correctly identify a hand-constructed,
+        known-root-free T as root-free, that is evidence the GROUND-TRUTH
+        path itself (not just the filter) is broken, which would
+        undermine every false-positive-rate number in the entire run,
+        not merely the n_reject=0 finding.
+      assigned_to: TASK-20260905-77a64b-red-team
+
+    blind_rederivation:
+      required: false
+      quantity: null
+      parameters: null
+      blind_from: []
+      assigned_to: null
+
+    procedure_deviations: []
+
+  inference:
+    policy: review-adversarial
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+
+  budget:
+    wall_clock_seconds: 2400
+    memory_gb: 4
+    maximum_runs: null
+
+  completion_gate:
+    - Both reviewers report HOLD/BREAK per assigned joint, with worked evidence.
+    - The proves-too-much control is reported HOLD/BREAK with its own worked evidence.
+
+  return_format: >-
+    Each reviewer returns its verdict per joint (HOLD/BREAK) with the
+    worked evidence (code line references, concrete computed T values,
+    or an identified defect location) directly in its response, for the
+    Coordinator to compose into a CORR (if any joint breaks) or an
+    evidence/decision record (if all hold) for EXP-MONO-7f39bf.
