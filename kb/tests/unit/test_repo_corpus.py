@@ -81,6 +81,47 @@ def test_registered_replacement_is_staged_with_canonical_id_and_provenance(tmp_p
     ])
 
 
+def test_handoff_correction_is_retrievable_without_result_evidence(tmp_path: Path) -> None:
+    source_rel = "ledger/handoffs/TASK-20260905-abcdef.yaml"
+    replacement_rel = (
+        "ledger/corrections/schema-supersessions/20260905/"
+        "ledger__handoffs__TASK-20260905-abcdef.v2.yaml"
+    )
+    source = b"handoff: [legacy-invalid\n"
+    replacement = (
+        b"handoff:\n  id: TASK-20260905-abcdef\n"
+        b"  objective: Review a frozen proposal\n  to: validator\n"
+    )
+    _write(tmp_path / source_rel, source)
+    _write(tmp_path / replacement_rel, replacement)
+    _registry(tmp_path, [{
+        "kind": "ledger",
+        "superseded_path": source_rel,
+        "superseded_sha256": _sha(source),
+        "superseding_path": replacement_rel,
+        "superseding_sha256": _sha(replacement),
+        "defect": "invalid historical handoff fixture",
+        "registered": "2026-09-05",
+    }])
+    diagnostics = StagingDiagnostics()
+
+    documents = list(iter_staged(
+        tmp_path, (_rule("handoffs"),), "deadbeef", diagnostics=diagnostics,
+    ))
+
+    assert len(documents) == 1
+    assert documents[0].data == replacement
+    assert documents[0].metadata["source_id"] == "handoff:TASK-20260905-abcdef"
+    assert documents[0].metadata["title"] == "Review a frozen proposal"
+    assert documents[0].metadata["evidence_level"] == "none"
+    assert documents[0].metadata["verification_artifacts"] == sorted([
+        f"{source_rel}@sha256:{_sha(source)}",
+        f"{replacement_rel}@sha256:{_sha(replacement)}",
+    ])
+    assert diagnostics.matched_registered_source_paths == [source_rel]
+    assert diagnostics.unmatched_registered_source_paths == []
+
+
 @pytest.mark.parametrize("mutated", ["source", "replacement"])
 def test_registered_hash_drift_fails_closed(tmp_path: Path, mutated: str) -> None:
     source_rel = "ledger/evidence/EV-OLD.yaml"
@@ -401,6 +442,7 @@ def test_repository_full_dry_stage_has_complete_modern_coverage_and_disclosed_de
         "ledgers/hypotheses": 270,
         "ledgers/questions": 100,
         "ledgers/proposals": 680,
+        "ledgers/handoffs": 1_100,
         "ledgers/goals": 64,
         "ledgers/goal-checkpoints": 95,
         "ledgers/subgoals": 1,
