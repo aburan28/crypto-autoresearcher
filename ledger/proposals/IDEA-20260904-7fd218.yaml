@@ -1,0 +1,724 @@
+idea:
+  id: IDEA-20260904-7fd218
+  added: '2026-09-04'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SATIC-1ae57a
+  title: >-
+    Two-axis factor attribution for the pdp - every toggleable ingredient moves
+    EITHER the leaf count OR the cost per leaf, never both, and the leaf-count
+    budget is exactly log2(blowup from a bad backdoor) plus log2|G| with nothing
+    left for the solver brand
+
+  class: measurement
+
+  claim: >-
+    SCOPE: symmetrized S_{m+1} pdp over F_{2^n} descended to F_2, and the direct
+    model of src/semaev_tree.py; m = 3 primarily, m = 4 as one out-of-sample
+    cell; l in 6..8; CNF and CNF-XOR encodings; DPLL and CDCL solvers available
+    as Python-bindable or in-harness. CLAIM TIER toy. NO ATTACK, NO EXPONENT
+    IMPROVEMENT.
+
+    (A) THE ATTRIBUTION CLAIM. Write total pdp solving cost as
+    T = N_leaf x c_leaf and measure the two factors SEPARATELY. Then each of the
+    six toggleable ingredients below moves exactly one of the two by more than
+    20%, and the assignment is:
+
+        ingredient                              N_leaf      c_leaf
+        F1 encoding: CNF vs CNF-XOR vs ANF        no          YES
+        F2 core-variable branching order          YES         no
+        F3 native XOR propagation vs CNF parity   no          YES
+        F4 clause learning on/off                 no          YES
+        F5 Gaussian elimination on/off            no*         YES (worse)
+        F6 m! symmetry breaking on/off            YES         no
+
+    (* F5 is predicted to reduce N_leaf by at most 2%, which is why it is a
+    net loss; the mechanism is IDEA-20260904-e12b5a.)
+
+    (B) THE BUDGET CLAIM, ADDITIVE IN LOG2. On UNSAT instances,
+    log2 N_leaf = ml + B(order) - log2|G|, where B(order) >= 0 is the BACKDOOR
+    BLOWUP of the branching order used: B = 0 for any order restricted to the ml
+    core variables, and B > 0 for an order that decides substituted monomial
+    variables. All of F2's contribution is B(order) -> 0, and all of F6's is
+    log2|G| = log2(m!) = 2.585 bits at m = 3 and 4.585 bits at m = 4. Nothing
+    else contributes to this axis. In particular the CNF-XOR model contributes
+    ZERO bits of leaf reduction relative to the CNF model at equal branching
+    order -- its entire benefit is on the c_leaf axis via a ~6.5x smaller
+    variable count and a ~8x smaller clause count (Table 1 of the frozen source,
+    l = 6, n = 19: 5019 vars / 19577 clauses for CNF versus 767 vars / 2364 cnf
+    clauses + 52 xor clauses for CNF-XOR).
+
+    (C) THE CONSEQUENCE FOR THE SOURCE'S THREE ANOMALIES, EACH BECOMING A
+    TESTABLE STATEMENT RATHER THAN A PUZZLE.
+      C-a. "The win is the model, not the solver" (claim C2) is restated as: F2
+           carries the whole leaf-axis effect, so patching a core-variable order
+           into ANY complete solver recovers the whole leaf-axis gain, and what
+           remains is c_leaf.
+      C-b. The residual gap between a generic CDCL solver with the core order
+           and a dedicated XOR solver is predicted to be ENTIRELY c_leaf, with
+           the two leaf counts agreeing within 5%. Predicted contributors to
+           c_leaf, each separately toggleable: clause-database growth and
+           restart bookkeeping (F4), parity re-derivation through CNF instead of
+           a native XOR set (F3), and dynamic versus static memory allocation.
+      C-c. A solver with NO XOR reasoning outperforming an XOR-aware one
+           (CaDiCaL versus CryptoMiniSat on the CP 2020 slide) is restated as a
+           statement about B(order): predicted MECHANISM is that CaDiCaL's
+           activity heuristic concentrates its DECISIONS on the ml core
+           variables by itself, achieving B ~ 0 without being told, while the
+           other solver does not. This is directly measurable as
+           core_decision_fraction = (decisions on core variables) / (total
+           decisions), predicted >= 0.8 for the solver with the smaller leaf
+           count and <= 0.4 for the one with the larger, on the SAME instance.
+           If the two solvers have similar core_decision_fraction but very
+           different leaf counts, C-c is false and the anomaly is something
+           else.
+
+    (D) WHAT WOULD FALSIFY THE WHOLE FRAMING. Any ingredient that moves BOTH
+    axes by more than 20% breaks the additive decomposition and means the two
+    factors are not separable, in which case the correct model is not
+    T = N x c and the record says so and stops.
+
+  mechanism: >-
+    WHY THE TWO AXES SHOULD SEPARATE. In a complete backtracking search the leaf
+    count is determined by (i) which variables are decided, and (ii) which
+    subtrees are pruned. Under Proposition 1 of the frozen source the ml core
+    variables are a strong backdoor with respect to unit propagation, so an
+    order restricted to them has tree height exactly ml; an order that decides
+    substituted monomial variables instead has height up to the full variable
+    count (767 at l = 6, n = 19 in the CNF-XOR model; 5019 in the CNF model),
+    and the excess height is wasted because those variables are functionally
+    determined by the core ones. That is B(order), and it is a property of the
+    ORDER, not of the solver's propagation machinery. Pruning, meanwhile, is
+    what IDEA-20260904-3c7a91 claims is absent above the leaf level in this
+    model. If both hold, N_leaf is a function of (ml, B(order), |G|) alone --
+    which is precisely the additive log2 budget of (B).
+
+    Everything else a solver does -- how it stores clauses, whether it learns,
+    whether parity is derived natively or re-derived through 2^{k-1} CNF clauses
+    per XOR of size k (equation (9) of the source), whether it maintains a GF(2)
+    matrix -- changes the WORK PER NODE and cannot change which nodes are
+    visited, because it cannot change what unit propagation entails. Clause
+    learning is the one ingredient that could in principle move both axes, since
+    a learnt clause can prune; the prediction that it does not is a direct
+    consequence of the no-above-leaf-pruning mechanism, and it is the sharpest
+    single test of that mechanism.
+
+    THE LOSSY-PROJECTION TEST. The tracked object is the ORDERED PAIR
+    (visited-node count, per-node work), i.e. the projection of a solver run
+    onto the two-dimensional "search-size / node-cost" plane, discarding the
+    identity of every node, the clause database, the assignment trail, and the
+    entire proof the solver constructs. It is genuinely lossy: the fibre over a
+    point of the plane contains every run with that many nodes at that cost, an
+    enormous set. The discarding is COMPATIBLE with the solver's operations
+    because the two coordinates evolve under disjoint mechanisms -- decide and
+    backtrack change the node count and never the per-node cost; learn, restart,
+    allocate and propagate change the per-node cost and, IF the no-pruning
+    mechanism holds, never the node count. That disjointness is exactly the
+    deterministic-propagation property the test demands, and it is also the
+    claim being tested, which is the honest position: the projection is
+    well-founded if and only if (A) is true, and the experiment measures
+    precisely that. The projection that FAILS the test and is therefore rejected
+    as the object: total wall clock, which loses the factorisation and is a
+    single number that six different ingredients can move for six different
+    reasons -- the shape of every solver benchmark, and the reason claim C6 as
+    stated cannot answer this RQ's decision_target.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: SRC-SATIC-TRIMOSKA-2019
+      provenance: internal
+      claim: >-
+        Claim C2 (core-variable branching order patched into CryptoMiniSat is
+        the dominant effect); claim C3 (Gaussian elimination not beneficial for
+        this model); claim C4 (m! symmetry-breaking factor); Table 1's exact
+        model sizes (CNF 5019 vars / 19577 clauses versus CNF-XOR 767 vars /
+        2364 cnf + 52 xor clauses at l = 6, n = 19); Table 4's variant
+        comparison. All numbers are the authors' own, on the authors' hardware,
+        and are not reproduced here; no cross-hardware ratio is formed.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read
+        paper_fulltext.md sections 3-6 and Tables 1-4, and source_record.yaml.
+    - ref: inputs/SATIC-TRIMOSKA-2019/cp2020_slide_benchmark.md
+      provenance: internal
+      claim: >-
+        On a single l = 6, n = 19 instance family the slide reports CaDiCaL at
+        254194 SAT conflicts / 629869 UNSAT conflicts against CryptoMiniSat at
+        1791188 / 3416526 - i.e. an XOR-unaware solver with roughly 5.4x-7x
+        FEWER conflicts than an XOR-aware one. This is the anomaly C-c exists to
+        explain. Authors' numbers, not reproduced here.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read the
+        frozen slide benchmark in full.
+    - ref: arXiv:2001.11229
+      provenance: retrieved
+      claim: >-
+        Abstract states the branching rule is a Minimal-Vertex-Cover
+        preprocessing acting as "a DLL branching selection rule that leads to
+        quick linearization of the underlying algebraic system" - i.e. the
+        authors themselves frame F2 as an ORDER-selection technique, which is
+        the axis assignment claimed here. ABSTRACT ONLY; body not read.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04, fetched
+        https://arxiv.org/abs/2001.11229
+    - ref: >-
+        Soos, Enhanced Gaussian elimination in DPLL-based SAT solvers,
+        Pragmatics of SAT 2010; CryptoMiniSat GJ-elimination auto-turn-off
+      provenance: recalled
+      claim: >-
+        CryptoMiniSat enables Gaussian elimination only when the instance is
+        judged cryptographic (variable-activity stability plus xor-clause
+        fraction), and reports an auto-turn-off heuristic keeping the slowdown
+        near 1% on instances where the matrix is small. RECALLED FROM
+        SEARCH-RESULT SUMMARIES ONLY, NOT READ - offered so a reviewer can check
+        whether F5's per-node cost is already characterised in that literature.
+      verified_by: null
+    - ref: "Williams, Gomes, Selman, Backdoors to typical case complexity, IJCAI 2003"
+      provenance: recalled
+      claim: >-
+        Strong backdoor with respect to unit propagation; the quantity B(order)
+        defined here is the log2 of the ratio between the tree height a given
+        order induces and the backdoor size. RECALLED, NOT READ.
+      verified_by: null
+    - ref: KN-TECH-053
+      provenance: internal
+      claim: >-
+        MQ and Boolean solving - XL, BooleanSolve, crossbred; and the warning
+        against quoting a solver exponent as an end-to-end exponent, which this
+        record's target_complexity section obeys explicitly.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04.
+    - ref: EXP-ALBIN-007
+      provenance: internal
+      claim: >-
+        An imported (not re-executed) pycryptosat CNF-XOR harness with Tseitin
+        AND gates and an MSB-only symmetry relaxation exists in this repository
+        and sets NO branching order, so it is a candidate B(order) > 0 datapoint
+        - but its reported timings were produced elsewhere and may not be cited
+        as measurements here.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read the
+        script and analysis.
+
+  assumptions:
+    - >-
+      The two axes are measurable independently: N_leaf from an instrumented
+      counter in the harness (not from the solver's own conflict counter, which
+      is not comparable across solvers), and c_leaf as wall clock divided by
+      that counter, on one machine in one session with pinned versions and
+      commits.
+    - >-
+      All solver preprocessing and inprocessing is DISABLED, verified by
+      comparing pre- and post-simplification variable counts. Otherwise the
+      branching order is not the order that ran.
+    - >-
+      Toggling an ingredient does not change the instance. In particular the CNF
+      and CNF-XOR encodings of the SAME descended system must be verified
+      equisatisfiable on a fixture before their leaf counts are compared.
+    - >-
+      Every ingredient can actually be toggled in the available tooling. Where
+      it cannot (e.g. no binding exposes a forced branching order), the missing
+      cell is an INFRASTRUCTURE outcome recorded as such, never a measurement,
+      and the harness's own DPLL reference enumerator supplies the fallback.
+
+  proof_search_map:
+    bottleneck: >-
+      The attribution of a reported speedup to a named cause. Claim C6 is a
+      product of at least six factors measured jointly; the RQ's decision_target
+      explicitly says reproducing the advantage without isolating its cause is
+      not sufficient. The bottleneck is therefore not a computation but a
+      confounded measurement design, and removing it changes what every
+      downstream record in this lane is allowed to say.
+    baseline_embedding:
+      parameter_slice: >-
+        m = 3, l = 6, n = 19, CNF-XOR encoding, core-variable order, no symmetry
+        breaking, no Gaussian elimination - the exact configuration the frozen
+        source labels "CMS with Prop.1" and "WDSat with Prop.1" in Table 2. At
+        this slice the budget claim predicts log2 N_leaf = 18 - 0 - 0 = 18, i.e.
+        262144 leaves; and with symmetry breaking, 18 - 2.585 = 15.415, i.e.
+        43691. Both are the same predictions IDEA-20260904-3c7a91 makes, which
+        is deliberate: the two records share a baseline so that a failure is
+        attributable.
+      reproduction_check: >-
+        A frozen fixture, evaluated in integer arithmetic before any run: the
+        model-size table (core vars, monomial vars, cnf clauses, xor clauses)
+        for the CNF, CNF-XOR and ANF encodings at (m,l,n) = (3,6,19) and
+        (3,7,23), required to match the shape of Table 1 of the source
+        (CNF-XOR: 767/52 and 1101/62 respectively; the CNF column of Table 1 is
+        an AVERAGE by the source's own statement and so is checked only to
+        order of magnitude). A mismatch in the CNF-XOR column is an encoder bug
+        and blocks the experiment.
+    observation_collision:
+      observable: >-
+        The pair (N_leaf, c_leaf).
+      distinct_preimage_search: >-
+        Directed search for two configurations with the SAME N_leaf and very
+        different c_leaf (predicted to exist in abundance: every F1/F3/F4/F5
+        toggle), and for two configurations with the same c_leaf and very
+        different N_leaf (predicted: F2 and F6 toggles at fixed encoding). BOTH
+        collisions are predicted and both are required; their existence is what
+        makes the two coordinates independent rather than two names for one
+        thing. THE FALSIFYING COLLISION is a single toggle moving both by > 20%,
+        which would mean the coordinates are entangled and the product model is
+        wrong. Clause learning (F4) is the most likely such toggle and is the
+        one to watch.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          A per-ingredient resource measure: assign to each toggle a signed
+          budget in bits on the N_leaf axis and a multiplicative factor on the
+          c_leaf axis, and require that the six budgets SUM to the observed
+          total on each axis over proved-disjoint blocks (the two axes being the
+          disjoint blocks). Charges are added only across the axis partition,
+          never within it.
+        predicted_gain: >-
+          Turns "up to 300x, factor grows with l and n" into six numbers with
+          error bars, of which four are predicted to be exactly 0 bits on the
+          leaf axis. The residual - total minus the sum of the six - is the
+          honest measure of what the decomposition fails to explain and is
+          reported whether or not it is small.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold N_leaf fixed and vary the ingredient set; the intrinsic invariant
+          proposed to distinguish the resulting runs is c_leaf, together with
+          the auxiliary observables (learnt-clause count, propagations per node,
+          peak RSS) that explain it.
+        predicted_gain: >-
+          Localises the ~unexplained residual between a generic solver with the
+          core order and a dedicated solver to specific per-node mechanisms,
+          which is the one part of the source's data that has no published
+          explanation at all.
+    quantifier_order: >-
+      CLAIMED: FORALL cells (m, l, n) in the boundary and FORALL ingredients
+      F in {F1,...,F6}, EXISTS an axis a(F) in {N_leaf, c_leaf}, FIXED IN
+      ADVANCE by the table in (A) and not chosen after seeing the data, such
+      that toggling F changes a(F) by > 20% and the other axis by < 20%. The
+      quantifier at risk is the one over cells: an ingredient could be
+      axis-pure at l = 6 and not at l = 8, and the design therefore requires the
+      assignment to hold at EVERY tested cell, with a per-cell table reported
+      rather than an aggregate.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a toy-tier, per-cell attribution table for the ingredients and
+        solvers actually toggled, with error bars, plus an unexplained residual.
+        It CANNOT certify that no seventh ingredient matters, cannot certify
+        anything about WDSat (not built here), cannot be converted into a
+        speedup claim against Grobner (no Magma in this repository per the
+        source freeze), and cannot support any statement at cryptographic l.
+      nearby_object_control: >-
+        The nearby object on which the axis-purity conclusion must FAIL: a
+        Boolean system with a genuine learnable structure - the descended system
+        conjoined with a small pigeonhole or parity gadget over the core
+        variables whose refutation requires clause learning. On THAT object,
+        toggling F4 must move N_leaf by orders of magnitude. A design in which
+        F4 is axis-pure on both the pdp system and the gadget has not
+        established axis purity; it has established that its F4 toggle does not
+        work.
+    proof_obligations:
+      - claim: >-
+          The CNF and CNF-XOR encodings of a given descended system are
+          equisatisfiable and agree on the projected core-variable solution set.
+        responsibility: correctness
+      - claim: >-
+          The instrumented leaf counter agrees with a brute-force leaf count at
+          a fixture cell (m = 3, l = 3) exactly.
+        responsibility: interface
+      - claim: >-
+          B(order) = 0 for every order restricted to the core variables,
+          measured as log2(N_leaf) - ml + log2|G| within 0.1 bits.
+        responsibility: size
+      - claim: >-
+          F6 contributes exactly log2(m!) bits, measured at m = 3 (2.585) and
+          m = 4 (4.585).
+        responsibility: size
+      - claim: >-
+          F1, F3, F4, F5 contribute 0 +- 0.1 bits on the leaf axis.
+        responsibility: strictness
+      - claim: >-
+          The learning-gadget control moves N_leaf under F4 by >= 100x, so the
+          F4 toggle demonstrably works.
+        responsibility: feasibility
+      - claim: >-
+          Wall-clock quantities carry pinned solver version, commit, hardware
+          and seed, and no cross-hardware ratio is formed against
+          SRC-SATIC-TRIMOSKA-2019.
+        responsibility: scope
+      - claim: >-
+          Nothing transfers to prime fields, to l > 8, or to solvers not run.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        leaf_axis_budget_residual = log2(N_leaf measured) - [ml + B(order)
+        - log2|G|], at every cell and configuration
+      direction: lower
+      minimum_effect: >-
+        |residual| <= 0.15 bits (about 11%). A residual above 0.5 bits at any
+        cell falsifies the additive budget (B).
+    - metric: >-
+        axis_purity = for each ingredient F, the pair (relative change in
+        N_leaf, relative change in c_leaf) under toggling F
+      direction: different
+      minimum_effect: >-
+        For F2 and F6: N_leaf changes by > 100% and c_leaf by < 20%. For F1, F3,
+        F4: N_leaf changes by < 20% and c_leaf by > 20%. For F5: N_leaf changes
+        by < 5% (a DECREASE) and c_leaf increases by > 100%. Any ingredient
+        moving both by > 20% falsifies the framing.
+    - metric: >-
+        F6_bits = log2(N_leaf without symmetry breaking) - log2(N_leaf with)
+      direction: different
+      minimum_effect: >-
+        2.585 +- 0.15 at m = 3 and 4.585 +- 0.3 at m = 4. The m = 4 value is the
+        only fully out-of-sample number in this record.
+    - metric: >-
+        core_decision_fraction for each solver on the SAME instance under its
+        OWN default heuristic (no forced order)
+      direction: different
+      minimum_effect: >-
+        The solver with the smaller default N_leaf has core_decision_fraction
+        >= 0.8 and the one with the larger has <= 0.4. Two solvers with similar
+        fractions and N_leaf differing by > 3x falsifies mechanism C-c, and the
+        anomaly then needs a different explanation, which is the more
+        informative outcome.
+    - metric: >-
+        c_leaf_ratio_cnfxor_over_cnf at fixed order and fixed leaf count
+      direction: lower
+      minimum_effect: >-
+        <= 0.5, i.e. the CNF-XOR encoding is at least 2x cheaper per node,
+        consistent with its ~8x smaller clause count. A ratio near 1 would mean
+        the encoding's whole advantage is illusory at this scale.
+    - metric: >-
+        learning_gadget_control: N_leaf ratio (F4 off / F4 on) on the
+        pigeonhole-augmented system
+      direction: higher
+      minimum_effect: >-
+        >= 100. Below 100 the F4 toggle is not working and no F4 conclusion may
+        be drawn.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute). Commit the axis-assignment table of (A) and the
+      budget formula of (B), together with the predicted leaf counts at every
+      planned cell, BEFORE any run. Post hoc axis assignment is worthless.
+
+      STAGE 1 (instrument and encoder validity). Encode the same descended
+      system three ways - CNF (XOR cut into ternary clauses then expanded per
+      equation (9) of the source), CNF-XOR (native xor clauses), and ANF-direct
+      where a solver accepts it. At m = 3, l = 3, n = 11 check equisatisfiability
+      and identical projected solution sets by brute force, and check the
+      instrumented leaf counter against a brute-force leaf enumeration exactly.
+      Verify every SAT answer with an independently recomputed decomposition
+      certificate.
+
+      STAGE 2 (the toggle grid). m = 3; l in {6, 7, 8}; n in {3l-1, 4l}; a
+      fractional-factorial design over the six toggles chosen so that each
+      ingredient's main effect is estimable and the two most-suspected
+      interactions (F2 x F6, since the source states the symmetry algorithm is
+      correct only under the block order; and F4 x F5) are estimable. 10 UNSAT
+      and 10 planted-SAT instances per configuration, >= 3 seeds, interleaved
+      run order, single machine, single session, pinned versions.
+
+      STAGE 3 (the two controls that can void the experiment). (i) The
+      learning-gadget control - pigeonhole gadget over the core variables,
+      confirming F4 can move N_leaf when there is something to learn. (ii) The
+      order control - a random non-core branching order, measuring B(order) > 0
+      directly and confirming the F2 toggle works.
+
+      STAGE 4 (the m = 4 out-of-sample cell). One cell at m = 4, l = 6 with F6
+      on and off, testing the 4.585-bit prediction. This cell also tests whether
+      the encoder and the symmetry-breaking implementation generalise in m at
+      all, which the frozen source explicitly deferred to a thesis.
+    controls:
+      - >-
+        LEARNING-GADGET CONTROL (F4 toggle works) - can fail and voids all F4
+        conclusions.
+      - >-
+        ORDER CONTROL (F2 toggle works, B(order) > 0 is observable) - can fail
+        and voids all F2 conclusions.
+      - >-
+        ENCODING EQUISATISFIABILITY CONTROL - CNF and CNF-XOR agree on the
+        projected solution set at a brute-forceable cell.
+      - >-
+        NULL-SYSTEM CONTROL - the whole toggle grid repeated on the N0 null of
+        IDEA-20260904-b40e6d at one cell. If the attribution table is identical
+        on a curve-free system, the attribution is about model shape, which is
+        the correct and stronger reading.
+      - >-
+        MACHINE-DRIFT CONTROL - the baseline configuration re-run at the start,
+        middle and end of the session; drift reported and any c_leaf conclusion
+        smaller than the drift is withdrawn.
+      - >-
+        CERTIFICATE CONTROL - independent recomputation of every claimed
+        decomposition.
+    required_metrics:
+      - instrumented_leaf_count
+      - seconds_per_leaf (pinned version, commit, hardware, seed)
+      - solver_reported_conflicts, decisions, propagations, learnt_clauses
+      - core_decision_fraction
+      - conflict_depth_histogram
+      - peak_rss_mb
+      - n_core_vars, n_monomial_vars, n_cnf_clauses, n_xor_clauses per encoding
+      - toggle vector (F1..F6), cell, seed, instance_kind
+      - termination_reason (completed | timeout | memory_abort | crash)
+      - certificate_verified
+
+  falsification_conditions:
+    - >-
+      F1. Any single toggle moves both axes by > 20% at any cell. The product
+      model T = N x c is not separable and the record reports that instead of an
+      attribution table.
+    - >-
+      F2. |leaf_axis_budget_residual| > 0.5 bits at any cell. The additive
+      budget (B) is false; the measured residual and the cell are the
+      deliverable.
+    - >-
+      F3. F6_bits differs from log2(m!) by > 0.3. The symmetry quotient is not
+      exact, and the discrepancy (multiset boundary? implementation bug?) is
+      localised by the certificate data on coincident points.
+    - >-
+      F4. Two solvers with similar core_decision_fraction differ in N_leaf by
+      > 3x. Mechanism C-c is false; the CaDiCaL/CryptoMiniSat anomaly is not a
+      branching-order story and needs a new explanation, which is recorded as an
+      open direction rather than patched.
+    - >-
+      F5. Either the learning-gadget control or the order control fails. The
+      corresponding toggle is not working and NO conclusion about that
+      ingredient may be reported, positive or negative.
+    - >-
+      F6. c_leaf_ratio_cnfxor_over_cnf near 1. The CNF-XOR model's advantage is
+      not where this record places it and the axis table is wrong for F1.
+    - >-
+      F7 (PRE-REGISTERED NEGATIVE). If the attribution fails, the deliverable is
+      the per-cell table with the residual, the ingredient whose axis assignment
+      broke, and the measured interaction - not a sentence saying the ablation
+      was inconclusive.
+
+  confounders:
+    - >-
+      SOLVER COUNTERS ARE NOT COMPARABLE. CDCL "conflicts" are counted after
+      learning and restarts; a DPLL enumerator counts leaves. The primary metric
+      is an instrumented counter in the harness; solver counters are recorded
+      for cross-checking and never used as the primary quantity.
+    - >-
+      PREPROCESSING silently changes the variable set and destroys the branching
+      order. Disabled and verified.
+    - >-
+      RESTARTS change traversal order and hence the SAT-instance leaf count
+      without changing the UNSAT total. SAT and UNSAT are reported separately
+      per the RQ constraint.
+    - >-
+      F2 x F6 IS A KNOWN INTERACTION, NOT A NUISANCE: the source states the
+      symmetry-breaking algorithm is correct only under the block core order. A
+      factorial design that treats them as independent would produce nonsense
+      cells (symmetry breaking under a random order), so those cells are
+      excluded by construction and the exclusion is declared.
+    - >-
+      WALL CLOCK is machine-, version- and seed-dependent. Every c_leaf number
+      carries its pins; no c_leaf number is compared to any number in
+      SRC-SATIC-TRIMOSKA-2019.
+    - >-
+      A TOGGLE THAT DOES NOTHING looks exactly like an ingredient with zero
+      effect. This is why the learning-gadget and order controls exist, and why
+      a null effect without its corresponding positive control is not reportable.
+    - >-
+      MEMORY-ALLOCATION STRATEGY (static versus dynamic) is a plausible c_leaf
+      contributor named by claim C5 but is NOT separately toggleable in most
+      solvers; it is therefore recorded as an unresolved component of the c_leaf
+      residual rather than claimed as measured.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy; l <= 8, m in {3,4}, fields <= 2^{32}. No downstream
+      citation may raise it.
+    - >-
+      THIS IS AN ATTRIBUTION, NOT A SPEEDUP. No configuration measured here is
+      compared to Grobner: Magma's F4 is not available in this repository per
+      the source freeze, and no cross-hardware ratio may be formed against the
+      source's reported Grobner column.
+    - >-
+      NOTHING HERE IS A STATEMENT ABOUT WDSat, which has not been fetched or
+      built. Where "dedicated XOR solver" appears it means whatever native-XOR
+      binding the harness actually uses, named and pinned in the run record.
+    - >-
+      An attribution table is only as good as its toggles. Ingredients that
+      cannot be toggled in the available tooling appear as gaps, and a gap is an
+      infrastructure outcome, not a measurement of zero.
+    - >-
+      No end-to-end index-calculus statement follows; see RQ-RELN-001,
+      RQ-ICEX-001, KN-FIND-007, and the accounting in IDEA-20260904-96c4f3.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        AXIS SEPARABILITY. For the CNF-XOR pdp model at m = 3, l in [6,8], the
+        expected total solving time factorises as
+        E[T] = E[N_leaf] x E[c_leaf](1 + o(1)), with the correlation between the
+        per-run leaf count and the per-run mean node cost bounded by
+        |rho| <= 0.2, uniformly over the toggle grid and over n in
+        [m(l-1), 6l].
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: Proposition 1 fixes the tree height at exactly ml
+        for any core-restricted order, independently of every per-node
+        mechanism, so the leaf count has a coefficient-free upper bound that no
+        per-node ingredient can change. CLASSICAL STATEMENT IMITATED: the
+        standard renewal-process factorisation of a search cost into
+        (number of steps) x (mean cost per step), valid when step cost is
+        stationary along the run - here the assumption that per-node work does
+        not drift systematically with depth. That drift is exactly what a
+        growing learnt-clause database would cause, which is why F4 is the
+        ingredient most likely to break H1 and why it is measured explicitly.
+      validation_plan: >-
+        SAMPLE: per-run (N_leaf, wall clock) pairs across the whole stage-2
+        grid, >= 10 instances x >= 3 seeds x every configuration, at m = 3,
+        l in {6,7,8}, n in {3l-1, 4l}. Compute the within-configuration Pearson
+        correlation between log N_leaf and log(c_leaf) and require |rho| <= 0.2.
+        SHORTCUT FOR LARGER PARAMETERS: c_leaf can be measured WITHOUT a
+        complete search by timing a capped run of exactly 10^6 leaves and
+        dividing, which is O(10^6) work independent of l and therefore reaches
+        l = 9, 10, 11 and m = 4 where a complete UNSAT search is out of budget.
+        Pairing that with the closed-form leaf prediction gives a cost estimate
+        at cells no complete run can reach, LABELLED AS AN ESTIMATE.
+        COMPARISON DISTRIBUTION: the per-node cost distribution within a run is
+        compared against a stationary model by splitting each run into deciles
+        of leaf index and testing for monotone drift (Jonckheere-Terpstra or a
+        simple first-versus-last-decile ratio). TAIL CHECKS: report the
+        first-decile and last-decile mean node cost separately; a last/first
+        ratio above 1.5 means node cost drifts, H1 is violated, and the product
+        model must be replaced by an integral. SAMPLED PARAMETERS RECORDED:
+        (m, l, n, toggle vector, seed, solver version, commit, hardware).
+        TRANSFER ASSUMPTIONS: the capped-run c_leaf at l >= 9 is assumed equal
+        to the complete-run c_leaf at the same cell; this is exactly the
+        stationarity being tested at l <= 8 and is an extrapolation at l >= 9,
+        labelled as one.
+    - id: H2
+      statement: >-
+        ORDER-BLOWUP ADDITIVITY. For any branching order O, the leaf count
+        satisfies log2 N_leaf(O) = ml + B(O) - log2|G| + eps with
+        |eps| <= 0.15 bits, where B(O) >= 0 depends only on the order and not on
+        the encoding, the solver, n, or the curve.
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: for a core-restricted order, Proposition 1 gives
+        B = 0 exactly as an upper bound on tree height, and the section-4
+        argument gives the exact -log2(m!). CLASSICAL STATEMENT IMITATED: the
+        elementary bound that a complete backtracking search over a variable set
+        of size h visits at most 2^h leaves, with equality when no partial
+        assignment is refuted early - i.e. the assumption that a non-core order
+        behaves like an order over h > ml effectively free variables. The
+        assumption's weak point is that a non-core order may still propagate
+        efficiently on some branches, making B(O) instance-dependent; that
+        dependence is measured rather than assumed away.
+      validation_plan: >-
+        SAMPLE: N_leaf under >= 5 distinct branching orders per cell - the block
+        core order; a bit-interleaved core order; a random core order; a random
+        order over ALL variables; and the solver's own default - at m = 3,
+        l in {6,7}, n = 3l-1, 10 instances x 3 seeds. Fit B(O) per order as
+        log2 N_leaf - ml + log2|G| and test whether the fitted B(O) is constant
+        across n and across curves at that order. COMPARISON: B(block core) is
+        predicted to be 0.00 +- 0.10; B(random over all variables) is predicted
+        > 3 bits. TAIL CHECKS: report the per-instance spread of B(O) within an
+        order; an order whose B varies by more than 0.5 bits across instances is
+        instance-dependent and the additivity claim is restricted to orders for
+        which it does not. SAMPLED PARAMETERS RECORDED as above. TRANSFER: none
+        claimed beyond the orders actually run; in particular no claim is made
+        about the Minimal-Vertex-Cover order of arXiv:2001.11229, which is not
+        implemented here.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS IMPROVED. This is an instrument result and says so. The
+      quantitative deliverable is a decomposition of the tested pdp cost into
+      an EXPONENT part, ml - log2|G| bits, which no measured ingredient moves
+      except the branching order (by removing a blowup, never by going below
+      ml) and the symmetry group (by exactly log2 m!), and a CONSTANT-FACTOR
+      part c_leaf, which every remaining ingredient moves. Honest headline:
+      "no exponent movement; constant factor bounded by the measured c_leaf
+      ratio, predicted <= 20x across the whole toggle grid at a fixed cell."
+    memory_exponent: >-
+      Poly in (l, n) for every configuration except F4-on with an unbounded
+      clause database, where memory is the learnt-clause budget and is a tuning
+      parameter. Peak RSS is a required metric precisely so that the c_leaf
+      story and the memory story are not conflated; claim C5 of the source
+      (static ~17MB versus Grobner > 200GB) is an authors' measurement and is
+      not reproduced here.
+    best_known: >-
+      For the pdp step at poly memory: the (m-1)-fold enumeration with GF(2)
+      subspace membership testing, at 2^{(m-1)l}/(m-1)! operations, which is
+      2^l/m fewer operations than the best configuration this attribution can
+      produce (IDEA-20260904-96c4f3). For the ECDLP: Pollard rho / van
+      Oorschot-Wiener at ~2^{n/2}. This record's best possible outcome does not
+      approach either.
+    hidden_overhead: >-
+      The residual - measured total minus the sum of attributed effects - is the
+      honest disclosure and is reported even when small. Named components known
+      NOT to be separately toggleable, and therefore certain to sit inside the
+      residual: memory-allocation strategy (static versus dynamic), cache
+      behaviour as the clause database grows, and the Minimal-Vertex-Cover
+      ordering heuristic of arXiv:2001.11229, which is not implemented here.
+    tradeoff_note: >-
+      The one genuine tradeoff the grid exposes is F2 x F6: the m! symmetry
+      quotient (2.585 bits at m = 3) is available only under the block core
+      order, and any alternative order - including the bit-interleaved order
+      that IDEA-20260904-e12b5a predicts would make Gaussian elimination useful
+      - forfeits it. So an order change must buy more than log2(m!) bits to be
+      worth taking. Parallelisation: the core cube splits into independent
+      subcubes with no communication, so all configurations parallelise linearly
+      up to 2^{ml} workers; F4-on is the exception, since sharing learnt clauses
+      is the only cross-worker channel and it is predicted to be worthless here.
+
+  estimated_cost:
+    implementation: high
+    compute: medium
+
+  recommended_priority: medium
+
+  implementation_notes: >-
+    This is the most implementation-heavy of the five proposals and the least
+    likely to be executable in full. What exists: src/semaev_tree.py up to the
+    descended Boolean system, and the imported EXP-ALBIN-007 encoder skeleton.
+    What does NOT exist and must be built: a symmetrized S'_{m+1} model builder,
+    three encoders (CNF, CNF-XOR, ANF), leaf/depth instrumentation, a forced
+    branching-order mechanism, a learning-disable switch, a symmetry-breaking
+    DPLL, and the pigeonhole gadget. Several toggles may have no available
+    binding - pycryptosat exposes no branching-order API, and WDSat is not built
+    here. The declared fallback is the harness's own DPLL enumerator, in which
+    F2, F4, F5, F6 are all directly controllable; under that fallback F3 (native
+    versus CNF parity) is still measurable, and the CDCL arms become
+    best-effort. A configuration that cannot be run is an infrastructure gap
+    recorded as such. Recommendation: run stages 0-1 and the two positive
+    controls first, and re-scope stage 2 to the toggles that survive.
+
+  dominated_by: >-
+    As a measurement, nothing in this program dominates it: no null-controlled,
+    two-axis attribution of pdp solving cost exists in the corpus, and the
+    frozen source performs none. As an ALGORITHM, every configuration it
+    measures is dominated - by the poly-memory (m-1)-fold enumeration at
+    2^{(m-1)l}/(m-1)! operations (a factor 2^l/m fewer, IDEA-20260904-96c4f3),
+    and by Pollard rho / van Oorschot-Wiener at ~2^{n/2} for the ECDLP itself.
+    Frontier rows checked: Grobner F4 (source claim C5/C6, reported not
+    reproduced), generic CDCL (source Table 2, CP 2020 slide), the
+    Galbraith-Gebregiyorgis CNF model, exhaustive search via libFes and the
+    Joux-Vitse crossbred algorithm (both named by the source as untested
+    comparisons and both plausibly faster on this model - see
+    IDEA-20260904-96c4f3), KN-FIND-2a8b7e and KN-FIND-8f2c90 (prime-field BKK,
+    different step). Not null.
+
+  sota_delta: >-
+    Quantitatively: replaces the single uncontrolled factor of claim C6 with six
+    per-ingredient numbers on two separated axes, four of which are predicted to
+    be exactly 0 bits on the exponent-bearing axis. If the prediction holds, the
+    delta against the published understanding is: the CNF-XOR model contributes
+    0 bits of search reduction and a measured constant factor on node cost; the
+    branching order contributes all of the search reduction; symmetry breaking
+    contributes exactly 2.585 bits at m = 3; and no solver brand contributes
+    anything to the exponent. sota_delta on attack cost is zero.
+
+  honest_prior_of_survival: >-
+    About 0.7 that the axis table holds for F2, F3, F6 (these are close to
+    definitional given Proposition 1). About 0.5 for F4, which is the ingredient
+    most able to move both axes and the one whose null result depends entirely
+    on the learning-gadget control passing. About 0.6 for the C-c
+    core_decision_fraction mechanism, which is a genuine guess about a solver
+    heuristic. About 0.35 that the full grid is executable in this repository
+    given the missing bindings; that is the main risk and is why the priority is
+    medium rather than high despite the record's centrality.
