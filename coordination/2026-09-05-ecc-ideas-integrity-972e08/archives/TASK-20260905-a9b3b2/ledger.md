@@ -1,0 +1,3 @@
+Administrative repair archive TASK-20260905-a9b3b2
+
+DEC-20260905-487021 accepts the nine additive corrections following independent TASK-20260905-1520d5 PASS on 119 integrity checks. The report hash is 7f2b19849f1f99bb3103312d0f15d35fd02b80ab8d043652cb62c81710ce06a4. All predecessors, raw outcomes, historical statuses and scientific limitations remain preserved. No arithmetic was reverified, no controls rehabilitated, and no hypothesis or goal status changed. The previous 12 schema errors are resolved locally with no baseline enlargement. This archive permits the separately governed 48-proposal batch after dispatch checks.
