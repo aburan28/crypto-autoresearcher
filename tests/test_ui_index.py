@@ -28,7 +28,8 @@ import yaml
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from ui import scan                                    # noqa: E402
+from ui import build as ui_build                       # noqa: E402
+from ui import payloads, scan                          # noqa: E402
 from ui.index import ResearchIndex                     # noqa: E402
 
 
@@ -393,3 +394,135 @@ def test_every_real_record_yields_an_identifier():
         str(record.path) for record in scan.scan_ledger(REPO) if not record.record_id
     ]
     assert not nameless
+
+
+# ---------------------------------------------------------------------------
+# The static build. The published site and the local server must serve the
+# SAME data contract -- two products that disagree about their own data are
+# one product and one bug.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture()
+def built_site(tiny_repo: Path, tmp_path: Path) -> Path:
+    out = tmp_path / "site"
+    ui_build.build(tiny_repo, out, verbose=False)
+    return out
+
+
+def _json(path: Path):
+    import json
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_build_emits_every_file_the_client_boots_from(built_site):
+    for required in ("index.html", "app.js", "app.css", ".nojekyll",
+                     "data/meta.json", "data/index.json", "data/overview.json",
+                     "data/goals.json", "data/experiments.json", "data/integrity.json"):
+        assert (built_site / required).is_file(), required
+
+
+def test_build_emits_one_page_per_record_and_per_goal(tiny_repo, built_site):
+    index = ResearchIndex(tiny_repo).build()
+    for record_id in index.records:
+        assert (built_site / "data" / "records" / f"{record_id}.json").is_file(), record_id
+    for goal in index.goals:
+        assert (built_site / "data" / "goals" / f"{goal.record_id}.json").is_file()
+
+
+def test_index_rows_match_the_declared_columns(built_site):
+    meta = _json(built_site / "data" / "meta.json")
+    rows = _json(built_site / "data" / "index.json")
+    assert meta["columns"] == payloads.INDEX_COLUMNS
+    assert rows and all(len(row) == len(meta["columns"]) for row in rows)
+
+
+def test_meta_says_which_commit_the_snapshot_is_of(built_site):
+    """A static page must not imply freshness it does not have."""
+    meta = _json(built_site / "data" / "meta.json")
+    assert meta["mode"] == "static"
+    assert meta["built_at"]
+    assert "commit" in meta and "repo_url" in meta
+
+
+def test_the_snapshot_does_not_bundle_source_text(built_site):
+    """116 MB of YAML that is one click away on GitHub is not worth shipping."""
+    payload = _json(built_site / "data" / "records" / "EV-ECDLP-001.json")
+    assert "raw" not in payload
+    assert payload["body"]["strength"] == "replicated"
+
+
+def test_links_are_identifiers_not_embedded_summaries(built_site):
+    """The browser already holds every summary; embedding them again tripled
+    the detail files for nothing."""
+    payload = _json(built_site / "data" / "records" / "GOAL-ECDLP-001.json")
+    assert all(isinstance(x, str) for x in payload["links"]["out"])
+    assert "RQ-ECDLP-001" in payload["links"]["out"]
+
+
+def test_search_shards_cover_every_indexed_kind(tiny_repo, built_site):
+    index = ResearchIndex(tiny_repo).build()
+    for kind, records in index.by_kind.items():
+        shard = _json(built_site / "data" / "search" / f"{kind}.json")
+        assert shard["ids"] == [r.record_id for r in records]
+        assert len(shard["text"]) == len(shard["ids"])
+
+
+def test_a_second_build_replaces_rather_than_accumulates(tiny_repo, built_site):
+    stale = built_site / "data" / "records" / "GONE-999.json"
+    stale.write_text("{}")
+    ui_build.build(tiny_repo, built_site, verbose=False)
+    assert not stale.exists()
+
+
+def test_the_build_touches_nothing_but_its_output_directory(tiny_repo, tmp_path):
+    """The read-only property survives the static build.
+
+    The one thing the builder writes is the directory it was told to write.
+    That directory defaults to `site/` INSIDE the repository, which is why
+    `/site/` is gitignored -- so this builds to a sibling and asserts the
+    corpus itself is untouched.
+    """
+    out = tmp_path.parent / "outside-site"
+    before = {p: p.stat().st_mtime_ns for p in tiny_repo.rglob("*") if p.is_file()}
+    ui_build.build(tiny_repo, out, verbose=False)
+    after = {p: p.stat().st_mtime_ns for p in tiny_repo.rglob("*") if p.is_file()}
+    assert before == after
+    assert (out / "data" / "meta.json").is_file()
+
+
+def test_build_report_carries_what_ci_gates_on(tiny_repo, tmp_path):
+    report = ui_build.build(tiny_repo, tmp_path.parent / "report-site", verbose=False)
+    assert report["records"] == len(ResearchIndex(tiny_repo).build().records)
+    assert report["files"] > 0 and report["bytes"] > 0
+
+
+def test_ssh_remotes_normalise_to_a_browsable_url(monkeypatch, tmp_path):
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+    monkeypatch.setattr(ui_build, "_git",
+                        lambda repo, *a: "git@github.com:owner/repo.git")
+    assert ui_build.resolve_repo_url(tmp_path) == "https://github.com/owner/repo"
+
+
+def test_actions_environment_wins_over_the_local_checkout(monkeypatch, tmp_path):
+    """In Actions the checkout can be a detached merge commit whose HEAD is
+    not a sha anyone can browse to."""
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    monkeypatch.setenv("GITHUB_SHA", "0" * 40)
+    assert ui_build.resolve_repo_url(tmp_path) == "https://github.com/owner/repo"
+    assert ui_build.resolve_commit(tmp_path) == "0" * 40
+
+
+def test_no_remote_means_no_source_links_rather_than_broken_ones(monkeypatch, tmp_path):
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+    monkeypatch.setattr(ui_build, "_git", lambda repo, *a: "")
+    assert ui_build.resolve_repo_url(tmp_path) == ""
+
+
+def test_the_integrity_report_published_is_a_measured_one(built_site):
+    """The sweep is waited for at build time: publishing an empty
+    `unparseable` list under state "running" would report a clean sweep that
+    never happened."""
+    integrity = _json(built_site / "data" / "integrity.json")
+    assert integrity["unparseable_state"] == "complete"
+    assert "ledger/evidence/broken.yaml" in {u["path"] for u in integrity["unparseable"]}
