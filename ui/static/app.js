@@ -184,7 +184,7 @@ const state = {
   meta: null,
   records: [],                 // decoded index rows, in file order
   byId: new Map(),
-  overview: null, goals: null, experiments: null, findings: null,
+  overview: null, goals: null, experiments: null, experimentsPayload: null, findings: null,
   searchShards: new Map(),     // kind -> Map(id -> excerpt)
   ready: false,
   fatal: null,
@@ -216,7 +216,100 @@ function pathLink(path, label) {
     : h('span', { class: 'mono' }, label || path);
 }
 
+// ---------------------------------------------------------------------------
+// Time. Two kinds of it, and the difference is load-bearing.
+//
+//   DECLARED  a date the record asserts about itself (`approved_at`,
+//             `recorded_at`). Shown under the field name that carried it.
+//   OBSERVED  a commit time from git history, via ui/gitdates.py. Shown as
+//             "committed". Most of this corpus declares no date at all, so
+//             this is usually the only time there is.
+//
+// They are never merged. A page that showed a commit time under "approved"
+// would be asserting something no record says.
+// ---------------------------------------------------------------------------
 const fmtDate = (d) => (d || '').slice(0, 10) || '—';
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Epoch seconds or an ISO string to a Date, or null. */
+function asDate(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? new Date(value * 1000) : null;
+  const text = String(value).trim();
+  // A bare `YYYY-MM-DD` is parsed as UTC midnight by design: the corpus
+  // writes dates without a zone and reading them in local time shifts half
+  // the world's readers to the previous day.
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00Z` : text;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** `2026-09-04 04:45 UTC`, or `2026-09-04` when there is no time of day. */
+function exactUTC(value, { dateOnly = false } = {}) {
+  const d = asDate(value);
+  if (!d) return '';
+  const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${
+    String(d.getUTCDate()).padStart(2, '0')}`;
+  if (dateOnly) return day;
+  return `${day} ${String(d.getUTCHours()).padStart(2, '0')}:${
+    String(d.getUTCMinutes()).padStart(2, '0')} UTC`;
+}
+
+/** "3 days ago", "in 2 hours", "just now". */
+function relative(value) {
+  const d = asDate(value);
+  if (!d) return '';
+  const seconds = (Date.now() - d.getTime()) / 1000;
+  const ago = seconds >= 0;
+  const n = Math.abs(seconds);
+  const say = (v, unit) => {
+    const rounded = Math.round(v);
+    const text = `${rounded} ${unit}${rounded === 1 ? '' : 's'}`;
+    return ago ? `${text} ago` : `in ${text}`;
+  };
+  if (n < 45) return 'just now';
+  if (n < 3600) return say(n / 60, 'minute');
+  if (n < 86400) return say(n / 3600, 'hour');
+  if (n < 86400 * 30) return say(n / 86400, 'day');
+  if (n < 86400 * 365) return say(n / 2629800, 'month');
+  return say(n / 31557600, 'year');
+}
+
+/** A timestamp as a `<time>`: short text, exact instant on hover.
+ *
+ *  `label` names WHAT the time is ("approved", "committed") and goes in the
+ *  tooltip, so a reader hovering a bare date learns which fact it is. An
+ *  absent value renders the em dash every other empty cell uses, never a
+ *  guess and never today's date. */
+function timeEl(value, { label = '', dateOnly = false, style = 'short', className = '' } = {}) {
+  const d = asDate(value);
+  if (!d) return h('span', { class: `faint ${className}` }, '—');
+  const exact = exactUTC(value, { dateOnly });
+  const rel = relative(value);
+  const short = dateOnly || style === 'date'
+    ? `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}`
+    : rel;
+  return h('time', {
+    class: `when mono ${className}`,
+    datetime: d.toISOString(),
+    title: [label, exact, dateOnly ? '' : rel && `(${rel})`].filter(Boolean).join(' · '),
+  }, style === 'both' ? `${exact}` : short);
+}
+
+/** A duration in seconds as `2h 14m`, `11m 8s`, `4.2s`. */
+function fmtDuration(seconds) {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return '';
+  if (seconds < 1) return `${(Math.round(seconds * 1000) / 1000)}s`;
+  if (seconds < 60) return `${Math.round(seconds * 10) / 10}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  if (m < 60) return s ? `${m}m ${s}s` : `${m}m`;
+  const hours = Math.floor(m / 60);
+  const mins = m % 60;
+  if (hours < 24) return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
 function clip(text, n) {
   const s = String(text ?? '');
   return s.length <= n ? s : `${s.slice(0, n).replace(/\s+\S*$/, '')}…`;
@@ -376,6 +469,13 @@ function findingCard(fd) {
     fd.excerpt
       ? h('div', { class: 'excerpt' }, h('div', { class: 'clamp4' }, linkify(fd.excerpt)))
       : h('div', { class: 'excerpt faint' }, fd.error ? `no front matter — ${fd.error}` : 'no statement excerpt'),
+    // The other half of a finding: what its author says it does NOT
+    // establish. Shown in their words, because a claim without its boundary
+    // is the overclaim the program's rules exist to prevent.
+    fd.non_claim
+      ? h('div', { class: 'non-claim' }, h('span', { class: 'kicker' }, 'not claimed'),
+          h('div', { class: 'clamp2' }, linkify(fd.non_claim)))
+      : null,
     h('div', { class: 'row faint mono', style: 'font-size:11px' },
       fd.added ? h('span', {}, `added ${fmtDate(fd.added)}`) : null,
       fd.confidence ? h('span', { title: `confidence, as the entry states it: ${fd.confidence}` },
@@ -431,8 +531,12 @@ function distribution(map, opts = {}) {
     const tone = opts.tone ? opts.tone(name) : statusTone(name);
     const colour = tone ? `var(--${tone})` : 'var(--line-strong)';
     const href = opts.href ? opts.href(name) : null;
+    // `completed_valid_invocation_error` is one word to the line breaker, so
+    // without an explicit break opportunity it clipped mid-token rather than
+    // using the second line the clamp allows.
     return h('div', { class: 'row', style: 'gap:10px' },
-      h('div', { style: 'flex:0 0 175px;min-width:0', class: 'clamp2' },
+      h('div', { style: 'flex:0 0 190px;min-width:0;overflow-wrap:anywhere', class: 'clamp2',
+                 title: `${name} — ${n.toLocaleString()}` },
         href ? h('a', { href, class: 'mono' }, name) : h('span', { class: 'mono' }, name)),
       h('div', { class: 'bar', style: 'flex:1' },
         h('i', { style: `width:${(n / total) * 100}%;background:${colour}` })),
@@ -810,12 +914,21 @@ async function viewOverview() {
   const established = panel('Established so far',
     h('span', { class: 'faint' },
       `${f.current} current finding${f.current === 1 ? '' : 's'}`,
+      f.added_last_30_days !== undefined
+        ? ` · ${f.added_last_7_days} added in the last 7 days, ${f.added_last_30_days} in 30` : '',
       proofNote ? ` · ${proofNote}` : '', ' · ', h('a', { href: '#/findings' }, 'all findings →')),
     f.latest.length
       ? h('div', { class: 'panel-body grid',
           style: 'grid-template-columns:repeat(auto-fill,minmax(330px,1fr))' },
           f.latest.map(findingCard))
       : h('div', { class: 'empty' }, 'no finding has been promoted yet'));
+
+  const dirs = o.directions || { total: 0, top: [] };
+  const byArea = panel('By research area',
+    h('span', { class: 'faint' },
+      `the ${dirs.top.length} areas with most established, of ${dirs.total} with records · `,
+      h('a', { href: '#/findings?tab=areas' }, 'all areas →')),
+    dirs.top.length ? h('div', { class: 'scroll-x' }, directionsTable(dirs.top, { compact: true })) : null);
 
   const verdicts = panel('Hypothesis verdicts',
     `${sum(o.hypothesis_verdicts)} of ${count('H').toLocaleString()} hypotheses reached one`,
@@ -844,6 +957,7 @@ async function viewOverview() {
     snapshotBanner(),
     intro,
     established,
+    byArea,
     h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(300px,1fr))' },
       verdicts, polarity, decisions),
     panel('Where the work is: ECC first',
@@ -889,8 +1003,15 @@ async function viewOverview() {
 // ---------------------------------------------------------------------------
 // Findings: what the program has established, and what still stands against it.
 // ---------------------------------------------------------------------------
+// An area the program has invested in or produced from: a goal, a finding,
+// a hypothesis verdict or an open problem. The long tail of areas that only
+// ever reached a proposal is still there, behind a chip.
+const investedArea = (r) => r.goals.length > 0 || r.findings_total > 0
+  || Object.keys(r.verdicts || {}).length > 0 || r.open_problems > 0;
+
 const FINDINGS_TABS = [
   ['findings', 'Findings', (d) => d.counts.current],
+  ['areas', 'By area', (d) => d.directions.filter(investedArea).length],
   ['verdicts', 'Hypothesis verdicts', (d) => d.hypothesis_verdicts.length],
   ['evidence', 'Evidence', (d) => d.evidence.filter((e) => !e.neutral).length],
   ['obstructions', 'Obstructions', (d) => d.obstructions.length],
@@ -939,14 +1060,20 @@ async function viewFindings(params) {
 
   const docs = sourceUrl('docs/claims-and-verification.md');
   const intro = h('div', { class: 'banner info' }, h('div', {},
-    h('b', {}, 'What counts as a finding here. '),
-    'A result is promoted from an evidence record into ', h('code', {}, 'knowledge/findings/'),
-    ' by a Coordinator decision, and carries the proof status and claim tier of the evidence it rests on — never more',
-    docs ? [' (', h('a', { href: docs, target: '_blank', rel: 'noreferrer' }, 'claims and verification'), ')'] : null,
-    '. Most evidence is neutral and most hypotheses never reach a verdict; the counts say so rather than hide it.'));
+    h('div', {},
+      h('b', {}, 'What counts as a finding here. '),
+      'A result is promoted from an evidence record into ', h('code', {}, 'knowledge/findings/'),
+      ' by a Coordinator decision, and carries the proof status and claim tier of the evidence it rests on — never more',
+      docs ? [' (', h('a', { href: docs, target: '_blank', rel: 'noreferrer' }, 'claims and verification'), ')'] : null,
+      '. Most evidence is neutral and most hypotheses never reach a verdict; the counts say so rather than hide it.'),
+    h('div', { style: 'margin-top:6px;font-size:11.5px' },
+      'Proof status: ', proofTag('certificate'), ' an explicit instance re-checked by independent code · ',
+      proofTag('derivation'), ' a written, step-checkable argument · ',
+      proofTag('empirical_only'), ' replicated observations only. ',
+      'Each card also says what the entry does ', h('b', {}, 'not'), ' claim, in its own words.')));
 
   const body = ({
-    findings: findingsTab, verdicts: verdictsTab, evidence: evidenceTab,
+    findings: findingsTab, areas: directionsTab, verdicts: verdictsTab, evidence: evidenceTab,
     obstructions: obstructionsTab, open: openProblemsTab,
   })[tab](d, params);
 
@@ -960,9 +1087,48 @@ function findingsTab(d, params) {
     tier: new Set(split(params.get('tier'))),
     area: new Set(split(params.get('area'))),
     q: params.get('q') || '',
+    group: params.get('group') === 'date' ? 'date' : 'area',
   };
-  const grid = h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fill,minmax(340px,1fr))' });
+  const host = h('div', { class: 'stack', style: 'gap:20px' });
   const summary = h('div', { class: 'faint mono' });
+  const byArea = new Map(d.directions.map((r) => [r.area, r]));
+  const cardGrid = (items) => h('div', { class: 'grid',
+    style: 'grid-template-columns:repeat(auto-fill,minmax(340px,1fr))' }, items.map(findingCard));
+
+  /** Findings under the area they are filed in, with the goals of that
+   *  area beside the heading — so a reader sees which campaign produced
+   *  what, rather than eighty cards in date order. */
+  function sections(items) {
+    const groups = new Map();
+    for (const x of items) {
+      const key = x.area || '';
+      (groups.get(key) ?? groups.set(key, []).get(key)).push(x);
+    }
+    const order = [...d.directions.map((r) => r.area).filter((a) => groups.has(a)),
+      ...(groups.has('') ? [''] : [])];
+    return order.map((area) => {
+      const dir = byArea.get(area);
+      const rows = groups.get(area);
+      const goals = dir?.goals || [];
+      return h('section', { class: 'area-group' },
+        h('div', { class: 'area-head' },
+          h('div', { class: 'row', style: 'gap:10px;align-items:baseline' },
+            area
+              ? (dir?.ecc ? tag(area, 'acc', 'ECC area — selected first') : h('span', { class: 'mono area-name' }, area))
+              : h('span', { class: 'faint area-name' }, 'no area named'),
+            h('span', { class: 'faint mono', style: 'font-size:11px' },
+              `${rows.length} finding${rows.length === 1 ? '' : 's'}`),
+            goals.slice(0, 2).map((g) => h('a', { href: `#/goal/${g.id}`, class: 'ellipsis',
+              title: `${g.id} · ${g.status}` }, g.title || g.id)),
+            goals.length > 2 ? h('span', { class: 'faint', style: 'font-size:11.5px' }, `+${goals.length - 2} goals`) : null),
+          h('div', { class: 'row faint mono', style: 'font-size:11px' },
+            dir?.active_goals ? h('span', {}, `${dir.active_goals} active goal${dir.active_goals === 1 ? '' : 's'}`) : null,
+            dir?.open_problems ? h('a', { href: `#/findings?tab=open&area=${area}` },
+              `· ${dir.open_problems} open problem${dir.open_problems === 1 ? '' : 's'}`) : null,
+            area ? h('a', { href: `#/findings?tab=areas` }, '· all areas') : null)),
+        cardGrid(rows));
+    });
+  }
 
   const areaCounts = {};
   for (const x of d.findings) for (const a of x.areas) areaCounts[a] = (areaCounts[a] || 0) + 1;
@@ -982,10 +1148,11 @@ function findingsTab(d, params) {
   }
   function draw() {
     const r = rows();
-    fill(grid, r.length ? r.map(findingCard) : h('div', { class: 'empty' }, 'no findings match'));
+    fill(host, !r.length ? h('div', { class: 'empty' }, 'no findings match')
+      : f.group === 'area' ? sections(r) : cardGrid(r));
     summary.textContent = `${r.length} of ${d.findings.length} findings`;
     replaceRoute('#/findings', { tab: 'findings', status: f.status === 'current' ? '' : f.status,
-      proof: f.proof, tier: f.tier, area: f.area, q: f.q });
+      proof: f.proof, tier: f.tier, area: f.area, q: f.q, group: f.group === 'area' ? '' : f.group });
   }
   const toggle = (group) => (key, el) => {
     f[group].has(key) ? f[group].delete(key) : f[group].add(key);
@@ -1015,8 +1182,92 @@ function findingsTab(d, params) {
 
   const search = h('input', { class: 'mono field', placeholder: 'filter findings…', value: f.q,
     oninput: (e) => { f.q = e.target.value; draw(); } });
+  const grouping = choiceChips([['area', 'by area'], ['date', 'latest first']], f.group,
+    (key) => { f.group = key; draw(); });
   draw();
-  return h('div', { class: 'stack' }, facets, h('div', { class: 'spread' }, summary, search), grid);
+  return h('div', { class: 'stack' }, facets,
+    h('div', { class: 'spread' }, h('div', { class: 'row' }, grouping, summary), search), host);
+}
+
+// ---------------------------------------------------------------------------
+// By area: the program as a map, one row per research area.
+// ---------------------------------------------------------------------------
+const VERDICT_PILL_ORDER = ['supported', 'supported_scoped', 'weakened', 'rejected_scoped', 'rejected',
+  'refuted', 'contradicted', 'inconclusive', 'superseded'];
+
+function verdictPills(map) {
+  const items = VERDICT_PILL_ORDER.filter((k) => map?.[k]).map((k) => tag(`${map[k]} ${k}`, statusTone(k)));
+  return items.length ? h('div', { class: 'row', style: 'gap:4px' }, items) : h('span', { class: 'faint' }, '—');
+}
+
+/** A stacked bar of evidence polarity, with its total beside it. */
+function polarityBar(counts) {
+  const total = sum(counts);
+  if (!total) return h('span', { class: 'faint' }, '—');
+  const keys = ['supports', 'weakens', 'mixed', 'neutral'];
+  return h('div', { class: 'row', style: 'gap:8px', title: keys.map((k) => `${k} ${counts[k] || 0}`).join(' · ') },
+    h('div', { class: 'stack-bar' }, keys.map((k) => counts[k]
+      ? h('i', { style: `width:${(counts[k] / total) * 100}%;background:${
+          POLARITY_TONE[k] ? `var(--${POLARITY_TONE[k]})` : 'var(--line-strong)'}` })
+      : null)),
+    h('span', { class: 'mono faint', style: 'font-size:11px' }, total));
+}
+
+function directionsTable(rows, { compact = false } = {}) {
+  const goalsShown = compact ? 1 : 3;
+  return h('table', { class: 'dense' },
+    thead(['area', 'goals', 'findings', 'hypothesis verdicts',
+      { label: 'evidence', title: 'supports · weakens · mixed · neutral' }, 'open', 'latest finding']),
+    h('tbody', {}, rows.map((r) => h('tr', {},
+      td(r.ecc ? tag(r.area, 'acc', 'ECC area — selected first') : h('span', { class: 'mono area-name' }, r.area)),
+      h('td', { style: 'max-width:380px;min-width:220px' }, r.goals.length
+        ? h('div', { class: 'stack', style: 'gap:3px' },
+            r.goals.slice(0, goalsShown).map((g) => h('div', { class: 'row', style: 'gap:6px;align-items:baseline;flex-wrap:nowrap' },
+              idLink(g.id), h('span', { style: 'flex:none' }, statusTag(g.status)),
+              h('span', { class: 'ellipsis faint', style: 'font-size:11.5px;max-width:240px' }, g.title))),
+            r.goals.length > goalsShown ? h('span', { class: 'faint', style: 'font-size:11px' },
+              `+${r.goals.length - goalsShown} more`) : null)
+        : h('span', { class: 'faint' }, `no goal · ${r.hypotheses} hypotheses, ${r.experiments} experiments`)),
+      td(r.findings ? h('a', { href: `#/findings?tab=findings&area=${r.area}`, class: 'mono' }, r.findings)
+        : h('span', { class: 'faint mono' }, '0')),
+      td(verdictPills(r.verdicts)),
+      td(polarityBar(r.evidence)),
+      td(r.open_problems ? h('a', { href: `#/findings?tab=open&area=${r.area}`, class: 'mono' }, r.open_problems)
+        : h('span', { class: 'faint mono' }, '0')),
+      h('td', { style: 'max-width:440px;min-width:220px' }, r.latest_finding
+        ? h('div', {},
+            // No `display:block` here: the clamp class IS the display, and an
+            // inline display override was why long titles never clamped.
+            h('a', { href: `#/record/${r.latest_finding.id}`, class: 'clamp2', style: 'line-height:1.4' },
+              r.latest_finding.title),
+            h('div', { class: 'faint mono', style: 'font-size:10.5px' }, fmtDate(r.latest_finding.added)))
+        : h('span', { class: 'faint' }, 'nothing established yet'))))));
+}
+
+function directionsTab(d, params) {
+  let only = ['findings', 'all'].includes(params.get('only')) ? params.get('only') : 'invested';
+  const host = h('div', { class: 'panel scroll-x' });
+  const summary = h('div', { class: 'faint mono' });
+  const pick = (r) => only === 'all' ? true : only === 'findings' ? r.findings_total > 0 : investedArea(r);
+  function draw() {
+    const rows = d.directions.filter(pick);
+    fill(host, rows.length ? directionsTable(rows) : h('div', { class: 'empty' }, 'no areas match'));
+    summary.textContent = `${rows.length} of ${d.directions.length} areas`;
+    replaceRoute('#/findings', { tab: 'areas', only: only === 'invested' ? '' : only });
+  }
+  const chips = choiceChips([
+    ['invested', 'with a goal, finding, verdict or open problem'],
+    ['findings', 'with findings'],
+    ['all', 'every area with records'],
+  ], only, (key) => { only = key; draw(); });
+  draw();
+  return h('div', { class: 'stack' },
+    h('div', { class: 'banner info' }, h('div', {},
+      h('b', {}, 'One row per research area. '),
+      'The area is the token in the middle of a record identifier (GOAL-PFDR-…), the closest thing the corpus has to a research direction. ',
+      'A finding or open problem is filed under its goal’s area, or the first record it cites, so nothing counts twice. ECC areas come first (CLAUDE.md rule 11).')),
+    h('div', { class: 'spread' }, chips, summary),
+    host);
 }
 
 function verdictsTab(d, params) {
@@ -1147,14 +1398,16 @@ function obstructionsTab(d) {
 function openProblemsTab(d, params) {
   let only = params.get('status') || 'open';
   let q = params.get('q') || '';
+  const area = params.get('area') || '';
   const list = h('div', { class: 'stack' });
   const summary = h('div', { class: 'faint mono' });
   function draw() {
     const needle = q.trim().toLowerCase();
     const rows = d.open_problems.filter((p) =>
       (only === 'all' || (only === 'open' ? p.status === 'open' : p.status !== 'open'))
+      && (!area || p.area === area || (p.areas || []).includes(area))
       && (!needle || `${p.id} ${p.title} ${p.statement} ${p.tags.join(' ')}`.toLowerCase().includes(needle)));
-    summary.textContent = `${rows.length} of ${d.open_problems.length} open problems`;
+    summary.textContent = `${rows.length} of ${d.open_problems.length} open problems${area ? ` in ${area}` : ''}`;
     fill(list, rows.length ? rows.map((p) => h('section', { class: 'panel' },
       h('div', { class: 'panel-body stack', style: 'gap:8px' },
         h('div', { class: 'spread' },
@@ -1168,13 +1421,18 @@ function openProblemsTab(d, params) {
           p.resolution ? kv('what would resolve it', h('div', { class: 'glance-text' }, linkify(p.resolution))) : null),
         p.tags.length ? h('div', { class: 'row', style: 'gap:4px' }, p.tags.slice(0, 8).map((t) => tag(t))) : null)))
       : h('div', { class: 'empty' }, 'no open problems match'));
-    replaceRoute('#/findings', { tab: 'open', status: only === 'open' ? '' : only, q });
+    replaceRoute('#/findings', { tab: 'open', status: only === 'open' ? '' : only, q, area });
   }
   const chips = choiceChips([['open', 'open'], ['closed', 'resolved'], ['all', 'all']], only, (k) => { only = k; draw(); });
   const search = h('input', { class: 'mono field', placeholder: 'filter open problems…', value: q,
     oninput: (e) => { q = e.target.value; draw(); } });
   draw();
-  return h('div', { class: 'stack' }, h('div', { class: 'spread' }, chips, h('div', { class: 'row' }, summary, search)), list);
+  return h('div', { class: 'stack' },
+    h('div', { class: 'spread' },
+      h('div', { class: 'row' }, chips,
+        area ? h('a', { class: 'chip', href: '#/findings?tab=open', title: 'clear the area filter' }, `${area} ×`) : null),
+      h('div', { class: 'row' }, summary, search)),
+    list);
 }
 
 // ---------------------------------------------------------------------------
@@ -1581,14 +1839,21 @@ async function viewRecord(id) {
           h('div', { class: 'row' },
             h('b', { class: 'id-link', style: 'font-size:14px' }, s.id),
             headerTags,
-            s.date ? h('span', { class: 'faint mono' }, fmtDate(s.date)) : null),
+            s.date ? timeEl(s.date, { label: 'declared by the record', dateOnly: true, style: 'date' }) : null),
           parseBadge),
         s.title ? h('h2', { style: 'font-size:16px;line-height:1.4' }, s.title) : null,
         isEntry && Array.isArray(front?.tags) && front.tags.length
           ? h('div', { class: 'row', style: 'gap:4px' }, front.tags.slice(0, 12).map((t) => tag(String(t)))) : null,
         h('div', { class: 'row faint mono', style: 'font-size:11px' },
           h('span', {}, s.path),
-          src ? h('a', { href: src, target: '_blank', rel: 'noreferrer' }, 'source ↗') : null))),
+          src ? h('a', { href: src, target: '_blank', rel: 'noreferrer' }, 'source ↗') : null,
+          // Observed, not declared. Named "committed" for exactly that reason.
+          s.committed ? h('span', { class: 'row', style: 'gap:5px' }, '· committed',
+            timeEl(s.committed, { label: 'first committed' })) : null,
+          s.last_commit && s.committed && s.last_commit - s.committed > 60
+            ? h('span', { class: 'row', style: 'gap:5px' },
+                '· last changed', timeEl(s.last_commit, { label: 'most recent commit touching this file' }))
+            : null))),
     h('div', { class: 'detail' },
       h('section', { class: 'panel' }, tabs, paneHost),
       h('aside', { class: 'stack' },
@@ -1676,14 +1941,29 @@ function yamlTree(value, depth = 0) {
 // ---------------------------------------------------------------------------
 // Experiments
 // ---------------------------------------------------------------------------
-async function viewExperiments() {
+// How the experiments table can be ordered. "Activity" is the default and
+// means the most recent moment anything is known to have happened to a
+// contract -- its last run, or failing that its own commit.
+const EXPERIMENT_SORTS = {
+  activity: { label: 'latest activity', key: (e) => -(e.last_run || e.committed || 0) },
+  runs: { label: 'most runs', key: (e) => -e.run_count },
+  duration: { label: 'longest measured', key: (e) => -(e.total_seconds || 0) },
+  approved: { label: 'date on the contract', key: (e) => -(asDate(e.dated)?.getTime() || 0) },
+  id: { label: 'identifier', key: (e) => e.id },
+};
+
+async function viewExperiments(params) {
   setCrumb('experiments');
   const root = fill(view(), loading());
   if (!state.ready) return;
-  state.experiments ??= (await getJSON('experiments.json')).experiments;
+  const payload = state.experimentsPayload ??= await getJSON('experiments.json');
+  state.experiments ??= payload.experiments;
+  const timing = payload.timing || {};
 
-  let only = 'with-runs';
-  let text = '';
+  let only = params.get('only') || 'with-runs';
+  let sort = EXPERIMENT_SORTS[params.get('sort')] ? params.get('sort') : 'activity';
+  let text = params.get('q') || '';
+  let expanded = null;                                   // one experiment's runs, open
   const host = h('div', { class: 'panel scroll-x' });
   const meta = h('div', { class: 'faint mono' });
 
@@ -1692,41 +1972,142 @@ async function viewExperiments() {
   for (const e of state.experiments) for (const r of e.runs) { runStatus[r.status] = (runStatus[r.status] || 0) + 1; runTotal += 1; }
   const withRuns = state.experiments.filter((e) => e.run_count).length;
 
-  function draw() {
-    const needle = text.toLowerCase();
-    const rows = state.experiments.filter((e) => {
+  function rows() {
+    const needle = text.trim().toLowerCase();
+    const out = state.experiments.filter((e) => {
       if (only === 'with-runs' && !e.run_count) return false;
       if (only === 'no-runs' && e.run_count) return false;
       if (only === 'ecc' && !e.ecc) return false;
-      return !needle || `${e.id} ${e.title} ${e.status}`.toLowerCase().includes(needle);
+      if (only === 'timed' && !e.runs_timed) return false;
+      return !needle || `${e.id} ${e.title} ${e.status} ${e.hypothesis_id}`.toLowerCase().includes(needle);
     });
-    meta.textContent = `${rows.length} of ${state.experiments.length} experiments`;
-    fill(host, rows.length ? h('table', {},
-      h('thead', {}, h('tr', {}, h('th', {}, 'id'), h('th', {}, 'status'), h('th', {}, 'runs'),
-        h('th', {}, 'title'), h('th', {}, 'hypothesis'), h('th', {}, 'frozen'))),
-      h('tbody', {}, rows.map((e) => h('tr', {},
-        h('td', {}, idLink(e.id)),
-        h('td', {}, statusTag(e.status) || h('span', { class: 'faint' }, '—')),
-        h('td', {}, runPills(e.runs)),
-        h('td', { style: 'max-width:620px' }, h('div', { class: 'clamp2' }, e.title || '—')),
-        h('td', {}, e.hypothesis_id && e.hypothesis_id !== 'null'
-          ? idLink(e.hypothesis_id) : h('span', { class: 'faint' }, 'none')),
-        h('td', {}, e.frozen === 'true' ? tag('frozen', 'info')
-          : h('span', { class: 'faint mono' }, e.frozen || '—'))))))
-      : h('div', { class: 'empty' }, 'no experiments match'));
+    const key = EXPERIMENT_SORTS[sort].key;
+    return out.sort((a, b) => {
+      const ka = key(a); const kb = key(b);
+      return (ka < kb ? -1 : ka > kb ? 1 : 0) || a.id.localeCompare(b.id);
+    });
   }
+
+  /** The runs of one contract, each with whatever time it actually has. */
+  function runTable(e) {
+    return h('tr', { class: 'run-detail' }, h('td', { colspan: '8' },
+      h('div', { class: 'stack', style: 'gap:8px' },
+        h('div', { class: 'row faint', style: 'font-size:11.5px' },
+          `${e.run_count} run${e.run_count === 1 ? '' : 's'}`,
+          e.runs_timed ? h('span', {}, `· ${e.runs_timed} report a start time`) : null,
+          e.runs_measured ? h('span', {}, `· ${e.runs_measured} report a duration`) : null,
+          h('span', {}, '· "committed" is when git first saw the run’s artifacts, not when it started')),
+        h('div', { class: 'scroll-x' }, h('table', { class: 'dense' },
+          thead(['run', 'status', { label: 'started', title: 'declared by the run manifest' },
+            { label: 'finished', title: 'declared by the run manifest' },
+            { label: 'duration', title: 'declared, or measured from start and finish' },
+            { label: 'committed', title: 'observed: when git first saw this run’s artifacts' }]),
+          h('tbody', {}, e.runs.map((r) => h('tr', {},
+            h('td', { class: 'mono' }, r.id),
+            td(statusTag(r.status) || h('span', { class: 'faint' }, '—')),
+            td(timeEl(r.started, { label: 'started (declared)' })),
+            td(timeEl(r.finished, { label: 'finished (declared)' })),
+            td(r.duration_seconds !== null && r.duration_seconds !== undefined
+              ? h('span', { class: 'mono' }, fmtDuration(r.duration_seconds))
+              : h('span', { class: 'faint' }, '—')),
+            td(timeEl(r.committed, { label: 'first committed' }))))))))));
+  }
+
+  function draw() {
+    const list = rows();
+    meta.textContent = `${list.length} of ${state.experiments.length} experiments`;
+    fill(host, list.length ? h('table', { class: 'dense' },
+      thead(['id', 'status', 'runs',
+        { label: 'contract date', title: 'the date the contract itself declares, under its own field name' },
+        { label: 'committed', title: 'observed: when git first saw the specification' },
+        { label: 'last run', title: 'the most recent moment any run of this contract is known at' },
+        { label: 'measured', title: 'total wall-clock across runs that report a duration' },
+        'title']),
+      h('tbody', {}, list.flatMap((e) => {
+        const open = expanded === e.id;
+        const row = h('tr', { class: e.run_count ? 'clickable-row' : '', onclick: e.run_count
+          ? () => { expanded = open ? null : e.id; draw(); } : null },
+          td(idLink(e.id)),
+          td(h('div', { class: 'row', style: 'gap:4px' },
+            statusTag(e.status) || h('span', { class: 'faint' }, '—'),
+            // A contract that is not `specification.yaml` is said so rather
+            // than normalised away: an experiment whose protocol was never
+            // committed machine-readably is a fact about the corpus.
+            e.contract === 'specification.json'
+              ? tag('json', 'info', 'the contract is specification.json') : null,
+            e.contract === ''
+              ? tag('no contract', 'warn',
+                  'this directory holds runs but no machine-readable contract') : null)),
+          td(e.run_count
+            ? h('span', { class: 'row', style: 'gap:5px' }, runPills(e.runs),
+                h('span', { class: 'faint mono', style: 'font-size:10px' }, open ? '▾' : '▸'))
+            : h('span', { class: 'faint' }, 'never run')),
+          td(e.dated
+            ? h('span', { class: 'row', style: 'gap:5px' },
+                timeEl(e.dated, { label: e.date_field, dateOnly: true, style: 'date' }),
+                h('span', { class: 'faint mono', style: 'font-size:10px' },
+                  (e.date_field || '').replace(/_/g, ' ')))
+            : h('span', { class: 'faint', title: 'this contract declares no date of its own' }, '—')),
+          td(timeEl(e.committed, { label: 'first committed', style: 'date' })),
+          td(timeEl(e.last_run, { label: 'latest run activity' })),
+          td(e.total_seconds
+            ? h('span', { class: 'mono', title: `${e.runs_measured} of ${e.run_count} runs report a duration` },
+                fmtDuration(e.total_seconds))
+            : h('span', { class: 'faint' }, '—')),
+          h('td', { style: 'max-width:460px;min-width:160px' },
+            h('div', { class: 'clamp2' }, e.title || '—')));
+        return open ? [row, runTable(e)] : [row];
+      })))
+      : h('div', { class: 'empty' }, 'no experiments match'));
+    replaceRoute('#/experiments', { only: only === 'with-runs' ? '' : only,
+      sort: sort === 'activity' ? '' : sort, q: text });
+  }
+
+  const timingPanel = panel('What is known about when',
+    'declared by the records, and observed from git history',
+    h('div', { class: 'panel-body stack', style: 'gap:10px' },
+      h('div', { class: 'stat-row' },
+        statCard(timing.runs?.toLocaleString() ?? '—', 'runs'),
+        statCard(`${timing.runs_with_declared_start ?? 0}`, 'declare a start time',
+          { title: 'run manifests carrying started_at' }),
+        statCard(`${timing.runs_with_duration ?? 0}`, 'report a duration'),
+        statCard(timing.total_measured_seconds ? fmtDuration(timing.total_measured_seconds) : '—',
+          'total measured', { title: 'summed across only the runs that report one' }),
+        statCard(`${timing.experiments_dated ?? 0}`, 'contracts self-dated',
+          { title: `of ${timing.experiments ?? 0}; the rest are dated by their commit` })),
+      timing.git?.available
+        ? h('div', { class: 'row faint', style: 'font-size:11.5px' },
+            'Run activity spans ', timeEl(timing.earliest, { label: 'earliest', style: 'date' }),
+            ' to ', timeEl(timing.latest, { label: 'latest', style: 'date' }),
+            h('span', {}, ` · commit dates from ${(timing.git.commits || 0).toLocaleString()} commits`))
+        : h('div', { class: 'banner warn', style: 'font-size:11.5px' },
+            h('div', {}, h('b', {}, 'Commit dates unavailable. '),
+              timing.git?.error || 'git history could not be read',
+              ' — only dates the records declare themselves are shown.'))));
 
   fill(root, h('div', { class: 'stack' },
     snapshotBanner(),
-    h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(300px,1fr))' },
-      panel('Runs by terminal status', `${runTotal.toLocaleString()} runs across ${withRuns} experiments · ${state.experiments.length - withRuns} contracts have never run`,
-        h('div', { class: 'panel-body' }, distribution(runStatus, {})))),
+    timingPanel,
+    // Twenty-four statuses, of which the first four are 97% of the runs. Full
+    // height pushed the table -- the point of the page -- below the fold, so
+    // the head is visible and the tail scrolls inside the panel.
+    panel('Runs by terminal status',
+      `${runTotal.toLocaleString()} runs across ${withRuns} contracts · ${(state.experiments.length - withRuns).toLocaleString()} have never run`,
+      h('div', { class: 'panel-body', style: 'max-height:250px;overflow:auto' },
+        distribution(runStatus, {}))),
     h('div', { class: 'spread' },
-      choiceChips([['with-runs', 'with runs'], ['no-runs', 'no runs'], ['ecc', 'ECC'], ['all', 'all']],
-        only, (key) => { only = key; draw(); }),
+      choiceChips([['with-runs', 'with runs'], ['no-runs', 'never run'],
+        ['timed', 'with a declared start'], ['ecc', 'ECC'], ['all', 'all']],
+        only, (key) => { only = key; expanded = null; draw(); }),
       h('div', { class: 'row' }, meta,
-        h('input', { class: 'mono field', placeholder: 'filter…',
-                     oninput: (e) => { text = e.target.value; draw(); } }))),
+        h('select', { class: 'mono field', title: 'sort order',
+          onchange: (ev) => { sort = ev.target.value; draw(); } },
+          Object.entries(EXPERIMENT_SORTS).map(([key, s]) =>
+            h('option', { value: key, selected: key === sort }, s.label))),
+        h('input', { class: 'mono field', placeholder: 'filter…', value: text,
+                     oninput: (ev) => { text = ev.target.value; draw(); } }))),
+    h('div', { class: 'faint', style: 'font-size:11.5px;margin-top:-4px' },
+      'Click a contract with runs to see each run’s times. Hover any date for the exact instant in UTC.'),
     host));
   draw();
 }
@@ -1823,7 +2204,7 @@ async function route() {
     if (path === '/findings') return await viewFindings(params);
     if (path === '/goals') return await viewGoals();
     if (path === '/records') return await viewRecords(params);
-    if (path === '/experiments') return await viewExperiments();
+    if (path === '/experiments') return await viewExperiments(params);
     if (path === '/integrity') return await viewIntegrity();
     return await viewOverview();
   } catch (err) {
@@ -1893,6 +2274,7 @@ function initChrome() {
   $('#refresh').addEventListener('click', async () => {
     state.ready = false;
     state.overview = state.goals = state.experiments = state.findings = null;
+    state.experimentsPayload = null;
     state.searchShards.clear();
     cache.clear();
     await fetch(new URL('api/refresh', document.baseURI), { method: 'POST' }).catch(() => {});
