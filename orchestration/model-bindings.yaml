@@ -423,12 +423,27 @@ bindings:
     # cap. Review-adversarial's floor was relaxed to `low` by the same
     # decision; its xhigh REQUEST is served capped at this backend's `high`
     # ceiling and every cap is recorded in the run receipt.
+    #
+    # 2026-09-06 CEILING CORRECTION (operator statement, this session): the
+    # operator of the running session -- which IS this backend's
+    # accounts/fireworks/models/glm-5p3-flash variant -- asserted "this
+    # glm5.3 flash we are running is max", i.e. the model accepts
+    # reasoning_effort up to `max`. The prior `high` ceiling was therefore
+    # understated: review-adversarial's xhigh requests were being recorded
+    # as capped when the wire could serve them natively. Ceiling corrected
+    # high -> max on operator authority; provenance stays operator-supplied
+    # and the DEPTH question (whether the provider's `max` reaches our
+    # xhigh/max floor in practice) remains an unverified operator assertion
+    # per the standing 2026-08-17 note -- if the provider clamps, record
+    # the gap in the run receipt, never silently re-assert. effort_map now
+    # carries xhigh -> max and max -> max (same wire family as the zai glm
+    # mapping, whose accepted set was {low, high, max}).
     coordinator-orchestration-code:
       model: accounts/fireworks/models/glm-5p3
       provenance: operator-supplied
       last_probed: '2026-09-03'
       capabilities: &fireworks_glm5p3_capabilities
-        max_reasoning_effort: high
+        max_reasoning_effort: max
         tool_use: true
         structured_output: true
         context_tokens: 200000
@@ -443,10 +458,23 @@ bindings:
       capabilities: *fireworks_glm5p3_capabilities
       request:
         max_tokens: 32000
-        reasoning: {mode: openai_effort, effort_map: {low: low, medium: medium, high: high, xhigh: high}}
+        reasoning: {mode: openai_effort, effort_map: {low: low, medium: medium, high: high, xhigh: max, max: max}}
     coordinator-orchestration: {model: null, provenance: unbound}
     research-deep: {model: null, provenance: unbound}
-    review-breakthrough: {model: null, provenance: unbound}
+    # 2026-09-06: bound on the same operator statement ("this glm5.3 flash
+    # we are running is max"). review-breakthrough has a `max` floor and is
+    # degradable: false; with the ceiling corrected to `max` this backend
+    # can serve it. The unverified-depth caveat above applies with full
+    # force here: the receipt must record that `max` on this wire is an
+    # operator assertion, not a probe-verified tier.
+    review-breakthrough:
+      model: accounts/fireworks/models/glm-5p3
+      provenance: operator-supplied
+      last_probed: '2026-09-03'
+      capabilities: *fireworks_glm5p3_capabilities
+      request:
+        max_tokens: 64000
+        reasoning: {mode: openai_effort, effort_map: {max: max}}
     # 2026-08-31 binding (7e63b0f91) that never reached main -- PR 648
     # merged before it was pushed; restored here under DEC-20260903-* so
     # main carries the config the last two executor dispatches actually ran
