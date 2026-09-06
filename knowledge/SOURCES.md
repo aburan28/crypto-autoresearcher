@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7864 |
-| — with a resolvable external identifier | 2254 |
+| Literature entries (`KN-LIT-*`) | 7866 |
+| — with a resolvable external identifier | 2256 |
 | — with no identifier recorded | 5610 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1325, doi 150, eprint 743, url 36. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 744, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7491, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 22, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7492, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -112,7 +112,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2254 of 7864 `KN-LIT-*` entries carry an
+2256 of 7866 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1529,6 +1529,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-399 | Modularity and integral points on moduli schemes | 2013 | `arxiv:1310.7263` | read |
 | KN-LIT-3c87b9 | RACE: a Rapid ARM Cryptographic Engine for code-based Classic McEliece PQC scheme | 2025 | `eprint:2025/2310` | web |
 | KN-LIT-3c9f21 | A distinguisher for high rate McEliece cryptosystems | 2010 | `eprint:2010/331` | web |
+| KN-LIT-3f24a6 | Expander properties of superspecial digraphs | 2026 | `eprint:2026/500` | false |
 | KN-LIT-3f2ee6 | Verifying Classic McEliece: examining the role of formal methods in post-quantum cryptography standardisation | 2022 | `eprint:2023/010` | web |
 | KN-LIT-400 | On the class numbers of the fields of the pn-torsion points of certain elliptic curves over Q | 2013 | `arxiv:1307.7691` | read |
 | KN-LIT-401 | ON THE ESSENTIAL DIMENSION OF COHERENT SHEAVES | 2013 | `arxiv:1306.6432` | read |
@@ -2304,6 +2305,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-997 | ISOGENY GRAPHS ON SUPERSPECIAL ABELIAN VARIETIES: | 2022 | `arxiv:2201.04293` | read |
 | KN-LIT-998 | Key Structures: Improved Related-Key Boomerang Attack against the Full AES-256 | 2022 | `eprint:2022/845` | read |
 | KN-LIT-999 | Local inversion of maps: A new attack on | 2022 | `arxiv:2202.06584` | read |
+| KN-LIT-9a915c | Isogenous hyperelliptic and non-hyperelliptic Jacobians with maximal complex multiplication | 2022 | `arxiv:2104.04919` | read |
 | KN-LIT-a24b73 | Triple Cryptanalysis of Isogeny-Based VRFs from Asiacrypt 2025 | 2026 | `eprint:2026/1623` | read |
 | KN-LIT-a409fc | New approaches to reduced complexity decoding | 1991 | `doi:10.1016/0166-218x(91)90107-8` | web |
 | KN-LIT-a4d70e | The syzygy distinguisher | 2025 | `eprint:2024/1193` | web |
@@ -8012,4 +8014,5 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2025/531` | KN-LIT-6b1fc8, KN-LIT-7ee1a9 |
 | `eprint:2026/1318` | KN-LIT-7670, KN-LIT-7674 |
 | `eprint:2026/366` | KN-LIT-7667, KN-LIT-7c2620 |
+| `eprint:2026/500` | KN-LIT-1642, KN-LIT-3f24a6 |
 | `url:cdn.openai.com/pdf/ten-proofs-oai.pdf` | KN-LIT-7637, KN-LIT-7640 |
