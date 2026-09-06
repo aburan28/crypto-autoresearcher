@@ -1755,6 +1755,33 @@ def check_ecc_budget_is_unlimited(path, goal, status, ctx: Ctx):
                     f"(orchestration/research-priority.yaml)")
 
 
+# Frozen closures already present when the 2026-09-06 policy was adopted.
+# Never add future closures to this compatibility set.
+PRE_STAGNATION_BUDGET_CLOSURES = {
+    "GOAL-MLKEM-001", "GOAL-MLKEM-003", "GOAL-MLKEM-004",
+    "GOAL-P13-001", "GOAL-ECQ-002",
+}
+
+
+def check_budget_retirement(path, goal, ctx):
+    if goal.get("status") != "closed_at_budget" or goal.get("id") in PRE_STAGNATION_BUDGET_CLOSURES:
+        return
+    sys.path.insert(0, REPO)
+    from orchestration.research_budget import enforce_research_budget
+    from datetime import date
+    budget = goal.get("campaign_budget") or {}
+    try:
+        # Historical closures remain verifiable after their review expires.
+        # The restriction must have been current at the recorded closure date.
+        closed_at = date.fromisoformat(goal.get("closed_at", ""))
+        if closed_at > date.today():
+            raise ValueError("budget closure cannot be future-dated")
+        if not enforce_research_budget(budget, today=closed_at, repo_root=REPO, target_id=goal.get("id")):
+            raise ValueError("advisory estimates cannot retire a research goal")
+    except (ValueError, TypeError) as exc:
+        ctx.err(path, f"budget retirement requires a 90-day stagnation review: {exc}")
+
+
 def check_goals(ctx: Ctx):
     if not check_trusted_goal_prefixes(ctx):
         return
@@ -1785,6 +1812,7 @@ def check_goals(ctx: Ctx):
             ctx.err(path, f"invalid status {status!r}")
 
         check_ecc_budget_is_unlimited(path, goal, status, ctx)
+        check_budget_retirement(path, goal, ctx)
 
         if status == "completed" and not grandfathered:
             check_goal_closure_quorum(path, goal, ctx)
