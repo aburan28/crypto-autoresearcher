@@ -1,0 +1,100 @@
+coordinator_decision:
+  id: DEC-20260905-a5e07b
+  recorded_at: '2026-09-06'
+  context: >-
+    Disposition of lane BATCH-58df35 (branch
+    ecrank-76a70d-execution-20260905), which was opened to execute the
+    user-confirmed RANK 2 approval gate for EXP-ECRANK-76a70d. While this
+    lane's opening scaffold and approval ledger were being committed, a
+    concurrent session (same bus address coordinator-ecrank-4, branch
+    ecrank-76a70d-approval-20260905, lane BATCH-832f3d, PR #780) landed the
+    same approval on main first: DEC-20260905-2d466e approved the identical
+    protocol bytes (v1, sha256
+    bcff5ced4c31468e3e09b49b7197b793888775f4df0d63074bad6c3905044b8f;
+    verified by diffing the protocol portion against this lane's base --
+    only the three designated gate fields differ, and this lane's two-line
+    amendment converges with main's with zero divergence), wrote executor
+    handoff TASK-20260905-26364a, closed duplicate BATCH-e19be0, and set
+    the goal head to RANK 2 EXECUTE with the instruction to dispatch the
+    executor ONLY via 26364a. This lane's approval DEC-20260905-cebc4d is
+    therefore REDUNDANT (same protocol, same effect, thinner record) and
+    must never be read as a second independent approval; its executor
+    handoff TASK-20260905-f615a7 is SUPERSEDED by 26364a and must never be
+    dispatched (its launch already failed once at infrastructure level with
+    no attempt made; claim released as abandoned). This decision closes
+    BATCH-58df35 as superseded and consolidates execution under 26364a.
+  decision: revise
+  decision_label: lane_superseded_duplicate_approval_consolidate_execution
+  decided_by: coordinator
+  target_ids:
+    - GOAL-ECRANK-002
+    - BATCH-58df35
+    - BATCH-832f3d
+    - TASK-20260905-f615a7
+    - TASK-20260905-26364a
+    - DEC-20260905-cebc4d
+    - DEC-20260905-2d466e
+  rationale:
+    - >-
+      Operative approval is DEC-20260905-2d466e (on main, ledger 550de66ef):
+      fuller record (user answer quoted verbatim, protocol hash bound,
+      handoff named), same protocol bytes as this lane approved, same
+      approved_by coordinator. DEC-20260905-cebc4d (this lane, unmerged
+      branch) is retained as history but marked redundant here so no
+      future reader counts two approvals.
+    - >-
+      Operative executor handoff is TASK-20260905-26364a (on main, written
+      by the approval batch per design-experiment skill step 5). This
+      lane's TASK-20260905-f615a7 is superseded and must never
+      be dispatched: running both would double-spend a 16-hour compute
+      budget and fork the evidence chain. The head instruction ("Dispatch
+      the Executor ONLY ... via 26364a") is followed, not relitigated.
+    - >-
+      The main-sync merge conflict on the goal head was resolved by taking
+      main's BATCH-832f3d checkpoint wholesale; this lane's head edit
+      (BATCH-58df35 pointers) is set aside by THIS record, not silently --
+      that is the supersession this decision performs. No record was
+      edited to pick a side.
+    - >-
+      Address collision recorded: both this lane and BATCH-832f3d
+      registered under coordinator-ecrank-4. Distinct sessions must use
+      distinct addresses; this session continues as coordinator-ecrank-5.
+      No claim was ever double-held (all holds/releases are write-once
+      side files; this lane's sole claim was released as abandoned before
+      any attempt).
+    - >-
+      Execution itself is NOT dispatched by this decision. The 832f3d
+      session announced "execution batch opens next from main" ~15 minutes
+      before this record; opening a competing execution batch now would
+      race it. If that session went silent, any later session opens the
+      execution batch from main dispatching 26364a per the head
+      instruction -- the path is unambiguous and needs no new design.
+  evidence_refs:
+    - ledger/decisions/DEC-20260905-2d466e.yaml
+    - ledger/decisions/DEC-20260905-cebc4d.yaml
+    - ledger/handoffs/TASK-20260905-26364a.yaml
+    - ledger/handoffs/TASK-20260905-f615a7.yaml
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-58df35/dispatch_queue.json
+  limitations:
+    - >-
+      Provenance: internal. Protocol-byte identity verified by diff in the
+      lane worktree (only gate fields differ); the bcff5ced hash is cited
+      from DEC-20260905-2d466e, recomputed by that lane, not re-derived
+      here. Liveness of the 832f3d session at disposition time is unknown
+      (last branch activity ~25 min prior: bus publish); the stand-down
+      does not depend on it.
+    - >-
+      This disposition moves no hypothesis status, closes no lane but this
+      one, promotes nothing, and asserts no scientific claim. C1 stays
+      OPEN (candidate UNPROMOTED); C2 NOT MET; IMP-2 stands.
+  next_actions:
+    - >-
+      Close BATCH-58df35 as superseded (this record); update PR #779 as
+      superseded, not merged for its approval content.
+    - >-
+      Execution opens from main dispatching TASK-20260905-26364a per the
+      committed head instruction -- by the 832f3d session if live, else by
+      the next session the dispatch loop assigns. No new design needed.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: A consolidation disposition establishes no finding; its durable product is routing clarity, not knowledge.
