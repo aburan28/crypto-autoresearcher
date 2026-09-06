@@ -1,0 +1,30 @@
+# CM endomorphisms and summation polynomials: retrieved source context
+
+Prepared 2026-09-05 by the root Codex session, thread 01a07248-f5d8-7400-b547-6d63f00e9f90. Native turn metadata records gpt-6-astra at ultra effort; `codex login status` reports authenticated using ChatGPT. This identifies the native session; it is not an adapter API model-probe result. This document is literature intake context and elementary mathematical reasoning, not an experiment, validation report, or research-state transition.
+
+## Sources actually opened in this conversation
+
+1. **Tsakou and Ionica (2021), Index Calculus Attacks on Hyperelliptic Jacobians with Effective Endomorphisms.** Provenance: retrieved. URL: https://eprint.iacr.org/2021/721.pdf . Verified by: root in the preceding turn; full-text sections 2 and 3.2 were read. The paper combines generalized summation polynomials with endomorphism-invariant factor bases, chooses orbit representatives, and incorporates endomorphism eigenvalues into relation coefficients. Its GLV discussion explicitly includes small-discriminant CM families over extension fields. Consequently the broad combination is prior art; this does not establish a prime-field exponent improvement. The revised manuscript at https://lab.algonics.net/temp/mathcrypt/pdfs/tsakou-ionica.pdf was also opened; its section 3.1 covers GLV and section 5 discusses relation-collection benchmarks and costs. The two versions have different section numbering and timings; this intake must not silently combine their numerical claims. No timing claim is relied on here.
+
+2. **Galbraith, Granger, Merz, and Petit, On Index Calculus Algorithms for Subfield Curves (SAC 2020; proceedings 2021).** Provenance: retrieved. URL: https://eprint.iacr.org/2020/1315.pdf . Verified by: root in the preceding turn; the paper and author institutional abstract were opened. Frobenius-invariant factor bases reduce the number of polynomial systems that must be solved and reduce linear-algebra dimension. The stated savings depend on the extension degree. The actual field tower and action must be carried into any transfer discussion; a prime field has no proper subfield that simply reproduces this setup.
+
+3. **Faugere, Huot, Joux, Renault, and Vitse, Symmetrized Summation Polynomials (EUROCRYPT 2014).** Provenance: retrieved. URL: https://www.iacr.org/archive/eurocrypt2014/84410158/84410158.pdf . Verified by: root in the preceding turn; introduction and definitions read. The paper uses small-order torsion translations and equivariant coordinate maps to obtain compact summation-polynomial representations and smaller factor bases. Translation by a nonzero torsion point is not an origin-preserving group endomorphism; do not equate its action with scalar multiplication on the cryptographic subgroup. This is related prior art, not automatically the same CM mechanism.
+
+4. **Galbraith and Ruprai, Using Equivalence Classes to Accelerate Solving the Discrete Logarithm Problem in a Short Interval.** Provenance: retrieved. URL: https://eprint.iacr.org/2010/615.pdf . Verified by: root in preceding turn, introduction and Appendix B. Distinguishes equivalence-class collision search, representative costs and fruitless cycles from GLV decomposition for multiplication by an already-known scalar. Small usable automorphism orbits give constant-factor benefits; efficient evaluation of an arbitrary CM endomorphism alone does not guarantee small orbits.
+
+## Elementary reasoning available as internal derivations
+
+- If G=<P> is cyclic of prime order n and phi(G) is contained in G, then phi restricted to G is multiplication by a scalar lambda. Invariance is an assumption, not an automatic property of an arbitrary subgroup. Full geometric n-torsion has dimension two when n differs from the characteristic; keep that object distinct from G.
+- After all orbit members have been replaced by representative logarithms with correct weights, a relation rL=b transported by phi becomes (lambda r)L=lambda b. Its augmented row is dependent on the original. This statement alone neither measures real relation distributions nor closes any representation method.
+- A successful decomposition need not increase the rank of the accumulated matrix: it may duplicate or linearly depend on prior rows. Distinguish rank increment relative to an existing span from rank of a single nonzero equation. This logical distinction does not itself validate or invalidate any historical run.
+- When lambda is nonzero, the action on a nonidentity point of G has orbit size ord_n(lambda); cheap evaluation and cheap orbit canonicalization are separate properties.
+
+## Intake limits and duplicate context
+
+The active research question identified in the current checkout is RQ-EQIC-8cb959. It binds to GOAL-ENDO-001 and explicitly forbids using new proposals to bypass H-STR-002's existing replication obligation. Read current records before asserting their status or conclusions.
+
+Root's exact-string search found overlap in IDEA-20260726-002, IDEA-20260727-001, IDEA-20260807-b42544, IDEA-20260807-9ecc6f, IDEA-20260807-45a69f, IDEA-20260807-1ea327, IDEA-20260807-e57607, and other RQ-EQIC-8cb959 proposals. This list is a starting point, not an exhaustive novelty assessment. Directly read candidate nearest neighbors and state the distinct delta.
+
+The configured KB CLI search was attempted with five results, ledger source filter and prime field filter. It failed because the collection crypto_knowledge_v1 does not exist in the process and QDRANT_URL defaults to :memory:. This is an unavailable retrieval index, not an empty literature search. No index or source records were changed. Use direct records and retrieved primary literature; leave unresolved novelty unverified.
+
+This intake produces high-level mathematical/defensive proposals only, each with falsifiable predictions and future unapproved design boundaries. It supplies no executable key-recovery procedure, new attack implementation, autonomous solver dispatch, numerical run, exponent claim, or scientific closure.

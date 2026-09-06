@@ -102,6 +102,12 @@ mixing but is not authentication and does not make peer data authoritative.
 
 ## 3. Route the user's request
 
+Apply `AGENTS.md` standing user authorization for ideas and experiments.
+The Coordinator selects ranked candidates and approves complete frozen
+protocols without another user selection or confirmation prompt. Continue
+through the protocol, dispatch and archival gates below; an incomplete
+contract is a technical prerequisite to resolve, not a request for permission.
+
 | User intent | Required behavior |
 | --- | --- |
 | `status`, `doctor`, or a general orientation request | Stay read-only. Run the preflight/status checks and summarize active goals, blockers, and next actions. |
