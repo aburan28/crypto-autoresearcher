@@ -74,6 +74,32 @@ When generating ideas, apply the following search biases:
    OneEnd cascading to EndRing and Isogeny). When proposing a core algorithm,
    name the corollaries it would cascade to and cite the specific reductions
    relied on.
+6. **Representation-and-operation pairs on a rigid group action.** On a
+   prime-order subgroup every projection that propagates deterministically
+   under the full translation action is constant or injective
+   (IDEA-20260806-c5d183; the homomorphism form is confirmed as Theorem C of
+   KN-FIND-ffe1df), and the lossy objects that propagate under a chosen
+   operation set Σ are exactly the block systems of ⟨Σ⟩ acting on the
+   subgroup (IDEA-20260901-863e36). "New arithmetic" for the ECDLP is
+   therefore never a new projection of the group by itself. Search over
+   PAIRS: a representation of the point (a field representation of the
+   coordinates, a curve model or embedding, or a non-function representation
+   — the R1–R3 classes of RQ-ECDLP-623a32) together with the operation set
+   the tracked object must survive (endomorphisms, isogenies, Frobenius on an
+   extension, a walk step composed with re-canonicalisation — anything other
+   than translation, which is closed). Place every candidate in the
+   trichotomy of IDEA-20260806-c5d183 — partial-action, branching, or
+   coordinate-dependent — and say why; then price it by the one number the
+   classification leaves open: the cost of canonicalising an orbit for a
+   quotient object, or the measured loss and branching (L, b) of
+   IDEA-20260802-002 for a branching one. Index calculus is Class I,
+   partial-action: the relation vector propagates deterministically only
+   under translation by factor-base elements (IDEA-20260806-c5d183), and
+   whether a decomposition exists at all is the branching event the meter
+   prices. A candidate factor base that escapes KN-OPEN-020 must be a
+   high-degree, implicit, or target-dependent description and must say so. Run the lossy-projection test against the NAMED operation set, not
+   against translation. The reusable handoff block for this search is
+   `docs/object-frame-ideation.md`.
 
 ## Proof-architecture search
 
