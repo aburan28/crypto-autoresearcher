@@ -531,8 +531,12 @@ function distribution(map, opts = {}) {
     const tone = opts.tone ? opts.tone(name) : statusTone(name);
     const colour = tone ? `var(--${tone})` : 'var(--line-strong)';
     const href = opts.href ? opts.href(name) : null;
+    // `completed_valid_invocation_error` is one word to the line breaker, so
+    // without an explicit break opportunity it clipped mid-token rather than
+    // using the second line the clamp allows.
     return h('div', { class: 'row', style: 'gap:10px' },
-      h('div', { style: 'flex:0 0 175px;min-width:0', class: 'clamp2' },
+      h('div', { style: 'flex:0 0 190px;min-width:0;overflow-wrap:anywhere', class: 'clamp2',
+                 title: `${name} — ${n.toLocaleString()}` },
         href ? h('a', { href, class: 'mono' }, name) : h('span', { class: 'mono' }, name)),
       h('div', { class: 'bar', style: 'flex:1' },
         h('i', { style: `width:${(n / total) * 100}%;background:${colour}` })),
@@ -2083,12 +2087,14 @@ async function viewExperiments(params) {
 
   fill(root, h('div', { class: 'stack' },
     snapshotBanner(),
-    h('div', { class: 'grid',
-      style: 'grid-template-columns:repeat(auto-fit,minmax(340px,1fr));align-items:start' },
-      timingPanel,
-      panel('Runs by terminal status',
-        `${runTotal.toLocaleString()} runs across ${withRuns} contracts · ${(state.experiments.length - withRuns).toLocaleString()} have never run`,
-        h('div', { class: 'panel-body' }, distribution(runStatus, {})))),
+    timingPanel,
+    // Twenty-four statuses, of which the first four are 97% of the runs. Full
+    // height pushed the table -- the point of the page -- below the fold, so
+    // the head is visible and the tail scrolls inside the panel.
+    panel('Runs by terminal status',
+      `${runTotal.toLocaleString()} runs across ${withRuns} contracts · ${(state.experiments.length - withRuns).toLocaleString()} have never run`,
+      h('div', { class: 'panel-body', style: 'max-height:250px;overflow:auto' },
+        distribution(runStatus, {}))),
     h('div', { class: 'spread' },
       choiceChips([['with-runs', 'with runs'], ['no-runs', 'never run'],
         ['timed', 'with a declared start'], ['ecc', 'ECC'], ['all', 'all']],
