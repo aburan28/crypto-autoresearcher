@@ -313,3 +313,33 @@ def test_symlinked_subdirectory_cannot_land_a_file_outside_the_workspace(tmp_pat
             make_task(theorem_file="link/Escape.lean")
         )
     assert not (outside / "Escape.lean").exists()
+
+
+# -- the generated root module -------------------------------------------
+
+
+def test_staging_regenerates_the_root_so_lake_actually_builds_the_file(tmp_path: Path) -> None:
+    """A staged file nothing imports would compile-pass without being compiled."""
+
+    workspace = make_workspace(tmp_path)
+    (workspace / "CryptoResearch").mkdir()
+    (workspace / "CryptoResearch.lean").write_text("-- stale\n")
+
+    formalize_and_verify(
+        make_task(theorem_file="CryptoResearch/Demo/EvenSquare.lean"),
+        formalizer=formalizer(tmp_path, engine(PROVED)),
+        worker=LeanWorker(tmp_path, runner=lean()),
+    )
+
+    root = (workspace / "CryptoResearch.lean").read_text()
+    assert "import CryptoResearch.Demo.EvenSquare" in root
+    assert "stale" not in root
+
+
+def test_root_is_not_invented_for_a_workspace_that_has_no_library(tmp_path: Path) -> None:
+    from orchestration.formal.workspace import rebuild_root
+
+    workspace = make_workspace(tmp_path)
+
+    assert rebuild_root(workspace) is None
+    assert not (workspace / "CryptoResearch.lean").exists()

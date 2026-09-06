@@ -1,0 +1,188 @@
+{
+  "task_id": "validator-mono2-2a13d7",
+  "role": "validator",
+  "session_kind": "claude_code_subagent",
+  "wall_clock_budget_seconds": 3600,
+  "memory_budget_gb": 4,
+  "write_scope": "experiments/EXP-MONO-2a13d7/reviews/validator/",
+  "commands_run": [
+    {
+      "purpose": "Read AGENTS.md and agents/validator.md (contract)",
+      "tool": "Read",
+      "targets": [
+        "AGENTS.md",
+        "agents/validator.md"
+      ]
+    },
+    {
+      "purpose": "Read hypothesis, spec, snapshot receipt, execution report, implementation.md",
+      "tool": "Bash cat",
+      "targets": [
+        "ledger/hypotheses/H-MONO-0f9170.yaml",
+        "experiments/EXP-MONO-2a13d7/specification.yaml",
+        "coordination/tasks/TASK-20260830-832479/snapshot-receipt.json",
+        "experiments/EXP-MONO-2a13d7/execution_report.yaml",
+        "experiments/EXP-MONO-2a13d7/implementation.md",
+        "knowledge/findings/KN-FIND-a8990a.md"
+      ]
+    },
+    {
+      "purpose": "Read all four implementation source files",
+      "tool": "Bash cat",
+      "targets": [
+        "experiments/EXP-MONO-2a13d7/implementation/fp_common.py",
+        "experiments/EXP-MONO-2a13d7/implementation/stage0.py",
+        "experiments/EXP-MONO-2a13d7/implementation/stage1.py",
+        "experiments/EXP-MONO-2a13d7/implementation/run_experiment.py"
+      ]
+    },
+    {
+      "purpose": "Spot-check raw run data: seven_count_tables.json, panel_selection_transcript.json, preregistration.json, matched_pair_equality_report.json for both primes, RUN-1",
+      "tool": "Bash cat / python3 json.load",
+      "targets": [
+        "experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p101/*",
+        "experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p211/*"
+      ]
+    },
+    {
+      "purpose": "Read manifest.yaml, raw-result.json, environment.json, command.txt for RUN-1 and cross-check manifest_correction_disclosure",
+      "tool": "Bash cat",
+      "targets": [
+        "experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/manifest.yaml",
+        "experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/raw-result.json",
+        "experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/environment.json",
+        "experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/command.txt"
+      ]
+    },
+    {
+      "purpose": "git status/log/branch checks to confirm the reviewed snapshot is HEAD and working tree is clean at the reviewed paths",
+      "tool": "Bash git",
+      "commands": [
+        "git status --short | head -50",
+        "git branch --show-current",
+        "git log --oneline -5",
+        "git status --porcelain -- experiments/EXP-MONO-2a13d7/ coordination/tasks/TASK-20260830-832479/",
+        "git log --oneline -1 HEAD",
+        "git rev-parse HEAD"
+      ],
+      "key_result": "HEAD == 90fdbfd81efc6d0b65c7af53d3084e2f3c3b311b (the snapshot commit named by the task); porcelain status on the reviewed paths was empty (clean)."
+    },
+    {
+      "purpose": "Recompute sha256 over all 76 hashed archive_artifact_paths in the snapshot receipt and compare to path_sha256",
+      "tool": "Bash python3 (inline script)",
+      "key_result": "Checked 76 paths, 0 mismatches/missing."
+    },
+    {
+      "purpose": "Verify out-of-band-edit disclosure via git ancestry and diff",
+      "tool": "Bash git",
+      "commands": [
+        "git log --oneline -1 a11df1c91",
+        "git log --oneline -1 50138c3da",
+        "git merge-base --is-ancestor a11df1c91 50138c3da && echo CONFIRMED",
+        "git show 50138c3da --stat",
+        "git show 50138c3da -- experiments/EXP-MONO-2a13d7/specification.yaml",
+        "git show a11df1c91:experiments/EXP-MONO-2a13d7/specification.yaml | grep -A15 curve_panel_note:"
+      ],
+      "key_result": "a11df1c91 confirmed ancestor of 50138c3da (Executor's code predates the out-of-band edit). Edit diff adds exactly the panel_eligibility_filter clause (A!=0,B!=0,t!=0). Original pre-edit curve_panel_note only says 'CM curves ... out of scope' informally, no operational t!=0 rule -- basis of finding F1."
+    },
+    {
+      "purpose": "Task 1+2: independent from-scratch closed-form re-derivation and R1 spot-check via a third method (O(p^2) brute-force point count, brute-force sqrt table, fresh stage1 census, fresh closed-form function)",
+      "tool": "Bash python3 (script file, see independent_check.py below)",
+      "script_path_in_scratchpad": "/private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/independent_check.py",
+      "script_sha256": "ae8fac1683334b404478b944ce0d62e068dc47c614a24f52290e461d81b75fc0",
+      "script_content": "\"\"\"Independent re-derivation and spot-check script for J1 validation of\nEXP-MONO-2a13d7. Written from scratch, NOT importing stage0.py/stage1.py.\n\"\"\"\nimport itertools\n\ndef legendre(a, p):\n    a %= p\n    if a == 0:\n        return 0\n    r = pow(a, (p-1)//2, p)\n    return 1 if r == 1 else -1\n\ndef direct_point_count_and_trace(A, B, p):\n    \"\"\"Brute-force O(p^2): for each x, test EVERY y in 0..p-1 whether\n    y^2 == f(x) mod p. This is a genuinely different algorithm from the\n    character-sum method (no Legendre symbol call at all), used here only\n    as an independent cross-check of #E(F_p) and hence t, and of Z.\n    \"\"\"\n    count = 1  # point at infinity\n    Z = 0\n    for x in range(p):\n        fx = (x*x*x + A*x + B) % p\n        if fx == 0:\n            Z += 1\n            count += 1  # exactly one y=0\n            continue\n        n = 0\n        for y in range(p):\n            if (y*y) % p == fx:\n                n += 1\n        count += n\n    t = p + 1 - count\n    return t, Z, count\n\ndef closed_form_seven_tuple(p, t, Z):\n    assert (p - t - Z) % 2 == 0\n    assert (p + t - Z) % 2 == 0\n    S = (p - t - Z)//2\n    N = (p + t - Z)//2\n    Zprime = {0:0, 1:3, 3:3}[Z]\n    A1 = S*(S-1)//2\n    A2 = S*N\n    A3 = N*(N-1)//2\n    A4 = Z*(p-Z) + Z*(Z-1)//2\n    numerator = p*p + 2*p - t*t - Zprime\n    assert numerator % 2 == 0\n    M = numerator//2 - (p - Z)\n    assert M % 2 == 0\n    B1 = M//2\n    assert (Zprime - Z) % 2 == 0\n    B2 = (Zprime - Z)//2\n    B3 = p*(p-1)//2 - B1 - B2\n    return dict(A1_identity=A1, A2_sigma_i=A2, A3_sigma1sigma2=A3,\n                A4_ramified_A=A4, B1_block_swap=B1, B2_ramified_B=B2,\n                B3_four_cycle=B3, S=S, N=N, Zprime=Zprime, M=M)\n\ndef stage1_census(p, A, B):\n    \"\"\"Independently written exhaustive stratum census (fresh implementation,\n    not copied from stage1.py) to cross-check the seven measured counts.\"\"\"\n    tallies = dict(double_root=0, A1_identity=0, A2_sigma_i=0, A3_sigma1sigma2=0,\n                    A4_ramified_A=0, B1_block_swap=0, B2_ramified_B=0, B3_four_cycle=0)\n    inv2 = pow(2, p-2, p)\n    # precompute square roots table for split case (brute force, independent of Tonelli-Shanks)\n    sqrt_table = {}\n    for x in range(p):\n        r = (x*x) % p\n        sqrt_table.setdefault(r, []).append(x)\n    for e1 in range(p):\n        for e2 in range(p):\n            D = (e1*e1 - 4*e2) % p\n            if D == 0:\n                tallies['double_root'] += 1\n                continue\n            chiD = legendre(D, p)\n            if chiD == 1:\n                # find sqrt via brute force table (independent of Tonelli-Shanks)\n                r = sqrt_table[D][0]\n                t1 = (e1 + r) * inv2 % p\n                t2 = (e1 - r) * inv2 % p\n                f1 = (t1**3 + A*t1 + B) % p\n                f2 = (t2**3 + A*t2 + B) % p\n                if f1 == 0 or f2 == 0:\n                    tallies['A4_ramified_A'] += 1\n                    continue\n                c1 = legendre(f1, p)\n                c2 = legendre(f2, p)\n                if c1 == 1 and c2 == 1:\n                    tallies['A1_identity'] += 1\n                elif c1 == -1 and c2 == -1:\n                    tallies['A3_sigma1sigma2'] += 1\n                else:\n                    tallies['A2_sigma_i'] += 1\n            else:\n                c0 = (e2**3 + A*e2*(e1*e1-2*e2) + B*(e1**3-3*e1*e2)\n                      + A*A*e2 + A*B*e1 + B*B) % p\n                if c0 == 0:\n                    tallies['B2_ramified_B'] += 1\n                    continue\n                chic0 = legendre(c0, p)\n                if chic0 == 1:\n                    tallies['B1_block_swap'] += 1\n                else:\n                    tallies['B3_four_cycle'] += 1\n    return tallies\n\ndef j_invariant(A, B, p):\n    disc = (4*pow(A,3,p) + 27*pow(B,2,p)) % p\n    return (1728 * 4 * pow(A,3,p) % p * pow(disc, p-2, p)) % p\n\ndef order3_count(A, B, p):\n    # psi_3(x) = 3x^4+6Ax^2+12Bx-A^2\n    cnt = 1\n    for x in range(p):\n        psi3 = (3*x**4 + 6*A*x**2 + 12*B*x - A*A) % p\n        if psi3 == 0:\n            fx = (x**3+A*x+B) % p\n            if fx == 0:\n                continue  # anomaly, excluded\n            if legendre(fx, p) == 1:\n                cnt += 2\n    return cnt\n\ndef is_isomorphic_bruteforce(A, B, A2, B2, p):\n    for u in range(1, p):\n        if pow(u,4,p)*A % p == A2 % p and pow(u,6,p)*B % p == B2 % p:\n            return True\n    return False\n\ncurves_to_check = [\n    (101, 1, 1),\n    (101, 1, 48),\n    (211, 1, 1),\n    (211, 1, 94),\n]\n\nprint(\"=== Task 2: independent t,Z via O(p^2) brute force point count ===\")\nfor p, A, B in curves_to_check:\n    t, Z, cnt = direct_point_count_and_trace(A, B, p)\n    print(f\"p={p} A={A} B={B}: brute-force #E(F_p)={cnt}, t={t}, Z={Z}\")\n\nprint()\nprint(\"=== Task 2 continued: compare seven-tuple (fresh stage1_census + fresh closed form) ===\")\nfor p, A, B in curves_to_check:\n    t, Z, cnt = direct_point_count_and_trace(A, B, p)\n    cf = closed_form_seven_tuple(p, t, Z)\n    measured = stage1_census(p, A, B)\n    residuals = {k: measured[k] - cf[k] for k in ['A1_identity','A2_sigma_i','A3_sigma1sigma2',\n                 'A4_ramified_A','B1_block_swap','B2_ramified_B','B3_four_cycle']}\n    print(f\"p={p} A={A} B={B} t={t} Z={Z}\")\n    print(f\"  closed_form = {cf}\")\n    print(f\"  measured    = {measured}\")\n    print(f\"  residuals   = {residuals}\")\n    print(f\"  ALL ZERO: {all(v==0 for v in residuals.values())}\")\n\nprint()\nprint(\"=== Task 6: brute-force isomorphism check + j/order3 controls ===\")\npairs = [(101,1,1,1,48), (211,1,1,1,94)]\nfor p, A1_, B1_, A2_, B2_ in pairs:\n    iso = is_isomorphic_bruteforce(A1_, B1_, A2_, B2_, p)\n    j1 = j_invariant(A1_, B1_, p)\n    j2 = j_invariant(A2_, B2_, p)\n    o1 = order3_count(A1_, B1_, p)\n    o2 = order3_count(A2_, B2_, p)\n    print(f\"p={p}: ({A1_},{B1_}) vs ({A2_},{B2_}): isomorphic(brute over all u)={iso}, j1={j1} j2={j2}, order3_1={o1} order3_2={o2}\")\n"
+    },
+    {
+      "purpose": "Task 3: independent timing/scaling confirmation of the O(p) method by directly invoking the real curve_invariants/enumerate_curves functions",
+      "tool": "Bash python3 (inline, importing experiments/EXP-MONO-2a13d7/implementation/stage0.py)",
+      "commands": [
+        "python3 -c \"...from stage0 import curve_invariants; time 3 curves at p=101,211...\"",
+        "python3 -c \"...from stage0 import enumerate_curves; full enumeration timing at p=101,211...\"",
+        "grep -n 'for ' stage0.py"
+      ],
+      "key_results": {
+        "micro_timing": "p=101: 3 curves in 0.000113s (0.0377ms/curve); p=211: 3 curves in 0.000223s (0.0743ms/curve) -- ratio 1.97x, close to O(p) prediction 2.09x",
+        "full_enumeration_timing": "p=101: 10100 curves in 0.334s; p=211: 44310 curves in 3.252s -- reproduces archived 0.337s/3.229s almost exactly",
+        "scaling_ratio": "3.252/0.334=9.74, close to O(p^3)-total prediction (211/101)^3=9.09, far from O(p^4) prediction 19.0",
+        "grep_confirmation": "curve_invariants (line 33) has exactly one 'for x in range(p)' loop; enumerate_curves (lines 66-67) has the outer p^2-curve double loop, calling curve_invariants once per curve -- matches the spec's own O(p^3)-total accounting, not a hidden O(p^2)-per-curve cost"
+      }
+    },
+    {
+      "purpose": "Task 5: bit-identical determinism check between RUN-1 and RUN-2",
+      "tool": "Bash diff / python3",
+      "commands": [
+        "diff -rq experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1 experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-2",
+        "diff .../command.txt .../command.txt",
+        "diff .../p101/preregistration.json .../p101/preregistration.json",
+        "python3 -c \"...strip timing/rss keys from raw-result.json and compare structurally...\"",
+        "diff .../manifest.yaml .../manifest.yaml"
+      ],
+      "key_result": "Exactly 8 files differed (command.txt, manifest.yaml, p101/preregistration.json, p211/preregistration.json, p101/timings.json, p211/timings.json, raw-result.json, stdout.log, stderr.log) out of the full archived tree, and every diff traced to a declared timing/timestamp/run-path field. raw-result.json structurally equal after stripping timing keys: True."
+    },
+    {
+      "purpose": "Task 7 robustness check: counterfactual smallest-lexicographic non-special candidate per (prime,Z), and count of non-special supersingular curves",
+      "tool": "Bash python3 (importing the real stage0.enumerate_curves)",
+      "key_results": {
+        "p101_supersingular_nonspecial_count": 600,
+        "p101_supersingular_Z_values": [
+          1
+        ],
+        "p211_supersingular_nonspecial_count": 1050,
+        "p211_supersingular_Z_values": [
+          1,
+          3
+        ],
+        "counterfactual_smallest_candidates": {
+          "p101_Z0": {
+            "A": 1,
+            "B": 1,
+            "t": -3
+          },
+          "p101_Z1": {
+            "A": 1,
+            "B": 2,
+            "t": 2
+          },
+          "p101_Z3": {
+            "A": 1,
+            "B": 10,
+            "t": -2
+          },
+          "p211_Z0": {
+            "A": 1,
+            "B": 1,
+            "t": -11
+          },
+          "p211_Z1": {
+            "A": 1,
+            "B": 3,
+            "t": -16
+          },
+          "p211_Z3": {
+            "A": 1,
+            "B": 2,
+            "t": 12
+          }
+        },
+        "conclusion": "none of the 6 counterfactual smallest candidates is supersingular (t=0); basis for finding F1's 'empirical_impact_on_this_run: NONE'."
+      }
+    },
+    {
+      "purpose": "Attempt to resolve/verify this session's actual serving model against the repo's adapter config",
+      "tool": "Bash python3 -m orchestration.adapter",
+      "commands": [
+        "python3 -m orchestration.adapter resolve --role validator",
+        "python3 -m orchestration.adapter resolve --role validator --independent-session",
+        "python3 -m orchestration.adapter doctor --probe"
+      ],
+      "key_result": "resolve --independent-session returned 'review-adversarial -> anthropic:claude-opus-5 (effort=xhigh)'; doctor --probe returned no output in this sandbox. Session self-reports as claude-sonnet-5. Discrepancy disclosed in validation-report.yaml limitations, not silently resolved (AGENTS.md rule 11)."
+    }
+  ],
+  "deliverables_written": [
+    "experiments/EXP-MONO-2a13d7/reviews/validator/validation-report.yaml",
+    "experiments/EXP-MONO-2a13d7/reviews/validator/runtime-session-receipt.json"
+  ],
+  "no_commits_made": true,
+  "no_status_changes_made": true,
+  "sibling_review_directories_read": false
+}

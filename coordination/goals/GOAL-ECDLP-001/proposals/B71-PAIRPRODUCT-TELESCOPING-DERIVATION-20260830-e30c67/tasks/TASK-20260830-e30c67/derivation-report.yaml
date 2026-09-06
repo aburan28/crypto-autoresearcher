@@ -1,0 +1,371 @@
+schema: crypto.autoresearch.pairproduct_telescoping_derivation.v1
+task_id: TASK-20260830-e30c67
+goal_id: GOAL-ECDLP-001
+proposal_namespace: B71-PAIRPRODUCT-TELESCOPING-DERIVATION-20260830-e30c67
+role: idea-generator
+record_kind: pairproduct_telescoping_derivation
+
+question: >-
+  On the frozen P1553 instance model (H-CREP-001's pair-product generators
+  over the complete-chart intersection system, deck sizes B in {2, 3}, six
+  strata, as machine-checked by EXP-CREP-001), write down exactly what a
+  generator is and what combining two generators costs, and determine
+  whether that combination is additive/telescoping (as for a product of
+  known linear factors, the property that makes subproduct-tree/remainder-
+  tree reduction quasi-linear) or costs strictly more.
+
+sources_read_this_session:
+  - {path: 'ledger/hypotheses/H-CREP-001.yaml', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/specification.yaml', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/execution-report.yaml', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/analysis.md', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/instances/generate_instances.py', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/verifier/check_representation.py', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/verifier/package_schema.json', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/packages/build_packages.py', provenance: internal}
+  - {path: 'experiments/EXP-CREP-001/packages/ROUTE-04-multipoint-evaluation/package.json', provenance: internal}
+  - {path: 'ledger/evidence/EV-CRYPTO-002.yaml', provenance: internal}
+  - {path: 'ledger/goals/GOAL-ECDLP-001/goal.yaml (amendment and terminal-note keys)', provenance: internal}
+  - {path: 'coordination/.../B71-GATE-FRAMING-REVIEW-20260830-1e385f/tasks/TASK-20260830-1e385f/gate-calibration-analysis.yaml', provenance: internal}
+  - {path: 'coordination/.../B71-GATE-FRAMING-REVIEW-20260830-1e385f/tasks/TASK-20260830-1e385f/framing-revisit-analysis.yaml', provenance: internal}
+  - {path: 'docs/inventor-protocol.md', provenance: internal}
+  - {path: 'templates/research-records.md', provenance: internal}
+note_on_reading_discipline: >-
+  H-CREP-001.yaml's mechanism, assumptions, and structural_ingredients
+  blocks were read in full and are quoted or paraphrased with exact field
+  names below, not summarized from memory of prior rounds' paraphrases,
+  per the task's explicit instruction.
+
+part_1_generator_definition: >-
+  On the frozen instance model, a pair-product generator is an ordered pair
+  g = (x, y) with x an occurrence record from deck 0 and y an occurrence
+  record from deck 1 (experiments/EXP-CREP-001/instances/generate_instances.py,
+  function build_generators; frozen vocabulary item
+  load_pair_product_generators in check_representation.py's
+  PREPROCESSING_KINDS). Each occurrence record carries {deck, pos, label,
+  sign, colour, marker}. The generator set has exactly B^2 members (deck 0
+  has B occurrences, deck 1 has B occurrences, and the set is the full
+  Cartesian product deck0 x deck1 -- confirmed directly in
+  build_generators's nested loop and independently re-derived by the
+  verifier's own instance_integrity_problems check). A generator g=(x,y)
+  carries a witnesses field equal to [x.label] exactly when x.label ==
+  y.label AND that label is extendible (extendible is a GLOBAL property
+  requiring an admissible occurrence in ALL FIVE decks, not just decks 0
+  and 1 -- generate_instances.py's own semantics_rules.witness_rule text:
+  'generator (x,y) witnesses label l iff x.label == y.label == l and l is
+  extendible'). H-CREP-001.yaml's mechanism field independently names the
+  same object family only at the level of one sentence: 'the complete-chart
+  intersection resultant r_R vanishes at a label exactly when that fifth
+  occurrence extends to a labelled pair-pair relation' -- it does not
+  itself define a combination rule for generators; the concrete definition
+  above is drawn entirely from the frozen toy instance generator and
+  frozen verifier, which are the only fully specified objects available.
+
+part_2_what_combination_rule_is_actually_specified: >-
+  Three genuinely distinct operations are present in the frozen model, and
+  they must not be conflated (this is the exact place the prior gate-
+  framing review's dichotomy attempt stayed at the level of an asserted
+  claim about 'r_R's structure' rather than reading what is actually
+  specified):
+  (A) LABEL-MATCHING UNION over pair-product generators alone (decks 0,1
+  only): given two disjoint subsets S1, S2 of the B^2 deck0 x deck1 pairs,
+  the union S1 u S2 is computed by list concatenation plus an O(1)
+  label-equality test per element; this is genuinely additive: cost(S1,S2)
+  = O(|S1|+|S2|) and output size = |S1|+|S2|. This operation IS
+  telescoping, trivially, because it never touches anything outside decks
+  0 and 1 and involves no algebraic elimination at all -- it is pure set
+  bookkeeping.
+  (B) CHART-INDEX BUNDLING (frozen vocabulary item build_chart_index,
+  PREPROCESSING_KINDS): per check_representation.py's execute_package,
+  this node's value is literally {'deck_occurrences': [all five decks'
+  raw occurrence lists]} -- i.e. it is the FIRST point in every frozen
+  route where decks 2, 3, and 4 enter at all. Critically, the frozen
+  PREPROCESSING_KINDS vocabulary contains exactly one dedicated,
+  named, compact pairwise-combination object -- load_pair_product_
+  generators, built from exactly decks 0 and 1 -- and NO analogous
+  vocabulary item for decks 2, 3, or 4 (no load_pair_product_generators_
+  variant, no per-deck-pair compaction step for any other pair of decks).
+  Decks 2, 3, 4 enter only as raw, undifferentiated occurrence lists
+  bundled in one flat node.
+  (C) MATERIALIZE_RESULTANT_COEFFICIENTS (frozen vocabulary item, ONLINE
+  KINDS): the single edge (chart_index -> resultant_coefficient_vector,
+  or -> translated_endpoints for CAL-FAIL) that folds decks 2,3,4's data
+  against the FRESH TARGET to produce the target-dependent object every
+  route (except the oracle-based ROUTE-02) actually uses. This is declared,
+  in every one of the 7 non-oracle route packages built by
+  experiments/EXP-CREP-001/packages/build_packages.py's shared
+  build_expansion_route() function, as a SINGLE ATOMIC EDGE: input size
+  exponent 2, output size exponent 3, cost exponent 3 (verified directly
+  in ROUTE-04-multipoint-evaluation/package.json's edge n1->n2, and
+  identical by construction in ROUTE-01, 03, 05, 06, 07, 08, since they
+  share the same builder function). No route's dependency graph contains
+  any node representing 'combine the fold-in for generator subset S1 with
+  the fold-in for subset S2' -- there is no recursive tree of smaller
+  combination steps anywhere in any of the 8 frozen packages. This is a
+  directly-checkable fact about the JSON artifacts themselves, not an
+  inference about r_R's abstract nature.
+
+part_3_cost_statement: >-
+  For operation (A) alone: cost(S1,S2) = O(|S1|+|S2|); ADDITIVE,
+  TELESCOPING. This is the complete, precise answer for the one
+  sub-operation that IS expressed as a pairwise combination anywhere in
+  the frozen model.
+  For the full construction (B)+(C), the frozen model supplies NO
+  decomposition into a 'combine two smaller pieces' step at all -- it
+  supplies only ONE atomic step whose declared cost is a function of the
+  WHOLE generator/chart set, not of two combined sub-pieces: g(n) =
+  Theta(n^{3/2}) where n = B^2 is the size of the compact generator set
+  (since the declared cost is Theta(B^3) = Theta((B^2)^{1.5})). This
+  arithmetic relationship (cost scaling as the 1.5 power of the compact
+  input size, rather than linearly or quasi-linearly, i.e. rather than
+  O(n log^{O(1)} n)) is a DIRECT ARITHMETIC CONSEQUENCE of the two
+  declared exponents (input size exponent 2, i.e. n = B^2; output/cost
+  exponent 3, i.e. Theta(B^3) = Theta(n^{1.5})) and is stated here as an
+  observation about the DECLARED total cost relative to the compact
+  generator-set size, NOT as an independently derived per-pair
+  combination-cost formula, because no such per-pair decomposition is
+  specified anywhere in H-CREP-001 or in any of the 8 frozen routes. This
+  distinction is exactly the boundary this task must not blur: I can
+  state precisely which sub-operation telescopes (A) and which
+  sub-operation is left completely unspecified as a combination rule at
+  all (B+C, only specified as one atomic whole-set step), but I cannot
+  honestly assert a proven f(|S1|,|S2|) for (B)+(C) because no such
+  decomposition exists in the corpus to measure.
+
+part_4_hand_worked_example_B2_single_hit: >-
+  Concrete trace on INST-2-single_hit (B=2), computed by hand from
+  generate_instances.py's stated construction rule (no code executed).
+  Target labels T = {1,2}. Label 1 is mandated complete and admissible in
+  all five decks (marker 'normal' everywhere it is explicitly placed).
+  Label 2 is mandated present in decks 0, 2, 3 but is filled with a
+  filler label (not 2) in decks 1 and 4 by the deterministic filler rule,
+  so label 2 has no occurrence in deck 1 or deck 4 and is therefore NOT
+  complete, hence NOT extendible (label_tuples returns [] for any deck
+  with zero matching occurrences). So the reference support E = {1} for
+  this instance. The four pair-product generators (deck0 x deck1, B^2=4):
+  (deck0[0]=label1, deck1[0]=label1) matches labels and label 1 is
+  extendible, so witnesses=[1]; (deck0[0]=label1, deck1[1]=filler)
+  labels differ, witnesses=[]; (deck0[1]=label2, deck1[0]=label1) labels
+  differ, witnesses=[]; (deck0[1]=label2, deck1[1]=filler) labels differ
+  (filler != 2 by construction), witnesses=[]. So sub-operation (A), the
+  label-matching union over all four generators, produces the candidate
+  set {1} at cost O(4)=O(B^2), trivially additive/telescoping -- exactly
+  as claimed in part 3. But determining that label 1 (not label 2) is
+  the one that is ACTUALLY extendible required, in this hand trace,
+  consulting decks 2, 3, and 4's occurrence lists directly (checking
+  admissibility of label 1's and label 2's occurrences there) -- an
+  operation that is NOT a combination of two pair-product generators in
+  any sense H-CREP-001 or EXP-CREP-001 names; it is a lookup against a
+  different kind of object (single-deck occurrence lists) that enters
+  only through the flat chart_index bundling described in part 2(B).
+
+part_5_boundary_and_degenerate_case_checks: >-
+  (i) At the smallest conceptual degenerate size B=1 (not in the frozen
+  {2,3} set, used only as a sanity check): g_I would have degree 1 and
+  the declared r_R convention (degree Theta(B^2)) would also give degree
+  1; Theta(B^3) and any additive/quasi-linear alternative both round to
+  a constant. The multiplicative-vs-additive distinction this report
+  turns on is vacuous at B=1 -- it requires at least two independent
+  degree-scaling systems to separate, so this degenerate case does not
+  contradict the general claim; it simply cannot exhibit it, which is
+  the expected and correct behaviour of an asymptotic distinction.
+  (ii) At the frozen model's actual smallest size B=2 (checked directly
+  against INST-2-* in part 4): Theta(B^3)=8 versus a hypothetical
+  quasi-linear alternative on the same n=B^2=4 compact input (which would
+  be O(4 log 4) approx 8-16 depending on constants) are NOT numerically
+  distinguishable at this scale. This is an important honest limit: the
+  B in {2,3} toy instances cannot, by direct execution or by hand
+  computation, discriminate telescoping from non-telescoping -- the
+  distinction is asymptotic and lives entirely in the DECLARED exponent
+  certificates (a bookkeeping convention checked by V3/V6), never in
+  anything the toy engine actually computes on these small instances.
+  This is precisely why this task is specified as a zero-compute
+  derivation task rather than a check-by-running task.
+  (iii) Independent corroboration already recorded in the corpus:
+  CAL-PASS-CREP-001 (experiments/EXP-CREP-001/packages/build_packages.py,
+  build_cal_pass; specification.yaml calibration_fixtures) is a
+  synthetic fixture that DOES achieve online exponent 1 (quasi-linear)
+  on the toy combinatorics, by building a dyadic-interval index over the
+  static relation table -- but its own frozen description explicitly
+  disclaims: 'this fixture passes only because the synthetic instance
+  model makes extendibility a static Boolean OR ... it is NOT a curve
+  construction and NOT evidence about H-CREP-001.' This is the corpus's
+  own, already-recorded acknowledgement that the toy model's cheap
+  per-label lookup does not transfer to the real (non-toy) elliptic-curve
+  construction, and it directly bounds how far part 4's trivial telescoping
+  finding for sub-operation (A) can be pushed: it is true of the toy
+  combinatorics, and it is explicitly NOT license to conclude the real
+  construction telescopes.
+
+part_6_anchor_to_ROUTE04_ROUTE07_theta_B3_measurement: >-
+  The mechanical reason ROUTE-04-multipoint-evaluation and
+  ROUTE-07-subresultant-hgcd measured a Theta(B^3) online exponent
+  (execution-report.yaml predicate_matrix, both first_failed V3) rather
+  than reproducing the quasi-linear cost the same technique families
+  achieve for a generic product of known linear factors is derivable
+  directly from the verifier's own cost-aggregation rule, not merely
+  restatable as the empirical fact. check_representation.py's check_V6 /
+  build_packages.py's aggregate_certificate compute the online workspace
+  exponent as agg_on_ws = max(all online edges' declared
+  output_size_exponent_in_B, all online nodes' declared
+  size_exponent_in_B) -- a MAXIMUM, not a sum or a function of the
+  downstream steps' own efficiency. In ROUTE-04's package (and
+  identically in ROUTE-01, 03, 05, 06, 07, 08 via the shared
+  build_expansion_route builder): edge n1->n2 (chart_index ->
+  resultant_coefficient_vector) declares output_size_exponent_in_B = 3;
+  edge n2->n3 (resultant_coefficient_vector -> support_intermediate via
+  multipoint_evaluate, respectively subresultant_chain for ROUTE-07)
+  declares cost_exponent_in_B = 2 and output_size_exponent_in_B = 1 --
+  i.e. ROUTE-04's and ROUTE-07's OWN algebra-specific step genuinely IS
+  quasi-linear relative to the size of the object it is handed (a
+  degree-Theta(B^2) object evaluated/reduced at cost Theta(B^2), which
+  is the correct, textbook-consistent behaviour of multipoint evaluation
+  and of a subresultant/half-gcd chain applied to an ALREADY EXPLICIT
+  polynomial of that degree). The failure is not in that step. It is
+  that the max() aggregation is dominated by the single, prior, atomic
+  n1->n2 edge (part 2(C)), which every route declares at exponent 3
+  regardless of what quasi-linear machinery is applied afterward. This
+  is the derived, mechanical explanation: ROUTE-04 and ROUTE-07 apply
+  their classical quasi-linear techniques AFTER a full, un-decomposed
+  materialization of the target-dependent object, not INSTEAD of it or
+  INTERLEAVED with it. A genuine remainder-tree/multipoint-based
+  telescoping construction, by contrast, is defined precisely by never
+  taking that atomic step -- it interleaves construction with reduction
+  modulo the (much smaller) modulus at every level of a recursive
+  combination tree, so no single node in its own dependency graph ever
+  needs a declared size at or above the full unreduced product's degree.
+  No route in the frozen set attempts this interleaved shape (part 2(C)),
+  and H-CREP-001's mechanism supplies no combination rule that would
+  specify how to attempt it (part 1).
+
+part_7_scale_hierarchy_for_context: >-
+  Four cost points are directly readable from H-CREP-001 and EXP-CREP-001
+  and are stated together here only to make the B^3 figure's place
+  legible, not as new claims: (a) brute-force 5-way join over all five
+  decks, Theta(B^5) = N (H-CREP-001 assumptions: N=B^5; structural
+  ingredient 'generic-group square-root lower bound... against which the
+  B^(9/4)/B^(5/4) construction rectangle is defined'); (b) the frozen
+  8 routes' declared standard-algebraic-technique cost, Theta(B^3)
+  online, achieved by first compacting exactly decks 0-1 into pair-
+  product generators (Theta(B^2)) and then materializing the fold-in
+  against decks 2-4 atomically (part 2(C)); (c) the sought target,
+  Theta(B^{5/4}) online (H-CREP-001 predictions,
+  fresh_target_online_exponent_in_B); (d) the toy-combinatorics-only
+  artifact, Theta(B) (CAL-PASS-CREP-001, explicitly disclaimed as not
+  evidence about the real construction, part 5(iii)). (b) sits strictly
+  between (a) and (c): it is a genuine partial compression (via the one
+  named compaction step, pair-product generators) that stops short of
+  the target because the SAME compaction is never applied to the other
+  three decks, per part 2(B)'s vocabulary asymmetry.
+
+named_missing_specification: >-
+  H-CREP-001.yaml does not specify (i) any formula for the actual
+  (non-toy) 'complete-chart intersection resultant' r_R's degree as a
+  function of B beyond the one-sentence vanishing condition quoted in
+  part 1; (ii) any combination or elimination rule describing how
+  decks 2, 3, 4's data would be folded into a compact, pairwise-
+  combinable object analogous to pair-product generators; or (iii)
+  whether such a fold-in, if it existed, would preserve the additive
+  telescoping property of sub-operation (A) or would instead combine
+  multiplicatively (as elimination/resultant operations generically do
+  under Bezout-type degree bounds -- a classical fact, recalled, see
+  source-novelty-audit.yaml) or in some other way. This is the exact,
+  precise, named gap: the corpus supplies enough detail to show that NO
+  decomposition is attempted by any of the 8 frozen routes (a directly
+  verified fact, not an assumption), but not enough detail to determine
+  whether a hypothetical decomposition COULD succeed. See outcome-card.yaml
+  and proof-search-map.yaml for how this gap is carried forward without
+  either declaring the direction impossible or overclaiming a resolved
+  obstruction.
+
+obstruction:
+  statement: >-
+    Every one of the 8 frozen EXP-CREP-001 route packages represents the
+    fold-in of decks 2, 3, and 4's admissibility data against the fresh
+    target as a single, non-decomposed online edge (chart_index ->
+    resultant_coefficient_vector or -> translated_endpoints), declared at
+    output-size exponent 3 in B; the frozen PREPROCESSING_KINDS vocabulary
+    contains a dedicated, named, compact pairwise-combination object for
+    exactly one deck pair (decks 0-1, load_pair_product_generators) and no
+    analogous object for any other deck pair. By the verifier's own
+    max-style cost-aggregation rule, ANY route declaring a single online
+    node or edge at exponent 3 has an aggregate online cost floor of
+    exponent 3 regardless of how efficient its downstream algebra-specific
+    step is. This is a property of the CONSTRUCTION AS SPECIFIED (an
+    absent decomposition, verifiable directly in the JSON artifacts and in
+    H-CREP-001's own one-sentence mechanism text, which supplies no
+    combination rule at all for decks 2-4), not an assumption about r_R's
+    abstract algebraic nature.
+  quantity: >-
+    number of recursive pairwise-combination levels present in the
+    dependency graph's chart-to-resultant fold-in step, across the 8
+    frozen route packages
+  value: '0 levels (a single atomic edge) in all 8 of 8 packages; declared output/cost exponent 3 in B on that edge in all 7 non-oracle packages'
+  measured_by:
+    - 'experiments/EXP-CREP-001/packages/ROUTE-01-component-resultants/package.json'
+    - 'experiments/EXP-CREP-001/packages/ROUTE-03-split-norms/package.json'
+    - 'experiments/EXP-CREP-001/packages/ROUTE-04-multipoint-evaluation/package.json'
+    - 'experiments/EXP-CREP-001/packages/ROUTE-05-modular-composition/package.json'
+    - 'experiments/EXP-CREP-001/packages/ROUTE-06-power-projection/package.json'
+    - 'experiments/EXP-CREP-001/packages/ROUTE-07-subresultant-hgcd/package.json'
+    - 'experiments/EXP-CREP-001/packages/ROUTE-08-displacement-representation/package.json'
+    - 'experiments/EXP-CREP-001/packages/build_packages.py (build_expansion_route, the shared builder producing all seven identical-shape edges)'
+    - 'experiments/EXP-CREP-001/execution-report.yaml (predicate_matrix, confirming all seven measured verdicts consistent with this declared shape)'
+  scope: >-
+    the 8 frozen construction routes exactly as specified in
+    EXP-CREP-001 and H-CREP-001's own mechanism text; this is a claim
+    about the ARTIFACTS AS BUILT, not a claim that no decomposition can
+    exist for this problem (see named_missing_specification above and
+    method_ceiling in proof-search-map.yaml).
+  resource_check:
+    examined: true
+    reading: >-
+      No theory under which this specific absence-of-decomposition is a
+      resource rather than a block was identified this session: an
+      absent decomposition is, on its face, only a limitation of the
+      as-built artifacts, not a quantity any known technique wants
+      positive or negative. The one adjacent possibility considered --
+      that the absence itself pins down EXACTLY where a future
+      constructor would need to supply new content (an interleaved,
+      modulus-reduced combination rule for decks 2-4, analogous to pair-
+      product generators for decks 0-1) -- is recorded as forward
+      guidance below and in outcome-card.yaml, not as a resource use of
+      the obstruction itself.
+    spawned_ids: []
+
+forward_guidance_open_directions: >-
+  The precise, actionable open question this derivation narrows the
+  problem to: does the 5-deck admissibility conjunction (H-CREP-001's
+  complete-chart intersection system) admit an INTERLEAVED combination
+  rule -- one that reduces modulo g_I (or an equivalent small-degree
+  target) at every level of a recursive pairwise combination, the way a
+  genuine remainder tree never materializes the full unreduced product --
+  for decks 2, 3, and 4's data, analogous to how decks 0-1 already have a
+  dedicated compact pairwise object (pair-product generators)? H-CREP-001
+  does not answer this either way. A next session attempting this would
+  need to (a) define an explicit compact pairwise object for at least one
+  additional deck pair (e.g. deck 2 x deck 3), (b) define a combination
+  rule merging it with the existing pair-product generators that stays
+  reduced modulo g_I throughout rather than materializing the full
+  Theta(B^2)-degree r_R first, and (c) check whether that combination
+  rule is additive (telescoping) or multiplicative (Bezout-type, per the
+  classical elimination-degree literature, recalled and flagged in
+  source-novelty-audit.yaml) using the SAME kind of concrete, hand-worked
+  small-B trace this report used in part 4. This is not foreclosed by
+  anything in this report, EV-CRYPTO-002, EXP-CREP-001, or the thirteen
+  prior trigger-search rounds; none of them attempted it, because all
+  fourteen prior analytical passes searched external literature or
+  audited wording/argument structure rather than constructing this
+  specific object.
+
+interpretation_limits: >-
+  This report does not claim that no telescoping decomposition can exist
+  for the P1553 complete-chart system (that would be declaring a
+  direction impossible, prohibited to this role); it claims only that
+  the 8 frozen, as-built routes do not attempt one, that this absence is
+  the mechanically sufficient reason (via the verifier's own max
+  aggregation rule) for their measured Theta(B^3) online cost, and that
+  H-CREP-001's own mechanism text does not supply enough detail to
+  determine whether such a decomposition would succeed. This does not
+  change H-CREP-001's status or EXP-CREP-001's specification, is not an
+  experiment, and creates no B71/IDEA/EV/DEC/CORR record.

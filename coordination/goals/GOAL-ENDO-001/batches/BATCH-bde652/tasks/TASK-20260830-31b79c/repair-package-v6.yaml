@@ -1,0 +1,285 @@
+schema: crypto.autoresearch.repair_package.v6
+repair_package:
+  id: REPAIR-PKG-20260830-31b79c
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-bde652
+  task_id: TASK-20260830-31b79c
+  predecessor_batch: BATCH-820ee8
+  predecessor_task: TASK-20260830-78b00f
+  controlling_decision: DEC-20260830-a575a3
+  additive_note: >-
+    This package is an ADDITIVE sixth-generation successor. It edits no byte
+    of any predecessor file (emit_host_binding.sh, emit_procedure.md,
+    receipt-schema-v2.yaml, stop-control-report.yaml, demo-receipt.json, or
+    any review/decision record under BATCH-820ee8 or BATCH-90392b). Every
+    predecessor value restated here is a LITERAL COPY for closure purposes,
+    not a correction of the predecessor. Repairs are scoped to exactly the
+    three objections named in
+    DEC-20260830-a575a3.bounded_successor_repair_condition. RT-J2-O2
+    (self-attestation) is a DISCLOSED, unrepaired limitation and is NOT
+    addressed by this package.
+  objections_closed:
+
+    - objection_id: RT-J2-O1
+      objection_text_verbatim: >-
+        emit_host_binding.sh resolves hostname and df through PATH, so a
+        caller who prepends fake binaries to PATH makes the procedure emit
+        caller-controlled values for all three host_binding fields THROUGH
+        the procedure. This contradicts the provenance claim in
+        receipt-schema-v2.yaml ("never read from caller input, environment
+        variables the caller controls, or repository state") and the claim
+        in emit_procedure.md ("a caller can no longer supply arbitrary
+        host_binding values THROUGH the emit procedure"). PATH IS an
+        environment variable the caller controls, and PATH manipulation IS
+        a way to supply values through the procedure. This is within the v5
+        threat model (caller-supplied bindings) and is NOT disclosed in the
+        package. The required repair is absolute-path command resolution OR
+        an explicitly narrowed provenance claim that PATH is trusted
+        infrastructure.
+      objection_source: >-
+        DEC-20260830-a575a3.bounded_successor_repair_condition (quoting
+        red-team report RT-20260830-d85fdf,
+        coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/reviews/TASK-20260830-d85fdf/red-team-report.yaml)
+      repair_applied: >-
+        BOTH options offered by the Coordinator's required-repair text were
+        applied together (not an either/or choice): (1) absolute-path
+        command resolution in emit_host_binding_v2.sh -- every external
+        command it invokes (hostname, df, date, sed, awk, tr, tail) is
+        called by a literal absolute path pinned in the script and verified
+        with `command -v <cmd>` on the authoring host before pinning; no
+        bare command name is ever invoked, so PATH is never consulted for
+        any of them; AND (2) a narrowed provenance declaration in
+        emit_procedure_v2.md ("NARROWED PROVENANCE DECLARATION" section)
+        stating explicitly what remains trusted infrastructure under the v5
+        threat model even after the absolute-path repair: the host's own
+        system binaries and runtime at the pinned paths themselves (the
+        actual bytes at e.g. /bin/hostname and /bin/df, the dynamic linker
+        dyld/ld.so and any DYLD_*/LD_* variables that influence library
+        resolution, and the /bin/sh interpreter). Absolute paths remove
+        PATH as caller-controlled input; they cannot and do not remove
+        trust in the host's own binaries, which is disclosed rather than
+        silently assumed.
+      commands_verified_absolute_paths:
+        - command: hostname
+          resolved: /bin/hostname
+          verification_command: command -v hostname
+        - command: df
+          resolved: /bin/df
+          verification_command: command -v df
+        - command: date
+          resolved: /bin/date
+          verification_command: command -v date
+        - command: sed
+          resolved: /usr/bin/sed
+          verification_command: command -v sed
+        - command: awk
+          resolved: /usr/bin/awk
+          verification_command: command -v awk
+        - command: tr
+          resolved: /usr/bin/tr
+          verification_command: command -v tr
+        - command: tail
+          resolved: /usr/bin/tail
+          verification_command: command -v tail
+        - command: printf
+          resolved: (POSIX sh builtin, not externally resolved)
+          verification_command: type printf
+          note: >-
+            printf is a shell builtin on this host's /bin/sh ("printf is a
+            shell builtin"), confirmed at authoring time; it is not subject
+            to PATH-based substitution the way an external binary is, since
+            the shell itself implements it. No absolute-path pin applies to
+            a builtin.
+      evidence_of_closure:
+        - >-
+          runtime-session-receipt.json (this task) records the exact
+          `command -v` / `type` verification commands and their outputs at
+          authoring time.
+        - >-
+          stop-control-report-v6.yaml case PATH-PREPEND records that
+          emit_host_binding_v2.sh, run with a directory of hostile
+          `hostname`/`df` binaries prepended to PATH (constructed exactly as
+          RT-20260830-d85fdf's original attack), emits the real host's
+          values (host_id: Mac.attlocal.net, filesystem_id: /dev/disk5s1,
+          filesystem_mount: /Volumes/SSD990) and NOT the hostile values
+          (caller-controlled-hostname, /dev/fakedev, /mnt/fake) that the
+          UNREPAIRED v1 predecessor script demonstrably emits under the
+          identical attack in the same session (recorded in
+          runtime-session-receipt.json as a control comparison run of the
+          v1 predecessor script, read-only, no predecessor byte modified).
+        - >-
+          demo-receipt-v2.json is a real machine-produced run of
+          emit_host_binding_v2.sh with an unmodified PATH, confirming normal
+          operation is unaffected by the repair.
+
+    - objection_id: RT-J2-O3
+      objection_text_verbatim: >-
+        Document the paste-from-different-mount attack in emit_procedure.md
+        and/or receipt-schema-v2.yaml, stating that the binding captures the
+        CWD's filesystem at emission time and that a session running the
+        script from a different mount point and pasting the output produces
+        values that are real but from a different filesystem. Independent
+        reviewer verification must run df -P . from the same working
+        directory the session used.
+      objection_source: >-
+        DEC-20260830-a575a3.bounded_successor_repair_condition (quoting
+        RT-20260830-d85fdf disclosed-but-partial finding)
+      repair_applied: >-
+        emit_procedure_v2.md adds a dedicated "PASTE-FROM-DIFFERENT-MOUNT
+        VERIFICATION (repairs RT-J2-O3)" section: it names the attack
+        surface explicitly (a receipt's filesystem values are REAL but
+        describe the WRONG working directory/mount if the receipt was
+        captured elsewhere and pasted in, or if the working directory moved
+        filesystems between capture and verification), and gives a human
+        reviewer a five-step, explicitly RUNNABLE verification procedure:
+        identify the claimed working directory from the session's own
+        commands list, independently run `df -P <that-exact-worktree-path>`
+        on the same host (not from memory or the emitting session's report),
+        normalize per the v5 rule, compare against the receipt's
+        filesystem_id/filesystem_mount, and treat disagreement (including an
+        undetermined disagreement) as a STOP rather than a pass.
+      evidence_of_closure:
+        - >-
+          emit_procedure_v2.md, section "PASTE-FROM-DIFFERENT-MOUNT
+          VERIFICATION (repairs RT-J2-O3)", is the closure artifact: a
+          named attack surface plus an explicit, step-by-step reviewer
+          action, not merely a mention of the attack's existence (which is
+          what the v1 package's "partially disclosed" status left short).
+        - >-
+          runtime-session-receipt.json records this task's own session
+          performing the equivalent independent df cross-check against its
+          own claimed working directory, as a worked demonstration of the
+          verification step (see "commands" list, df cross-check entries).
+
+    - objection_id: RT-J3-O1
+      objection_text_verbatim: >-
+        The missing_receipt_field rule doesn't fire on values that are
+        empty/null/whitespace after normalization, only on genuinely absent
+        fields. Extend the missing_receipt_field rule (or add a new rule) to
+        fire on empty-after-normalization values, not just absent fields.
+        For example: "If runtime-session-receipt.json lacks
+        host_binding.host_id, filesystem_id, or filesystem_mount, OR if any
+        of these fields is empty or null after normalization, the validity
+        check itself is unevaluable and STOPs." This closes the gap between
+        the emit script's failure_behavior (which catches emptiness) and the
+        v5 rule's missing_receipt_field (which catches only absence).
+      objection_source: >-
+        DEC-20260830-a575a3.bounded_successor_repair_condition (quoting
+        RT-20260830-d85fdf non-blocking observation, and the original
+        j3-closure-v5.yaml missing_receipt_field rule text, literal copy
+        below)
+      v5_rule_text_literal_copy: >-
+        j3-closure-v5.yaml operation_schema_v2.host_binding:
+          missing_receipt_field: STOP
+          receipt_field_absent_handling: "If runtime-session-receipt.json
+          lacks host_binding.host_id, host_binding.filesystem_id, or
+          host_binding.filesystem_mount, the validity check itself is
+          unevaluable and STOPs; no fallback host source is substituted."
+      repair_applied: >-
+        An ADDITIVE rule extension, missing_receipt_field_v2, is defined
+        below (own block, not an edit of the v5 rule text quoted above,
+        which remains frozen and unedited). missing_receipt_field_v2
+        supersedes missing_receipt_field ONLY for consumers of this repair
+        package's schema; the v5 file itself is never touched.
+
+  missing_receipt_field_v2:
+    schema_id: missing_receipt_field_v2
+    supersedes: missing_receipt_field (j3-closure-v5.yaml, literal text
+      quoted above; that file and rule remain unedited and in force for any
+      consumer not adopting this extension)
+    additive_note: >-
+      This is an ADDITIVE extension recorded here, in this repair package,
+      not an edit of j3-closure-v5.yaml or receipt-schema-v2.yaml. A
+      consumer adopts missing_receipt_field_v2 by reading this file; it does
+      not retroactively change the frozen predecessor rule text.
+    rule_text: >-
+      If runtime-session-receipt.json lacks host_binding.host_id,
+      host_binding.filesystem_id, or host_binding.filesystem_mount, OR if
+      any of these three fields is EMPTY-AFTER-NORMALIZATION (defined
+      exactly below), the validity check itself is unevaluable and STOPs;
+      no fallback host source is substituted. This rule fires identically
+      whether the field is absent, or present with an empty-after-
+      normalization value.
+    normalization_definition_exact:
+      step_1_trim: >-
+        Trim leading and trailing ASCII whitespace (space, tab, newline,
+        carriage return) from the field's raw string value. This is the
+        SAME trim already specified per-field in receipt-schema-v2.yaml
+        host_binding.normalization (host_id: trimmed; filesystem_id:
+        trimmed; filesystem_mount: no explicit trim stated for the leading
+        edge in v1/v2, but is now stated exactly HERE for the purpose of
+        this rule: apply the same leading/trailing ASCII-whitespace trim to
+        filesystem_mount as well, in addition to its existing trailing-
+        slash-stripping normalization).
+      step_2_case_and_slash: >-
+        Apply each field's existing v5/v2 normalization AFTER trimming:
+        host_id keeps case as-is (case-preserved); filesystem_id is
+        lowercased and has any trailing slash stripped; filesystem_mount
+        has its trailing slash stripped except for root "/". These steps
+        are LITERAL COPIES of the v5/v2 normalization already in force
+        (receipt-schema-v2.yaml host_binding.normalization); this rule adds
+        no new case or slash behavior, only the trim in step_1 and the
+        emptiness test in step_3.
+      step_3_emptiness_test: >-
+        After steps 1 and 2, a field is EMPTY-AFTER-NORMALIZATION if its
+        resulting string is exactly the zero-length string "", OR if its
+        resulting string, compared case-insensitively, is exactly the
+        four-character literal "null" (covering a JSON null value that was
+        stringified, or a literal string "null"/"NULL"/"Null" written by a
+        careless producer). No other value is treated as empty: a
+        non-canonical but non-empty device string (e.g. "/dev/disk9s99" or
+        a legitimately unusual device path) is NOT empty-after-
+        normalization and does NOT trigger this STOP by this rule alone
+        (it may still fail other checks, e.g. the binding_rule_v2 equality
+        check, but that is a separate rule).
+      whitespace_only_handling: >-
+        A field whose raw value is entirely whitespace (e.g. "   ",
+        "\t\n") becomes the empty string "" after step_1_trim, and is
+        therefore caught by step_3_emptiness_test's zero-length-string
+        case. Whitespace-only values are STOP, exactly as the objection
+        required.
+      json_null_handling: >-
+        A field whose JSON value is the literal `null` (not a string) is,
+        by construction, ABSENT of a usable string value; a JSON parser
+        exposes this as the field being absent or as an empty/None value
+        depending on the parser -- either way it falls under either the
+        pre-existing "absent field" clause (if the parser reports it as
+        key-not-present or as a null/None object) or the
+        step_3_emptiness_test "null" literal-string clause (if a producer
+        stringified it to the four characters "null"). Both paths STOP.
+    scope: >-
+      This extension applies to exactly the three host_binding fields
+      named in the v5/v2 rule (host_id, filesystem_id, filesystem_mount).
+      It does not extend to, alter, or opine on any other schema field.
+
+  not_repair_items:
+    - objection_id: RT-J2-O2
+      status: disclosed_limitation_not_repaired
+      statement: >-
+        RT-J2-O2 (self-attestation: a compromised emitting session can
+        hand-write a receipt with arbitrary host_binding values, or run the
+        script on a different host and paste the output) is NOT addressed
+        by this package, per DEC-20260830-a575a3's explicit
+        not_repair_items scoping. It remains disclosed in
+        emit_procedure_v2.md ("What this binding does NOT attest") as a
+        literal restatement of the v1 disclosure, narrowed only by the
+        newly-named host-binary/runtime trust boundary this package adds
+        (see RT-J2-O1 repair_applied above), which is a DIFFERENT and
+        distinct disclosure from RT-J2-O2, not a repair of it.
+
+  scope_of_this_package:
+    authorizes: >-
+      Nothing beyond the disposition of this static repair package itself
+      (repaired emit script, extended schema rule, re-executed controls).
+      No experiment run, no implementation of EXP-JINV-bd141d, no Phase B,
+      no target or curve access, no JINV, transport, N18, science,
+      hypothesis/status change, closure, or breakthrough is authorized or
+      claimed by this package.
+    predecessor_bytes_edited: 0
+    files_this_task_wrote:
+      - repair-package-v6.yaml
+      - emit_host_binding_v2.sh
+      - emit_procedure_v2.md
+      - demo-receipt-v2.json
+      - stop-control-report-v6.yaml
+      - runtime-session-receipt.json

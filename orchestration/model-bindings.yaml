@@ -415,13 +415,105 @@ bindings:
   # (`adapter models --backend fireworks`) rather than guessing. Canonical form
   # is `accounts/fireworks/models/<name>`; short slugs also resolve.
   fireworks:
-    coordinator-orchestration-code: {model: null, provenance: unbound}
-    coordinator-orchestration: {model: null, provenance: unbound}
-    research-deep: {model: null, provenance: unbound}
-    review-adversarial: {model: null, provenance: unbound}
+    # 2026-09-03: bound under DEC-20260903-* (user-authorized effort-floor
+    # relaxation). glm-5p3 is probe-listed (`adapter models --backend
+    # fireworks`) and in live use by the dispatching session. With the
+    # coordinator-orchestration-code floor unchanged at `high` and glm-5p3's
+    # declared ceiling `high`, this is an exact match -- no degradation, no
+    # cap. Review-adversarial's floor was relaxed to `low` by the same
+    # decision; its xhigh REQUEST is served capped at this backend's `high`
+    # ceiling and every cap is recorded in the run receipt.
+    coordinator-orchestration-code:
+      model: accounts/fireworks/models/glm-5p3
+      provenance: operator-supplied
+      last_probed: '2026-09-03'
+      capabilities: &fireworks_glm5p3_capabilities
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {low: low, medium: medium, high: high}}
+    review-adversarial:
+      model: accounts/fireworks/models/glm-5p3
+      provenance: operator-supplied
+      last_probed: '2026-09-03'
+      capabilities: *fireworks_glm5p3_capabilities
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {low: low, medium: medium, high: high, xhigh: high}}
+    # 2026-09-06: Qwen alternative on this backend (user-authorized extension;
+    # muse skipped -- no muse-spark reachable; local review tiers unchanged
+    # per their written rationale). Bound model is
+    # accounts/fireworks/models/qwen3p8-2p4t-a95b -- provider-listed
+    # (`adapter models --backend fireworks` 2026-09-06), supports_tools
+    # true, provider-stated context_length 262144: that is the verified
+    # part, and the last_probed stamp below covers exactly that. Asserted
+    # (operator-supplied): ceiling high (conservative, below xhigh/max,
+    # matching the local Qwen ceiling), max_output_tokens 32768 (mirrors
+    # the local Qwen operational value; unprobed -- re-assert only from a
+    # probe, never to make a gate pass), structured_output true. No
+    # reasoning block: no effort knob verified on this model-backend pair
+    # (same rationale as local); requests serve at ceiling. Sibling
+    # qwen3p8-max is listed but carries no provider context figure, so it
+    # stays unbound. Occupied slots (coordinator-orchestration-code,
+    # review-adversarial, executor-implementation on glm-5p3) are untouched;
+    # review-breakthrough stays unbound: nothing here reaches max and it is
+    # degradable: false.
+    coordinator-orchestration:
+      model: accounts/fireworks/models/qwen3p8-2p4t-a95b
+      provenance: operator-supplied
+      last_probed: '2026-09-06'
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.2
+    research-deep:
+      model: accounts/fireworks/models/qwen3p8-2p4t-a95b
+      provenance: operator-supplied
+      last_probed: '2026-09-06'
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.7
     review-breakthrough: {model: null, provenance: unbound}
-    executor-implementation: {model: null, provenance: unbound}
-    executor-mechanical: {model: null, provenance: unbound}
+    # 2026-08-31 binding (7e63b0f91) that never reached main -- PR 648
+    # merged before it was pushed; restored here under DEC-20260903-* so
+    # main carries the config the last two executor dispatches actually ran
+    # on (TASK-20260810-2a0a37, TASK-20260824-c6625a).
+    executor-implementation:
+      model: accounts/fireworks/models/glm-5p3
+      provenance: operator-supplied
+      last_probed: '2026-09-03'
+      capabilities: *fireworks_glm5p3_capabilities
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {medium: medium, high: high}}
+    executor-mechanical:
+      model: accounts/fireworks/models/qwen3p8-2p4t-a95b
+      provenance: operator-supplied
+      last_probed: '2026-09-06'
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 16000
+        temperature: 0.0
 
   # Same models over the Anthropic wire. `review-breakthrough` has a `max`
   # floor, so it will refuse here unless a binding genuinely declares that
@@ -501,10 +593,18 @@ bindings:
       model: gpt-5.6-sol
       provenance: operator-supplied
       last_probed: '2026-08-02'
-      capabilities: *openai_56_capabilities
+      # Ceiling corrected 2026-09-04 (DEC-20260904-67cde4 R-2): the chat
+      # completions API rejects reasoning_effort 'max' for gpt-5.6 —
+      # "Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'".
+      # Declared 'max' made the resolver report OK for a tier the wire cannot
+      # express; review-breakthrough (degradable: false) must resolve DEGR
+      # here, not pass on an unreachable tier.
+      capabilities:
+        <<: *openai_56_capabilities
+        max_reasoning_effort: xhigh
       request:
         max_tokens: 128000
-        reasoning: {mode: openai_effort, effort_map: {max: max}}
+        reasoning: {mode: openai_effort, effort_map: {xhigh: xhigh}}
 
   openrouter:
     coordinator-orchestration-code: {model: null, provenance: unbound}

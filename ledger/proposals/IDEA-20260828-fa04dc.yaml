@@ -1,0 +1,322 @@
+idea:
+  id: IDEA-20260828-fa04dc
+  question_id: RQ-MLDSA-ffa0f5
+  goal_id: GOAL-MLDSA-002
+  added: '2026-08-28'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    IDEA-20260821-71fc18 derives that auditing the ct0 signing-only rejection
+    needs 1.4e8 (tier-2, t0 known) to 1.5e10 (tier-0, naive) signatures FROM
+    ONE KEY and calls this "impractical" without naming a scenario — but
+    ML-DSA-44's ct0 disjunct is live and TLS 1.3's CertificateVerify signs
+    ONCE PER FULL HANDSHAKE under the SAME long-lived certificate key, so a
+    single high-traffic TLS-terminating server could plausibly accumulate
+    1e8-1e11 signatures within one certificate lifetime. Ground "impractical"
+    in a named, public-data volume estimate instead of leaving it asserted.
+  class: measurement
+
+  claim: >-
+    (A) THE GAP THIS FILLS. IDEA-20260821-71fc18 Part (D) computes exact
+    single-key detection sample sizes for auditing the omitted ct0 check at
+    ML-DSA-44 — 1/p_R = 1.36e8 signatures for an optimal tier-2 (t0-known)
+    auditor, 1/(p_R(1-sigma)) = 1.5e10 for a naive tier-0 (verification-
+    failure-only) auditor, using p_R = 7.34e-9 from IDEA-20260805-bb52fa and
+    sigma = 0.991 from IDEA-20260805-031ce2 — and characterizes both as
+    impractical. THAT CHARACTERIZATION IS NEVER GROUNDED IN A NAMED
+    DEPLOYMENT SCENARIO OR A REAL SIGNATURE-VOLUME NUMBER anywhere in the
+    corpus. This proposal supplies exactly that grounding for at least one
+    concrete, publicly-documented ML-DSA use case, and reports whether the
+    1.36e8 threshold is REACHABLE or ROBUSTLY OUT OF REACH once volume is
+    estimated rather than assumed.
+    (B) THE OBJECT. Define V(scenario, T) = the expected number of ML-DSA
+    signatures a SINGLE key produces under a named deployment scenario over
+    lifetime T (a certificate/key rotation period), estimated from PUBLIC
+    industry data (published traffic/handshake-rate figures for the named
+    scenario class), not fabricated. Three scenario classes, chosen to span
+    the plausible range: (i) LOW-VOLUME — a firmware/update-signing key
+    used at release cadence (named public examples: embedded/IoT vendor
+    release schedules); (ii) MEDIUM-VOLUME — a typical HTTPS server
+    certificate under ordinary web traffic; (iii) HIGH-VOLUME — a single
+    edge/termination node of a hyperscale CDN or a top-traffic website's
+    TLS-terminating certificate, where EVERY full (non-resumed) TLS 1.3
+    handshake requires a fresh CertificateVerify signature under that SAME
+    certificate key.
+    (C) THE PREDICTION AND ITS TWO OUTCOMES. Compute V(iii, T) for T in
+    {90 days, 1 year, the maximum CA/BR-permitted certificate lifetime} using
+    published aggregate connection/request-rate figures for at least one
+    named, citable hyperscale operator, discounted by a stated (cited, not
+    invented) session-resumption/0-RTT fraction. OUTCOME E1: V(iii, T) is
+    within 1-2 orders of magnitude of 1.36e8 for at least one realistic T —
+    meaning 71fc18's "impractical" framing needs an explicit volume-scope
+    caveat and the audit becomes a live consideration for hyperscale
+    ML-DSA-44 deployments specifically. OUTCOME E2: even the highest-volume
+    named scenario falls short by 3+ orders of magnitude — confirming and
+    sharpening 71fc18's conclusion with a first concrete boundary rather than
+    an unstated assumption. Both outcomes are informative; nothing about this
+    proposal presupposes which one obtains.
+    (D) SCOPE. Applies ONLY to ML-DSA-44, where IDEA-20260805-bb52fa's
+    envelope theorem shows the ct0 disjunct is live; at ML-DSA-65/-87 the
+    disjunct is dead code and this question is vacuous by bb52fa's own exact
+    integer bound.
+
+  mechanism: >-
+    TLS 1.3's server-authentication CertificateVerify message is computed
+    over a transcript hash unique to each handshake and signed fresh under
+    the server's long-lived leaf certificate key for every FULL handshake
+    (RFC 8446 Section 4.4.3); session resumption/PSK/0-RTT handshakes skip
+    it, so the relevant rate is (full-handshake rate) not (connection rate).
+    A single certificate key is therefore reused across every full handshake
+    it authenticates for the life of the certificate, which is exactly the
+    "one key, many signatures" object 71fc18's threshold is stated against.
+    The MECHANISM this proposal adds over 71fc18 is purely an EXTERNAL
+    VOLUME ESTIMATE plugged into 71fc18's ALREADY-DERIVED formula — it
+    derives no new detection theory and re-runs no rate computation; p_R,
+    sigma, and the 1/p_R and 1/(p_R(1-sigma)) formulas are consumed exactly
+    as 71fc18 states them.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: IDEA-20260821-71fc18
+      provenance: internal
+      claim: >-
+        Tier-2 optimal detection sample size 1/p_R = 1.36e8 and tier-0 naive
+        detection sample size 1/(p_R(1-sigma)) = 1.5e10 for auditing the
+        omitted ct0 check at ML-DSA-44, both characterized as "impractical"
+        without a named volume scenario.
+      verified_by: >-
+        idea-generator subagent, 2026-08-28, read Parts A-D and the mechanism
+        section in full (approx. lines 1-240 of the record).
+    - ref: IDEA-20260805-bb52fa
+      provenance: internal
+      claim: >-
+        p_R (ct0 disjunct firing rate) = 7.34e-9 per signature at ML-DSA-44,
+        and the disjunct is dead code (exact integer inequality) at
+        ML-DSA-65/-87.
+      verified_by: "idea-generator subagent, 2026-08-28, read the claim and mechanism sections in full."
+    - ref: IDEA-20260805-031ce2
+      provenance: internal
+      claim: "sigma ~ 0.991 (hint-correctness survival probability at ML-DSA-44)."
+      verified_by: "idea-generator subagent, 2026-08-28, read lines 1-120 per 71fc18's own citation of it."
+    - ref: "RFC 8446, Section 4.4.3 (CertificateVerify)"
+      provenance: recalled
+      claim: >-
+        CertificateVerify is computed once per full TLS 1.3 handshake over a
+        transcript hash unique to that handshake, and is skipped on
+        resumption/PSK/0-RTT handshakes.
+      verified_by: null
+    - ref: "A public hyperscale-operator traffic disclosure (e.g. a major CDN transparency/engineering blog)"
+      provenance: recalled
+      claim: >-
+        Order-of-magnitude aggregate HTTPS/TLS handshake volume figures exist
+        publicly for at least one named large operator; the SPECIFIC figure
+        and source must be retrieved and cited by name in the executed
+        experiment, not assumed here.
+      verified_by: null
+
+  assumptions:
+    - >-
+      71fc18's p_R, sigma, and detection-formula derivations are correct as
+      stated; this proposal does not re-derive or re-verify them, only
+      applies them to an external volume estimate.
+    - >-
+      At least one named, real-world deployment issues ML-DSA (or is
+      committed to migrate to it) at hyperscale volume within the
+      experiment's time horizon; if none currently does, the estimate must
+      be stated as a PROJECTION from today's classical-signature volumes at
+      the same operators, with that substitution disclosed as a scope limit.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      This is an empirical volume-estimation and threshold-comparison
+      proposal, not an exponent-moving proof about a hard problem; it
+      reuses 71fc18's already-derived formulas rather than proposing a new
+      derivation, so the proof-architecture apparatus (bottleneck removal,
+      quantifier order over an asymptotic claim, nearby-object proof
+      controls) does not apply.
+
+  predictions:
+    - metric: >-
+        V(high-volume scenario, T) / 1.36e8, the ratio of the estimated
+        single-key signature volume for the named hyperscale scenario to
+        71fc18's tier-2 optimal detection threshold, evaluated at T = 1 year.
+      direction: higher
+      minimum_effect: >-
+        A ratio >= 0.01 (i.e. within two orders of magnitude) is treated as
+        confirming E1 (the "impractical" characterization needs an explicit
+        volume-scope caveat); a ratio < 1e-3 is treated as confirming E2.
+    - metric: >-
+        V(low-volume scenario, T) / 1.36e8 at the same T, as a contrast case.
+      direction: lower
+      minimum_effect: >-
+        Expected to be many orders of magnitude below 1 (this is the
+        contrast that establishes the claim is volume-DEPENDENT, not a
+        blanket statement); a result close to the high-volume ratio would
+        falsify the volume-dependence claim entirely.
+
+  minimal_test:
+    design: >-
+      Pure literature/arithmetic, no signing runs required. (1) Retrieve one
+      or more NAMED, citable public figures for aggregate full-TLS-1.3-
+      handshake volume at a hyperscale operator (a public engineering blog,
+      transparency report, or academic measurement study — NOT a NIST
+      domain, so not subject to the harness's recorded NIST-domain network
+      block). (2) Retrieve or reasonably bound the session-resumption/0-RTT
+      fraction for that operator class from the same or an adjacent public
+      source. (3) Compute V(scenario, T) for the three named scenario
+      classes at T in {90 days, 1 year, 5 years}. (4) Compare each V against
+      71fc18's 1.36e8 and 1.5e10 thresholds and report the ratios with their
+      sourcing.
+    controls:
+      - >-
+        LOW-VOLUME CONTRAST SCENARIO computed by the identical formula and
+        the identical comparison, to demonstrate the conclusion is
+        volume-dependent rather than a re-derivation of 71fc18 under a
+        different name.
+      - >-
+        EXPLICIT SOURCING: every volume figure used must be a named,
+        citable, dated public source; a figure invented to make the
+        arithmetic interesting is prohibited and would void the result.
+    required_metrics:
+      - "V(scenario, T) for all three scenarios and all three values of T"
+      - "Ratio to 1.36e8 (tier-2) and 1.5e10 (tier-0) for each"
+      - "Source citation and retrieval date for every volume figure used"
+
+  falsification_conditions:
+    - >-
+      No public, citable, sufficiently precise volume figure can be found
+      for any named scenario — the proposal is UNDECIDABLE at this evidence
+      standard, not evidence for either outcome, and must be reported as
+      such rather than filled with an invented number.
+    - >-
+      The high-volume scenario's ratio to 1.36e8 is found to be < 1e-3 —
+      falsifies E1, confirms E2, and the honest deliverable is a sharpened,
+      volume-scoped restatement of 71fc18's conclusion.
+    - >-
+      The full-handshake mechanism assumption is wrong for the named
+      operator (e.g. because it terminates ML-DSA-authenticated TLS at a
+      layer where the same key is NOT reused per-handshake, or resumption
+      rates are so high that full handshakes are negligible) — this
+      invalidates the scenario choice and requires a different named
+      scenario, not a reinterpretation of the same numbers.
+
+  confounders:
+    - >-
+      Real deployments as of 2026 overwhelmingly still use classical
+      signatures (ECDSA/RSA) for TLS certificates; any ML-DSA volume
+      estimate for an existing hyperscale operator is necessarily a
+      PROJECTION substituting today's classical-signature volume at that
+      operator, not a measurement of actual ML-DSA usage. This must be
+      stated as an explicit transfer assumption, not hidden in the number.
+    - >-
+      Certificate lifetimes are shrinking under CA/Browser Forum policy
+      (moving toward 90-day or shorter maximums), which shortens T and
+      lowers V for a FIXED key; the experiment must use the CURRENT
+      applicable maximum lifetime, not an outdated longer one.
+    - >-
+      Session resumption/0-RTT adoption varies enormously by deployment and
+      by year; using a stale or wrong resumption fraction could move V by an
+      order of magnitude or more in either direction.
+
+  interpretation_limits: >-
+    NOT A BREAK and not a new attack: this proposal reuses 71fc18's exact
+    detection-rate derivation and bb52fa's exact p_R value without
+    challenging either; it only asks whether a stated "impractical"
+    characterization holds against a named real-world volume, and neither
+    outcome bears on MLWE, MSIS, or SelfTargetMSIS in any direction. A
+    positive finding (E1) is a SCOPE CORRECTION to 71fc18's phrasing, not a
+    demonstration that any real signer has ever been caught, is being
+    caught, or omits the check. This applies only to ML-DSA-44's ct0
+    disjunct per bb52fa's dead-code finding at -65/-87.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The total count of full (non-resumed) TLS 1.3 handshakes a single
+        certificate key authenticates over a lifetime T is well-approximated
+        by (mean full-handshake arrival rate) x T, where the mean rate is
+        taken as a fixed constant estimated from a public traffic disclosure
+        rather than treated as instantaneously Poisson.
+      rigorous_support: >-
+        No rigorous bound is available here (this is an engineering/traffic
+        estimate, not a cryptographic bound); the imitated classical
+        statement is the law-of-large-numbers argument that a long-run TOTAL
+        COUNT is governed by the stable mean rate even when the underlying
+        arrival process is bursty/self-similar at short timescales (Leland,
+        Taqqu, Willinger, Wilson, "On the self-similar nature of Ethernet
+        traffic," 1994 — cited here as the classical caveat AGAINST assuming
+        fine-grained Poisson behavior, not in support of it).
+      validation_plan: >-
+        Compare the long-run total-count estimate against at least one
+        independently published DAILY or MONTHLY aggregate figure for the
+        same named operator (if available) to check consistency; report the
+        comparison rather than asserting the mean-rate model is exact. No
+        toy-scale ML-DSA simulation is needed for this assumption — it is
+        about network traffic, not lattice-signature internals — so the
+        "shortcut for larger-parameter sampling" this program usually names
+        (e.g. the Deuring correspondence) has no analogue here and is
+        correctly absent.
+    - id: H2
+      statement: >-
+        71fc18's per-signature detection-probability formulas (1/p_R for
+        tier-2, 1/(p_R(1-sigma)) for tier-0) extend without modification to
+        an aggregate of N signatures collected from ONE key over time, i.e.
+        the N observations remain independent Bernoulli trials with the
+        SAME p_R across the key's lifetime.
+      rigorous_support: >-
+        This is exactly 71fc18's own stated assumption, inherited rather
+        than re-derived here (71fc18 Part D, "the Neyman-Pearson optimal
+        transcript-only test... its sample size is 1/p_R"); the classical
+        statement it imitates is the standard i.i.d.-Bernoulli sample-size
+        formula for a fixed-probability rare event.
+      validation_plan: >-
+        Not re-validated by this proposal; flagged as an INHERITED
+        assumption whose own validation route is 71fc18's, not this
+        record's. If 71fc18 is later found to be wrong on this point, this
+        proposal's numeric conclusion inherits that correction automatically
+        since it performs no independent re-derivation.
+
+  target_complexity:
+    time_exponent: >-
+      NOT AN ATTACK AND NOT AN ALGORITHM. There is no proposed procedure
+      whose asymptotic runtime is being claimed; the relevant resource axis
+      is DATA VOLUME (signatures per key), not time or memory, and that axis
+      is 71fc18's 1/p_R and 1/(p_R(1-sigma)), reused unmodified here.
+    memory_exponent: "O(1) — the comparison is arithmetic on a handful of published numbers."
+    best_known: >-
+      No prior record in this corpus grounds 71fc18's "impractical" claim in
+      a named real-world signature-volume scenario; that absence is what
+      this proposal fills, not a complexity improvement over any existing
+      algorithm.
+    hidden_overhead: >-
+      None hidden — this is not an asymptotic claim and carries no o(1) term.
+      The genuine uncertainty is entirely in the external volume estimate's
+      accuracy, which is disclosed explicitly (confounders) rather than
+      folded into an exponent.
+    tradeoff_note: >-
+      Not applicable; there is no time-memory tradeoff or parallelization
+      question for a literature/arithmetic exercise.
+
+  dominated_by: >-
+    n/a (no attack or complexity result claimed). Checked against all ten
+    RQ-MLDSA-ffa0f5 rows: IDEA-20260821-71fc18 derives the threshold this
+    proposal compares against but explicitly leaves it uncompared to any
+    named volume scenario; no other row addresses deployment volume at all.
+  sota_delta: >-
+    Adds the first named-scenario volume estimate this lane has produced
+    against 71fc18's own detection thresholds; quantitatively, the delta is
+    the measured ratio itself (V/1.36e8), which does not yet exist anywhere
+    in the corpus.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  source_refs:
+    - RQ-MLDSA-ffa0f5
+    - IDEA-20260821-71fc18
+    - IDEA-20260805-bb52fa
+    - IDEA-20260805-031ce2
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.

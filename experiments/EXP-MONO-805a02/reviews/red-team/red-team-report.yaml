@@ -1,0 +1,886 @@
+red_team_report:
+  id: RT-20260830-3adc96
+  task_id: red-team-mono5-805a02
+  experiment_id: EXP-MONO-805a02
+  hypothesis_id: H-MONO-40aca5
+  source_proposal: IDEA-20260806-9d47e2
+  joints_owned: [J2-adversarial-verification]
+  reviewed_state: >-
+    WORKING TREE, NOT A COORDINATOR SNAPSHOT. Branch ideas-ecdlp-20260830 at
+    HEAD 147b5cd1fcfddbc2776eecced512e18e64ffbe30; every EXP-MONO-805a02
+    artifact under review is UNTRACKED (`git status` reports
+    `?? experiments/EXP-MONO-805a02/{execution_report.yaml,implementation.md,
+    implementation/,runs/}`). agents/red-team.md prohibition 5 and AGENTS.md
+    "Durable research commits" both say a working-tree-only report is not a
+    durable research artifact. This review was performed on explicit
+    instruction from the dispatching session and is therefore VALID AS
+    ANALYSIS but PROVISIONAL AS A REVIEW OF RECORD: it must be re-bound to
+    the Coordinator's snapshot commit, and if any listed sha256 below
+    changes between now and that commit, this report does not cover the
+    committed bytes. Recorded as a procedure deviation, not absorbed
+    silently.
+  reviewed_sha256:
+    experiments/EXP-MONO-805a02/specification.yaml: 78d32774e5e8bcda9b116bbfa69618981910c351156ccfcf45ea257327a65262
+    experiments/EXP-MONO-805a02/execution_report.yaml: 72a7f7b0e131f3ee31ac9a469934145783b667bc6646e48a10a3ddf64272d74a
+    experiments/EXP-MONO-805a02/implementation.md: e937596c1a79ec9422a5a18cee804c88552faf3789cbb7c51c42b216d859359c
+    experiments/EXP-MONO-805a02/implementation/run_experiment.py: 50ca1e4ac179cad9b71937d1974f296c89746cdf70da56f1833abcd07d08fb09
+    experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-1/raw-result.json: f31b19d460694c1d706bc857d8802ab1143cf9a339efeea0505bb011238195f3
+    experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-2/raw-result.json: 2fe96347622dd7ce37dbf1c3852a30e0d4ca5ea74f321d909dd6d25a23e5b613
+    ledger/hypotheses/H-MONO-40aca5.yaml: 4c1a689575150bc4cf5d6a17da16d5f45f64cad49dff7f68cc57cbccf888421a
+    ledger/proposals/IDEA-20260806-9d47e2.yaml: 695e195f7e932154d90da1d86cca6d20ef3cec642dec93b8c5005be6dfa7151a
+    knowledge/findings/KN-FIND-c41ea9.md: 4de9872f340a15387e43095d922b9880e0241b60dd8e23c0baabac58f1e3b41e
+    harness/semaev.py: c417f1948d7df7bb1864726e169d885e4d3163cb62036393f2616ef71c630de6
+
+  claim_under_review: >-
+    (i) D_trial(E) = m-1 group additions + one O(1) lookup per attempt, m in
+    {3..8}, p in {211,1009}; (ii) KN-FIND-c41ea9's factor-base-locus complete
+    splitting reproduces (m=4, 193/193) and extends (m=5); (iii) Stage 5's
+    unexpectedly cheap "partial locus" result is FULLY explained by the
+    permutation symmetry of S_4/S_5, i.e. the construction as literally
+    specified re-enters the theorem's own precondition under a relabelling;
+    (iv) exactly one committed SDEG/DREG/SIG/ICEX measurement cell labels
+    S-prime (EXP-SIG-001's Yokoyama panel arm), refuting the frozen
+    prediction that every reachable cell labels S-extension.
+
+  verdict: holds_with_finding
+
+  verdict_summary: >-
+    Every load-bearing computation I attacked survived. The Stage-5 symmetry
+    explanation is CORRECT AS FAR AS IT GOES and I confirmed it independently
+    by two routes (a fresh symbolic symmetry audit over Z[a,b], and a
+    genuinely-partial-locus control that behaves exactly as the symmetry
+    account predicts). But it is NOT a complete account of the phenomenon:
+    the true governing law is a Frobenius sign-parity condition of which the
+    theorem's "all coordinates on the factor-base locus" is one of TWO cases,
+    and I exhibited the other case experimentally (all fixed coordinates OFF
+    the curve also splits completely, at m=4 and m=5, both primes). The
+    Stage-6 S-prime headline is confirmed at the object level, but the
+    Stage-6 CENSUS is materially incomplete and its `counts` block asserts a
+    completeness the documented search did not establish. Four further
+    objections are reporting/cost-model defects, none of which changes a
+    measured number.
+
+  # =====================================================================
+  # ITEM 1 -- ADVERSARIAL ATTACK ON THE STAGE-5 "SYMMETRY EXPLAINS IT AWAY"
+  # =====================================================================
+  item_1_symmetry_narrative:
+    verdict: holds_but_incomplete
+    "1a_is_s4_expr_actually_symmetric":
+      method: >-
+        Fresh script (scratchpad rt1_symmetry.py), written from scratch, NOT
+        reusing run_experiment.py's stage5() check. Built
+        harness.semaev.s4_expr with SYMBOLIC curve coefficients a,b (the
+        Executor tested only the concrete fixture a=37,b=57), expanded, and
+        subtracted sigma(S_4) for ALL SIX transpositions (the Executor tested
+        two) plus six random permutations.
+      result: >-
+        S_4 - sigma(S_4) expands to EXACTLY 0 for all six transpositions
+        (x1x2, x1x3, x1x4, x2x3, x2x4, x3x4) and all six random permutations,
+        over Z[a,b]. deg = 4 in each of the four variables; total degree 12;
+        sympy.factor_list returns ONE factor of multiplicity 1, i.e. the
+        resultant construction carries NO extraneous factor that could have
+        supplied a spurious symmetry or a spurious root.
+      finding: >-
+        CONFIRMED, and strictly stronger than the Executor's check. The
+        Executor's claim is true and its evidence was weaker than the claim
+        (concrete a,b; two transpositions). Not an error, but the report
+        should not have said "confirmed SYMMETRIC" on a single-curve check
+        when the symbolic check costs two seconds.
+    "1b_does_the_theorem_privilege_T":
+      method: >-
+        Re-read KN-FIND-c41ea9's statement and proof sketch, then tried to
+        find a privileged role for T (different normalisation, sign
+        convention, or degree-1-vs-2^{m-2} asymmetry).
+      result: >-
+        NO privileged role exists, and the reason is structural rather than
+        incidental. The theorem's hypothesis is "x_1..x_{m-1} are
+        x-coordinates of rational points" and its conclusion is about the
+        roots in the remaining slot; the underlying characterisation
+        (S_m(u_1..u_m)=0 iff there exist y_i with (u_i,y_i) on E summing to
+        O) is manifestly symmetric in all m slots. T enters at degree
+        2^{m-2}, the SAME degree as every other variable (verified above:
+        deg=4 in each of S_4's four variables), so the
+        "degree-1-vs-2^{m-2}" asymmetry the attack plan hypothesised does
+        not exist. The Executor's logical step -- fixing m-2 summation
+        coordinates plus the target T on-curve fixes m-1 of the m symmetric
+        arguments, which IS the theorem's precondition -- is valid.
+      finding: >-
+        The argument holds. What it does NOT establish, and what the
+        execution report presents it as establishing, is that the theorem's
+        precondition is what CAUSES the observed complete splitting. See
+        item 2: the precondition is sufficient, not necessary, and I
+        exhibited the second sufficient case.
+    proves_too_much_control:
+      objects_tried:
+        - "S_4 fibre with exactly ONE fixed coordinate off-curve (j=1)"
+        - "S_4 fibre with exactly TWO fixed coordinates off-curve (j=2)"
+        - "S_4 fibre with ALL THREE fixed coordinates off-curve (j=3)"
+        - "S_5 fibre with j=1, j=2, j=4 among its four fixed coordinates"
+      result: >-
+        The symmetry argument does NOT go through where its conclusion is
+        false (j=1, j=2: split rate 0.000 at both primes, both m) -- so it is
+        not an artifactual proof. It DOES fail to predict the j=3 / j=4 case,
+        where the conclusion is true for a different reason. That is a gap in
+        coverage, not a refutation.
+
+  # =====================================================================
+  # ITEM 2 -- INDEPENDENT TEST OF A GENUINELY PARTIAL LOCUS
+  # =====================================================================
+  item_2_genuinely_partial_locus:
+    verdict: symmetry_explanation_corroborated_and_superseded
+    construction: >-
+      Same free variable and same polynomial as Stage 5 (fix x1,x2,x4;
+      root-find in x3 on harness s4_expr), but the fixed coordinates are
+      drawn from declared residue classes instead of all being on-curve. My
+      own root-finder and my own mod-p factor_list, not the Executor's.
+      Metrics: complete splitting WITH MULTIPLICITY (which Stage 5 never
+      measured), distinct-root splitting (Stage 5's own metric), and the full
+      factor-degree multiset.
+    independently_derived_law: >-
+      Roots of S_m(u_1..u_{m-1}, X) are x(eps_1 P_1 + ... + eps_{m-1}
+      P_{m-1}), eps in {+-1}^{m-1} modulo global sign, where P_i is a point
+      with x(P_i)=u_i -- over F_p when f(u_i) is a square, else over F_{p^2}
+      with phi(P_i) = -P_i. Frobenius therefore acts on sign vectors by
+      flipping the signs at the NON-RESIDUE ("bad") coordinates. A root is
+      F_p-rational iff that flip is the identity (bad set empty) or the
+      global negation (bad set = ALL coordinates). Hence:
+      COMPLETE SPLITTING iff j = 0 OR j = m-1, where j = #{i : f(u_i) is a
+      non-residue}. KN-FIND-c41ea9 states only the j=0 branch.
+    measured_results:
+      m4_p211_200_trials_per_config:
+        "A j=0 (Stage 5 as literally specified)": {split_with_multiplicity: 1.000, split_distinct: 0.975}
+        "B target T ~ Uniform(F_p)": {split_with_multiplicity: 0.590, split_distinct: 0.565}
+        "C target T forced NON-RESIDUE (genuinely partial)": {split_with_multiplicity: 0.000, split_distinct: 0.000}
+        "D all three fixed coords uniform": {split_with_multiplicity: 0.220, split_distinct: 0.215}
+        "E j=3, ALL THREE fixed coords OFF-CURVE": {split_with_multiplicity: 1.000, split_distinct: 0.975}
+        "F j=1": {split_with_multiplicity: 0.000}
+        "G j=2": {split_with_multiplicity: 0.000}
+      m4_p1009_200_trials_per_config:
+        "A j=0": {split_with_multiplicity: 1.000, split_distinct: 0.980}
+        "B T uniform": {split_with_multiplicity: 0.540}
+        "C T non-residue": {split_with_multiplicity: 0.000}
+        "D all uniform": {split_with_multiplicity: 0.245}
+        "E j=3": {split_with_multiplicity: 1.000, split_distinct: 0.990}
+        "F j=1": {split_with_multiplicity: 0.000}
+        "G j=2": {split_with_multiplicity: 0.000}
+      m5_p211_15_trials_per_config:
+        "A j=0 (four on-curve)": "15/15 split, shapes (1^8)"
+        "C j=1 target off-curve (genuinely partial)": "0/15 split, shape (2,2,2,2) every trial"
+        "E j=4 ALL FOUR off-curve": "15/15 split, shapes (1^8)"
+        "G j=2": "0/15 split, shape (2,2,2,2) every trial"
+    conclusion_on_the_executor_account: >-
+      (1) CORROBORATED. A genuinely partial locus -- T left off the curve, so
+      that only m-2 of the m-1 needed arguments are pinned -- does NOT split:
+      0.000 at m=4 and 0/15 at m=5, both primes, with the fibre factoring
+      into Frobenius-conjugate PAIRS ((2,2) at m=4, (2,2,2,2) at m=5) exactly
+      as the sign-flip action predicts. So the Executor's diagnosis of WHY
+      Stage 5 came out cheap is right: the literal Stage-5 construction does
+      re-enter the theorem's scope, and removing the loophole removes the
+      cheapness.
+      (2) INCOMPLETE. Complete splitting is NOT a signature of the
+      factor-base locus. The j=m-1 (all-coordinates-off-curve) locus splits
+      completely too, at both m and both primes, and no part of
+      KN-FIND-c41ea9, of H-MONO-40aca5, or of the execution report predicts
+      or mentions it. "The partial locus splits completely because of
+      symmetry" is therefore an account of one branch presented as an account
+      of the phenomenon.
+    residual_that_is_still_unexplained_in_the_record: >-
+      NOTHING in Stage 5's own numbers is left unexplained -- see item 5,
+      where I confirm the sub-100% distinct-split readings are multiplicity
+      degeneracies. What is left unexplained BY THE RECORD is the scope of
+      the phenomenon: the record's stated mechanism covers strictly less of
+      the observed behaviour than the object actually exhibits.
+
+  # =====================================================================
+  # ITEM 3 -- STAGE 6 S-PRIME FINDING AND MISSED CELLS
+  # =====================================================================
+  item_3_stage6:
+    s_prime_cell_verdict: confirmed
+    what_i_checked_myself:
+      - >-
+        experiments/EXP-SIG-001/src/h013_f5_signatures.sage gstar_cell()
+        (lines 535-591) read in full. F = E.base_field(); gens =
+        [prod(x_i - r for r in base) for i in 1..m] + [S_{m+1} with target
+        xR substituted]; R = PolynomialRing(F, names, order='degrevlex');
+        measurement = buchberger_instrumented -> #G*. No GF(2), no boolean
+        variable, no Weil descent anywhere in this code path.
+      - >-
+        DISGUISED-EXTENSION-FIELD ATTACK, run and FAILED to break it. The
+        only producer of E is build_panel(p) (line 490), which opens with
+        `F = GF(p)` and constructs every panel member and every isogenous
+        partner over that same F, so E.base_field() cannot resolve to an
+        extension unless the caller passes a prime POWER. The caller is
+        SIG_run.sage line 187 (`F = GF(args.p)`), `--p` default 1000003.
+        The COMMITTED run's own manifest
+        (runs/RUN-EXP-SIG-001-d/manifest.yaml) and raw.json args both pin
+        p = 1000003, which I verified prime by trial division. GF(1000003)
+        is a prime field. The label survives.
+      - >-
+        ARM ATTRIBUTION. I counted kind=="gstar" cells in all four committed
+        EXP-SIG-001 runs: run a (mode gate) 0, run b (mode boolean) 0, run c
+        (mode boolean) 0, run d (mode panel) 21. So the prime-field arm is
+        exactly run d and the boolean arms are exactly a/b/c, as the
+        Executor says.
+    discrepancy_found_not_fatal: >-
+      RUN-EXP-SIG-001-d's manifest validity_reason says "All 16 gstar cells
+      completed inside the 55s time box"; raw.json carries 21 records with
+      kind=="gstar". That is EXP-SIG-001's own bookkeeping, not this
+      record's, and it does not affect the S-prime label. Flagged for that
+      goal's owner, not adjudicated here.
+    census_completeness_objection: >-
+      SUBSTANTIVE. The Stage-6 `counts` block reports labellable: 3,
+      not_yet_committed: 2, not_located: 0 and the headline calls the S-prime
+      cell "the single most valuable cell across those three goals". The
+      documented search -- `git ls-files` grepped case-insensitively for
+      SDEG, DREG, GOAL-SIG, ICEX, fa9839 -- enumerated FIVE artifacts. My own
+      broader enumeration (directory listing of experiments/EXP-{SIG,DREG,
+      SDEG,ICEX}-* plus ledger/evidence/) finds, committed on this same
+      branch and NOT mentioned anywhere in the table:
+        * EXP-SIG-002, -003, -004, -005, -006, -007, -008 (seven approved
+          experiments, hypothesis_id H-SIG-001, with 9/9/9/14/6/20+/20+
+          committed run directories respectively);
+        * EXP-DREG-002 (3 committed runs) and EXP-DREG-004 (30+ committed
+          runs) -- the Executor cites EV-DREG-004 but never the experiment
+          that produced it;
+        * EXP-ICEX-01a79b, EXP-ICEX-b8b2b6 (GOAL-ICEX-001, review_required);
+          EXP-DREG-519ad9, EXP-DREG-9ac65a; EXP-SIG-4fe529, EXP-SIG-c9fda8;
+        * evidence records EV-DREG-006/007/008/354ef9/39e13d/4500cd,
+          EV-SIG-006/007/008/009/010, EV-ICEX-001/2be32e/82d77c.
+      The search term "GOAL-SIG" cannot match a path named
+      "experiments/EXP-SIG-002/...", which is the mechanism of the miss.
+    did_the_miss_change_the_answer: >-
+      NO, and I checked rather than assumed. EXP-SIG-002..008 are the
+      boolean/syzygy continuation (titles: residual non-rewritable D4/D5/D6
+      syzygy counts, Macaulay rank deficit, n in {9,12,15,18,21,24}); none of
+      their committed runs contains a gstar cell or a `p` parameter, and
+      their sources are GF(2)-dominated. EXP-DREG-002/004 sources contain
+      GF(2) only and no EllipticCurve/PolynomialRing over F_p. All three
+      committed ICEX evidence records state in terms that no measurement was
+      executed (EV-ICEX-001: "No ICEX measurement or solver campaign was
+      executed"; EV-ICEX-2be32e and -82d77c: "THIS RECORD ASSERTS NO
+      MEASUREMENT"). So the additional cells would all label S-extension or
+      not_yet_committed, and the S-prime headline stands as the only one of
+      its kind found.
+    net: >-
+      The FINDING survives; the CENSUS does not. `labellable: 3` and
+      `not_located: 0` are presented as a complete count over "every
+      reachable committed cell" and are a count over five hand-picked
+      artifacts. Under AGENTS.md rule 4 the counts must be re-scoped to the
+      artifacts actually enumerated, or the enumeration must be redone.
+
+  # =====================================================================
+  # ITEM 4 -- PROVES-TOO-MUCH / KNOWN-FALSE-OBJECT ON STAGE 1
+  # =====================================================================
+  item_4_reconstruction_power:
+    verdict: the_test_has_genuine_discriminating_power
+    method: >-
+      Built five deliberately WRONG S_4 constructions and one deliberately
+      wrong group-law prediction, and ran the identical 193-triple census
+      (identical seeding, identical curve, identical root-finder) on each.
+    results:
+      "CONTROL correct s4_expr, correct curve": {set_match: "193/193", distinct_split: "193/193"}
+      "MUTANT 1 S_4 built for a=38 (wrong curve)": {set_match: "0/193", distinct_split: "53/193"}
+      "MUTANT 2 S_4 built for b=58 (wrong curve)": {set_match: "0/193", distinct_split: "47/193"}
+      "MUTANT 3 sign error in S_3 constant term (+4b(x1+x2))": {set_match: "0/193", distinct_split: "30/193"}
+      "MUTANT 4 (x1x2+a)^2 instead of (x1x2-a)^2": {set_match: "0/193", distinct_split: "25/193"}
+      "MUTANT 5 product-at-t=0 instead of resultant": {set_match: "0/193", distinct_split: "0/193"}
+      "MUTANT 6 prediction = {x(P1+P2+P3)} only, no sign orbit": {set_match: "0/193"}
+    interpretation: >-
+      193/193 on the AUTHORITATIVE metric (root-set equality against the
+      group law) is NOT a foregone conclusion of the test setup: every mutant
+      scores 0/193 on it, including mutations of the curve, of S_3's sign
+      conventions, and of the group-law prediction itself. The reconstruction
+      is real evidence of implementation correctness.
+      CAVEAT, and it is the reason the Executor's own gate wording matters:
+      the SECONDARY metric (distinct_split alone) is weak -- wrong-curve
+      mutants still score 25-53/193 on it -- so a reviewer who read only
+      "193/193 split completely" would have far less than they think. The
+      Executor is right to call set-equality the authoritative metric and
+      wrong to lead the report's stage1 block with n_split_completely.
+    unverifiable_replication_claim_found: >-
+      implementation.md asserts "Stage 1/3/4/5 raw-result.json content
+      differs between the two runs beyond timing fields". FALSE FOR STAGE 1.
+      I diffed both runs' raw-result.json with all wall/sec fields stripped:
+      stage3, stage4 and stage5 differ; stage0, stage2, stage6 and STAGE 1
+      are identical. Stage 1 records no sample-dependent field at all (both
+      runs recorded 193, 193, first_mismatch null), so the artifacts contain
+      NO evidence that the two runs drew different triples -- for the one
+      stage that is the hard gate and the baseline-reproduction control.
+      I supplied the missing evidence myself: replaying stage1's own seeding
+      gives triple-sample sha256[:16] = d03f0658e9101a05 for seed 20260830
+      and 01eda2f477ea138a for seed 20260831, both scoring 193/193. So the
+      substance is fine and the ARTIFACT is deficient; the fix is a
+      per-run sample digest field, not a re-run.
+
+  # =====================================================================
+  # ITEM 5 -- DOES THE DEGREE-BUG FIX HIDE A RELATED UNCAUGHT BUG?
+  # =====================================================================
+  item_5_degree_computation:
+    verdict: fix_is_correct_at_m4_and_m5_no_related_bug_found
+    what_causes_the_drop: >-
+      I identified the exact algebraic trigger rather than taking the
+      Executor's description on trust: the leading coefficient of S_4 in the
+      free variable is a degree-8 polynomial in the other three, and it
+      vanishes mod p EXACTLY when some signed combination +-P_1+-P_2+-P_3
+      equals the point at infinity. So the drop is constructible on demand by
+      taking P3 = P1 + P2, not merely observable by luck.
+    adversarial_cases_run_against_the_FIXED_code:
+      - case: "m=4, Stage-1 path, P3 = P1+P2 (p=211, P1=(3,..), P2=(7,..))"
+        lc_mod_p: 0
+        fixed_code_result: "deg=3, 3 distinct roots [37,129,159], SET MATCH vs group law = True, split = True"
+        prefix_code_would_have_said: "over-Z degree 4 -> NON-SPLIT (this is the disclosed 3/193 bug, reproduced)"
+      - case: "m=4, p=1009, RUN-2's OWN recorded non-split cell P1=(110,0) P2=(435,32) R=(637,9)"
+        fixed_code_result: "deg=4, distinct roots [374,1002], SET MATCH = True"
+        my_factorisation_mod_p: "(x3 + 7)^2 * (x3 - 374)^2 -- splits completely WITH MULTIPLICITY"
+        diagnosis: >-
+          P1=(110,0) is the curve's rational 2-torsion point, so -P1 = P1 and
+          the four sign classes collapse to two. The Executor's report
+          discusses the p=211 example (R == P2) and never this one; I confirm
+          both are degeneracies, not theorem failures.
+      - case: "m=4, forced DOUBLE drop: P3 = 2-torsion AND P1+P2 = P3 (p=1009)"
+        fixed_code_result: "deg=2, 1 distinct root [737], SET MATCH = True, distinct-split = False"
+        note: "the fix computes the doubly-dropped mod-p degree correctly"
+      - case: "m=5, Stage-2 path (build_s5_root_set_and_deg), forced lc_U(S_4) == 0 mod p"
+        fixed_code_result: "deg=8, 7 distinct roots, SET MATCH vs group law = True"
+      - case: "m=5, Stage-5 inline path, same forced drop"
+        fixed_code_result: "deg=8, 7 distinct roots, SET MATCH = True"
+      - case: "m=5 generic control (no drop)"
+        fixed_code_result: "deg=8, 8 distinct roots, SET MATCH = True"
+    latent_hazard_identified_then_shown_self_masking: >-
+      A DIFFERENT bug of the same family is latent in Stage 2 / Stage 5-m5
+      and is NOT disclosed anywhere: those stages take
+      sympy.resultant(f, g, U) OVER Z and only then reduce mod p. That is
+      only equal to the resultant of the reductions when deg_U f does not
+      drop mod p; when it does, Res_Z(f,g) mod p acquires a factor
+      lc_U(g-bar)^(deg f - deg f-bar), and lc_U(g) here is (x(P4) - T)^2 --
+      a polynomial in the very variable being solved for. So a spurious root
+      at T = x(P4) is injected exactly in the degree-drop case. I built that
+      case and it did NOT produce a wrong answer, and I can say why: the
+      trigger condition (some +-P_1+-P_2+-P_3 = O) is precisely the condition
+      that makes +-P_4 itself a legitimate member of the group-law root set,
+      so the injected root is always a genuine root. The hazard is
+      structurally self-masking at these m. RECORD IT ANYWAY: it is
+      undisclosed, it was not reasoned about, and nothing in the record shows
+      it would still be benign if the S_5 recursion were split differently
+      (e.g. Res of S_4 against S_4) or extended to m=6.
+    stage4_checked_separately: >-
+      stage4() also uses an over-Z degree test (`if poly.degree() != 2:
+      continue`), i.e. the same code smell in an unfixed location. Here it is
+      harmless: the leading coefficient is (v1-v2)^2, whose vanishing over Z
+      and mod p coincide for v1,v2 in [0,p). No defect.
+
+  # =====================================================================
+  # ITEM 6 -- SCOPE CREEP / WRITES TO OTHER GOALS
+  # =====================================================================
+  item_6_scope_and_writes:
+    verdict: clean
+    checks:
+      - >-
+        `git status --porcelain` over experiments/EXP-SIG-001,
+        EXP-DREG-001/002/004, EXP-SDEG-0be8e4/0d4fec/f7faa8,
+        EXP-ICEX-146ff5/01a79b/b8b2b6, ledger/goals/GOAL-{SIG,DREG,SDEG,
+        ICEX}-001.yaml, ledger/evidence/, ledger/hypotheses/,
+        ledger/decisions/ returns EMPTY. No write of any kind.
+      - >-
+        The only tracked modification in the whole worktree is
+        .worktrees/ssi-cost-source-20260809 (a submodule pointer belonging to
+        another session). Untracked additions outside this experiment
+        (EXP-MONO-715694 validator scripts, GOAL-SSI-001 BATCH-5917d5,
+        six TASK-20260830-* handoffs, root-level convert_qwen3.py /
+        run_qwen3.py / xcrun_db) are attributable to other concurrent
+        sessions and touch none of the four read goals.
+      - >-
+        Report language audit: the Stage-6 table reports formulation labels
+        and, where a cell is absent, the record's own literal status strings
+        ("status: review_required", "approved_by: null",
+        "approved_execution_withheld"). I found no value judgement about any
+        other goal's research quality and no proposed status change. The
+        ICEX row explicitly closes the falsification condition in the
+        NEGATIVE ("it does not"), which is the honest direction.
+    one_wording_caution: >-
+      "not_yet_committed" is a poor label for GOAL-SDEG-001 and the ICEX
+      contract: those specifications ARE committed; what does not exist is a
+      RUN. A later reader can misread the table as saying those goals'
+      artifacts are uncommitted working-tree material. Suggest
+      "committed_contract_no_measurement_cell".
+
+  # =====================================================================
+  # ITEM 7 -- BASELINE / UNIT-DECLARATION / EXPONENT SCOPE
+  # =====================================================================
+  item_7_baseline_and_units:
+    asymptotic_claim_null_holds: true
+    evidence: >-
+      Grepped execution_report.yaml and run_experiment.py for
+      ratio|speedup|faster|exponent|asymptot|rho|BSGS|Pollard. The report
+      contains NO ECDLP claim, NO relation-rate claim, NO exponent claim, and
+      does not mention Pollard rho or BSGS at all -- consistent with
+      H-MONO-40aca5's `asymptotic_claim: null` and with a record that
+      deliberately makes no attack claim.
+    unit_tripwire_genuinely_unviolated: true
+    evidence_2: >-
+      The only division anywhere in the instrumented code is
+      calls / attempts (same units) and hits / trials (dimensionless rate).
+      No Stage-3 number is divided by, multiplied with, or compared against
+      any Stage-5 or Stage-6 number anywhere in the code or the report. The
+      refusal is real, not decorative.
+    baseline_comparison: >-
+      NOT APPLICABLE AS A SPEEDUP CLAIM, and correctly so. For completeness
+      the correct frame is unchanged by this record: formulation E's
+      per-attempt cost of m-1 additions multiplies an attempt count of
+      Theta(|F|^{m-1}) (or |F|^{ceil(m/2)} with a van Oorschot-Wiener-style
+      meet-in-the-middle join at memory |F|^{ceil(m/2)}), which the record's
+      own prior catalogue work places STRICTLY WORSE than Pollard rho's
+      O(sqrt(N)) time / O(1) memory at every finite m. Nothing measured here
+      moves that. dominated_by for the composed procedure is Pollard rho on
+      the time axis and Pollard rho on the memory axis simultaneously;
+      sota_delta = 0 on every attack axis. I checked this against all three
+      axes (time, memory, data) rather than the headline baseline alone.
+    cost_bookkeeping_objection: >-
+      The per-attempt cost is reported WITHOUT the success probability, in
+      violation of H-MONO-40aca5's own confounder ("D_trial(E)=m-1 must
+      always be reported beside the attempt count, never alone") and of the
+      target-profile rule that total expected cost = per-attempt cost x
+      inverse success probability. The raw JSON HAS the data --
+      hits_in_factor_base is 57.2-59.2k/100k at p=211 and 11.3-12.0k/100k at
+      p=1009, flat in m across m=3..8 -- and the execution report's
+      stage3 block omits it entirely. I ran the artifact-tell check on that
+      flatness and it PASSES as a controlled null: the hit rate should be
+      2|F|/#E independent of m once the residual is near-uniform, and
+      2*64/216 = 0.59 (p=211) and 2*64/1009 = 0.127 (p=1009) match the
+      measurements, so flat-in-m is the correct behaviour here, not an
+      artifact. What the report should say and does not: the Stage-3 factor
+      base is 64 of the 111 on-curve x-coordinates at p=211, i.e. 57.7% OF
+      THE ENTIRE CURVE, so the success probability measured is a toy-scale
+      artifact of factor-base density and carries no transfer to any
+      realistic |F|/#E.
+
+  # =====================================================================
+  objections:
+    - id: O-1
+      severity: substantive
+      target: execution_report.stage5_partial_locus_cost.symmetry_finding / headline_consequence
+      statement: >-
+        The symmetry account is presented as THE explanation of the observed
+        complete splitting ("the measured near-total complete-splitting below
+        is the expected consequence of that reduction, not a new
+        phenomenon"). It explains one of two sufficient conditions. Complete
+        splitting also occurs, at rate 1.000 with multiplicity, when ALL
+        fixed coordinates are OFF the curve (m=4: 200/200 at p=211 and
+        p=1009; m=5: 15/15 at p=211) -- a locus the theorem's precondition
+        excludes and the symmetry relabelling cannot reach.
+      required_fix: >-
+        State the governing condition as the Frobenius sign-parity law
+        (splits iff j=0 or j=m-1, j = number of non-residue fixed
+        coordinates) and record the factor-base locus as the j=0 branch.
+    - id: O-2
+      severity: substantive
+      target: execution_report.stage5_partial_locus_cost.honest_scope_note
+      statement: >-
+        "No trial in either run showed a genuinely INCOMPLETE fibre (a
+        polynomial that does not factor fully into linear factors over F_p at
+        its true mod-p degree)" is asserted over all 120 Stage-5 trials, but
+        the instrument NEVER COMPUTED IT. stage5_m4/stage5_m5 record only
+        len(roots) == deg and one first_nonsplit_example; unlike Stage 1 and
+        Stage 2 they never build the group-law prediction and never test
+        multiplicity-counted splitting. The sentence is an inference from a
+        single anecdote presented as a measurement over the sample.
+      required_fix: >-
+        Either restate it as an inference from the one recorded example, or
+        add the two metrics Stage 1 and Stage 2 already have. I ran the
+        multiplicity-aware version myself at 200 trials/cell and it comes out
+        1.000, so the claim is TRUE -- it is the evidentiary basis that is
+        missing, which is exactly the failure mode rule 5 targets.
+    - id: O-3
+      severity: substantive
+      target: execution_report.stage6_cross_goal_labelling.counts / search_method
+      statement: >-
+        `labellable: 3`, `not_yet_committed: 2`, `not_located: 0` are a count
+        over five hand-picked artifacts presented as a census over every
+        reachable committed cell. At least seven further committed SIG
+        experiments, two further committed DREG experiments with 30+ run
+        directories, six further ICEX/DREG/SIG specifications, and fourteen
+        further evidence records exist on this branch and appear nowhere in
+        the table. The grep key "GOAL-SIG" cannot match "EXP-SIG-002".
+      required_fix: >-
+        Re-scope the counts to the enumerated set, or redo the enumeration
+        directory-first. I verified the omitted artifacts do not contain a
+        second S-prime cell, so the headline is unaffected -- but that is my
+        verification, not the record's.
+    - id: O-4
+      severity: minor_but_evidentiary
+      target: implementation.md replication-independence sentence
+      statement: >-
+        "Stage 1/3/4/5 raw-result.json content differs between the two runs
+        beyond timing fields" is false for Stage 1, whose recorded block is
+        identical across both runs because it records no sample-dependent
+        field. The hard gate's replication independence is therefore not
+        verifiable from the committed artifacts.
+      required_fix: >-
+        Add a per-run digest of the sampled triples (I computed
+        d03f0658e9101a05 / 01eda2f477ea138a), and correct the sentence. No
+        re-run needed.
+    - id: O-5
+      severity: substantive_cost_model
+      target: IDEA-20260806-9d47e2 claim (A), carried into H-MONO-40aca5's SIGN CONVENTIONS confounder
+      statement: >-
+        The proposal asserts "with the base F closed under negation the full
+        root set costs AT MOST 2^{m-2} - 1 additions by an addition tree".
+        That is a LOWER bound written as an upper bound. I instrumented the
+        obvious addition tree on the fixture curve: 2, 6, 14, 30, 62, 126
+        add-calls at m = 3,4,5,6,7,8, i.e. 2^{m-1} - 2, exactly TWICE the
+        claimed bound at every m. The experiment never tested this
+        convention at all -- Stage 3 measures only the single-residual m-1
+        convention -- although the record's own confounder says "both must be
+        reported, neither assumed".
+      also_note: >-
+        Stage 0's "reconciliation" of the two conventions is vacuous where it
+        was run: at m=3 and m=4 the two conventions coincide numerically
+        (m-1 = 2^{m-2}-1+1 = 3 at m=4). Only m >= 5 can separate them, and
+        no cell at m >= 5 measures the tree convention.
+      required_fix: >-
+        Correct the bound to 2^{m-1} - 2 for the naive tree (or state a
+        proved sharper one), and either measure the second convention or
+        record explicitly that it was not measured.
+    - id: O-6
+      severity: minor
+      target: execution_report / implementation, Stage 2 and Stage 5-m5 resultant construction
+      statement: >-
+        Res over Z followed by reduction mod p is not in general the
+        resultant of the reductions. In the degree-drop case it injects a
+        factor lc_U(g)^k = (x(P4) - T)^{2k}, i.e. a root in the solved-for
+        variable. Undisclosed and unreasoned-about. I showed it is
+        self-masking at m=4/m=5 for this particular recursion split, because
+        the trigger condition also makes the injected root genuine.
+      required_fix: >-
+        One sentence of disclosure, or take the resultant with
+        sympy.Poly(..., modulus=p) so the identity is unconditional.
+    - id: O-7
+      severity: procedural
+      target: whole record
+      statement: >-
+        Reviewed from the working tree; every artifact is untracked. Not a
+        durable research artifact until the Coordinator's snapshot commit.
+    - id: O-8
+      severity: minor
+      target: execution_report.stage6 label vocabulary
+      statement: >-
+        "not_yet_committed" is applied to specifications that ARE committed
+        but have never been run. Misleading label; the condition is
+        "committed contract, no measurement cell".
+
+  required_controls:
+    - id: C-1
+      name: multiplicity-aware split test on Stage 5
+      cost: minutes
+      status: RUN BY ME, PASSES (1.000 at 200 trials/cell, both m, both p)
+      why: closes O-2 without a re-run of the official runs
+    - id: C-2
+      name: genuinely-partial-locus control (target off the curve)
+      cost: minutes
+      status: RUN BY ME. 0.000 split at m=4 both p; 0/15 at m=5
+      why: >-
+        this is THE discriminating control the frozen contract should have
+        carried, and it is what converts "Stage 5 was inside the theorem" from
+        an explanation into a tested claim
+    - id: C-3
+      name: null-object control -- all fixed coordinates OFF the curve
+      cost: minutes
+      status: RUN BY ME. 1.000 split at m=4 both p; 15/15 at m=5
+      why: >-
+        detects that "complete splitting" is NOT a signature of the
+        factor-base locus; any future record that reads complete splitting as
+        evidence of being on the factor-base locus is reading an artifact
+    - id: C-4
+      name: uniform-specialisation shape census (null object of the same shape)
+      cost: minutes
+      status: RUN BY ME. split-with-multiplicity 0.230 (p=211, n=400) and 0.260 (p=1009, n=400)
+      why: >-
+        a random quartic over F_p splits into 4 distinct linear factors with
+        probability ~1/24 = 0.042; the S_4 fibre does so ~1/4 of the time and
+        NEVER shows a 3-cycle or a 4-cycle (observed squarefree shapes: only
+        (1,1,1,1) and (2,2)). Any future census that reports "the m=4 fibre
+        splits more often than a random quartic" without this null has
+        measured the null.
+    - id: C-5
+      name: per-run sample digest on the Stage-1 hard gate
+      cost: minutes
+      status: NOT PRESENT IN THE RECORD; supplied by me
+    - id: C-6
+      name: report hits_in_factor_base and factor-base density beside D_trial
+      cost: zero (data already in raw-result.json)
+      status: NOT DONE IN THE REPORT
+
+  counterexample_or_mutation: >-
+    The cheapest discriminating object is the ALL-OFF-CURVE fibre. Take m=4,
+    p=211, and three x-values u1,u2,u3 each with f(u_i) a quadratic
+    NON-residue. Every hypothesis in this record predicts nothing about it;
+    KN-FIND-c41ea9's precondition fails maximally; and S_4(u1,u2,u3,X) splits
+    into four distinct linear factors over F_p, 200 times out of 200, at both
+    tested primes, and 15/15 at m=5. One minute of compute. It does not break
+    any measured number in EXP-MONO-805a02, and it breaks the record's
+    framing of what its own Stage-5 result means.
+
+  baseline_comparison: >-
+    No baseline is claimed and none is owed: the record moves no exponent in
+    either direction and its own asymptotic_claim is null. Checked against
+    all three Pareto axes anyway: formulation E composed end to end costs
+    Theta(|F|^{m-1}) attempts x (m-1) additions in time with |F| words of
+    memory, or Theta(|F|^{ceil(m/2)}) time and memory under a
+    meet-in-the-middle join; Pollard rho is O(sqrt N) time and O(1) memory
+    and dominates on BOTH axes for every finite m at any |F| that keeps the
+    relation count feasible. dominated_by = {Pollard rho (time), Pollard rho
+    (memory), BSGS (time, at O(sqrt N) memory)}; sota_delta = 0. This is
+    consistent with what the record says and is recorded here because
+    `dominated_by: null` anywhere in this lane would be a fabrication.
+
+  heuristic_challenges:
+    - heuristic: H1 (no heuristic needed; unconditional corollary of KN-FIND-c41ea9 + group law)
+      challenge: >-
+        H1 is correctly labelled unconditional, and it survives. But its
+        validation_scope_note says "complete verification at those sizes".
+        That is true for the j=0 branch and silent about the fact that the
+        theorem's precondition is not necessary. A "complete verification"
+        claim on a statement whose converse is false at the same parameters
+        should say so.
+      status: holds, scope wording objectionable
+    - heuristic: H2 (membership test is O(1) given |F| words)
+      challenge: >-
+        The contract required "the same accounting under an area-time
+        convention as a disclosed second column". The execution report has NO
+        area-time column anywhere. H2's own falsification condition
+        ("measured per-attempt cost grows with p") is also only weakly
+        tested: the two primes differ by a factor of 5 and the table size is
+        pinned at 64 in both, so the experiment cannot see a |F|-dependent
+        lookup cost by construction.
+      status: partially discharged; deliverable missing
+    - heuristic: H3 (every committed SDEG/DREG/SIG/ICEX cell can be labelled by reading)
+      challenge: >-
+        H3's falsification condition FIRED (an S-prime cell exists) and the
+        record reports it, which is the right behaviour. But H3 is a claim
+        about EVERY committed cell and the pass covered five artifacts out of
+        a much larger committed set (see O-3). The heuristic is neither
+        validated nor refuted at the breadth it states.
+      status: falsifier found and correctly reported; census breadth unsupported
+
+  cost_model_challenges:
+    - >-
+      Per-attempt cost is reported without inverse success probability
+      (item 7). Total expected cost is never formed. The record's own
+      confounder demands the pairing.
+    - >-
+      The negation-closed addition-tree convention is stated in the source
+      proposal with a bound that is off by a factor of 2 in the wrong
+      direction (O-5), and is not measured at any m where it differs from the
+      convention that was measured.
+    - >-
+      Memory is asserted (|F| words) and never measured or charged against
+      the m=8 cell, where the attempt count |F|^7 = 64^7 = 2^42 is the actual
+      cost driver and is not stated anywhere in the report.
+    - >-
+      The Stage-3 factor base is 57.7% of the whole curve at p=211. The
+      resulting hit rate is not a decomposition probability in any regime a
+      real factor base occupies, and the report does not say so.
+
+  reduction_and_scope_challenges:
+    - >-
+      The record correctly declines to re-label the ICEX threshold contract's
+      rows and correctly refuses the cross-formulation ratio. No reduction is
+      instantiated, so there is no cited-theorem hypothesis to check.
+    - >-
+      SCOPE INFLATION CHECK: none found. The record does not claim the
+      S-prime cell weakens GOAL-SIG-001, does not claim prime-field index
+      calculus beats rho, and does not touch KN-OPEN-009.
+    - >-
+      SCOPE DEFLATION CHECK (the symmetric failure mode, per
+      docs/inventor-protocol.md): the record UNDERSTATES what its Stage-5
+      excursion found. It closes the "partial locus" question by declaring
+      the construction was never outside the theorem, which is true of that
+      construction and is NOT a closure of the open question the hypothesis
+      named ("the partial locus remains genuinely open beyond this record's
+      own Step-5 measurement"). The forward guidance is present and correct;
+      the headline framing is one sentence away from reading as a closure it
+      does not support. Keep the narrower statement.
+
+  proof_architecture_challenges:
+    - attack: observation-fiber
+      result: >-
+        BREAKS THE STATED SEPARATOR. Hold the observable "the specialised
+        fibre splits completely over F_p" fixed and vary the object: I placed
+        a preimage on each side of the record's conclusion -- the
+        factor-base-complete locus (j=0) and the all-off-curve locus (j=m-1)
+        both produce the observable, and only the first is in the theorem's
+        scope. The missing separator is the residue-class parity j, not
+        membership in the factor-base locus.
+    - attack: quantifier-order
+      result: >-
+        Clean. The theorem is FOR ALL on-curve (m-1)-tuples, and the
+        experiment samples them without choosing a witness after seeing an
+        instance. Stage 5's construction likewise fixes its residue classes
+        before sampling.
+    - attack: boundary-and-strictness
+      result: >-
+        The old method (root-finding S_m) is genuinely embedded as the
+        boundary and the perturbation (group additions) is strictly cheaper
+        ON THE j=0 LOCUS ONLY. Off that locus the fibre does not even have
+        rational roots, so "cheaper" is not the right comparison and the
+        record does not claim it is.
+    - attack: method-ceiling
+      result: >-
+        The ceiling is exactly what the record says it is: the cost identity
+        certifies a per-attempt cost and nothing about the attempt count, so
+        the method cannot reach an exponent claim under ANY tuning. Headline
+        and ceiling agree. This is the record's strongest structural
+        property.
+    - attack: nearby-object
+      result: >-
+        The nearby object where the desired conclusion is false is the j=1
+        and j=2 fibre. The record's reasoning DOES distinguish it (split rate
+        0.000). Passes.
+    - attack: compositional-invariant
+      result: >-
+        Deleting the "T is on-curve" component of Stage 5's construction is
+        the first mutation that breaks the chain, and it breaks it at exactly
+        the step the Executor names. Passes.
+
+  spawned_ids_and_resource_reading:
+    obstruction_reversed: >-
+      KN-FIND-c41ea9 records its m>=4 result as an OBSTRUCTION to KN-OPEN-009
+      ("a generic-fibre Frobenius census measures a quantity that is constant
+      where relation search operates ... Any m >= 4 census should answer this
+      before spending budget") and states that at m >= 4 the
+      imprimitivity/block-system question "is genuinely open". Read as a
+      resource instead: the same sign-vector structure that makes the
+      factor-base fibre constant also PINS the generic monodromy. The roots
+      of S_m in one variable are indexed by {+-1}^{m-1} modulo global sign,
+      and every Frobenius element acts by flipping a subset of signs, so the
+      geometric/arithmetic Galois image of the generic fibre is contained in
+      (Z/2)^{m-1}/{+-1} ~= (Z/2)^{m-2} acting REGULARLY on the 2^{m-2} roots
+      -- hence transitive, abelian, and (for m >= 4) IMPRIMITIVE, with an
+      explicit block system given by the coordinate subgroups.
+    evidence_i_measured_for_it:
+      - "m=4, uniform specialisations, p=211, n=400: observed squarefree factor shapes are ONLY (1,1,1,1) and (2,2). Never (4), (1,3), or (1,1,2) outside degeneracies."
+      - "m=4, uniform, p=1009, n=400: same."
+      - "complete-split rate 0.230 (p=211) / 0.260 (p=1009) vs 1/4 predicted by |V_4 identity| / |V_4| and vs ~1/24 for a uniformly random quartic."
+      - "m=5, p=211: non-split fibres factor as (2,2,2,2) every time -- a fixed-point-free involution on 8 roots, i.e. a regular (Z/2)^3 action."
+    consequence_offered_not_asserted: >-
+      If this holds (it is elementary and I believe it does, but it is a
+      DERIVATION I ran in a review session, at toy scale, with no independent
+      re-derivation), then KN-OPEN-009's m >= 4 monodromy question is answered
+      in the negative for the summation cover in one variable, and the
+      "imprimitivity / block-system / resolvent mechanism the open problem
+      hunts" exists trivially and carries no relation-rate advantage --
+      which would make the m >= 4 census KN-FIND-c41ea9 recommends
+      unnecessary rather than merely uninformative.
+    status: >-
+      CANDIDATE FOR THE RANKING, NOT EVIDENCE. It changes no status, closes
+      no open problem, and is not a finding of EXP-MONO-805a02. It belongs in
+      a fresh proposal under RQ-MONO-001 with its own contract and its own
+      independent re-derivation, and the closure standard in
+      docs/inventor-protocol.md section 4 applies to it in full -- including
+      that "the monodromy is small" is a claim about the object that needs a
+      named obstruction, an argument, and forward guidance before anyone
+      treats it as closing KN-OPEN-009.
+
+  narrowest_supported_statement: >-
+    On the branch and working-tree state hashed above, at p in {211, 1009}:
+    (1) formulation E's instrumented per-attempt cost is exactly m-1 calls to
+    EllipticCurve.add plus one hash lookup, at every m in {3..8}, in both
+    runs, with zero polynomial arithmetic in the instrumented path;
+    (2) KN-FIND-c41ea9's m=4/p=211 census reproduces at 193/193 on root-set
+    equality under a freshly seeded reconstruction, and that reconstruction
+    rejects every one of six deliberately wrong implementations at 0/193;
+    (3) the m=5 extension matches the group-law prediction at 30/30 per prime
+    (single sample, shared across both runs by a disclosed seeding defect);
+    (4) the m=3 negative-locus null reads 0.493-0.503, not 1;
+    (5) Stage 5's cheap result is correctly attributed to the permutation
+    symmetry of S_4/S_5 placing the construction inside KN-FIND-c41ea9's own
+    precondition -- and complete splitting of the S_m fibre is governed by
+    the strictly broader condition "j = 0 or j = m-1", of which the theorem's
+    precondition is the j=0 branch;
+    (6) EXP-SIG-001's Yokoyama panel arm (RUN-EXP-SIG-001-d, p = 1000003
+    prime, 21 gstar cells, ideal over GF(p) with prime-field
+    factor-base-forcing generators) is a committed prime-field
+    formulation-S cell, refuting the frozen S-extension prediction, and it is
+    the only such cell among the artifacts anyone in this round has
+    enumerated;
+    (7) nothing here bears on ECDLP hardness, on any relation rate, or on any
+    exponent, in either direction.
+
+  next_concrete_action: >-
+    Before the Coordinator writes an evidence record, have the Executor (or a
+    scoped successor task) add ONE stage to the harness and re-run only that
+    stage into a superseding run record: the residue-class-stratified fibre
+    census (j = 0, 1, ..., m-1 for m in {4,5}, both primes, >=200 trials per
+    cell) with the multiplicity-aware split metric and group-law set equality
+    that Stages 1 and 2 already have and Stage 5 lacks. It costs under a
+    minute of compute, it discharges O-1 and O-2 together, it converts the
+    Stage-5 headline from an explanation into a tested law, and it is the
+    single measurement that stops any future reader of this lane from
+    treating "the fibre split completely" as evidence of being on the
+    factor-base locus.
+
+  artifact_paths:
+    - experiments/EXP-MONO-805a02/reviews/red-team/red-team-report.yaml
+    - experiments/EXP-MONO-805a02/reviews/red-team/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: red-team-mono5-805a02
+    role: red-team
+    joints_owned: [J2-adversarial-verification]
+    verdict: holds_with_finding
+    independent_session: true
+    read_sibling_reports: false
+    sibling_blindness_note: >-
+      experiments/EXP-MONO-805a02/reviews/ contained no validator/ directory
+      at the time of this review and I did not create, list into, or read one.
+      No sibling report of this round was read.
+    blind_from: []
+    blind_rederivation_note: >-
+      This was NOT a blind re-derivation. I read the Executor's
+      implementation and report by assignment. Independence here is of the
+      COMPUTATION, not of the reading: every number I report above was
+      produced by scripts I wrote in my own scratchpad, and the only code I
+      imported from the Executor is run_experiment.py's poly_roots_bruteforce
+      / build_s5_root_set_and_deg / on_curve_points / group_law_root_set --
+      deliberately, because item 5 required testing THAT code on adversarial
+      inputs.
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - ledger/proposals/IDEA-20260806-9d47e2.yaml
+      - ledger/hypotheses/H-MONO-40aca5.yaml
+      - experiments/EXP-MONO-805a02/specification.yaml
+      - experiments/EXP-MONO-805a02/execution_report.yaml
+      - experiments/EXP-MONO-805a02/implementation.md
+      - experiments/EXP-MONO-805a02/implementation/run_experiment.py
+      - experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-1/{raw-result.json,manifest.yaml,command.txt}
+      - experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-2/raw-result.json
+      - knowledge/findings/KN-FIND-c41ea9.md
+      - harness/semaev.py
+      - experiments/EXP-SIG-001/src/h013_f5_signatures.sage
+      - experiments/EXP-SIG-001/SIG_run.sage
+      - experiments/EXP-SIG-001/runs/RUN-EXP-SIG-001-d/{manifest.yaml,raw.json}
+      - experiments/EXP-SIG-001/runs/RUN-EXP-SIG-001-{a,b,c}/raw.json (gstar-cell counts only)
+      - experiments/EXP-SIG-00{2..8}/specification.yaml (titles and run listings)
+      - experiments/EXP-DREG-00{1,2,4}/ (source field usage, run listings)
+      - experiments/EXP-{SDEG,ICEX}-*/specification.yaml (status fields)
+      - ledger/evidence/EV-ICEX-{001,2be32e,82d77c}.yaml
+      - ledger/evidence/EV-{DREG,SIG,SDEG}-*.yaml (field-type grep only)
+    not_read_deliberately:
+      - experiments/EXP-MONO-805a02/reviews/validator/**  (J1 owner's scope; blindness preserved)
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: "claude-opus-5[1m]"
+    model_provenance: session-reported
+    model_verified: false
+    model_verified_note: >-
+      `python3 -m orchestration.adapter doctor --probe` was NOT run (no
+      network in this session), so the identifier above is session-reported
+      configuration, not probe-verified. Recorded honestly rather than
+      asserted.
+    fallback_used: false
+    degraded_requirements: []
+    authority_note: >-
+      This report changes no status, of this experiment, this hypothesis, or
+      any goal read during it. It is an objection set for the Coordinator's
+      ledger archive task.

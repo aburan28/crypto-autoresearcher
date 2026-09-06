@@ -365,17 +365,49 @@ class DispatchPlannerTests(unittest.TestCase):
         with self.assertRaisesRegex(dispatch.DispatchError, "read_scope must cover"):
             dispatch.validate_queue(queue(source, archive))
 
-    def test_ledger_archive_requires_evidence_decisions_and_record_ids(self) -> None:
+    def test_ledger_archive_requires_decisions_and_record_ids(self) -> None:
+        # CORR-20260822-7e98b5 HD-1: a ledger archive's entire content can BE
+        # the decision (REVISE/block, supersede, infra pause, protocol
+        # amendment, correction) -- it does not always promote an evidence
+        # record. Only the decisions path is unconditionally required.
         source = task("SOURCE", 1)
         ledger = archive_task(
-            "LEDGER", [source], kind="ledger", artifact_paths=["ledger/evidence/LEDGER-EVIDENCE.json"]
+            "LEDGER", [source], kind="ledger", artifact_paths=["ledger/evidence/LEDGER-EVIDENCE.json"],
+            record_ids=["LEDGER-EVIDENCE"],
         )
         ledger["write_scope"] = ["ledger/evidence/"]
-        with self.assertRaisesRegex(dispatch.DispatchError, "ledger/evidence"):
+        with self.assertRaisesRegex(dispatch.DispatchError, "ledger/decisions"):
             dispatch.validate_queue(queue(source, ledger))
 
         ledger = archive_task("LEDGER", [source], kind="ledger", record_ids=[])
         with self.assertRaisesRegex(dispatch.DispatchError, "record IDs"):
+            dispatch.validate_queue(queue(source, ledger))
+
+    def test_ledger_archive_decision_only_is_allowed(self) -> None:
+        # The ordinary case CORR-20260822-7e98b5 identified: a decision with
+        # no evidence basis (e.g. a REVISE) owns only a decisions/ path and
+        # names no EV-* record_id.
+        source = task("SOURCE", 1)
+        ledger = archive_task(
+            "LEDGER", [source], kind="ledger",
+            artifact_paths=["ledger/decisions/LEDGER-DECISION.json"],
+            write_scope=["ledger/decisions/"],
+            record_ids=["LEDGER-DECISION"],
+        )
+        dispatch.validate_queue(queue(source, ledger))  # must not raise
+
+    def test_ledger_archive_dangling_evidence_reference_still_caught(self) -> None:
+        # If record_ids names an EV-* record, the archive must actually own
+        # an artifact under ledger/evidence/ for it -- the dangling-reference
+        # catch HD-1's proposed fix preserves.
+        source = task("SOURCE", 1)
+        ledger = archive_task(
+            "LEDGER", [source], kind="ledger",
+            artifact_paths=["ledger/decisions/LEDGER-DECISION.json"],
+            write_scope=["ledger/decisions/"],
+            record_ids=["LEDGER-DECISION", "EV-DREG-DANGLING"],
+        )
+        with self.assertRaisesRegex(dispatch.DispatchError, "EV-\\* record_id"):
             dispatch.validate_queue(queue(source, ledger))
 
     def test_claim_relevant_task_requires_independent_reviewer(self) -> None:
@@ -702,8 +734,8 @@ class DispatchPlannerTests(unittest.TestCase):
     def test_goal_id_is_optional_and_echoed_into_the_plan(self) -> None:
         worker = task("WORK", 1)
         archive = archive_task("ARCHIVE", [worker])
-        plan = dispatch.select(queue(worker, archive, goal_id="GOAL-20260718-001"))
-        self.assertEqual(plan["goal_id"], "GOAL-20260718-001")
+        plan = dispatch.select(queue(worker, archive, goal_id="GOAL-DISPATCH-a1b2c3"))
+        self.assertEqual(plan["goal_id"], "GOAL-DISPATCH-a1b2c3")
 
     def test_repository_queue_template_validates(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -711,7 +743,7 @@ class DispatchPlannerTests(unittest.TestCase):
             (root / "templates" / "subagent-task-queue.json").read_text(encoding="utf-8")
         )
         plan = dispatch.select(source)
-        self.assertEqual(plan["goal_id"], "GOAL-EXAMPLE-001")
+        self.assertEqual(plan["goal_id"], "GOAL-EXAMPLE-a1b2c3")
         self.assertEqual([task["id"] for task in plan["dispatches"]], ["TASK-EXEC-001"])
 
     def test_plan_is_stable_for_identical_input(self) -> None:
@@ -865,6 +897,72 @@ class LeaseTests(unittest.TestCase):
         # library used elsewhere in this module does not accept unmodified.
         parsed = dispatch.parse_timestamp("2026-08-16T00:00:00Z", "--now")
         self.assertEqual(parsed.isoformat(), "2026-08-16T00:00:00+00:00")
+
+
+class ZeroComputeBudgetTests(unittest.TestCase):
+    """A task may bound its compute at zero; anything above zero stays bounded.
+
+    Both directions matter. Relaxing this for a task that *does* run something
+    would remove the only ceiling on it, so every test that pins the relaxation
+    is paired with one pinning the rule it must not weaken.
+    """
+
+    def validate(self, budget: dict[str, Any]) -> None:
+        record = handoff()
+        record["budget"] = budget
+        dispatch.validate_handoff({"handoff": record, "role": "coordinator"},
+                                  "queue.tasks[0]")
+
+    def test_experiment_maximum_runs_zero_may_leave_ceilings_null(self) -> None:
+        # GOAL-ECDLP-001 BATCH-e6c1c9 TASK-20260901-833888, exactly as committed.
+        self.validate({
+            "wall_clock_seconds": None,
+            "memory_gb": None,
+            "maximum_runs": 1,
+            "experiment_maximum_runs": 0,
+        })
+
+    def test_maximum_runs_zero_may_leave_ceilings_null(self) -> None:
+        # GOAL-MD5-001 BATCH-ebac02 declares zero compute the other way.
+        self.validate({
+            "wall_clock_seconds": None,
+            "memory_gb": None,
+            "maximum_runs": 0,
+        })
+
+    def test_compute_bearing_task_accepts_advisory_wall_clock(self) -> None:
+        self.validate({"wall_clock_seconds": None, "memory_gb": 1, "maximum_runs": 1})
+
+    def test_compute_bearing_task_still_requires_a_memory_ceiling(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "memory_gb"):
+            self.validate({
+                "wall_clock_seconds": 60,
+                "memory_gb": None,
+                "maximum_runs": 1,
+            })
+
+    def test_zero_compute_does_not_admit_a_negative_run_count(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "maximum_runs"):
+            self.validate({
+                "wall_clock_seconds": None,
+                "memory_gb": None,
+                "maximum_runs": -1,
+                "experiment_maximum_runs": 0,
+            })
+
+    def test_zero_compute_does_not_admit_a_nonsense_ceiling(self) -> None:
+        # Declaring zero runs permits omitting a ceiling, never asserting a
+        # false one: a stated ceiling is still checked.
+        with self.assertRaisesRegex(dispatch.DispatchError, "wall_clock_seconds"):
+            self.validate({
+                "wall_clock_seconds": -5,
+                "memory_gb": None,
+                "maximum_runs": 0,
+            })
+
+    def test_missing_run_estimate_is_advisory(self) -> None:
+        # Missing run-count estimates do not claim zero compute or stop work.
+        self.validate({"wall_clock_seconds": 60, "memory_gb": 1})
 
 
 class InferencePolicyTests(unittest.TestCase):

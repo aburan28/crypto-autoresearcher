@@ -124,8 +124,10 @@ documents: their aliases and hash bindings are propagated to the terminal
 corrected target. Exact-ID search accepts both the canonical ID and those
 legacy aliases; `get_source` remains canonical-ID-only by design.
 
-The staging rules cover modern typed hypotheses, questions, proposals, flat
-and sharded goals, goal checkpoint shards, and subgoals. Checkpoint source IDs
+The staging rules cover modern typed hypotheses, questions, proposals, handoffs,
+flat and sharded goals, goal checkpoint shards, and subgoals. Handoffs use
+`handoff:TASK-...` source IDs, include registered schema corrections with both
+hash bindings, and explicitly carry no result evidence. Checkpoint source IDs
 use both the goal directory and immutable shard filename, for example
 `goal-checkpoint:GOAL-ECDLP-001:BATCH-ef31ab-close-20260808`; the body batch ID
 is not unique enough to address a shard.
@@ -135,6 +137,22 @@ For an auditable dry run, pass a `StagingDiagnostics` instance to
 unparseable legacy records, different-byte duplicate source IDs, and
 intentional redirect suppressions separately. These diagnostics are debt
 records, not permission to repair or hide immutable sources.
+
+`tests/unit/test_repo_corpus.py` asserts that dry stage against **floors and
+per-destination coverage, not an exact document count**. The corpus is a
+different size in every concurrent worktree and grows with every research
+batch, so an exact pin fails on branches that changed nothing about staging.
+Destinations are read back off `RULES`, so a new staging rule must declare its
+own floor rather than staging an unwatched family; the floors are sized to
+catch a family collapsing to zero, not to track a few percent of drift. The
+debt sets above stay exact, because disclosed debt is closed and never grown.
+Because that test measures the repository rather than `kb/`, `kb.yml` runs it
+on every corpus-touching PR with a five-wheel install, outside the gate that
+skips the full retrieval suite. Note its unparseable set is a strict subset of
+`tools/merge_hygiene_baseline.txt` and not a duplicate of it: the baseline
+lists everything that fails to parse on disk anywhere in the repository, while
+this set lists only what a staging rule matched and no registered supersession
+routes around.
 
 **Do not reuse an existing collection after changing payload projection.** A
 change to `payload_fields()` need not change an already-ingested document's

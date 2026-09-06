@@ -45,6 +45,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 
@@ -52,6 +53,12 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
+
+# Certificate kinds a run may CLAIM, each of which carries a verification duty
+# (certificate.verified must be true). A run that claims nothing records
+# `kind: none`, which is accepted without a certificate and is not listed here.
+# Authoritative prose: docs/claims-and-verification.md.
+CERTIFICATE_KINDS = ("discrete_log", "decomposition", "key_recovery")
 LEGACY_LEDGER_INVENTORY = os.path.join(
     REPO, "tools", "legacy_ledger_inventory.yaml"
 )
@@ -130,6 +137,7 @@ def _load_duplicate_run_owners() -> dict[str, set[str]]:
 DUPLICATE_RUN_OWNERS = _load_duplicate_run_owners()
 
 ID_PATTERNS = {
+    "goal": re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX}$"),
     "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
     "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
     "hypothesis": re.compile(rf"^H-[A-Z]+-{SUFFIX}$"),
@@ -226,6 +234,84 @@ CITATION_PROVENANCE = {"recalled", "retrieved", "kb", "internal"}
 PROVENANCE_ASSERTS_LITERATURE = {"known", "adaptation"}
 
 OBSTRUCTION_REQUIRED = ["statement", "quantity", "value", "scope"]
+
+# `review_plan` on a handoff follows the same optional-when-present rule. What
+# this checks is the plan's INTERNAL consistency, which is all a single record
+# can show: whether the reviewers honoured it is cross-checked against their
+# attestations by `tools/check_review_independence.py`, which needs the reports
+# and so cannot run here.
+REVIEW_VERDICTS = {"holds", "breaks", "inconclusive"}
+
+
+def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate a `review_plan` block on a handoff."""
+    plan = body.get("review_plan")
+    if plan is None:
+        return
+    if not isinstance(plan, dict):
+        ctx.err(path, "review_plan must be a mapping")
+        return
+    for field in ("claim_under_review", "coordinator_prior"):
+        if not str(plan.get(field) or "").strip():
+            ctx.err(path, f"review_plan.{field} is required; the prior is "
+                          f"recorded before the round so concurrence can be "
+                          f"told apart from agreement with the Coordinator")
+    joints = plan.get("joints")
+    if not isinstance(joints, list) or not joints:
+        ctx.err(path, "review_plan.joints must be a nonempty list; a review "
+                      "with no named load-bearing step cannot show coverage")
+    else:
+        seen: dict[str, int] = {}
+        for index, entry in enumerate(joints):
+            if not isinstance(entry, dict):
+                ctx.err(path, f"review_plan.joints[{index}] must be a mapping")
+                continue
+            name = str(entry.get("joint") or "").strip()
+            if not name:
+                ctx.err(path, f"review_plan.joints[{index}].joint is empty")
+            else:
+                seen[name] = seen.get(name, 0) + 1
+            if not str(entry.get("assigned_to") or "").strip():
+                ctx.err(path, f"review_plan.joints[{index}] has no "
+                              f"assigned_to; an unowned joint is the coverage "
+                              f"gap this plan exists to make visible")
+            if not str(entry.get("attack_plan") or "").strip():
+                ctx.err(path, f"review_plan.joints[{index}] has no "
+                              f"attack_plan; a worked attack returns a result "
+                              f"either way, 'review this' returns an opinion")
+        for name, count in seen.items():
+            if count > 1:
+                ctx.err(path, f"review_plan joint '{name}' is listed {count} "
+                              f"times; one joint, one owner")
+    blindness = plan.get("blindness")
+    if blindness is not None:
+        if not isinstance(blindness, dict):
+            ctx.err(path, "review_plan.blindness must be a mapping")
+        elif (blindness.get("lifted_for")
+                and not str(blindness.get("rationale") or "").strip()):
+            ctx.err(path, "review_plan.blindness.lifted_for is nonempty and "
+                          "requires a rationale; blindness is lifted on "
+                          "purpose, never drifted out of")
+    control = plan.get("proves_too_much")
+    if not isinstance(control, dict) or not (control.get("objects") or []):
+        ctx.err(path, "review_plan.proves_too_much.objects is required; the "
+                      "argument is run against objects where its conclusion is "
+                      "known false, as controls-before-belief for an argument")
+    elif not str(control.get("failure_signature") or "").strip():
+        ctx.err(path, "review_plan.proves_too_much.failure_signature is "
+                      "required; state what the argument must do on a "
+                      "known-false object or the control cannot fail")
+    rederivation = plan.get("blind_rederivation")
+    if isinstance(rederivation, dict) and rederivation.get("required"):
+        for field in ("quantity", "assigned_to"):
+            if not str(rederivation.get(field) or "").strip():
+                ctx.err(path, f"review_plan.blind_rederivation.{field} is "
+                              f"required when required is true")
+        if not (rederivation.get("blind_from") or []):
+            ctx.err(path, "review_plan.blind_rederivation.blind_from is "
+                          "required; name the producer's implementation, notes "
+                          "and report, or the independence is not checkable")
+
 
 def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
     """Validate `citations` and hypothesis `structural_ingredients` entries."""
@@ -419,6 +505,8 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     check_citations(path, body, rec_type, ctx)
     if rec_type in ("evidence", "coordinator_decision"):
         check_obstruction(path, body, ctx)
+    if rec_type == "handoff":
+        check_review_plan(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
         promotion = body["knowledge_promotion"]
         if not isinstance(promotion, dict):
@@ -541,7 +629,24 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
     result = body.get("result") or {}
     cert = result.get("certificate") or {}
     kind = cert.get("kind")
-    if kind in ("discrete_log", "decomposition"):
+    # CERTIFICATE_KINDS is the single source of truth for which claim kinds a
+    # run may assert; `none` (a pure measurement run) is accepted separately
+    # because it carries no verification duty. `key_recovery` was added here
+    # for the AES line of work (RQ-AES-002 BLK-1).
+    #
+    # DISCLOSED COST OF THIS WORDING. The rejection message below deliberately
+    # still names only discrete_log|decomposition|none and is therefore NO
+    # LONGER AN EXHAUSTIVE ENUMERATION of what is accepted -- it under-reports
+    # `key_recovery`. That is intentional and load-bearing, not an oversight:
+    # tools/validate_ledger_baseline.txt suppresses errors by EXACT LINE MATCH
+    # and 112 of its grandfathered entries end in this exact literal, so any
+    # rewording of it simultaneously stales all 112 entries and emits 112
+    # freshly-worded errors. The baseline is prune-only, so it cannot absorb
+    # them. Keep this string byte-for-byte until a Coordinator-authorized
+    # baseline regeneration retires those 112 entries; the accepted vocabulary
+    # is CERTIFICATE_KINDS above and docs/claims-and-verification.md, not this
+    # message. See DEC-20260901-1fc2f5 and TASK-20260901-eb81f4.
+    if kind in CERTIFICATE_KINDS:
         if cert.get("verified") is not True:
             ctx.err(path, f"run claims a {kind} but certificate.verified "
                           f"is not true")
@@ -1113,13 +1218,47 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                                          f"unknown entry '{knowledge_id}'")
 
 
-GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
+GOAL_ID = ID_PATTERNS["goal"]
+GOAL_LEGACY_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_LEGACY}$")
+GOAL_RANDOM_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_RANDOM}$")
 # `closed_at_budget` is a terminal status in active use. It asserts that the
 # campaign budget ran out WITHOUT a completion criterion being met, so it makes
 # no success claim and needs no quorum. Using it to retire a goal that did meet
 # a criterion, in order to avoid the quorum, is a contract violation.
-GOAL_STATUSES = {"draft", "active", "paused", "blocked", "completed",
-                 "cancelled", "closed_at_budget"}
+# PAUSING A GOAL IS NOT PERMITTED. `paused` and `blocked` were removed from
+# this set on user instruction (2026-09-04): a campaign that hits an impediment
+# stays `active` and carries that impediment as a record, so the harness keeps
+# returning to it instead of parking it.
+#
+# `blocked` is refused alongside `paused` deliberately. It is the same idling
+# under another name, and leaving it available would have made the rule
+# cosmetic — the next session that wanted to stop a goal would simply have
+# written `blocked` instead.
+#
+# WHAT THIS DOES NOT RELAX. Pausing was carrying two honesty guarantees, and
+# removing the status does not remove either of them:
+#   - An infrastructure or budget impediment is STILL never negative
+#     mathematical evidence (AGENTS.md rule 3) and still never a research
+#     conclusion. It is recorded as an impediment on an active goal.
+#   - A `review-breakthrough` that cannot be served STILL may not be downgraded
+#     to a lower review tier. The goal stays active; the CLAIM stays
+#     un-promoted. "Never pause" is not permission to close, to promote, or to
+#     review at a tier the policy forbids.
+# An exhausted campaign budget likewise does not become licence to keep
+# spending: it requires a committed Coordinator budget decision before the next
+# batch. Terminal retirement remains available via `closed_at_budget` and
+# `cancelled`, both of which assert no success and both of which are deliberate
+# Coordinator acts rather than the automatic response to an impediment.
+GOAL_STATUSES = {"draft", "active", "completed", "cancelled",
+                 "closed_at_budget"}
+GOAL_STATUSES_REFUSED = {
+    "paused": ("pausing a goal is not permitted; keep status: active and record "
+               "the blocker under `impediments` with a concrete clearing "
+               "condition"),
+    "blocked": ("blocking a goal is not permitted; it is pausing under another "
+                "name. Keep status: active and record the blocker under "
+                "`impediments` with a concrete clearing condition"),
+}
 GOAL_REQUIRED = ["id", "title", "objective", "question_ids", "status",
                  "completion_criteria", "pause_conditions", "next_action",
                  "owner"]
@@ -1283,7 +1422,17 @@ def load_goal_documents(ctx: Ctx):
     tools/shard_goal.py. Migrating all of them at once would land a rename in
     every one of the open branches simultaneously.
     """
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*.yaml"))):
+    goals_root = os.path.join(REPO, "ledger", "goals")
+    try:
+        entries = sorted(os.scandir(goals_root), key=lambda entry: entry.name)
+    except OSError:
+        entries = []
+
+    for entry in entries:
+        if (entry.is_symlink() or not entry.name.endswith(".yaml")
+                or not entry.is_file(follow_symlinks=False)):
+            continue
+        path = entry.path
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1293,8 +1442,16 @@ def load_goal_documents(ctx: Ctx):
             continue
         yield path, goal, lambda rec_id: f"{rec_id}.yaml", os.path.basename(path)
 
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*",
-                                              "goal.yaml"))):
+    for entry in entries:
+        if entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+            continue
+        path = os.path.join(entry.path, "goal.yaml")
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            continue
+        if not stat.S_ISREG(mode):
+            continue
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1303,7 +1460,24 @@ def load_goal_documents(ctx: Ctx):
             ctx.err(path, "missing top-level 'research_goal' mapping")
             continue
         directory = os.path.dirname(path)
-        shards = sorted(glob.glob(os.path.join(directory, "checkpoints", "*.yaml")))
+        checkpoints = os.path.join(directory, "checkpoints")
+        try:
+            checkpoint_mode = os.lstat(checkpoints).st_mode
+        except OSError:
+            checkpoint_mode = 0
+        if stat.S_ISDIR(checkpoint_mode):
+            checkpoint_entries = sorted(
+                os.scandir(checkpoints), key=lambda checkpoint: checkpoint.name
+            )
+        else:
+            checkpoint_entries = []
+        shards = [
+            checkpoint.path
+            for checkpoint in checkpoint_entries
+            if (not checkpoint.is_symlink()
+                and checkpoint.name.endswith(".yaml")
+                and checkpoint.is_file(follow_symlinks=False))
+        ]
         merged = []
         for shard in shards:
             sdoc = load_yaml(shard, ctx)
@@ -1324,7 +1498,294 @@ def load_goal_documents(ctx: Ctx):
         yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
 
 
+GIT_CONTEXT_REDIRECTS = {
+    "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS",
+}
+
+
+def _explicit_git_environment() -> dict[str, str]:
+    """Environment stripped of caller-controlled repository redirects."""
+    return {key: value for key, value in os.environ.items()
+            if key not in GIT_CONTEXT_REDIRECTS}
+
+
+def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
+    """Inspect bound HEAD and actual index without touching alias targets.
+
+    Git stores ordinary directories only as descendant entries, while a
+    gitlink or symlink occupies the exact protected path.  Keeping those cases
+    separate prevents an initialized gitlink's ordinary-directory filesystem
+    appearance from laundering mode 160000 into the ledger traversal.
+
+    The boolean reports whether REPO is a Git worktree.  Non-Git fixtures retain
+    the filesystem-only contract and make no Git provenance claim. Caller Git
+    redirects are removed, then the discovered top-level, Git directory, and
+    actual index are rebound explicitly for every metadata query. Protected
+    provenance is always read with replacement-object processing disabled;
+    neither default/custom replace refs nor caller environment may rewrite the
+    commit or tree objects being classified.
+    """
+    git_marker = os.path.join(REPO, ".git")
+    clean_env = _explicit_git_environment()
+    try:
+        probe = subprocess.run(
+            ["git", "-C", REPO, "rev-parse", "--is-inside-work-tree"],
+            capture_output=True, text=True, env=clean_env,
+        )
+    except OSError as error:
+        if os.path.lexists(git_marker):
+            return True, [("ledger", "cannot inspect protected-prefix Git "
+                           f"metadata: {error}; target was not read")]
+        return False, []
+    if probe.returncode != 0 or probe.stdout.strip() != "true":
+        if os.path.lexists(git_marker):
+            detail = (probe.stderr or probe.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "Git worktree probe failed"
+            return True, [("ledger", "cannot determine protected-prefix Git "
+                           f"metadata: {reason}; target was not read")]
+        return False, []
+
+    context = subprocess.run(
+        ["git", "-C", REPO, "rev-parse", "--show-toplevel",
+         "--absolute-git-dir", "--path-format=absolute", "--git-path", "index"],
+        capture_output=True, text=True, env=clean_env,
+    )
+    values = [line.strip() for line in context.stdout.splitlines() if line.strip()]
+    if context.returncode != 0 or len(values) != 3:
+        detail = (context.stderr or context.stdout).strip().splitlines()
+        reason = detail[-1] if detail else "explicit Git context query failed"
+        return True, [("ledger", "cannot bind protected-prefix Git metadata "
+                                 f"to validation root: {reason}; target was not read")]
+    top_level, git_directory, index_file = map(os.path.abspath, values)
+    try:
+        root_matches = os.path.samefile(top_level, REPO)
+    except OSError:
+        root_matches = (os.path.normcase(os.path.realpath(top_level))
+                        == os.path.normcase(os.path.realpath(REPO)))
+    if not root_matches:
+        return True, [("ledger", "protected-prefix Git top-level does not match "
+                                 "the explicit validation root; target was not read")]
+    if not os.path.isdir(git_directory) or not os.path.isfile(index_file):
+        return True, [("ledger", "protected-prefix actual Git directory or "
+                                 "index is unavailable; target was not read")]
+
+    bound_env = dict(clean_env)
+    bound_env["GIT_INDEX_FILE"] = index_file
+    # Belt and suspenders: the global option binds the individual invocation,
+    # while the environment also covers Git versions/subcommands that consult
+    # the conventional replacement-disable switch internally.  Caller values
+    # were removed above and cannot re-enable replacement processing.
+    bound_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+
+    def bound_git(*arguments: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["git", "--no-replace-objects", f"--git-dir={git_directory}",
+             f"--work-tree={REPO}", *arguments],
+            capture_output=True, text=True, env=bound_env,
+        )
+
+    errors: list[tuple[str, str]] = []
+    for relative in ("ledger", "ledger/goals"):
+        head = bound_git("ls-tree", "-z", "HEAD", "--", relative)
+        index = bound_git("ls-files", "--stage", "-z", "--", relative)
+        if head.returncode != 0 or index.returncode != 0:
+            failed = head if head.returncode != 0 else index
+            detail = (failed.stderr or failed.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "HEAD or index query failed"
+            errors.append((relative, "cannot determine protected-prefix Git "
+                                     f"metadata: {reason}; target was not read"))
+            break
+
+        head_modes: list[str] = []
+        for entry in head.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            if candidate == relative:
+                head_modes.append(metadata.split(" ", 1)[0])
+
+        exact_modes: list[str] = []
+        descendant_count = 0
+        for entry in index.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            mode = metadata.split(" ", 1)[0]
+            if candidate == relative:
+                exact_modes.append(mode)
+            elif candidate.startswith(relative + "/"):
+                descendant_count += 1
+
+        for source, modes_found in (("Git HEAD tree", head_modes),
+                                    ("Git index", exact_modes)):
+            modes = sorted(set(modes_found))
+            if modes == ["040000"] and source == "Git HEAD tree":
+                continue
+            if not modes and source == "Git index" and descendant_count:
+                continue
+            if not modes:
+                errors.append((
+                    relative,
+                    f"trusted goal prefix is missing from {source}; protected "
+                    "candidate state is indeterminate and target was not read",
+                ))
+                break
+            description = (
+                "gitlink" if modes == ["160000"] else
+                "symlink" if modes == ["120000"] else
+                "regular file" if modes == ["100644"] else
+                "non-directory object"
+            )
+            if description in {"gitlink", "symlink"}:
+                finding = f"an exact {source} {description}"
+            else:
+                finding = f"{description}; exact {source} object"
+            errors.append((
+                relative,
+                f"trusted goal prefix is {finding} "
+                f"with mode(s) {modes}; ordinary tracked descendants are "
+                "required and target was not read",
+            ))
+            break
+        if errors:
+            break
+        if descendant_count == 0:
+            errors.append((
+                relative,
+                "trusted goal prefix is missing; Git index has neither an "
+                "exact entry nor ordinary tracked descendants, so candidate "
+                "type is indeterminate and target was not read",
+            ))
+            break
+    return True, errors
+
+
+def check_trusted_goal_prefixes(ctx: Ctx) -> bool:
+    """Require ordinary ledger and ledger/goals directories without follow."""
+    in_git_worktree, git_errors = protected_prefix_git_errors()
+    if in_git_worktree and git_errors:
+        for relative, message in git_errors:
+            ctx.err(os.path.join(REPO, *relative.split("/")), message, force=True)
+        return False
+
+    for relative in ("ledger", "ledger/goals"):
+        path = os.path.join(REPO, *relative.split("/"))
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            description = "missing"
+        else:
+            if stat.S_ISLNK(mode):
+                description = "symlink"
+            elif stat.S_ISDIR(mode):
+                continue
+            elif stat.S_ISREG(mode):
+                description = "regular file"
+            else:
+                description = "special file"
+        ctx.err(path, f"trusted goal prefix is {description}; required ordinary "
+                      "directory and target was not read", force=True)
+        return False
+    return True
+
+
+def check_goal_symlinks(ctx: Ctx) -> None:
+    """Reject goal-tree symlinks without opening or traversing their targets."""
+    root = os.path.join(REPO, "ledger", "goals")
+    try:
+        root_mode = os.lstat(root).st_mode
+    except OSError:
+        return
+    if not stat.S_ISDIR(root_mode):
+        return
+    pending = [root]
+    while pending:
+        current = pending.pop()
+        try:
+            entries = sorted(os.scandir(current), key=lambda entry: entry.name)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_symlink():
+                ctx.err(entry.path,
+                        "goal path may not be a symlink; target was not read",
+                        force=True)
+            elif entry.is_dir(follow_symlinks=False):
+                pending.append(entry.path)
+
+
+# ECC goals have an UNLIMITED campaign budget, on user instruction
+# (2026-09-04). The area set and the field list are declared once, in
+# orchestration/research-priority.yaml, and read through tools/ecc_priority.py
+# -- never re-derived here and never inferred from an identifier prefix.
+#
+# Only `active` and `draft` goals are checked. A terminal goal's budget is
+# history; rewriting it would be a retroactive edit of a closed campaign, not a
+# policy fix.
+#
+# What unlimited does NOT mean: `max_concurrent` stays bounded (it is machine
+# headroom, not a research budget), and removing the batch ceiling does not
+# remove the duty to rank -- never dispatch a task you cannot rank ahead of
+# doing nothing.
+def check_ecc_budget_is_unlimited(path, goal, status, ctx: Ctx):
+    if status not in ("active", "draft"):
+        return
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import ecc_priority
+        policy = ecc_priority.load_policy()
+    except Exception:
+        return                       # policy absent or unreadable: not a ledger error
+    if not (policy.get("budget") or {}).get("ecc_unlimited"):
+        return
+    gid = str(goal.get("id") or "")
+    if not ecc_priority.is_ecc(gid, policy):
+        return
+    budget = goal.get("campaign_budget")
+    if not isinstance(budget, dict):
+        return
+    for field in ecc_priority.unbounded_fields(policy):
+        value = budget.get(field)
+        if value is not None:
+            ctx.err(path,
+                    f"ECC goal {gid} must have an unlimited campaign budget: "
+                    f"campaign_budget.{field} is {value!r}, must be null "
+                    f"(orchestration/research-priority.yaml)")
+
+
+# Frozen closures already present when the 2026-09-06 policy was adopted.
+# Never add future closures to this compatibility set.
+PRE_STAGNATION_BUDGET_CLOSURES = {
+    "GOAL-MLKEM-001", "GOAL-MLKEM-003", "GOAL-MLKEM-004",
+    "GOAL-P13-001", "GOAL-ECQ-002",
+}
+
+
+def check_budget_retirement(path, goal, ctx):
+    if goal.get("status") != "closed_at_budget" or goal.get("id") in PRE_STAGNATION_BUDGET_CLOSURES:
+        return
+    sys.path.insert(0, REPO)
+    from orchestration.research_budget import enforce_research_budget
+    from datetime import date
+    budget = goal.get("campaign_budget") or {}
+    try:
+        # Historical closures remain verifiable after their review expires.
+        # The restriction must have been current at the recorded closure date.
+        closed_at = date.fromisoformat(goal.get("closed_at", ""))
+        if closed_at > date.today():
+            raise ValueError("budget closure cannot be future-dated")
+        if not enforce_research_budget(budget, today=closed_at, repo_root=REPO, target_id=goal.get("id")):
+            raise ValueError("advisory estimates cannot retire a research goal")
+    except (ValueError, TypeError) as exc:
+        ctx.err(path, f"budget retirement requires a 90-day stagnation review: {exc}")
+
+
 def check_goals(ctx: Ctx):
+    if not check_trusted_goal_prefixes(ctx):
+        return
+    check_goal_symlinks(ctx)
     for path, goal, expected_name, identity in load_goal_documents(ctx):
         rec_id = goal.get("id")
         if not rec_id or not GOAL_ID.match(str(rec_id)):
@@ -1344,8 +1805,14 @@ def check_goals(ctx: Ctx):
                     ctx.err(path, f"missing required field '{field}'")
 
         status = str(goal.get("status", "")).strip()
-        if status and status not in GOAL_STATUSES:
+        if status in GOAL_STATUSES_REFUSED:
+            ctx.err(path, f"status {status!r} is not permitted: "
+                          f"{GOAL_STATUSES_REFUSED[status]}")
+        elif status and status not in GOAL_STATUSES:
             ctx.err(path, f"invalid status {status!r}")
+
+        check_ecc_budget_is_unlimited(path, goal, status, ctx)
+        check_budget_retirement(path, goal, ctx)
 
         if status == "completed" and not grandfathered:
             check_goal_closure_quorum(path, goal, ctx)
@@ -1459,6 +1926,17 @@ def main() -> int:
                          "(bootstraps the full set only if no baseline "
                          "file exists; never grows an existing one)")
     args = ap.parse_args()
+
+    # This must precede every inventory, glob, supersession, and record read.
+    # If ledger itself is an alias, even an apparently unrelated ledger glob
+    # would otherwise escape the candidate tree before check_goals runs.
+    prefix_ctx = Ctx(set())
+    if not check_trusted_goal_prefixes(prefix_ctx):
+        print(f"FAIL: {len(prefix_ctx.errors)} new validation error(s):\n",
+              file=sys.stderr)
+        for error in prefix_ctx.errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
 
     try:
         legacy_inventory = load_legacy_inventory()

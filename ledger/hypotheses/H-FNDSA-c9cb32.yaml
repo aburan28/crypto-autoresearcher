@@ -1,0 +1,161 @@
+hypothesis:
+  id: H-FNDSA-c9cb32
+  question_id: RQ-FNDSA-001
+  derived_from_idea: IDEA-20260801-010
+  added: '2026-08-25'
+  statement: >-
+    The distributional-exactness assumption that FN-DSA's security argument rests on is testable
+    independently of any timing channel, and the test either rejects it or bounds its violation at a
+    stated resolution. Concretely - collecting a large seeded sample of the sampler's outputs in a
+    non-timing channel, CONDITIONED ON THE SAMPLER'S CALL PARAMETERS so that a single well-defined
+    ideal distribution is being compared against, and applying a goodness-of-fit test against that
+    ideal discrete Gaussian, yields exactly one of three verdicts, each of which is a result:
+    (i) the test REJECTS on the real sampler while the exact reference control does not reject and
+    the perturbed control does - a distributional defect exists and its size is at least the minimum
+    detectable deviation at the achieved sample size, and the distributional attack surface is open;
+    (ii) the test FAILS TO REJECT on the real sampler while still rejecting the perturbed control -
+    distributional exactness holds within the sample's resolution, and the deliverable is the bound,
+    stated as the minimum detectable deviation and not as a proof of exactness;
+    (iii) the test fails to reject on the perturbed control as well - the instrument has no power and
+    the run is INVALID rather than reassuring, which is the outcome a naive version of this
+    experiment would most easily produce and report as a clean bill of health.
+    The record asserts nothing about timing leakage, which is a different channel and out of scope,
+    and nothing about whether any distributional defect it might find is exploitable.
+  mechanism: >-
+    The historical break of NTRUSign came from distributional error rather than timing error - the
+    emitted signature distribution leaked the secret basis because it was not the intended
+    distribution. FN-DSA's corresponding assumption is that its Gaussian sampler emits from the
+    intended discrete Gaussian, so that the signature distribution is independent of the secret. That
+    assumption is a statement about a distribution whose ideal form is computable over the sampler's
+    support, and the sampler is observable in a non-timing channel because its outputs can be
+    collected from seeded runs. A goodness-of-fit test therefore compares an empirical distribution
+    against a computable one, with power that is a function of the sample size and the alternative
+    considered. The load-bearing subtlety, and the reason a naive version of this test is worthless,
+    is that the sampler is called with varying parameters - a per-call centre and a per-call
+    deviation - so the pooled marginal of its outputs is a MIXTURE of many ideal distributions and
+    is not the ideal distribution of anything. Conditioning on the call parameters is what makes
+    "the ideal discrete Gaussian" a well-defined comparison target; without it, the test compares a
+    mixture against a component and will reject on a perfectly exact sampler.
+  assumptions:
+    - id: HEUR-FNDSA-GOF-1
+      formal_statement: >-
+        Conditioned on its call parameters, the sampler's outputs across fresh seeds are independent
+        draws from a single fixed distribution on its support. Formally - for a fixed call parameter
+        bucket b, the observed values X_1, .., X_n in bucket b are i.i.d. with a common law mu_b that
+        does not depend on the index or on the seed stream position.
+      rigorous_support: >-
+        None. This is the standard assumption underlying every goodness-of-fit statistic and it is
+        not proved here. What is available is a DIAGNOSTIC rather than a proof - autocorrelation of
+        the output sequence at declared lags, and a seed-interleaving check comparing statistics
+        computed within one seed's stream against statistics computed across seeds.
+      validation_experiment_ids: [EXP-FNDSA-4b71f9]
+      falsification_condition: >-
+        Autocorrelation at any declared lag exceeding the pre-declared band, or a seed-interleaving
+        statistic differing significantly between within-seed and across-seed pooling. Either means
+        the p-values are not calibrated and NO verdict on the real sampler is reportable.
+    - >-
+      The ideal discrete Gaussian over the sampler's support, at the sampler's own call parameters,
+      is exactly computable to a precision better than the test's resolution. This is checked by
+      recomputing the ideal pmf at two precisions and requiring agreement, not assumed.
+    - >-
+      The FN-DSA specification is fetched and filed from primary text under a run record before the
+      ideal distribution is constructed. An ideal distribution built from recall is a different
+      distribution and the test would then be measuring the recall.
+    - >-
+      Support truncation is part of the ideal, not an approximation to it. Whatever tail cut the
+      specification mandates is applied to the ideal distribution as well, and any renormalisation is
+      declared before the test runs.
+    - >-
+      Seeded observation is a NON-TIMING channel. Nothing in this record observes or claims anything
+      about execution time, power or electromagnetic emission.
+  test_boundary:
+    instances: >-
+      The FN-DSA Gaussian sampler as specified in the filed primary text, plus two synthetic
+      samplers - an exact reference discrete Gaussian sampler written independently, and a
+      deliberately perturbed sampler whose deviation from the ideal is a declared, tunable size.
+    parameters: >-
+      At least 10^6 conditioned samples per call-parameter bucket, with the number of buckets and
+      the bucket definition frozen before collection; a declared rejection threshold; a perturbation
+      ladder for the negative control spanning at least five sizes so the test's power curve is
+      measured rather than asserted at one point.
+    quantities: >-
+      Goodness-of-fit p-values, the minimum detectable deviation at the achieved sample size, the
+      measured power curve against the perturbation ladder, and the independence diagnostics.
+    out_of_scope: >-
+      Timing, power and electromagnetic channels; any statement about exploitability of a defect if
+      one is found; any statement about a deployed implementation other than the one whose outputs
+      are collected; and the lattice-reduction side of any attack, which is not touched.
+  distinguishable_outcomes:
+    - outcome: >-
+        The exact reference control does not reject; the perturbed control rejects at the declared
+        perturbation size and the measured power curve is monotone in perturbation size; and the real
+        sampler REJECTS.
+      means: >-
+        A distributional defect is present at a size at least the minimum detectable deviation. The
+        distributional attack surface is OPEN and the deliverable is the defect's location - which
+        bins, which call-parameter buckets, and the size of the discrepancy - handed to a separate
+        record that would ask whether it is exploitable. This record makes no exploitability claim.
+    - outcome: >-
+        The exact reference control does not reject; the perturbed control rejects with a monotone
+        power curve; and the real sampler FAILS TO REJECT.
+      means: >-
+        Distributional exactness holds within the sample's resolution. The deliverable is the BOUND -
+        the minimum detectable deviation at the achieved sample size - and explicitly not a proof of
+        exactness. This closes the distributional surface only down to that resolution, and the
+        resolution is the number the record exists to produce.
+    - outcome: >-
+        The perturbed control ALSO fails to reject at perturbation sizes where it should.
+      means: >-
+        The instrument has no power. Every non-rejection it produced, including on the real sampler,
+        is void, and the run set is INVALID rather than reassuring. This is the outcome a
+        badly-binned or under-sampled version of this test produces, and it is the reason the
+        negative control is blocking.
+    - outcome: >-
+        The exact reference control REJECTS.
+      means: >-
+        The test is mis-calibrated - most likely the binning, the truncation convention, the
+        conditioning on call parameters, or the computed ideal pmf is wrong. No verdict on the real
+        sampler is admissible. An implementation defect, never evidence about FN-DSA.
+    - outcome: >-
+        The independence diagnostics fail - autocorrelation outside the declared band, or a
+        significant within-seed versus across-seed difference.
+      means: >-
+        HEUR-FNDSA-GOF-1 is violated, the p-values are not calibrated, and no verdict is reportable
+        until the sampling protocol is changed. This is a finding about the observation channel, not
+        about the sampler's law.
+    - outcome: >-
+        The real sampler rejects ONLY when outputs are pooled across call-parameter buckets, and does
+        not reject within any bucket.
+      means: >-
+        The apparent defect is the mixture artifact the mechanism section names, not a distributional
+        error. This is the specific false positive this design is built to exclude, and observing it
+        is a finding about the experiment's own most likely failure mode.
+  prior_evidence_refs:
+    - RQ-FNDSA-001
+    - IDEA-20260801-010
+  falsification_conditions:
+    - The exact reference sampler control rejects; the test is mis-calibrated and no verdict is admissible.
+    - The perturbed sampler control fails to reject; the test has no power and every non-rejection is void.
+    - The measured power curve is non-monotone in perturbation size; the statistic cannot be read directionally.
+    - Independence diagnostics fail; p-values are not calibrated.
+    - >-
+      The ideal pmf recomputed at two precisions disagrees at a level comparable to the test's
+      resolution; the comparison target is not computed accurately enough to support any verdict.
+  interpretation_limits:
+    - >-
+      A non-rejection is a BOUND, not a proof of exactness. Every report states the minimum detectable
+      deviation at the achieved sample size and refuses any statement below it.
+    - >-
+      A rejection is a statement about the distribution, not about exploitability. Whether a
+      distributional defect of the measured size yields any attack is a separate question this record
+      does not touch.
+    - >-
+      Timing leakage is out of scope. Nothing here bears on it in either direction.
+    - >-
+      Everything is scoped to the sampler implementation whose outputs were collected, at the filed
+      specification's parameters, and to the call-parameter buckets actually sampled. A bucket not
+      sampled is not spoken for.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-25'

@@ -1,0 +1,232 @@
+handoff:
+  id: TASK-20260904-410404
+  from: coordinator
+  to: validator
+  objective: >-
+    Round 1, joint J1: verify the integrity of the archived EXP-ECDLP-56ee42
+    stage 0-2 run records and independently re-derive the two
+    load-bearing quantities (the 284/529 fixture and the T21 spectral
+    norm) blind from the frozen definitions, and re-adjudicate the T3
+    static-provenance flag at data-flow level.
+  uncertainty_reduced: >-
+    Whether the archived numbers are what the frozen contract says they
+    are (fixture exact, norms correct, seeds as declared, no T-arm code
+    path reading the discrete-log coordinate), independent of the
+    producer's implementation.
+  inputs:
+  - AGENTS.md
+  - agents/validator.md (your role contract)
+  - ledger/decisions/DEC-20260904-92dec2.yaml (the claim under review)
+  - experiments/EXP-ECDLP-56ee42/specification.yaml (frozen contract v1: estimator, controls, seeds, gates)
+  - ledger/proposals/IDEA-20260815-f558e4.yaml (the estimator definition: q_maj, q_strict, interval partition; the fixture's 284/529 provenance)
+  - experiments/EXP-ECDLP-56ee42/design/ladder.json (frozen ladder: p, a, b, N, j per rung)
+  - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S0/raw-result.json (recorded norms to be checked)
+  - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S1/raw-result.json (recorded fixture + enumeration, generator, cache hashes)
+  - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S2/raw-result.json (recorded control numbers)
+  - experiments/EXP-ECDLP-56ee42/implementation/estimator.py (READABLE ONLY for joint (e), the data-flow adjudication; NOT for the blind re-derivations (a)/(b) -- see blind_rederivation)
+  constraints:
+  - >-
+    You own joint J1 ONLY (see review_plan.joints). Do not opine on the
+    CONTROL-C adjudication (joint J2, owned by TASK-20260904-a897dc); if
+    a J1 finding touches it, record the observation and stop there.
+  - 'Blindness: do not read the red team report or any other reviewer output of this round. Attest what you read.'
+  - >-
+    For (a) and (b): start from the quantity statement + parameters and
+    the frozen definitions; you must NOT read the producer's
+    implementation or notes (blind_from list). Write your own
+    independent code in your write_scope.
+  - 'No changes to any ledger, experiment, or goal record. Write nothing outside write_scope. Never commit.'
+  - >-
+    Re-derivation scripts and their outputs are review work product in
+    your write_scope; they are not experiment runs and create no run
+    records. maximum_runs is 0: you execute no stage of EXP-ECDLP-56ee42.
+  - >-
+    Record requested policy and the resolved model that actually
+    answered; if this session cannot honour review-adversarial, refuse
+    rather than downgrade.
+  deliverables:
+  - >-
+    report.yaml in your write_scope: per-joint verdict (SUSTAINED or
+    BROKEN with the specific mismatch), the blind re-derivation results
+    (computed vs recorded, with your script paths), the seed-arithmetic
+    check, the data-flow adjudication of the T3 flag, a blindness
+    attestation (exactly which files you read), and model provenance.
+  artifact_paths:
+  - experiments/EXP-ECDLP-56ee42/reviews/round-1/validator/
+  archived_by: null
+  inference:
+    policy: review-adversarial
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+  budget:
+    wall_clock_seconds: 7200
+    memory_gb: 16
+    maximum_runs: 0
+  completion_gate:
+  - 'report.yaml exists, parses as strict YAML, and covers every item of joint J1'
+  - 'blind re-derivation (a) fixture: independent code, exact rationals, compared to recorded 284/529'
+  - 'blind re-derivation (b) T21 t-norm: independent FFT at p = 2097169, compared to recorded 717522016.0036793'
+  - 'seed arithmetic verified against the declared arm order'
+  - 'T3 data-flow adjudication states whether any k-INPUT exists in any T-arm or comparator code path'
+  - 'blindness attestation and model provenance present'
+  return_format: 'the report.yaml contents (or its path) and nothing else'
+  review_plan:
+    claim_under_review: >-
+      As its producer (Coordinator, DEC-20260904-92dec2) stated it: the
+      stage-2 CONTROL-C gate failure of EXP-ECDLP-56ee42 is a
+      miscalibrated known answer -- the frozen 'removal' threshold
+      (post-shuffle <= 0.5 x pre-shuffle) contradicts the cited o2-lane
+      RT-EXP-1 reference, which documents that the unbalanced marginal
+      artifact SURVIVES the matched-marginal shuffle while genuine
+      point-structure content collapses -- and is not evidence that the
+      NULL-2 shuffle is broken; the static-provenance T3 flag is a
+      false positive of a token-based scanner; therefore, under the
+      two-sided control of amendment v2 (T4 survival band C1 + comparator
+      collapse C2, blocking + amended static check C3), the stage-2 stop
+      does not void the digit numbers once the calibration run passes.
+    coordinator_prior: >-
+      Written before any reviewer runs. On J1 I expect CONFIRM: the
+      computations are deterministic, the S0 table in vacuity-derivation.md
+      matches the raw JSON line by line, the POS-B rung values reproduce
+      the design-time sanity figures (0.054186 at 131113, 0.040388 at
+      525361) to 5+ digits, and the fixture is an exact rational against
+      the f558e4 record. On J2 (the red team's joint, noted here only as
+      prior) I expect a REVISE rather than a clean APPROVE: (i) C1 alone
+      admits the no-op permutation (survival ratio 1.0 lies inside
+      [0.70, 1.10]), so C2 is load-bearing -- I found this while
+      drafting and record it rather than let the round rediscover it;
+      (ii) the [0.70, 1.10] band is borrowed from the o2 G-1 statistic,
+      not derived for A_noDC, and max-over-8 inflates ratios toward 1;
+      (iii) the comparator (top bit of x) has nearly-balanced level sets,
+      so part of its pre-shuffle A_noDC could be marginal, in which case
+      C2's expected collapse is over-stated. I do not expect J1 to break.
+    joints:
+    - joint: >-
+        J1 -- the archived run records say what the frozen contract says
+        they say: (a) the fixture 284/529 at N = 23, s = 3 is the true
+        q_maj of the f558e4 estimator over the order-23 group; (b) the
+        recorded T21 t L1 spectral norm is the true norm of the digit
+        statistic on the frozen T21 rung; (c) the S2 gate table
+        (survival ratios, POS-A diffs, POS-B beta) is arithmetically
+        correct from its own raw numbers; (d) the NULL-2 seeds are
+        BASE 0x56EE42 + 1000 + 10*arm_index + shuffle_index with arm_index
+        per the declared arm order; (e) no T1-T4 or COMPARATOR statistic
+        code path takes the discrete-log coordinate k as input
+        (data-flow level, all functions).
+      assigned_to: TASK-20260904-410404
+      attack_plan: >-
+        (a) Blind re-derivation: write independent code from the f558e4
+        estimator definition (q_maj over exact rationals, interval
+        partition at s = 3, all 529 pairs of the order-23 group) and
+        compare to the recorded 284/529. (b) Blind re-derivation: from
+        the spec's estimator block and ladder.json (p = 2097169, b = 1,
+        N = 2098321, curve y^2 = x^3 + x + b), build the order-N subgroup
+        independently, form the T1-arm statistic exactly as the spec
+        defines it, and compute the L1 norm (one length-p DFT) compared
+        to the recorded 717522016.0036793; also recompute the r norm and
+        the comparator norm at the same rung as a cross-check on your
+        method (recorded: 718196597.0195143 and 11063466.790552609).
+        (c) Recompute all six T4 survival ratios and the POS-A/POS-B gate
+        quantities from the S2 raw JSON; any mismatch is a break.
+        (d) Read the seed declaration in the spec and the seed
+        construction in stage2.py/estimator.py; verify the arithmetic and
+        the ARM_INDEX mapping against the declared arm order. (e) Read
+        every statistic function (thue_morse, rudin_shapiro scalar and
+        array, popcount_mod4 scalar and array, top_bit_fiber scalar and
+        array) and state for each whether k enters as parameter, closure,
+        global, or index-by-discrete-log; a local counter named k is not
+        a k-input. Where the Coordinator thinks this breaks: nowhere --
+        this is the confirm joint; a break here voids the archived
+        numbers, not the adjudication.
+      breaking_artifact: >-
+        any numeric mismatch in (a)/(b)/(c), a seed-construction error in
+        (d), or any k-INPUT in a T-arm/comparator path in (e).
+    - joint: >-
+        J2 -- the CONTROL-C adjudication and the amendment v2 control
+        design: the survival-reading of the o2-lane reference is correct
+        and correctly transferred; the two-sided control (C1 + C2)
+        actually discriminates a working NULL-2 from broken ones; the
+        C1 band is defensible as stated.
+      assigned_to: TASK-20260904-a897dc
+      attack_plan: >-
+        (a) Recompute the o2 survival ratios from the raw G numbers in
+        the RT-EXP-1 table (popcount, digitsum, P2 dlog-int, sha null)
+        and check every number the DEC quotes. (b) Settle the rt_exp_1.py
+        code comment ('SURVIVES this is signal') against the result
+        document (surviving popcount effect read as 'imbalance'): which
+        reading is correct, and is the DEC's lean justified? (c)
+        Construct the two broken-shuffle scenarios -- no-op permutation
+        and max-preserving permutation -- and tabulate what C1 and C2
+        each accept/reject; the two-sided control as a whole must reject
+        both. (d) Critique the transfer o2 (G-1, p <= 65539, one shuffle)
+        -> this instrument (A_noDC, p >= 131101, max over 8): state which
+        part is mechanism (exact) and which is borrowed magnitude, and
+        whether the [0.70, 1.10] band is defensible before the C2 run or
+        must be re-anchored after it. (e) Assess the comparator as the
+        point-structure positive control: quantify the top-bit-of-x level
+        sets on the six ladder rungs (the stage-cache x arrays on disk,
+        hash-bound in the S1 record, are available for this) and state
+        how much of its pre-shuffle A_noDC could plausibly be marginal;
+        if marginal-dominated, demand a planted point-structure control
+        in place of the comparator. Where the Coordinator thinks this
+        breaks: (c) -- C1 admits the no-op, and (e) -- the comparator's
+        balance is 'nearly', not quantified.
+      breaking_artifact: >-
+        a demonstrated case where the adjudication logic accepts a broken
+        NULL-2 (no-op or max-preserving), a misquoted o2 number, an
+        unjustified comment-vs-document lean, or a showing that the
+        comparator's C2 expectation is not a known answer.
+    blindness:
+      mutual: true
+      lifted_for: []
+      rationale: null
+    proves_too_much:
+      objects:
+      - >-
+        the no-op (identity) permutation as 'NULL-2': the conclusion
+        'NULL-2 is the o2-lane control' is KNOWN FALSE for it
+      - >-
+        the max-preserving permutation (permutes all values except the
+        maximum) as 'NULL-2': also KNOWN FALSE
+      - >-
+        the o2 P2 dlog-int [old ctrl] row (G 4.06 -> 20.01, SHUF
+        1.0640 -> 1.0030): KNOWN point-structure content; the
+        adjudication must classify it as the collapse pattern, not the
+        survival pattern
+      failure_signature: >-
+        The adjudication logic must REJECT both broken shuffles -- via C2,
+        since under either of them the comparator's post-shuffle max
+        equals its pre-shuffle value (ratio 1.0 > 0.5, C2 fails) -- and
+        must classify the P2 row as collapse. If the logic accepts either
+        broken shuffle, or classifies the P2 row as survival, it has
+        proved too much and is wrong somewhere.
+      assigned_to: TASK-20260904-a897dc
+    blind_rederivation:
+      required: true
+      quantity: >-
+        (a) q_maj of the f558e4 interval-partition statistic on the
+        order-23 group at s = 3, by exact rationals over all 529 pairs
+        (recorded: 284/529; q_strict recorded 0). (b) the L1 spectral
+        norm SUM_chi |hat{v}(chi)| of the T1-arm (Thue-Morse) digit
+        statistic on the order-2098321 subgroup of y^2 = x^3 + x + 1 over
+        F_2097169, per the spec's estimator definition (recorded:
+        717522016.0036793).
+      parameters: 'specification.yaml estimator/controls blocks; ledger/proposals/IDEA-20260815-f558e4.yaml; experiments/EXP-ECDLP-56ee42/design/ladder.json (T21 rung: p = 2097169, b = 1, N = 2098321); the recorded values in RUN-ECDLP-56ee42-S1/S0 raw-result.json are the targets to be checked'
+      blind_from:
+      - experiments/EXP-ECDLP-56ee42/implementation/estimator.py
+      - experiments/EXP-ECDLP-56ee42/implementation/stage0.py
+      - experiments/EXP-ECDLP-56ee42/implementation/stage1.py
+      - experiments/EXP-ECDLP-56ee42/implementation/stage2.py
+      - experiments/EXP-ECDLP-56ee42/implementation/runrecord.py
+      - experiments/EXP-ECDLP-56ee42/implementation/selftest.py
+      - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S0/vacuity-derivation.md
+      assigned_to: TASK-20260904-410404
+    procedure_deviations:
+    - >-
+      Contingency, pre-declared: if a review subagent is inoperable on
+      this runtime (empty return with no on-disk report), the round does
+      not complete and the DEC stays under review; that is recorded as an
+      impediment with a recheck, never as a deviation from this plan and
+      never as a review verdict.

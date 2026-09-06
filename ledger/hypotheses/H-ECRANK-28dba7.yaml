@@ -1,0 +1,157 @@
+hypothesis:
+  id: H-ECRANK-28dba7
+  question_id: RQ-ECRANK-27dcc5
+  statement: >-
+    There is an explicit elliptic curve E/Q and an explicit multiquadratic field
+    K with [K:Q] <= 32 such that rank E(K) >= 31 is certified UNCONDITIONALLY by
+    a finite, machine-checkable witness: a list of rational points on quadratic
+    twists of E, each verified non-torsion by Mazur's theorem, attached to
+    pairwise distinct classes in Q*/(Q*)^2. No height, no regulator, no BSD and
+    no Selmer bound enters the certificate.
+  mechanism: >-
+    For squarefree d the twist E^(d): v^2 = u^3 + Ad^2 u + Bd^3 admits the
+    injective homomorphism phi_d(u,v) = (u/d, (v/d^2) sqrt d) into E(K) whenever
+    sqrt d lies in K. For sigma in G = Gal(K/Q) one has sigma(sqrt d) =
+    chi_d(sigma) sqrt d, hence sigma(phi_d P) = chi_d(sigma) phi_d P: the image
+    is a chi_d-eigenvector. G is an elementary abelian 2-group, so E(K) (x) Q is
+    a Q[G]-module and the projector e_chi = |G|^-1 sum_sigma chi(sigma) sigma
+    annihilates every eigenvector of a different character. Non-torsion points
+    attached to distinct classes d therefore lie in distinct eigenspaces and are
+    Z-independent BY ALGEBRA, with no metric input. The rank bound is exactly
+    the number of distinct classes carrying a point; multiplicities within one
+    class need a separate, weaker (numerical) height argument.
+  assumptions:
+  - >-
+    Mazur's theorem on torsion of elliptic curves over Q (orders 1..10 and 12),
+    used only to turn "m*P != O for m = 1..12" into "P has infinite order".
+  - >-
+    Exact rational arithmetic in the verifier; no floating point in the
+    eigenspace bound.
+  - >-
+    PARI ellrank is used to FIND points. It is not trusted for the claim: every
+    returned point is re-checked on the curve and re-checked non-torsion by the
+    independent verifier. A wrong point is caught, not inherited.
+  proof_search_map:
+    bottleneck: >-
+      Independence of the exhibited points. Every rank lower bound reduces to
+      it, and the standard tool -- the Neron-Tate height regulator -- is
+      numerical, which is what forces high-rank claims to carry floating-point
+      trust. Removing that step is what changes the certificate's strength.
+    baseline_embedding:
+      parameter_slice: >-
+        The naive baseline is base change of a single high-rank curve: rank
+        E(K) >= rank E(Q), which over Q caps at 29 (the world record) and
+        contributes nothing at small degree from a curve we can actually find
+        (our pool tops out at rank 4 over Q).
+      reproduction_check: >-
+        The pipeline reproduces the baseline exactly at k = 0 (V trivial, K = Q,
+        bound = rank E(Q)), which is the d = 1 term of the same sum. The k = 0
+        column is therefore a regression fixture, not a separate code path.
+    observation_collision:
+      observable: >-
+        The Galois character chi_d attached to a point. Two points collide as
+        evidence exactly when their characters coincide -- i.e. when their twist
+        classes agree modulo squares.
+      distinct_preimage_search: >-
+        The search is precisely a search for many DISTINCT preimages of the
+        "carries a non-torsion point" predicate under d |-> chi_d, inside a
+        subgroup V small enough that [K:Q] = |V| stays low. Maximising distinct
+        characters and minimising |V| are the two competing objectives, and the
+        experiment reports both.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: >-
+        Replace "31 independent points on one curve over one field", which needs
+        a 31x31 regulator, by "31 points in 31 distinct isotypic components of a
+        Q[(Z/2)^k]-module", which needs no pairing at all.
+      predicted_gain: >-
+        The independence certificate drops from a numerical 31x31 determinant to
+        a finite exact check: distinctness of 31 squarefree integers modulo
+        squares.
+    - transform: specialization_pack
+      proposed_object: >-
+        Scan AFFINE subspaces (cosets) of the support group rather than
+        subgroups, since twisting the base curve by d0 carries the family
+        {E^(d): d in V} to {E^(d): d in d0 V}.
+      predicted_gain: >-
+        Covers every quadratic twist of every pool curve at no extra descent
+        cost -- the same 2^|S| rank computations serve all cosets.
+    quantifier_order: >-
+      EXISTS a curve E/Q and EXISTS a subgroup V of Q*/(Q*)^2 with |V| = 2^k
+      such that FOR ALL of at least 31 classes d in V there EXISTS a non-torsion
+      point in E^(d)(Q). The existential over (E, V) is discharged by exhibition;
+      the universal is over a finite explicit list and is discharged by direct
+      check. Nothing is quantified over an infinite family, which is why the
+      result needs no heuristic.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        rank E(K) >= (number of classes in V carrying a point) <= |V| = 2^k. The
+        eigenspace argument CANNOT certify more than 2^k, so rank >= 31 by this
+        route alone requires [K:Q] >= 32. Below degree 32 the method must fall
+        back on within-class multiplicities and therefore on height regulators;
+        that is a strictly weaker certificate and is reported separately.
+        The method says NOTHING about rank over Q and cannot be pushed there:
+        at k = 0 it degenerates to the base curve's own rank.
+      nearby_object_control: >-
+        The k = 3 (degree 8) arm is the nearby-object control: same pipeline,
+        same pool, one dimension less. It is expected to fall short of 31, and
+        reporting it is what distinguishes a mathematical result from a
+        pipeline that always says yes.
+    proof_obligations:
+    - claim: each exhibited point lies on the stated twist
+      responsibility: correctness
+    - claim: each exhibited point has infinite order
+      responsibility: correctness
+    - claim: the classes used are pairwise distinct modulo squares
+      responsibility: strictness
+    - claim: V is a subgroup, so K is the multiquadratic field named and [K:Q] = |V|
+      responsibility: interface
+    - claim: within-class multiplicities are independent
+      responsibility: correctness
+    - claim: >-
+        the reported minimal degree is what THIS pipeline reached, not a proven
+        minimum over all methods
+      responsibility: scope
+  rerandomization: null
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Explicitly null rather than absent. This hypothesis claims no complexity
+    improvement on any hard problem: it is an existence statement with a
+    witness. docs/target-result-profile.md exponent-moving criteria do not apply
+    and are not being quietly claimed.
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    Empty by construction and this is the point of the design: the certificate
+    is a finite exact check, so there is no heuristic to number. The one
+    numerical ingredient (height regulator) appears ONLY in the secondary,
+    multiplicity-based bound and is labelled there.
+  predictions:
+  - id: P1
+    statement: >-
+      At k = 5 ([K:Q] = 32) some (base curve, coset) reaches 31 or more DISTINCT
+      classes carrying a non-torsion point, giving rank >= 31 with a purely
+      algebraic certificate.
+  - id: P2
+    statement: >-
+      At k = 4 ([K:Q] = 16) the distinct-class count cannot exceed 16, so any
+      bound >= 31 there must come from multiplicities and must carry the weaker
+      regulator-based certificate.
+  - id: P3
+    statement: >-
+      At k = 3 ([K:Q] = 8) the pipeline falls short of 31 by every measure.
+  falsification:
+  - >-
+    The independent exact verifier reports any error on a certificate the search
+    claims is good.
+  - >-
+    P1 fails: no configuration at k = 5 reaches 31 distinct classes, which would
+    make degree 32 unreachable for the algebraic certificate.
+  - >-
+    A class is found whose exhibited "non-torsion" point satisfies m*P = O for
+    some m <= 12, i.e. the Mazur check fires.
+  status: supported
+  status_note: >-
+    Moved specified -> supported by DEC-20260822-5a5635 on EV-ECRANK-b6c9b6.
+    The transition is scoped to the certified statements at degree >= 16 and
+    carries NO claim about rank over Q.
+  owner: coordinator

@@ -1,5 +1,29 @@
 # CLAUDE.md
 
+## Research budgets: progress first
+
+User instruction, 2026-09-06. Applies to this researcher across all areas and
+supersedes older instructions that stop routine work on time/CPU/batch estimates.
+Research cost estimates are advisory, may be null, and require no repeated user
+approval. The Coordinator continues justified work within the authorized research
+scope. CPU usage is measured for algorithm comparisons, not rationed by default.
+
+Only an exceptional, committed Coordinator stagnation review may activate a
+research spending cap: at least **90 days without documented progress**, explicit
+evidence and scope, a concrete next action, and a recent assessment (within seven
+days). Missing telemetry, inactivity, outages and exhausted estimates alone are
+not stagnation. New evidence or progress requires reassessment; expiry never
+automatically renews a restriction. See `docs/research-budget-policy.md` and
+`orchestration/research_budget.py`.
+
+Memory/concurrency limits and explicitly justified process watchdogs remain
+machine protection. Watchdog expiry checkpoints a task; it does not exhaust the
+campaign or require another user budget approval. Fixed scientific sample counts,
+locked execution plans, zero-run tasks, write scopes, controls, immutable records,
+independent review and the Bedrock prohibition still bind. Changing a frozen
+scientific protocol uses an additive amendment; never rewrite historical records.
+
+
 Claude Code **runtime binding** for the autonomous, reproducible ECDLP
 research program. The program itself is runtime-neutral: the binding
 inter-agent contract is `AGENTS.md`, the role contracts are `agents/*.md`
@@ -83,7 +107,7 @@ Code specifically.
    recorded `DISSENT` still blocks closure; and closing a goal is still the
    program's strongest claim, now resting on the Coordinator decision and its
    cited evidence alone. Do not retire a goal that met a criterion under
-   `paused`/`closed_at_budget` to understate it. The rule and its enforcement
+   `closed_at_budget`/`cancelled` to understate it. The rule and its enforcement
    are retained in `tools/validate_ledger.py` and restored by setting
    `GOAL_CLOSURE_QUORUM_REQUIRED = True`. See AGENTS.md "Goal closure quorum".
 9. Pursue promising paths in good faith. Do not deliberately abandon,
@@ -94,6 +118,27 @@ Code specifically.
    summaries, rankings, provenance, and ordinary research artifacts for
    independent review; it does not store, infer, or expose private
    chain-of-thought.
+10. **Goals are never paused.** `paused` and `blocked` are not permitted
+   `GOAL-*` statuses; `tools/validate_ledger.py` refuses both by name. A
+   campaign that meets an impediment stays `active` and records it under
+   `impediments` with `what_is_blocked`, `clears_when` and a `recheck`. This is
+   a scheduling rule and relaxes nothing: an impediment is still never negative
+   mathematical evidence, an unservable `review-breakthrough` still may not be
+   downgraded (the CLAIM stays un-promoted, not the campaign parked), and an
+   exceptional stagnation restriction still requires a Coordinator decision before more
+   spending. Terminal retirement is unchanged and remains a deliberate act:
+   `completed`, `closed_at_budget`, `cancelled`. See AGENTS.md "Goals are never
+   paused".
+11. **ECC comes first, and ECC budgets are unlimited.** On user instruction
+   (2026-09-04): every ECC goal has `maximum_batches: null` and
+   `total_wall_clock_seconds: null` (enforced); ECC goals are selected before
+   all others at every selection point; and open ECC ideas — `proposed` with no
+   hypothesis or experiment citing them — are ranked work to be designed into
+   experiments. The ECC area set is declared once in
+   `orchestration/research-priority.yaml`, read via `tools/ecc_priority.py`, and
+   is **never** inferred from an identifier prefix. Unlimited removes the batch
+   ceiling, not the duty to rank; `max_concurrent` stays bounded; designing an
+   experiment is not approving it. See AGENTS.md "ECC comes first".
 
 ## Research direction
 
@@ -125,7 +170,7 @@ evidence rules above apply unchanged.
 
 ## Conventions
 
-- IDs: `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
+- IDs: `GOAL-<AREA>-<tok>`, `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
   `EXP-<AREA>-<tok>`, `RUN-*`, `EV-<AREA>-<tok>`, `DEC-YYYYMMDD-<tok>`,
   `TASK-YYYYMMDD-<tok>`, `BATCH-<tok>`, `KN-{LIT,TECH,FIND,OPEN}-<tok>`, where
   `<tok>` is a random 6-hex token. Immutable, never reused.
@@ -136,6 +181,8 @@ evidence rules above apply unchanged.
   breaking whatever archive binds it. Mint with
   `python3 tools/allocate_id.py --next <type> [--area X | --date YYYYMMDD]`,
   which draws a token **without scanning state**, then `--check` it before use.
+  A new persistent goal uses `--next goal --area AREA`; confirm the emitted
+  `GOAL-<AREA>-<tok>` with `--check` before authoring its record.
   `BATCH-<tok>` takes neither `--area` nor `--date`: `--next batch`.
   The legacy three-digit form stays valid forever — existing records and batch
   directories are immutable and must not be renamed. Cost, stated plainly: IDs
@@ -143,6 +190,21 @@ evidence rules above apply unchanged.
   for chronology.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
+- **A test that counts the whole corpus asserts a floor, never an exact
+  number.** The corpus grows with every research batch and is a different
+  size in every concurrent worktree, so an exact count fails on branches that
+  changed nothing and cannot be right in two worktrees at once. It also decays
+  silently: the first such assertion to fail masks the rest, which is how four
+  pins in `kb/tests/unit/test_repo_corpus.py` drifted together unnoticed.
+  Assert a floor plus per-family coverage read back off the rule table, so a
+  family that collapses to zero still fails while ordinary growth does not.
+  Exactness belongs on **disclosed debt** — unparseable records, duplicate
+  identifiers, suppressed redirects — which is closed and never grown, so any
+  addition there is a regression. Raise a floor only from a reviewed corpus,
+  and **never to turn a red test green**: a floor you moved to match what you
+  just measured has stopped being a check. Cost, stated plainly: a floor
+  cannot see a small partial loss, so keep the debt sets and structural
+  invariants exact to carry that precision.
 - The Coordinator alone stages declared research paths in the shared worktree:
   snapshot before review, then ledger commit before a state transition. Commit
   messages reference the task and record IDs; never rewrite history over
@@ -214,6 +276,17 @@ collisions were the first instance of it and are already fixed the same way.
   experiment, move a hypothesis, or stand in as evidence, and real work still
   travels as a `TASK-*` handoff through the dispatcher. See
   `docs/inter-agent-messaging.md`.
+- **Task holds and open batches are write-once side files, not queue or
+  goal-head fields.** `tools/goal_lanes.py claim <queue> <TASK> --as <addr>
+  --ttl-minutes N --publish` before a subagent launch, `release … --outcome`
+  on return; `open-lane GOAL BATCH …` when a second session opens a batch on
+  a goal another session is already working. `research_dispatch.py --claims
+  refs` overlays them after `git fetch`: a live claim reads as `running`, a
+  completed release unblocks successors, the queue file is never edited.
+  Another session on the same goal is therefore NOT a stop: list its lanes,
+  claim an unclaimed Ready Task, or open a disjoint lane. Same feed
+  discipline as the bus — visibility is `git fetch`, collisions resolve by
+  lowest epoch. `docs/concurrent-goal-lanes.md`.
 - **Branch drift is a scheduled job, not your job.**
   `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
   six hours. It refuses any branch committed to within `--idle-minutes` (default

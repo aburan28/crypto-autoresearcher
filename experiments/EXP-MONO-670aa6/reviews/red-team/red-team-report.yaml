@@ -1,0 +1,625 @@
+red_team_report:
+  id: RT-20260831-670aa6
+  task_id: red-team-mono-670aa6
+  experiment_id: EXP-MONO-670aa6
+  hypothesis_id: H-MONO-663fb4
+  role: red-team
+  joint: J2-adversarial
+
+  review_plan_copy: >-
+    Prior (Coordinator, DEC-20260830-891d39 / CORR-20260831-d15d36): EXP-MONO-670aa6's
+    completed run (RUN-MONO-670aa6-1/2) was executed faithfully against its frozen v1
+    contract (commit 9e0e460e3), but the contract has two severe, independently-verified
+    design defects making its primary correction-based result (Stage 2 null-object gate,
+    Stage 3 real-arm Holm/Bonferroni test) uninterpretable, and its P5 enrichment
+    comparison is compromised. Stage 0 and the dual-path convolution-engine agreement are
+    believed to remain valid. K3/K4 (whether the real x-coordinate factor base's character
+    bias is distinguishable from a matched random symmetric subset) is believed to remain
+    OPEN. TASK: attack this. Joint J2-adversarial: find the strongest case the
+    Coordinator's disposition is WRONG in either direction -- (a) the run actually IS
+    informative despite the floor issue, (b) the defects are worse than claimed and even
+    Stage 0/dual-path should be doubted, or (c) the "K3/K4 remains open" framing
+    understates or overstates what is actually known after two failed experiments.
+    Blindness: dispatched fresh and concurrently with an independent Validator; do not
+    read experiments/EXP-MONO-670aa6/reviews/validator/ or any validator-labeled path.
+    Proves-too-much check: does the SAME p-value-floor argument retroactively undermine
+    EXP-MONO-c819ba's own archived Validator/Red Team bootstrap-based conclusions, or
+    EXP-MONO-12ce1c? If so, that is itself an important finding.
+
+  snapshot_reviewed:
+    commit_sha: 34474a493d2928dbd00a5fcd69dc9597e75a8bf1
+    receipt: coordination/tasks/TASK-20260830-f1af50/snapshot-receipt.json
+    original_frozen_text_git_commit: 9e0e460e31a7bf71da3f460ff570ff8eea0bd66d
+    content_verification: >-
+      Confirmed HEAD == 34474a493, parent_sha in the receipt (cbf43ebd1) matches
+      `git log`. Diffed the on-disk specification.yaml against
+      `git show 9e0e460e3:experiments/EXP-MONO-670aa6/specification.yaml` directly
+      (not merely trusting CORR-20260831-d15d36's prose): confirmed the current
+      on-disk specification.yaml (null_draws_per_cell: 4000, family+master_seed in
+      the seed preimage, p=1 mod 3 admission control, ordinary-curve rejection,
+      C/F added to gate families i/ii) is the OUT-OF-BAND commit 837e51ae5's text,
+      NOT what RUN-MONO-670aa6-1/2 executed against. The original v1 text
+      (null_draws_per_cell: 200, no family/master_seed in the seed preimage, no
+      p=1 mod 3 control, no ordinary-curve rejection, gate families Var-only) is
+      what actually ran, confirmed independently against
+      implementation/run_experiment.py's `N_NULL_DRAWS = 200` constant and
+      runs/RUN-MONO-670aa6-{1,2}/raw-result.json's own `"n_null_draws": 200` field.
+
+  claim_under_review: >-
+    CORR-20260831-d15d36 / DEC-20260830-891d39's disposition of EXP-MONO-670aa6: (1) the
+    Stage-2 null-object gate and Stage-3 Holm/Bonferroni real-arm test are uninterpretable
+    because the n=200 permutation p-value floor (1/201) exceeds the tightest Holm
+    threshold (~alpha/m) by roughly 10x, so no test could ever fire regardless of the true
+    effect size; (2) the primary panel's two curve families share a prime (and much of the
+    seed stream) per matching curve_ordinal, contradicting the "100 independently
+    constructed curves" claim and compromising the P5 Fisher-exact enrichment comparison;
+    (3) Stage 0 and the dual-path convolution-engine agreement remain valid; (4) K3/K4
+    remains OPEN after two consecutive failed experiments.
+
+  verdict: holds_with_findings_that_sharpen_and_partially_qualify_the_disposition
+  joint_verdicts:
+    a_could_the_run_actually_be_informative: >-
+      PARTIALLY YES, on a route the Coordinator's record does not consider. The DECLARED,
+      contract-defined Stage-2/Stage-3 procedure (per-curve permutation p-value +
+      Holm-Bonferroni across a ~49/50-curve (gate) or ~98/100-test (real-arm) family) is
+      CONFIRMED, independently, to be a guaranteed-null design: see objection OBJ-1 for the
+      exact arithmetic, re-derived from the archived raw-result.json rather than assumed.
+      However, a DIFFERENT, cheaper test exists that is NOT floor-limited in the same way:
+      Fisher's combined-probability test pooling the per-curve raw p-values WITHIN each
+      family (49 or 50 independent curves, each contributing one Var-statistic p-value,
+      itself not correlated across curve_ordinals since defect #2 is a CROSS-family, not a
+      within-family, collision). I computed this directly from the archived
+      `stage3_real_arm_holm_families_iii_iv.<family>.per_test_adjusted_pvalue[*].raw_p`
+      fields (already in the raw-result.json, no re-execution needed) and it shows NO
+      significant deviation in either family, either seed (combined p in [0.357, 0.993]).
+      This is exploratory/post-hoc under EXP-MONO-670aa6's OWN `invalidation_rules` (which
+      bars exactly this kind of post-hoc correction-method change after Stage-2/3 numbers
+      were observed) and is NOT contract-sanctioned evidence, but it is a real, cheap,
+      already-available discriminator the correction record did not name. See OBJ-4/RC-1.
+    b_are_the_defects_worse_than_claimed: >-
+      YES for defect #2, CONFIRMED EXACTLY as claimed for defect #1, and a genuine THIRD,
+      previously undisclosed defect was found (a validation-coverage gap, not a
+      demonstrated correctness failure). See OBJ-1 (confirms #1 exactly), OBJ-2
+      (sharpens #2: not merely "shares a prime" but shares p AND B AND the acceptance
+      index t_used in 100% of the 50 realized primary-panel pairs, and the collision
+      independently propagates into the null-sampling seed derivation in controls.py, not
+      only curve construction), and OBJ-3 (new: the FFT "route 2" engine that computes
+      100% of the >20,000 null/null-object/legacy-graded draws was never cross-checked
+      against route 1 for any of them -- only the 100 real-arm cells were -- and its own
+      per-draw round-off/imaginary-residual diagnostics are computed then silently
+      discarded, never persisted or thresholded). Stage 0 (the m=1/m=2 fixture identity)
+      and the dual-path check AS NARROWLY SCOPED TO THE 100 REAL-ARM CELLS should NOT be
+      doubted further -- but the broader phrase "the dual-path convolution-engine
+      agreement remains valid" overstates what was actually checked, since it silently
+      generalizes a 100-cell spot-check to the >20,000-draw computation the entire p-value
+      machinery depends on. My own supplementary re-run (120 null draws on the
+      highest-stress, largest-N curves in the panel) found route 1/route 2 agree exactly
+      (max round residual 4.5e-8, zero relative disagreement after rounding), so I found NO
+      actual bug -- this is a coverage-scope finding, not a correctness refutation.
+    c_is_the_k3_k4_remains_open_framing_right: >-
+      MOSTLY RIGHT, ONE WORD TOO STRONG. "Remains open" (no closure warranted) is correct
+      and I concur with it: defect #1 kills the declared corrected test outright and
+      defect #2 compromises the one comparison (P5) that could have stood on its own. But
+      CORR-20260831-d15d36's phrase that the guaranteed-null design "carr[ies] ZERO
+      discriminating information about H-MONO-663fb4's K3/K4 question in either direction"
+      overstates the vacuum by conflating the DECLARED procedure's power (zero, confirmed)
+      with the archived DATA's information content (not zero). Three independent,
+      non-floor-limited readings of data already on file -- (i) my Fisher-combined
+      reanalysis above, (ii) EXP-MONO-c819ba's own 254-independently-constructed-curve
+      enrichment test (12.1% vs 20.0%, Fisher p=0.092, opposite direction to the
+      hypothesis), and (iii) that same review's z-score reanalysis of its archived cells --
+      all lean mildly toward the controlled-null branch without establishing it. The
+      correct, narrower statement is: K3/K4 remains open in the sense that NO PROPERLY
+      POWERED, PRE-REGISTERED TEST HAS RUN; it is not open in the sense of "we know
+      nothing" -- the accumulated (imperfect, non-pre-registered) evidence across two
+      experiments leans, mildly and non-conclusively, toward no exceptional locus at F=N/2
+      to N/4 on this toy panel.
+
+  objections:
+    - id: OBJ-1
+      severity: confirms_coordinator_defect_1_exactly
+      target: "CORR-20260831-d15d36's p-value-floor-vs-Holm-threshold claim."
+      what_i_verified_independently: >-
+        Re-derived from first principles (permutation-pvalue floor = 1/(n+1); Holm's
+        loosest per-comparison threshold = alpha/m for the smallest p-value in a family of
+        m tests) WITHOUT reading the Coordinator's arithmetic first, then checked against
+        the archived raw-result.json for both runs. n_null_draws=200 (confirmed directly
+        in both runs' raw-result.json AND in implementation/run_experiment.py's hardcoded
+        `N_NULL_DRAWS = 200`), giving floor = 1/201 = 0.0049751243...
+        Stage-3 real-arm families: j0 has 98 tests (49 curves x {Var,C/F}), threshold
+        alpha/98 = 0.00051020; random-ordinary has 100 tests, threshold alpha/100 =
+        0.0005. Floor/threshold ratio: 9.75x (j0), 9.95x (random-ordinary). Stage-2 gate
+        families (Var-only): 49 and 50 tests, thresholds 0.00102 and 0.001, floor/threshold
+        ratio 4.88x and 4.98x -- still an unconditional impossibility, just a smaller
+        factor than Stage 3's, a distinction CORR-20260831-d15d36 does not draw.
+        DIRECTLY QUERYING THE ARCHIVED DATA (not assuming): the MINIMUM raw p-value
+        actually achieved across every curve, both statistics, both families, in
+        RUN-MONO-670aa6-2 is exactly 0.004975124378109453 = 1/201, the theoretical floor
+        hit exactly (one occurrence, random-ordinary family). Its Holm-adjusted value is
+        0.4975 (=100 x floor, capped nowhere near significant). CONCLUSION: no possible
+        outcome of this exact design -- not even the maximally extreme one where the real
+        arm falls entirely outside all 200 null draws -- could ever produce a
+        Holm-significant cell in Stage 3, REGARDLESS of the true effect size. This is not
+        merely "underpowered"; it is a design in which the declared decision rule is a
+        constant function of the data. CORR-20260831-d15d36's characterization is
+        confirmed exactly, independently re-derived.
+      residual_nuance_not_in_the_coordinator_record: >-
+        This impossibility is a property of the SPECIFIC per-curve, per-family-wise-FWER
+        correction chosen (Holm/Bonferroni over ~49-100 individually-reported tests), not
+        an intrinsic property of a 200-draw permutation test. A panel-level pooling
+        statistic sidesteps it entirely (see OBJ-4/RC-1). The record should distinguish
+        "this design has zero power" from "n=200 permutation p-values can never be
+        informative here," which is a stronger and unsupported claim.
+
+    - id: OBJ-2
+      severity: confirms_and_sharpens_coordinator_defect_2
+      target: >-
+        CORR-20260831-d15d36's family-colliding-prime-streams claim and the contract's own
+        primary_panel.construction_note ("distinct primes and distinct (A,B) per curve...
+        no two panel curves share a construction stream").
+      what_i_verified_independently: >-
+        Read implementation/curve.py and implementation/panel_primary.py directly (not the
+        Coordinator's prose) and confirmed `construct_prime(domain, b, k)` and
+        `curve_stream(domain, p, k, ...)` take no `family` argument. Then RAN
+        `build_primary_panel()` from the frozen, unmodified implementation to extract the
+        realized (p, A, B, t_used) for every curve_ordinal in both families and compared
+        them directly (script and output below). RESULT: across all 50 matching
+        curve_ordinals realized in both families, p_j0 == p_ro in 50/50 (100%), B_j0 ==
+        B_ro in 50/50 (100%), and t_used_j0 == t_used_ro in 50/50 (100%). This is STRONGER
+        than "shares a prime": every realized pair is y^2 = x^3 + B_k over the SAME F_{p_k}
+        versus y^2 = x^3 + A_k x + B_k over the SAME F_{p_k} with the SAME B_k -- the two
+        "independently constructed" curves in a pair differ ONLY in the A-coefficient (0 vs
+        the stream's first nonzero a_t), because curve_stream(domain,p,k,...) replays the
+        identical (a_t,b_t) sequence for both families and, for p this large, P(b_0=0) and
+        P(a_0=0) are both negligible, so both families accept at the same t with certainty
+        in practice (confirmed: t_used matched in every realized case). The mechanism is
+        deterministic given the code, not merely likely.
+      additional_undisclosed_propagation: >-
+        The SAME missing-`family` pattern independently recurs in
+        `implementation/controls.py`'s `draw_symmetric_subset`, whose `Drawer` key is
+        `(domain, label, cs.p, curve_ordinal, m, draw_index)` -- again no `family`
+        component. Since `domain` (the run-suffixed sampling_domain) and `cs.p` are
+        identical across a matched pair (per the above), the RAW SHA-256 DIGEST STREAM
+        consumed by `Drawer.draw()` for every null-subset and null-object-pick draw is
+        bit-identical between the j0 and random-ordinary curve at the same ordinal; the
+        chosen POINT differs only because `n_affine` (the modulus) differs between the two
+        curves' distinct group orders. This is a second, independent instance of the same
+        root cause (no family discriminator anywhere in the seed derivation), not merely
+        the one call site (panel_primary.py) CORR-20260831-d15d36 names, and it means the
+        null-sampling process for the two families is also correlated, not only the panel
+        construction.
+      practical_damage_to_p5_assessed_as_requested: >-
+        Formally, this is a genuine violation of Fisher-exact's independence assumption:
+        the panel is ~50 correlated (p,B)-matched pairs, not ~99-100 independent Bernoulli
+        draws, so the reported p5 p-values (0.617, 1.0) cannot be trusted at face value.
+        PRACTICALLY, the damage in THIS run's own numbers looks smaller than the formal
+        violation suggests: (i) the two families' exceedance rates were already close to
+        the nominal ~5% chance rate in both runs (j0: 4.1%/2.0%; RO: 2.0%/2.0%), i.e. the
+        finding is "no enrichment," and a shared-(p,B) confound would need to move BOTH
+        arms of a pair together to bias this comparison, which requires an established
+        mechanism tying character-bias exceptionality to p or B rather than to A/j-invariant
+        (the actual treatment variable, and the one EXP-MONO-c819ba's own automorphism
+        investigation already targeted and refuted) -- no such mechanism is established in
+        this record; (ii) the two curves in a pair generically have different N and
+        different group structure (adding a nonzero A term is not a small perturbation), so
+        the ACTUAL measured quantities (Var, C/F at F=N/4) are computed on structurally
+        different objects despite the shared (p,B). Net assessment: the independence
+        violation is real and the reported enrichment p-values should not be cited as valid
+        going forward, but I do not find evidence it reverses this run's qualitative
+        "no enrichment" reading; it does mean any future FUTURE enrichment claim from this
+        panel design must not be trusted without a family-keyed reconstruction.
+
+    - id: OBJ-3
+      severity: new_previously_undisclosed_finding_validation_coverage_gap_not_a_demonstrated_bug
+      target: >-
+        The implicit scope of "Stage 0 and the dual-path convolution-engine agreement
+        remain valid" in the Coordinator's prior.
+      what_i_verified_independently: >-
+        Read implementation/run_experiment.py's actual call graph: Stage 2 and the legacy
+        panel's graded controls (run_legacy_stage4) call `stat_bundle_from_coords` /
+        `cell_stats_fft`, BOTH of which use ONLY route 2 (FFT-derived
+        `fft_exact_Nm`/`character_spectrum`). The route-1-vs-route-2 cross-check
+        (`route1_crosscheck` / `dual_path_control_real_arm`) is computed ONLY inside the
+        Stage-3 loop, over the 100 REAL-ARM cells. Every one of the >20,100 null-subset,
+        null-object-pick, and (separately) the legacy panel's own ~6,400 graded-control null
+        draws is computed via route 2 alone, with NO cross-check against route 1 anywhere
+        in the executed code. `fft_exact_Nm` and `cell_stats_fft` DO compute per-draw
+        self-diagnostics (`route2_max_imag_residual`, `route2_max_round_residual`,
+        `l1_relative_residual`) for every one of these draws, but `run_experiment.py`
+        extracts only `var_exact`/`C_over_F` from the returned bundle and discards the
+        residuals -- confirmed by grepping the archived raw-result.json for both runs:
+        zero occurrences of `round_residual` or `imag_residual` anywhere in either file.
+        The claim "route 1 and route 2 agree to <1e-9 on every real-arm cell" is true as
+        stated, but it is easy to over-read as "the FFT engine was validated," when in fact
+        >99.5% of this experiment's actual floating-point computations were never
+        independently checked within the run.
+      i_then_ran_my_own_supplementary_check_rather_than_merely_flagging_the_gap: >-
+        Re-ran the frozen, unmodified implementation code to draw 120 null-subset samples
+        (20 draws x 6 curves) restricted to the field_bits=11 curves -- the panel's
+        largest-N, highest floating-point-stress case -- and computed BOTH routes for each.
+        RESULT: route1/route2 relative disagreement = 0.0 in all 120 cases; worst observed
+        route2_max_round_residual = 4.47e-8, worst route2_max_imag_residual = 3.67e-8, both
+        far below the 0.5 threshold that would risk a rounding error. I FOUND NO ACTUAL
+        DISAGREEMENT. This is reported as a coverage-scope finding (the archived validation
+        claim is narrower than a casual reading suggests, and its own diagnostics for the
+        uncovered draws were computed then discarded rather than surfaced or thresholded),
+        NOT as a demonstrated correctness failure -- the narrowest valid conclusion per
+        agents/red-team.md #5.
+      required_control_for_any_successor_contract: >-
+        Extend dual_path_control to a random sample (not necessarily all) of null and
+        null-object draws, and PERSIST (not merely compute-and-discard) the per-draw
+        route2_max_round_residual / route2_max_imag_residual, with an explicit tolerance
+        gate, exactly as is already done for the 100 real-arm cells.
+
+    - id: OBJ-4
+      severity: cheap_discriminating_control_that_the_design_and_the_correction_record_both_missed
+      target: >-
+        The implicit assumption that "the floor makes n=200 uninformative here" applies to
+        every possible statistic computable from this run's data, not only the declared one.
+      what_i_did: >-
+        Computed Fisher's combined-probability test (-2*sum(ln(p_i)) ~ chi2(2k)) pooling the
+        Var-statistic raw p-values WITHIN each curve family (k=49 or 50 INDEPENDENT curves
+        per family -- independent because defect #2 is a CROSS-family collision at matching
+        ordinals, not a within-family one across distinct ordinals). For the REAL ARM this
+        used ONLY the already-archived `raw_p` fields in raw-result.json (zero new
+        compute). For the NULL-OBJECT ARM (whose raw per-curve p-values are NOT persisted
+        in raw-result.json -- only Holm-adjusted values are, which are uninformative once
+        capped at 1.0 -- itself a minor artifact-retention gap worth naming separately) I
+        re-ran the frozen, unmodified implementation deterministically with the archived
+        domain/seed rule and recovered the exact same Holm-adjusted values reported in
+        raw-result.json (bit-for-bit match), confirming reproducibility before using the
+        newly-recovered raw values.
+      results: >-
+        REAL ARM: run1 j0 k=49 combined_stat=66.7 p=0.993; run1 RO k=50 stat=99.7 p=0.490;
+        run2 j0 k=49 stat=70.5 p=0.984; run2 RO k=50 stat=104.6 p=0.357. NULL-OBJECT ARM
+        (sanity check on my own method, since it has no real effect by construction): seed1
+        j0 stat=84.2 p=0.839; seed1 RO stat=103.4 p=0.389; seed2 j0 stat=91.1 p=0.676;
+        seed2 RO stat=119.9 p=0.085. None of the 8 combined p-values is anywhere near
+        alpha=0.05 in either direction; none of the 4 null-object checks falsely fires,
+        which is a MINIMAL, NOT a full, calibration of this reanalysis method (4 data
+        points is far short of KN-TECH-7745e6's own 20,000-trial/3,000-replicate bar, and
+        this caveat applies to my own finding with the same force it applies to anyone
+        else's).
+      status_and_disposition: >-
+        Per EXP-MONO-670aa6's OWN `invalidation_rules` ("Any post-hoc change to
+        null_draws_per_cell, the correction method, alpha, or the declared families after
+        any Stage-2 or Stage-3 number has been observed... requires a versioned protocol
+        amendment marked exploratory_only"), I am NOT presenting this as evidence toward
+        H-MONO-663fb4's status, and it changes no status here (AGENTS.md rule 1;
+        agents/red-team.md #8). It is filed as a candidate resource reading for the
+        ranking: a properly PRE-REGISTERED successor contract could use exactly this
+        combining procedure to buy real power from n=200 draws without a single additional
+        draw, sidestepping the entire per-curve-floor problem that killed this run's
+        declared design.
+
+  proves_too_much_control:
+    instructed_check: >-
+      Does the SAME p-value-floor-vs-correction argument retroactively undermine
+      EXP-MONO-c819ba's own archived Validator/Red Team conclusions, or EXP-MONO-12ce1c?
+    exp_mono_12ce1c: >-
+      CHECKED, NOT APPLICABLE. Grepped specification.yaml and both review reports for
+      "bonferroni", "permutation p-value", and "floor" -- EXP-MONO-12ce1c (H-MONO-45183a's
+      imprimitivity/monodromy experiment) does not use a permutation-p-value +
+      multiple-comparison-correction design anywhere; its statistical machinery is
+      unrelated. The argument does not transfer there because its premise (a rank-based
+      p-value with a 1/(n+1) floor corrected via Holm/Bonferroni over many tests) is
+      simply absent.
+    exp_mono_c819ba: >-
+      YES, THE ARGUMENT PROVES TOO MUCH, IN ONE SPECIFIC, LOCATABLE PLACE -- AND THIS IS A
+      GENUINE, PREVIOUSLY UNDISCLOSED FINDING. EXP-MONO-c819ba's own archived Red Team
+      report (experiments/EXP-MONO-c819ba/reviews/red-team/red-team-report.yaml, OBJ-5,
+      "D4_multiple_comparisons_and_null_object") independently re-ran the archived panel
+      with 200 null draws per cell and reports: "Bonferroni over 32 comparisons = 1.000;
+      over 96 = 1.000." With n=200 (floor=1/201=0.0049751) and m=96, Holm/Bonferroni's
+      loosest threshold is alpha/96 = 0.000521 -- the IDENTICAL arithmetic defect
+      (floor exceeds threshold by ~9.5x) that CORR-20260831-d15d36 uses to declare
+      EXP-MONO-670aa6 uninterpretable is present, unremarked, in this already-closed,
+      already-cited evidence record. Worse: that same Red Team report's own
+      `next_concrete_action` is what RECOMMENDED, VERBATIM, the exact design that became
+      EXP-MONO-670aa6's original v1 frozen contract -- "200 null draws per cell... Holm or
+      Bonferroni over the full 96-comparison family" -- meaning the floor-vs-threshold
+      mismatch was baked in at the point of RECOMMENDATION, not introduced later, and was
+      never checked by that Red Team, by the Validator, by KN-TECH-7745e6's authors, or by
+      this Coordinator's own EXP-MONO-670aa6 `approval_requirements` (which explicitly,
+      and as it turns out incorrectly, asserted "the null-object gate... genuinely can
+      trigger (i.e. is not tautologically satisfied)" as a condition of approval).
+    where_this_does_not_generalize_the_conclusion_it_reaches: >-
+      The narrowest valid reading, per agents/red-team.md #5: OBJ-5's own "Bonferroni over
+      96 = 1.000" SENTENCE is exactly as vacuous as EXP-MONO-670aa6's Stage-3 result --
+      but OBJ-5 is one of at least five materially DIFFERENT, non-floor-limited arguments
+      in the same objection (the raw uncorrected minimum p-value across 32 cells was
+      0.124, nowhere near the 0.005 floor, meaning the actual data was not censored at the
+      wall, unlike EXP-MONO-670aa6's run 2 which hit the floor exactly; a continuous
+      z-score reanalysis using each cell's own null standard deviation, giving z=2.19/0.67
+      for the escalated cell, not the required 3 sigma and inconsistent between seeds; the
+      independent 254-curve enrichment replication with its OWN separate, non-floor-limited
+      Fisher-exact test; the 3,000-replicate null-object base-rate calculation, whose
+      resolution floor of 1/3001 is nowhere near saturated; and the direct J1728
+      falsification requiring no statistics at all). None of those four other legs is
+      floor-limited, and EV-MONO-b84b24's/DEC-20260830-891d39's overall disposition never
+      actually needed the Bonferroni-over-96 sentence to be non-vacuous -- it was always
+      redundant. CONCLUSION: the proves-too-much check finds a real, disclosable defect in
+      an ALREADY-CLOSED, ALREADY-ARCHIVED record's literal text, but it does NOT
+      retroactively invalidate that record's overall conclusion, because the conclusion's
+      actual evidentiary weight never rested on the vacuous sentence.
+    recommended_disclosure: >-
+      File a correction note against knowledge/techniques/KN-TECH-7745e6.md, whose
+      "Method" section step 4 ("Applying a Bonferroni correction over the ~96 cells...
+      leaves no cell significant") states this as if it were a meaningful confirmation
+      without noting it was ALSO a guaranteed outcome at n=200/m=96 -- ironic, since that
+      technique document exists specifically to teach "calibrate the band/correction
+      against its own null before trusting it," and its own worked example did not apply
+      that lesson to its OWN correction step. This is a documentation/completeness
+      correction to a still-valid technique entry, not a re-opening of EV-MONO-b84b24's
+      disposition. I am not authorized to write this correction record myself (Coordinator
+      authority, AGENTS.md rule 1); it is named as the next concrete action's first item.
+
+  required_controls:
+    - >-
+      For any successor K3/K4 contract: pre-register a panel-level combining statistic
+      (e.g. Fisher's method across curves within family) ALONGSIDE, not instead of, the
+      per-curve Holm/Bonferroni test, specifically so a real effect too small to survive
+      per-curve FWER correction is not silently discarded. Compute both from a SINGLE null
+      draw count chosen so BOTH tests can, in principle, fire (verify floor << threshold
+      for the tightest-planned correction, for both statistics, BEFORE running any draws --
+      the exact check that would have caught this contract's defect before execution).
+    - >-
+      Reconstruct the primary panel with a `family` component genuinely threaded through
+      EVERY seed call site (prime, curve-a, curve-b, null-subset, null-object-pick), not
+      only the two the out-of-band patch names -- verify no call site anywhere still keys
+      only on (domain, label, p_or_field_bits, curve_ordinal, m, draw_index).
+    - >-
+      Extend dual_path_control (route 1 vs route 2) to a random sample of null and
+      null-object draws, not only the real-arm cells, and persist + threshold the
+      already-computed route2_max_round_residual / route2_max_imag_residual for every
+      draw checked, rather than computing and discarding them.
+    - >-
+      Persist RAW (not only Holm-adjusted) per-curve p-values for the Stage-2 null-object
+      gate in any successor run's raw-result.json -- the current artifact retention
+      asymmetry (Stage 3 keeps raw_p; Stage 2 keeps only adjusted, capped values) made an
+      exploratory re-derivation of the null-object arm's true behavior impossible without
+      re-executing the deterministic code from scratch, which I did here but which a
+      future reviewer without implementation access could not.
+    - >-
+      Add a machine-readable pointer at the top of experiments/EXP-MONO-670aa6/specification.yaml
+      itself directing any reader to CORR-20260831-d15d36 before trusting
+      `null_draws_per_cell` or the seed_derivation_rule text on disk -- the snapshot commit
+      (34474a493) did not include specification.yaml among its archived/re-hashed paths, so
+      the file committed at HEAD is STILL the out-of-band commit's (837e51ae5's) text, with
+      no in-file indication that RUN-MONO-670aa6-1/2 executed against different numbers.
+      A future reader opening only specification.yaml on `main` would be misled into
+      thinking null_draws_per_cell=4000 was what ran.
+
+  counterexample_or_mutation: >-
+    The cheapest discriminating action available today, requiring zero new compute: apply
+    Fisher's combined-probability test to the ALREADY-ARCHIVED per-curve raw_p values in
+    both runs' stage3_real_arm_holm_families_iii_iv blocks (OBJ-4). I did this; it shows no
+    signal. A slightly more expensive mutation for a successor contract: rebuild the
+    primary panel with `family` in every seed preimage (the out-of-band patch's own fix,
+    independently re-verifiable rather than trusted) and re-run the identical Fisher-exact
+    P5 enrichment comparison to see whether removing the ~50-pair correlation changes its
+    conclusion (I predict it will not, per OBJ-2's practical-damage assessment, but this is
+    a prediction, not a finding).
+
+  baseline_comparison: >-
+    NOT APPLICABLE IN THE ASYMPTOTIC SENSE, and this is unchanged from every prior record
+    in this lane: H-MONO-663fb4's asymptotic_claim is null throughout, and this experiment
+    makes no cost, exponent, or attack claim. Pollard rho at O(sqrt(N)) time / O(1) memory
+    remains the unchallenged prime-field ECDLP baseline; nothing in this run's toy-scale
+    character-bias measurement (p in [127, ~2050], F=N/4, m=4) could move that baseline in
+    either direction even under the most favorable possible outcome, because the
+    linear-algebra/relation-collection stage this hypothesis would need to charge is
+    uncharged here and everywhere in this corpus's relation-rate findings
+    (asymptotic_claim_note, unchanged). sota_delta = 0; dominated_by = not_applicable, for
+    the same reason the Coordinator's own record gives.
+
+  heuristic_challenges:
+    - >-
+      HEUR-CHR-2 (the load-bearing conditional that C = O(sqrt(N) log N) for the real
+      x-coordinate factor base) is EXACTLY as untested after this run as it was before it:
+      neither defect #1 (design has zero power) nor my own exploratory Fisher-combined
+      reanalysis (post-hoc, unpowered by KN-TECH-7745e6's own calibration standard)
+      discharges or falsifies it. Its `falsification_condition` (measured C/sqrt(F) growing
+      with p across the pinned prime ladder) is reported in stage4_legacy_controls'
+      prime_ladder block on the 4-curve RO1-4 sub-panel only (fitted exponent -0.197 in
+      run1), which is far too small a ladder (<=4 primes) to say anything about growth and
+      is explicitly labelled as such in the run's own artifacts ("toy-scale trend over <=4
+      primes; never extrapolated"). No new heuristic evidence either way.
+
+  cost_model_challenges:
+    - >-
+      No cost model is asserted or implied anywhere in this record, and none should be
+      inferred from either direction of a hypothetical K3/K4 resolution: a measured
+      character-bias deviation, even if eventually confirmed at proper statistical power,
+      is one term of a relation-rate model whose linear-algebra stage remains completely
+      uncharged in this hypothesis's entire evidence chain. This challenge is unchanged
+      from every prior record in this lane and is restated here only to confirm it was
+      checked, not assumed.
+
+  reduction_and_scope_challenges:
+    - >-
+      H-MONO-663fb4's own `proof_search_map.method_ceiling.nearby_object_control` requires
+      the subgroup-extreme positive control (exact N/h-1) to be re-verified before any
+      arm's negative reading is trusted ("NO NEGATIVE MAY BE REPORTED FROM ANY ARM" if this
+      fails). EXP-MONO-670aa6's legacy 8-curve sub-panel's subgroup-availability
+      precondition was UNMET in both runs (only RO3 has 4|n2, vs the required >=2), so
+      positive_control_1/2 were correctly SKIPPED per the frozen contract's own explicit
+      fallback (confirmed directly in implementation/run_experiment.py's
+      `run_legacy_stage4`: `if len(subgroup_capable) < 2: ... "SKIPPED"`) -- NOT silently
+      patched, NOT silently backfilled. This is disclosed correctly by the Executor. But
+      it means THIS CYCLE never re-exercised the hypothesis's own mandatory positive
+      control at all; the mandatory-control confirmation this record implicitly leans on
+      is entirely EXP-MONO-c819ba's, from a different (smaller, n=30) panel. Any successor
+      contract should either construct a legacy panel guaranteed to have >=2 subgroup-
+      capable curves, or explicitly state (as this one does) that it is relying on a prior
+      experiment's positive control rather than its own.
+    - >-
+      The F=N/4 exact-symmetric-prefix claim was audited and found SOUND, not a defect:
+      `factor_base_x_coords` only ever appends points in (x,y)/(x,-y) PAIRS (points with
+      f(x)=0 are excluded from the factor base entirely, so every accepted x contributes
+      exactly two points), so any EVEN-length prefix of `fb_full` is symmetric by
+      construction; `primary_F_of` forces F even; and the run additionally performs an
+      explicit symmetry check per curve and excludes (never patches) any failure. No
+      instance of asymmetry was found or reported in either run.
+
+  proof_architecture_challenges: []
+  proof_architecture_not_applicable_reason: >-
+    This is a toy-scale empirical calibration test of an already-derived, unconditional
+    identity (I1)-(I3) plus one conditional heuristic (HEUR-CHR-2), not a new
+    proof-oriented theorem, asymptotic bound, or reduction. Section 8's proof-architecture
+    portfolio does not apply beyond what H-MONO-663fb4's own frozen `proof_search_map`
+    already discharged; this run does not reopen or extend that map.
+
+  narrowest_supported_statement: >-
+    EXP-MONO-670aa6's DECLARED Stage-2/Stage-3 permutation-p-value + Holm/Bonferroni
+    procedure could not have detected any true effect at any size, confirmed by
+    independent re-derivation against the archived raw data (OBJ-1), and its P5 enrichment
+    comparison drew its 50-50 panel from two families that share, in every realized case,
+    the same prime AND the same B coefficient (a stronger and more thoroughly propagated
+    collision than described, OBJ-2), so neither is admissible as a resolution of K3/K4 in
+    either direction, exactly as CORR-20260831-d15d36 concludes. Stage 0's exact identities
+    and the dual-path check ON THE 100 REAL-ARM CELLS SPECIFICALLY remain valid; the
+    broader claim that "the dual-path convolution-engine agreement" validates the run's
+    core computation should be understood as covering only those 100 cells, not the
+    >20,000 null/null-object/legacy draws the p-values actually depend on (OBJ-3, a
+    coverage gap I found no evidence of an actual failure in). A cheap, already-computable,
+    non-floor-limited panel-level statistic (Fisher's combined-probability test, applied
+    post-hoc/exploratory to already-archived and freshly-reproduced raw p-values) shows no
+    signal in either family, either seed, and is offered as a candidate resource for a
+    properly pre-registered successor, not as evidence (OBJ-4). The identical
+    floor-vs-correction defect that invalidates this run's declared test is also present,
+    unremarked, in one redundant sentence of EXP-MONO-c819ba's own already-closed Red Team
+    review, but does not undermine that review's overall conclusion, which rests on four
+    other, non-floor-limited, independent lines of evidence. K3/K4 remains open in the
+    sense that no properly powered, pre-registered test of it has yet run across two
+    consecutive experiments -- not in the sense that the accumulated evidence is silent;
+    it leans mildly, non-conclusively, toward no exceptional locus at the tested scale.
+
+  next_concrete_action: >-
+    (1) File a short correction note against knowledge/techniques/KN-TECH-7745e6.md
+    disclosing that its own worked "Bonferroni over ~96 cells" step (sourced from
+    EXP-MONO-c819ba's Red Team OBJ-5) was independently guaranteed non-significant at
+    n=200 by the identical floor-vs-threshold arithmetic this session used to invalidate
+    EXP-MONO-670aa6 -- a documentation correction, not a re-opening of EV-MONO-b84b24.
+    (2) Before drafting any successor K3/K4 contract, compute floor=1/(n+1) and
+    alpha/m for EVERY declared correction family AT DESIGN TIME (not after execution) and
+    require floor < alpha/m by a stated safety margin for the tightest family, for both
+    statistics; this single arithmetic check, run before approval, would have caught both
+    this contract's defect and its own predecessor's identical one. (3) Pre-register the
+    Fisher-combined panel-level statistic (OBJ-4) as a SECOND primary metric alongside the
+    per-curve Holm test in that successor contract, so a true effect too small to survive
+    per-curve FWER correction is not silently discarded again. (4) Thread `family` through
+    every seed call site, not only the two the out-of-band patch touched (OBJ-2), and
+    verify it with the same kind of direct extraction-and-comparison script used here
+    before approval, not by inspection alone.
+
+  artifact_paths:
+    - experiments/EXP-MONO-670aa6/reviews/red-team/red-team-report.yaml
+    - experiments/EXP-MONO-670aa6/reviews/red-team/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: red-team-mono-670aa6
+    role: red-team
+    joints_owned: [J2-adversarial]
+    verdict: holds_with_findings_that_sharpen_and_partially_qualify_the_disposition
+    read_sibling_reports: false
+    blindness_note: >-
+      experiments/EXP-MONO-670aa6/reviews/validator/ exists (empty at the time I listed
+      it, `ls` only, no file opened) -- a concurrent Validator session has plausibly been
+      dispatched or is about to write there. I did not open, list the contents of, or
+      receive any message about any file under that path. blindness.lifted_for does not
+      name this task.
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - CLAUDE.md
+      - ledger/hypotheses/H-MONO-663fb4.yaml
+      - ledger/evidence/EV-MONO-b84b24.yaml
+      - ledger/decisions/DEC-20260830-891d39.yaml
+      - knowledge/techniques/KN-TECH-7745e6.md
+      - experiments/EXP-MONO-670aa6/specification.yaml (on-disk, out-of-band-edited text)
+      - git show 9e0e460e31a7bf71da3f460ff570ff8eea0bd66d:experiments/EXP-MONO-670aa6/specification.yaml (original executed text)
+      - experiments/EXP-MONO-670aa6/execution_report.yaml
+      - experiments/EXP-MONO-670aa6/implementation.md
+      - experiments/EXP-MONO-670aa6/implementation/curve.py
+      - experiments/EXP-MONO-670aa6/implementation/panel_primary.py
+      - experiments/EXP-MONO-670aa6/implementation/seed.py
+      - experiments/EXP-MONO-670aa6/implementation/groupstate.py
+      - experiments/EXP-MONO-670aa6/implementation/conv.py
+      - experiments/EXP-MONO-670aa6/implementation/controls.py
+      - experiments/EXP-MONO-670aa6/implementation/stats.py
+      - experiments/EXP-MONO-670aa6/implementation/run_experiment.py
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/raw-result.json
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-2/raw-result.json
+      - ledger/corrections/CORR-20260831-d15d36.yaml
+      - coordination/tasks/TASK-20260830-f1af50/snapshot-receipt.json
+      - experiments/EXP-MONO-c819ba/specification.yaml (grep only, for the proves-too-much check)
+      - experiments/EXP-MONO-c819ba/reviews/red-team/red-team-report.yaml (full, for the proves-too-much check)
+      - experiments/EXP-MONO-c819ba/reviews/validator/validation-report.yaml (grep only, for the proves-too-much check)
+      - experiments/EXP-MONO-12ce1c/specification.yaml (grep only, for the proves-too-much check)
+      - experiments/EXP-MONO-12ce1c/reviews/red-team/red-team-report.yaml (grep only)
+      - experiments/EXP-MONO-12ce1c/reviews/validator/validation-report.yaml (grep only)
+    sources_not_read_and_why: >-
+      knowledge/open-problems/KN-OPEN-009.md and the source proposal records
+      (ledger/proposals/IDEA-20260805-a9a95d.yaml, IDEA-20260803-ff7415.yaml) were not
+      re-read: this round's assigned joints (the two named defects, Stage-0/dual-path
+      scope, and the K3/K4 framing) do not turn on those documents' own text, and
+      H-MONO-663fb4's mechanism block (which I did read in full) already restates their
+      relevant content. Disclosed, not silently omitted.
+    independent_computations_performed:
+      - >-
+        Re-derived the p-value floor (1/(n+1)) and Holm loosest-threshold (alpha/m)
+        formulas from first principles before checking them against the archived data
+        (OBJ-1).
+      - >-
+        Ran `build_primary_panel()` from the frozen, unmodified
+        implementation/panel_primary.py to extract and directly compare (p, A, B, t_used)
+        across all 50 matching curve_ordinals in both families (OBJ-2).
+      - >-
+        Re-ran the frozen, unmodified implementation to draw 120 fresh null-subset samples
+        on the panel's largest-N (field_bits=11) curves and independently cross-checked
+        route 1 (`convolution_tower`) against route 2 (`stat_bundle_from_coords`) for all
+        120, finding zero disagreement (OBJ-3).
+      - >-
+        Re-ran the frozen, unmodified implementation to recover Stage-2 null-object arm raw
+        per-curve p-values (not persisted in raw-result.json) for both seeds and both
+        families, confirming the recovered values reproduce the archived Holm-adjusted
+        summaries bit-for-bit before using them (OBJ-4).
+      - >-
+        Computed Fisher's combined-probability test (scipy.stats.chi2) on the archived
+        real-arm raw p-values and on the freshly-recovered null-object raw p-values, within
+        each curve family, for both seeds (OBJ-4).
+      - >-
+        Diffed the on-disk specification.yaml against `git show 9e0e460e3:...` directly to
+        independently confirm which text was tampered and how (snapshot_reviewed block).
+      - >-
+        Grepped EXP-MONO-c819ba's and EXP-MONO-12ce1c's specification/review files for
+        Bonferroni/permutation-p-value/floor language for the proves-too-much control.
+    environment:
+      python: 3.13.1
+      numpy: 2.4.0
+      scipy: 1.15.3
+      platform: macOS-26.6-arm64-arm-64bit-Mach-O
+      network: none used
+      scratch_scripts_location: >-
+        /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/
+        (session-scoped scratchpad; ephemeral, not part of the committed artifact set)
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; the resolved id is self-reported
+      by the runtime binding described in CLAUDE.md.
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; reasoning effort is bound per subagent via
+      agent-file frontmatter, model selection is not. Recorded, never silently substituted.
+    status_changes_made: none
+    ledger_writes_made: none
+    commits_made: none
+    write_scope_respected: true
+    files_written:
+      - experiments/EXP-MONO-670aa6/reviews/red-team/red-team-report.yaml
+      - experiments/EXP-MONO-670aa6/reviews/red-team/runtime-session-receipt.json

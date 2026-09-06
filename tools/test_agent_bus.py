@@ -29,6 +29,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -179,7 +180,11 @@ class Ordering(BusTestCase):
     def test_same_second_messages_get_a_stable_order(self) -> None:
         # Two readers must agree on order even when wall-clock cannot separate
         # the sends, so the id is the tiebreak.
-        sent = {self.send(subject=f"m{i}") for i in range(8)}
+        # Pin the second explicitly. On a loaded CI runner, eight sends can
+        # legitimately cross a UTC-second boundary; that tests timestamp
+        # ordering instead of the same-second tie-break this case names.
+        with mock.patch.object(ab, "_now", return_value="2026-08-21T00:00:00Z"):
+            sent = {self.send(subject=f"m{i}") for i in range(8)}
         order = [m["id"] for m in ab.load_messages(str(self.root))]
         self.assertEqual(sent, set(order))
         self.assertEqual(order, [m["id"] for m in ab.load_messages(str(self.root))])

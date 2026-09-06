@@ -9,6 +9,13 @@ description: >-
 
 # Launch research harness
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 Entry point for starting or resuming a persistent `GOAL-*` campaign. This skill
 selects the goal and binds committed state; the continuous batch loop is
 `/coordinate-research-goal`.
@@ -33,47 +40,184 @@ goal status outside Coordinator ledger archives.
 3. `.claude/skills/research-status/SKILL.md` (read-only overview)
 4. `docs/dynamic-subagent-dispatch.md`, `docs/task-lifecycle.md` (as needed)
 5. `orchestration/model-policies.yaml` for role→policy aliases
+6. `tools/goal_portfolio_health.py --help` if unfamiliar with the step 2.5 sweep
 
 ## Procedure
 
 ### 1. Research status (read-only)
 
-Run the `/research-status` checklist: scan `ledger/` and flag integrity issues
-(uncommitted archives, broken refs). Do not mutate state in this step.
+Run the `/research-status` checklist and flag integrity issues (uncommitted
+archives, broken refs). Its first two steps are tools, not a manual scan:
+
+```sh
+python3 tools/ledger_summary.py && python3 tools/validate_ledger.py
+```
+
+Do not mutate state in this step.
 
 ### 2. Discover goals
 
-List `ledger/goals/GOAL-*.yaml`. For each, read `research_goal.{id,status,
-title,current_batch_id,dispatch_queue_path,next_action,campaign_budget,
-completion_criteria,pause_conditions}`.
+```sh
+python3 tools/goal_head.py list --status active
+```
 
-Statuses: `draft | active | paused | blocked | completed | cancelled`.
+That prints exactly the fields this step needs — `research_goal.{id,status,
+title,current_batch_id,dispatch_queue_path,next_action}` — for every goal, in
+~3k tokens (`--brief` drops the `next_action` prose for ~0.6k). Add
+`python3 tools/goal_head.py show <GOAL>` for one goal's `campaign_budget`,
+`completion_criteria` and `pause_conditions`, ~0.8k tokens.
+
+**Never `cat` a goal record to get these.** The heads are append-only in
+practice: 83% of their bytes are undeclared narrative keys, `GOAL-ECDLP-001`
+is 651 keys and ~243k tokens, and reading all 102 the way this step used to
+read is ~904k tokens. Every value the projection shortens is marked with the
+command that returns it whole.
+
+Those omitted keys are the campaign's history — why earlier batches closed,
+what was superseded, which theories were refuted. They are preserved intact
+and reachable; before re-opening a line of work, check whether it was already
+tried and closed:
+
+```sh
+python3 tools/goal_head.py history <GOAL>              # dated index
+python3 tools/goal_head.py history --grep '<term>'     # across all goals
+```
+
+Statuses: `draft | active | completed | cancelled | closed_at_budget`
+(the tool also reports `unparseable` for a record that will not load — an
+integrity signal, never a research state).
+
+**There is no `paused` and no `blocked`.** Both were removed on user
+instruction (2026-09-04); `tools/validate_ledger.py` refuses them by name. An
+impeded campaign stays `active` and carries an `impediments` entry recording
+what is blocked, what clears it, and the `recheck` that tests it. This is a
+scheduling rule only — it is not licence to close a goal, to promote a claim
+whose review tier cannot be served, or to spend past an exhausted budget. See
+AGENTS.md "Goals are never paused".
 
 Also note matching dirs under `coordination/goals/GOAL-*/batches/`.
 
+### 2.5. Portfolio health sweep (mandatory, once per session)
+
+**Run this before selecting a goal, every session.** This exists because the
+harness used to stall goal-by-goal: a session would pick one `active` goal,
+spend its whole context discovering its dispatch queue fails content-hash
+verification or has nothing to run, then repeat that exact discovery on the
+next goal with nothing recorded — every session paid the rediscovery cost
+from scratch, and a single-goal deep dive reads as "stuck" even when the real
+finding is portfolio-wide.
+
+**Check for a shallow clone FIRST, before trusting any `needs_repair` result:**
+
+```sh
+git rev-parse --is-shallow-repository   # if "true":
+git fetch --unshallow origin
+```
+
+A shallow clone makes `tools/research_dispatch.py`'s commit-reachability
+checks fail for perfectly good, correctly-archived work whose commit is real
+but older than the shallow fetch boundary, or on a branch never fetched deep
+enough to see. This was discovered the hard way: a sweep once reported 31 of
+47 active goals as `needs_repair` (widespread content-hash mismatches and
+unreachable `commit_sha` values), which read exactly like the repository-wide
+integrity failure this step exists to catch — but after `git fetch
+--unshallow`, that dropped to 12. Nearly all of the apparent corruption was
+the shallow clone, not `main`. The sweep tool detects this itself and prints
+a warning (`shallow_clone_warning` in `--json` output, a stderr banner
+otherwise). **The sweep now applies the fix itself**: on a shallow clone it
+runs `git fetch --unshallow origin` and says so on stderr, so the results
+below it are already trustworthy. It is a fetch — it only adds history, and
+rewrites nothing. Pass `--no-deepen` to suppress that (offline, or when you
+want the shallow behaviour deliberately); the `needs_repair` bucket is then
+untrustworthy and the banner says so.
+
+```sh
+python3 tools/goal_portfolio_health.py
+```
+
+This renders `tools/research_dispatch.py` against every `active` goal's
+current queue (read-only — it writes no ledger or coordination state) and
+sorts the whole portfolio into three buckets in one pass:
+
+- **ready** — dispatch succeeded and at least one Ready Task has `claim:
+  null`. These are your candidates for step 3.
+- **blocked** — dispatch succeeded but nothing is dispatchable right now
+  (everything gated, claimed, or deferred). Ordinary campaign state, not a
+  problem to chase.
+- **needs_repair** — dispatch itself failed: a hash mismatch, an
+  unreachable `commit_sha`, a malformed queue. This is an integrity problem
+  with the queue or `main`, never a research result and never evidence about
+  the goal's hypothesis (core rule 5). Do **not** spend this session's budget
+  root-causing each one individually — record the bucket's contents in this
+  session's report (goal ID + the one-line reason) and move on. Root-causing
+  `needs_repair` at scale is separate remediation work, not a step of running
+  a batch.
+
+If `needs_repair` covers most or all of the active portfolio, that is itself
+the finding: report it plainly (see "Terminal stops" — a ledger that will not
+validate on `main` across many goals is a harness-wide integrity signal, even
+when each individual dispatch error looks goal-specific) rather than
+diving into one goal's history to explain it, unless the user asks for that
+investigation specifically.
+
 ### 3. Select a goal
 
-Pick in this order:
+**ECC GOALS COME FIRST, ALWAYS.** Before applying the order below, partition
+the candidates with `python3 tools/ecc_priority.py --classify <GOAL-ID>...` (or
+read the `ECC` marker `goal_portfolio_health.py` now prints). A non-ECC goal is
+selected only when NO ECC goal offers a ranked, justified task. The area set is
+declared in `orchestration/research-priority.yaml` — never infer it from an
+identifier prefix, since `GOAL-CRYPTO-001` is an ECDLP search and
+`DREG`/`SDEG`/`SIG`/`MONO`/`RELN`/`ICEX` are Semaev machinery. Priority orders
+the queue; it never manufactures ECC work, and never puts an unranked ECC task
+ahead of a ranked non-ECC one already in flight. See AGENTS.md "ECC comes
+first".
 
-1. Explicit `GOAL-*` in the user request.
-2. Single `active` goal that matches the request text or current branch/area.
-3. Any other `active` goal, highest ranked first, when the request names no
+Then pick in this order, drawing only from the **ready** bucket unless noted:
+
+1. Explicit `GOAL-*` in the user request — if it is not in `ready`, say which
+   bucket it landed in and why (cite the sweep's reason) instead of silently
+   substituting another goal.
+2. Single `ready` goal that matches the request text or current branch/area.
+3. Any other `ready` goal, highest ranked first, when the request names no
    specific one. In a standing run this is the ordinary case and needs no user
    prompt — the harness is expected to keep working the active portfolio.
-4. Otherwise list `active` / `paused` goals (ID, status, batch, next action)
-   and ask which to run. Do not silently resume a `paused` or `completed` goal:
-   a pause was recorded for a reason, and resuming it requires either the user
-   or a committed Coordinator decision clearing that reason.
+4. Otherwise list every `active` goal with its open impediments (ID, batch,
+   next action, `clears_when`) and ask which to run. No goal is ever `paused`,
+   so nothing needs "resuming": an impeded goal is picked up like any other,
+   and the first thing you do is run its impediment's `recheck` to see whether
+   the blocker still holds. Do not silently resume a `completed` goal, and do
+   not silently pick from `needs_repair` — a broken dispatch queue
+   cannot safely launch a subagent against it.
 
-If no `active` goal exists at all, do not stop — go to step 9's "when the
-portfolio is empty".
+If the `ready` bucket is empty, do not stop and do not fall back to
+`needs_repair` — go to step 9's "when the portfolio is empty".
 
 **Resume** an existing goal: use its `dispatch_queue_path` and
 `current_batch_id`; continue from `next_action`.
 
-**Start new**: only when the user asks for a new campaign. Create the next free
-`GOAL-<AREA>-<NNN>.yaml` from `templates/research-records.md`, bind `RQ-*`,
-create `coordination/goals/GOAL-.../batches/BATCH-001/` with handoffs + queue
+**Another session already on this goal is not a stop.** Before treating a
+goal as taken, `git fetch origin` and run
+`python3 tools/goal_lanes.py lanes <GOAL-ID>`; for each open lane render its
+plan with `--claims refs`. Then, in order: (1) if that plan lists Ready Tasks
+with `claim: null` that your role table may run, claim one and run it under
+that lane (its branch, its PR); (2) otherwise open a **disjoint lane** — a new
+`BATCH-<tok>` against the goal's ranked candidates, registered with
+`goal_lanes.py open-lane … --publish` before any worker runs, on its own branch
+when a concurrent writer would otherwise race you on push and on the branch you
+are already on when none would (step 8);
+(3) only if neither is justified, pick another goal. A goal with no lane
+records is worked the old way (one batch, via `current_batch_id`) until
+someone opens a lane on it. Register on the bus under a distinct address
+(`coordinator-<area>-2`, …) and post a pointer message naming your lane; the
+message is a pointer, never a permission. See `docs/concurrent-goal-lanes.md`.
+
+**Start new**: only when the user asks for a new campaign. Mint the goal with
+`python3 tools/allocate_id.py --next goal --area AREA`, confirm the emitted
+`GOAL-<AREA>-<tok>` with `--check`, and create its YAML record from
+`templates/research-records.md`. Never choose a suffix or scan for a maximum.
+Bind `RQ-*`, then create `coordination/goals/GOAL-.../batches/BATCH-<tok>/`
+with handoffs + queue
 (`goal_id` set), then follow `/coordinate-research-goal` launch steps.
 Snapshot-archive the goal/queue/handoffs before any worker runs.
 
@@ -83,31 +227,44 @@ Confirm before dispatching workers:
 
 - Goal record is committed (or about to ride a Coordinator snapshot).
 - `dispatch_queue_path` exists and queue top-level `goal_id` matches.
-- Campaign budget still allows another batch (`maximum_batches`,
-  `total_wall_clock_seconds`, and `max_concurrent` sized to what the
-  environment can run without degrading — see "Concurrency" below). An
-  exhausted budget stops *this campaign*, not the harness: pause the goal and
-  move to the next one via step 9. Never quietly raise a budget to keep a
-  campaign running — a budget extension is a Coordinator decision with a
-  recorded rationale.
+- Routine time/CPU/batch estimates never block dispatch. Only an explicit
+  restriction passing the 90-day stagnation-review policy limits research
+  spending. ECC campaign budgets remain null. Rank useful work and size
+  concurrency to actual machine headroom; do not request routine budget renewals.
 - `next_action` is concrete; empty queue alone does not complete the goal.
-- The working branch exists, is pushed to origin, and has an open PR against
-  `main`. If not, create the branch, push it, and open the PR now — do not run
-  a campaign that cannot surface its artifacts.
+- `goal_lanes.py lanes <GOAL>` and `goal_lanes.py claims <queue>` (after
+  `git fetch`) show which batches are open elsewhere and which tasks are
+  held. If you are opening a batch on a goal that already has an open lane,
+  your batch is a second lane: `open-lane … --publish` it now.
+- There is a working branch, it is pushed to origin, and it has an open PR
+  against `main`. If not, create or adopt one, push it, and open the PR now —
+  do not run a campaign that cannot surface its artifacts. **Which** branch is
+  open to judgement: the branch the session is already on is fine, including
+  one carrying unrelated work and one the runtime pins the session to. Step 8
+  says when a campaign earns a branch of its own.
 - The working branch is current with `main` (see "Branch and PR hygiene").
 
-If a pause/completion criterion already holds, stop and report — do not invent
-work to fill capacity.
+If a completion criterion already holds, stop and report. If a declared
+`pause_conditions` item already holds, record it as an impediment, leave the
+goal `active`, and move to the next goal — do not invent work to fill capacity,
+and do not park the goal.
 
 ### 5. Render dispatch
 
 From repo root, using the goal's queue path:
 
 ```sh
+git fetch origin
 python3 tools/research_dispatch.py <dispatch_queue_path> \
   --output <batch-dir>/dispatch_plan.json \
-  --report <batch-dir>/dispatch_plan.md
+  --report <batch-dir>/dispatch_plan.md \
+  --claims refs --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
+
+`--claims refs` overlays every claim pushed from any worktree: a task held by
+another session is listed as `running` with its `claim`, a completed release
+unblocks successors, and an expired hold shows under Expired Leases. Only
+Ready Tasks with `claim: null` are yours to start.
 
 Use the paths the goal/batch already use (e.g. `dispatch_queue.json` or
 `dispatch_queue.v2.json`). Fix validation errors before starting agents.
@@ -153,7 +310,9 @@ that policy is `degradable: false`.
 override to the Agent tool, and do not reach for a cheaper tier to get a stuck
 task moving — substituting `validator` for `validator-breakthrough` is exactly
 the silent downgrade the policy layer forbids. If the required tier cannot be
-served, that is a pause condition for the goal (step 4), not a substitution.
+served, record an impediment against the CLAIM (step 4) and leave the goal
+`active` — never a substitution. What is blocked is the claim's promotion, not
+the campaign.
 
 **How to launch:**
 
@@ -171,6 +330,21 @@ served, that is a pause condition for the goal (step 4), not a substitution.
   run **alone**, never alongside other agents.
 - Subagents do not spawn subagents. Nesting puts work outside the batch the
   Coordinator authorised.
+
+**Claim before you launch, release when it returns.** For each task you are
+about to start:
+
+```sh
+python3 tools/goal_lanes.py claim <queue> <TASK-ID> --as <your-bus-addr> \
+  --ttl-minutes <budget.wall_clock_minutes + slack> --publish
+```
+
+A refusal means another session holds it — take the next unclaimed Ready
+Task instead; never `--force` a live claim without a recorded reason. When the
+agent returns, `goal_lanes.py release <queue> <TASK-ID> --as <addr>
+--outcome completed|failed|abandoned --publish` and record the claim epoch in
+the task receipt. The claim commit is its own commit; archive commits exclude
+`claims/` exactly as they exclude `dispatch_queue.json`.
 
 **Bind every prompt to the committed task card** rather than restating it:
 
@@ -200,7 +374,10 @@ archive commits it and the dispatcher's post-commit verifier accepts it.
 Follow `/coordinate-research-goal` for every batch:
 
 1. Start ≤ the queue's declared `max_concurrent` non-archive ready tasks with
-   disjoint `write_scope`, each via the subagent chosen in step 6.
+   disjoint `write_scope` and `claim: null`, each claimed first and then run
+   via the subagent chosen in step 6. Other sessions' live claims count
+   toward the cap: their work runs on the same repository and usually the
+   same host.
 2. On producer terminal: Coordinator-only `snapshot` archive alone; verify
    via dispatcher/Git before any review reads artifacts.
 3. Independent Reviewer / Validator / Red Team as required, at the tier step 6
@@ -211,8 +388,10 @@ Follow `/coordinate-research-goal` for every batch:
 4. Coordinator-only `ledger` archive alone; verify parent, paths, hashes,
    record IDs.
 5. Update the `GOAL-*` record in that ledger commit: batch checkpoint, decision
-   refs, `latest_verified_commit`, exactly one `next_action`. Rerank only after
-   the verified checkpoint.
+   refs, `latest_verified_commit`, exactly one `next_action` **for this lane**,
+   and — if the goal has lane records — your lane's `open_batches` entry,
+   touching no other lane's. Then `goal_lanes.py close-lane … --publish`.
+   Rerank only after the verified checkpoint.
 6. Regenerate the dispatch plan; open the next bounded batch while status is
    `active`. Do not pause between batches for user confirmation — return to
    step 5 and keep going. When the goal leaves `active`, go to step 9.
@@ -229,7 +408,30 @@ receipts stay under the batch/task `write_scope`.
 Research only exists as durable evidence when it is committed AND pushed to a
 branch that has an open PR against `main`. Two git duties ride alongside every
 generation step — new goals, ideas, experiments, evidence, decisions, and
-knowledge entries all require them:
+knowledge entries all require them.
+
+**Which branch carries them is a judgement call, not a rule.** Nothing here
+requires a branch per goal, per batch, or per lane. Run the campaign on the
+working branch the session already has — including one carrying unrelated
+work, one shared with another campaign, or one the runtime pins the session to
+— and let a single PR carry several goals or batches when that is what the
+situation gives you. Durability comes from the commit being pushed under an
+open PR; keeping concurrent writers apart comes from disjoint `write_scope`,
+lane registration, and task claims. Neither comes from branch topology, so a
+campaign is never blocked, delayed, or re-targeted to another goal because the
+"right" branch does not exist.
+
+Take a separate branch when there is a concrete reason, and name it in the
+batch report:
+
+- Another session is writing concurrently and would otherwise race you on push.
+- The campaign's archive must be reviewable or mergeable on its own, without
+  dragging unrelated records along with it.
+- A record or receipt must bind to a commit that unrelated work would disturb.
+
+Absent one of those, prefer the branch you are on. Mixing campaigns in one PR
+costs some review tidiness; stalling a campaign over branch layout costs the
+research.
 
 **Pull in changes from `main` before generating.** Before creating or resuming
 a goal, and before each new batch, merge `origin/main` into the working branch:
@@ -275,32 +477,55 @@ loop at step 2:
   criterion now suffices; a quorum without a met criterion still does not close
   a goal. The decision record must name which criterion was met and cite the
   evidence for it. Then rediscover goals and select the next one.
-- **Paused or blocked.** A declared `pause_conditions` item triggered (budget
-  exhausted, archive verification failure, unresolved required model policy
-  with `fallback_allowed: false`) → mark `paused` with a concrete resume
-  action, then select the next `active` goal. Pausing one campaign never pauses
-  the harness, and the pressure to keep running is never a reason to press on
-  through a triggered pause condition: an archive that will not verify or a
-  policy that cannot be honored still halts *that* campaign immediately.
+- **Impeded — NEVER paused.** A declared `pause_conditions` item triggered
+  (budget exhausted, archive verification failure, unresolved required model
+  policy with `fallback_allowed: false`) → the goal **stays `active`**. Record
+  an `impediments` entry naming what is blocked, what clears it, and the
+  `recheck` that tests it, then select the next goal. `paused` and `blocked`
+  are not permitted statuses and the validator refuses them (AGENTS.md "Goals
+  are never paused").
+  Not parking the goal is a scheduling change and nothing more. The pressure to
+  keep running is still never a reason to press on through a triggered
+  condition: an archive that will not verify, or a policy that cannot be
+  honored, still halts *that work* immediately. What continues is the
+  campaign's eligibility to be picked up again, not the blocked task.
 - **Required model policy cannot be honored** without a silent downgrade —
-  refuse and pause that goal rather than substitute, then move on. This is
-  unchanged by the quorum suspension: it governs review policies such as
-  `review-breakthrough`, which is still `degradable: false`. If the policy is
-  unresolvable for every goal in the portfolio, that is a terminal stop below.
+  refuse the substitution, record the impediment against the affected CLAIM,
+  and move on with the goal still `active`. The claim stays un-promoted. This
+  is unchanged by the quorum suspension and by the no-pause rule: it governs
+  review policies such as `review-breakthrough`, which is still
+  `degradable: false`. If the policy is unresolvable for every goal in the
+  portfolio, that is a terminal stop below.
 
-**When the portfolio is empty** — no `active` goal, and every remaining one is
-paused, blocked, or completed — the harness still does not exit. In priority
+**When the `ready` bucket is empty** — whether because there is no `active`
+goal, or because the sweep put every `active` goal into `blocked` or
+`needs_repair` — the harness still does not exit on that alone. In priority
 order:
 
-1. Resume a `paused` goal whose recorded pause reason is now demonstrably
-   cleared (budget renewed by decision, archive repaired, policy resolvable).
-   The clearing goes in the resuming Coordinator decision; do not just flip the
-   status.
-2. Open a new campaign against the highest-ranked open `RQ-*` or
-   `KN-OPEN-*` item, following step 3's "Start new" path.
-3. If no open question justifies a campaign, run `/propose-ideas` on the
-   best-supported research question to generate candidates, then rank them and
-   open a campaign against the winner.
+1. Re-check the open `impediments` on active goals and pick up any whose
+   `clears_when` is now demonstrably satisfied (budget renewed by decision,
+   archive repaired, policy resolvable). Run the recorded `recheck` rather than
+   assuming; the clearing goes in a Coordinator decision, and the impediment is
+   marked cleared rather than deleted.
+2. **Design open ECC ideas into experiments.** Run
+   `python3 tools/ecc_priority.py --open-ideas`. Every entry is a `proposed`
+   ECC proposal that no hypothesis or experiment references, and these are
+   ranked work rather than backlog. Take the highest-ranked and run
+   `/design-experiment` on it: a hypothesis plus a frozen contract. Designing
+   is NOT approving — the contract sits at `approved_by: null` until a
+   committed Coordinator decision approves it. This step comes before opening
+   any new campaign, because a designed contract against an existing question
+   is cheaper and better-grounded than a fresh goal.
+3. Open a new campaign against the highest-ranked open `RQ-*` or
+   `KN-OPEN-*` item, following step 3's "Start new" path — ECC questions first.
+4. If no open question justifies a campaign, run `/propose-ideas` on the
+   best-supported ECC research question to generate candidates, then rank them
+   and open a campaign against the winner.
+
+None of these apply when the sweep shows a large `needs_repair` bucket
+across otherwise-unrelated goals: that pattern is a repository-wide integrity
+signal (see "Terminal stops"), and opening a new campaign or re-checking an
+impediment does not address it — report it instead.
 
 Idling is a last resort and is reported as such. Continuous operation must not
 degrade into make-work: a campaign opened only to keep the loop turning, with
@@ -326,7 +551,14 @@ Only these end the run itself:
   no resolvable backend for a `degradable: false` policy, a repository that
   cannot be pushed, or a ledger that will not validate on `main`. Report the
   failure and what would clear it; do not keep dispatching work that cannot be
-  archived.
+  archived. The step 2.5 sweep putting most or all of the active portfolio
+  into `needs_repair` — especially with unrelated goals failing on the same
+  shape of error (content-hash mismatch, an archived `commit_sha` that is not
+  an ancestor of `HEAD`) — is exactly this signal on `main`, not a run of bad
+  luck across many goals. Report the sweep's bucket counts and the distinct
+  error shapes seen; do not silently work around it by hand-repairing one
+  goal's queue to get a batch moving, since that treats a repository-wide
+  finding as a one-off.
 
 A failed candidate, empty ready set, or timeout is none of these. It is scoped
 evidence: record it, set the next action, continue.
@@ -359,7 +591,9 @@ cheaper ones.
   ranked next action, regardless of how high `max_concurrent` is set.
 - Every batch merges `origin/main` into the working branch (never rebases) and
   pushes with an open/updated PR against `main` before the next batch starts;
-  never resolve a sync conflict by editing a record.
+  never resolve a sync conflict by editing a record. WHICH branch that is is a
+  judgement call (step 8): the duty is that the work is merged, pushed, and
+  under an open PR — not that the branch is new or campaign-exclusive.
 
 ## Concurrency
 
@@ -384,8 +618,10 @@ a check.
 
 Report: goal ID + status; completed task IDs + verified commits; evidence /
 decision IDs with claim boundaries; knowledge promotions or `not_warranted`
-reasons; exact next action (or pause/complete rationale); PR number/branch the
-batch was pushed to and how current it is with `main`.
+reasons; exact next action (or impediment/complete rationale); PR number/branch
+the batch was pushed to and how current it is with `main` — and, if you took a
+branch of its own rather than the one the session was already on, the concrete
+reason from step 8.
 
 The report is a checkpoint, not a handover — write it and immediately begin the
 next batch or the next goal. When the run does end, say which terminal stop
@@ -402,10 +638,10 @@ User: continue the active ECDLP goal
 → prefer matching active GOAL-* → same loop from next_action
 
 User: launch a new research goal for RQ-SSI-001
-→ create GOAL-SSI-00N + BATCH-001 → snapshot → then coordinate loop
+→ allocate and check GOAL-SSI-<tok> + BATCH-<tok> → snapshot → then coordinate loop
 
 User: just keep the harness running
 → select highest-ranked active goal → batch → checkpoint → next batch → ...
-  → on goal completion/pause, select or open the next goal → continue until a
+  → on goal completion or impediment, select or open the next goal → until a
   terminal stop
 ```

@@ -116,7 +116,7 @@ run:
     valid: true
     invalid_reason: null
     certificate:              # see docs/claims-and-verification.md
-      kind: discrete_log | decomposition | none
+      kind: discrete_log | decomposition | key_recovery | none
       verified: null          # true once independently re-checked; a failed
                               # check invalidates the run (invalid_measurement)
       verifier: null

@@ -1,0 +1,390 @@
+idea:
+  id: IDEA-20260828-20f0fb
+  question_id: RQ-SHAONE-081e3a
+  added: '2026-08-28'
+  title: 'Attack the safety mechanism, not the hash: measure whether the deployed counter-cryptanalysis
+    detector''s OWN computational cost is data-dependent on how close an input is to satisfying a disturbance
+    vector''s unavoidable bit conditions, turning the detector''s documented recompression trigger into
+    a candidate timing/resource side-channel that could adaptively guide a near-collision search rather
+    than merely flag its output.'
+  class: mechanism
+  claim: '(A) Every proposal in this batch treats the deployed detector as a PASSIVE binary predicate:
+    a message goes in, a flag comes out, and the question is whether the flag is correct (IDEA-20260816-70b60d,
+    IDEA-20260828-2804d3), complete over a class (IDEA-20260816-3edd14), or transferable across disturbance-vector
+    families (IDEA-20260828-ca6584). None asks whether the detector''s OWN EXECUTION -- its running time
+    or internal work performed -- LEAKS INFORMATION about how close the input message is to satisfying
+    a near-collision differential path, independent of whether it ultimately flags. This is a genuinely
+    different threat model: not "does the detector catch attack X" but "can an attacker who can query
+    the detector (as any user of git, GnuPG, or a CI pipeline running it can) use its RESPONSE TIME as
+    an oracle to adaptively steer a search toward a collision, the way padding-oracle and timing attacks
+    on cryptographic implementations have historically turned a correctness check into a guidance signal."
+    (B) This is not speculative: the deployed algorithm''s own published description states that recompression
+    -- the detector''s expensive verification step -- is triggered ONLY when a candidate message block
+    satisfies a disturbance vector''s declared unavoidable bit conditions (UBCs), at probability 2^(-|Udv|)
+    per random block per DV, and that this ubc_check step itself costs roughly 70-100% of a plain SHA-1
+    compression''s time, with the FAR more expensive recompression (SHA-1 extended to 240 steps rather
+    than 80, per public reporting) added on top only when triggered (Stevens, eprint 2017/173, retrieved
+    via WebSearch snippet 2026-08-28). A detector whose recompression is conditionally triggered by how
+    many UBCs a message satisfies is, by construction, a detector whose running time is a function of
+    partial progress toward a near-collision -- exactly the kind of data-dependent branch that timing
+    side-channel analysis targets in other cryptographic contexts. Whether this is exploitable as a USABLE
+    guidance signal (rather than merely a documented internal implementation fact) is untested in this
+    program''s corpus. (C) The claim is that the number of DVs triggering recompression (and, if per-DV
+    granularity is observable, an approximate near-miss depth) is measurably correlated with detector
+    running time or a declared work counter, at a magnitude distinguishable from message-length-driven
+    variation alone, and that this correlation''s sign and strength -- not just its existence -- determines
+    whether the signal could in principle carry exploitable information: a detector where near-miss depth
+    changes running time by a large, easily separable amount is a more concerning oracle than one where
+    the effect is a small fraction of measurement noise. (D) WHAT IS NOT CLAIMED: no working attack that
+    uses this signal to find a collision faster than the published cost, no assertion that any real deployment
+    is exploitable end to end (an oracle''s EXISTENCE and a demonstrated ATTACK using it are different
+    and this proposal produces only the former, if anything), no new SHA-1 collision, and no statement
+    about any specific deployed system, repository, or certificate. A measured timing correlation is
+    a property of THIS implementation on THIS hardware under THIS measurement methodology. (E) A finding
+    that running time is INDISTINGUISHABLE from message-length-driven variation -- i.e. the recompression
+    trigger''s cost is too small a fraction of total running time, or too noisy on real hardware, to
+    carry a usable signal -- is fully valuable and is, on priors, the more likely outcome given the reported
+    ubc_check-to-SHA1Compress cost ratio of only 70-100%: it would mean the documented data-dependent
+    branch, while real, is not a PRACTICAL side channel at ordinary measurement precision, closing a
+    concern this program''s corpus has never tested rather than merely asserted closed.'
+  mechanism: 'STAGE 0 (gating, per RQ constraint): the counter-cryptanalysis specification (Stevens,
+    eprint 2017/173, and the deployed sha1collisiondetection source) must be filed as KN-LIT at stated
+    provenance before any timing measurement is built against it, per RQ-SHAONE-081e3a''s binding constraint;
+    this proposal currently holds only a WebSearch-snippet-level citation and does not proceed past STAGE
+    0 until the primary specification and source are read. STAGE 1: obtain and build the real deployed
+    detector (the same cr-marcstevens/sha1collisiondetection library IDEA-20260828-2804d3 obtains, sharing
+    that proposal''s acquisition step rather than duplicating it) with any internal work counters (UBC-satisfaction
+    count, recompression-trigger count) exposed if the source permits, or instrumented via a wrapper
+    if it does not. STAGE 2: construct a graded battery of synthetic near-miss messages at declared "near-miss
+    depth" d -- messages engineered to satisfy an increasing number of a chosen disturbance vector''s
+    UBCs without completing a full near-collision block, using the SAME message-modification machinery
+    (KN-TECH-066) this batch''s cost-model proposals already build, so that d is a controlled, declared
+    independent variable rather than an incidental property of found messages. STAGE 3: measure detector
+    running time (and, where exposed, the internal work counter) at each declared d over many repeated
+    trials per depth, on the same message length and block count throughout so length is held constant
+    and cannot confound the depth effect. STAGE 4, null control: a length-and-block-count-matched battery
+    of messages with NO near-miss structure at all (uniformly random bytes), run through the identical
+    measurement, establishing the baseline timing distribution against which any depth-dependent signal
+    must be distinguished. STAGE 5: fit running time (or work counter) as a function of d, report the
+    correlation''s magnitude and its separability from the STAGE-4 null''s variance (e.g. as a signal-to-noise
+    ratio or an effect size in units of the null''s standard deviation), and report explicitly whether
+    an observer measuring only wall-clock time (the realistic external-attacker view) could distinguish
+    depths that an observer with access to the internal work counter can distinguish -- these are two
+    different questions and the design keeps them separate. STAGE 6: if a measurable, wall-clock-separable
+    signal is found, report it as an oracle EXISTENCE finding with the measured bits-per-query information
+    content estimate, explicitly stopping short of building any adaptive search that uses it -- that
+    would be a materially larger, separate follow-on deliverable this proposal does not attempt.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Read RQ-SHAONE-081e3a and GOAL-SHA1-001 in full. Read all fourteen filed proposals against
+      RQ-SHAONE-081e3a in full (the ten from 2026-08-16 and the four filed earlier today, including
+      IDEA-20260828-2804d3 and IDEA-20260828-ca6584, the two closest relatives). Grepped ledger/proposals
+      for ''sha1dc|sha1collisiondetection|recompression|ubc_check|unavoidable bit condition'' (four
+      hits: IDEA-20260828-2804d3 and three unrelated ECDLP polynomial-arithmetic records under a different
+      sense of "recompression", confirmed by direct inspection); grepped for ''timing side.channel|version
+      drift|vendored|submodule'' (matches confirmed unrelated to hash detectors by sampled inspection).
+      WebSearched the deployed detector''s actual algorithm description (Stevens eprint 2017/173) to
+      confirm the recompression-trigger mechanism is a real, documented, data-dependent branch rather
+      than a speculative one.'
+    results: No proposal filed against RQ-SHAONE-081e3a, and none elsewhere in ledger/proposals, treats
+      the deployed detector''s own running time or internal work as an observable carrying information
+      about near-miss depth. IDEA-20260828-2804d3 runs the real detector against real artifacts and
+      tests chunk-boundary INVARIANCE of the flag decision, never measuring timing or proposing a graded
+      near-miss battery. IDEA-20260816-70b60d and IDEA-20260816-3edd14 both concern the flag decision''s
+      correctness (false/true-positive rate, coverage), never its running-time distribution. IDEA-20260828-ca6584
+      concerns cross-family flag transfer, not timing. WebSearch confirms the recompression-trigger mechanism
+      (ubc_check gating expensive recompression at probability 2^(-|Udv|) per DV, ubc_check itself costing
+      70-100% of SHA1Compress time) is a real, published, documented feature of the deployed algorithm,
+      not a speculative construction by this proposal.
+    verdict: 'UNVERIFIED. No claim is made about whether timing side-channel analysis of the deployed
+      SHA-1 collision detector has been published elsewhere -- timing side channels are a heavily studied
+      general class and it would be unsurprising if someone has examined this specific implementation.
+      What is claimed new internally: this repository holds zero proposals treating the detector as
+      an ACTIVE information source (a timing oracle) rather than a passive predicate, and the specific
+      construction -- a graded near-miss-depth battery built with this batch''s own message-modification
+      machinery, run against the real deployed detector with a matched random-message null, separating
+      the wall-clock-observable question from the internal-counter-observable question -- is assembled
+      from the documented recompression-trigger mechanism plus this program''s own null-control and
+      side-channel-methodology discipline, applied to a threat model (the detector as attack surface,
+      not the hash as attack surface) no existing SHAONE proposal adopts.'
+  citations:
+    - ref: "eprint 2017/173 (Stevens, \"Speeding up detection of SHA-1 collision attacks using unavoidable attack conditions\")"
+      provenance: retrieved
+      claim: "The deployed detector's ubc_check gates recompression: recompression for a disturbance vector is performed only if all its unavoidable bit conditions (UBCs) are satisfied, at probability 2^(-|Udv|) per random message block per DV; ubc_check itself costs roughly 72-101% of a plain SHA1Compress call, with recompression (SHA-1 extended to 240 steps) an additional, conditionally-triggered cost."
+      verified_by: "WebSearch 2026-08-28, snippet from https://eprint.iacr.org/2017/173.pdf and the USENIX Security 2017 version confirming the ubc_check/recompression mechanism and cost figures; full primary PDF not opened by this session. Must be filed as KN-LIT before STAGE 1, per RQ constraint."
+    - ref: "https://github.com/git/sha1collisiondetection/blob/master/lib/ubc_check.c"
+      provenance: retrieved
+      claim: "The deployed library implements UBC checking as a 32-bit mask over disturbance vectors, tracking which DVs require recompression based on message-block-dependent conditions."
+      verified_by: "WebSearch 2026-08-28, source-file existence and description confirmed; file not directly opened and read by this session."
+    - ref: KN-TECH-066
+      provenance: internal
+      claim: "Message modification spends degrees of freedom to force early conditions deterministically; the same accounting produces the disturbance-vector and unavoidable-condition structure this proposal's synthetic near-miss battery is built from."
+      verified_by: "Read in full this session, knowledge/techniques/KN-TECH-066.md."
+    - ref: "IDEA-20260828-2804d3"
+      provenance: internal
+      claim: "Establishes the real-library acquisition and build step this proposal shares rather than duplicates, and tests flag-decision invariance across delivery boundaries, a disjoint object from this proposal's timing measurement."
+      verified_by: "Read in full this session."
+  object_first_candidate:
+    tracked_object: 'The detector''s own running-time (or internal work-counter) sample, indexed by
+      the declared near-miss depth d of the input message that produced it. What is followed is the
+      DETECTOR''S OWN COMPUTATIONAL COST as a function of how close the input is to a near-collision,
+      not the flag decision itself and not the message content.'
+    lossiness: 'Genuinely lossy. The projection discards the message bytes, the specific disturbance
+      vector instance, and the flag outcome entirely, retaining only a (depth, timing-or-counter-sample)
+      pair. It is compatible with the detector''s operation because, per the documented ubc_check/recompression
+      mechanism, the detector''s running time is ALREADY a function of exactly this kind of partial-condition-satisfaction
+      state -- the retained pair is not an approximation invented by this proposal but a direct readout
+      of a documented internal control-flow decision. What is lost is any per-DV or per-condition attribution
+      of which specific UBC drove a given timing sample; recovering that would require STAGE 3''s internal-work-counter
+      variant, which this design includes precisely because the wall-clock-only view and the counter-exposed
+      view answer different threat-model questions.'
+    propagation: 'One step of the target operation is one detector invocation on one message at one
+      declared depth d. It produces one timing (and, where exposed, one counter) sample; accumulating
+      many samples per depth produces an empirical running-time distribution per d, and the trend across
+      d -- compared against the STAGE-4 null''s depth-independent distribution -- is the deliverable.'
+    survival_score: 'The object survives as long as depth d can be varied while holding message length
+      and block count fixed, which STAGE 2''s message-modification construction is specifically designed
+      to guarantee. It dissolves in USEFULNESS (though not in existence) if the recompression-trigger
+      cost is so small a fraction of total running time that no depth is separable from measurement
+      noise at ordinary timing precision -- concretely, if the effect size relative to the STAGE-4 null''s
+      standard deviation falls below a declared threshold at every tested d, the object still exists
+      as a measured (small) correlation but the oracle-existence finding becomes a clean negative rather
+      than a positive, which is exactly outcome (E) in `claim` and the priors-favoured outcome given
+      the reported ~70-100% ubc_check-to-SHA1Compress cost ratio.'
+  null_object_control: 'A length-and-block-count-matched battery of uniformly random, non-near-miss
+    messages, run through the IDENTICAL timing measurement in the same invocation as the depth-graded
+    battery. This establishes the baseline running-time distribution (driven purely by message length
+    and ordinary SHA-1 compression cost, with no near-miss structure at all) against which any depth-dependent
+    signal in the real battery must be shown to exceed. If the depth-graded battery''s running-time variation
+    across d is statistically indistinguishable from the null''s variation at fixed length, no depth-dependent
+    signal exists at this measurement precision and the oracle-existence claim is refuted rather than merely unsupported.'
+  discriminated_from:
+    - 'IDEA-20260828-2804d3 (real detector run against real public artifacts, chunk-boundary sensitivity):
+      that proposal measures whether the FLAG DECISION is invariant to how bytes are delivered to the
+      API; this proposal measures the detector''s RUNNING TIME as a function of near-miss depth, an
+      entirely different observable, and shares only the real-library acquisition step, explicitly named
+      as shared rather than duplicated.'
+    - 'IDEA-20260816-70b60d (detector as instrument, false/true-positive flag-decision rates): measures
+      whether the BINARY OUTPUT is correct on benign and near-collision corpora; this proposal treats
+      the detector''s COST as the observable and never reports a false-positive or true-positive rate.'
+    - 'IDEA-20260816-3edd14 (disturbance-vector coverage enumeration): a purely symbolic set-difference
+      audit that never runs the detector on any message; this proposal runs the real detector repeatedly
+      and measures its timing.'
+    - 'IDEA-20260828-ca6584 (cross-disturbance-vector-family adversarial construction): asks whether
+      a detector derived against one family flags a collision from a different family; this proposal
+      asks whether the SAME detector''s timing leaks information regardless of family, a disjoint question
+      about the detector''s implementation rather than its logical coverage.'
+    - 'A generic claim that "timing side channels exist in cryptographic code": that is a well-known
+      general phenomenon and an assertion; this proposal produces a graded near-miss-depth battery built
+      from this program''s own message-modification machinery, a matched random-message null, separate
+      wall-clock and internal-counter measurement arms, and an explicit bits-per-query information-content
+      estimate if a signal is found.'
+  assumptions:
+    - 'The counter-cryptanalysis specification and detector source are obtainable in primary text and
+      filable as KN-LIT, per the RQ''s binding constraint; if not, the experiment does not proceed past
+      STAGE 0, per the constraint and per GOAL-SHA1-001''s own pause condition.'
+    - 'A synthetic near-miss battery graded by declared UBC-satisfaction count d is a faithful enough
+      operationalisation of "closeness to a near-collision" that a measured timing effect is informative
+      about the documented recompression mechanism, not an artifact of how the battery itself is constructed;
+      the STAGE-4 random-message null is the direct check on this.'
+    - 'Wall-clock timing measurement on this harness''s hardware is precise enough, after repeated trials,
+      to detect an effect if the documented recompression cost ratio (an additional cost on top of the
+      ~70-100% ubc_check overhead) is large enough to matter; if measurement noise dominates at every
+      tested repetition count within budget, this is reported as a measurement-precision boundary, not evidence that no effect exists.'
+    - 'An oracle-existence finding (a measured, separable timing correlation) does not by itself establish
+      that any adaptive search could USE the signal to reduce attack cost; that would require constructing
+      and testing such a search, which this proposal explicitly does not attempt and names as separate, larger follow-on work.'
+  proof_search_map:
+    not_applicable_reason: >-
+      This is an empirical side-channel measurement of an existing, real implementation's running-time
+      behaviour, not a proof of a theorem or a claimed algorithmic ceiling on SHA-1 itself. There is
+      no bottleneck step whose removal changes a theorem, no certificate-carrying observable requiring
+      a collision search on the HASH, and no constructive transform being attempted against SHA-1; KN-TECH-080's
+      proof-architecture apparatus does not apply. The nearest analogue is the null-hypothesis control
+      in `mechanism` STAGE 4, which is the falsification gate for the oracle-existence claim.
+  predictions:
+    - metric: correlation between declared near-miss depth d and detector wall-clock running time, at
+        fixed message length and block count
+      direction: higher
+      minimum_effect: 'explicit refusal to pre-commit a magnitude: the reported ~70-100% ubc_check-to-SHA1Compress
+        cost ratio makes a SMALL effect the priors-favoured outcome, and pre-committing a size would
+        prejudge the very question the null control exists to answer. Reported as an effect size in
+        units of the STAGE-4 null''s standard deviation, with an explicit statement of whether it clears
+        a pre-declared separability threshold.'
+    - metric: running-time variation across the STAGE-4 random-message (non-near-miss) null battery, matched by length
+      direction: different
+      minimum_effect: 'predicted small and depth-independent by construction (the null has no depth
+        variable); this is the baseline the signal arm is compared against, not an independent prediction to test'
+    - metric: effect size measurable via an internal work counter (where exposed), relative to the effect
+        size measurable via wall-clock time alone
+      direction: higher
+      minimum_effect: 'predicted higher for the counter-exposed arm than the wall-clock-only arm; a
+        signal visible only internally and not externally would mean the mechanism is real but not a
+        practical external oracle, which is itself the reportable distinction this design is built to make'
+    - metric: estimated bits-per-query information content of the timing signal about near-miss depth,
+        conditional on a signal clearing the separability threshold
+      direction: higher
+      minimum_effect: 'no pre-committed value; reported only if STAGE 5''s separability threshold is
+        cleared, since committing a value in advance of knowing whether any signal exists at all would misstate the design''s own gating logic'
+  minimal_test:
+    design: 'The cheapest discriminating run is STAGE 0 plus a two-point depth comparison (d=0, i.e.
+      the random-message null, versus one materially large declared d) using wall-clock timing only,
+      with the internal-counter arm and the full depth sweep deferred. This costs the KN-LIT filing
+      (a reading task, not compute) plus CPU-minutes of timing measurement once the detector is built,
+      and needs no collision to complete and no GPU. It answers the single gating question before the
+      fuller design is bought: is there ANY wall-clock-measurable difference between a high-near-miss-depth
+      message and a random message of the same length, at all, at ordinary measurement precision? If
+      there is not, per the priors-favoured negative outcome, the finding is reported as a clean, useful
+      closure of an untested concern and the fuller sweep is not warranted. If there is, the full depth
+      sweep, the internal-counter arm, and the bits-per-query estimate become worth buying.'
+    controls:
+      - 'Length-and-block-count-matched random-message null battery, same invocation, same measurement path.'
+      - 'Message length and block count held fixed across every declared depth, so timing variation cannot be confounded with length.'
+      - 'Repeated trials per depth with reported variance, since single-shot timing measurement on shared hardware is unreliable.'
+      - 'Separate wall-clock-only and internal-counter-exposed measurement arms, so the external-attacker-realistic question and the implementation-internals question are never conflated into one number.'
+    required_metrics:
+      - 'running time (mean and variance) per declared near-miss depth d, and for the random-message null, both wall-clock and internal-counter where exposed'
+      - 'effect size of the depth-versus-timing relationship in units of the null''s standard deviation'
+      - 'separability verdict against a pre-declared threshold, for wall-clock and internal-counter arms separately'
+      - 'estimated bits-per-query information content, if and only if the separability threshold is cleared'
+  falsification_conditions:
+    - 'Running time at high declared near-miss depth is statistically indistinguishable from the random-message
+      null at fixed message length, across the full tested range -- refuting the oracle-existence claim
+      at this measurement precision and closing the concern with a measured negative.'
+    - 'The internal-counter-exposed arm shows a clear depth effect but the wall-clock-only arm does not,
+      showing the mechanism is real internally but not externally observable at this precision -- a
+      distinct, still-valuable, and explicitly different finding from either a full positive or a full negative.'
+    - 'The counter-cryptanalysis specification or detector source cannot be obtained in primary text
+      under the network policy, halting the run at STAGE 0 per the RQ''s binding constraint and GOAL-SHA1-001''s pause condition.'
+    - 'Repeated-trial variance at every tested repetition count within budget swamps any depth effect,
+      making separability undecidable at this budget -- a measurement-precision and budget outcome,
+      explicitly not evidence for or against the oracle''s existence (AGENTS.md rule 3).'
+  confounders:
+    - 'Shared-hardware timing noise (OS scheduling, thermal throttling, other processes) can produce
+      apparent depth-correlated variation that is actually unrelated drift; repeated, interleaved trials
+      across depths (rather than sequential blocks per depth) are the mitigation, and their sufficiency is arguable.'
+    - 'The synthetic near-miss battery''s construction method (which specific UBCs are satisfied first,
+      and in what order) could itself introduce timing variation unrelated to the recompression mechanism
+      -- e.g. if the message-modification construction leaves detectable structural regularities the
+      detector''s ordinary SHA-1 computation (not its collision-detection logic) responds to differently;
+      the random-message null is the direct check on this, since it shares message length but not near-miss structure.'
+    - 'An internal work counter, if exposed via a modified build rather than the stock library, could
+      itself introduce measurement overhead that differs from the unmodified deployment''s behaviour;
+      any counter-exposed measurement is reported as characterising the instrumented build, with the
+      wall-clock-only arm on the STOCK build as the externally-realistic reference.'
+    - 'A message-length-independent effect at one length does not guarantee the same relationship holds
+      at other lengths or block counts; this proposal fixes length within its own design and states
+      that as a scope limit rather than testing multiple lengths, which is out of budget at this stage.'
+  interpretation_limits:
+    - 'An oracle-EXISTENCE finding (a measured, separable timing correlation) is not a demonstrated attack;
+      no adaptive search using the signal is built or tested here, and building one is named as separate, larger follow-on work.'
+    - 'A measured correlation characterises THIS build of THIS detector version on THIS hardware under
+      THIS measurement methodology; it does not transfer to other hardware, other detector versions,
+      or network-observable timing (which would add substantial additional noise this proposal does not model).'
+    - 'A clean negative result (no separable signal) is a statement about measurement precision at analogue
+      scale and does not prove no signal could ever be extracted with more sophisticated statistical
+      techniques or more measurement repetitions than this proposal''s declared budget allows.'
+    - 'Nothing here is a statement about the security of any specific deployed system, repository, or
+      certificate, per the RQ''s binding constraint; a finding here is a statement about the detector
+      as a piece of software, not about any consequence for a system that runs it.'
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The detector's documented recompression-trigger mechanism (recompression performed only when
+        a message block satisfies a disturbance vector's UBCs) produces a running-time signal whose
+        magnitude scales with the ADDITIONAL cost recompression adds beyond the baseline ubc_check cost
+        -- i.e. the timing effect size is bounded above by (recompression cost / total detector cost)
+        and should behave, for statistical detection purposes, like distinguishing two nearby means in
+        a noisy measurement where the true mean shift is small relative to the reported ubc_check-to-SHA1Compress
+        cost ratio of roughly 70-100%.
+      rigorous_support: >-
+        Not a proved theorem; it is a direct, algebraic consequence of the documented cost structure
+        in Stevens' own published description of the algorithm (ubc_check cost roughly 70-100% of SHA1Compress,
+        recompression an additional conditional cost), treated here as a scale estimate for how large
+        an effect this proposal should expect to be looking for, analogous to using a stated false-positive
+        rate to size a statistical test's required sample count.
+      validation_plan: >-
+        Sample: many repeated timing trials (target several thousand per declared depth, adaptively
+        more if variance is high) across a graded near-miss-depth battery and a matched random-message
+        null, on whatever hardware this harness provides. Shortcut: none needed beyond direct timing
+        measurement, since this is a systems/engineering property of an existing real implementation
+        rather than a number-theoretic sampling problem requiring a correspondence for scale. Comparison:
+        empirical running-time distributions per depth compared against the null's distribution via an
+        explicit effect-size statistic (e.g. Cohen's d or a nonparametric rank-based equivalent), not
+        by eye, with the pre-declared separability threshold stated before any data is collected. Tail
+        check: the largest declared depth (closest to a full near-collision block) is the tail of this
+        measurement and is exactly where, if H1's scale estimate is right, any real signal should be largest and most detectable.
+  target_complexity:
+    time_exponent: >-
+      No SHA-1 attack exponent is claimed or altered. The deliverable is an existence-or-non-existence
+      finding about a timing side channel in an existing detector implementation, reported as an effect
+      size, not an attack complexity.
+    memory_exponent: >-
+      No memory exponent is claimed. Memory cost is that of running an ordinary detector build and a
+      graded message battery, negligible and not a cryptanalytic quantity.
+    best_known: >-
+      The incumbent is the complete absence, in this program's corpus and as far as this session's novelty
+      screen found, of any treatment of the deployed detector as an ACTIVE information source rather
+      than a passive predicate -- despite the detector's own published algorithm containing a documented,
+      real, data-dependent branch (the recompression trigger) that is the textbook shape of a side channel
+      in other cryptographic contexts. No detection algorithm is beaten or improved; an unexamined attack
+      surface on the safety mechanism itself is examined for the first time in this repository.
+    hidden_overhead: >-
+      The real risk is that the documented cost ratio (recompression adding a cost on top of an already-substantial
+      ubc_check overhead of 70-100% of baseline) makes the SIGNAL genuinely small relative to ordinary
+      timing noise on shared, non-isolated hardware, which this design discloses honestly as the priors-favoured
+      outcome rather than hiding it to make the proposal sound more consequential than the documented
+      mechanism supports. Building the graded near-miss battery correctly (so that depth is a controlled
+      variable and not confounded with incidental message structure) is real implementation work and the design''s main engineering cost.
+    tradeoff_note: >-
+      Not applicable in the usual attack-cost sense; the relevant tradeoff, if any signal is found, is
+      between measurement precision (number of repeated trials, hence wall-clock cost of the MEASUREMENT
+      itself) and the confidence of the separability verdict, which is reported as part of STAGE 5 rather than optimised away.
+  dominated_by: >-
+    n/a (no result claimed). Checked across time, memory and data/query axes: the deliverable is an
+    existence-or-non-existence finding about a timing side channel in a detector implementation, placing
+    no point on any attack frontier for SHA-1, MD5, or any other primitive. No existing row in this repository
+    (including the single UNVERIFIED chosen-prefix cost figure in RQ-SHAONE-081e3a, and every existing
+    detector-audit proposal, which all concern the flag decision rather than the detector's own running time) addresses this object.
+  sota_delta: >-
+    No attack; conceptual/measurement contribution only. Quantitatively: the repository moves from zero
+    examination of the deployed detector as an information source to a graded near-miss-depth timing
+    battery, a matched random-message null, separate wall-clock and internal-counter measurement arms,
+    an explicit separability verdict against a pre-declared threshold, and (conditional on a signal being
+    found) an estimated bits-per-query information content. No speed comparison to any competing algorithm
+    is stated because no algorithm is proposed.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    Separable parts, and they diverge sharply. (1) That the counter-cryptanalysis specification and
+    detector source are obtainable in primary text under the network policy: about 0.6, gating everything
+    per the RQ''s own binding constraint. (2) Conditional on (1), that the graded near-miss-depth battery
+    can be constructed correctly using this batch''s existing message-modification machinery, verified
+    against the random-message null showing no depth-independent artifact: about 0.7. (3) That a wall-clock-measurable
+    timing effect actually clears the pre-declared separability threshold, GIVEN the reported ~70-100%
+    ubc_check-to-SHA1Compress cost ratio (which makes the additional recompression cost plausibly a
+    modest fraction of total time, and hence a plausibly small, hard-to-separate signal): about 0.3 --
+    I would bet against a practically exploitable wall-clock signal, and a clean negative here is the
+    single most likely and most useful outcome. (4) That an internal-counter-exposed signal exists even
+    if the wall-clock signal does not, given the documented internal branch definitely exists at the
+    algorithmic level: about 0.75. Composite for a full wall-clock-positive result is therefore low,
+    roughly 0.09, but the design is built so that the priors-favoured negative outcome (part 3 failing
+    while part 4 succeeds) is itself a clean, informative, and cheaply obtained finding rather than a
+    failed experiment -- the minimal two-point wall-clock-only test costs little and is worth running
+    regardless of the composite odds for the full design.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-28'
+  source_refs:
+    - RQ-SHAONE-081e3a
+    - GOAL-SHA1-001
+    - IDEA-20260828-2804d3
+    - IDEA-20260816-70b60d
+    - IDEA-20260816-3edd14
+    - IDEA-20260828-ca6584
+    - KN-TECH-066
+    - "eprint 2017/173"
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md

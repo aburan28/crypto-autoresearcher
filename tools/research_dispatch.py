@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import re
@@ -13,6 +14,9 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, Sequence
 
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from orchestration.research_budget import enforce_research_budget, agent_wall_limit
 
 SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
 PLAN_SCHEMA = "crypto.autoresearch.dispatch_plan.v1"
@@ -99,6 +103,30 @@ def require_positive_number(record: dict[str, Any], field: str, location: str) -
     value = record.get(field)
     if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
         raise DispatchError(f"{location}.{field} must be a positive number")
+
+
+def declares_zero_compute(budget: dict[str, Any]) -> bool:
+    """True when a handoff budget DECLARES that its task runs no experiments.
+
+    Coordinator archive tasks, and the review tasks that only read committed
+    artifacts, consume no experiment compute. They said so -- GOAL-ECDLP-001's
+    BATCH-e6c1c9 sets `experiment_maximum_runs: 0` and GOAL-MD5-001's
+    BATCH-ebac02 sets `maximum_runs: 0`, each with a note citing the committed
+    campaign-budget amendment that authorised it -- and then failed validation
+    anyway, because `wall_clock_seconds` and `memory_gb` were unconditionally
+    required to be positive. Both goals sat in `needs_repair`, undispatchable,
+    over a compute ceiling for compute that is never spent.
+
+    The declaration is the contract, and it is checkable: a task claiming zero
+    runs may omit the wall-clock and memory ceilings that bound runs. A task
+    that runs anything at all is bounded exactly as it always was.
+    """
+
+    for field in ("experiment_maximum_runs", "maximum_runs"):
+        value = budget.get(field)
+        if isinstance(value, int) and not isinstance(value, bool) and value == 0:
+            return True
+    return False
 
 
 def parse_timestamp(value: Any, location: str) -> datetime:
@@ -377,11 +405,29 @@ def validate_handoff(task: dict[str, Any], location: str) -> None:
     budget = handoff.get("budget")
     if not isinstance(budget, dict):
         raise DispatchError(f"{location}.handoff.budget must be an object")
+    try:
+        enforced = enforce_research_budget(
+            budget, repo_root=Path(__file__).resolve().parents[1], target_id=handoff.get("id"))
+        agent_wall_limit(handoff, repo_root=Path(__file__).resolve().parents[1])
+    except ValueError as exc:
+        raise DispatchError(f"{location}: {exc}") from exc
+    zero_compute = declares_zero_compute(budget)
     for field in ("wall_clock_seconds", "memory_gb"):
+        # Null time estimates are advisory. Memory remains machine protection;
+        # a declared zero-compute task may leave both estimates null.
+        if budget.get(field) is None and (zero_compute or (field == "wall_clock_seconds" and not enforced)):
+            continue
         require_positive_number(budget, field, f"{location}.handoff.budget")
     maximum_runs = budget.get("maximum_runs")
-    if not isinstance(maximum_runs, int) or isinstance(maximum_runs, bool) or maximum_runs < 1:
-        raise DispatchError(f"{location}.handoff.budget.maximum_runs must be a positive integer")
+    minimum_runs = 0 if zero_compute else 1
+    if maximum_runs is None and not enforced:
+        return
+    if (not isinstance(maximum_runs, int) or isinstance(maximum_runs, bool)
+            or maximum_runs < minimum_runs):
+        qualifier = (
+            "a non-negative integer" if zero_compute else "a positive integer")
+        raise DispatchError(
+            f"{location}.handoff.budget.maximum_runs must be {qualifier}")
 
 
 def _require_optional_sha(value: Any, location: str) -> None:
@@ -453,10 +499,21 @@ def _validate_ledger_archive(task: dict[str, Any]) -> None:
         return
     evidence = [path for path in task["artifact_paths"] if path.startswith("ledger/evidence/")]
     decisions = [path for path in task["artifact_paths"] if path.startswith("ledger/decisions/")]
-    if not evidence or not decisions:
+    if not decisions:
         raise DispatchError(
-            f"ledger archive {task['id']} must own exact artifacts under ledger/evidence/ "
-            "and ledger/decisions/"
+            f"ledger archive {task['id']} must own exact artifacts under "
+            "ledger/decisions/"
+        )
+    # CORR-20260822-7e98b5 HD-1: a ledger archive's entire content can BE the
+    # decision (a REVISE/block, a supersede, an infra pause, a protocol
+    # amendment, a correction) -- it does not always promote an evidence
+    # record. Only require an evidence path when the archive's own record_ids
+    # actually name an EV-* record (the dangling-reference catch below still
+    # applies once evidence is expected).
+    if any(rid.startswith("EV-") for rid in archive["record_ids"]) and not evidence:
+        raise DispatchError(
+            f"ledger archive {task['id']} names an EV-* record_id but owns no "
+            "artifact under ledger/evidence/"
         )
     if not archive["record_ids"]:
         raise DispatchError(f"ledger archive {task['id']} must include relevant ledger record IDs")
@@ -742,11 +799,111 @@ def _ready_queued(
     return sorted(queued, key=lambda task: (-task["priority"], task["id"]))
 
 
+CLAIM_OVERLAY_STATES = {"live", "expired", "released", "orphan_release"}
+
+
+def apply_claims(
+    queue: dict[str, Any],
+    claims: dict[str, dict[str, Any]] | None,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Overlay write-once task claims (tools/goal_lanes.py) on a queue copy.
+
+    The queue file is the Coordinator's record and is never edited here. The
+    overlay only changes what this plan ADMITS, so several sessions reading
+    the same committed queue see each other's holds without any of them
+    writing it:
+
+      live claim on a queued task      -> treated as `running` with a lease
+                                          derived from the claim (scope held,
+                                          counts toward max_concurrent)
+      expired claim on a queued task   -> left `queued` (scope free, so the
+                                          task is offered again and the next
+                                          session claims it at epoch+1), and
+                                          listed under `expired_leases` so the
+                                          owner's silence is on the record
+      release `completed` (producer)   -> treated as `completed`, so its
+                                          successors become ready for whoever
+                                          claims them next
+      release `completed` (archive)    -> NOT overlaid: an archive is complete
+                                          only when its commit verifies, and
+                                          that binding lives in the queue's own
+                                          archive block, written by the
+                                          Coordinator at archive time
+      release failed|abandoned         -> left `queued`, scope free, reported
+      any claim on a non-queued task   -> ignored; the queue already records
+                                          more than the claim does
+
+    Returns the overlaid copy and a per-task report for the plan.
+    """
+    overlaid = copy.deepcopy(queue)
+    report: dict[str, dict[str, Any]] = {}
+    if not claims:
+        return overlaid, report
+    by_id = {task["id"]: task for task in overlaid["tasks"] if isinstance(task, dict) and "id" in task}
+    # Two passes: completions first, so a hold on a successor is judged against
+    # the successor's dependencies AS THIS READER SEES THEM. A claim made from a
+    # worktree that had already fetched a completion this one has not is not an
+    # error in the queue; it is a fact this plan cannot yet admit, and it is
+    # reported as such rather than crashing the render.
+    for task in overlaid["tasks"]:
+        claim = claims.get(task["id"])
+        if claim is None:
+            continue
+        status = claim.get("status")
+        if status not in CLAIM_OVERLAY_STATES:
+            raise DispatchError(f"claim for {task['id']} has unknown status {status!r}")
+        entry = {
+            "status": status,
+            "owner": claim.get("owner"),
+            "epoch": claim.get("epoch"),
+            "expires_at": claim.get("expires_at"),
+            "branch": claim.get("branch"),
+            "outcome": (claim.get("release") or {}).get("outcome"),
+            "applied": None,
+        }
+        report[task["id"]] = entry
+        if task["state"] != "queued":
+            entry["applied"] = f"ignored:queue_state_{task['state']}"
+        elif status == "released" and entry["outcome"] == "completed" and not is_archive(task):
+            task["state"] = "completed"
+            entry["applied"] = "completed"
+    for task in overlaid["tasks"]:
+        entry = report.get(task["id"])
+        if entry is None or entry["applied"] is not None:
+            continue
+        claim = claims[task["id"]]
+        status = entry["status"]
+        if status == "expired":
+            entry["applied"] = "queued_after_expiry"
+        elif status == "live":
+            unmet = [
+                dependency for dependency in task.get("depends_on", [])
+                if dependency in by_id and by_id[dependency].get("state") != "completed"
+            ]
+            if unmet:
+                entry["applied"] = "ignored:dependencies_incomplete_from_this_view:" + ",".join(unmet)
+                continue
+            task["state"] = "running"
+            task["lease"] = {
+                "owner": claim["owner"],
+                "acquired_at": claim["acquired_at"],
+                "expires_at": claim["expires_at"],
+                "epoch": int(claim["epoch"]),
+            }
+            entry["applied"] = "running_with_lease"
+        elif status == "released" and entry["outcome"] == "completed":
+            entry["applied"] = "ignored:archive_completion_requires_queue_record"
+        else:
+            entry["applied"] = "queued_scope_free"
+    return overlaid, report
+
+
 def select(
     queue: dict[str, Any],
     *,
     repository_verifier: RepositoryVerifier | None = None,
     now: datetime | None = None,
+    claims: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Select the tasks a dispatch plan admits.
 
@@ -761,7 +918,16 @@ def select(
     Coordinator decision, made once and recorded, not an inference redrawn on
     every dispatch run.
     """
+    queue, claim_report = apply_claims(queue, claims)
     by_id = validate_queue(queue, repository_verifier=repository_verifier)
+    if any("recovery" in task for task in queue["tasks"]):
+        if __package__:
+            from . import task_recovery
+        else:
+            import task_recovery
+        for task in queue["tasks"]:
+            if "recovery" in task:
+                task_recovery.verify(queue, task, repository_verifier, now=now)
     all_running = [task for task in queue["tasks"] if task["state"] == "running"]
     expired = (
         [task for task in all_running if lease_is_expired(task, now)]
@@ -770,6 +936,18 @@ def select(
     )
     expired_ids = {task["id"] for task in expired}
     running = [task for task in all_running if task["id"] not in expired_ids]
+    expired_claims = [
+        {
+            "id": task["id"],
+            "role": task["role"],
+            "owner": claim_report[task["id"]]["owner"],
+            "write_scope": task["write_scope"],
+            "expires_at": claim_report[task["id"]]["expires_at"],
+            "source": "claim",
+        }
+        for task in queue["tasks"]
+        if claim_report.get(task["id"], {}).get("applied") == "queued_after_expiry"
+    ]
     ready = _ready_queued(queue, by_id)
     ready_archives = [task for task in ready if is_archive(task)]
     selected: list[dict[str, Any]] = list(running)
@@ -848,7 +1026,14 @@ def select(
             "write_scope": task["write_scope"],
             "artifact_paths": task["artifact_paths"],
             "handoff": task["handoff"],
+            **({"recovery": task["recovery"]} if "recovery" in task else {}),
             **({"archive": task["archive"]} if is_archive(task) else {}),
+            "claim": (
+                {key: claim_report[task["id"]][key] for key in ("status", "owner", "epoch", "expires_at")}
+                if task["id"] in claim_report
+                and claim_report[task["id"]]["applied"] == "running_with_lease"
+                else None
+            ),
         }
         for task in selected
     ]
@@ -878,8 +1063,14 @@ def select(
                 "expires_at": task["lease"]["expires_at"],
             }
             for task in expired
-        ],
+        ] + expired_claims,
+        "claims": claim_report,
         "gates": {
+            "claimed_tasks_are_not_offered_to_others": all(
+                task["state"] == "running" or task["id"] not in claim_report
+                or claim_report[task["id"]]["applied"] != "running_with_lease"
+                for task in selected
+            ),
             "concurrency_cap_respected": (
                 len(selected) <= queue["max_concurrent"]
                 and (
@@ -977,11 +1168,24 @@ def markdown(plan: dict[str, Any]) -> str:
                       "before `--now` -- their write_scope is no longer treated as held, so a",
                       "queued successor over the same scope was admitted instead. The task",
                       "itself is untouched: a Coordinator still records the actual terminal",
-                      "state (most likely `failed`) the next time the queue is edited.", ""])
+                      "state (most likely `failed`) the next time the queue is edited.",
+                      "An entry marked `claim` is an expired write-once claim instead: the task",
+                      "stays queued and is offered again; claim it at the next epoch.", ""])
         for item in expired_leases:
             lines.append(
-                f"- `{item['id']}` ({item['role']}, leased by `{item['owner']}`, "
-                f"expired {item['expires_at']}): {', '.join(item['write_scope'])}"
+                f"- `{item['id']}` ({item['role']}, {'claim' if item.get('source') == 'claim' else 'lease'} "
+                f"by `{item['owner']}`, expired {item['expires_at']}): {', '.join(item['write_scope'])}"
+            )
+    claims = plan.get("claims") or {}
+    if claims:
+        lines.extend(["", "## Claims (write-once, tools/goal_lanes.py)", "",
+                      "A `live` claim is another session's hold on that task's write_scope:",
+                      "it is listed under Ready Tasks as `running` so you do not start it.",
+                      "Start only Ready Tasks whose `claim` is null, and claim them first.", ""])
+        for task_id, item in sorted(claims.items()):
+            lines.append(
+                f"- `{task_id}`: {item['status']} (owner `{item.get('owner')}`, epoch {item.get('epoch')}, "
+                f"expires {item.get('expires_at')}) -> {item['applied']}"
             )
     degraded = plan.get("content_only_archives") or []
     if degraded:
@@ -1393,6 +1597,15 @@ def main() -> int:
              "from the clock, so a dispatch plan stays a pure function of its inputs -- "
              "e.g. --now \"$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)\".",
     )
+    parser.add_argument(
+        "--claims",
+        choices=("off", "local", "refs"),
+        default="local",
+        help="overlay write-once task claims from <queue dir>/claims/ (tools/goal_lanes.py): "
+             "'local' reads the working tree, 'refs' also scans every git ref so claims pushed "
+             "from other worktrees count, 'off' ignores claims. Claims are evaluated at --now "
+             "(or the wall clock when --now is omitted).",
+    )
     args = parser.parse_args()
     try:
         repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
@@ -1401,8 +1614,26 @@ def main() -> int:
         enforce_reconciliation_document_authority(queue)
         verifier = GitRepositoryVerifier(repo_root)
         now = parse_timestamp(args.now, "--now") if args.now is not None else None
-        plan = select(queue, repository_verifier=verifier, now=now)
-    except (OSError, json.JSONDecodeError, DispatchError) as error:
+        claims = None
+        if args.claims != "off":
+            import goal_lanes  # sibling module; imported lazily so the planner stays importable alone
+
+            # Claims carry expiries, so a plan that reads them is clock-dependent
+            # whether or not --now was given: without a clock an expired hold
+            # would be admitted as `running` and never surface under
+            # expired_leases. Sample the wall clock once and use it for both.
+            if now is None:
+                now = goal_lanes.utcnow()
+            try:
+                claims = goal_lanes.claim_summary(
+                    repo_root, args.queue.resolve(), include_refs=(args.claims == "refs"), now=now,
+                )
+            except goal_lanes.LaneError as error:
+                raise DispatchError(f"claims overlay: {error}") from error
+        if now is None and any("recovery" in task for task in queue.get("tasks", [])):
+            now = datetime.now().astimezone()
+        plan = select(queue, repository_verifier=verifier, now=now, claims=claims)
+    except (OSError, ValueError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2
     args.output.parent.mkdir(parents=True, exist_ok=True)

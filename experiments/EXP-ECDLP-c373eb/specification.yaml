@@ -1,0 +1,126 @@
+experiment:
+  id: EXP-ECDLP-c373eb
+  hypothesis_id: H-ECDLP-a40416
+  version: 1
+  title: >-
+    RC-1: toy-scale exact tabulation of ECDLP-IDEA-436's D1 profile, with a
+    null-lift discriminating control and a rigid-vs-non-rigid (RTF-1) probe
+  status: approved
+  objective: >-
+    Implement and run, at toy scale (p approximately 1009), the three-part
+    RC-1 control named by red-team report TASK-20260831-62019a and reaffirmed
+    as the single highest-value next step by DEC-20260901-255ebd: (1) tabulate
+    D1(j,k) = v_p(x([k]S-hat) - x([j]S-hat)) truncated at precision r=8 for
+    all 1 <= j < k < n on the canonical order-n prime-to-p torsion lift, and
+    check the image is exactly {0, at least 8}; (2) repeat the identical
+    tabulation with S-hat replaced by an arbitrary Hensel lift of S that does
+    NOT satisfy the order-n condition, predicting genuine intermediate
+    valuations; (3) tabulate one rigid three-point functional (the
+    Vandermonde / product of pairwise differences) alongside one non-rigid
+    three-point functional on the same canonical lift, testing the RTF-1
+    rigidity reading. This is a pure measurement (certificate kind: none);
+    it claims no discrete-log solve.
+  source_proposal: ECDLP-IDEA-436
+  claim_tier_basis: >-
+    Toy tier per docs/claims-and-verification.md (max field bit size well
+    under 32; p approximately 1009 is about 10 bits). May assert direct
+    measurements at the tested instance plus the already-stated,
+    scale-independent derivation (Proposition E) the measurement checks
+    consistency with; may not assert anything about cryptographic-scale
+    curves without a separate, explicit transfer argument, which this
+    experiment does not make.
+  inputs:
+    curve: >-
+      One small ordinary E/F_p with p approximately 1009 (exact p, curve
+      coefficients, and generator chosen by the executor and recorded
+      verbatim in the run manifest, together with the factorization of n).
+    point_S: 'a point of prime order n on E(F_p) with gcd(n, p) = 1'
+    precision: 'p-adic precision r = 8'
+  controls:
+    - id: RC-1-part-2-null-lift
+      description: >-
+        An arbitrary Hensel lift of S that does NOT satisfy the canonical
+        order-n condition, breaking the torsion-freeness step Lemma 1 relies
+        on. This is the discriminating control distinguishing "the flatness
+        is a consequence of the canonical lift's isomorphism mechanism" from
+        "the flatness is an artifact of the p-adic library's precision
+        handling."
+  independent_variables:
+    - 'j, k ranging over 1 <= j < k < n (part 1 and implicitly part 2)'
+    - 'choice of canonical vs. null lift (part 2)'
+    - 'choice of rigid (Vandermonde) vs. non-rigid three-point functional (part 3)'
+  metrics:
+    primary:
+      - 'image (as a set) of v_p(x([k]S-hat) - x([j]S-hat)) truncated at r=8, over all j < k, on the canonical lift'
+      - 'image of the identical tabulation on the null lift'
+      - 'image of the Vandermonde vs. the chosen non-rigid three-point functional, on the canonical lift'
+    secondary:
+      - 'count and list of any (j,k) pair whose value differs from {0, r} on the canonical lift (should be empty if Proposition E holds)'
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'image of D1 on the canonical lift (part 1)'
+    formula: '{0, r} exactly, with the "r" value occurring exactly at k = +/-j mod n'
+    source: >-
+      Proposition E, ideas/artifacts/ECDLP-IDEA-436/ggm_simulability_gate_erratum_20260831.md
+      section C.2, independently re-derived and confirmed by
+      DEC-20260901-255ebd.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      p approximately 1009 (about 10 bits), single instance. This experiment
+      exists to discharge a discriminating control on an already-derived,
+      scale-independent mathematical claim (Proposition E) -- the toy scale
+      is sufficient because the claim being checked is not itself
+      scale-dependent; a toy counterexample would falsify it as surely as a
+      cryptographic-scale one, per EXP-GGM-001's own established precedent
+      for this style of derivation-checking experiment.
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds: []
+    independent_instances: 1
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 0.02
+    maximum_memory_gb: 1
+    maximum_runs: 1
+    maximum_workers: null
+  stopping_rules:
+    - 'Stop after all three parts complete and results are tabulated; no iterative search or parameter tuning.'
+  invalidation_rules:
+    - >-
+      If the chosen S does not have gcd(order, p) = 1, or the chosen model
+      does not realise good reduction (v_p(discriminant) != 0), the run is
+      invalid_measurement and must be redone with a corrected instance, not
+      silently patched.
+    - >-
+      If the p-adic arithmetic implementation cannot be independently
+      spot-checked against a hand computation for at least one (j,k) pair,
+      the run is invalid_measurement.
+  success_criterion: >-
+    Not a solve/success criterion in the discrete-log sense (certificate
+    kind: none). The run succeeds as a MEASUREMENT if all three parts
+    complete and produce a recorded image set for each, regardless of which
+    way the comparison against the preregistered prediction comes out -- a
+    result matching the prediction and a result falsifying it are both
+    successful measurements per AGENTS.md rule 5 (a negative or
+    prediction-contradicting result is not an infrastructure failure).
+  falsification_criterion: >-
+    Part 1: any tabulated value strictly between 1 and (r-1) inclusive on the
+    canonical lift falsifies Proposition E's literal claim. Part 2: if the
+    null lift ALSO shows only {0, r}, the canonical-lift MECHANISM claim is
+    undermined even though the bare two-valued fact on the canonical lift
+    survives. Part 3: if the non-rigid functional is also exactly two-valued,
+    RTF-1's rigidity reading is falsified.
+  required_artifacts:
+    - 'run manifest with exact curve/point/precision parameters used'
+    - 'raw tabulated results for all three parts (full image sets, not just a pass/fail summary)'
+    - 'the script(s) used, committed alongside the run so the computation is independently re-runnable'
+    - 'certificate block with kind: none and an explicit statement (per red-team RC-1) that the computation observes only "at least r", never infinity'
+  assigned_to: executor
+  approved_by: coordinator
+  approval_note: >-
+    Approved by ordinary Coordinator authority (AGENTS.md rule 1), executing
+    the already-committed recommendation of DEC-20260831-a9716f (Q-1) and
+    DEC-20260901-255ebd (next_actions). This specification is frozen as of
+    this commit; any change is a new version, never an edit.
