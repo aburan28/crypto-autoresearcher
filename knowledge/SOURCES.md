@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 7 |
-| — of those with the artifact committed | 6 |
-| Per-URL retrieval attempts | 1 |
-| — succeeded | 0 |
+| Frozen source packages (`SRC-*`) | 8 |
+| — of those with the artifact committed | 7 |
+| Per-URL retrieval attempts | 2 |
+| — succeeded | 1 |
 | — failed or blocked | 1 |
-| Source artifacts under `inputs/` | 9 |
-| — hash recomputed and matching | 7 |
+| Source artifacts under `inputs/` | 11 |
+| — hash recomputed and matching | 9 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7859 |
-| — with a resolvable external identifier | 2249 |
+| Literature entries (`KN-LIT-*`) | 7861 |
+| — with a resolvable external identifier | 2251 |
 | — with no identifier recorded | 5610 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1324, doi 149, eprint 742, url 34. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1324, doi 149, eprint 743, url 35. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7486, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7488, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -43,6 +43,7 @@ decides whether a later session can re-read what was read here.
 |  |  |  |  | `inputs/SAFECURVES-20260825` | yes | package_contents |  |  |
 | SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
+| SRC-KARABINA-PDP-2015 | Point Decomposition Problem in Binary Elliptic Curves | Koray Karabina | 2015 | `inputs/KARABINA-PDP-2015` | yes | declared |  |  |
 | SRC-OAI-TEN-PROOFS-2026 | Ten Advances in Mathematics and Theoretical Computer Science | OpenAI | 2026 | `inputs/OAI-TEN-PROOFS-2026` | **no** | declared | https://cdn.openai.com/pdf/ten-proofs-oai.pdf | 64b900d5fae6fe22 |
 | SRC-P13-PANNY-POC | Proof-of-concept implementation of the Wesolowski 2026 p^{1/3+o(1)} attack on OneEnd | Lorenz Panny |  | `inputs/P13-PANNY-POC` | yes | frozen_path | https://yx7.cc/files/p-one-third.py | 4f43780404a7ab5d |
 | SRC-P13-WESOLOWSKI-2026 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | Benjamin Wesolowski | 2026 | `inputs/P13-WESOLOWSKI-2026` | yes | package_contents |  |  |
@@ -61,6 +62,7 @@ not the same as never having looked.
 | Source id | URL | Status | HTTP | Retrieved at | Vendored path |
 |---|---|---|---|---|---|
 | dent-galbraith-hidden.pdf |  | failed |  |  | `inputs/ECTD-TESKE-20260731/sources/dent-galbraith-hidden.pdf` |
+| ellipticnews-2015-04-13-ecdlp-char-two | https://ellipticnews.wordpress.com/2015/04/13/elliptic-curve-discrete-logarithm-problem-in-characteristic-two/ | retrieved | 200 | 2026-09-05T22:45:26Z |  |
 
 ## 3. Source artifacts under `inputs/`
 
@@ -88,6 +90,8 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/ECTD-TESKE-20260731/sources/jmv-0811.0647.pdf` | 294859 | match | 118c6096f6287f4b |  |
 | `inputs/ECTD-TESKE-20260731/sources/kutas-2019-1290.pdf` | 430504 | match | a7f94571aa03ce34 | yes |
 | `inputs/ECTD-TESKE-20260731/sources/teske-2003-058.pdf` | 287387 | match | 8d889ae0b1b03f77 | yes |
+| `inputs/KARABINA-PDP-2015/eprint-2015-319-v3.pdf` | 352621 | match | ad23de5bfdb5fada |  |
+| `inputs/KARABINA-PDP-2015/paper_fulltext.md` | 41941 | match | c4fcc7c94ad9fca4 |  |
 
 ## 4. Seed bibliography
 
@@ -108,7 +112,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2249 of 7859 `KN-LIT-*` entries carry an
+2251 of 7861 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1441,6 +1445,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-325 | On the Distribution of | 2011 | `arxiv:1112.3390` | read |
 | KN-LIT-326 | On the Distribution of the Subset Sum Pseudorandom Number Generator on Elliptic Curves | 2011 | `arxiv:1102.1053` | read |
 | KN-LIT-327 | ON THE GENERALISED TATE CONJECTURE FOR PRODUCTS OF ELLIPTIC CURVES OVER FINITE FIELDS | 2011 | `arxiv:1101.1730` | read |
+| KN-LIT-327949 | Point Decomposition Problem in Binary Elliptic Curves | 2015 | `eprint:2015/319` | read |
 | KN-LIT-328 | On the number of elliptic curves with prescribed isogeny or torsion group over number fields of prime degree | 2011 | `arxiv:1109.6278` | read |
 | KN-LIT-328239 | Inverting Cryptographic Hash Functions via Cube-and-Conquer | 2022 | `arxiv:2212.02405` | read |
 | KN-LIT-329 | ON THE PULLBACK OF AN ARITHMETIC THETA FUNCTION | 2011 | `arxiv:1106.4732` | read |
@@ -2344,6 +2349,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-e3fe13 | An IND-CCA2 attack against the 1st- and 2nd-round versions of NTS-KEM | 2020 | `doi:10.1007/978-3-030-69255-1_11` | web |
 | KN-LIT-e4a472 | The tangent space attack | 2025 | `eprint:2025/763` | web |
 | KN-LIT-e530e8 | Side channels in the McEliece PKC | 2008 | `doi:10.1007/978-3-540-88403-3_15` | web |
+| KN-LIT-e77232 | ellipticnews 2015-04-13, "Elliptic curve discrete logarithm problem in characteristic two": Galbraith's assessment of the Semaev/Karabina S_3-chaining proposals, with the Semaev, Kosters and Gaudry comment thread | 2015 | `url:ellipticnews.wordpress.com/2015/04/13/elliptic-curve-discrete-logarithm-problem-in-characteristic-two` | read |
 | KN-LIT-e800e6 | A key-recovery side-channel attack on Classic McEliece implementations | 2022 | `eprint:2022/514` | web |
 | KN-LIT-e8eaf8 | A designer's guide to KEMs | 2003 | `eprint:2002/174` | web |
 | KN-LIT-eb2b9b | NIST IR 8545: Status Report on the Fourth Round of the NIST Post-Quantum Cryptography Standardization Process | 2025 | `doi:10.6028/nist.ir.8545` | web |
