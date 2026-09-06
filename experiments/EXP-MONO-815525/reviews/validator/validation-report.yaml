@@ -1,0 +1,852 @@
+validation_report:
+  id: VAL-20260904-44e988
+  task_id: TASK-20260904-44e988
+  experiment_id: EXP-MONO-815525
+  hypothesis_id: H-MONO-5b6617
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  run_ids: [RUN-MONO-815525-1]
+  joints_owned:
+    - J1-PROJECTIVE-VS-AFFINE-ADJUDICATION
+    - J2-DIRECT-VERIFICATION-IN-THE-IRREDUCIBLE-G-REGIME
+  note_on_scope: >-
+    Per agents/validator.md "Working under a review plan", this report gives a
+    verdict on J1 and J2 only. J3-ADVERSARIAL-CONSTRUCTION-AUDIT and
+    J4-INTERPRETATION-AND-SCOPE-CHECK belong to the red team and are not
+    adjudicated here. Two findings that arose inside my own J1 work bear on J4
+    and are recorded below under `observations_outside_my_joints`, flagged as
+    observations for the owning reviewer rather than as my adjudication.
+  recorded_at: '2026-09-04'
+  reviewed_by: validator
+  independent_session: true
+
+  # =====================================================================
+  # HEADLINE
+  # =====================================================================
+  headline:
+    j1_verdict: holds
+    j2_verdict: holds
+    one_line: >-
+      c_4 is not an artifact of resultant elimination: as a polynomial
+      identity over Z[A,B,x1,x2,x3] the leading T-coefficient of S_4 is
+      EXACTLY S_3(x1,x2,x3)^2, so c_4(e)=0 is, by the defining property of
+      the third Semaev polynomial, precisely the statement "some signed sum
+      eps_1 P_1 + eps_2 P_2 + eps_3 P_3 equals O" -- the root-at-infinity
+      condition itself, not a proxy for it. Direct F_{p^6} point arithmetic
+      confirms it in the g-irreducible regime for ALL 6,762 disclosed
+      degree-drop instances (not a sample): exactly one of the four signed
+      sums is the point at infinity in every one, the missing class is
+      always the Frobenius-FIXED class, and the surviving three are always a
+      genuine conjugate triple. No repeated-root case exists anywhere in the
+      g-irreducible locus, verified exhaustively over all of F_101^3 on both
+      swept curves.
+    caveat_that_matters_most: >-
+      The projective reading is correct but is NOT a universal escape hatch,
+      and the census as run is very slightly wider than the prediction's own
+      stated domain. There exists a g-irreducible base point on tested curve
+      C3 (p=211, e=(0,3,200), i.e. g == f) at which ALL FOUR sign classes sum
+      to O, Q_e is the nonzero constant 1, and the PROJECTIVE pattern is
+      1+1+1+1, not 1+3. IDEA-20260904-ad63fe's own (C3) admissibility clause
+      "Res(g,f) != 0" excludes that point, but the experiment's selection rule
+      ("g irreducible") does not, and the run never applied the admissibility
+      filter. It happened not to matter: the exhaustive sweeps are on C1/C5
+      where f is reducible so the locus is empty, and 300 random C3 draws out
+      of 211^3 did not hit the single offending triple. Reported so the
+      Coordinator states the result as "every ADMISSIBLE g-irreducible base
+      point tested", which is what was actually measured.
+
+  # =====================================================================
+  # ARTIFACT AND RECEIPT CHECKS
+  # =====================================================================
+  artifact_checks:
+    - item: artifact_sha256 map in manifest.yaml
+      method: "shasum -a 256 on each of the 7 declared paths, compared byte-for-byte with manifest code.artifact_sha256"
+      result: pass
+      detail: >-
+        All 7 match exactly: derive_s4.py bd07a3a4..., run_census.py
+        4c0fea30..., derivation_checks.json 4f0ac59c..., s3_monomials.json
+        af4e88de..., s4_monomials.json 0fcd0717..., s4_symmetric_coeffs.json
+        82925186..., raw-result.json a91eb7cd....
+    - item: required artifacts present
+      result: pass
+      detail: >-
+        specification.yaml (frozen/approved/authorized/evidence_eligible),
+        implementation.md, implementation/ (11 files), execution_report.yaml,
+        runs/RUN-MONO-815525-1/{manifest.yaml,command.txt,environment.json,
+        stdout.log,stderr.log,raw-result.json}. stderr.log is 0 bytes,
+        consistent with a clean run.
+    - item: raw data vs summary agreement
+      result: pass
+      detail: >-
+        1500 sampled instances + 2 x 343400 exhaustive g-irreducible
+        instances = 688300, matching the reported total. Deviations
+        6 (sampled) + 3378 (C1) + 3378 (C5) = 6762, matching the reported
+        6762 and the manifest's 6 + 6756 split. 343400 = (101^3 - 101)/3
+        exactly, the true count of monic irreducible cubics over F_101 --
+        independently reproduced by my own sweep. Every deviation carries its
+        own untruncated record with e and the full Q_e coefficient vector.
+    - item: seed and randomness sources
+      result: pass
+      detail: >-
+        Single stream random.Random(20260904002) declared in the manifest and
+        hard-coded in run_census.py; the exhaustive arm is deterministic. The
+        1500 sampled instances are individually recorded, so the sampled arm is
+        replayable from the record without re-running the RNG -- I recomputed
+        all 1500 from their recorded (p,A,B,e) and they all reproduce.
+    - item: environment and resource records
+      result: pass
+      detail: >-
+        environment.json (macOS arm64, Python 3.13.1, sympy 1.14.0, no
+        network, 1 worker) is consistent with manifest.environment and with
+        raw-result.json's own python_version field. Resource records within
+        budget: wall 103.3/600 s, CPU 102.7/600 s, peak RSS 31,260,672 /
+        134,217,728 B, disk 4,713,330 / 10,485,760 B, runs 1/1. Budget
+        compliance recomputed from the raw-result.json fields, not copied.
+    - item: command record
+      result: pass
+      detail: >-
+        command.txt and manifest code.command agree and are consistent with
+        the two scripts' actual CLI surfaces (derive_s4.py takes no argument;
+        run_census.py takes one output path).
+    - item: revision / dirty-tree binding
+      result: not_verifiable_in_this_session
+      severity: disclosed_gap_carried_forward
+      detail: >-
+        manifest code.commit is df99b50ac793e8ca52b98a1531fb94b754fb9f2d with
+        an explicit note that the Executor did not record it and the
+        Coordinator filled it in later; code.dirty is `unknown`;
+        specification_sha256 is null. My own dispatching instruction for this
+        session likewise forbade running any git command in this shared
+        working directory. I therefore verified CONTENT (all 7 declared
+        sha256 values) but could NOT verify commit reachability, tree
+        cleanliness, or that what I read is a Coordinator-committed snapshot
+        rather than a working tree. Under CLAUDE.md's "archive receipts bind
+        to CONTENT first" this is the intended fallback, but it is a real
+        residual gap and it is the Coordinator's archive receipt, not this
+        report, that closes it.
+    - item: inference block honesty
+      result: pass_with_disclosure
+      detail: >-
+        The manifest records resolved_model_id claude-opus-5 against the
+        handoff's claude-sonnet-5, marks model_verified false and
+        model_provenance runtime-self-report, and states the discrepancy
+        rather than reconciling it. That is the correct behaviour under
+        AGENTS.md "never silently substitute". It has no bearing on the
+        mathematics: both scripts are deterministic and contain no model call,
+        and I reproduced their entire output independently.
+    - item: sibling review directory
+      result: pass
+      detail: >-
+        experiments/EXP-MONO-815525/reviews/ did not exist on disk when I
+        started (`ls` returned "No such file or directory"); I created only
+        reviews/validator/. No red-team output existed to read and none was
+        read.
+
+  # =====================================================================
+  # J1 - PROJECTIVE VS AFFINE ADJUDICATION
+  # =====================================================================
+  j1_projective_vs_affine_adjudication:
+    verdict: holds
+    verdict_meaning: >-
+      The "one of the four projective roots has moved to the point at
+      infinity" interpretation of c_4(e)=0 is CORRECT, and it is correct for
+      a structural reason, not as a post-hoc rescue. It is not an artifact of
+      the resultant-elimination construction, and it is demonstrably NOT the
+      same thing as a repeated root -- the two are separated by my method,
+      both occur in the wider parameter space, and only the former occurs in
+      the g-irreducible regime.
+
+    step_1_my_own_derivation:
+      what_i_did: >-
+        I wrote my own multivariate polynomial engine (dict of exponent
+        tuples -> integer coefficient; Sylvester resultant by permutation
+        expansion of the determinant) with no sympy and no reading of the
+        Executor's tables, and re-derived S_3 and S_4 from the group law:
+        clear lambda's denominator in x(P1+P2)=x3, eliminate y1 then y2, then
+        S_4 = Res_U(S_3(x1,x2,U), S_3(x3,x4,U)).
+      results:
+        - "Res_{y2}(Res_{y1}(rel, f1), f2) == (x1-x2)^4 * S_3^2 : TRUE (my own check, matching the Executor's own claim)"
+        - "S_3 symmetric, degree 2 in each variable"
+        - "S_4: 540 terms, degree [4,4,4,4] in x1..x4"
+        - "MY S_4 monomial table is IDENTICAL to implementation/s4_monomials.json (540/540 monomials, all coefficients equal)"
+        - "MY S_3 monomial table is IDENTICAL to implementation/s3_monomials.json"
+        - "MY own symmetric descent (classical symmetric-reduction algorithm, my code) reproduces implementation/s4_symmetric_coeffs.json EXACTLY for all five c_k, term for term"
+      the_key_structural_identity: >-
+        THE ANSWER TO "WHAT DOES c_4 = 0 MEAN". Write S_3(x1,x2,U) =
+        a2 U^2 + a1 U + a0 with a2 = (x1-x2)^2, and S_3(x3,x4,U) =
+        b2 U^2 + b1 U + b0. The Sylvester resultant of two quadratics is
+        (a2 b0 - a0 b2)^2 - (a2 b1 - a1 b2)(a1 b0 - a0 b1). Extracting the
+        x4^4 coefficient (b2, b1, b0 are each degree 2 in x4, with leading
+        parts 1, -2x3, x3^2) gives
+             (a2 x3^2 - a0)^2 + (2 a2 x3 + a1)(a1 x3^2 + 2 a0 x3)
+           = (a2 x3^2 + a1 x3 + a0)^2
+           = S_3(x1,x2,x3)^2.
+        I verified this as an exact polynomial identity with my own engine:
+        `c_4 - S_3(x1,x2,x3)^2 == 0` is TRUE over Z[A,B,x1,x2,x3]. In
+        symmetric coordinates S_3 = A^2 - 2A e2 - 4B e1 + e2^2 - 4 e1 e3, so
+             c_4(e) = (A^2 - 2A e2 - 4B e1 + e2^2 - 4 e1 e3)^2,
+        which is the Executor's stated c_4 up to the sign inside the square.
+      why_that_settles_the_interpretation: >-
+        S_3 is, by construction and by its own verified defining property
+        (Stage 0's pre-check, and my own 268,088-triple point-arithmetic
+        check below), the polynomial whose vanishing at (x1,x2,x3) says
+        exactly: there exist y_i with (x_i,y_i) on E and P_1 + P_2 + P_3 = O.
+        So c_4(e) = 0 is not "a leading coefficient that happens to vanish
+        for elimination-theoretic reasons"; it is LITERALLY the condition
+        that one of the four sign classes sums to the identity, i.e. that the
+        fourth fibre point x(eps.P) is x(O) = infinity. The geometric reading
+        and the algebraic condition are the same equation. This is the
+        strongest form the identification could take, and it is independent
+        of how the elimination was carried out.
+      subtlety_i_checked_rather_than_assumed: >-
+        c_4 is a PERFECT SQUARE, so the leading coefficient vanishes to order
+        2 along the divisor {S_3 = 0}. That is a statement about the vanishing
+        order of a function on the BASE, and it does NOT imply that T=infinity
+        is a double root of the FIBRE. The multiplicity of infinity in the
+        fibre over a specific e is 4 - deg_T Q_e, which is 1 exactly when
+        c_3(e) != 0. I checked c_3(e) != 0 in all 6,762 disclosed
+        degree-drop instances (6762/6762), so the root at infinity is simple
+        in every one of them. Conflating the two would have been the natural
+        error here and it does not occur.
+
+    step_2_repeated_root_is_a_different_and_separable_event:
+      statement: >-
+        A root at infinity and a repeated root are different phenomena with
+        different signatures, and the review plan's proves_too_much object
+        demands that my method distinguish them rather than absorb both.
+        Root-at-infinity: leading coefficient vanishes, remainder stays
+        squarefree. Repeated root: discriminant vanishes / gcd(Q,Q') has
+        positive degree, independently of the leading coefficient. They can
+        co-occur.
+      independent_recomputation_of_all_6762:
+        method: >-
+          For every one of the 6,762 disclosed degree-drop instances I rebuilt
+          F_{p^3} = F_p[X]/(g) myself, set x1 = X, x2 = x1^p, x3 = x1^{p^2},
+          evaluated MY OWN S_4 table with x4 = T symbolic, checked F_p
+          rationality, and factored with MY OWN factorization code (explicit
+          root stripping with multiplicity + squarefree test + distinct-degree
+          for the root-free part). Nothing from run_census.py was imported.
+        results:
+          Qe_matches_the_recorded_coefficients: 6762 / 6762
+          g_irreducible_confirmed_independently: 6762 / 6762
+          Qe_lands_in_Fp: 6762 / 6762
+          c4_equals_zero: 6762 / 6762
+          c3_nonzero_so_exactly_one_simple_root_at_infinity: 6762 / 6762
+          S3_of_e_equals_zero: 6762 / 6762
+          degree_in_T_equals_3: 6762 / 6762
+          SQUAREFREE: 6762 / 6762
+          discriminant_of_the_cubic_nonzero: 6762 / 6762
+          IRREDUCIBLE_CUBIC_shape_exactly_[3]: 6762 / 6762
+          non_squarefree_or_repeated_root_cases_found: 0
+        answer_to_the_direct_question: >-
+          ALL 6,762 are squarefree irreducible cubics. NOT ONE non-squarefree
+          / repeated-root case exists among them.
+      full_independent_replication_of_both_exhaustive_sweeps:
+        method: >-
+          Using my own symmetric coefficients and my own factorization, I
+          re-ran the complete exhaustive F_101^3 sweeps for C1 (A=2,B=3) and
+          C5 (A=37,B=29) -- all 1,030,301 triples each -- and additionally
+          recorded squarefreeness for every g-irreducible instance, which the
+          pattern alone would only imply indirectly.
+        C1: {g_irreducible: 343400, degree_drops: 3378, patterns: {"deg4:1+3": 340022, "deg3:3": 3378}, non_squarefree_Qe: 0, unexpected: 0, wall_seconds: 15.8}
+        C5: {g_irreducible: 343400, degree_drops: 3378, patterns: {"deg4:1+3": 340022, "deg3:3": 3378}, non_squarefree_Qe: 0, unexpected: 0, wall_seconds: 14.6}
+        conclusion: >-
+          Exact reproduction of the Executor's counts, and ZERO repeated-root
+          instances anywhere in the g-irreducible locus at p=101 on either
+          curve. Combined with the 1500 sampled instances (all independently
+          recomputed and all matching, including 6 drops at p in
+          {101, 1009}), the entire 688,300-instance census is independently
+          replicated.
+      the_discrimination_control_the_review_plan_demanded:
+        why: >-
+          A criterion that never fires is not discriminating. I scanned ALL of
+          F_101^3 for both curves WITHOUT the g-irreducibility filter, so that
+          repeated-root events could actually appear, and classified every
+          triple by (g irreducible?, deg Q_e, squarefree?).
+        C1_and_C5_identical_counts:
+          g_irr_deg4_squarefree: 340022
+          g_irr_deg3_squarefree: 3378
+          g_irr_REPEATED_ROOT: 0
+          g_red_deg4_squarefree: 650272
+          g_red_deg4_REPEATED_ROOT: 29806
+          g_red_deg3_squarefree: 6528
+          g_red_deg3_REPEATED_ROOT: 194
+          g_red_deg2_REPEATED_ROOT: 100
+          g_red_deg0: 1
+        what_this_proves: >-
+          The criterion fires on 30,100 genuine repeated-root instances per
+          curve, INCLUDING 194 instances that have a degree drop AND a
+          repeated root simultaneously (deg 3, non-squarefree, factor shape
+          [1,1,1] rather than [3]) and 100 with two roots at infinity plus a
+          collision. So the method sees the exact combination the
+          proves_too_much object worries about, and reports it as such. It
+          reports ZERO of them inside the g-irreducible locus. The
+          proves_too_much object is discharged: my J1 reasoning would NOT have
+          said "just a point at infinity, nothing to see" for a genuine
+          multiplicity collapse -- it would have shown a factor shape other
+          than [3], which is exactly what the census would have reported as a
+          different pattern.
+      direct_point_arithmetic_version_of_the_same_discrimination:
+        method: >-
+          On the split-g locus, where both phenomena occur and everything is
+          F_p-rational, I enumerated 134,044 triples of distinct-x points of
+          E(F_p) per curve, computed the four signed sums by ordinary point
+          addition, and compared (number of classes summing to O) against
+          (4 - deg Q_e) and (number of x-collisions among the finite sums)
+          against (Q_e non-squarefree).
+        result: >-
+          268,088 triples across C1 and C5, ZERO mismatches on all three
+          predicates (degree law, squarefreeness law, and monic Q_e ==
+          prod(T - x_eps) over the finite classes). The observed joint
+          distribution per curve is: (0 at inf, 0 collisions, deg4, squarefree)
+          116032; (0,1,deg4,REPEATED) 8104; (0,2,deg4,REPEATED) 4232;
+          (1,0,deg3,squarefree) 5408; (1,1,deg3,REPEATED) 176;
+          (2,1,deg2,REPEATED) 92. All six cells behave exactly as the
+          separation predicts. This is a 996x larger version of the
+          Executor's own Stage-0 check (a2)/(b), which used 269 probes.
+
+    step_3_what_the_prediction_was_actually_about:
+      finding: >-
+        IDEA-20260904-ad63fe's mechanism (C3) does not state its prediction on
+        the affine polynomial at all. It states it on V := F_2^3/<(1,1,1)>,
+        the four SIGN CLASSES, with R_u = x(eps_1 P_1 + eps_2 P_2 + eps_3 P_3),
+        and derives that Frobenius acts on V by the affine map
+        v |-> pi(v) + pi(sigma). (C3)(c)'s claim is "the linear part has order
+        3, which has a unique fixed point on V, so type 3+1 ALWAYS". I checked
+        that group-theoretic step myself: an order-3 element of GL_2(F_2) has
+        no nonzero fixed vector, so pi - 1 is bijective on V, so v |-> pi(v)+c
+        has exactly one fixed point for every c, and the remaining three form
+        a single 3-cycle. The claim is correct.
+      consequence_for_the_adjudication: >-
+        The prediction is a statement about Frobenius's cycle type on the four
+        sign classes. The map V -> P^1, u |-> x(R_u), sends the class that
+        sums to O to x(O) = infinity, which is an F_p-rational point of P^1 and
+        is the image of the F_p-rational point O of E. Counting it is therefore
+        the faithful transcription of the mechanism, and NOT counting it is
+        what loses a point that the mechanism explicitly has. The affine
+        reading is the underspecified one, exactly as the Coordinator's
+        recorded prior supposed.
+      the_sharpest_confirmation: >-
+        A prediction that follows: if the class summing to O were one of the
+        three in the Frobenius 3-cycle, then all three of its orbit would sum
+        to O as well (Frobenius commutes with the group law and fixes O), and
+        deg Q_e would be 1, not 3. So the class at infinity MUST be the
+        Frobenius-FIXED class -- precisely the class that would otherwise have
+        contributed the F_p-rational linear factor. That predicts, without any
+        further freedom, that a degree drop removes the LINEAR factor and
+        leaves exactly the conjugate triple, i.e. an irreducible cubic. That
+        is what all 6,762 show, and J2 below verifies the fixed-class
+        identification directly by point arithmetic in every one of them. This
+        is a non-trivial, falsifiable consequence of the projective reading
+        that the affine reading does not make, and it holds 6762/6762.
+      admissibility_boundary_i_found:
+        finding: >-
+          The projective reading is not vacuous and can fail. With g monic
+          irreducible, Res(g,f) = 0 forces g = f (both monic cubic), so the
+          three x_i are the three roots of f and P_1,P_2,P_3 are the three
+          nontrivial 2-torsion points over F_{p^3}; they sum to O and every
+          sign flip is trivial, so ALL FOUR classes sum to O, deg Q_e = 0, and
+          the projective pattern is 1+1+1+1, not 1+3.
+        verified_instance: >-
+          C3, p=211, A=3, B=11, e=(0,3,200). f = X^3+3X+11 IS irreducible over
+          F_211. I computed Q_e = [1,0,0,0,0] (the constant 1, degree 0) and
+          verified by direct F_{p^3} point arithmetic that all four signed
+          sums are O and the degree law 4 - deg = 4 still holds exactly.
+        why_it_did_not_appear_in_the_census: >-
+          f is REDUCIBLE over F_p for C1, C2, C4 and C5, so the locus is empty
+          on the two exhaustively swept curves; on C3, where it is non-empty,
+          only 300 random draws out of 211^3 were made and the single
+          offending triple was not hit (I confirmed it is absent from the 300
+          recorded C3 instances). My own p=101 full scans found the analogous
+          triple e=(0,A,-B) in the g-REDUCIBLE bucket, exactly once per curve.
+        what_should_be_recorded: >-
+          IDEA-20260904-ad63fe's (C3) states its recipe "on any admissible base
+          point (g separable, Res(g,f) != 0, Q_e squarefree)". The
+          experiment's selection rule is only "g irreducible" and does not
+          implement the Res(g,f) != 0 clause. The census is therefore over a
+          set marginally LARGER than the prediction's declared domain. It made
+          no difference to the observed result, but the honest statement of
+          the result is "for every admissible g-irreducible base point
+          tested", and a future exhaustive sweep on a curve with f irreducible
+          must apply the admissibility filter or it will record a spurious
+          projective deviation.
+
+  # =====================================================================
+  # J2 - DIRECT VERIFICATION IN THE G-IRREDUCIBLE REGIME
+  # =====================================================================
+  j2_direct_verification_in_the_irreducible_g_regime:
+    verdict: holds
+    this_closes_the_executors_disclosed_gap: true
+
+    implementation_i_wrote:
+      field_tower: >-
+        K = F_p[X]/(g) with g the instance's OWN residual cubic (irreducible by
+        selection), elements as 3-vectors over F_p, reduction by
+        X^3 = e1 X^2 - e2 X + e3; inverse by a^(p^3 - 2); square roots by
+        Tonelli-Shanks over K. L = K[Y]/(Y^2 - n) = F_{p^6} with n a K-non-square
+        found by rejection, elements as pairs (a,b) meaning a + bY,
+        (a+bY)^-1 = (a - bY)/(a^2 - n b^2).
+      why_F_p6_is_needed_and_sufficient: >-
+        f(x1) need not be a square in K. Every element of K* IS a square in
+        F_{p^6}, since a^((p^6-1)/2) = (a^(p^3-1))^((p^3+1)/2) = 1 for a in K*
+        with p odd. So the y-lift always exists in L: if f(x1) is a K-square,
+        take its K-root; otherwise write f(x1) = n * d^2 and take y1 = d*Y. I
+        used both branches and both occur in the data.
+      the_three_points: >-
+        x1 = X (a root of g by construction), P1 = (x1, y1),
+        P2 = (x1^p, y1^p), P3 = (x1^{p^2}, y1^{p^2}), the exponentiations done
+        in L. No root-finding and no separate conjugation logic: the three
+        x-coordinates ARE the Frobenius orbit of the generator. Every point was
+        checked to satisfy y^2 = x^3 + Ax + B in L, and every x_i was checked to
+        be a root of g.
+      point_addition: >-
+        Short-Weierstrass chord-and-tangent over L, with the point at infinity
+        represented as None, Q = -P detected as x1 == x2 and y1 + y2 == 0, and
+        doubling handled separately. Signed sums computed for
+        eps in {(+,+,+), (+,+,-), (+,-,+), (+,-,-)} with eps_1 fixed to +1,
+        matching this program's own sign-class convention. Every finite sum was
+        re-checked to lie on the curve.
+      independence: >-
+        No function, table or constant from implementation/run_census.py is
+        imported or transcribed. The only cross-reference to the Executor's
+        work is the comparison step, which uses MY OWN S_4 table (itself
+        independently derived) to build Q_e and then compares to the recorded
+        coefficients.
+
+    coverage: >-
+      ALL 6,762 disclosed degree-drop instances were verified by point
+      arithmetic, not a sample of 5. That is the 6 sampled-arm deviations
+      (curves C1 x4, C2 at p=1009 x1, C5 x1) plus all 3,378 from each of the
+      two exhaustive sweeps. Total wall time 16 s.
+
+    results_over_all_6762:
+      EXACTLY_ONE_signed_sum_equals_O: 6762 / 6762
+      number_of_classes_at_infinity_distribution: {1: 6762}
+      deg_drop_equals_number_of_classes_at_infinity: 6762 / 6762
+      degree_in_T_of_Qe: {3: 6762}
+      class_at_infinity_is_the_FROBENIUS_FIXED_class: 6762 / 6762
+      P2_and_P3_verified_on_the_curve: 6762 / 6762
+      x_coordinates_distinct_and_all_roots_of_g: 6762 / 6762
+      every_finite_signed_sum_is_a_root_of_Qe: 6762 / 6762
+      monic_Qe_equals_prod_over_the_three_finite_classes: 6762 / 6762
+      finite_sums_with_an_Fp_rational_x_coordinate: {0: 6762}
+      c4_equals_S3_of_e_squared: 6762 / 6762
+      failures: 0
+    frobenius_fixed_class_detail: >-
+      In 26/50 of a first sample and consistently across all 6,762, the class
+      at infinity is (+,+,+) exactly when f(x1) is a square in F_{p^3}
+      (equivalently phi^3(P1) = +P1), and (+,-,+) exactly when it is not
+      (phi^3(P1) = -P1). Those are precisely the two Frobenius-fixed classes
+      predicted by the affine action v |-> pi(v) + pi(sigma) in the two cases:
+      (eps1,eps2,eps3) |-> (eps3,eps1,eps2) fixes (+,+,+), and
+      (eps1,eps2,eps3) |-> (-eps3,eps1,eps2) fixes (+,-,+) modulo global sign.
+      Predicted class == observed class in 6762/6762.
+
+    direct_cycle_type_measurement:
+      why: >-
+        The factorization pattern is a proxy for the cycle type. I also
+        measured the cycle type DIRECTLY: apply x |-> x^p to the four fibre
+        points (with infinity fixed) and read off the permutation, with no
+        polynomial factorization anywhere in the path.
+      degree_drop_instances_300_sampled_from_the_6762:
+        cycle_type: {"(1,3)": 300}
+        four_fibre_points_distinct_with_infinity_counted_as_one: 300 / 300
+      non_drop_g_irreducible_controls_200_40_per_curve_all_five_curves:
+        cycle_type: {"(1,3)": 200}
+        four_fibre_points_distinct: 200 / 200
+      reading: >-
+        The predicted (1,3) cycle type is confirmed on the object the
+        mechanism is actually about, in both the drop and the non-drop
+        regime, without going through Q_e's factorization at all.
+
+  # =====================================================================
+  # CONTROLS
+  # =====================================================================
+  control_checks:
+    - control: positive control, g-irreducible with NO degree drop
+      spec_reference: "the complement of the deviating class; the regime where the prediction is uncontroversial"
+      method: "50 instances, 10 per curve on all five curves (p in {101,211,1009,1999}), full F_p^6 point arithmetic"
+      result: pass
+      detail: >-
+        n_classes_at_infinity = 0 in all 50; deg Q_e = 4 in all 50; every one
+        of the four signed sums is finite and is a root of Q_e; monic Q_e ==
+        prod over all four classes in all 50; EXACTLY ONE of the four has an
+        F_p-rational x-coordinate in all 50, which is the linear factor, so
+        the remaining three are a conjugate triple and the shape is 1+3.
+    - control: negative / discrimination control, repeated roots
+      spec_reference: "review_plan.proves_too_much.failure_signature"
+      method: "full F_101^3 scans without the g-irreducibility filter, both curves; plus 268,088 split-g point-arithmetic triples"
+      result: pass
+      detail: >-
+        30,100 genuine repeated-root instances per curve exist in the wider
+        parameter space and are correctly separated from degree drops,
+        including 194 per curve that exhibit BOTH at once. Zero occur inside
+        the g-irreducible locus. The criterion is therefore discriminating,
+        not vacuous.
+    - control: Executor's Stage-0 check (a2) degree law, independently rerun at scale
+      spec_reference: "execution_report stage_0.checks.check_a2_specialised_degree_law (269 probes)"
+      result: pass
+      detail: >-
+        Reproduced at 268,088 split-g triples (996x the Executor's probe
+        count) with 0 mismatches, plus 6,762 g-irreducible drops, 250
+        g-irreducible non-drops and the C3 four-at-infinity boundary point.
+        deg_T Q_e = 4 - #(classes summing to O) holds everywhere I tested.
+    - control: Executor's Stage-0 check (b) split-g baseline
+      spec_reference: "execution_report stage_0.checks.check_b_split_g_baseline (269 probes)"
+      result: pass
+      detail: >-
+        monic Q_e == prod(T - x(eps.P)) over the finite classes, verified on
+        the same 268,088 split-g triples with 0 mismatches, and on every
+        g-irreducible instance I ran point arithmetic for.
+    - control: construction cross-check against the derived tables
+      result: pass
+      detail: >-
+        My independently derived S_4 (540 terms), S_3, and all five symmetric
+        coefficients c_0..c_4 are IDENTICAL to the Executor's committed tables.
+        This is a genuine independent reproduction of Stage 0's derivation, not
+        a re-execution of their code.
+
+  # =====================================================================
+  # METRIC RECOMPUTATIONS
+  # =====================================================================
+  metric_recomputations:
+    - metric: M1 literal affine reading
+      reported: false
+      reported_counts: {matching: 681538, deviating: 6762, rate: 0.009824}
+      my_recomputation: {matching: 681538, deviating: 6762, rate: 0.0098242}
+      agree: true
+      note: "6762/688300 = 0.00982420... ; the reported 0.009824 is correct to the digits given."
+    - metric: M1 projective reading
+      reported: true
+      my_recomputation: "true for all 688,300 instances actually tested"
+      agree: true
+      caveat: >-
+        True as measured. NOT true as a general statement about the
+        g-irreducible locus: see the C3 e=(0,3,200) boundary point, where the
+        projective pattern is 1+1+1+1. That point is inadmissible under the
+        prediction's own Res(g,f) != 0 clause but is inside the experiment's
+        own selection rule.
+    - metric: M2 distributions
+      reported: {sampled: {"deg4:1+3": 1494, "deg3:3": 6}, exhaustive_C1: {"deg4:1+3": 340022, "deg3:3": 3378}, exhaustive_C5: {"deg4:1+3": 340022, "deg3:3": 3378}}
+      my_recomputation: {sampled: {"deg4:1+3": 1494, "deg3:3": 6}, exhaustive_C1: {"deg4:1+3": 340022, "deg3:3": 3378}, exhaustive_C5: {"deg4:1+3": 340022, "deg3:3": 3378}}
+      agree: true
+      method: "1500 sampled instances recomputed from their recorded (p,A,B,e); both exhaustive sweeps re-run in full with my own code"
+    - metric: M3 Stage-0 checks
+      reported: all pass
+      my_recomputation: >-
+        Symbolic parts independently re-derived and identical; the two
+        numeric parts re-run at 996x the probe count with zero mismatches.
+      agree: true
+    - metric: g_irreducible_count per exhaustive sweep
+      reported: 343400
+      my_recomputation: 343400
+      agree: true
+      note: "= (101^3 - 101)/3, the exact number of monic irreducible cubics over F_101"
+    - metric: "Executor's unexpected observation: at e1=0 every deviating triple has e2 = A"
+      my_check: >-
+        Confirmed analytically: S_3(e)|_{e1=0} = A^2 - 2A e2 + e2^2 = (e2-A)^2,
+        so S_3(e) = 0 at e1 = 0 iff e2 = A exactly. The observation is a
+        theorem, not a coincidence.
+    - metric: "Executor's unexpected observation: C1 and C5 return identical counts 340022/3378"
+      my_check: >-
+        Independently reproduced (identical counts from my own code on both
+        curves), so it is not a bug in their loop. I did not investigate the
+        cause; the count of e with S_3(e)=0 and g irreducible being
+        curve-independent at p=101 is consistent with IDEA-20260904-ad63fe's
+        (C4) claim that these counts depend only on (p,t,Z), and C1 and C5 have
+        the same p=101 and t=6. Flagged for J3/J4 rather than resolved here.
+
+  # =====================================================================
+  # HEURISTIC-VALIDATION AND COST-MODEL CHECKS
+  # =====================================================================
+  heuristic_validation_checks:
+    - check: pre-registered prediction
+      result: pass
+      detail: >-
+        The prediction is frozen verbatim in specification.yaml
+        (preregistered_prediction: "TRUE for every tested instance") with its
+        source named as IDEA-20260904-ad63fe (C3)(c), and the execution report
+        quotes it verbatim and states it was not modified. The one
+        operationalisation change (splitting check (a) into a1/a2) is
+        disclosed with a timeline placing it before any Stage-1 result was
+        observed, and it concerns a Stage-0 construction check, not M1. I
+        found no evidence of post-hoc prediction fitting: the deviating class
+        is reported prominently as a deviation under the literal reading, with
+        the adjudication explicitly deferred.
+    - check: sample integrity
+      result: pass
+      detail: >-
+        Seed, sampling procedure, rejection counts and per-instance records are
+        all in the manifest and raw-result.json. Both distributions were
+        recomputed from raw records, not copied. The exhaustive arms make the
+        sampling question moot for p=101.
+    - check: null-object control for a statistical signal
+      result: not_applicable_as_such
+      detail: >-
+        This experiment reports no correlation, bias or excess against a
+        background, so docs/inventor-protocol.md section 3's null-object
+        requirement has no direct target. Its spirit is nonetheless met: the
+        deviating class is a zero-tolerance per-instance predicate, and the
+        discrimination control above supplies the "what should this quantity
+        do when the thing that causes it is removed" test -- the degree-drop
+        rate is 0.98% on the g-irreducible locus and the repeated-root rate is
+        0 there while being 2.9% on the g-reducible locus, so the two effects
+        are separated by a parameter that is supposed to separate them.
+    - check: correspondence validity
+      result: pass
+      detail: >-
+        The substitution in play is "roots of g in F_{p^3} realised as
+        X, X^p, X^{p^2} in F_p[X]/(g)" instead of separately found roots. That
+        is exact, not a distributional approximation, and I verified for every
+        instance I touched that the three x-coordinates really are roots of g
+        and really are distinct.
+    - check: scale binding
+      result: pass
+      detail: >-
+        p in {101, 211, 1009, 1999}; 5 ordinary curves with j not in {0,1728};
+        m = 4 only. tier: toy is declared in both the specification and the
+        execution report, and transfer_assumptions says "None claimed"
+        explicitly. No cryptographic-scale statement is made anywhere.
+  cost_model_checks:
+    - check: cost table present
+      result: not_applicable
+      detail: >-
+        No cost table, unit, exponent, memory/time tradeoff or success
+        probability is asserted by this experiment. certificate.kind is `none`
+        with a correct justification (pure measurement run, no solve and no
+        relation claimed). Nothing here to check for unit honesty or for
+        per-attempt-cost x inverse-success-probability bookkeeping.
+  proof_architecture_checks:
+    - check: baseline fixture
+      result: pass
+      detail: >-
+        The split-g specialization reproduces the already-discharged
+        ordered-base (Z/2)^2 sign-class baseline (H-MONO-93bc4d / HEUR-KUM-2)
+        exactly, and I reproduced it symbolically and at 996x the probe count.
+    - check: strictness / improvement witness
+      result: not_applicable
+      detail: "No improvement over any baseline is claimed by this experiment."
+    - check: quantifier fidelity
+      result: pass_with_note
+      detail: >-
+        The record's own comparison_statement is quantified over "688300
+        g-irreducible base points" on 5 curves at 4 primes, which is exactly
+        what was measured. The only quantifier slip available is the one I
+        flagged: "every g-irreducible base point" is very slightly wider than
+        "every ADMISSIBLE g-irreducible base point", and the difference is
+        non-empty on C3.
+
+  # =====================================================================
+  # OBSERVATIONS OUTSIDE MY JOINTS
+  # =====================================================================
+  observations_outside_my_joints:
+    note: >-
+      Recorded because they surfaced inside my own J1 derivation and would be
+      dishonest to omit, NOT adjudicated here. J4-INTERPRETATION-AND-SCOPE-CHECK
+      is the red team's joint and owns them.
+    items:
+    - id: OBS-1
+      observation: >-
+        The (1,3) outcome in the g-irreducible case follows from (i) the
+        monodromy containing the translation group V = (Z/2)^2 -- already
+        established at the ORDERED base by H-MONO-45183a -- plus (ii)
+        Frobenius's linear part being the order-3 element supplied by g's own
+        Galois group, plus (iii) the four fibre points being distinct. It does
+        NOT require the monodromy to be full S_4. A_4 = V semidirect C_3 makes
+        exactly the same (1,3) prediction for g irreducible; so does any group
+        containing V whose Frobenius linear part has order 3. The diagnostic
+        this experiment ran therefore cannot separate S_4 from A_4. By
+        IDEA-20260904-ad63fe's own ladder, the arm that CAN is (C3)(b) --
+        g = (linear)(irreducible quadratic) with chi_p(Res(q,f)) = -1
+        predicting a 4-cycle, and 4-cycles are the odd permutations that
+        distinguish S_4 from A_4. That arm was deliberately not run here. The
+        near-exhaustive sample size (688,300) is a strong confirmation of a
+        prediction that is weakly discriminating between the candidate groups,
+        which is a different thing from strong evidence for full S_4.
+    - id: OBS-2
+      observation: >-
+        Two of the five curves are the same prime p=101 with the same trace
+        t=6, and they returned bitwise-identical five-class counts. Under
+        IDEA-20260904-ad63fe's own (C4) that is the PREDICTED behaviour for a
+        matched-(t,Z) pair, so C1 vs C5 is not two independent samples of
+        "curve structure" -- it is one (t,Z) class sampled twice. The
+        exhaustive evidence is thus exhaustive over base points but narrow
+        over curves. J3 owns the fairness question.
+
+  # =====================================================================
+  # LIMITATIONS
+  # =====================================================================
+  limitations:
+    - >-
+      REVISION BINDING NOT VERIFIED. I verified all 7 declared sha256 values
+      against the files on disk, but I was instructed not to run git in this
+      shared working directory, and the manifest itself records code.dirty as
+      `unknown` and specification_sha256 as null. I therefore cannot certify
+      that what I read is a Coordinator-committed snapshot rather than a
+      working tree. Content is verified; commit reachability is not. This is
+      a gap the Coordinator's archive receipt must close, not this report.
+    - >-
+      My J2 verification confirms the identification "degree drop <=> exactly
+      one signed sum is O" on all 6,762 disclosed drops and on 250
+      g-irreducible non-drops. It does NOT independently re-run point
+      arithmetic on the 681,538 non-deviating instances; for those I verified
+      the factorization pattern by independent recomputation of Q_e (all
+      688,300) but ran point arithmetic on a 250-instance control only.
+    - >-
+      Scope is toy: p in {101, 211, 1009, 1999}, five curves, m = 4. Nothing
+      here transfers to cryptographic scale, to F_{q^n}, to other m, to
+      supersingular curves, or to j in {0,1728}, and nothing here is a
+      relation-rate, cost, exponent or ECDLP statement of any kind. A passed
+      validation means this receipt is admissible evidence; it is not an
+      ECDLP claim, not a speedup, and not an authorization to promote
+      anything.
+    - >-
+      My verdict is on J1 and J2 only. The correctness of the S_4 derivation
+      by a genuinely different method (J3) is not mine to certify -- although
+      I note as a matter of fact that my own from-scratch derivation, which
+      used the same resultant strategy, reproduced their tables exactly, so a
+      shared conceptual error in that strategy would not be caught by my check
+      either. J3's brute-force-enumeration approach is the right complement.
+    - >-
+      The exhaustive-sweep replication I ran uses my own symmetric
+      coefficients c_k(e), which I derived from my own S_4. It is independent
+      of the Executor's code but not independent of the S_4 construction
+      itself, for the same reason.
+
+  # =====================================================================
+  # VERDICT
+  # =====================================================================
+  verdict: passed
+  verdict_scope: >-
+    Scoped to J1-PROJECTIVE-VS-AFFINE-ADJUDICATION and
+    J2-DIRECT-VERIFICATION-IN-THE-IRREDUCIBLE-G-REGIME, and to receipt
+    admissibility on the checks listed in artifact_checks. `passed` means: the
+    artifacts exist and hash as declared, every reported metric recomputes
+    from raw data with an independent implementation, the controls hold, the
+    projective reading is validated as the correct interpretation of
+    c_4(e) = 0, and the Executor's disclosed verification gap in the
+    g-irreducible regime is CLOSED in the affirmative by direct point
+    arithmetic on all 6,762 instances. It is NOT a verdict on whether the
+    m = 4 symmetric-base monodromy is full S_4 -- see OBS-1 -- and it is not
+    an evidence-strength or promotion judgement, which are the Coordinator's.
+  joint_verdicts:
+    J1-PROJECTIVE-VS-AFFINE-ADJUDICATION: holds
+    J2-DIRECT-VERIFICATION-IN-THE-IRREDUCIBLE-G-REGIME: holds
+
+  recommendations_to_the_coordinator:
+    - >-
+      State the result as: "the (1,3) prediction holds, in the projective
+      reading, at every admissible g-irreducible base point tested (688,300
+      across 5 curves at 4 primes, including two complete F_101^3 sweeps)",
+      and record the affine deviation count 6,762 alongside it rather than
+      instead of it. Both numbers are correct measurements of different
+      predicates.
+    - >-
+      Record the c_4 = S_3^2 identity as a derived fact in its own right --
+      it converts the interpretive question into a theorem and should not have
+      to be re-derived by the next reviewer.
+    - >-
+      Record the Res(g,f) != 0 admissibility gap as a specification note for
+      any successor sweep, with the C3 e=(0,3,200) witness attached.
+    - >-
+      Do not let a pass here be cited as evidence for full S_4 rather than for
+      "V-plus-order-3-linear-part", pending (C3)(b). That is J4's call, but the
+      distinction is load-bearing and cheap to preserve.
+
+  # =====================================================================
+  # ARTIFACTS AND ATTESTATION
+  # =====================================================================
+  artifact_paths:
+    - experiments/EXP-MONO-815525/reviews/validator/validation-report.yaml
+    - experiments/EXP-MONO-815525/reviews/validator/verification/mpoly.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/derive_indep.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/cmp_tables.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/symdesc.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/ffield.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/qe_indep.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/j1_check.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/j2_pointarith.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/j2_run.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/j2_all.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/j2_controls.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/j2_split_control.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/j2_cycletype.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/sweep_indep.py
+    - experiments/EXP-MONO-815525/reviews/validator/verification/sampled_check.py
+  verification_script_sha256:
+    mpoly.py: 40ede20820c9403c0059ec3135dfe75d6fccc31264d45d6cce2742aa926308b9
+    derive_indep.py: a90c5817c7128245949c99ce29473d129b95d35ba424779cedca6b57f437df35
+    cmp_tables.py: 505b8564b8f8850da09536312bc461b04d12d221e5638d3cf2423f3104703297
+    symdesc.py: 8d1a54954301103c2224a3be1fbf4a1dc96fcf6a3c0d584ee9cf1886a4f87bd1
+    ffield.py: 05378d7dc85b866fc12f2126cbd7af813677a5984bf62739f52a8c115d2a5701
+    qe_indep.py: a2d9572edc4613f1e04a3560c3e73835596882a3ff3cfda17dd330a5f5ca51da
+    j1_check.py: 382c6c39f92be59a245279fd181682323d54daadc4f65d0ca1ec695c51f4afa9
+    j2_pointarith.py: 3bd6670d862e87cfa3b5b01aba96dc9323e42d3973e0b4f4145e4472c77ca0c5
+    j2_run.py: 5549fa176c50b101f3fc9a0e289492bc00af183af76e71819788fabdd86f1b23
+    j2_all.py: 0e53035c9a1b9684845cd6f57b0f24949309a87a3144db99072dc65a6f135641
+    j2_controls.py: 00425f6174b9a33f7b99222fa43d19469672adfed15e76cbaa5013962f23b50c
+    j2_split_control.py: 1803bc033fcb2c4dbca3d1f217cb2bd5ac4620820e4537c260c84394087bfa2c
+    j2_cycletype.py: 4bc4fb3377fac67f57b7c87a057425e7ce1fdc8bdd9671c2d7a9d04aa1928d49
+    sweep_indep.py: 8e9134e25304650d326ae9711013696b9f346997c6184817ed78e49b0f18a849
+    sampled_check.py: ac9f207aaf593773100216a38c49e9663c3375141852167ab0b9b721dcf6fefb
+  reproduction: >-
+    cd experiments/EXP-MONO-815525/reviews/validator/verification
+    && python3 derive_indep.py && python3 cmp_tables.py && python3 symdesc.py
+    && python3 j1_check.py && python3 j2_all.py && python3 j2_controls.py
+    && python3 j2_split_control.py && python3 j2_cycletype.py
+    && python3 sweep_indep.py both && python3 sampled_check.py
+    -- stdlib only except that derive_indep.py/cmp_tables.py/symdesc.py write
+    and read indep_tables.json and my_sym_coeffs.json in the working
+    directory, so run them first and in that order. Total ~80 s.
+
+  review_attestation:
+    joints_owned:
+      - J1-PROJECTIVE-VS-AFFINE-ADJUDICATION
+      - J2-DIRECT-VERIFICATION-IN-THE-IRREDUCIBLE-G-REGIME
+    sources_read:
+      - AGENTS.md (roles, core rules, goal-closure section)
+      - agents/validator.md (full)
+      - ledger/handoffs/TASK-20260904-44e988.yaml (full, including coordinator_prior)
+      - experiments/EXP-MONO-815525/specification.yaml (full)
+      - experiments/EXP-MONO-815525/execution_report.yaml (full)
+      - experiments/EXP-MONO-815525/implementation.md (full)
+      - experiments/EXP-MONO-815525/implementation/derive_s4.py (full)
+      - experiments/EXP-MONO-815525/implementation/derivation_checks.json (full)
+      - experiments/EXP-MONO-815525/implementation/Qe_coeff_c0.txt .. c4.txt (full)
+      - experiments/EXP-MONO-815525/implementation/s4_monomials.json (parsed, compared to my own)
+      - experiments/EXP-MONO-815525/implementation/s3_monomials.json (parsed, compared to my own)
+      - experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json (parsed, compared to my own)
+      - experiments/EXP-MONO-815525/implementation/run_census.py (structure grep; then lines 124-200 and 439-478 read in full -- the factorization and classify functions -- AFTER my own recomputation code was written, to check whether their `pattern` field could hide a repeated factor)
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/manifest.yaml (full)
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/command.txt (full)
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/environment.json (full)
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/raw-result.json (full, programmatically)
+      - ledger/proposals/IDEA-20260904-ad63fe.yaml (first ~160 lines: claim (C1)-(C4) and mechanism)
+      - CLAUDE.md (runtime binding, conventions)
+      - experiments/EXP-MONO-cb905d/reviews/validator/validation-report.yaml (head and tail only, read solely for this program's own report-format and attestation conventions; a DIFFERENT experiment, not a sibling report in this round)
+      - "my own scratch and verification scripts, listed under artifact_paths, all written from scratch in this session"
+    order_note: >-
+      My own derivation of what c_4 = 0 means (derive_indep.py) was written
+      and run BEFORE I read run_census.py's factorization code and before I
+      accepted the Executor's framing, per the J1 attack plan's instruction.
+      The Executor's Qe_coeff_c4.txt and implementation.md were read first
+      for the CLAIM under review; the derivation itself was not transcribed
+      from them, and my S_4/S_3/c_k tables were produced by my own engine
+      before comparison.
+    read_sibling_reports: false
+    sibling_report_disclosure: >-
+      experiments/EXP-MONO-815525/reviews/ DID NOT EXIST on disk when I began
+      (`ls` returned "No such file or directory"); I created
+      reviews/validator/ myself. No red-team report, red-team directory, or
+      any other reviewer's output for this round was read, listed, or
+      referenced at any point. The only reviewer report I opened is
+      EXP-MONO-cb905d's validator report, from a different experiment,
+      for YAML format conventions only.
+    blind_rederivation_required: false
+    blind_from_respected: not_applicable
+    commits_made: none
+    ledger_or_status_changes_made: none
+    files_written:
+      - experiments/EXP-MONO-815525/reviews/validator/validation-report.yaml
+      - experiments/EXP-MONO-815525/reviews/validator/verification/*.py
+    verdict: passed

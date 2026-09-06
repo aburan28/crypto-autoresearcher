@@ -1,0 +1,188 @@
+handoff:
+  id: TASK-20260904-f8c4dd
+  from: coordinator
+  to: [validator, red-team]
+  created_at: '2026-09-04'
+  experiment_id: EXP-MONO-98abb2
+  hypothesis_id: H-MONO-1297d7
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+
+  objective: >-
+    Independent review of EXP-MONO-98abb2: on a curve with h_+=1, h_-=1
+    simultaneously (p=103, A=1, B=11), the additive D3 closed form
+    matches the exhaustive census exactly (R1_sum=R2_sum=0) -- but the
+    named multiplicative rival ALSO matches exactly (R1_prod=R2_prod=0),
+    because h_+=h_-=1 is an algebraic coincidence point where the two
+    formulas are identical. This Coordinator has already self-disclosed
+    a design defect in CORR-20260904-e526e0: the specification's own
+    pre-registered claim that the two predictions would differ here was
+    wrong. This review round audits both the run's own correctness and
+    the correction's own characterization.
+
+  review_plan:
+    coordinator_prior: >-
+      Recorded BEFORE either reviewer is dispatched. This Coordinator
+      finds the algebraic claim straightforward to verify by hand:
+      D_sum = h(n_++n_-) and D_prod = h^2(n_++n_-) when h_+=h_-=h, equal
+      iff h^2=h, i.e. h in {0,1} -- so the coincidence at h_+=h_-=1 is a
+      genuine, checkable algebraic fact, not a coding bug, and this
+      Coordinator is confident CORR-20260904-e526e0 correctly identifies
+      the design defect (a pre-registered claim that was never checked
+      against its own search filter's boundary case) and correctly
+      classifies its severity as low (the run is still valid confirming
+      evidence for the additive form; it merely fails to discriminate).
+      This Coordinator's own genuine open question is whether the
+      correction UNDERSTATES anything -- e.g., whether the same kind of
+      oversight could also affect the STILL-STANDING claims in
+      KN-FIND-edd62c or EV-MONO-fae201 (the h_-, h_+=0 slice), which this
+      Coordinator believes are unaffected (those experiments verified
+      their own rivals actually differed on their own tested curves) but
+      has not had an independent reviewer confirm that belief specifically
+      in light of this new pattern.
+    claim_under_review: >-
+      (a) Is the found curve (E: y^2=x^3+x+11 over F_103) correctly
+      constructed, with the reported n_+=58, n_-=42, h_+=1, h_-=1?
+      (b) Is the exhaustive Stage-1 census (161,700 base points;
+      1^4=42436, 2+2=112256, 2+1+1=7008) correct? (c) Is the algebraic
+      claim "D_sum = D_prod whenever h_+=h_-" (and specifically at
+      h_+=h_-=1, both equal n_++n_-=100 here) correct, and does it fully
+      explain why R1_prod=R2_prod=0 here despite D_prod being a genuinely
+      different formula in general? (d) Does CORR-20260904-e526e0
+      correctly and completely characterize the design defect, or does it
+      miss something -- e.g., could EV-MONO-91bca2's or EV-MONO-fae201's
+      own rival comparisons (E[4]-alone; D_quad) have a similar unchecked
+      coincidence this Coordinator has not noticed? (e) Is the correction's
+      own proposed fix (require h_+ != h_- in a follow-up's Stage-0 filter)
+      actually sufficient to guarantee discrimination, or could OTHER
+      coincidence points exist even with h_+ != h_-?
+    joints:
+      - joint: J1-CURVE-CONSTRUCTION-AND-CENSUS-AUDIT
+        assigned_to: validator
+        attack_plan: >-
+          Write your OWN independent point-counting and group-law code
+          (no RC/UC reuse for the curve-construction part) to verify E:
+          y^2=x^3+x+11 over F_103 has Z=3, #E, #E^d, #E[4]=? , #E^d[4]=?,
+          giving h_+=1, h_-=1, n_+=58, n_-=42. Then, reusing ONLY
+          run_uncond_census.py/run_census.py by file path, write your OWN
+          driver to reclassify the full 161,700-point distinct-split
+          stratum -- WITHOUT reading execution_report.yaml or
+          raw-result.json first -- and confirm the five-class counts.
+          Compute D_sum and D_prod from your own numbers and confirm
+          they are both 100 here.
+      - joint: J2-COINCIDENCE-ALGEBRA-AUDIT
+        assigned_to: validator
+        attack_plan: >-
+          Independently verify, symbolically (by hand or by a short
+          script substituting h_+=h_-=h into both formulas), that
+          D_sum(h,h,n_+,n_-) = h(n_++n_-) and
+          D_prod(h,h,n_+,n_-) = h^2(n_++n_-), and that these are equal
+          iff h in {0,1} for n_++n_- > 0. Confirm this is EXACTLY the
+          mechanism producing R1_prod=R2_prod=0 in this run (not some
+          other coincidence or a bug). Then check: are there OTHER
+          (h_+, h_-) pairs with h_+ != h_- where D_sum and D_prod could
+          still coincide (solve h_+ n_- + h_- n_+ = h_+ h_- (n_++n_-) for
+          general h_+ != h_-, treating n_+/n_- as free positive
+          integers) -- i.e. does requiring h_+ != h_- in a follow-up
+          fully close this loophole, or could a future search still land
+          on a coincidence for some (h_+,h_-,n_+,n_-) combination?
+      - joint: J3-CORRECTION-COMPLETENESS-AUDIT
+        assigned_to: red-team
+        attack_plan: >-
+          Read CORR-20260904-e526e0 in full. Assess whether it correctly
+          and completely characterizes the defect and its severity, or
+          whether it understates or overstates something. In particular:
+          (i) does the "scope_of_error" section's claim that
+          EV-MONO-91bca2 (the #E[4]-alone rival) and EV-MONO-fae201 (the
+          D_quad rival) are unaffected actually hold up -- independently
+          check whether either of those rivals could ALSO have
+          coincided with the tested formula at the SPECIFIC curves those
+          experiments happened to land on, by the same kind of algebraic
+          check as J2 (e.g. does "#E[4]-alone" predict a different value
+          than D3 specifically at h_-=1, n_+=48? does D_quad differ from
+          D_lin specifically at h_-=3?); (ii) is "low severity" the right
+          call, or should this be "medium" given it is the SECOND time
+          this exact sub-thread's own search-then-compare design has
+          landed on a curve that happens to sit on a degenerate/coincident
+          point (the first being h_-=1 itself in EXP-MONO-4e6faa, which
+          also failed to discriminate a rival, before EXP-MONO-ee06e2
+          fixed it) -- is there a PATTERN here worth naming explicitly
+          (e.g. "when a Stage-0 filter's own boundary values are also
+          points of formula degeneracy, an unweighted 'first hit' search
+          is likely to land on exactly the least informative point first,
+          since minimal satisfying values are combinatorially the most
+          common")?
+      - joint: J4-FOLLOWUP-DESIGN-SUFFICIENCY-CHECK
+        assigned_to: red-team
+        attack_plan: >-
+          Assess whether requiring "h_+ != h_-" (this correction's own
+          proposed fix) is sufficient, necessary, both, or neither for a
+          future follow-up to guarantee discrimination between D_sum and
+          a multiplicative-style rival. If you find a cleaner or more
+          robust filter condition (e.g. requiring max(h_+,h_-) >= 2
+          regardless of whether they're equal, since J2 may show
+          coincidences require BOTH h_+=h_- specifically), name it
+          explicitly as a recommendation for the next experiment's own
+          specification -- this is advisory, not a spec change you can
+          make yourself.
+    blindness:
+      lifted_for: null
+      rationale: null
+      declaration: >-
+        Both reviewers are launched as fresh subagents with no prior
+        context; each must independently state whether it read the
+        other's output or any sibling review directory before forming its
+        own conclusions.
+    proves_too_much:
+      objects:
+        - >-
+          J2's own symbolic solution for when D_sum=D_prod, applied back
+          to EXP-MONO-4e6faa's own h_-=1, h_+=0 curve and
+          EXP-MONO-ee06e2's own h_-=3, h_+=0 curve, must correctly predict
+          that those two rivals (E[4]-alone; D_quad) EITHER coincide or
+          differ exactly as those experiments' own already-archived
+          residuals show (E[4]-alone differed by 48/-144 on the h_-=1
+          curve; D_quad differed by -312/936 on the h_-=3 curve) -- if
+          J2's general method does not reproduce those already-known,
+          already-verified outcomes, the method itself is suspect and
+          must be fixed before trusting its verdict on J3(i).
+      failure_signature: >-
+        If the reviewer's own algebraic method, applied to the two prior
+        curves, predicts a coincidence where none was observed (or vice
+        versa), the method has a bug and J3(i)'s own verdict cannot be
+        trusted until it is fixed.
+    blind_rederivation:
+      required: true
+      quantity: >-
+        The exact five-class Stage-1 counts for curve p=103, A=1, B=11,
+        independently reproduced from scratch.
+      assigned_to: validator
+      blind_from:
+        - experiments/EXP-MONO-98abb2/execution_report.yaml
+        - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/raw-result.json
+        - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/stdout.log
+
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 0
+
+  constraints:
+    - Do not commit or push. Report only, in your own review directory under experiments/EXP-MONO-98abb2/reviews/{validator,red-team}/.
+    - Do not read the sibling reviewer's directory before forming your own conclusions; disclose whether you did.
+    - Do not change any research status, ledger record, or hypothesis field.
+
+  completion_gate: >-
+    Both validation-report.yaml and red-team-report.yaml filed, each
+    addressing its owned joints explicitly, before the Coordinator
+    composes the evidence and decision records for EXP-MONO-98abb2 and
+    designs a corrected follow-up per J4's own recommendation.
+
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    runtime: claude_code
+    resolved_model_id: claude-sonnet-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []
