@@ -83,7 +83,7 @@ Code specifically.
    recorded `DISSENT` still blocks closure; and closing a goal is still the
    program's strongest claim, now resting on the Coordinator decision and its
    cited evidence alone. Do not retire a goal that met a criterion under
-   `paused`/`closed_at_budget` to understate it. The rule and its enforcement
+   `closed_at_budget`/`cancelled` to understate it. The rule and its enforcement
    are retained in `tools/validate_ledger.py` and restored by setting
    `GOAL_CLOSURE_QUORUM_REQUIRED = True`. See AGENTS.md "Goal closure quorum".
 9. Pursue promising paths in good faith. Do not deliberately abandon,
@@ -94,6 +94,27 @@ Code specifically.
    summaries, rankings, provenance, and ordinary research artifacts for
    independent review; it does not store, infer, or expose private
    chain-of-thought.
+10. **Goals are never paused.** `paused` and `blocked` are not permitted
+   `GOAL-*` statuses; `tools/validate_ledger.py` refuses both by name. A
+   campaign that meets an impediment stays `active` and records it under
+   `impediments` with `what_is_blocked`, `clears_when` and a `recheck`. This is
+   a scheduling rule and relaxes nothing: an impediment is still never negative
+   mathematical evidence, an unservable `review-breakthrough` still may not be
+   downgraded (the CLAIM stays un-promoted, not the campaign parked), and an
+   exhausted budget still requires a Coordinator budget decision before more
+   spending. Terminal retirement is unchanged and remains a deliberate act:
+   `completed`, `closed_at_budget`, `cancelled`. See AGENTS.md "Goals are never
+   paused".
+11. **ECC comes first, and ECC budgets are unlimited.** On user instruction
+   (2026-09-04): every ECC goal has `maximum_batches: null` and
+   `total_wall_clock_seconds: null` (enforced); ECC goals are selected before
+   all others at every selection point; and open ECC ideas — `proposed` with no
+   hypothesis or experiment citing them — are ranked work to be designed into
+   experiments. The ECC area set is declared once in
+   `orchestration/research-priority.yaml`, read via `tools/ecc_priority.py`, and
+   is **never** inferred from an identifier prefix. Unlimited removes the batch
+   ceiling, not the duty to rank; `max_concurrent` stays bounded; designing an
+   experiment is not approving it. See AGENTS.md "ECC comes first".
 
 ## Research direction
 
@@ -169,60 +190,6 @@ evidence rules above apply unchanged.
   open research branch. Bring new `main` changes into a branch by merging them
   (or run `tools/sync_open_branches.py`); do not rebase pushed evidence. Record
   the base commit checked and the merge outcome in the task receipt.
-
-## Reading state: project, never `cat`
-
-**Records are written once and read by every session afterwards, so their size
-is a recurring tax on every future agent, not a one-time cost to the author.**
-The ledger has outgrown reading. `ledger/goals/GOAL-ECDLP-001/goal.yaml` is
-651 top-level keys and ~243k tokens; listing all 102 goal heads is ~904k;
-`/research-status`'s "scan the ledger" is ~18M. Sessions improvised partial
-greps instead, each re-deriving what the last already knew and none
-reproducible.
-
-So read shared state through a projection, and treat the raw file as the
-escape hatch you take deliberately:
-
-```sh
-python3 tools/goal_head.py list --status active   # portfolio      ~3k tokens
-python3 tools/goal_head.py show GOAL-X            # one goal head  ~0.8k
-python3 tools/goal_head.py show GOAL-X --field next_action   # one field, whole
-python3 tools/ledger_summary.py                   # ledger census  ~2k
-python3 tools/goal_portfolio_health.py            # dispatchability per goal
-python3 tools/merge_digest.py --since …           # what changed on main
-```
-
-Every value a projection shortens carries a marker naming the command that
-returns it whole — a projection is never silently partial, and `--raw` still
-gets the entire record when you mean to spend it.
-
-**Nothing is discarded, and the history is now easier to reach than it was.**
-The 1,592 undeclared keys on the goal heads — 83% of goal-record bytes, ~713k
-tokens — are closeout reasoning, superseded next actions, integrity notes and
-terminal notes on old theories. They are research history, not waste, and no
-tool here deletes, rewrites or prunes them. Omitting them from a *resume* view
-is correct; making them unreachable would be data loss by another name, so
-they are addressable by name, date and content:
-
-```sh
-python3 tools/goal_head.py history GOAL-X                  # dated index of its keys
-python3 tools/goal_head.py history --grep 'telescoping'    # across ALL goal heads
-python3 tools/goal_head.py history GOAL-X --key <name>     # one entry, whole
-```
-
-`--grep` is the one that matters: these records are single YAML files up to
-972 KB in which one value spans hundreds of lines, so plain `grep` returns a
-line with no indication of which of 634 keys owns it. Searching here reports
-the owning key and its date, which is what makes a hit usable. `goal_head.py
-audit` shows where the weight sits.
-
-Writing is the other half. Append new narrative to a **new** ledger record or
-a checkpoint shard (`tools/shard_goal.py`), not as a fresh ad-hoc key on a
-goal head — that keeps history greppable as ordinary files instead of buried
-in one record every future reader pays for. Do not retrofit the existing keys:
-goal records are immutable, immutability is served by superseding records
-rather than by editing one file, and the history above is exactly what a
-cleanup would destroy.
 
 ## Concurrency: many agents, many worktrees
 

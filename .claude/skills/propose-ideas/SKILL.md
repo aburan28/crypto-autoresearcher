@@ -36,6 +36,12 @@ step 2).
    distribution heuristics plus re-randomization, and reduction-network
    cascades — and require the `heuristic_assumptions` and `target_complexity`
    fields on every idea.
+   When the question targets a heavily mined ECDLP lane — index calculus,
+   factor-base design, point representations, quotient or coordinate
+   objects — also paste the constraint block from
+   `docs/object-frame-ideation.md` into the handoff, so the generator
+   searches (representation, operation set) pairs against the recorded
+   rigidity results instead of regressing to a known family in new notation.
 4. Verify each returned idea against the schema in
    `agents/idea-generator.md`: claim, mechanism, predictions with metrics,
    minimal test, controls, falsification conditions, named heuristic

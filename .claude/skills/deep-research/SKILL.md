@@ -73,36 +73,12 @@ scan. Read broadly before ranking anything:
   fabrication), `docs/target-result-profile.md` (Parts A-C, the C1-C18
   checklist), `docs/inventor-protocol.md` (all 8 sections),
   `docs/claims-and-verification.md`, `docs/task-lifecycle.md`.
-- **Ledger, the whole tree**: start from `python3 tools/ledger_summary.py`
-  (counts by area and status, recent `next_actions`, open handoffs,
-  experiments in flight — ~2k tokens) and `python3 tools/goal_head.py list`
-  for the goal portfolio, then read individual records only where the
-  synthesis actually turns on them. Reading these directories whole is ~18M
-  tokens and no session can do it; a partial improvised scan silently
-  under-reports, which is worse here than anywhere else because this skill
-  ranks what to work on next. For a goal use `goal_head.py show <GOAL>`
-  rather than the raw head, and pull a checkpoint shard under
-  `ledger/goals/GOAL-*/checkpoints/` only when a specific batch is at issue.
-- **Prior theories and why they were closed** live in the goal heads'
-  appended keys — ~713k tokens of closeout reasoning, superseded next actions
-  and terminal notes that `show` deliberately omits. This skill is the one
-  that most needs them: a lead already tried and refuted must not be re-ranked
-  as fresh, and "premature closure ... is treated as a failure mode symmetric
-  with overclaiming" cuts the other way too. Search them by content before
-  ranking anything, then read the entries that bear on the shortlist:
-
-  ```sh
-  python3 tools/goal_head.py history --grep '<mechanism or object>'
-  python3 tools/goal_head.py history <GOAL> --key <name>   # one entry, whole
-  ```
-
-  Plain `grep` on these files returns lines that name no owner; this reports
-  the owning key and its date. Cite the key you relied on, as you would a
-  record ID.
-  Covered: `ledger/questions/`, `ledger/proposals/` (not yet converted to
-  hypotheses), `ledger/hypotheses/` grouped by status, `ledger/evidence/`,
-  `ledger/decisions/`, `ledger/goals/`, `ledger/handoffs/`.
-  Grep the whole tree recursively
+- **Ledger, the whole tree**: `ledger/questions/`, `ledger/proposals/` (not
+  yet converted to hypotheses), `ledger/hypotheses/` grouped by status,
+  `ledger/evidence/`, `ledger/decisions/` (recent `next_actions`),
+  `ledger/goals/` — including sharded goals under
+  `ledger/goals/GOAL-*/{goal.yaml,checkpoints/*.yaml}` — and
+  `ledger/handoffs/`. Grep the whole tree recursively
   (`grep -rl <term> ledger/ knowledge/`), never just the top-level
   `ledger/*.yaml` files: those are frozen legacy records covering a fraction
   of the area codes, and a top-level-only scan reports a clean "free" for an
@@ -155,6 +131,9 @@ Otherwise dispatch the **idea-generator** subagent, giving it:
   families/objects are already exhausted per the corpus, so it applies
   `docs/inventor-protocol.md` §1's off-limits naming rather than regressing
   to a variant in new notation;
+  for an ECDLP scope, the off-limits list and the object frame are already
+  written down — paste the constraint block from
+  `docs/object-frame-ideation.md` rather than restating them;
 - an explicit instruction to run the lossy-projection test (§2) on every
   candidate before returning it — free, no compute, the cheapest available
   filter for "is this actually new";
