@@ -54,6 +54,12 @@ link to GitHub was not a page. Each `data/records/KN-*.json` carries the
 entry's body (~16 MB across ~8,000 entries, fetched one page at a time);
 YAML records still carry only their parsed form.
 
+The built `index.html` references `app.js?v=<commit>` and `app.css?v=<commit>`.
+Pages lets a browser keep an asset for ten minutes, and a reloaded page
+pointing at a bare `app.js` ran the previous deploy's client against the
+new deploy's data. With the commit in the reference, a deploy always shows
+its own client.
+
 ## Publishing
 
 `.github/workflows/pages.yml` builds and deploys on every push to `main`
@@ -92,9 +98,13 @@ second source of truth and holds nothing of its own.
   decisions → findings). Each count carries the qualifier that keeps it
   honest: how many hypotheses reached a verdict, how many experiments ever
   ran, how much evidence points anywhere.
-- **Findings** — the promoted findings (`knowledge/findings/`), each with
-  its proof status, claim tier and the statement excerpted from its own
-  body; the hypotheses that reached a verdict; every evidence record with a
+- **Findings** — the promoted findings (`knowledge/findings/`), grouped
+  under the research area they are filed in with that area's goals beside
+  the heading, each with its proof status, claim tier, the statement
+  excerpted from its own body and what it says it does *not* claim; a
+  **By area** table of every research area (goals, findings, hypothesis
+  verdicts, evidence polarity, open problems, latest finding); the
+  hypotheses that reached a verdict; every evidence record with a
   direction; the obstructions recorded as measurements; and the open
   problems. This is the board for "what did it find?".
 - **Goals** and a goal page with its record trail: every finding, evidence
@@ -119,7 +129,15 @@ section its author labelled as the finding, and within it a blockquote if
 there is one, which is the corpus convention for "the finding, in one
 sentence" — clipped, never paraphrased. A finding names its goal in about
 half the corpus; the rest are attributed through the evidence or decision
-that promoted them, and the board says "goals named", not "owner".
+that promoted them, and the board says "goals named", not "owner". Each
+finding and open problem is *filed* under one area — its goal's, or the
+first record it cites — so the By-area table counts nothing twice, while
+`areas` keeps every area its citations reach for filtering.
+
+The **not claimed** line on a card is the entry's own boundary section
+("Not claimed", "Non-claims", "Limits", "What this says, and what it does
+NOT say"), because a claim shown without its boundary is the overclaim the
+program's rules exist to prevent.
 
 Evidence `direction` has four values in the schema and about forty spellings
 in the records (`supports_with_caveat`, `weakening_scoped`,
