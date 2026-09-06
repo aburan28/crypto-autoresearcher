@@ -223,8 +223,10 @@ class Finding:
     withdrawn_by: str
     refs: list[str]              # ledger identifiers named in the front matter
     goal_ids: list[str]
-    areas: list[str]
+    areas: list[str]             # every research area its citations reach
+    area: str | None             # the one it is filed under on a board
     excerpt: str
+    non_claim: str = ""          # what the entry says it does NOT establish
     error: str | None = None     # front matter missing or unparseable
 
 
@@ -237,6 +239,9 @@ class OpenProblem:
     status: str
     tags: list[str]
     refs: list[str]
+    goal_ids: list[str]
+    areas: list[str]
+    area: str | None
     statement: str
     current_state: str
     resolution: str
@@ -353,6 +358,13 @@ FINDING_STATEMENT_HEADINGS = (
     "result", "what this says", "summary",
 )
 OPEN_PROBLEM_STATEMENT_HEADINGS = ("statement", "the open question", "question")
+# Where an entry says what it does NOT establish. The corpus's honesty
+# discipline lives in these sections; a card that shows the claim without
+# them shows half the finding.
+NON_CLAIM_HEADINGS = (
+    "not claimed", "non-claim", "non claims", "what this does not", "limits",
+    "scope and limit", "what a successor must", "what this says",
+)
 
 
 def statement_excerpt(body: str, prefer=FINDING_STATEMENT_HEADINGS, limit: int = 700) -> str:
@@ -406,6 +418,30 @@ def _first_heading(body: str) -> str:
 def _ordered_ids(text: str, exclude: str | None = None) -> list[str]:
     """Program identifiers in `text`, first mention first, deduplicated."""
     return [i for i in dict.fromkeys(RECORD_ID_RE.findall(text)) if i != exclude]
+
+
+def _areas_of(ids: list[str]) -> list[str]:
+    """Research areas of the ledger records named. A cited `KN-` entry's
+    second segment is a family (TECH, LIT), not an area, and is skipped."""
+    return sorted({a for a in (id_area(i) for i in ids if id_kind(i) != "KN") if a})
+
+
+def _primary_area(goal_ids: list[str], refs: list[str]) -> str | None:
+    """The one area an entry is filed under on a board.
+
+    Its goal's area when it has a goal; otherwise the area of the first
+    ledger record it cites, in the order the author cited them. An entry can
+    reach several areas through its citations, and `areas` keeps all of
+    them, but a board that showed it under each would count it several
+    times.
+    """
+    for goal_id in goal_ids:
+        if id_area(goal_id):
+            return id_area(goal_id)
+    for ref in refs:
+        if id_kind(ref) != "KN" and id_area(ref):
+            return id_area(ref)
+    return None
 
 
 def _read(path: Path) -> str:
@@ -720,12 +756,10 @@ class ResearchIndex:
                 withdrawn_by=withdrawn_by,
                 refs=refs,
                 goal_ids=goal_ids,
-                # Research areas of the ledger records it names. A cited
-                # KN- entry's second segment is a family (TECH, LIT), not
-                # an area, and must not appear here as one.
-                areas=sorted({a for a in (id_area(r) for r in refs + goal_ids
-                                          if id_kind(r) != "KN") if a}),
+                areas=_areas_of(refs + goal_ids),
+                area=_primary_area(goal_ids, refs),
                 excerpt=statement_excerpt(body),
+                non_claim=section_text(body, NON_CLAIM_HEADINGS, 420),
                 error=error,
             ))
         self.findings.sort(key=lambda f: (_neg_date(f.added), f.record_id))
@@ -754,6 +788,8 @@ class ResearchIndex:
         for path, text, front, body, error in self._knowledge_family("open-problems"):
             record_id = _text(front.get("id")) or path.stem
             head = self.records.get(record_id)
+            refs = _ordered_ids(text[:len(text) - len(body)], exclude=record_id)
+            goal_ids = self._attribute_goals(record_id, refs, text)
             self.open_problems.append(OpenProblem(
                 record_id=record_id,
                 title=(_text(front.get("title"), 600) or _first_heading(body)
@@ -762,7 +798,10 @@ class ResearchIndex:
                 added=_text(front.get("added")),
                 status=_text(front.get("status"), 60),
                 tags=[str(t) for t in _as_list(front.get("tags"))][:24],
-                refs=_ordered_ids(text[:len(text) - len(body)], exclude=record_id),
+                refs=refs,
+                goal_ids=goal_ids,
+                areas=_areas_of(refs + goal_ids),
+                area=_primary_area(goal_ids, refs),
                 statement=statement_excerpt(body, OPEN_PROBLEM_STATEMENT_HEADINGS),
                 current_state=section_text(body, ("current state",)),
                 resolution=section_text(

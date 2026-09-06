@@ -273,7 +273,7 @@ def tiny_repo(tmp_path: Path) -> Path:
     problems.mkdir(parents=True)
     (problems / "KN-OPEN-001.md").write_text(
         "---\nid: KN-OPEN-001\ntype: open_problem\ntitle: Does the toy descent scale?\n"
-        "tags: [toy, scaling]\nstatus: open\nadded: 2026-08-20\n---\n\n"
+        "tags: [toy, scaling]\nstatus: open\nadded: 2026-08-20\ninternal_refs: [H-ECDLP-001]\n---\n\n"
         "## Statement\nWhether the measured descent survives past 32-bit fields.\n\n"
         "## Current state (as reported)\nNo. Only toy instances have been run.\n\n"
         "## What would resolve it\nA medium-tier replication.\n")
@@ -776,6 +776,53 @@ def test_build_emits_the_findings_board(built_site):
     assert {"findings", "counts", "hypothesis_verdicts", "evidence", "evidence_counts",
             "obstructions", "open_problems"} <= set(board)
     assert board["findings"][0]["id"] == "KN-FIND-001"
+
+
+def test_findings_are_filed_under_one_area_and_carry_their_non_claim(tiny_index):
+    finding = next(f for f in tiny_index.findings if f.record_id == "KN-FIND-001")
+    assert finding.area == "ECDLP"                       # its goal's area
+    assert finding.non_claim == "Nothing about cryptographic sizes."
+    bare = next(f for f in tiny_index.findings if f.record_id == "KN-FIND-bare01")
+    assert bare.area is None and bare.non_claim == ""
+
+
+def test_open_problems_are_attributed_through_their_citations(tiny_index):
+    problem = tiny_index.open_problems[0]
+    assert problem.goal_ids == ["GOAL-ECDLP-001"]       # via H-ECDLP-001's goal_id
+    assert problem.area == "ECDLP" and problem.areas == ["ECDLP"]
+
+
+def test_directions_roll_the_program_up_by_area(tiny_index):
+    payload = payloads.findings_payload(tiny_index)
+    rows = {r["area"]: r for r in payload["directions"]}
+    assert payload["directions"][0]["area"] == "ECDLP"   # ECC first
+    ecdlp = rows["ECDLP"]
+    assert ecdlp["ecc"] is True
+    assert [g["id"] for g in ecdlp["goals"]] == ["GOAL-ECDLP-001"] and ecdlp["active_goals"] == 1
+    assert ecdlp["findings"] == 1 and ecdlp["latest_finding"]["id"] == "KN-FIND-001"
+    assert ecdlp["verdicts"] == {"weakened": 1}
+    assert ecdlp["evidence"] == {"supports": 0, "weakens": 1, "mixed": 0, "neutral": 0}
+    assert ecdlp["open_problems"] == 1 and ecdlp["hypotheses"] == 1 and ecdlp["experiments"] == 1
+    assert rows["SHARD"]["findings"] == 0                # a goal with nothing established yet
+    assert rows["SHARD"]["latest_finding"] is None
+    overview = payloads.overview_payload(tiny_index)
+    assert overview["directions"]["total"] == len(payload["directions"])
+    assert overview["directions"]["top"][0]["area"] == "ECDLP"
+
+
+def test_added_within_counts_current_findings_against_the_given_day(tiny_index):
+    from datetime import date
+    assert payloads.added_within(tiny_index, 7, today=date(2026, 9, 5)) == 1   # added 2026-09-02
+    assert payloads.added_within(tiny_index, 1, today=date(2026, 9, 5)) == 0
+
+
+def test_built_shell_versions_its_assets(built_site):
+    """A browser that cached `app.js` must not run the old client against a
+    new deploy's data."""
+    html = (built_site / "index.html").read_text(encoding="utf-8")
+    assert 'src="app.js?v=' in html and 'href="app.css?v=' in html
+    assert ui_build.version_assets('<script src="app.js"></script>', "abc/def0123456789") \
+        == '<script src="app.js?v=abcdef012345"></script>'
 
 
 def test_a_knowledge_entry_page_carries_its_body_and_front_matter(built_site):

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import asdict
+from datetime import date, datetime, timezone
 from typing import Any
 
 from .index import (KIND_LABELS, KIND_ORDER, TERMINAL_GOAL_STATUSES, Finding, OpenProblem,
@@ -146,6 +147,7 @@ def overview_payload(index: ResearchIndex) -> dict[str, Any]:
                        key=lambda r: (_neg_date(r.date), r.record_id))
     findings = [finding_summary(index, f) for f in index.findings]
     current = [f for f in findings if f["status"] == "current"]
+    areas = directions(index, findings, verdicts, evidence)
 
     return {
         # What the program has established, for the reader who asks that
@@ -155,7 +157,17 @@ def overview_payload(index: ResearchIndex) -> dict[str, Any]:
             "current": len(current),
             "by_proof_status": _count(current, "proof_status"),
             "by_claim_tier": _count(current, "claim_tier"),
+            "added_last_7_days": added_within(index, 7),
+            "added_last_30_days": added_within(index, 30),
             "latest": current[:6],
+        },
+        # The program by research area. The full map (`findings.json`) sorts
+        # ECC first; this panel answers "where did the results come from",
+        # so it takes the dozen areas with most established.
+        "directions": {
+            "total": len(areas),
+            "top": sorted(areas, key=lambda r: (
+                -r["findings"], not r["ecc"], -r["active_goals"], r["area"]))[:12],
         },
         "open_problems": {
             "total": len(index.open_problems),
@@ -318,11 +330,86 @@ def finding_summary(index: ResearchIndex, finding: Finding) -> dict[str, Any]:
         "refs": finding.refs,
         "goal_ids": finding.goal_ids,
         "areas": finding.areas,
+        "area": finding.area,
         "ecc": any(a in index.ecc_areas for a in finding.areas),
         "excerpt": finding.excerpt,
+        "non_claim": finding.non_claim,
         "error": finding.error,
         "cited_by": len(index.backlinks.get(finding.record_id, ())),
     }
+
+
+def _iso_date(value: str) -> date | None:
+    try:
+        return date.fromisoformat((value or "")[:10])
+    except ValueError:
+        return None
+
+
+def added_within(index: ResearchIndex, days: int, today: date | None = None) -> int:
+    """Current findings added in the last `days` days, relative to the build
+    (static) or the request (live) -- the same clock `meta.built_at` uses."""
+    today = today or datetime.now(timezone.utc).date()
+    return sum(
+        1 for f in index.findings
+        if f.status == "current" and (added := _iso_date(f.added)) and (today - added).days <= days)
+
+
+def directions(index: ResearchIndex, findings: list[dict], verdicts: list[dict],
+               evidence: list[dict]) -> list[dict[str, Any]]:
+    """One row per research area: what the program has done there.
+
+    The area is the token in the middle of a record identifier
+    (`GOAL-PFDR-…`) and is the closest thing the corpus has to a research
+    direction. Goals, hypotheses, experiments and evidence carry their own;
+    a finding or open problem is filed under one -- its goal's, or the first
+    record it cites -- so nothing is counted twice. ECC areas sort first
+    (CLAUDE.md rule 11), then whatever has established the most.
+    """
+    rows: dict[str, dict[str, Any]] = {}
+
+    def row(area: str) -> dict[str, Any]:
+        if area not in rows:
+            rows[area] = {
+                "area": area, "ecc": area in index.ecc_areas,
+                "goals": [], "active_goals": 0,
+                "findings": 0, "findings_total": 0, "latest_finding": None,
+                "verdicts": {}, "evidence": {"supports": 0, "weakens": 0, "mixed": 0, "neutral": 0},
+                "open_problems": 0, "hypotheses": 0, "experiments": 0,
+            }
+        return rows[area]
+
+    for goal in index.goals:                           # already ECC-first, active-first
+        if goal.area:
+            r = row(goal.area)
+            r["goals"].append({"id": goal.record_id, "title": goal.title, "status": goal.status})
+            r["active_goals"] += goal.status == "active"
+    for f in findings:                                 # newest first
+        if f["area"]:
+            r = row(f["area"])
+            r["findings_total"] += 1
+            if f["status"] == "current":
+                r["findings"] += 1
+                r["latest_finding"] = r["latest_finding"] or {
+                    "id": f["id"], "title": f["title"], "added": f["added"]}
+    for v in verdicts:
+        if v["area"]:
+            counts = row(v["area"])["verdicts"]
+            counts[v["verdict"]] = counts.get(v["verdict"], 0) + 1
+    for e in evidence:
+        if e["area"]:
+            row(e["area"])["evidence"][e["polarity"]] += 1
+    for problem in index.open_problems:
+        if problem.area and problem.status == "open":
+            row(problem.area)["open_problems"] += 1
+    for record in index.by_kind.get("H", []):
+        if record.area:
+            row(record.area)["hypotheses"] += 1
+    for experiment in index.experiments:
+        if experiment.area:
+            row(experiment.area)["experiments"] += 1
+    return sorted(rows.values(), key=lambda r: (
+        not r["ecc"], -r["findings"], -r["active_goals"], -r["hypotheses"], r["area"]))
 
 
 def open_problem_summary(index: ResearchIndex, problem: OpenProblem) -> dict[str, Any]:
@@ -429,8 +516,10 @@ def pipeline_counts(index: ResearchIndex, evidence: list[dict], verdicts: list[d
 def findings_payload(index: ResearchIndex) -> dict[str, Any]:
     findings = [finding_summary(index, f) for f in index.findings]
     evidence = evidence_rows(index)
+    verdicts = hypothesis_verdicts(index)
     return {
         "findings": findings,
+        "directions": directions(index, findings, verdicts, evidence),
         "counts": {
             "findings": len(findings),
             "current": sum(1 for f in findings if f["status"] == "current"),
@@ -439,7 +528,7 @@ def findings_payload(index: ResearchIndex) -> dict[str, Any]:
             "by_claim_tier": _count(findings, "claim_tier"),
             "by_confidence": _count(findings, "confidence"),
         },
-        "hypothesis_verdicts": hypothesis_verdicts(index),
+        "hypothesis_verdicts": verdicts,
         "evidence": evidence,
         "evidence_counts": {
             "polarity": _count(evidence, "polarity"),
